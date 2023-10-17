@@ -138,6 +138,17 @@ impl<'me> FmtVisitor<'me> {
         let blank_lines = "\n".repeat(newline_count);
         self.push_str(&blank_lines);
     }
+
+    pub(crate) fn format_comment(&self, span: Span) -> String {
+        let slice = slice!(self, span.start(), span.end()).trim();
+        let pos = slice.find('/');
+
+        if !slice.is_empty() && pos.is_some() {
+            slice.to_string()
+        } else {
+            String::new()
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -152,6 +163,10 @@ impl Indent {
 
     fn block_unindent(&mut self, config: &Config) {
         self.block_indent -= config.tab_spaces;
+    }
+
+    fn to_string_with_newline(self) -> String {
+        "\n".to_string() + &self.to_string()
     }
 
     #[allow(clippy::inherent_to_string)]

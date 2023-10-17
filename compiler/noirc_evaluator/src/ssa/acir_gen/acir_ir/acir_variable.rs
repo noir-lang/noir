@@ -96,6 +96,8 @@ pub(crate) struct AcirContext {
     /// The vars object is an instance of the `TwoWayMap`, which provides a bidirectional mapping between `AcirVar` and `AcirVarData`.
     vars: HashMap<AcirVar, AcirVarData>,
 
+    constant_witnesses: HashMap<FieldElement, Witness>,
+
     /// An in-memory representation of ACIR.
     ///
     /// This struct will progressively be populated
@@ -227,7 +229,16 @@ impl AcirContext {
     /// Converts an [`AcirVar`] to a [`Witness`]
     fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, InternalError> {
         let expression = self.var_to_expression(var)?;
-        Ok(self.acir_ir.get_or_create_witness(&expression))
+        let witness = if let Some(constant) = expression.to_const() {
+            // Check if a witness has been assigned this value already, if so reuse it.
+            *self
+                .constant_witnesses
+                .entry(constant)
+                .or_insert_with(|| self.acir_ir.get_or_create_witness(&expression))
+        } else {
+            self.acir_ir.get_or_create_witness(&expression)
+        };
+        Ok(witness)
     }
 
     /// Converts an [`AcirVar`] to an [`Expression`]
@@ -281,7 +292,7 @@ impl AcirContext {
             let inverted_var = self.add_data(AcirVarData::Const(constant.inverse()));
 
             // Check that the inverted var is valid.
-            // This check prevents invalid divisons by zero.
+            // This check prevents invalid divisions by zero.
             let should_be_one = self.mul_var(inverted_var, var)?;
             self.maybe_eq_predicate(should_be_one, predicate)?;
 
@@ -300,7 +311,7 @@ impl AcirContext {
         let inverted_var = Self::expect_one_var(results);
 
         // Check that the inverted var is valid.
-        // This check prevents invalid divisons by zero.
+        // This check prevents invalid divisions by zero.
         let should_be_one = self.mul_var(inverted_var, var)?;
         self.maybe_eq_predicate(should_be_one, predicate)?;
 
@@ -560,7 +571,7 @@ impl AcirContext {
     /// Returns the quotient and remainder such that lhs = rhs * quotient + remainder
     /// and |remainder| < |rhs|
     /// and remainder has the same sign than lhs
-    /// Note that this is not the euclidian division, where we have instead remainder < |rhs|
+    /// Note that this is not the euclidean division, where we have instead remainder < |rhs|
     fn signed_division_var(
         &mut self,
         lhs: AcirVar,
@@ -616,7 +627,7 @@ impl AcirContext {
     }
 
     /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}
-    /// In order to do this, we 'simply' perform euclidian division of lhs by 2^{rhs}
+    /// In order to do this, we 'simply' perform euclidean division of lhs by 2^{rhs}
     /// The remainder of the division is then lhs mod 2^{rhs}
     pub(crate) fn truncate_var(
         &mut self,

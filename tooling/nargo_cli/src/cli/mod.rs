@@ -13,6 +13,7 @@ mod backend_cmd;
 mod check_cmd;
 mod codegen_verifier_cmd;
 mod compile_cmd;
+mod debug_cmd;
 mod execute_cmd;
 mod fmt_cmd;
 mod info_cmd;
@@ -61,6 +62,8 @@ enum NargoCommand {
     New(new_cmd::NewCommand),
     Init(init_cmd::InitCommand),
     Execute(execute_cmd::ExecuteCommand),
+    #[command(hide = true)] // Hidden while the feature is being built out
+    Debug(debug_cmd::DebugCommand),
     Prove(prove_cmd::ProveCommand),
     Verify(verify_cmd::VerifyCommand),
     Test(test_cmd::TestCommand),
@@ -95,6 +98,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Init(args) => init_cmd::run(&backend, args, config),
         NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
         NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
+        NargoCommand::Debug(args) => debug_cmd::run(&backend, args, config),
         NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
         NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
         NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),

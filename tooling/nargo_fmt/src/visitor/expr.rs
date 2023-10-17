@@ -1,6 +1,6 @@
 use noirc_frontend::{
     hir::resolution::errors::Span, token::Token, ArrayLiteral, BlockExpression, Expression,
-    ExpressionKind, Literal, Statement,
+    ExpressionKind, Literal, Statement, UnaryOp,
 };
 
 use super::{FmtVisitor, Indent};
@@ -18,7 +18,7 @@ impl FmtVisitor<'_> {
         self.last_position = span.end();
     }
 
-    pub(crate) fn format_expr(&self, Expression { kind, span }: Expression) -> String {
+    pub(crate) fn format_expr(&self, Expression { kind, mut span }: Expression) -> String {
         match kind {
             ExpressionKind::Block(block) => {
                 let mut visitor = self.fork();
@@ -26,7 +26,20 @@ impl FmtVisitor<'_> {
                 visitor.buffer
             }
             ExpressionKind::Prefix(prefix) => {
-                format!("{}{}", prefix.operator, self.format_expr(prefix.rhs))
+                let op = match prefix.operator {
+                    UnaryOp::Minus => "-",
+                    UnaryOp::Not => "!",
+                    UnaryOp::MutableReference => "&mut ",
+                    UnaryOp::Dereference { implicitly_added } => {
+                        if implicitly_added {
+                            ""
+                        } else {
+                            "*"
+                        }
+                    }
+                };
+
+                format!("{op}{}", self.format_expr(prefix.rhs))
             }
             ExpressionKind::Cast(cast) => {
                 format!("{} as {}", self.format_expr(cast.lhs), cast.r#type)
@@ -97,8 +110,63 @@ impl FmtVisitor<'_> {
                     literal.to_string()
                 }
             },
-            ExpressionKind::Parenthesized(subexpr) => {
-                format_parens(self.fork(), false, vec![*subexpr], span)
+            ExpressionKind::Parenthesized(mut sub_expr) => {
+                let remove_nested_parens = self.config.remove_nested_parens;
+
+                let mut leading;
+                let mut trailing;
+
+                loop {
+                    let leading_span = span.start() + 1..sub_expr.span.start();
+                    let trailing_span = sub_expr.span.end()..span.end() - 1;
+
+                    leading = self.format_comment(leading_span.into());
+                    trailing = self.format_comment(trailing_span.into());
+
+                    if let ExpressionKind::Parenthesized(ref sub_sub_expr) = sub_expr.kind {
+                        if remove_nested_parens && leading.is_empty() && trailing.is_empty() {
+                            span = sub_expr.span;
+                            sub_expr = sub_sub_expr.clone();
+                            continue;
+                        }
+                    }
+
+                    break;
+                }
+
+                if !leading.contains("//") && !trailing.contains("//") {
+                    let sub_expr = self.format_expr(*sub_expr);
+                    format!("({leading}{sub_expr}{trailing})")
+                } else {
+                    let mut visitor = self.fork();
+
+                    let indent = visitor.indent.to_string_with_newline();
+                    visitor.indent.block_indent(self.config);
+                    let nested_indent = visitor.indent.to_string_with_newline();
+
+                    let sub_expr = visitor.format_expr(*sub_expr);
+
+                    let mut result = String::new();
+                    result.push('(');
+
+                    if !leading.is_empty() {
+                        result.push_str(&nested_indent);
+                        result.push_str(&leading);
+                    }
+
+                    result.push_str(&nested_indent);
+                    result.push_str(&sub_expr);
+
+                    if !trailing.is_empty() {
+                        result.push_str(&nested_indent);
+                        result.push_str(&trailing);
+                    }
+
+                    result.push_str(&indent);
+                    result.push(')');
+
+                    result
+                }
             }
             // TODO:
             _expr => slice!(self, span.start(), span.end()).to_string(),

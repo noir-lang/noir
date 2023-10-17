@@ -7,7 +7,7 @@ fn main(x: Field, y: Field) {
     assert(a == 0);
     assert(b == 1);
 
-    let (u,v) = if x as u32 < 1 {
+    let (u, v) = if x as u32 < 1 {
         (x, x + 1)
     } else {
         (x + 1, x)

@@ -128,17 +128,17 @@ impl Circuit {
     pub fn write<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
         let buf = bincode::serialize(self).unwrap();
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
-        encoder.write_all(&buf).unwrap();
-        encoder.finish().unwrap();
+        encoder.write_all(&buf)?;
+        encoder.finish()?;
         Ok(())
     }
 
     pub fn read<R: std::io::Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf_d = Vec::new();
-        gz_decoder.read_to_end(&mut buf_d).unwrap();
-        let circuit = bincode::deserialize(&buf_d).unwrap();
-        Ok(circuit)
+        gz_decoder.read_to_end(&mut buf_d)?;
+        bincode::deserialize(&buf_d)
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
     }
 }
 
@@ -199,7 +199,7 @@ mod tests {
 
     use super::{
         opcodes::{BlackBoxFuncCall, FunctionInput},
-        Circuit, Opcode, PublicInputs,
+        Circuit, Compression, Opcode, PublicInputs,
     };
     use crate::native_types::Witness;
     use acir_field::FieldElement;
@@ -262,5 +262,22 @@ mod tests {
 
         let deserialized = serde_json::from_str(&json).unwrap();
         assert_eq!(circuit, deserialized);
+    }
+
+    #[test]
+    fn does_not_panic_on_invalid_circuit() {
+        use std::io::Write;
+
+        let bad_circuit = "I'm not an ACIR circuit".as_bytes();
+
+        // We expect to load circuits as compressed artifacts so we compress the junk circuit.
+        let mut zipped_bad_circuit = Vec::new();
+        let mut encoder =
+            flate2::write::GzEncoder::new(&mut zipped_bad_circuit, Compression::default());
+        encoder.write_all(bad_circuit).unwrap();
+        encoder.finish().unwrap();
+
+        let deserialization_result = Circuit::read(&*zipped_bad_circuit);
+        assert!(deserialization_result.is_err());
     }
 }

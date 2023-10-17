@@ -5,5 +5,4 @@ mod module4;
 mod module5;
 mod module6;
 
-fn main() {
-}
+fn main() {}

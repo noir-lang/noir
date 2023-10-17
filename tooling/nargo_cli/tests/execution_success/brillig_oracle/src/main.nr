@@ -1,7 +1,7 @@
 use dep::std::slice;
 
 // Tests oracle usage in brillig/unconstrained functions
-fn main(x: Field)  {
+fn main(x: Field) {
     get_number_sequence_wrapper(20);
 }
 

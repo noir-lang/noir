@@ -34,6 +34,7 @@ p256 = { version = "0.11.0", features = [
     "arithmetic",
 ] }
 
+
 [features]
 default = ["bn254"]
 bn254 = ["acir/bn254"]
