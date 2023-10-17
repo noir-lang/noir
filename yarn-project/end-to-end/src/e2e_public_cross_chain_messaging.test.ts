@@ -5,8 +5,8 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
 import { TxStatus } from '@aztec/types';
 
-import { CrossChainTestHarness } from './fixtures/cross_chain_test_harness.js';
 import { delay, setup } from './fixtures/utils.js';
+import { CrossChainTestHarness } from './shared/cross_chain_test_harness.js';
 
 describe('e2e_public_cross_chain_messaging', () => {
   let logger: DebugLogger;

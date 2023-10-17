@@ -2,8 +2,8 @@ import { startHttpRpcServer } from '@aztec/aztec-sandbox';
 import { PXE, createDebugLogger } from '@aztec/aztec.js';
 import { createPXERpcServer } from '@aztec/pxe';
 
-import { cliTestSuite } from './canary/cli.js';
 import { setup as e2eSetup } from './fixtures/utils.js';
+import { cliTestSuite } from './shared/cli.js';
 
 const HTTP_PORT = 9009;
 const RPC_URL = `http://localhost:${HTTP_PORT}`;

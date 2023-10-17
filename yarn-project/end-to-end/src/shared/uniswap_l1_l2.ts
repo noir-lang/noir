@@ -7,6 +7,7 @@ import {
   PXE,
   TxStatus,
   computeAuthWitMessageHash,
+  sleep,
 } from '@aztec/aztec.js';
 import { deployL1Contract } from '@aztec/ethereum';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
@@ -15,8 +16,7 @@ import { UniswapContract } from '@aztec/noir-contracts/types';
 import { jest } from '@jest/globals';
 import { Chain, HttpTransport, PublicClient, getContract, parseEther } from 'viem';
 
-import { CrossChainTestHarness } from '../fixtures/cross_chain_test_harness.js';
-import { delay } from '../fixtures/utils.js';
+import { CrossChainTestHarness } from './cross_chain_test_harness.js';
 
 // PSA: This tests works on forked mainnet. There is a dump of the data in `dumpedState` such that we
 // don't need to burn through RPC requests.
@@ -173,7 +173,7 @@ export const uniswapL1L2TestSuite = (
       );
 
       // Wait for the archiver to process the message
-      await delay(5000);
+      await sleep(5000);
 
       // Perform an unrelated transaction on L2 to progress the rollup. Here we mint public tokens.
       await wethCrossChainHarness.mintTokensPublicOnL2(0n);
@@ -273,7 +273,7 @@ export const uniswapL1L2TestSuite = (
       const daiAmountToBridge = BigInt(daiL1BalanceOfPortalAfter - daiL1BalanceOfPortalBeforeSwap);
 
       // Wait for the archiver to process the message
-      await delay(5000);
+      await sleep(5000);
       // send a transfer tx to force through rollup with the message included
       await wethCrossChainHarness.mintTokensPublicOnL2(0n);
 
@@ -319,7 +319,7 @@ export const uniswapL1L2TestSuite = (
       );
 
       // Wait for the archiver to process the message
-      await delay(5000);
+      await sleep(5000);
 
       // Perform an unrelated transaction on L2 to progress the rollup. Here we transfer 0 tokens
       await wethCrossChainHarness.mintTokensPublicOnL2(0n);
@@ -420,7 +420,7 @@ export const uniswapL1L2TestSuite = (
       const daiAmountToBridge = BigInt(daiL1BalanceOfPortalAfter - daiL1BalanceOfPortalBeforeSwap);
 
       // Wait for the archiver to process the message
-      await delay(5000);
+      await sleep(5000);
       // send a transfer tx to force through rollup with the message included
       await wethCrossChainHarness.mintTokensPublicOnL2(0n);
 

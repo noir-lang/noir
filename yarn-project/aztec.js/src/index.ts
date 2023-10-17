@@ -11,28 +11,37 @@ export * from './wallet/index.js';
 // here once the issue is resolved.
 export { AztecAddress, EthAddress, Point, Fr, FunctionSelector, GrumpkinScalar } from '@aztec/circuits.js';
 export {
-  PXE,
   ContractData,
-  ExtendedContractData as ExtendedContractData,
   DeployedContract,
+  ExtendedContractData as ExtendedContractData,
   FunctionCall,
+  GrumpkinPrivateKey,
   L2BlockL2Logs,
   LogFilter,
-  UnencryptedL2Log,
   NodeInfo,
   NotePreimage,
   PackedArguments,
   PublicKey,
-  GrumpkinPrivateKey,
+  PXE,
   SyncStatus,
   Tx,
   TxExecutionRequest,
   TxHash,
   TxReceipt,
   TxStatus,
+  UnencryptedL2Log,
   emptyFunctionCall,
 } from '@aztec/types';
 export { ContractArtifact } from '@aztec/foundation/abi';
 export { createDebugLogger, DebugLogger } from '@aztec/foundation/log';
 export { fileURLToPath } from '@aztec/foundation/url';
 export { sleep } from '@aztec/foundation/sleep';
+export { retry, retryUntil } from '@aztec/foundation/retry';
+export * from '@aztec/foundation/crypto';
+
+export {
+  deployL1Contract,
+  deployL1Contracts,
+  DeployL1Contracts,
+  L1ContractArtifactsForDeployment,
+} from '@aztec/ethereum';

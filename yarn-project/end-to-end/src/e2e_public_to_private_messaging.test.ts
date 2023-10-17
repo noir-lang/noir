@@ -2,8 +2,8 @@ import { AztecAddress } from '@aztec/aztec.js';
 import { EthAddress } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 
-import { CrossChainTestHarness } from './fixtures/cross_chain_test_harness.js';
 import { delay, setup } from './fixtures/utils.js';
+import { CrossChainTestHarness } from './shared/cross_chain_test_harness.js';
 
 describe('e2e_public_to_private_messaging', () => {
   let logger: DebugLogger;

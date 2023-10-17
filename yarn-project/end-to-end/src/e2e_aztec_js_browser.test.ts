@@ -4,7 +4,7 @@ import Koa from 'koa';
 import serve from 'koa-static';
 import path, { dirname } from 'path';
 
-import { browserTestSuite } from './canary/browser.js';
+import { browserTestSuite } from './shared/browser.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

@@ -62,7 +62,7 @@ const [TokenPortalAbi, TokenPortalBytecode] =
 
 #include_code deployL1Contract /yarn-project/ethereum/src/deploy_l1_contracts.ts typescript raw
 
-#include_code deployAndInitializeTokenAndBridgeContracts /yarn-project/end-to-end/src/fixtures/utils.ts typescript raw
+#include_code deployAndInitializeTokenAndBridgeContracts /yarn-project/end-to-end/src/shared/cross_chain_test_harness.ts typescript raw
 
 #include_code delay /yarn-project/end-to-end/src/fixtures/utils.ts typescript raw
 ```
@@ -77,7 +77,7 @@ Now let's create another util file to can handle interaction with these contract
 
 In `cross_chain_test_harness.ts`, add:
 
-#include_code cross_chain_test_harness /yarn-project/end-to-end/src/fixtures/cross_chain_test_harness.ts typescript
+#include_code cross_chain_test_harness /yarn-project/end-to-end/src/shared/cross_chain_test_harness.ts typescript
 
 This is a class that holds all contracts as objects and exposes easy to use helper methods to interact with our contracts.
 
@@ -90,7 +90,7 @@ import { expect, jest} from '@jest/globals'
 import { AccountWallet, AztecAddress, DebugLogger, EthAddress, Fr, computeAuthWitMessageHash, createDebugLogger, createPXEClient, getSandboxAccountsWallets, waitForSandbox } from '@aztec/aztec.js';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
 
-import { CrossChainTestHarness } from './fixtures/cross_chain_test_harness.js';
+import { CrossChainTestHarness } from './shared/cross_chain_test_harness.js';
 import { delay } from './fixtures/utils.js';
 import { mnemonicToAccount } from 'viem/accounts';
 import { createPublicClient, createWalletClient, http } from 'viem';

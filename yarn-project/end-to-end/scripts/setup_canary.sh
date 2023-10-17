@@ -1,8 +1,9 @@
 #!/bin/bash
 set -eu
 
-DIST_TAG=$1
-TARGET_PKGS_FILE=$2
+TARGET_PKGS_FILE=$1
+
+DIST_TAG=canary
 
 # Check if file exists and read it into an array
 if [ -f "$TARGET_PKGS_FILE" ]; then
@@ -26,14 +27,14 @@ cd "$TARGET_DIR"
 
 # Loop through all files and folders in the directory
 for item in $(ls -A); do
-  if [[ "$item" != "index.ts" && "$item" != "canary" ]]; then
+  if [[ "$item" != "index.ts" && "$item" != "shared" ]]; then
     # Remove the item (either file or folder)
     rm -rf "$item"
   fi
 done
 cd ..
 
-echo "Updating external Aztec dependencies to tag $DIST_TAG"
+echo "Updating external Aztec dependencies to tag '$DIST_TAG'"
 JSON_TARGET_PKGS=$(printf '%s\n' "${TARGET_PKGS[@]}" | jq -R -s -c 'split("\n") | map(select(. != ""))')
 
 TMP=$(mktemp)
@@ -54,4 +55,8 @@ jq --arg v $DIST_TAG --argjson target_pkgs "$JSON_TARGET_PKGS" '
   end
 )' package.json >$TMP && mv $TMP package.json
 
-jq ".references = []" tsconfig.json >$TMP && mv $TMP tsconfig.json
+echo "Updating end-to-end tsconfig.json"
+TMP=$(mktemp)
+# Copy canary's tsconfig.json
+cp ../canary/tsconfig.json tsconfig.json
+jq 'del(.references)' tsconfig.json >$TMP && mv $TMP tsconfig.json

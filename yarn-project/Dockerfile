@@ -17,6 +17,9 @@ RUN rm -rf noir-contracts/target
 # Build the entire project.
 RUN yarn tsc -b
 
+# Build aztec.js web artifact
+RUN cd /usr/src/yarn-project/aztec.js && yarn build:web
+
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base
 COPY --from=builder /usr/src/yarn-project /usr/src/yarn-project
 
