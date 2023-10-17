@@ -14,7 +14,7 @@ impl FmtVisitor<'_> {
         let changed_comment_content = changed_comment_content(original, &rewrite);
 
         if changed_comment_content && self.config.error_on_unformatted {
-            panic!("{original:?} vs {rewrite:?}");
+            panic!("not formatted because a comment would be lost: {rewrite:?}");
         }
 
         self.push_rewrite(
