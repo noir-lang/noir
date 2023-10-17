@@ -2635,6 +2635,7 @@ dependencies = [
  "clap",
  "fm",
  "fxhash",
+ "iter-extended",
  "noirc_abi",
  "noirc_errors",
  "noirc_evaluator",
