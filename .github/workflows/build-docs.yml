@@ -13,11 +13,37 @@ on:
       - 'docs/**'
 
 jobs:
-  
-  build_and_deploy:
+  add_label:
+    runs-on: ubuntu-latest
+    outputs:
+      has_label: ${{ steps.check-labels.outputs.result }}
+    steps:
+    - name: Check if label is present
+      id: check-labels
+      uses: actions/github-script@v3
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const labels = context.payload.pull_request.labels.map(label => label.name);
+          return labels.includes('documentation');
+    - name: Add label if not present
+      if: steps.check-labels.outputs.result == 'false'
+      uses: actions/github-script@v3
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          github.issues.addLabels({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            labels: ['documentation']
+          })
+
+  deploy_docs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+    needs: add_label
     if: contains(github.event.pull_request.labels.*.name, 'documentation')
     steps:
       - name: Checkout code
