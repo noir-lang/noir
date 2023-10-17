@@ -25,19 +25,36 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
           const labels = context.payload.pull_request.labels.map(label => label.name);
-          return labels.includes('documentation');
+          if (labels.includes('documentation')) {
+            return true;
+          }
+
+          // Fetch the list of files changed in the PR
+          const { data: files } = await github.pulls.listFiles({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number
+          });
+
+          // Check if any file is within the 'docs' folder
+          const docsChanged = files.some(file => file.filename.startsWith('docs/'));
+          return docsChanged;
+    
     - name: Add label if not present
-      if: steps.check-labels.outputs.result == 'false'
+      if: steps.check-labels.outputs.result == 'true'
       uses: actions/github-script@v3
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
-          github.issues.addLabels({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-            labels: ['documentation']
-          })
+          const labels = context.payload.pull_request.labels.map(label => label.name);
+          if (!labels.includes('documentation')) {
+            github.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['documentation']
+            })
+          }
 
   deploy_docs:
     runs-on: ubuntu-latest
