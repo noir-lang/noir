@@ -577,8 +577,15 @@ impl BrilligContext {
             RegisterOrMemory::RegisterIndex(register_index) => {
                 self.load_instruction(register_index, variable_pointer);
             }
-            RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => {
+            RegisterOrMemory::HeapArray(HeapArray { pointer, size: _, reference_count }) => {
                 self.load_instruction(pointer, variable_pointer);
+
+                let rc_pointer = self.allocate_register();
+                self.mov_instruction(rc_pointer, variable_pointer);
+                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 1_usize);
+
+                self.load_instruction(reference_count, rc_pointer);
+                self.deallocate_register(rc_pointer);
             }
             RegisterOrMemory::HeapVector(HeapVector { pointer, size, reference_count: _ }) => {
                 self.load_instruction(pointer, variable_pointer);
@@ -620,13 +627,18 @@ impl BrilligContext {
                 self.store_instruction(size_pointer, size_constant);
                 self.deallocate_register(size_constant);
             }
-            RegisterOrMemory::HeapArray(HeapArray { pointer, size, reference_count: _ }) => {
+            RegisterOrMemory::HeapArray(HeapArray { pointer, size, reference_count }) => {
                 self.store_instruction(variable_pointer, pointer);
                 let size_constant = self.make_constant(Value::from(size));
                 self.store_instruction(size_pointer, size_constant);
                 self.deallocate_register(size_constant);
+
+                let rc_pointer = self.allocate_register();
+                self.mov_instruction(rc_pointer, variable_pointer);
+                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 1_usize);
+                self.deallocate_register(rc_pointer);
             }
-            RegisterOrMemory::HeapVector(HeapVector { pointer, size, reference_count: _ }) => {
+            RegisterOrMemory::HeapVector(HeapVector { pointer, size, reference_count }) => {
                 self.store_instruction(variable_pointer, pointer);
                 self.store_instruction(size_pointer, size);
             }
@@ -1032,10 +1044,10 @@ pub(crate) fn extract_registers(variable: RegisterOrMemory) -> Vec<RegisterIndex
     match variable {
         RegisterOrMemory::RegisterIndex(register_index) => vec![register_index],
         RegisterOrMemory::HeapArray(array) => {
-            vec![array.pointer]
+            vec![array.pointer, array.reference_count]
         }
         RegisterOrMemory::HeapVector(vector) => {
-            vec![vector.pointer, vector.size]
+            vec![vector.pointer, vector.size, vector.reference_count]
         }
     }
 }
