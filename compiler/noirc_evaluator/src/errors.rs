@@ -112,7 +112,7 @@ impl RuntimeError {
                 let message = self.to_string();
                 let location =
                 call_stack.back().expect("Expected RuntimeError to have a location");
-               Diagnostic::simple_error(message, "constant value".to_string(), location.span)
+               Diagnostic::simple_warning(message, "constant value".to_string(), location.span)
             }
             RuntimeError::InternalError(cause) => {
                 Diagnostic::simple_error(

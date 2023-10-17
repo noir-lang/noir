@@ -847,8 +847,9 @@ impl AcirContext {
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
-    pub(crate) fn finish(mut self, inputs: Vec<u32>) -> GeneratedAcir {
+    pub(crate) fn finish(mut self, inputs: Vec<u32>, warnings: Vec<RuntimeError>) -> GeneratedAcir {
         self.acir_ir.input_witnesses = vecmap(inputs, Witness);
+        self.acir_ir.warnings = warnings;
         self.acir_ir
     }
 

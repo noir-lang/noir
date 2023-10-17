@@ -53,6 +53,8 @@ pub(crate) struct GeneratedAcir {
 
     /// Correspondence between an opcode index and the error message associated with it.
     pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
+
+    pub(crate) warnings: Vec<RuntimeError>,
 }
 
 impl GeneratedAcir {
