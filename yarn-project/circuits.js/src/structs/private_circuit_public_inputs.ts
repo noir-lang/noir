@@ -5,6 +5,7 @@ import {
   MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
+  MAX_PENDING_READ_REQUESTS_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
@@ -39,6 +40,10 @@ export class PrivateCircuitPublicInputs {
      * Read requests created by the corresponding function call.
      */
     public readRequests: Tuple<Fr, typeof MAX_READ_REQUESTS_PER_CALL>,
+    /**
+     * Pending read requests created by the corresponding function call.
+     */
+    public pendingReadRequests: Tuple<Fr, typeof MAX_PENDING_READ_REQUESTS_PER_CALL>,
     /**
      * New commitments created by the corresponding function call.
      */
@@ -119,6 +124,7 @@ export class PrivateCircuitPublicInputs {
       Fr.ZERO,
       makeTuple(RETURN_VALUES_LENGTH, Fr.zero),
       makeTuple(MAX_READ_REQUESTS_PER_CALL, Fr.zero),
+      makeTuple(MAX_PENDING_READ_REQUESTS_PER_CALL, Fr.zero),
       makeTuple(MAX_NEW_COMMITMENTS_PER_CALL, Fr.zero),
       makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, Fr.zero),
       makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, Fr.zero),
@@ -147,6 +153,7 @@ export class PrivateCircuitPublicInputs {
       fields.argsHash,
       fields.returnValues,
       fields.readRequests,
+      fields.pendingReadRequests,
       fields.newCommitments,
       fields.newNullifiers,
       fields.nullifiedCommitments,

@@ -7,6 +7,7 @@ import {
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
+  MAX_PENDING_READ_REQUESTS_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_DATA_READS_PER_TX,
@@ -288,6 +289,10 @@ export class CombinedAccumulatedData {
      */
     public readRequests: Tuple<Fr, typeof MAX_READ_REQUESTS_PER_TX>,
     /**
+     * All the read requests made in this transaction.
+     */
+    public pendingReadRequests: Tuple<Fr, typeof MAX_PENDING_READ_REQUESTS_PER_TX>,
+    /**
      * The new commitments made in this transaction.
      */
     public newCommitments: Tuple<Fr, typeof MAX_NEW_COMMITMENTS_PER_TX>,
@@ -352,6 +357,7 @@ export class CombinedAccumulatedData {
     return serializeToBuffer(
       this.aggregationObject,
       this.readRequests,
+      this.pendingReadRequests,
       this.newCommitments,
       this.newNullifiers,
       this.nullifiedCommitments,
@@ -383,6 +389,7 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       reader.readObject(AggregationObject),
       reader.readArray(MAX_READ_REQUESTS_PER_TX, Fr),
+      reader.readArray(MAX_PENDING_READ_REQUESTS_PER_TX, Fr),
       reader.readArray(MAX_NEW_COMMITMENTS_PER_TX, Fr),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
@@ -404,6 +411,7 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       finalData.aggregationObject,
       makeTuple(MAX_READ_REQUESTS_PER_TX, Fr.zero),
+      makeTuple(MAX_PENDING_READ_REQUESTS_PER_TX, Fr.zero),
       finalData.newCommitments,
       finalData.newNullifiers,
       finalData.nullifiedCommitments,
@@ -434,6 +442,7 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       AggregationObject.makeFake(),
       makeTuple(MAX_READ_REQUESTS_PER_TX, Fr.zero),
+      makeTuple(MAX_PENDING_READ_REQUESTS_PER_TX, Fr.zero),
       makeTuple(MAX_NEW_COMMITMENTS_PER_TX, Fr.zero),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),

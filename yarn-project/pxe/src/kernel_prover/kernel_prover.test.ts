@@ -64,6 +64,7 @@ describe('Kernel Prover', () => {
       readRequestPartialWitnesses: Array.from({ length: MAX_READ_REQUESTS_PER_CALL }, () =>
         ReadRequestMembershipWitness.emptyTransient(),
       ),
+      // pendingReadRequests: Array.from({ length: MAX_PENDING_READ_REQUESTS_PER_CALL }, () => Fr.ZERO),
       returnValues: [],
       acir: Buffer.alloc(0),
       partialWitness: new Map(),

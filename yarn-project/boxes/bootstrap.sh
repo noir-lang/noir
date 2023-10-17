@@ -17,6 +17,8 @@ for dir in *; do
     
     # Run ts-node command to use latest "compile" code
     ts-node --esm src/bin/index.ts compile "${original_path}/${dir}/src/contracts" --outdir "${original_path}/${dir}/src/artifacts" --typescript "${original_path}/${dir}/src/artifacts"
+
+    yarn formatting:fix
     
     # Change back to the original directory
     cd "${original_path}"

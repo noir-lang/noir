@@ -8,6 +8,7 @@ use crate::constants_gen::{
     MAX_PUBLIC_DATA_READS_PER_CALL,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
     MAX_READ_REQUESTS_PER_CALL,
+    MAX_PENDING_READ_REQUESTS_PER_CALL,
     NUM_FIELDS_PER_SHA256,
     RETURN_VALUES_LENGTH,
 };
@@ -58,6 +59,7 @@ struct PrivateContext {
     return_values : BoundedVec<Field, RETURN_VALUES_LENGTH>,
 
     read_requests: BoundedVec<Field, MAX_READ_REQUESTS_PER_CALL>,
+    pending_read_requests: BoundedVec<Field, MAX_PENDING_READ_REQUESTS_PER_CALL>,
 
     new_commitments: BoundedVec<Field, MAX_NEW_COMMITMENTS_PER_CALL>,
     new_nullifiers: BoundedVec<Field, MAX_NEW_NULLIFIERS_PER_CALL>,
@@ -84,6 +86,7 @@ impl PrivateContext {
             return_values: BoundedVec::new(0),
 
             read_requests: BoundedVec::new(0),
+            pending_read_requests: BoundedVec::new(0),
 
             new_commitments: BoundedVec::new(0),
             new_nullifiers: BoundedVec::new(0),
@@ -137,6 +140,7 @@ impl PrivateContext {
             args_hash: self.args_hash,
             return_values: self.return_values.storage,
             read_requests: self.read_requests.storage,
+            pending_read_requests: self.pending_read_requests.storage,
             new_commitments: self.new_commitments.storage,
             new_nullifiers: self.new_nullifiers.storage,
             nullified_commitments: self.nullified_commitments.storage,
@@ -157,6 +161,10 @@ impl PrivateContext {
 
     pub fn push_read_request(&mut self, read_request: Field) {
         self.read_requests.push(read_request);
+    }
+
+    pub fn push_pending_read_request(&mut self, pending_read_request: Field) {
+        self.pending_read_requests.push(pending_read_request);
     }
 
     pub fn push_new_note_hash(&mut self, note_hash: Field) {
@@ -265,37 +273,38 @@ impl PrivateContext {
                 args_hash: fields[12],
                 return_values: arr_copy_slice(fields, [0; RETURN_VALUES_LENGTH], 13),
                 read_requests: arr_copy_slice(fields, [0; MAX_READ_REQUESTS_PER_CALL], 17),
-                new_commitments: arr_copy_slice(fields, [0; MAX_NEW_COMMITMENTS_PER_CALL], 49),
-                new_nullifiers: arr_copy_slice(fields, [0; MAX_NEW_NULLIFIERS_PER_CALL], 65),
-                nullified_commitments: arr_copy_slice(fields, [0; MAX_NEW_NULLIFIERS_PER_CALL], 81),
-                private_call_stack: arr_copy_slice(fields, [0; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL], 97),
-                public_call_stack: arr_copy_slice(fields, [0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL], 101),
-                new_l2_to_l1_msgs: arr_copy_slice(fields, [0; MAX_NEW_L2_TO_L1_MSGS_PER_CALL], 105),
-                encrypted_logs_hash: arr_copy_slice(fields, [0; NUM_FIELDS_PER_SHA256], 107),
-                unencrypted_logs_hash: arr_copy_slice(fields, [0; NUM_FIELDS_PER_SHA256], 109),
-                encrypted_log_preimages_length: fields[111],
-                unencrypted_log_preimages_length: fields[112],
+                pending_read_requests: arr_copy_slice(fields, [0; MAX_READ_REQUESTS_PER_CALL], 49),
+                new_commitments: arr_copy_slice(fields, [0; MAX_NEW_COMMITMENTS_PER_CALL], 81),
+                new_nullifiers: arr_copy_slice(fields, [0; MAX_NEW_NULLIFIERS_PER_CALL], 97),
+                nullified_commitments: arr_copy_slice(fields, [0; MAX_NEW_NULLIFIERS_PER_CALL], 113),
+                private_call_stack: arr_copy_slice(fields, [0; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL], 129),
+                public_call_stack: arr_copy_slice(fields, [0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL], 133),
+                new_l2_to_l1_msgs: arr_copy_slice(fields, [0; MAX_NEW_L2_TO_L1_MSGS_PER_CALL], 137),
+                encrypted_logs_hash: arr_copy_slice(fields, [0; NUM_FIELDS_PER_SHA256], 139),
+                unencrypted_logs_hash: arr_copy_slice(fields, [0; NUM_FIELDS_PER_SHA256], 141),
+                encrypted_log_preimages_length: fields[143],
+                unencrypted_log_preimages_length: fields[144],
                 block_data: HistoricBlockData {
                     // Must match order in `private_circuit_public_inputs.hpp`
-                    private_data_tree_root : fields[113],
-                    nullifier_tree_root : fields[114],
-                    contract_tree_root : fields[115],
-                    l1_to_l2_messages_tree_root : fields[116],
-                    blocks_tree_root : fields[117],
-                    public_data_tree_root: fields[118],
-                    global_variables_hash: fields[119],
+                    private_data_tree_root : fields[145],
+                    nullifier_tree_root : fields[146],
+                    contract_tree_root : fields[147],
+                    l1_to_l2_messages_tree_root : fields[148],
+                    blocks_tree_root : fields[149],
+                    public_data_tree_root: fields[150],
+                    global_variables_hash: fields[151],
                 },
                 contract_deployment_data: ContractDeploymentData {
-                    deployer_public_key: Point::new(fields[120], fields[121]),
-                    constructor_vk_hash : fields[122],
-                    function_tree_root : fields[123],
-                    contract_address_salt : fields[124],
-                    portal_contract_address : fields[125],
+                    deployer_public_key: Point::new(fields[152], fields[153]),
+                    constructor_vk_hash : fields[154],
+                    function_tree_root : fields[155],
+                    contract_address_salt : fields[156],
+                    portal_contract_address : fields[157],
                 },
-                chain_id: fields[126],
-                version: fields[127],
+                chain_id: fields[158],
+                version: fields[159],
             },
-            is_execution_request: fields[128] as bool,
+            is_execution_request: fields[160] as bool,
         };
         assert(contract_address == item.contract_address);
         assert(function_selector == item.function_data.function_selector);
