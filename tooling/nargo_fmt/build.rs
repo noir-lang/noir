@@ -42,9 +42,7 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
 
         let config = input_source
             .lines()
-            .by_ref()
-            .take_while(|line| line.starts_with("//@"))
-            .map(|line| &line[3..])
+            .flat_map(|line| line.strip_prefix("//@"))
             .collect::<Vec<_>>()
             .join("\n");
 
