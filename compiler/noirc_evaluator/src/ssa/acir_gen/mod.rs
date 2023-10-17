@@ -505,7 +505,7 @@ impl Context {
                     AcirValue::Var(acir_var, typ) => (acir_var, typ),
                     _ => unreachable!("NOT is only applied to numerics"),
                 };
-                let result_acir_var = self.acir_context.not_var(acir_var, typ)?;
+                let result_acir_var = self.acir_context.not_var(acir_var, &typ)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {

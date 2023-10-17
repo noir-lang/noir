@@ -401,15 +401,14 @@ impl AcirContext {
             self.sub_var(sum, mul)
         } else {
             // Implement OR in terms of AND
-            // max - ((max - a) AND (max -b))
-            // Subtracting from max flips the bits, so this is effectively:
-            // (NOT a) NAND (NOT b)
-            let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
-            let a = self.sub_var(max, lhs)?;
-            let b = self.sub_var(max, rhs)?;
-            let inputs = vec![AcirValue::Var(a, typ.clone()), AcirValue::Var(b, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
-            self.sub_var(max, outputs[0])
+            //
+            // A || B == !(!A && !B)
+            let not_a = self.not_var(lhs, &typ)?;
+            let not_b = self.not_var(rhs, &typ)?;
+            let inputs =
+                vec![AcirValue::Var(not_a, typ.clone()), AcirValue::Var(not_b, typ.clone())];
+            let not_a_and_not_b = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?.remove(0);
+            self.not_var(not_a_and_not_b, &typ)
         }
     }
 
@@ -540,7 +539,7 @@ impl AcirContext {
     }
 
     /// Adds a new variable that is constrained to be the logical NOT of `x`.
-    pub(crate) fn not_var(&mut self, x: AcirVar, typ: AcirType) -> Result<AcirVar, RuntimeError> {
+    pub(crate) fn not_var(&mut self, x: AcirVar, typ: &AcirType) -> Result<AcirVar, RuntimeError> {
         let bit_size = typ.bit_size();
         // Subtracting from max flips the bits
         let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
