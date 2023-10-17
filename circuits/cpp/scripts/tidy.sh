@@ -21,6 +21,9 @@ FIX=$1
 # END ARGS
 ###############################################################################
 
+cmake --preset default
+# Ensure we have downloaded msgpack headers
+cmake --build --preset default --target msgpack-c
 # CMake build dir which should contain `compile_commands.json`
 BUILD_DIR=build
 echo "*************************************************************************"

@@ -55,6 +55,10 @@ function(barretenberg_module MODULE_NAME)
             ${ARGN}
             ${TBB_IMPORTED_TARGETS}
         )
+
+        # enable msgpack downloading via dependency (solves race condition)
+        add_dependencies(${MODULE_NAME} msgpack-c)
+        add_dependencies(${MODULE_NAME}_objects msgpack-c)
         list(APPEND lib_targets ${MODULE_NAME})
 
         set(MODULE_LINK_NAME ${MODULE_NAME})
@@ -117,6 +121,9 @@ function(barretenberg_module MODULE_NAME)
             ${TBB_IMPORTED_TARGETS}
         )
 
+        # enable msgpack downloading via dependency (solves race condition)
+        add_dependencies(${MODULE_NAME}_test_objects msgpack-c)
+        add_dependencies(${MODULE_NAME}_tests msgpack-c)
         if(NOT WASM AND NOT CI)
             # If collecting coverage data, set profile
             # For some reason processor affinity doesn't work, so the developer has to set it manually anyway
@@ -219,6 +226,9 @@ function(barretenberg_module MODULE_NAME)
             ${TBB_IMPORTED_TARGETS}
         )
 
+        # enable msgpack downloading via dependency (solves race condition)
+        add_dependencies(${MODULE_NAME}_bench_objects msgpack-c)
+        add_dependencies(${MODULE_NAME}_bench msgpack-c)
         add_custom_target(
             run_${MODULE_NAME}_bench
             COMMAND ${MODULE_NAME}_bench
