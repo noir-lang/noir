@@ -40,6 +40,19 @@ fn foo(x : Field, y : pub Field) -> Field {
 Note that a `return` keyword is unneeded in this case - the last expression in a function's body is
 returned.
 
+## Main function
+
+If you're writing a binary, the `main` function is the starting point of your program. You can pass all types of expressions to it, as long as they have a fixed size at compile time:
+
+```rust
+fn main(x : Field) // this is fine: passing a Field
+fn main(x : (Field, bool)) // this is also fine: passing a (Field, bool) tuple
+fn main(x : Vec<Field>) // can't compile, has variable size
+fn main(x : str<5>) // this is fine, as long as you pass a string of size 5
+```
+
+Keep in mind [tests](../nargo/02_testing.md) don't differentiate between `main` and any other function. In the snippet above, the `Vec` example passes tests, but won't compile or prove.
+
 ## Call Expressions
 
 Calling a function in Noir is executed by using the function name and passing in the necessary
