@@ -110,7 +110,6 @@ impl Backend {
 
         WriteVkCommand {
             crs_path: self.crs_directory(),
-            is_recursive,
             bytecode_path,
             vk_path_output: vk_path.clone(),
         }

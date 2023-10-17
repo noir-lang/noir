@@ -7,7 +7,6 @@ use crate::BackendError;
 /// to write a verification key to a file
 pub(crate) struct WriteVkCommand {
     pub(crate) crs_path: PathBuf,
-    pub(crate) is_recursive: bool,
     pub(crate) bytecode_path: PathBuf,
     pub(crate) vk_path_output: PathBuf,
 }
@@ -24,10 +23,6 @@ impl WriteVkCommand {
             .arg(self.bytecode_path)
             .arg("-o")
             .arg(self.vk_path_output);
-
-        if self.is_recursive {
-            command.arg("-r");
-        }
 
         let output = command.output()?;
         if output.status.success() {
@@ -53,8 +48,7 @@ fn write_vk_command() -> Result<(), BackendError> {
 
     std::fs::File::create(&bytecode_path).expect("file should be created");
 
-    let write_vk_command =
-        WriteVkCommand { bytecode_path, crs_path, is_recursive: false, vk_path_output };
+    let write_vk_command = WriteVkCommand { bytecode_path, crs_path, vk_path_output };
 
     write_vk_command.run(backend.binary_path())?;
     drop(temp_directory);
