@@ -619,18 +619,6 @@ jobs:
           command: cond_run_script end-to-end ./scripts/run_tests_local e2e_token_contract.test.ts
           environment: { DEBUG: "aztec:*" }
 
-  e2e-private-airdrop:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_private_airdrop.test.ts
-          environment: { DEBUG: "aztec:*" }
-
   e2e-sandbox-example:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -641,18 +629,6 @@ jobs:
       - run:
           name: "Test"
           command: cond_run_script end-to-end ./scripts/run_tests_local e2e_sandbox_example.test.ts ./scripts/docker-compose-e2e-sandbox.yml
-          environment: { DEBUG: "aztec:*" }
-
-  e2e-multi-transfer-contract:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_multi_transfer.test.ts
           environment: { DEBUG: "aztec:*" }
 
   e2e-block-building:
@@ -809,18 +785,6 @@ jobs:
       - run:
           name: "Test"
           command: cond_run_script end-to-end ./scripts/run_tests_local integration_l1_publisher.test.ts
-          environment: { DEBUG: "aztec:*" }
-
-  e2e-public-token-contract:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_public_token_contract.test.ts
           environment: { DEBUG: "aztec:*" }
 
   e2e-cli:
@@ -1342,14 +1306,11 @@ workflows:
       - e2e-deploy-contract: *e2e_test
       - e2e-lending-contract: *e2e_test
       - e2e-token-contract: *e2e_test
-      - e2e-private-airdrop: *e2e_test
       - e2e-sandbox-example: *e2e_test
-      - e2e-multi-transfer-contract: *e2e_test
       - e2e-block-building: *e2e_test
       - e2e-nested-contract: *e2e_test
       - e2e-non-contract-account: *e2e_test
       - e2e-multiple-accounts-1-enc-key: *e2e_test
-      - e2e-public-token-contract: *e2e_test
       - e2e-cli: *e2e_test
       - e2e-cross-chain-messaging: *e2e_test
       - e2e-public-cross-chain-messaging: *e2e_test
@@ -1380,14 +1341,11 @@ workflows:
             - e2e-deploy-contract
             - e2e-lending-contract
             - e2e-token-contract
-            - e2e-private-airdrop
             - e2e-sandbox-example
-            - e2e-multi-transfer-contract
             - e2e-block-building
             - e2e-nested-contract
             - e2e-non-contract-account
             - e2e-multiple-accounts-1-enc-key
-            - e2e-public-token-contract
             - e2e-cli
             - e2e-cross-chain-messaging
             - e2e-public-cross-chain-messaging

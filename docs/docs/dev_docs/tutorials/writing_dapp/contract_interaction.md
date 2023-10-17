@@ -21,7 +21,7 @@ import { readFileSync } from "fs";
 import TokenContractArtifact from "../contracts/token/target/Token.json" assert { type: "json" };
 ```
 
-And then add the following code for initialising the `Contract` instances:
+And then add the following code for initializing the `Contract` instances:
 
 #include_code get-tokens yarn-project/end-to-end/src/sample-dapp/contracts.mjs javascript
 
@@ -93,15 +93,16 @@ At the time of this writing, there are no events emitted when new private notes 
 
 ## Working with public state
 
-While they are [fundamentally differently](../../../concepts/foundation/state_model.md), the API for working with private and public functions and state from `aztec.js` is equivalent. To query the balance in public tokens for our user accounts, we can just call the `publicBalanceOf` view function in the contract:
+While they are [fundamentally differently](../../../concepts/foundation/state_model.md), the API for working with private and public functions and state from `aztec.js` is equivalent. To query the balance in public tokens for our user accounts, we can just call the `balance_of_public` view function in the contract:
 
 #include_code showPublicBalances yarn-project/end-to-end/src/sample-dapp/index.mjs javascript
 
 :::info
-Since this is a public token contract we are working with, we can now query the balance for any address, not just those registered in our local PXE. We can also send funds to addresses for which we don't know their [public encryption key](../../../concepts/foundation/accounts/keys.md#encryption-keys).
+Since this we are working with pubic balances, we can now query the balance for any address, not just those registered in our local PXE. We can also send funds to addresses for which we don't know their [public encryption key](../../../concepts/foundation/accounts/keys.md#encryption-keys).
 :::
 
-Here, since the public token contract does not mint any initial funds upon deployment, the balances for all of our user's accounts will be zero. But we can send a transaction to mint tokens to change this, using very similar code to the one for sending private funds:
+Here, since the token contract does not mint any initial funds upon deployment, the balances for all of our user's accounts will be zero.
+But we can send a transaction to mint tokens, using very similar code to the one for sending private funds:
 
 #include_code mintPublicFunds yarn-project/end-to-end/src/sample-dapp/index.mjs javascript
 
@@ -120,18 +121,6 @@ Balance of 0x0c8a6673d7676cc80aaebe7fa7504cf51daa90ba906861bfad70a58a98bf5a7d: 1
 Balance of 0x226f8087792beff8d5009eb94e65d2a4a505b70baf4a9f28d33c8d620b0ba972: 0
 Balance of 0x0e1f60e8566e2c6d32378bdcadb7c63696e853281be798c107266b8c3a88ea9b: 0
 ```
-
-Public functions can emit [unencrypted public logs](../../contracts/syntax/events.md#unencrypted-events), which we can query via the PXE interface. In particular, the public token contract emits a generic `Coins minted` whenever the `mint` method is called:
-
-#include_code unencrypted_log yarn-project/noir-contracts/src/contracts/public_token_contract/src/main.nr rust
-
-We can extend our code by querying the logs emitted on the last block when the minting transaction is mined:
-
-#include_code showLogs yarn-project/end-to-end/src/sample-dapp/index.mjs javascript
-
-:::info
-At the time of this writing, there is no event-based mechanism in the `aztec.js` library to subscribe to events. The only option to consume them is to poll on every new block detected. This will change in a future version.
-:::
 
 ## Next steps
 

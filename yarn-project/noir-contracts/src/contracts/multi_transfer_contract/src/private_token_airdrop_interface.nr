@@ -1,1 +1,0 @@
-../../private_token_airdrop_contract/src/interface.nr

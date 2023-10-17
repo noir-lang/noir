@@ -1,5 +1,9 @@
 // A contract used for testing a random hodgepodge of small features from simulator and end-to-end tests.
 contract Test {
+    // docs:start:unencrypted_import
+    use dep::aztec::log::emit_unencrypted_log;
+    // docs:end:unencrypted_import
+
     use dep::aztec::{
         abi,
         abi::PrivateContextInputs,
@@ -9,7 +13,6 @@ contract Test {
             context::get_portal_address,
             rand::rand
         },
-        log::emit_unencrypted_log,
         types::vec::BoundedVec,
         constants_gen::EMPTY_NULLIFIED_COMMITMENT,
     };
@@ -21,7 +24,9 @@ contract Test {
     }
 
     #[aztec(private)]
+    // docs:start:empty-constructor
     fn constructor() {}
+    // docs:end:empty-constructor
 
     #[aztec(private)]
     fn getPublicKey(
@@ -128,15 +133,15 @@ contract Test {
     }
     // docs:end:is-time-equal
 
-    // docs:start:emit_unencrypted_log
     #[aztec(public)]
     fn emit_unencrypted(
         value: Field
     ) -> Field {
+        // docs:start:emit_unencrypted
         emit_unencrypted_log(&mut context, value);
+        // docs:end:emit_unencrypted
         0
     }
-    // docs:end:emit_unencrypted_log
 
     #[aztec(public)]
     fn consume_mint_public_message(

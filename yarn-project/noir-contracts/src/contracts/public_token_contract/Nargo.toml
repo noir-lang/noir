@@ -1,8 +1,0 @@
-[package]
-name = "public_token_contract"
-authors = [""]
-compiler_version = "0.1"
-type = "contract"
-
-[dependencies]
-aztec = { path = "../../../../aztec-nr/aztec" }
