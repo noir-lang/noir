@@ -240,16 +240,11 @@ impl<'a> ValueMerger<'a> {
             Value::Instruction { instruction: instruction_id, .. } => {
                 let instruction = &self.dfg[*instruction_id];
                 match instruction {
-                    // An slice can be the result of an ArrayGet when it is the
+                    // TODO: A slice can be the result of an ArrayGet when it is the
                     // fetched from a slice of slices or as a struct field.
                     // However, we need to incorporate nested slice support in flattening
                     // in order for this to be valid
-                    // Instruction::ArrayGet { array, .. } => {
-                    //     let array = *array;
-                    //     let len = self.get_slice_length(array);
-                    //     self.slice_sizes.insert(array, len);
-                    //     len
-                    // }
+                    // Instruction::ArrayGet { array, .. } => {}
                     Instruction::ArraySet { array, .. } => {
                         let array = *array;
                         let len = self.get_slice_length(array);
