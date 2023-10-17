@@ -427,7 +427,7 @@ impl AcirContext {
         let diff_expr = &lhs_expr - &rhs_expr;
 
         // Check to see if equality can be determined at compile-time.
-        if diff_expr.is_const() && diff_expr.is_zero() {
+        if diff_expr.is_zero() {
             // Constraint is always true - assertion is unnecessary.
             self.mark_variables_equivalent(lhs, rhs)?;
             return Ok(());
