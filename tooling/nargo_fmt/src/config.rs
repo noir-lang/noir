@@ -57,10 +57,10 @@ impl Config {
             Err(cause) => return Err(ConfigError::ReadFailed(config_path, cause)),
         };
 
-        Self::from_str(&input)
+        Self::of(&input)
     }
 
-    pub fn from_str(s: &str) -> Result<Self, ConfigError> {
+    pub fn of(s: &str) -> Result<Self, ConfigError> {
         let mut config = Self::default();
         let toml = toml::from_str(s).map_err(ConfigError::MalformedFile)?;
         config.fill_from_toml(toml);
