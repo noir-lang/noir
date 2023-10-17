@@ -8,9 +8,6 @@ on:
       - opened
       - synchronize
       - labeled
-  push:
-    paths:
-      - 'docs/**'
 
 jobs:
   add_label:
