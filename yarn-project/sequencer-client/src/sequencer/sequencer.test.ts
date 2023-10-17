@@ -6,19 +6,10 @@ import {
   makeEmptyProof,
 } from '@aztec/circuits.js';
 import { P2P, P2PClientState } from '@aztec/p2p';
-import {
-  ContractDataSource,
-  L1ToL2MessageSource,
-  L2Block,
-  L2BlockSource,
-  MerkleTreeId,
-  Tx,
-  TxHash,
-  mockTx,
-} from '@aztec/types';
+import { L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, Tx, TxHash, mockTx } from '@aztec/types';
 import { MerkleTreeOperations, WorldStateRunningState, WorldStateSynchronizer } from '@aztec/world-state';
 
-import { MockProxy, mock } from 'jest-mock-extended';
+import { MockProxy, mock, mockFn } from 'jest-mock-extended';
 import times from 'lodash.times';
 
 import { BlockBuilder } from '../block_builder/index.js';
@@ -74,15 +65,13 @@ describe('sequencer', () => {
     });
 
     l2BlockSource = mock<L2BlockSource>({
-      getBlockNumber: () => Promise.resolve(lastBlockNumber),
+      getBlockNumber: mockFn().mockResolvedValue(lastBlockNumber),
     });
 
     l1ToL2MessageSource = mock<L1ToL2MessageSource>({
       getPendingL1ToL2Messages: () => Promise.resolve(Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(Fr.ZERO)),
       getBlockNumber: () => Promise.resolve(lastBlockNumber),
     });
-
-    const contractDataSource = mock<ContractDataSource>({});
 
     sequencer = new TestSubject(
       publisher,
@@ -92,7 +81,6 @@ describe('sequencer', () => {
       blockBuilder,
       l2BlockSource,
       l1ToL2MessageSource,
-      contractDataSource,
       publicProcessorFactory,
     );
   });
@@ -192,6 +180,34 @@ describe('sequencer', () => {
     );
     expect(publisher.processL2Block).toHaveBeenCalledWith(block);
     expect(p2p.deleteTxs).toHaveBeenCalledWith([await invalidChainTx.getTxHash()]);
+  });
+
+  fit('aborts building a block if the chain moves underneath it', async () => {
+    const tx = mockTx();
+    tx.data.constants.txContext.chainId = chainId;
+    const block = L2Block.random(lastBlockNumber + 1);
+    const proof = makeEmptyProof();
+
+    p2p.getTxs.mockResolvedValueOnce([tx]);
+    blockBuilder.buildL2Block.mockResolvedValueOnce([block, proof]);
+    publisher.processL2Block.mockResolvedValueOnce(true);
+    globalVariableBuilder.buildGlobalVariables.mockResolvedValueOnce(
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO),
+    );
+
+    await sequencer.initialSync();
+
+    l2BlockSource.getBlockNumber
+      // let it work for a bit
+      .mockResolvedValueOnce(lastBlockNumber)
+      .mockResolvedValueOnce(lastBlockNumber)
+      .mockResolvedValueOnce(lastBlockNumber)
+      // then tell it to abort
+      .mockResolvedValue(lastBlockNumber + 1);
+
+    await sequencer.work();
+
+    expect(publisher.processL2Block).not.toHaveBeenCalled();
   });
 });
 

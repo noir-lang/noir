@@ -4,7 +4,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { Timer, elapsed } from '@aztec/foundation/timer';
 import { P2P } from '@aztec/p2p';
-import { ContractDataSource, L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, Tx } from '@aztec/types';
+import { L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, Tx } from '@aztec/types';
 import { L2BlockBuiltStats } from '@aztec/types/stats';
 import { WorldStateStatus, WorldStateSynchronizer } from '@aztec/world-state';
 
@@ -43,7 +43,6 @@ export class Sequencer {
     private blockBuilder: BlockBuilder,
     private l2BlockSource: L2BlockSource,
     private l1ToL2MessageSource: L1ToL2MessageSource,
-    private contractDataSource: ContractDataSource,
     private publicProcessorFactory: PublicProcessorFactory,
     config: SequencerConfig = {},
     private log = createDebugLogger('aztec:sequencer'),
@@ -131,6 +130,17 @@ export class Sequencer {
       this.log.info(`Retrieved ${pendingTxs.length} txs from P2P pool`);
 
       const blockNumber = (await this.l2BlockSource.getBlockNumber()) + 1;
+
+      /**
+       * We'll call this function before running expensive operations to avoid wasted work.
+       */
+      const assertBlockHeight = async () => {
+        const currentBlockNumber = await this.l2BlockSource.getBlockNumber();
+        if (currentBlockNumber + 1 !== blockNumber) {
+          throw new Error('New block was emitted while building block');
+        }
+      };
+
       const newGlobalVariables = await this.globalsBuilder.buildGlobalVariables(new Fr(blockNumber));
 
       // Filter out invalid txs
@@ -156,13 +166,15 @@ export class Sequencer {
       // Only accept processed transactions that are not double-spends,
       // public functions emitting nullifiers would pass earlier check but fail here.
       // Note that we're checking all nullifiers generated in the private execution twice,
-      // we could store the ones already checked and skip them here as an optimisation.
+      // we could store the ones already checked and skip them here as an optimization.
       const processedValidTxs = await this.takeValidTxs(processedTxs, newGlobalVariables);
 
       if (processedValidTxs.length === 0) {
         this.log('No txs processed correctly to build block. Exiting');
         return;
       }
+
+      await assertBlockHeight();
 
       // Get l1 to l2 messages from the contract
       this.log('Requesting L1 to L2 messages from contract');
@@ -171,6 +183,8 @@ export class Sequencer {
 
       // Build the new block by running the rollup circuits
       this.log(`Assembling block with txs ${processedValidTxs.map(tx => tx.hash).join(', ')}`);
+
+      await assertBlockHeight();
 
       const emptyTx = await processor.makeEmptyProcessedTx();
       const [rollupCircuitsDuration, block] = await elapsed(() =>
@@ -185,12 +199,16 @@ export class Sequencer {
         ...block.getStats(),
       } satisfies L2BlockBuiltStats);
 
+      await assertBlockHeight();
+
       await this.publishExtendedContractData(validTxs, block);
+
+      await assertBlockHeight();
 
       await this.publishL2Block(block);
       this.log.info(`Submitted rollup block ${block.number} with ${processedValidTxs.length} transactions`);
     } catch (err) {
-      this.log.error(`Rolling back world state DB due to error assembling block`, err);
+      this.log.error(`Rolling back world state DB due to error assembling block`, (err as any).stack);
       await this.worldState.getLatest().rollback();
     }
   }
