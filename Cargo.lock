@@ -2545,6 +2545,7 @@ dependencies = [
  "easy-repl",
  "nargo",
  "noirc_printable_type",
+ "owo-colors",
  "thiserror",
 ]
 
@@ -2557,7 +2558,6 @@ dependencies = [
  "cfg-if",
  "codespan-lsp",
  "codespan-reporting",
- "fm",
  "lsp-types 0.94.0",
  "nargo",
  "nargo_toml",

@@ -342,8 +342,10 @@ fn collect_crate_structs(crate_id: &CrateId, context: &Context) -> Vec<StructId>
 
 /// Substitutes the signature literal that was introduced in the selector method previously with the actual signature.
 fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
-    let selector_id =
-        interner.lookup_method(struct_id, "selector").expect("Selector method not found");
+    let struct_type = interner.get_struct(struct_id);
+    let selector_id = interner
+        .lookup_method(&Type::Struct(struct_type, vec![]), struct_id, "selector", false)
+        .expect("Selector method not found");
     let selector_function = interner.function(&selector_id);
 
     let compute_selector_statement = interner.statement(
