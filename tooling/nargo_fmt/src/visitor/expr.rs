@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use noirc_frontend::{
     hir::resolution::errors::Span, token::Token, ArrayLiteral, BlockExpression, Expression,
     ExpressionKind, Literal, Statement, UnaryOp,
@@ -54,19 +56,20 @@ impl FmtVisitor<'_> {
             }
             ExpressionKind::Call(call_expr) => {
                 let span = call_expr.func.span.end()..span.end();
+                let span = normalized_parenthesized_span(slice!(self, span.start, span.end), span);
 
                 let callee = self.format_expr(*call_expr.func);
-                let args = format_parens(self.fork(), false, call_expr.arguments, span.into());
+                let args = format_parens(self.fork(), false, call_expr.arguments, span);
 
                 format!("{callee}{args}")
             }
             ExpressionKind::MethodCall(method_call_expr) => {
                 let span = method_call_expr.method_name.span().end()..span.end();
+                let span = normalized_parenthesized_span(slice!(self, span.start, span.end), span);
 
                 let object = self.format_expr(method_call_expr.object);
                 let method = method_call_expr.method_name.to_string();
-                let args =
-                    format_parens(self.fork(), false, method_call_expr.arguments, span.into());
+                let args = format_parens(self.fork(), false, method_call_expr.arguments, span);
 
                 format!("{object}.{method}{args}")
             }
@@ -330,4 +333,10 @@ impl Tactic {
 
 fn has_single_line_comment(slice: &str) -> bool {
     slice.trim_start().starts_with("//")
+}
+
+fn normalized_parenthesized_span(slice: &str, mut span: Range<u32>) -> Span {
+    let offset = slice.find_token(Token::LeftParen).expect("parenthesized expression");
+    span.start += offset;
+    span.into()
 }

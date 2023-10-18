@@ -5,4 +5,9 @@ fn foo() {
         some_function(), // Original inner function call
         another_function() // Original inner function call
     );
+
+    outer_function(
+        some_function(), // Original inner function call
+        another_function() // Original inner function call
+    );
 }

@@ -117,7 +117,9 @@ pub(crate) trait FindToken {
 
 impl FindToken for str {
     fn find_token(&self, token: Token) -> Option<u32> {
-        Lexer::new(self).flatten().find_map(|it| (it.token() == &token).then(|| it.to_span().end()))
+        Lexer::new(self)
+            .flatten()
+            .find_map(|it| (it.token() == &token).then(|| it.to_span().start()))
     }
 
     fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32> {
@@ -153,7 +155,7 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
     }
 
     let newline_index = slice.find('\n');
-    if let Some(separator_index) = slice.find_token(Token::Comma).map(|index| index as usize - 1) {
+    if let Some(separator_index) = slice.find_token(Token::Comma).map(|index| index as usize) {
         match (block_open_index, newline_index) {
             (Some(block), None) if block > separator_index => separator_index + 1,
             (Some(block), None) => {
