@@ -204,7 +204,10 @@ fn include_relevant_imports(ast: &mut SortedModule) {
 }
 
 /// Creates an error alerting the user that they have not downloaded the Aztec-noir library
-fn check_for_aztec_dependency(crate_id: &CrateId, context: &Context) -> Result<bool, (DefCollectorErrorKind, FileId)> {
+fn check_for_aztec_dependency(
+    crate_id: &CrateId,
+    context: &Context,
+) -> Result<bool, (DefCollectorErrorKind, FileId)> {
     let crate_graph = &context.crate_graph[crate_id];
     let has_aztec_dependency = crate_graph.dependencies.iter().any(|dep| dep.as_name() == "aztec");
     if has_aztec_dependency {
@@ -221,7 +224,10 @@ fn check_for_storage_definition(module: &SortedModule) -> bool {
 
 // Check to see if the user has defined a compute_note_hash_and_nullifier function exists
 fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -> bool {
-    module.functions.iter().any(|func| func.def.name.0.contents == "compute_note_hash_and_nullifier")
+    module
+        .functions
+        .iter()
+        .any(|func| func.def.name.0.contents == "compute_note_hash_and_nullifier")
 }
 
 /// Checks if an attribute is a custom attribute with a specific name
@@ -244,7 +250,10 @@ fn transform_module(module: &mut SortedModule) -> Result<bool, (DefCollectorErro
 
     if storage_defined && check_for_compute_note_hash_and_nullifier_definition(&module) {
         // TODO: do a refactor so that file_id is real --> you want to get crate_graph.root_file_id
-        return Err((DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound {}, FileId::default()));
+        return Err((
+            DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound {},
+            FileId::default(),
+        ));
     }
 
     for structure in module.types.iter() {
