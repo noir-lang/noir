@@ -59,7 +59,7 @@ pub(crate) fn serialize_to_json(
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
-pub(super) enum JsonTypes {
+pub enum JsonTypes {
     // This is most likely going to be a hex string
     // But it is possible to support UTF-8
     String(String),
@@ -78,7 +78,7 @@ pub(super) enum JsonTypes {
 }
 
 impl JsonTypes {
-    pub(super) fn try_from_input_value(
+    pub fn try_from_input_value(
         value: &InputValue,
         abi_type: &AbiType,
     ) -> Result<JsonTypes, InputParserError> {
@@ -104,6 +104,13 @@ impl JsonTypes {
                 JsonTypes::Table(map_with_json_types)
             }
 
+            (InputValue::Vec(vector), AbiType::Tuple { fields }) => {
+                let fields = try_vecmap(vector.iter().zip(fields), |(value, typ)| {
+                    JsonTypes::try_from_input_value(value, typ)
+                })?;
+                JsonTypes::Array(fields)
+            }
+
             _ => return Err(InputParserError::AbiTypeMismatch(abi_type.clone())),
         };
         Ok(json_value)
@@ -126,7 +133,7 @@ impl JsonTypes {
 }
 
 impl InputValue {
-    fn try_from_json(
+    pub fn try_from_json(
         value: JsonTypes,
         param_type: &AbiType,
         arg_name: &str,
@@ -167,6 +174,13 @@ impl InputValue {
                 })?;
 
                 InputValue::Struct(native_table)
+            }
+
+            (JsonTypes::Array(array), AbiType::Tuple { fields }) => {
+                let tuple_fields = try_vecmap(array.into_iter().zip(fields), |(value, typ)| {
+                    InputValue::try_from_json(value, typ, arg_name)
+                })?;
+                InputValue::Vec(tuple_fields)
             }
 
             (_, _) => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),

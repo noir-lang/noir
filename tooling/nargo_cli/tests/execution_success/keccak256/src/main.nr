@@ -8,7 +8,7 @@ fn main(x: Field, result: [u8; 32]) {
     let digest = std::hash::keccak256([x as u8], 1);
     assert(digest == result);
     
-    //#1399: variable meesage size 
+    //#1399: variable meesage size
     let message_size = 4;
     let hash_a = std::hash::keccak256([1,2,3,4], message_size);
     let hash_b = std::hash::keccak256([1,2,3,4,0,0,0,0], message_size);

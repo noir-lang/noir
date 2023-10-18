@@ -29,38 +29,9 @@ pub(crate) struct InitCommand {
     pub(crate) contract: bool,
 }
 
-const BIN_EXAMPLE: &str = r#"fn main(x : Field, y : pub Field) {
-    assert(x != y);
-}
-
-#[test]
-fn test_main() {
-    main(1, 2);
-
-    // Uncomment to make test fail
-    // main(1, 1);
-}
-"#;
-
-const CONTRACT_EXAMPLE: &str = r#"contract Main {
-    internal fn double(x: Field) -> pub Field { x * 2 }
-    fn triple(x: Field) -> pub Field { x * 3 }
-    fn quadruple(x: Field) -> pub Field { double(double(x)) }
-}
-"#;
-
-const LIB_EXAMPLE: &str = r#"fn my_util(x : Field, y : Field) -> bool {
-    x != y
-}
-
-#[test]
-fn test_my_util() {
-    assert(my_util(1, 2));
-
-    // Uncomment to make test fail
-    // assert(my_util(1, 1));
-}
-"#;
+const BIN_EXAMPLE: &str = include_str!("./noir_template_files/binary.nr");
+const CONTRACT_EXAMPLE: &str = include_str!("./noir_template_files/contract.nr");
+const LIB_EXAMPLE: &str = include_str!("./noir_template_files/library.nr");
 
 pub(crate) fn run(
     // Backend is currently unused, but we might want to use it to inform the "new" template in the future

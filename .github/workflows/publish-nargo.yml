@@ -14,9 +14,6 @@ on:
         description: Whether to publish the build artifacts
         type: boolean
         default: false
-  schedule:
-    # Run a nightly release at 2 AM UTC
-    - cron: "0 2 * * *"
   merge_group:
   pull_request:
 
@@ -29,6 +26,7 @@ jobs:
     runs-on: macos-latest
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
+      NIGHTLY_RELEASE: ${{ inputs.tag == '' }}
     strategy:
       matrix:
         target: [x86_64-apple-darwin, aarch64-apple-darwin]
@@ -117,6 +115,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
+      NIGHTLY_RELEASE: ${{ inputs.tag == '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -172,7 +171,7 @@ jobs:
 
       - name: Upload binaries to release tag
         uses: svenstaro/upload-release-action@v2
-        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        if: ${{ inputs.publish }}
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -183,12 +182,12 @@ jobs:
 
       - name: Get formatted date
         id: date
-        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
         run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Upload binaries to release with date tag
         uses: svenstaro/upload-release-action@v2
-        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -198,3 +197,5 @@ jobs:
           make_latest: false
           overwrite: true
           tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
+
+  

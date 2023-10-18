@@ -1,35 +1,26 @@
 import { expect } from 'chai';
-import { compileNoirSource, nargoArtifactPath, noirSourcePath } from '../shared';
+import { nargoArtifactPath, noirSourcePath } from '../shared';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { compile } from '@noir-lang/noir_wasm';
 
-async function getFileContent(path: string): Promise<string> {
-  return readFileSync(join(__dirname, path)).toString();
-}
+const absoluteNoirSourcePath = join(__dirname, noirSourcePath);
+const absoluteNargoArtifactPath = join(__dirname, nargoArtifactPath);
 
-async function getSource(): Promise<string> {
-  return getFileContent(noirSourcePath);
-}
-
-async function getPrecompiledSource(): Promise<string> {
-  const compiledData = await getFileContent(nargoArtifactPath);
-  return JSON.parse(compiledData).bytecode;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getPrecompiledSource(): Promise<any> {
+  const compiledData = readFileSync(absoluteNargoArtifactPath).toString();
+  return JSON.parse(compiledData);
 }
 
 describe('noir wasm compilation', () => {
   it('matches nargos compilation', async () => {
-    const source = await getSource();
+    const wasmCircuit = await compile(absoluteNoirSourcePath);
+    const cliCircuit = await getPrecompiledSource();
 
-    const wasmCircuitBase64 = await compileNoirSource(source);
-
-    const cliCircuitBase64 = await getPrecompiledSource();
-
-    console.log('wasm', wasmCircuitBase64);
-
-    console.log('cli', cliCircuitBase64);
-
-    console.log('Compilation is a match? ', wasmCircuitBase64 === cliCircuitBase64);
-
-    expect(wasmCircuitBase64).to.equal(cliCircuitBase64);
+    // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
+    expect(wasmCircuit.bytecode).to.eq(cliCircuit.bytecode);
+    expect(wasmCircuit.abi).to.deep.eq(cliCircuit.abi);
+    expect(wasmCircuit.backend).to.eq(cliCircuit.backend);
   }).timeout(10e3);
 });

@@ -3,13 +3,9 @@ name: test-integration
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - ./compiler/integration-tests/**
+  merge_group:
   schedule:
     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
-
-env:
-  CI: true
 
 jobs:
   build-nargo:
@@ -197,6 +193,9 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - name: Install Playwright
+        uses: ./.github/actions/install-playwright
+
       - name: Install jq
         run: sudo apt-get install jq
 
@@ -209,19 +208,12 @@ jobs:
         run: |
           npm i wasm-opt -g
 
-      - name: Install Foundry
-        uses: onbjerg/foundry-toolchain@v1
-        with:
-          version: nightly
-
-      - name: Deploy verifier contracts to Anvil
-        working-directory: compiler/integration-tests
-        run: bash ./scripts/setup-project.sh
-
       - name: Setup `integration-tests`
         run: |
           yarn workspace @noir-lang/source-resolver build
           yarn workspace @noir-lang/acvm_js build
+          yarn workspace @noir-lang/types build
+          yarn workspace @noir-lang/backend_barretenberg build
           yarn workspace @noir-lang/noir_js build
 
       - name: Run `integration-tests`

@@ -5,9 +5,10 @@
 //      - trait impl blocks (impl<T,U> Foo for Bar where T...)
 //      - structs (struct Foo<T> where T: ...)
 
-// import the trait from another module to ensure the where clauses are ok with that
+// import the traits from another module to ensure the where clauses are ok with that
 mod the_trait;
 use crate::the_trait::Asd;
+use crate::the_trait::StaticTrait;
 
 struct Add10  { x: Field, }
 struct Add20  { x: Field, }
@@ -24,8 +25,22 @@ impl Asd for AddXY {
     }
 }
 
+struct Static100 {}
+impl StaticTrait for Static100 {
+    // use default implementatino for static_function, which returns 100
+}
+
+struct Static200 {}
+impl StaticTrait for Static200 {
+    fn static_function(slf: Self) -> Field { 200 }
+}
+
 fn assert_asd_eq_100<T>(t: T) where T: crate::the_trait::Asd {
     assert(t.asd() == 100);
+}
+
+fn add_one_to_static_function<T>(t: T) -> Field where T: StaticTrait {
+    T::static_function(t) + 1
 }
 
 fn main() {
@@ -38,4 +53,7 @@ fn main() {
     assert_asd_eq_100(z);
     assert_asd_eq_100(a);
     assert_asd_eq_100(xy);
+
+    assert(add_one_to_static_function(Static100{}) == 101);
+    assert(add_one_to_static_function(Static200{}) == 201);
 }

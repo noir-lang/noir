@@ -3,7 +3,7 @@
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.15.0",
+  "version": "0.16.0",
   "license": "(MIT OR Apache-2.0)",
   "main": "./nodejs/noir_wasm.js",
   "types": "./web/noir_wasm.d.ts",
@@ -20,11 +20,16 @@
   },
   "scripts": {
     "build": "bash ./build.sh",
-    "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
-    "test:node": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
+    "test": "yarn test:node && yarn test:browser",
+    "test:node": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\"}' mocha",
     "test:browser": "web-test-runner",
-    "clean": "chmod u+w web nodejs && rm -rf ./nodejs ./web ./target ./result",
-    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
+    "clean": "chmod u+w web nodejs || true && rm -rf ./nodejs ./web ./target ./result",
+    "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
+    "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
+    "build:nix": "nix build -L .#noir_wasm",
+    "install:from:nix": "yarn clean && yarn build:nix && cp -rL ./result/noir_wasm/nodejs ./ && cp -rL ./result/noir_wasm/web ./"
+
   },
   "peerDependencies": {
     "@noir-lang/source-resolver": "workspace:*"
@@ -34,7 +39,6 @@
     "@web/dev-server-esbuild": "^0.3.6",
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",
-    "@web/test-runner-webdriver": "^0.7.0",
     "mocha": "^10.2.0"
   }
 }

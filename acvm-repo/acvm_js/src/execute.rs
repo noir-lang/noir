@@ -1,5 +1,5 @@
 use acvm::{
-    acir::circuit::{Circuit, OpcodeLocation},
+    acir::circuit::Circuit,
     pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM},
 };
 #[allow(deprecated)]
@@ -66,7 +66,7 @@ pub async fn execute_circuit_with_black_box_solver(
     console_error_panic_hook::set_once();
     let circuit: Circuit = Circuit::read(&*circuit).expect("Failed to deserialize circuit");
 
-    let mut acvm = ACVM::new(&solver.0, circuit.opcodes, initial_witness.into());
+    let mut acvm = ACVM::new(&solver.0, &circuit.opcodes, initial_witness.into());
 
     loop {
         let solver_status = acvm.solve();
@@ -84,17 +84,13 @@ pub async fn execute_circuit_with_black_box_solver(
                     | OpcodeResolutionError::IndexOutOfBounds {
                         opcode_location: ErrorLocation::Resolved(opcode_location),
                         ..
-                    } => (
-                        get_assert_message(&circuit.assert_messages, opcode_location),
-                        Some(vec![*opcode_location]),
-                    ),
+                    } => {
+                        (circuit.get_assert_message(*opcode_location), Some(vec![*opcode_location]))
+                    }
                     OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
                         let failing_opcode =
                             call_stack.last().expect("Brillig error call stacks cannot be empty");
-                        (
-                            get_assert_message(&circuit.assert_messages, failing_opcode),
-                            Some(call_stack.clone()),
-                        )
+                        (circuit.get_assert_message(*failing_opcode), Some(call_stack.clone()))
                     }
                     _ => (None, None),
                 };
@@ -116,16 +112,4 @@ pub async fn execute_circuit_with_black_box_solver(
 
     let witness_map = acvm.finalize();
     Ok(witness_map.into())
-}
-
-// Searches the slice for `opcode_location`.
-// This is functionality equivalent to .get on a map.
-fn get_assert_message(
-    assert_messages: &[(OpcodeLocation, String)],
-    opcode_location: &OpcodeLocation,
-) -> Option<String> {
-    assert_messages
-        .iter()
-        .find(|(loc, _)| loc == opcode_location)
-        .map(|(_, message)| message.clone())
 }

@@ -19,6 +19,8 @@ pub enum Token {
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
+    LineComment(String),
+    BlockComment(String),
     /// <
     Less,
     /// <=
@@ -149,6 +151,8 @@ impl fmt::Display for Token {
             Token::FmtStr(ref b) => write!(f, "f{b}"),
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
+            Token::LineComment(ref s) => write!(f, "//{s}"),
+            Token::BlockComment(ref s) => write!(f, "/*{s}*/"),
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -384,12 +388,25 @@ impl Attributes {
             .any(|attribute| attribute == &SecondaryAttribute::ContractLibraryMethod)
     }
 
+    pub fn is_test_function(&self) -> bool {
+        matches!(self.function, Some(FunctionAttribute::Test(_)))
+    }
+
     /// Returns note if a deprecated secondary attribute is found
     pub fn get_deprecated_note(&self) -> Option<Option<String>> {
         self.secondary.iter().find_map(|attr| match attr {
             SecondaryAttribute::Deprecated(note) => Some(note.clone()),
             _ => None,
         })
+    }
+
+    pub fn get_field_attribute(&self) -> Option<String> {
+        for secondary in &self.secondary {
+            if let SecondaryAttribute::Field(field) = secondary {
+                return Some(field.to_lowercase());
+            }
+        }
+        None
     }
 }
 
@@ -461,6 +478,10 @@ impl Attribute {
                     Some(scope) => Attribute::Function(FunctionAttribute::Test(scope)),
                     None => return Err(malformed_scope),
                 }
+            }
+            ["field", name] => {
+                validate(name)?;
+                Attribute::Secondary(SecondaryAttribute::Field(name.to_string()))
             }
             // Secondary attributes
             ["deprecated"] => Attribute::Secondary(SecondaryAttribute::Deprecated(None)),
@@ -546,6 +567,7 @@ pub enum SecondaryAttribute {
     // the entry point.
     ContractLibraryMethod,
     Event,
+    Field(String),
     Custom(String),
 }
 
@@ -559,6 +581,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
             SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
             SecondaryAttribute::Event => write!(f, "#[event]"),
+            SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
         }
     }
 }
@@ -579,7 +602,7 @@ impl AsRef<str> for SecondaryAttribute {
         match self {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
-            SecondaryAttribute::Custom(string) => string,
+            SecondaryAttribute::Custom(string) | SecondaryAttribute::Field(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Event => "",
         }

@@ -84,7 +84,12 @@ fn run_tests<S: BlackBoxFunctionSolver>(
 ) -> Result<(), CliError> {
     let (mut context, crate_id) =
         prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
-    check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
+    check_crate_and_report_errors(
+        &mut context,
+        crate_id,
+        compile_options.deny_warnings,
+        compile_options.silence_warnings,
+    )?;
 
     let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, test_name);
 
@@ -106,7 +111,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                     .expect("Failed to set color");
                 writeln!(writer, "ok").expect("Failed to write to stdout");
             }
-            TestStatus::Fail { message } => {
+            TestStatus::Fail { message, error_diagnostic } => {
                 let writer = StandardStream::stderr(ColorChoice::Always);
                 let mut writer = writer.lock();
                 writer
@@ -114,6 +119,14 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                     .expect("Failed to set color");
                 writeln!(writer, "{message}").expect("Failed to write to stdout");
                 writer.reset().expect("Failed to reset writer");
+                if let Some(diag) = error_diagnostic {
+                    noirc_errors::reporter::report_all(
+                        context.file_manager.as_file_map(),
+                        &[diag],
+                        compile_options.deny_warnings,
+                        compile_options.silence_warnings,
+                    );
+                }
                 failing += 1;
             }
             TestStatus::CompileError(err) => {
@@ -121,6 +134,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                     context.file_manager.as_file_map(),
                     &[err],
                     compile_options.deny_warnings,
+                    compile_options.silence_warnings,
                 );
                 failing += 1;
             }

@@ -1,0 +1,139 @@
+name: Publish Noir ES Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      noir-ref:
+        description: The noir reference to checkout
+        required: false
+        default: 'master'
+      npm-tag:
+        description: Repository Tag to publish under
+        required: false
+        default: 'nightly'
+
+run-name: Publish ES Packages from ${{ inputs.noir-ref }} under @${{ inputs.npm-tag }} tag.
+
+jobs:
+  build-noir_wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.noir-ref }}
+
+      - name: Setup Nix
+        uses: ./.github/actions/nix
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          nix-cache-name: ${{ vars.NIX_CACHE_NAME }}
+          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+
+      - name: Enable aztec features
+        if: ${{ inputs.npm-tag == 'aztec' }}
+        run: |
+          echo $'\n'"default = [\"aztec\"]"$'\n' >> compiler/noirc_frontend/Cargo.toml
+
+      - name: Build wasm package
+        run: |
+          nix build -L .#noir_wasm
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: noir_wasm
+          path: |
+            result/noir_wasm/nodejs
+            result/noir_wasm/web
+
+  build-noirc_abi_wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.noir-ref }}
+
+      - name: Setup Nix
+        uses: ./.github/actions/nix
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          nix-cache-name: ${{ vars.NIX_CACHE_NAME }}
+          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+          
+      - name: Build wasm package
+        run: |
+          nix build -L .#noirc_abi_wasm
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: |
+            result/noirc_abi_wasm/nodejs
+            result/noirc_abi_wasm/web
+
+  build-acvm_js:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.noir-ref }}
+
+      - name: Setup Nix
+        uses: ./.github/actions/nix
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          nix-cache-name: ${{ vars.NIX_CACHE_NAME }}
+          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+
+      - name: Build wasm package
+        run: |
+          nix build -L .#acvm_js
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: acvm_js
+          path: |
+            result/acvm_js/nodejs
+            result/acvm_js/web
+          
+  publish-es-packages:
+    runs-on: ubuntu-latest
+    needs: [build-acvm_js, build-noirc_abi_wasm, build-noir_wasm]
+    steps:
+          
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.noir-ref }}
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: acvm_js
+          path: acvm-repo/acvm_js
+      - uses: actions/download-artifact@v3
+        with:
+          name: noir_wasm
+          path: compiler/wasm
+      - uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: tooling/noirc_abi_wasm
+
+      - name: Install Yarn dependencies
+        run: yarn install
+
+      - name: Build ES Packages
+        run: yarn build:js:only
+
+      - name: Prepare nightly version
+        if: ${{ inputs.npm-tag != 'latest' }}
+        run: |
+          yarn nightly:version -- .${{ inputs.npm-tag }}
+
+      - name: Authenticate with npm
+        run: "echo npmAuthToken: ${{ secrets.NPM_TOKEN }} > ~/.yarnrc.yml"
+
+      - name: Publish ES Packages
+        run: yarn publish:all --access public --tag ${{ inputs.npm-tag }}

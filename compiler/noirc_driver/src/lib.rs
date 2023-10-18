@@ -8,6 +8,7 @@ use debug::filter_relevant_files;
 use fm::FileId;
 use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
+use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
@@ -41,8 +42,12 @@ pub struct CompileOptions {
     pub print_acir: bool,
 
     /// Treat all warnings as errors
-    #[arg(long)]
+    #[arg(long, conflicts_with = "silence_warnings")]
     pub deny_warnings: bool,
+
+    /// Suppress warnings
+    #[arg(long, conflicts_with = "deny_warnings")]
+    pub silence_warnings: bool,
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
@@ -164,7 +169,8 @@ pub fn compile_main(
         }
     };
 
-    let compiled_program = compile_no_check(context, options, main, cached_program, force_compile)?;
+    let compiled_program = compile_no_check(context, options, main, cached_program, force_compile)
+        .map_err(FileDiagnostic::from)?;
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
@@ -261,7 +267,7 @@ fn compile_contract_inner(
         let function = match compile_no_check(context, options, function_id, None, true) {
             Ok(function) => function,
             Err(new_error) => {
-                errors.push(new_error);
+                errors.push(FileDiagnostic::from(new_error));
                 continue;
             }
         };
@@ -316,7 +322,7 @@ pub fn compile_no_check(
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
-) -> Result<CompiledProgram, FileDiagnostic> {
+) -> Result<CompiledProgram, RuntimeError> {
     let program = monomorphize(main_function, &context.def_interner);
 
     let hash = fxhash::hash64(&program);

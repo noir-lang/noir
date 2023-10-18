@@ -3,15 +3,14 @@
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.15.0",
+  "version": "0.16.0",
   "packageManager": "yarn@3.5.1",
   "license": "(MIT OR Apache-2.0)",
   "type": "module",
   "dependencies": {
     "@noir-lang/acvm_js": "workspace:*",
     "@noir-lang/noirc_abi": "workspace:*",
-    "@noir-lang/types": "workspace:*",
-    "fflate": "^0.8.0"
+    "@noir-lang/types": "workspace:*"
   },
   "files": [
     "lib",
@@ -35,16 +34,17 @@
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
+    "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
+    "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
     "clean": "rm -rf ./lib"
   },
   "devDependencies": {
-    "@aztec/bb.js": "0.7.2",
     "@types/chai": "^4",
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.6.2",
     "@types/prettier": "^3",
     "chai": "^4.3.8",
-    "eslint": "^8.40.0",
+    "eslint": "^8.50.0",
     "eslint-plugin-prettier": "^5.0.0",
     "mocha": "^10.2.0",
     "prettier": "3.0.3",

@@ -1,23 +1,52 @@
 
 impl Field {
+    pub fn to_le_bits(self: Self, bit_size: u32) -> [u1] {
+        crate::assert_constant(bit_size);
+        self.__to_le_bits(bit_size)
+    }
+    
+    pub fn to_be_bits(self: Self, bit_size: u32) -> [u1] {
+        crate::assert_constant(bit_size);
+        self.__to_be_bits(bit_size)
+    }
+
     #[builtin(to_le_bits)]
-    pub fn to_le_bits(_x : Field, _bit_size: u32) -> [u1] {}
+    fn __to_le_bits(_self: Self, _bit_size: u32) -> [u1] {}
+    
     #[builtin(to_be_bits)]
-    pub fn to_be_bits(_x : Field, _bit_size: u32) -> [u1] {}
+    fn __to_be_bits(_self: Self, _bit_size: u32) -> [u1] {}
 
-    pub fn to_le_bytes(x : Field, byte_size: u32) -> [u8] {
-        x.to_le_radix(256, byte_size)
-    }
-    pub fn to_be_bytes(x : Field, byte_size: u32) -> [u8] {
-        x.to_be_radix(256, byte_size)
+    pub fn to_le_bytes(self: Self, byte_size: u32) -> [u8] {
+        self.to_le_radix(256, byte_size)
     }
 
+    pub fn to_be_bytes(self: Self, byte_size: u32) -> [u8] {
+        self.to_be_radix(256, byte_size)
+    }
+
+
+    pub fn to_le_radix(self: Self, radix: u32, result_len: u32) -> [u8] {
+        crate::assert_constant(radix);
+        crate::assert_constant(result_len);
+        self.__to_le_radix(radix, result_len)
+    }
+
+    pub fn to_be_radix(self: Self, radix: u32, result_len: u32) -> [u8] {
+        crate::assert_constant(radix);
+        crate::assert_constant(result_len);
+        self.__to_be_radix(radix, result_len)
+    }
+
+
+
+    // decompose `_self` into a `_result_len` vector over the `_radix` basis
+    // `_radix` must be less than 256
     #[builtin(to_le_radix)]
-    //decompose _x into a _result_len vector over the _radix basis
-    //_radix must be less than 256
-    pub fn to_le_radix(_x : Field, _radix: u32, _result_len: u32) -> [u8] {}
+    fn __to_le_radix(_self: Self, _radix: u32, _result_len: u32) -> [u8] {}
+    
     #[builtin(to_be_radix)]
-    pub fn to_be_radix(_x : Field, _radix: u32, _result_len: u32) -> [u8] {}
+    fn __to_be_radix(_self: Self, _radix: u32, _result_len: u32) -> [u8] {}
+
 
     // Returns self to the power of the given exponent value.
     // Caution: we assume the exponent fits into 32 bits

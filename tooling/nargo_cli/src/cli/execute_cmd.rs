@@ -1,17 +1,14 @@
-use acvm::acir::circuit::OpcodeLocation;
 use acvm::acir::native_types::WitnessMap;
-use acvm::pwg::{ErrorLocation, OpcodeResolutionError};
 use clap::Args;
 
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
-use nargo::errors::{ExecutionError, NargoError};
+use nargo::errors::try_to_diagnose_runtime_error;
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
 use noirc_driver::{CompileOptions, CompiledProgram};
-use noirc_errors::CustomDiagnostic;
 use noirc_frontend::graph::CrateName;
 
 use super::compile_cmd::compile_bin_package;
@@ -96,96 +93,6 @@ fn execute_program_and_decode(
     Ok((return_value, solved_witness))
 }
 
-/// There are certain errors that contain an [acvm::pwg::ErrorLocation].
-/// We need to determine whether the error location has been resolving during execution.
-/// If the location has been resolved we return the contained [OpcodeLocation].
-fn extract_opcode_error_from_nargo_error(
-    nargo_err: &NargoError,
-) -> Option<(Vec<OpcodeLocation>, &ExecutionError)> {
-    let execution_error = match nargo_err {
-        NargoError::ExecutionError(err) => err,
-        _ => return None,
-    };
-
-    match execution_error {
-        ExecutionError::SolvingError(OpcodeResolutionError::BrilligFunctionFailed {
-            call_stack,
-            ..
-        })
-        | ExecutionError::AssertionFailed(_, call_stack) => {
-            Some((call_stack.clone(), execution_error))
-        }
-        ExecutionError::SolvingError(OpcodeResolutionError::IndexOutOfBounds {
-            opcode_location: error_location,
-            ..
-        })
-        | ExecutionError::SolvingError(OpcodeResolutionError::UnsatisfiedConstrain {
-            opcode_location: error_location,
-        }) => match error_location {
-            ErrorLocation::Unresolved => {
-                unreachable!("Cannot resolve index for unsatisfied constraint")
-            }
-            ErrorLocation::Resolved(opcode_location) => {
-                Some((vec![*opcode_location], execution_error))
-            }
-        },
-        _ => None,
-    }
-}
-
-/// Resolve the vector of [OpcodeLocation] that caused an execution error using the debug information
-/// generated during compilation to determine the complete call stack for an error. Then report the error using
-/// the resolved call stack and any other relevant error information returned from the ACVM.
-fn report_error_with_opcode_locations(
-    opcode_err_info: Option<(Vec<OpcodeLocation>, &ExecutionError)>,
-    debug_artifact: &DebugArtifact,
-) {
-    if let Some((opcode_locations, opcode_err)) = opcode_err_info {
-        let source_locations: Vec<_> = opcode_locations
-            .iter()
-            .flat_map(|opcode_location| {
-                // This assumes that we're executing the circuit which corresponds to the first `DebugInfo`.
-                // This holds for all binary crates as there is only one `DebugInfo`.
-                assert_eq!(debug_artifact.debug_symbols.len(), 1);
-                let locations = debug_artifact.debug_symbols[0].opcode_location(opcode_location);
-                locations.unwrap_or_default()
-            })
-            .collect();
-        // The location of the error itself will be the location at the top
-        // of the call stack (the last item in the Vec).
-        if let Some(location) = source_locations.last() {
-            let message = match opcode_err {
-                ExecutionError::AssertionFailed(message, _) => {
-                    format!("Assertion failed: '{message}'")
-                }
-                ExecutionError::SolvingError(OpcodeResolutionError::IndexOutOfBounds {
-                    index,
-                    array_size,
-                    ..
-                }) => {
-                    format!(
-                            "Index out of bounds, array has size {array_size:?}, but index was {index:?}"
-                        )
-                }
-                ExecutionError::SolvingError(OpcodeResolutionError::UnsatisfiedConstrain {
-                    ..
-                }) => "Failed constraint".into(),
-                _ => {
-                    // All other errors that do not have corresponding opcode locations
-                    // should not be reported in this method.
-                    // If an error with an opcode location is not handled in this match statement
-                    // the basic message attached to the original error from the ACVM should be reported.
-                    return;
-                }
-            };
-            CustomDiagnostic::simple_error(message, String::new(), location.span)
-                .in_file(location.file)
-                .with_call_stack(source_locations)
-                .report(debug_artifact, false);
-        }
-    }
-}
-
 pub(crate) fn execute_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
@@ -197,7 +104,7 @@ pub(crate) fn execute_program(
 
     let solved_witness_err = nargo::ops::execute_circuit(
         &blackbox_solver,
-        compiled_program.circuit.clone(),
+        &compiled_program.circuit,
         initial_witness,
         true,
     );
@@ -209,8 +116,9 @@ pub(crate) fn execute_program(
                 file_map: compiled_program.file_map.clone(),
             };
 
-            let opcode_err_info = extract_opcode_error_from_nargo_error(&err);
-            report_error_with_opcode_locations(opcode_err_info, &debug_artifact);
+            if let Some(diagnostic) = try_to_diagnose_runtime_error(&err, &compiled_program.debug) {
+                diagnostic.report(&debug_artifact, false);
+            }
 
             Err(crate::errors::CliError::NargoError(err))
         }

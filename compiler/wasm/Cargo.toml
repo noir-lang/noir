@@ -17,8 +17,10 @@ fm.workspace = true
 nargo.workspace = true
 noirc_driver.workspace = true
 noirc_frontend.workspace = true
+noirc_errors.workspace = true
 wasm-bindgen.workspace = true
 serde.workspace = true
+js-sys.workspace = true
 cfg-if.workspace = true
 
 console_error_panic_hook = "0.1.7"

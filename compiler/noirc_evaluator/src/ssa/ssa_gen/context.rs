@@ -661,19 +661,14 @@ impl<'a> FunctionContext<'a> {
         match lvalue {
             LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
             LValue::Index { old_array: mut array, index, array_lvalue, location } => {
-                array = self.assign_lvalue_index(new_value, array, index, None, location);
+                array = self.assign_lvalue_index(new_value, array, index, location);
                 self.assign_new_value(*array_lvalue, array.into());
             }
             LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } => {
                 let mut slice_values = slice.into_value_list(self);
 
-                slice_values[1] = self.assign_lvalue_index(
-                    new_value,
-                    slice_values[1],
-                    index,
-                    Some(slice_values[0]),
-                    location,
-                );
+                slice_values[1] =
+                    self.assign_lvalue_index(new_value, slice_values[1], index, location);
 
                 // The size of the slice does not change in a slice index assignment so we can reuse the same length value
                 let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);
@@ -694,7 +689,6 @@ impl<'a> FunctionContext<'a> {
         new_value: Values,
         mut array: ValueId,
         index: ValueId,
-        length: Option<ValueId>,
         location: Location,
     ) -> ValueId {
         let element_size = self.builder.field_constant(self.element_size(array));
@@ -706,7 +700,7 @@ impl<'a> FunctionContext<'a> {
 
         new_value.for_each(|value| {
             let value = value.eval(self);
-            array = self.builder.insert_array_set(array, index, value, length);
+            array = self.builder.insert_array_set(array, index, value);
             index = self.builder.insert_binary(index, BinaryOp::Add, one);
         });
         array
@@ -780,7 +774,15 @@ fn operator_result_max_bit_size_to_truncate(
     match op {
         Add => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
         Subtract => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
-        Multiply => Some(lhs_bit_size + rhs_bit_size),
+        Multiply => {
+            if lhs_bit_size == 1 || rhs_bit_size == 1 {
+                // Truncation is unnecessary as multiplication by a boolean value cannot cause an overflow.
+                None
+            } else {
+                Some(lhs_bit_size + rhs_bit_size)
+            }
+        }
+
         ShiftLeft => {
             if let Some(rhs_constant) = dfg.get_numeric_constant(rhs) {
                 // Happy case is that we know precisely by how many bits the the integer will
@@ -861,7 +863,7 @@ impl SharedContext {
     /// and return this new id.
     pub(super) fn get_or_queue_function(&self, id: ast::FuncId) -> IrFunctionId {
         // Start a new block to guarantee the destructor for the map lock is released
-        // before map needs to be aquired again in self.functions.write() below
+        // before map needs to be acquired again in self.functions.write() below
         {
             let map = self.functions.read().expect("Failed to read self.functions");
             if let Some(existing_id) = map.get(&id) {
