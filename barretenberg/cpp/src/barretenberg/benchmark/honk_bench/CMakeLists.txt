@@ -1,8 +1,8 @@
 # Each source represents a separate benchmark suite 
 set(BENCHMARK_SOURCES
-standard_plonk.bench.cpp
-ultra_honk.bench.cpp
-ultra_plonk.bench.cpp
+  standard_plonk.bench.cpp
+  ultra_honk.bench.cpp
+  ultra_plonk.bench.cpp
 )
 
 # Required libraries for benchmark suites

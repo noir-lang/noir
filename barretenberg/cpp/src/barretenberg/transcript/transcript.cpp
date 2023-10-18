@@ -210,7 +210,7 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
     if (current_round > 0) {
         buffer.insert(buffer.end(), current_challenge.data.begin(), current_challenge.data.end());
     }
-    for (auto manifest_element : manifest.get_round_manifest(current_round).elements) {
+    for (const auto& manifest_element : manifest.get_round_manifest(current_round).elements) {
         info_togglable("apply_fiat_shamir(): manifest element name match:");
         info_togglable("\t element name: ", manifest_element.name);
         info_togglable(

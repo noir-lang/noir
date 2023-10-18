@@ -247,6 +247,8 @@ class FFTGetter : public BaseGetter<Field, Transcript, Settings, num_widget_rela
             return polynomials
                 .coefficients[id][(ptrdiff_t)((index + polynomials.index_shift) & polynomials.block_mask)];
         }
+        // This ID should exist
+        ASSERT(polynomials.coefficients.count(id) > 0);
         return polynomials.coefficients[id][(ptrdiff_t)index];
     }
 };
@@ -316,6 +318,7 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
                                         const transcript::StandardTranscript& transcript) override
     {
         auto* key = TransitionWidgetBase<Field>::key;
+        ASSERT(key != nullptr);
 
         // Get the set IDs for the polynomials required by the widget
         auto& required_polynomial_ids = FFTKernel::get_required_polynomial_ids();

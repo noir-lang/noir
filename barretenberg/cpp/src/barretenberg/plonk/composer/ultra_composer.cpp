@@ -170,23 +170,12 @@ UltraProver UltraComposer::create_prover(CircuitBuilder& circuit_constructor)
 
     UltraProver output_state(circuit_proving_key, create_manifest(circuit_constructor.public_inputs.size()));
 
-    std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get());
-
-    std::unique_ptr<ProverPlookupWidget<>> plookup_widget =
-        std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get());
-
-    std::unique_ptr<ProverPlookupArithmeticWidget<ultra_settings>> arithmetic_widget =
-        std::make_unique<ProverPlookupArithmeticWidget<ultra_settings>>(circuit_proving_key.get());
-
-    std::unique_ptr<ProverGenPermSortWidget<ultra_settings>> sort_widget =
-        std::make_unique<ProverGenPermSortWidget<ultra_settings>>(circuit_proving_key.get());
-
-    std::unique_ptr<ProverEllipticWidget<ultra_settings>> elliptic_widget =
-        std::make_unique<ProverEllipticWidget<ultra_settings>>(circuit_proving_key.get());
-
-    std::unique_ptr<ProverPlookupAuxiliaryWidget<ultra_settings>> auxiliary_widget =
-        std::make_unique<ProverPlookupAuxiliaryWidget<ultra_settings>>(circuit_proving_key.get());
+    auto permutation_widget = std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get());
+    auto plookup_widget = std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get());
+    auto arithmetic_widget = std::make_unique<ProverPlookupArithmeticWidget<ultra_settings>>(circuit_proving_key.get());
+    auto sort_widget = std::make_unique<ProverGenPermSortWidget<ultra_settings>>(circuit_proving_key.get());
+    auto elliptic_widget = std::make_unique<ProverEllipticWidget<ultra_settings>>(circuit_proving_key.get());
+    auto auxiliary_widget = std::make_unique<ProverPlookupAuxiliaryWidget<ultra_settings>>(circuit_proving_key.get());
 
     output_state.random_widgets.emplace_back(std::move(permutation_widget));
     output_state.random_widgets.emplace_back(std::move(plookup_widget));
