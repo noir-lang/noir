@@ -85,6 +85,13 @@ impl DebugArtifact {
 
         Ok(Range { start: start_in_line, end: end_in_line })
     }
+
+    /// Given a location, returns the last line index
+    /// of its file
+    pub fn last_line_index(&self, location: Location) -> Result<usize, Error> {
+        let source = self.source(location.file).unwrap();
+        Files::line_index(self, location.file, source.len())
+    }
 }
 
 impl<'a> Files<'a> for DebugArtifact {
