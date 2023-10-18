@@ -12,6 +12,8 @@ use nargo::ops::ForeignCallExecutor;
 use easy_repl::{command, CommandStatus, Critical, Repl};
 use std::cell::{Cell, RefCell};
 
+use owo_colors::OwoColorize;
+
 enum SolveResult {
     Done,
     Ok,
@@ -84,8 +86,13 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                 let source = &file.source.as_str();
                 let start = loc.span.start() as usize;
                 let end = loc.span.end() as usize;
-                println!("At {}.nr:{start}-{end}", file.path.as_path().display());
-                println!("\n{}\n", &source[start..end]);
+                println!("At {}:{start}-{end}", file.path.as_path().display());
+                println!(
+                    "\n{}{}{}\n",
+                    &source[0..start].to_string().dimmed(),
+                    &source[start..end],
+                    &source[end..].to_string().dimmed(),
+                );
             }
         }
     }

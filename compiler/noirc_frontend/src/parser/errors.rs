@@ -1,3 +1,4 @@
+use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::Expression;
 use small_ord_set::SmallOrdSet;
@@ -39,6 +40,8 @@ pub enum ParserErrorReason {
     NoFunctionAttributesAllowedOnStruct,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
+    #[error("{0}")]
+    Lexer(LexerErrorKind),
 }
 
 /// Represents a parsing error, or a parsing error in the making.

@@ -5,6 +5,7 @@ use acvm::FieldElement;
 
 pub const ACVM_BACKEND_BARRETENBERG: &str = "acvm-backend-barretenberg";
 pub const BB_DOWNLOAD_URL: &str = env!("BB_BINARY_URL");
+pub const BB_VERSION: &str = env!("BB_VERSION");
 
 /// Embed the Solidity verifier file
 const ULTRA_VERIFIER_CONTRACT: &str = include_str!("contract.sol");

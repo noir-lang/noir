@@ -10,7 +10,8 @@
     "tooling/noir_js",
     "tooling/noir_js_backend_barretenberg",
     "acvm-repo/acvm_js",
-    "release-tests"
+    "release-tests",
+    "docs"
   ],
   "scripts": {
     "build": "yarn workspaces foreach --parallel --topological-dev --verbose run build",
