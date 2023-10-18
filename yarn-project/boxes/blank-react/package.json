@@ -50,9 +50,9 @@
     "yup": "^1.2.0"
   },
   "devDependencies": {
-    "@types/node": "^20.5.9",
     "@types/jest": "^29.5.0",
     "@types/mocha": "^10.0.3",
+    "@types/node": "^20.5.9",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
     "@typescript-eslint/eslint-plugin": "^6.0.0",

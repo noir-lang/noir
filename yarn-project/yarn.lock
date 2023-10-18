@@ -4816,6 +4816,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/mocha@npm:^10.0.3":
+  version: 10.0.3
+  resolution: "@types/mocha@npm:10.0.3"
+  checksum: 52481d72c0f2eb6afcf9a43f851f81d78211880f765b5922a1aa322ed6d557bddc60786a3ae7b6c5e388e2f0cddc09d9ead3c9b80e66102eb41b58acae1e4894
+  languageName: node
+  linkType: hard
+
 "@types/ms@npm:*":
   version: 0.7.31
   resolution: "@types/ms@npm:0.7.31"
@@ -7034,6 +7041,8 @@ __metadata:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/types": "workspace:^"
+    "@types/jest": ^29.5.0
+    "@types/mocha": ^10.0.3
     "@types/node": ^20.5.9
     "@types/react": ^18.2.15
     "@types/react-dom": ^18.2.7
@@ -7082,6 +7091,8 @@ __metadata:
     "@aztec/aztec.js": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@types/jest": ^29.5.0
+    "@types/mocha": ^10.0.3
     "@typescript-eslint/eslint-plugin": ^6.0.0
     "@typescript-eslint/parser": ^6.0.0
     copy-webpack-plugin: ^11.0.0
@@ -17956,6 +17967,8 @@ __metadata:
     "@aztec/foundation": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.6.4
+    "@types/jest": ^29.5.0
+    "@types/mocha": ^10.0.3
     "@types/node": ^20.5.9
     "@types/react": ^18.2.15
     "@types/react-dom": ^18.2.7
