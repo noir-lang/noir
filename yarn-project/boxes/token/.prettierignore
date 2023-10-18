@@ -1,1 +1,2 @@
-src/artifacts/**/*.{ts,json}
+src/artifacts/**/*.json
+src/artifacts/**/*.ts

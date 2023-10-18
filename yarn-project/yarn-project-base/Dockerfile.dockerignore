@@ -33,3 +33,6 @@ boxes/*/*
 # Unexclude scripts we use in the Dockerfile.
 !yarn-project-base/scripts
 !l1-artifacts/scripts
+
+# Unexclude prettierignore
+!.prettierignore
