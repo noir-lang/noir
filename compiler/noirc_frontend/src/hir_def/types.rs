@@ -514,6 +514,45 @@ impl Type {
             }
         }
     }
+
+    /// True if this type can be used as a parameter to `main` or a contract function.
+    /// This is only false for unsized types like slices or slices that do not make sense
+    /// as a program input such as named generics or mutable references.
+    ///
+    /// This function should match the same check done in `create_value_from_type` in acir_gen.
+    /// If this function does not catch a case where a type should be valid, it will later lead to a
+    /// panic in that function instead of a user-facing compiler error message.
+    pub(crate) fn is_valid_for_program_input(&self) -> bool {
+        match self {
+            // Type::Error is allowed as usual since it indicates an error was already issued and
+            // we don't need to issue further errors about this likely unresolved type
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Constant(_)
+            | Type::Error => true,
+
+            Type::FmtString(_, _)
+            | Type::TypeVariable(_, _)
+            | Type::NamedGeneric(_, _)
+            | Type::Function(_, _, _)
+            | Type::MutableReference(_)
+            | Type::Forall(_, _)
+            | Type::NotConstant => false,
+
+            Type::Array(length, element) => {
+                length.is_valid_for_program_input() && element.is_valid_for_program_input()
+            }
+            Type::String(length) => length.is_valid_for_program_input(),
+            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_for_program_input()),
+            Type::Struct(definition, generics) => definition
+                .borrow()
+                .get_fields(generics)
+                .into_iter()
+                .all(|(_, field)| field.is_valid_for_program_input()),
+        }
+    }
 }
 
 impl std::fmt::Display for Type {
