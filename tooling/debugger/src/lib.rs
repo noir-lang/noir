@@ -10,7 +10,10 @@ use nargo::NargoError;
 use nargo::ops::ForeignCallExecutor;
 
 use easy_repl::{command, CommandStatus, Critical, Repl};
-use std::cell::{Cell, RefCell};
+use std::{
+    cell::{Cell, RefCell},
+    ops::Range
+};
 
 use owo_colors::OwoColorize;
 
@@ -89,11 +92,6 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                 let line_number = debug_artifact.location_line_number(loc).unwrap();
                 let column_number = debug_artifact.location_column_number(loc).unwrap();
 
-                let loc_start = loc.span.start() as usize;
-                let loc_end = loc.span.end() as usize;
-
-                let line_span =
-                    DebugArtifact::line_range(&self.debug_artifact, loc.file, line_index).unwrap();
                 let last_line_index =
                     Files::line_index(&self.debug_artifact, loc.file, source.len()).unwrap();
                 let first_line_to_print = if line_index < 5 { 0 } else { line_index - 5 };
@@ -125,15 +123,14 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                     }
 
                     if current_line_index == line_index {
-                        let loc_start_in_line = loc_start - line_span.start;
-                        let loc_end_in_line = loc_end - line_span.start;
+                        let Range { start: loc_start, end: loc_end } = debug_artifact.location_in_line(loc).unwrap();
                         println!(
                             "{:>3} {:2} {}{}{}",
                             number,
                             "->",
-                            &line[0..loc_start_in_line].to_string().dimmed(),
-                            &line[loc_start_in_line..loc_end_in_line],
-                            &line[loc_end_in_line..].to_string().dimmed()
+                            &line[0..loc_start].to_string().dimmed(),
+                            &line[loc_start..loc_end],
+                            &line[loc_end..].to_string().dimmed()
                         );
                     } else {
                         println!("{:>3} {:2} {}", number.dimmed(), "".dimmed(), line.dimmed());
