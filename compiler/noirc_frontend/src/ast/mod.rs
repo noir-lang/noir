@@ -44,6 +44,9 @@ pub enum UnresolvedTypeData {
     /// A Named UnresolvedType can be a struct type or a type variable
     Named(Path, Vec<UnresolvedType>),
 
+    /// A Trait as return type or parameter of function, including its generics
+    TraitAsType(Path, Vec<UnresolvedType>),
+
     /// &mut T
     MutableReference(Box<UnresolvedType>),
 
@@ -110,6 +113,14 @@ impl std::fmt::Display for UnresolvedTypeData {
                     write!(f, "{s}")
                 } else {
                     write!(f, "{}<{}>", s, args.join(", "))
+                }
+            }
+            TraitAsType(s, args) => {
+                let args = vecmap(args, |arg| ToString::to_string(&arg.typ));
+                if args.is_empty() {
+                    write!(f, "impl {s}")
+                } else {
+                    write!(f, "impl {}<{}>", s, args.join(", "))
                 }
             }
             Tuple(elements) => {
