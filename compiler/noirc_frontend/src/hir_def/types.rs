@@ -545,6 +545,7 @@ impl Type {
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
+            | Type::TraitAsType(..)
             | Type::NotConstant => false,
 
             Type::Array(length, element) => {

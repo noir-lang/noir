@@ -1654,6 +1654,7 @@ impl<'a> Resolver<'a> {
             UnresolvedTypeData::MutableReference(_)
             | UnresolvedTypeData::Function(_, _, _)
             | UnresolvedTypeData::FormatString(_, _)
+            | UnresolvedTypeData::TraitAsType(..)
             | UnresolvedTypeData::Unspecified => {
                 let span = typ.span.expect("Function parameters should always have spans");
                 self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
