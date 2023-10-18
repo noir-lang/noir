@@ -376,6 +376,8 @@ impl<'a> Resolver<'a> {
             Unspecified => Type::Error,
             Error => Type::Error,
             Named(path, args) => self.resolve_named_type(path, args, new_variables),
+            TraitAsType(path, args) => self.resolve_trait_as_type(path, args, new_variables),
+
             Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
@@ -476,6 +478,19 @@ impl<'a> Resolver<'a> {
                 Type::Struct(struct_type, args)
             }
             None => Type::Error,
+        }
+    }
+
+    fn resolve_trait_as_type(
+        &mut self,
+        path: Path,
+        _args: Vec<UnresolvedType>,
+        _new_variables: &mut Generics,
+    ) -> Type {
+        if let Some(t) = self.lookup_trait_or_error(path) {
+            Type::TraitAsType(t)
+        } else {
+            Type::Error
         }
     }
 
@@ -886,6 +901,7 @@ impl<'a> Resolver<'a> {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
+            | Type::TraitAsType(_)
             | Type::Forall(_, _) => (),
 
             Type::Array(length, element_type) => {
@@ -1435,6 +1451,17 @@ impl<'a> Resolver<'a> {
     fn lookup_struct_or_error(&mut self, path: Path) -> Option<Shared<StructType>> {
         match self.lookup(path) {
             Ok(struct_id) => Some(self.get_struct(struct_id)),
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
+    /// Lookup a given trait by name/path.
+    fn lookup_trait_or_error(&mut self, path: Path) -> Option<Trait> {
+        match self.lookup(path) {
+            Ok(trait_id) => Some(self.get_trait(trait_id)),
             Err(error) => {
                 self.push_err(error);
                 None
