@@ -176,15 +176,13 @@ pub(crate) fn allocate_value(
         }
         Type::Array(item_typ, elem_count) => {
             let pointer = brillig_context.allocate_register();
-            let reference_count = brillig_context.allocate_register();
             let size = compute_array_length(&item_typ, elem_count);
-            RegisterOrMemory::HeapArray(HeapArray { pointer, size, reference_count })
+            RegisterOrMemory::HeapArray(HeapArray { pointer, size })
         }
         Type::Slice(_) => {
             let pointer = brillig_context.allocate_register();
             let size = brillig_context.allocate_register();
-            let reference_count = brillig_context.allocate_register();
-            RegisterOrMemory::HeapVector(HeapVector { pointer, size, reference_count })
+            RegisterOrMemory::HeapVector(HeapVector { pointer, size })
         }
         Type::Function => {
             unreachable!("ICE: Function values should have been removed from the SSA")
