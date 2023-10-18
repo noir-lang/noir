@@ -53,33 +53,22 @@ impl FmtVisitor<'_> {
                 )
             }
             ExpressionKind::Call(call_expr) => {
-                let formatted_func = self.format_expr(*call_expr.func);
-                let formatted_args = call_expr
-                    .arguments
-                    .into_iter()
-                    .map(|arg| self.format_expr(arg))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!("{}({})", formatted_func, formatted_args)
+                let span = call_expr.func.span.end()..span.end();
+
+                let callee = self.format_expr(*call_expr.func);
+                let args = format_parens(self.fork(), false, call_expr.arguments, span.into());
+
+                format!("{callee}{args}")
             }
             ExpressionKind::MethodCall(method_call_expr) => {
-                let formatted_object = self.format_expr(method_call_expr.object).trim().to_string();
-                let formatted_args = method_call_expr
-                    .arguments
-                    .iter()
-                    .map(|arg| {
-                        let arg_str = self.format_expr(arg.clone()).trim().to_string();
-                        if arg_str.contains('(') {
-                            return arg_str
-                                .replace(" ,", ",")
-                                .replace("( ", "(")
-                                .replace(" )", ")");
-                        }
-                        arg_str
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!("{}.{}({})", formatted_object, method_call_expr.method_name, formatted_args)
+                let span = method_call_expr.method_name.span().end()..span.end();
+
+                let object = self.format_expr(method_call_expr.object);
+                let method = method_call_expr.method_name.to_string();
+                let args =
+                    format_parens(self.fork(), false, method_call_expr.arguments, span.into());
+
+                format!("{object}.{method}{args}")
             }
             ExpressionKind::MemberAccess(member_access_expr) => {
                 let lhs_str = self.format_expr(member_access_expr.lhs);
