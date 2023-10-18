@@ -241,16 +241,26 @@ fn format_parens(
 
 fn format_exprs(trailing_comma: bool, exprs: Vec<Expr>, indent: Indent) -> (String, bool) {
     let mut result = String::new();
+
     let mut force_one_line = true;
     let indent_str = indent.to_string();
+
+    let tactic = Tactic::of(&exprs);
     let mut exprs = exprs.into_iter().enumerate().peekable();
 
     while let Some((index, expr)) = exprs.next() {
         let is_first = index == 0;
         let separate = exprs.peek().is_some() || trailing_comma;
 
-        if !is_first {
-            result.push(' ');
+        match tactic {
+            Tactic::Vertical if !is_first && !expr.expr.is_empty() && !result.is_empty() => {
+                result.push('\n');
+                result.push_str(&indent_str);
+            }
+            Tactic::Horizontal if !is_first => {
+                result.push(' ');
+            }
+            _ => {}
         }
 
         result.push_str(&expr.leading);
@@ -264,10 +274,20 @@ fn format_exprs(trailing_comma: bool, exprs: Vec<Expr>, indent: Indent) -> (Stri
         }
 
         result.push_str(&expr.expr);
-        result.push_str(&expr.trailing);
+
+        if tactic == Tactic::Horizontal {
+            result.push_str(&expr.trailing);
+        }
 
         if separate && expr.trailing.find_token(Token::Comma).is_none() {
             result.push(',');
+        }
+
+        if tactic == Tactic::Vertical {
+            if !expr.different_line {
+                result.push(' ');
+            }
+            result.push_str(&expr.trailing);
         }
     }
 
@@ -280,7 +300,7 @@ fn wrap_exprs(
     indent: Indent,
     force_one_line: bool,
 ) -> String {
-    if force_one_line {
+    if force_one_line && !exprs.contains('\n') {
         format!("({exprs})")
     } else {
         let nested_indent_str = "\n".to_string() + &nested_indent.to_string();
@@ -288,4 +308,26 @@ fn wrap_exprs(
 
         format!("({nested_indent_str}{exprs}{indent_str})")
     }
+}
+
+#[derive(PartialEq, Eq)]
+enum Tactic {
+    Vertical,
+    Horizontal,
+}
+
+impl Tactic {
+    fn of(exprs: &[Expr]) -> Self {
+        if exprs.iter().any(|item| {
+            has_single_line_comment(&item.leading) || has_single_line_comment(&item.trailing)
+        }) {
+            Tactic::Vertical
+        } else {
+            Tactic::Horizontal
+        }
+    }
+}
+
+fn has_single_line_comment(slice: &str) -> bool {
+    slice.trim_start().starts_with("//")
 }
