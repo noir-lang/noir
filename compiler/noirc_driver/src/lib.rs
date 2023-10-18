@@ -324,6 +324,7 @@ pub fn compile_no_check(
     force_compile: bool,
 ) -> Result<CompiledProgram, RuntimeError> {
     let program = monomorphize(main_function, &context.def_interner);
+    println!("{program}");
 
     let hash = fxhash::hash64(&program);
 
