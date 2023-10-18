@@ -79,3 +79,14 @@ fn parenthesized() {
 fn parenthesized() {
     (i as u8) + (j as u8) + (k as u8) + x + y + z
 }
+
+fn parenthesized() {
+    value + (/*test*/x as Field/*test*/)
+}
+
+fn parenthesized() {
+    value + (
+        // line
+        x as Field
+    )
+}

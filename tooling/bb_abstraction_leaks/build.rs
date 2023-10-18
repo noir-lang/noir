@@ -35,6 +35,7 @@ fn main() -> Result<(), String> {
     };
 
     println!("cargo:rustc-env=BB_BINARY_URL={}", get_bb_download_url(arch, os));
+    println!("cargo:rustc-env=BB_VERSION={}", VERSION);
 
     Ok(())
 }
