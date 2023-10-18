@@ -84,7 +84,7 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
         let locations = debug_artifact.debug_symbols[0].opcode_location(location);
         if let Some(locations) = locations {
             for loc in locations {
-                let source = debug_artifact.location_source_code(loc);
+                let source = debug_artifact.location_source_code(loc).unwrap();
                 let line_index = debug_artifact.location_line_index(loc).unwrap();
                 let line_number = debug_artifact.location_line_number(loc).unwrap();
                 let column_number = debug_artifact.location_column_number(loc).unwrap();

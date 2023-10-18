@@ -47,8 +47,8 @@ impl DebugArtifact {
     }
 
     /// Given a location, returns its file's source code
-    pub fn location_source_code(&self, location: Location) -> &str {
-        self.file_map[&location.file].source.as_str()
+    pub fn location_source_code(&self, location: Location) -> Result<&str, Error> {
+        Files::source(self, location.file)
     }
 
     /// Given a location, returns the index of the line it starts at
