@@ -84,8 +84,7 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
         let locations = debug_artifact.debug_symbols[0].opcode_location(location);
         if let Some(locations) = locations {
             for loc in locations {
-                let file = &debug_artifact.file_map[&loc.file];
-                let source = &file.source.as_str();
+                let source = debug_artifact.location_source_code(loc);
                 let loc_start = loc.span.start() as usize;
                 let loc_end = loc.span.end() as usize;
 

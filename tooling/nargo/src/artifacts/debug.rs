@@ -1,6 +1,6 @@
 use codespan_reporting::files::{Error, Files, SimpleFile};
 use noirc_driver::DebugFile;
-use noirc_errors::debug_info::DebugInfo;
+use noirc_errors::{debug_info::DebugInfo, Location};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -44,6 +44,10 @@ impl DebugArtifact {
         }
 
         Self { debug_symbols, file_map }
+    }
+
+    pub fn location_source_code(&self, location: Location) -> &str {
+        self.file_map[&location.file].source.as_str()
     }
 }
 
