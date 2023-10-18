@@ -57,13 +57,18 @@ pub enum DefCollectorErrorKind {
     ModuleAlreadyPartOfCrate { mod_name: Ident, span: Span },
     #[error("Module was originally declared here")]
     ModuleOriginallyDefined { mod_name: Ident, span: Span },
-    #[cfg(feature = "aztec")]
-    #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
-    AztecNotFound {},
     #[error(
         "Either the type or the trait must be from the same crate as the trait implementation"
     )]
     TraitImplOrphaned { span: Span },
+
+    // Aztec feature flag errors
+    #[cfg(feature = "aztec")]
+    #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
+    AztecNotFound {},
+    #[cfg(feature = "aztec")]
+    #[error("compute_note_hash_and_nullifier function not found. Define it in your contract.")]
+    AztecComputeNoteHashAndNullifierNotFound {},
 }
 
 impl DefCollectorErrorKind {

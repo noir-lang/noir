@@ -170,14 +170,9 @@ pub(crate) fn transform(
 
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
-        let storage_defined = check_for_storage_definition(&submodule.contents);
-
-        if transform_module(&mut submodule.contents, storage_defined) {
-            match check_for_aztec_dependency(crate_id, context) {
-                Ok(()) => include_relevant_imports(&mut submodule.contents),
-                Err(file_id) => {
-                    return Err((DefCollectorErrorKind::AztecNotFound {}, file_id));
-                }
+        if transform_module(&mut submodule.contents)? {
+            if check_for_aztec_dependency(crate_id, context)? {
+                include_relevant_imports(&mut submodule.contents);
             }
         }
     }
@@ -209,19 +204,24 @@ fn include_relevant_imports(ast: &mut SortedModule) {
 }
 
 /// Creates an error alerting the user that they have not downloaded the Aztec-noir library
-fn check_for_aztec_dependency(crate_id: &CrateId, context: &Context) -> Result<(), FileId> {
+fn check_for_aztec_dependency(crate_id: &CrateId, context: &Context) -> Result<bool, (DefCollectorErrorKind, FileId)> {
     let crate_graph = &context.crate_graph[crate_id];
     let has_aztec_dependency = crate_graph.dependencies.iter().any(|dep| dep.as_name() == "aztec");
     if has_aztec_dependency {
-        Ok(())
+        Ok(true)
     } else {
-        Err(crate_graph.root_file_id)
+        Err((DefCollectorErrorKind::AztecNotFound {}, crate_graph.root_file_id))
     }
 }
 
 // Check to see if the user has defined a storage struct
 fn check_for_storage_definition(module: &SortedModule) -> bool {
-    module.types.iter().any(|function| function.name.0.contents == "Storage")
+    module.types.iter().any(|r#struct| r#struct.name.0.contents == "Storage")
+}
+
+// Check to see if the user has defined a compute_note_hash_and_nullifier function exists
+fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -> bool {
+    module.functions.iter().any(|func| func.def.name.0.contents == "compute_note_hash_and_nullifier")
 }
 
 /// Checks if an attribute is a custom attribute with a specific name
@@ -236,8 +236,16 @@ fn is_custom_attribute(attr: &SecondaryAttribute, attribute_name: &str) -> bool 
 /// Determines if ast nodes are annotated with aztec attributes.
 /// For annotated functions it calls the `transform` function which will perform the required transformations.
 /// Returns true if an annotated node is found, false otherwise
-fn transform_module(module: &mut SortedModule, storage_defined: bool) -> bool {
+fn transform_module(module: &mut SortedModule) -> Result<bool, (DefCollectorErrorKind, FileId)> {
     let mut has_transformed_module = false;
+
+    // Check for a user defined storage struct
+    let storage_defined = check_for_storage_definition(&module);
+
+    if storage_defined && check_for_compute_note_hash_and_nullifier_definition(&module) {
+        // TODO: do a refactor so that file_id is real --> you want to get crate_graph.root_file_id
+        return Err((DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound {}, FileId::default()));
+    }
 
     for structure in module.types.iter() {
         if structure.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event)) {
@@ -262,7 +270,7 @@ fn transform_module(module: &mut SortedModule, storage_defined: bool) -> bool {
             has_transformed_module = true;
         }
     }
-    has_transformed_module
+    Ok(has_transformed_module)
 }
 
 /// If it does, it will insert the following things:
