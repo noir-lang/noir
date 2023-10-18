@@ -1084,8 +1084,8 @@ fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<U
 }
 
 fn named_trait(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::Impl).then(path()).then(generic_type_args(type_parser)).map_with_span(
-        |((_token, path), args), span| UnresolvedTypeData::TraitAsType(path, args).with_span(span),
+    keyword(Keyword::Impl).ignore_then(path()).then(generic_type_args(type_parser)).map_with_span(
+        |(path, args), span| UnresolvedTypeData::TraitAsType(path, args).with_span(span),
     )
 }
 
