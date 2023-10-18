@@ -182,7 +182,7 @@ describe('sequencer', () => {
     expect(p2p.deleteTxs).toHaveBeenCalledWith([await invalidChainTx.getTxHash()]);
   });
 
-  fit('aborts building a block if the chain moves underneath it', async () => {
+  it('aborts building a block if the chain moves underneath it', async () => {
     const tx = mockTx();
     tx.data.constants.txContext.chainId = chainId;
     const block = L2Block.random(lastBlockNumber + 1);
