@@ -2542,6 +2542,7 @@ name = "noir_debugger"
 version = "0.16.0"
 dependencies = [
  "acvm",
+ "codespan-reporting",
  "easy-repl",
  "nargo",
  "noirc_printable_type",

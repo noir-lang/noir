@@ -14,6 +14,8 @@ use std::cell::{Cell, RefCell};
 
 use owo_colors::OwoColorize;
 
+use codespan_reporting::files::Files;
+
 enum SolveResult {
     Done,
     Ok,
@@ -74,25 +76,73 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
             println!("Finished execution");
         } else {
             println!("Stopped at opcode {}: {}", ip, opcodes[ip]);
-            Self::show_source_code_location(&OpcodeLocation::Acir(ip), &self.debug_artifact);
+            self.show_source_code_location(&OpcodeLocation::Acir(ip), &self.debug_artifact);
         }
     }
 
-    fn show_source_code_location(location: &OpcodeLocation, debug_artifact: &DebugArtifact) {
+    fn show_source_code_location(&self, location: &OpcodeLocation, debug_artifact: &DebugArtifact) {
         let locations = debug_artifact.debug_symbols[0].opcode_location(location);
         if let Some(locations) = locations {
             for loc in locations {
                 let file = &debug_artifact.file_map[&loc.file];
                 let source = &file.source.as_str();
-                let start = loc.span.start() as usize;
-                let end = loc.span.end() as usize;
-                println!("At {}:{start}-{end}", file.path.as_path().display());
+                let loc_start = loc.span.start() as usize;
+                let loc_end = loc.span.end() as usize;
+
+                let line_index =
+                    Files::line_index(&self.debug_artifact, loc.file, loc_start).unwrap();
+                let line_number =
+                    Files::line_number(&self.debug_artifact, loc.file, line_index).unwrap();
+                let column_number =
+                    Files::column_number(&self.debug_artifact, loc.file, line_index, loc_start)
+                        .unwrap();
+                let line_span =
+                    DebugArtifact::line_range(&self.debug_artifact, loc.file, line_index).unwrap();
+                let last_line_index =
+                    Files::line_index(&self.debug_artifact, loc.file, source.len()).unwrap();
+                let first_line_to_print = if line_index < 5 { 0 } else { line_index - 5 };
+
+                let last_line_to_print =
+                    if line_index + 5 > last_line_index { last_line_index } else { line_index + 5 };
+
                 println!(
-                    "\n{}{}{}\n",
-                    &source[0..start].to_string().dimmed(),
-                    &source[start..end],
-                    &source[end..].to_string().dimmed(),
+                    "At {}:{line_number}:{column_number}",
+                    Files::name(&self.debug_artifact, loc.file).unwrap()
                 );
+
+                for (current_line_index, line) in source.lines().enumerate() {
+                    let number = current_line_index + 1;
+
+                    if current_line_index < first_line_to_print {
+                        // Ignore lines before range starts
+                        continue;
+                    } else if current_line_index == first_line_to_print && current_line_index > 0 {
+                        // Denote that there's more lines before but we're not showing them
+                        println!("{:>3} {}", current_line_index.dimmed(), "...".dimmed());
+                    }
+
+                    if current_line_index > last_line_to_print {
+                        // Denote that there's more lines after but we're not showing them,
+                        // and stop printing
+                        println!("{:>3} {}", number.dimmed(), "...".dimmed());
+                        break;
+                    }
+
+                    if current_line_index == line_index {
+                        let loc_start_in_line = loc_start - line_span.start;
+                        let loc_end_in_line = loc_end - line_span.start;
+                        println!(
+                            "{:>3} {:2} {}{}{}",
+                            number,
+                            "->",
+                            &line[0..loc_start_in_line].to_string().dimmed(),
+                            &line[loc_start_in_line..loc_end_in_line],
+                            &line[loc_end_in_line..].to_string().dimmed()
+                        );
+                    } else {
+                        println!("{:>3} {:2} {}", number.dimmed(), "".dimmed(), line.dimmed());
+                    }
+                }
             }
         }
     }
