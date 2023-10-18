@@ -106,22 +106,22 @@ See [Lambdas](./08_lambdas.md) for more details.
 
 ## Attributes
 
-Attribute is metadata that can be applied to a function, using the following syntax: `#[attribute(value)]`.
+Attributes are metadata that can be applied to a function, using the following syntax: `#[attribute(value)]`.
 
 Supported attributes include:
 - **builtin**: the function is implemented by the compiler, for efficiency purposes.
 - **deprecated**: mark the function as *deprecated*. Calling the function will generate a warning: `warning: use of deprecated function`
-- **field**: conditional compilation of code. See below for more details
+- **field**: Used to enable conditional compilation of code depending on the field size. See below for more details
 - **oracle**: mark the function as *oracle*; meaning it is an external unconstrained function, implemented in noir_js. See [Unconstrained](./05_unconstrained.md) and [Noir js](../noir_js/noir_js.md) for more details.
 - **test**: mark the function as unit tests. See [Tests](../nargo/02_testing.md) for more details
 
 ### Field Attribute
 The field attribute defines which field the function is compatible for. The function is conditionally compiled, under the condition that the field attribute matches the Noir native field.
-The field can be defined implicitely, by using the name of the elliptic curve usually associated to it - for instance bn254, bls12_381 - or explicitely by using the field (prime) order, in decimal or hexadecimal form.
-As a result, it is possible to define multiple times the function with a different field attribute. This is usefull for instance when a function requires different parameters depending on the underlying elliptic curve.
+The field can be defined implicitly, by using the name of the elliptic curve usually associated to it - for instance bn254, bls12_381 - or explicitly by using the field (prime) order, in decimal or hexadecimal form.
+As a result, it is possible to define multiple versions of a function with each version specialized for a different field attribute. This can be useful when a function requires different parameters depending on the underlying elliptic curve.
 
 
-Example: we define the function `foo()` three times below. One for the default noir bn254 curve, one for the field $\mathbb F_{23}$, which will normally never be used by Noir, and the bls12_381 curve.
+Example: we define the function `foo()` three times below. Once for the default Noir bn254 curve, once for the field $\mathbb F_{23}$, which will normally never be used by Noir, and once again for the bls12_381 curve.
 ```rust
 #[field(bn254)]
 fn foo() -> u32 {
@@ -142,6 +142,7 @@ fn foo() -> u32 {
 #[field(bls12_381)]
 fn foo() -> u32 {
     3
+}
 ```
 
-If the name is not known to Noir, it will discard the function. Field names are case insensitive.
+If the field name is not known to Noir, it will discard the function. Field names are case insensitive.
