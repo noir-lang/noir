@@ -46,8 +46,29 @@ impl DebugArtifact {
         Self { debug_symbols, file_map }
     }
 
+    /// Given a location, returns its file's source code
     pub fn location_source_code(&self, location: Location) -> &str {
         self.file_map[&location.file].source.as_str()
+    }
+
+    /// Given a location, returns the index of the line it starts at
+    pub fn location_line_index(&self, location: Location) -> Result<usize, Error> {
+        let location_start = location.span.start() as usize;
+        Files::line_index(self, location.file, location_start)
+    }
+
+    /// Given a location, returns the line number it starts at
+    pub fn location_line_number(&self, location: Location) -> Result<usize, Error> {
+        let location_start = location.span.start() as usize;
+        let line_index = Files::line_index(self, location.file, location_start);
+        Files::line_number(self, location.file, line_index.unwrap())
+    }
+
+    /// Given a location, returns the column number it starts at
+    pub fn location_column_number(&self, location: Location) -> Result<usize, Error> {
+        let location_start = location.span.start() as usize;
+        let line_index = Files::line_index(self, location.file, location_start);
+        Files::column_number(self, location.file, line_index.unwrap(), location_start)
     }
 }
 

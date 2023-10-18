@@ -85,16 +85,13 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
         if let Some(locations) = locations {
             for loc in locations {
                 let source = debug_artifact.location_source_code(loc);
+                let line_index = debug_artifact.location_line_index(loc).unwrap();
+                let line_number = debug_artifact.location_line_number(loc).unwrap();
+                let column_number = debug_artifact.location_column_number(loc).unwrap();
+
                 let loc_start = loc.span.start() as usize;
                 let loc_end = loc.span.end() as usize;
 
-                let line_index =
-                    Files::line_index(&self.debug_artifact, loc.file, loc_start).unwrap();
-                let line_number =
-                    Files::line_number(&self.debug_artifact, loc.file, line_index).unwrap();
-                let column_number =
-                    Files::column_number(&self.debug_artifact, loc.file, line_index, loc_start)
-                        .unwrap();
                 let line_span =
                     DebugArtifact::line_range(&self.debug_artifact, loc.file, line_index).unwrap();
                 let last_line_index =
