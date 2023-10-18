@@ -99,18 +99,20 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
             for loc in locations {
                 self.print_location_path(loc);
 
-                let line_index = debug_artifact.location_line_index(loc).unwrap();
+                let loc_line_index = debug_artifact.location_line_index(loc).unwrap();
+
+                // How many lines before or after the location's line we
+                // print
+                let context_lines = 5;
+
+                let first_line_to_print =
+                    if loc_line_index < context_lines { 0 } else { loc_line_index - context_lines };
+
                 let last_line_index = debug_artifact.last_line_index(loc).unwrap();
-                let print_context_size = 5;
-                let first_line_to_print = if line_index < print_context_size {
-                    0
-                } else {
-                    line_index - print_context_size
-                };
-                let last_line_to_print = if line_index + print_context_size > last_line_index {
+                let last_line_to_print = if loc_line_index + context_lines > last_line_index {
                     last_line_index
                 } else {
-                    line_index + print_context_size
+                    loc_line_index + context_lines
                 };
 
                 let source = debug_artifact.location_source_code(loc).unwrap();
@@ -122,17 +124,18 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                         continue;
                     } else if current_line_index == first_line_to_print && current_line_index > 0 {
                         // Denote that there's more lines before but we're not showing them
-                        println!("{:>3} {}", current_line_index.dimmed(), "...".dimmed());
+                        print_ellipsized_line(current_line_index);
                     }
 
                     if current_line_index > last_line_to_print {
                         // Denote that there's more lines after but we're not showing them,
                         // and stop printing
-                        println!("{:>3} {}", current_line_number.dimmed(), "...".dimmed());
+                        print_ellipsized_line(current_line_number);
                         break;
                     }
 
-                    if current_line_index == line_index {
+                    if current_line_index == loc_line_index {
+                        // Highlight current location
                         let Range { start: loc_start, end: loc_end } =
                             debug_artifact.location_in_line(loc).unwrap();
                         println!(
@@ -144,12 +147,7 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                             &line[loc_end..].to_string().dimmed()
                         );
                     } else {
-                        println!(
-                            "{:>3} {:2} {}",
-                            current_line_number.dimmed(),
-                            "".dimmed(),
-                            line.dimmed()
-                        );
+                        print_dimmed_line(current_line_number, line);
                     }
                 }
             }
@@ -169,6 +167,14 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
     fn finalize(self) -> WitnessMap {
         self.acvm.finalize()
     }
+}
+
+fn print_ellipsized_line(line_number: usize) {
+    println!("{}", format!("{:>3} {}", line_number, "...").dimmed());
+}
+
+fn print_dimmed_line(line_number: usize, line: &str) {
+    println!("{}", format!("{:>3} {:2} {}", line_number, "", line).dimmed());
 }
 
 fn map_command_status(result: SolveResult) -> CommandStatus {
