@@ -69,6 +69,11 @@ fn test_one() {
 ```
 
 ```bash
+$ nargo test
+[testing] Running 1 test functions
+[testing] Testing test_one... ok
+[testing] All tests passed
+
 $ nargo check
 The application panicked (crashed).
 Message:  Cannot have variable sized arrays as a parameter to main
