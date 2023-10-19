@@ -102,7 +102,10 @@ impl FmtVisitor<'_> {
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) => slice!(self, span.start(), span.end()).to_string(),
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
-                    format!("[{}; {length}]", self.format_expr(*repeated_element))
+                    let repeated = self.format_expr(*repeated_element);
+                    let length = self.format_expr(*length);
+
+                    format!("[{repeated}; {length}]")
                 }
                 // TODO: Handle line breaks when array gets too long.
                 Literal::Array(ArrayLiteral::Standard(exprs)) => {

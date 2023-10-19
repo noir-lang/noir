@@ -5,6 +5,8 @@ fn main() {
 
     [0xff; 5];
 
+    [0 as u8; MAX_BYTES];
+
     true;
 
     "hello world";
