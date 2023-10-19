@@ -13,6 +13,7 @@ use crate::{Backend, BackendError, BackendOpcodeSupport};
 impl Backend {
     pub fn get_exact_circuit_size(&self, circuit: &Circuit) -> Result<u32, BackendError> {
         let binary_path = self.assert_binary_exists()?;
+        self.assert_correct_version()?;
 
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
@@ -28,6 +29,7 @@ impl Backend {
 
     pub fn get_backend_info(&self) -> Result<(Language, BackendOpcodeSupport), BackendError> {
         let binary_path = self.assert_binary_exists()?;
+        self.assert_correct_version()?;
         InfoCommand { crs_path: self.crs_directory() }.run(binary_path)
     }
 
@@ -38,6 +40,7 @@ impl Backend {
         is_recursive: bool,
     ) -> Result<Vec<u8>, BackendError> {
         let binary_path = self.assert_binary_exists()?;
+        self.assert_correct_version()?;
 
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
@@ -78,6 +81,7 @@ impl Backend {
         is_recursive: bool,
     ) -> Result<bool, BackendError> {
         let binary_path = self.assert_binary_exists()?;
+        self.assert_correct_version()?;
 
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
@@ -106,7 +110,6 @@ impl Backend {
 
         WriteVkCommand {
             crs_path: self.crs_directory(),
-            is_recursive,
             bytecode_path,
             vk_path_output: vk_path.clone(),
         }

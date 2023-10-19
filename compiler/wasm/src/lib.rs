@@ -1,4 +1,3 @@
-#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -14,9 +13,10 @@ use wasm_bindgen::prelude::*;
 
 mod circuit;
 mod compile;
+mod errors;
 
 pub use circuit::{acir_read_bytes, acir_write_bytes};
-pub use compile::{compile, WASMCompileOptions};
+pub use compile::compile;
 
 #[derive(Serialize, Deserialize)]
 pub struct BuildInfo {

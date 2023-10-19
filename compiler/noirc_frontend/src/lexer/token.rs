@@ -310,7 +310,7 @@ impl IntType {
             Err(_) => return Ok(None),
         };
 
-        let max_bits = FieldElement::max_num_bits();
+        let max_bits = FieldElement::max_num_bits() / 2;
 
         if str_as_u32 > max_bits {
             return Err(LexerErrorKind::TooManyBits { span, max: max_bits, got: str_as_u32 });
@@ -392,12 +392,25 @@ impl Attributes {
             .any(|attribute| attribute == &SecondaryAttribute::ContractLibraryMethod)
     }
 
+    pub fn is_test_function(&self) -> bool {
+        matches!(self.function, Some(FunctionAttribute::Test(_)))
+    }
+
     /// Returns note if a deprecated secondary attribute is found
     pub fn get_deprecated_note(&self) -> Option<Option<String>> {
         self.secondary.iter().find_map(|attr| match attr {
             SecondaryAttribute::Deprecated(note) => Some(note.clone()),
             _ => None,
         })
+    }
+
+    pub fn get_field_attribute(&self) -> Option<String> {
+        for secondary in &self.secondary {
+            if let SecondaryAttribute::Field(field) = secondary {
+                return Some(field.to_lowercase());
+            }
+        }
+        None
     }
 }
 
@@ -413,8 +426,8 @@ pub enum Attribute {
 impl fmt::Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Attribute::Function(attribute) => write!(f, "{}", attribute),
-            Attribute::Secondary(attribute) => write!(f, "{}", attribute),
+            Attribute::Function(attribute) => write!(f, "{attribute}"),
+            Attribute::Secondary(attribute) => write!(f, "{attribute}"),
         }
     }
 }
@@ -470,11 +483,16 @@ impl Attribute {
                     None => return Err(malformed_scope),
                 }
             }
+            ["field", name] => {
+                validate(name)?;
+                Attribute::Secondary(SecondaryAttribute::Field(name.to_string()))
+            }
             // Secondary attributes
             ["deprecated"] => Attribute::Secondary(SecondaryAttribute::Deprecated(None)),
             ["contract_library_method"] => {
                 Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod)
             }
+            ["event"] => Attribute::Secondary(SecondaryAttribute::Event),
             ["deprecated", name] => {
                 if !name.starts_with('"') && !name.ends_with('"') {
                     return Err(LexerErrorKind::MalformedFuncAttribute {
@@ -534,7 +552,7 @@ impl FunctionAttribute {
 impl fmt::Display for FunctionAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FunctionAttribute::Test(scope) => write!(f, "#[test{}]", scope),
+            FunctionAttribute::Test(scope) => write!(f, "#[test{scope}]"),
             FunctionAttribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             FunctionAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             FunctionAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
@@ -552,6 +570,8 @@ pub enum SecondaryAttribute {
     // is a helper method for a contract and should not be seen as
     // the entry point.
     ContractLibraryMethod,
+    Event,
+    Field(String),
     Custom(String),
 }
 
@@ -564,6 +584,8 @@ impl fmt::Display for SecondaryAttribute {
             }
             SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
             SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
+            SecondaryAttribute::Event => write!(f, "#[event]"),
+            SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
         }
     }
 }
@@ -584,8 +606,9 @@ impl AsRef<str> for SecondaryAttribute {
         match self {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
-            SecondaryAttribute::Custom(string) => string,
+            SecondaryAttribute::Custom(string) | SecondaryAttribute::Field(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
+            SecondaryAttribute::Event => "",
         }
     }
 }
@@ -734,7 +757,7 @@ mod keywords {
         for keyword in Keyword::iter() {
             let resolved_token =
                 Keyword::lookup_keyword(&format!("{keyword}")).unwrap_or_else(|| {
-                    panic!("Keyword::lookup_keyword couldn't find Keyword {}", keyword)
+                    panic!("Keyword::lookup_keyword couldn't find Keyword {keyword}")
                 });
 
             assert_eq!(

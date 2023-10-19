@@ -10,6 +10,8 @@ mod smart_contract;
 
 use acvm::acir::circuit::Opcode;
 use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
+use bb_abstraction_leaks::BB_VERSION;
+use cli::VersionCommand;
 pub use download::download_backend;
 
 const BACKENDS_DIR: &str = ".nargo/backends";
@@ -40,11 +42,16 @@ pub enum BackendError {
     #[error("Backend binary does not exist")]
     MissingBinary,
 
-    #[error("The backend responded with malformed data: {0:?}")]
-    MalformedResponse(Vec<u8>),
+    #[error("The backend responded with a malformed UTF8 byte vector: {0:?}")]
+    InvalidUTF8Vector(Vec<u8>),
 
-    #[error("The backend encountered an error")]
-    CommandFailed(Vec<u8>),
+    #[error(
+        "The backend responded with a unexpected number of bytes. Expected: {0} but got {} ({1:?})", .1.len()
+    )]
+    UnexpectedNumberOfBytes(usize, Vec<u8>),
+
+    #[error("The backend encountered an error: {0:?}")]
+    CommandFailed(String),
 }
 
 #[derive(Debug)]
@@ -98,6 +105,33 @@ impl Backend {
 
     fn crs_directory(&self) -> PathBuf {
         self.backend_directory().join("crs")
+    }
+
+    fn assert_correct_version(&self) -> Result<&PathBuf, BackendError> {
+        let binary_path = self.binary_path();
+        if binary_path.to_string_lossy().contains(ACVM_BACKEND_BARRETENBERG) {
+            match VersionCommand.run(binary_path) {
+                // If version matches then do nothing.
+                Ok(version_string) if version_string == BB_VERSION => (),
+
+                // If version doesn't match then download the correct version.
+                Ok(version_string) => {
+                    println!("`{ACVM_BACKEND_BARRETENBERG}` version `{version_string}` is different from expected `{BB_VERSION}`. Downloading expected version...");
+                    let bb_url = std::env::var("BB_BINARY_URL")
+                        .unwrap_or_else(|_| bb_abstraction_leaks::BB_DOWNLOAD_URL.to_owned());
+                    download_backend(&bb_url, binary_path)?;
+                }
+
+                // If `bb` fails to report its version, then attempt to fix it by re-downloading the binary.
+                Err(_) => {
+                    println!("Could not determine version of `{ACVM_BACKEND_BARRETENBERG}`. Downloading expected version...");
+                    let bb_url = std::env::var("BB_BINARY_URL")
+                        .unwrap_or_else(|_| bb_abstraction_leaks::BB_DOWNLOAD_URL.to_owned());
+                    download_backend(&bb_url, binary_path)?;
+                }
+            }
+        }
+        Ok(binary_path)
     }
 }
 

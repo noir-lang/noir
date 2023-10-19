@@ -2,7 +2,7 @@ use acvm::FieldElement;
 use fm::FileId;
 use noirc_errors::Location;
 
-use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId};
+use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
 use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
 
 use super::stmt::HirPattern;
@@ -26,10 +26,10 @@ pub enum HirExpression {
     Call(HirCallExpression),
     MethodCall(HirMethodCallExpression),
     Cast(HirCastExpression),
-    For(HirForExpression),
     If(HirIfExpression),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
+    TraitMethodReference(Type, TraitMethodId),
     Error,
 }
 
@@ -45,14 +45,6 @@ impl HirExpression {
 pub struct HirIdent {
     pub location: Location,
     pub id: DefinitionId,
-}
-
-#[derive(Debug, Clone)]
-pub struct HirForExpression {
-    pub identifier: HirIdent,
-    pub start_range: ExprId,
-    pub end_range: ExprId,
-    pub block: ExprId,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -75,6 +67,10 @@ impl HirBinaryOp {
 
     pub fn is_bit_shift(&self) -> bool {
         self.kind.is_bit_shift()
+    }
+
+    pub fn is_modulo(&self) -> bool {
+        self.kind.is_modulo()
     }
 }
 
@@ -107,7 +103,7 @@ pub struct HirInfixExpression {
     pub rhs: ExprId,
 }
 
-/// This is always a struct field access `mystruct.field`
+/// This is always a struct field access `my_struct.field`
 /// and never a method call. The later is represented by HirMethodCallExpression.
 #[derive(Debug, Clone)]
 pub struct HirMemberAccess {
@@ -150,20 +146,39 @@ pub struct HirMethodCallExpression {
     pub location: Location,
 }
 
+#[derive(Debug, Clone)]
+pub enum HirMethodReference {
+    /// A method can be defined in a regular `impl` block, in which case
+    /// it's syntax sugar for a normal function call, and can be
+    /// translated to one during type checking
+    FuncId(FuncId),
+
+    /// Or a method can come from a Trait impl block, in which case
+    /// the actual function called will depend on the instantiated type,
+    /// which can be only known during monomorphization.
+    TraitMethodId(Type, TraitMethodId),
+}
+
 impl HirMethodCallExpression {
     pub fn into_function_call(
         mut self,
-        func: FuncId,
+        method: HirMethodReference,
         location: Location,
         interner: &mut NodeInterner,
     ) -> (ExprId, HirExpression) {
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
-        let id = interner.function_definition_id(func);
-        let ident = HirExpression::Ident(HirIdent { location, id });
-        let func = interner.push_expr(ident);
-
+        let expr = match method {
+            HirMethodReference::FuncId(func_id) => {
+                let id = interner.function_definition_id(func_id);
+                HirExpression::Ident(HirIdent { location, id })
+            }
+            HirMethodReference::TraitMethodId(typ, method_id) => {
+                HirExpression::TraitMethodReference(typ, method_id)
+            }
+        };
+        let func = interner.push_expr(expr);
         (func, HirExpression::Call(HirCallExpression { func, arguments, location }))
     }
 }

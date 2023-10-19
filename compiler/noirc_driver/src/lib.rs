@@ -6,8 +6,9 @@
 use clap::Args;
 use debug::filter_relevant_files;
 use fm::FileId;
-use noirc_abi::{AbiParameter, AbiType};
+use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
+use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
@@ -41,8 +42,12 @@ pub struct CompileOptions {
     pub print_acir: bool,
 
     /// Treat all warnings as errors
-    #[arg(long)]
+    #[arg(long, conflicts_with = "silence_warnings")]
     pub deny_warnings: bool,
+
+    /// Suppress warnings
+    #[arg(long, conflicts_with = "deny_warnings")]
+    pub silence_warnings: bool,
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
@@ -58,7 +63,7 @@ pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
 // with the restricted version which only uses one file
 pub fn compile_file(context: &mut Context, root_file: &Path) -> CompilationResult<CompiledProgram> {
     let crate_id = prepare_crate(context, root_file);
-    compile_main(context, crate_id, &CompileOptions::default(), None)
+    compile_main(context, crate_id, &CompileOptions::default(), None, true)
 }
 
 /// Adds the file from the file system at `Path` to the crate graph as a root file
@@ -112,7 +117,11 @@ pub fn check_crate(
     deny_warnings: bool,
 ) -> CompilationResult<()> {
     let mut errors = vec![];
-    CrateDefMap::collect_defs(crate_id, context, &mut errors);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context);
+    errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
+        let diagnostic: CustomDiagnostic = error.into();
+        diagnostic.in_file(file_id)
+    }));
 
     if has_errors(&errors, deny_warnings) {
         Err(errors)
@@ -144,6 +153,7 @@ pub fn compile_main(
     crate_id: CrateId,
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
+    force_compile: bool,
 ) -> CompilationResult<CompiledProgram> {
     let (_, warnings) = check_crate(context, crate_id, options.deny_warnings)?;
 
@@ -159,7 +169,8 @@ pub fn compile_main(
         }
     };
 
-    let compiled_program = compile_no_check(context, options, main, cached_program)?;
+    let compiled_program = compile_no_check(context, options, main, cached_program, force_compile)
+        .map_err(FileDiagnostic::from)?;
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
@@ -253,10 +264,10 @@ fn compile_contract_inner(
             continue;
         }
 
-        let function = match compile_no_check(context, options, function_id, None) {
+        let function = match compile_no_check(context, options, function_id, None, true) {
             Ok(function) => function,
             Err(new_error) => {
-                errors.push(new_error);
+                errors.push(FileDiagnostic::from(new_error));
                 continue;
             }
         };
@@ -281,7 +292,20 @@ fn compile_contract_inner(
         let debug_infos: Vec<_> = functions.iter().map(|function| function.debug.clone()).collect();
         let file_map = filter_relevant_files(&debug_infos, &context.file_manager);
 
-        Ok(CompiledContract { name: contract.name, functions, file_map })
+        Ok(CompiledContract {
+            name: contract.name,
+            events: contract
+                .events
+                .iter()
+                .map(|event_id| {
+                    let typ = context.def_interner.get_struct(*event_id);
+                    let typ = typ.borrow();
+                    ContractEvent::from_struct_type(context, &typ)
+                })
+                .collect(),
+            functions,
+            file_map,
+        })
     } else {
         Err(errors)
     }
@@ -297,13 +321,19 @@ pub fn compile_no_check(
     options: &CompileOptions,
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
-) -> Result<CompiledProgram, FileDiagnostic> {
+    force_compile: bool,
+) -> Result<CompiledProgram, RuntimeError> {
     let program = monomorphize(main_function, &context.def_interner);
 
     let hash = fxhash::hash64(&program);
-    if let Some(cached_program) = cached_program {
-        if hash == cached_program.hash {
-            return Ok(cached_program);
+
+    // If user has specified that they want to see intermediate steps printed then we should
+    // force compilation even if the program hasn't changed.
+    if !(force_compile || options.print_acir || options.show_brillig || options.show_ssa) {
+        if let Some(cached_program) = cached_program {
+            if hash == cached_program.hash {
+                return Ok(cached_program);
+            }
         }
     }
 

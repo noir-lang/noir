@@ -19,6 +19,7 @@ pub struct Lexer<'a> {
     char_iter: Peekable<Zip<Chars<'a>, RangeFrom<u32>>>,
     position: Position,
     done: bool,
+    skip_comments: bool,
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
@@ -39,13 +40,19 @@ impl<'a> Lexer<'a> {
         (Tokens(tokens), errors)
     }
 
-    fn new(source: &'a str) -> Self {
+    pub fn new(source: &'a str) -> Self {
         Lexer {
             // We zip with the character index here to ensure the first char has index 0
             char_iter: source.chars().zip(0..).peekable(),
             position: 0,
             done: false,
+            skip_comments: true,
         }
+    }
+
+    pub fn skip_comments(mut self, flag: bool) -> Self {
+        self.skip_comments = flag;
+        self
     }
 
     /// Iterates the cursor and returns the char at the new cursor position
@@ -176,6 +183,8 @@ impl<'a> Lexer<'a> {
             Token::Minus => self.single_double_peek_token('>', prev_token, Token::Arrow),
             Token::Colon => self.single_double_peek_token(':', prev_token, Token::DoubleColon),
             Token::Slash => {
+                let start = self.position;
+
                 if self.peek_char_is('/') {
                     self.next_char();
                     if self.peek_char_is('/') {
@@ -183,7 +192,7 @@ impl<'a> Lexer<'a> {
                     } else if self.peek_char_is('!') {
                         return self.parse_doc_comment(true, start);
                     }
-                    return self.parse_comment();
+                    return self.parse_comment(start);
                 } else if self.peek_char_is('*') {
                     self.next_char();
                     if self.peek_char_is('*') {
@@ -191,8 +200,9 @@ impl<'a> Lexer<'a> {
                     } else if self.peek_char_is('!') {
                         return self.parse_block_doc_comment(true);
                     }
-                    return self.parse_block_comment();
+                    return self.parse_block_comment(start);
                 }
+
                 Ok(spanned_prev_token)
             }
             _ => Err(LexerErrorKind::NotADoubleChar {
@@ -330,12 +340,34 @@ impl<'a> Lexer<'a> {
 
     fn eat_string_literal(&mut self) -> SpannedTokenResult {
         let start = self.position;
+        let mut string = String::new();
 
-        let str_literal = self.eat_while(None, |ch| ch != '"');
+        while let Some(next) = self.next_char() {
+            let char = match next {
+                '"' => break,
+                '\\' => match self.next_char() {
+                    Some('r') => '\r',
+                    Some('n') => '\n',
+                    Some('t') => '\t',
+                    Some('0') => '\0',
+                    Some('"') => '"',
+                    Some('\\') => '\\',
+                    Some(escaped) => {
+                        let span = Span::inclusive(start, self.position);
+                        return Err(LexerErrorKind::InvalidEscape { escaped, span });
+                    }
+                    None => {
+                        let span = Span::inclusive(start, self.position);
+                        return Err(LexerErrorKind::UnterminatedStringLiteral { span });
+                    }
+                },
+                other => other,
+            };
 
-        let str_literal_token = Token::Str(str_literal);
+            string.push(char);
+        }
 
-        self.next_char(); // Advance past the closing quote
+        let str_literal_token = Token::Str(string);
 
         let end = self.position;
         Ok(str_literal_token.into_span(start, end))
@@ -365,15 +397,18 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn parse_comment(&mut self) -> SpannedTokenResult {
-        let _ = self.eat_while(None, |ch| ch != '\n');
-        self.next_token()
+    fn parse_comment(&mut self, start: u32) -> SpannedTokenResult {
+        let comment = self.eat_while(None, |ch| ch != '\n');
+        if self.skip_comments {
+            return self.next_token();
+        }
+        Ok(Token::LineComment(comment).into_span(start, self.position))
     }
 
-    fn parse_block_comment(&mut self) -> SpannedTokenResult {
-        let start = self.position;
+    fn parse_block_comment(&mut self, start: u32) -> SpannedTokenResult {
         let mut depth = 1usize;
 
+        let mut content = String::new();
         while let Some(ch) = self.next_char() {
             match ch {
                 '/' if self.peek_char_is('*') => {
@@ -391,12 +426,15 @@ impl<'a> Lexer<'a> {
                         break;
                     }
                 }
-                _ => {}
+                ch => content.push(ch),
             }
         }
 
         if depth == 0 {
-            self.next_token()
+            if self.skip_comments {
+                return self.next_token();
+            }
+            Ok(Token::BlockComment(content).into_span(start, self.position))
         } else {
             let span = Span::inclusive(start, self.position);
             Err(LexerErrorKind::UnterminatedBlockComment { span })
@@ -490,7 +528,6 @@ impl<'a> Iterator for Lexer<'a> {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -556,7 +593,7 @@ mod tests {
         let input = r#"#[deprecated]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Deprecated(None)))
@@ -568,7 +605,7 @@ mod tests {
         let input = r#"#[deprecated("hello")]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Secondary(crate::token::SecondaryAttribute::Deprecated(
@@ -601,7 +638,7 @@ mod tests {
         let input = r#"#[custom(hello)]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(
@@ -615,7 +652,7 @@ mod tests {
         let input = r#"#[test]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Function(FunctionAttribute::Test(TestScope::None)))
@@ -627,7 +664,7 @@ mod tests {
         let input = r#"#[contract_library_method]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod))
@@ -639,7 +676,7 @@ mod tests {
         let input = r#"#[test(should_fail)]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Function(FunctionAttribute::Test(
@@ -653,7 +690,7 @@ mod tests {
         let input = r#"#[test(should_fail_with = "hello")]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Function(FunctionAttribute::Test(

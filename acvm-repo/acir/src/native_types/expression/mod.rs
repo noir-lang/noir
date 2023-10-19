@@ -72,7 +72,7 @@ impl Expression {
 
     /// Adds a new linear term to the `Expression`.
     pub fn push_addition_term(&mut self, coefficient: FieldElement, variable: Witness) {
-        self.linear_combinations.push((coefficient, variable))
+        self.linear_combinations.push((coefficient, variable));
     }
 
     /// Adds a new quadratic term to the `Expression`.
@@ -82,7 +82,7 @@ impl Expression {
         lhs: Witness,
         rhs: Witness,
     ) {
-        self.mul_terms.push((coefficient, lhs, rhs))
+        self.mul_terms.push((coefficient, lhs, rhs));
     }
 
     /// Returns `true` if the expression represents a constant polynomial.
@@ -394,5 +394,5 @@ fn add_mul_smoketest() {
             linear_combinations: vec![(FieldElement::from(40u128), Witness(4))],
             q_c: FieldElement::from(10u128)
         }
-    )
+    );
 }

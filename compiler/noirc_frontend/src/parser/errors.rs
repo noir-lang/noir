@@ -1,3 +1,4 @@
+use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::Expression;
 use small_ord_set::SmallOrdSet;
@@ -27,8 +28,6 @@ pub enum ParserErrorReason {
     PatternInTraitFunctionParameter,
     #[error("comptime keyword is deprecated")]
     ComptimeDeprecated,
-    #[error("the default type of a for-loop range will be changing from a Field to a u64")]
-    ForLoopDefaultTypeChanging,
     #[error("{0} are experimental and aren't fully supported yet")]
     ExperimentalFeature(&'static str),
     #[error("Where clauses are allowed only on functions with generic parameters")]
@@ -41,6 +40,8 @@ pub enum ParserErrorReason {
     NoFunctionAttributesAllowedOnStruct,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
+    #[error("{0}")]
+    Lexer(LexerErrorKind),
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -94,6 +95,10 @@ impl ParserError {
     pub fn span(&self) -> Span {
         self.span
     }
+
+    pub fn reason(&self) -> Option<&ParserErrorReason> {
+        self.reason.as_ref()
+    }
 }
 
 impl std::fmt::Display for ParserError {
@@ -134,11 +139,6 @@ impl From<ParserError> for Diagnostic {
                     ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
                         "Use of deprecated keyword 'comptime'".into(),
                         "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
-                        error.span,
-                    ),
-                    ParserErrorReason::ForLoopDefaultTypeChanging => Diagnostic::simple_warning(
-                        "The default type for the incrementor in a for-loop will be changed.".into(),
-                        "The default type in a for-loop will be changing from Field to u64".into(),
                         error.span,
                     ),
                     ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(

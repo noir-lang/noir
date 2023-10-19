@@ -31,8 +31,8 @@ fn simplify_mul_terms(mut gate: Expression) -> Expression {
     let mut hash_map: IndexMap<(Witness, Witness), FieldElement> = IndexMap::new();
 
     // Canonicalize the ordering of the multiplication, lets just order by variable name
-    for (scale, w_l, w_r) in gate.mul_terms.clone().into_iter() {
-        let mut pair = vec![w_l, w_r];
+    for (scale, w_l, w_r) in gate.mul_terms.into_iter() {
+        let mut pair = [w_l, w_r];
         // Sort using rust sort algorithm
         pair.sort();
 

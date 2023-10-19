@@ -1,7 +1,9 @@
 [package]
 name = "acir"
 description = "ACIR is the IR that the VM processes, it is analogous to LLVM IR"
-version = "0.27.0"
+# x-release-please-start-version
+version = "0.28.0"
+# x-release-please-end
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,7 +17,6 @@ acir_field.workspace = true
 brillig.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-rmp-serde = { version = "1.1.0", optional = true }
 flate2 = "1.0.24"
 bincode.workspace = true
 
@@ -23,9 +24,11 @@ bincode.workspace = true
 serde_json = "1.0"
 strum = "0.24"
 strum_macros = "0.24"
+serde-reflection = "0.3.6"
+serde-generate = "0.25.1"
+fxhash.workspace = true
 
 [features]
 default = ["bn254"]
 bn254 = ["acir_field/bn254", "brillig/bn254"]
 bls12_381 = ["acir_field/bls12_381", "brillig/bls12_381"]
-serialize-messagepack = ["rmp-serde"]

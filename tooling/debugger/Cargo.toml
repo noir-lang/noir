@@ -1,0 +1,17 @@
+[package]
+name = "noir_debugger"
+description = "Debugger for Noir"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+acvm.workspace = true
+nargo.workspace = true
+noirc_printable_type.workspace = true
+thiserror.workspace = true
+easy-repl = "0.2.1"
+owo-colors = "3"

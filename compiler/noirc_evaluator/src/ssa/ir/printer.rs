@@ -112,7 +112,7 @@ pub(crate) fn display_terminator(
                 else_destination
             )
         }
-        Some(TerminatorInstruction::Return { return_values }) => {
+        Some(TerminatorInstruction::Return { return_values, .. }) => {
             writeln!(f, "    return {}", value_list(function, return_values))
         }
         None => writeln!(f, "    (no terminator instruction)"),
@@ -163,19 +163,14 @@ pub(crate) fn display_instruction(
         Instruction::ArrayGet { array, index } => {
             writeln!(f, "array_get {}, index {}", show(*array), show(*index))
         }
-        Instruction::ArraySet { array, index, value, length } => {
-            write!(
+        Instruction::ArraySet { array, index, value } => {
+            writeln!(
                 f,
                 "array_set {}, index {}, value {}",
                 show(*array),
                 show(*index),
                 show(*value)
-            )?;
-            if let Some(length) = length {
-                writeln!(f, ", length {}", show(*length))
-            } else {
-                writeln!(f)
-            }
+            )
         }
     }
 }

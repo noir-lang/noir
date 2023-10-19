@@ -88,9 +88,6 @@ struct PerFunctionContext<'function> {
     /// block.
     blocks: HashMap<BasicBlockId, BasicBlockId>,
 
-    /// Maps InstructionIds from the function being inlined to the function being inlined into.
-    instructions: HashMap<InstructionId, InstructionId>,
-
     /// True if we're currently working on the entry point function.
     inlining_entry: bool,
 }
@@ -191,7 +188,6 @@ impl<'function> PerFunctionContext<'function> {
             context,
             source_function,
             blocks: HashMap::default(),
-            instructions: HashMap::default(),
             values: HashMap::default(),
             inlining_entry: false,
         }
@@ -484,10 +480,15 @@ impl<'function> PerFunctionContext<'function> {
                 }
                 None
             }
-            TerminatorInstruction::Return { return_values } => {
+            TerminatorInstruction::Return { return_values, call_stack } => {
                 let return_values = vecmap(return_values, |value| self.translate_value(*value));
                 if self.inlining_entry {
-                    self.context.builder.terminate_with_return(return_values.clone());
+                    let mut new_call_stack = self.context.call_stack.clone();
+                    new_call_stack.append(call_stack.clone());
+                    self.context
+                        .builder
+                        .set_call_stack(new_call_stack)
+                        .terminate_with_return(return_values.clone());
                 }
                 // Note that `translate_block` would take us back to the point at which the
                 // inlining of this source block began. Since additional blocks may have been
@@ -690,7 +691,7 @@ mod test {
         let b6 = &main.dfg[b6_id];
 
         match b6.terminator() {
-            Some(TerminatorInstruction::Return { return_values }) => {
+            Some(TerminatorInstruction::Return { return_values, .. }) => {
                 assert_eq!(return_values.len(), 1);
                 let value = main
                     .dfg

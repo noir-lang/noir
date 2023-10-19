@@ -22,14 +22,13 @@ function run_or_fail {
   fi
 }
 
-require_command toml2json
 require_command jq
 require_command cargo
 require_command wasm-bindgen
 check_installed wasm-opt
 
 self_path=$(dirname "$(readlink -f "$0")")
-export pname=$(toml2json < $self_path/Cargo.toml | jq -r .package.name)
+export pname=$(cargo read-manifest | jq -r '.name')
 export CARGO_TARGET_DIR=$self_path/target
 
 rm -rf $self_path/outputs >/dev/null 2>&1
@@ -38,7 +37,7 @@ rm -rf $self_path/result >/dev/null 2>&1
 if [ -v out ]; then
   echo "Will install package to $out (defined outside installPhase.sh script)"
 else
-  out="$self_path/outputs/out"
+  export out="$self_path/outputs/out"
   echo "Will install package to $out"
 fi
 

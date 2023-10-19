@@ -1,5 +1,4 @@
-
-fn main(x: Field, y: Field) -> pub Field  {
+fn main(x: Field, y: Field) -> pub Field {
     let notes = create_notes(x, y);
     sum_x(notes, x, y)
 }
@@ -9,5 +8,5 @@ fn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {
 }
 
 unconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {
-    [x,y]
+    [x, y]
 }

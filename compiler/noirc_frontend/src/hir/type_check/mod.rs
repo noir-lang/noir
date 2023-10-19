@@ -15,7 +15,7 @@ pub use errors::TypeCheckError;
 
 use crate::{
     hir_def::{expr::HirExpression, stmt::HirStatement},
-    node_interner::{ExprId, FuncId, NodeInterner, StmtId},
+    node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitImplKey},
     Type,
 };
 
@@ -27,6 +27,7 @@ pub struct TypeChecker<'interner> {
     delayed_type_checks: Vec<TypeCheckFn>,
     interner: &'interner mut NodeInterner,
     errors: Vec<TypeCheckError>,
+    current_function: Option<FuncId>,
 }
 
 /// Type checks a function and assigns the
@@ -40,6 +41,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let function_body_id = function_body.as_expr();
 
     let mut type_checker = TypeChecker::new(interner);
+    type_checker.current_function = Some(func_id);
 
     // Bind each parameter to its annotated type.
     // This is locally obvious, but it must be bound here so that the
@@ -61,30 +63,41 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let (expr_span, empty_function) = function_info(interner, function_body_id);
-
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        function_last_type.unify_with_coercions(
-            &declared_return_type,
-            *function_body_id,
-            interner,
-            &mut errors,
-            || {
-                let mut error = TypeCheckError::TypeMismatchWithSource {
+        if let Type::TraitAsType(t) = &declared_return_type {
+            let key = TraitImplKey { typ: function_last_type.follow_bindings(), trait_id: t.id };
+            if interner.get_trait_implementation(&key).is_none() {
+                let error = TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: function_last_type.clone(),
                     span: func_span,
                     source: Source::Return(meta.return_type, expr_span),
                 };
+                errors.push(error);
+            }
+        } else {
+            function_last_type.unify_with_coercions(
+                &declared_return_type,
+                *function_body_id,
+                interner,
+                &mut errors,
+                || {
+                    let mut error = TypeCheckError::TypeMismatchWithSource {
+                        expected: declared_return_type.clone(),
+                        actual: function_last_type.clone(),
+                        span: func_span,
+                        source: Source::Return(meta.return_type, expr_span),
+                    };
 
-                if empty_function {
-                    error = error.add_context(
+                    if empty_function {
+                        error = error.add_context(
                         "implicitly returns `()` as its body has no tail or `return` expression",
                     );
-                }
-
-                error
-            },
-        );
+                    }
+                    error
+                },
+            );
+        }
     }
 
     errors
@@ -111,7 +124,7 @@ fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_e
 
 impl<'interner> TypeChecker<'interner> {
     fn new(interner: &'interner mut NodeInterner) -> Self {
-        Self { delayed_type_checks: Vec::new(), interner, errors: vec![] }
+        Self { delayed_type_checks: Vec::new(), interner, errors: vec![], current_function: None }
     }
 
     pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
@@ -127,7 +140,12 @@ impl<'interner> TypeChecker<'interner> {
     }
 
     pub fn check_global(id: &StmtId, interner: &'interner mut NodeInterner) -> Vec<TypeCheckError> {
-        let mut this = Self { delayed_type_checks: Vec::new(), interner, errors: vec![] };
+        let mut this = Self {
+            delayed_type_checks: Vec::new(),
+            interner,
+            errors: vec![],
+            current_function: None,
+        };
         this.check_statement(id);
         this.errors
     }
@@ -318,18 +336,16 @@ mod test {
     fn basic_for_expr() {
         let src = r#"
             fn main(_x : Field) {
-                let _j = for _i in 0..10 {
+                for _i in 0..10 {
                     for _k in 0..100 {
 
                     }
-                };
+                }
             }
 
         "#;
 
-        // expect a deprecation warning since we are changing for-loop default type.
-        // There is a deprecation warning per for-loop.
-        let expected_num_errors = 2;
+        let expected_num_errors = 0;
         type_check_src_code_errors_expected(
             src,
             expected_num_errors,
@@ -441,7 +457,7 @@ mod test {
             },
         );
 
-        let func_meta = vecmap(program.functions, |nf| {
+        let func_meta = vecmap(program.into_sorted().functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
             let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
             assert_eq!(resolver_errors, vec![]);

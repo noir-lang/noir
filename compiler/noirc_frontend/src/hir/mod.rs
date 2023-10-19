@@ -4,11 +4,15 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
+#[cfg(feature = "aztec")]
+pub(crate) mod aztec_library;
+
 use crate::graph::{CrateGraph, CrateId, Dependency};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
+use noirc_errors::Location;
 use std::collections::BTreeMap;
 
 use self::def_map::TestFunction;
@@ -21,6 +25,10 @@ pub struct Context {
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
     pub file_manager: FileManager,
+
+    /// A map of each file that already has been visited from a prior `mod foo;` declaration.
+    /// This is used to issue an error if a second `mod foo;` is declared to the same file.
+    pub visited_files: BTreeMap<fm::FileId, Location>,
 
     /// Maps a given (contract) module id to the next available storage slot
     /// for that contract.
@@ -41,6 +49,7 @@ impl Context {
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
+            visited_files: BTreeMap::new(),
             crate_graph,
             file_manager,
             storage_slots: BTreeMap::new(),

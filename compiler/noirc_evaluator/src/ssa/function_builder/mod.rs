@@ -275,9 +275,8 @@ impl FunctionBuilder {
         array: ValueId,
         index: ValueId,
         value: ValueId,
-        length: Option<ValueId>,
     ) -> ValueId {
-        self.insert_instruction(Instruction::ArraySet { array, index, value, length }, None).first()
+        self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
     }
 
     /// Terminates the current block with the given terminator instruction
@@ -317,7 +316,8 @@ impl FunctionBuilder {
 
     /// Terminate the current block with a return instruction
     pub(crate) fn terminate_with_return(&mut self, return_values: Vec<ValueId>) {
-        self.terminate_block_with(TerminatorInstruction::Return { return_values });
+        let call_stack = self.call_stack.clone();
+        self.terminate_block_with(TerminatorInstruction::Return { return_values, call_stack });
     }
 
     /// Returns a ValueId pointing to the given function or imports the function
@@ -343,9 +343,11 @@ impl FunctionBuilder {
         self.current_function.dfg.import_intrinsic(intrinsic)
     }
 
-    /// Removes the given instruction from the current block or panics otherwise.
-    pub(crate) fn remove_instruction_from_current_block(&mut self, instruction: InstructionId) {
-        self.current_function.dfg[self.current_block].remove_instruction(instruction);
+    pub(crate) fn get_intrinsic_from_value(&mut self, value: ValueId) -> Option<Intrinsic> {
+        match self.current_function.dfg[value] {
+            Value::Intrinsic(intrinsic) => Some(intrinsic),
+            _ => None,
+        }
     }
 }
 

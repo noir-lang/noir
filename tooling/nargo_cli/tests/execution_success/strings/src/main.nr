@@ -19,7 +19,7 @@ fn main(message : pub str<11>, y : Field, hex_as_string : str<4>, hex_as_field :
     assert(y == 5); // Change to y != 5 to see how the later print statements are not called
     std::println(array);
 
-    bad_message = "helld world";
+    bad_message = "hell\0\"world";
     std::println(bad_message);
     assert(message != bad_message);
 
@@ -57,7 +57,7 @@ fn failed_constraint(hex_as_field: Field) {
     // evaluated at compile time. 
     // When this method is called from a test method or with constant values
     // a `Failed constraint` compile error will be caught before this `println`
-    // is executed as the input will be a constant. 
+    // is executed as the input will be a constant.
     std::println(hex_as_field);
     assert(hex_as_field != 0x41);
 }

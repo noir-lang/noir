@@ -1,12 +1,12 @@
 use std::path::{Path, PathBuf};
 
+use super::string_from_stderr;
 use crate::BackendError;
 
 /// WriteCommand will call the barretenberg binary
 /// to write a verification key to a file
 pub(crate) struct WriteVkCommand {
     pub(crate) crs_path: PathBuf,
-    pub(crate) is_recursive: bool,
     pub(crate) bytecode_path: PathBuf,
     pub(crate) vk_path_output: PathBuf,
 }
@@ -24,15 +24,11 @@ impl WriteVkCommand {
             .arg("-o")
             .arg(self.vk_path_output);
 
-        if self.is_recursive {
-            command.arg("-r");
-        }
-
         let output = command.output()?;
         if output.status.success() {
             Ok(())
         } else {
-            Err(BackendError::CommandFailed(output.stderr))
+            Err(BackendError::CommandFailed(string_from_stderr(&output.stderr)))
         }
     }
 }
@@ -52,8 +48,7 @@ fn write_vk_command() -> Result<(), BackendError> {
 
     std::fs::File::create(&bytecode_path).expect("file should be created");
 
-    let write_vk_command =
-        WriteVkCommand { bytecode_path, crs_path, is_recursive: false, vk_path_output };
+    let write_vk_command = WriteVkCommand { bytecode_path, crs_path, vk_path_output };
 
     write_vk_command.run(backend.binary_path())?;
     drop(temp_directory);

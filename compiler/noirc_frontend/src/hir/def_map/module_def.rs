@@ -87,6 +87,12 @@ impl From<StmtId> for ModuleDefId {
     }
 }
 
+impl From<TraitId> for ModuleDefId {
+    fn from(trait_id: TraitId) -> Self {
+        ModuleDefId::TraitId(trait_id)
+    }
+}
+
 pub trait TryFromModuleDefId: Sized {
     fn try_from(id: ModuleDefId) -> Option<Self>;
     fn dummy_id() -> Self;
