@@ -38,6 +38,10 @@ impl Expr {
     pub(crate) fn total_width(&self) -> usize {
         self.leading.len() + self.value.len() + self.trailing.len()
     }
+
+    pub(crate) fn is_multiline(&self) -> bool {
+        self.leading.contains('\n') && self.trailing.contains('\n')
+    }
 }
 
 pub(crate) struct Exprs<'me> {

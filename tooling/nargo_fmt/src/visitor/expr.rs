@@ -398,10 +398,10 @@ impl Tactic {
 
         if let Some(limit) = limit {
             let total_width: usize = exprs.iter().map(|expr| expr.total_width()).sum();
-            if total_width <= limit {
+            if total_width <= limit && !exprs.iter().any(|expr| expr.is_multiline()) {
                 tactic = Tactic::Horizontal;
             } else {
-                tactic = Tactic::Vertical;
+                tactic = Tactic::Mixed;
             }
         }
 
