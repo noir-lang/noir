@@ -25,13 +25,14 @@ For this guide, the following Aztec packages are used:
 
 - @aztec/aztec.js
 
-### Initialisation
+### Initialization
 
 ```ts
 import { createPXEClient, CheatCodes } from "@aztec/aztec.js";
 const pxeRpcUrl = "http://localhost:8080";
+const ethRpcUrl = "http://localhost:8545";
 const pxe = createPXEClient(pxeRpcUrl);
-const cc = await CheatCodes.create(pxeRpcUrl, pxe);
+const cc = await CheatCodes.create(ethRpcUrl, pxe);
 ```
 
 There are two properties of the CheatCodes class - `eth` and `aztec` for cheatcodes relating to the Ethereum blockchain (L1) and the Aztec network (L2) respectively.
