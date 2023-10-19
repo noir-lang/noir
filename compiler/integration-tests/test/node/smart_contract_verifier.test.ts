@@ -22,6 +22,11 @@ const test_cases = [
     compiled: 'contracts/main.sol:UltraVerifier',
     numPublicInputs: 1,
   },
+  {
+    case: 'compiler/integration-tests/circuits/array_eq',
+    compiled: 'contracts/array_eq.sol:UltraVerifier',
+    numPublicInputs: 32,
+  },
 ];
 
 test_cases.forEach((testInfo) => {
@@ -52,7 +57,7 @@ test_cases.forEach((testInfo) => {
 
     // Smart contract verification
 
-    const contract = await ethers.deployContract(testInfo.compiled, [], {});
+    const contract = await ethers.deployContract(testInfo.compiled, []);
 
     const result = await contract.verify(proofData.proof, proofData.publicInputs);
 
