@@ -10,7 +10,9 @@ pub(crate) fn changed_comment_content(original: &str, new: &str) -> bool {
 
 pub(crate) fn comments(source: &str) -> impl Iterator<Item = String> + '_ {
     Lexer::new(source).skip_comments(false).flatten().filter_map(|spanned| {
-        if let Token::LineComment(content) | Token::BlockComment(content) = spanned.into_token() {
+        if let Token::LineComment(content, _) | Token::BlockComment(content, _) =
+            spanned.into_token()
+        {
             Some(content)
         } else {
             None
@@ -127,7 +129,7 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
     fn find_comment_end(slice: &str) -> usize {
         slice
             .find_token_with(|token| {
-                matches!(token, Token::LineComment(_) | Token::BlockComment(_))
+                matches!(token, Token::LineComment(_, _) | Token::BlockComment(_, _))
             })
             .map(|index| index as usize)
             .unwrap_or(slice.len())
