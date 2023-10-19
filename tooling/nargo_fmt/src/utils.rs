@@ -29,9 +29,15 @@ pub(crate) fn comments(source: &str) -> impl Iterator<Item = String> + '_ {
 #[derive(Debug)]
 pub(crate) struct Expr {
     pub(crate) leading: String,
-    pub(crate) expr: String,
+    pub(crate) value: String,
     pub(crate) trailing: String,
     pub(crate) different_line: bool,
+}
+
+impl Expr {
+    pub(crate) fn total_width(&self) -> usize {
+        self.leading.len() + self.value.len() + self.trailing.len()
+    }
 }
 
 pub(crate) struct Exprs<'me> {
@@ -73,7 +79,7 @@ impl Iterator for Exprs<'_> {
         let expr = self.visitor.format_expr(element);
         let trailing = self.trailing(element_span.end(), next_start, is_last);
 
-        Expr { leading, expr, trailing, different_line: newlines }.into()
+        Expr { leading, value: expr, trailing, different_line: newlines }.into()
     }
 }
 
