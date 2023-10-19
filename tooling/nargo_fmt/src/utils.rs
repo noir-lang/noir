@@ -38,11 +38,11 @@ pub(crate) struct Expr {
 
 impl Expr {
     pub(crate) fn total_width(&self) -> usize {
-        self.leading.len() + self.value.len() + self.trailing.len()
+        comment_len(&self.leading) + self.value.chars().count() + comment_len(&self.trailing)
     }
 
     pub(crate) fn is_multiline(&self) -> bool {
-        self.leading.contains('\n') && self.trailing.contains('\n')
+        self.leading.contains('\n') || self.trailing.contains('\n')
     }
 }
 
@@ -185,5 +185,19 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
         newline_index + 1
     } else {
         0
+    }
+}
+
+fn comment_len(comment: &str) -> usize {
+    match comment {
+        "" => 0,
+        _ => {
+            let len = comment.trim().len();
+            if len > 0 {
+                len + 6
+            } else {
+                len
+            }
+        }
     }
 }

@@ -289,10 +289,12 @@ fn format_exprs(
     let tactic = Tactic::of(&exprs, config.short_array_element_width_threshold, limit);
     let mut exprs = exprs.into_iter().enumerate().peekable();
     let mut line_len = 0;
+    let mut prev_expr_trailing_comment = false;
 
     while let Some((index, expr)) = exprs.next() {
         let is_first = index == 0;
         let separate = exprs.peek().is_some() || trailing_comma;
+        let separate_len = if separate { 1 } else { 0 };
 
         match tactic {
             Tactic::Vertical if !is_first && !expr.value.is_empty() && !result.is_empty() => {
@@ -303,9 +305,11 @@ fn format_exprs(
                 result.push(' ');
             }
             Tactic::Mixed => {
-                let total_width = expr.total_width() + 1;
+                let total_width = expr.total_width() + separate_len;
 
-                if line_len > 0 && line_len + 1 + total_width > shape.width {
+                if line_len > 0 && line_len + 1 + total_width > shape.width
+                    || prev_expr_trailing_comment
+                {
                     result.push('\n');
                     result.push_str(&indent_str);
                     line_len = 0;
@@ -324,6 +328,7 @@ fn format_exprs(
         if expr.different_line {
             result.push('\n');
             result.push_str(&indent_str);
+            line_len = expr.value.chars().count();
         } else if !expr.leading.is_empty() {
             result.push(' ');
         }
@@ -338,10 +343,13 @@ fn format_exprs(
             result.push(',');
         }
 
-        if matches!(tactic, Tactic::Vertical | Tactic::Mixed) {
+        if tactic != Tactic::Horizontal {
+            prev_expr_trailing_comment = !expr.trailing.is_empty();
+
             if !expr.different_line && !expr.trailing.is_empty() {
                 result.push(' ');
             }
+
             result.push_str(&expr.trailing);
         }
     }
@@ -381,7 +389,7 @@ fn wrap_exprs(
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum Tactic {
     Vertical,
     Horizontal,
