@@ -1707,8 +1707,13 @@ impl<'a> Resolver<'a> {
         match expr {
             UnresolvedTypeExpression::Constant(_, _) => (),
             UnresolvedTypeExpression::Variable(path) => {
-                let span = path.span();
-                self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
+                let error_count = self.errors.len();
+                let resolved = self.resolve_named_type(path.clone(), vec![], &mut vec![]);
+                self.errors.truncate(error_count);
+
+                if !resolved.is_valid_for_program_input() {
+                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span: path.span() });
+                }
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
                 self.verify_type_expression_valid_for_program_input(lhs);
