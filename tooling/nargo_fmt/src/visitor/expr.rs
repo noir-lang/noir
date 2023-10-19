@@ -359,7 +359,20 @@ fn wrap_exprs(
     let first_line_width = exprs.lines().next().map_or(0, |line| line.chars().count());
 
     if first_line_width <= shape.width {
-        format!("{prefix}{exprs}{sufix}")
+        let allow_trailing_newline = exprs
+            .lines()
+            .last()
+            .unwrap_or_default()
+            .find_token_with(|token| matches!(token, Token::LineComment(_, _)))
+            .is_some();
+
+        let trailing_newline = if allow_trailing_newline {
+            shape.indent.to_string_with_newline()
+        } else {
+            String::new()
+        };
+
+        format!("{prefix}{exprs}{trailing_newline}{sufix}")
     } else {
         let nested_indent_str = nested_shape.indent.to_string_with_newline();
         let indent_str = shape.indent.to_string();
