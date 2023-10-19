@@ -15,11 +15,18 @@ pub fn complete_barretenberg_verifier_contract(contract: String) -> String {
 }
 
 /// Removes the public inputs which are prepended to a proof by Barretenberg.
-pub fn remove_public_inputs(num_pub_inputs: usize, proof: &[u8]) -> Vec<u8> {
+pub fn split_public_inputs(
+    num_pub_inputs: usize,
+    mut proof_with_public_inputs: Vec<u8>,
+) -> (Vec<u8>, Vec<u8>) {
     // Barretenberg prepends the public inputs onto the proof so we need to remove
     // the first `num_pub_inputs` field elements.
     let num_bytes_to_remove = num_pub_inputs * (FieldElement::max_num_bytes() as usize);
-    proof[num_bytes_to_remove..].to_vec()
+
+    let proof = proof_with_public_inputs.split_off(num_bytes_to_remove);
+    // `proof_with_public_inputs` has been mutated to just contain public inputs.
+    let public_inputs = proof_with_public_inputs;
+    (proof, public_inputs)
 }
 
 /// Prepends a set of public inputs to a proof.

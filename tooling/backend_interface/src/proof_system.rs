@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -41,7 +42,7 @@ impl Backend {
         circuit: &Circuit,
         witness_values: WitnessMap,
         is_recursive: bool,
-    ) -> Result<Vec<u8>, BackendError> {
+    ) -> Result<(Vec<u8>, WitnessMap), BackendError> {
         let binary_path = self.assert_binary_exists()?;
         self.assert_correct_version()?;
 
@@ -69,11 +70,21 @@ impl Backend {
         }
         .run(binary_path)?;
 
-        let proof = bb_abstraction_leaks::remove_public_inputs(
+        let (proof, public_inputs_bytes) = bb_abstraction_leaks::split_public_inputs(
             circuit.public_inputs().0.len(),
-            &proof_with_public_inputs,
+            proof_with_public_inputs,
         );
-        Ok(proof)
+
+        let public_inputs: Vec<FieldElement> = public_inputs_bytes
+            .chunks(FieldElement::max_num_bytes() as usize)
+            .map(FieldElement::from_be_bytes_reduce)
+            .collect();
+
+        let public_inputs = WitnessMap::from(BTreeMap::from_iter(
+            circuit.public_inputs().0.into_iter().zip(public_inputs),
+        ));
+
+        Ok((proof, public_inputs))
     }
 
     pub fn verify(

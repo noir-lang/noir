@@ -103,22 +103,8 @@ pub(crate) fn prove_package(
 
     let solved_witness = execute_program(&compiled_program, &inputs_map)?;
 
-    // Write public inputs into Verifier.toml
-    let public_abi = compiled_program.abi.public_abi();
-    let (public_inputs, return_value) = public_abi.decode(&solved_witness)?;
-
-    write_inputs_to_file(
-        &public_inputs,
-        &return_value,
-        &public_abi,
-        &package.root_dir,
-        verifier_name,
-        Format::Toml,
-    )?;
-
-    let proof = backend.prove(&compiled_program.circuit, solved_witness, recursive)?;
-
-    let public_inputs = public_abi.encode(&public_inputs, return_value)?;
+    let (proof, public_inputs) =
+        backend.prove(&compiled_program.circuit, solved_witness, recursive)?;
 
     if recursive {
         generate_recursive_proof_input(
@@ -132,12 +118,26 @@ pub(crate) fn prove_package(
 
     if check_proof {
         let valid_proof =
-            backend.verify(&proof, public_inputs, &compiled_program.circuit, recursive)?;
+            backend.verify(&proof, public_inputs.clone(), &compiled_program.circuit, recursive)?;
 
         if !valid_proof {
             return Err(CliError::InvalidProof("".into()));
         }
     }
+
+    // Write public inputs into Verifier.toml
+    let public_abi = compiled_program.abi.public_abi();
+
+    let (public_inputs, return_value) = public_abi.decode(&public_inputs)?;
+
+    write_inputs_to_file(
+        &public_inputs,
+        &return_value,
+        &public_abi,
+        &package.root_dir,
+        verifier_name,
+        Format::Toml,
+    )?;
 
     save_proof_to_dir(&proof, &String::from(&package.name), workspace.proofs_directory_path())?;
 
