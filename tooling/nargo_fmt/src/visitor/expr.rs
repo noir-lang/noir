@@ -248,12 +248,11 @@ fn format_expr_seq(
 
     let nested_indent = visitor.indent;
     let exprs: Vec<_> = utils::Exprs::new(&visitor, span, exprs).collect();
-    let (exprs, force_one_line) =
-        format_exprs(visitor.config, trailing_comma, exprs, nested_indent, limit);
+    let exprs = format_exprs(visitor.config, trailing_comma, exprs, nested_indent, limit);
 
     visitor.indent.block_unindent(visitor.config);
 
-    wrap_exprs(prefix, sufix, exprs, nested_indent, visitor.indent, force_one_line)
+    wrap_exprs(prefix, sufix, exprs, nested_indent, visitor.indent)
 }
 
 fn format_brackets(
@@ -280,11 +279,9 @@ fn format_exprs(
     exprs: Vec<Expr>,
     indent: Indent,
     limit: Option<usize>,
-) -> (String, bool) {
+) -> String {
     let width = 91;
     let mut result = String::new();
-
-    let mut force_one_line = true;
     let indent_str = indent.to_string();
 
     let tactic = Tactic::of(&exprs, config.short_array_element_width_threshold, limit);
@@ -323,7 +320,6 @@ fn format_exprs(
         result.push_str(&expr.leading);
 
         if expr.different_line {
-            force_one_line = false;
             result.push('\n');
             result.push_str(&indent_str);
         } else if !expr.leading.is_empty() {
@@ -348,7 +344,7 @@ fn format_exprs(
         }
     }
 
-    (result, force_one_line)
+    result
 }
 
 fn wrap_exprs(
@@ -357,9 +353,10 @@ fn wrap_exprs(
     exprs: String,
     nested_indent: Indent,
     indent: Indent,
-    force_one_line: bool,
 ) -> String {
-    if force_one_line && !exprs.contains('\n') {
+    let fits_one_line = exprs.len() <= 50;
+
+    if !exprs.contains('\n') && fits_one_line {
         format!("{prefix}{exprs}{sufix}")
     } else {
         let nested_indent_str = "\n".to_string() + &nested_indent.to_string();

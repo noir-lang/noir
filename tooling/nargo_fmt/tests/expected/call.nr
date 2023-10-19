@@ -19,7 +19,11 @@ fn foo() {
         another_func(20, 30)
     );
 
-    my_function(some_function(10, "arg1", another_function()), another_func(20, some_function(), 30));
+    my_function(
+        some_function(10, "arg1", another_function()), another_func(20, some_function(), 30)
+    );
 
-    outer_function(some_function(), another_function(some_function(), some_value));
+    outer_function(
+        some_function(), another_function(some_function(), some_value)
+    );
 }
