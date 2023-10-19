@@ -56,6 +56,10 @@ allow = [
     "LicenseRef-webpki",
     # https://github.com/rustls/webpki/blob/main/LICENSE ISC Style
     "LicenseRef-rustls-webpki",
+    # bitmaps 2.1.0, generational-arena 0.2.9,im 15.1.0
+    "MPL-2.0",
+    # Boost Software License
+    "BSL-1.0"
 ]
 
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses
@@ -96,5 +100,6 @@ unknown-registry = "warn"
 # in the allow list is encountered
 unknown-git = "deny"
 allow-git = [
+    "https://github.com/noir-lang/grumpkin",
     "https://github.com/jfecher/chumsky"
 ]

@@ -1,6 +1,6 @@
 use crate::{
     graph::CrateId,
-    node_interner::{FuncId, TraitId},
+    node_interner::{FuncId, TraitId, TraitMethodId},
     Generics, Ident, NoirFunction, Type, TypeVariable, TypeVariableId,
 };
 use noirc_errors::Span;
@@ -34,7 +34,7 @@ pub struct TraitType {
 /// Represents a trait in the type system. Each instance of this struct
 /// will be shared across all Type::Trait variants that represent
 /// the same trait.
-#[derive(Clone, Debug)]
+#[derive(Debug, Eq, Clone)]
 pub struct Trait {
     /// A unique id representing this trait type. Used to check if two
     /// struct traits are equal.
@@ -110,6 +110,15 @@ impl Trait {
 
     pub fn set_methods(&mut self, methods: Vec<TraitFunction>) {
         self.methods = methods;
+    }
+
+    pub fn find_method(&self, name: Ident) -> Option<TraitMethodId> {
+        for (idx, method) in self.methods.iter().enumerate() {
+            if method.name == name {
+                return Some(TraitMethodId { trait_id: self.id, method_index: idx });
+            }
+        }
+        None
     }
 }
 

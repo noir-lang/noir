@@ -1,6 +1,6 @@
 {
   "name": "@noir-lang/source-resolver",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "license": "MIT",
   "main": "./lib-node/index_node.js",
   "types": "./types/index_node.d.ts",
@@ -24,6 +24,8 @@
     "test": "ava",
     "generate-types": "tsc src/*.ts --declaration --emitDeclarationOnly --outDir types",
     "clean": "rm -rf ./lib ./lib-node",
+    "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
+    "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "devDependencies": {

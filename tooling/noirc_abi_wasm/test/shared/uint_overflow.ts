@@ -1,9 +1,11 @@
-export const abi = {
+import { Abi, InputMap } from '@noir-lang/noirc_abi';
+
+export const abi: Abi = {
   parameters: [
     {
-      name: "foo",
-      type: { kind: "integer", sign: "unsigned", width: 32 },
-      visibility: "private",
+      name: 'foo',
+      type: { kind: 'integer', sign: 'unsigned', width: 32 },
+      visibility: 'private',
     },
   ],
   param_witnesses: { foo: [1] },
@@ -11,6 +13,6 @@ export const abi = {
   return_witnesses: [],
 };
 
-export const inputs = {
+export const inputs: InputMap = {
   foo: `0x${(1n << 38n).toString(16)}`,
 };

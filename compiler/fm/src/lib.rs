@@ -8,6 +8,7 @@ mod file_reader;
 
 pub use file_map::{File, FileId, FileMap, PathString};
 use file_reader::is_stdlib_asset;
+pub use file_reader::FileReader;
 
 use std::{
     collections::HashMap,
@@ -16,24 +17,33 @@ use std::{
 
 pub const FILE_EXTENSION: &str = "nr";
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct VirtualPath(PathBuf);
-
-#[derive(Debug)]
 pub struct FileManager {
     root: PathBuf,
     file_map: file_map::FileMap,
-    id_to_path: HashMap<FileId, VirtualPath>,
-    path_to_id: HashMap<VirtualPath, FileId>,
+    id_to_path: HashMap<FileId, PathBuf>,
+    path_to_id: HashMap<PathBuf, FileId>,
+    file_reader: Box<FileReader>,
+}
+
+impl std::fmt::Debug for FileManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FileManager")
+            .field("root", &self.root)
+            .field("file_map", &self.file_map)
+            .field("id_to_path", &self.id_to_path)
+            .field("path_to_id", &self.path_to_id)
+            .finish()
+    }
 }
 
 impl FileManager {
-    pub fn new(root: &Path) -> Self {
+    pub fn new(root: &Path, file_reader: Box<FileReader>) -> Self {
         Self {
             root: root.normalize(),
             file_map: Default::default(),
             id_to_path: Default::default(),
             path_to_id: Default::default(),
+            file_reader,
         }
     }
 
@@ -52,19 +62,18 @@ impl FileManager {
         };
 
         // Check that the resolved path already exists in the file map, if it is, we return it.
-        let path_to_file = virtualize_path(&resolved_path);
-        if let Some(file_id) = self.path_to_id.get(&path_to_file) {
+        if let Some(file_id) = self.path_to_id.get(&resolved_path) {
             return Some(*file_id);
         }
 
         // Otherwise we add the file
-        let source = file_reader::read_file_to_string(&resolved_path).ok()?;
-        let file_id = self.file_map.add_file(resolved_path.into(), source);
-        self.register_path(file_id, path_to_file);
+        let source = file_reader::read_file_to_string(&resolved_path, &self.file_reader).ok()?;
+        let file_id = self.file_map.add_file(resolved_path.clone().into(), source);
+        self.register_path(file_id, resolved_path);
         Some(file_id)
     }
 
-    fn register_path(&mut self, file_id: FileId, path: VirtualPath) {
+    fn register_path(&mut self, file_id: FileId, path: PathBuf) {
         let old_value = self.id_to_path.insert(file_id, path.clone());
         assert!(
             old_value.is_none(),
@@ -82,14 +91,14 @@ impl FileManager {
     pub fn path(&self, file_id: FileId) -> &Path {
         // Unwrap as we ensure that all file_ids are created by the file manager
         // So all file_ids will points to a corresponding path
-        self.id_to_path.get(&file_id).unwrap().0.as_path()
+        self.id_to_path.get(&file_id).unwrap().as_path()
     }
 
     pub fn find_module(&mut self, anchor: FileId, mod_name: &str) -> Result<FileId, String> {
-        let anchor_path = self.path(anchor).to_path_buf();
+        let anchor_path = self.path(anchor).with_extension("");
         let anchor_dir = anchor_path.parent().unwrap();
 
-        // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{modname}.nr`, we check siblings of
+        // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of
         // the anchor at `base/mod_name.nr`.
         let candidate = if should_check_siblings_for_module(&anchor_path, anchor_dir) {
             anchor_dir.join(format!("{mod_name}.{FILE_EXTENSION}"))
@@ -105,14 +114,14 @@ impl FileManager {
 /// Returns true if a module's child module's are expected to be in the same directory.
 /// Returns false if they are expected to be in a subdirectory matching the name of the module.
 fn should_check_siblings_for_module(module_path: &Path, parent_path: &Path) -> bool {
-    if let Some(filename) = module_path.file_name() {
+    if let Some(filename) = module_path.file_stem() {
         // This check also means a `main.nr` or `lib.nr` file outside of the crate root would
         // check its same directory for child modules instead of a subdirectory. Should we prohibit
         // `main.nr` and `lib.nr` files outside of the crate root?
         filename == "main"
             || filename == "lib"
             || filename == "mod"
-            || Some(filename) == parent_path.file_name()
+            || Some(filename) == parent_path.file_stem()
     } else {
         // If there's no filename, we arbitrarily return true.
         // Alternatively, we could panic, but this is left to a different step where we
@@ -198,16 +207,6 @@ mod path_normalization {
     }
 }
 
-/// Takes a path to a noir file. This will panic on paths to directories
-/// Returns the file path with the extension removed
-fn virtualize_path(path: &Path) -> VirtualPath {
-    let path = path.to_path_buf();
-    let base = path.parent().unwrap();
-    let path_no_ext: PathBuf =
-        path.file_stem().expect("ice: this should have been the path to a file").into();
-    let path = base.join(path_no_ext);
-    VirtualPath(path)
-}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,7 +224,7 @@ mod tests {
         let entry_file_name = Path::new("my_dummy_file.nr");
         create_dummy_file(&dir, entry_file_name);
 
-        let mut fm = FileManager::new(dir.path());
+        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
 
         let file_id = fm.add_file(entry_file_name).unwrap();
 
@@ -240,17 +239,17 @@ mod tests {
         let file_name = Path::new("foo.nr");
         create_dummy_file(&dir, file_name);
 
-        let mut fm = FileManager::new(dir.path());
+        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
 
         let file_id = fm.add_file(file_name).unwrap();
 
-        assert!(fm.path(file_id).ends_with("foo"));
+        assert!(fm.path(file_id).ends_with("foo.nr"));
     }
 
     #[test]
     fn path_resolve_sub_module() {
         let dir = tempdir().unwrap();
-        let mut fm = FileManager::new(dir.path());
+        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
 
         // Create a lib.nr file at the root.
         // we now have dir/lib.nr
@@ -277,7 +276,7 @@ mod tests {
         // - dir/lib.nr
         // - dir/sub_dir.nr
         // - dir/sub_dir/foo.nr
-        create_dummy_file(&dir, Path::new(&format!("{}.nr", sub_dir_name)));
+        create_dummy_file(&dir, Path::new(&format!("{sub_dir_name}.nr")));
 
         // First check for the sub_dir.nr file and add it to the FileManager
         let sub_dir_file_id = fm.find_module(file_id, sub_dir_name).unwrap();
@@ -296,7 +295,7 @@ mod tests {
         let sub_dir = TempDir::new_in(&dir).unwrap();
         let sub_sub_dir = TempDir::new_in(&sub_dir).unwrap();
 
-        let mut fm = FileManager::new(dir.path());
+        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
 
         // Create a lib.nr file at the root.
         let file_name = Path::new("lib.nr");

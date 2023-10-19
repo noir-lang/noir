@@ -131,7 +131,9 @@ impl ControlFlowGraph {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::ir::{instruction::TerminatorInstruction, map::Id, types::Type};
+    use crate::ssa::ir::{
+        dfg::CallStack, instruction::TerminatorInstruction, map::Id, types::Type,
+    };
 
     use super::{super::function::Function, ControlFlowGraph};
 
@@ -140,7 +142,10 @@ mod tests {
         let func_id = Id::test_new(0);
         let mut func = Function::new("func".into(), func_id);
         let block_id = func.entry_block();
-        func.dfg[block_id].set_terminator(TerminatorInstruction::Return { return_values: vec![] });
+        func.dfg[block_id].set_terminator(TerminatorInstruction::Return {
+            return_values: vec![],
+            call_stack: CallStack::new(),
+        });
 
         ControlFlowGraph::with_function(&func);
     }
@@ -173,7 +178,10 @@ mod tests {
             then_destination: block1_id,
             else_destination: block2_id,
         });
-        func.dfg[block2_id].set_terminator(TerminatorInstruction::Return { return_values: vec![] });
+        func.dfg[block2_id].set_terminator(TerminatorInstruction::Return {
+            return_values: vec![],
+            call_stack: CallStack::new(),
+        });
 
         let mut cfg = ControlFlowGraph::with_function(&func);
 
@@ -218,8 +226,10 @@ mod tests {
         //     return ()
         // }
         let ret_block_id = func.dfg.make_block();
-        func.dfg[ret_block_id]
-            .set_terminator(TerminatorInstruction::Return { return_values: vec![] });
+        func.dfg[ret_block_id].set_terminator(TerminatorInstruction::Return {
+            return_values: vec![],
+            call_stack: CallStack::new(),
+        });
         func.dfg[block2_id].set_terminator(TerminatorInstruction::Jmp {
             destination: ret_block_id,
             arguments: vec![],

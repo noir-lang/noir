@@ -14,7 +14,10 @@ use noirc_printable_type::PrintableType;
 
 use crate::{node_interner::StructId, Ident, Signedness};
 
-use super::expr::{HirCallExpression, HirExpression, HirIdent};
+use super::{
+    expr::{HirCallExpression, HirExpression, HirIdent},
+    traits::Trait,
+};
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
@@ -61,6 +64,8 @@ pub enum Type {
     /// Doing this at each call site of a generic function is how they can be called with
     /// different argument types each time.
     TypeVariable(TypeVariable, TypeVariableKind),
+
+    TraitAsType(Trait),
 
     /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
@@ -483,7 +488,8 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
-            | Type::Forall(_, _) => false,
+            | Type::Forall(_, _)
+            | Type::TraitAsType(_) => false,
 
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
@@ -559,6 +565,9 @@ impl std::fmt::Display for Type {
                 } else {
                     write!(f, "{}<{}>", s.borrow(), args.join(", "))
                 }
+            }
+            Type::TraitAsType(tr) => {
+                write!(f, "impl {}", tr.name)
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -675,9 +684,16 @@ impl Type {
                             *binding.borrow_mut() = TypeBinding::Bound(clone);
                             Ok(())
                         }
-                        TypeVariableKind::Constant(_) | TypeVariableKind::IntegerOrField => {
-                            Err(UnificationError)
+                        // The lengths don't match, but neither are set in stone so we can
+                        // just set them both to NotConstant. See issue 2370
+                        TypeVariableKind::Constant(_) => {
+                            // *length != target_length
+                            drop(borrow);
+                            *var.borrow_mut() = TypeBinding::Bound(Type::NotConstant);
+                            *binding.borrow_mut() = TypeBinding::Bound(Type::NotConstant);
+                            Ok(())
                         }
+                        TypeVariableKind::IntegerOrField => Err(UnificationError),
                     },
                 }
             }
@@ -782,7 +798,7 @@ impl Type {
 
     /// `try_unify` is a bit of a misnomer since although errors are not committed,
     /// any unified bindings are on success.
-    fn try_unify(&self, other: &Type) -> Result<(), UnificationError> {
+    pub fn try_unify(&self, other: &Type) -> Result<(), UnificationError> {
         use Type::*;
         use TypeVariableKind as Kind;
 
@@ -995,7 +1011,7 @@ impl Type {
     /// Instantiate this type, replacing any type variables it is quantified
     /// over with fresh type variables. If this type is not a Type::Forall,
     /// it is unchanged.
-    pub fn instantiate(&self, interner: &mut NodeInterner) -> (Type, TypeBindings) {
+    pub fn instantiate(&self, interner: &NodeInterner) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
                 let replacements = typevars
@@ -1057,6 +1073,7 @@ impl Type {
                 let fields = vecmap(fields, |field| field.substitute(type_bindings));
                 Type::Tuple(fields)
             }
+            Type::TraitAsType(_) => todo!(),
             Type::Forall(typevars, typ) => {
                 // Trying to substitute a variable defined within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
@@ -1096,6 +1113,7 @@ impl Type {
                 let field_occurs = fields.occurs(target_id);
                 len_occurs || field_occurs
             }
+            Type::TraitAsType(_) => todo!(),
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
@@ -1147,7 +1165,6 @@ impl Type {
                 Struct(def.clone(), args)
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
-
             TypeVariable(var, _) | NamedGeneric(var, _) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return typ.follow_bindings();
@@ -1166,10 +1183,14 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-
-            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Error | NotConstant => {
-                self.clone()
-            }
+            TraitAsType(_)
+            | FieldElement
+            | Integer(_, _)
+            | Bool
+            | Constant(_)
+            | Unit
+            | Error
+            | NotConstant => self.clone(),
         }
     }
 }
@@ -1270,6 +1291,7 @@ impl From<&Type> for PrintableType {
                 let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
                 PrintableType::Struct { fields, name: struct_type.name.to_string() }
             }
+            Type::TraitAsType(_) => unreachable!(),
             Type::Tuple(_) => todo!("printing tuple types is not yet implemented"),
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),

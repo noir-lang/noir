@@ -1,7 +1,7 @@
 // Tests a very simple program.
 // 
 // The features being tested is brillig calls with conditionals
-fn main(x: [u32; 3])  {
+fn main(x: [u32; 3]) {
     assert(entry_point(x[0]) == 7);
     assert(entry_point(x[1]) == 8);
     assert(entry_point(x[2]) == 9);
@@ -29,7 +29,7 @@ unconstrained fn entry_point(x: u32) -> u32 {
         result = inner_2();
     } else if x == 3 {
         result = inner_3();
-    } 
+    }
 
     result
 }

@@ -41,24 +41,43 @@ impl ModuleData {
         }
     }
 
-    fn declare(&mut self, name: Ident, item_id: ModuleDefId) -> Result<(), (Ident, Ident)> {
-        self.scope.add_definition(name.clone(), item_id)?;
+    fn declare(
+        &mut self,
+        name: Ident,
+        item_id: ModuleDefId,
+        trait_id: Option<TraitId>,
+    ) -> Result<(), (Ident, Ident)> {
+        self.scope.add_definition(name.clone(), item_id, trait_id)?;
 
         // definitions is a subset of self.scope so it is expected if self.scope.define_func_def
         // returns without error, so will self.definitions.define_func_def.
-        self.definitions.add_definition(name, item_id)
+        self.definitions.add_definition(name, item_id, trait_id)
     }
 
     pub fn declare_function(&mut self, name: Ident, id: FuncId) -> Result<(), (Ident, Ident)> {
-        self.declare(name, id.into())
+        self.declare(name, id.into(), None)
+    }
+
+    pub fn declare_trait_function(
+        &mut self,
+        name: Ident,
+        id: FuncId,
+        trait_id: TraitId,
+    ) -> Result<(), (Ident, Ident)> {
+        self.declare(name, id.into(), Some(trait_id))
+    }
+
+    pub fn remove_function(&mut self, name: &Ident) {
+        self.scope.remove_definition(name);
+        self.definitions.remove_definition(name);
     }
 
     pub fn declare_global(&mut self, name: Ident, id: StmtId) -> Result<(), (Ident, Ident)> {
-        self.declare(name, id.into())
+        self.declare(name, id.into(), None)
     }
 
     pub fn declare_struct(&mut self, name: Ident, id: StructId) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ModuleDefId::TypeId(id))
+        self.declare(name, ModuleDefId::TypeId(id), None)
     }
 
     pub fn declare_type_alias(
@@ -66,11 +85,11 @@ impl ModuleData {
         name: Ident,
         id: TypeAliasId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, id.into())
+        self.declare(name, id.into(), None)
     }
 
     pub fn declare_trait(&mut self, name: Ident, id: TraitId) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ModuleDefId::TraitId(id))
+        self.declare(name, ModuleDefId::TraitId(id), None)
     }
 
     pub fn declare_child_module(
@@ -78,7 +97,7 @@ impl ModuleData {
         name: Ident,
         child_id: ModuleId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, child_id.into())
+        self.declare(name, child_id.into(), None)
     }
 
     pub fn find_func_with_name(&self, name: &Ident) -> Option<FuncId> {
@@ -86,7 +105,7 @@ impl ModuleData {
     }
 
     pub fn import(&mut self, name: Ident, id: ModuleDefId) -> Result<(), (Ident, Ident)> {
-        self.scope.add_item_to_namespace(name, id)
+        self.scope.add_item_to_namespace(name, id, None)
     }
 
     pub fn find_name(&self, name: &Ident) -> PerNs {
@@ -94,12 +113,12 @@ impl ModuleData {
     }
 
     pub fn type_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
-        self.definitions.types().values().map(|(id, _)| *id)
+        self.definitions.types().values().flat_map(|a| a.values().map(|(id, _)| *id))
     }
 
     /// Return an iterator over all definitions defined within this module,
     /// excluding any type definitions.
     pub fn value_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
-        self.definitions.values().values().map(|(id, _)| *id)
+        self.definitions.values().values().flat_map(|a| a.values().map(|(id, _)| *id))
     }
 }

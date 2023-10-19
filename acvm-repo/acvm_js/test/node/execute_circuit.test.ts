@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { expect } from 'chai';
 import {
   createBlackBoxSolver,
   executeCircuit,
@@ -6,19 +6,14 @@ import {
   WasmBlackBoxFunctionSolver,
   WitnessMap,
   ForeignCallHandler,
-} from "@noir-lang/acvm_js";
+} from '@noir-lang/acvm_js';
 
-it("successfully executes circuit and extracts return value", async () => {
-  const { bytecode, initialWitnessMap, resultWitness, expectedResult } =
-    await import("../shared/addition");
+it('successfully executes circuit and extracts return value', async () => {
+  const { bytecode, initialWitnessMap, resultWitness, expectedResult } = await import('../shared/addition');
 
-  const solvedWitness: WitnessMap = await executeCircuit(
-    bytecode,
-    initialWitnessMap,
-    () => {
-      throw Error("unexpected oracle");
-    },
-  );
+  const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
+    throw Error('unexpected oracle');
+  });
 
   // Solved witness should be consistent with initial witness
   initialWitnessMap.forEach((value, key) => {
@@ -29,22 +24,13 @@ it("successfully executes circuit and extracts return value", async () => {
   expect(solvedWitness.get(resultWitness)).to.be.eq(expectedResult);
 });
 
-it("successfully processes simple brillig foreign call opcodes", async () => {
-  const {
-    bytecode,
-    initialWitnessMap,
-    expectedWitnessMap,
-    oracleResponse,
-    oracleCallName,
-    oracleCallInputs,
-  } = await import("../shared/foreign_call");
+it('successfully processes simple brillig foreign call opcodes', async () => {
+  const { bytecode, initialWitnessMap, expectedWitnessMap, oracleResponse, oracleCallName, oracleCallInputs } =
+    await import('../shared/foreign_call');
 
-  let observedName = "";
+  let observedName = '';
   let observedInputs: string[][] = [];
-  const foreignCallHandler: ForeignCallHandler = async (
-    name: string,
-    inputs: string[][],
-  ) => {
+  const foreignCallHandler: ForeignCallHandler = async (name: string, inputs: string[][]) => {
     // Throwing inside the oracle callback causes a timeout so we log the observed values
     // and defer the check against expected values until after the execution is complete.
     observedName = name;
@@ -53,11 +39,7 @@ it("successfully processes simple brillig foreign call opcodes", async () => {
     return oracleResponse;
   };
 
-  const solved_witness: WitnessMap = await executeCircuit(
-    bytecode,
-    initialWitnessMap,
-    foreignCallHandler,
-  );
+  const solved_witness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, foreignCallHandler);
 
   // Check that expected values were passed to oracle callback.
   expect(observedName).to.be.eq(oracleCallName);
@@ -68,22 +50,13 @@ it("successfully processes simple brillig foreign call opcodes", async () => {
   expect(solved_witness).to.be.deep.eq(expectedWitnessMap);
 });
 
-it("successfully processes complex brillig foreign call opcodes", async () => {
-  const {
-    bytecode,
-    initialWitnessMap,
-    expectedWitnessMap,
-    oracleResponse,
-    oracleCallName,
-    oracleCallInputs,
-  } = await import("../shared/complex_foreign_call");
+it('successfully processes complex brillig foreign call opcodes', async () => {
+  const { bytecode, initialWitnessMap, expectedWitnessMap, oracleResponse, oracleCallName, oracleCallInputs } =
+    await import('../shared/complex_foreign_call');
 
-  let observedName = "";
+  let observedName = '';
   let observedInputs: string[][] = [];
-  const foreignCallHandler: ForeignCallHandler = async (
-    name: string,
-    inputs: string[][],
-  ) => {
+  const foreignCallHandler: ForeignCallHandler = async (name: string, inputs: string[][]) => {
     // Throwing inside the oracle callback causes a timeout so we log the observed values
     // and defer the check against expected values until after the execution is complete.
     observedName = name;
@@ -92,11 +65,7 @@ it("successfully processes complex brillig foreign call opcodes", async () => {
     return oracleResponse;
   };
 
-  const solved_witness: WitnessMap = await executeCircuit(
-    bytecode,
-    initialWitnessMap,
-    foreignCallHandler,
-  );
+  const solved_witness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, foreignCallHandler);
 
   // Check that expected values were passed to oracle callback.
   expect(observedName).to.be.eq(oracleCallName);
@@ -107,72 +76,48 @@ it("successfully processes complex brillig foreign call opcodes", async () => {
   expect(solved_witness).to.be.deep.eq(expectedWitnessMap);
 });
 
-it("successfully executes a Pedersen opcode", async function () {
+it('successfully executes a Pedersen opcode', async function () {
   this.timeout(10000);
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import(
-    "../shared/pedersen"
-  );
+  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/pedersen');
 
-  const solvedWitness: WitnessMap = await executeCircuit(
-    bytecode,
-    initialWitnessMap,
-    () => {
-      throw Error("unexpected oracle");
-    },
-  );
+  const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
+    throw Error('unexpected oracle');
+  });
 
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
 });
 
-it("successfully executes a FixedBaseScalarMul opcode", async () => {
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import(
-    "../shared/fixed_base_scalar_mul"
-  );
+it('successfully executes a FixedBaseScalarMul opcode', async () => {
+  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/fixed_base_scalar_mul');
 
-  const solvedWitness: WitnessMap = await executeCircuit(
-    bytecode,
-    initialWitnessMap,
-    () => {
-      throw Error("unexpected oracle");
-    },
-  );
+  const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
+    throw Error('unexpected oracle');
+  });
 
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
 });
 
-it("successfully executes a SchnorrVerify opcode", async () => {
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import(
-    "../shared/schnorr_verify"
-  );
+it('successfully executes a SchnorrVerify opcode', async () => {
+  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/schnorr_verify');
 
-  const solvedWitness: WitnessMap = await executeCircuit(
-    bytecode,
-    initialWitnessMap,
-    () => {
-      throw Error("unexpected oracle");
-    },
-  );
+  const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
+    throw Error('unexpected oracle');
+  });
 
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
 });
 
-it("successfully executes a MemoryOp opcode", async () => {
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import(
-    "../shared/memory_op"
-  );
+it('successfully executes a MemoryOp opcode', async () => {
+  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/memory_op');
 
-  const solvedWitness: WitnessMap = await executeCircuit(
-    bytecode,
-    initialWitnessMap,
-    () => {
-      throw Error("unexpected oracle");
-    },
-  );
+  const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
+    throw Error('unexpected oracle');
+  });
 
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
 });
 
-it("successfully executes two circuits with same backend", async function () {
+it('successfully executes two circuits with same backend', async function () {
   this.timeout(10000);
 
   // chose pedersen op here because it is the one with slow initialization
@@ -180,33 +125,21 @@ it("successfully executes two circuits with same backend", async function () {
   // function/wasmbind
   const solver: WasmBlackBoxFunctionSolver = await createBlackBoxSolver();
 
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import(
-    "../shared/pedersen"
-  );
+  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/pedersen');
 
-  const solvedWitness0 = await executeCircuitWithBlackBoxSolver(
-    solver,
-    bytecode,
-    initialWitnessMap,
-    () => {
-      throw Error("unexpected oracle");
-    },
-  );
+  const solvedWitness0 = await executeCircuitWithBlackBoxSolver(solver, bytecode, initialWitnessMap, () => {
+    throw Error('unexpected oracle');
+  });
 
-  const solvedWitness1 = await executeCircuitWithBlackBoxSolver(
-    solver,
-    bytecode,
-    initialWitnessMap,
-    () => {
-      throw Error("unexpected oracle");
-    },
-  );
+  const solvedWitness1 = await executeCircuitWithBlackBoxSolver(solver, bytecode, initialWitnessMap, () => {
+    throw Error('unexpected oracle');
+  });
 
   expect(solvedWitness0).to.be.deep.eq(expectedWitnessMap);
   expect(solvedWitness1).to.be.deep.eq(expectedWitnessMap);
 });
 
-it("successfully executes 500 circuits with same backend", async function () {
+it('successfully executes 500 circuits with same backend', async function () {
   this.timeout(100000);
 
   // chose pedersen op here because it is the one with slow initialization
@@ -214,19 +147,12 @@ it("successfully executes 500 circuits with same backend", async function () {
   // function/wasmbind
   const solver: WasmBlackBoxFunctionSolver = await createBlackBoxSolver();
 
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import(
-    "../shared/pedersen"
-  );
+  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/pedersen');
 
   for (let i = 0; i < 500; i++) {
-    const solvedWitness = await executeCircuitWithBlackBoxSolver(
-      solver,
-      bytecode,
-      initialWitnessMap,
-      () => {
-        throw Error("unexpected oracle");
-      },
-    );
+    const solvedWitness = await executeCircuitWithBlackBoxSolver(solver, bytecode, initialWitnessMap, () => {
+      throw Error('unexpected oracle');
+    });
 
     expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
   }

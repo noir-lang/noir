@@ -1,5 +1,7 @@
-#![warn(unused_crate_dependencies)]
+#![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 //! This crate provides the implementation of BlackBox functions of ACIR and Brillig.
 //! For functions that are backend-dependent, it provides a Trait [BlackBoxFunctionSolver] that must be implemented by the backend.
@@ -269,7 +271,7 @@ mod secp256k1_tests {
         let valid =
             verify_secp256k1_ecdsa_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
 
-        assert!(valid)
+        assert!(valid);
     }
 
     #[test]
@@ -298,7 +300,7 @@ mod secp256k1_tests {
             &SIGNATURE,
         );
 
-        assert!(!valid)
+        assert!(!valid);
     }
 
     #[test]
@@ -314,7 +316,7 @@ mod secp256k1_tests {
             &SIGNATURE,
         );
 
-        assert!(valid)
+        assert!(valid);
     }
 }
 
@@ -350,7 +352,7 @@ mod secp256r1_tests {
         let valid =
             verify_secp256r1_ecdsa_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
 
-        assert!(valid)
+        assert!(valid);
     }
 
     #[test]
@@ -379,7 +381,7 @@ mod secp256r1_tests {
             &SIGNATURE,
         );
 
-        assert!(!valid)
+        assert!(!valid);
     }
 
     #[test]
@@ -395,6 +397,6 @@ mod secp256r1_tests {
             &SIGNATURE,
         );
 
-        assert!(valid)
+        assert!(valid);
     }
 }

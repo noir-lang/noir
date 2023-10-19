@@ -9,7 +9,7 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
         slice = slice.push_back(i);
     }
     assert(slice.len() == 5);
-    
+
     dynamic_slice_index_set_if(slice, x, y);
     dynamic_slice_index_set_else(slice, x, y);
     dynamic_slice_index_set_nested_if_else_else(slice, x, y);
@@ -21,6 +21,8 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
     dynamic_slice_merge_if(slice, x);
     dynamic_slice_merge_else(slice, x);
     dynamic_slice_merge_two_ifs(slice, x);
+    dynamic_slice_merge_mutate_between_ifs(slice, x, y);
+    dynamic_slice_merge_push_then_pop(slice, x, y);
 }
 
 fn dynamic_slice_index_set_if(mut slice: [Field], x: Field, y: Field) {
@@ -89,7 +91,6 @@ fn dynamic_slice_index_else(mut slice: [Field], x: Field) {
     }
     assert(slice[4] == 2);
 }
-
 
 fn dynamic_slice_merge_if(mut slice: [Field], x: Field) {
     if x as u32 < 10 {
@@ -165,35 +166,6 @@ fn dynamic_slice_merge_else(mut slice: [Field], x: Field) {
     assert(slice[slice.len() - 1] == 20);
 }
 
-fn dynamic_slice_merge_two_ifs(mut slice: [Field], x: Field) {
-    if x as u32 > 10 {
-        assert(slice[x] == 0);
-        slice[x] = 2;
-    } else {
-        assert(slice[x] == 4);
-        slice[x] = slice[x] - 2;
-        slice = slice.push_back(10);
-    }
-
-    assert(slice.len() == 6);
-    assert(slice[slice.len() - 1] == 10);
-
-    if x == 20 {
-        slice = slice.push_back(20);
-    } else {
-        slice = slice.push_back(15);
-    }
-    // TODO(#2599): Breaks if the push back happens without the else case
-    // slice = slice.push_back(15);
-
-    assert(slice.len() == 7);
-    assert(slice[slice.len() - 1] == 15);
-
-    slice = slice.push_back(20);
-    assert(slice.len() == 8);
-    assert(slice[slice.len() - 1] == 20);
-}
-
 fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: Field, y: Field) {
     assert(slice[x] == 4);
     assert(slice[y] == 1);
@@ -248,5 +220,93 @@ fn dynamic_slice_index_set_nested_if_else_if(mut slice: [Field], x: Field, y: Fi
         slice[x] = 0;
     }
     assert(slice[4] == 5);
+}
+
+fn dynamic_slice_merge_two_ifs(mut slice: [Field], x: Field) {
+    if x as u32 > 10 {
+        assert(slice[x] == 0);
+        slice[x] = 2;
+    } else {
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+        slice = slice.push_back(10);
+    }
+
+    assert(slice.len() == 6);
+    assert(slice[slice.len() - 1] == 10);
+
+    if x == 20 {
+        slice = slice.push_back(20);
+    } 
+
+    slice = slice.push_back(15);
+
+    assert(slice.len() == 7);
+    assert(slice[slice.len() - 1] == 15);
+
+    slice = slice.push_back(20);
+    assert(slice.len() == 8);
+    assert(slice[slice.len() - 1] == 20);
+}
+
+fn dynamic_slice_merge_mutate_between_ifs(mut slice: [Field], x: Field, y: Field) {
+    if x != y {
+        slice[x] = 50;
+        slice = slice.push_back(y);
+        slice = slice.push_back(x);
+    } else {
+        slice[x] = slice[x] - 2;
+        slice = slice.push_back(x);
+    }
+
+    slice = slice.push_back(30);
+    assert(slice.len() == 8);
+
+    if x == 20 {
+        slice = slice.push_back(20);
+    }
+
+    slice = slice.push_back(15);
+
+    if x != 20 {
+        slice = slice.push_back(50);
+    }
+
+    slice = slice.push_back(60);
+    assert(slice.len() == 11);
+    assert(slice[x] == 50);
+    assert(slice[slice.len() - 4] == 30);
+    assert(slice[slice.len() - 3] == 15);
+    assert(slice[slice.len() - 2] == 50);
+    assert(slice[slice.len() - 1] == 60);
+}
+
+fn dynamic_slice_merge_push_then_pop(mut slice: [Field], x: Field, y: Field) {
+    if x != y {
+        slice[x] = 5;
+        slice = slice.push_back(y);
+        slice = slice.push_back(x);
+        assert(slice.len() == 7);
+
+        let (popped_slice, elem) = slice.pop_back();
+        assert(slice.len() == 7);
+        assert(elem == x);
+        slice = popped_slice;
+    } else {
+        slice = slice.push_back(x);
+    }
+
+    slice = slice.push_back(30);
+    assert(slice.len() == 7);
+
+    if x == 20 {
+        slice = slice.push_back(20);
+    }
+
+    let (slice, elem) = slice.pop_back();
+    assert(elem == 30);
+
+    let (_, elem) = slice.pop_back();
+    assert(elem == y);
 }
 

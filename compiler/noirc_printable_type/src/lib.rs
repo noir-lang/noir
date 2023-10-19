@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, str};
 
-use acvm::{brillig_vm::brillig::Value, FieldElement};
+use acvm::{brillig_vm::brillig::ForeignCallParam, FieldElement};
 use iter_extended::vecmap;
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
@@ -75,14 +75,14 @@ pub enum ForeignCallError {
     ParsingError(#[from] serde_json::Error),
 }
 
-impl TryFrom<&[Vec<Value>]> for PrintableValueDisplay {
+impl TryFrom<&[ForeignCallParam]> for PrintableValueDisplay {
     type Error = ForeignCallError;
 
-    fn try_from(foreign_call_inputs: &[Vec<Value>]) -> Result<Self, Self::Error> {
+    fn try_from(foreign_call_inputs: &[ForeignCallParam]) -> Result<Self, Self::Error> {
         let (is_fmt_str, foreign_call_inputs) =
             foreign_call_inputs.split_last().ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
-        if is_fmt_str[0].to_field().is_one() {
+        if is_fmt_str.unwrap_value().to_field().is_one() {
             convert_fmt_string_inputs(foreign_call_inputs)
         } else {
             convert_string_inputs(foreign_call_inputs)
@@ -91,7 +91,7 @@ impl TryFrom<&[Vec<Value>]> for PrintableValueDisplay {
 }
 
 fn convert_string_inputs(
-    foreign_call_inputs: &[Vec<Value>],
+    foreign_call_inputs: &[ForeignCallParam],
 ) -> Result<PrintableValueDisplay, ForeignCallError> {
     // Fetch the PrintableType from the foreign call input
     // The remaining input values should hold what is to be printed
@@ -101,7 +101,7 @@ fn convert_string_inputs(
 
     // We must use a flat map here as each value in a struct will be in a separate input value
     let mut input_values_as_fields =
-        input_values.iter().flat_map(|values| vecmap(values, |value| value.to_field()));
+        input_values.iter().flat_map(|param| vecmap(param.values(), |value| value.to_field()));
 
     let value = decode_value(&mut input_values_as_fields, &printable_type);
 
@@ -109,12 +109,12 @@ fn convert_string_inputs(
 }
 
 fn convert_fmt_string_inputs(
-    foreign_call_inputs: &[Vec<Value>],
+    foreign_call_inputs: &[ForeignCallParam],
 ) -> Result<PrintableValueDisplay, ForeignCallError> {
-    let (message_as_values, input_and_printable_values) =
+    let (message, input_and_printable_values) =
         foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
-    let message_as_fields = vecmap(message_as_values, |value| value.to_field());
+    let message_as_fields = vecmap(message.values(), |value| value.to_field());
     let message_as_string = decode_string_value(&message_as_fields);
 
     let (num_values, input_and_printable_values) = input_and_printable_values
@@ -122,7 +122,7 @@ fn convert_fmt_string_inputs(
         .ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
     let mut output = Vec::new();
-    let num_values = num_values[0].to_field().to_u128() as usize;
+    let num_values = num_values.unwrap_value().to_field().to_u128() as usize;
 
     for (i, printable_value) in input_and_printable_values
         .iter()
@@ -131,12 +131,23 @@ fn convert_fmt_string_inputs(
     {
         let printable_type = fetch_printable_type(printable_value)?;
         let type_size = printable_type.field_count() as usize;
-
-        let mut input_values_as_fields = input_and_printable_values[i..(i + type_size)]
-            .iter()
-            .flat_map(|values| vecmap(values, |value| value.to_field()));
-
-        let value = decode_value(&mut input_values_as_fields, &printable_type);
+        let value = match printable_type {
+            PrintableType::Array { .. } | PrintableType::String { .. } => {
+                // Arrays and strings are represented in a single value vector rather than multiple separate input values
+                let mut input_values_as_fields = input_and_printable_values[i]
+                    .values()
+                    .into_iter()
+                    .map(|value| value.to_field());
+                decode_value(&mut input_values_as_fields, &printable_type)
+            }
+            _ => {
+                // We must use a flat map here as each value in a struct will be in a separate input value
+                let mut input_values_as_fields = input_and_printable_values[i..(i + type_size)]
+                    .iter()
+                    .flat_map(|param| vecmap(param.values(), |value| value.to_field()));
+                decode_value(&mut input_values_as_fields, &printable_type)
+            }
+        };
 
         output.push((value, printable_type));
     }
@@ -145,9 +156,9 @@ fn convert_fmt_string_inputs(
 }
 
 fn fetch_printable_type(
-    printable_type_as_values: &[Value],
+    printable_type: &ForeignCallParam,
 ) -> Result<PrintableType, ForeignCallError> {
-    let printable_type_as_fields = vecmap(printable_type_as_values, |value| value.to_field());
+    let printable_type_as_fields = vecmap(printable_type.values(), |value| value.to_field());
     let printable_type_as_string = decode_string_value(&printable_type_as_fields);
     let printable_type: PrintableType = serde_json::from_str(&printable_type_as_string)?;
 
@@ -307,7 +318,7 @@ fn decode_value(
     }
 }
 
-fn decode_string_value(field_elements: &[FieldElement]) -> String {
+pub fn decode_string_value(field_elements: &[FieldElement]) -> String {
     // TODO: Replace with `into` when Char is supported
     let string_as_slice = vecmap(field_elements, |e| {
         let mut field_as_bytes = e.to_be_bytes();

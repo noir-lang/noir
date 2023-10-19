@@ -17,9 +17,6 @@ pub use module_data::*;
 mod namespace;
 pub use namespace::*;
 
-#[cfg(feature = "aztec")]
-mod aztec_library;
-
 /// The name that is used for a non-contract program's entry-point function.
 pub const MAIN_FUNCTION: &str = "main";
 
@@ -86,9 +83,10 @@ impl CrateDefMap {
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
         let (ast, parsing_errors) = parse_file(&context.file_manager, root_file_id);
+        let ast = ast.into_sorted();
 
         #[cfg(feature = "aztec")]
-        let ast = match aztec_library::transform(ast, &crate_id, context) {
+        let ast = match super::aztec_library::transform(ast, &crate_id, context) {
             Ok(ast) => ast,
             Err((error, file_id)) => {
                 errors.push((error.into(), file_id));
@@ -110,6 +108,7 @@ impl CrateDefMap {
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect(def_map, context, ast, root_file_id));
+
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),
         );
@@ -174,9 +173,9 @@ impl CrateDefMap {
                         .value_definitions()
                         .filter_map(|id| {
                             id.as_function().map(|function_id| {
-                                let is_entry_point = !interner
-                                    .function_attributes(&function_id)
-                                    .has_contract_library_method();
+                                let attributes = interner.function_attributes(&function_id);
+                                let is_entry_point = !attributes.has_contract_library_method()
+                                    && !attributes.is_test_function();
                                 ContractFunctionMeta { function_id, is_entry_point }
                             })
                         })
@@ -261,9 +260,7 @@ pub struct Contract {
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
 pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
     let file = fm.fetch_file(file_id);
-    let (program, errors) = parse_program(file.source());
-
-    (program, errors)
+    parse_program(file.source())
 }
 
 impl std::ops::Index<LocalModuleId> for CrateDefMap {

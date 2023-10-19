@@ -9,6 +9,7 @@ use tempfile::tempdir;
 impl Backend {
     pub fn eth_contract(&self, circuit: &Circuit) -> Result<String, BackendError> {
         let binary_path = self.assert_binary_exists()?;
+        self.assert_correct_version()?;
 
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory_path = temp_directory.path().to_path_buf();
@@ -23,7 +24,6 @@ impl Backend {
 
         WriteVkCommand {
             crs_path: self.crs_directory(),
-            is_recursive: false,
             bytecode_path,
             vk_path_output: vk_path.clone(),
         }

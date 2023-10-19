@@ -50,7 +50,7 @@ pub(crate) enum Value {
     Intrinsic(Intrinsic),
 
     /// This Value refers to an external function in the IR.
-    /// ForeignFunction's always have the type Type::Function and have simlar semantics to Function,
+    /// ForeignFunction's always have the type Type::Function and have similar semantics to Function,
     /// other than generating different backend operations and being only accessible through Brillig.
     ForeignFunction(String),
 }
