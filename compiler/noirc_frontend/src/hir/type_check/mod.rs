@@ -15,7 +15,7 @@ pub use errors::TypeCheckError;
 
 use crate::{
     hir_def::{expr::HirExpression, stmt::HirStatement},
-    node_interner::{ExprId, FuncId, NodeInterner, StmtId},
+    node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitImplKey},
     Type,
 };
 
@@ -63,30 +63,41 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let (expr_span, empty_function) = function_info(interner, function_body_id);
-
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        function_last_type.unify_with_coercions(
-            &declared_return_type,
-            *function_body_id,
-            interner,
-            &mut errors,
-            || {
-                let mut error = TypeCheckError::TypeMismatchWithSource {
+        if let Type::TraitAsType(t) = &declared_return_type {
+            let key = TraitImplKey { typ: function_last_type.follow_bindings(), trait_id: t.id };
+            if interner.get_trait_implementation(&key).is_none() {
+                let error = TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: function_last_type.clone(),
                     span: func_span,
                     source: Source::Return(meta.return_type, expr_span),
                 };
+                errors.push(error);
+            }
+        } else {
+            function_last_type.unify_with_coercions(
+                &declared_return_type,
+                *function_body_id,
+                interner,
+                &mut errors,
+                || {
+                    let mut error = TypeCheckError::TypeMismatchWithSource {
+                        expected: declared_return_type.clone(),
+                        actual: function_last_type.clone(),
+                        span: func_span,
+                        source: Source::Return(meta.return_type, expr_span),
+                    };
 
-                if empty_function {
-                    error = error.add_context(
+                    if empty_function {
+                        error = error.add_context(
                         "implicitly returns `()` as its body has no tail or `return` expression",
                     );
-                }
-
-                error
-            },
-        );
+                    }
+                    error
+                },
+            );
+        }
     }
 
     errors
