@@ -5,7 +5,7 @@ use noirc_frontend::{
     ExpressionKind, Literal, Statement, UnaryOp,
 };
 
-use super::{FmtVisitor, Indent};
+use super::{FmtVisitor, Shape};
 use crate::{
     utils::{self, Expr, FindToken},
     Config,
@@ -246,13 +246,13 @@ fn format_expr_seq(
 ) -> String {
     visitor.indent.block_indent(visitor.config);
 
-    let nested_indent = visitor.indent;
+    let nested_indent = visitor.shape();
     let exprs: Vec<_> = utils::Exprs::new(&visitor, span, exprs).collect();
     let exprs = format_exprs(visitor.config, trailing_comma, exprs, nested_indent, limit);
 
     visitor.indent.block_unindent(visitor.config);
 
-    wrap_exprs(prefix, sufix, exprs, nested_indent, visitor.indent)
+    wrap_exprs(prefix, sufix, exprs, nested_indent, visitor.shape())
 }
 
 fn format_brackets(
@@ -277,12 +277,11 @@ fn format_exprs(
     config: &Config,
     trailing_comma: bool,
     exprs: Vec<Expr>,
-    indent: Indent,
+    shape: Shape,
     limit: Option<usize>,
 ) -> String {
-    let width = 91;
     let mut result = String::new();
-    let indent_str = indent.to_string();
+    let indent_str = shape.indent.to_string();
 
     let tactic = Tactic::of(&exprs, config.short_array_element_width_threshold, limit);
     let mut exprs = exprs.into_iter().enumerate().peekable();
@@ -303,7 +302,7 @@ fn format_exprs(
             Tactic::Mixed => {
                 let total_width = expr.total_width() + 1;
 
-                if line_len > 0 && line_len + 1 + total_width > width {
+                if line_len > 0 && line_len + 1 + total_width > shape.width {
                     result.push('\n');
                     result.push_str(&indent_str);
                     line_len = 0;
@@ -351,16 +350,22 @@ fn wrap_exprs(
     prefix: &str,
     sufix: &str,
     exprs: String,
-    nested_indent: Indent,
-    indent: Indent,
+    nested_shape: Shape,
+    shape: Shape,
 ) -> String {
-    let fits_one_line = exprs.len() <= 50;
+    let shape = Shape {
+        width: shape
+            .width
+            .saturating_sub(exprs.lines().next().map_or(0, |line| line.chars().count())),
+        ..shape
+    };
+    let fits_one_line = exprs.len() <= shape.width;
 
     if !exprs.contains('\n') && fits_one_line {
         format!("{prefix}{exprs}{sufix}")
     } else {
-        let nested_indent_str = "\n".to_string() + &nested_indent.to_string();
-        let indent_str = "\n".to_string() + &indent.to_string();
+        let nested_indent_str = "\n".to_string() + &nested_shape.indent.to_string();
+        let indent_str = "\n".to_string() + &shape.indent.to_string();
 
         format!("{prefix}{nested_indent_str}{exprs}{indent_str}{sufix}")
     }
