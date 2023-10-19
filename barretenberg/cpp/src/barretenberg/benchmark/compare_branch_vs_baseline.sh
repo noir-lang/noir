@@ -10,7 +10,7 @@ BASELINE_BRANCH="master"
 
 echo -e "\nComparing $BENCH_TARGET between $BASELINE_BRANCH and current branch:"
 # Set some directories
-BASE_DIR="$HOME/barretenberg/cpp"
+BASE_DIR="$HOME/aztec-packages/barretenberg/cpp"
 BUILD_DIR="$BASE_DIR/build-bench" # matches build dir specified in bench preset
 BENCH_RESULTS_DIR="$BASE_DIR/tmp_bench_results"
 BENCH_TOOLS_DIR="$BUILD_DIR/_deps/benchmark-src/tools"

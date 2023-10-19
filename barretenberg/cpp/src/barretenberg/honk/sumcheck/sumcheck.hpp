@@ -139,12 +139,12 @@ template <typename Flavor> class SumcheckProver {
     void partially_evaluate(auto& polynomials, size_t round_size, FF round_challenge)
     {
         // after the first round, operate in place on partially_evaluated_polynomials
-        for (size_t j = 0; j < polynomials.size(); ++j) {
+        parallel_for(polynomials.size(), [&](size_t j) {
             for (size_t i = 0; i < round_size; i += 2) {
                 partially_evaluated_polynomials[j][i >> 1] =
                     polynomials[j][i] + round_challenge * (polynomials[j][i + 1] - polynomials[j][i]);
             }
-        }
+        });
     };
 };
 

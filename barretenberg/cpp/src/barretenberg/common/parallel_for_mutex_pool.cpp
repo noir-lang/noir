@@ -8,6 +8,8 @@
 #include <thread>
 #include <vector>
 
+#include "barretenberg/common/compiler_hints.hpp"
+
 namespace {
 
 class ThreadPool {
@@ -50,7 +52,7 @@ class ThreadPool {
     std::condition_variable complete_condition_;
     bool stop = false;
 
-    void worker_loop(size_t thread_index);
+    BBERG_NO_INSTRUMENT void worker_loop(size_t thread_index);
 
     void do_iterations()
     {

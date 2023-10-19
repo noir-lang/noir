@@ -22,18 +22,24 @@
 #include "barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 
-using namespace proof_system::plonk;
-
-using UltraBuilder = proof_system::UltraCircuitBuilder;
-using UltraHonk = proof_system::honk::UltraComposer;
+using namespace proof_system;
 
 template <typename Builder> void generate_sha256_test_circuit(Builder& builder, size_t num_iterations)
 {
     std::string in;
     in.resize(32);
-    proof_system::plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
+    plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
     for (size_t i = 0; i < num_iterations; i++) {
-        input = proof_system::plonk::stdlib::sha256<Builder>(input);
+        input = plonk::stdlib::sha256<Builder>(input);
+    }
+}
+
+BBERG_INSTRUMENT BBERG_NOINLINE void sumcheck_profiling(honk::UltraProver& ext_prover)
+{
+    ext_prover.construct_proof();
+    for (size_t i = 0; i < 200; i++) {
+        // Bench sumcheck
+        ext_prover.execute_relation_check_rounds();
     }
 }
 
@@ -44,15 +50,14 @@ void construct_proof_ultra() noexcept
 {
     barretenberg::srs::init_crs_factory("../srs_db/ignition");
     // Constuct circuit and prover; don't include this part in measurement
-    auto builder = typename UltraHonk::CircuitBuilder();
-    generate_sha256_test_circuit<UltraBuilder>(builder, 1);
+    honk::UltraComposer::CircuitBuilder builder;
+    generate_sha256_test_circuit(builder, 1);
+    std::cout << "gates: " << builder.get_total_circuit_size() << std::endl;
 
-    auto composer = UltraHonk();
-    auto instance = composer.create_instance(builder);
-    auto ext_prover = composer.create_prover(instance);
-    for (size_t i = 0; i < 10; i++) {
-        auto proof = ext_prover.construct_proof();
-    }
+    honk::UltraComposer composer;
+    std::shared_ptr<honk::UltraComposer::Instance> instance = composer.create_instance(builder);
+    honk::UltraProver ext_prover = composer.create_prover(instance);
+    sumcheck_profiling(ext_prover);
 }
 
 int main()

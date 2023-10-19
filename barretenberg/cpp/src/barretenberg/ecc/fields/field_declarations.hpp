@@ -1,6 +1,6 @@
 #pragma once
 #include "barretenberg/common/assert.hpp"
-#include "barretenberg/common/inline.hpp"
+#include "barretenberg/common/compiler_hints.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/numeric/uint128/uint128.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"

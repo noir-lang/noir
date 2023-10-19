@@ -184,33 +184,39 @@
       }
     },
     {
-      "name": "xray-1thread",
-      "displayName": "Build with single-threaded XRay Profiling",
-      "description": "Build with Clang and enable single-threaded LLVM XRay for profiling",
-      "generator": "Unix Makefiles",
-      "inherits": "clang16",
-      "environment": {
-        "CFLAGS": "-fxray-instrument -fxray-instruction-threshold=10",
-        "CXXFLAGS": "-fxray-instrument -fxray-instruction-threshold=10",
-        "LDFLAGS": "-fxray-instrument -fxray-instruction-threshold=10"
-      },
-      "cacheVariables": {
-        "MULTITHREADING": "OFF"
-      },
-      "binaryDir": "build-xray-1thread"
-    },
-    {
       "name": "xray",
       "displayName": "Build with multi-threaded XRay Profiling",
       "description": "Build with Clang and enable multi-threaded LLVM XRay for profiling",
       "generator": "Unix Makefiles",
       "inherits": "clang16",
       "environment": {
-        "CFLAGS": "-fxray-instrument -fxray-instruction-threshold=10",
-        "CXXFLAGS": "-fxray-instrument -fxray-instruction-threshold=10",
-        "LDFLAGS": "-fxray-instrument -fxray-instruction-threshold=10"
+        "CFLAGS": "-fxray-instrument -fxray-instruction-threshold=100",
+        "CXXFLAGS": "-fxray-instrument -fxray-instruction-threshold=100",
+        "LDFLAGS": "-fxray-instrument -fxray-instruction-threshold=100"
       },
       "binaryDir": "build-xray"
+    },
+    {
+      "name": "xray-verbose",
+      "displayName": "Build with detailed XRay Profiling",
+      "description": "Build with Clang and enable detailed LLVM XRay for profiling",
+      "inherits": "xray",
+      "environment": {
+        "CFLAGS": "-fxray-instrument -fxray-instruction-threshold=100 -finline-max-stacksize=150",
+        "CXXFLAGS": "-fxray-instrument -fxray-instruction-threshold=100 -finline-max-stacksize=150",
+        "LDFLAGS": "-fxray-instrument -fxray-instruction-threshold=100 -finline-max-stacksize=150"
+      },
+      "binaryDir": "build-xray-verbose"
+    },
+    {
+      "name": "xray-1thread",
+      "displayName": "Build with single-threaded XRay Profiling",
+      "description": "Build with Clang and enable single-threaded LLVM XRay for profiling",
+      "inherits": "xray",
+      "cacheVariables": {
+        "MULTITHREADING": "OFF"
+      },
+      "binaryDir": "build-xray-1thread"
     }
   ],
   "buildPresets": [
@@ -302,6 +308,11 @@
       "inheritConfigureEnvironment": true,
       "jobs": 0,
       "targets": ["barretenberg.wasm"]
+    },
+    {
+      "name": "xray-verbose",
+      "configurePreset": "xray-verbose",
+      "inherits": "default"
     },
     {
       "name": "xray-1thread",

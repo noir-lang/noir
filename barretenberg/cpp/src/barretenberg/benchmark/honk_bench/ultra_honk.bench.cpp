@@ -30,22 +30,22 @@ void construct_proof_ultra(State& state, void (*test_circuit_function)(UltraBuil
 BENCHMARK_CAPTURE(construct_proof_ultra, sha256, &bench_utils::generate_sha256_test_circuit<UltraBuilder>)
     ->DenseRange(MIN_NUM_ITERATIONS, MAX_NUM_ITERATIONS)
     ->Repetitions(NUM_REPETITIONS)
-    ->Unit(::benchmark::kSecond);
+    ->Unit(::benchmark::kMillisecond);
 BENCHMARK_CAPTURE(construct_proof_ultra, keccak, &bench_utils::generate_keccak_test_circuit<UltraBuilder>)
     ->DenseRange(MIN_NUM_ITERATIONS, MAX_NUM_ITERATIONS)
     ->Repetitions(NUM_REPETITIONS)
-    ->Unit(::benchmark::kSecond);
+    ->Unit(::benchmark::kMillisecond);
 BENCHMARK_CAPTURE(construct_proof_ultra,
                   ecdsa_verification,
                   &bench_utils::generate_ecdsa_verification_test_circuit<UltraBuilder>)
     ->DenseRange(MIN_NUM_ITERATIONS, MAX_NUM_ITERATIONS)
     ->Repetitions(NUM_REPETITIONS)
-    ->Unit(::benchmark::kSecond);
+    ->Unit(::benchmark::kMillisecond);
 BENCHMARK_CAPTURE(construct_proof_ultra,
                   merkle_membership,
                   &bench_utils::generate_merkle_membership_test_circuit<UltraBuilder>)
     ->DenseRange(MIN_NUM_ITERATIONS, MAX_NUM_ITERATIONS)
     ->Repetitions(NUM_REPETITIONS)
-    ->Unit(::benchmark::kSecond);
+    ->Unit(::benchmark::kMillisecond);
 
 } // namespace ultra_honk_bench

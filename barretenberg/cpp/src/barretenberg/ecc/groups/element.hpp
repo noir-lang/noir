@@ -1,7 +1,7 @@
 #pragma once
 
 #include "affine_element.hpp"
-#include "barretenberg/common/inline.hpp"
+#include "barretenberg/common/compiler_hints.hpp"
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"

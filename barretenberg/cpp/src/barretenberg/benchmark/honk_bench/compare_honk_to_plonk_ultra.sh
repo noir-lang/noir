@@ -6,7 +6,7 @@
 
 echo -e '\nComparing Ultra Plonk/Honk benchmarks.'
 # Set some directories
-BASE_DIR="$HOME/barretenberg/cpp"
+BASE_DIR="$HOME/aztec-packages/barretenberg/cpp"
 BUILD_DIR="$BASE_DIR/build-bench"
 BENCH_RESULTS_DIR="$BASE_DIR/tmp_bench_results"
 BENCH_TOOLS_DIR="$BUILD_DIR/_deps/benchmark-src/tools"
