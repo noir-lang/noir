@@ -684,9 +684,16 @@ impl Type {
                             *binding.borrow_mut() = TypeBinding::Bound(clone);
                             Ok(())
                         }
-                        TypeVariableKind::Constant(_) | TypeVariableKind::IntegerOrField => {
-                            Err(UnificationError)
+                        // The lengths don't match, but neither are set in stone so we can
+                        // just set them both to NotConstant. See issue 2370
+                        TypeVariableKind::Constant(_) => {
+                            // *length != target_length
+                            drop(borrow);
+                            *var.borrow_mut() = TypeBinding::Bound(Type::NotConstant);
+                            *binding.borrow_mut() = TypeBinding::Bound(Type::NotConstant);
+                            Ok(())
                         }
+                        TypeVariableKind::IntegerOrField => Err(UnificationError),
                     },
                 }
             }
