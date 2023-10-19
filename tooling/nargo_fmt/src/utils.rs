@@ -1,7 +1,7 @@
 use crate::visitor::FmtVisitor;
 use noirc_frontend::hir::resolution::errors::Span;
 use noirc_frontend::lexer::Lexer;
-use noirc_frontend::token::{Token, DocComments};
+use noirc_frontend::token::{DocComments, Token};
 use noirc_frontend::Expression;
 
 pub(crate) fn recover_comment_removed(original: &str, new: String) -> String {
@@ -18,9 +18,12 @@ pub(crate) fn changed_comment_content(original: &str, new: &str) -> bool {
 
 pub(crate) fn comments(source: &str) -> impl Iterator<Item = String> + '_ {
     Lexer::new(source).skip_comments(false).flatten().filter_map(|spanned| {
-        if let Token::LineComment(content) | Token::BlockComment(content) 
+        if let Token::LineComment(content)
+        | Token::BlockComment(content)
         | Token::DocComment(DocComments::Single(content))
-        | Token::DocComment(DocComments::Outer(content)) = spanned.into_token() {
+        | Token::DocComment(DocComments::Block(content))
+        | Token::DocComment(DocComments::Outer(content)) = spanned.into_token()
+        {
             Some(content)
         } else {
             None
@@ -137,10 +140,14 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
     fn find_comment_end(slice: &str) -> usize {
         slice
             .find_token_with(|token| {
-                matches!(token, Token::LineComment(_) | Token::BlockComment(_) 
-                | Token::DocComment(DocComments::Single(_))
-                | Token::DocComment(DocComments::Block(_))
-                | Token::DocComment(DocComments::Outer(_)))
+                matches!(
+                    token,
+                    Token::LineComment(_)
+                        | Token::BlockComment(_)
+                        | Token::DocComment(DocComments::Single(_))
+                        | Token::DocComment(DocComments::Block(_))
+                        | Token::DocComment(DocComments::Outer(_))
+                )
             })
             .map(|index| index as usize)
             .unwrap_or(slice.len())
