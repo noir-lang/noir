@@ -87,7 +87,9 @@ impl FmtVisitor<'_> {
                 format_parens(self.fork(), exprs.len() == 1, exprs, span)
             }
             ExpressionKind::Literal(literal) => match literal {
-                Literal::Integer(_) => slice!(self, span.start(), span.end()).to_string(),
+                Literal::Integer(_) | Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) => {
+                    slice!(self, span.start(), span.end()).to_string()
+                }
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                     format!("[{}; {length}]", self.format_expr(*repeated_element))
                 }
@@ -97,10 +99,7 @@ impl FmtVisitor<'_> {
                         exprs.into_iter().map(|expr| self.format_expr(expr)).collect();
                     format!("[{}]", contents.join(", "))
                 }
-
-                Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) | Literal::Unit => {
-                    literal.to_string()
-                }
+                Literal::Unit => "()".to_string(),
             },
             ExpressionKind::Parenthesized(mut sub_expr) => {
                 let remove_nested_parens = self.config.remove_nested_parens;
