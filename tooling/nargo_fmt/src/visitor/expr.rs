@@ -356,7 +356,7 @@ fn wrap_exprs(
     nested_shape: Shape,
     shape: Shape,
 ) -> String {
-    let first_line_width = exprs.splitn(2, '\n').next().map_or(0, |line| line.chars().count());
+    let first_line_width = exprs.lines().next().map_or(0, |line| line.chars().count());
 
     if first_line_width <= shape.width {
         format!("{prefix}{exprs}{sufix}")
