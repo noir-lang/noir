@@ -46,12 +46,33 @@ If you're writing a binary, the `main` function is the starting point of your pr
 
 ```rust
 fn main(x : Field) // this is fine: passing a Field
-fn main(x : (Field, bool)) // this is also fine: passing a (Field, bool) tuple
-fn main(x : Vec<Field>) // can't compile, has variable size
+fn main(x : [Field; 2]) // this is also fine: passing a Field with known size at compile-time
+fn main(x : (Field, bool)) // 👌: passing a (Field, bool) tuple means size 2
 fn main(x : str<5>) // this is fine, as long as you pass a string of size 5
+
+fn main(x : Vec<Field>) // can't compile, has variable size
+fn main(x : [Field]) // can't compile, has variable size
+fn main(....// i think you got it by now
 ```
 
-Keep in mind [tests](../nargo/02_testing.md) don't differentiate between `main` and any other function. In the snippet above, the `Vec` example passes tests, but won't compile or prove.
+Keep in mind [tests](../nargo/02_testing.md) don't differentiate between `main` and any other function. The following snippet passes tests, but won't compile or prove:
+
+```rust
+fn main(x : [Field]) {
+    assert(x[0] == 1);
+}
+
+#[test]
+fn test_one() {
+    main([1, 2]);
+}
+```
+
+```bash
+$ nargo check
+The application panicked (crashed).
+Message:  Cannot have variable sized arrays as a parameter to main
+```
 
 ## Call Expressions
 
