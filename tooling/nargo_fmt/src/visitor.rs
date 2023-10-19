@@ -158,7 +158,7 @@ impl<'me> FmtVisitor<'me> {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct Indent {
     block_indent: usize,
 }
@@ -186,7 +186,7 @@ impl Indent {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct Shape {
     width: usize,
     indent: Indent,

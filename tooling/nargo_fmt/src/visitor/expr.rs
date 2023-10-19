@@ -356,19 +356,13 @@ fn wrap_exprs(
     nested_shape: Shape,
     shape: Shape,
 ) -> String {
-    let shape = Shape {
-        width: shape
-            .width
-            .saturating_sub(exprs.lines().next().map_or(0, |line| line.chars().count())),
-        ..shape
-    };
-    let fits_one_line = exprs.len() <= shape.width;
+    let first_line_width = exprs.splitn(2, '\n').next().map_or(0, |line| line.chars().count());
 
-    if !exprs.contains('\n') && fits_one_line {
+    if first_line_width <= shape.width {
         format!("{prefix}{exprs}{sufix}")
     } else {
-        let nested_indent_str = "\n".to_string() + &nested_shape.indent.to_string();
-        let indent_str = "\n".to_string() + &shape.indent.to_string();
+        let nested_indent_str = nested_shape.indent.to_string_with_newline();
+        let indent_str = shape.indent.to_string();
 
         format!("{prefix}{nested_indent_str}{exprs}{indent_str}{sufix}")
     }
