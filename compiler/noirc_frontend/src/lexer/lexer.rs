@@ -416,7 +416,6 @@ impl<'a> Lexer<'a> {
         self.next_char();
         let start = self.position;
         let doc_comment = self.eat_while(None, |ch| ch != '\n');
-        let end = self.position;
         
         let token = if is_outer {
             DocComments::Outer(doc_comment)
@@ -425,10 +424,10 @@ impl<'a> Lexer<'a> {
             DocComments::Single(doc_comment)
         };
 
-        Ok(SpannedToken::new(
-            Token::DocComment(token),
-            Span::inclusive(start, end),
-        ))
+        if self.skip_comments {
+            return self.next_token();
+        }
+        Ok(Token::DocComment(token).into_span(start, self.position))
     }
 
     fn parse_block_doc_comment(&mut self, is_outer: bool) -> SpannedTokenResult {
