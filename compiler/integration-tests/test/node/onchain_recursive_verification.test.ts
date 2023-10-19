@@ -53,6 +53,14 @@ it(`smart contract can verify a recursive proof`, async () => {
   const recursion_proof = await recursion.generateFinalProof(recursion_inputs);
   expect(await recursion.verifyFinalProof(recursion_proof)).to.be.true;
 
+  // Proof should not contain any public inputs so should be 2144 bytes long.
+  expect(recursion_proof.proof.length).to.be.eq(2144);
+  // Circuit has 16 public inputs which each are 32 bytes.
+  expect(recursion_proof.publicInputs.length).to.be.eq(16);
+  for (const publicInput of recursion_proof.publicInputs) {
+    expect(publicInput.length).to.be.eq(32);
+  }
+
   // Smart contract verification
 
   const contract = await ethers.deployContract('contracts/recursion.sol:UltraVerifier', []);
