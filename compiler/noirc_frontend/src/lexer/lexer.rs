@@ -421,7 +421,7 @@ impl<'a> Lexer<'a> {
                 self.next_char();
                 Some(DocStyle::Inner)
             }
-            Some('*') if !matches!(self.peek2_char(), Some('*') | Some('/')) => {
+            Some('*') if !matches!(self.peek2_char(), Some('*' | '/')) => {
                 self.next_char();
                 Some(DocStyle::Outer)
             }
