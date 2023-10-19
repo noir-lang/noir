@@ -294,7 +294,7 @@ fn format_exprs(
     while let Some((index, expr)) = exprs.next() {
         let is_first = index == 0;
         let separate = exprs.peek().is_some() || trailing_comma;
-        let separate_len = if separate { 1 } else { 0 };
+        let separate_len = usize::from(separate);
 
         match tactic {
             Tactic::Vertical if !is_first && !expr.value.is_empty() && !result.is_empty() => {
