@@ -19,6 +19,8 @@ pub enum Token {
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
+    LineComment(String),
+    BlockComment(String),
     DocComment(DocComments),
     /// <
     Less,
