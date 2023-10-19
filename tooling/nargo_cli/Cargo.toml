@@ -75,6 +75,9 @@ pprof = { version = "0.12", features = [
 ] }
 iai = "0.1.1"
 test-binary = "3.0.1"
+tokio = { version = "1.0", features = ["macros", "rt"] }
+ethers = { version = "2.0.3", features=["ethers-solc", "solc-full"] }
+noirc_abi.workspace = true
 
 [[bench]]
 name = "criterion"
