@@ -412,12 +412,11 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> ast::Expression {
         let typ = self.convert_type(&self.interner.id_type(array));
 
-        let contents = self.expr(repeated_element);
         let length = length
             .evaluate_to_u64()
             .expect("Length of array is unknown when evaluating numeric generic");
 
-        let contents = vec![contents; length as usize];
+        let contents = vecmap(0..length, |_| self.expr(repeated_element));
         ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ }))
     }
 
