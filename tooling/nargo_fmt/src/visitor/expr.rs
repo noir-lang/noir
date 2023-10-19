@@ -261,7 +261,8 @@ fn format_brackets(
     exprs: Vec<Expression>,
     span: Span,
 ) -> String {
-    format_expr_seq("[", "]", visitor, trailing_comma, exprs, span, Some(92))
+    let array_width = visitor.config.array_width;
+    format_expr_seq("[", "]", visitor, trailing_comma, exprs, span, array_width.into())
 }
 
 fn format_parens(
