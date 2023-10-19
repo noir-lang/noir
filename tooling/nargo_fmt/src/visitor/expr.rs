@@ -107,7 +107,6 @@ impl FmtVisitor<'_> {
 
                     format!("[{repeated}; {length}]")
                 }
-                // TODO: Handle line breaks when array gets too long.
                 Literal::Array(ArrayLiteral::Standard(exprs)) => {
                     format_brackets(self.fork(), false, exprs, span)
                 }
