@@ -9,6 +9,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
+use noirc_evaluator::errors::SsaReport;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
@@ -329,7 +330,7 @@ pub fn compile_no_check(
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
-) -> Result<(CompiledProgram, Vec<RuntimeError>), RuntimeError> {
+) -> Result<(CompiledProgram, Vec<SsaReport>), RuntimeError> {
     let program = monomorphize(main_function, &context.def_interner);
 
     let hash = fxhash::hash64(&program);

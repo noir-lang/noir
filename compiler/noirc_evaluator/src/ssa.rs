@@ -9,7 +9,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::errors::RuntimeError;
+use crate::errors::{SsaReport, RuntimeError};
 use acvm::acir::{
     circuit::{Circuit, PublicInputs},
     native_types::Witness,
@@ -72,7 +72,7 @@ pub fn create_circuit(
     program: Program,
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
-) -> Result<(Circuit, DebugInfo, Abi, Vec<RuntimeError>), RuntimeError> {
+) -> Result<(Circuit, DebugInfo, Abi, Vec<SsaReport>), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
     let mut generated_acir =
         optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
