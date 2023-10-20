@@ -46,12 +46,12 @@ struct DependencyGraph {
 pub fn compile(
     entry_point: String,
     contracts: Option<bool>,
-    js_dependency_graph: Option<JsDependencyGraph>,
+    dependency_graph: Option<JsDependencyGraph>,
 ) -> Result<JsValue, JsCompileError> {
     console_error_panic_hook::set_once();
 
-    let dependency_graph: DependencyGraph = if let Some(js_dependency_graph) = js_dependency_graph {
-        <JsValue as JsValueSerdeExt>::into_serde(&JsValue::from(js_dependency_graph))
+    let dependency_graph: DependencyGraph = if let Some(dependency_graph) = dependency_graph {
+        <JsValue as JsValueSerdeExt>::into_serde(&JsValue::from(dependency_graph))
             .map_err(|err| err.to_string())?
     } else {
         DependencyGraph { root_dependencies: vec![], library_dependencies: HashMap::new() }
