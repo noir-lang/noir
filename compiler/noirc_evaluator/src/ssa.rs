@@ -9,7 +9,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::errors::{SsaReport, RuntimeError};
+use crate::errors::{RuntimeError, SsaReport};
 use acvm::acir::{
     circuit::{Circuit, PublicInputs},
     native_types::Witness,

@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     brillig::{brillig_gen::brillig_directive, brillig_ir::artifact::GeneratedBrillig},
-    errors::{InternalError, SsaReport, RuntimeError},
+    errors::{InternalError, RuntimeError, SsaReport},
     ssa::ir::dfg::CallStack,
 };
 
