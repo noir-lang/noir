@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;
 use noirc_errors::Location;
@@ -16,7 +16,8 @@ use super::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{InstructionId, Intrinsic},
+        instruction::{Endian, InstructionId, Intrinsic},
+        types::NumericType,
     },
     ssa_gen::Ssa,
 };
@@ -255,7 +256,152 @@ impl FunctionBuilder {
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
     ) -> Cow<[ValueId]> {
+        if let Value::Intrinsic(intrinsic) = &self.current_function.dfg[func] {
+            if intrinsic == &Intrinsic::WrappingShiftLeft {
+                let result_type = self.current_function.dfg.type_of_value(arguments[0]);
+                let bit_size = match result_type {
+                    Type::Numeric(NumericType::Signed { bit_size })
+                    | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
+                    _ => {
+                        unreachable!("ICE: Truncation attempted on non-integer");
+                    }
+                };
+                return self
+                    .insert_wrapping_shift_left(arguments[0], arguments[1], bit_size)
+                    .results();
+            }
+        }
+
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+    }
+
+    /// Pessimistic bit size of lhs << rhs, when both operands are bit_size bits
+    fn shift_left_bit_size(bit_size: u32) -> u32 {
+        // The formula for calculating the max bit size of a left shift is:
+        // lhs_bit_size + 2^{rhs_bit_size} - 1
+        // Inferring the max bit size of left shift from its operands can result in huge
+        // number, that might not only be larger than the native field's max bit size, but
+        // furthermore might not be representable as a u32. Hence we use overflow checks and
+        // fallback to the native field's max bits.
+        let field_max_bits = FieldElement::max_num_bits();
+        let (rhs_bit_size_pow_2, overflows) = 2_u32.overflowing_pow(bit_size);
+        if overflows {
+            return field_max_bits;
+        }
+        let (max_bits_plus_1, overflows) = rhs_bit_size_pow_2.overflowing_add(bit_size);
+        if overflows {
+            return field_max_bits;
+        }
+        std::cmp::min(max_bits_plus_1 - 1, field_max_bits)
+    }
+
+    /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
+    pub(crate) fn insert_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        let base = self.field_constant(FieldElement::from(2_u128));
+        let pow = self.pow(base, rhs);
+        let typ = self.current_function.dfg.type_of_value(lhs);
+        let pow = self.insert_cast(pow, typ);
+        self.insert_binary(lhs, BinaryOp::Mul, pow)
+    }
+
+    /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
+    /// and truncate the result to bit_size
+    fn insert_wrapping_shift_left(
+        &mut self,
+        lhs: ValueId,
+        rhs: ValueId,
+        bit_size: u32,
+    ) -> InsertInstructionResult {
+        let base = self.field_constant(FieldElement::from(2_u128));
+        // let pow = self.pow(base, rhs);
+
+        // T1: not working
+        //    let max_bit=FieldElement::max_num_bits();
+        //   let lhs= self.insert_instruction(
+        //     Instruction::Truncate { value: lhs, bit_size, max_bit_size: max_bit },None).first();
+        //     let rhs= self.insert_instruction(
+        //         Instruction::Truncate { value: rhs, bit_size, max_bit_size: max_bit },None).first();
+
+        //T2: Not working
+        // let lhs = self.insert_cast(lhs, Type::field());
+        // let rhs = self.insert_cast(lhs, Type::field());
+
+        //T3: not workeing either
+        //      let lhs = self.insert_cast(lhs, Type::field());
+        //     let rhs = self.insert_cast(rhs, Type::field());
+
+        //     let max_bit=FieldElement::max_num_bits();
+        //     let result = self.insert_shift_left(lhs, rhs);
+        // return self.insert_instruction(
+        // Instruction::Truncate { value: result, bit_size, max_bit_size: max_bit },None);
+
+        let typ = self.current_function.dfg.type_of_value(lhs);
+        let (max_bit, pow) = if let Some(rhs_constant) =
+            self.current_function.dfg.get_numeric_constant(rhs)
+        {
+            // Happy case is that we know precisely by how many bits the the integer will
+            // increase: lhs_bit_size + rhs
+            let (rhs_bit_size_pow_2, overflows) =
+                2_u32.overflowing_pow(rhs_constant.to_u128() as u32);
+            assert!(!overflows);
+            let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2 as u128), typ);
+            (bit_size + (rhs_constant.to_u128() as u32), pow)
+        } else {
+            let pow = self.pow(base, rhs);
+            (Self::shift_left_bit_size(bit_size), self.insert_cast(pow, typ))
+        };
+
+        let instruction = Instruction::Binary(Binary { lhs, rhs: pow, operator: BinaryOp::Mul });
+        //TODO check bit sizes computations
+        if max_bit <= bit_size {
+            self.insert_instruction(instruction, None)
+        } else {
+            let result = self.insert_instruction(instruction, None).first();
+            self.insert_instruction(
+                Instruction::Truncate { value: result, bit_size, max_bit_size: max_bit },
+                None,
+            )
+        }
+        //T4: not working
+        // let max_bit=FieldElement::max_num_bits();
+        //             let result = self.insert_instruction(instruction, None).first();
+        //     self.insert_instruction(
+        //         Instruction::Truncate { value: result, bit_size, max_bit_size: max_bit },None)
+    }
+
+    /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
+    pub(crate) fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        let base = self.field_constant(FieldElement::from(2_u128));
+        let pow = self.pow(base, rhs);
+        self.insert_binary(lhs, BinaryOp::Div, pow)
+    }
+
+    /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
+    pub(crate) fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        let typ = self.current_function.dfg.type_of_value(rhs);
+        if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
+            let to_bits = self.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
+            let length = self.field_constant(FieldElement::from(bit_size as i128));
+            let result_types =
+                vec![Type::field(), Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
+            let rhs_bits = self.insert_call(to_bits, vec![rhs, length], result_types);
+            let rhs_bits = rhs_bits[1];
+            let one = self.field_constant(FieldElement::one());
+            let mut r = one;
+            for i in 1..bit_size + 1 {
+                let r1 = self.insert_binary(r, BinaryOp::Mul, r);
+                let a = self.insert_binary(r1, BinaryOp::Mul, lhs);
+                let idx = self.field_constant(FieldElement::from((bit_size - i) as i128));
+                let b = self.insert_array_get(rhs_bits, idx, Type::field());
+                let r2 = self.insert_binary(a, BinaryOp::Mul, b);
+                let c = self.insert_binary(one, BinaryOp::Sub, b);
+                let r3 = self.insert_binary(c, BinaryOp::Mul, r1);
+                r = self.insert_binary(r2, BinaryOp::Add, r3);
+            }
+            r
+        } else {
+            unreachable!("Value must be unsigned in power operation");
+        }
     }
 
     /// Insert an instruction to extract an element from an array
