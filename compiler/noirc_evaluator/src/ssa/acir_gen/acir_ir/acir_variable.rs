@@ -573,13 +573,31 @@ impl AcirContext {
         // lhs = rhs * q + r
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
+        let zero = self.add_constant(FieldElement::zero());
+        if self.var_to_expression(predicate)?.is_zero() {
+            return Ok((zero, zero));
+        }
+
+        // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
+        if let (Some(lhs_const), Some(rhs_const)) =
+            (self.var_to_expression(lhs)?.to_const(), self.var_to_expression(rhs)?.to_const())
+        {
+            // Disallow division by zero.
+            if rhs_const != FieldElement::zero() {
+                let quotient = lhs_const.to_u128() / rhs_const.to_u128();
+                let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
+
+                let quotient_var = self.add_constant(FieldElement::from(quotient));
+                let remainder_var = self.add_constant(FieldElement::from(remainder));
+                return Ok((quotient_var, remainder_var));
+            }
+        }
 
         // Check that we the rhs is not zero.
         // Otherwise, when executing the brillig quotient we may attempt to divide by zero, causing a VM panic.
         //
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the rhs must not be 0.
-        let zero = self.add_constant(FieldElement::zero());
         let one = self.add_constant(FieldElement::one());
 
         let rhs_expr = self.var_to_expression(rhs)?;
