@@ -1,9 +1,7 @@
 ---
 title: Language Server
-description:
-  Learn about the Noir Language Server, how to install the components, and configuration that may be required.
-keywords:
-  [Nargo, Language Server, LSP, VSCode, Visual Studio Code]
+description: Learn about the Noir Language Server, how to install the components, and configuration that may be required.
+keywords: [Nargo, Language Server, LSP, VSCode, Visual Studio Code]
 ---
 
 This section helps you install and configure the Noir Language Server.
@@ -23,6 +21,10 @@ The Client component is usually an editor plugin that launches the Server. It co
 
 Currently, Noir provides a Language Client for Visual Studio Code via the [vscode-noir](https://github.com/noir-lang/vscode-noir) extension. You can install it via the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir).
 
+> **Note:** Noir's Language Server Protocol support currently assumes users' VSCode workspace root to be the same as users' Noir project root (i.e. where Nargo.toml lies).
+>
+> If LSP features seem to be missing / malfunctioning, make sure you are opening your Noir project directly (instead of as a sub-folder) in your VSCode instance.
+
 When you language server is running correctly and the VSCode plugin is installed, you should see handy codelens buttons for compilation, execution, and tests:
 
 ![Compile and Execute](./../../static/img/codelens_compile_execute.png)
@@ -34,7 +36,7 @@ You should also see your tests in the `testing` panel:
 
 ### Configuration
 
-* __Noir: Enable LSP__ - If checked, the extension will launch the Language Server via `nargo lsp` and communicate with it.
-* __Noir: Nargo Flags__ - Additional flags may be specified if you require them to be added when the extension calls `nargo lsp`.
-* __Noir: Nargo Path__ - An absolute path to a Nargo binary with the `lsp` command. This may be useful if Nargo is not within the `PATH` of your editor.
-* __Noir > Trace: Server__ - Setting this to `"messages"` or `"verbose"` will log LSP messages between the Client and Server. Useful for debugging.
+- **Noir: Enable LSP** - If checked, the extension will launch the Language Server via `nargo lsp` and communicate with it.
+- **Noir: Nargo Flags** - Additional flags may be specified if you require them to be added when the extension calls `nargo lsp`.
+- **Noir: Nargo Path** - An absolute path to a Nargo binary with the `lsp` command. This may be useful if Nargo is not within the `PATH` of your editor.
+- **Noir > Trace: Server** - Setting this to `"messages"` or `"verbose"` will log LSP messages between the Client and Server. Useful for debugging.

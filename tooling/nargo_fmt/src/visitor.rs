@@ -1,7 +1,7 @@
 /// A macro to create a slice from a given data source, helping to avoid borrow checker errors.
 #[macro_export]
 macro_rules! slice {
-    ($this:ident, $start:expr, $end:expr) => {
+    ($this:expr, $start:expr, $end:expr) => {
         &$this.source[$start as usize..$end as usize]
     };
 }
@@ -17,8 +17,8 @@ use crate::config::Config;
 pub(crate) struct FmtVisitor<'me> {
     config: &'me Config,
     buffer: String,
-    source: &'me str,
-    block_indent: Indent,
+    pub(crate) source: &'me str,
+    indent: Indent,
     last_position: u32,
 }
 
@@ -29,17 +29,17 @@ impl<'me> FmtVisitor<'me> {
             config,
             source,
             last_position: 0,
-            block_indent: Indent { block_indent: 0 },
+            indent: Indent { block_indent: 0 },
         }
     }
 
     pub(crate) fn fork(&self) -> Self {
         Self {
-            config: self.config,
             buffer: String::new(),
+            config: self.config,
             source: self.source,
-            block_indent: self.block_indent,
             last_position: self.last_position,
+            indent: self.indent,
         }
     }
 
@@ -48,9 +48,9 @@ impl<'me> FmtVisitor<'me> {
     }
 
     fn with_indent<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.block_indent.block_indent(self.config);
+        self.indent.block_indent(self.config);
         let ret = f(self);
-        self.block_indent.block_unindent(self.config);
+        self.indent.block_unindent(self.config);
         ret
     }
 
@@ -82,7 +82,7 @@ impl<'me> FmtVisitor<'me> {
             }
 
             if should_indent {
-                let indent = this.block_indent.to_string();
+                let indent = this.indent.to_string();
                 this.push_str(&indent);
             }
         });
