@@ -170,10 +170,9 @@ pub(crate) fn transform(
 
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
-        if transform_module(&mut submodule.contents)? {
+        if transform_module(&mut submodule.contents, crate_id, context)? {
             check_for_aztec_dependency(crate_id, context)?;
             include_relevant_imports(&mut submodule.contents);
-            }
         }
     }
     Ok(ast)
@@ -242,17 +241,21 @@ fn is_custom_attribute(attr: &SecondaryAttribute, attribute_name: &str) -> bool 
 /// Determines if ast nodes are annotated with aztec attributes.
 /// For annotated functions it calls the `transform` function which will perform the required transformations.
 /// Returns true if an annotated node is found, false otherwise
-fn transform_module(module: &mut SortedModule) -> Result<bool, (DefCollectorErrorKind, FileId)> {
+fn transform_module(
+    module: &mut SortedModule,
+    crate_id: &CrateId,
+    context: &Context,
+) -> Result<bool, (DefCollectorErrorKind, FileId)> {
     let mut has_transformed_module = false;
 
     // Check for a user defined storage struct
     let storage_defined = check_for_storage_definition(&module);
 
     if storage_defined && check_for_compute_note_hash_and_nullifier_definition(&module) {
-        // TODO: do a refactor so that file_id is real --> you want to get crate_graph.root_file_id
+        let crate_graph = &context.crate_graph[crate_id];
         return Err((
             DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound {},
-            FileId::default(),
+            crate_graph.root_file_id,
         ));
     }
 
