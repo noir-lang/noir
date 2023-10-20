@@ -198,3 +198,101 @@ cfg_if::cfg_if! {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use fm::FileManager;
+    use noirc_driver::prepare_crate;
+    use noirc_frontend::{
+        graph::{CrateGraph, CrateName},
+        hir::Context,
+    };
+
+    use super::{process_dependency_graph, DependencyGraph};
+    use std::{collections::HashMap, path::Path};
+
+    fn mock_get_non_stdlib_asset(_path_to_file: &Path) -> std::io::Result<String> {
+        Ok("".to_string())
+    }
+
+    fn setup_test_context() -> Context {
+        let fm = FileManager::new(Path::new("/"), Box::new(mock_get_non_stdlib_asset));
+        let graph = CrateGraph::default();
+        let mut context = Context::new(fm, graph);
+
+        prepare_crate(&mut context, Path::new("/main.nr"));
+
+        context
+    }
+
+    fn crate_name(name: &str) -> CrateName {
+        name.parse().unwrap()
+    }
+
+    #[test]
+    fn test_works_with_empty_dependency_graph() {
+        let mut context = setup_test_context();
+        let dependency_graph =
+            DependencyGraph { root_dependencies: vec![], library_dependencies: HashMap::new() };
+
+        process_dependency_graph(&mut context, dependency_graph);
+
+        // one stdlib + one root crate
+        assert_eq!(context.crate_graph.number_of_crates(), 2);
+    }
+
+    #[test]
+    fn test_works_with_root_dependencies() {
+        let mut context = setup_test_context();
+        let dependency_graph = DependencyGraph {
+            root_dependencies: vec![crate_name("lib1")],
+            library_dependencies: HashMap::new(),
+        };
+
+        process_dependency_graph(&mut context, dependency_graph);
+
+        assert_eq!(context.crate_graph.number_of_crates(), 3);
+    }
+
+    #[test]
+    fn test_works_with_duplicate_root_dependencies() {
+        let mut context = setup_test_context();
+        let dependency_graph = DependencyGraph {
+            root_dependencies: vec![crate_name("lib1"), crate_name("lib1")],
+            library_dependencies: HashMap::new(),
+        };
+
+        process_dependency_graph(&mut context, dependency_graph);
+
+        assert_eq!(context.crate_graph.number_of_crates(), 3);
+    }
+
+    #[test]
+    fn test_works_with_transitive_dependencies() {
+        let mut context = setup_test_context();
+        let dependency_graph = DependencyGraph {
+            root_dependencies: vec![crate_name("lib1")],
+            library_dependencies: HashMap::from([
+                (crate_name("lib1"), vec![crate_name("lib2")]),
+                (crate_name("lib2"), vec![crate_name("lib3")]),
+            ]),
+        };
+
+        process_dependency_graph(&mut context, dependency_graph);
+
+        assert_eq!(context.crate_graph.number_of_crates(), 5);
+    }
+
+    #[test]
+    fn test_works_with_missing_dependencies() {
+        let mut context = setup_test_context();
+        let dependency_graph = DependencyGraph {
+            root_dependencies: vec![crate_name("lib1")],
+            library_dependencies: HashMap::from([(crate_name("lib2"), vec![crate_name("lib3")])]),
+        };
+
+        process_dependency_graph(&mut context, dependency_graph);
+
+        assert_eq!(context.crate_graph.number_of_crates(), 5);
+    }
+}
