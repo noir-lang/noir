@@ -58,7 +58,6 @@ fn contract_command() -> Result<(), BackendError> {
     let write_vk_command = super::WriteVkCommand {
         bytecode_path,
         vk_path_output: vk_path.clone(),
-        is_recursive: false,
         crs_path: crs_path.clone(),
     };
     write_vk_command.run(backend.binary_path())?;

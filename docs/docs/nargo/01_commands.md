@@ -20,12 +20,12 @@ keywords:
 
 ## General options
 
-```
-Options:
-  --show-ssa        Emit debug information for the intermediate SSA IR
-  --deny-warnings   Quit execution when warnings are emitted
-  -h, --help        Print help
-```
+| Option              | Description                                          |
+|---------------------|------------------------------------------------------|
+| `--show-ssa`        | Emit debug information for the intermediate SSA IR   |
+| `--deny-warnings`   | Quit execution when warnings are emitted             |
+| `--silence-warnings`| Suppress warnings                                    |
+| `-h, --help`        | Print help                                           |
 
 ## `nargo help [subcommand]`
 
@@ -33,7 +33,9 @@ Prints the list of available commands or specific information of a subcommand.
 
 _Arguments_
 
-- `<subcommand>` - The subcommand whose help message to display
+| Argument      | Description                                            |
+|---------------|--------------------------------------------------------|
+| `<subcommand>`| The subcommand whose help message to display           |
 
 ## `nargo backend`
 
@@ -41,20 +43,20 @@ Installs and selects custom backends used to generate and verify proofs.
 
 ### Commands
 
-```
-  current    Prints the name of the currently active backend
-  ls         Prints the list of currently installed backends
-  use        Select the backend to use
-  install    Install a new backend from a URL
-  uninstall  Uninstalls a backend
-  help       Print this message or the help of the given subcommand(s)
-```
+| Command    | Description                                      |
+|------------|--------------------------------------------------|
+| `current`  | Prints the name of the currently active backend  |
+| `ls`       | Prints the list of currently installed backends |
+| `use`      | Select the backend to use                       |
+| `install`  | Install a new backend from a URL                 |
+| `uninstall`| Uninstalls a backend                             |
+| `help`     | Print this message or the help of the given subcommand(s) |
 
 ### Options
 
-```
--h, --help Print help
-```
+| Option        | Description  |
+|---------------|--------------|
+| `-h, --help`  | Print help   |
 
 ## `nargo check`
 
@@ -63,13 +65,14 @@ values of the Noir program respectively.
 
 ### Options
 
-```
-    --package <PACKAGE>  The name of the package to check
-    --workspace          Check all packages in the workspace
-    --print-acir         Display the ACIR for compiled circuit
-    --deny-warnings      Treat all warnings as errors
--h, --help Print help
-```
+| Option               | Description                                       |
+|----------------------|---------------------------------------------------|
+| `--package <PACKAGE>`| The name of the package to check                  |
+| `--workspace`        | Check all packages in the workspace               |
+| `--print-acir`       | Display the ACIR for compiled circuit             |
+| `--deny-warnings`    | Treat all warnings as errors                      |
+| `--silence-warnings` | Suppress warnings                                 |
+| `-h, --help`         | Print help                                        |
 
 ### `nargo codegen-verifier`
 
@@ -77,13 +80,14 @@ Generate a Solidity verifier smart contract for the program.
 
 ### Options
 
-```
-    --package <PACKAGE>  The name of the package to codegen
-    --workspace          Codegen all packages in the workspace
-    --print-acir         Display the ACIR for compiled circuit
-    --deny-warnings      Treat all warnings as errors
--h, --help               Print help
-```
+| Option               | Description                                       |
+|----------------------|---------------------------------------------------|
+| `--package <PACKAGE>`| The name of the package to codegen                |
+| `--workspace`        | Codegen all packages in the workspace             |
+| `--print-acir`       | Display the ACIR for compiled circuit             |
+| `--deny-warnings`    | Treat all warnings as errors                      |
+| `--silence-warnings` | Suppress warnings                                 |
+| `-h, --help`         | Print help                                        |
 
 ## `nargo compile`
 
@@ -94,14 +98,15 @@ You can also use "build" as an alias for compile (e.g. `nargo build`).
 
 ### Options
 
-```
-    --include-keys       Include Proving and Verification keys in the build artifacts
-    --package <PACKAGE>  The name of the package to compile
-    --workspace          Compile all packages in the workspace
-    --print-acir         Display the ACIR for compiled circuit
-    --deny-warnings      Treat all warnings as errors
--h, --help               Print help
-```
+| Option               | Description                                        |
+|----------------------|----------------------------------------------------|
+| `--include-keys`     | Include Proving and Verification keys in the build artifacts |
+| `--package <PACKAGE>`| The name of the package to compile                 |
+| `--workspace`        | Compile all packages in the workspace              |
+| `--print-acir`       | Display the ACIR for compiled circuit              |
+| `--deny-warnings`    | Treat all warnings as errors                       |
+| `--silence-warnings` | Suppress warnings                                  |
+| `-h, --help`         | Print help                                         |
 
 ## `nargo new <PATH>`
 
@@ -109,19 +114,19 @@ Creates a new Noir project in a new folder.
 
 **Arguments**
 
-```
-<PATH>  The path to save the new project
-```
+| Argument  | Description                        |
+|-----------|------------------------------------|
+| `<PATH>`  | The path to save the new project   |
 
 ### Options
 
-```
-    --name <NAME>  Name of the package [default: package directory name]
-    --lib          Use a library template
-    --bin          Use a binary template [default]
-    --contract     Use a contract template
--h, --help         Print help
-```
+| Option            | Description                                     |
+|-------------------|-------------------------------------------------|
+| `--name <NAME>`   | Name of the package [default: package directory name] |
+| `--lib`           | Use a library template                          |
+| `--bin`           | Use a binary template [default]                 |
+| `--contract`      | Use a contract template                         |
+| `-h, --help`      | Print help                                      |
 
 ## `nargo init`
 
@@ -129,13 +134,13 @@ Creates a new Noir project in the current directory.
 
 ### Options
 
-```
-    --name <NAME>  Name of the package [default: current directory name]
-    --lib          Use a library template
-    --bin          Use a binary template [default]
-    --contract     Use a contract template
--h, --help         Print help
-```
+| Option            | Description                                     |
+|-------------------|-------------------------------------------------|
+| `--name <NAME>`   | Name of the package [default: current directory name] |
+| `--lib`           | Use a library template                          |
+| `--bin`           | Use a binary template [default]                 |
+| `--contract`      | Use a contract template                         |
+| `-h, --help`      | Print help                                      |
 
 ## `nargo execute [WITNESS_NAME]`
 
@@ -143,20 +148,21 @@ Runs the Noir program and prints its return value.
 
 **Arguments**
 
-```
-[WITNESS_NAME]  Write the execution witness to named file
-```
+| Argument        | Description                                    |
+|-----------------|------------------------------------------------|
+| `[WITNESS_NAME]`| Write the execution witness to named file      |
 
 ### Options
 
-```
--p, --prover-name <PROVER_NAME>  The name of the toml file which contains the inputs for the prover [default: Prover]
-    --package <PACKAGE>          The name of the package to execute
-    --workspace                  Execute all packages in the workspace
-    --print-acir                 Display the ACIR for compiled circuit
-    --deny-warnings              Treat all warnings as errors
--h, --help                       Print help
-```
+| Option                        | Description                                                      |
+|-------------------------------|------------------------------------------------------------------|
+| `-p, --prover-name <PROVER_NAME>` | The name of the toml file which contains the inputs for the prover [default: Prover] |
+| `--package <PACKAGE>`         | The name of the package to execute                               |
+| `--workspace`                 | Execute all packages in the workspace                            |
+| `--print-acir`                | Display the ACIR for compiled circuit                            |
+| `--deny-warnings`             | Treat all warnings as errors                                     |
+| `--silence-warnings`          | Suppress warnings                                                |
+| `-h, --help`                  | Print help                                                       |
 
 _Usage_
 
@@ -172,16 +178,17 @@ Creates a proof for the program.
 
 ### Options
 
-```
--p, --prover-name <PROVER_NAME>      The name of the toml file which contains the inputs for the prover [default: Prover]
--v, --verifier-name <VERIFIER_NAME>  The name of the toml file which contains the inputs for the verifier [default: Verifier]
-    --verify                         Verify proof after proving
-    --package <PACKAGE>              The name of the package to prove
-    --workspace                      Prove all packages in the workspace
-    --print-acir                     Display the ACIR for compiled circuit
-    --deny-warnings                  Treat all warnings as errors
--h, --help                           Print help
-```
+| Option                        | Description                                                      |
+|-------------------------------|------------------------------------------------------------------|
+| `-p, --prover-name <PROVER_NAME>` | The name of the toml file which contains the inputs for the prover [default: Prover] |
+| `-v, --verifier-name <VERIFIER_NAME>` | The name of the toml file which contains the inputs for the verifier [default: Verifier] |
+| `--verify`                    | Verify proof after proving                                       |
+| `--package <PACKAGE>`         | The name of the package to prove                                 |
+| `--workspace`                 | Prove all packages in the workspace                              |
+| `--print-acir`                | Display the ACIR for compiled circuit                            |
+| `--deny-warnings`             | Treat all warnings as errors                                     |
+| `--silence-warnings`          | Suppress warnings                                                |
+| `-h, --help`                  | Print help                                                       |
 
 ## `nargo verify`
 
@@ -189,14 +196,15 @@ Given a proof and a program, verify whether the proof is valid.
 
 ### Options
 
-```
--v, --verifier-name <VERIFIER_NAME>  The name of the toml file which contains the inputs for the verifier [default: Verifier]
-    --package <PACKAGE>              The name of the package verify
-    --workspace                      Verify all packages in the workspace
-    --print-acir                     Display the ACIR for compiled circuit
-    --deny-warnings                  Treat all warnings as errors
--h, --help                           Print help
-```
+| Option                        | Description                                                      |
+|-------------------------------|------------------------------------------------------------------|
+| `-v, --verifier-name <VERIFIER_NAME>` | The name of the toml file which contains the inputs for the verifier [default: Verifier] |
+| `--package <PACKAGE>`         | The name of the package to verify                                |
+| `--workspace`                 | Verify all packages in the workspace                             |
+| `--print-acir`                | Display the ACIR for compiled circuit                            |
+| `--deny-warnings`             | Treat all warnings as errors                                     |
+| `--silence-warnings`          | Suppress warnings                                                |
+| `-h, --help`                  | Print help                                                       |
 
 ## `nargo test [TEST_NAME]`
 
@@ -209,15 +217,16 @@ See an example on the [testing page](./testing).
 
 ### Options
 
-```
-    --show-output        Display output of `println` statements
-    --exact              Only run tests that match exactly
-    --package <PACKAGE>  The name of the package to test
-    --workspace          Test all packages in the workspace
-    --print-acir         Display the ACIR for compiled circuit
-    --deny-warnings      Treat all warnings as errors
--h, --help               Print help
-```
+| Option               | Description                                       |
+|----------------------|---------------------------------------------------|
+| `--show-output`      | Display output of `println` statements            |
+| `--exact`            | Only run tests that match exactly                 |
+| `--package <PACKAGE>`| The name of the package to test                   |
+| `--workspace`        | Test all packages in the workspace                |
+| `--print-acir`       | Display the ACIR for compiled circuit             |
+| `--deny-warnings`    | Treat all warnings as errors                      |
+| `--silence-warnings` | Suppress warnings                                 |
+| `-h, --help`         | Print help                                        |
 
 ## `nargo info`
 
