@@ -8,13 +8,16 @@ Resolves <!-- Link to GitHub Issue -->
 
 
 
-## Documentation
-
-
-
 ## Additional Context
 
 
+
+## Documentation\*
+
+Check one:
+- [ ] No documentation needed.
+- [ ] Documentation included in this PR.
+- [ ] **[Exceptional Case]** Documentation to be submitted in a separate PR.
 
 # PR Checklist\*
 
