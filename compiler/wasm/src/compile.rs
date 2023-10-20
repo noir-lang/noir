@@ -127,15 +127,13 @@ fn process_dependency_graph(context: &mut Context, dependency_graph: DependencyG
         // first create the library crate if needed
         // this crate might not have been registered yet because of the order of the HashMap
         // e.g. {root: [lib1], libs: { lib2 -> [lib3], lib1 -> [lib2] }}
-        let crate_id = crate_names
-            .entry(&lib_name)
-            .or_insert_with(|| add_noir_lib(context, &lib_name))
-            .clone();
+        let crate_id =
+            *crate_names.entry(lib_name).or_insert_with(|| add_noir_lib(context, lib_name));
 
         for dependency_name in dependencies {
             let dep_crate_id: &CrateId = crate_names
-                .entry(&dependency_name)
-                .or_insert_with(|| add_noir_lib(context, &dependency_name));
+                .entry(dependency_name)
+                .or_insert_with(|| add_noir_lib(context, dependency_name));
 
             add_dep(context, crate_id, *dep_crate_id, dependency_name.clone());
         }
@@ -144,9 +142,7 @@ fn process_dependency_graph(context: &mut Context, dependency_graph: DependencyG
 
 fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
     let path_to_lib = Path::new(&library_name.to_string()).join("lib.nr");
-    let library_crate_id = prepare_dependency(context, &path_to_lib);
-
-    library_crate_id
+    prepare_dependency(context, &path_to_lib)
 }
 
 fn preprocess_program(program: CompiledProgram) -> PreprocessedProgram {
