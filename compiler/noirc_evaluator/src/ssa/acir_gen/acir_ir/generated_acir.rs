@@ -435,6 +435,21 @@ impl GeneratedAcir {
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
 
+        // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
+        if let (Some(lhs_const), Some(rhs_const)) = (lhs.to_const(), rhs.to_const()) {
+            // Disallow division by zero.
+            if rhs_const != FieldElement::zero() {
+                let quotient = lhs_const.to_u128() / rhs_const.to_u128();
+                let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
+
+                let quotient_var =
+                    self.create_witness_for_expression(&FieldElement::from(quotient).into());
+                let remainder_var =
+                    self.create_witness_for_expression(&FieldElement::from(remainder).into());
+                return Ok((quotient_var, remainder_var));
+            }
+        }
+
         // Check that we the rhs is not zero.
         // Otherwise, when executing the brillig quotient we may attempt to divide by zero, causing a VM panic.
         //
