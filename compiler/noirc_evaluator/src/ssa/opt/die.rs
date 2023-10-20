@@ -176,10 +176,10 @@ mod test {
         builder.switch_to_block(b1);
         let _v3 = builder.add_block_parameter(b1, Type::field());
 
-        let v4 = builder.insert_allocate();
+        let v4 = builder.insert_allocate(Type::field());
         let _v5 = builder.insert_load(v4, Type::field());
 
-        let v6 = builder.insert_allocate();
+        let v6 = builder.insert_allocate(Type::field());
         builder.insert_store(v6, one);
         let v7 = builder.insert_load(v6, Type::field());
         let v8 = builder.insert_binary(v7, BinaryOp::Add, one);

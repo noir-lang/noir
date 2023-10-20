@@ -427,7 +427,7 @@ mod tests {
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::Array(Rc::new(vec![Type::field()]), 2));
         let one = builder.field_constant(FieldElement::one());
         let two = builder.field_constant(FieldElement::one());
 
@@ -468,7 +468,7 @@ mod tests {
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::field());
         let one = builder.field_constant(FieldElement::one());
         builder.insert_store(v0, one);
         let v1 = builder.insert_load(v0, Type::field());
@@ -502,7 +502,7 @@ mod tests {
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::field());
         let const_one = builder.field_constant(FieldElement::one());
         builder.insert_store(v0, const_one);
         builder.terminate_with_return(vec![v0]);
@@ -562,7 +562,7 @@ mod tests {
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::field());
 
         let five = builder.field_constant(5u128);
         builder.insert_store(v0, five);
@@ -642,12 +642,12 @@ mod tests {
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::field());
 
         let zero = builder.field_constant(0u128);
         builder.insert_store(v0, zero);
 
-        let v2 = builder.insert_allocate();
+        let v2 = builder.insert_allocate(Type::Reference(Rc::new(Type::field())));
         builder.insert_store(v2, v0);
 
         let v3 = builder.insert_load(v2, Type::field());

@@ -321,7 +321,7 @@ impl BrilligContext {
     }
 
     /// Add one to the given register value and store it in the given register
-    fn increment(&mut self, value: RegisterIndex, result: RegisterIndex) {
+    pub(crate) fn increment(&mut self, value: RegisterIndex, result: RegisterIndex) {
         let one = self.make_constant(1_usize.into());
         let add = BrilligBinaryOp::Field { op: BinaryFieldOp::Add };
         self.binary_instruction(value, one, result, add);

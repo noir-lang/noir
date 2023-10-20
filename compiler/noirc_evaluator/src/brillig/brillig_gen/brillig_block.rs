@@ -559,7 +559,7 @@ impl<'block> BrilligBlock<'block> {
                 };
 
                 // TODO: Does this work for += 1?
-                self.increment(rc_register, rc_register);
+                self.brillig_context.increment(rc_register, rc_register);
             }
             Instruction::EnableSideEffects { .. } => {
                 todo!("ICE: Instruction not supported {instruction:?}")
@@ -1147,7 +1147,7 @@ impl<'block> BrilligBlock<'block> {
 
                             // Add one to the vector's size to account for the extra reference count field
                             let size = self.brillig_context.allocate_register();
-                            self.increment(heap_vector.size, size);
+                            self.brillig_context.increment(heap_vector.size, size);
 
                             self.brillig_context
                                 .allocate_array_instruction(heap_vector.pointer, heap_vector.size);
