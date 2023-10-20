@@ -1,4 +1,4 @@
-import { AztecAddress, Fr, FunctionSelector, MembershipWitness, PRIVATE_DATA_TREE_HEIGHT } from '@aztec/circuits.js';
+import { AztecAddress, Fr, FunctionSelector, MembershipWitness, NOTE_HASH_TREE_HEIGHT } from '@aztec/circuits.js';
 import { Tuple } from '@aztec/foundation/serialize';
 import { AztecNode, MerkleTreeId } from '@aztec/types';
 
@@ -23,17 +23,17 @@ export class KernelOracle implements ProvingDataOracle {
     return await this.contractDataOracle.getVkMembershipWitness();
   }
 
-  async getNoteMembershipWitness(leafIndex: bigint): Promise<MembershipWitness<typeof PRIVATE_DATA_TREE_HEIGHT>> {
+  async getNoteMembershipWitness(leafIndex: bigint): Promise<MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>> {
     const path = await this.node.getDataTreePath(leafIndex);
-    return new MembershipWitness<typeof PRIVATE_DATA_TREE_HEIGHT>(
+    return new MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>(
       path.pathSize,
       leafIndex,
-      path.toFieldArray() as Tuple<Fr, typeof PRIVATE_DATA_TREE_HEIGHT>,
+      path.toFieldArray() as Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
     );
   }
 
-  async getPrivateDataRoot(): Promise<Fr> {
+  async getNoteHashTreeRoot(): Promise<Fr> {
     const roots = await this.node.getTreeRoots();
-    return roots[MerkleTreeId.PRIVATE_DATA_TREE];
+    return roots[MerkleTreeId.NOTE_HASH_TREE];
   }
 }

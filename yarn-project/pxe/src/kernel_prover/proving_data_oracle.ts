@@ -4,7 +4,7 @@ import {
   Fr,
   FunctionSelector,
   MembershipWitness,
-  PRIVATE_DATA_TREE_HEIGHT,
+  NOTE_HASH_TREE_HEIGHT,
   VK_TREE_HEIGHT,
   VerificationKey,
 } from '@aztec/circuits.js';
@@ -53,17 +53,17 @@ export interface ProvingDataOracle {
   getVkMembershipWitness(vk: VerificationKey): Promise<MembershipWitness<typeof VK_TREE_HEIGHT>>;
 
   /**
-   * Get the note membership witness for a note in the private data tree at the given leaf index.
+   * Get the note membership witness for a note in the note hash tree at the given leaf index.
    *
-   * @param leafIndex - The leaf index of the note in the private data tree.
+   * @param leafIndex - The leaf index of the note in the note hash tree.
    * @returns the MembershipWitness for the note.
    */
-  getNoteMembershipWitness(leafIndex: bigint): Promise<MembershipWitness<typeof PRIVATE_DATA_TREE_HEIGHT>>;
+  getNoteMembershipWitness(leafIndex: bigint): Promise<MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>>;
 
   /**
-   * Get the root of the private data tree.
+   * Get the root of the note hash tree.
    *
-   * @returns the root of the private data tree.
+   * @returns the root of the note hash tree.
    */
-  getPrivateDataRoot(): Promise<Fr>;
+  getNoteHashTreeRoot(): Promise<Fr>;
 }

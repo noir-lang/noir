@@ -25,7 +25,7 @@ encrypted_logs_hash: [ 0x900 0x901 ]
 unencrypted_logs_hash: [ 0xa00 0xa01 ]
 encrypted_log_preimages_length: 0xb00
 unencrypted_log_preimages_length: 0xc00
-historic_block_data: private_data_tree_root: 0xd00
+historic_block_data: note_hash_tree_root: 0xd00
 nullifier_tree_root: 0xd01
 contract_tree_root: 0xd02
 l1_to_l2_messages_tree_root: 0xd03

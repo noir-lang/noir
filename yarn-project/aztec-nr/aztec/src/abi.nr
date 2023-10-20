@@ -142,7 +142,7 @@ impl CallContext {
 
 // docs:start:historic-block-data
 struct HistoricBlockData {
-    private_data_tree_root : Field,
+    note_hash_tree_root : Field,
     nullifier_tree_root : Field,
     contract_tree_root : Field,
     l1_to_l2_messages_tree_root : Field,
@@ -156,7 +156,7 @@ impl HistoricBlockData {
     // NOTE: this order must match the order in `private_circuit_public_inputs.hpp`
     pub fn serialize(self) -> [Field; HISTORIC_BLOCK_DATA_LENGTH] {
         [
-            self.private_data_tree_root,
+            self.note_hash_tree_root,
             self.nullifier_tree_root,
             self.contract_tree_root,
             self.l1_to_l2_messages_tree_root,
@@ -167,7 +167,7 @@ impl HistoricBlockData {
     }
 
     pub fn empty() -> Self {
-        Self { private_data_tree_root: 0, nullifier_tree_root: 0, contract_tree_root: 0, l1_to_l2_messages_tree_root: 0, blocks_tree_root: 0, public_data_tree_root: 0, global_variables_hash: 0 }
+        Self { note_hash_tree_root: 0, nullifier_tree_root: 0, contract_tree_root: 0, l1_to_l2_messages_tree_root: 0, blocks_tree_root: 0, public_data_tree_root: 0, global_variables_hash: 0 }
     }
 }
 

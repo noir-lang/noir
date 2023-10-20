@@ -260,9 +260,9 @@ void assert_prev_rollups_follow_on_from_each_other(DummyBuilder& builder,
                                                    BaseOrMergeRollupPublicInputs const& left,
                                                    BaseOrMergeRollupPublicInputs const& right)
 {
-    builder.do_assert(left.end_private_data_tree_snapshot == right.start_private_data_tree_snapshot,
-                      "input proofs have different private data tree snapshots",
-                      utils::CircuitErrorCode::PRIVATE_DATA_TREE_SNAPSHOT_MISMATCH);
+    builder.do_assert(left.end_note_hash_tree_snapshot == right.start_note_hash_tree_snapshot,
+                      "input proofs have different note hash tree snapshots",
+                      utils::CircuitErrorCode::NOTE_HASH_TREE_SNAPSHOT_MISMATCH);
     builder.do_assert(left.end_nullifier_tree_snapshot == right.start_nullifier_tree_snapshot,
                       "input proofs have different nullifier tree snapshots",
                       utils::CircuitErrorCode::NULLIFIER_TREE_SNAPSHOT_MISMATCH);

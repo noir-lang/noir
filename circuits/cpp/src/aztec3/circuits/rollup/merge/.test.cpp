@@ -137,16 +137,16 @@ TEST_F(merge_rollup_tests, native_fail_if_previous_rollups_dont_follow_on)
     };
     MergeRollupInputs const inputs = get_merge_rollup_inputs(builderA, kernels);
     auto inputA = inputs;
-    inputA.previous_rollup_data[0].base_or_merge_rollup_public_inputs.end_private_data_tree_snapshot = {
+    inputA.previous_rollup_data[0].base_or_merge_rollup_public_inputs.end_note_hash_tree_snapshot = {
         .root = fr(0), .next_available_leaf_index = 0
     };
-    inputA.previous_rollup_data[1].base_or_merge_rollup_public_inputs.start_private_data_tree_snapshot = {
+    inputA.previous_rollup_data[1].base_or_merge_rollup_public_inputs.start_note_hash_tree_snapshot = {
         .root = fr(1), .next_available_leaf_index = 0
     };
 
     merge_rollup_circuit(builderA, inputA);
     ASSERT_TRUE(builderA.failed());
-    ASSERT_EQ(builderA.get_first_failure().message, "input proofs have different private data tree snapshots");
+    ASSERT_EQ(builderA.get_first_failure().message, "input proofs have different note hash tree snapshots");
 
     // do the same for nullifier tree
     DummyBuilder builderB = DummyBuilder("merge_rollup_tests__native_fail_if_previous_rollups_dont_follow_on_B");
@@ -212,10 +212,10 @@ TEST_F(merge_rollup_tests, native_start_and_end_snapshots)
     MergeRollupInputs inputs = get_merge_rollup_inputs(builder, kernels);
     BaseOrMergeRollupPublicInputs const outputs = merge_rollup_circuit(builder, inputs);
     // check that start and end snapshots are set correctly
-    ASSERT_EQ(outputs.start_private_data_tree_snapshot,
-              inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_private_data_tree_snapshot);
-    ASSERT_EQ(outputs.end_private_data_tree_snapshot,
-              inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_private_data_tree_snapshot);
+    ASSERT_EQ(outputs.start_note_hash_tree_snapshot,
+              inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_note_hash_tree_snapshot);
+    ASSERT_EQ(outputs.end_note_hash_tree_snapshot,
+              inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_note_hash_tree_snapshot);
 
     ASSERT_EQ(outputs.start_nullifier_tree_snapshot,
               inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_nullifier_tree_snapshot);

@@ -65,7 +65,7 @@ export interface CommitmentsDB {
   getL1ToL2Message(msgKey: Fr): Promise<MessageLoadOracleInputs>;
 
   /**
-   * Gets the index of a commitment in the private data tree.
+   * Gets the index of a commitment in the note hash tree.
    * @param commitment - The commitment.
    * @returns - The index of the commitment. Undefined if it does not exist in the tree.
    */

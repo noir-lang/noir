@@ -17,7 +17,7 @@ template <typename NCT> struct BaseRollupInputs {
 
     std::array<PreviousKernelData<NCT>, KERNELS_PER_BASE_ROLLUP> kernel_data{};
 
-    AppendOnlyTreeSnapshot<NCT> start_private_data_tree_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> start_note_hash_tree_snapshot{};
     AppendOnlyTreeSnapshot<NCT> start_nullifier_tree_snapshot{};
     AppendOnlyTreeSnapshot<NCT> start_contract_tree_snapshot{};
     fr start_public_data_tree_root{};
@@ -29,7 +29,7 @@ template <typename NCT> struct BaseRollupInputs {
 
     // For inserting the new subtrees into their respective trees:
     // Note: the insertion leaf index can be derived from the above snapshots' `next_available_leaf_index` values.
-    std::array<fr, PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH> new_commitments_subtree_sibling_path{};
+    std::array<fr, NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH> new_commitments_subtree_sibling_path{};
     std::array<fr, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH> new_nullifiers_subtree_sibling_path{};
     std::array<fr, CONTRACT_SUBTREE_SIBLING_PATH_LENGTH> new_contracts_subtree_sibling_path{};
     std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP>
@@ -44,7 +44,7 @@ template <typename NCT> struct BaseRollupInputs {
 
     // for serialization, update with new fields
     MSGPACK_FIELDS(kernel_data,
-                   start_private_data_tree_snapshot,
+                   start_note_hash_tree_snapshot,
                    start_nullifier_tree_snapshot,
                    start_contract_tree_snapshot,
                    start_public_data_tree_root,

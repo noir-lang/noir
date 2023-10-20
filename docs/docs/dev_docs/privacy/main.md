@@ -105,13 +105,13 @@ App developers should be aware of this avenue for private data leakage. **Whenev
 
 ##### Querying for up-to-date note sibling paths
 
-To read a private state is to read a note from the private data tree. To read a note is to prove existence of that note in the private data tree. And to prove existence is to re-compute the root of the private data tree using the leaf value, the leaf index, and the sibling path of that leaf. This computed root is then exposed to the world, as a way of saying "This note exists", or more precisely "This note has existed at least since this historic snapshot time".
+To read a private state is to read a note from the note hash tree. To read a note is to prove existence of that note in the note hash tree. And to prove existence is to re-compute the root of the note hash tree using the leaf value, the leaf index, and the sibling path of that leaf. This computed root is then exposed to the world, as a way of saying "This note exists", or more precisely "This note has existed at least since this historic snapshot time".
 
 If an old historic snapshot is used, then that old historic root will be exposed, and this leaks some information about the nature of your transaction: it leaks that your note was created before the snapshot date. It shrinks the 'privacy set' of the transaction to a smaller window of time than the entire history of the network.
 
 So for maximal privacy, it's in a user's best interest to read from the very-latest snapshot of the data tree.
 
-Naturally, the private data tree is continuously changing as new transactions take place and their new notes are appended. Most notably, the sibling path for every leaf in the tree changes every time a new leaf is appended.
+Naturally, the note hash tree is continuously changing as new transactions take place and their new notes are appended. Most notably, the sibling path for every leaf in the tree changes every time a new leaf is appended.
 
 If a user runs their own node, there's no problem: they can query the latest sibling path for their note(s) from their own machine without leaking any information to the outside world.
 

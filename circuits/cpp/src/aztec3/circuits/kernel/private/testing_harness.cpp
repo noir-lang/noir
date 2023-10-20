@@ -47,17 +47,17 @@ using aztec3::utils::array_length;
  * @brief Get the random read requests and their membership requests
  *
  * @details read requests are siloed by contract address and nonce before being
- * inserted into mock private data tree
+ * inserted into mock note hash tree
  *
- * @param first_nullifier used when computing nonce for unique_siloed_commitments (private data tree leaves)
+ * @param first_nullifier used when computing nonce for unique_siloed_commitments (note hash tree leaves)
  * @param contract_address address to use when siloing read requests
  * @param num_read_requests if negative, use random num. Must be < MAX_READ_REQUESTS_PER_CALL
- * @return std::tuple<read_requests, read_request_memberships_witnesses, historic_private_data_tree_root>
+ * @return std::tuple<read_requests, read_request_memberships_witnesses, historic_note_hash_tree_root>
  */
 std::tuple<std::array<NT::fr, MAX_READ_REQUESTS_PER_CALL>,
-           std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>,
+           std::array<ReadRequestMembershipWitness<NT, NOTE_HASH_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>,
            std::array<NT::fr, MAX_READ_REQUESTS_PER_CALL>,
-           std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>,
+           std::array<ReadRequestMembershipWitness<NT, NOTE_HASH_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>,
            NT::fr>
 get_random_reads(NT::fr const& first_nullifier, NT::fr const& contract_address, int const num_read_requests)
 {
@@ -88,39 +88,38 @@ get_random_reads(NT::fr const& first_nullifier, NT::fr const& contract_address, 
     // for read requests while avoiding collisions
     std::unordered_set<NT::uint32> rr_leaf_indices_set;
     while (rr_leaf_indices_set.size() < final_num_rr) {
-        rr_leaf_indices_set.insert(numeric::random::get_engine().get_random_uint32() % PRIVATE_DATA_TREE_NUM_LEAVES);
+        rr_leaf_indices_set.insert(numeric::random::get_engine().get_random_uint32() % NOTE_HASH_TREE_NUM_LEAVES);
     }
     // set -> vector without collisions
     std::vector<NT::uint32> rr_leaf_indices(rr_leaf_indices_set.begin(), rr_leaf_indices_set.end());
 
-    MemoryStore private_data_tree_store;
-    MerkleTree private_data_tree = MerkleTree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
+    MemoryStore note_hash_tree_store;
+    MerkleTree note_hash_tree = MerkleTree(note_hash_tree_store, NOTE_HASH_TREE_HEIGHT);
 
-    // add the commitments to the private data tree for each read request
+    // add the commitments to the note hash tree for each read request
     // add them at their corresponding index in the tree
     // (in practice the the tree is left-to-right append-only, but here
     // we treat it as sparse just to get these commitments in their correct spot)
     for (size_t i = 0; i < array_length(leaves); i++) {
-        private_data_tree.update_element(rr_leaf_indices[i], leaves[i]);
+        note_hash_tree.update_element(rr_leaf_indices[i], leaves[i]);
     }
 
     // compute the merkle sibling paths for each request
-    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>
+    std::array<ReadRequestMembershipWitness<NT, NOTE_HASH_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>
         transient_read_request_membership_witnesses{};
-    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>
+    std::array<ReadRequestMembershipWitness<NT, NOTE_HASH_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>
         read_request_membership_witnesses{};
     for (size_t i = 0; i < array_length(read_requests); i++) {
         read_request_membership_witnesses[i] = { .leaf_index = NT::fr(rr_leaf_indices[i]),
-                                                 .sibling_path = get_sibling_path<PRIVATE_DATA_TREE_HEIGHT>(
-                                                     private_data_tree, rr_leaf_indices[i], 0),
+                                                 .sibling_path = get_sibling_path<NOTE_HASH_TREE_HEIGHT>(
+                                                     note_hash_tree, rr_leaf_indices[i], 0),
                                                  .is_transient = false,
                                                  .hint_to_commitment = 0 };
-        transient_read_request_membership_witnesses[i] = {
-            .leaf_index = NT::fr(0),
-            .sibling_path = compute_empty_sibling_path<NT, PRIVATE_DATA_TREE_HEIGHT>(0),
-            .is_transient = true,
-            .hint_to_commitment = 0
-        };
+        transient_read_request_membership_witnesses[i] = { .leaf_index = NT::fr(0),
+                                                           .sibling_path =
+                                                               compute_empty_sibling_path<NT, NOTE_HASH_TREE_HEIGHT>(0),
+                                                           .is_transient = true,
+                                                           .hint_to_commitment = 0 };
     }
 
 
@@ -128,7 +127,7 @@ get_random_reads(NT::fr const& first_nullifier, NT::fr const& contract_address, 
              read_request_membership_witnesses,
              transient_read_requests,
              transient_read_request_membership_witnesses,
-             private_data_tree.root() };
+             note_hash_tree.root() };
 }  // namespace aztec3::circuits::kernel::private_kernel::testing_harness
 
 std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_deploy_data(
@@ -490,7 +489,7 @@ PrivateKernelInputsInner<NT> do_private_call_get_kernel_inputs_inner(
     mock_previous_kernel.public_inputs.constants = CombinedConstantData<NT>{
         .block_data =
             HistoricBlockData<NT>{
-                .private_data_tree_root = private_circuit_public_inputs.historic_block_data.private_data_tree_root,
+                .note_hash_tree_root = private_circuit_public_inputs.historic_block_data.note_hash_tree_root,
                 .contract_tree_root = private_circuit_public_inputs.historic_block_data.contract_tree_root,
             },
         .tx_context = tx_context,

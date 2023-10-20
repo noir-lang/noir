@@ -98,7 +98,7 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     const roots = this.getTreeRoots();
     if (!this.globalVariablesHash) throw new Error(`Global variables hash not set in memory database`);
     return new HistoricBlockData(
-      roots[MerkleTreeId.PRIVATE_DATA_TREE],
+      roots[MerkleTreeId.NOTE_HASH_TREE],
       roots[MerkleTreeId.NULLIFIER_TREE],
       roots[MerkleTreeId.CONTRACT_TREE],
       roots[MerkleTreeId.L1_TO_L2_MESSAGES_TREE],
@@ -112,7 +112,7 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   public async setHistoricBlockData(historicBlockData: HistoricBlockData): Promise<void> {
     this.globalVariablesHash = historicBlockData.globalVariablesHash;
     await this.setTreeRoots({
-      [MerkleTreeId.PRIVATE_DATA_TREE]: historicBlockData.privateDataTreeRoot,
+      [MerkleTreeId.NOTE_HASH_TREE]: historicBlockData.noteHashTreeRoot,
       [MerkleTreeId.NULLIFIER_TREE]: historicBlockData.nullifierTreeRoot,
       [MerkleTreeId.CONTRACT_TREE]: historicBlockData.contractTreeRoot,
       [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: historicBlockData.l1ToL2MessagesTreeRoot,

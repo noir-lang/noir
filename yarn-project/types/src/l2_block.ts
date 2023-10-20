@@ -61,9 +61,9 @@ export class L2Block {
      */
     public globalVariables: GlobalVariables,
     /**
-     * The tree snapshot of the private data tree at the start of the rollup.
+     * The tree snapshot of the note hash tree at the start of the rollup.
      */
-    public startPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
+    public startNoteHashTreeSnapshot: AppendOnlyTreeSnapshot,
     /**
      * The tree snapshot of the nullifier tree at the start of the rollup.
      */
@@ -85,9 +85,9 @@ export class L2Block {
      */
     public startHistoricBlocksTreeSnapshot: AppendOnlyTreeSnapshot = AppendOnlyTreeSnapshot.empty(),
     /**
-     * The tree snapshot of the private data tree at the end of the rollup.
+     * The tree snapshot of the note hash tree at the end of the rollup.
      */
-    public endPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
+    public endNoteHashTreeSnapshot: AppendOnlyTreeSnapshot,
     /**
      * The tree snapshot of the nullifier tree at the end of the rollup.
      */
@@ -109,7 +109,7 @@ export class L2Block {
      */
     public endHistoricBlocksTreeSnapshot: AppendOnlyTreeSnapshot,
     /**
-     * The commitments to be inserted into the private data tree.
+     * The commitments to be inserted into the note hash tree.
      */
     public newCommitments: Fr[],
     /**
@@ -195,13 +195,13 @@ export class L2Block {
     return L2Block.fromFields({
       number: l2BlockNum,
       globalVariables: makeGlobalVariables(0, l2BlockNum),
-      startPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
+      startNoteHashTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
       startNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
       startContractTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
       startPublicDataTreeRoot: Fr.random(),
       startL1ToL2MessagesTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
       startHistoricBlocksTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
-      endPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot(newCommitments.length),
+      endNoteHashTreeSnapshot: makeAppendOnlyTreeSnapshot(newCommitments.length),
       endNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(newNullifiers.length),
       endContractTreeSnapshot: makeAppendOnlyTreeSnapshot(newContracts.length),
       endPublicDataTreeRoot: Fr.random(),
@@ -236,9 +236,9 @@ export class L2Block {
        */
       globalVariables: GlobalVariables;
       /**
-       * The tree snapshot of the private data tree at the start of the rollup.
+       * The tree snapshot of the note hash tree at the start of the rollup.
        */
-      startPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot;
+      startNoteHashTreeSnapshot: AppendOnlyTreeSnapshot;
       /**
        * The tree snapshot of the nullifier tree at the start of the rollup.
        */
@@ -260,9 +260,9 @@ export class L2Block {
        */
       startHistoricBlocksTreeSnapshot: AppendOnlyTreeSnapshot;
       /**
-       * The tree snapshot of the private data tree at the end of the rollup.
+       * The tree snapshot of the note hash tree at the end of the rollup.
        */
-      endPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot;
+      endNoteHashTreeSnapshot: AppendOnlyTreeSnapshot;
       /**
        * The tree snapshot of the nullifier tree at the end of the rollup.
        */
@@ -284,7 +284,7 @@ export class L2Block {
        */
       endHistoricBlocksTreeSnapshot: AppendOnlyTreeSnapshot;
       /**
-       * The commitments to be inserted into the private data tree.
+       * The commitments to be inserted into the note hash tree.
        */
       newCommitments: Fr[];
       /**
@@ -325,13 +325,13 @@ export class L2Block {
     return new this(
       fields.number,
       fields.globalVariables,
-      fields.startPrivateDataTreeSnapshot,
+      fields.startNoteHashTreeSnapshot,
       fields.startNullifierTreeSnapshot,
       fields.startContractTreeSnapshot,
       fields.startPublicDataTreeRoot,
       fields.startL1ToL2MessagesTreeSnapshot,
       fields.startHistoricBlocksTreeSnapshot,
-      fields.endPrivateDataTreeSnapshot,
+      fields.endNoteHashTreeSnapshot,
       fields.endNullifierTreeSnapshot,
       fields.endContractTreeSnapshot,
       fields.endPublicDataTreeRoot,
@@ -359,13 +359,13 @@ export class L2Block {
   toBuffer() {
     return serializeToBuffer(
       this.globalVariables,
-      this.startPrivateDataTreeSnapshot,
+      this.startNoteHashTreeSnapshot,
       this.startNullifierTreeSnapshot,
       this.startContractTreeSnapshot,
       this.startPublicDataTreeRoot,
       this.startL1ToL2MessagesTreeSnapshot,
       this.startHistoricBlocksTreeSnapshot,
-      this.endPrivateDataTreeSnapshot,
+      this.endNoteHashTreeSnapshot,
       this.endNullifierTreeSnapshot,
       this.endContractTreeSnapshot,
       this.endPublicDataTreeRoot,
@@ -421,13 +421,13 @@ export class L2Block {
     const reader = BufferReader.asReader(buf);
     const globalVariables = reader.readObject(GlobalVariables);
     const number = Number(globalVariables.blockNumber.value);
-    const startPrivateDataTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const startNoteHashTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const startNullifierTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const startContractTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const startPublicDataTreeRoot = reader.readObject(Fr);
     const startL1ToL2MessagesTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const startHistoricBlocksTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
-    const endPrivateDataTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const endNoteHashTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const endNullifierTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const endContractTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const endPublicDataTreeRoot = reader.readObject(Fr);
@@ -445,13 +445,13 @@ export class L2Block {
     return L2Block.fromFields({
       number,
       globalVariables,
-      startPrivateDataTreeSnapshot,
+      startNoteHashTreeSnapshot,
       startNullifierTreeSnapshot,
       startContractTreeSnapshot,
       startPublicDataTreeRoot,
       startL1ToL2MessagesTreeSnapshot: startL1ToL2MessagesTreeSnapshot,
       startHistoricBlocksTreeSnapshot,
-      endPrivateDataTreeSnapshot,
+      endNoteHashTreeSnapshot,
       endNullifierTreeSnapshot,
       endContractTreeSnapshot,
       endPublicDataTreeRoot,
@@ -542,13 +542,13 @@ export class L2Block {
   getPublicInputsHash(): Fr {
     const buf = serializeToBuffer(
       this.globalVariables,
-      this.startPrivateDataTreeSnapshot,
+      this.startNoteHashTreeSnapshot,
       this.startNullifierTreeSnapshot,
       this.startContractTreeSnapshot,
       this.startPublicDataTreeRoot,
       this.startL1ToL2MessagesTreeSnapshot,
       this.startHistoricBlocksTreeSnapshot,
-      this.endPrivateDataTreeSnapshot,
+      this.endNoteHashTreeSnapshot,
       this.endNullifierTreeSnapshot,
       this.endContractTreeSnapshot,
       this.endPublicDataTreeRoot,
@@ -568,7 +568,7 @@ export class L2Block {
   getStartStateHash() {
     const inputValue = serializeToBuffer(
       new Fr(this.number - 1),
-      this.startPrivateDataTreeSnapshot,
+      this.startNoteHashTreeSnapshot,
       this.startNullifierTreeSnapshot,
       this.startContractTreeSnapshot,
       this.startPublicDataTreeRoot,
@@ -585,7 +585,7 @@ export class L2Block {
   getEndStateHash() {
     const inputValue = serializeToBuffer(
       this.globalVariables.blockNumber,
-      this.endPrivateDataTreeSnapshot,
+      this.endNoteHashTreeSnapshot,
       this.endNullifierTreeSnapshot,
       this.endContractTreeSnapshot,
       this.endPublicDataTreeRoot,
@@ -802,13 +802,13 @@ export class L2Block {
       `L2Block`,
       `number: ${this.number}`,
       `globalVariables: ${inspectGlobalVariables(this.globalVariables)}`,
-      `startPrivateDataTreeSnapshot: ${inspectTreeSnapshot(this.startPrivateDataTreeSnapshot)}`,
+      `startNoteHashTreeSnapshot: ${inspectTreeSnapshot(this.startNoteHashTreeSnapshot)}`,
       `startNullifierTreeSnapshot: ${inspectTreeSnapshot(this.startNullifierTreeSnapshot)}`,
       `startContractTreeSnapshot: ${inspectTreeSnapshot(this.startContractTreeSnapshot)}`,
       `startPublicDataTreeRoot: ${this.startPublicDataTreeRoot.toString()}`,
       `startL1ToL2MessagesTreeSnapshot: ${inspectTreeSnapshot(this.startL1ToL2MessagesTreeSnapshot)}`,
       `startHistoricBlocksTreeSnapshot: ${inspectTreeSnapshot(this.startHistoricBlocksTreeSnapshot)}`,
-      `endPrivateDataTreeSnapshot: ${inspectTreeSnapshot(this.endPrivateDataTreeSnapshot)}`,
+      `endNoteHashTreeSnapshot: ${inspectTreeSnapshot(this.endNoteHashTreeSnapshot)}`,
       `endNullifierTreeSnapshot: ${inspectTreeSnapshot(this.endNullifierTreeSnapshot)}`,
       `endContractTreeSnapshot: ${inspectTreeSnapshot(this.endContractTreeSnapshot)}`,
       `endPublicDataTreeRoot: ${this.endPublicDataTreeRoot.toString()}`,

@@ -33,13 +33,13 @@ export class BaseOrMergeRollupPublicInputs {
     public constants: ConstantRollupData,
 
     /**
-     * Snapshot of the private data tree at the start of the rollup circuit.
+     * Snapshot of the note hash tree at the start of the rollup circuit.
      */
-    public startPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
+    public startNoteHashTreeSnapshot: AppendOnlyTreeSnapshot,
     /**
-     * Snapshot of the private data tree at the end of the rollup circuit.
+     * Snapshot of the note hash tree at the end of the rollup circuit.
      */
-    public endPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
+    public endNoteHashTreeSnapshot: AppendOnlyTreeSnapshot,
 
     /**
      * Snapshot of the nullifier tree at the start of the rollup circuit.
@@ -111,8 +111,8 @@ export class BaseOrMergeRollupPublicInputs {
       this.endAggregationObject,
       this.constants,
 
-      this.startPrivateDataTreeSnapshot,
-      this.endPrivateDataTreeSnapshot,
+      this.startNoteHashTreeSnapshot,
+      this.endNoteHashTreeSnapshot,
 
       this.startNullifierTreeSnapshot,
       this.endNullifierTreeSnapshot,

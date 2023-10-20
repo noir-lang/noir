@@ -37,7 +37,7 @@ template <typename NCT> struct PrivateCallData {
     MembershipWitness<NCT, FUNCTION_TREE_HEIGHT> function_leaf_membership_witness{};
     MembershipWitness<NCT, CONTRACT_TREE_HEIGHT> contract_leaf_membership_witness{};
 
-    std::array<ReadRequestMembershipWitness<NCT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>
+    std::array<ReadRequestMembershipWitness<NCT, NOTE_HASH_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>
         read_request_membership_witnesses{};
 
     fr portal_contract_address = 0;  // an ETH address
@@ -88,7 +88,7 @@ template <typename NCT> struct PrivateCallData {
             to_circuit_type(function_leaf_membership_witness),
             to_circuit_type(contract_leaf_membership_witness),
 
-            aztec3::utils::types::to_ct<Builder, ReadRequestMembershipWitness<CT, PRIVATE_DATA_TREE_HEIGHT>>(
+            aztec3::utils::types::to_ct<Builder, ReadRequestMembershipWitness<CT, NOTE_HASH_TREE_HEIGHT>>(
                 builder, read_request_membership_witnesses),
 
             to_ct(portal_contract_address),

@@ -230,7 +230,7 @@ export class PXEService implements PXE {
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
     // This can always be `uniqueSiloedNoteHash` once notes added from public also include nonces.
     const noteHashToLookUp = nonce.isZero() ? siloedNoteHash : uniqueSiloedNoteHash;
-    const index = await this.node.findLeafIndex(MerkleTreeId.PRIVATE_DATA_TREE, noteHashToLookUp.toBuffer());
+    const index = await this.node.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, noteHashToLookUp.toBuffer());
     if (index === undefined) {
       throw new Error('Note does not exist.');
     }

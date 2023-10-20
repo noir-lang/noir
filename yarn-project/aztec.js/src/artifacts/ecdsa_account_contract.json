@@ -371,7 +371,7 @@
                 "path": "aztec::abi::HistoricBlockData",
                 "fields": [
                   {
-                    "name": "private_data_tree_root",
+                    "name": "note_hash_tree_root",
                     "type": {
                       "kind": "field"
                     }
@@ -638,7 +638,7 @@
                 "path": "aztec::abi::HistoricBlockData",
                 "fields": [
                   {
-                    "name": "private_data_tree_root",
+                    "name": "note_hash_tree_root",
                     "type": {
                       "kind": "field"
                     }

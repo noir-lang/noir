@@ -26,8 +26,8 @@ import {Hash} from "./Hash.sol";
  *  | 0x0020                                                                           | 0x20         | version
  *  | 0x0040                                                                           | 0x20         | L2 block number
  *  | 0x0060                                                                           | 0x20         | L2 timestamp
- *  | 0x0080                                                                           | 0x20         | startPrivateDataTreeSnapshot.root
- *  | 0x00a0                                                                           | 0x04         | startPrivateDataTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x0080                                                                           | 0x20         | startNoteHashTreeSnapshot.root
+ *  | 0x00a0                                                                           | 0x04         | startNoteHashTreeSnapshot.nextAvailableLeafIndex
  *  | 0x00a4                                                                           | 0x20         | startNullifierTreeSnapshot.root
  *  | 0x00c4                                                                           | 0x04         | startNullifierTreeSnapshot.nextAvailableLeafIndex
  *  | 0x00c8                                                                           | 0x20         | startContractTreeSnapshot.root
@@ -37,8 +37,8 @@ import {Hash} from "./Hash.sol";
  *  | 0x012c                                                                           | 0x04         | startL1ToL2MessageTreeSnapshot.nextAvailableLeafIndex
  *  | 0x0130                                                                           | 0x20         | startHistoricBlocksTreeSnapshot.root
  *  | 0x0150                                                                           | 0x04         | startHistoricBlocksTreeSnapshot.nextAvailableLeafIndex
- *  | 0x0154                                                                           | 0x20         | endPrivateDataTreeSnapshot.root
- *  | 0x0174                                                                           | 0x04         | endPrivateDataTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x0154                                                                           | 0x20         | endNoteHashTreeSnapshot.root
+ *  | 0x0174                                                                           | 0x04         | endNoteHashTreeSnapshot.nextAvailableLeafIndex
  *  | 0x0178                                                                           | 0x20         | endNullifierTreeSnapshot.root
  *  | 0x0198                                                                           | 0x04         | endNullifierTreeSnapshot.nextAvailableLeafIndex
  *  | 0x019c                                                                           | 0x20         | endContractTreeSnapshot.root

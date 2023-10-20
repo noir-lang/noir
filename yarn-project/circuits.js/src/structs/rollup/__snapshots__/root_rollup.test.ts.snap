@@ -29,10 +29,10 @@ block_number: 0x607
 timestamp: 0x608
 
 
-start_private_data_tree_snapshot: root: 0x300
+start_note_hash_tree_snapshot: root: 0x300
 next_available_leaf_index: 300
 
-end_private_data_tree_snapshot: root: 0x400
+end_note_hash_tree_snapshot: root: 0x400
 next_available_leaf_index: 400
 
 start_nullifier_tree_snapshot: root: 0x500
@@ -93,10 +93,10 @@ block_number: 0x1607
 timestamp: 0x1608
 
 
-start_private_data_tree_snapshot: root: 0x1300
+start_note_hash_tree_snapshot: root: 0x1300
 next_available_leaf_index: 1300
 
-end_private_data_tree_snapshot: root: 0x1400
+end_note_hash_tree_snapshot: root: 0x1400
 next_available_leaf_index: 1400
 
 start_nullifier_tree_snapshot: root: 0x1500
@@ -161,11 +161,11 @@ version: 0x101
 block_number: 0x102
 timestamp: 0x103
 
-start_private_data_tree_snapshot:
+start_note_hash_tree_snapshot:
 root: 0x200
 next_available_leaf_index: 512
 
-end_private_data_tree_snapshot:
+end_note_hash_tree_snapshot:
 root: 0x300
 next_available_leaf_index: 768
 
@@ -187,10 +187,10 @@ next_available_leaf_index: 1792
 
 start_public_data_tree_root: 0x800
 end_public_data_tree_root: 0x900
-start_tree_of_historic_private_data_tree_roots_snapshot: root: 0xa00
+start_tree_of_historic_note_hash_tree_roots_snapshot: root: 0xa00
 next_available_leaf_index: 2560
 
-end_tree_of_historic_private_data_tree_roots_snapshot: root: 0xb00
+end_tree_of_historic_note_hash_tree_roots_snapshot: root: 0xb00
 next_available_leaf_index: 2816
 
 start_tree_of_historic_contract_tree_roots_snapshot: root: 0xc00

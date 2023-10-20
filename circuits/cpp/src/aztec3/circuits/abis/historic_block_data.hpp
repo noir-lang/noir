@@ -22,7 +22,7 @@ template <typename NCT> struct HistoricBlockData {
     using boolean = typename NCT::boolean;
 
     // Private data
-    fr private_data_tree_root = 0;
+    fr note_hash_tree_root = 0;
     fr nullifier_tree_root = 0;
     fr contract_tree_root = 0;
     fr l1_to_l2_messages_tree_root = 0;
@@ -34,7 +34,7 @@ template <typename NCT> struct HistoricBlockData {
     fr global_variables_hash = 0;
 
     // for serialization, update with new fields
-    MSGPACK_FIELDS(private_data_tree_root,
+    MSGPACK_FIELDS(note_hash_tree_root,
                    nullifier_tree_root,
                    contract_tree_root,
                    l1_to_l2_messages_tree_root,
@@ -45,8 +45,8 @@ template <typename NCT> struct HistoricBlockData {
 
     boolean operator==(HistoricBlockData<NCT> const& other) const
     {
-        return private_data_tree_root == other.private_data_tree_root &&
-               nullifier_tree_root == other.nullifier_tree_root && contract_tree_root == other.contract_tree_root &&
+        return note_hash_tree_root == other.note_hash_tree_root && nullifier_tree_root == other.nullifier_tree_root &&
+               contract_tree_root == other.contract_tree_root &&
                l1_to_l2_messages_tree_root == other.l1_to_l2_messages_tree_root &&
                blocks_tree_root == other.historic_block_root &&
                private_kernel_vk_tree_root == other.private_kernel_vk_tree_root &&
@@ -58,7 +58,7 @@ template <typename NCT> struct HistoricBlockData {
     {
         static_assert((std::is_same<CircuitTypes<Builder>, NCT>::value));
 
-        private_data_tree_root.assert_is_zero();
+        note_hash_tree_root.assert_is_zero();
         nullifier_tree_root.assert_is_zero();
         contract_tree_root.assert_is_zero();
         l1_to_l2_messages_tree_root.assert_is_zero();
@@ -76,7 +76,7 @@ template <typename NCT> struct HistoricBlockData {
         auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
         HistoricBlockData<CircuitTypes<Builder>> data = {
-            to_ct(private_data_tree_root),      to_ct(nullifier_tree_root),   to_ct(contract_tree_root),
+            to_ct(note_hash_tree_root),         to_ct(nullifier_tree_root),   to_ct(contract_tree_root),
             to_ct(l1_to_l2_messages_tree_root), to_ct(blocks_tree_root),      to_ct(private_kernel_vk_tree_root),
             to_ct(public_data_tree_root),       to_ct(global_variables_hash),
         };
@@ -90,7 +90,7 @@ template <typename NCT> struct HistoricBlockData {
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
 
         HistoricBlockData<NativeTypes> data = {
-            to_nt(private_data_tree_root),      to_nt(nullifier_tree_root),   to_nt(contract_tree_root),
+            to_nt(note_hash_tree_root),         to_nt(nullifier_tree_root),   to_nt(contract_tree_root),
             to_nt(l1_to_l2_messages_tree_root), to_nt(blocks_tree_root),      to_nt(private_kernel_vk_tree_root),
             to_nt(public_data_tree_root),       to_nt(global_variables_hash),
         };
@@ -102,7 +102,7 @@ template <typename NCT> struct HistoricBlockData {
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
-        private_data_tree_root.set_public();
+        note_hash_tree_root.set_public();
         nullifier_tree_root.set_public();
         contract_tree_root.set_public();
         l1_to_l2_messages_tree_root.set_public();
@@ -114,7 +114,7 @@ template <typename NCT> struct HistoricBlockData {
 
     std::array<fr, 7> to_array() const
     {
-        return { private_data_tree_root,
+        return { note_hash_tree_root,
                  nullifier_tree_root,
                  contract_tree_root,
                  l1_to_l2_messages_tree_root,
@@ -128,7 +128,7 @@ template <typename NCT> struct HistoricBlockData {
     fr hash()
     {
         return compute_block_hash(global_variables_hash,
-                                  private_data_tree_root,
+                                  note_hash_tree_root,
                                   nullifier_tree_root,
                                   contract_tree_root,
                                   l1_to_l2_messages_tree_root,

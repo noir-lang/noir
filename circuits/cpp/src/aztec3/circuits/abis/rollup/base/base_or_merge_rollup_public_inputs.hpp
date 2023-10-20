@@ -24,8 +24,8 @@ template <typename NCT> struct BaseOrMergeRollupPublicInputs {
     AggregationObject end_aggregation_object;
     ConstantRollupData<NCT> constants;
 
-    AppendOnlyTreeSnapshot<NCT> start_private_data_tree_snapshot;
-    AppendOnlyTreeSnapshot<NCT> end_private_data_tree_snapshot;
+    AppendOnlyTreeSnapshot<NCT> start_note_hash_tree_snapshot;
+    AppendOnlyTreeSnapshot<NCT> end_note_hash_tree_snapshot;
 
     AppendOnlyTreeSnapshot<NCT> start_nullifier_tree_snapshot;
     AppendOnlyTreeSnapshot<NCT> end_nullifier_tree_snapshot;
@@ -44,8 +44,8 @@ template <typename NCT> struct BaseOrMergeRollupPublicInputs {
                    rollup_subtree_height,
                    end_aggregation_object,
                    constants,
-                   start_private_data_tree_snapshot,
-                   end_private_data_tree_snapshot,
+                   start_note_hash_tree_snapshot,
+                   end_note_hash_tree_snapshot,
                    start_nullifier_tree_snapshot,
                    end_nullifier_tree_snapshot,
                    start_contract_tree_snapshot,

@@ -1,3 +1,5 @@
+import { TokenContract } from '../artifacts/Token.js';
+import { TokenSimulator } from './token_simulator.js';
 import {
   AccountWallet,
   Fr,
@@ -13,11 +15,7 @@ import {
 } from '@aztec/aztec.js';
 import { CompleteAddress } from '@aztec/circuits.js';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { TokenContract } from '../artifacts/Token.js';
-
 import { afterEach, beforeAll, expect, jest } from '@jest/globals';
-
-import { TokenSimulator } from './token_simulator.js';
 
 // assumes sandbox is running locally, which this script does not trigger
 // as well as anvil.  anvil can be started with yarn test:integration

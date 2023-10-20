@@ -32,8 +32,8 @@ describe('rollup/rollup_wasm_wrapper', () => {
   const fixPreviousRollupInputs = (input: MergeRollupInputs | RootRollupInputs) => {
     input.previousRollupData[1].baseOrMergeRollupPublicInputs.constants =
       input.previousRollupData[0].baseOrMergeRollupPublicInputs.constants;
-    input.previousRollupData[1].baseOrMergeRollupPublicInputs.startPrivateDataTreeSnapshot =
-      input.previousRollupData[0].baseOrMergeRollupPublicInputs.endPrivateDataTreeSnapshot;
+    input.previousRollupData[1].baseOrMergeRollupPublicInputs.startNoteHashTreeSnapshot =
+      input.previousRollupData[0].baseOrMergeRollupPublicInputs.endNoteHashTreeSnapshot;
     input.previousRollupData[1].baseOrMergeRollupPublicInputs.startNullifierTreeSnapshot =
       input.previousRollupData[0].baseOrMergeRollupPublicInputs.endNullifierTreeSnapshot;
     input.previousRollupData[1].baseOrMergeRollupPublicInputs.startContractTreeSnapshot =
@@ -61,7 +61,7 @@ describe('rollup/rollup_wasm_wrapper', () => {
     const publicInputs = output as BaseOrMergeRollupPublicInputs;
     expect(publicInputs.startContractTreeSnapshot).toEqual(input.startContractTreeSnapshot);
     expect(publicInputs.startNullifierTreeSnapshot).toEqual(input.startNullifierTreeSnapshot);
-    expect(publicInputs.startPrivateDataTreeSnapshot).toEqual(input.startPrivateDataTreeSnapshot);
+    expect(publicInputs.startNoteHashTreeSnapshot).toEqual(input.startNoteHashTreeSnapshot);
   });
 
   it('calls merge_rollup__sim', () => {
@@ -79,11 +79,11 @@ describe('rollup/rollup_wasm_wrapper', () => {
     expect(output.startNullifierTreeSnapshot).toEqual(
       input.previousRollupData[0].baseOrMergeRollupPublicInputs.startNullifierTreeSnapshot,
     );
-    expect(output.startPrivateDataTreeSnapshot).toEqual(
-      input.previousRollupData[0].baseOrMergeRollupPublicInputs.startPrivateDataTreeSnapshot,
+    expect(output.startNoteHashTreeSnapshot).toEqual(
+      input.previousRollupData[0].baseOrMergeRollupPublicInputs.startNoteHashTreeSnapshot,
     );
-    expect(output.endPrivateDataTreeSnapshot).toEqual(
-      input.previousRollupData[1].baseOrMergeRollupPublicInputs.endPrivateDataTreeSnapshot,
+    expect(output.endNoteHashTreeSnapshot).toEqual(
+      input.previousRollupData[1].baseOrMergeRollupPublicInputs.endNoteHashTreeSnapshot,
     );
   });
 

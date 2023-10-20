@@ -5,8 +5,8 @@ import { AppendOnlyTreeSnapshot, BaseOrMergeRollupPublicInputs, RootRollupPublic
  */
 export type AllowedTreeNames<T extends BaseOrMergeRollupPublicInputs | RootRollupPublicInputs> =
   T extends RootRollupPublicInputs
-    ? 'PrivateData' | 'Contract' | 'Nullifier' | 'L1ToL2Messages' | 'HistoricBlocks'
-    : 'PrivateData' | 'Contract' | 'Nullifier';
+    ? 'NoteHash' | 'Contract' | 'Nullifier' | 'L1ToL2Messages' | 'HistoricBlocks'
+    : 'NoteHash' | 'Contract' | 'Nullifier';
 
 /**
  * Type to assert the correct object field is indexed when validating rollup tree outputs.

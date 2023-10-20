@@ -127,7 +127,7 @@ typename NCT::fr silo_nullifier(typename NCT::address const& contract_address, t
 
 
 template <typename NCT> typename NCT::fr compute_block_hash(typename NCT::fr const& globals_hash,
-                                                            typename NCT::fr const& private_data_tree_root,
+                                                            typename NCT::fr const& note_hash_tree_root,
                                                             typename NCT::fr const& nullifier_tree_root,
                                                             typename NCT::fr const& contract_tree_root,
                                                             typename NCT::fr const& l1_to_l2_data_tree_root,
@@ -136,7 +136,7 @@ template <typename NCT> typename NCT::fr compute_block_hash(typename NCT::fr con
     using fr = typename NCT::fr;
 
     std::vector<fr> const inputs = {
-        globals_hash,       private_data_tree_root,  nullifier_tree_root,
+        globals_hash,       note_hash_tree_root,     nullifier_tree_root,
         contract_tree_root, l1_to_l2_data_tree_root, public_data_tree_root,
     };
 
@@ -145,7 +145,7 @@ template <typename NCT> typename NCT::fr compute_block_hash(typename NCT::fr con
 
 template <typename NCT>
 typename NCT::fr compute_block_hash_with_globals(abis::GlobalVariables<NCT> const& globals,
-                                                 typename NCT::fr const& private_data_tree_root,
+                                                 typename NCT::fr const& note_hash_tree_root,
                                                  typename NCT::fr const& nullifier_tree_root,
                                                  typename NCT::fr const& contract_tree_root,
                                                  typename NCT::fr const& l1_to_l2_data_tree_root,
@@ -154,7 +154,7 @@ typename NCT::fr compute_block_hash_with_globals(abis::GlobalVariables<NCT> cons
     using fr = typename NCT::fr;
 
     std::vector<fr> const inputs = {
-        globals.hash(),     private_data_tree_root,  nullifier_tree_root,
+        globals.hash(),     note_hash_tree_root,     nullifier_tree_root,
         contract_tree_root, l1_to_l2_data_tree_root, public_data_tree_root,
     };
 

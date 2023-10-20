@@ -161,8 +161,8 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     utils::DummyCircuitBuilder builder =
         utils::DummyCircuitBuilder("root_rollup_tests__native_root_missing_nullifier_logic");
 
-    MemoryStore private_data_tree_store;
-    MerkleTree private_data_tree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
+    MemoryStore note_hash_tree_store;
+    MerkleTree note_hash_tree(note_hash_tree_store, NOTE_HASH_TREE_HEIGHT);
 
     MemoryStore contract_tree_store;
     MerkleTree contract_tree(contract_tree_store, CONTRACT_TREE_HEIGHT);
@@ -187,7 +187,7 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     // Calculate the start block hash
     abis::GlobalVariables<NT> globals = abis::GlobalVariables<NT>::empty();
     auto start_block_hash = compute_block_hash_with_globals(globals,
-                                                            private_data_tree.root(),
+                                                            note_hash_tree.root(),
                                                             nullifier_tree.root(),
                                                             contract_tree.root(),
                                                             l1_to_l2_messages_tree.root(),
@@ -202,7 +202,7 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
         for (uint8_t commitment_k = 0; commitment_k < MAX_NEW_COMMITMENTS_PER_TX; commitment_k++) {
             auto val = fr(kernel_j * MAX_NEW_COMMITMENTS_PER_TX + commitment_k + 1);
             new_commitments[commitment_k] = val;
-            private_data_tree.update_element(kernel_j * MAX_NEW_COMMITMENTS_PER_TX + commitment_k, val);
+            note_hash_tree.update_element(kernel_j * MAX_NEW_COMMITMENTS_PER_TX + commitment_k, val);
         }
         kernels[kernel_j].public_inputs.end.new_commitments = new_commitments;
 
@@ -238,7 +238,7 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
 
     // Get the block hash after.
     auto end_block_hash = compute_block_hash_with_globals(globals,
-                                                          private_data_tree.root(),
+                                                          note_hash_tree.root(),
                                                           nullifier_tree.root(),
                                                           contract_tree.root(),
                                                           l1_to_l2_messages_tree.root(),
@@ -256,17 +256,16 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     RootRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_root_rollup::root_rollup_circuit(builder, rootRollupInputs);
 
-    // Check private data trees
+    // Check note hash trees
     ASSERT_EQ(
-        outputs.start_private_data_tree_snapshot,
-        rootRollupInputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_private_data_tree_snapshot);
-    ASSERT_EQ(
-        outputs.end_private_data_tree_snapshot,
-        rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_private_data_tree_snapshot);
-    AppendOnlyTreeSnapshot<NT> const expected_private_data_tree_snapshot = { .root = private_data_tree.root(),
-                                                                             .next_available_leaf_index =
-                                                                                 4 * MAX_NEW_COMMITMENTS_PER_TX };
-    ASSERT_EQ(outputs.end_private_data_tree_snapshot, expected_private_data_tree_snapshot);
+        outputs.start_note_hash_tree_snapshot,
+        rootRollupInputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_note_hash_tree_snapshot);
+    ASSERT_EQ(outputs.end_note_hash_tree_snapshot,
+              rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_note_hash_tree_snapshot);
+    AppendOnlyTreeSnapshot<NT> const expected_note_hash_tree_snapshot = { .root = note_hash_tree.root(),
+                                                                          .next_available_leaf_index =
+                                                                              4 * MAX_NEW_COMMITMENTS_PER_TX };
+    ASSERT_EQ(outputs.end_note_hash_tree_snapshot, expected_note_hash_tree_snapshot);
 
     // Check public data trees
     ASSERT_EQ(outputs.start_public_data_tree_root,

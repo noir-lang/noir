@@ -268,17 +268,17 @@ TEST_F(base_rollup_tests, native_new_commitments_tree)
     }
 
     // get sibling path
-    MemoryStore private_data_tree_store;
-    auto private_data_tree = MerkleTree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
+    MemoryStore note_hash_tree_store;
+    auto note_hash_tree = MerkleTree(note_hash_tree_store, NOTE_HASH_TREE_HEIGHT);
     AppendOnlyTreeSnapshot<NT> const expected_start_commitments_snapshot = {
-        .root = private_data_tree.root(),
+        .root = note_hash_tree.root(),
         .next_available_leaf_index = 0,
     };
     for (size_t i = 0; i < new_commitments.size(); ++i) {
-        private_data_tree.update_element(i, new_commitments[i]);
+        note_hash_tree.update_element(i, new_commitments[i]);
     }
     AppendOnlyTreeSnapshot<NT> const expected_end_commitments_snapshot = {
-        .root = private_data_tree.root(),
+        .root = note_hash_tree.root(),
         .next_available_leaf_index = 2 * MAX_NEW_COMMITMENTS_PER_TX,
     };
 
@@ -286,9 +286,9 @@ TEST_F(base_rollup_tests, native_new_commitments_tree)
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
 
-    ASSERT_EQ(outputs.start_private_data_tree_snapshot, expected_start_commitments_snapshot);
-    ASSERT_EQ(outputs.start_private_data_tree_snapshot, inputs.start_private_data_tree_snapshot);
-    ASSERT_EQ(outputs.end_private_data_tree_snapshot, expected_end_commitments_snapshot);
+    ASSERT_EQ(outputs.start_note_hash_tree_snapshot, expected_start_commitments_snapshot);
+    ASSERT_EQ(outputs.start_note_hash_tree_snapshot, inputs.start_note_hash_tree_snapshot);
+    ASSERT_EQ(outputs.end_note_hash_tree_snapshot, expected_end_commitments_snapshot);
     ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
     // TODO(1998): see above
     // run_cbind(inputs, outputs);
@@ -641,7 +641,7 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_blocks_tree_negativ
     MemoryStore blocks_store;
     auto blocks_tree = MerkleTree(blocks_store, HISTORIC_BLOCKS_TREE_HEIGHT);
 
-    // Create an INCORRECT sibling path for the private data tree root in the historic tree roots.
+    // Create an INCORRECT sibling path for the note hash tree root in the historic tree roots.
     auto hash_path = blocks_tree.get_sibling_path(0);
     std::array<NT::fr, HISTORIC_BLOCKS_TREE_HEIGHT> sibling_path{};
     for (size_t i = 0; i < HISTORIC_BLOCKS_TREE_HEIGHT; ++i) {
@@ -733,8 +733,8 @@ TEST_F(base_rollup_tests, native_cbind_0)
 TEST_F(base_rollup_tests, native_single_public_state_read)
 {
     DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_single_public_state_read");
-    MemoryStore private_data_tree_store;
-    MerkleTree private_data_tree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
+    MemoryStore note_hash_tree_store;
+    MerkleTree note_hash_tree(note_hash_tree_store, NOTE_HASH_TREE_HEIGHT);
 
     MemoryStore contract_tree_store;
     MerkleTree contract_tree(contract_tree_store, CONTRACT_TREE_HEIGHT);
@@ -753,7 +753,7 @@ TEST_F(base_rollup_tests, native_single_public_state_read)
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
     kernel_data[0].public_inputs.end.public_data_reads[0] = data_read;
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
-        kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
+        kernel_data, note_hash_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
 
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
@@ -769,8 +769,8 @@ TEST_F(base_rollup_tests, native_single_public_state_read)
 TEST_F(base_rollup_tests, native_single_public_state_write)
 {
     DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_single_public_state_write");
-    MemoryStore private_data_tree_store;
-    MerkleTree private_data_tree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
+    MemoryStore note_hash_tree_store;
+    MerkleTree note_hash_tree(note_hash_tree_store, NOTE_HASH_TREE_HEIGHT);
 
     MemoryStore contract_tree_store;
     MerkleTree contract_tree(contract_tree_store, CONTRACT_TREE_HEIGHT);
@@ -792,7 +792,7 @@ TEST_F(base_rollup_tests, native_single_public_state_write)
     kernel_data[0].public_inputs.end.public_data_update_requests[0] = data_write;
 
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
-        kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
+        kernel_data, note_hash_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
 
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
@@ -808,8 +808,8 @@ TEST_F(base_rollup_tests, native_single_public_state_write)
 TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
 {
     DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_multiple_public_state_read_writes");
-    MemoryStore private_data_tree_store;
-    MerkleTree private_data_tree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
+    MemoryStore note_hash_tree_store;
+    MerkleTree note_hash_tree(note_hash_tree_store, NOTE_HASH_TREE_HEIGHT);
 
     MemoryStore contract_tree_store;
     MerkleTree contract_tree(contract_tree_store, CONTRACT_TREE_HEIGHT);
@@ -841,7 +841,7 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
         make_public_data_update_request(fr(4), fr(204), fr(304));
 
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
-        kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
+        kernel_data, note_hash_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
 
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
@@ -860,8 +860,8 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
 // TEST_F(base_rollup_tests, native_invalid_public_state_read)
 // {
 //     DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_invalid_public_state_read");
-//     MemoryStore private_data_tree_store;
-//     MerkleTree private_data_tree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
+//     MemoryStore note_hash_tree_store;
+//     MerkleTree note_hash_tree(note_hash_tree_store, NOTE_HASH_TREE_HEIGHT);
 
 //     MemoryStore contract_tree_store;
 //     MerkleTree contract_tree(contract_tree_store, CONTRACT_TREE_HEIGHT);
@@ -880,7 +880,7 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
 //     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
 //     kernel_data[0].public_inputs.end.public_data_reads[0] = data_read;
 //     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
-//         kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
+//         kernel_data, note_hash_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
 
 //     // We change the initial tree root so the read value does not match
 //     public_data_tree.update_element(1, fr(43));

@@ -114,7 +114,7 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyCircuitBu
 
     common_validate_read_requests(
         builder,
-        public_inputs.constants.block_data.private_data_tree_root,
+        public_inputs.constants.block_data.note_hash_tree_root,
         private_inputs.private_call.call_stack_item.public_inputs.read_requests,  // read requests from private call
         private_inputs.private_call.read_request_membership_witnesses);
 

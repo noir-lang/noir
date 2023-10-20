@@ -433,7 +433,7 @@ value: 0xe11
 
 constants:
 block_data:
-private_data_tree_root: 0x101
+note_hash_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
 l1_to_l2_messages_tree_root: 0x104
@@ -538,7 +538,7 @@ encrypted_logs_hash: [ 0x1911 0x1912 ]
 unencrypted_logs_hash: [ 0x1a11 0x1a12 ]
 encrypted_log_preimages_length: 0x1b11
 unencrypted_log_preimages_length: 0x1c11
-historic_block_data: private_data_tree_root: 0x1d11
+historic_block_data: note_hash_tree_root: 0x1d11
 nullifier_tree_root: 0x1d12
 contract_tree_root: 0x1d13
 l1_to_l2_messages_tree_root: 0x1d14
@@ -593,7 +593,7 @@ encrypted_logs_hash: [ 0x1921 0x1922 ]
 unencrypted_logs_hash: [ 0x1a21 0x1a22 ]
 encrypted_log_preimages_length: 0x1b21
 unencrypted_log_preimages_length: 0x1c21
-historic_block_data: private_data_tree_root: 0x1d21
+historic_block_data: note_hash_tree_root: 0x1d21
 nullifier_tree_root: 0x1d22
 contract_tree_root: 0x1d23
 l1_to_l2_messages_tree_root: 0x1d24
@@ -647,7 +647,7 @@ encrypted_logs_hash: [ 0x1922 0x1923 ]
 unencrypted_logs_hash: [ 0x1a22 0x1a23 ]
 encrypted_log_preimages_length: 0x1b22
 unencrypted_log_preimages_length: 0x1c22
-historic_block_data: private_data_tree_root: 0x1d22
+historic_block_data: note_hash_tree_root: 0x1d22
 nullifier_tree_root: 0x1d23
 contract_tree_root: 0x1d24
 l1_to_l2_messages_tree_root: 0x1d25
@@ -701,7 +701,7 @@ encrypted_logs_hash: [ 0x1923 0x1924 ]
 unencrypted_logs_hash: [ 0x1a23 0x1a24 ]
 encrypted_log_preimages_length: 0x1b23
 unencrypted_log_preimages_length: 0x1c23
-historic_block_data: private_data_tree_root: 0x1d23
+historic_block_data: note_hash_tree_root: 0x1d23
 nullifier_tree_root: 0x1d24
 contract_tree_root: 0x1d25
 l1_to_l2_messages_tree_root: 0x1d26
@@ -755,7 +755,7 @@ encrypted_logs_hash: [ 0x1924 0x1925 ]
 unencrypted_logs_hash: [ 0x1a24 0x1a25 ]
 encrypted_log_preimages_length: 0x1b24
 unencrypted_log_preimages_length: 0x1c24
-historic_block_data: private_data_tree_root: 0x1d24
+historic_block_data: note_hash_tree_root: 0x1d24
 nullifier_tree_root: 0x1d25
 contract_tree_root: 0x1d26
 l1_to_l2_messages_tree_root: 0x1d27
@@ -1103,7 +1103,7 @@ value: 0xe11
 
 constants:
 block_data:
-private_data_tree_root: 0x101
+note_hash_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
 l1_to_l2_messages_tree_root: 0x104
@@ -1178,7 +1178,7 @@ encrypted_logs_hash: [ 0x1911 0x1912 ]
 unencrypted_logs_hash: [ 0x1a11 0x1a12 ]
 encrypted_log_preimages_length: 0x1b11
 unencrypted_log_preimages_length: 0x1c11
-historic_block_data: private_data_tree_root: 0x1d11
+historic_block_data: note_hash_tree_root: 0x1d11
 nullifier_tree_root: 0x1d12
 contract_tree_root: 0x1d13
 l1_to_l2_messages_tree_root: 0x1d14
@@ -1233,7 +1233,7 @@ encrypted_logs_hash: [ 0x1921 0x1922 ]
 unencrypted_logs_hash: [ 0x1a21 0x1a22 ]
 encrypted_log_preimages_length: 0x1b21
 unencrypted_log_preimages_length: 0x1c21
-historic_block_data: private_data_tree_root: 0x1d21
+historic_block_data: note_hash_tree_root: 0x1d21
 nullifier_tree_root: 0x1d22
 contract_tree_root: 0x1d23
 l1_to_l2_messages_tree_root: 0x1d24
@@ -1287,7 +1287,7 @@ encrypted_logs_hash: [ 0x1922 0x1923 ]
 unencrypted_logs_hash: [ 0x1a22 0x1a23 ]
 encrypted_log_preimages_length: 0x1b22
 unencrypted_log_preimages_length: 0x1c22
-historic_block_data: private_data_tree_root: 0x1d22
+historic_block_data: note_hash_tree_root: 0x1d22
 nullifier_tree_root: 0x1d23
 contract_tree_root: 0x1d24
 l1_to_l2_messages_tree_root: 0x1d25
@@ -1341,7 +1341,7 @@ encrypted_logs_hash: [ 0x1923 0x1924 ]
 unencrypted_logs_hash: [ 0x1a23 0x1a24 ]
 encrypted_log_preimages_length: 0x1b23
 unencrypted_log_preimages_length: 0x1c23
-historic_block_data: private_data_tree_root: 0x1d23
+historic_block_data: note_hash_tree_root: 0x1d23
 nullifier_tree_root: 0x1d24
 contract_tree_root: 0x1d25
 l1_to_l2_messages_tree_root: 0x1d26
@@ -1395,7 +1395,7 @@ encrypted_logs_hash: [ 0x1924 0x1925 ]
 unencrypted_logs_hash: [ 0x1a24 0x1a25 ]
 encrypted_log_preimages_length: 0x1b24
 unencrypted_log_preimages_length: 0x1c24
-historic_block_data: private_data_tree_root: 0x1d24
+historic_block_data: note_hash_tree_root: 0x1d24
 nullifier_tree_root: 0x1d25
 contract_tree_root: 0x1d26
 l1_to_l2_messages_tree_root: 0x1d27
@@ -1741,7 +1741,7 @@ value: 0xe11
 
 constants:
 block_data:
-private_data_tree_root: 0x101
+note_hash_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
 l1_to_l2_messages_tree_root: 0x104
@@ -1859,7 +1859,7 @@ called_from_public_l2: 0
 
 constants:
 block_data:
-private_data_tree_root: 0x101
+note_hash_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
 l1_to_l2_messages_tree_root: 0x104
@@ -2063,7 +2063,7 @@ value: 0xe11
 
 constants:
 block_data:
-private_data_tree_root: 0x101
+note_hash_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
 l1_to_l2_messages_tree_root: 0x104
@@ -2214,7 +2214,7 @@ new_nullifiers: [ 0x1811 0x1812 0x1813 0x1814 0x1815 0x1816 0x1817 0x1818 0x0 0x
 new_l2_to_l1_msgs: [ 0x1911 0x0 ]
 unencrypted_logs_hash: [ 0x1912 0x0 ]
 unencrypted_log_preimages_length: 0x1913
-historic_block_data: private_data_tree_root: 0x1a11
+historic_block_data: note_hash_tree_root: 0x1a11
 nullifier_tree_root: 0x1a12
 contract_tree_root: 0x1a13
 l1_to_l2_messages_tree_root: 0x1a14
@@ -2335,7 +2335,7 @@ new_nullifiers: [ 0x1b11 0x1b12 0x1b13 0x1b14 0x1b15 0x1b16 0x1b17 0x1b18 0x0 0x
 new_l2_to_l1_msgs: [ 0x1c11 0x0 ]
 unencrypted_logs_hash: [ 0x1c12 0x0 ]
 unencrypted_log_preimages_length: 0x1c13
-historic_block_data: private_data_tree_root: 0x1d11
+historic_block_data: note_hash_tree_root: 0x1d11
 nullifier_tree_root: 0x1d12
 contract_tree_root: 0x1d13
 l1_to_l2_messages_tree_root: 0x1d14
@@ -2455,7 +2455,7 @@ new_nullifiers: [ 0x1b12 0x1b13 0x1b14 0x1b15 0x1b16 0x1b17 0x1b18 0x1b19 0x0 0x
 new_l2_to_l1_msgs: [ 0x1c12 0x0 ]
 unencrypted_logs_hash: [ 0x1c13 0x0 ]
 unencrypted_log_preimages_length: 0x1c14
-historic_block_data: private_data_tree_root: 0x1d12
+historic_block_data: note_hash_tree_root: 0x1d12
 nullifier_tree_root: 0x1d13
 contract_tree_root: 0x1d14
 l1_to_l2_messages_tree_root: 0x1d15
@@ -2575,7 +2575,7 @@ new_nullifiers: [ 0x1b13 0x1b14 0x1b15 0x1b16 0x1b17 0x1b18 0x1b19 0x1b1a 0x0 0x
 new_l2_to_l1_msgs: [ 0x1c13 0x0 ]
 unencrypted_logs_hash: [ 0x1c14 0x0 ]
 unencrypted_log_preimages_length: 0x1c15
-historic_block_data: private_data_tree_root: 0x1d13
+historic_block_data: note_hash_tree_root: 0x1d13
 nullifier_tree_root: 0x1d14
 contract_tree_root: 0x1d15
 l1_to_l2_messages_tree_root: 0x1d16
@@ -2695,7 +2695,7 @@ new_nullifiers: [ 0x1b14 0x1b15 0x1b16 0x1b17 0x1b18 0x1b19 0x1b1a 0x1b1b 0x0 0x
 new_l2_to_l1_msgs: [ 0x1c14 0x0 ]
 unencrypted_logs_hash: [ 0x1c15 0x0 ]
 unencrypted_log_preimages_length: 0x1c16
-historic_block_data: private_data_tree_root: 0x1d14
+historic_block_data: note_hash_tree_root: 0x1d14
 nullifier_tree_root: 0x1d15
 contract_tree_root: 0x1d16
 l1_to_l2_messages_tree_root: 0x1d17

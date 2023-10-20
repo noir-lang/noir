@@ -14,7 +14,7 @@ export async function getHistoricBlockData(
   const roots = await db.getTreeRoots();
 
   return new HistoricBlockData(
-    Fr.fromBuffer(roots.privateDataTreeRoot),
+    Fr.fromBuffer(roots.noteHashTreeRoot),
     Fr.fromBuffer(roots.nullifierTreeRoot),
     Fr.fromBuffer(roots.contractDataTreeRoot),
     Fr.fromBuffer(roots.l1Tol2MessagesTreeRoot),

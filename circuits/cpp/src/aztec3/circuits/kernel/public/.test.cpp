@@ -329,7 +329,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         array_of_values<NUM_FIELDS_PER_SHA256>(seed, NUM_FIELDS_PER_SHA256);
     fr const unencrypted_log_preimages_length = ++seed;
     HistoricBlockData<NT> block_data = {
-        .private_data_tree_root = ++seed,
+        .note_hash_tree_root = ++seed,
         .nullifier_tree_root = ++seed,
         .contract_tree_root = ++seed,
         .l1_to_l2_messages_tree_root = ++seed,
@@ -370,14 +370,14 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
 
     // TODO(914) Should this be unused?
     [[maybe_unused]] HistoricBlockData<NT> const historic_tree_roots = {
-        .private_data_tree_root = 1000,
+        .note_hash_tree_root = 1000,
         .contract_tree_root = 2000,
         .l1_to_l2_messages_tree_root = 3000,
         .private_kernel_vk_tree_root = 4000,
     };
 
     CombinedConstantData<NT> const end_constants = { .block_data =
-                                                         HistoricBlockData<NT>{ .private_data_tree_root = ++seed,
+                                                         HistoricBlockData<NT>{ .note_hash_tree_root = ++seed,
                                                                                 .nullifier_tree_root = ++seed,
                                                                                 .contract_tree_root = ++seed,
                                                                                 .private_kernel_vk_tree_root = ++seed },

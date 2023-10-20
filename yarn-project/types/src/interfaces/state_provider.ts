@@ -1,4 +1,4 @@
-import { CONTRACT_TREE_HEIGHT, Fr, L1_TO_L2_MSG_TREE_HEIGHT, PRIVATE_DATA_TREE_HEIGHT } from '@aztec/circuits.js';
+import { CONTRACT_TREE_HEIGHT, Fr, L1_TO_L2_MSG_TREE_HEIGHT, NOTE_HASH_TREE_HEIGHT } from '@aztec/circuits.js';
 
 import { L1ToL2MessageAndIndex } from '../l1_to_l2_message.js';
 import { MerkleTreeId } from '../merkle_tree_id.js';
@@ -28,7 +28,7 @@ export interface StateInfoProvider {
    * @param leafIndex - The index of the leaf for which the sibling path is required.
    * @returns The sibling path for the leaf index.
    */
-  getDataTreePath(leafIndex: bigint): Promise<SiblingPath<typeof PRIVATE_DATA_TREE_HEIGHT>>;
+  getDataTreePath(leafIndex: bigint): Promise<SiblingPath<typeof NOTE_HASH_TREE_HEIGHT>>;
 
   /**
    * Gets a confirmed/consumed L1 to L2 message for the given message key (throws if not found).

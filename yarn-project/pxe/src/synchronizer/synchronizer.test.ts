@@ -20,7 +20,7 @@ describe('Synchronizer', () => {
     blockData = HistoricBlockData.random();
     roots = {
       [MerkleTreeId.CONTRACT_TREE]: blockData.contractTreeRoot,
-      [MerkleTreeId.PRIVATE_DATA_TREE]: blockData.privateDataTreeRoot,
+      [MerkleTreeId.NOTE_HASH_TREE]: blockData.noteHashTreeRoot,
       [MerkleTreeId.NULLIFIER_TREE]: blockData.nullifierTreeRoot,
       [MerkleTreeId.PUBLIC_DATA_TREE]: blockData.publicDataTreeRoot,
       [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: blockData.l1ToL2MessagesTreeRoot,

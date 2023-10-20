@@ -2,7 +2,7 @@ import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
-import { MAX_NEW_COMMITMENTS_PER_CALL, PRIVATE_DATA_TREE_HEIGHT } from '../cbind/constants.gen.js';
+import { MAX_NEW_COMMITMENTS_PER_CALL, NOTE_HASH_TREE_HEIGHT } from '../cbind/constants.gen.js';
 import { makeTuple, range } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { MembershipWitness } from './membership_witness.js';
@@ -21,7 +21,7 @@ export class ReadRequestMembershipWitness {
     /**
      * Sibling path of the leaf in the Merkle tree.
      */
-    public siblingPath: Tuple<Fr, typeof PRIVATE_DATA_TREE_HEIGHT>,
+    public siblingPath: Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
     /**
      * Whether or not the read request corresponds to a pending commitment.
      */
@@ -52,7 +52,7 @@ export class ReadRequestMembershipWitness {
   static mock(size: number, start: number) {
     return new ReadRequestMembershipWitness(
       new Fr(start),
-      range(size, start).map(x => new Fr(BigInt(x))) as Tuple<Fr, typeof PRIVATE_DATA_TREE_HEIGHT>,
+      range(size, start).map(x => new Fr(BigInt(x))) as Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
       false,
       new Fr(0),
     );
@@ -65,7 +65,7 @@ export class ReadRequestMembershipWitness {
   public static random() {
     return new ReadRequestMembershipWitness(
       new Fr(0n),
-      makeTuple(PRIVATE_DATA_TREE_HEIGHT, () => Fr.random()),
+      makeTuple(NOTE_HASH_TREE_HEIGHT, () => Fr.random()),
       false,
       new Fr(0),
     );
@@ -77,7 +77,7 @@ export class ReadRequestMembershipWitness {
    * @returns Membership witness with zero sibling path.
    */
   public static empty(leafIndex: bigint): ReadRequestMembershipWitness {
-    const arr = makeTuple(PRIVATE_DATA_TREE_HEIGHT, () => Fr.ZERO);
+    const arr = makeTuple(NOTE_HASH_TREE_HEIGHT, () => Fr.ZERO);
     return new ReadRequestMembershipWitness(new Fr(leafIndex), arr, false, new Fr(0));
   }
 
@@ -86,32 +86,32 @@ export class ReadRequestMembershipWitness {
    * @returns an empty transient read request membership witness.
    */
   public static emptyTransient(): ReadRequestMembershipWitness {
-    const arr = makeTuple(PRIVATE_DATA_TREE_HEIGHT, () => Fr.ZERO);
+    const arr = makeTuple(NOTE_HASH_TREE_HEIGHT, () => Fr.ZERO);
     return new ReadRequestMembershipWitness(new Fr(0), arr, true, new Fr(0));
   }
 
   static fromBufferArray(
     leafIndex: Fr,
-    siblingPath: Tuple<Buffer, typeof PRIVATE_DATA_TREE_HEIGHT>,
+    siblingPath: Tuple<Buffer, typeof NOTE_HASH_TREE_HEIGHT>,
     isTransient: boolean,
     hintToCommitment: Fr,
   ): ReadRequestMembershipWitness {
     return new ReadRequestMembershipWitness(
       leafIndex,
-      siblingPath.map(x => Fr.fromBuffer(x)) as Tuple<Fr, typeof PRIVATE_DATA_TREE_HEIGHT>,
+      siblingPath.map(x => Fr.fromBuffer(x)) as Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
       isTransient,
       hintToCommitment,
     );
   }
 
   static fromMembershipWitness(
-    membershipWitness: MembershipWitness<typeof PRIVATE_DATA_TREE_HEIGHT>,
+    membershipWitness: MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>,
     isTransient: boolean,
     hintToCommitment: Fr,
   ): ReadRequestMembershipWitness {
     return new ReadRequestMembershipWitness(
       new Fr(membershipWitness.leafIndex),
-      membershipWitness.siblingPath as Tuple<Fr, typeof PRIVATE_DATA_TREE_HEIGHT>,
+      membershipWitness.siblingPath as Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
       isTransient,
       hintToCommitment,
     );
@@ -125,7 +125,7 @@ export class ReadRequestMembershipWitness {
   static fromBuffer(buffer: Buffer | BufferReader): ReadRequestMembershipWitness {
     const reader = BufferReader.asReader(buffer);
     const leafIndex = reader.readFr();
-    const siblingPath = reader.readArray<Fr, typeof PRIVATE_DATA_TREE_HEIGHT>(PRIVATE_DATA_TREE_HEIGHT, Fr);
+    const siblingPath = reader.readArray<Fr, typeof NOTE_HASH_TREE_HEIGHT>(NOTE_HASH_TREE_HEIGHT, Fr);
     const isTransient = reader.readBoolean();
     const hintToCommitment = reader.readFr();
     return new ReadRequestMembershipWitness(leafIndex, siblingPath, isTransient, hintToCommitment);

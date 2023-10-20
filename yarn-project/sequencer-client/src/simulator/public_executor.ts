@@ -146,6 +146,6 @@ export class WorldStateDB implements CommitmentsDB {
   }
 
   public async getCommitmentIndex(commitment: Fr): Promise<bigint | undefined> {
-    return await this.db.findLeafIndex(MerkleTreeId.PRIVATE_DATA_TREE, commitment.toBuffer());
+    return await this.db.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, commitment.toBuffer());
   }
 }

@@ -1,12 +1,12 @@
+import { CONTRACT_ADDRESS_PARAM_NAMES, pxe } from '../../config.js';
+import { callContractFunction, deployContract, viewContractFunction } from '../../scripts/index.js';
+import { convertArgs } from '../../scripts/util.js';
+import styles from './contract_function_form.module.scss';
 import { Button, Loader } from '@aztec/aztec-ui';
 import { AztecAddress, CompleteAddress, Fr } from '@aztec/aztec.js';
 import { ContractArtifact, FunctionArtifact } from '@aztec/foundation/abi';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { CONTRACT_ADDRESS_PARAM_NAMES, pxe } from '../../config.js';
-import { callContractFunction, deployContract, viewContractFunction } from '../../scripts/index.js';
-import { convertArgs } from '../../scripts/util.js';
-import styles from './contract_function_form.module.scss';
 
 const DEFAULT_FIELD_VALUE = 100;
 interface BasicParamDef {

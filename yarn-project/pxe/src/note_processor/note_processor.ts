@@ -100,7 +100,7 @@ export class NoteProcessor {
       this.stats.blocks++;
       const { txLogs } = encryptedL2BlockLogs[blockIndex];
       const block = l2BlockContexts[blockIndex].block;
-      const dataStartIndexForBlock = block.startPrivateDataTreeSnapshot.nextAvailableLeafIndex;
+      const dataStartIndexForBlock = block.startNoteHashTreeSnapshot.nextAvailableLeafIndex;
 
       // We are using set for `userPertainingTxIndices` to avoid duplicates. This would happen in case there were
       // multiple encrypted logs in a tx pertaining to a user.
@@ -169,7 +169,7 @@ export class NoteProcessor {
   }
 
   /**
-   * Find the index of the note in the private data tree by computing the note hash with different nonce and see which
+   * Find the index of the note in the note hash tree by computing the note hash with different nonce and see which
    * commitment for the current tx matches this value.
    * Compute the nullifier for a given transaction auxiliary data.
    * The nullifier is calculated using the private key of the account,

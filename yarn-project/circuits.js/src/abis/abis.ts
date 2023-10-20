@@ -280,7 +280,7 @@ export function siloNullifier(wasm: IWasmModule, contract: AztecAddress, innerNu
  * Computes the block hash given the blocks globals and roots.
  * @param wasm - A module providing low-level wasm access.
  * @param globals - The global variables to put into the block hash.
- * @param privateDataTree - The root of the private data tree.
+ * @param noteHashTree - The root of the note hash tree.
  * @param nullifierTreeRoot - The root of the nullifier tree.
  * @param contractTreeRoot - The root of the contract tree.
  * @param l1ToL2DataTreeRoot - The root of the l1 to l2 data tree.
@@ -290,7 +290,7 @@ export function siloNullifier(wasm: IWasmModule, contract: AztecAddress, innerNu
 export function computeBlockHashWithGlobals(
   wasm: IWasmModule,
   globals: GlobalVariables,
-  privateDataTreeRoot: Fr,
+  noteHashTreeRoot: Fr,
   nullifierTreeRoot: Fr,
   contractTreeRoot: Fr,
   l1ToL2DataTreeRoot: Fr,
@@ -300,7 +300,7 @@ export function computeBlockHashWithGlobals(
   return abisComputeBlockHashWithGlobals(
     wasm,
     globals,
-    privateDataTreeRoot,
+    noteHashTreeRoot,
     nullifierTreeRoot,
     contractTreeRoot,
     l1ToL2DataTreeRoot,
@@ -312,7 +312,7 @@ export function computeBlockHashWithGlobals(
  * Computes the block hash given the blocks globals and roots.
  * @param wasm - A module providing low-level wasm access.
  * @param globalsHash - The global variables hash to put into the block hash.
- * @param privateDataTree - The root of the private data tree.
+ * @param noteHashTree - The root of the note hash tree.
  * @param nullifierTreeRoot - The root of the nullifier tree.
  * @param contractTreeRoot - The root of the contract tree.
  * @param l1ToL2DataTreeRoot - The root of the l1 to l2 data tree.
@@ -322,7 +322,7 @@ export function computeBlockHashWithGlobals(
 export function computeBlockHash(
   wasm: IWasmModule,
   globalsHash: Fr,
-  privateDataTreeRoot: Fr,
+  noteHashTreeRoot: Fr,
   nullifierTreeRoot: Fr,
   contractTreeRoot: Fr,
   l1ToL2DataTreeRoot: Fr,
@@ -332,7 +332,7 @@ export function computeBlockHash(
   return abisComputeBlockHash(
     wasm,
     globalsHash,
-    privateDataTreeRoot,
+    noteHashTreeRoot,
     nullifierTreeRoot,
     contractTreeRoot,
     l1ToL2DataTreeRoot,

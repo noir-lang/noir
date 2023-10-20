@@ -50,14 +50,14 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
                                                  abis::GlobalVariables<NT> global_variables);
 
 BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data,
-                                                 MerkleTree& private_data_tree,
+                                                 MerkleTree& note_hash_tree,
                                                  MerkleTree& contract_tree,
                                                  MerkleTree& public_data_tree,
                                                  MerkleTree& l1_to_l2_msg_tree);
 
 BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data,
                                                  fr prev_global_variables_hash,
-                                                 MerkleTree& private_data_tree,
+                                                 MerkleTree& note_hash_tree,
                                                  MerkleTree& nullifier_tree,
                                                  MerkleTree& contract_tree,
                                                  MerkleTree& public_data_tree,

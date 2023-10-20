@@ -174,7 +174,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    *
    * Check for pending notes with matching address/slot.
    * Real notes coming from DB will have a leafIndex which
-   * represents their index in the private data tree.
+   * represents their index in the note hash tree.
    *
    * @param contractAddress - The contract address.
    * @param storageSlot - The storage slot.

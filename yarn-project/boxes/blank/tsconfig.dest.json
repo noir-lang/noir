@@ -1,9 +1,5 @@
 {
   "extends": ".",
-  "references": [
-    { "path": "../../aztec.js" },
-    { "path": "../../foundation" },
-    { "path": "../../types" }
-  ],
+  "references": [{ "path": "../../aztec.js" }, { "path": "../../foundation" }, { "path": "../../types" }],
   "exclude": ["src/**/*.test.ts"]
 }

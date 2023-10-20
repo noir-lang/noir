@@ -432,7 +432,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_request)
           _transient_read_requests,
           _transient_read_request_membership_witnesses,
           root] = get_random_reads(first_nullifier, contract_address, 2);
-    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.note_hash_tree_root = root;
 
     // tweak read_request so it gives wrong root when paired with its sibling path
     read_requests[1] += 1;
@@ -447,7 +447,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_request)
 
     ASSERT_TRUE(builder.failed());
     ASSERT_EQ(builder.get_first_failure().code,
-              CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
+              CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_NOTE_HASH_TREE_ROOT_MISMATCH);
 
     // Check the first nullifier is hash of the signed tx request
     ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
@@ -466,7 +466,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_leaf_index)
           _transient_read_requests,
           _transient_read_request_membership_witnesses,
           root] = get_random_reads(first_nullifier, contract_address, 2);
-    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.note_hash_tree_root = root;
 
     // tweak leaf index so it gives wrong root when paired with its request and sibling path
     read_request_membership_witnesses[1].leaf_index += 1;
@@ -480,7 +480,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_leaf_index)
 
     ASSERT_TRUE(builder.failed());
     ASSERT_EQ(builder.get_first_failure().code,
-              CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
+              CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_NOTE_HASH_TREE_ROOT_MISMATCH);
 
     // Check the first nullifier is hash of the signed tx request
     ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
@@ -499,7 +499,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_sibling_path)
           _transient_read_requests,
           _transient_read_request_membership_witnesses,
           root] = get_random_reads(first_nullifier, contract_address, 2);
-    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.note_hash_tree_root = root;
 
     // tweak sibling path so it gives wrong root when paired with its request
     read_request_membership_witnesses[1].sibling_path[1] += 1;
@@ -513,7 +513,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_sibling_path)
 
     ASSERT_TRUE(builder.failed());
     ASSERT_EQ(builder.get_first_failure().code,
-              CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
+              CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_NOTE_HASH_TREE_ROOT_MISMATCH);
 
     // Check the first nullifier is hash of the signed tx request
     ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
@@ -533,14 +533,14 @@ TEST_F(native_private_kernel_init_tests, native_read_request_root_mismatch)
           _transient_read_requests0,
           _transient_read_request_membership_witnesses0,
           root] = get_random_reads(first_nullifier, contract_address, 2);
-    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.note_hash_tree_root = root;
     auto [read_requests1,
           read_request_membership_witnesses1,
           _transient_read_requests1,
           _transient_read_request_membership_witnesses1,
           _root] = get_random_reads(first_nullifier, contract_address, 2);
     std::array<NT::fr, MAX_READ_REQUESTS_PER_CALL> bad_requests{};
-    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL> bad_witnesses;
+    std::array<ReadRequestMembershipWitness<NT, NOTE_HASH_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL> bad_witnesses;
     // note we are using read_requests0 for some and read_requests1 for others
     bad_requests[0] = read_requests0[0];
     bad_requests[1] = read_requests0[1];
@@ -560,7 +560,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_root_mismatch)
 
     ASSERT_TRUE(builder.failed());
     ASSERT_EQ(builder.get_first_failure().code,
-              CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
+              CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_NOTE_HASH_TREE_ROOT_MISMATCH);
 
     // Check the first nullifier is hash of the signed tx request
     ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
@@ -574,7 +574,7 @@ TEST_F(native_private_kernel_init_tests, native_no_read_requests_works)
 
     // empty requests
     std::array<fr, MAX_READ_REQUESTS_PER_CALL> const read_requests{};
-    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL> const
+    std::array<ReadRequestMembershipWitness<NT, NOTE_HASH_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL> const
         read_request_membership_witnesses{};
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
@@ -612,7 +612,7 @@ TEST_F(native_private_kernel_init_tests, native_one_read_requests_works)
           _transient_read_requests,
           _transient_read_request_membership_witnesses,
           root] = get_random_reads(first_nullifier, contract_address, 1);
-    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.note_hash_tree_root = root;
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
@@ -649,7 +649,7 @@ TEST_F(native_private_kernel_init_tests, native_two_read_requests_works)
           _transient_read_requests,
           _transient_read_request_membership_witnesses,
           root] = get_random_reads(first_nullifier, contract_address, 2);
-    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.note_hash_tree_root = root;
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
@@ -686,7 +686,7 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_works)
           _transient_read_requests,
           _transient_read_request_membership_witnesses,
           root] = get_random_reads(first_nullifier, contract_address, MAX_READ_REQUESTS_PER_CALL);
-    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.note_hash_tree_root = root;
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
@@ -727,7 +727,7 @@ TEST_F(native_private_kernel_init_tests, native_one_transient_read_requests_work
           transient_read_requests,
           transient_read_request_membership_witnesses,
           root] = get_random_reads(first_nullifier, contract_address, 1);
-    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.note_hash_tree_root = root;
 
     // Make the read request transient
     read_requests[0] = transient_read_requests[0];
@@ -765,7 +765,7 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_one_transient_
           transient_read_requests,
           transient_read_request_membership_witnesses,
           root] = get_random_reads(first_nullifier, contract_address, MAX_READ_REQUESTS_PER_CALL);
-    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.note_hash_tree_root = root;
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
 
     // Make the read request at position 1 transient
@@ -803,7 +803,7 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_all_transient_
           transient_read_requests,
           transient_read_request_membership_witnesses,
           root] = get_random_reads(first_nullifier, contract_address, MAX_READ_REQUESTS_PER_CALL);
-    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.note_hash_tree_root = root;
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = transient_read_requests;
     private_inputs.private_call.read_request_membership_witnesses = transient_read_request_membership_witnesses;
 

@@ -2,7 +2,7 @@ import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
-import { PRIVATE_DATA_TREE_HEIGHT } from '../cbind/constants.gen.js';
+import { NOTE_HASH_TREE_HEIGHT } from '../cbind/constants.gen.js';
 import { assertMemberLength, range } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 
@@ -35,7 +35,7 @@ export class MembershipWitness<N extends number> {
     return new MembershipWitness(
       size,
       BigInt(start),
-      range(size, start).map(x => new Fr(BigInt(x))) as Tuple<Fr, typeof PRIVATE_DATA_TREE_HEIGHT>,
+      range(size, start).map(x => new Fr(BigInt(x))) as Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
     );
   }
 

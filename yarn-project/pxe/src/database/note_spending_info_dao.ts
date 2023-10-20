@@ -34,7 +34,7 @@ export interface NoteSpendingInfoDao {
    */
   siloedNullifier: Fr;
   /**
-   * The location of the relevant note in the private data tree.
+   * The location of the relevant note in the note hash tree.
    */
   index: bigint;
   /**

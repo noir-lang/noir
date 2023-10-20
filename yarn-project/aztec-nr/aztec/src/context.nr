@@ -286,7 +286,7 @@ impl PrivateContext {
                 unencrypted_log_preimages_length: fields[144],
                 block_data: HistoricBlockData {
                     // Must match order in `private_circuit_public_inputs.hpp`
-                    private_data_tree_root : fields[145],
+                    note_hash_tree_root : fields[145],
                     nullifier_tree_root : fields[146],
                     contract_tree_root : fields[147],
                     l1_to_l2_messages_tree_root : fields[148],

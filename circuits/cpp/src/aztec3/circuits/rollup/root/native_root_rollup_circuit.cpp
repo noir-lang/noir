@@ -109,7 +109,7 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
     // Build the block hash for this iteration from the tree roots and global variables
     // Then insert the block into the historic blocks tree
     auto block_hash = compute_block_hash_with_globals(left.constants.global_variables,
-                                                      right.end_private_data_tree_snapshot.root,
+                                                      right.end_note_hash_tree_snapshot.root,
                                                       right.end_nullifier_tree_snapshot.root,
                                                       right.end_contract_tree_snapshot.root,
                                                       new_l1_to_l2_messages_tree_snapshot.root,
@@ -130,8 +130,8 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
     RootRollupPublicInputs public_inputs = {
         .end_aggregation_object = aggregation_object,
         .global_variables = left.constants.global_variables,
-        .start_private_data_tree_snapshot = left.start_private_data_tree_snapshot,
-        .end_private_data_tree_snapshot = right.end_private_data_tree_snapshot,
+        .start_note_hash_tree_snapshot = left.start_note_hash_tree_snapshot,
+        .end_note_hash_tree_snapshot = right.end_note_hash_tree_snapshot,
         .start_nullifier_tree_snapshot = left.start_nullifier_tree_snapshot,
         .end_nullifier_tree_snapshot = right.end_nullifier_tree_snapshot,
         .start_contract_tree_snapshot = left.start_contract_tree_snapshot,

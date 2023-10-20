@@ -8,9 +8,9 @@ import {
   MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
   MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP,
+  NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
   NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
   NULLIFIER_TREE_HEIGHT,
-  PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '../../cbind/constants.gen.js';
 import { FieldsOf } from '../../utils/jsUtils.js';
@@ -124,9 +124,9 @@ export class BaseRollupInputs {
      */
     public kernelData: Tuple<PreviousKernelData, typeof KERNELS_PER_BASE_ROLLUP>,
     /**
-     * Snapshot of the private data tree at the start of the base rollup circuit.
+     * Snapshot of the note hash tree at the start of the base rollup circuit.
      */
-    public startPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
+    public startNoteHashTreeSnapshot: AppendOnlyTreeSnapshot,
     /**
      * Snapshot of the nullifier tree at the start of the base rollup circuit.
      */
@@ -158,9 +158,9 @@ export class BaseRollupInputs {
       typeof MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP
     >,
     /**
-     * Sibling path "pointing to" where the new commitments subtree should be inserted into the private data tree.
+     * Sibling path "pointing to" where the new commitments subtree should be inserted into the note hash tree.
      */
-    public newCommitmentsSubtreeSiblingPath: Tuple<Fr, typeof PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH>,
+    public newCommitmentsSubtreeSiblingPath: Tuple<Fr, typeof NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH>,
     /**
      * Sibling path "pointing to" where the new nullifiers subtree should be inserted into the nullifier tree.
      */
@@ -205,7 +205,7 @@ export class BaseRollupInputs {
   static getFields(fields: FieldsOf<BaseRollupInputs>) {
     return [
       fields.kernelData,
-      fields.startPrivateDataTreeSnapshot,
+      fields.startNoteHashTreeSnapshot,
       fields.startNullifierTreeSnapshot,
       fields.startContractTreeSnapshot,
       fields.startPublicDataTreeRoot,

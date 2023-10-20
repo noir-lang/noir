@@ -21,7 +21,7 @@ export interface NoteData {
   innerNoteHash: Fr;
   /** The corresponding nullifier of the note. Undefined for pending notes. */
   siloedNullifier?: Fr;
-  /** The note's leaf index in the private data tree. Undefined for pending notes. */
+  /** The note's leaf index in the note hash tree. Undefined for pending notes. */
   index?: bigint;
 }
 

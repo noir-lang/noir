@@ -48,17 +48,17 @@ Confirms that the TxRequest (user's intent) matches the private call being execu
 * tx_request.function_data doesn't match call_stack_item.function_data
 * Aztec.nr function args passed to tx_request doesn't match args in the call_stack_item
 
-#### 2018 - PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH
+#### 2018 - PRIVATE_KERNEL__READ_REQUEST_NOTE_HASH_TREE_ROOT_MISMATCH
 Given a read request and provided witness, we check that the merkle root obtained from the witness' sibling path and it's leaf is similar to the historic state root we want to read against. This is a sanity check to ensure we are reading from the right state. 
 For a non transient read, we fetch the merkle root from the membership witnesses and the leaf index 
 
 #### 2019 - PRIVATE_KERNEL__TRANSIENT_READ_REQUEST_NO_MATCH
-A pending commitment is the one that is not yet added to private data tree.
+A pending commitment is the one that is not yet added to note hash tree.
 A transient read is when we try to "read" a pending commitment.
 This error happens when you try to read a pending commitment that doesn't exist.
 
 #### 2021 - PRIVATE_KERNEL__UNRESOLVED_NON_TRANSIENT_READ_REQUEST
-For a transient read request we skip merkle membership checks since pending commitments aren't inserted into the private data tree yet.
+For a transient read request we skip merkle membership checks since pending commitments aren't inserted into the note hash tree yet.
 But for non transient reads, we do a merkle membership check. Redas are done at the kernel circuit. So this checks that there are no already unresolved reads from a previous kernel iteration (other than non transient ones).
 
 #### 3001 - PUBLIC_KERNEL__UNSUPPORTED_OP
@@ -134,7 +134,7 @@ You can have a look at our current constants/limitations in [constants.hpp](http
 #### 7008 - MEMBERSHIP_CHECK_FAILED
 Users may create a proof against a historic state in Aztec. The rollup circuits performs a merkle membership check to ensure this state existed at some point. If the historic state doesn't exist, you get this error. Some examples when you may hit this error are:
 
-* using invalid historic private data tree state (aka historic commitments tree)
+* using invalid historic note hash tree state (aka historic commitments tree)
 * using invalid historic contracts data tree state 
 * using invalid historic L1 to L2 message data tree state 
 * inserting a subtree into the greater tree 
@@ -153,7 +153,7 @@ Users may create a proof against a historic state in Aztec. The rollup circuits 
 ## Sequencer Errors
 * "Calldata hash mismatch" - the sequencer assembles a block and sends it to the rollup circuits for proof generation. Along with the proof, the circuits return the hash of the calldata that must be sent to the Rollup contract on L1. Before doing so, the sequencer sanity checks that this hash is equivalent to the calldata hash of the block that it submitted. This could be a bug in our code e.g. if we are ordering things differently in circuits and in our transaction/block (e.g. incorrect ordering of encrypted logs or queued public calls). Easiest way to debug this is by printing the calldata of the block both on the TS (in l2Block.getCalldataHash()) and C++ side (in the base rollup)
 
-* "${treeName} tree root mismatch" - like with calldata mismatch, it validates that the root of the tree matches the output of the circuit simulation. The tree name could be Public data tree, Private Data tree, Contract tree, Nullifier tree or the L1ToL2Message tree, 
+* "${treeName} tree root mismatch" - like with calldata mismatch, it validates that the root of the tree matches the output of the circuit simulation. The tree name could be Public data tree, Note Hash Tree, Contract tree, Nullifier tree or the L1ToL2Message tree, 
 
 * "${treeName} tree next available leaf index mismatch" - validating a tree's root is not enough. It also checks that the `next_avaliable_leaf_index` is as expected. This is the next index we can insert new values into. Note that for the public data tree, this test is skipped since as it is a sparse tree unlike the others. 
 

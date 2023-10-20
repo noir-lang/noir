@@ -202,7 +202,7 @@ export class Synchronizer {
     const wasm = await CircuitsWasm.get();
     const globalsHash = computeGlobalsHash(wasm, latestBlock.block.globalVariables);
     const blockData = new HistoricBlockData(
-      block.endPrivateDataTreeSnapshot.root,
+      block.endNoteHashTreeSnapshot.root,
       block.endNullifierTreeSnapshot.root,
       block.endContractTreeSnapshot.root,
       block.endL1ToL2MessagesTreeSnapshot.root,

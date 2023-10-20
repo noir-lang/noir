@@ -104,7 +104,7 @@ NT::fr calculate_contract_subtree(std::vector<NT::fr> contract_leaves)
 NT::fr calculate_commitments_subtree(DummyBuilder& builder, BaseRollupInputs const& baseRollupInputs)
 {
     MemoryStore commitments_tree_store;
-    MerkleTree commitments_tree(commitments_tree_store, PRIVATE_DATA_SUBTREE_HEIGHT);
+    MerkleTree commitments_tree(commitments_tree_store, NOTE_HASH_SUBTREE_HEIGHT);
 
 
     for (size_t i = 0; i < 2; i++) {
@@ -133,7 +133,7 @@ NT::fr calculate_commitments_subtree(DummyBuilder& builder, BaseRollupInputs con
  */
 void perform_historical_blocks_tree_membership_checks(DummyBuilder& builder, BaseRollupInputs const& baseRollupInputs)
 {
-    // For each of the historic_private_data_tree_membership_checks, we need to do an inclusion proof
+    // For each of the historic_note_hash_tree_membership_checks, we need to do an inclusion proof
     // against the historical root provided in the rollup constants
     auto historic_root = baseRollupInputs.constants.start_historic_blocks_tree_roots_snapshot.root;
 
@@ -141,14 +141,14 @@ void perform_historical_blocks_tree_membership_checks(DummyBuilder& builder, Bas
         // Rebuild the block hash
         auto historic_block = baseRollupInputs.kernel_data[i].public_inputs.constants.block_data;
 
-        auto private_data_tree_root = historic_block.private_data_tree_root;
+        auto note_hash_tree_root = historic_block.note_hash_tree_root;
         auto nullifier_tree_root = historic_block.nullifier_tree_root;
         auto contract_tree_root = historic_block.contract_tree_root;
         auto l1_to_l2_data_tree_root = historic_block.l1_to_l2_messages_tree_root;
         auto public_data_tree_root = historic_block.public_data_tree_root;
 
         auto previous_block_hash = compute_block_hash<NT>(historic_block.global_variables_hash,
-                                                          private_data_tree_root,
+                                                          note_hash_tree_root,
                                                           nullifier_tree_root,
                                                           contract_tree_root,
                                                           l1_to_l2_data_tree_root,
@@ -491,16 +491,16 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyBuilder& builder, BaseRol
     NT::fr const commitments_tree_subroot = calculate_commitments_subtree(builder, baseRollupInputs);
 
     // Insert commitment subtrees:
-    const auto empty_commitments_subtree_root = components::calculate_empty_tree_root(PRIVATE_DATA_SUBTREE_HEIGHT);
-    auto end_private_data_tree_snapshot = components::insert_subtree_to_snapshot_tree(
+    const auto empty_commitments_subtree_root = components::calculate_empty_tree_root(NOTE_HASH_SUBTREE_HEIGHT);
+    auto end_note_hash_tree_snapshot = components::insert_subtree_to_snapshot_tree(
         builder,
-        baseRollupInputs.start_private_data_tree_snapshot,
+        baseRollupInputs.start_note_hash_tree_snapshot,
         baseRollupInputs.new_commitments_subtree_sibling_path,
         empty_commitments_subtree_root,
         commitments_tree_subroot,
-        PRIVATE_DATA_SUBTREE_HEIGHT,
+        NOTE_HASH_SUBTREE_HEIGHT,
         format(BASE_CIRCUIT_ERROR_MESSAGE_BEGINNING,
-               "private data tree not empty at location where the new commitment subtree would be inserted"));
+               "note hash tree not empty at location where the new commitment subtree would be inserted"));
     // Insert contract subtrees:
     const auto empty_contracts_subtree_root = components::calculate_empty_tree_root(CONTRACT_SUBTREE_HEIGHT);
     auto end_contract_tree_snapshot = components::insert_subtree_to_snapshot_tree(
@@ -534,8 +534,8 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyBuilder& builder, BaseRol
         .rollup_subtree_height = fr(0),
         .end_aggregation_object = aggregation_object,
         .constants = baseRollupInputs.constants,
-        .start_private_data_tree_snapshot = baseRollupInputs.start_private_data_tree_snapshot,
-        .end_private_data_tree_snapshot = end_private_data_tree_snapshot,
+        .start_note_hash_tree_snapshot = baseRollupInputs.start_note_hash_tree_snapshot,
+        .end_note_hash_tree_snapshot = end_note_hash_tree_snapshot,
         .start_nullifier_tree_snapshot = baseRollupInputs.start_nullifier_tree_snapshot,
         .end_nullifier_tree_snapshot = end_nullifier_tree_snapshot,
         .start_contract_tree_snapshot = baseRollupInputs.start_contract_tree_snapshot,

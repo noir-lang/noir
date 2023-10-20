@@ -107,7 +107,7 @@ export function toACVMContractDeploymentData(contractDeploymentData: ContractDep
  */
 export function toACVMHistoricBlockData(historicBlockData: HistoricBlockData): ACVMField[] {
   return [
-    toACVMField(historicBlockData.privateDataTreeRoot),
+    toACVMField(historicBlockData.noteHashTreeRoot),
     toACVMField(historicBlockData.nullifierTreeRoot),
     toACVMField(historicBlockData.contractTreeRoot),
     toACVMField(historicBlockData.l1ToL2MessagesTreeRoot),

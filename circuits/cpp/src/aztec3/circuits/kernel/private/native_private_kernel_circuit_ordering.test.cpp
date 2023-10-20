@@ -87,7 +87,7 @@ TEST_F(native_private_kernel_ordering_tests, native_matching_one_read_request_to
     std::array<fr, MAX_READ_REQUESTS_PER_TX> read_requests{};
     std::array<fr, MAX_READ_REQUESTS_PER_TX> hints{};
 
-    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX>
+    std::array<ReadRequestMembershipWitness<NT, NOTE_HASH_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX>
         read_request_membership_witnesses{};
 
     new_nullifiers[0] = NT::fr::random_element();
@@ -128,7 +128,7 @@ TEST_F(native_private_kernel_ordering_tests, native_matching_some_read_requests_
     std::array<fr, MAX_READ_REQUESTS_PER_TX> read_requests{};
     std::array<fr, MAX_READ_REQUESTS_PER_TX> hints{};
 
-    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX>
+    std::array<ReadRequestMembershipWitness<NT, NOTE_HASH_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX>
         read_request_membership_witnesses{};
 
     new_nullifiers[0] = NT::fr::random_element();
@@ -177,7 +177,7 @@ TEST_F(native_private_kernel_ordering_tests, native_read_request_unknown_fails)
     std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> siloed_commitments{};
     std::array<fr, MAX_READ_REQUESTS_PER_TX> read_requests{};
     std::array<fr, MAX_READ_REQUESTS_PER_TX> hints{};
-    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX>
+    std::array<ReadRequestMembershipWitness<NT, NOTE_HASH_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX>
         read_request_membership_witnesses{};
 
     for (size_t c_idx = 0; c_idx < MAX_NEW_COMMITMENTS_PER_TX; c_idx++) {

@@ -97,12 +97,12 @@ export class SimulatorOracle implements DBOracle {
   }
 
   /**
-   * Gets the index of a commitment in the private data tree.
+   * Gets the index of a commitment in the note hash tree.
    * @param commitment - The commitment.
    * @returns - The index of the commitment. Undefined if it does not exist in the tree.
    */
   async getCommitmentIndex(commitment: Fr) {
-    return await this.stateInfoProvider.findLeafIndex(MerkleTreeId.PRIVATE_DATA_TREE, commitment.toBuffer());
+    return await this.stateInfoProvider.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, commitment.toBuffer());
   }
 
   async getNullifierIndex(nullifier: Fr) {

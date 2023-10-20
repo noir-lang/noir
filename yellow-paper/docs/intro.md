@@ -89,7 +89,7 @@ The draft subsections are mere suggestions (and serve as a helpful reminder of t
 - State
   - L2 State
     - Trees 
-      - Private Data Tree
+      - Note Hash Tree
       - Indexed merkle trees
       - Nullifier tree(s)
       - Public Data Tree

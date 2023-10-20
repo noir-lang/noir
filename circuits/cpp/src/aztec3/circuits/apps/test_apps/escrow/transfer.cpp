@@ -93,7 +93,7 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext& exec_c
         { amount, to.to_field(), asset_id, memo, CT::fr(reveal_msg_sender_to_recipient), fee });
 
     /// TODO: merkle membership check
-    // public_inputs.historic_private_data_tree_root
+    // public_inputs.historic_note_hash_tree_root
 
     exec_ctx.finalize();
 

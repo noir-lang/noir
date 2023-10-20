@@ -51,9 +51,9 @@ using aztec3::circuits::compute_empty_sibling_path;
 constexpr size_t MAX_FUNCTION_LEAVES = 1 << aztec3::FUNCTION_TREE_HEIGHT;  // 2^(height-1)
 // NOTE: *DO NOT* call hashes in static initializers and assign them to constants. This will fail. Instead, use
 // lazy initialization or functions. Lambdas were introduced here.
-const auto EMPTY_FUNCTION_LEAF = [] { return FunctionLeafPreimage<NT>{}.hash(); };           // hash of empty/0 preimage
-const auto EMPTY_CONTRACT_LEAF = [] { return NewContractData<NT>{}.hash(); };                // hash of empty/0 preimage
-constexpr uint64_t PRIVATE_DATA_TREE_NUM_LEAVES = 1ULL << aztec3::PRIVATE_DATA_TREE_HEIGHT;  // 2^(height-1)
+const auto EMPTY_FUNCTION_LEAF = [] { return FunctionLeafPreimage<NT>{}.hash(); };     // hash of empty/0 preimage
+const auto EMPTY_CONTRACT_LEAF = [] { return NewContractData<NT>{}.hash(); };          // hash of empty/0 preimage
+constexpr uint64_t NOTE_HASH_TREE_NUM_LEAVES = 1ULL << aztec3::NOTE_HASH_TREE_HEIGHT;  // 2^(height-1)
 
 inline const auto& get_empty_function_siblings()
 {
@@ -77,24 +77,24 @@ inline const auto& get_empty_contract_siblings()
  * @brief Get the random read requests and their membership requests
  *
  * @details read requests are siloed by contract address and nonce before being
- * inserted into mock private data tree
+ * inserted into mock note hash tree
  *
- * @param first_nullifier used when computing nonce for unique_siloed_commitments (private data tree leaves)
+ * @param first_nullifier used when computing nonce for unique_siloed_commitments (note hash tree leaves)
  * @param contract_address address to use when siloing read requests
  * @param num_read_requests if negative, use random num
  * @return tuple including read requests, their membership witnesses, their transient versions, and the
- * private data tree root that contains all of these randomly created commitments at random leaf indices
+ * note hash tree root that contains all of these randomly created commitments at random leaf indices
  *     std::tuple<
  *      read_requests,
  *      read_request_memberships_witnesses,
  *      transient_read_requests,
  *      transient_read_request_memberships_witnesses,
- *      historic_private_data_tree_root>
+ *      historic_note_hash_tree_root>
  */
 std::tuple<std::array<NT::fr, MAX_READ_REQUESTS_PER_CALL>,
-           std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>,
+           std::array<ReadRequestMembershipWitness<NT, NOTE_HASH_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>,
            std::array<NT::fr, MAX_READ_REQUESTS_PER_CALL>,
-           std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>,
+           std::array<ReadRequestMembershipWitness<NT, NOTE_HASH_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>,
            NT::fr>
 get_random_reads(NT::fr const& first_nullifier, NT::fr const& contract_address, int num_read_requests);
 
