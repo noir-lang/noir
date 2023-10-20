@@ -58,11 +58,11 @@ Generally, we want to only use the three primary types defined by the specificat
 
 - `feat:` - This should be the most used type, as most work we are doing in the project are new features. Commits using this type will always show up in the Changelog.
 - `fix:` - When fixing a bug, we should use this type. Commits using this type will always show up in the Changelog.
-- `chore:` - The least used type, these are **not** included in the Changelog unless they are breaking changes. But remain useful for an understandable commit history.
+- `chore:` - The least used type, these are __not__ included in the Changelog unless they are breaking changes. But remain useful for an understandable commit history.
 
 ### Conventional Commits: Breaking Changes
 
-Annotating **BREAKING CHANGES** is extremely important to our release process and versioning. To mark a commit as breaking, we add the `!` character after the type, but before the colon. For example:
+Annotating __BREAKING CHANGES__ is extremely important to our release process and versioning. To mark a commit as breaking, we add the `!` character after the type, but before the colon. For example:
 
 ```
 feat!: Rename nargo build to nargo check (#693)
@@ -94,9 +94,13 @@ The easiest way to do this is to have multiple Conventional Commits while you wo
 
 ### Reviews
 
-For any repository in the noir-lang organization, we require code review & approval by **one** Noir team member before the changes are merged, as enforced by GitHub branch protection. Non-breaking pull requests may be merged at any time. Breaking pull requests should only be merged when the team has general agreement of the changes and is preparing a breaking release.
+For any repository in the noir-lang organization, we require code review & approval by __one__ Noir team member before the changes are merged, as enforced by GitHub branch protection. Non-breaking pull requests may be merged at any time. Breaking pull requests should only be merged when the team has general agreement of the changes and is preparing a breaking release.
+
+If your Pull Request involves changes in the docs folder, please add the `documentation` flag and request an approval by a DevRel team member[^1]. An approval from DevRel is not necessary to merge your PR.
 
 ### With Breaking Changes
+
+Breaking changes need to be documented. Please ask for help from a DevRel[^1] team member if this is a problem for any reason. Breaking changes need a mandatory approval from DevRel.
 
 Sometimes, we don't merge pull requests with breaking changes immediately upon approval. Since a breaking change will cause Noir to bump to the next "minor" version, we might want to land some fixes in "patch" releases before we begin working on that next breaking version.
 
@@ -156,6 +160,7 @@ Before merging, you should mentally review these questions:
 - Is continuous integration passing?
 - Do you have the required amount of approvals?
 - Does anyone else need to be pinged for thoughts?
+- Does it have changes to the docs? If so, did you request an approval from a DevRel[^1] team member?
 - Will this cause problems for our release schedule? For example: maybe a patch release still needs to be published.
 - What details do we want to convey to users in the Changelog?
 
@@ -167,11 +172,34 @@ Release Please parses Conventional Commit messages and opens (or updates) a pull
 
 When we are ready to release the version, we approve and squash the release pull request into `master`. Release Please will detect this merge and generate the appropriate tags for the release. Additional release steps may be triggered inside the GitHub Action to automate other parts of the release process.
 
+### Documentation releases
+
+We aim to have every documentation version matching the versions of Noir. However, to avoid unnecessary build time and size to the existent documentation, they aren't currently released alongside the stable releases, and instead are released ad-hoc.
+
+Please contact any member of the DevRel[^1] team if you believe a new docs version should be cut.
+
+### Cutting a new version of the docs
+
+The Noir documentation is versioned according to the [Docusaurus documentation](https://docusaurus.io/docs/versioning). In the `versioned_docs` and `versioned_sidebar` folders you will find the docs and configs for the previous versions. If any change needs to be made to older versions, please do them in this folder.
+
+In the docs folder, you'll find the current, unreleased version, which we call `dev`. Any change in this folder will be reflected in the next release of the documentation.
+
+While the versioning is intended to be managed by the core maintainers, we feel it's important for external contributors to understand why and how is it maintained. To bump to a new version, run the following command, replacing with the intended version:
+
+```bash
+npm run docusaurus docs:version <new_version_tag>
+```
+
+This should create a new version by copying the docs folder and the sidebars.js file to the relevant folders, as well as adding this version to versions.json.
+
+You can then open a Pull Request according to the the [PR section](#pull-requests)
+
 ## Changelog
 
 Noir's Changelog is automatically managed by Release Please and informed by the Conventional Commits (as discussed above).
 
 Given the following commits:
+
 - `feat(syntax): Implement String data type (#123)`
 - `chore(ci): Use correct rust version`
 - `fix(optimizer): Compile Boolean to u1`
@@ -200,3 +228,5 @@ Release Please would generate add the following to the Changelog:
 
 * **optimizer:** Compile Boolean to u1
 ```
+
+[^1]: Currently, @critesjosh, @catmcgee and @signorecello. For Noir documentation, it is recommended to tag @signorecello
