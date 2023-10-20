@@ -44,6 +44,8 @@ process() {
   CONTRACT=$1
 
   cd $ROOT
+  NODE_OPTIONS=--no-warnings yarn ts-node --esm src/scripts/copy_source.ts $CONTRACT_NAME
+
   echo "Creating types for $CONTRACT"
   NODE_OPTIONS=--no-warnings yarn ts-node --esm src/scripts/copy_output.ts $CONTRACT_NAME
 }
