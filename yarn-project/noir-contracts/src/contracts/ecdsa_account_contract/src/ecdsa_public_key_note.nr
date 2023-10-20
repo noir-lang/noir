@@ -1,7 +1,16 @@
-use dep::aztec::note::note_interface::NoteInterface;
-use dep::aztec::note::note_header::NoteHeader;
-use dep::aztec::note::utils::compute_unique_siloed_note_hash;
-use dep::aztec::oracle::get_secret_key::get_secret_key;
+use dep::aztec::{
+    note::{
+        note_header::NoteHeader,
+        note_interface::NoteInterface,
+        utils::compute_unique_siloed_note_hash,
+    },
+    oracle::{
+        get_secret_key::get_secret_key,
+        get_public_key::get_public_key,
+    },
+    log::emit_encrypted_log,
+    context::PrivateContext,
+};
 
 global ECDSA_PUBLIC_KEY_NOTE_LEN: Field = 5;
 
@@ -64,6 +73,18 @@ impl EcdsaPublicKeyNote {
     pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
+
+    // Broadcasts the note as an encrypted log on L1.
+    pub fn broadcast(self, context: &mut PrivateContext, slot: Field) {
+        let encryption_pub_key = get_public_key(self.owner);
+        emit_encrypted_log(
+            context,
+            (*context).this_address(),
+            slot,
+            encryption_pub_key,
+            self.serialize(),
+        );
+    }
 }
 
 fn deserialize(preimage: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> EcdsaPublicKeyNote {
@@ -107,6 +128,11 @@ fn set_header(note: &mut EcdsaPublicKeyNote, header: NoteHeader) {
     note.set_header(header);
 }
 
+// Broadcasts the note as an encrypted log on L1.
+fn broadcast(context: &mut PrivateContext, slot: Field, note: EcdsaPublicKeyNote) {
+    note.broadcast(context, slot);
+}
+
 global EcdsaPublicKeyNoteInterface = NoteInterface {
     deserialize,
     serialize,
@@ -114,4 +140,5 @@ global EcdsaPublicKeyNoteInterface = NoteInterface {
     compute_nullifier,
     get_header,
     set_header,
+    broadcast,
 };

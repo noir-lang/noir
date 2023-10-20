@@ -1,7 +1,18 @@
-use dep::aztec::note::note_interface::NoteInterface;
-use dep::aztec::note::note_header::NoteHeader;
-use dep::aztec::note::utils::compute_siloed_note_hash;
-use dep::aztec::oracle::get_secret_key::get_secret_key;
+// docs:start:encrypted_import
+use dep::aztec::log::emit_encrypted_log;
+// docs:end:encrypted_import
+use dep::aztec::{
+    note::{
+        note_header::NoteHeader,
+        note_interface::NoteInterface,
+        utils::compute_siloed_note_hash,
+    },
+    oracle::{
+        get_secret_key::get_secret_key,
+        get_public_key::get_public_key,
+    },
+    context::PrivateContext,
+};
 
 global ADDRESS_NOTE_LEN: Field = 2;
 
@@ -39,6 +50,20 @@ impl AddressNote {
     pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
+
+    // Broadcasts the note as an encrypted log on L1.
+    pub fn broadcast(self, context: &mut PrivateContext, slot: Field) {
+        let encryption_pub_key = get_public_key(self.owner);
+        // docs:start:encrypted
+        emit_encrypted_log(
+            context,
+            (*context).this_address(),
+            slot,
+            encryption_pub_key,
+            self.serialize(),
+        );
+        // docs:end:encrypted
+    }
 }
 
 fn deserialize(preimage: [Field; ADDRESS_NOTE_LEN]) -> AddressNote {
@@ -70,6 +95,11 @@ fn set_header(note: &mut AddressNote, header: NoteHeader) {
     note.set_header(header);
 }
 
+// Broadcasts the note as an encrypted log on L1.
+fn broadcast(context: &mut PrivateContext, slot: Field, note: AddressNote) {
+    note.broadcast(context, slot);
+}
+
 global AddressNoteMethods = NoteInterface {
     deserialize,
     serialize,
@@ -77,4 +107,5 @@ global AddressNoteMethods = NoteInterface {
     compute_nullifier,
     get_header,
     set_header,
+    broadcast,
 };

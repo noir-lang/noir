@@ -1,11 +1,14 @@
 // docs:start:token_types_all
 use dep::std::hash::pedersen;
-use dep::aztec::note::{
-    note_header::NoteHeader,
-    note_interface::NoteInterface,
-    utils::compute_siloed_note_hash,
+use dep::aztec::{
+    note::{
+        note_header::NoteHeader,
+        note_interface::NoteInterface,
+        utils::compute_siloed_note_hash,
+    },
+    hash::compute_secret_hash,
+    context::PrivateContext,
 };
-use dep::aztec::hash::{compute_secret_hash};
 
 global TRANSPARENT_NOTE_LEN: Field = 2;
 
@@ -112,6 +115,10 @@ fn set_header(note: &mut TransparentNote, header: NoteHeader) {
     note.set_header(header)
 }
 
+fn broadcast(context: &mut PrivateContext, slot: Field, note: TransparentNote) {
+    assert(false, "TransparentNote does not support broadcast");
+}
+
 global TransparentNoteMethods = NoteInterface {
     deserialize,
     serialize,
@@ -119,5 +126,6 @@ global TransparentNoteMethods = NoteInterface {
     compute_nullifier,
     get_header,
     set_header,
+    broadcast,
 };
 // docs:end:token_types_all

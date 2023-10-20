@@ -62,19 +62,19 @@ pub fn add_points_to_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>, 
 
 // docs:start:state_vars-SingletonInit
 pub fn init_legendary_card(state_var: Singleton<CardNote, CARD_NOTE_LEN>, card: &mut CardNote) {
-    state_var.initialize(card, Option::some(card.owner));
+    state_var.initialize(card, Option::some(card.owner), true);
 }
 // docs:end:state_vars-SingletonInit
 
 // docs:start:state_vars-SingletonReplace
 pub fn update_legendary_card(state_var: Singleton<CardNote, CARD_NOTE_LEN>, card: &mut CardNote) {
-    state_var.replace(card);
+    state_var.replace(card, true);
 }
 // docs:end:state_vars-SingletonReplace
 
 // docs:start:state_vars-SingletonGet
 pub fn get_legendary_card(state_var: Singleton<CardNote, CARD_NOTE_LEN>) -> CardNote {
-    state_var.get_note()
+    state_var.get_note(true)
 }
 // docs:end:state_vars-SingletonGet
 
@@ -83,7 +83,7 @@ pub fn init_game_rules(
     state_var: ImmutableSingleton<RulesNote, RULES_NOTE_LEN>,
     rules: &mut RulesNote,
 ) {
-    state_var.initialize(rules, Option::none());
+    state_var.initialize(rules, Option::none(), true);
 }
 // docs:end:state_vars-ImmutableSingletonInit
 
@@ -96,7 +96,7 @@ pub fn is_valid_card(state_var: ImmutableSingleton<RulesNote, RULES_NOTE_LEN>, c
 
 // docs:start:state_vars-SetInsert
 pub fn add_new_card(state_var: Set<CardNote, CARD_NOTE_LEN>, card: &mut CardNote) {
-    state_var.insert(card);
+    state_var.insert(card, true);
 }
 // docs:end:state_vars-SetInsert
 
@@ -151,7 +151,7 @@ pub fn add_new_profile(
     account: Field,
     profile: &mut ProfileNote,
 ) {
-    state_var.at(account).initialize(profile, Option::some(account));
+    state_var.at(account).initialize(profile, Option::some(account), true);
 }
 // docs:end:state_vars-MapAtSingletonInit
 
@@ -160,6 +160,6 @@ pub fn get_profile(
     state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>,
     account: Field,
 ) -> ProfileNote {
-    state_var.at(account).get_note()
+    state_var.at(account).get_note(true)
 }
 // docs:end:state_vars-MapAtSingletonGet

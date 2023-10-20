@@ -12,14 +12,12 @@ contract PendingCommitments {
     };
     use dep::aztec::{
         constants_gen::ARGS_LENGTH,
-        context::{PrivateContext, PublicContext, Context},
-        log::emit_encrypted_log,
+        context::Context,
         note::{
             note_getter::NoteGetterOptions,
             note_header::NoteHeader,
             utils as note_utils,
         },
-        oracle::get_public_key::get_public_key,
         state_vars::{map::Map, set::Set},
     };
 
@@ -61,14 +59,7 @@ contract PendingCommitments {
         let mut note = ValueNote::new(amount, owner);
 
         // Insert note and emit encrypted note preimage via oracle call
-        owner_balance.insert(&mut note);
-        emit_encrypted_log(
-            &mut context,
-            context.inputs.call_context.storage_contract_address,
-            owner_balance.storage_slot,
-            get_public_key(owner),
-            note.serialize(),
-        );
+        owner_balance.insert(&mut note, true);
 
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, amount);
         // get note inserted above
@@ -102,14 +93,7 @@ contract PendingCommitments {
 
         // Insert note and emit encrypted note preimage via oracle call
         let mut note = ValueNote::new(amount, owner);
-        owner_balance.insert(&mut note);
-        emit_encrypted_log(
-            &mut context,
-            context.inputs.call_context.storage_contract_address,
-            owner_balance.storage_slot,
-            get_public_key(owner),
-            note.serialize(),
-        );
+        owner_balance.insert(&mut note, true);
 
         0
     }
@@ -133,14 +117,7 @@ contract PendingCommitments {
         let mut note = ValueNote::new(amount, owner);
 
         // Insert note and emit encrypted note preimage via oracle call
-        owner_balance.insert(&mut note);
-        emit_encrypted_log(
-            &mut context,
-            context.inputs.call_context.storage_contract_address,
-            owner_balance.storage_slot,
-            get_public_key(owner),
-            note.serialize(),
-        );
+        owner_balance.insert(&mut note, true);
     }
 
     // Nested/inner function to get a note and confirm it matches the expected value

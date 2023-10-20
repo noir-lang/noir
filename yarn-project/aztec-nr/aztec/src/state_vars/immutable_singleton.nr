@@ -45,7 +45,12 @@ impl<Note, N> ImmutableSingleton<Note, N> {
     // docs:end:is_initialized
 
     // docs:start:initialize
-    pub fn initialize(self, note: &mut Note, owner: Option<Field>) {
+    pub fn initialize(
+        self,
+        note: &mut Note, 
+        owner: Option<Field>,
+        broadcast: bool,
+    ) {
         let context = self.context.unwrap();
 
         // Nullify the storage slot.
@@ -58,6 +63,7 @@ impl<Note, N> ImmutableSingleton<Note, N> {
             self.storage_slot,
             note,
             self.note_interface,
+            broadcast,
         );
     }
     // docs:end:initialize

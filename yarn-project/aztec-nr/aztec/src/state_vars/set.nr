@@ -37,12 +37,16 @@ impl<Note, N> Set<Note, N> {
     // docs:end:new
 
     // docs:start:insert
-    pub fn insert(self, note: &mut Note) {
+    pub fn insert(self,
+        note: &mut Note,
+        broadcast: bool,
+    ) {
         create_note(
             self.context.private.unwrap(),
             self.storage_slot,
             note,
             self.note_interface,
+            broadcast,
         );
     }
     // docs:end:insert

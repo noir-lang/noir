@@ -63,11 +63,11 @@ In the future we will allow emitting arbitrary information.
 
 To emit encrypted logs first import the `emit_encrypted_log` utility function which wraps an [oracle](./functions.md#oracle-functions):
 
-#include_code encrypted_import /yarn-project/aztec-nr/value-note/src/utils.nr rust
+#include_code encrypted_import /yarn-project/aztec-nr/address-note/src/address_note.nr rust
 
 Then you can call the function:
 
-#include_code encrypted /yarn-project/aztec-nr/value-note/src/utils.nr rust
+#include_code encrypted /yarn-project/aztec-nr/address-note/src/address_note.nr rust
 
 ### Processing Encrypted Events
 

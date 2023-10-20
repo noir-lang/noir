@@ -4,7 +4,6 @@ contract Escrow {
 
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
-        log::emit_encrypted_log,
         note::{
             note_getter_options::NoteGetterOptions,
             note_header::NoteHeader,
@@ -45,14 +44,7 @@ contract Escrow {
         let mut note = AddressNote::new(owner, this);
 
         // Insert the owner into storage
-        storage.owners.insert(&mut note);
-        emit_encrypted_log(
-            &mut context,
-            this,
-            storage.owners.storage_slot,
-            get_public_key(this),
-            note.serialize(),
-        );
+        storage.owners.insert(&mut note, true);
     }
     // docs:end:constructor
 

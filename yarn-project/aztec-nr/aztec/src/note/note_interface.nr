@@ -1,3 +1,4 @@
+use crate::context::PrivateContext;
 use crate::note::note_header::NoteHeader;
 
 // docs:start:NoteInterface
@@ -13,5 +14,7 @@ struct NoteInterface<Note, N> {
     get_header: fn (Note) -> NoteHeader,
 
     set_header: fn (&mut Note, NoteHeader) -> (),
+
+    broadcast: fn (&mut PrivateContext, Field, Note) -> (),
 }
 // docs:end:NoteInterface

@@ -8,7 +8,6 @@ contract EcdsaAccount {
     use dep::aztec::{
         abi::CallContext,
         context::{PrivateContext, PublicContext, Context},
-        log::emit_encrypted_log,
         note::{
             note_header::NoteHeader,
             utils as note_utils,
@@ -48,15 +47,7 @@ contract EcdsaAccount {
     ) {
         let this = context.this_address();
         let mut pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);
-        storage.public_key.initialize(&mut pub_key_note, Option::none());
-        
-        emit_encrypted_log(
-            &mut context,
-            this,
-            storage.public_key.storage_slot,
-            get_public_key(this),
-            pub_key_note.serialize(),
-        );
+        storage.public_key.initialize(&mut pub_key_note, Option::none(), true);
     }
 
     #[aztec(private)]

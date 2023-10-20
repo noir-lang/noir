@@ -1,6 +1,12 @@
-use dep::aztec::note::{
-    note_header::NoteHeader,
-    note_interface::NoteInterface,
+use dep::std::option::Option;
+use dep::aztec::{
+    note::{
+        note_header::NoteHeader,
+        note_interface::NoteInterface,
+    },
+    oracle::get_public_key::get_public_key,
+    log::emit_encrypted_log,
+    context::PrivateContext,
 };
 
 global RULES_NOTE_LEN: Field = 2;
@@ -8,14 +14,16 @@ global RULES_NOTE_LEN: Field = 2;
 struct RulesNote {
     min_points: u8,
     max_points: u8,
+    maybe_owner: Option<Field>,
     header: NoteHeader,
 }
 
 impl RulesNote {
-    pub fn new(min_points: u8, max_points: u8) -> Self {
+    pub fn new(min_points: u8, max_points: u8, maybe_owner: Option<Field>) -> Self {
         RulesNote {
             min_points,
             max_points,
+            maybe_owner,
             header: NoteHeader::empty(),
         }
     }
@@ -28,6 +36,7 @@ impl RulesNote {
         RulesNote {
             min_points: preimage[0] as u8,
             max_points: preimage[1] as u8,
+            maybe_owner: Option::none(),
             header: NoteHeader::empty(),
         }
     }
@@ -46,6 +55,25 @@ impl RulesNote {
 
     pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
+    }
+
+    pub fn set_owner(&mut self, owner: Field) {
+        self.maybe_owner = Option::some(owner);
+    }
+
+    // Broadcasts the note as an encrypted log on L1.
+    pub fn broadcast(self, context: &mut PrivateContext, slot: Field) {
+        assert(self.maybe_owner.is_some(), "Note owner must be set when the broadcast flow is triggered.");
+        let owner = self.maybe_owner.unwrap_unchecked();
+
+        let encryption_pub_key = get_public_key(owner);
+        emit_encrypted_log(
+            context,
+            (*context).this_address(),
+            slot,
+            encryption_pub_key,
+            self.serialize(),
+        );
     }
 }
 
@@ -73,6 +101,11 @@ fn set_header(note: &mut RulesNote, header: NoteHeader) {
     note.set_header(header)
 }
 
+// Broadcasts the note as an encrypted log on L1.
+fn broadcast(context: &mut PrivateContext, slot: Field, note: RulesNote) {
+    note.broadcast(context, slot);
+}
+
 global RulesNoteMethods = NoteInterface {
     deserialize,
     serialize,
@@ -80,4 +113,5 @@ global RulesNoteMethods = NoteInterface {
     compute_nullifier,
     get_header,
     set_header,
+    broadcast,
 };

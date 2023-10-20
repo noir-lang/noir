@@ -8,7 +8,6 @@ contract PokeableToken {
     };
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
-        log::emit_encrypted_log,
         note::{
             note_getter::NoteGetterOptions,
             note_header::{NoteHeader},
@@ -55,8 +54,8 @@ contract PokeableToken {
         let mut sender_note = AddressNote::new(sender, sender);
         let mut recipient_note = AddressNote::new(recipient, recipient);
 
-        storage.sender.initialize(&mut sender_note, Option::none());
-        storage.recipient.initialize(&mut recipient_note, Option::none());
+        storage.sender.initialize(&mut sender_note, Option::none(), false);
+        storage.recipient.initialize(&mut recipient_note, Option::none(), false);
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let sender_balance = storage.balances.at(sender);

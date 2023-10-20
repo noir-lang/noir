@@ -1,10 +1,5 @@
 use dep::std::option::Option;
 use dep::aztec::context::PrivateContext;
-// docs:start:encrypted_import
-
-use dep::aztec::log::emit_encrypted_log;
-
-// docs:end:encrypted_import
 use dep::aztec::note::note_getter_options::{NoteGetterOptions, SortOrder};
 use dep::aztec::oracle::get_public_key::get_public_key;
 use dep::aztec::state_vars::set::Set;
@@ -27,12 +22,8 @@ pub fn increment(
     recipient: Field,
 ) {
     let mut note = ValueNote::new(amount, recipient);
-    create_note(balance, recipient, &mut note);
-
-    // It won't compile if Set.insert() is in an if statement :(
-    // if amount as u120 > 0 {
-    //     create_note(balance, recipient, &mut note);
-    // }
+    // Insert the new note to the owner's set of notes and emit the log if value is non-zero.
+    balance.insert(&mut note, amount != 0);
 }
 
 // Find some of the `owner`'s notes whose values add up to the `amount`.
@@ -80,35 +71,6 @@ pub fn decrement_by_at_most(
     increment(balance, change_value, owner);
 
     decremented
-}
-
-pub fn create_note(
-    balance: Set<ValueNote, VALUE_NOTE_LEN>,
-    owner: Field,
-    note: &mut ValueNote,
-) {
-    // Insert the new note to the owner's set of notes.
-    balance.insert(note);
-
-    // Remove this if statement if we can wrap this create_note function in an if statement.
-    if note.value != 0 {
-        // Emit the newly created encrypted note preimages via oracle calls.
-        // docs:start:encrypted
-        let context = balance.context.private.unwrap();
-        let application_contract_address = (*context).this_address();
-        let note_storage_slot = balance.storage_slot;
-        let encryption_pub_key = get_public_key(owner);
-        let encrypted_data = (*note).serialize();
-
-        emit_encrypted_log(
-            context,
-            application_contract_address,
-            note_storage_slot,
-            encryption_pub_key,
-            encrypted_data,
-        );
-        // docs:end:encrypted
-    }
 }
 
 // Removes the note from the owner's set of notes.

@@ -1,16 +1,12 @@
 use dep::aztec::{
     context::{PrivateContext, PublicContext, Context},
     constants_gen::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL},
-    log::emit_encrypted_log,
     note::{
         note_getter_options::NoteGetterOptions,
         note_viewer_options::NoteViewerOptions,
         note_getter::view_notes,
     },
-    oracle::{
-        get_public_key::get_public_key,
-        get_secret_key::get_secret_key,
-    },
+    oracle::get_secret_key::get_secret_key,
     state_vars::set::Set,
     types::point::Point,
 };
@@ -133,20 +129,12 @@ impl Deck {
     }
 
     pub fn add_cards<N>(&mut self, cards: [Card; N], owner: Field) -> [CardNote]{
-        let owner_key = get_public_key(owner);
         let context = self.set.context.private.unwrap();
 
         let mut inserted_cards = [];
         for card in cards {
             let mut card_note = CardNote::from_card(card, owner);
-            self.set.insert(&mut card_note.note);
-            emit_encrypted_log(
-                context,
-                (*context).this_address(),
-                self.set.storage_slot,
-                owner_key,
-                card_note.note.serialize(),
-            );
+            self.set.insert(&mut card_note.note, true);
             inserted_cards = inserted_cards.push_back(card_note);
         }
 

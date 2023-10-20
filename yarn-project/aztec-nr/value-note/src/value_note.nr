@@ -1,11 +1,16 @@
-use dep::aztec::note::{
-    note_header::NoteHeader,
-    note_interface::NoteInterface,
-    utils::compute_note_hash_for_read_or_nullify,
-};
-use dep::aztec::oracle::{
-    rand::rand,
-    get_secret_key::get_secret_key,
+use dep::aztec::{
+    note::{
+        note_header::NoteHeader,
+        note_interface::NoteInterface,
+        utils::compute_note_hash_for_read_or_nullify,
+    },
+    oracle::{
+        rand::rand,
+        get_secret_key::get_secret_key,
+        get_public_key::get_public_key,
+    },
+    log::emit_encrypted_log,
+    context::PrivateContext,
 };
 
 global VALUE_NOTE_LEN: Field = 3; // 3 plus a header.
@@ -71,6 +76,18 @@ impl ValueNote {
     pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
+
+    // Broadcasts the note as an encrypted log on L1.
+    pub fn broadcast(self, context: &mut PrivateContext, slot: Field) {
+        let encryption_pub_key = get_public_key(self.owner);
+        emit_encrypted_log(
+            context,
+            (*context).this_address(),
+            slot,
+            encryption_pub_key,
+            self.serialize(),
+        );
+    }
 }
 
 fn deserialize(preimage: [Field; VALUE_NOTE_LEN]) -> ValueNote {
@@ -97,6 +114,11 @@ fn set_header(note: &mut ValueNote, header: NoteHeader) {
     note.set_header(header)
 }
 
+// Broadcasts the note as an encrypted log on L1.
+fn broadcast(context: &mut PrivateContext, slot: Field, note: ValueNote) {
+    note.broadcast(context, slot);
+}
+
 global ValueNoteMethods = NoteInterface {
     deserialize,
     serialize,
@@ -104,4 +126,5 @@ global ValueNoteMethods = NoteInterface {
     compute_nullifier,
     get_header,
     set_header,
+    broadcast,
 };

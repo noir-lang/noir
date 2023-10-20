@@ -7,8 +7,7 @@ contract SchnorrAccount {
     use dep::std::option::Option;
 
     use dep::aztec::{
-        context::{PrivateContext, PublicContext, Context},
-        log::emit_encrypted_log,
+        context::{PrivateContext, Context},
         note::{ note_header::NoteHeader, utils as note_utils },
         oracle::get_public_key::get_public_key,
         state_vars::immutable_singleton::ImmutableSingleton,
@@ -48,16 +47,8 @@ contract SchnorrAccount {
         let this = context.this_address();
         // docs:start:initialize
         let mut pub_key_note = PublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);
-        storage.signing_public_key.initialize(&mut pub_key_note, Option::none());
+        storage.signing_public_key.initialize(&mut pub_key_note, Option::none(), true);
         // docs:end:initialize
-        
-        emit_encrypted_log(
-            &mut context,
-            this,
-            storage.signing_public_key.storage_slot,
-            get_public_key(this),
-            pub_key_note.serialize(),
-        );
     }
 
     #[aztec(private)]
