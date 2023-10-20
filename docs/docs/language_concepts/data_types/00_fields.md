@@ -18,7 +18,7 @@ The size of a Noir field depends on the elliptic curve's finite field for the pr
 adopted. For example, a field would be a 254-bit integer when paired with the default backend that
 spans the Grumpkin curve.
 
-Fields support integer arithmetic and are often used as the default numeric type in Noir:
+Fields support integer arithmetic:
 
 ```rust
 fn main(x : Field, y : Field)  {
