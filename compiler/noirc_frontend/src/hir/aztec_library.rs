@@ -171,8 +171,8 @@ pub(crate) fn transform(
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
         if transform_module(&mut submodule.contents)? {
-            if check_for_aztec_dependency(crate_id, context)? {
-                include_relevant_imports(&mut submodule.contents);
+            check_for_aztec_dependency(crate_id, context)?;
+            include_relevant_imports(&mut submodule.contents);
             }
         }
     }
