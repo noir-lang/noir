@@ -8,7 +8,7 @@ use std::{fmt::Display, str::FromStr};
 
 use fm::FileId;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -33,7 +33,7 @@ impl CrateId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct CrateName(SmolStr);
 
 impl CrateName {
@@ -90,6 +90,14 @@ mod crate_name {
             let bad_char_string = bad_char.to_string();
             assert!(!CrateName::is_valid_name(&bad_char_string));
         }
+    }
+
+    #[test]
+    fn it_can_serialize_and_deserialize() {
+        let crate_name = "test_crate".parse::<CrateName>().unwrap();
+        let serialized = serde_json::to_string(&crate_name).unwrap();
+        let deserialized = serde_json::from_str::<CrateName>(&serialized).unwrap();
+        assert_eq!(crate_name, deserialized);
     }
 }
 
