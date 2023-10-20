@@ -27,7 +27,7 @@ impl DebugArtifact {
                 function_symbols
                     .locations
                     .values()
-                    .filter_map(|call_stack| call_stack.last().map(|location| location.file))
+                    .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
             })
             .collect();
 
