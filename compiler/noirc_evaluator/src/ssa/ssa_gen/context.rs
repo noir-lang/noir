@@ -8,6 +8,7 @@ use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::{BinaryOpKind, Signedness};
 
+use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
@@ -238,6 +239,32 @@ impl<'a> FunctionContext<'a> {
     /// Returns the unit value, represented as an empty tree of values
     pub(super) fn unit_value() -> Values {
         Values::empty()
+    }
+
+    /// Insert a numeric constant into the current function
+    ///
+    /// Unlike FunctionBuilder::numeric_constant, this version checks the given constant
+    /// is within the range of the given type. This is needed for user provided values where
+    /// otherwise values like 2^128 can be assigned to a u8 without error or wrapping.
+    pub(super) fn checked_numeric_constant(
+        &mut self,
+        value: impl Into<FieldElement>,
+        typ: Type,
+    ) -> Result<ValueId, RuntimeError> {
+        let value = value.into();
+
+        if let Type::Numeric(typ) = typ {
+            if let Some((lower_bound, upper_bound)) = typ.get_limits() {
+                if !(lower_bound <= value && value <= upper_bound) {
+                    let call_stack = self.builder.get_call_stack();
+                    return Err(RuntimeError::IntegerOutOfBounds { value, typ, call_stack });
+                }
+            }
+        } else {
+            panic!("Expected type for numeric constant to be a numeric type, found {typ}");
+        }
+
+        Ok(self.builder.numeric_constant(value, typ))
     }
 
     /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
@@ -544,8 +571,11 @@ impl<'a> FunctionContext<'a> {
     /// This is operationally equivalent to extract_current_value_recursive, but splitting these
     /// into two separate functions avoids cloning the outermost `Values` returned by the recursive
     /// version, as it is only needed for recursion.
-    pub(super) fn extract_current_value(&mut self, lvalue: &ast::LValue) -> LValue {
-        match lvalue {
+    pub(super) fn extract_current_value(
+        &mut self,
+        lvalue: &ast::LValue,
+    ) -> Result<LValue, RuntimeError> {
+        Ok(match lvalue {
             ast::LValue::Ident(ident) => {
                 let (reference, should_auto_deref) = self.ident_lvalue(ident);
                 if should_auto_deref {
@@ -555,18 +585,18 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             ast::LValue::Index { array, index, location, .. } => {
-                self.index_lvalue(array, index, location).2
+                self.index_lvalue(array, index, location)?.2
             }
             ast::LValue::MemberAccess { object, field_index } => {
-                let (old_object, object_lvalue) = self.extract_current_value_recursive(object);
+                let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 LValue::MemberAccess { old_object, object_lvalue, index: *field_index }
             }
             ast::LValue::Dereference { reference, .. } => {
-                let (reference, _) = self.extract_current_value_recursive(reference);
+                let (reference, _) = self.extract_current_value_recursive(reference)?;
                 LValue::Dereference { reference }
             }
-        }
+        })
     }
 
     fn dereference_lvalue(&mut self, values: &Values, element_type: &ast::Type) -> Values {
@@ -596,16 +626,16 @@ impl<'a> FunctionContext<'a> {
         array: &ast::LValue,
         index: &ast::Expression,
         location: &Location,
-    ) -> (ValueId, ValueId, LValue, Option<ValueId>) {
-        let (old_array, array_lvalue) = self.extract_current_value_recursive(array);
-        let index = self.codegen_non_tuple_expression(index);
+    ) -> Result<(ValueId, ValueId, LValue, Option<ValueId>), RuntimeError> {
+        let (old_array, array_lvalue) = self.extract_current_value_recursive(array)?;
+        let index = self.codegen_non_tuple_expression(index)?;
         let array_lvalue = Box::new(array_lvalue);
         let array_values = old_array.clone().into_value_list(self);
 
         let location = *location;
         // A slice is represented as a tuple (length, slice contents).
         // We need to fetch the second value.
-        if array_values.len() > 1 {
+        Ok(if array_values.len() > 1 {
             let slice_lvalue = LValue::SliceIndex {
                 old_slice: old_array,
                 index,
@@ -617,37 +647,45 @@ impl<'a> FunctionContext<'a> {
             let array_lvalue =
                 LValue::Index { old_array: array_values[0], index, array_lvalue, location };
             (array_values[0], index, array_lvalue, None)
-        }
+        })
     }
 
-    fn extract_current_value_recursive(&mut self, lvalue: &ast::LValue) -> (Values, LValue) {
+    fn extract_current_value_recursive(
+        &mut self,
+        lvalue: &ast::LValue,
+    ) -> Result<(Values, LValue), RuntimeError> {
         match lvalue {
             ast::LValue::Ident(ident) => {
                 let (variable, should_auto_deref) = self.ident_lvalue(ident);
                 if should_auto_deref {
                     let dereferenced = self.dereference_lvalue(&variable, &ident.typ);
-                    (dereferenced, LValue::Dereference { reference: variable })
+                    Ok((dereferenced, LValue::Dereference { reference: variable }))
                 } else {
-                    (variable.clone(), LValue::Ident)
+                    Ok((variable.clone(), LValue::Ident))
                 }
             }
             ast::LValue::Index { array, index, element_type, location } => {
                 let (old_array, index, index_lvalue, max_length) =
-                    self.index_lvalue(array, index, location);
-                let element =
-                    self.codegen_array_index(old_array, index, element_type, *location, max_length);
-                (element, index_lvalue)
+                    self.index_lvalue(array, index, location)?;
+                let element = self.codegen_array_index(
+                    old_array,
+                    index,
+                    element_type,
+                    *location,
+                    max_length,
+                )?;
+                Ok((element, index_lvalue))
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
-                let (old_object, object_lvalue) = self.extract_current_value_recursive(object);
+                let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 let element = Self::get_field_ref(&old_object, *index).clone();
-                (element, LValue::MemberAccess { old_object, object_lvalue, index: *index })
+                Ok((element, LValue::MemberAccess { old_object, object_lvalue, index: *index }))
             }
             ast::LValue::Dereference { reference, element_type } => {
-                let (reference, _) = self.extract_current_value_recursive(reference);
+                let (reference, _) = self.extract_current_value_recursive(reference)?;
                 let dereferenced = self.dereference_lvalue(&reference, element_type);
-                (dereferenced, LValue::Dereference { reference })
+                Ok((dereferenced, LValue::Dereference { reference }))
             }
         }
     }

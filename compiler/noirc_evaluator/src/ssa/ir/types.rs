@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 
 /// A numeric type in the Intermediate representation
@@ -11,7 +12,7 @@ use iter_extended::vecmap;
 /// Fields do not have a notion of ordering, so this distinction
 /// is reasonable.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
-pub(crate) enum NumericType {
+pub enum NumericType {
     Signed { bit_size: u32 },
     Unsigned { bit_size: u32 },
     NativeField,
@@ -91,6 +92,25 @@ impl Type {
             _ => size += 1,
         }
         size
+    }
+}
+
+impl NumericType {
+    /// Returns the numeric limits of this type if it is an integer type.
+    /// If this is a Field, None is returned.
+    pub(crate) fn get_limits(self) -> Option<(FieldElement, FieldElement)> {
+        match self {
+            NumericType::Signed { bit_size } => {
+                let min = -(2i128.pow(bit_size - 1));
+                let max = 2u128.pow(bit_size - 1) - 1;
+                Some((min.into(), max.into()))
+            }
+            NumericType::Unsigned { bit_size } => {
+                let max = 2u128.pow(bit_size) - 1;
+                Some((FieldElement::zero(), max.into()))
+            }
+            NumericType::NativeField => None, // Should we check the field size as well?
+        }
     }
 }
 
