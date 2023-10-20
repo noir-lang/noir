@@ -206,11 +206,11 @@ fn include_relevant_imports(ast: &mut SortedModule) {
 fn check_for_aztec_dependency(
     crate_id: &CrateId,
     context: &Context,
-) -> Result<bool, (DefCollectorErrorKind, FileId)> {
+) -> Result<(), (DefCollectorErrorKind, FileId)> {
     let crate_graph = &context.crate_graph[crate_id];
     let has_aztec_dependency = crate_graph.dependencies.iter().any(|dep| dep.as_name() == "aztec");
     if has_aztec_dependency {
-        Ok(true)
+        Ok(())
     } else {
         Err((DefCollectorErrorKind::AztecNotFound {}, crate_graph.root_file_id))
     }
