@@ -279,9 +279,7 @@ impl AcirContext {
         self.add_data(result_data)
     }
 
-    /// Adds a new Variable to context whose value will
-    /// be constrained to be the inverse of `var`.
-    pub(crate) fn inv_var(
+    fn unsafe_inv_var(
         &mut self,
         var: AcirVar,
         predicate: AcirVar,
@@ -309,6 +307,18 @@ impl AcirContext {
             vec![AcirType::field()],
         )?;
         let inverted_var = Self::expect_one_var(results);
+
+        Ok(inverted_var)
+    }
+
+    /// Adds a new Variable to context whose value will
+    /// be constrained to be the inverse of `var`.
+    pub(crate) fn inv_var(
+        &mut self,
+        var: AcirVar,
+        predicate: AcirVar,
+    ) -> Result<AcirVar, RuntimeError> {
+        let inverted_var = self.unsafe_inv_var(var, predicate)?;
 
         // Check that the inverted var is valid.
         // This check prevents invalid divisions by zero.
@@ -345,20 +355,39 @@ impl AcirContext {
     /// Returns an `AcirVar` that is `1` if `lhs` equals `rhs` and
     /// 0 otherwise.
     pub(crate) fn eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError> {
-        let lhs_expr = self.var_to_expression(lhs)?;
-        let rhs_expr = self.var_to_expression(rhs)?;
-
         // `lhs == rhs` => `lhs - rhs == 0`
-        let diff_expr = &lhs_expr - &rhs_expr;
+        let diff_var = self.sub_var(lhs, rhs)?;
 
+        self.eq_zero(diff_var)
+    }
+
+    /// Returns an `AcirVar` that is `1` if `var` equals `0` and
+    /// 0 otherwise.
+    fn eq_zero(&mut self, var: AcirVar) -> Result<AcirVar, RuntimeError> {
         // Check to see if equality can be determined at compile-time.
-        if diff_expr.is_const() {
-            return Ok(self.add_constant(diff_expr.is_zero()));
+        let expr = self.var_to_expression(var)?;
+        if let Some(constant) = expr.to_const() {
+            return Ok(self.add_constant(constant.is_zero()));
         }
 
-        let is_equal_witness = self.acir_ir.is_equal(&lhs_expr, &rhs_expr);
-        let result_var = self.add_data(AcirVarData::Witness(is_equal_witness));
-        Ok(result_var)
+        let one = self.add_constant(FieldElement::one());
+        let zero = self.add_constant(FieldElement::zero());
+
+        // We use unsafe inversion here as `var` may be zero.
+        let z = self.unsafe_inv_var(var, one)?;
+
+        let y = self.add_variable();
+
+        // Add constraint y == 1 - tz => y + tz - 1 == 0
+        let y_is_boolean_constraint = self.mul_var(var, z)?;
+        let y_is_boolean_constraint = self.add_var(y_is_boolean_constraint, y)?;
+        self.assert_eq_var(y_is_boolean_constraint, one, None)?;
+
+        // Add constraint that y * t == 0;
+        let yt = self.mul_var(y, var)?;
+        self.assert_eq_var(yt, zero, None)?;
+
+        Ok(y)
     }
 
     /// Returns an `AcirVar` that is the XOR result of `lhs` & `rhs`.
