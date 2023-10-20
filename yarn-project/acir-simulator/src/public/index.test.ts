@@ -343,7 +343,7 @@ describe('ACIR public execution simulator', () => {
 
     it('Should be able to create a L2 to L1 message from the public context', async () => {
       const createL2ToL1MessagePublicArtifact = TestContractArtifact.functions.find(
-        f => f.name === 'createL2ToL1MessagePublic',
+        f => f.name === 'create_l2_to_l1_message_public',
       )!;
       const args = encodeArguments(createL2ToL1MessagePublicArtifact, params);
 
@@ -429,7 +429,7 @@ describe('ACIR public execution simulator', () => {
 
     it('Should be able to create a nullifier from the public context', async () => {
       const createNullifierPublicArtifact = TestContractArtifact.functions.find(
-        f => f.name === 'createNullifierPublic',
+        f => f.name === 'create_nullifier_public',
       )!;
 
       const args = encodeArguments(createNullifierPublicArtifact, params);

@@ -82,7 +82,7 @@ describe('e2e_deploy_contract', () => {
 
       const contract = await Contract.at(receipt.contractAddress!, TestContractArtifact, wallet);
       logger(`Sending TX to contract ${index + 1}...`);
-      await contract.methods.getPublicKey(accounts[0].address).send().wait();
+      await contract.methods.get_public_key(accounts[0].address).send().wait();
     }
   }, 30_000);
 

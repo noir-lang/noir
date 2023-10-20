@@ -105,7 +105,6 @@ ImportTestContractArtifact
 LendingContractArtifact
 ParentContractArtifact
 PendingCommitmentsContractArtifact
-PokeableTokenContractArtifact
 PriceFeedContractArtifact
 SchnorrAccountContractArtifact
 SchnorrHardcodedAccountContractArtifact

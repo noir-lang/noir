@@ -421,7 +421,7 @@ describe('Private Execution test suite', () => {
       const dummyNote = { amount: 1, secretHash: 2 };
       const deepStruct = { aField: 1, aBool: true, aNote: dummyNote, manyNotes: [dummyNote, dummyNote, dummyNote] };
       args = [1, true, 1, [1, 2], dummyNote, deepStruct];
-      testCodeGenArtifact = TestContractArtifact.functions.find(f => f.name === 'testCodeGen')!;
+      testCodeGenArtifact = TestContractArtifact.functions.find(f => f.name === 'test_code_gen')!;
       const serializedArgs = encodeArguments(testCodeGenArtifact, args);
       argsHash = await computeVarArgsHash(await CircuitsWasm.get(), serializedArgs);
     });
@@ -786,7 +786,7 @@ describe('Private Execution test suite', () => {
   describe('get public key', () => {
     it('gets the public key for an address', async () => {
       // Tweak the contract artifact so we can extract return values
-      const artifact = getFunctionArtifact(TestContractArtifact, 'getPublicKey');
+      const artifact = getFunctionArtifact(TestContractArtifact, 'get_public_key');
       artifact.returnTypes = [{ kind: 'array', length: 2, type: { kind: 'field' } }];
 
       // Generate a partial address, pubkey, and resulting address
@@ -806,7 +806,7 @@ describe('Private Execution test suite', () => {
       const aztecAddressToQuery = AztecAddress.random();
 
       // Tweak the contract artifact so we can extract return values
-      const artifact = getFunctionArtifact(TestContractArtifact, 'getPortalContractAddress');
+      const artifact = getFunctionArtifact(TestContractArtifact, 'get_portal_contract_address');
       artifact.returnTypes = [{ kind: 'field' }];
 
       const args = [aztecAddressToQuery.toField()];
@@ -821,7 +821,7 @@ describe('Private Execution test suite', () => {
       const contractAddress = AztecAddress.random();
 
       // Tweak the contract artifact so we can extract return values
-      const artifact = getFunctionArtifact(TestContractArtifact, 'getThisAddress');
+      const artifact = getFunctionArtifact(TestContractArtifact, 'get_this_address');
       artifact.returnTypes = [{ kind: 'field' }];
 
       // Overwrite the oracle return value
@@ -833,7 +833,7 @@ describe('Private Execution test suite', () => {
       const portalContractAddress = EthAddress.random();
 
       // Tweak the contract artifact so we can extract return values
-      const artifact = getFunctionArtifact(TestContractArtifact, 'getThisPortalAddress');
+      const artifact = getFunctionArtifact(TestContractArtifact, 'get_this_portal_address');
       artifact.returnTypes = [{ kind: 'field' }];
 
       // Overwrite the oracle return value

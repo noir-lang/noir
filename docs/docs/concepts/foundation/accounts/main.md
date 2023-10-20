@@ -98,7 +98,12 @@ A side-effect of not having nonces at the protocol level is that it is not possi
 
 Since the `entrypoint` interface is not enshrined, there is nothing that differentiates an account contract from an application one in the protocol. This means that a transaction can be initiated in any contract. This allows implementing functions that do not need to be called by any particular user and are just intended to advance the state of a contract.
 
-As an example, we can think of a lottery contract, where at some point a prize needs to be paid out to its winners. This `pay` action does not require authentication and does not need to be executed by any user in particular, so anyone could submit a transaction that defines the lottery contract itself as `origin` and `pay` as entrypoint function. For an example implementation of a different use case, refer to the [`pokeable_token_contract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/pokeable_token_contract/src/main.nr) in the repository.
+As an example, we can think of a lottery contract, where at some point a prize needs to be paid out to its winners. This `pay` action does not require authentication and does not need to be executed by any user in particular, so anyone could submit a transaction that defines the lottery contract itself as `origin` and `pay` as entrypoint function. For an example of this behavior see our [non_contract_account test](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/end-to-end/src/e2e_non_contract_account.test.ts) and the [SignerLess wallet](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec.js/src/wallet/signerless_wallet.ts) implementation.
+Notice that the Signerless wallet doesn't invoke an entrypoint function of an account contract but instead invokes the target contract function directly.
+
+:::info
+In case no contract entrypoint is used `msg_sender` is set to 0.
+:::
 
 ### Account initialization
 

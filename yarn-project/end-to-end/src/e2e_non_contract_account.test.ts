@@ -1,63 +1,46 @@
-import { AztecAddress, SignerlessWallet, Wallet } from '@aztec/aztec.js';
+import { SignerlessWallet, Wallet } from '@aztec/aztec.js';
+import { CircuitsWasm, Fr } from '@aztec/circuits.js';
+import { siloNullifier } from '@aztec/circuits.js/abis';
 import { DebugLogger } from '@aztec/foundation/log';
-import { PokeableTokenContract } from '@aztec/noir-contracts/types';
-import { AztecNode, CompleteAddress, PXE, TxStatus } from '@aztec/types';
+import { TestContract } from '@aztec/noir-contracts/types';
+import { AztecNode, PXE, TxStatus } from '@aztec/types';
 
-import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
+import { setup } from './fixtures/utils.js';
 
 describe('e2e_non_contract_account', () => {
   let aztecNode: AztecNode | undefined;
   let pxe: PXE;
-  let wallet: Wallet;
-  let sender: AztecAddress;
-  let recipient: AztecAddress;
-  let pokerWallet: Wallet;
+  let nonContractAccountWallet: Wallet;
   let teardown: () => Promise<void>;
 
   let logger: DebugLogger;
 
-  let contract: PokeableTokenContract;
-
-  const initialBalance = 987n;
+  let contract: TestContract;
 
   beforeEach(async () => {
-    let accounts: CompleteAddress[];
-    ({ teardown, aztecNode, pxe, accounts, wallet, logger } = await setup(2));
-    sender = accounts[0].address;
-    recipient = accounts[1].address;
-    pokerWallet = new SignerlessWallet(pxe);
+    let wallet: Wallet;
+    ({ teardown, aztecNode, pxe, wallet, logger } = await setup(1));
+    nonContractAccountWallet = new SignerlessWallet(pxe);
 
     logger(`Deploying L2 contract...`);
-    const tx = PokeableTokenContract.deploy(pxe, initialBalance, sender, recipient).send();
-    await tx.isMined({ interval: 0.1 });
-    const receipt = await tx.getReceipt();
-    expect(receipt.status).toEqual(TxStatus.MINED);
+    contract = await TestContract.deploy(wallet).send().deployed();
     logger('L2 contract deployed');
-    contract = await PokeableTokenContract.at(receipt.contractAddress!, wallet);
   }, 100_000);
 
   afterEach(() => teardown());
 
-  const expectBalance = async (owner: AztecAddress, expectedBalance: bigint) => {
-    const balance = await contract.methods.getBalance(owner).view({ from: owner });
-    logger(`Account ${owner} balance: ${balance}`);
-    expect(balance).toBe(expectedBalance);
-  };
-
   it('Arbitrary non-contract account can call a private function on a contract', async () => {
-    await expectBalance(sender, initialBalance);
-    await expectBalance(recipient, 0n);
-    await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
+    const contractWithNoContractWallet = await TestContract.at(contract.address, nonContractAccountWallet);
 
-    const contractWithNoContractWallet = await PokeableTokenContract.at(contract.address, pokerWallet);
+    // Send transaction as arbitrary non-contract account
+    const nullifier = new Fr(940);
+    const receipt = await contractWithNoContractWallet.methods.emit_nullifier(nullifier).send().wait({ interval: 0.1 });
+    expect(receipt.status).toBe(TxStatus.MINED);
 
-    // Send transaction as poker (arbitrary non-contract account)
-    await contractWithNoContractWallet.methods.poke(sender, recipient).send().wait({ interval: 0.1 });
+    const tx = await aztecNode!.getTx(receipt.txHash);
+    const expectedSiloedNullifier = siloNullifier(await CircuitsWasm.get(), contract.address, nullifier);
+    const siloedNullifier = tx!.newNullifiers[1];
 
-    // Initial balance should be fully transferred to the recipient
-    await expectBalance(sender, 0n);
-    await expectBalance(recipient, initialBalance);
-
-    await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
+    expect(siloedNullifier.equals(expectedSiloedNullifier)).toBeTruthy();
   }, 120_000);
 });

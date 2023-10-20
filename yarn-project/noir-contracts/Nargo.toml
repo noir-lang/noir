@@ -11,7 +11,6 @@ members = [
     "src/contracts/lending_contract",
     "src/contracts/parent_contract",
     "src/contracts/pending_commitments_contract",
-    "src/contracts/pokeable_token_contract",
     "src/contracts/price_feed_contract",
     "src/contracts/schnorr_account_contract",
     "src/contracts/schnorr_hardcoded_account_contract",

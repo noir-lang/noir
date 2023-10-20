@@ -144,7 +144,7 @@ describe('guides/dapp/testing', () => {
         // docs:start:warp
         const newTimestamp = Math.floor(Date.now() / 1000) + 60 * 60 * 24;
         await cheats.aztec.warp(newTimestamp);
-        await testContract.methods.isTimeEqual(newTimestamp).send().wait();
+        await testContract.methods.is_time_equal(newTimestamp).send().wait();
         // docs:end:warp
       });
     });

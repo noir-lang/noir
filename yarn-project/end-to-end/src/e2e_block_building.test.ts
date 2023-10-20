@@ -119,7 +119,7 @@ describe('e2e_block_building', () => {
 
     it('drops tx with public nullifier already emitted on the same block', async () => {
       const secret = Fr.random();
-      const calls = times(2, () => contract.methods.createNullifierPublic(140n, secret));
+      const calls = times(2, () => contract.methods.create_nullifier_public(140n, secret));
       for (const call of calls) await call.simulate();
       const [tx1, tx2] = calls.map(call => call.send());
       await tx1.wait();
@@ -141,7 +141,7 @@ describe('e2e_block_building', () => {
       );
 
       const calls = [
-        contract.methods.createNullifierPublic(140n, secret),
+        contract.methods.create_nullifier_public(140n, secret),
         contract.methods.emit_nullifier(emittedPublicNullifier),
       ];
 

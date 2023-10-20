@@ -26,7 +26,7 @@ contract ImportTest {
         target: Field
     ) -> Field {
         let test_contract_instance = TestPrivateContextInterface::at(target);
-        let return_values = test_contract_instance.testCodeGen(
+        let return_values = test_contract_instance.test_code_gen(
             &mut context,
             1,
             true,
@@ -56,7 +56,7 @@ contract ImportTest {
         target: Field
     ) -> Field {
         let test_contract_instance = TestPrivateContextInterface::at(target);
-        let return_values = test_contract_instance.getThisAddress(&mut context);
+        let return_values = test_contract_instance.get_this_address(&mut context);
         
         return_values[0]
     }
@@ -69,7 +69,7 @@ contract ImportTest {
         target: Field,
     ) {
         let test_contract_instance = TestPrivateContextInterface::at(target);
-        test_contract_instance.createNullifierPublic(&mut context, 1, 2);
+        test_contract_instance.create_nullifier_public(&mut context, 1, 2);
     }
 
     // Calls the createNullifierPublic on the Test contract at the target address
@@ -80,7 +80,7 @@ contract ImportTest {
         target: Field,
     ) -> Field {
         let test_contract_instance = TestPublicContextInterface::at(target);
-        let ret = test_contract_instance.createNullifierPublic(context, 1, 2);
+        let ret = test_contract_instance.create_nullifier_public(context, 1, 2);
         
         ret[0]
     }

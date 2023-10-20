@@ -79,7 +79,7 @@ impl TestPrivateContextInterface {
   }
   
 
-  pub fn createL2ToL1MessagePublic(
+  pub fn create_l2_to_l1_message_public(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -89,11 +89,11 @@ impl TestPrivateContextInterface {
     serialized_args[0] = amount;
     serialized_args[1] = secretHash;
 
-    context.call_public_function(self.address, 0xbac98727, serialized_args)
+    context.call_public_function(self.address, 0x9749ca06, serialized_args)
   }
   
 
-  pub fn createNullifierPublic(
+  pub fn create_nullifier_public(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -103,7 +103,7 @@ impl TestPrivateContextInterface {
     serialized_args[0] = amount;
     serialized_args[1] = secretHash;
 
-    context.call_public_function(self.address, 0x42040a24, serialized_args)
+    context.call_public_function(self.address, 0xdf02db8d, serialized_args)
   }
   
 
@@ -131,7 +131,7 @@ impl TestPrivateContextInterface {
   }
   
 
-  pub fn getPortalContractAddress(
+  pub fn get_portal_contract_address(
     self,
     context: &mut PrivateContext,
     aztec_address: Field
@@ -139,11 +139,11 @@ impl TestPrivateContextInterface {
     let mut serialized_args = [0; 1];
     serialized_args[0] = aztec_address;
 
-    context.call_private_function(self.address, 0xaf15a45f, serialized_args)
+    context.call_private_function(self.address, 0x98ff64fd, serialized_args)
   }
   
 
-  pub fn getPublicKey(
+  pub fn get_public_key(
     self,
     context: &mut PrivateContext,
     address: Field
@@ -151,31 +151,31 @@ impl TestPrivateContextInterface {
     let mut serialized_args = [0; 1];
     serialized_args[0] = address;
 
-    context.call_private_function(self.address, 0x88f0753b, serialized_args)
+    context.call_private_function(self.address, 0x5ccf578f, serialized_args)
   }
   
 
-  pub fn getThisAddress(
+  pub fn get_this_address(
     self,
     context: &mut PrivateContext
   ) -> [Field; RETURN_VALUES_LENGTH] {
     let mut serialized_args = [0; 0];
 
-    context.call_private_function(self.address, 0xd3953822, serialized_args)
+    context.call_private_function(self.address, 0x95a7b2ae, serialized_args)
   }
   
 
-  pub fn getThisPortalAddress(
+  pub fn get_this_portal_address(
     self,
     context: &mut PrivateContext
   ) -> [Field; RETURN_VALUES_LENGTH] {
     let mut serialized_args = [0; 0];
 
-    context.call_private_function(self.address, 0x82cc9431, serialized_args)
+    context.call_private_function(self.address, 0xc71384f5, serialized_args)
   }
   
 
-  pub fn isTimeEqual(
+  pub fn is_time_equal(
     self,
     context: &mut PrivateContext,
     time: Field
@@ -183,11 +183,11 @@ impl TestPrivateContextInterface {
     let mut serialized_args = [0; 1];
     serialized_args[0] = time;
 
-    context.call_public_function(self.address, 0xfff6026c, serialized_args)
+    context.call_public_function(self.address, 0x61fa2bda, serialized_args)
   }
   
 
-  pub fn testCodeGen(
+  pub fn test_code_gen(
     self,
     context: &mut PrivateContext,
     aField: Field,
@@ -216,7 +216,7 @@ impl TestPrivateContextInterface {
     serialized_args[15] = aDeepStruct.manyNotes[2].amount;
     serialized_args[16] = aDeepStruct.manyNotes[2].secretHash;
 
-    context.call_private_function(self.address, 0x81d7c118, serialized_args)
+    context.call_private_function(self.address, 0x0f054f9b, serialized_args)
   }
   
 }
@@ -256,7 +256,7 @@ impl TestPublicContextInterface {
   }
   
 
-  pub fn createL2ToL1MessagePublic(
+  pub fn create_l2_to_l1_message_public(
     self,
     context: PublicContext,
     amount: Field,
@@ -266,11 +266,11 @@ impl TestPublicContextInterface {
     serialized_args[0] = amount;
     serialized_args[1] = secretHash;
 
-    context.call_public_function(self.address, 0xbac98727, serialized_args)
+    context.call_public_function(self.address, 0x9749ca06, serialized_args)
   }
   
 
-  pub fn createNullifierPublic(
+  pub fn create_nullifier_public(
     self,
     context: PublicContext,
     amount: Field,
@@ -280,7 +280,7 @@ impl TestPublicContextInterface {
     serialized_args[0] = amount;
     serialized_args[1] = secretHash;
 
-    context.call_public_function(self.address, 0x42040a24, serialized_args)
+    context.call_public_function(self.address, 0xdf02db8d, serialized_args)
   }
   
 
@@ -296,7 +296,7 @@ impl TestPublicContextInterface {
   }
   
 
-  pub fn isTimeEqual(
+  pub fn is_time_equal(
     self,
     context: PublicContext,
     time: Field
@@ -304,7 +304,7 @@ impl TestPublicContextInterface {
     let mut serialized_args = [0; 1];
     serialized_args[0] = time;
 
-    context.call_public_function(self.address, 0xfff6026c, serialized_args)
+    context.call_public_function(self.address, 0x61fa2bda, serialized_args)
   }
   
 }
