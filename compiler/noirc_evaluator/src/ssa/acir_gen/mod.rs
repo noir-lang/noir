@@ -23,7 +23,7 @@ use super::{
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
-use crate::errors::{InternalError, InternalWarning, SsaReport, RuntimeError};
+use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
@@ -1261,9 +1261,9 @@ impl Context {
         let mut warnings = Vec::new();
         for acir_var in return_acir_vars {
             if self.acir_context.is_constant(&acir_var) {
-                warnings.push(SsaReport::Warning(
-                    InternalWarning::ReturnConstant { call_stack: call_stack.clone() },
-                ));
+                warnings.push(SsaReport::Warning(InternalWarning::ReturnConstant {
+                    call_stack: call_stack.clone(),
+                }));
             }
             self.acir_context.return_var(acir_var)?;
         }
