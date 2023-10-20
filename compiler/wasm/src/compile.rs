@@ -17,7 +17,7 @@ use serde::Deserialize;
 use std::{collections::HashMap, path::Path};
 use wasm_bindgen::prelude::*;
 
-use crate::errors::JsCompileError;
+use crate::errors::{CompileError, JsCompileError};
 
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
@@ -68,7 +68,11 @@ pub fn compile(
     if contracts.unwrap_or_default() {
         let compiled_contract = compile_contract(&mut context, crate_id, &compile_options)
             .map_err(|errs| {
-                JsCompileError::new("Failed to compile contract", errs, &context.file_manager)
+                CompileError::with_file_diagnostics(
+                    "Failed to compile contract",
+                    errs,
+                    &context.file_manager,
+                )
             })?
             .0;
 
@@ -82,7 +86,11 @@ pub fn compile(
     } else {
         let compiled_program = compile_main(&mut context, crate_id, &compile_options, None, true)
             .map_err(|errs| {
-                JsCompileError::new("Failed to compile program", errs, &context.file_manager)
+                CompileError::with_file_diagnostics(
+                    "Failed to compile program",
+                    errs,
+                    &context.file_manager,
+                )
             })?
             .0;
 
