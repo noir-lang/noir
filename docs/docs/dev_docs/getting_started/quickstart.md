@@ -45,7 +45,7 @@ The current sandbox does not generate or verify proofs, but provides a working e
 - Node.js >= v18 (recommend installing with [nvm](https://github.com/nvm-sh/nvm))
 - Docker and Docker Compose (Docker Desktop under WSL2 on windows)
 
-## Installation
+## Sandbox Installation
 
 You can run the Sandbox using either Docker or npm.
 
@@ -79,7 +79,7 @@ You will also need an Ethereum node like Anvil or Hardhat running locally on por
 npx @aztec/aztec-sandbox
 ```
 
-### CLI
+## CLI Installation
 
 To interact with the sandbox now that it's running locally, install the [Aztec CLI](https://www.npmjs.com/package/@aztec/cli):
 

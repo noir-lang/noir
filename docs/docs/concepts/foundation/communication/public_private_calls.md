@@ -8,7 +8,14 @@ import Disclaimer from "../../../misc/common/\_disclaimer.mdx";
 
 <Disclaimer/>
 
-The following section will try to outline what _private_ and _public_ functions can do, and give some intuition to why they have the limitations they have.
+Aztec operates on a model of private and public functions that are able to work together. Private functions work by providing evidence of correct execution generated locally through kernel proofs. Public functions, on the other hand, are able to utilize the latest state to manage updates and perform alterations.
+
+On this page, you’ll learn:
+
+- How private and public functions work
+- The role of public functions in managing state alterations and updates
+- Communication and interactions between private and public functions
+- How the sequencer manages the order of operations of private functions
 
 ### Objectives
 

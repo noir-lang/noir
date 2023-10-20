@@ -12,7 +12,6 @@ The Aztec Sandbox and the Aztec Smart Contract Library are **prototypes**, and s
 - An 'unpolished' UX;
 - Missing information.
 
-
 ## Why participate?
 
 Front-run the future!
@@ -27,22 +26,23 @@ Help shape and define:
 - Core protocol improvements;
 
 ## Limitations developers need to know about
+
 - It is a testing environment, it is insecure, unaudited and does not generate any proofs, its only for testing purposes;
 - Constructors can not call nor alter public state
-  - The constructor is executed exclusively in private domain, WITHOUT the ability to call public functions or alter public state. This means to set initial storage values, you need to follow a pattern similar to [proxies in Ethereum](https://blog.openzeppelin.com/proxy-patterns), where you `initialize` the contract with values after it have been deployed, see [constructor](../contracts/syntax/functions.md#constructor). 
+  - The constructor is executed exclusively in private domain, WITHOUT the ability to call public functions or alter public state. This means to set initial storage values, you need to follow a pattern similar to [proxies in Ethereum](https://blog.openzeppelin.com/proxy-patterns), where you `initialize` the contract with values after it have been deployed, see [constructor](../contracts/syntax/functions.md#constructor).
 - No static nor delegate calls (see [mutability](../contracts/syntax/functions.md#mutability)).
-  - These values are unused in the call-context. 
+  - These values are unused in the call-context.
   - Beware that what you think of as a `view` could alter state ATM! Notably the account could alter state or re-enter whenever the account contract's `is_valid` function is called.
 - `msg_sender` is currently leaking when doing private -> public calls
   - The `msg_sender` will always be set, if you call a public function from the private world, the `msg_sender` will be set to the private caller's address. See [function context](../contracts/syntax/context.mdx).
 - The initial `msg_sender` is 0, which can be problematic for some contracts, see [function visibility](../contracts/syntax/functions.md#function-visibility).
-- Unencrypted logs don't link to the contract that emitted it, so essentially just a `debug_log`` that you can match values against. 
+- Unencrypted logs don't link to the contract that emitted it, so essentially just a `debug_log`` that you can match values against.
 - A note that is created and nullified in the same transaction will still emit an encrypted log.
-- A limited amount of new commitments, nullifiers and calls that are supported by a transaction, see [circuit limitations](#circuit-limitations). 
+- A limited amount of new commitments, nullifiers and calls that are supported by a transaction, see [circuit limitations](#circuit-limitations).
 
 ## Limitations
 
-There are plans to resolve all of the below. See also the [engineering roadmap](../../about_aztec/roadmap/engineering_roadmap.md).
+There are plans to resolve all of the below.
 
 ### It is not audited
 
@@ -72,7 +72,7 @@ Obviously, as development continues, the so-called 'circuits' will actually beco
 
 The Sandbox will execute more quickly. The logic of all 'circuits' is still in place*. Smart contract logic will be executed, and core protocol logic will be executed*. So invalid transactions will be caught\* and rejected.
 
-\*Note: some core protocol circuit assertions and constraints still need to be written (see [GitHub](https://github.com/AztecProtocol/aztec-packages/issues)). This would be bad in an adversarial environment, but the Sandbox is not that. Naturally, proper circuits will need to be written - see the [engineering roadmap](../../about_aztec/roadmap/engineering_roadmap.md).
+\*Note: some core protocol circuit assertions and constraints still need to be written (see [GitHub](https://github.com/AztecProtocol/aztec-packages/issues)). This would be bad in an adversarial environment, but the Sandbox is not that. Naturally, proper circuits will need to be written.
 
 ### No Fees!
 
@@ -90,7 +90,7 @@ Apps won't yet be able to allow for any L2 fee logic. Once fees are introduced, 
 
 The way in which keypairs and addresses are currently derived and implemented (inside the Sandbox) is greatly over-simplified, relative to future plans.
 
-They're so over-simplified that they're known to be insecure. Other features have been prioritised so-far in Sandbox development. Please refer to the [future roadmap](../../about_aztec/roadmap/engineering_roadmap.md)
+They're so over-simplified that they're known to be insecure. Other features have been prioritised so-far in Sandbox development.
 
 #### What are the consequences?
 
@@ -130,7 +130,7 @@ A contract can't perform a delegatecall yet (if ever). Delegatecalls are quite a
 
 Ethereum has a notion of a 'full node' which keeps-up with the blockchain and stores the full chain state. Many users don't wish to run full nodes, so rely on 3rd-party 'full-node-as-a-service' infrastructure providers, who service blockchain queries from their users.
 
-This pattern is likely to develop in Aztec as well, except there's a problem: privacy. If a privacy-seeking user makes a query to a 3rd-party 'full node', that user might leak data about who they are, or about their historic network activity, or about their future intentions. One solution to this problem is "always run a full node", but pragmatically, not everyone will. To protect less-advanced users' privacy, [research is underway](../../about_aztec/roadmap/engineering_roadmap.md) to explore how a privacy-seeking user may request and receive data from a 3rd-party node without revealing what that data is, nor who is making the request.
+This pattern is likely to develop in Aztec as well, except there's a problem: privacy. If a privacy-seeking user makes a query to a 3rd-party 'full node', that user might leak data about who they are, or about their historic network activity, or about their future intentions. One solution to this problem is "always run a full node", but pragmatically, not everyone will. To protect less-advanced users' privacy, research is underway to explore how a privacy-seeking user may request and receive data from a 3rd-party node without revealing what that data is, nor who is making the request.
 
 ### No private data authentication
 
@@ -209,7 +209,7 @@ Not only are there limits on a _per function_ basis, there are also limits on a 
 
 **In particular, these _per-transaction_ limits will limit transaction call stack depths** in the Sandbox. That means if a function call results in a cascade of nested function calls, and each of those function calls outputs lots of state reads and writes, or logs (etc.), then all of that accumulated output data might exceed the per-transaction limits that we currently have. This would cause such transactions to fail.
 
-There are [plans](../../about_aztec/roadmap/engineering_roadmap.md#proper-circuits) to relax all of this rigidity, by providing many 'sizes' of [kernel circuit](../../concepts/advanced/circuits/kernels/main.md), and introducing a 'bus' to ferry varying lengths of data between kernel iterations. But that'll all take some time.
+There are plans to relax all of this rigidity, by providing many 'sizes' of [kernel circuit](../../concepts/advanced/circuits/kernels/main.md), and introducing a 'bus' to ferry varying lengths of data between kernel iterations. But that'll all take some time.
 
 > **In the mean time**, if you encounter a per-transaction limit when testing, and you're feeling adventurous, you could 'hack' the Sandbox to increase the limits. See here (TODO: link) for a guide. **However**, the limits cannot be increased indefinitely. So although we do anticipate that we'll be able to increase them a little bit, don't go mad and provide yourself with 1 million state transitions per transaction. That would be as unrealistic as artificially increasing Ethereum gas limits to 1 trillion.
 

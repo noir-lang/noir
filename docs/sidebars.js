@@ -46,7 +46,6 @@ const sidebars = {
       },
       items: [
         "about_aztec/roadmap/features_initial_ldt",
-        "about_aztec/roadmap/engineering_roadmap",
         "about_aztec/roadmap/cryptography_roadmap",
       ],
     },

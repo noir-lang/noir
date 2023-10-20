@@ -2,11 +2,30 @@
 title: Storage
 ---
 
-In an Aztec.nr contract, storage is contained in a single struct that contains both public and private state variables.
+Smart contracts rely on storage, acting as the persistent memory on the blockchain. In Aztec, because of its privacy-first architecture, the management of this storage can be a bit more complex.
+
+You control this storage in Aztec using the 'Storage' struct. This struct serves as the housing unit for all your smart contract's state variables - the data it needs to keep track of and maintain.
+
+These state variables come in two forms: public and private. Public variables are visible to anyone, and private variables remain hidden within the contract.
+
+Aztec.nr has a few abstractions to help define the type of data your contract holds. These include Singletons, ImmutableSingletons, Set, and Map.
+
+On this page, you’ll learn:
+
+- How to manage a smart contract's storage structure
+- The distinctions and applications of public and private state variables
+- How to use Singleton, ImmutableSingleton, Set, and Map
+- An overview of 'notes' and the UTXO model
+- Practical implications of Storage in real smart contracts
+  In an Aztec.nr contract, storage is to be defined as a single struct, that contains both public and private state variables.
+
+## Public and private state variables
 
 Public state variables can be read by anyone, while private state variables can only be read by their owner (or people whom the owner has shared the decrypted data/note viewing key with).
 
 Public state follows the ethereum style account model, where each contract has its own key-value datastore. Private state follows a UTXO model, where note contents (pre-images) are only known by the sender and those able to decrypt them - see ([state model](./../../../concepts/foundation/state_model.md) and [private/public execution](./../../../concepts/foundation/communication/public_private_calls.md)) for more background.
+
+## Storage struct
 
 :::info
 The struct **must** be called `Storage` for the Aztec.nr library to properly handle it (this will be relaxed in the future).

@@ -24,21 +24,17 @@ Emit encrypted events, or encrypted messages from a private smart contract funct
 
 Execute a private function without the world knowing which function you've executed.
 
-
-
 :::danger
 Privacy is not guaranteed without care.
 Although Aztec provides the tools for private smart contracts, information can still be leaked unless the dapp developer is careful.
 This page outlines some best practices to aid dapp developers.
 :::
 
-
 ---
 
 ## Leaky practices
 
 There are many caveats to the above. Since Aztec also enables interaction with the _public_ world (public L2 functions and L1 functions), private information can be accidentally leaked if developers aren't careful.
-
 
 ### Crossing the private -> public boundary
 
@@ -51,11 +47,9 @@ Any time a private function makes a call to a public function, information is le
 - Emitting unencrypted events from a private function. The unencrypted event name and arguments will be publicly visible.
 - Sending L2->L1 messages from a private function. The entire message, and the resulting L1 function execution will all be publicly visible.
 
-
 ### Crossing the public -> private boundary
 
 If a public function sends a message to be consumed by a private function, the act of consuming that message might be leaked if not following recommended patterns. See [here](../contracts/portals/inbox.md) for more details.
-
 
 ### Timing of transactions
 
@@ -69,7 +63,6 @@ Suppose that every time Alice sends Bob a private token, 1 minute later a transa
 
 Tl;dr: app developers should think about the _timing_ of user transactions, and how this might leak information.
 
-
 ### Function Fingerprints and Tx Fingerprints
 
 A 'Function Fingerprint' is any data which is exposed by a function to the outside world. A 'Tx Fingerprint' is any data which is exposed by a tx to the outside world. We're interested in minimising leakages of information from private txs. The leakiness of a Tx Fingerprint depends on the leakiness of its consituent functions' Function Fingerprints _and_ on the appearance of the tx's Tx Fingerprint as a whole. For a private function (and by extension, for a private tx), the following information _could_ be leaked (depending on the function, of course):
@@ -82,7 +75,7 @@ A 'Function Fingerprint' is any data which is exposed by a function to the outsi
   - The contents of L2 -> L1 messages.
 - All unencrypted logs (topics and arguments).
 - The roots of all trees which have been read from.
-- The _number_ of ['side effects'](https://en.wikipedia.org/wiki/Side_effect_(computer_science)):
+- The _number_ of ['side effects'](<https://en.wikipedia.org/wiki/Side_effect_(computer_science)>):
   - \# new commitments
   - \# new nullifiers
   - \# bytes of encrypted logs
@@ -90,17 +83,13 @@ A 'Function Fingerprint' is any data which is exposed by a function to the outsi
   - \# L2->L1 messages
   - \# nonzero roots[^1]
 
-
-
 > Note: many of these were mentioned in the ["Crossing the private -> public boundary"](#crossing-the-private---public-boundary) section.
 
 > Note: the calldata submitted to L1 is [encoded](https://github.com/AztecProtocol/aztec-packages/blob/master/l1-contracts/src/core/libraries/Decoder.sol) in such a way that all categories of data are packed together, when submitted. E.g. all commitments from all txs in a block are arranged as contiguous bytes of calldata. But that _doesn't_ mean the data from a particular tx is garbled in with all other txs' calldata: the distinct Tx Fingerprint of each tx can is publicly visible when a tx is submitted to the L2 tx pool.
 
-
 #### Standardising Fingerprints
 
 If each private function were to have a unique Fingerprint, then all private functions would be distinguishable from each-other, and all of the efforts of the Aztec protocol to enable 'private function execution' would have been pointless. Standards need to be developed, to encourage smart contract developers to adhere to a restricted set of Tx Fingerprints. For example, a standard might propose that the number of new commitments, nullifiers, logs, etc. must always be equal, and must always equal a power of two. Such a standard would effectively group private functions/txs into 'privacy sets', where all functions/txs in a particular 'privacy set' would look indistinguishable from each-other, when executed.
-
 
 ### Data queries
 
@@ -128,20 +117,18 @@ If a user runs their own node, there's no problem: they can query the latest sib
 
 But if a user is not running their own node, they would need to query the very-latest sibling path of their note(s) from some 3rd-party node. In order to query the sibling path of a leaf, the leaf's index needs to be provided as an argument. Revealing the leaf's index to a 3rd-party trivially reveals exactly the note(s) you're about to read. And since those notes were created in some prior transaction, the 3rd-party will be able to link you with that prior transaction. Suppose then that the 3rd-party also serviced the creator of said prior transaction: the 3rd-party will slowly be able to link more and more transactions, and gain more and more insight into a network which is meant to be private!
 
-We're [researching](../../about_aztec/roadmap/engineering_roadmap.md) cryptographic ways to enable users to retrieve sibling paths from 3rd-parties without revealing leaf indices.
+We're researching cryptographic ways to enable users to retrieve sibling paths from 3rd-parties without revealing leaf indices.
 
 > \* Note: due to the non-uniformity of Aztec transactions, the 'privacy set' of a transaction might not be the entire set of transactions that came before. See here (LINK).
 
 ##### Any query
 
-Any query to a node leaks information to that node. 
+Any query to a node leaks information to that node.
 
-We're [researching](../../about_aztec/roadmap/engineering_roadmap.md) cryptographic ways to enable users to query any data privately.
-
-
-
+We're researching cryptographic ways to enable users to query any data privately.
 
 ---
+
 Footnotes
 
 [^1]: All txs should set the kernel circuit public inputs for all roots to _valid_, _up-to-date_ nonzero values, so as to mask which trees have _actually_ been read from. The Sandbox will eventually automate this (see this [issue](https://github.com/AztecProtocol/aztec-packages/issues/1676)).

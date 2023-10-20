@@ -2,6 +2,12 @@
 title: Circuits
 ---
 
+Central to Aztec's operations are 'circuits' derived both from the core protocol and the developer-written Aztec.nr contracts.
+
+The core circuits enhance privacy by adding additional security checks and preserving transaction details - a characteristic Ethereum lacks.
+
+On this page, you’ll learn a bit more about these circuits and their integral role in promoting secure and efficient transactions within Aztec's privacy-centric framework.
+
 ## Motivation
 
 In Aztec, circuits come from two sources:

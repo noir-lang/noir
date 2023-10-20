@@ -12,6 +12,18 @@ Internal to the Aztec network, public state is stored and updated by the sequenc
 
 ## Private State
 
+Every smart contract needs a way to track information over time - that's what state is. In order to have both private and public transactions and storage in Aztec, we have to have public and private state.
+
+On this page, you’ll learn
+
+- Aztec's unique interpretation of private state
+- Representation of private state in an append-only database
+- Concept of 'deleting' private state variables using nullifiers
+- How to modify private state
+- How Aztec abstracts the UTXO model from developers
+
+## Private State on Aztec
+
 Private state must be treated differently from public state and this must be expressed in the semantics of Aztec.nr.
 
 Private state is encrypted and therefore is "owned" by a user or a set of users (via shared secrets) that are able to decrypt the state.

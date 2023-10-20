@@ -9,27 +9,32 @@ import Image from "@theme/IdealImage";
 <Image img={require("/img/comparison.png")} />
 
 ---
+
 ## Bitcoin
 
 The original blockchain.
 
-**Programmability**:  
-- None.  
+**Programmability**:
+
+- None.
 - Transfer bitcoin only.
 
-**Privacy**:  
+**Privacy**:
+
 - None.
 
 ---
 
 ## Ethereum
 
-**Programmability**:  
+**Programmability**:
+
 - Turing complete smart contracts.
 
-**Privacy**:  
-- Originally: None.  
-- Now: 
+**Privacy**:
+
+- Originally: None.
+- Now:
   - some specific apps on L1
   - some specific apps, deployed via L2, like zk.money and Aztec Connect.
 
@@ -37,46 +42,54 @@ The original blockchain.
 
 ## ZCash
 
-**Programmability**:  
-- None.  
+**Programmability**:
+
+- None.
 - Transfer ZCash only.
 
-**Privacy**:  
+**Privacy**:
+
 - Transfers of shielded zcash are private.
 
 ---
 
 ## zk.money
 
-**Programmability**:  
+**Programmability**:
+
 - Any custom ERC20 token (on Ethereum L1) can be deposited to L2, transferred within L2, and withdrawn from L2.
 
-**Privacy**:  
+**Privacy**:
+
 - Transfers of the ERC20 tokens within the L2 are private.
 
 ---
 
 ## Aztec Connect
 
-**Programmability**:  
-- The functionality of zk.money, plus:  
-- Tokens can be sent from the L2 shielded pool to many L1 defi contracts, and the resulting tokens can be re-shielded. This gives privacy to L1 defi users.
+**Programmability**:
 
-**Privacy**:  
-- Transfers of the ERC20 tokens within the L2 are private.  
-- User defi interactions are private.
+- The functionality of zk.money, plus:
+- Tokens can be sent from the L2 shielded pool to many L1 DeFi contracts, and the resulting tokens can be re-shielded. This gives anonymity to L1 DeFi users.
+
+**Privacy**:
+
+- Transfers of the ERC20 tokens within the L2 are private.
+- User DeFi interactions are anonymous.
 
 ---
 
 ## Aztec
 
-**Programmability**:  
+**Programmability**:
+
 - Fully programmable private smart contracts:
-  - private functions which can edit general private state
-  - cheap L2 public functions
+  - Private functions which can edit general private state
+  - Cheap L2 public functions
   - L1 (public) functions.
 
-**Privacy**:  
+**Privacy**:
+
 - Executing private functions grants:
   - Function privacy
   - Input privacy

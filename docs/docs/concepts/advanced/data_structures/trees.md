@@ -2,10 +2,18 @@
 title: Trees
 ---
 
-import Disclaimer from "../../../misc/common/\_disclaimer.mdx";
 import Image from "@theme/IdealImage";
 
-<Disclaimer/>
+## Overview
+
+Data trees are how we keep track of all the data in the network. Each type of data is stored in it's own data tree. Different tree structures are used for different kinds of data, as the requirements for each are different.
+
+Data includes:
+
+- Private state
+- Nullifiers to invalidate old private state
+- Public state
+- Contracts
 
 ## Private State Tree
 
@@ -17,7 +25,7 @@ Any function of any Aztec contract may insert new leaves into the this tree.
 
 Once inserted into this tree, a leaf's value can never be modified. We enforce this, to prevent linkability of transactions. If an observer sees that 'tx A' inserted a leaf and 'tx B' modified that leaf, then the observer knows these two transactions are related in some way. This is a big 'no no' if we want to ensure privacy.
 
-So, if an app needs to edit a private state variable (which will be represented by one or more leaves in the tree), it may do so in a manner inspired by [zerocash](http://zerocash-project.org/media/pdf/zerocash-extended-20140518.pdf). (See Nullifier Tree, further down this page). This allows the leaf to be 'nullified' and a new leaf value inserted into the next empty position in the tree, in a way which prevents observers from linking the old and new leaves.
+So, if an app needs to edit a private state variable (which will be represented by one or more leaves in the tree), it may do so in a manner inspired by [zerocash](http://zerocash-project.org/media/pdf/zerocash-extended-20140518.pdf). (See [Nullifier Tree](#nullifier-tree)). This allows the leaf to be 'nullified' and a new leaf value inserted into the next empty position in the tree, in a way which prevents observers from linking the old and new leaves.
 
 <Image img={require("/img/private-data-tree.png")} />
 
@@ -136,6 +144,6 @@ The contract tree contains information about every function of every contract de
 - `treeOfHistoricPrivateDataTreeRoots`: for membership checks against historic roots of the `privateDataTree`
 - `treeOfHistoricContractTreeRoots`: for membership checks against historic roots of the `contractTree`
 
-## Trees of valid Kernel/Rollup circuit VKs
+## Trees of valid Kernel/Rollup circuit Verification Keys
 
-Eventually, we'll have trees of VKs for various permutations of kernel/rollup circuits. Such permutations might be the number of public inputs, or the logic contained within the circuits.
+Eventually, we'll have trees of verification keys for various permutations of kernel/rollup circuits. Such permutations might be the number of public inputs, or the logic contained within the circuits.

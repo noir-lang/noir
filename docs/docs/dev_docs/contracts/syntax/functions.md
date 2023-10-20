@@ -3,6 +3,17 @@ title: Functions
 description: This page covers functions, private and public functions composability, as well as their differences.
 ---
 
+Functions serve as the building blocks of smart contracts. Functions can be either public, ie they can interact with other contracts and the blockchain, or private for internal contract use. Every smart contract also has a private `constructor` function which is called when the contract is deployed. There are also special oracle functions, which can get data from outside of the smart contract. In the context of Aztec, oracles are often used to get user-provided inputs.
+
+On this page, you’ll learn more about:
+
+- How function visibility works in Aztec
+- A detailed understanding of public, private, and unconstrained functions, and how to write them
+- How constructors work and remain private
+- The process of calling functions from within the same smart contract and from different contracts, including calling private functions from private functions, public from public, and even private from public
+- What oracles and how Aztec smart contracts might use them
+- Built-in oracles
+
 ## Visibility
 
 In Aztec there are multiple different types of visibility that can be applied to functions. Namely we have `data visibility` and `function visibility`.
