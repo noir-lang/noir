@@ -1,4 +1,4 @@
-use crate::token::Attribute;
+use crate::token::{Attribute, DocStyle};
 
 use super::{
     errors::LexerErrorKind,
@@ -65,6 +65,13 @@ impl<'a> Lexer<'a> {
     /// Peeks at the next char. Does not iterate the cursor
     fn peek_char(&mut self) -> Option<char> {
         self.char_iter.peek().map(|(c, _)| *c)
+    }
+
+    /// Peeks at the character two positions ahead. Does not iterate the cursor
+    fn peek2_char(&mut self) -> Option<char> {
+        let mut chars = self.char_iter.clone();
+        chars.next();
+        chars.next().map(|(c, _)| c)
     }
 
     /// Peeks at the next char and returns true if it is equal to the char argument
@@ -388,14 +395,39 @@ impl<'a> Lexer<'a> {
     }
 
     fn parse_comment(&mut self, start: u32) -> SpannedTokenResult {
+        let doc_style = match self.peek_char() {
+            Some('!') => {
+                self.next_char();
+                Some(DocStyle::Inner)
+            }
+            Some('/') if self.peek2_char() != '/'.into() => {
+                self.next_char();
+                Some(DocStyle::Outer)
+            }
+            _ => None,
+        };
         let comment = self.eat_while(None, |ch| ch != '\n');
+
         if self.skip_comments {
             return self.next_token();
         }
-        Ok(Token::LineComment(comment).into_span(start, self.position))
+
+        Ok(Token::LineComment(comment, doc_style).into_span(start, self.position))
     }
 
     fn parse_block_comment(&mut self, start: u32) -> SpannedTokenResult {
+        let doc_style = match self.peek_char() {
+            Some('!') => {
+                self.next_char();
+                Some(DocStyle::Inner)
+            }
+            Some('*') if !matches!(self.peek2_char(), Some('*' | '/')) => {
+                self.next_char();
+                Some(DocStyle::Outer)
+            }
+            _ => None,
+        };
+
         let mut depth = 1usize;
 
         let mut content = String::new();
@@ -424,7 +456,7 @@ impl<'a> Lexer<'a> {
             if self.skip_comments {
                 return self.next_token();
             }
-            Ok(Token::BlockComment(content).into_span(start, self.position))
+            Ok(Token::BlockComment(content, doc_style).into_span(start, self.position))
         } else {
             let span = Span::inclusive(start, self.position);
             Err(LexerErrorKind::UnterminatedBlockComment { span })
@@ -731,6 +763,32 @@ mod tests {
         for token in expected.into_iter() {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
+        }
+    }
+
+    #[test]
+    fn test_comments() {
+        let input = "
+            // comment
+            /// comment
+            //! comment
+            /* comment */
+            /** outer doc block */
+            /*! inner doc block */
+        ";
+        let expected = [
+            Token::LineComment(" comment".into(), None),
+            Token::LineComment(" comment".into(), DocStyle::Outer.into()),
+            Token::LineComment(" comment".into(), DocStyle::Inner.into()),
+            Token::BlockComment(" comment ".into(), None),
+            Token::BlockComment(" outer doc block ".into(), DocStyle::Outer.into()),
+            Token::BlockComment(" inner doc block ".into(), DocStyle::Inner.into()),
+        ];
+
+        let mut lexer = Lexer::new(input).skip_comments(false);
+        for token in expected {
+            let first_lexer_output = lexer.next_token().unwrap();
+            assert_eq!(token, first_lexer_output);
         }
     }
 
