@@ -248,3 +248,7 @@ if (verification) display('logs', 'Verifying proof... ✅');
 ```
 
 By saving, your app will refresh and here's our complete Tiny Noir App!
+
+## Further Reading
+
+You can see how noirjs is used in a full stack Next.js hardhat application in the [noir-starter repo here](https://github.com/noir-lang/noir-starter/tree/main/next-hardhat). The example shows how to calculate a proof in the browser and verify it with a deployed Solidity verifier contract from noirjs.
