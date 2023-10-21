@@ -42,8 +42,11 @@ macro_rules! config {
 }
 
 config! {
+    max_width: usize, 100, "Maximum width of each line";
     tab_spaces: usize, 4, "Number of spaces per tab";
     remove_nested_parens: bool, true, "Remove nested parens";
+    short_array_element_width_threshold: usize, 10, "Width threshold for an array element to be considered short";
+    array_width: usize, 60, "Maximum width of an array literal before falling back to vertical formatting";
 }
 
 impl Config {
