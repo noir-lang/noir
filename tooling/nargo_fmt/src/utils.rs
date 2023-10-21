@@ -89,8 +89,8 @@ impl<'me, T> Exprs<'me, T> {
     pub(crate) fn leading(&mut self, start: u32, end: u32) -> (String, bool) {
         let mut different_line = false;
 
-        let leading = slice!(self.visitor, start, end);
-        let leading_trimmed = slice!(self.visitor, start, end).trim();
+        let leading = self.visitor.slice(start..end);
+        let leading_trimmed = leading.trim();
 
         let starts_with_block_comment = leading_trimmed.starts_with("/*");
         let ends_with_block_comment = leading_trimmed.ends_with("*/");
@@ -110,7 +110,7 @@ impl<'me, T> Exprs<'me, T> {
     }
 
     pub(crate) fn trailing(&mut self, start: u32, end: u32, is_last: bool) -> String {
-        let slice = slice!(self.visitor, start, end);
+        let slice = self.visitor.slice(start..end);
         let comment_end = find_comment_end(slice, is_last);
         let trailing = slice[..comment_end].trim_matches(',').trim();
         self.last_position = start + (comment_end as u32);

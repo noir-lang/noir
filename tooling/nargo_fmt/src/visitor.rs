@@ -1,11 +1,3 @@
-/// A macro to create a slice from a given data source, helping to avoid borrow checker errors.
-#[macro_export]
-macro_rules! slice {
-    ($this:expr, $start:expr, $end:expr) => {
-        &$this.source[$start as usize..$end as usize]
-    };
-}
-
 mod expr;
 mod item;
 mod stmt;
@@ -33,14 +25,15 @@ impl<'me> FmtVisitor<'me> {
         }
     }
 
-    fn slice(&self, span: Span) -> &'me str {
+    pub(crate) fn slice(&self, span: impl Into<Span>) -> &'me str {
+        let span = span.into();
         &self.source[span.start() as usize..span.end() as usize]
     }
 
     fn span_before(&self, span: impl Into<Span>, token: Token) -> Span {
         let span = span.into();
 
-        let slice = slice!(self, span.start(), span.end());
+        let slice = self.slice(span);
         let offset = slice.find_token(token).unwrap();
 
         (span.start() + offset..span.end()).into()
@@ -123,7 +116,7 @@ impl<'me> FmtVisitor<'me> {
             return;
         }
 
-        let slice = slice!(self, start, end);
+        let slice = self.slice(start..end);
         self.last_position = end;
 
         if slice.trim().is_empty() && !self.at_start() {
@@ -160,7 +153,7 @@ impl<'me> FmtVisitor<'me> {
     }
 
     pub(crate) fn format_comment(&self, span: Span) -> String {
-        let slice = slice!(self, span.start(), span.end()).trim();
+        let slice = self.slice(span).trim();
         let pos = slice.find('/');
 
         if !slice.is_empty() && pos.is_some() {

@@ -14,8 +14,7 @@ impl FmtVisitor<'_> {
         let span = expr.span;
 
         let rewrite = self.format_expr(expr);
-        let rewrite =
-            utils::recover_comment_removed(slice!(self, span.start(), span.end()), rewrite);
+        let rewrite = utils::recover_comment_removed(self.slice(span), rewrite);
         self.push_rewrite(rewrite, span);
 
         self.last_position = span.end();
@@ -94,7 +93,7 @@ impl FmtVisitor<'_> {
             }
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) | Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) => {
-                    slice!(self, span.start(), span.end()).to_string()
+                    self.slice(span).to_string()
                 }
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                     let repeated = self.format_expr(*repeated_element);
@@ -182,7 +181,7 @@ impl FmtVisitor<'_> {
                 format!("{type_name} {fields}")
             }
             // TODO:
-            _expr => slice!(self, span.start(), span.end()).to_string(),
+            _expr => self.slice(span).to_string(),
         }
     }
 
@@ -206,7 +205,7 @@ impl FmtVisitor<'_> {
             this.visit_stmts(block.0);
         });
 
-        let slice = slice!(self, self.last_position, block_span.end() - 1).trim_end();
+        let slice = self.slice(self.last_position..block_span.end() - 1).trim_end();
         self.push_str(slice);
 
         self.last_position = block_span.end();
@@ -220,7 +219,7 @@ impl FmtVisitor<'_> {
 
     fn trim_spaces_after_opening_brace(&mut self, block: &[Statement]) {
         if let Some(first_stmt) = block.first() {
-            let slice = slice!(self, self.last_position, first_stmt.span.start());
+            let slice = self.slice(self.last_position..first_stmt.span.start());
             let len =
                 slice.chars().take_while(|ch| ch.is_whitespace()).collect::<String>().rfind('\n');
             self.last_position += len.unwrap_or(0) as u32;
@@ -228,7 +227,7 @@ impl FmtVisitor<'_> {
     }
 
     fn visit_empty_block(&mut self, block_span: Span, should_indent: bool) {
-        let slice = slice!(self, block_span.start(), block_span.end());
+        let slice = self.slice(block_span);
         let comment_str = slice[1..slice.len() - 1].trim();
         let block_str = if comment_str.is_empty() {
             "{}".to_string()
