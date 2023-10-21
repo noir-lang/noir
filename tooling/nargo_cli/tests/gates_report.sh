@@ -3,9 +3,6 @@ set -e
 
 # These tests are incompatible with gas reporting
 excluded_dirs=("workspace" "workspace_default_member")
-# These tests are temporarily causing issues with gates reporting.
-# They should be re-added later.
-temp_excluded_dirs=("eddsa")
 
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
@@ -18,7 +15,7 @@ echo "[workspace]" > Nargo.toml
 echo "members = [" >> Nargo.toml
 
 for dir in $test_dirs; do
-    if [[ " ${excluded_dirs[@]} " =~ " ${dir} " ]] ||  [[ " ${temp_excluded_dirs[@]} " =~ " ${dir} " ]]; then
+    if [[ " ${excluded_dirs[@]} " =~ " ${dir} " ]]; then
       continue
     fi
 
