@@ -10,9 +10,9 @@ mod expr;
 mod item;
 mod stmt;
 
-use noirc_frontend::hir::resolution::errors::Span;
+use noirc_frontend::{hir::resolution::errors::Span, token::Token};
 
-use crate::config::Config;
+use crate::{config::Config, utils::FindToken};
 
 pub(crate) struct FmtVisitor<'me> {
     config: &'me Config,
@@ -31,6 +31,19 @@ impl<'me> FmtVisitor<'me> {
             last_position: 0,
             indent: Indent { block_indent: 0 },
         }
+    }
+
+    fn slice(&self, span: Span) -> &'me str {
+        &self.source[span.start() as usize..span.end() as usize]
+    }
+
+    fn span_before(&self, span: impl Into<Span>, token: Token) -> Span {
+        let span = span.into();
+
+        let slice = slice!(self, span.start(), span.end());
+        let offset = slice.find_token(token).unwrap();
+
+        (span.start() + offset..span.end()).into()
     }
 
     fn shape(&self) -> Shape {

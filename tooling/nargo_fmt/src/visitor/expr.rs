@@ -1,5 +1,3 @@
-use std::ops::Range;
-
 use noirc_frontend::{
     hir::resolution::errors::Span, token::Token, ArrayLiteral, BlockExpression, Expression,
     ExpressionKind, Literal, Statement, UnaryOp,
@@ -7,7 +5,7 @@ use noirc_frontend::{
 
 use super::{FmtVisitor, Shape};
 use crate::{
-    utils::{self, Expr, FindToken},
+    utils::{self, Expr, FindToken, Item},
     Config,
 };
 
@@ -58,23 +56,23 @@ impl FmtVisitor<'_> {
                 )
             }
             ExpressionKind::Call(call_expr) => {
-                let span = call_expr.func.span.end()..span.end();
-                let span =
-                    skip_useless_tokens(Token::LeftParen, slice!(self, span.start, span.end), span);
+                let args_span =
+                    self.span_before(call_expr.func.span.end()..span.end(), Token::LeftParen);
 
                 let callee = self.format_expr(*call_expr.func);
-                let args = format_parens(self.fork(), false, call_expr.arguments, span);
+                let args = format_parens(self.fork(), false, call_expr.arguments, args_span);
 
                 format!("{callee}{args}")
             }
             ExpressionKind::MethodCall(method_call_expr) => {
-                let span = method_call_expr.method_name.span().end()..span.end();
-                let span =
-                    skip_useless_tokens(Token::LeftParen, slice!(self, span.start, span.end), span);
+                let args_span = self.span_before(
+                    method_call_expr.method_name.span().end()..span.end(),
+                    Token::LeftParen,
+                );
 
                 let object = self.format_expr(method_call_expr.object);
                 let method = method_call_expr.method_name.to_string();
-                let args = format_parens(self.fork(), false, method_call_expr.arguments, span);
+                let args = format_parens(self.fork(), false, method_call_expr.arguments, args_span);
 
                 format!("{object}.{method}{args}")
             }
@@ -83,16 +81,11 @@ impl FmtVisitor<'_> {
                 format!("{}.{}", lhs_str, member_access_expr.rhs)
             }
             ExpressionKind::Index(index_expr) => {
-                let span = index_expr.collection.span.end()..span.end();
-
-                let span = skip_useless_tokens(
-                    Token::LeftBracket,
-                    slice!(self, span.start, span.end),
-                    span,
-                );
+                let index_span = self
+                    .span_before(index_expr.collection.span.end()..span.end(), Token::LeftBracket);
 
                 let collection = self.format_expr(index_expr.collection);
-                let index = format_brackets(self.fork(), false, vec![index_expr.index], span);
+                let index = format_brackets(self.fork(), false, vec![index_expr.index], index_span);
 
                 format!("{collection}{index}")
             }
@@ -172,6 +165,22 @@ impl FmtVisitor<'_> {
                     result
                 }
             }
+            ExpressionKind::Constructor(constructor) => {
+                let type_name = self.slice(constructor.type_name.span());
+                let fields_span = self
+                    .span_before(constructor.type_name.span().end()..span.end(), Token::LeftBrace);
+                let fields = format_expr_seq(
+                    "{",
+                    "}",
+                    self.fork(),
+                    false,
+                    constructor.fields,
+                    fields_span,
+                    None,
+                );
+
+                format!("{type_name} {fields}")
+            }
             // TODO:
             _expr => slice!(self, span.start(), span.end()).to_string(),
         }
@@ -237,12 +246,12 @@ impl FmtVisitor<'_> {
     }
 }
 
-fn format_expr_seq(
+fn format_expr_seq<T: Item>(
     prefix: &str,
-    sufix: &str,
+    suffix: &str,
     mut visitor: FmtVisitor,
     trailing_comma: bool,
-    exprs: Vec<Expression>,
+    exprs: Vec<T>,
     span: Span,
     limit: Option<usize>,
 ) -> String {
@@ -254,7 +263,7 @@ fn format_expr_seq(
 
     visitor.indent.block_unindent(visitor.config);
 
-    wrap_exprs(prefix, sufix, exprs, nested_indent, visitor.shape())
+    wrap_exprs(prefix, suffix, exprs, nested_indent, visitor.shape())
 }
 
 fn format_brackets(
@@ -359,7 +368,7 @@ fn format_exprs(
 
 fn wrap_exprs(
     prefix: &str,
-    sufix: &str,
+    suffix: &str,
     exprs: String,
     nested_shape: Shape,
     shape: Shape,
@@ -380,12 +389,12 @@ fn wrap_exprs(
             String::new()
         };
 
-        format!("{prefix}{exprs}{trailing_newline}{sufix}")
+        format!("{prefix}{exprs}{trailing_newline}{suffix}")
     } else {
         let nested_indent_str = nested_shape.indent.to_string_with_newline();
         let indent_str = shape.indent.to_string();
 
-        format!("{prefix}{nested_indent_str}{exprs}{indent_str}{sufix}")
+        format!("{prefix}{nested_indent_str}{exprs}{indent_str}{suffix}")
     }
 }
 
@@ -425,12 +434,6 @@ impl Tactic {
 
 fn has_single_line_comment(slice: &str) -> bool {
     slice.trim_start().starts_with("//")
-}
-
-fn skip_useless_tokens(token: Token, slice: &str, mut span: Range<u32>) -> Span {
-    let offset = slice.find_token(token).unwrap();
-    span.start += offset;
-    span.into()
 }
 
 fn no_long_exprs(exprs: &[Expr], max_width: usize) -> bool {
