@@ -40,6 +40,45 @@ fn foo(x : Field, y : pub Field) -> Field {
 Note that a `return` keyword is unneeded in this case - the last expression in a function's body is
 returned.
 
+## Main function
+
+If you're writing a binary, the `main` function is the starting point of your program. You can pass all types of expressions to it, as long as they have a fixed size at compile time:
+
+```rust
+fn main(x : Field) // this is fine: passing a Field
+fn main(x : [Field; 2]) // this is also fine: passing a Field with known size at compile-time
+fn main(x : (Field, bool)) // 👌: passing a (Field, bool) tuple means size 2
+fn main(x : str<5>) // this is fine, as long as you pass a string of size 5
+
+fn main(x : Vec<Field>) // can't compile, has variable size
+fn main(x : [Field]) // can't compile, has variable size
+fn main(....// i think you got it by now
+```
+
+Keep in mind [tests](../nargo/02_testing.md) don't differentiate between `main` and any other function. The following snippet passes tests, but won't compile or prove:
+
+```rust
+fn main(x : [Field]) {
+    assert(x[0] == 1);
+}
+
+#[test]
+fn test_one() {
+    main([1, 2]);
+}
+```
+
+```bash
+$ nargo test
+[testing] Running 1 test functions
+[testing] Testing test_one... ok
+[testing] All tests passed
+
+$ nargo check
+The application panicked (crashed).
+Message:  Cannot have variable sized arrays as a parameter to main
+```
+
 ## Call Expressions
 
 Calling a function in Noir is executed by using the function name and passing in the necessary

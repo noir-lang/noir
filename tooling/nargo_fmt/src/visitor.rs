@@ -33,6 +33,13 @@ impl<'me> FmtVisitor<'me> {
         }
     }
 
+    fn shape(&self) -> Shape {
+        Shape {
+            width: self.config.max_width.saturating_sub(self.indent.width()),
+            indent: self.indent,
+        }
+    }
+
     pub(crate) fn fork(&self) -> Self {
         Self {
             buffer: String::new(),
@@ -151,12 +158,16 @@ impl<'me> FmtVisitor<'me> {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct Indent {
     block_indent: usize,
 }
 
 impl Indent {
+    fn width(&self) -> usize {
+        self.block_indent
+    }
+
     fn block_indent(&mut self, config: &Config) {
         self.block_indent += config.tab_spaces;
     }
@@ -173,4 +184,10 @@ impl Indent {
     fn to_string(self) -> String {
         " ".repeat(self.block_indent)
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Shape {
+    width: usize,
+    indent: Indent,
 }

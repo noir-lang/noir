@@ -17,6 +17,6 @@ Your only concern should be to write Noir. Noir.js will work out-of-the box and 
 
 ## Barretenberg
 
-Since Noir is backend agnostic, you can instantiate `noir_js` with supported backends through their own `js` interface.
+Since Noir is backend agnostic, you can instantiate `noir_js` without any backend (i.e. to execute a function). But for proving, you should instantiate it with any of the supported backends through their own `js` interface.
 
 Aztec Labs maintains the `barretenberg` backend. You can use it to instantiate your `Noir` class.

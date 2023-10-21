@@ -23,9 +23,19 @@ pub(crate) fn comments(source: &str) -> impl Iterator<Item = String> + '_ {
 #[derive(Debug)]
 pub(crate) struct Expr {
     pub(crate) leading: String,
-    pub(crate) expr: String,
+    pub(crate) value: String,
     pub(crate) trailing: String,
     pub(crate) different_line: bool,
+}
+
+impl Expr {
+    pub(crate) fn total_width(&self) -> usize {
+        comment_len(&self.leading) + self.value.chars().count() + comment_len(&self.trailing)
+    }
+
+    pub(crate) fn is_multiline(&self) -> bool {
+        self.leading.contains('\n') || self.trailing.contains('\n')
+    }
 }
 
 pub(crate) struct Exprs<'me> {
@@ -63,17 +73,17 @@ impl Iterator for Exprs<'_> {
         let is_last = self.elements.peek().is_none();
         let next_start = self.elements.peek().map_or(self.end_position, |expr| expr.span.start());
 
-        let (leading, newlines) = self.leading(start, end);
+        let (leading, different_line) = self.leading(start, end);
         let expr = self.visitor.format_expr(element);
         let trailing = self.trailing(element_span.end(), next_start, is_last);
 
-        Expr { leading, expr, trailing, different_line: newlines }.into()
+        Expr { leading, value: expr, trailing, different_line }.into()
     }
 }
 
 impl<'me> Exprs<'me> {
     pub(crate) fn leading(&mut self, start: u32, end: u32) -> (String, bool) {
-        let mut newlines = false;
+        let mut different_line = false;
 
         let leading = slice!(self.visitor, start, end);
         let leading_trimmed = slice!(self.visitor, start, end).trim();
@@ -86,13 +96,13 @@ impl<'me> Exprs<'me> {
             let comment_end = leading_trimmed.rfind(|c| c == '/').unwrap();
 
             if leading[comment_end..].contains('\n') {
-                newlines = true;
+                different_line = true;
             }
         } else if starts_with_single_line_comment || starts_with_block_comment {
-            newlines = true;
+            different_line = true;
         };
 
-        (leading_trimmed.to_string(), newlines)
+        (leading_trimmed.to_string(), different_line)
     }
 
     pub(crate) fn trailing(&mut self, start: u32, end: u32, is_last: bool) -> String {
@@ -167,5 +177,19 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
         newline_index + 1
     } else {
         0
+    }
+}
+
+fn comment_len(comment: &str) -> usize {
+    match comment {
+        "" => 0,
+        _ => {
+            let len = comment.trim().len();
+            if len > 0 {
+                len + 6
+            } else {
+                len
+            }
+        }
     }
 }
