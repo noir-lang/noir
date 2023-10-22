@@ -34,11 +34,7 @@ struct MyStruct {
     my_nest: Nested,
 }
 fn test_struct_in_tuple(a_bool : bool,x:Field, y:Field) -> (MyStruct, bool) {
-    let my_struct = MyStruct {
-        my_bool: a_bool,
-        my_int: 5,
-        my_nest: Nested{a:x,b:y},
-    };
+    let my_struct = MyStruct {my_bool: a_bool, my_int: 5, my_nest: Nested {a: x, b: y}};
     (my_struct, a_bool)
 }
 
@@ -48,13 +44,13 @@ struct Animal {
 }
 
 fn get_dog() -> Animal {
-    let dog = Animal { legs: 4, eyes: 2 };
+    let dog = Animal {legs: 4, eyes: 2};
     dog
 }
 
 fn main(x: Field, y: Field) {
     let first = Foo::default(x, y);
-    let p = Pair { first, second: 1 };
+    let p = Pair {first, second: 1};
 
     assert(p.bar() == x);
     assert(p.second == y);

@@ -175,7 +175,7 @@ impl FmtVisitor<'_> {
                     false,
                     constructor.fields,
                     fields_span,
-                    None,
+                    Tactic::HorizontalVertical,
                 );
 
                 format!("{type_name} {fields}")
@@ -252,13 +252,13 @@ fn format_expr_seq<T: Item>(
     trailing_comma: bool,
     exprs: Vec<T>,
     span: Span,
-    limit: Option<usize>,
+    tactic: Tactic,
 ) -> String {
     visitor.indent.block_indent(visitor.config);
 
     let nested_indent = visitor.shape();
     let exprs: Vec<_> = utils::Exprs::new(&visitor, span, exprs).collect();
-    let exprs = format_exprs(visitor.config, trailing_comma, exprs, nested_indent, limit);
+    let exprs = format_exprs(visitor.config, tactic, trailing_comma, exprs, nested_indent);
 
     visitor.indent.block_unindent(visitor.config);
 
@@ -272,7 +272,15 @@ fn format_brackets(
     span: Span,
 ) -> String {
     let array_width = visitor.config.array_width;
-    format_expr_seq("[", "]", visitor, trailing_comma, exprs, span, array_width.into())
+    format_expr_seq(
+        "[",
+        "]",
+        visitor,
+        trailing_comma,
+        exprs,
+        span,
+        Tactic::LimitedHorizontalVertical(array_width),
+    )
 }
 
 fn format_parens(
@@ -281,20 +289,20 @@ fn format_parens(
     exprs: Vec<Expression>,
     span: Span,
 ) -> String {
-    format_expr_seq("(", ")", visitor, trailing_comma, exprs, span, None)
+    format_expr_seq("(", ")", visitor, trailing_comma, exprs, span, Tactic::Horizontal)
 }
 
 fn format_exprs(
     config: &Config,
+    tactic: Tactic,
     trailing_comma: bool,
     exprs: Vec<Expr>,
     shape: Shape,
-    limit: Option<usize>,
 ) -> String {
     let mut result = String::new();
     let indent_str = shape.indent.to_string();
 
-    let tactic = Tactic::of(&exprs, config.short_array_element_width_threshold, limit);
+    let tactic = tactic.definitive(&exprs, config.short_array_element_width_threshold);
     let mut exprs = exprs.into_iter().enumerate().peekable();
     let mut line_len = 0;
     let mut prev_expr_trailing_comment = false;
@@ -305,14 +313,16 @@ fn format_exprs(
         let separate_len = usize::from(separate);
 
         match tactic {
-            Tactic::Vertical if !is_first && !expr.value.is_empty() && !result.is_empty() => {
+            DefinitiveTactic::Vertical
+                if !is_first && !expr.value.is_empty() && !result.is_empty() =>
+            {
                 result.push('\n');
                 result.push_str(&indent_str);
             }
-            Tactic::Horizontal if !is_first => {
+            DefinitiveTactic::Horizontal if !is_first => {
                 result.push(' ');
             }
-            Tactic::Mixed => {
+            DefinitiveTactic::Mixed => {
                 let total_width = expr.total_width() + separate_len;
 
                 if line_len > 0 && line_len + 1 + total_width > shape.width
@@ -343,7 +353,7 @@ fn format_exprs(
 
         result.push_str(&expr.value);
 
-        if tactic == Tactic::Horizontal {
+        if tactic == DefinitiveTactic::Horizontal {
             result.push_str(&expr.trailing);
         }
 
@@ -351,7 +361,7 @@ fn format_exprs(
             result.push(',');
         }
 
-        if tactic != Tactic::Horizontal {
+        if tactic != DefinitiveTactic::Horizontal {
             prev_expr_trailing_comment = !expr.trailing.is_empty();
 
             if !expr.different_line && !expr.trailing.is_empty() {
@@ -397,37 +407,77 @@ fn wrap_exprs(
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq)]
 enum Tactic {
+    Horizontal,
+    HorizontalVertical,
+    LimitedHorizontalVertical(usize),
+    Mixed,
+}
+
+impl Tactic {
+    fn definitive(
+        self,
+        exprs: &[Expr],
+        short_array_element_width_threshold: usize,
+    ) -> DefinitiveTactic {
+        let tactic = || {
+            let has_single_line_comment = exprs.iter().any(|item| {
+                has_single_line_comment(&item.leading) || has_single_line_comment(&item.trailing)
+            });
+
+            let limit = match self {
+                _ if has_single_line_comment => return DefinitiveTactic::Vertical,
+
+                Tactic::Horizontal => return DefinitiveTactic::Horizontal,
+                Tactic::LimitedHorizontalVertical(limit) => limit,
+                Tactic::HorizontalVertical | Tactic::Mixed => 100,
+            };
+
+            let (sep_count, total_width): (usize, usize) = exprs
+                .iter()
+                .map(|expr| expr.total_width())
+                .fold((0, 0), |(sep_count, total_width), width| {
+                    (sep_count + 1, total_width + width)
+                });
+
+            let total_sep_len = 1 * sep_count.saturating_sub(1);
+            let real_total = total_width + total_sep_len;
+
+            if real_total <= limit && !exprs.iter().any(|expr| expr.is_multiline()) {
+                DefinitiveTactic::Horizontal
+            } else {
+                if self == Tactic::Mixed {
+                    DefinitiveTactic::Mixed
+                } else {
+                    DefinitiveTactic::Vertical
+                }
+            }
+        };
+
+        tactic().reduce(exprs, short_array_element_width_threshold)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum DefinitiveTactic {
     Vertical,
     Horizontal,
     Mixed,
 }
 
-impl Tactic {
-    fn of(exprs: &[Expr], max_width: usize, limit: Option<usize>) -> Self {
-        let mut tactic = if exprs.iter().any(|item| {
-            has_single_line_comment(&item.leading) || has_single_line_comment(&item.trailing)
-        }) {
-            Tactic::Vertical
-        } else {
-            Tactic::Horizontal
-        };
-
-        if tactic == Tactic::Vertical && no_long_exprs(exprs, max_width) {
-            tactic = Tactic::Mixed;
-        }
-
-        if let Some(limit) = limit {
-            let total_width: usize = exprs.iter().map(|expr| expr.total_width()).sum();
-            if total_width <= limit && !exprs.iter().any(|expr| expr.is_multiline()) {
-                tactic = Tactic::Horizontal;
-            } else {
-                tactic = Tactic::Mixed;
+impl DefinitiveTactic {
+    fn reduce(self, exprs: &[Expr], short_array_element_width_threshold: usize) -> Self {
+        match self {
+            DefinitiveTactic::Vertical
+                if no_long_exprs(exprs, short_array_element_width_threshold) =>
+            {
+                DefinitiveTactic::Mixed
+            }
+            DefinitiveTactic::Vertical | DefinitiveTactic::Horizontal | DefinitiveTactic::Mixed => {
+                self
             }
         }
-
-        tactic
     }
 }
 

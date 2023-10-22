@@ -231,7 +231,13 @@ impl Item for (Ident, Expression) {
     fn format(self, visitor: &FmtVisitor) -> String {
         let (name, expr) = self;
 
+        let name = name.0.contents;
         let expr = visitor.format_expr(expr);
-        format!("{name}: {expr}")
+
+        if name == expr {
+            name
+        } else {
+            format!("{name}: {expr}")
+        }
     }
 }
