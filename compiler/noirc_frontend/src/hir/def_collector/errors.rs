@@ -56,7 +56,7 @@ pub enum DefCollectorErrorKind {
     #[error("Module is already part of the crate")]
     ModuleAlreadyPartOfCrate { mod_name: Ident, span: Span },
     #[error("Module was originally declared here")]
-    ModuleOrignallyDefined { mod_name: Ident, span: Span },
+    ModuleOriginallyDefined { mod_name: Ident, span: Span },
     #[cfg(feature = "aztec")]
     #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
     AztecNotFound {},
@@ -189,7 +189,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 let secondary = String::new();
                 Diagnostic::simple_error(message, secondary, span)
             }
-            DefCollectorErrorKind::ModuleOrignallyDefined { mod_name, span } => {
+            DefCollectorErrorKind::ModuleOriginallyDefined { mod_name, span } => {
                 let message = format!("Note: {mod_name} was originally declared here");
                 let secondary = String::new();
                 Diagnostic::simple_error(message, secondary, span)

@@ -358,8 +358,8 @@ impl GeneratedAcir {
     }
 
     /// Signed division lhs /  rhs
-    /// We derive the signed division from the unsigned euclidian division.
-    /// note that this is not euclidian division!
+    /// We derive the signed division from the unsigned euclidean division.
+    /// note that this is not euclidean division!
     // if x is a signed integer, then sign(x)x >= 0
     // so if a and b are signed integers, we can do the unsigned division:
     // sign(a)a = q1*sign(b)b + r1
@@ -440,9 +440,30 @@ impl GeneratedAcir {
         //
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the rhs must not be 0.
-        let rhs_is_zero = self.is_zero(rhs);
-        let rhs_is_not_zero = self.mul_with_witness(&rhs_is_zero.into(), predicate);
-        self.assert_is_zero(rhs_is_not_zero);
+        let rhs_is_nonzero_const = rhs.is_const() && !rhs.is_zero();
+        if !rhs_is_nonzero_const {
+            match predicate.to_const() {
+                Some(predicate) if predicate.is_zero() => {
+                    // If predicate is known to be inactive, we don't need to lay down constraints.
+                }
+
+                Some(predicate) if predicate.is_one() => {
+                    // If the predicate is known to be active, we simply assert that an inverse must exist.
+                    // This implies that `rhs != 0`.
+                    let unsafe_inverse = self.brillig_inverse(rhs.clone());
+                    let rhs_has_inverse =
+                        self.mul_with_witness(rhs, &unsafe_inverse.into()) - FieldElement::one();
+                    self.assert_is_zero(rhs_has_inverse);
+                }
+
+                _ => {
+                    // Otherwise we must handle both potential cases.
+                    let rhs_is_zero = self.is_zero(rhs);
+                    let rhs_is_not_zero = self.mul_with_witness(&rhs_is_zero.into(), predicate);
+                    self.assert_is_zero(rhs_is_not_zero);
+                }
+            }
+        }
 
         // maximum bit size for q and for [r and rhs]
         let mut max_q_bits = max_bit_size;
@@ -800,7 +821,7 @@ impl GeneratedAcir {
         let two_max_bits: FieldElement = two.pow(&FieldElement::from(max_bits as i128));
         let comparison_evaluation = (a - b) + two_max_bits;
 
-        // Euclidian division by 2^{max_bits}  : 2^{max_bits} + a - b = q * 2^{max_bits} + r
+        // euclidean division by 2^{max_bits}  : 2^{max_bits} + a - b = q * 2^{max_bits} + r
         //
         // 2^{max_bits} is of max_bits+1 bit size
         // If a>b, then a-b is less than 2^{max_bits} - 1, so 2^{max_bits} + a - b is less than 2^{max_bits} + 2^{max_bits} - 1 = 2^{max_bits+1} - 1
@@ -844,7 +865,6 @@ impl GeneratedAcir {
         let opcode = AcirOpcode::Brillig(AcvmBrillig {
             inputs,
             outputs,
-            foreign_call_results: Vec::new(),
             bytecode: generated_brillig.byte_code,
             predicate,
         });

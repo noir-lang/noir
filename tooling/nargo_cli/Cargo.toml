@@ -26,6 +26,7 @@ nargo.workspace = true
 nargo_fmt.workspace = true
 nargo_toml.workspace = true
 noir_lsp.workspace = true
+noir_debugger.workspace = true
 noirc_driver.workspace = true
 noirc_frontend.workspace = true
 noirc_abi.workspace = true

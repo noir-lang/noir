@@ -3,15 +3,21 @@
 mod contract;
 mod gates;
 mod info;
+mod proof_as_fields;
 mod prove;
 mod verify;
+mod version;
+mod vk_as_fields;
 mod write_vk;
 
 pub(crate) use contract::ContractCommand;
 pub(crate) use gates::GatesCommand;
 pub(crate) use info::InfoCommand;
+pub(crate) use proof_as_fields::ProofAsFieldsCommand;
 pub(crate) use prove::ProveCommand;
 pub(crate) use verify::VerifyCommand;
+pub(crate) use version::VersionCommand;
+pub(crate) use vk_as_fields::VkAsFieldsCommand;
 pub(crate) use write_vk::WriteVkCommand;
 
 #[test]

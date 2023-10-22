@@ -1,4 +1,4 @@
-fn main(){
+fn main() {
     //Regression for Issue #579
     let result1_true = test(true);
     assert(result1_true.array_param[0] == 1);
@@ -19,7 +19,7 @@ impl MyStruct579 {
 }
 
 fn test(flag: bool) -> MyStruct579 {
-    let mut my_struct =  MyStruct579::new([0; 2]);
+    let mut my_struct = MyStruct579::new([0; 2]);
 
     if flag == true {
         my_struct=  MyStruct579::new([1; 2]);

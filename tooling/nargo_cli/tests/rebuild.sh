@@ -6,7 +6,8 @@ excluded_dirs=("workspace" "workspace_default_member")
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
 
-# Ensure the base acir_artifacts directory exists
+# Clear the acir_artifacts directory of any existing artifacts
+rm -rf $current_dir/acir_artifacts
 mkdir -p $current_dir/acir_artifacts
 
 # Loop over every directory

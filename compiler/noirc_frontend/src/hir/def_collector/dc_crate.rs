@@ -303,7 +303,7 @@ impl DefCollector {
         errors.extend(collect_impls(context, crate_id, &def_collector.collected_impls));
 
         // Bind trait impls to their trait. Collect trait functions, that have a
-        // default implementation, which hasn't been overriden.
+        // default implementation, which hasn't been overridden.
         errors.extend(collect_trait_impls(
             context,
             crate_id,
@@ -394,15 +394,12 @@ fn collect_impls(
                 let module = &mut def_maps.get_mut(&crate_id).unwrap().modules[type_module.0];
 
                 for (_, method_id, method) in &unresolved.functions {
-                    let result = module.declare_function(method.name_ident().clone(), *method_id);
-
-                    if let Err((first_def, second_def)) = result {
-                        let error = DefCollectorErrorKind::Duplicate {
-                            typ: DuplicateType::Function,
-                            first_def,
-                            second_def,
-                        };
-                        errors.push((error.into(), unresolved.file_id));
+                    // If this method was already declared, remove it from the module so it cannot
+                    // be accessed with the `TypeName::method` syntax. We'll check later whether the
+                    // object types in each method overlap or not. If they do, we issue an error.
+                    // If not, that is specialization which is allowed.
+                    if module.declare_function(method.name_ident().clone(), *method_id).is_err() {
+                        module.remove_function(method.name_ident());
                     }
                 }
             // Prohibit defining impls for primitive types if we're not in the stdlib
@@ -502,17 +499,18 @@ fn add_method_to_struct_namespace(
     struct_type: &Shared<StructType>,
     func_id: FuncId,
     name_ident: &Ident,
+    trait_id: TraitId,
 ) -> Result<(), DefCollectorErrorKind> {
     let struct_type = struct_type.borrow();
     let type_module = struct_type.id.local_module_id();
     let module = &mut current_def_map.modules[type_module.0];
-    module.declare_function(name_ident.clone(), func_id).map_err(|(first_def, second_def)| {
-        DefCollectorErrorKind::Duplicate {
+    module.declare_trait_function(name_ident.clone(), func_id, trait_id).map_err(
+        |(first_def, second_def)| DefCollectorErrorKind::Duplicate {
             typ: DuplicateType::TraitImplementation,
             first_def,
             second_def,
-        }
-    })
+        },
+    )
 }
 
 fn collect_trait_impl(
@@ -553,6 +551,7 @@ fn collect_trait_impl(
                     struct_type,
                     *func_id,
                     ast.name_ident(),
+                    trait_id,
                 ) {
                     Ok(()) => {}
                     Err(err) => {

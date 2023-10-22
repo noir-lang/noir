@@ -1,0 +1,45 @@
+---
+title: ECDSA Signature Verification
+description: Learn about the cryptographic primitives regarding ECDSA over the secp256k1 and secp256r1 curves
+keywords: [cryptographic primitives, Noir project, ecdsa, secp256k1, secp256r1, signatures]
+---
+
+import BlackBoxInfo from './common/_blackbox.mdx';
+
+Noir supports ECDSA signatures verification over the secp256k1 and secp256r1 curves.
+
+## ecdsa_secp256k1::verify_signature
+
+Verifier for ECDSA Secp256k1 signatures
+
+```rust
+fn verify_signature(_public_key_x : [u8; 32], _public_key_y : [u8; 32], _signature: [u8; 64], _message: [u8]) -> bool
+```
+
+example:
+
+```rust
+fn main(hashed_message : [u8;32], pub_key_x : [u8;32], pub_key_y : [u8;32], signature : [u8;64]) {
+     let valid_signature = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
+     assert(valid_signature);
+}
+```
+
+## ecdsa_secp256r1::verify_signature
+
+Verifier for ECDSA Secp256r1 signatures
+
+```rust
+fn verify_signature(_public_key_x : [u8; 32], _public_key_y : [u8; 32], _signature: [u8; 64], _message: [u8]) -> bool
+```
+
+example:
+
+```rust
+fn main(hashed_message : [u8;32], pub_key_x : [u8;32], pub_key_y : [u8;32], signature : [u8;64]) {
+     let valid_signature = std::ecdsa_secp256r1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
+     assert(valid_signature);
+}
+```
+
+<BlackBoxInfo />

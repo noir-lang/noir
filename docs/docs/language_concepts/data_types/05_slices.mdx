@@ -1,0 +1,146 @@
+---
+title: Slices
+description: Explore the Slice data type in Noir. Understand its methods, see real-world examples, and learn how to effectively use Slices in your Noir programs.
+keywords: [noir, slice type, methods, examples, subarrays]
+---
+
+import Experimental from '../../../src/components/Notes/_experimental.mdx';
+
+<Experimental />
+
+A slice is a dynamically-sized view into a sequence of elements. They can be resized at runtime, but because they don't own the data, they cannot be returned from a circuit. You can treat slices as arrays without a constrained size.
+
+```rust
+use dep::std::slice;
+
+fn main() -> pub Field {
+    let mut slice: [Field] = [0; 2];
+
+    let mut new_slice = slice.push_back(6);
+    new_slice.len()
+}
+```
+
+View the corresponding test file [here]([test-file].
+
+[test-file]: https://github.com/noir-lang/noir/blob/f387ec1475129732f72ba294877efdf6857135ac/crates/nargo_cli/tests/test_data_ssa_refactor/slices/src/main.nr
+
+## Methods
+
+For convenience, the STD provides some ready-to-use, common methods for slices:
+
+### push_back
+
+Pushes a new element to the end of the slice, returning a new slice with a length one greater than the original unmodified slice.
+
+```rust
+fn push_back<T>(_self: [T], _elem: T) -> [T]
+```
+
+example:
+
+```rust
+fn main() -> pub Field {
+    let mut slice: [Field] = [0; 2];
+
+    let mut new_slice = slice.push_back(6);
+    new_slice.len()
+}
+```
+
+View the corresponding test file [here][test-file].
+
+### push_front
+
+Returns a new array with the specified element inserted at index 0. The existing elements indexes are incremented by 1.
+
+```rust
+fn push_front(_self: Self, _elem: T) -> Self
+```
+
+Example:
+
+```rust
+let mut new_slice: [Field] = [];
+new_slice = new_slice.push_front(20);
+assert(new_slice[0] == 20); // returns true
+```
+
+View the corresponding test file [here][test-file].
+
+### pop_front
+
+Returns a tuple of two items, the first element of the array and the rest of the array.
+
+```rust
+fn pop_front(_self: Self) -> (T, Self)
+```
+
+Example:
+
+```rust
+let (first_elem, rest_of_slice) = slice.pop_front();
+```
+
+View the corresponding test file [here][test-file].
+
+### pop_back
+
+Returns a tuple of two items, the beginning of the array with the last element omitted and the last element.
+
+```rust
+fn pop_back(_self: Self) -> (Self, T)
+```
+
+Example:
+
+```rust
+let (popped_slice, last_elem) = slice.pop_back();
+```
+
+View the corresponding test file [here][test-file].
+
+### append
+
+Loops over a slice and adds it to the end of another.
+
+```rust
+fn append(mut self, other: Self) -> Self
+```
+
+Example:
+
+```rust
+let append = [1, 2].append([3, 4, 5]);
+```
+
+### insert
+
+Inserts an element at a specified index and shifts all following elements by 1.
+
+```rust
+fn insert(_self: Self, _index: Field, _elem: T) -> Self
+```
+
+Example:
+
+```rust
+new_slice = rest_of_slice.insert(2, 100);
+assert(new_slice[2] == 100);
+```
+
+View the corresponding test file [here][test-file].
+
+### remove
+
+Remove an element at a specified index, shifting all elements after it to the left, returning the altered slice and the removed element.
+
+```rust
+fn remove(_self: Self, _index: Field) -> (Self, T)
+```
+
+Example:
+
+```rust
+let (remove_slice, removed_elem) = slice.remove(3);
+```

@@ -1,3 +1,5 @@
+use crate::parser::ParserError;
+use crate::parser::ParserErrorReason;
 use crate::token::SpannedToken;
 
 use super::token::Token;
@@ -27,6 +29,13 @@ pub enum LexerErrorKind {
         "'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."
     )]
     InvalidEscape { escaped: char, span: Span },
+}
+
+impl From<LexerErrorKind> for ParserError {
+    fn from(value: LexerErrorKind) -> Self {
+        let span = value.span();
+        ParserError::with_reason(ParserErrorReason::Lexer(value), span)
+    }
 }
 
 impl LexerErrorKind {

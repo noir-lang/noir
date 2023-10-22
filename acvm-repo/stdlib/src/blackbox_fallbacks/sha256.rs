@@ -155,7 +155,6 @@ pub(crate) fn pad(number: u32, bit_size: u32, mut num_witness: u32) -> (u32, Wit
             q_c: FieldElement::from(number as u128),
         })],
         outputs: vec![BrilligOutputs::Simple(pad)],
-        foreign_call_results: vec![],
         bytecode: vec![brillig::Opcode::Stop],
         predicate: None,
     });
