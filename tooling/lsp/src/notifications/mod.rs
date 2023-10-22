@@ -30,23 +30,33 @@ pub(super) fn on_did_change_configuration(
 }
 
 pub(super) fn on_did_open_text_document(
-    _state: &mut LspState,
-    _params: DidOpenTextDocumentParams,
+    state: &mut LspState,
+    params: DidOpenTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
+    if params.text_document.language_id != "noir" {
+        return ControlFlow::Continue(());
+    }
+    state.open_files.insert(params.text_document.uri.clone(), params.text_document.text);
     ControlFlow::Continue(())
 }
 
 pub(super) fn on_did_change_text_document(
-    _state: &mut LspState,
-    _params: DidChangeTextDocumentParams,
+    state: &mut LspState,
+    params: DidChangeTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
+    params.content_changes.into_iter().for_each(|change| {
+        state.open_files.insert(params.text_document.uri.clone(), change.text);
+    });
     ControlFlow::Continue(())
 }
 
 pub(super) fn on_did_close_text_document(
-    _state: &mut LspState,
-    _params: DidCloseTextDocumentParams,
+    state: &mut LspState,
+    params: DidCloseTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
+    if state.open_files.contains_key(&params.text_document.uri) {
+        state.open_files.remove(&params.text_document.uri);
+    }
     ControlFlow::Continue(())
 }
 

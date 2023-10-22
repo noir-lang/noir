@@ -2556,6 +2556,7 @@ dependencies = [
  "acvm",
  "async-lsp",
  "cfg-if",
+ "codespan",
  "codespan-lsp",
  "codespan-reporting",
  "lsp-types 0.94.0",

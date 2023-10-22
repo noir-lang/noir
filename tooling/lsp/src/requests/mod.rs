@@ -2,6 +2,7 @@ use std::future::Future;
 
 use crate::types::{CodeLensOptions, InitializeParams, TextDocumentSyncOptions};
 use async_lsp::ResponseError;
+use lsp_types::{DocumentSymbolOptions, TextDocumentSyncKind};
 
 use crate::{
     types::{InitializeResult, NargoCapability, NargoTestsOptions, ServerCapabilities},
@@ -19,11 +20,13 @@ use crate::{
 // and params passed in.
 
 mod code_lens_request;
+mod document_symbol_request;
 mod test_run;
 mod tests;
 
 pub(crate) use {
-    code_lens_request::on_code_lens_request, test_run::on_test_run_request, tests::on_tests_request,
+    code_lens_request::on_code_lens_request, document_symbol_request::on_document_symbols,
+    test_run::on_test_run_request, tests::on_tests_request,
 };
 
 pub(crate) fn on_initialize(
@@ -33,8 +36,12 @@ pub(crate) fn on_initialize(
     state.root_path = params.root_uri.and_then(|root_uri| root_uri.to_file_path().ok());
 
     async {
-        let text_document_sync =
-            TextDocumentSyncOptions { save: Some(true.into()), ..Default::default() };
+        let text_document_sync = TextDocumentSyncOptions {
+            open_close: Some(true),
+            change: Some(TextDocumentSyncKind::FULL), // simpler to manage
+            save: Some(true.into()),
+            ..Default::default()
+        };
 
         let code_lens = CodeLensOptions { resolve_provider: Some(false) };
 
@@ -51,6 +58,7 @@ pub(crate) fn on_initialize(
                 text_document_sync: Some(text_document_sync.into()),
                 code_lens_provider: Some(code_lens),
                 nargo: Some(nargo),
+                document_symbol_provider: Some(lsp_types::OneOf::Left(true)),
             },
             server_info: None,
         })
