@@ -169,7 +169,7 @@ impl FmtVisitor<'_> {
                 let fields_span = self
                     .span_before(constructor.type_name.span().end()..span.end(), Token::LeftBrace);
 
-                self.format_struct_lit(type_name, fields_span, constructor)
+                self.format_struct_lit(type_name, fields_span, *constructor)
             }
             // TODO:
             _expr => self.slice(span).to_string(),
@@ -180,7 +180,7 @@ impl FmtVisitor<'_> {
         &self,
         type_name: &str,
         fields_span: Span,
-        constructor: Box<ConstructorExpression>,
+        constructor: ConstructorExpression,
     ) -> String {
         let fields = {
             let mut visitor = self.fork();
@@ -470,17 +470,15 @@ impl Tactic {
                     (sep_count + 1, total_width + width)
                 });
 
-            let total_sep_len = 1 * sep_count.saturating_sub(1);
+            let total_sep_len = sep_count.saturating_sub(1);
             let real_total = total_width + total_sep_len;
 
             if real_total <= limit && !exprs.iter().any(|expr| expr.is_multiline()) {
                 DefinitiveTactic::Horizontal
+            } else if self == Tactic::Mixed {
+                DefinitiveTactic::Mixed
             } else {
-                if self == Tactic::Mixed {
-                    DefinitiveTactic::Mixed
-                } else {
-                    DefinitiveTactic::Vertical
-                }
+                DefinitiveTactic::Vertical
             }
         };
 
