@@ -92,5 +92,5 @@ fn parenthesized() {
 }
 
 fn constructor() {
-    Point {x: 5, y: 10};
+    Point { x: 5, y: 10 };
 }

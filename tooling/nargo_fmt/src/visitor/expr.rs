@@ -1,6 +1,6 @@
 use noirc_frontend::{
-    hir::resolution::errors::Span, token::Token, ArrayLiteral, BlockExpression, Expression,
-    ExpressionKind, Literal, Statement, UnaryOp,
+    hir::resolution::errors::Span, token::Token, ArrayLiteral, BlockExpression,
+    ConstructorExpression, Expression, ExpressionKind, Literal, Statement, UnaryOp,
 };
 
 use super::{FmtVisitor, Shape};
@@ -168,21 +168,50 @@ impl FmtVisitor<'_> {
                 let type_name = self.slice(constructor.type_name.span());
                 let fields_span = self
                     .span_before(constructor.type_name.span().end()..span.end(), Token::LeftBrace);
-                let fields = format_expr_seq(
-                    "{",
-                    "}",
-                    self.fork(),
-                    false,
-                    constructor.fields,
-                    fields_span,
-                    Tactic::HorizontalVertical,
-                );
 
-                format!("{type_name} {fields}")
+                self.format_struct_lit(type_name, fields_span, constructor)
             }
             // TODO:
             _expr => self.slice(span).to_string(),
         }
+    }
+
+    fn format_struct_lit(
+        &self,
+        type_name: &str,
+        fields_span: Span,
+        constructor: Box<ConstructorExpression>,
+    ) -> String {
+        let fields = {
+            let mut visitor = self.fork();
+
+            visitor.indent.block_indent(visitor.config);
+
+            let nested_indent = visitor.shape();
+            let exprs: Vec<_> =
+                utils::Exprs::new(&visitor, fields_span, constructor.fields).collect();
+            let exprs = format_exprs(
+                visitor.config,
+                Tactic::HorizontalVertical,
+                false,
+                exprs,
+                nested_indent,
+            );
+
+            visitor.indent.block_unindent(visitor.config);
+
+            if exprs.contains('\n') {
+                format!(
+                    "{}{exprs}{}",
+                    nested_indent.indent.to_string_with_newline(),
+                    visitor.shape().indent.to_string_with_newline()
+                )
+            } else {
+                format!(" {exprs} ")
+            }
+        };
+
+        format!("{type_name} {{{fields}}}")
     }
 
     pub(crate) fn visit_block(
@@ -401,7 +430,7 @@ fn wrap_exprs(
         format!("{prefix}{exprs}{trailing_newline}{suffix}")
     } else {
         let nested_indent_str = nested_shape.indent.to_string_with_newline();
-        let indent_str = shape.indent.to_string();
+        let indent_str = shape.indent.to_string_with_newline();
 
         format!("{prefix}{nested_indent_str}{exprs}{indent_str}{suffix}")
     }
