@@ -12,9 +12,6 @@ import { join, resolve } from 'node:path';
 import { compile } from '@noir-lang/noir_wasm';
 import { initializeResolver } from '@noir-lang/source-resolver';
 
-// const absoluteNoirSourcePath = ;
-// const absoluteNargoArtifactPath = join(__dirname, nargoArtifactPath);
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getPrecompiledSource(path: string): Promise<any> {
   const compiledData = readFileSync(resolve(__dirname, path)).toString();
@@ -36,6 +33,7 @@ describe('noir wasm compilation', () => {
 
   describe('can compile scripts with dependencies', () => {
     beforeEach(() => {
+      // this test requires a custom resolver in order to correctly resolve dependencies
       initializeResolver((file) => {
         switch (file) {
           case '/script/main.nr':
