@@ -70,13 +70,15 @@ jobs:
 
       - name: Generate gates report
         working-directory: ./tooling/nargo_cli/tests
-        run: ./gates_report.sh
+        run: |
+          ./gates_report.sh
+          mv gates_report.json ../../../gates_report.json
        
       - name: Compare gates reports
         id: gates_diff
         uses: TomAFrench/noir-gates-diff@e7cf131b7e7f044c01615f93f0b855f65ddc02d4
         with:
-          report: ./tooling/nargo_cli/tests/gates_report.json
+          report: gates_report.json
           summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
 
       - name: Add gates diff to sticky comment
