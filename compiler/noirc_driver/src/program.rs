@@ -12,6 +12,7 @@ use super::debug::DebugFile;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CompiledProgram {
+    pub noir_version: String,
     /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which this [`CompiledProgram`]
     /// was compiled.
     ///
@@ -21,7 +22,6 @@ pub struct CompiledProgram {
     #[serde(serialize_with = "serialize_circuit", deserialize_with = "deserialize_circuit")]
     pub circuit: Circuit,
     pub abi: noirc_abi::Abi,
-    pub noir_version: String,
     pub debug: DebugInfo,
     pub file_map: BTreeMap<FileId, DebugFile>,
 }

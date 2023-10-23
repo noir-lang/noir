@@ -13,6 +13,7 @@ use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, CompiledProgram};
 use noirc_frontend::graph::CrateName;
 
@@ -26,7 +27,6 @@ use super::fs::program::{
     save_debug_artifact_to_file, save_program_to_file,
 };
 use super::NargoConfig;
-use super::NOIR_ARTIFACT_VERSION_STRING;
 use rayon::prelude::*;
 
 // TODO(#1388): pull this from backend.
@@ -246,7 +246,7 @@ fn save_program(program: CompiledProgram, package: &Package, circuit_dir: &Path)
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
-        noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
+        noir_version: program.noir_version,
         bytecode: program.circuit,
     };
 
@@ -277,7 +277,7 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
     });
 
     let preprocessed_contract = PreprocessedContract {
-        noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
+        noir_version: contract.noir_version,
         name: contract.name,
         backend: String::from(BACKEND_IDENTIFIER),
         functions: preprocessed_functions,

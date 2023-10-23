@@ -7,7 +7,7 @@ use nargo::artifacts::{
 };
 use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
-    CompiledContract, CompiledProgram,
+    CompiledContract, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{graph::CrateGraph, hir::Context};
 use std::path::Path;
@@ -16,9 +16,6 @@ use wasm_bindgen::prelude::*;
 use crate::errors::JsCompileError;
 
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
-
-const NOIR_ARTIFACT_VERSION_STRING: &str =
-    concat!(env!("CARGO_PKG_VERSION"), "-", env!("GIT_COMMIT"));
 
 #[wasm_bindgen]
 extern "C" {
@@ -121,7 +118,7 @@ fn preprocess_program(program: CompiledProgram) -> PreprocessedProgram {
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
-        noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
+        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         bytecode: program.circuit,
     }
 }

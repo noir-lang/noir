@@ -2,7 +2,8 @@ use crate::backends::Backend;
 use crate::errors::CliError;
 
 use super::fs::{create_named_dir, write_to_file};
-use super::{NargoConfig, CARGO_PKG_VERSION};
+use super::NargoConfig;
+use noirc_driver::NOIRC_VERSION;
 use clap::Args;
 use nargo::constants::{PKG_FILE, SRC_DIR};
 use nargo::package::PackageType;
@@ -72,7 +73,7 @@ pub(crate) fn initialize_project(
 name = "{package_name}"
 type = "{package_type}"
 authors = [""]
-compiler_version = "{CARGO_PKG_VERSION}"
+compiler_version = "{NOIRC_VERSION}"
 
 [dependencies]"#
     );
