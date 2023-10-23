@@ -110,7 +110,7 @@ impl RuntimeError {
                 | InternalError::MissingArg { call_stack, .. }
                 | InternalError::NotAConstant { call_stack, .. }
                 | InternalError::UndeclaredAcirVar { call_stack }
-                | InternalError::UnExpected { call_stack, .. }, //     | InternalError::ReturnConstant { call_stack, .. },
+                | InternalError::UnExpected { call_stack, .. },
             )
             | RuntimeError::FailedConstraint { call_stack, .. }
             | RuntimeError::IndexOutOfBounds { call_stack, .. }
@@ -136,12 +136,6 @@ impl From<RuntimeError> for FileDiagnostic {
 impl RuntimeError {
     fn into_diagnostic(self) -> Diagnostic {
         match self {
-            // RuntimeError::InternalError(InternalError::ReturnConstant { ref call_stack }) => {
-            //     let message = self.to_string();
-            //     let location =
-            //     call_stack.back().expect("Expected RuntimeError to have a location");
-            //    Diagnostic::simple_warning(message, "constant value".to_string(), location.span)
-            // }
             RuntimeError::InternalError(cause) => {
                 Diagnostic::simple_error(
                     "Internal Consistency Evaluators Errors: \n
