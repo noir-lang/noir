@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use acir::{
-    circuit::opcodes::{BlockId, MemOp},
+    circuit::opcodes::MemOp,
     native_types::{Expression, Witness, WitnessMap},
     FieldElement,
 };
@@ -64,7 +64,6 @@ impl MemoryOpSolver {
         op: &MemOp,
         initial_witness: &mut WitnessMap,
         predicate: &Option<Expression>,
-        block_id: &BlockId,
     ) -> Result<(), OpcodeResolutionError> {
         let operation = get_value(&op.operation, initial_witness)?;
 
@@ -101,12 +100,7 @@ impl MemoryOpSolver {
             let value_in_array = if pred_value.is_zero() {
                 FieldElement::zero()
             } else {
-                let res = self.read_memory_index(memory_index);
-                if res.is_err() {
-                    dbg!("got read OOB");
-                    dbg!(block_id.0);
-                }
-                res?
+                self.read_memory_index(memory_index)?
             };
             insert_value(&value_read_witness, value_in_array, initial_witness)
         } else {
@@ -123,12 +117,7 @@ impl MemoryOpSolver {
                 Ok(())
             } else {
                 let value_to_write = get_value(&value_write, initial_witness)?;
-                let res = self.write_memory_index(memory_index, value_to_write);
-                if res.is_err() {
-                    dbg!("got write OOB");
-                    dbg!(block_id.0);
-                }
-                res
+                self.write_memory_index(memory_index, value_to_write)
             }
         }
     }

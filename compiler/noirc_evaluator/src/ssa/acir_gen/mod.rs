@@ -88,9 +88,6 @@ struct Context {
     /// Maps SSA array values to their slice size and any nested slices internal to the parent slice.
     /// This enables us to maintain the slice structure of a slice when performing an array get.
     slice_sizes: HashMap<Id<Value>, Vec<(usize, Option<ValueId>)>>,
-
-    /// Maps SSA array value parent to the max internal slice size
-    max_slice_sizes: HashMap<Id<Value>, usize>,
 }
 
 #[derive(Clone)]
@@ -188,7 +185,6 @@ impl Context {
             internal_mem_block_lengths: HashMap::default(),
             max_block_id: 0,
             slice_sizes: HashMap::default(),
-            max_slice_sizes: HashMap::default(),
         }
     }
 
@@ -485,13 +481,12 @@ impl Context {
                     Value::Intrinsic(intrinsic) => {
                         let outputs = self
                             .convert_ssa_intrinsic_call(*intrinsic, arguments, dfg, result_ids)?;
-                        // dbg!("just converted intrinsic");
+
                         // Issue #1438 causes this check to fail with intrinsics that return 0
                         // results but the ssa form instead creates 1 unit result value.
                         // assert_eq!(result_ids.len(), outputs.len());
 
                         for (result, output) in result_ids.iter().zip(outputs) {
-                            // dbg!(output.clone());
                             match &output {
                                 // We need to make sure we initialize arrays returned from intrinsic calls
                                 // or else they will fail if accessed with a dynamic index
@@ -503,10 +498,6 @@ impl Context {
                                     } else {
                                         Self::flattened_value_size(&output)
                                     };
-                                    if block_id.0 == 33 {
-                                        dbg!(len);
-                                        dbg!(output.clone());
-                                    }
                                     self.initialize_array(block_id, len, Some(output.clone()))?;
                                 }
                                 AcirValue::DynamicArray(_) => {
@@ -1084,9 +1075,6 @@ impl Context {
         // Check if the array has already been initialized in ACIR gen
         // if not, we initialize it using the values from SSA
         let already_initialized = self.initialized_arrays.contains(&block_id);
-        if block_id.0 == 33 {
-            dbg!(already_initialized);
-        }
         if !already_initialized {
             let value = &dfg[array_id];
             match value {
@@ -1097,16 +1085,8 @@ impl Context {
                     } else {
                         self.flattened_slice_size(array_id, dfg)
                     };
-                    // if block_id.0 == 33 {
-                    //     dbg!(len);
-                    //     dbg!(value.clone());
-                    // }
                     self.initialize_array(block_id, len, Some(value))?;
                 }
-                // Value::Instruction { .. } => {
-                //     let value = self.convert_value(array_id, dfg);
-                //     let len =
-                // }
                 _ => {
                     return Err(InternalError::General {
                         message: format!("Array {array_id} should be initialized"),
@@ -1280,23 +1260,6 @@ impl Context {
                             );
                         }
                     }
-                }
-            }
-        }
-    }
-
-    fn compute_max_slice_sizes(&mut self, array_id: ValueId) {
-        let slice_sizes = self.slice_sizes.get(&array_id).expect("ICE: expected slice sizes");
-        // dbg!(slice_sizes.clone());
-        // let mut max_sizes = HashMap::default();
-        for slice_size in slice_sizes {
-            if let Some(parent_array) = slice_size.1 {
-                if let Some(max_size) = self.max_slice_sizes.get_mut(&parent_array) {
-                    if slice_size.0 > *max_size {
-                        *max_size = slice_size.0;
-                    }
-                } else {
-                    self.max_slice_sizes.insert(parent_array, slice_size.0);
                 }
             }
         }
@@ -1787,8 +1750,6 @@ impl Context {
             Intrinsic::SlicePushBack => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
                 let slice = self.convert_value(arguments[1], dfg);
-                // dbg!(self.slice_sizes.get(&arguments[1]));
-                // dbg!(slice.clone());
 
                 // TODO(#2461): make sure that we have handled nested struct inputs
                 let element = self.convert_value(arguments[2], dfg);
