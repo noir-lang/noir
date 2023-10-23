@@ -210,7 +210,7 @@ impl Item for Expression {
     }
 
     fn format(self, visitor: &FmtVisitor) -> String {
-        visitor.format_expr(self)
+        visitor.format_subexpr(self)
     }
 }
 
@@ -224,7 +224,7 @@ impl Item for (Ident, Expression) {
         let (name, expr) = self;
 
         let name = name.0.contents;
-        let expr = visitor.format_expr(expr);
+        let expr = visitor.format_subexpr(expr);
 
         if name == expr {
             name
