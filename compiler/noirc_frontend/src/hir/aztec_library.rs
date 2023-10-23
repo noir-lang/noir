@@ -221,12 +221,41 @@ fn check_for_storage_definition(module: &SortedModule) -> bool {
     module.types.iter().any(|r#struct| r#struct.name.0.contents == "Storage")
 }
 
-// Check to see if the user has defined a compute_note_hash_and_nullifier function exists
+// Check if "compute_note_hash_and_nullifier(Field,Field,Field,[Field; N]) -> [Field; 4]" is defined
 fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -> bool {
-    module
-        .functions
-        .iter()
-        .any(|func| func.def.name.0.contents == "compute_note_hash_and_nullifier")
+    module.functions.iter().any(|func| {
+        func.def.name.0.contents == "compute_note_hash_and_nullifier"
+                && func.def.parameters.len() == 4
+                && func.def.parameters[0].1.typ == UnresolvedTypeData::FieldElement
+                && func.def.parameters[1].1.typ == UnresolvedTypeData::FieldElement
+                && func.def.parameters[2].1.typ == UnresolvedTypeData::FieldElement
+                // checks if the 4th parameter is an array and the Box<UnresolvedType> in
+                // Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>) contains only fields
+                && match &func.def.parameters[3].1.typ {
+                    UnresolvedTypeData::Array(_, inner_type) => {
+                        match inner_type.typ {
+                            UnresolvedTypeData::FieldElement => true,
+                            _ => false,
+                        }
+                    },
+                    _ => false,
+                }
+                // We check the return type the same way as we did the 4th parameter
+                && match &func.def.return_type {
+                    FunctionReturnType::Default(_) => false,
+                    FunctionReturnType::Ty(unresolved_type) => {
+                        match &unresolved_type.typ {
+                            UnresolvedTypeData::Array(_, inner_type) => {
+                                match inner_type.typ {
+                                    UnresolvedTypeData::FieldElement => true,
+                                    _ => false,
+                                }
+                            },
+                            _ => false,
+                        }
+                    }
+                }
+    })
 }
 
 /// Checks if an attribute is a custom attribute with a specific name
