@@ -18,7 +18,6 @@ use self::{
 use crate::{BlackBoxFunctionSolver, Language};
 
 use thiserror::Error;
-use either::Either;
 
 // arithmetic
 pub(crate) mod arithmetic;
@@ -62,6 +61,11 @@ impl std::fmt::Display for ACVMStatus {
             ACVMStatus::RequiresForeignCall(_) => write!(f, "Waiting on foreign call"),
         }
     }
+}
+
+pub enum StepResult<'a, B: BlackBoxFunctionSolver> {
+    Status(ACVMStatus),
+    IntoBrillig(BrilligSolver<'a, B>),
 }
 
 // This enum represents the different cases in which an
@@ -337,27 +341,27 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
         }
     }
 
-    pub fn step_into_brillig_opcode(&mut self) -> Either<BrilligSolver<'a, B>, ACVMStatus> {
+    pub fn step_into_brillig_opcode(&mut self) -> StepResult<'a, B> {
         if let Opcode::Brillig(brillig) = &self.opcodes[self.instruction_pointer] {
             let witness = &mut self.witness_map;
             match BrilligSolver::<B>::should_skip(witness, brillig) {
                 Ok(true) => {
                     let resolution = BrilligSolver::<B>::zero_out_brillig_outputs(witness, brillig);
-                    Either::Right(self.handle_opcode_resolution(resolution))
+                    StepResult::Status(self.handle_opcode_resolution(resolution))
                 }
                 Ok(false) => {
                     let solver = BrilligSolver::new(witness, brillig, self.backend, self.instruction_pointer);
                     match solver {
-                        Ok(solver) => Either::Left(solver),
-                        Err(..) => Either::Right(self.handle_opcode_resolution(solver.map(|_| ()))),
+                        Ok(solver) => StepResult::IntoBrillig(solver),
+                        Err(..) => StepResult::Status(self.handle_opcode_resolution(solver.map(|_| ()))),
                     }
                 }
                 Err(err) => {
-                    Either::Right(self.handle_opcode_resolution(Err(err)))
+                    StepResult::Status(self.handle_opcode_resolution(Err(err)))
                 }
             }
         } else {
-            Either::Right(self.solve_opcode())
+            StepResult::Status(self.solve_opcode())
         }
     }
 

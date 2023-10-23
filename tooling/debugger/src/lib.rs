@@ -1,5 +1,5 @@
 use acvm::acir::circuit::OpcodeLocation;
-use acvm::pwg::{ACVMStatus, BrilligSolver, ErrorLocation, OpcodeResolutionError, ACVM, BrilligSolverStatus};
+use acvm::pwg::{ACVMStatus, BrilligSolver, ErrorLocation, OpcodeResolutionError, ACVM, BrilligSolverStatus, StepResult};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
@@ -13,7 +13,6 @@ use easy_repl::{command, CommandStatus, Critical, Repl};
 use std::cell::{Cell, RefCell};
 
 use owo_colors::OwoColorize;
-use either::Either;
 
 enum SolveResult {
     Done,
@@ -67,11 +66,11 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
             self.step_brillig_opcode()
         } else {
             match self.acvm.step_into_brillig_opcode() {
-                Either::Left(solver) => {
+                StepResult::IntoBrillig(solver) => {
                     self.brillig_solver = Some(solver);
                     self.step_brillig_opcode()
                 }
-                Either::Right(status) => {
+                StepResult::Status(status) => {
                     self.handle_acvm_status(status)
                 }
             }

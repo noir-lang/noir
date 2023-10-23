@@ -42,7 +42,6 @@ dependencies = [
  "acvm_blackbox_solver",
  "acvm_stdlib",
  "brillig_vm",
- "either",
  "indexmap 1.9.3",
  "num-bigint",
  "num-traits",
@@ -2544,7 +2543,6 @@ version = "0.16.0"
 dependencies = [
  "acvm",
  "easy-repl",
- "either",
  "nargo",
  "noirc_printable_type",
  "owo-colors",
