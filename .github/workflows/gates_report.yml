@@ -77,12 +77,12 @@ jobs:
         uses: TomAFrench/noir-gates-diff@e7cf131b7e7f044c01615f93f0b855f65ddc02d4
         with:
           report: ./tooling/nargo_cli/tests/gates_report.json
-          summaryQuantile: 0.9 # only display the 10% most significant gas diffs in the summary (defaults to 20%)
+          summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
 
       - name: Add gates diff to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          # delete the comment in case changes no longer impact gas costs
+          # delete the comment in case changes no longer impact circuit sizes
           delete: ${{ !steps.gates_diff.outputs.markdown }}
           message: ${{ steps.gates_diff.outputs.markdown }}
