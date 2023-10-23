@@ -5,7 +5,7 @@ use noirc_frontend::{
 
 impl super::FmtVisitor<'_> {
     fn format_fn_before_block(&self, func: NoirFunction, start: u32) -> (String, bool) {
-        let slice = slice!(self, start, func.span().start());
+        let slice = self.slice(start..func.span().start());
         let force_brace_newline = slice.contains("//");
         (slice.trim_end().to_string(), force_brace_newline)
     }
