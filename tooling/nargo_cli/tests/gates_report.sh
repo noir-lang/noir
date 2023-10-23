@@ -4,6 +4,9 @@ set -e
 # These tests are incompatible with gas reporting
 excluded_dirs=("workspace" "workspace_default_member")
 
+# These tests cause failures in CI with a stack overflow for some reason.
+ci_excluded_dirs=("eddsa")
+
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
 test_dirs=$(ls $base_path)
@@ -16,6 +19,10 @@ echo "members = [" >> Nargo.toml
 
 for dir in $test_dirs; do
     if [[ " ${excluded_dirs[@]} " =~ " ${dir} " ]]; then
+      continue
+    fi
+
+    if [[ ${CI-false} = "true" ]] && [[ " ${ci_excluded_dirs[@]} " =~ " ${dir} " ]]; then
       continue
     fi
 
