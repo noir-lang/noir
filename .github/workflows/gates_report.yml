@@ -44,6 +44,7 @@ jobs:
 
 
   compare_gas_reports:
+    needs: [build-nargo]
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
