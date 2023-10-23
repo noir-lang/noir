@@ -125,6 +125,18 @@
       }
     },
     {
+      "name": "tsan",
+      "displayName": "Debugging build with thread sanitizer on Clang-16",
+      "description": "Build with thread sanitizer on clang16 with debugging information",
+      "inherits": "clang16-dbg",
+      "binaryDir": "build-tsan",
+      "environment": {
+        "CFLAGS": "-fsanitize=thread",
+        "CXXFLAGS": "-fsanitize=thread",
+        "LDFLAGS": "-fsanitize=thread"
+      }
+    },
+    {
       "name": "coverage",
       "displayName": "Build with coverage",
       "description": "Build default preset but with coverage enabled",
@@ -190,9 +202,9 @@
       "generator": "Unix Makefiles",
       "inherits": "clang16",
       "environment": {
-        "CFLAGS": "-fxray-instrument -fxray-instruction-threshold=100",
-        "CXXFLAGS": "-fxray-instrument -fxray-instruction-threshold=100",
-        "LDFLAGS": "-fxray-instrument -fxray-instruction-threshold=100"
+        "CFLAGS": "-fxray-instrument",
+        "CXXFLAGS": "-fxray-instrument -fxray-instruction-threshold=500 -DXRAY=1",
+        "LDFLAGS": "-fxray-instrument -fxray-instruction-threshold=500 -DXRAY=1"
       },
       "binaryDir": "build-xray"
     },
@@ -202,9 +214,9 @@
       "description": "Build with Clang and enable detailed LLVM XRay for profiling",
       "inherits": "xray",
       "environment": {
-        "CFLAGS": "-fxray-instrument -fxray-instruction-threshold=100 -finline-max-stacksize=150",
-        "CXXFLAGS": "-fxray-instrument -fxray-instruction-threshold=100 -finline-max-stacksize=150",
-        "LDFLAGS": "-fxray-instrument -fxray-instruction-threshold=100 -finline-max-stacksize=150"
+        "CFLAGS": "-fxray-instrument -fxray-instruction-threshold=100 -finline-max-stacksize=150 -DXRAY=1",
+        "CXXFLAGS": "-fxray-instrument -fxray-instruction-threshold=100 -finline-max-stacksize=150 -DXRAY=1",
+        "LDFLAGS": "-fxray-instrument -fxray-instruction-threshold=100 -finline-max-stacksize=150 -DXRAY=1"
       },
       "binaryDir": "build-xray-verbose"
     },
@@ -275,6 +287,11 @@
       "name": "smt-verification",
       "inherits": "clang16",
       "configurePreset": "smt-verification"
+    },
+    {
+      "name": "tsan",
+      "inherits": "default",
+      "configurePreset": "tsan"
     },
     {
       "name": "coverage",

@@ -23,12 +23,12 @@ template <UltraFlavor Flavor> class UltraProver_ {
 
   public:
     explicit UltraProver_(std::shared_ptr<Instance>);
-    void execute_preamble_round();
-    void execute_wire_commitments_round();
-    void execute_sorted_list_accumulator_round();
-    void execute_grand_product_computation_round();
-    void execute_relation_check_rounds();
-    void execute_zeromorph_rounds();
+    BBERG_PROFILE void execute_preamble_round();
+    BBERG_PROFILE void execute_wire_commitments_round();
+    BBERG_PROFILE void execute_sorted_list_accumulator_round();
+    BBERG_PROFILE void execute_grand_product_computation_round();
+    BBERG_PROFILE void execute_relation_check_rounds();
+    BBERG_PROFILE void execute_zeromorph_rounds();
 
     plonk::proof& export_proof();
     plonk::proof& construct_proof();

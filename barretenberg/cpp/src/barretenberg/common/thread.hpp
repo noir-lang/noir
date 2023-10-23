@@ -3,6 +3,7 @@
 #include <barretenberg/env/hardware_concurrency.hpp>
 #include <barretenberg/numeric/bitop/get_msb.hpp>
 #include <functional>
+#include <iostream>
 #include <thread>
 #include <vector>
 

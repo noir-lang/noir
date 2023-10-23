@@ -7,6 +7,8 @@
 #include <fstream>
 
 namespace barretenberg {
+enum class DontZeroMemory { FLAG };
+
 template <typename Fr> class Polynomial {
   public:
     /**
@@ -21,9 +23,11 @@ template <typename Fr> class Polynomial {
     using const_iterator = Fr const*;
     using FF = Fr;
 
-    Polynomial(const size_t initial_size);
+    Polynomial(size_t initial_size);
+    // Constructor that does not initialize values, use with caution to save time.
+    Polynomial(size_t initial_size, DontZeroMemory flag);
     Polynomial(const Polynomial& other);
-    Polynomial(const Polynomial& other, const size_t target_size);
+    Polynomial(const Polynomial& other, size_t target_size);
 
     Polynomial(Polynomial&& other) noexcept;
 

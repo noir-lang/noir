@@ -1,7 +1,10 @@
 #pragma once
 #include <benchmark/benchmark.h>
+#include <cstddef>
 
 #include "barretenberg/honk/composer/ultra_composer.hpp"
+#include "barretenberg/honk/proof_system/ultra_prover.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/proof_system/types/circuit_type.hpp"
 #include "barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp"
 #include "barretenberg/stdlib/hash/keccak/keccak.hpp"
@@ -203,6 +206,26 @@ void construct_proof_with_specified_num_gates(State& state,
     }
 }
 
+inline proof_system::honk::UltraProver get_prover(
+    proof_system::honk::UltraComposer& composer,
+    void (*test_circuit_function)(proof_system::honk::UltraComposer::CircuitBuilder&, size_t),
+    size_t num_iterations)
+{
+    proof_system::honk::UltraComposer::CircuitBuilder builder;
+    test_circuit_function(builder, num_iterations);
+    std::shared_ptr<proof_system::honk::UltraComposer::Instance> instance = composer.create_instance(builder);
+    return composer.create_prover(instance);
+}
+
+inline proof_system::plonk::UltraProver get_prover(
+    proof_system::plonk::UltraComposer& composer,
+    void (*test_circuit_function)(proof_system::honk::UltraComposer::CircuitBuilder&, size_t),
+    size_t num_iterations)
+{
+    proof_system::plonk::UltraComposer::CircuitBuilder builder;
+    test_circuit_function(builder, num_iterations);
+    return composer.create_prover(builder);
+}
 /**
  * @brief Performs proof constuction for benchmarks based on a provided circuit function
  *
@@ -219,29 +242,18 @@ void construct_proof_with_specified_num_iterations(State& state,
                                                                                  size_t)) noexcept
 {
     barretenberg::srs::init_crs_factory("../srs_db/ignition");
+
+    Composer composer;
+
     auto num_iterations = static_cast<size_t>(state.range(0));
     for (auto _ : state) {
         // Constuct circuit and prover; don't include this part in measurement
         state.PauseTiming();
-        auto builder = typename Composer::CircuitBuilder();
-        test_circuit_function(builder, num_iterations);
+        auto prover = get_prover(composer, test_circuit_function, num_iterations);
+        state.ResumeTiming();
 
-        auto composer = Composer();
-        if constexpr (proof_system::IsAnyOf<Composer, proof_system::honk::UltraComposer>) {
-            auto instance = composer.create_instance(builder);
-            auto ext_prover = composer.create_prover(instance);
-            state.ResumeTiming();
-
-            // Construct proof
-            auto proof = ext_prover.construct_proof();
-
-        } else {
-            auto ext_prover = composer.create_prover(builder);
-            state.ResumeTiming();
-
-            // Construct proof
-            auto proof = ext_prover.construct_proof();
-        }
+        // Construct proof
+        auto proof = prover.construct_proof();
     }
 }
 
