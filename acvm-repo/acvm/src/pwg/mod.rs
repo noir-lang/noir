@@ -10,11 +10,7 @@ use acir::{
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
 
-use self::{
-    arithmetic::ArithmeticSolver,
-    directives::solve_directives,
-    memory_op::MemoryOpSolver,
-};
+use self::{arithmetic::ArithmeticSolver, directives::solve_directives, memory_op::MemoryOpSolver};
 use crate::{BlackBoxFunctionSolver, Language};
 
 use thiserror::Error;
@@ -29,8 +25,8 @@ mod directives;
 mod blackbox;
 mod memory_op;
 
-pub use brillig::ForeignCallWaitInfo;
 pub use self::brillig::{BrilligSolver, BrilligSolverStatus};
+pub use brillig::ForeignCallWaitInfo;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ACVMStatus {
@@ -271,7 +267,10 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
         self.handle_opcode_resolution(resolution)
     }
 
-    fn handle_opcode_resolution(&mut self, resolution: Result<(), OpcodeResolutionError>) -> ACVMStatus {
+    fn handle_opcode_resolution(
+        &mut self,
+        resolution: Result<(), OpcodeResolutionError>,
+    ) -> ACVMStatus {
         match resolution {
             Ok(()) => {
                 self.instruction_pointer += 1;
@@ -350,25 +349,27 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
                     StepResult::Status(self.handle_opcode_resolution(resolution))
                 }
                 Ok(false) => {
-                    let solver = BrilligSolver::new(witness, brillig, self.backend, self.instruction_pointer);
+                    let solver = BrilligSolver::new(
+                        witness,
+                        brillig,
+                        self.backend,
+                        self.instruction_pointer,
+                    );
                     match solver {
                         Ok(solver) => StepResult::IntoBrillig(solver),
-                        Err(..) => StepResult::Status(self.handle_opcode_resolution(solver.map(|_| ()))),
+                        Err(..) => {
+                            StepResult::Status(self.handle_opcode_resolution(solver.map(|_| ())))
+                        }
                     }
                 }
-                Err(err) => {
-                    StepResult::Status(self.handle_opcode_resolution(Err(err)))
-                }
+                Err(err) => StepResult::Status(self.handle_opcode_resolution(Err(err))),
             }
         } else {
             StepResult::Status(self.solve_opcode())
         }
     }
 
-    pub fn finish_brillig_with_solver(
-        &mut self,
-        solver: BrilligSolver<'a, B>,
-    ) -> ACVMStatus {
+    pub fn finish_brillig_with_solver(&mut self, solver: BrilligSolver<'a, B>) -> ACVMStatus {
         if !matches!(&self.opcodes[self.instruction_pointer], Opcode::Brillig(..)) {
             unreachable!("Not executing a Brillig opcode");
         }

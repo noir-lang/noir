@@ -1,5 +1,8 @@
 use acvm::acir::circuit::OpcodeLocation;
-use acvm::pwg::{ACVMStatus, BrilligSolver, ErrorLocation, OpcodeResolutionError, ACVM, BrilligSolverStatus, StepResult};
+use acvm::pwg::{
+    ACVMStatus, BrilligSolver, BrilligSolverStatus, ErrorLocation, OpcodeResolutionError,
+    StepResult, ACVM,
+};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
@@ -41,7 +44,7 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                     BrilligSolverStatus::InProgress => {
                         self.brillig_solver = Some(solver);
                         Ok(SolveResult::Ok)
-                    },
+                    }
                     BrilligSolverStatus::Finished => {
                         let status = self.acvm.finish_brillig_with_solver(solver);
                         self.handle_acvm_status(status)
@@ -55,9 +58,7 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                     }
                 }
             }
-            Err(err) => {
-                self.handle_acvm_status(ACVMStatus::Failure(err))
-            }
+            Err(err) => self.handle_acvm_status(ACVMStatus::Failure(err)),
         }
     }
 
@@ -70,9 +71,7 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                     self.brillig_solver = Some(solver);
                     self.step_brillig_opcode()
                 }
-                StepResult::Status(status) => {
-                    self.handle_acvm_status(status)
-                }
+                StepResult::Status(status) => self.handle_acvm_status(status),
             }
         }
     }
