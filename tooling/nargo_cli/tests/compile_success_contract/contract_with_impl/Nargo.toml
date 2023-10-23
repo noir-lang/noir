@@ -1,0 +1,8 @@
+[package]
+name = "simple_contract"
+type = "contract"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]
+
