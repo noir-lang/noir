@@ -57,6 +57,7 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
         .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
+        .run_pass(Ssa::fill_internal_slices, "After Slice Dummies:")
         .finish();
 
     let brillig = ssa.to_brillig(print_brillig_trace);

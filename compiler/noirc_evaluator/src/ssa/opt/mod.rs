@@ -13,3 +13,4 @@ mod inlining;
 mod mem2reg;
 mod simplify_cfg;
 mod unrolling;
+mod fill_internal_slices;
