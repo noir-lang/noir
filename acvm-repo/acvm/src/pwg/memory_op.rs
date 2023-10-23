@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use acir::{
-    circuit::opcodes::{MemOp, BlockId},
+    circuit::opcodes::{BlockId, MemOp},
     native_types::{Expression, Witness, WitnessMap},
     FieldElement,
 };

@@ -485,13 +485,13 @@ impl Context {
                     Value::Intrinsic(intrinsic) => {
                         let outputs = self
                             .convert_ssa_intrinsic_call(*intrinsic, arguments, dfg, result_ids)?;
-                        dbg!("just converted intrinsic");
+                        // dbg!("just converted intrinsic");
                         // Issue #1438 causes this check to fail with intrinsics that return 0
                         // results but the ssa form instead creates 1 unit result value.
                         // assert_eq!(result_ids.len(), outputs.len());
 
                         for (result, output) in result_ids.iter().zip(outputs) {
-                            dbg!(output.clone());
+                            // dbg!(output.clone());
                             match &output {
                                 // We need to make sure we initialize arrays returned from intrinsic calls
                                 // or else they will fail if accessed with a dynamic index
@@ -743,23 +743,13 @@ impl Context {
                 Some(store_value)
             } else {
                 let store_type = dfg.type_of_value(store);
-                
+
                 let mut dummy_predicate_index = predicate_index;
                 // We must setup the dummy value to match the type of the value we wish to store
-                let (mut slice_sizes, mut max_sizes) = if store_type.contains_slice_element() {
-                    let store_id = dfg.resolve(store);
-                    dbg!(store_id);
-                    self.compute_slice_sizes(store_id, None, None, dfg);
-                    // self.compute_max_slice_sizes(array_id);
-                    if let Some(slice_sizes) = self.slice_sizes.get_mut(&store) {
-                        let mut max_sizes: Vec<(usize, Option<ValueId>)> = Vec::new();
-                        // for slice_size in slice_sizes.clone() {
-                        //     if let Some(parent_array) = slice_size.1 {
-                        //         let max_size = self.max_slice_sizes.get(&parent_array).expect("ICE: expected max size");
-                        //         max_sizes.push(*max_size);
-                        //     }
-                        // }
-                        (slice_sizes.clone(), max_sizes.clone())
+                let slice_sizes = if store_type.contains_slice_element() {
+                    self.compute_slice_sizes(store, None, None, dfg);
+                    if let Some(slice_sizes) = self.slice_sizes.get(&store) {
+                        slice_sizes.clone()
                     } else {
                         return Err(InternalError::UnExpected {
                             expected: "Store value should have slice sizes computed".to_owned(),
@@ -769,16 +759,14 @@ impl Context {
                         .into());
                     }
                 } else {
-                    (vec![], vec![])
+                    vec![]
                 };
 
-                let full_flat_size = self.flattened_slice_size(store, dfg);
                 let dummy = self.array_get_value(
                     &store_type,
                     block_id,
                     &mut dummy_predicate_index,
-                    &mut slice_sizes,
-                    full_flat_size
+                    &slice_sizes,
                 )?;
 
                 Some(self.convert_array_set_store_value(&store_value, &dummy)?)
@@ -880,52 +868,18 @@ impl Context {
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
 
-        let full_flat_size = self.flattened_slice_size(array_id, dfg);
-        // dbg!(full_flat_size);
-
         let value = if !res_typ.contains_slice_element() {
-            let mut slice_sizes = vec![];
-            self.array_get_value(&res_typ, block_id, &mut var_index, &mut slice_sizes,full_flat_size)?
+            self.array_get_value(&res_typ, block_id, &mut var_index, &[])?
         } else {
             let slice_sizes = self
                 .slice_sizes
                 .get(&array_id)
                 .expect("ICE: Array with slices should have associated slice sizes")
                 .clone();
-            // slice_sizes.drain(0..1);
-            let (_, slice_sizes) = slice_sizes.split_first().expect("ICE: should be able to split slice size");
-            // let current_slice_size = slice_sizes[0];
-            // let parent = current_slice_size.1.expect("ICE: expected some parent");
-            // let mut inner_slice_sizes = Vec::new();
-            // inner_slice_sizes.push(current_slice_size);
-            // let mut max_size = current_slice_size.0;
-            // for i in 0..slice_sizes.len() {
-            //     let current_size = slice_sizes[i];
-            //     let current_parent = current_size.1.expect("ICE: expected some parent");
-            //     if current_parent == parent {
-            //         if current_size.0 > max_size {
-            //             max_size = current_size.0;
-            //         }
-            //         inner_slice_sizes.push(current_size);
-            //     }
-            // }
-            // dbg!(inner_slice_sizes);
-            // dbg!(slice_sizes.clone());
-            // dbg!(max_size);
+            let (_, slice_sizes) =
+                slice_sizes.split_first().expect("ICE: should be able to split slice size");
 
-            // let mut max_sizes = Vec::new();
-            // for slice_size in slice_sizes.clone() {
-            //     if let Some(parent_array) = slice_size.1 {
-            //         let max_size = self.max_slice_sizes.get(&parent_array).expect("ICE: expected max size");
-            //         max_sizes.push(*max_size);
-            //     }
-            // }
-            // dbg!(max_sizes.clone());
-
-            // let result_slice_sizes = slice_sizes.clone();
-
-            let value =
-                self.array_get_value(&res_typ, block_id, &mut var_index, slice_sizes, full_flat_size)?;
+            let value = self.array_get_value(&res_typ, block_id, &mut var_index, slice_sizes)?;
 
             // Insert the resulting slice sizes
             self.slice_sizes.insert(results[0], slice_sizes.to_vec());
@@ -944,30 +898,10 @@ impl Context {
         block_id: BlockId,
         var_index: &mut AcirVar,
         slice_sizes: &[(usize, Option<ValueId>)],
-        full_flat_size: usize,
     ) -> Result<AcirValue, RuntimeError> {
         let one = self.acir_context.add_constant(FieldElement::one());
         match ssa_type.clone() {
             Type::Numeric(numeric_type) => {
-                // NOTE: maybe I can just add the dummy here
-                // Because if the value is not OOB we will just return the valid value
-                // But if it is OOB we will just return a dummy value that is to never be accessed
-                // by the user as we have checks against it
-                // let flat_slice_size_var =
-                // self.acir_context.add_constant(FieldElement::from(full_flat_size as u128));
-                // let predicate = self.acir_context.less_than_var(
-                //     *var_index,
-                //     flat_slice_size_var,
-                //     32,
-                //     self.current_side_effects_enabled_var,
-                // )?;
-                // let true_pred = self.acir_context.mul_var(*var_index, predicate)?;
-                // // let one = self.acir_context.add_constant(FieldElement::one());
-                // let not_pred = self.acir_context.sub_var(one, predicate)?;
-                // let zero = self.acir_context.add_constant(FieldElement::zero());
-                // let false_pred = self.acir_context.mul_var(not_pred, zero)?;
-                // *var_index = self.acir_context.add_var(true_pred, false_pred)?;
-
                 // Read the value from the array at the specified index
                 let read = self.acir_context.read_from_memory(block_id, var_index)?;
 
@@ -986,7 +920,6 @@ impl Context {
                             block_id,
                             var_index,
                             slice_sizes,
-                            full_flat_size,
                         )?);
                     }
                 }
@@ -996,46 +929,14 @@ impl Context {
                 // It is not enough to execute this loop and simply pass the size from the parent definition.
                 // We need the internal sizes of each type in case of a nested slice.
                 let mut values = Vector::new();
-                // let current_size = slice_sizes[0];
-                // slice_sizes.drain(0..1);
-                // // dbg!(current_size.0);
-                // // let current_size_parent = current_size.1.expect("ICE: expected parent");
-                // // let max_inner_size = self.max_slice_sizes.get(&current_size_parent).expect("ICE: expected max size");
-                // // dbg!(max_inner_size);
-                // let max_size = max_sizes[0];
-                // // dbg!(max_sizes.clone());
 
-                // max_sizes.drain(0..1);
-                // // dbg!(max_size.clone());
-                // for _ in 0..max_size {
-                //     for typ in element_types.as_ref() {
-                //         values.push_back(self.array_get_value(
-                //             typ,
-                //             block_id,
-                //             var_index,
-                //             slice_sizes,
-                //             max_sizes,
-                //             full_flat_size,
-                //         )?);
-                //     }
-                // }
+                let (current_size, new_sizes) =
+                    slice_sizes.split_first().expect("should be able to split");
 
-                // NOTE: This is working for setting a slice directly
-                // When I fill in the internal slice
-                let (current_size, new_sizes) = slice_sizes.split_first().expect("should be able to split");
-                // let mut slice_sizes = new_sizes.to_vec();
-                // dbg!(current_size.0);
-                // let current_size_parent = current_size.1.expect("ICE: expected parent");
-                // dbg!(self.max_slice_sizes.get(&current_size_parent));
                 for _ in 0..current_size.0 {
                     for typ in element_types.as_ref() {
-                        values.push_back(self.array_get_value(
-                            typ,
-                            block_id,
-                            var_index,
-                            new_sizes,
-                            full_flat_size,
-                        )?);
+                        values
+                            .push_back(self.array_get_value(typ, block_id, var_index, new_sizes)?);
                     }
                 }
                 Ok(AcirValue::Array(values))
@@ -1204,7 +1105,7 @@ impl Context {
                 }
                 // Value::Instruction { .. } => {
                 //     let value = self.convert_value(array_id, dfg);
-                //     let len = 
+                //     let len =
                 // }
                 _ => {
                     return Err(InternalError::General {
@@ -1353,7 +1254,8 @@ impl Context {
                 if let Some(parent_array) = parent_array {
                     let sizes_list =
                         self.slice_sizes.get_mut(&parent_array).expect("ICE: expected size list");
-                    let inner_parent_array = inner_parent_array.expect("ICE: expected inner_parent_array");
+                    let inner_parent_array =
+                        inner_parent_array.expect("ICE: expected inner_parent_array");
                     sizes_list.push((true_len, Some(inner_parent_array)));
                 } else {
                     // This means the current_array_id is the parent array
@@ -1363,9 +1265,19 @@ impl Context {
                     let typ = dfg.type_of_value(*value);
                     if let Type::Slice(_) = typ {
                         if parent_array.is_some() {
-                            self.compute_slice_sizes(*value, parent_array, Some(current_array_id), dfg);
+                            self.compute_slice_sizes(
+                                *value,
+                                parent_array,
+                                Some(current_array_id),
+                                dfg,
+                            );
                         } else {
-                            self.compute_slice_sizes(*value, Some(current_array_id), Some(current_array_id), dfg);
+                            self.compute_slice_sizes(
+                                *value,
+                                Some(current_array_id),
+                                Some(current_array_id),
+                                dfg,
+                            );
                         }
                     }
                 }
@@ -1373,10 +1285,7 @@ impl Context {
         }
     }
 
-    fn compute_max_slice_sizes(
-        &mut self,
-        array_id: ValueId,
-    ) {
+    fn compute_max_slice_sizes(&mut self, array_id: ValueId) {
         let slice_sizes = self.slice_sizes.get(&array_id).expect("ICE: expected slice sizes");
         // dbg!(slice_sizes.clone());
         // let mut max_sizes = HashMap::default();
@@ -1878,8 +1787,8 @@ impl Context {
             Intrinsic::SlicePushBack => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
                 let slice = self.convert_value(arguments[1], dfg);
-                dbg!(self.slice_sizes.get(&arguments[1]));
-                dbg!(slice.clone());
+                // dbg!(self.slice_sizes.get(&arguments[1]));
+                // dbg!(slice.clone());
 
                 // TODO(#2461): make sure that we have handled nested struct inputs
                 let element = self.convert_value(arguments[2], dfg);
