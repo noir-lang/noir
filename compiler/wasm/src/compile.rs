@@ -118,6 +118,7 @@ fn preprocess_program(program: CompiledProgram) -> PreprocessedProgram {
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
+        noir_version: program.noir_version,
         bytecode: program.circuit,
     }
 }
