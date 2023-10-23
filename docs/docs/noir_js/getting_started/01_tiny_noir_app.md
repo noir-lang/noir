@@ -1,5 +1,5 @@
 ---
-title: Full Noir App Guide
+title: End-to-end
 description: Learn how to setup a new app that uses Noir to generate and verify zero-knowledge SNARK proofs in a typescript or javascript environment
 keywords: [how to, guide, javascript, typescript, noir, barretenberg, zero-knowledge, proofs]
 ---
