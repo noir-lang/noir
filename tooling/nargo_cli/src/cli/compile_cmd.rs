@@ -28,7 +28,7 @@ use super::fs::program::{
     save_contract_to_file, save_debug_artifact_to_file, save_program_to_file,
 };
 use super::NargoConfig;
-use super::CARGO_PKG_VERSION;
+use super::NOIR_ARTIFACT_VERSION_STRING;
 use rayon::prelude::*;
 
 // TODO(#1388): pull this from backend.
@@ -214,7 +214,9 @@ fn compile_program(
 
     // If we want to output the debug information then we need to perform a full recompilation of the ACIR.
     let force_recompile = output_debug
-        || cached_program.as_ref().map_or(false, |p| p.noir_version != CARGO_PKG_VERSION);
+        || cached_program
+            .as_ref()
+            .map_or(false, |p| p.noir_version != NOIR_ARTIFACT_VERSION_STRING);
 
     let (program, warnings) = match noirc_driver::compile_main(
         &mut context,
@@ -277,7 +279,7 @@ fn save_program(
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
-        noir_version: CARGO_PKG_VERSION.to_owned(),
+        noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
         bytecode: program.circuit,
     };
 
@@ -315,6 +317,7 @@ fn save_contract(
     });
 
     let preprocessed_contract = PreprocessedContract {
+        noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
         name: contract.name,
         backend: String::from(BACKEND_IDENTIFIER),
         functions: preprocessed_functions,
