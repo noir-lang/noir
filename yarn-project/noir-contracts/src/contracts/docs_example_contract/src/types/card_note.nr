@@ -9,6 +9,7 @@ use dep::aztec::{
         get_public_key::get_public_key,
     },
     log::emit_encrypted_log,
+    hash::pedersen_hash,
     context::PrivateContext,
 };
 
@@ -47,21 +48,21 @@ impl CardNote {
     }
 
     pub fn compute_note_hash(self) -> Field {
-        dep::std::hash::pedersen([
+        pedersen_hash([
             self.points as Field, 
             self.secret,
             self.owner,
-        ])[0]
+        ],0)
     }
 
     pub fn compute_nullifier(self) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_read_or_nullify(CardNoteMethods, self);
         let secret = get_secret_key(self.owner);
-        dep::std::hash::pedersen([
+        pedersen_hash([
             note_hash_for_nullify,
             secret.high,
             secret.low,
-        ])[0]
+        ],0)
     }
 
     pub fn set_header(&mut self, header: NoteHeader) {

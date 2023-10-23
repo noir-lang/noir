@@ -1,5 +1,6 @@
 use crate::{
     abi,
+    hash::pedersen_hash,
     abi::{
         PublicCircuitPublicInputs,
         FunctionData,
@@ -24,11 +25,11 @@ struct PublicCallStackItem {
 
 impl PublicCallStackItem {
     pub fn hash(self) -> Field {
-        dep::std::hash::pedersen_with_separator([
+        pedersen_hash([
             self.contract_address,
             self.function_data.hash(),
             self.public_inputs.hash(),
-        ], GENERATOR_INDEX__CALL_STACK_ITEM)[0]
+        ], GENERATOR_INDEX__CALL_STACK_ITEM)
     }
 }
 

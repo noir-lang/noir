@@ -1,12 +1,11 @@
 // docs:start:token_types_all
-use dep::std::hash::pedersen;
 use dep::aztec::{
     note::{
         note_header::NoteHeader,
         note_interface::NoteInterface,
         utils::compute_siloed_note_hash,
     },
-    hash::compute_secret_hash,
+    hash::{compute_secret_hash, pedersen_hash},
     context::PrivateContext,
 };
 
@@ -65,17 +64,17 @@ impl TransparentNote {
 
     pub fn compute_note_hash(self) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
-        dep::std::hash::pedersen([
+        pedersen_hash([
             self.amount,
             self.secret_hash,
-        ])[0]
+        ],0)
     }
 
     pub fn compute_nullifier(self) -> Field {
         // TODO(#1386): should use `compute_note_hash_for_read_or_nullify` once public functions inject nonce!
         let siloed_note_hash = compute_siloed_note_hash(TransparentNoteMethods, self);
         // TODO(#1205) Should use a non-zero generator index.
-        pedersen([self.secret, siloed_note_hash])[0]
+        pedersen_hash([self.secret, siloed_note_hash],0)
     }
 
     pub fn set_header(&mut self, header: NoteHeader) {

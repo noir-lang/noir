@@ -1,7 +1,6 @@
 use crate::interest_math::compute_multiplier;
-use dep::std::hash::pedersen;
 use dep::safe_math::SafeU120;
-
+use dep::aztec::hash::pedersen_hash;
 
 // Utility used to easily get a "id" for a private user that sits in the same
 // "space" as the public users.
@@ -14,7 +13,7 @@ pub fn compute_identifier(
     // EITHER secret OR on_behalf_of MUST be set. But not both
     assert (!((secret == 0) as bool & (on_behalf_of == 0) as bool));
     if (secret != 0) {
-        pedersen([self, secret])[0]
+        pedersen_hash([self, secret],0)
     } else {
         on_behalf_of
     }

@@ -3,7 +3,7 @@ use crate::constants_gen::{
     GENERATOR_INDEX__NULLIFIER,
     GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET,
 };
-use crate::hash::{sha256_to_field};
+use crate::hash::{sha256_to_field, pedersen_hash};
 
 struct L1ToL2Message {
     sender: Field,
@@ -39,7 +39,7 @@ impl L1ToL2Message {
     }
 
     pub fn validate_message_secret(self: Self) {
-        let recomputed_hash = dep::std::hash::pedersen_with_separator([self.secret], GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET)[0];
+        let recomputed_hash = pedersen_hash([self.secret], GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET);
         assert(self.secret_hash == recomputed_hash);
     }
 
@@ -73,7 +73,7 @@ impl L1ToL2Message {
     // docs:start:l1_to_l2_message_compute_nullifier
     pub fn compute_nullifier(self: Self) -> Field {
         let message_hash = self.message_hash();
-        dep::std::hash::pedersen_with_separator([message_hash, self.secret, self.tree_index], GENERATOR_INDEX__NULLIFIER)[0]
+        pedersen_hash([message_hash, self.secret, self.tree_index], GENERATOR_INDEX__NULLIFIER)
     }
     // docs:end:l1_to_l2_message_compute_nullifier
 }

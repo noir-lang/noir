@@ -1,5 +1,4 @@
 // docs:start:mint_public_content_hash_nr
-use dep::std::hash::pedersen_with_separator;
 use dep::aztec::hash::{sha256_to_field};
 
 // Computes a content hash of a deposit/mint_public message.

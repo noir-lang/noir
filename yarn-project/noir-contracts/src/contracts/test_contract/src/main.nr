@@ -8,6 +8,7 @@ contract Test {
         abi,
         abi::PrivateContextInputs,
         context::PrivateContext,
+        hash::pedersen_hash,
         oracle::{
             get_public_key::get_public_key as get_public_key_oracle,
             context::get_portal_address,
@@ -190,7 +191,7 @@ contract Test {
         }
 
         fn get_commitment(self) -> pub Field {
-            dep::std::hash::pedersen([self.amount, self.secretHash])[0]
+            pedersen_hash([self.amount, self.secretHash],0)
         }
     }
 

@@ -9,6 +9,7 @@ use dep::aztec::{
         get_public_key::get_public_key,
     },
     log::emit_encrypted_log,
+    hash::pedersen_hash,
     context::PrivateContext,
 };
 
@@ -63,11 +64,11 @@ impl EcdsaPublicKeyNote {
         let unique_siloed_note_hash = compute_unique_siloed_note_hash(EcdsaPublicKeyNoteInterface, self);
         let secret = get_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
-        dep::std::hash::pedersen([
+        pedersen_hash([
             unique_siloed_note_hash,
             secret.low,
             secret.high,
-        ])[0]
+        ],0)
     }
 
     pub fn set_header(&mut self, header: NoteHeader) {
@@ -113,7 +114,7 @@ fn serialize(note: EcdsaPublicKeyNote) -> [Field; ECDSA_PUBLIC_KEY_NOTE_LEN] {
 
 fn compute_note_hash(note: EcdsaPublicKeyNote) -> Field {
     // TODO(#1205) Should use a non-zero generator index.
-    dep::std::hash::pedersen(note.serialize())[0]
+    pedersen_hash(note.serialize(),0)
 }
 
 fn compute_nullifier(note: EcdsaPublicKeyNote) -> Field {

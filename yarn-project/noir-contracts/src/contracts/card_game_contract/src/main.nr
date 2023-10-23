@@ -4,6 +4,7 @@ mod game;
 contract CardGame {
     use dep::aztec::{
         context::Context,
+        hash::pedersen_hash,
         state_vars::{
             map::Map,
             public_state::PublicState,
@@ -206,7 +207,7 @@ contract CardGame {
         context.call_public_function(
             context.this_address(), 
             selector, 
-            [game as Field, player, dep::std::hash::pedersen(cards_fields)[0]]
+            [game as Field, player, pedersen_hash(cards_fields,0)]
         );
     }
 
@@ -221,7 +222,7 @@ contract CardGame {
 
         assert_eq(
             cards_hash, 
-            dep::std::hash::pedersen(game_data.rounds_cards.map(|card: Card| card.to_field()))[0]
+            pedersen_hash(game_data.rounds_cards.map(|card: Card| card.to_field()),0)
         );
 
         let winner = game_data.winner();

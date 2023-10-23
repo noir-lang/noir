@@ -4,8 +4,7 @@ use dep::aztec::context::PrivateContext;
 use dep::aztec::private_call_stack_item::PrivateCallStackItem;
 use dep::aztec::public_call_stack_item::PublicCallStackItem;    
 use dep::aztec::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
-
-use dep::std::hash;
+use dep::aztec::hash::pedersen_hash;
 
 global ACCOUNT_MAX_CALLS: Field = 4;
 // 1 (ARGS_HASH) + 1 (FUNCTION_SELECTOR) + 1 (TARGET_ADDRESS) + 1 (IS_PUBLIC)
@@ -52,10 +51,10 @@ struct EntrypointPayload {
 
 impl EntrypointPayload {
   fn hash(self) -> Field {
-    hash::pedersen_with_separator(
+    pedersen_hash(
       self.serialize(), 
       GENERATOR_INDEX__SIGNATURE_PAYLOAD
-    )[0]
+    )
   }
 
   // Serializes the entrypoint struct

@@ -6,6 +6,7 @@ use dep::aztec::{
     },
     oracle::get_public_key::get_public_key,
     log::emit_encrypted_log,
+    hash::pedersen_hash,
     context::PrivateContext,
 };
 
@@ -42,10 +43,10 @@ impl RulesNote {
     }
 
     pub fn compute_note_hash(self) -> Field {
-        dep::std::hash::pedersen([
+        pedersen_hash([
             self.min_points as Field, 
             self.max_points as Field, 
-        ])[0]
+        ],0)
     }
 
     pub fn compute_nullifier(_self: Self) -> Field {

@@ -11,6 +11,7 @@ use dep::aztec::{
         get_secret_key::get_secret_key,
         get_public_key::get_public_key,
     },
+    hash::pedersen_hash,
     context::PrivateContext,
 };
 
@@ -40,11 +41,11 @@ impl AddressNote {
         let siloed_note_hash = compute_siloed_note_hash(AddressNoteMethods, self);
         let secret = get_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
-        dep::std::hash::pedersen([
+        pedersen_hash([
             siloed_note_hash,
             secret.low,
             secret.high,
-        ])[0]
+        ],0)
     }
 
     pub fn set_header(&mut self, header: NoteHeader) {
@@ -80,7 +81,7 @@ fn serialize(note: AddressNote) -> [Field; ADDRESS_NOTE_LEN]{
 
 fn compute_note_hash(note: AddressNote) -> Field {
     // TODO(#1205) Should use a non-zero generator index.
-    dep::std::hash::pedersen(note.serialize())[0]
+    pedersen_hash(note.serialize(),0)
 }
 
 fn compute_nullifier(note: AddressNote) -> Field {

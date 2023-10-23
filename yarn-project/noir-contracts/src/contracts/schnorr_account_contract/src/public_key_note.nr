@@ -4,6 +4,7 @@ use dep::aztec::{
         note_interface::NoteInterface,
         utils::compute_unique_siloed_note_hash,
     },
+    hash::pedersen_hash,
     oracle::{
         get_secret_key::get_secret_key,
         get_public_key::get_public_key,
@@ -42,11 +43,11 @@ impl PublicKeyNote {
         let unique_siloed_note_hash = compute_unique_siloed_note_hash(PublicKeyNoteMethods, self);
         let secret = get_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
-        dep::std::hash::pedersen([
+        pedersen_hash([
             unique_siloed_note_hash,
             secret.low,
             secret.high,
-        ])[0]
+        ],0)
     }
 
     pub fn set_header(&mut self, header: NoteHeader) {
@@ -81,7 +82,7 @@ fn serialize(note: PublicKeyNote) -> [Field; PUBLIC_KEY_NOTE_LEN] {
 
 fn compute_note_hash(note: PublicKeyNote) -> Field {
     // TODO(#1205) Should use a non-zero generator index.
-    dep::std::hash::pedersen(note.serialize())[0]
+    pedersen_hash(note.serialize(),0)
 }
 
 fn compute_nullifier(note: PublicKeyNote) -> Field {
