@@ -30,7 +30,7 @@ const IS_DIRTY: &str = env!("GIT_DIRTY");
 const NARGO_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 static VERSION_STRING: &str = formatcp!(
-    "nargo version = {}, noirc version = {} (git version hash: {}, is dirty: {})",
+    "version = {}\nnoirc version = {}\n(git version hash: {}, is dirty: {})",
     NARGO_VERSION,
     NOIR_ARTIFACT_VERSION_STRING,
     GIT_HASH,
