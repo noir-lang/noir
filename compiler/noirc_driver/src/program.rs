@@ -21,6 +21,7 @@ pub struct CompiledProgram {
     #[serde(serialize_with = "serialize_circuit", deserialize_with = "deserialize_circuit")]
     pub circuit: Circuit,
     pub abi: noirc_abi::Abi,
+    pub noir_version: String,
     pub debug: DebugInfo,
     pub file_map: BTreeMap<FileId, DebugFile>,
 }

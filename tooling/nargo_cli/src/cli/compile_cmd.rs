@@ -28,6 +28,7 @@ use super::fs::program::{
     save_contract_to_file, save_debug_artifact_to_file, save_program_to_file,
 };
 use super::NargoConfig;
+use super::CARGO_PKG_VERSION;
 use rayon::prelude::*;
 
 // TODO(#1388): pull this from backend.
@@ -203,6 +204,7 @@ fn compile_program(
             hash: preprocessed_program.hash,
             circuit: preprocessed_program.bytecode,
             abi: preprocessed_program.abi,
+            noir_version: preprocessed_program.noir_version,
             debug: DebugInfo::default(),
             file_map: BTreeMap::new(),
         })
@@ -211,7 +213,8 @@ fn compile_program(
     };
 
     // If we want to output the debug information then we need to perform a full recompilation of the ACIR.
-    let force_recompile = output_debug;
+    let force_recompile = output_debug
+        || cached_program.as_ref().map_or(false, |p| p.noir_version != CARGO_PKG_VERSION);
 
     let (program, warnings) = match noirc_driver::compile_main(
         &mut context,
@@ -274,6 +277,7 @@ fn save_program(
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
+        noir_version: CARGO_PKG_VERSION.to_owned(),
         bytecode: program.circuit,
     };
 

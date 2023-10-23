@@ -17,6 +17,7 @@ pub struct PreprocessedProgram {
 
     pub backend: String,
     pub abi: Abi,
+    pub noir_version: String,
 
     #[serde(
         serialize_with = "super::serialize_circuit",

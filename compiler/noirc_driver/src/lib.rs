@@ -342,5 +342,12 @@ pub fn compile_no_check(
 
     let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
 
-    Ok(CompiledProgram { hash, circuit, debug, abi, file_map })
+    Ok(CompiledProgram {
+        hash,
+        circuit,
+        debug,
+        abi,
+        file_map,
+        noir_version: env!("CARGO_PKG_VERSION").to_string(),
+    })
 }
