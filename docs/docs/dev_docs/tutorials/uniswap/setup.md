@@ -11,7 +11,7 @@ If you don’t have this, you can find the code for it [in our dev-rels repo](ht
 To interact with Uniswap we need to add its interface. In the root repo we created in the [token bridge tutorial](../token_portal/main.md), run this:
 
 ```bash
-cd l1-contracts
+cd packages/l1-contracts
 mkdir external && cd external
 touch ISwapRouter.sol
 ```

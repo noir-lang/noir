@@ -54,7 +54,7 @@ const sidebars = {
 
     {
       type: "html",
-      value: '<span class="sidebar-divider" />',
+      value: '<span clasuns="sidebar-divider" />',
     },
 
     // SPECIFICATION
@@ -244,7 +244,7 @@ const sidebars = {
           ],
         },
         {
-          label: "Build Uniswap with Portals",
+          label: "Swap on L1 Uniswap from L2 with Portals",
           type: "category",
           link: {
             type: "doc",
@@ -311,27 +311,27 @@ const sidebars = {
         },
         "dev_docs/contracts/common_errors",
         {
-           label: "Resources",
-           type: "category",
-           items: [
-             //"dev_docs/contracts/resources/style_guide",
-             {
-               label: "Common Patterns",
-               type: "category",
-        //       link: {
-        //         type: "doc",
-        //         id: "dev_docs/contracts/resources/common_patterns/main",
-        //       },
-               items: [
+          label: "Resources",
+          type: "category",
+          items: [
+            //"dev_docs/contracts/resources/style_guide",
+            {
+              label: "Common Patterns",
+              type: "category",
+              //       link: {
+              //         type: "doc",
+              //         id: "dev_docs/contracts/resources/common_patterns/main",
+              //       },
+              items: [
                 "dev_docs/contracts/resources/common_patterns/authwit",
-        //         "dev_docs/contracts/resources/common_patterns/sending_tokens_to_user",
-        //         "dev_docs/contracts/resources/common_patterns/sending_tokens_to_contract",
-        //         "dev_docs/contracts/resources/common_patterns/access_control",
-        //         "dev_docs/contracts/resources/common_patterns/interacting_with_l1",
-               ],
-             },
-           ],
-         },
+                //         "dev_docs/contracts/resources/common_patterns/sending_tokens_to_user",
+                //         "dev_docs/contracts/resources/common_patterns/sending_tokens_to_contract",
+                //         "dev_docs/contracts/resources/common_patterns/access_control",
+                //         "dev_docs/contracts/resources/common_patterns/interacting_with_l1",
+              ],
+            },
+          ],
+        },
         // {
         //   label: "Security Considerations",
         //   type: "category",

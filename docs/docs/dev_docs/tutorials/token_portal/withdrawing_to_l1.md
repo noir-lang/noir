@@ -57,7 +57,7 @@ We call this pattern _designed caller_ which enables a new paradigm **where we c
 
 Congratulations, you have written all the contracts we need for this tutorial! Now let's compile them.
 
-Compile your Solidity contracts using hardhat. Run this in the root of your project:
+Compile your Solidity contracts using hardhat. Run this in the `packages` directory:
 
 ```bash
 cd l1-contracts
