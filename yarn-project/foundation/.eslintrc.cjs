@@ -52,7 +52,7 @@ module.exports = {
   },
   root: true,
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint', 'eslint-plugin-tsdoc', 'jsdoc'],
+  plugins: ['@typescript-eslint', 'eslint-plugin-tsdoc', 'jsdoc', 'no-only-tests'],
   overrides: [
     {
       files: ['*.ts', '*.tsx'],
@@ -129,6 +129,8 @@ module.exports = {
     'jsdoc/require-property-description': [JSDOC_RULES_LEVEL, { contexts }],
     'jsdoc/require-property-name': [JSDOC_RULES_LEVEL, { contexts }],
     'jsdoc/require-returns': 'off',
+    // this unfortunately doesn't block `fit` and `fdescribe`
+    'no-only-tests/no-only-tests': ['error'],
   },
   ignorePatterns: ['node_modules', 'dest*', 'dist', '*.js', '.eslintrc.cjs'],
 };
