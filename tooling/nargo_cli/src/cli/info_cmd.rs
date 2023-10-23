@@ -63,7 +63,6 @@ pub(crate) fn run(
         np_language,
         &opcode_support,
         &args.compile_options,
-        false,
     )?;
 
     let program_info = binary_packages
