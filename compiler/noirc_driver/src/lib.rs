@@ -32,10 +32,10 @@ pub const GIT_COMMIT: &str = env!("GIT_COMMIT");
 pub const GIT_DIRTY: &str = env!("GIT_DIRTY");
 pub const NOIRC_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Version string that gets placed in artifacts that Noir builds.
+/// Version string that gets placed in artifacts that Noir builds. This is semver compatible.
 /// Note: You can't directly use the value of a constant produced with env! inside a concat! macro.
 pub const NOIR_ARTIFACT_VERSION_STRING: &str =
-    concat!(env!("CARGO_PKG_VERSION"), "-", env!("GIT_COMMIT"));
+    concat!(env!("CARGO_PKG_VERSION"), "+", env!("GIT_COMMIT"));
 
 #[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CompileOptions {
