@@ -192,7 +192,6 @@ fn compile_program(
         None
     };
 
-    // If we want to output the debug information then we need to perform a full recompilation of the ACIR.
     let force_recompile =
         cached_program.as_ref().map_or(false, |p| p.noir_version != NOIR_ARTIFACT_VERSION_STRING);
     let (program, warnings) = match noirc_driver::compile_main(
