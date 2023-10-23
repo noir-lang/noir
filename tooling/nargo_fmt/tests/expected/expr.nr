@@ -90,3 +90,7 @@ fn parenthesized() {
         x as Field
     )
 }
+
+fn constructor() {
+    Point { x: 5, y: 10 };
+}
