@@ -158,5 +158,9 @@ export function extractCallStack(
     return callStack;
   }
 
-  return resolveOpcodeLocations(callStack, debug);
+  try {
+    return resolveOpcodeLocations(callStack, debug);
+  } catch (err) {
+    return callStack;
+  }
 }

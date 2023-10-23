@@ -11,7 +11,7 @@ import {
 } from '@aztec/circuits.js';
 import { computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { FunctionArtifact } from '@aztec/foundation/abi';
+import { FunctionAbi, FunctionArtifact, countArgumentsSize } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -83,10 +83,19 @@ export class ClientExecutionContext extends ViewDataOracle {
   // TODO When that is sorted out on noir side, we can use instead the utilities in serialize.ts
   /**
    * Writes the function inputs to the initial witness.
+   * @param abi - The function ABI.
    * @returns The initial witness.
    */
-  public getInitialWitness() {
+  public getInitialWitness(abi: FunctionAbi) {
     const contractDeploymentData = this.txContext.contractDeploymentData;
+
+    const argumentsSize = countArgumentsSize(abi);
+
+    const args = this.packedArgsCache.unpack(this.argsHash);
+
+    if (args.length !== argumentsSize) {
+      throw new Error('Invalid arguments size');
+    }
 
     const fields = [
       ...toACVMCallContext(this.callContext),
@@ -96,7 +105,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       this.txContext.chainId,
       this.txContext.version,
 
-      ...this.packedArgsCache.unpack(this.argsHash),
+      ...args,
     ];
 
     return toACVMWitness(1, fields);

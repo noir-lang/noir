@@ -10,6 +10,25 @@ class ArgumentEncoder {
 
   constructor(private abi: FunctionAbi, private args: any[]) {}
 
+  static typeSize(abiType: ABIType): number {
+    switch (abiType.kind) {
+      case 'field':
+      case 'boolean':
+      case 'integer':
+        return 1;
+      case 'string':
+        return abiType.length;
+      case 'array':
+        return abiType.length * ArgumentEncoder.typeSize(abiType.type);
+      case 'struct':
+        return abiType.fields.reduce((acc, field) => acc + ArgumentEncoder.typeSize(field.type), 0);
+      default: {
+        const exhaustiveCheck: never = abiType;
+        throw new Error(`Unhandled abi type: ${exhaustiveCheck}`);
+      }
+    }
+  }
+
   /**
    * Encodes a single argument from the given type to field.
    * @param abiType - The abi type of the argument.
@@ -88,4 +107,13 @@ class ArgumentEncoder {
  */
 export function encodeArguments(abi: FunctionAbi, args: any[]) {
   return new ArgumentEncoder(abi, args).encode();
+}
+
+/**
+ * Returns the size of the arguments for a function ABI.
+ * @param abi - The function ABI entry.
+ * @returns The size of the arguments.
+ */
+export function countArgumentsSize(abi: FunctionAbi) {
+  return abi.parameters.reduce((acc, parameter) => acc + ArgumentEncoder.typeSize(parameter.type), 0);
 }
