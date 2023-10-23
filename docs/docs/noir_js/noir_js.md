@@ -1,22 +1,36 @@
 ---
-title: Noir JS
-description: Learn how to use noir js to use Noir in a Typescript or Javascript environment
+title: NoirJS
+description: Interact with Noir in Typescript or Javascript
 keywords: [Noir project, javascript, typescript, node.js, browser, react]
 ---
 
-Noir JS are a set of typescript libraries that make it easy to use Noir on your dapp, webapp, node.js server, website, etc.
+NoirJS is a TypeScript library that make it easy to use Noir on your dapp, webapp, Node.js server, website, etc.
 
-It is composed of two major elements:
+A typical workflow would be composed of two major elements:
 
-- Noir
-- Backend proving system
+- NoirJS
+- Proving backend of choice's JavaScript package
 
 <!-- TODO add "and noir_wasm" to the end once it's ready -->
 
-Your only concern should be to write Noir. Noir.js will work out-of-the box and abstract all the components, such as the ACVM and others.
+To install NoirJS, install Node.js if you have not already and run this in your JavaScript project:
 
-## Barretenberg
+```bash
+npm i @noir-lang/noir_js
+```
 
-Since Noir is backend agnostic, you can instantiate `noir_js` without any backend (i.e. to execute a function). But for proving, you should instantiate it with any of the supported backends through their own `js` interface.
+## Proving backend
 
-Aztec Labs maintains the `barretenberg` backend. You can use it to instantiate your `Noir` class.
+Since Noir is backend agnostic, you can instantiate NoirJS without any backend (i.e. to execute a function). But for proving, you would have to instantiate NoirJS with any of the supported backends through their own `js` interface.
+
+### Barretenberg
+
+Aztec Labs maintains the `barretenberg` proving backend, which you can instantiate and make use of alongside NoirJS. It is also the default proving backend installed and used with Nargo, the Noir CLI tool.
+
+To install its JavaScript library, run this in your project:
+
+```bash
+npm i @noir-lang/backend_barretenberg
+```
+
+For more details on how to instantiate and use the libraries, refer to the [Full Noir App Guide](./getting_started/01_tiny_noir_app.md) and [Reference](./reference/01_noirjs.md) sections.

@@ -1,10 +1,10 @@
 ---
-title: Full Stack Noir App
+title: Full Noir App Guide
 description: Learn how to setup a new app that uses Noir to generate and verify zero-knowledge SNARK proofs in a typescript or javascript environment
 keywords: [how to, guide, javascript, typescript, noir, barretenberg, zero-knowledge, proofs]
 ---
 
-Noir JS works both on the browser and on the server, and works for both ESM and CJS module systems. In this page, we will learn how can we write a simple test and a simple web app to verify the standard Noir example.
+NoirJS works both on the browser and on the server, and works for both ESM and CJS module systems. In this page, we will learn how can we write a simple test and a simple web app to verify the standard Noir example.
 
 ## Before we start
 
