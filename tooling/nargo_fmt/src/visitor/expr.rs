@@ -1,13 +1,11 @@
-use std::ops::Range;
-
 use noirc_frontend::{
-    hir::resolution::errors::Span, token::Token, ArrayLiteral, BlockExpression, Expression,
-    ExpressionKind, Literal, Statement, UnaryOp,
+    hir::resolution::errors::Span, token::Token, ArrayLiteral, BlockExpression,
+    ConstructorExpression, Expression, ExpressionKind, Literal, Statement, UnaryOp,
 };
 
 use super::{FmtVisitor, Shape};
 use crate::{
-    utils::{self, Expr, FindToken},
+    utils::{self, Expr, FindToken, Item},
     Config,
 };
 
@@ -65,23 +63,23 @@ impl FmtVisitor<'_> {
                 )
             }
             ExpressionKind::Call(call_expr) => {
-                let span = call_expr.func.span.end()..span.end();
-                let span =
-                    skip_useless_tokens(Token::LeftParen, slice!(self, span.start, span.end), span);
+                let args_span =
+                    self.span_before(call_expr.func.span.end()..span.end(), Token::LeftParen);
 
                 let callee = self.format_expr(*call_expr.func);
-                let args = format_parens(self.fork(), false, call_expr.arguments, span);
+                let args = format_parens(self.fork(), false, call_expr.arguments, args_span);
 
                 format!("{callee}{args}")
             }
             ExpressionKind::MethodCall(method_call_expr) => {
-                let span = method_call_expr.method_name.span().end()..span.end();
-                let span =
-                    skip_useless_tokens(Token::LeftParen, slice!(self, span.start, span.end), span);
+                let args_span = self.span_before(
+                    method_call_expr.method_name.span().end()..span.end(),
+                    Token::LeftParen,
+                );
 
                 let object = self.format_expr(method_call_expr.object);
                 let method = method_call_expr.method_name.to_string();
-                let args = format_parens(self.fork(), false, method_call_expr.arguments, span);
+                let args = format_parens(self.fork(), false, method_call_expr.arguments, args_span);
 
                 format!("{object}.{method}{args}")
             }
@@ -90,16 +88,11 @@ impl FmtVisitor<'_> {
                 format!("{}.{}", lhs_str, member_access_expr.rhs)
             }
             ExpressionKind::Index(index_expr) => {
-                let span = index_expr.collection.span.end()..span.end();
-
-                let span = skip_useless_tokens(
-                    Token::LeftBracket,
-                    slice!(self, span.start, span.end),
-                    span,
-                );
+                let index_span = self
+                    .span_before(index_expr.collection.span.end()..span.end(), Token::LeftBracket);
 
                 let collection = self.format_expr(index_expr.collection);
-                let index = format_brackets(self.fork(), false, vec![index_expr.index], span);
+                let index = format_brackets(self.fork(), false, vec![index_expr.index], index_span);
 
                 format!("{collection}{index}")
             }
@@ -108,7 +101,7 @@ impl FmtVisitor<'_> {
             }
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) | Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) => {
-                    slice!(self, span.start(), span.end()).to_string()
+                    self.slice(span).to_string()
                 }
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                     let repeated = self.format_expr(*repeated_element);
@@ -179,9 +172,54 @@ impl FmtVisitor<'_> {
                     result
                 }
             }
+            ExpressionKind::Constructor(constructor) => {
+                let type_name = self.slice(constructor.type_name.span());
+                let fields_span = self
+                    .span_before(constructor.type_name.span().end()..span.end(), Token::LeftBrace);
+
+                self.format_struct_lit(type_name, fields_span, *constructor)
+            }
             // TODO:
-            _expr => slice!(self, span.start(), span.end()).to_string(),
+            _expr => self.slice(span).to_string(),
         }
+    }
+
+    fn format_struct_lit(
+        &self,
+        type_name: &str,
+        fields_span: Span,
+        constructor: ConstructorExpression,
+    ) -> String {
+        let fields = {
+            let mut visitor = self.fork();
+
+            visitor.indent.block_indent(visitor.config);
+
+            let nested_indent = visitor.shape();
+            let exprs: Vec<_> =
+                utils::Exprs::new(&visitor, fields_span, constructor.fields).collect();
+            let exprs = format_exprs(
+                visitor.config,
+                Tactic::HorizontalVertical,
+                false,
+                exprs,
+                nested_indent,
+            );
+
+            visitor.indent.block_unindent(visitor.config);
+
+            if exprs.contains('\n') {
+                format!(
+                    "{}{exprs}{}",
+                    nested_indent.indent.to_string_with_newline(),
+                    visitor.shape().indent.to_string_with_newline()
+                )
+            } else {
+                format!(" {exprs} ")
+            }
+        };
+
+        format!("{type_name} {{{fields}}}")
     }
 
     pub(crate) fn visit_block(
@@ -204,7 +242,7 @@ impl FmtVisitor<'_> {
             this.visit_stmts(block.0);
         });
 
-        let slice = slice!(self, self.last_position, block_span.end() - 1).trim_end();
+        let slice = self.slice(self.last_position..block_span.end() - 1).trim_end();
         self.push_str(slice);
 
         self.last_position = block_span.end();
@@ -218,7 +256,7 @@ impl FmtVisitor<'_> {
 
     fn trim_spaces_after_opening_brace(&mut self, block: &[Statement]) {
         if let Some(first_stmt) = block.first() {
-            let slice = slice!(self, self.last_position, first_stmt.span.start());
+            let slice = self.slice(self.last_position..first_stmt.span.start());
             let len =
                 slice.chars().take_while(|ch| ch.is_whitespace()).collect::<String>().rfind('\n');
             self.last_position += len.unwrap_or(0) as u32;
@@ -226,7 +264,7 @@ impl FmtVisitor<'_> {
     }
 
     fn visit_empty_block(&mut self, block_span: Span, should_indent: bool) {
-        let slice = slice!(self, block_span.start(), block_span.end());
+        let slice = self.slice(block_span);
         let comment_str = slice[1..slice.len() - 1].trim();
         let block_str = if comment_str.is_empty() {
             "{}".to_string()
@@ -244,24 +282,24 @@ impl FmtVisitor<'_> {
     }
 }
 
-fn format_expr_seq(
+fn format_expr_seq<T: Item>(
     prefix: &str,
-    sufix: &str,
+    suffix: &str,
     mut visitor: FmtVisitor,
     trailing_comma: bool,
-    exprs: Vec<Expression>,
+    exprs: Vec<T>,
     span: Span,
-    limit: Option<usize>,
+    tactic: Tactic,
 ) -> String {
     visitor.indent.block_indent(visitor.config);
 
     let nested_indent = visitor.shape();
     let exprs: Vec<_> = utils::Exprs::new(&visitor, span, exprs).collect();
-    let exprs = format_exprs(visitor.config, trailing_comma, exprs, nested_indent, limit);
+    let exprs = format_exprs(visitor.config, tactic, trailing_comma, exprs, nested_indent);
 
     visitor.indent.block_unindent(visitor.config);
 
-    wrap_exprs(prefix, sufix, exprs, nested_indent, visitor.shape())
+    wrap_exprs(prefix, suffix, exprs, nested_indent, visitor.shape())
 }
 
 fn format_brackets(
@@ -271,7 +309,15 @@ fn format_brackets(
     span: Span,
 ) -> String {
     let array_width = visitor.config.array_width;
-    format_expr_seq("[", "]", visitor, trailing_comma, exprs, span, array_width.into())
+    format_expr_seq(
+        "[",
+        "]",
+        visitor,
+        trailing_comma,
+        exprs,
+        span,
+        Tactic::LimitedHorizontalVertical(array_width),
+    )
 }
 
 fn format_parens(
@@ -280,20 +326,20 @@ fn format_parens(
     exprs: Vec<Expression>,
     span: Span,
 ) -> String {
-    format_expr_seq("(", ")", visitor, trailing_comma, exprs, span, None)
+    format_expr_seq("(", ")", visitor, trailing_comma, exprs, span, Tactic::Horizontal)
 }
 
 fn format_exprs(
     config: &Config,
+    tactic: Tactic,
     trailing_comma: bool,
     exprs: Vec<Expr>,
     shape: Shape,
-    limit: Option<usize>,
 ) -> String {
     let mut result = String::new();
     let indent_str = shape.indent.to_string();
 
-    let tactic = Tactic::of(&exprs, config.short_array_element_width_threshold, limit);
+    let tactic = tactic.definitive(&exprs, config.short_array_element_width_threshold);
     let mut exprs = exprs.into_iter().enumerate().peekable();
     let mut line_len = 0;
     let mut prev_expr_trailing_comment = false;
@@ -304,14 +350,16 @@ fn format_exprs(
         let separate_len = usize::from(separate);
 
         match tactic {
-            Tactic::Vertical if !is_first && !expr.value.is_empty() && !result.is_empty() => {
+            DefinitiveTactic::Vertical
+                if !is_first && !expr.value.is_empty() && !result.is_empty() =>
+            {
                 result.push('\n');
                 result.push_str(&indent_str);
             }
-            Tactic::Horizontal if !is_first => {
+            DefinitiveTactic::Horizontal if !is_first => {
                 result.push(' ');
             }
-            Tactic::Mixed => {
+            DefinitiveTactic::Mixed => {
                 let total_width = expr.total_width() + separate_len;
 
                 if line_len > 0 && line_len + 1 + total_width > shape.width
@@ -342,7 +390,7 @@ fn format_exprs(
 
         result.push_str(&expr.value);
 
-        if tactic == Tactic::Horizontal {
+        if tactic == DefinitiveTactic::Horizontal {
             result.push_str(&expr.trailing);
         }
 
@@ -350,7 +398,7 @@ fn format_exprs(
             result.push(',');
         }
 
-        if tactic != Tactic::Horizontal {
+        if tactic != DefinitiveTactic::Horizontal {
             prev_expr_trailing_comment = !expr.trailing.is_empty();
 
             if !expr.different_line && !expr.trailing.is_empty() {
@@ -366,7 +414,7 @@ fn format_exprs(
 
 fn wrap_exprs(
     prefix: &str,
-    sufix: &str,
+    suffix: &str,
     exprs: String,
     nested_shape: Shape,
     shape: Shape,
@@ -387,57 +435,89 @@ fn wrap_exprs(
             String::new()
         };
 
-        format!("{prefix}{exprs}{trailing_newline}{sufix}")
+        format!("{prefix}{exprs}{trailing_newline}{suffix}")
     } else {
         let nested_indent_str = nested_shape.indent.to_string_with_newline();
-        let indent_str = shape.indent.to_string();
+        let indent_str = shape.indent.to_string_with_newline();
 
-        format!("{prefix}{nested_indent_str}{exprs}{indent_str}{sufix}")
+        format!("{prefix}{nested_indent_str}{exprs}{indent_str}{suffix}")
+    }
+}
+
+#[derive(PartialEq, Eq)]
+enum Tactic {
+    Horizontal,
+    HorizontalVertical,
+    LimitedHorizontalVertical(usize),
+    Mixed,
+}
+
+impl Tactic {
+    fn definitive(
+        self,
+        exprs: &[Expr],
+        short_array_element_width_threshold: usize,
+    ) -> DefinitiveTactic {
+        let tactic = || {
+            let has_single_line_comment = exprs.iter().any(|item| {
+                has_single_line_comment(&item.leading) || has_single_line_comment(&item.trailing)
+            });
+
+            let limit = match self {
+                _ if has_single_line_comment => return DefinitiveTactic::Vertical,
+
+                Tactic::Horizontal => return DefinitiveTactic::Horizontal,
+                Tactic::LimitedHorizontalVertical(limit) => limit,
+                Tactic::HorizontalVertical | Tactic::Mixed => 100,
+            };
+
+            let (sep_count, total_width): (usize, usize) = exprs
+                .iter()
+                .map(|expr| expr.total_width())
+                .fold((0, 0), |(sep_count, total_width), width| {
+                    (sep_count + 1, total_width + width)
+                });
+
+            let total_sep_len = sep_count.saturating_sub(1);
+            let real_total = total_width + total_sep_len;
+
+            if real_total <= limit && !exprs.iter().any(|expr| expr.is_multiline()) {
+                DefinitiveTactic::Horizontal
+            } else if self == Tactic::Mixed {
+                DefinitiveTactic::Mixed
+            } else {
+                DefinitiveTactic::Vertical
+            }
+        };
+
+        tactic().reduce(exprs, short_array_element_width_threshold)
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-enum Tactic {
+enum DefinitiveTactic {
     Vertical,
     Horizontal,
     Mixed,
 }
 
-impl Tactic {
-    fn of(exprs: &[Expr], max_width: usize, limit: Option<usize>) -> Self {
-        let mut tactic = if exprs.iter().any(|item| {
-            has_single_line_comment(&item.leading) || has_single_line_comment(&item.trailing)
-        }) {
-            Tactic::Vertical
-        } else {
-            Tactic::Horizontal
-        };
-
-        if tactic == Tactic::Vertical && no_long_exprs(exprs, max_width) {
-            tactic = Tactic::Mixed;
-        }
-
-        if let Some(limit) = limit {
-            let total_width: usize = exprs.iter().map(|expr| expr.total_width()).sum();
-            if total_width <= limit && !exprs.iter().any(|expr| expr.is_multiline()) {
-                tactic = Tactic::Horizontal;
-            } else {
-                tactic = Tactic::Mixed;
+impl DefinitiveTactic {
+    fn reduce(self, exprs: &[Expr], short_array_element_width_threshold: usize) -> Self {
+        match self {
+            DefinitiveTactic::Vertical
+                if no_long_exprs(exprs, short_array_element_width_threshold) =>
+            {
+                DefinitiveTactic::Mixed
+            }
+            DefinitiveTactic::Vertical | DefinitiveTactic::Horizontal | DefinitiveTactic::Mixed => {
+                self
             }
         }
-
-        tactic
     }
 }
 
 fn has_single_line_comment(slice: &str) -> bool {
     slice.trim_start().starts_with("//")
-}
-
-fn skip_useless_tokens(token: Token, slice: &str, mut span: Range<u32>) -> Span {
-    let offset = slice.find_token(token).unwrap();
-    span.start += offset;
-    span.into()
 }
 
 fn no_long_exprs(exprs: &[Expr], max_width: usize) -> bool {
