@@ -14,7 +14,7 @@ impl FmtVisitor<'_> {
         let span = expr.span;
 
         let rewrite = self.format_expr(expr);
-        let original = slice!(self, span.start(), span.end());
+        let original = self.slice(span);
         let changed_comment_content = utils::changed_comment_content(original, &rewrite);
 
         if changed_comment_content && self.config.error_on_lost_comment {
