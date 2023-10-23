@@ -5,9 +5,10 @@ use dep::aztec::{
     note::{
         note_header::NoteHeader,
         note_interface::NoteInterface,
-        utils::compute_siloed_note_hash,
+        utils::compute_note_hash_for_read_or_nullify,
     },
     oracle::{
+        rand::rand,
         get_secret_key::get_secret_key,
         get_public_key::get_public_key,
     },
@@ -15,34 +16,51 @@ use dep::aztec::{
     context::PrivateContext,
 };
 
-global ADDRESS_NOTE_LEN: Field = 2;
+global ADDRESS_NOTE_LEN: Field = 3;
 
 // Stores an address
 struct AddressNote {
     address: Field,
     owner: Field,
+    randomness: Field,
     header: NoteHeader,
 }
 
 impl AddressNote {
     pub fn new(address: Field, owner: Field) -> Self {
+        let randomness = rand();
         AddressNote {
             address,
             owner,
+            randomness,
             header: NoteHeader::empty(),
         }
     }
 
     pub fn serialize(self) -> [Field; ADDRESS_NOTE_LEN]{
-        [self.address, self.owner]
+        [self.address, self.owner, self.randomness]
+    }
+
+    pub fn deserialize(preimage: [Field; ADDRESS_NOTE_LEN]) -> Self {
+        AddressNote {
+            address: preimage[0],
+            owner: preimage[1],
+            randomness: preimage[2],
+            header: NoteHeader::empty(),
+        }
+    }
+
+    pub fn compute_note_hash(self) -> Field {
+        // TODO(#1205) Should use a non-zero generator index.
+        pedersen_hash(self.serialize(), 0)
     }
 
     pub fn compute_nullifier(self) -> Field {
-        let siloed_note_hash = compute_siloed_note_hash(AddressNoteMethods, self);
+        let note_hash_for_nullify = compute_note_hash_for_read_or_nullify(AddressNoteMethods, self);
         let secret = get_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
         pedersen_hash([
-            siloed_note_hash,
+            note_hash_for_nullify,
             secret.low,
             secret.high,
         ],0)
@@ -68,11 +86,7 @@ impl AddressNote {
 }
 
 fn deserialize(preimage: [Field; ADDRESS_NOTE_LEN]) -> AddressNote {
-    AddressNote {
-        address: preimage[0],
-        owner: preimage[1],
-        header: NoteHeader::empty(),
-    }
+    AddressNote::deserialize(preimage)
 }
 
 fn serialize(note: AddressNote) -> [Field; ADDRESS_NOTE_LEN]{
@@ -80,8 +94,7 @@ fn serialize(note: AddressNote) -> [Field; ADDRESS_NOTE_LEN]{
 }
 
 fn compute_note_hash(note: AddressNote) -> Field {
-    // TODO(#1205) Should use a non-zero generator index.
-    pedersen_hash(note.serialize(),0)
+    note.compute_note_hash()
 }
 
 fn compute_nullifier(note: AddressNote) -> Field {
