@@ -70,7 +70,7 @@ jobs:
 
       - name: Generate gates report
         working-directory: ./tooling/nargo_cli/tests
-        run: ./gas_report.sh
+        run: ./gates_report.sh
        
       - name: Compare gates reports
         id: gates_diff
