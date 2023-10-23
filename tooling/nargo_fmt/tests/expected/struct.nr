@@ -34,11 +34,7 @@ struct MyStruct {
     my_nest: Nested,
 }
 fn test_struct_in_tuple(a_bool : bool,x:Field, y:Field) -> (MyStruct, bool) {
-    let my_struct = MyStruct {
-        my_bool: a_bool,
-        my_int: 5,
-        my_nest: Nested{a:x,b:y},
-    };
+    let my_struct = MyStruct { my_bool: a_bool, my_int: 5, my_nest: Nested { a: x, b: y } };
     (my_struct, a_bool)
 }
 

@@ -11,7 +11,7 @@ impl super::FmtVisitor<'_> {
                 }
                 StatementKind::Let(let_stmt) => {
                     let let_str =
-                        slice!(self, span.start(), let_stmt.expression.span.start()).trim_end();
+                        self.slice(span.start()..let_stmt.expression.span.start()).trim_end();
                     let expr_str = self.format_expr(let_stmt.expression);
 
                     self.push_rewrite(format!("{let_str} {expr_str};"), span);
