@@ -12,4 +12,16 @@ fn let_() {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     ];
+
+    let a = BigUint56 {limbs:[1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]};
+
+    let person = Person { first_name: "John", last_name: "Doe", home_address: Address { street: "123 Main St", city: "Exampleville", zip_code: "12345" } };
+
+    let person = Person { first_name: "John", last_name: "Doe", home_address: Address { street: "123 Main St", city: "Exampleville", zip_code: "12345", master: Person { first_name: "John", last_name: "Doe", home_address: Address { street: "123 Main St", city: "Exampleville", zip_code: "12345" } } } };
+
+    let expr = Expr {// A boolean literal (true, false).
+kind: ExprKind::Bool(true),
+    };
+
+    let expr = Expr {/*A boolean literal (true, false).*/kind: ExprKind::Bool(true),};
 }
