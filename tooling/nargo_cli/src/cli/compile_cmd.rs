@@ -191,7 +191,6 @@ fn compile_program(
     } else {
         None
     };
-    
 
     // If we want to output the debug information then we need to perform a full recompilation of the ACIR.
     let force_recompile =
