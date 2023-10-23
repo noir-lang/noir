@@ -222,9 +222,15 @@ impl<'interner> Monomorphizer<'interner> {
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
 
-        let return_type = self.convert_type(meta.return_type());
+        let body_expr_id = *self.interner.function(&f).as_expr();
+        let body_return_type = self.interner.id_type(body_expr_id);
+        let return_type = self.convert_type(match meta.return_type() {
+            Type::TraitAsType(_) => &body_return_type,
+            _ => meta.return_type(),
+        });
+
         let parameters = self.parameters(meta.parameters);
-        let body = self.expr(*self.interner.function(&f).as_expr());
+        let body = self.expr(body_expr_id);
         let unconstrained = modifiers.is_unconstrained
             || matches!(modifiers.contract_function_type, Some(ContractFunctionType::Open));
 
@@ -381,8 +387,8 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
 
-            HirExpression::MethodCall(_) => {
-                unreachable!("Encountered HirExpression::MethodCall during monomorphization")
+            HirExpression::MethodCall(hir_method_call) => {
+                unreachable!("Encountered HirExpression::MethodCall during monomorphization {hir_method_call:?}")
             }
             HirExpression::Error => unreachable!("Encountered Error node during monomorphization"),
         }
@@ -406,12 +412,11 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> ast::Expression {
         let typ = self.convert_type(&self.interner.id_type(array));
 
-        let contents = self.expr(repeated_element);
         let length = length
             .evaluate_to_u64()
             .expect("Length of array is unknown when evaluating numeric generic");
 
-        let contents = vec![contents; length as usize];
+        let contents = vecmap(0..length, |_| self.expr(repeated_element));
         ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ }))
     }
 
@@ -635,7 +640,6 @@ impl<'interner> Monomorphizer<'interner> {
                 let location = Some(ident.location);
                 let name = definition.name.clone();
                 let typ = self.interner.id_type(expr_id);
-
                 let definition = self.lookup_function(*func_id, expr_id, &typ);
                 let typ = self.convert_type(&typ);
                 let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone() };
@@ -686,7 +690,6 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::FmtString(size, fields)
             }
             HirType::Unit => ast::Type::Unit,
-
             HirType::Array(length, element) => {
                 let element = Box::new(self.convert_type(element.as_ref()));
 
@@ -696,7 +699,9 @@ impl<'interner> Monomorphizer<'interner> {
                     ast::Type::Slice(element)
                 }
             }
-
+            HirType::TraitAsType(_) => {
+                unreachable!("All TraitAsType should be replaced before calling convert_type");
+            }
             HirType::NamedGeneric(binding, _) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
                     return self.convert_type(binding);
@@ -780,8 +785,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn is_function_closure(&self, raw_func_id: node_interner::ExprId) -> bool {
-        let t = self.convert_type(&self.interner.id_type(raw_func_id));
+    fn is_function_closure(&self, t: ast::Type) -> bool {
         if self.is_function_closure_type(&t) {
             true
         } else if let ast::Type::Tuple(elements) = t {
@@ -850,6 +854,7 @@ impl<'interner> Monomorphizer<'interner> {
         let func: Box<ast::Expression>;
         let return_type = self.interner.id_type(id);
         let return_type = self.convert_type(&return_type);
+
         let location = call.location;
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
@@ -863,8 +868,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let mut block_expressions = vec![];
-
-        let is_closure = self.is_function_closure(call.func);
+        let func_type = self.interner.id_type(call.func);
+        let func_type = self.convert_type(&func_type);
+        let is_closure = self.is_function_closure(func_type);
         if is_closure {
             let local_id = self.next_local_id();
 
