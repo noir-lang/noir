@@ -25,7 +25,7 @@ Currently, Noir provides a Language Client for Visual Studio Code via the [vscod
 >
 > If LSP features seem to be missing / malfunctioning, make sure you are opening your Noir project directly (instead of as a sub-folder) in your VSCode instance.
 
-When you language server is running correctly and the VSCode plugin is installed, you should see handy codelens buttons for compilation, measuring circuit size, execution, and tests:
+When your language server is running correctly and the VSCode plugin is installed, you should see handy codelens buttons for compilation, measuring circuit size, execution, and tests:
 
 ![Compile and Execute](./../../static/img/codelens_compile_execute.png)
 ![Run test](../../static/img/codelens_run_test.png)
