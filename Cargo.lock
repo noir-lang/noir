@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir_field",
  "bincode",
@@ -22,7 +22,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -36,7 +36,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -53,7 +53,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir",
  "blake2",
@@ -66,7 +66,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "barretenberg_blackbox_solver",
@@ -87,7 +87,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir",
 ]
@@ -217,7 +217,7 @@ checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
 name = "arena"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "generational-arena",
 ]
@@ -449,7 +449,7 @@ dependencies = [
 
 [[package]]
 name = "barretenberg_blackbox_solver"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -573,7 +573,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir_field",
  "serde",
@@ -581,7 +581,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1117,16 +1117,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crossbeam-channel"
-version = "0.5.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a33c2bf77f2df06183c3aa30d1e96c0695a313d4f9c453cc3762a6db39f99200"
-dependencies = [
- "cfg-if",
- "crossbeam-utils",
-]
-
-[[package]]
 name = "crossbeam-deque"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1611,7 +1601,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -2192,7 +2182,7 @@ dependencies = [
 
 [[package]]
 name = "iter-extended"
-version = "0.16.0"
+version = "0.17.0"
 
 [[package]]
 name = "itertools"
@@ -2411,7 +2401,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "base64",
@@ -2431,7 +2421,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -2479,7 +2469,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "bytecount",
  "noirc_frontend",
@@ -2491,7 +2481,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "dirs",
  "fm",
@@ -2539,7 +2529,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "easy-repl",
@@ -2551,7 +2541,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -2573,7 +2563,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -2595,7 +2585,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -2612,7 +2602,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -2629,7 +2619,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "base64",
@@ -2645,7 +2635,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "chumsky",
@@ -2658,7 +2648,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "fxhash",
@@ -2673,7 +2663,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "arena",
@@ -2694,7 +2684,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3187,9 +3177,9 @@ dependencies = [
 
 [[package]]
 name = "rayon"
-version = "1.7.0"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d2df5196e37bcc87abebc0053e20787d73847bb33134a69841207dd0a47f03b"
+checksum = "9c27db03db7734835b3f53954b534c91069375ce6ccaa2e065441e07d9b6cdb1"
 dependencies = [
  "either",
  "rayon-core",
@@ -3197,14 +3187,12 @@ dependencies = [
 
 [[package]]
 name = "rayon-core"
-version = "1.11.0"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b8f95bd6966f5c87776639160a66bd8ab9895d9d4ab01ddba9fc60661aebe8d"
+checksum = "5ce3fb6ad83f861aac485e76e1985cd109d9a3713802152be56c3b1f0e0658ed"
 dependencies = [
- "crossbeam-channel",
  "crossbeam-deque",
  "crossbeam-utils",
- "num_cpus",
 ]
 
 [[package]]
