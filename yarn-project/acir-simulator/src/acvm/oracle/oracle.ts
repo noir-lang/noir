@@ -39,8 +39,8 @@ export class Oracle {
     return [toACVMField(secretKey.low), toACVMField(secretKey.high)];
   }
 
-  async getPublicKey([address]: ACVMField[]) {
-    const { publicKey, partialAddress } = await this.typedOracle.getPublicKey(
+  async getPublicKeyAndPartialAddress([address]: ACVMField[]) {
+    const { publicKey, partialAddress } = await this.typedOracle.getCompleteAddress(
       AztecAddress.fromField(fromACVMField(address)),
     );
     return [publicKey.x, publicKey.y, partialAddress].map(toACVMField);

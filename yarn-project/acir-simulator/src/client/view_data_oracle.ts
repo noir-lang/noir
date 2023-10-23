@@ -40,7 +40,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param address - Address to fetch the complete address for.
    * @returns A complete address associated with the input address.
    */
-  public getPublicKey(address: AztecAddress): Promise<CompleteAddress> {
+  public getCompleteAddress(address: AztecAddress): Promise<CompleteAddress> {
     return this.db.getCompleteAddress(address);
   }
 

@@ -26,15 +26,15 @@ To execute a transaction, the PXE needs to know the complete address of a contra
 
 To address the error, add the contract to the PXE by calling `server.addContracts(...)`.
 
-### Unknown Complete Address Error
+### No Public Key Registered Error
 This error occurs when your contract is trying to get a public key via the `get_public_key` oracle call, but the PXE does not have the Complete Address (Complete Address contains the public key).
 
 This is what the error typically looks like:
 ```
-Simulation error: Unknown complete address for address 0x0d179a5f9bd4505f7dfb8ca37d64e0bd0cd31b5cb018e252fd647bdf88959b95. Add the information to PXE by calling pxe.registerRecipient(...) or pxe.registerAccount(...)
+Simulation error: No public key registered for address 0x0d179a5f9bd4505f7dfb8ca37d64e0bd0cd31b5cb018e252fd647bdf88959b95. Register it by calling pxe.registerRecipient(...) or pxe.registerAccount(...)
 ```
 
-Your contract typically needs a public key when it wants to send a note to a recipient because the public key is used to encrypt notes.
+Your contract typically needs a note recipient's public key when it wants to send a note to because the public key is used to encrypt notes.
 
 :::info
 Manually adding the recipient to the PXE should not be required in case the recipient contract has already been deployed and the PXE is fully synced.
@@ -49,5 +49,5 @@ This is what the error typically looks like:
 Could not process note because of "Error: Unknown account.". Skipping note...
 ```
 
-This error might occurr when you register an account only as a recipient and not as an account.
+This error might occur when you register an account only as a recipient and not as an account.
 To address the error, register the account by calling `server.registerAccount(...)`.

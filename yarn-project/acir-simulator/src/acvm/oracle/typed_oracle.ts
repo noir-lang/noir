@@ -72,7 +72,7 @@ export abstract class TypedOracle {
     throw new Error('Not available.');
   }
 
-  getPublicKey(_address: AztecAddress): Promise<CompleteAddress> {
+  getCompleteAddress(_address: AztecAddress): Promise<CompleteAddress> {
     throw new Error('Not available.');
   }
 
