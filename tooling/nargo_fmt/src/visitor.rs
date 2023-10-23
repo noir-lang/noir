@@ -164,7 +164,7 @@ impl<'me> FmtVisitor<'me> {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 struct Indent {
     block_indent: usize,
 }
@@ -196,4 +196,10 @@ impl Indent {
 struct Shape {
     width: usize,
     indent: Indent,
+}
+
+#[derive(PartialEq, Eq)]
+pub(crate) enum ExpressionType {
+    Statement,
+    SubExpression,
 }

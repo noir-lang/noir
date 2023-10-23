@@ -48,4 +48,46 @@ fn let_() {
     };
 
     let expr = Expr { /*A boolean literal (true, false).*/ kind: ExprKind::Bool(true) };
+
+    // Create a Person object for John Doe
+    let person = Person {
+        first_name: "John",
+        last_name: "Doe",
+        // Define the home address for John Doe
+        home_address: Address {
+            street: "123 Main St",
+            city: "Exampleville",
+            zip_code: "12345",
+            master: Person {
+                first_name: "John",
+                last_name: "Doe",
+                // Create a nested Person object (same as the main person)
+                home_address: Address { street: "123 Main St", city: "Exampleville", zip_code: "12345" }// End of nested Person's home address
+            } // End of the nested Person object
+        }// End of the home address for the main Person object
+    }; // End of the main Person object
+
+/*
+Create a Person object for John Doe.
+*/
+    let person = Person {
+        first_name: "John",
+        last_name: "Doe",
+        /*
+    Define the home address for John Doe.
+    */
+        home_address: Address {
+            street: "123 Main St",
+            city: "Exampleville",
+            zip_code: "12345",
+            master: Person {
+                first_name: "John",
+                last_name: "Doe",
+                /*
+            Create a nested Person object (same as the main person).
+            */
+                home_address: Address { street: "123 Main St", city: "Exampleville", zip_code: "12345" }// End of nested Person's home address
+            } // End of the nested Person object
+        }// End of the home address for the main Person object
+    }; // End of the main Person object
 }
