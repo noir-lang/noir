@@ -974,7 +974,6 @@ impl Context {
         } else {
             self.flattened_slice_size(array_id, dfg)
         };
-        // dbg!(array_len);
 
         // Since array_set creates a new array, we create a new block ID for this
         // array, unless map_array is true. In that case, we operate directly on block_id

@@ -64,7 +64,8 @@ impl<'f> Context<'f> {
             match &self.inserter.function.dfg[*instruction] {
                 Instruction::ArrayGet { array, .. } => {
                     let array_typ = self.inserter.function.dfg.type_of_value(*array);
-                    if array_typ.contains_slice_element() {
+                    let array_value = &self.inserter.function.dfg[*array];
+                    if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element() {
                         slice_values.push(*array);
                         self.compute_slice_sizes(*array, &mut slice_sizes);
                     }
@@ -89,12 +90,15 @@ impl<'f> Context<'f> {
                 }
                 Instruction::ArraySet { array, value, .. } => {
                     let array_typ = self.inserter.function.dfg.type_of_value(*array);
-                    if array_typ.contains_slice_element() {
+                    let array_value = &self.inserter.function.dfg[*array];
+                    if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element() {
+                        slice_values.push(*array);
                         self.compute_slice_sizes(*array, &mut slice_sizes);
                     }
 
                     let value_typ = self.inserter.function.dfg.type_of_value(*value);
-                    if value_typ.contains_slice_element() {
+                    let value_ssa_value = &self.inserter.function.dfg[*array];
+                    if matches!(value_ssa_value, Value::Array { .. }) && value_typ.contains_slice_element() {
                         self.compute_slice_sizes(*value, &mut slice_sizes);
                     }
 
@@ -214,6 +218,8 @@ impl<'f> Context<'f> {
                 }
             }
         }
+
+        self.inserter.map_terminator_in_place(block);
     }
 
     fn attach_slice_dummies(
@@ -340,7 +346,7 @@ impl<'f> Context<'f> {
         slice_sizes: &HashMap<ValueId, (usize, Vec<ValueId>)>,
     ) -> usize {
         let (current_size, inner_slices) =
-            slice_sizes.get(&array_id).expect("should have slice sizes");
+            slice_sizes.get(&array_id).expect(&format!("should have slice sizes: {array_id}"));
         let mut max = *current_size;
         for inner_slice in inner_slices.iter() {
             if let Some(inner_max) = self.compute_inner_max_size(*inner_slice, slice_sizes) {
