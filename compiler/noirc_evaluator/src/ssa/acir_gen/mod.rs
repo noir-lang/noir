@@ -87,7 +87,7 @@ struct Context {
 
     /// Maps SSA array values to their slice size and any nested slices internal to the parent slice.
     /// This enables us to maintain the slice structure of a slice when performing an array get.
-    slice_sizes: HashMap<Id<Value>, Vec<(usize, Option<ValueId>)>>,
+    slice_sizes: HashMap<Id<Value>, Vec<usize>>,
 }
 
 #[derive(Clone)]
@@ -738,7 +738,7 @@ impl Context {
                 let mut dummy_predicate_index = predicate_index;
                 // We must setup the dummy value to match the type of the value we wish to store
                 let slice_sizes = if store_type.contains_slice_element() {
-                    self.compute_slice_sizes(store, None, None, dfg);
+                    self.compute_slice_sizes(store, None, dfg);
                     if let Some(slice_sizes) = self.slice_sizes.get(&store) {
                         slice_sizes.clone()
                     } else {
@@ -888,7 +888,7 @@ impl Context {
         ssa_type: &Type,
         block_id: BlockId,
         var_index: &mut AcirVar,
-        slice_sizes: &[(usize, Option<ValueId>)],
+        slice_sizes: &[usize],
     ) -> Result<AcirValue, RuntimeError> {
         let one = self.acir_context.add_constant(FieldElement::one());
         match ssa_type.clone() {
@@ -924,7 +924,7 @@ impl Context {
                 let (current_size, new_sizes) =
                     slice_sizes.split_first().expect("should be able to split");
 
-                for _ in 0..current_size.0 {
+                for _ in 0..*current_size {
                     for typ in element_types.as_ref() {
                         values
                             .push_back(self.array_get_value(typ, block_id, var_index, new_sizes)?);
@@ -1120,7 +1120,7 @@ impl Context {
             Type::Array(_, _) | Type::Slice(_) => {
                 match &dfg[array_id] {
                     Value::Array { array, .. } => {
-                        self.compute_slice_sizes(array_id, None, None, dfg);
+                        self.compute_slice_sizes(array_id, None, dfg);
 
                         for (i, value) in array.iter().enumerate() {
                             flat_elem_type_sizes.push(
@@ -1224,7 +1224,6 @@ impl Context {
         &mut self,
         current_array_id: ValueId,
         parent_array: Option<ValueId>,
-        inner_parent_array: Option<ValueId>,
         dfg: &DataFlowGraph,
     ) {
         if let Value::Array { array, typ } = &dfg[current_array_id] {
@@ -1234,30 +1233,18 @@ impl Context {
                 if let Some(parent_array) = parent_array {
                     let sizes_list =
                         self.slice_sizes.get_mut(&parent_array).expect("ICE: expected size list");
-                    let inner_parent_array =
-                        inner_parent_array.expect("ICE: expected inner_parent_array");
-                    sizes_list.push((true_len, Some(inner_parent_array)));
+                    sizes_list.push(true_len);
                 } else {
                     // This means the current_array_id is the parent array
-                    self.slice_sizes.insert(current_array_id, vec![(true_len, None)]);
+                    self.slice_sizes.insert(current_array_id, vec![true_len]);
                 }
                 for value in array {
                     let typ = dfg.type_of_value(*value);
                     if let Type::Slice(_) = typ {
                         if parent_array.is_some() {
-                            self.compute_slice_sizes(
-                                *value,
-                                parent_array,
-                                Some(current_array_id),
-                                dfg,
-                            );
+                            self.compute_slice_sizes(*value, parent_array, dfg);
                         } else {
-                            self.compute_slice_sizes(
-                                *value,
-                                Some(current_array_id),
-                                Some(current_array_id),
-                                dfg,
-                            );
+                            self.compute_slice_sizes(*value, Some(current_array_id), dfg);
                         }
                     }
                 }

@@ -17,6 +17,13 @@ use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
+    /// Fill out slice values represented by SSA array values to contain
+    /// dummy data that accounts for dynamic array operations in ACIR gen.
+    /// When working with nested slices in ACIR gen it is impossible to discern the size
+    /// of internal slices. Thus, we should use the max size of internal nested slices for reading from memory.
+    /// However, not increasing the capacity of smaller nested slices can lead to errors where
+    /// we end up reading past the specified dynamic index. If we want to also read information that goes
+    /// past the nested slice, we will have garbage data in its place if the nested structure is transformed to match.
     pub(crate) fn fill_internal_slices(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             let mut context = Context::new(function);

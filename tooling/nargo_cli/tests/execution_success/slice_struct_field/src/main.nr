@@ -18,12 +18,12 @@ struct Foo {
 fn main(y : pub Field) {
     let mut b_one = [2, 3, 20];
     b_one = b_one.push_back(20);
-    // let b_one = Vec::from_slice([2, 3, 20]);
     let foo_one = Foo { a: 1, b: b_one, bar: Bar { inner: [100, 101, 102] } };
+    
     let mut b_two = [5, 6, 21];
     b_two = b_two.push_back(21);
-    // let b_two = Vec::from_slice([5, 6, 21]);
     let foo_two = Foo { a: 4, b: b_two, bar: Bar { inner: [103, 104, 105] } };
+    
     let foo_three = Foo { a: 7, b: [8, 9, 22], bar: Bar { inner: [106, 107, 108] } };
     let foo_four = Foo { a: 10, b: [11, 12, 23], bar: Bar { inner: [109, 110, 111] } };
 
@@ -134,13 +134,6 @@ fn main(y : pub Field) {
     assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
     assert(foo_parents[y - 2].foos[y - 1].b[4] == 100);
     assert(foo_parents[y - 2].foos[y - 1].b[5] == 101);
-
-    // Valid code
-    // let mut slice1 = [1, 2, 3].as_slice();
-    // let slice2 = [1, 2, 3, 4, 5].as_slice();
-    // slice1 = slice2;
-    // println(slice1.len());
-    // println(slice1[4]);
     
     let b_array = foo_parents[y - 2].foos[y - 1].b;
     assert(b_array[0] == 5);
