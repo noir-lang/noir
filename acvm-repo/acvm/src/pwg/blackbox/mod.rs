@@ -3,7 +3,7 @@ use acir::{
     native_types::{Witness, WitnessMap},
     FieldElement,
 };
-use acvm_blackbox_solver::{blake2s, keccak256, sha256};
+use acvm_blackbox_solver::{blake2s, blake3, keccak256, sha256};
 
 use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
 use crate::BlackBoxFunctionSolver;
@@ -79,6 +79,14 @@ pub(crate) fn solve(
             None,
             outputs,
             blake2s,
+            bb_func.get_black_box_func(),
+        ),
+        BlackBoxFuncCall::Blake3 { inputs, outputs } => solve_generic_256_hash_opcode(
+            initial_witness,
+            inputs,
+            None,
+            outputs,
+            blake3,
             bb_func.get_black_box_func(),
         ),
         BlackBoxFuncCall::Keccak256 { inputs, outputs } => solve_generic_256_hash_opcode(

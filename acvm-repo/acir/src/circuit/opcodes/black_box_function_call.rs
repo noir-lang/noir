@@ -39,6 +39,10 @@ pub enum BlackBoxFuncCall {
         inputs: Vec<FunctionInput>,
         outputs: Vec<Witness>,
     },
+    Blake3 {
+        inputs: Vec<FunctionInput>,
+        outputs: Vec<Witness>,
+    },
     SchnorrVerify {
         public_key_x: FunctionInput,
         public_key_y: FunctionInput,
@@ -131,6 +135,7 @@ impl BlackBoxFuncCall {
             BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: FunctionInput::dummy() },
             BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 { inputs: vec![], outputs: vec![] },
             BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s { inputs: vec![], outputs: vec![] },
+            BlackBoxFunc::Blake3 => BlackBoxFuncCall::Blake3 { inputs: vec![], outputs: vec![] },
             BlackBoxFunc::SchnorrVerify => BlackBoxFuncCall::SchnorrVerify {
                 public_key_x: FunctionInput::dummy(),
                 public_key_y: FunctionInput::dummy(),
@@ -186,6 +191,7 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::RANGE { .. } => BlackBoxFunc::RANGE,
             BlackBoxFuncCall::SHA256 { .. } => BlackBoxFunc::SHA256,
             BlackBoxFuncCall::Blake2s { .. } => BlackBoxFunc::Blake2s,
+            BlackBoxFuncCall::Blake3 { .. } => BlackBoxFunc::Blake3,
             BlackBoxFuncCall::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
             BlackBoxFuncCall::Pedersen { .. } => BlackBoxFunc::Pedersen,
             BlackBoxFuncCall::HashToField128Security { .. } => BlackBoxFunc::HashToField128Security,
@@ -206,6 +212,7 @@ impl BlackBoxFuncCall {
         match self {
             BlackBoxFuncCall::SHA256 { inputs, .. }
             | BlackBoxFuncCall::Blake2s { inputs, .. }
+            | BlackBoxFuncCall::Blake3 { inputs, .. }
             | BlackBoxFuncCall::Keccak256 { inputs, .. }
             | BlackBoxFuncCall::Pedersen { inputs, .. }
             | BlackBoxFuncCall::HashToField128Security { inputs, .. } => inputs.to_vec(),
@@ -295,6 +302,7 @@ impl BlackBoxFuncCall {
         match self {
             BlackBoxFuncCall::SHA256 { outputs, .. }
             | BlackBoxFuncCall::Blake2s { outputs, .. }
+            | BlackBoxFuncCall::Blake3 { outputs, .. }
             | BlackBoxFuncCall::Keccak256 { outputs, .. }
             | BlackBoxFuncCall::RecursiveAggregation {
                 output_aggregation_object: outputs, ..

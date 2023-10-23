@@ -34,6 +34,12 @@ pub fn blake2s256(inputs: &[u8]) -> Vec<u8> {
     acvm::blackbox_solver::blake2s(inputs).unwrap().into()
 }
 
+/// Calculates the Blake3 hash of the input bytes
+#[wasm_bindgen]
+pub fn blake3(inputs: &[u8]) -> Vec<u8> {
+    acvm::blackbox_solver::blake3(inputs).unwrap().into()
+}
+
 /// Calculates the Keccak256 hash of the input bytes
 #[wasm_bindgen]
 pub fn keccak256(inputs: &[u8]) -> Vec<u8> {

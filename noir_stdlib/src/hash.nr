@@ -6,6 +6,9 @@ pub fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
 #[foreign(blake2s)]
 pub fn blake2s<N>(_input : [u8; N]) -> [u8; 32] {}
 
+#[foreign(blake3)]
+pub fn blake3<N>(_input : [u8; N]) -> [u8; 32] {}
+
 pub fn pedersen<N>(input : [Field; N]) -> [Field; 2] {
     pedersen_with_separator(input, 0)
 }

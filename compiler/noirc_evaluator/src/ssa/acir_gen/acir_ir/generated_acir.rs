@@ -153,6 +153,7 @@ impl GeneratedAcir {
             BlackBoxFunc::Blake2s => {
                 BlackBoxFuncCall::Blake2s { inputs: inputs[0].clone(), outputs }
             }
+            BlackBoxFunc::Blake3 => BlackBoxFuncCall::Blake3 { inputs: inputs[0].clone(), outputs },
             BlackBoxFunc::HashToField128Security => BlackBoxFuncCall::HashToField128Security {
                 inputs: inputs[0].clone(),
                 output: outputs[0],
@@ -933,6 +934,7 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::Keccak256
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
+        | BlackBoxFunc::Blake3
         | BlackBoxFunc::Pedersen
         | BlackBoxFunc::HashToField128Security => None,
 
@@ -961,7 +963,10 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         // or the operation.
         BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(1),
         // 32 byte hash algorithms
-        BlackBoxFunc::Keccak256 | BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => Some(32),
+        BlackBoxFunc::Keccak256
+        | BlackBoxFunc::SHA256
+        | BlackBoxFunc::Blake2s
+        | BlackBoxFunc::Blake3 => Some(32),
         // Hash to field returns a field element
         BlackBoxFunc::HashToField128Security => Some(1),
         // Pedersen returns a point

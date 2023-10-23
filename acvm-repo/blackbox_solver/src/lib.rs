@@ -56,6 +56,10 @@ pub fn blake2s(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
         .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Blake2s, err))
 }
 
+pub fn blake3(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
+    Ok(blake3::hash(inputs).into())
+}
+
 pub fn keccak256(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
     generic_hash_256::<Keccak256>(inputs)
         .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Keccak256, err))
