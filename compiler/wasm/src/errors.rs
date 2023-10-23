@@ -10,7 +10,7 @@ use noirc_errors::FileDiagnostic;
 const DIAGNOSTICS: &'static str = r#"
 export type Diagnostic = {
     message: string;
-    file_path: string;
+    file: string;
     secondaries: ReadonlyArray<{
         message: string;
         start: number;
