@@ -38,11 +38,8 @@ pub fn init_log_level(level: String) {
     });
 }
 
-const BUILD_INFO: BuildInfo = BuildInfo {
-    git_hash: GIT_COMMIT,
-    version: NOIRC_VERSION,
-    dirty: GIT_DIRTY,
-};
+const BUILD_INFO: BuildInfo =
+    BuildInfo { git_hash: GIT_COMMIT, version: NOIRC_VERSION, dirty: GIT_DIRTY };
 
 #[wasm_bindgen]
 pub fn build_info() -> JsValue {

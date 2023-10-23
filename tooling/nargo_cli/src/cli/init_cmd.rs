@@ -3,10 +3,10 @@ use crate::errors::CliError;
 
 use super::fs::{create_named_dir, write_to_file};
 use super::NargoConfig;
-use noirc_driver::NOIRC_VERSION;
 use clap::Args;
 use nargo::constants::{PKG_FILE, SRC_DIR};
 use nargo::package::PackageType;
+use noirc_driver::NOIRC_VERSION;
 use noirc_frontend::graph::CrateName;
 use std::path::PathBuf;
 
