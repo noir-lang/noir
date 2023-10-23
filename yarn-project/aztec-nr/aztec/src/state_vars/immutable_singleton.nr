@@ -76,8 +76,10 @@ impl<Note, N> ImmutableSingleton<Note, N> {
     }
     // docs:end:get_note
 
+    // docs:start:view_note
     unconstrained pub fn view_note(self) -> Note {
         let options = NoteViewerOptions::new().set_limit(1);
         view_notes(self.storage_slot, self.note_interface, options)[0].unwrap()
     }
+    // docs:end:view_note
 }

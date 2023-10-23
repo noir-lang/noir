@@ -336,6 +336,12 @@ However, it's possible that at the time this function is called, the system hasn
 
 #include_code state_vars-SingletonGet /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/actions.nr rust
 
+### `view_note`
+
+Functionally similar to [`get_note`](#get_note), but executed unconstrained and can be used by the wallet to fetch notes for use by front-ends etc.
+
+#include_code view_note /yarn-project/aztec-nr/aztec/src/state_vars/singleton.nr rust
+
 ## `ImmutableSingleton<NoteType>`
 
 ImmutableSingleton represents a unique private state variable that, as the name suggests, is immutable. Once initialized, its value cannot be altered.
@@ -381,6 +387,12 @@ Use this method to retrieve the value of an initialized ImmutableSingleton.
 Unlike a [`singleton`](#get_note-1), the `get_note` function for an ImmutableSingleton doesn't destroy the current note in the background. This means that multiple accounts can concurrently call this function to read the value.
 
 This function will throw if the ImmutableSingleton hasn't been initialized.
+
+### `view_note`
+
+Functionally similar to `get_note`, but executed unconstrained and can be used by the wallet to fetch notes for use by front-ends etc.
+
+#include_code view_note /yarn-project/aztec-nr/aztec/src/state_vars/immutable_singleton.nr rust
 
 ## `Set<NoteType>`
 
