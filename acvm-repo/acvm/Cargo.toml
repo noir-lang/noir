@@ -16,6 +16,7 @@ repository.workspace = true
 num-bigint.workspace = true
 num-traits.workspace = true
 thiserror.workspace = true
+either = "1.8.1"
 
 acir.workspace = true
 stdlib.workspace = true
