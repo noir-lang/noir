@@ -68,7 +68,7 @@ impl FmtVisitor<'_> {
                     self.span_before(call_expr.func.span.end()..span.end(), Token::LeftParen);
 
                 let callee = self.format_subexpr(*call_expr.func);
-                let args = format_parens(self.fork(), false, call_expr.arguments, args_args_span);
+                let args = format_parens(self.fork(), false, call_expr.arguments, args_span);
 
                 format!("{callee}{args}")
             }
@@ -93,7 +93,7 @@ impl FmtVisitor<'_> {
                     .span_before(index_expr.collection.span.end()..span.end(), Token::LeftBracket);
 
                 let collection = self.format_subexpr(index_expr.collection);
-                let index = format_brackets(self.fork(), false, vec![index_expr.index], index_index_span);
+                let index = format_brackets(self.fork(), false, vec![index_expr.index], index_span);
 
                 format!("{collection}{index}")
             }
