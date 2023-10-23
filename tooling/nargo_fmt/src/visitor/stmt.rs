@@ -8,7 +8,7 @@ impl super::FmtVisitor<'_> {
     pub(crate) fn visit_stmts(&mut self, stmts: Vec<Statement>) {
         let len = stmts.len();
 
-        for (Statement { kind, span }, index) in zip(stmts, 0..) {
+        for (Statement { kind, span }, index) in zip(stmts, 1..) {
             let is_last = index == len;
 
             match kind {

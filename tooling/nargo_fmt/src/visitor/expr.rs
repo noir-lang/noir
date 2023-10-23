@@ -186,32 +186,58 @@ impl FmtVisitor<'_> {
                 if allow_single_line {
                     let mut visitor = self.fork();
                     visitor.indent = Indent::default();
-                    if let Some(line) = visitor.format_if_single_line(*if_expr) {
+                    if let Some(line) = visitor.format_if_single_line(*if_expr.clone()) {
                         return line;
                     }
                 }
 
-                todo!()
+                self.format_if(*if_expr)
             }
-            ExpressionKind::Variable(_) => self.slice(span).to_string(),
-            ExpressionKind::Lambda(_) => todo!(),
-            ExpressionKind::Error => todo!(),
+            _ => self.slice(span).to_string(),
         }
+    }
+
+    fn format_if(&self, if_expr: IfExpression) -> String {
+        let condition_str = self.format_subexpr(if_expr.condition);
+        let consequence_str = self.format_subexpr(if_expr.consequence);
+
+        let mut result = format!("if {condition_str} {consequence_str}");
+
+        if let Some(alternative) = if_expr.alternative {
+            let alternative = if let Some(ExpressionKind::If(if_expr)) =
+                extract_simple_expr(alternative.clone()).map(|expr| expr.kind)
+            {
+                self.format_if(*if_expr)
+            } else {
+                self.format_expr(alternative, ExpressionType::Statement)
+            };
+
+            result.push_str(" else ");
+            result.push_str(&alternative);
+        };
+
+        result
     }
 
     fn format_if_single_line(&self, if_expr: IfExpression) -> Option<String> {
         let condition_str = self.format_subexpr(if_expr.condition);
-        let consequence_str =
-            self.format_subexpr(extract_simple_expr(if_expr.consequence).unwrap());
+        let consequence_str = self.format_subexpr(extract_simple_expr(if_expr.consequence)?);
 
-        if let Some(alternative_expr) = if_expr.alternative {
-            let alternative_str =
-                self.format_subexpr(extract_simple_expr(alternative_expr).unwrap());
+        let if_str = if let Some(alternative) = if_expr.alternative {
+            let alternative_str = if let Some(ExpressionKind::If(_)) =
+                extract_simple_expr(alternative.clone()).map(|expr| expr.kind)
+            {
+                return None;
+            } else {
+                self.format_expr(extract_simple_expr(alternative)?, ExpressionType::Statement)
+            };
+
             format!("if {} {{ {} }} else {{ {} }}", condition_str, consequence_str, alternative_str)
-                .into()
         } else {
-            format!("if {{{}}} {{{}}}", condition_str, consequence_str).into()
-        }
+            format!("if {{{}}} {{{}}}", condition_str, consequence_str)
+        };
+
+        (if_str.len() <= self.config.single_line_if_else_max_width).then_some(if_str)
     }
 
     fn format_struct_lit(

@@ -198,7 +198,7 @@ struct Shape {
     indent: Indent,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub(crate) enum ExpressionType {
     Statement,
     SubExpression,
