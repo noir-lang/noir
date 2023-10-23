@@ -76,11 +76,6 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
         }
     }
 
-    fn step_acir_opcode(&mut self) -> Result<SolveResult, NargoError> {
-        let status = self.acvm.solve_opcode();
-        self.handle_acvm_status(status)
-    }
-
     fn handle_acvm_status(&mut self, status: ACVMStatus) -> Result<SolveResult, NargoError> {
         match status {
             ACVMStatus::Solved => Ok(SolveResult::Done),
