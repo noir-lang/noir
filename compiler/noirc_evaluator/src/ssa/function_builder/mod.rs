@@ -347,12 +347,13 @@ impl FunctionBuilder {
             let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2 as u128), typ);
             (bit_size + (rhs_constant.to_u128() as u32), pow)
         } else {
-            let pow = self.pow(base, rhs);
-            (Self::shift_left_bit_size(bit_size), self.insert_cast(pow, typ))
+            todo!();
+            // let pow = self.pow(base, rhs);
+            // (Self::shift_left_bit_size(bit_size), self.insert_cast(pow, typ))
         };
 
         let instruction = Instruction::Binary(Binary { lhs, rhs: pow, operator: BinaryOp::Mul });
-        //TODO check bit sizes computations
+
         if max_bit <= bit_size {
             self.insert_instruction(instruction, None)
         } else {
@@ -362,7 +363,7 @@ impl FunctionBuilder {
                 None,
             )
         }
-        //T4: not working
+        //T4: not working either
         // let max_bit=FieldElement::max_num_bits();
         //             let result = self.insert_instruction(instruction, None).first();
         //     self.insert_instruction(
