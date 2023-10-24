@@ -22,11 +22,7 @@ fn main(pair : (Field, Field), x: [(u8, u8, u8); 2], struct_pair: (Foo, Bar)) ->
     assert(struct_pair.0.bar.inner == [100, 101, 102]);
     assert(struct_pair.1.inner == [103, 104, 105]);
 
-    let (u, v) = if pair.0 as u32 < 1 {
-        (pair.0, pair.0 + 1)
-    } else {
-        (pair.0 + 1, pair.0)
-    };
+    let (u, v) = if pair.0 as u32 < 1 { (pair.0, pair.0 + 1) } else { (pair.0 + 1, pair.0) };
     assert(u == pair.0 + 1);
     assert(v == pair.0);
 

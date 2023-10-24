@@ -61,7 +61,6 @@ fn regression_2083() {
 
     let y = y.push_front((10, 11)); // [(10, 11), (1, 2), (3, 4), (5, 6)]
     let y = y.push_front((12, 13)); // [(12, 13), (10, 11), (1, 2), (3, 4), (5, 6)]
-
     assert(y[1].0 == 10);
 
     let y = y.insert(1, (55, 56)); // [(12, 13), (55, 56), (10, 11), (1, 2), (3, 4), (5, 6)]
@@ -149,15 +148,7 @@ fn merge_slices_else(x: Field) {
 // Test returning a merged slice without a mutation
 fn merge_slices_return(x: Field, y: Field) -> [Field] {
     let slice = [0; 2];
-    if x != y {
-        if x != 20 {
-            slice.push_back(y)
-        } else {
-            slice
-        }
-    } else {
-        slice
-    }
+    if x != y { if x != 20 { slice.push_back(y) } else { slice } } else { slice }
 }
 
 // Test mutating a slice inside of an if statement
