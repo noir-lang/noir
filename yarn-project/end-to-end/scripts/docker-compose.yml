@@ -12,11 +12,10 @@ services:
     ports:
       - '8545:8545'
 
-  end-to-end:
-    image: aztecprotocol/end-to-end:latest
+  sandbox:
+    image: aztecprotocol/aztec-sandbox:latest
     environment:
-      BENCHMARK: true
-      DEBUG: ${DEBUG:-'aztec:*'}
+      DEBUG: 'aztec:*'
       ETHEREUM_HOST: http://fork:8545
       CHAIN_ID: 31337
       ARCHIVER_POLLING_INTERVAL_MS: 50
@@ -25,6 +24,18 @@ services:
       WS_BLOCK_CHECK_INTERVAL_MS: 50
       PXE_BLOCK_POLLING_INTERVAL_MS: 50
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
+    ports:
+      - '8080:8080'
+
+  end-to-end:
+    image: aztecprotocol/end-to-end:latest
+    environment:
+      BENCHMARK: true
+      LOG_LEVL: 'debug'
+      DEBUG: ${DEBUG:-'aztec:*'}
+      ETHEREUM_HOST: http://fork:8545
+      CHAIN_ID: 31337
+      PXE_URL: http://sandbox:8080
     command: ${TEST:-./src/e2e_deploy_contract.test.ts}
     volumes:
       - ../log:/usr/src/yarn-project/end-to-end/log:rw

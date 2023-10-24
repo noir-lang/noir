@@ -1,4 +1,10 @@
-import { AccountWallet, AztecAddress, Wallet, deployInitialSandboxAccounts } from '@aztec/aztec.js';
+import {
+  AccountWallet,
+  AztecAddress,
+  Wallet,
+  deployInitialSandboxAccounts,
+  getSandboxAccountsWallets,
+} from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { CardGameContract } from '@aztec/noir-contracts/types';
 import { PXE } from '@aztec/types';
@@ -6,6 +12,8 @@ import { PXE } from '@aztec/types';
 import { setup } from './fixtures/utils.js';
 
 /* eslint-disable camelcase */
+
+const { PXE_URL } = process.env;
 
 interface Card {
   points: bigint;
@@ -65,7 +73,14 @@ describe('e2e_card_game', () => {
     // Card stats are derived from the users' private keys, so to get consistent values, we set up the
     // initial sandbox accounts that always use the same private keys, instead of random ones.
     ({ pxe, logger, teardown } = await setup(0));
-    wallets = await Promise.all((await deployInitialSandboxAccounts(pxe)).map(a => a.account.getWallet()));
+
+    // Get pre-deployed account wallets if we're running against sandbox.
+    if (PXE_URL) {
+      wallets = await getSandboxAccountsWallets(pxe);
+    } else {
+      // Deploy initial wallets if we're NOT running against sandbox.
+      wallets = await Promise.all((await deployInitialSandboxAccounts(pxe)).map(a => a.account.getWallet()));
+    }
     [firstPlayerWallet, secondPlayerWallet, thirdPlayerWallet] = wallets;
     [firstPlayer, secondPlayer, thirdPlayer] = wallets.map(a => a.getAddress());
     await deployContract();

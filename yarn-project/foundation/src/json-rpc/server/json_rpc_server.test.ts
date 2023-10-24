@@ -44,7 +44,7 @@ test('invalid method', async () => {
   });
   expect(response.status).toBe(400);
   expect(response.body).toEqual({
-    error: { code: -32601, message: 'Method not found' },
+    error: { code: -32601, message: 'Method not found: invalid' },
     id: 42,
     jsonrpc: '2.0',
   });

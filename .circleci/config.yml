@@ -639,7 +639,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_sandbox_example.test.ts ./scripts/docker-compose-e2e-sandbox.yml
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_sandbox_example.test.ts
           environment: { DEBUG: "aztec:*" }
 
   e2e-block-building:
@@ -819,7 +819,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_p2p_network.test.ts
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_p2p_network.test.ts ./scripts/docker-compose-no-sandbox.yml
           environment: { DEBUG: "aztec:*" }
 
   e2e-browser-sandbox:
@@ -831,7 +831,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_aztec_js_browser.test.ts ./scripts/docker-compose-e2e-sandbox-browser.yml
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_aztec_js_browser.test.ts ./scripts/docker-compose-browser.yml
           environment: { DEBUG: "aztec:*" }
 
   e2e-card-game:
@@ -855,7 +855,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local pxe_sandbox.test.ts ./scripts/docker-compose-e2e-sandbox.yml
+          command: cond_run_script end-to-end ./scripts/run_tests_local pxe_sandbox.test.ts
           environment: { DEBUG: "aztec:*" }
 
   cli-docs-sandbox:
@@ -867,7 +867,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local cli_docs_sandbox.test.ts ./scripts/docker-compose-e2e-sandbox.yml
+          command: cond_run_script end-to-end ./scripts/run_tests_local cli_docs_sandbox.test.ts
           environment: { DEBUG: "aztec:*" }
 
   guides-writing-an-account-contract:
@@ -891,7 +891,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local guides/dapp_testing.test.ts ./scripts/docker-compose-e2e-sandbox.yml
+          command: cond_run_script end-to-end ./scripts/run_tests_local guides/dapp_testing.test.ts
           environment: { DEBUG: "aztec:*" }
 
   guides-sample-dapp:
@@ -903,7 +903,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local sample-dapp ./scripts/docker-compose-e2e-sandbox.yml
+          command: cond_run_script end-to-end ./scripts/run_tests_local sample-dapp
           environment: { DEBUG: "aztec:*" }
 
   guides-up-quick-start:
@@ -915,19 +915,8 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local guides/up_quick_start.test.ts ./scripts/docker-compose-e2e-sandbox.yml
+          command: cond_run_script end-to-end ./scripts/run_tests_local guides/up_quick_start.test.ts
           environment: { DEBUG: "aztec:*" }
-
-  e2e-canary-test:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_run_script canary-build ./scripts/run_tests uniswap_trade_on_l1_from_l2.test.ts canary-build ./scripts/docker-compose-e2e-sandbox.yml
 
   bench-publish-rollup:
     machine:
@@ -938,7 +927,7 @@ jobs:
       - *setup_env
       - run:
           name: "Benchmark"
-          command: cond_run_script end-to-end ./scripts/run_tests_local benchmarks/bench_publish_rollup.test.ts
+          command: cond_run_script end-to-end ./scripts/run_tests_local benchmarks/bench_publish_rollup.test.ts ./scripts/docker-compose-no-sandbox.yml
           environment:
             DEBUG: "aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees"
 
@@ -951,7 +940,7 @@ jobs:
       - *setup_env
       - run:
           name: "Benchmark"
-          command: cond_run_script end-to-end ./scripts/run_tests_local benchmarks/bench_process_history.test.ts
+          command: cond_run_script end-to-end ./scripts/run_tests_local benchmarks/bench_process_history.test.ts ./scripts/docker-compose-no-sandbox.yml
           environment:
             DEBUG: "aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees"
 
@@ -1339,7 +1328,6 @@ workflows:
       - integration-l1-publisher: *e2e_test
       - integration-archiver-l1-to-l2: *e2e_test
       - e2e-p2p: *e2e_test
-      - e2e-canary-test: *e2e_test
       - e2e-browser-sandbox: *e2e_test
       - e2e-card-game: *e2e_test
       - pxe-sandbox: *e2e_test
@@ -1375,7 +1363,6 @@ workflows:
             - integration-archiver-l1-to-l2
             - e2e-p2p
             - e2e-browser-sandbox
-            - e2e-canary-test
             - e2e-card-game
             - pxe-sandbox
             - cli-docs-sandbox

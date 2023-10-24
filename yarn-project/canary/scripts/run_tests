@@ -22,9 +22,6 @@ IMAGE_URI=$(calculate_image_uri $IMAGE)
 retry docker pull $IMAGE_URI
 retry docker tag $IMAGE_URI aztecprotocol/canary:latest
 
-SANDBOX_IMAGE_URI=$(calculate_image_uri aztec-sandbox)
-retry docker pull $SANDBOX_IMAGE_URI
-retry docker tag $SANDBOX_IMAGE_URI aztecprotocol/sandbox:latest
-
-docker-compose -f $COMPOSE_FILE rm -f
-docker-compose -f $COMPOSE_FILE up --exit-code-from canary
+export SANDBOX_VERSION=canary
+docker-compose -f ../../aztec-sandbox/docker-compose.yml -f $COMPOSE_FILE rm -f
+docker-compose -f ../../aztec-sandbox/docker-compose.yml -f $COMPOSE_FILE up --exit-code-from canary

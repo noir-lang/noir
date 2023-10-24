@@ -46,7 +46,12 @@ From the `aztec-sandbox` directory, you can run the two existing examples:
   - `yarn run:example:token`
 - An L1 / L2 uniswap token trade.
   - `yarn run:example:uniswap`
-  - To run this example, you need to use the `docker-compose-fork.yml` configuration.
+  - To run this example, you need to set the following vars:
+
+```
+export FORK_BLOCK_NUMBER=17514288
+export FORK_URL=<YOUR_RPC_URL e.g. https://mainnet.infura.io/v3/API_KEY>
+```
 
 ## Publishing
 

@@ -4,14 +4,17 @@ import {
   Wallet,
   computeMessageSecretHash,
   generatePublicKey,
+  getSandboxAccountsWallets,
   getSchnorrAccount,
 } from '@aztec/aztec.js';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts/types';
-import { AztecNode, PXE, TxStatus } from '@aztec/types';
+import { AztecNode, CompleteAddress, PXE, TxStatus } from '@aztec/types';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
+
+const { PXE_URL } = process.env;
 
 describe('e2e_multiple_accounts_1_enc_key', () => {
   let aztecNode: AztecNode | undefined;
@@ -44,7 +47,19 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
 
     // Verify that all accounts use the same encryption key
     const encryptionPublicKey = await generatePublicKey(encryptionPrivateKey);
-    for (const account of await pxe.getRegisteredAccounts()) {
+
+    // Disregard sandbox accounts
+    let keyAccounts: CompleteAddress[];
+    if (PXE_URL) {
+      const sandBoxWallets = await getSandboxAccountsWallets(pxe);
+      const allAccounts = await pxe.getRegisteredAccounts();
+      keyAccounts = allAccounts.filter(
+        acc => !sandBoxWallets.map(wlt => wlt.getAddress().toString()).includes(acc.address.toString()),
+      );
+    } else {
+      keyAccounts = await pxe.getRegisteredAccounts();
+    }
+    for (const account of keyAccounts) {
       expect(account.publicKey).toEqual(encryptionPublicKey);
     }
 
