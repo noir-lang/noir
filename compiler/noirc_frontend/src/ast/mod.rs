@@ -271,6 +271,14 @@ impl UnresolvedTypeExpression {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+/// Represents whether the function can be called outside its module/crate
+pub enum FunctionVisibility {
+    Public,
+    Private,
+    PublicCrate,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// Represents whether the parameter is public or known only to the prover.
 pub enum Visibility {
     Public,
