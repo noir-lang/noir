@@ -126,7 +126,7 @@ pub struct NodeInterner {
 }
 
 /// All the information from a function that is filled out during definition collection rather than
-/// name resolution. Resultingly, if information about a function is needed during name resolution,
+/// name resolution. As a result, if information about a function is needed during name resolution,
 /// this is the only place where it is safe to retrieve it (where all fields are guaranteed to be initialized).
 pub struct FunctionModifiers {
     pub name: String,
@@ -614,7 +614,7 @@ impl NodeInterner {
         id
     }
 
-    /// Push a function with the default modifiers and moduleid for testing
+    /// Push a function with the default modifiers and [`ModuleId`] for testing
     #[cfg(test)]
     pub fn push_test_function_definition(&mut self, name: String) -> FuncId {
         let id = self.push_fn(HirFunction::empty());
@@ -820,6 +820,23 @@ impl NodeInterner {
         self.id_to_type.get(&index.into()).cloned().unwrap_or(Type::Error)
     }
 
+    pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Type {
+        let typ = self.id_type(def_id);
+        if let Type::Function(args, ret, env) = &typ {
+            let def = self.definition(def_id);
+            if let Type::TraitAsType(_trait) = ret.as_ref() {
+                if let DefinitionKind::Function(func_id) = def.kind {
+                    let f = self.function(&func_id);
+                    let func_body = f.as_expr();
+                    let ret_type = self.id_type(func_body);
+                    let new_type = Type::Function(args.clone(), Box::new(ret_type), env.clone());
+                    return new_type;
+                }
+            }
+        }
+        typ
+    }
+
     /// Returns the span of an item stored in the Interner
     pub fn id_location(&self, index: impl Into<Index>) -> Location {
         self.id_to_location.get(&index.into()).copied().unwrap()
@@ -943,6 +960,7 @@ impl NodeInterner {
             | Type::Forall(..)
             | Type::NotConstant
             | Type::Constant(..)
+            | Type::TraitAsType(..)
             | Type::Error => false,
         }
     }
@@ -1051,6 +1069,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Error
         | Type::NotConstant
         | Type::Struct(_, _)
+        | Type::TraitAsType(_)
         | Type::FmtString(_, _) => None,
     }
 }

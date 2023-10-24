@@ -55,8 +55,11 @@ use noirc_errors::{Span, Spanned};
 /// Vec is non-empty, there may be Error nodes in the Ast to fill in the gaps that
 /// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
 pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
-    let (tokens, _lexing_errors) = Lexer::lex(source_program);
-    let (module, parsing_errors) = program().parse_recovery_verbose(tokens);
+    let (tokens, lexing_errors) = Lexer::lex(source_program);
+    let (module, mut parsing_errors) = program().parse_recovery_verbose(tokens);
+
+    parsing_errors.extend(lexing_errors.into_iter().map(Into::into));
+
     (module.unwrap(), parsing_errors)
 }
 
@@ -346,10 +349,10 @@ fn nothing<T>() -> impl NoirParser<T> {
 }
 
 fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, Visibility)> {
-    let refmut_pattern = just(Token::Ampersand).then_ignore(keyword(Keyword::Mut));
+    let mut_ref_pattern = just(Token::Ampersand).then_ignore(keyword(Keyword::Mut));
     let mut_pattern = keyword(Keyword::Mut);
 
-    refmut_pattern
+    mut_ref_pattern
         .or(mut_pattern)
         .map_with_span(|token, span| (token, span))
         .or_not()
@@ -786,7 +789,7 @@ where
 }
 
 fn fresh_statement() -> impl NoirParser<StatementKind> {
-    statement(expression(), expression_no_constructors())
+    statement(expression(), expression_no_constructors(expression()))
 }
 
 fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
@@ -935,7 +938,7 @@ fn assign_operator() -> impl NoirParser<Token> {
     let shorthand_operators = right_shift_operator().or(one_of(shorthand_operators));
     let shorthand_syntax = shorthand_operators.then_ignore(just(Token::Assign));
 
-    // Since >> is lexed as two separate greater-thans, >>= is lexed as > >=, so
+    // Since >> is lexed as two separate "greater-than"s, >>= is lexed as > >=, so
     // we need to account for that case here as well.
     let right_shift_fix =
         just(Token::Greater).then(just(Token::GreaterEqual)).map(|_| Token::ShiftRight);
@@ -993,6 +996,7 @@ fn parse_type_inner(
         string_type(),
         format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
+        named_trait(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
         recursive_type_parser.clone().delimited_by(just(Token::LeftParen), just(Token::RightParen)),
         tuple_type(recursive_type_parser.clone()),
@@ -1080,6 +1084,12 @@ fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<U
     path()
         .then(generic_type_args(type_parser))
         .map_with_span(|(path, args), span| UnresolvedTypeData::Named(path, args).with_span(span))
+}
+
+fn named_trait(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::Impl).ignore_then(path()).then(generic_type_args(type_parser)).map_with_span(
+        |(path, args), span| UnresolvedTypeData::TraitAsType(path, args).with_span(span),
+    )
 }
 
 fn generic_type_args(
@@ -1179,8 +1189,8 @@ fn expression() -> impl ExprParser {
         expression_with_precedence(
             Precedence::Lowest,
             expr.clone(),
-            expression_no_constructors(),
-            statement(expr, expression_no_constructors()),
+            expression_no_constructors(expr.clone()),
+            statement(expr.clone(), expression_no_constructors(expr)),
             false,
             true,
         )
@@ -1188,13 +1198,16 @@ fn expression() -> impl ExprParser {
     .labelled(ParsingRuleLabel::Expression)
 }
 
-fn expression_no_constructors() -> impl ExprParser {
-    recursive(|expr| {
+fn expression_no_constructors<'a, P>(expr_parser: P) -> impl ExprParser + 'a
+where
+    P: ExprParser + 'a,
+{
+    recursive(|expr_no_constructors| {
         expression_with_precedence(
             Precedence::Lowest,
-            expr.clone(),
-            expr.clone(),
-            statement(expr.clone(), expr),
+            expr_parser.clone(),
+            expr_no_constructors.clone(),
+            statement(expr_parser, expr_no_constructors),
             false,
             false,
         )
@@ -1554,8 +1567,8 @@ where
         literal(),
     ))
     .map_with_span(Expression::new)
-    .or(parenthesized(expr_parser.clone()).map_with_span(|subexpr, span| {
-        Expression::new(ExpressionKind::Parenthesized(subexpr.into()), span)
+    .or(parenthesized(expr_parser.clone()).map_with_span(|sub_expr, span| {
+        Expression::new(ExpressionKind::Parenthesized(sub_expr.into()), span)
     }))
     .or(tuple(expr_parser))
     .labelled(ParsingRuleLabel::Atom)
@@ -1762,7 +1775,7 @@ mod test {
         parse_all(
             atom_or_right_unary(
                 expression(),
-                expression_no_constructors(),
+                expression_no_constructors(expression()),
                 fresh_statement(),
                 true,
             ),
@@ -1771,7 +1784,7 @@ mod test {
         parse_all_failing(
             atom_or_right_unary(
                 expression(),
-                expression_no_constructors(),
+                expression_no_constructors(expression()),
                 fresh_statement(),
                 true,
             ),
@@ -1791,7 +1804,7 @@ mod test {
         parse_all(
             atom_or_right_unary(
                 expression(),
-                expression_no_constructors(),
+                expression_no_constructors(expression()),
                 fresh_statement(),
                 true,
             ),
@@ -2030,12 +2043,12 @@ mod test {
     #[test]
     fn parse_for_loop() {
         parse_all(
-            for_loop(expression_no_constructors(), fresh_statement()),
+            for_loop(expression_no_constructors(expression()), fresh_statement()),
             vec!["for i in x+y..z {}", "for i in 0..100 { foo; bar }"],
         );
 
         parse_all_failing(
-            for_loop(expression_no_constructors(), fresh_statement()),
+            for_loop(expression_no_constructors(expression()), fresh_statement()),
             vec![
                 "for 1 in x+y..z {}",  // Cannot have a literal as the loop identifier
                 "for i in 0...100 {}", // Only '..' is supported, there are no inclusive ranges yet
@@ -2130,11 +2143,11 @@ mod test {
     #[test]
     fn parse_parenthesized_expression() {
         parse_all(
-            atom(expression(), expression_no_constructors(), fresh_statement(), true),
+            atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
             vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"],
         );
         parse_all_failing(
-            atom(expression(), expression_no_constructors(), fresh_statement(), true),
+            atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
             vec!["(x+a", "((x+a)", "(,)"],
         );
     }
@@ -2147,12 +2160,12 @@ mod test {
     #[test]
     fn parse_if_expr() {
         parse_all(
-            if_expr(expression_no_constructors(), fresh_statement()),
+            if_expr(expression_no_constructors(expression()), fresh_statement()),
             vec!["if x + a {  } else {  }", "if x {}", "if x {} else if y {} else {}"],
         );
 
         parse_all_failing(
-            if_expr(expression_no_constructors(), fresh_statement()),
+            if_expr(expression_no_constructors(expression()), fresh_statement()),
             vec!["if (x / a) + 1 {} else", "if foo then 1 else 2", "if true { 1 }else 3"],
         );
     }
@@ -2246,11 +2259,11 @@ mod test {
     #[test]
     fn parse_unary() {
         parse_all(
-            term(expression(), expression_no_constructors(), fresh_statement(), true),
+            term(expression(), expression_no_constructors(expression()), fresh_statement(), true),
             vec!["!hello", "-hello", "--hello", "-!hello", "!-hello"],
         );
         parse_all_failing(
-            term(expression(), expression_no_constructors(), fresh_statement(), true),
+            term(expression(), expression_no_constructors(expression()), fresh_statement(), true),
             vec!["+hello", "/hello"],
         );
     }
@@ -2406,6 +2419,54 @@ mod test {
             ),
             ("{ return 1 + 2 }", 2, "{\n    Error\n}"),
             ("{ return; }", 1, "{\n    Error\n}"),
+        ];
+
+        let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");
+
+        let results = vecmap(&cases, |&(src, expected_errors, expected_result)| {
+            let (opt, errors) = parse_recover(block(fresh_statement()), src);
+            let actual = opt.map(|ast| ast.to_string());
+            let actual = if let Some(s) = &actual { s.to_string() } else { "(none)".to_string() };
+
+            let result =
+                ((errors.len(), actual.clone()), (expected_errors, expected_result.to_string()));
+            if result.0 != result.1 {
+                let num_errors = errors.len();
+                let shown_errors = show_errors(errors);
+                eprintln!(
+                    "\nExpected {expected_errors} error(s) and got {num_errors}:\n\n{shown_errors}\n\nFrom input:   {src}\nExpected AST: {expected_result}\nActual AST:   {actual}\n");
+            }
+            result
+        });
+
+        assert_eq!(vecmap(&results, |t| t.0.clone()), vecmap(&results, |t| t.1.clone()),);
+    }
+
+    #[test]
+    fn expr_no_constructors() {
+        let cases = vec![
+            (
+                "{ if structure { a: 1 } {} }",
+                1,
+                "{\n    if plain::structure {\n        Error\n    }\n    {\n    }\n}",
+            ),
+            (
+                "{ if ( structure { a: 1 } ) {} }",
+                0,
+                "{\n    if ((plain::structure { a: 1 })) {\n    }\n}",
+            ),
+            ("{ if ( structure {} ) {} }", 0, "{\n    if ((plain::structure {  })) {\n    }\n}"),
+            (
+                "{ if (a { x: 1 }, b { y: 2 }) {} }",
+                0,
+                "{\n    if ((plain::a { x: 1 }), (plain::b { y: 2 })) {\n    }\n}",
+            ),
+            (
+                "{ if ({ let foo = bar { baz: 42 }; foo == bar { baz: 42 }}) {} }",
+                0,
+                "{\n    if ({\n        let foo: unspecified = (plain::bar { baz: 42 })\
+                \n        (plain::foo == (plain::bar { baz: 42 }))\n    }) {\n    }\n}",
+            ),
         ];
 
         let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");

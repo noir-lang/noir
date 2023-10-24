@@ -2,7 +2,7 @@
 name = "barretenberg_blackbox_solver"
 description = "A wrapper around a barretenberg WASM binary to execute black box functions for which there is no rust implementation"
 # x-release-please-start-version
-version = "0.28.0"
+version = "0.29.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -16,14 +16,18 @@ repository.workspace = true
 acir.workspace = true
 acvm_blackbox_solver.workspace = true
 thiserror.workspace = true
-hex.workspace = true
-num-bigint.workspace = true
 
 rust-embed = { version = "6.6.0", features = [
     "debug-embed",
     "interpolate-folder-path",
     "include-exclude",
 ] }
+
+# BN254 fixed base scalar multiplication solver
+grumpkin = { git = "https://github.com/noir-lang/grumpkin", rev = "56d99799381f79e42148aaef0de2b0cf9a4b9a5d", features = ["std"] }
+ark-ec = { version = "^0.4.0", default-features = false }
+ark-ff = { version = "^0.4.0", default-features = false }
+num-bigint.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasmer = { version = "3.3", default-features = false, features = [

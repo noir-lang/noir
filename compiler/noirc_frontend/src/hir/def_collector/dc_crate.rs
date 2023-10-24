@@ -303,7 +303,7 @@ impl DefCollector {
         errors.extend(collect_impls(context, crate_id, &def_collector.collected_impls));
 
         // Bind trait impls to their trait. Collect trait functions, that have a
-        // default implementation, which hasn't been overriden.
+        // default implementation, which hasn't been overridden.
         errors.extend(collect_trait_impls(
             context,
             crate_id,
@@ -1172,6 +1172,11 @@ fn resolve_function_set(
         resolver.set_generics(impl_generics.clone());
         resolver.set_self_type(self_type.clone());
         resolver.set_trait_id(unresolved_functions.trait_id);
+
+        // Without this, impl methods can accidentally be placed in contracts. See #3254
+        if self_type.is_some() {
+            resolver.set_in_contract(false);
+        }
 
         let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id);
         interner.push_fn_meta(func_meta, func_id);

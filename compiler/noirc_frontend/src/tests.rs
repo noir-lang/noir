@@ -327,29 +327,29 @@ mod test {
         
         // wrong trait name method should not compile
         impl Default for Foo {
-            fn doesnt_exist(x: Field, y: Field) -> Self {
+            fn does_not_exist(x: Field, y: Field) -> Self {
                 Self { bar: x, array: [x,y] }
             }
         }
         
         fn main() {
         }";
-        let compilator_errors = get_program_errors(src);
-        assert!(!has_parser_error(&compilator_errors));
+        let compilation_errors = get_program_errors(src);
+        assert!(!has_parser_error(&compilation_errors));
         assert!(
-            compilator_errors.len() == 1,
+            compilation_errors.len() == 1,
             "Expected 1 compilation error, got: {:?}",
-            compilator_errors
+            compilation_errors
         );
 
-        for (err, _file_id) in compilator_errors {
+        for (err, _file_id) in compilation_errors {
             match &err {
                 CompilationError::DefinitionError(DefCollectorErrorKind::MethodNotInTrait {
                     trait_name,
                     impl_method,
                 }) => {
                     assert_eq!(trait_name, "Default");
-                    assert_eq!(impl_method, "doesnt_exist");
+                    assert_eq!(impl_method, "does_not_exist");
                 }
                 _ => {
                     panic!("No other errors are expected! Found = {:?}", err);
@@ -1057,7 +1057,7 @@ mod test {
                 println(f"I want to print {0}");
 
                 let new_val = 10;
-                println(f"randomstring{new_val}{new_val}");
+                println(f"random_string{new_val}{new_val}");
             }
             fn println<T>(x : T) -> T {
                 x
@@ -1088,7 +1088,7 @@ mod test {
                     assert!(
                         a == "println(string)"
                             || a == "println(f\"I want to print {0}\")"
-                            || a == "println(f\"randomstring{new_val}{new_val}\")"
+                            || a == "println(f\"random_string{new_val}{new_val}\")"
                     );
                 }
                 _ => unimplemented!(),

@@ -251,7 +251,7 @@ impl<'a> ModCollector<'a> {
         types: Vec<NoirStruct>,
         krate: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
-        let mut definiton_errors = vec![];
+        let mut definition_errors = vec![];
         for struct_definition in types {
             let name = struct_definition.name.clone();
 
@@ -265,7 +265,7 @@ impl<'a> ModCollector<'a> {
             let id = match self.push_child_module(&name, self.file_id, false, false) {
                 Ok(local_id) => context.def_interner.new_struct(&unresolved, krate, local_id),
                 Err(error) => {
-                    definiton_errors.push((error.into(), self.file_id));
+                    definition_errors.push((error.into(), self.file_id));
                     continue;
                 }
             };
@@ -280,13 +280,13 @@ impl<'a> ModCollector<'a> {
                     first_def,
                     second_def,
                 };
-                definiton_errors.push((error.into(), self.file_id));
+                definition_errors.push((error.into(), self.file_id));
             }
 
             // And store the TypeId -> StructType mapping somewhere it is reachable
             self.def_collector.collected_types.insert(id, unresolved);
         }
-        definiton_errors
+        definition_errors
     }
 
     /// Collect any type aliases definitions declared within the ast.
@@ -514,7 +514,7 @@ impl<'a> ModCollector<'a> {
             };
             errors.push((error.into(), location.file));
 
-            let error2 = DefCollectorErrorKind::ModuleOrignallyDefined {
+            let error2 = DefCollectorErrorKind::ModuleOriginallyDefined {
                 mod_name: mod_name.clone(),
                 span: old_location.span,
             };

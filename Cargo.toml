@@ -15,6 +15,7 @@ members = [
     "tooling/backend_interface",
     "tooling/bb_abstraction_leaks",
     "tooling/lsp",
+    "tooling/debugger",
     "tooling/nargo",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
@@ -38,7 +39,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.16.0"
+version = "0.17.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
@@ -55,6 +56,7 @@ nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_cli = { path = "tooling/nargo_cli" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
+noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
 noirc_driver = { path = "compiler/noirc_driver" }
