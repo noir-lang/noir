@@ -51,6 +51,11 @@ pub enum BlackBoxFuncCall {
         domain_separator: u32,
         outputs: (Witness, Witness),
     },
+    PedersenHash {
+        inputs: Vec<FunctionInput>,
+        domain_separator: u32,
+        output: Witness,
+    },
     // 128 here specifies that this function
     // should have 128 bits of security
     HashToField128Security {
@@ -143,6 +148,11 @@ impl BlackBoxFuncCall {
                 domain_separator: 0,
                 outputs: (Witness(0), Witness(0)),
             },
+            BlackBoxFunc::PedersenHash => BlackBoxFuncCall::PedersenHash {
+                inputs: vec![],
+                domain_separator: 0,
+                output: Witness(0),
+            },
             BlackBoxFunc::HashToField128Security => {
                 BlackBoxFuncCall::HashToField128Security { inputs: vec![], output: Witness(0) }
             }
@@ -188,6 +198,7 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::Blake2s { .. } => BlackBoxFunc::Blake2s,
             BlackBoxFuncCall::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
             BlackBoxFuncCall::Pedersen { .. } => BlackBoxFunc::Pedersen,
+            BlackBoxFuncCall::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
             BlackBoxFuncCall::HashToField128Security { .. } => BlackBoxFunc::HashToField128Security,
             BlackBoxFuncCall::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
             BlackBoxFuncCall::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
@@ -208,6 +219,7 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Keccak256 { inputs, .. }
             | BlackBoxFuncCall::Pedersen { inputs, .. }
+            | BlackBoxFuncCall::PedersenHash { inputs, .. }
             | BlackBoxFuncCall::HashToField128Security { inputs, .. } => inputs.to_vec(),
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
                 vec![*lhs, *rhs]
@@ -304,6 +316,7 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::HashToField128Security { output, .. }
             | BlackBoxFuncCall::SchnorrVerify { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
+            | BlackBoxFuncCall::PedersenHash { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
             BlackBoxFuncCall::FixedBaseScalarMul { outputs, .. }
             | BlackBoxFuncCall::Pedersen { outputs, .. } => vec![outputs.0, outputs.1],

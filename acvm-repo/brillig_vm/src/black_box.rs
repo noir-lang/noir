@@ -161,6 +161,20 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             memory.write_slice(registers.get(output.pointer).to_usize(), &[x.into(), y.into()]);
             Ok(())
         }
+        BlackBoxOp::PedersenHash { inputs, domain_separator, output } => {
+            let inputs: Vec<FieldElement> =
+                read_heap_vector(memory, registers, inputs).iter().map(|x| x.to_field()).collect();
+            let domain_separator: u32 =
+                registers.get(*domain_separator).to_u128().try_into().map_err(|_| {
+                    BlackBoxResolutionError::Failed(
+                        BlackBoxFunc::Pedersen,
+                        "Invalid signature length".to_string(),
+                    )
+                })?;
+            let hash = solver.pedersen_hash(&inputs, domain_separator)?;
+            registers.set(*output, hash.into());
+            Ok(())
+        }
     }
 }
 

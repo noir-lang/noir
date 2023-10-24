@@ -72,6 +72,17 @@ impl BlackBoxFunctionSolver for BarretenbergSolver {
             .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Pedersen, err.to_string()))
     }
 
+    fn pedersen_hash(
+        &self,
+        inputs: &[FieldElement],
+        domain_separator: u32,
+    ) -> Result<FieldElement, BlackBoxResolutionError> {
+        #[allow(deprecated)]
+        self.blackbox_vendor
+            .hash(inputs.to_vec(), domain_separator)
+            .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Pedersen, err.to_string()))
+    }
+
     fn fixed_base_scalar_mul(
         &self,
         low: &FieldElement,

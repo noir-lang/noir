@@ -36,6 +36,13 @@ impl BlackBoxFunctionSolver for StubbedBackend {
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         panic!("Path not trodden by this test")
     }
+    fn pedersen_hash(
+        &self,
+        _inputs: &[FieldElement],
+        _domain_separator: u32,
+    ) -> Result<FieldElement, BlackBoxResolutionError> {
+        panic!("Path not trodden by this test")
+    }
     fn fixed_base_scalar_mul(
         &self,
         _low: &FieldElement,

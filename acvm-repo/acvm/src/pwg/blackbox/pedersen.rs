@@ -26,3 +26,21 @@ pub(super) fn pedersen(
 
     Ok(())
 }
+
+pub(super) fn pedersen_hash(
+    backend: &impl BlackBoxFunctionSolver,
+    initial_witness: &mut WitnessMap,
+    inputs: &[FunctionInput],
+    domain_separator: u32,
+    output: Witness,
+) -> Result<(), OpcodeResolutionError> {
+    let scalars: Result<Vec<_>, _> =
+        inputs.iter().map(|input| witness_to_value(initial_witness, input.witness)).collect();
+    let scalars: Vec<_> = scalars?.into_iter().cloned().collect();
+
+    let res = backend.pedersen_hash(&scalars, domain_separator)?;
+
+    insert_value(&output, res, initial_witness)?;
+
+    Ok(())
+}

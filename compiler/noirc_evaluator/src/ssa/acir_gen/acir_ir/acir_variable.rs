@@ -1271,6 +1271,13 @@ fn execute_brillig(
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::Pedersen))
         }
+        fn pedersen_hash(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<FieldElement, BlackBoxResolutionError> {
+            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::PedersenHash))
+        }
         fn fixed_base_scalar_mul(
             &self,
             _low: &FieldElement,

@@ -66,6 +66,14 @@ impl BlackBoxFunctionSolver for WrapperSolver {
         self.0.pedersen(inputs, domain_separator)
     }
 
+    fn pedersen_hash(
+        &self,
+        inputs: &[acvm::FieldElement],
+        domain_separator: u32,
+    ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
+        self.0.pedersen_hash(inputs, domain_separator)
+    }
+
     fn fixed_base_scalar_mul(
         &self,
         low: &acvm::FieldElement,
@@ -431,6 +439,14 @@ mod lsp_tests {
                 _domain_separator: u32,
             ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError>
             {
+                unimplemented!()
+            }
+
+            fn pedersen_hash(
+                &self,
+                _inputs: &[acvm::FieldElement],
+                _domain_separator: u32,
+            ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
                 unimplemented!()
             }
 

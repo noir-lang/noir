@@ -172,6 +172,11 @@ impl GeneratedAcir {
                 outputs: (outputs[0], outputs[1]),
                 domain_separator: constants[0].to_u128() as u32,
             },
+            BlackBoxFunc::PedersenHash => BlackBoxFuncCall::PedersenHash {
+                inputs: inputs[0].clone(),
+                output: outputs[0],
+                domain_separator: constants[0].to_u128() as u32,
+            },
             BlackBoxFunc::EcdsaSecp256k1 => {
                 BlackBoxFuncCall::EcdsaSecp256k1 {
                     // 32 bytes for each public key co-ordinate
@@ -934,6 +939,7 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
         | BlackBoxFunc::Pedersen
+        | BlackBoxFunc::PedersenHash
         | BlackBoxFunc::HashToField128Security => None,
 
         // Can only apply a range constraint to one
@@ -966,6 +972,8 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::HashToField128Security => Some(1),
         // Pedersen returns a point
         BlackBoxFunc::Pedersen => Some(2),
+        // Pedersen hash returns a field
+        BlackBoxFunc::PedersenHash => Some(1),
         // Can only apply a range constraint to one
         // witness at a time.
         BlackBoxFunc::RANGE => Some(0),

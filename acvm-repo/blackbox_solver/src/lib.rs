@@ -39,6 +39,11 @@ pub trait BlackBoxFunctionSolver {
         inputs: &[FieldElement],
         domain_separator: u32,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
+    fn pedersen_hash(
+        &self,
+        inputs: &[FieldElement],
+        domain_separator: u32,
+    ) -> Result<FieldElement, BlackBoxResolutionError>;
     fn fixed_base_scalar_mul(
         &self,
         low: &FieldElement,

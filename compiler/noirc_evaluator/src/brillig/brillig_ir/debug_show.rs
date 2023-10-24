@@ -413,6 +413,15 @@ impl DebugShow {
                     output
                 );
             }
+            BlackBoxOp::PedersenHash { inputs, domain_separator, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  PEDERSEN_HASH {} {} -> {}",
+                    inputs,
+                    domain_separator,
+                    output
+                );
+            }
             BlackBoxOp::SchnorrVerify {
                 public_key_x,
                 public_key_y,
