@@ -37,11 +37,12 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, Distinctness, FunctionDefinition,
-    FunctionReturnType, FunctionVisibility, Ident, IfExpression, InfixExpression, LValue, Lambda,
-    Literal, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path, PathKind,
-    Pattern, Recoverable, Statement, TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
-    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
+    FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident, IfExpression,
+    InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
+    NoirTypeAlias, Path, PathKind, Pattern, Recoverable, Statement, TraitBound, TraitImplItem,
+    TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree,
+    UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -821,7 +822,7 @@ where
         keyword(Keyword::Constrain).labelled(ParsingRuleLabel::Statement),
         expr_parser,
     )
-    .map(|expr| StatementKind::Constrain(ConstrainStatement(expr, None)))
+    .map(|expr| StatementKind::Constrain(ConstrainStatement(expr, None, ConstrainKind::Constrain)))
     .validate(|expr, span, emit| {
         emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
         expr
@@ -849,7 +850,11 @@ where
                 }
             }
 
-            StatementKind::Constrain(ConstrainStatement(condition, message_str))
+            StatementKind::Constrain(ConstrainStatement(
+                condition,
+                message_str,
+                ConstrainKind::Assert,
+            ))
         })
 }
 
@@ -880,7 +885,11 @@ where
                     emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
                 }
             }
-            StatementKind::Constrain(ConstrainStatement(predicate, message_str))
+            StatementKind::Constrain(ConstrainStatement(
+                predicate,
+                message_str,
+                ConstrainKind::AssertEq,
+            ))
         })
 }
 
@@ -2014,7 +2023,7 @@ mod test {
 
         match parse_with(assertion(expression()), "assert(x == y, \"assertion message\")").unwrap()
         {
-            StatementKind::Constrain(ConstrainStatement(_, message)) => {
+            StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
                 assert_eq!(message, Some("assertion message".to_owned()));
             }
             _ => unreachable!(),
@@ -2038,7 +2047,7 @@ mod test {
         match parse_with(assertion_eq(expression()), "assert_eq(x, y, \"assertion message\")")
             .unwrap()
         {
-            StatementKind::Constrain(ConstrainStatement(_, message)) => {
+            StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
                 assert_eq!(message, Some("assertion message".to_owned()));
             }
             _ => unreachable!(),
