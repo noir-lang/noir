@@ -132,7 +132,7 @@ follows:
 assert(MyStruct::sum(s) == 42);
 ```
 
-When operating on [generics](./06_generics.md), method specialization is possible. In this example, the `foo` function returns different values depending on its type:
+It is also possible to specialize which method is chosen depending on the [generic](./06_generics.md) type that is used. In this example, the `foo` function returns different values depending on its type:
 
 ```rust
 struct Foo<T> {}
