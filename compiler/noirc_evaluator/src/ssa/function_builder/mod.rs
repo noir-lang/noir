@@ -184,6 +184,10 @@ impl FunctionBuilder {
         self
     }
 
+    pub(crate) fn get_call_stack(&self) -> CallStack {
+        self.call_stack.clone()
+    }
+
     /// Insert a Load instruction at the end of the current block, loading from the given offset
     /// of the given address which should point to a previous Allocate instruction. Note that
     /// this is limited to loading a single value. Loading multiple values (such as a tuple)
