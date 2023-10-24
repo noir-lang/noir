@@ -21,8 +21,8 @@ use crate::hir_def::{
 };
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
-    ContractFunctionType, FunctionDefinition, Generics, Shared, TypeAliasType, TypeBinding,
-    TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind, Visibility,
+    ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared, TypeAliasType,
+    TypeBinding, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 #[derive(Eq, PartialEq, Hash, Clone)]
@@ -132,7 +132,7 @@ pub struct FunctionModifiers {
     pub name: String,
 
     /// Whether the function is `pub` or not.
-    pub visibility: Visibility,
+    pub visibility: FunctionVisibility,
 
     pub attributes: Attributes,
 
@@ -155,7 +155,7 @@ impl FunctionModifiers {
     pub fn new() -> Self {
         Self {
             name: String::new(),
-            visibility: Visibility::Public,
+            visibility: FunctionVisibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
             is_internal: None,
@@ -637,7 +637,7 @@ impl NodeInterner {
         // later during name resolution.
         let modifiers = FunctionModifiers {
             name: function.name.0.contents.clone(),
-            visibility: if function.is_public { Visibility::Public } else { Visibility::Private },
+            visibility: function.visibility,
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
             contract_function_type: Some(if function.is_open { Open } else { Secret }),
@@ -670,7 +670,7 @@ impl NodeInterner {
     ///
     /// The underlying function_visibilities map is populated during def collection,
     /// so this function can be called anytime afterward.
-    pub fn function_visibility(&self, func: FuncId) -> Visibility {
+    pub fn function_visibility(&self, func: FuncId) -> FunctionVisibility {
         self.function_modifiers[&func].visibility
     }
 
