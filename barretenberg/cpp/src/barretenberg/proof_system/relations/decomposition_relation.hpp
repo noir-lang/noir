@@ -10,7 +10,8 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
     using FF = FF_;
 
     // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 3; // degree(lagrange_odd(a - a_0 - a_1*2¹⁴ ... - a_l⋅2¹⁴ˡ )) = 2
+    static constexpr size_t RELATION_LENGTH =
+        3; // degree(lagrange_odd_in_minicircuit_in_minicircuit(a - a_0 - a_1*2¹⁴ ... - a_l⋅2¹⁴ˡ )) = 2
     static constexpr std::array<size_t, 48> SUBRELATION_LENGTHS{
         3, // decomposition of P.x limb 0 into microlimbs subrelation
         3, // decomposition of P.x limb 1 into microlimbs subrelation
@@ -66,13 +67,14 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
      * @brief Expression for decomposition of various values into smaller limbs or microlimbs.
      * @details This relation enforces three types of subrelations:
      * 1) A subrelation decomposing a value from the transcript (for example, z1) into 68-bit limbs. These relations
-     * will have the structure `lagrange_odd⋅(a - a_low - a_high⋅2⁶⁸)`
+     * will have the structure `lagrange_odd_in_minicircuit⋅(a - a_low - a_high⋅2⁶⁸)`
      * 2) A subrelation decomposing a value  of one of the limbs used in bigfield computation (for example, the lower
-     * wide relation limb) into 14-bit limbs. These relations will have the structure `lagrange_odd⋅(a - a_0 - a_1⋅2¹⁴ -
+     * wide relation limb) into 14-bit limbs. These relations will have the structure `lagrange_odd_in_minicircuit⋅(a -
+     * a_0 - a_1⋅2¹⁴ -
      * ....)` 3) A subrelation making a microlimb range constraint more constraining. For example, we want to constrain
-     * some values to 12 bits instead of 14. So we add a constraint `lagrange_odd⋅(a_highest⋅4 - a_tail)`. In a separate
-     * relation both a_highest and a_tail are constrained to be 14 bits, but this relation changes the constraint on
-     * a_highest to be 12 bits.
+     * some values to 12 bits instead of 14. So we add a constraint `lagrange_odd_in_minicircuit⋅(a_highest⋅4 -
+     * a_tail)`. In a separate relation both a_highest and a_tail are constrained to be 14 bits, but this relation
+     * changes the constraint on a_highest to be 12 bits.
      *
      * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
      * @param in an std::array containing the fully extended Univariate edges.
@@ -270,7 +272,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
         auto x_lo_y_hi_shift = View(in.x_lo_y_hi_shift);
         auto x_hi_z_1_shift = View(in.x_hi_z_1_shift);
         auto y_lo_z_2_shift = View(in.y_lo_z_2_shift);
-        auto lagrange_odd = View(in.lagrange_odd);
+        auto lagrange_odd_in_minicircuit = View(in.lagrange_odd_in_minicircuit);
 
         // Contributions that decompose 50, 52, 68 or 84 bit limbs used for computation into range-constrained chunks
         // Contribution 1 , P_x lowest limb decomposition
@@ -279,7 +281,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
                        p_x_low_limbs_range_constraint_3 * MICRO_LIMB_SHIFTx3 +
                        p_x_low_limbs_range_constraint_4 * MICRO_LIMB_SHIFTx4) -
                       p_x_low_limbs);
-        tmp_1 *= lagrange_odd;
+        tmp_1 *= lagrange_odd_in_minicircuit;
         tmp_1 *= scaling_factor;
         std::get<0>(accumulators) += tmp_1;
 
@@ -290,7 +292,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
               p_x_low_limbs_range_constraint_3_shift * MICRO_LIMB_SHIFTx3 +
               p_x_low_limbs_range_constraint_4_shift * MICRO_LIMB_SHIFTx4) -
              p_x_low_limbs_shift);
-        tmp_2 *= lagrange_odd;
+        tmp_2 *= lagrange_odd_in_minicircuit;
         tmp_2 *= scaling_factor;
         std::get<1>(accumulators) += tmp_2;
 
@@ -300,7 +302,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
                        p_x_high_limbs_range_constraint_3 * MICRO_LIMB_SHIFTx3 +
                        p_x_high_limbs_range_constraint_4 * MICRO_LIMB_SHIFTx4) -
                       p_x_high_limbs);
-        tmp_3 *= lagrange_odd;
+        tmp_3 *= lagrange_odd_in_minicircuit;
         tmp_3 *= scaling_factor;
         std::get<2>(accumulators) += tmp_3;
 
@@ -310,7 +312,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
               p_x_high_limbs_range_constraint_2_shift * MICRO_LIMB_SHIFTx2 +
               p_x_high_limbs_range_constraint_3_shift * MICRO_LIMB_SHIFTx3) -
              p_x_high_limbs_shift);
-        tmp_4 *= lagrange_odd;
+        tmp_4 *= lagrange_odd_in_minicircuit;
         tmp_4 *= scaling_factor;
         std::get<3>(accumulators) += tmp_4;
 
@@ -320,7 +322,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
                        p_y_low_limbs_range_constraint_3 * MICRO_LIMB_SHIFTx3 +
                        p_y_low_limbs_range_constraint_4 * MICRO_LIMB_SHIFTx4) -
                       p_y_low_limbs);
-        tmp_5 *= lagrange_odd;
+        tmp_5 *= lagrange_odd_in_minicircuit;
         tmp_5 *= scaling_factor;
         std::get<4>(accumulators) += tmp_5;
 
@@ -331,7 +333,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
               p_y_low_limbs_range_constraint_3_shift * MICRO_LIMB_SHIFTx3 +
               p_y_low_limbs_range_constraint_4_shift * MICRO_LIMB_SHIFTx4) -
              p_y_low_limbs_shift);
-        tmp_6 *= lagrange_odd;
+        tmp_6 *= lagrange_odd_in_minicircuit;
         tmp_6 *= scaling_factor;
         std::get<5>(accumulators) += tmp_6;
 
@@ -341,7 +343,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
                        p_y_high_limbs_range_constraint_3 * MICRO_LIMB_SHIFTx3 +
                        p_y_high_limbs_range_constraint_4 * MICRO_LIMB_SHIFTx4) -
                       p_y_high_limbs);
-        tmp_7 *= lagrange_odd;
+        tmp_7 *= lagrange_odd_in_minicircuit;
         tmp_7 *= scaling_factor;
         std::get<6>(accumulators) += tmp_7;
 
@@ -351,7 +353,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
               p_y_high_limbs_range_constraint_2_shift * MICRO_LIMB_SHIFTx2 +
               p_y_high_limbs_range_constraint_3_shift * MICRO_LIMB_SHIFTx3) -
              p_y_high_limbs_shift);
-        tmp_8 *= lagrange_odd;
+        tmp_8 *= lagrange_odd_in_minicircuit;
         tmp_8 *= scaling_factor;
         std::get<7>(accumulators) += tmp_8;
 
@@ -361,7 +363,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
                        z_low_limbs_range_constraint_3 * MICRO_LIMB_SHIFTx3 +
                        z_low_limbs_range_constraint_4 * MICRO_LIMB_SHIFTx4) -
                       z_low_limbs);
-        tmp_9 *= lagrange_odd;
+        tmp_9 *= lagrange_odd_in_minicircuit;
         tmp_9 *= scaling_factor;
         std::get<8>(accumulators) += tmp_9;
 
@@ -371,7 +373,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
                         z_low_limbs_range_constraint_3_shift * MICRO_LIMB_SHIFTx3 +
                         z_low_limbs_range_constraint_4_shift * MICRO_LIMB_SHIFTx4) -
                        z_low_limbs_shift);
-        tmp_10 *= lagrange_odd;
+        tmp_10 *= lagrange_odd_in_minicircuit;
         tmp_10 *= scaling_factor;
         std::get<9>(accumulators) += tmp_10;
 
@@ -381,7 +383,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
                         z_high_limbs_range_constraint_3 * MICRO_LIMB_SHIFTx3 +
                         z_high_limbs_range_constraint_4 * MICRO_LIMB_SHIFTx4) -
                        z_high_limbs);
-        tmp_11 *= lagrange_odd;
+        tmp_11 *= lagrange_odd_in_minicircuit;
         tmp_11 *= scaling_factor;
         std::get<10>(accumulators) += tmp_11;
 
@@ -392,7 +394,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
               z_high_limbs_range_constraint_3_shift * MICRO_LIMB_SHIFTx3 +
               z_high_limbs_range_constraint_4_shift * MICRO_LIMB_SHIFTx4) -
              z_high_limbs_shift);
-        tmp_12 *= lagrange_odd;
+        tmp_12 *= lagrange_odd_in_minicircuit;
         tmp_12 *= scaling_factor;
         std::get<11>(accumulators) += tmp_12;
 
@@ -403,7 +405,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
               accumulator_low_limbs_range_constraint_3 * MICRO_LIMB_SHIFTx3 +
               accumulator_low_limbs_range_constraint_4 * MICRO_LIMB_SHIFTx4) -
              accumulators_binary_limbs_0);
-        tmp_13 *= lagrange_odd;
+        tmp_13 *= lagrange_odd_in_minicircuit;
         tmp_13 *= scaling_factor;
         std::get<12>(accumulators) += tmp_13;
         // Contribution 14 , accumulator second limb decomposition
@@ -413,7 +415,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
                         accumulator_low_limbs_range_constraint_3_shift * MICRO_LIMB_SHIFTx3 +
                         accumulator_low_limbs_range_constraint_4_shift * MICRO_LIMB_SHIFTx4) -
                        accumulators_binary_limbs_1);
-        tmp_14 *= lagrange_odd;
+        tmp_14 *= lagrange_odd_in_minicircuit;
         tmp_14 *= scaling_factor;
         std::get<13>(accumulators) += tmp_14;
 
@@ -424,7 +426,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
               accumulator_high_limbs_range_constraint_3 * MICRO_LIMB_SHIFTx3 +
               accumulator_high_limbs_range_constraint_4 * MICRO_LIMB_SHIFTx4) -
              accumulators_binary_limbs_2);
-        tmp_15 *= lagrange_odd;
+        tmp_15 *= lagrange_odd_in_minicircuit;
         tmp_15 *= scaling_factor;
         std::get<14>(accumulators) += tmp_15;
         // Contribution 16 , accumulator highest limb decomposition
@@ -433,7 +435,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
                         accumulator_high_limbs_range_constraint_2_shift * MICRO_LIMB_SHIFTx2 +
                         accumulator_high_limbs_range_constraint_3_shift * MICRO_LIMB_SHIFTx3) -
                        accumulators_binary_limbs_3);
-        tmp_16 *= lagrange_odd;
+        tmp_16 *= lagrange_odd_in_minicircuit;
         tmp_16 *= scaling_factor;
         std::get<15>(accumulators) += tmp_16;
 
@@ -444,7 +446,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
               quotient_low_limbs_range_constraint_3 * MICRO_LIMB_SHIFTx3 +
               quotient_low_limbs_range_constraint_4 * MICRO_LIMB_SHIFTx4) -
              quotient_low_binary_limbs);
-        tmp_17 *= lagrange_odd;
+        tmp_17 *= lagrange_odd_in_minicircuit;
         tmp_17 *= scaling_factor;
         std::get<16>(accumulators) += tmp_17;
         // Contribution 16 , quotient second lowest limb decomposition
@@ -454,7 +456,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
                         quotient_low_limbs_range_constraint_3_shift * MICRO_LIMB_SHIFTx3 +
                         quotient_low_limbs_range_constraint_4_shift * MICRO_LIMB_SHIFTx4) -
                        quotient_low_binary_limbs_shift);
-        tmp_18 *= lagrange_odd;
+        tmp_18 *= lagrange_odd_in_minicircuit;
         tmp_18 *= scaling_factor;
         std::get<17>(accumulators) += tmp_18;
 
@@ -465,7 +467,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
               quotient_high_limbs_range_constraint_3 * MICRO_LIMB_SHIFTx3 +
               quotient_high_limbs_range_constraint_4 * MICRO_LIMB_SHIFTx4) -
              quotient_high_binary_limbs);
-        tmp_19 *= lagrange_odd;
+        tmp_19 *= lagrange_odd_in_minicircuit;
         tmp_19 *= scaling_factor;
         std::get<18>(accumulators) += tmp_19;
         // Contribution 20 , quotient highest limb decomposition
@@ -474,7 +476,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
                         quotient_high_limbs_range_constraint_2_shift * MICRO_LIMB_SHIFTx2 +
                         quotient_high_limbs_range_constraint_3_shift * MICRO_LIMB_SHIFTx3) -
                        quotient_high_binary_limbs_shift);
-        tmp_20 *= lagrange_odd;
+        tmp_20 *= lagrange_odd_in_minicircuit;
         tmp_20 *= scaling_factor;
         std::get<19>(accumulators) += tmp_20;
 
@@ -489,7 +491,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
               p_x_high_limbs_range_constraint_tail_shift * MICRO_LIMB_SHIFTx4 +
               accumulator_high_limbs_range_constraint_tail_shift * MICRO_LIMB_SHIFTx5) -
              relation_wide_limbs);
-        tmp_21 *= lagrange_odd;
+        tmp_21 *= lagrange_odd_in_minicircuit;
         tmp_21 *= scaling_factor;
         std::get<20>(accumulators) += tmp_21;
 
@@ -501,7 +503,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
                         p_y_high_limbs_range_constraint_tail_shift * MICRO_LIMB_SHIFTx4 +
                         quotient_high_limbs_range_constraint_tail_shift * MICRO_LIMB_SHIFTx5) -
                        relation_wide_limbs_shift);
-        tmp_22 *= lagrange_odd;
+        tmp_22 *= lagrange_odd_in_minicircuit;
         tmp_22 *= scaling_factor;
         std::get<21>(accumulators) += tmp_22;
 
@@ -510,20 +512,20 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
 
         // Contribution 23, range constrain the highest microlimb of lowest P.x limb to be 12 bits (68 % 14 = 12)
         auto tmp_23 = p_x_low_limbs_range_constraint_4 * SHIFT_12_TO_14 - p_x_low_limbs_range_constraint_tail;
-        tmp_23 *= lagrange_odd;
+        tmp_23 *= lagrange_odd_in_minicircuit;
         tmp_23 *= scaling_factor;
         std::get<22>(accumulators) += tmp_23;
 
         // Contribution 24, range constrain the highest microlimb of second lowest P.x limb to be 12 bits
         auto tmp_24 =
             p_x_low_limbs_range_constraint_4_shift * SHIFT_12_TO_14 - p_x_low_limbs_range_constraint_tail_shift;
-        tmp_24 *= lagrange_odd;
+        tmp_24 *= lagrange_odd_in_minicircuit;
         tmp_24 *= scaling_factor;
         std::get<23>(accumulators) += tmp_24;
 
         // Contribution 25, range constrain the highest microlimb of second highest P.x limb to be 12 bits
         auto tmp_25 = p_x_high_limbs_range_constraint_4 * SHIFT_12_TO_14 - p_x_high_limbs_range_constraint_tail;
-        tmp_25 *= lagrange_odd;
+        tmp_25 *= lagrange_odd_in_minicircuit;
         tmp_25 *= scaling_factor;
         std::get<24>(accumulators) += tmp_25;
 
@@ -531,27 +533,27 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
         auto tmp_26 =
             (p_x_high_limbs_range_constraint_3_shift * SHIFT_8_TO_14 - p_x_high_limbs_range_constraint_4_shift);
 
-        tmp_26 *= lagrange_odd;
+        tmp_26 *= lagrange_odd_in_minicircuit;
         tmp_26 *= scaling_factor;
         std::get<25>(accumulators) += tmp_26;
 
         // Contribution 27, range constrain the highest microlimb of lowest P.y limb to be 12 bits (68 % 14 = 12)
         auto tmp_27 = p_y_low_limbs_range_constraint_4 * SHIFT_12_TO_14 - p_y_low_limbs_range_constraint_tail;
-        tmp_27 *= lagrange_odd;
+        tmp_27 *= lagrange_odd_in_minicircuit;
         tmp_27 *= scaling_factor;
         std::get<26>(accumulators) += tmp_27;
 
         // Contribution 28, range constrain the highest microlimb of second lowest P.y limb to be 12 bits (68 % 14 = 12)
         auto tmp_28 =
             p_y_low_limbs_range_constraint_4_shift * SHIFT_12_TO_14 - p_y_low_limbs_range_constraint_tail_shift;
-        tmp_28 *= lagrange_odd;
+        tmp_28 *= lagrange_odd_in_minicircuit;
         tmp_28 *= scaling_factor;
         std::get<27>(accumulators) += tmp_28;
 
         // Contribution 29, range constrain the highest microlimb of second highest P.y limb to be 12 bits (68 % 14 =
         // 12)
         auto tmp_29 = p_y_high_limbs_range_constraint_4 * SHIFT_12_TO_14 - p_y_high_limbs_range_constraint_tail;
-        tmp_29 *= lagrange_odd;
+        tmp_29 *= lagrange_odd_in_minicircuit;
         tmp_29 *= scaling_factor;
         std::get<28>(accumulators) += tmp_29;
 
@@ -559,32 +561,32 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
         auto tmp_30 =
             (p_y_high_limbs_range_constraint_3_shift * SHIFT_8_TO_14 - p_y_high_limbs_range_constraint_4_shift);
 
-        tmp_30 *= lagrange_odd;
+        tmp_30 *= lagrange_odd_in_minicircuit;
         tmp_30 *= scaling_factor;
         std::get<29>(accumulators) += tmp_30;
 
         // Contribution 31, range constrain the highest microlimb of low z1 limb to be 12 bits (68 % 14 = 12)
         auto tmp_31 = (z_low_limbs_range_constraint_4 * SHIFT_12_TO_14 - z_low_limbs_range_constraint_tail);
-        tmp_31 *= lagrange_odd;
+        tmp_31 *= lagrange_odd_in_minicircuit;
         tmp_31 *= scaling_factor;
         std::get<30>(accumulators) += tmp_31;
 
         // Contribution 32, range constrain the highest microlimb of low z2 limb to be 12 bits (68 % 14 = 12)
         auto tmp_32 = (z_low_limbs_range_constraint_4_shift * SHIFT_12_TO_14 - z_low_limbs_range_constraint_tail_shift);
-        tmp_32 *= lagrange_odd;
+        tmp_32 *= lagrange_odd_in_minicircuit;
         tmp_32 *= scaling_factor;
         std::get<31>(accumulators) += tmp_32;
 
         // Contribution 33, range constrain the highest microlimb of high z1 limb to be 4 bits (60 % 14 = 12)
         auto tmp_33 = (z_high_limbs_range_constraint_4 * SHIFT_4_TO_14 - z_high_limbs_range_constraint_tail);
-        tmp_33 *= lagrange_odd;
+        tmp_33 *= lagrange_odd_in_minicircuit;
         tmp_33 *= scaling_factor;
         std::get<32>(accumulators) += tmp_33;
 
         // Contribution 34, range constrain the highest microlimb of high z2 limb to be 4 bits (60 % 14 = 12)
         auto tmp_34 =
             (z_high_limbs_range_constraint_4_shift * SHIFT_4_TO_14 - z_high_limbs_range_constraint_tail_shift);
-        tmp_34 *= lagrange_odd;
+        tmp_34 *= lagrange_odd_in_minicircuit;
         tmp_34 *= scaling_factor;
         std::get<33>(accumulators) += tmp_34;
 
@@ -592,7 +594,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
         // 14 = 12)
         auto tmp_35 =
             (accumulator_low_limbs_range_constraint_4 * SHIFT_12_TO_14 - accumulator_low_limbs_range_constraint_tail);
-        tmp_35 *= lagrange_odd;
+        tmp_35 *= lagrange_odd_in_minicircuit;
         tmp_35 *= scaling_factor;
         std::get<34>(accumulators) += tmp_35;
 
@@ -600,7 +602,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
         // bits (68 % 14 = 12)
         auto tmp_36 = (accumulator_low_limbs_range_constraint_4_shift * SHIFT_12_TO_14 -
                        accumulator_low_limbs_range_constraint_tail_shift);
-        tmp_36 *= lagrange_odd;
+        tmp_36 *= lagrange_odd_in_minicircuit;
         tmp_36 *= scaling_factor;
         std::get<35>(accumulators) += tmp_36;
 
@@ -608,7 +610,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
         // bits (68 % 14 = 12)
         auto tmp_37 =
             (accumulator_high_limbs_range_constraint_4 * SHIFT_12_TO_14 - accumulator_high_limbs_range_constraint_tail);
-        tmp_37 *= lagrange_odd;
+        tmp_37 *= lagrange_odd_in_minicircuit;
         tmp_37 *= scaling_factor;
         std::get<36>(accumulators) += tmp_37;
 
@@ -616,14 +618,14 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
         // 14 = 12)
         auto tmp_38 = (accumulator_high_limbs_range_constraint_3_shift * SHIFT_8_TO_14 -
                        accumulator_high_limbs_range_constraint_4_shift);
-        tmp_38 *= lagrange_odd;
+        tmp_38 *= lagrange_odd_in_minicircuit;
         tmp_38 *= scaling_factor;
         std::get<37>(accumulators) += tmp_38;
 
         // Contribution 39, range constrain the highest microlimb of lowest quotient limb to be 12 bits (68 % 14 = 12)
         auto tmp_39 =
             (quotient_low_limbs_range_constraint_4 * SHIFT_12_TO_14 - quotient_low_limbs_range_constraint_tail);
-        tmp_39 *= lagrange_odd;
+        tmp_39 *= lagrange_odd_in_minicircuit;
         tmp_39 *= scaling_factor;
         std::get<38>(accumulators) += tmp_39;
 
@@ -631,7 +633,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
         // = 12)
         auto tmp_40 = (quotient_low_limbs_range_constraint_4_shift * SHIFT_12_TO_14 -
                        quotient_low_limbs_range_constraint_tail_shift);
-        tmp_40 *= lagrange_odd;
+        tmp_40 *= lagrange_odd_in_minicircuit;
         tmp_40 *= scaling_factor;
         std::get<39>(accumulators) += tmp_40;
 
@@ -639,14 +641,14 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
         // = 12)
         auto tmp_41 =
             (quotient_high_limbs_range_constraint_4 * SHIFT_12_TO_14 - quotient_high_limbs_range_constraint_tail);
-        tmp_41 *= lagrange_odd;
+        tmp_41 *= lagrange_odd_in_minicircuit;
         tmp_41 *= scaling_factor;
         std::get<40>(accumulators) += tmp_41;
 
         // Contribution 42, range constrain the highest microlimb of highest quotient limb to be 10 bits (52 % 14 = 12)
         auto tmp_42 = (quotient_high_limbs_range_constraint_3_shift * SHIFT_10_TO_14 -
                        quotient_high_limbs_range_constraint_4_shift);
-        tmp_42 *= lagrange_odd;
+        tmp_42 *= lagrange_odd_in_minicircuit;
         tmp_42 *= scaling_factor;
         std::get<41>(accumulators) += tmp_42;
 
@@ -654,36 +656,36 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
 
         // Contribution 43, decompose x_lo
         auto tmp_43 = (p_x_low_limbs + p_x_low_limbs_shift * LIMB_SHIFT) - x_lo_y_hi;
-        tmp_43 *= lagrange_odd;
+        tmp_43 *= lagrange_odd_in_minicircuit;
         tmp_43 *= scaling_factor;
         std::get<42>(accumulators) += tmp_43;
 
         // Contribution 44, decompose x_hi
         auto tmp_44 = (p_x_high_limbs + p_x_high_limbs_shift * LIMB_SHIFT) - x_hi_z_1;
-        tmp_44 *= lagrange_odd;
+        tmp_44 *= lagrange_odd_in_minicircuit;
         tmp_44 *= scaling_factor;
         std::get<43>(accumulators) += tmp_44;
         // Contribution 45, decompose y_lo
         auto tmp_45 = (p_y_low_limbs + p_y_low_limbs_shift * LIMB_SHIFT) - y_lo_z_2;
-        tmp_45 *= lagrange_odd;
+        tmp_45 *= lagrange_odd_in_minicircuit;
         tmp_45 *= scaling_factor;
         std::get<44>(accumulators) += tmp_45;
 
         // Contribution 46, decompose y_hi
         auto tmp_46 = (p_y_high_limbs + p_y_high_limbs_shift * LIMB_SHIFT) - x_lo_y_hi_shift;
-        tmp_46 *= lagrange_odd;
+        tmp_46 *= lagrange_odd_in_minicircuit;
         tmp_46 *= scaling_factor;
         std::get<45>(accumulators) += tmp_46;
 
         // Contribution 47, decompose z1
         auto tmp_47 = (z_low_limbs + z_high_limbs * LIMB_SHIFT) - x_hi_z_1_shift;
-        tmp_47 *= lagrange_odd;
+        tmp_47 *= lagrange_odd_in_minicircuit;
         tmp_47 *= scaling_factor;
         std::get<46>(accumulators) += tmp_47;
 
         // Contribution 48, decompose z2
         auto tmp_48 = (z_low_limbs_shift + z_high_limbs_shift * LIMB_SHIFT) - y_lo_z_2_shift;
-        tmp_48 *= lagrange_odd;
+        tmp_48 *= lagrange_odd_in_minicircuit;
         tmp_48 *= scaling_factor;
         std::get<47>(accumulators) += tmp_48;
     };

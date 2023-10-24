@@ -67,12 +67,12 @@ template <typename FF_> class GoblinTranslatorNonNativeFieldRelationImpl {
      *
      * Then the last subrelation is simply checking the integer equation in this native form
      *
-     * All of these subrelations are multiplied by lagrange_odd, which is a polynomial with 1 at each odd index less
-     * than the size of the mini-circuit (16 times smaller than the final circuit and the only part over which we need
-     * to calculate non-permutation relations). All other indices are set to zero. Each EccOpQueue entry (operation)
-     * occupies 2 rows in bn254 transcripts. So the Goblin Translator VM has a 2-row cycle and we need to switch the
-     * checks being performed depending on which row we are at right now. We have half a cycle of accumulation,
-     * where we perform this computation, and half a cycle where we just copy accumulator data.
+     * All of these subrelations are multiplied by lagrange_odd_in_minicircuit, which is a polynomial with 1 at each odd
+     * index less than the size of the mini-circuit (16 times smaller than the final circuit and the only part over
+     * which we need to calculate non-permutation relations). All other indices are set to zero. Each EccOpQueue entry
+     * (operation) occupies 2 rows in bn254 transcripts. So the Goblin Translator VM has a 2-row cycle and we need to
+     * switch the checks being performed depending on which row we are at right now. We have half a cycle of
+     * accumulation, where we perform this computation, and half a cycle where we just copy accumulator data.
      *
      * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
      * @param in an std::array containing the fully extended Univariate edges.
@@ -159,7 +159,7 @@ template <typename FF_> class GoblinTranslatorNonNativeFieldRelationImpl {
         const auto& quotient_high_binary_limbs_shift = View(in.quotient_high_binary_limbs_shift);
         const auto& relation_wide_limbs = View(in.relation_wide_limbs);
         const auto& relation_wide_limbs_shift = View(in.relation_wide_limbs_shift);
-        const auto& lagrange_odd = View(in.lagrange_odd);
+        const auto& lagrange_odd_in_minicircuit = View(in.lagrange_odd_in_minicircuit);
 
         // Contribution (1) Computing the mod 2²⁷² relation over lower 136 bits
         // clang-format off
@@ -191,7 +191,7 @@ template <typename FF_> class GoblinTranslatorNonNativeFieldRelationImpl {
         // clang-format on
         // subtract large value; vanishing shows the desired relation holds on low 136-bit limb
         tmp -= relation_wide_limbs * shiftx2;
-        tmp *= lagrange_odd;
+        tmp *= lagrange_odd_in_minicircuit;
         tmp *= scaling_factor;
         std::get<0>(accumulators) += tmp;
 
@@ -244,7 +244,7 @@ template <typename FF_> class GoblinTranslatorNonNativeFieldRelationImpl {
         // clang-format on
         // subtract large value; vanishing shows the desired relation holds on high 136-bit limb
         tmp -= relation_wide_limbs_shift * shiftx2;
-        tmp *= lagrange_odd;
+        tmp *= lagrange_odd_in_minicircuit;
         tmp *= scaling_factor;
         std::get<1>(accumulators) += tmp;
 
@@ -286,7 +286,7 @@ template <typename FF_> class GoblinTranslatorNonNativeFieldRelationImpl {
                      + reconstructed_quotient * NEGATIVE_MODULUS_LIMBS[4] 
                      - reconstructed_current_accumulator;
         // clang-format on
-        tmp *= lagrange_odd;
+        tmp *= lagrange_odd_in_minicircuit;
         tmp *= scaling_factor;
         std::get<2>(accumulators) += tmp;
     };

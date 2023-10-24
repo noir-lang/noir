@@ -98,7 +98,7 @@ template <typename FF_> class GoblinTranslatorAccumulatorTransferRelationImpl {
         using Accumulator = std::tuple_element_t<0, ContainerOverSubrelations>;
         using View = typename Accumulator::View;
         // We use combination of lagrange polynomials at even indices in the minicircuit for copying the accumulator
-        auto lagrange_even = View(in.lagrange_even);
+        auto lagrange_even_in_minicircuit = View(in.lagrange_even_in_minicircuit);
 
         // Lagrange at index 1 is used to confirm the accumulator result
         auto lagrange_second = View(in.lagrange_second);
@@ -117,23 +117,23 @@ template <typename FF_> class GoblinTranslatorAccumulatorTransferRelationImpl {
 
         // Contribution (1) (1-4 ensure transfer of accumulator limbs at even indices of the minicircuit)
         auto tmp_1 = accumulators_binary_limbs_0 - accumulators_binary_limbs_0_shift;
-        tmp_1 *= lagrange_even;
+        tmp_1 *= lagrange_even_in_minicircuit;
         tmp_1 *= scaling_factor;
         std::get<0>(accumulators) += tmp_1;
 
         // Contribution (2)
         auto tmp_2 = accumulators_binary_limbs_1 - accumulators_binary_limbs_1_shift;
-        tmp_2 *= lagrange_even;
+        tmp_2 *= lagrange_even_in_minicircuit;
         tmp_2 *= scaling_factor;
         std::get<1>(accumulators) += tmp_2;
         // Contribution (3)
         auto tmp_3 = accumulators_binary_limbs_2 - accumulators_binary_limbs_2_shift;
-        tmp_3 *= lagrange_even;
+        tmp_3 *= lagrange_even_in_minicircuit;
         tmp_3 *= scaling_factor;
         std::get<2>(accumulators) += tmp_3;
         // Contribution (4)
         auto tmp_4 = accumulators_binary_limbs_3 - accumulators_binary_limbs_3_shift;
-        tmp_4 *= lagrange_even;
+        tmp_4 *= lagrange_even_in_minicircuit;
         tmp_4 *= scaling_factor;
         std::get<3>(accumulators) += tmp_4;
 

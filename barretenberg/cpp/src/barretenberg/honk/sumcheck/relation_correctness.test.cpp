@@ -1,5 +1,7 @@
 #include "barretenberg/honk/composer/ultra_composer.hpp"
+#include "barretenberg/honk/flavor/goblin_translator.hpp"
 #include "barretenberg/honk/proof_system/grand_product_library.hpp"
+#include "barretenberg/honk/proof_system/permutation_library.hpp"
 #include "barretenberg/proof_system/relations/auxiliary_relation.hpp"
 #include "barretenberg/proof_system/relations/ecc_op_queue_relation.hpp"
 #include "barretenberg/proof_system/relations/elliptic_relation.hpp"
@@ -321,6 +323,131 @@ TEST_F(RelationCorrectnessTests, GoblinUltraRelationCorrectness)
     check_relation<Flavor, std::tuple_element_t<4, Relations>>(circuit_size, prover_polynomials, params);
     check_relation<Flavor, std::tuple_element_t<5, Relations>>(circuit_size, prover_polynomials, params);
     check_relation<Flavor, std::tuple_element_t<6, Relations>>(circuit_size, prover_polynomials, params);
+}
+
+/**
+ * @brief Test the correctness of GolbinTranslator's Permutation Relation
+ *
+ */
+TEST_F(RelationCorrectnessTests, GoblinTranslatorPermutationRelationCorrectness)
+{
+    using Flavor = flavor::GoblinTranslatorBasic;
+    using FF = typename Flavor::FF;
+    using ProverPolynomials = typename Flavor::ProverPolynomials;
+    using Polynomial = barretenberg::Polynomial<FF>;
+    using namespace proof_system::honk::permutation_library;
+    auto& engine = numeric::random::get_debug_engine();
+    auto circuit_size = Flavor::MINI_CIRCUIT_SIZE * Flavor::CONCATENATION_INDEX;
+
+    // We only need gamma, because permutationr elation only uses gamma
+    FF gamma = FF::random_element();
+
+    // Fill relation parameters
+    proof_system::RelationParameters<FF> params;
+    params.gamma = gamma;
+
+    // Create storage for polynomials
+    ProverPolynomials prover_polynomials;
+    std::vector<Polynomial> polynomial_container;
+    for (size_t i = 0; i < prover_polynomials.size(); i++) {
+        Polynomial temporary_polynomial(circuit_size);
+        polynomial_container.push_back(temporary_polynomial);
+        prover_polynomials[i] = polynomial_container[i];
+    }
+
+    // Fill in lagrange polynomials used in the permutation relation
+    prover_polynomials.lagrange_first[0] = 1;
+    prover_polynomials.lagrange_last[circuit_size - 1] = 1;
+
+    // Put random values in all the non-concatenated constraint polynomials used to range constrain the values
+    auto fill_polynomial_with_random_14_bit_values = [&](auto& polynomial) {
+        for (size_t i = 0; i < Flavor::MINI_CIRCUIT_SIZE; i++) {
+            polynomial[i] = engine.get_random_uint16() & ((1 << Flavor::MICRO_LIMB_BITS) - 1);
+        }
+    };
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_x_low_limbs_range_constraint_0);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_x_low_limbs_range_constraint_1);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_x_low_limbs_range_constraint_2);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_x_low_limbs_range_constraint_3);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_x_low_limbs_range_constraint_4);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_x_low_limbs_range_constraint_tail);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_x_high_limbs_range_constraint_0);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_x_high_limbs_range_constraint_1);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_x_high_limbs_range_constraint_2);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_x_high_limbs_range_constraint_3);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_x_high_limbs_range_constraint_4);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_x_high_limbs_range_constraint_tail);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_y_low_limbs_range_constraint_0);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_y_low_limbs_range_constraint_1);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_y_low_limbs_range_constraint_2);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_y_low_limbs_range_constraint_3);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_y_low_limbs_range_constraint_4);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_y_low_limbs_range_constraint_tail);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_y_high_limbs_range_constraint_0);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_y_high_limbs_range_constraint_1);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_y_high_limbs_range_constraint_2);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_y_high_limbs_range_constraint_3);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_y_high_limbs_range_constraint_4);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.p_y_high_limbs_range_constraint_tail);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.z_low_limbs_range_constraint_0);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.z_low_limbs_range_constraint_1);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.z_low_limbs_range_constraint_2);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.z_low_limbs_range_constraint_3);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.z_low_limbs_range_constraint_4);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.z_low_limbs_range_constraint_tail);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.z_high_limbs_range_constraint_0);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.z_high_limbs_range_constraint_1);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.z_high_limbs_range_constraint_2);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.z_high_limbs_range_constraint_3);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.z_high_limbs_range_constraint_4);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.z_high_limbs_range_constraint_tail);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.accumulator_low_limbs_range_constraint_0);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.accumulator_low_limbs_range_constraint_1);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.accumulator_low_limbs_range_constraint_2);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.accumulator_low_limbs_range_constraint_3);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.accumulator_low_limbs_range_constraint_4);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.accumulator_low_limbs_range_constraint_tail);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.accumulator_high_limbs_range_constraint_0);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.accumulator_high_limbs_range_constraint_1);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.accumulator_high_limbs_range_constraint_2);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.accumulator_high_limbs_range_constraint_3);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.accumulator_high_limbs_range_constraint_4);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.accumulator_high_limbs_range_constraint_tail);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.quotient_low_limbs_range_constraint_0);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.quotient_low_limbs_range_constraint_1);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.quotient_low_limbs_range_constraint_2);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.quotient_low_limbs_range_constraint_3);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.quotient_low_limbs_range_constraint_4);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.quotient_low_limbs_range_constraint_tail);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.quotient_high_limbs_range_constraint_0);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.quotient_high_limbs_range_constraint_1);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.quotient_high_limbs_range_constraint_2);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.quotient_high_limbs_range_constraint_3);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.quotient_high_limbs_range_constraint_4);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.quotient_high_limbs_range_constraint_tail);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.relation_wide_limbs_range_constraint_0);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.relation_wide_limbs_range_constraint_1);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.relation_wide_limbs_range_constraint_2);
+    fill_polynomial_with_random_14_bit_values(prover_polynomials.relation_wide_limbs_range_constraint_3);
+
+    // Compute ordered range constraint polynomials that go in the denominator of the grand product polynomial
+    compute_goblin_translator_range_constraint_ordered_polynomials<Flavor>(&prover_polynomials);
+
+    // Compute the fixed numerator (part of verification key)
+    compute_extra_range_constraint_numerator<Flavor>(&prover_polynomials);
+
+    // Compute concatenated polynomials (4 polynomials produced from other constraint polynomials by concatenation)
+    compute_concatenated_polynomials<Flavor>(&prover_polynomials);
+
+    // Compute the grand product polynomial
+    grand_product_library::compute_grand_product<Flavor, proof_system::GoblinTranslatorPermutationRelation<FF>>(
+        circuit_size, prover_polynomials, params);
+    prover_polynomials.z_perm_shift = polynomial_container[Flavor::ALL_ENTITIES_IDS::Z_PERM].shifted();
+
+    using Relations = typename Flavor::Relations;
+
+    // Check that permutation relation is satisfied across each row of the prover polynomials
+    check_relation<Flavor, std::tuple_element_t<0, Relations>>(circuit_size, prover_polynomials, params);
 }
 
 } // namespace test_honk_relations
