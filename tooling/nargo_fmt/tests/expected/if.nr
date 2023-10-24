@@ -1,3 +1,4 @@
+//@error_on_lost_comment=false
 fn main() {
     if false {
         ();
