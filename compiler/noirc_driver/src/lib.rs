@@ -30,6 +30,15 @@ pub use program::CompiledProgram;
 
 const STD_CRATE_NAME: &str = "std";
 
+pub const GIT_COMMIT: &str = env!("GIT_COMMIT");
+pub const GIT_DIRTY: &str = env!("GIT_DIRTY");
+pub const NOIRC_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Version string that gets placed in artifacts that Noir builds. This is semver compatible.
+/// Note: You can't directly use the value of a constant produced with env! inside a concat! macro.
+pub const NOIR_ARTIFACT_VERSION_STRING: &str =
+    concat!(env!("CARGO_PKG_VERSION"), "+", env!("GIT_COMMIT"));
+
 #[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CompileOptions {
     /// Emit debug information for the intermediate SSA IR
@@ -313,6 +322,7 @@ fn compile_contract_inner(
                 .collect(),
             functions,
             file_map,
+            noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         })
     } else {
         Err(errors)
@@ -350,5 +360,13 @@ pub fn compile_no_check(
 
     let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
 
-    Ok((CompiledProgram { hash, circuit, debug, abi, file_map }, warnings))
+    Ok((CompiledProgram {
+        hash,
+        circuit,
+        debug,
+        abi,
+        file_map,
+        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
+    }, warnings))
+    
 }
