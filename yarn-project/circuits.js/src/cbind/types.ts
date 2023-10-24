@@ -10,6 +10,24 @@ import { MembershipWitness } from '../structs/membership_witness.js';
 /**
  * Alias for msgpack which expects a MembershipWitness + N name.
  */
+export class MembershipWitness20 extends MembershipWitness<20> {
+  constructor(
+    /**
+     * Index of a leaf in the Merkle tree.
+     */
+    leafIndex: Fr,
+    /**
+     * Sibling path of the leaf in the Merkle tree.
+     */
+    siblingPath: Tuple<Fr, 20>,
+  ) {
+    super(20, leafIndex.toBigInt(), siblingPath);
+  }
+}
+
+/**
+ * Alias for msgpack which expects a MembershipWitness + N name.
+ */
 export class MembershipWitness16 extends MembershipWitness<16> {
   constructor(
     /**

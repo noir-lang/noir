@@ -34,6 +34,7 @@ import {
   MembershipWitness4,
   MembershipWitness8,
   MembershipWitness16,
+  MembershipWitness20,
   MergeRollupInputs,
   NativeAggregationState,
   NewContractData,
@@ -2365,6 +2366,37 @@ export function fromNullifierLeafPreimage(o: NullifierLeafPreimage): MsgpackNull
   };
 }
 
+interface MsgpackMembershipWitness20 {
+  leaf_index: Buffer;
+  sibling_path: Tuple<Buffer, 20>;
+}
+
+export function toMembershipWitness20(o: MsgpackMembershipWitness20): MembershipWitness20 {
+  if (o.leaf_index === undefined) {
+    throw new Error('Expected leaf_index in MembershipWitness20 deserialization');
+  }
+  if (o.sibling_path === undefined) {
+    throw new Error('Expected sibling_path in MembershipWitness20 deserialization');
+  }
+  return new MembershipWitness20(
+    Fr.fromBuffer(o.leaf_index),
+    mapTuple(o.sibling_path, (v: Buffer) => Fr.fromBuffer(v)),
+  );
+}
+
+export function fromMembershipWitness20(o: MembershipWitness20): MsgpackMembershipWitness20 {
+  if (o.leafIndex === undefined) {
+    throw new Error('Expected leafIndex in MembershipWitness20 serialization');
+  }
+  if (o.siblingPath === undefined) {
+    throw new Error('Expected siblingPath in MembershipWitness20 serialization');
+  }
+  return {
+    leaf_index: toBuffer(o.leafIndex),
+    sibling_path: mapTuple(o.siblingPath, (v: Fr) => toBuffer(v)),
+  };
+}
+
 interface MsgpackConstantRollupData {
   start_historic_blocks_tree_roots_snapshot: MsgpackAppendOnlyTreeSnapshot;
   private_kernel_vk_tree_root: Buffer;
@@ -2440,9 +2472,9 @@ interface MsgpackBaseRollupInputs {
   start_public_data_tree_root: Buffer;
   start_historic_blocks_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
   low_nullifier_leaf_preimages: Tuple<MsgpackNullifierLeafPreimage, 128>;
-  low_nullifier_membership_witness: Tuple<MsgpackMembershipWitness16, 128>;
+  low_nullifier_membership_witness: Tuple<MsgpackMembershipWitness20, 128>;
   new_commitments_subtree_sibling_path: Tuple<Buffer, 25>;
-  new_nullifiers_subtree_sibling_path: Tuple<Buffer, 9>;
+  new_nullifiers_subtree_sibling_path: Tuple<Buffer, 13>;
   new_contracts_subtree_sibling_path: Tuple<Buffer, 15>;
   new_public_data_update_requests_sibling_paths: Tuple<Tuple<Buffer, 254>, 32>;
   new_public_data_reads_sibling_paths: Tuple<Tuple<Buffer, 254>, 32>;
@@ -2504,7 +2536,7 @@ export function toBaseRollupInputs(o: MsgpackBaseRollupInputs): BaseRollupInputs
     Fr.fromBuffer(o.start_public_data_tree_root),
     toAppendOnlyTreeSnapshot(o.start_historic_blocks_tree_snapshot),
     mapTuple(o.low_nullifier_leaf_preimages, (v: MsgpackNullifierLeafPreimage) => toNullifierLeafPreimage(v)),
-    mapTuple(o.low_nullifier_membership_witness, (v: MsgpackMembershipWitness16) => toMembershipWitness16(v)),
+    mapTuple(o.low_nullifier_membership_witness, (v: MsgpackMembershipWitness20) => toMembershipWitness20(v)),
     mapTuple(o.new_commitments_subtree_sibling_path, (v: Buffer) => Fr.fromBuffer(v)),
     mapTuple(o.new_nullifiers_subtree_sibling_path, (v: Buffer) => Fr.fromBuffer(v)),
     mapTuple(o.new_contracts_subtree_sibling_path, (v: Buffer) => Fr.fromBuffer(v)),
@@ -2577,8 +2609,8 @@ export function fromBaseRollupInputs(o: BaseRollupInputs): MsgpackBaseRollupInpu
     low_nullifier_leaf_preimages: mapTuple(o.lowNullifierLeafPreimages, (v: NullifierLeafPreimage) =>
       fromNullifierLeafPreimage(v),
     ),
-    low_nullifier_membership_witness: mapTuple(o.lowNullifierMembershipWitness, (v: MembershipWitness16) =>
-      fromMembershipWitness16(v),
+    low_nullifier_membership_witness: mapTuple(o.lowNullifierMembershipWitness, (v: MembershipWitness20) =>
+      fromMembershipWitness20(v),
     ),
     new_commitments_subtree_sibling_path: mapTuple(o.newCommitmentsSubtreeSiblingPath, (v: Fr) => toBuffer(v)),
     new_nullifiers_subtree_sibling_path: mapTuple(o.newNullifiersSubtreeSiblingPath, (v: Fr) => toBuffer(v)),
