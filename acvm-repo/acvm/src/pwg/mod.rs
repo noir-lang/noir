@@ -310,62 +310,55 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
         let Opcode::Brillig(brillig) = &self.opcodes[self.instruction_pointer] else {
             unreachable!("Not executing a Brillig opcode");
         };
+
         let witness = &mut self.witness_map;
         if BrilligSolver::<B>::should_skip(witness, brillig)? {
-            BrilligSolver::<B>::zero_out_brillig_outputs(witness, brillig).map(|_| None)
-        } else {
-            // If we're resuming execution after resolving a foreign call then
-            // there will be a cached `BrilligSolver` to avoid recomputation.
-            let mut solver: BrilligSolver<'_, B> = match self.brillig_solver.take() {
-                Some(solver) => solver,
-                None => {
-                    BrilligSolver::new(witness, brillig, self.backend, self.instruction_pointer)?
-                }
-            };
-            match solver.solve()? {
-                BrilligSolverStatus::ForeignCallWait(foreign_call) => {
-                    // Cache the current state of the solver
-                    self.brillig_solver = Some(solver);
-                    Ok(Some(foreign_call))
-                }
-                BrilligSolverStatus::InProgress => {
-                    unreachable!("Brillig solver still in progress")
-                }
-                BrilligSolverStatus::Finished => {
-                    // Write execution outputs
-                    solver.finalize(witness, brillig)?;
-                    Ok(None)
-                }
+            return BrilligSolver::<B>::zero_out_brillig_outputs(witness, brillig).map(|_| None);
+        }
+
+        // If we're resuming execution after resolving a foreign call then
+        // there will be a cached `BrilligSolver` to avoid recomputation.
+        let mut solver: BrilligSolver<'_, B> = match self.brillig_solver.take() {
+            Some(solver) => solver,
+            None => BrilligSolver::new(witness, brillig, self.backend, self.instruction_pointer)?,
+        };
+        match solver.solve()? {
+            BrilligSolverStatus::ForeignCallWait(foreign_call) => {
+                // Cache the current state of the solver
+                self.brillig_solver = Some(solver);
+                Ok(Some(foreign_call))
+            }
+            BrilligSolverStatus::InProgress => {
+                unreachable!("Brillig solver still in progress")
+            }
+            BrilligSolverStatus::Finished => {
+                // Write execution outputs
+                solver.finalize(witness, brillig)?;
+                Ok(None)
             }
         }
     }
 
     pub fn step_into_brillig_opcode(&mut self) -> StepResult<'a, B> {
-        if let Opcode::Brillig(brillig) = &self.opcodes[self.instruction_pointer] {
-            let witness = &mut self.witness_map;
-            match BrilligSolver::<B>::should_skip(witness, brillig) {
-                Ok(true) => {
-                    let resolution = BrilligSolver::<B>::zero_out_brillig_outputs(witness, brillig);
-                    StepResult::Status(self.handle_opcode_resolution(resolution))
-                }
-                Ok(false) => {
-                    let solver = BrilligSolver::new(
-                        witness,
-                        brillig,
-                        self.backend,
-                        self.instruction_pointer,
-                    );
-                    match solver {
-                        Ok(solver) => StepResult::IntoBrillig(solver),
-                        Err(..) => {
-                            StepResult::Status(self.handle_opcode_resolution(solver.map(|_| ())))
-                        }
-                    }
-                }
-                Err(err) => StepResult::Status(self.handle_opcode_resolution(Err(err))),
-            }
-        } else {
-            StepResult::Status(self.solve_opcode())
+        let Opcode::Brillig(brillig) = &self.opcodes[self.instruction_pointer] else {
+            return StepResult::Status(self.solve_opcode());
+        };
+
+        let witness = &mut self.witness_map;
+        let should_skip = match BrilligSolver::<B>::should_skip(witness, brillig) {
+            Ok(result) => result,
+            Err(err) => return StepResult::Status(self.handle_opcode_resolution(Err(err))),
+        };
+
+        if should_skip {
+            let resolution = BrilligSolver::<B>::zero_out_brillig_outputs(witness, brillig);
+            return StepResult::Status(self.handle_opcode_resolution(resolution));
+        }
+
+        let solver = BrilligSolver::new(witness, brillig, self.backend, self.instruction_pointer);
+        match solver {
+            Ok(solver) => StepResult::IntoBrillig(solver),
+            Err(..) => StepResult::Status(self.handle_opcode_resolution(solver.map(|_| ()))),
         }
     }
 
