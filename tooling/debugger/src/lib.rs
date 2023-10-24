@@ -6,11 +6,13 @@ use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::errors::ExecutionError;
 use nargo::NargoError;
+use noirc_frontend::debug::DebugState;
 
 use nargo::ops::ForeignCallExecutor;
 
 use easy_repl::{command, CommandStatus, Critical, Repl};
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 
 enum SolveResult {
     Done,
@@ -23,6 +25,7 @@ struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
     foreign_call_executor: ForeignCallExecutor,
     circuit: &'backend Circuit,
     show_output: bool,
+    debug_state: DebugState,
 }
 
 impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
@@ -62,7 +65,11 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
             }
             ACVMStatus::RequiresForeignCall(foreign_call) => {
                 let foreign_call_result =
-                    self.foreign_call_executor.execute(&foreign_call, self.show_output)?;
+                    self.foreign_call_executor.execute_with_debug(
+                        &foreign_call,
+                        self.show_output,
+                        &mut self.debug_state,
+                    )?;
                 self.acvm.resolve_pending_foreign_call(foreign_call_result);
                 Ok(SolveResult::Ok)
             }
@@ -139,6 +146,7 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
         circuit,
         debug_artifact,
         show_output,
+        debug_state: DebugState::default(),
     });
     let ref_step = &context;
     let ref_cont = &context;
@@ -172,6 +180,18 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
                     println!("(Continuing execution...)");
                     let result = ref_cont.borrow_mut().cont().into_critical()?;
                     handle_result(result)
+                }
+            },
+        )
+        .add(
+            "vars",
+            command! {
+                "show variable values available at this point in execution",
+                () => || {
+                    let ctx = ref_cont.borrow_mut();
+                    let vars = ctx.debug_state.iter().collect::<HashMap<&str,&str>>();
+                    println!("{:?}", vars);
+                    Ok(CommandStatus::Done)
                 }
             },
         )

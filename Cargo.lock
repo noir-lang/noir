@@ -2531,6 +2531,7 @@ dependencies = [
  "acvm",
  "easy-repl",
  "nargo",
+ "noirc_frontend",
  "noirc_printable_type",
  "thiserror",
 ]

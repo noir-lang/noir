@@ -9,9 +9,11 @@ pub(crate) mod aztec_library;
 
 use crate::graph::{CrateGraph, CrateId, Dependency};
 use crate::hir_def::function::FuncMeta;
+use crate::debug::DebugState;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
-use def_map::{Contract, CrateDefMap};
-use fm::FileManager;
+use crate::parser::{SortedModule, ParserError};
+use def_map::{Contract, CrateDefMap, parse_file};
+use fm::{FileManager, FileId};
 use noirc_errors::Location;
 use std::collections::BTreeMap;
 
@@ -25,6 +27,8 @@ pub struct Context {
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
     pub file_manager: FileManager,
+    pub root_crate_id: CrateId,
+    pub debug_state: DebugState,
 
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
@@ -53,6 +57,8 @@ impl Context {
             crate_graph,
             file_manager,
             storage_slots: BTreeMap::new(),
+            root_crate_id: CrateId::Dummy,
+            debug_state: DebugState::default(),
         }
     }
 
@@ -194,5 +200,19 @@ impl Context {
             *next_slot += 1;
             *next_slot
         })
+    }
+
+    /// Given a FileId, fetch the File, from the FileManager and parse its content,
+    /// applying sorting and debug transforms if debug mode is enabled.
+    pub fn parse_file(&mut self, file_id: FileId, crate_id: CrateId) -> (SortedModule, Vec<ParserError>) {
+        let (mut ast, parsing_errors) = parse_file(&self.file_manager, file_id);
+        if crate_id == self.root_crate_id {
+            self.debug_state.insert_symbols(&mut ast);
+        }
+        (ast.into_sorted(), parsing_errors)
+    }
+
+    pub fn get_root_id(&self, crate_id: CrateId) -> FileId {
+        self.crate_graph[crate_id].root_file_id
     }
 }

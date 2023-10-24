@@ -8,7 +8,7 @@ fn main(x : Field, y : Field, z : Field) -> pub Field {
     assert(y as u1 == 0);
 
     let a = x + x; // 3 + 3 = 6
-    let b = a - y; // 6 - 4 = 2
+    let b = a - y; // 7 - 4 = 2
     let c = b * z; // 2 * 5 = 10
     let d = c / a; // 10 / 6 (This uses field inversion, so we test it by multiplying by `a`)
     d * a
