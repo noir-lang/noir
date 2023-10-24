@@ -30,7 +30,7 @@ pub enum BlackBoxFunc {
     /// [grumpkin]: https://hackmd.io/@aztec-network/ByzgNxBfd#2-Grumpkin---A-curve-on-top-of-BN-254-for-SNARK-efficient-group-operations
     SchnorrVerify,
     /// Calculates a Pedersen commitment to the inputs.
-    Pedersen,
+    PedersenCommitment,
     /// Calculates a Pedersen hash to the inputs.
     PedersenHash,
     /// Hashes a set of inputs and applies the field modulus to the result
@@ -64,7 +64,7 @@ impl BlackBoxFunc {
             BlackBoxFunc::SHA256 => "sha256",
             BlackBoxFunc::SchnorrVerify => "schnorr_verify",
             BlackBoxFunc::Blake2s => "blake2s",
-            BlackBoxFunc::Pedersen => "pedersen",
+            BlackBoxFunc::PedersenCommitment => "pedersen",
             BlackBoxFunc::PedersenHash => "pedersen_hash",
             BlackBoxFunc::HashToField128Security => "hash_to_field_128_security",
             BlackBoxFunc::EcdsaSecp256k1 => "ecdsa_secp256k1",
@@ -82,7 +82,7 @@ impl BlackBoxFunc {
             "sha256" => Some(BlackBoxFunc::SHA256),
             "schnorr_verify" => Some(BlackBoxFunc::SchnorrVerify),
             "blake2s" => Some(BlackBoxFunc::Blake2s),
-            "pedersen" => Some(BlackBoxFunc::Pedersen),
+            "pedersen" => Some(BlackBoxFunc::PedersenCommitment),
             "pedersen_hash" => Some(BlackBoxFunc::PedersenHash),
             "hash_to_field_128_security" => Some(BlackBoxFunc::HashToField128Security),
             "ecdsa_secp256k1" => Some(BlackBoxFunc::EcdsaSecp256k1),

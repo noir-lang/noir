@@ -119,7 +119,7 @@ pub(crate) fn solve(
             message,
             *output,
         ),
-        BlackBoxFuncCall::Pedersen { inputs, domain_separator, outputs } => {
+        BlackBoxFuncCall::PedersenCommitment { inputs, domain_separator, outputs } => {
             pedersen(backend, initial_witness, inputs, *domain_separator, *outputs)
         }
         BlackBoxFuncCall::PedersenHash { inputs, domain_separator, output } => {

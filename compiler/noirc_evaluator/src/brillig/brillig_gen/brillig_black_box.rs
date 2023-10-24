@@ -92,7 +92,7 @@ pub(crate) fn convert_black_box_call(
                 )
             }
         }
-        BlackBoxFunc::Pedersen => {
+        BlackBoxFunc::PedersenCommitment => {
             if let (
                 [message, RegisterOrMemory::RegisterIndex(domain_separator)],
                 [RegisterOrMemory::HeapArray(result_array)],

@@ -46,7 +46,7 @@ pub enum BlackBoxFuncCall {
         message: Vec<FunctionInput>,
         output: Witness,
     },
-    Pedersen {
+    PedersenCommitment {
         inputs: Vec<FunctionInput>,
         domain_separator: u32,
         outputs: (Witness, Witness),
@@ -143,7 +143,7 @@ impl BlackBoxFuncCall {
                 message: vec![],
                 output: Witness(0),
             },
-            BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
+            BlackBoxFunc::PedersenCommitment => BlackBoxFuncCall::PedersenCommitment {
                 inputs: vec![],
                 domain_separator: 0,
                 outputs: (Witness(0), Witness(0)),
@@ -197,7 +197,7 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::SHA256 { .. } => BlackBoxFunc::SHA256,
             BlackBoxFuncCall::Blake2s { .. } => BlackBoxFunc::Blake2s,
             BlackBoxFuncCall::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
-            BlackBoxFuncCall::Pedersen { .. } => BlackBoxFunc::Pedersen,
+            BlackBoxFuncCall::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
             BlackBoxFuncCall::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
             BlackBoxFuncCall::HashToField128Security { .. } => BlackBoxFunc::HashToField128Security,
             BlackBoxFuncCall::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
@@ -218,7 +218,7 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::SHA256 { inputs, .. }
             | BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Keccak256 { inputs, .. }
-            | BlackBoxFuncCall::Pedersen { inputs, .. }
+            | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
             | BlackBoxFuncCall::PedersenHash { inputs, .. }
             | BlackBoxFuncCall::HashToField128Security { inputs, .. } => inputs.to_vec(),
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
@@ -319,7 +319,7 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::PedersenHash { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
             BlackBoxFuncCall::FixedBaseScalarMul { outputs, .. }
-            | BlackBoxFuncCall::Pedersen { outputs, .. } => vec![outputs.0, outputs.1],
+            | BlackBoxFuncCall::PedersenCommitment { outputs, .. } => vec![outputs.0, outputs.1],
             BlackBoxFuncCall::RANGE { .. } => vec![],
             BlackBoxFuncCall::Keccak256VariableLength { outputs, .. } => outputs.to_vec(),
         }
@@ -408,7 +408,7 @@ impl std::fmt::Display for BlackBoxFuncCall {
 
         // SPECIFIC PARAMETERS
         match self {
-            BlackBoxFuncCall::Pedersen { domain_separator, .. } => {
+            BlackBoxFuncCall::PedersenCommitment { domain_separator, .. } => {
                 write!(f, " domain_separator: {domain_separator}")
             }
             _ => write!(f, ""),

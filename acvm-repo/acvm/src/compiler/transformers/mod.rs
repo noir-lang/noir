@@ -130,7 +130,7 @@ pub(super) fn transform_internal(
                         outputs,
                         ..
                     }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::Pedersen { outputs, .. } => {
+                    | acir::circuit::opcodes::BlackBoxFuncCall::PedersenCommitment { outputs, .. } => {
                         transformer.mark_solvable(outputs.0);
                         transformer.mark_solvable(outputs.1);
                     }

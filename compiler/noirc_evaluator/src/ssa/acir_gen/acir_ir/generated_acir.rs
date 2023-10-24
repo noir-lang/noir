@@ -167,7 +167,7 @@ impl GeneratedAcir {
                     output: outputs[0],
                 }
             }
-            BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
+            BlackBoxFunc::PedersenCommitment => BlackBoxFuncCall::PedersenCommitment {
                 inputs: inputs[0].clone(),
                 outputs: (outputs[0], outputs[1]),
                 domain_separator: constants[0].to_u128() as u32,
@@ -938,7 +938,7 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::Keccak256
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
-        | BlackBoxFunc::Pedersen
+        | BlackBoxFunc::PedersenCommitment
         | BlackBoxFunc::PedersenHash
         | BlackBoxFunc::HashToField128Security => None,
 
@@ -971,7 +971,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         // Hash to field returns a field element
         BlackBoxFunc::HashToField128Security => Some(1),
         // Pedersen returns a point
-        BlackBoxFunc::Pedersen => Some(2),
+        BlackBoxFunc::PedersenCommitment => Some(2),
         // Pedersen hash returns a field
         BlackBoxFunc::PedersenHash => Some(1),
         // Can only apply a range constraint to one

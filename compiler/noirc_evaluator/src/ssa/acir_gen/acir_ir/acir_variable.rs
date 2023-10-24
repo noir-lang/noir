@@ -687,7 +687,7 @@ impl AcirContext {
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
         let constants = match name {
-            BlackBoxFunc::Pedersen | BlackBoxFunc::PedersenHash => {
+            BlackBoxFunc::PedersenCommitment | BlackBoxFunc::PedersenHash => {
                 // The last argument of pedersen is the domain separator, which must be a constant
                 let domain_var = match inputs.pop() {
                     Some(domain_var) => domain_var.into_var()?,
@@ -1259,7 +1259,7 @@ fn execute_brillig(
             _inputs: &[FieldElement],
             _domain_separator: u32,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::Pedersen))
+            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::PedersenCommitment))
         }
         fn pedersen_hash(
             &self,

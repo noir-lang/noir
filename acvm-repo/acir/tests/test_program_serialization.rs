@@ -87,7 +87,7 @@ fn fixed_base_scalar_mul_circuit() {
 
 #[test]
 fn pedersen_circuit() {
-    let pedersen = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Pedersen {
+    let pedersen = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::PedersenCommitment {
         inputs: vec![FunctionInput { witness: Witness(1), num_bits: FieldElement::max_num_bits() }],
         outputs: (Witness(2), Witness(3)),
         domain_separator: 0,

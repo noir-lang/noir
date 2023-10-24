@@ -1285,7 +1285,7 @@ mod test {
         let zero_array = builder.array_constant(im::Vector::unit(zero), array_type);
         let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
         let pedersen =
-            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Pedersen));
+            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::PedersenCommitment));
         let v4 = builder.insert_call(
             pedersen,
             vec![zero_array, i_zero],

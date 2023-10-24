@@ -153,7 +153,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             let domain_separator: u32 =
                 registers.get(*domain_separator).to_u128().try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
-                        BlackBoxFunc::Pedersen,
+                        BlackBoxFunc::PedersenCommitment,
                         "Invalid signature length".to_string(),
                     )
                 })?;
@@ -167,7 +167,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             let domain_separator: u32 =
                 registers.get(*domain_separator).to_u128().try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
-                        BlackBoxFunc::Pedersen,
+                        BlackBoxFunc::PedersenCommitment,
                         "Invalid signature length".to_string(),
                     )
                 })?;
