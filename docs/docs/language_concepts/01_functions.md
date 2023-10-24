@@ -20,7 +20,7 @@ By default, functions are visible only within the package they are defined. To m
 pub fn foo() {}
 ```
 
-You can however restrict the visibility of the function to its own crate, by specifying `pub(crate)`:
+You can also restrict the visibility of the function to only the crate it was defined in, by specifying `pub(crate)`:
 
 ```rust
 pub(crate) fn foo() {}  //foo can only be called within its crate
