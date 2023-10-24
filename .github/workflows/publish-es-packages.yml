@@ -28,7 +28,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           nix-cache-name: ${{ vars.NIX_CACHE_NAME }}
-          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Enable aztec features
         if: ${{ inputs.npm-tag == 'aztec' }}
@@ -59,7 +59,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           nix-cache-name: ${{ vars.NIX_CACHE_NAME }}
-          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           
       - name: Build wasm package
         run: |
@@ -85,7 +85,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           nix-cache-name: ${{ vars.NIX_CACHE_NAME }}
-          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Build wasm package
         run: |
