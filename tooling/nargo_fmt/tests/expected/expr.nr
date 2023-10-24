@@ -90,3 +90,33 @@ fn parenthesized() {
         x as Field
     )
 }
+
+fn constructor() {
+    Point { x: 5, y: 10 };
+}
+
+fn if_expr() {
+    if true {
+        println("Hello :D");
+    }
+}
+
+fn return_if_expr() {
+    if true { 42 } else { 40 + 2 }
+}
+
+fn return_if_expr() {
+    if true {
+        42
+    };
+
+    if true { 42 } else { 40 + 2 }
+}
+
+fn if_if() {
+    if cond {
+        some();
+    } else {
+        none();
+    }.bar().baz();
+}
