@@ -45,8 +45,6 @@ jobs:
 
   build-wasm:
     runs-on: ubuntu-latest
-    env:
-      CACHED_PATH: /tmp/nix-cache
 
     steps:
       - name: Checkout sources
