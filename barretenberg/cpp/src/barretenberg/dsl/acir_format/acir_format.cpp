@@ -1,5 +1,6 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/log.hpp"
+#include "barretenberg/dsl/acir_format/pedersen.hpp"
 
 namespace acir_format {
 
@@ -81,6 +82,10 @@ void build_constraints(Builder& builder, acir_format const& constraint_system, b
     // Add pedersen constraints
     for (const auto& constraint : constraint_system.pedersen_constraints) {
         create_pedersen_constraint(builder, constraint);
+    }
+
+    for (const auto& constraint : constraint_system.pedersen_hash_constraints) {
+        create_pedersen_hash_constraint(builder, constraint);
     }
 
     // Add fixed base scalar mul constraints

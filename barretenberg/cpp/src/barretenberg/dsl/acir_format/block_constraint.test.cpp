@@ -121,6 +121,7 @@ TEST_F(UltraPlonkRAM, TestBlockConstraint)
         .keccak_constraints = {},
         .keccak_var_constraints = {},
         .pedersen_constraints = {},
+        .pedersen_hash_constraints = {},
         .hash_to_field_constraints = {},
         .fixed_base_scalar_mul_constraints = {},
         .recursion_constraints = {},
