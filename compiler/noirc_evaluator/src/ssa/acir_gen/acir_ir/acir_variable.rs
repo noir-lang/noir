@@ -580,7 +580,7 @@ impl AcirContext {
                 return Ok((quotient_var, remainder_var));
             }
 
-            // If `rhs` is one then we the division is a noop.
+            // If `rhs` is one then the division is a noop.
             (_, Some(rhs_const)) if rhs_const == FieldElement::one() => {
                 return Ok((lhs, zero));
             }
