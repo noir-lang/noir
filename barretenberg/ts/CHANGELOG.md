@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.10.1...barretenberg.js-v0.11.0) (2023-10-24)
+
+
+### Features
+
+* Pedersen hash in acir format ([#2990](https://github.com/AztecProtocol/aztec-packages/issues/2990)) ([2a4c548](https://github.com/AztecProtocol/aztec-packages/commit/2a4c548bc816a5f379ee841e26bb30411deef56b))
+
 ## [0.10.1](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.10.0...barretenberg.js-v0.10.1) (2023-10-24)
 
 
