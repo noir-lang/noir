@@ -2623,6 +2623,7 @@ version = "0.17.0"
 dependencies = [
  "acvm",
  "base64",
+ "build-data",
  "clap",
  "fm",
  "fxhash",
