@@ -165,7 +165,7 @@ async function updatePackagingConfigurations(
  * @param log - logger
  */
 async function updateNargoToml(tag: string, outputPath: string, log: LogFn): Promise<void> {
-  const SUPPORTED_DEPS = ['aztec', 'value_note'];
+  const SUPPORTED_DEPS = ['aztec', 'value_note', 'safe_math', 'authwit'];
 
   const nargoTomlPath = path.join(outputPath, 'src', 'contracts', 'Nargo.toml');
   const fileContent = await fs.readFile(nargoTomlPath, 'utf-8');
