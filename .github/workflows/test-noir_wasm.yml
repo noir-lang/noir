@@ -91,14 +91,19 @@ jobs:
           name: nargo
           path: ./nargo
 
+      - name: Set nargo on PATH
+        run: |
+          chmod +x ./nargo/nargo
+          echo "./nargo" >> $GITHUB_PATH
+          export PATH="$PATH:./nargo"
+          nargo -V
+
       - name: Compile fixtures with Nargo CLI
         working-directory: ./compiler/wasm/fixtures
         run: |
-          nargo_binary=${{ github.workspace }}/nargo/nargo
-          chmod +x $nargo_binary
           for dir in $(ls -d */); do
             pushd $dir/noir-script
-            $nargo_binary compile
+            nargo compile
             popd
           done
 

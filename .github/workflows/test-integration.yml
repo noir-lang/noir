@@ -125,10 +125,9 @@ jobs:
 
       - name: Set nargo on PATH
         run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
+          chmod +x ./nargo/nargo
+          echo "./nargo" >> $GITHUB_PATH
+          export PATH="$PATH:./nargo"
           nargo -V
 
       - name: Install Yarn dependencies
