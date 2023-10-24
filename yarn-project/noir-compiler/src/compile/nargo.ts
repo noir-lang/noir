@@ -37,7 +37,7 @@ export class NargoContractCompiler {
     const version = execSync(`${nargoBin} --version`, { cwd: this.projectPath, stdio: 'pipe' }).toString();
     this.checkNargoBinVersion(version.replace('\n', ''));
     emptyDirSync(this.getTargetFolder());
-    execSync(`${nargoBin} compile --output-debug `, { cwd: this.projectPath, stdio });
+    execSync(`${nargoBin} compile`, { cwd: this.projectPath, stdio });
     return Promise.resolve(this.collectArtifacts());
   }
 
