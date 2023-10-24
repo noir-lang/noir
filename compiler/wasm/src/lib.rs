@@ -7,6 +7,7 @@ use getrandom as _;
 
 use gloo_utils::format::JsValueSerdeExt;
 use log::Level;
+use noirc_driver::{GIT_COMMIT, GIT_DIRTY, NOIRC_VERSION};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
@@ -37,11 +38,8 @@ pub fn init_log_level(level: String) {
     });
 }
 
-const BUILD_INFO: BuildInfo = BuildInfo {
-    git_hash: env!("GIT_COMMIT"),
-    version: env!("CARGO_PKG_VERSION"),
-    dirty: env!("GIT_DIRTY"),
-};
+const BUILD_INFO: BuildInfo =
+    BuildInfo { git_hash: GIT_COMMIT, version: NOIRC_VERSION, dirty: GIT_DIRTY };
 
 #[wasm_bindgen]
 pub fn build_info() -> JsValue {

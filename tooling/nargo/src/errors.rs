@@ -2,7 +2,10 @@ use acvm::{
     acir::circuit::OpcodeLocation,
     pwg::{ErrorLocation, OpcodeResolutionError},
 };
-use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic, FileDiagnostic, Location};
+use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic, FileDiagnostic};
+
+pub use noirc_errors::Location;
+
 use noirc_printable_type::ForeignCallError;
 use thiserror::Error;
 

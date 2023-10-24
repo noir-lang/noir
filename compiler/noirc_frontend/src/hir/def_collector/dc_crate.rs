@@ -1173,6 +1173,11 @@ fn resolve_function_set(
         resolver.set_self_type(self_type.clone());
         resolver.set_trait_id(unresolved_functions.trait_id);
 
+        // Without this, impl methods can accidentally be placed in contracts. See #3254
+        if self_type.is_some() {
+            resolver.set_in_contract(false);
+        }
+
         let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id);
         interner.push_fn_meta(func_meta, func_id);
         interner.update_fn(func_id, hir_func);
