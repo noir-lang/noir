@@ -177,7 +177,7 @@ let add_50 = |val| val + 50;
 assert(add_50(100) == 150);
 ```
 
-See [Lambdas](./08_lambdas.md) for more details.
+See [Lambdas](./08_lamdas.md) for more details.
 
 ## Attributes
 
