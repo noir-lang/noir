@@ -16,8 +16,8 @@ use crate::{
     UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::{
-    ForLoopStatement, FunctionDefinition, ImportStatement, NoirStruct, PrefixExpression,
-    Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp, FunctionVisibility,
+    ForLoopStatement, FunctionDefinition, FunctionVisibility, ImportStatement, NoirStruct,
+    PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
 };
 use fm::FileId;
 
