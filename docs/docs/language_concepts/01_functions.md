@@ -152,6 +152,14 @@ fn main() {
 }
 ```
 
+Also note that impls with the same method name defined in them cannot overlap. For example, if we already have `foo` defined for `Foo<u32>` and `Foo<u64>` like we do above, we cannot also define `foo` in an `impl<T> Foo<T>` since it would be ambiguous which version of `foo` to choose.
+
+```rs
+// Including this impl in the same project as the above snippet would
+// cause an overlapping impls error
+impl<T> Foo<T> {
+    fn foo(self) -> Field { 3 }
+}
 ## Lambdas
 
 Lambdas are anonymous functions. They follow the syntax of Rust - `|arg1, arg2, ..., argN| return_expression`.
