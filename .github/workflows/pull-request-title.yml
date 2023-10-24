@@ -27,3 +27,4 @@ jobs:
             fix
             feat
             chore
+            docs

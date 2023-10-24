@@ -59,6 +59,7 @@ Generally, we want to only use the three primary types defined by the specificat
 - `feat:` - This should be the most used type, as most work we are doing in the project are new features. Commits using this type will always show up in the Changelog.
 - `fix:` - When fixing a bug, we should use this type. Commits using this type will always show up in the Changelog.
 - `chore:` - The least used type, these are __not__ included in the Changelog unless they are breaking changes. But remain useful for an understandable commit history.
+- `docs` - If your changes are only on the docs, use this type
 
 ### Conventional Commits: Breaking Changes
 

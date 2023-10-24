@@ -21,8 +21,14 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
+          const PR_TITLE_PREFIX = 'docs:';
+          const LABEL_NAME = 'documentation';
+          const DOC_PATH_PREFIX = 'docs/';
+
+          const prTitle = context.payload.pull_request.title;
           const labels = context.payload.pull_request.labels.map(label => label.name);
-          if (labels.includes('documentation')) {
+
+          if (labels.includes(LABEL_NAME) || prTitle.startsWith(PR_TITLE_PREFIX)) {
             return true;
           }
 
