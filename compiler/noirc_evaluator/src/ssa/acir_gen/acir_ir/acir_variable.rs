@@ -697,7 +697,7 @@ impl AcirContext {
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
         let constants = match name {
-            BlackBoxFunc::Pedersen => {
+            BlackBoxFunc::Pedersen | BlackBoxFunc::PedersenHash => {
                 // The last argument of pedersen is the domain separator, which must be a constant
                 let domain_var = match inputs.pop() {
                     Some(domain_var) => domain_var.into_var()?,
