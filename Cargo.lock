@@ -2677,6 +2677,7 @@ dependencies = [
  "noirc_printable_type",
  "regex",
  "rustc-hash",
+ "serde",
  "serde_json",
  "small-ord-set",
  "smol_str",
