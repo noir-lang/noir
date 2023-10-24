@@ -16,7 +16,6 @@ import {
   EthAddressLike,
   FieldLike,
   Fr,
-  PXE,
   Point,
   PublicKey,
   Wallet,
@@ -56,15 +55,15 @@ export class TokenContract extends ContractBase {
   /**
    * Creates a tx to deploy a new instance of this contract.
    */
-  public static deploy(pxe: PXE, admin: AztecAddressLike) {
-    return new DeployMethod<TokenContract>(Point.ZERO, pxe, TokenContractArtifact, Array.from(arguments).slice(1));
+  public static deploy(wallet: Wallet, admin: AztecAddressLike) {
+    return new DeployMethod<TokenContract>(Point.ZERO, wallet, TokenContractArtifact, Array.from(arguments).slice(1));
   }
 
   /**
    * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
    */
-  public static deployWithPublicKey(pxe: PXE, publicKey: PublicKey, admin: AztecAddressLike) {
-    return new DeployMethod<TokenContract>(publicKey, pxe, TokenContractArtifact, Array.from(arguments).slice(2));
+  public static deployWithPublicKey(publicKey: PublicKey, wallet: Wallet, admin: AztecAddressLike) {
+    return new DeployMethod<TokenContract>(publicKey, wallet, TokenContractArtifact, Array.from(arguments).slice(2));
   }
   
 

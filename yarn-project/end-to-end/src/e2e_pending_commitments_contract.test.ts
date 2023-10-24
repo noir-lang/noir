@@ -61,10 +61,10 @@ describe('e2e_pending_commitments_contract', () => {
 
     const deployedContract = await deployContract();
 
-    const tx = deployedContract.methods.test_insert_then_get_then_nullify_flat(mintAmount, owner).send();
-
-    await tx.isMined({ interval: 0.1 });
-    const receipt = await tx.getReceipt();
+    const receipt = await deployedContract.methods
+      .test_insert_then_get_then_nullify_flat(mintAmount, owner)
+      .send()
+      .wait();
     expect(receipt.status).toBe(TxStatus.MINED);
   }, 60_000);
 
@@ -75,7 +75,7 @@ describe('e2e_pending_commitments_contract', () => {
 
     const deployedContract = await deployContract();
 
-    const tx = deployedContract.methods
+    const receipt = await deployedContract.methods
       .test_insert_then_get_then_nullify_all_in_nested_calls(
         mintAmount,
         owner,
@@ -83,10 +83,9 @@ describe('e2e_pending_commitments_contract', () => {
         deployedContract.methods.get_then_nullify_note.selector.toField(),
         deployedContract.methods.get_note_zero_balance.selector.toField(),
       )
-      .send();
+      .send()
+      .wait();
 
-    await tx.isMined({ interval: 0.1 });
-    const receipt = await tx.getReceipt();
     expect(receipt.status).toBe(TxStatus.MINED);
 
     await expectCommitmentsSquashedExcept(0);
@@ -100,17 +99,16 @@ describe('e2e_pending_commitments_contract', () => {
 
     const deployedContract = await deployContract();
 
-    const tx = deployedContract.methods
+    const receipt = await deployedContract.methods
       .test_insert2_then_get2_then_nullify2_all_in_nested_calls(
         mintAmount,
         owner,
         deployedContract.methods.insert_note.selector.toField(),
         deployedContract.methods.get_then_nullify_note.selector.toField(),
       )
-      .send();
+      .send()
+      .wait();
 
-    await tx.isMined({ interval: 0.1 });
-    const receipt = await tx.getReceipt();
     expect(receipt.status).toBe(TxStatus.MINED);
 
     await expectCommitmentsSquashedExcept(0);
@@ -125,17 +123,16 @@ describe('e2e_pending_commitments_contract', () => {
 
     const deployedContract = await deployContract();
 
-    const tx = deployedContract.methods
+    const receipt = await deployedContract.methods
       .test_insert2_then_get2_then_nullify1_all_in_nested_calls(
         mintAmount,
         owner,
         deployedContract.methods.insert_note.selector.toField(),
         deployedContract.methods.get_then_nullify_note.selector.toField(),
       )
-      .send();
+      .send()
+      .wait();
 
-    await tx.isMined({ interval: 0.1 });
-    const receipt = await tx.getReceipt();
     expect(receipt.status).toBe(TxStatus.MINED);
 
     await expectCommitmentsSquashedExcept(1);
@@ -153,17 +150,14 @@ describe('e2e_pending_commitments_contract', () => {
     const deployedContract = await deployContract();
 
     // create persistent note
-    const tx0 = deployedContract.methods.insert_note(mintAmount, owner).send();
-
-    await tx0.isMined({ interval: 0.1 });
-    const receipt0 = await tx0.getReceipt();
+    const receipt0 = await deployedContract.methods.insert_note(mintAmount, owner).send().wait();
     expect(receipt0.status).toBe(TxStatus.MINED);
 
     await expectCommitmentsSquashedExcept(1); // first TX just creates 1 persistent note
     await expectNullifiersSquashedExcept(0);
 
     // create another note, and nullify it and AND nullify the above-created note in the same TX
-    const tx1 = deployedContract.methods
+    const receipt1 = await deployedContract.methods
       .test_insert1_then_get2_then_nullify2_all_in_nested_calls(
         mintAmount,
         owner,
@@ -171,10 +165,9 @@ describe('e2e_pending_commitments_contract', () => {
         deployedContract.methods.get_then_nullify_note.selector.toField(),
         deployedContract.methods.get_note_zero_balance.selector.toField(),
       )
-      .send();
+      .send()
+      .wait();
 
-    await tx1.isMined({ interval: 0.1 });
-    const receipt1 = await tx1.getReceipt();
     expect(receipt1.status).toBe(TxStatus.MINED);
 
     // second TX creates 1 note, but it is squashed!
@@ -193,16 +186,14 @@ describe('e2e_pending_commitments_contract', () => {
     const mintAmount = 65n;
 
     const deployedContract = await deployContract();
-    const tx0 = deployedContract.methods.insert_note(mintAmount, owner).send();
+    const receipt = await deployedContract.methods.insert_note(mintAmount, owner).send().wait();
 
-    await tx0.isMined({ interval: 0.1 });
-    const receipt = await tx0.getReceipt();
     expect(receipt.status).toBe(TxStatus.MINED);
 
     // There is a single new commitment/note.
     await expectCommitmentsSquashedExcept(1);
 
-    const tx1 = deployedContract.methods
+    const receipt2 = await deployedContract.methods
       .test_insert_then_get_then_nullify_all_in_nested_calls(
         mintAmount,
         owner,
@@ -210,10 +201,9 @@ describe('e2e_pending_commitments_contract', () => {
         deployedContract.methods.get_then_nullify_note.selector.toField(),
         deployedContract.methods.get_note_zero_balance.selector.toField(),
       )
-      .send();
+      .send()
+      .wait();
 
-    await tx1.isMined({ interval: 0.1 });
-    const receipt2 = await tx1.getReceipt();
     expect(receipt2.status).toBe(TxStatus.MINED);
 
     // There is a single new nullifier.

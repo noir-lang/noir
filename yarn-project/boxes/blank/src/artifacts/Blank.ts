@@ -16,7 +16,6 @@ import {
   EthAddressLike,
   FieldLike,
   Fr,
-  PXE,
   Point,
   PublicKey,
   Wallet,
@@ -56,15 +55,15 @@ export class BlankContract extends ContractBase {
   /**
    * Creates a tx to deploy a new instance of this contract.
    */
-  public static deploy(pxe: PXE, ) {
-    return new DeployMethod<BlankContract>(Point.ZERO, pxe, BlankContractArtifact, Array.from(arguments).slice(1));
+  public static deploy(wallet: Wallet, ) {
+    return new DeployMethod<BlankContract>(Point.ZERO, wallet, BlankContractArtifact, Array.from(arguments).slice(1));
   }
 
   /**
    * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
    */
-  public static deployWithPublicKey(pxe: PXE, publicKey: PublicKey, ) {
-    return new DeployMethod<BlankContract>(publicKey, pxe, BlankContractArtifact, Array.from(arguments).slice(2));
+  public static deployWithPublicKey(publicKey: PublicKey, wallet: Wallet, ) {
+    return new DeployMethod<BlankContract>(publicKey, wallet, BlankContractArtifact, Array.from(arguments).slice(2));
   }
   
 

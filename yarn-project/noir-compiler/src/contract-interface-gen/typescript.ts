@@ -69,15 +69,15 @@ function generateDeploy(input: ContractArtifact) {
   /**
    * Creates a tx to deploy a new instance of this contract.
    */
-  public static deploy(pxe: PXE, ${args}) {
-    return new DeployMethod<${input.name}Contract>(Point.ZERO, pxe, ${artifactName}, Array.from(arguments).slice(1));
+  public static deploy(wallet: Wallet, ${args}) {
+    return new DeployMethod<${input.name}Contract>(Point.ZERO, wallet, ${artifactName}, Array.from(arguments).slice(1));
   }
 
   /**
    * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
    */
-  public static deployWithPublicKey(pxe: PXE, publicKey: PublicKey, ${args}) {
-    return new DeployMethod<${input.name}Contract>(publicKey, pxe, ${artifactName}, Array.from(arguments).slice(2));
+  public static deployWithPublicKey(publicKey: PublicKey, wallet: Wallet, ${args}) {
+    return new DeployMethod<${input.name}Contract>(publicKey, wallet, ${artifactName}, Array.from(arguments).slice(2));
   }
   `;
 }
@@ -185,7 +185,6 @@ import {
   EthAddressLike,
   FieldLike,
   Fr,
-  PXE,
   Point,
   PublicKey,
   Wallet,

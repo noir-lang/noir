@@ -51,7 +51,7 @@ describe('e2e_escrow_contract', () => {
     const deployInfo = await getContractDeploymentInfo(EscrowContractArtifact, [owner], salt, escrowPublicKey);
     await pxe.registerAccount(escrowPrivateKey, deployInfo.completeAddress.partialAddress);
 
-    escrowContract = await EscrowContract.deployWithPublicKey(wallet, escrowPublicKey, owner)
+    escrowContract = await EscrowContract.deployWithPublicKey(escrowPublicKey, wallet, owner)
       .send({ contractAddressSalt: salt })
       .deployed();
     logger(`Escrow contract deployed at ${escrowContract.address}`);

@@ -2,14 +2,13 @@ import { CheatCodes, Wallet } from '@aztec/aztec.js';
 import { RollupAbi } from '@aztec/l1-artifacts';
 import { TestContract } from '@aztec/noir-contracts/types';
 import { EthAddress } from '@aztec/pxe';
-import { PXE, TxStatus } from '@aztec/types';
+import { TxStatus } from '@aztec/types';
 
 import { Account, Chain, HttpTransport, PublicClient, WalletClient, getAddress, getContract, parseEther } from 'viem';
 
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_cheat_codes', () => {
-  let pxe: PXE;
   let wallet: Wallet;
   let cc: CheatCodes;
   let teardown: () => Promise<void>;
@@ -20,7 +19,7 @@ describe('e2e_cheat_codes', () => {
 
   beforeAll(async () => {
     let deployL1ContractsValues;
-    ({ teardown, pxe, wallet, cheatCodes: cc, deployL1ContractsValues } = await setup());
+    ({ teardown, wallet, cheatCodes: cc, deployL1ContractsValues } = await setup());
 
     walletClient = deployL1ContractsValues.walletClient;
     publicClient = deployL1ContractsValues.publicClient;
@@ -134,10 +133,7 @@ describe('e2e_cheat_codes', () => {
     });
 
     it('can modify L2 block time', async () => {
-      const tx = TestContract.deploy(pxe).send();
-      await tx.isMined({ interval: 0.1 });
-      const receipt = await tx.getReceipt();
-      const contract = await TestContract.at(receipt.contractAddress!, wallet);
+      const contract = await TestContract.deploy(wallet).send().deployed();
 
       // now update time:
       const timestamp = await cc.eth.timestamp();
