@@ -28,8 +28,7 @@ impl super::FmtVisitor<'_> {
 
                     self.push_rewrite(format!("{let_str} {expr_str};"), span);
                 }
-                StatementKind::Constrain(constrain) => {
-                    let ConstrainStatement(expr, message, kind) = constrain;
+                StatementKind::Constrain(ConstrainStatement(expr, message, kind)) => {
                     let message =
                         message.map_or(String::new(), |message| format!(", \"{message}\""));
                     let constrain = match kind {
