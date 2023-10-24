@@ -1,6 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use nargo_toml::find_package_root;
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use std::path::PathBuf;
 
 use color_eyre::eyre;
@@ -26,10 +27,15 @@ mod verify_cmd;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
 const IS_DIRTY: &str = env!("GIT_DIRTY");
-const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+const NARGO_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-static VERSION_STRING: &str =
-    formatcp!("{} (git version hash: {}, is dirty: {})", CARGO_PKG_VERSION, GIT_HASH, IS_DIRTY);
+static VERSION_STRING: &str = formatcp!(
+    "version = {}\nnoirc version = {}\n(git version hash: {}, is dirty: {})",
+    NARGO_VERSION,
+    NOIR_ARTIFACT_VERSION_STRING,
+    GIT_HASH,
+    IS_DIRTY
+);
 
 #[derive(Parser, Debug)]
 #[command(name="nargo", author, version=VERSION_STRING, about, long_about = None)]

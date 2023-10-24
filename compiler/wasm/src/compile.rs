@@ -7,7 +7,7 @@ use nargo::artifacts::{
 };
 use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
-    CompiledContract, CompiledProgram,
+    CompiledContract, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{graph::CrateGraph, hir::Context};
 use std::path::Path;
@@ -118,6 +118,7 @@ fn preprocess_program(program: CompiledProgram) -> PreprocessedProgram {
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
+        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         bytecode: program.circuit,
     }
 }
@@ -136,6 +137,7 @@ fn preprocess_contract(contract: CompiledContract) -> PreprocessedContract {
         .collect();
 
     PreprocessedContract {
+        noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
         name: contract.name,
         backend: String::from(BACKEND_IDENTIFIER),
         functions: preprocessed_functions,

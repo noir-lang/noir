@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 /// - Proving and verification keys have been pregenerated based on this ACIR.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PreprocessedProgram {
+    pub noir_version: String,
+
     /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which this [`PreprocessedProgram`]
     /// was compiled.
     ///
