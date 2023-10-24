@@ -23,5 +23,5 @@ retry docker pull $IMAGE_URI
 retry docker tag $IMAGE_URI aztecprotocol/canary:latest
 
 export SANDBOX_VERSION=canary
-docker-compose -f ../../aztec-sandbox/docker-compose.yml -f $COMPOSE_FILE rm -f
-docker-compose -f ../../aztec-sandbox/docker-compose.yml -f $COMPOSE_FILE up --exit-code-from canary
+docker-compose -f ../aztec-sandbox/docker-compose.yml -f $COMPOSE_FILE rm -f
+docker-compose -f ../aztec-sandbox/docker-compose.yml -f $COMPOSE_FILE up --exit-code-from canary
