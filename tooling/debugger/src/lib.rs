@@ -89,66 +89,61 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
 
         println!(
             "At {}:{line_number}:{column_number}",
-            Files::name(&self.debug_artifact, loc.file).unwrap()
+            self.debug_artifact.name(loc.file).unwrap()
         );
     }
 
     fn show_source_code_location(&self, location: &OpcodeLocation, debug_artifact: &DebugArtifact) {
         let locations = debug_artifact.debug_symbols[0].opcode_location(location);
-        if let Some(locations) = locations {
-            for loc in locations {
-                self.print_location_path(loc);
+        let Some(locations) = locations else { return };
+        for loc in locations {
+            self.print_location_path(loc);
 
-                let loc_line_index = debug_artifact.location_line_index(loc).unwrap();
+            let loc_line_index = debug_artifact.location_line_index(loc).unwrap();
 
-                // How many lines before or after the location's line we
-                // print
-                let context_lines = 5;
+            // How many lines before or after the location's line we
+            // print
+            let context_lines = 5;
 
-                let first_line_to_print =
-                    if loc_line_index < context_lines { 0 } else { loc_line_index - context_lines };
+            let first_line_to_print =
+                if loc_line_index < context_lines { 0 } else { loc_line_index - context_lines };
 
-                let last_line_index = debug_artifact.last_line_index(loc).unwrap();
-                let last_line_to_print = if loc_line_index + context_lines > last_line_index {
-                    last_line_index
+            let last_line_index = debug_artifact.last_line_index(loc).unwrap();
+            let last_line_to_print = std::cmp::min(loc_line_index + context_lines, last_line_index);
+
+            let source = debug_artifact.location_source_code(loc).unwrap();
+            for (current_line_index, line) in source.lines().enumerate() {
+                let current_line_number = current_line_index + 1;
+
+                if current_line_index < first_line_to_print {
+                    // Ignore lines before range starts
+                    continue;
+                } else if current_line_index == first_line_to_print && current_line_index > 0 {
+                    // Denote that there's more lines before but we're not showing them
+                    print_line_of_ellipsis(current_line_index);
+                }
+
+                if current_line_index > last_line_to_print {
+                    // Denote that there's more lines after but we're not showing them,
+                    // and stop printing
+                    print_line_of_ellipsis(current_line_number);
+                    break;
+                }
+
+                if current_line_index == loc_line_index {
+                    // Highlight current location
+                    let Range { start: loc_start, end: loc_end } =
+                        debug_artifact.location_in_line(loc).unwrap();
+                    println!(
+                        "{:>3} {:2} {}{}{}",
+                        current_line_number,
+                        "->",
+                        &line[0..loc_start].to_string().dimmed(),
+                        &line[loc_start..loc_end],
+                        &line[loc_end..].to_string().dimmed()
+                    );
                 } else {
-                    loc_line_index + context_lines
-                };
-
-                let source = debug_artifact.location_source_code(loc).unwrap();
-                for (current_line_index, line) in source.lines().enumerate() {
-                    let current_line_number = current_line_index + 1;
-
-                    if current_line_index < first_line_to_print {
-                        // Ignore lines before range starts
-                        continue;
-                    } else if current_line_index == first_line_to_print && current_line_index > 0 {
-                        // Denote that there's more lines before but we're not showing them
-                        print_ellipsized_line(current_line_index);
-                    }
-
-                    if current_line_index > last_line_to_print {
-                        // Denote that there's more lines after but we're not showing them,
-                        // and stop printing
-                        print_ellipsized_line(current_line_number);
-                        break;
-                    }
-
-                    if current_line_index == loc_line_index {
-                        // Highlight current location
-                        let Range { start: loc_start, end: loc_end } =
-                            debug_artifact.location_in_line(loc).unwrap();
-                        println!(
-                            "{:>3} {:2} {}{}{}",
-                            current_line_number,
-                            "->",
-                            &line[0..loc_start].to_string().dimmed(),
-                            &line[loc_start..loc_end],
-                            &line[loc_end..].to_string().dimmed()
-                        );
-                    } else {
-                        print_dimmed_line(current_line_number, line);
-                    }
+                    print_dimmed_line(current_line_number, line);
                 }
             }
         }
@@ -169,7 +164,7 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
     }
 }
 
-fn print_ellipsized_line(line_number: usize) {
+fn print_line_of_ellipsis(line_number: usize) {
     println!("{}", format!("{:>3} {}", line_number, "...").dimmed());
 }
 

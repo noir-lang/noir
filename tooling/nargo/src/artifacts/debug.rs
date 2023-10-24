@@ -48,27 +48,27 @@ impl DebugArtifact {
 
     /// Given a location, returns its file's source code
     pub fn location_source_code(&self, location: Location) -> Result<&str, Error> {
-        Files::source(self, location.file)
+        self.source(location.file)
     }
 
     /// Given a location, returns the index of the line it starts at
     pub fn location_line_index(&self, location: Location) -> Result<usize, Error> {
         let location_start = location.span.start() as usize;
-        Files::line_index(self, location.file, location_start)
+        self.line_index(location.file, location_start)
     }
 
     /// Given a location, returns the line number it starts at
     pub fn location_line_number(&self, location: Location) -> Result<usize, Error> {
         let location_start = location.span.start() as usize;
-        let line_index = Files::line_index(self, location.file, location_start).unwrap();
-        Files::line_number(self, location.file, line_index)
+        let line_index = self.line_index(location.file, location_start)?;
+        self.line_number(location.file, line_index)
     }
 
     /// Given a location, returns the column number it starts at
     pub fn location_column_number(&self, location: Location) -> Result<usize, Error> {
         let location_start = location.span.start() as usize;
-        let line_index = Files::line_index(self, location.file, location_start).unwrap();
-        Files::column_number(self, location.file, line_index, location_start)
+        let line_index = self.line_index(location.file, location_start)?;
+        self.column_number(location.file, line_index, location_start)
     }
 
     /// Given a location, returns a Span relative to its line's
@@ -77,8 +77,8 @@ impl DebugArtifact {
     pub fn location_in_line(&self, location: Location) -> Result<Range<usize>, Error> {
         let location_start = location.span.start() as usize;
         let location_end = location.span.end() as usize;
-        let line_index = Files::line_index(self, location.file, location_start).unwrap();
-        let line_span = DebugArtifact::line_range(self, location.file, line_index).unwrap();
+        let line_index = self.line_index(location.file, location_start)?;
+        let line_span = self.line_range(location.file, line_index)?;
 
         let start_in_line = location_start - line_span.start;
         let end_in_line = location_end - line_span.start;
@@ -89,8 +89,8 @@ impl DebugArtifact {
     /// Given a location, returns the last line index
     /// of its file
     pub fn last_line_index(&self, location: Location) -> Result<usize, Error> {
-        let source = self.source(location.file).unwrap();
-        Files::line_index(self, location.file, source.len())
+        let source = self.source(location.file)?;
+        self.line_index(location.file, source.len())
     }
 }
 
