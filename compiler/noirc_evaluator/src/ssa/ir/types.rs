@@ -96,20 +96,21 @@ impl Type {
 }
 
 impl NumericType {
-    /// Returns the numeric limits of this type if it is an integer type.
-    /// If this is a Field, None is returned.
-    pub(crate) fn get_limits(self) -> Option<(FieldElement, FieldElement)> {
+    /// Returns true if the given Field value is within the numeric limits
+    /// for the current NumericType.
+    pub(crate) fn value_is_within_limits(self, field: FieldElement) -> bool {
         match self {
             NumericType::Signed { bit_size } => {
                 let min = -(2i128.pow(bit_size - 1));
                 let max = 2u128.pow(bit_size - 1) - 1;
-                Some((min.into(), max.into()))
+                // Signed integers are odd since they will overflow the field value
+                field <= max.into() || field >= min.into()
             }
             NumericType::Unsigned { bit_size } => {
                 let max = 2u128.pow(bit_size) - 1;
-                Some((FieldElement::zero(), max.into()))
+                field <= max.into()
             }
-            NumericType::NativeField => None, // Should we check the field size as well?
+            NumericType::NativeField => true,
         }
     }
 }

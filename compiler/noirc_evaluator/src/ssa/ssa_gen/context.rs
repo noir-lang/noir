@@ -254,11 +254,9 @@ impl<'a> FunctionContext<'a> {
         let value = value.into();
 
         if let Type::Numeric(typ) = typ {
-            if let Some((lower_bound, upper_bound)) = typ.get_limits() {
-                if !(lower_bound <= value && value <= upper_bound) {
-                    let call_stack = self.builder.get_call_stack();
-                    return Err(RuntimeError::IntegerOutOfBounds { value, typ, call_stack });
-                }
+            if !typ.value_is_within_limits(value) {
+                let call_stack = self.builder.get_call_stack();
+                return Err(RuntimeError::IntegerOutOfBounds { value, typ, call_stack });
             }
         } else {
             panic!("Expected type for numeric constant to be a numeric type, found {typ}");
