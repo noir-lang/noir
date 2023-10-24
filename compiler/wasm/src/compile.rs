@@ -1,6 +1,6 @@
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
-use js_sys::Array;
+use js_sys::Object;
 use nargo::artifacts::{
     contract::{PreprocessedContract, PreprocessedContractFunction},
     program::PreprocessedProgram,
@@ -9,28 +9,53 @@ use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
     CompiledContract, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
-use noirc_frontend::{graph::CrateGraph, hir::Context};
-use std::path::Path;
+use noirc_frontend::{
+    graph::{CrateGraph, CrateId, CrateName},
+    hir::Context,
+};
+use serde::Deserialize;
+use std::{collections::HashMap, path::Path};
 use wasm_bindgen::prelude::*;
 
-use crate::errors::JsCompileError;
+use crate::errors::{CompileError, JsCompileError};
 
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
+#[wasm_bindgen(typescript_custom_section)]
+const DEPENDENCY_GRAPH: &'static str = r#"
+export type DependencyGraph = {
+    root_dependencies: readonly string[];
+    library_dependencies: Readonly<Record<string, readonly string[]>>;
+}
+"#;
+
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(extends = Array, js_name = "StringArray", typescript_type = "string[]")]
+    #[wasm_bindgen(extends = Object, js_name = "DependencyGraph", typescript_type = "DependencyGraph")]
     #[derive(Clone, Debug, PartialEq, Eq)]
-    pub type StringArray;
+    pub type JsDependencyGraph;
+}
+
+#[derive(Deserialize)]
+struct DependencyGraph {
+    root_dependencies: Vec<CrateName>,
+    library_dependencies: HashMap<CrateName, Vec<CrateName>>,
 }
 
 #[wasm_bindgen]
 pub fn compile(
     entry_point: String,
     contracts: Option<bool>,
-    dependencies: Option<StringArray>,
+    dependency_graph: Option<JsDependencyGraph>,
 ) -> Result<JsValue, JsCompileError> {
     console_error_panic_hook::set_once();
+
+    let dependency_graph: DependencyGraph = if let Some(dependency_graph) = dependency_graph {
+        <JsValue as JsValueSerdeExt>::into_serde(&JsValue::from(dependency_graph))
+            .map_err(|err| err.to_string())?
+    } else {
+        DependencyGraph { root_dependencies: vec![], library_dependencies: HashMap::new() }
+    };
 
     let root = Path::new("/");
     let fm = FileManager::new(root, Box::new(get_non_stdlib_asset));
@@ -40,12 +65,7 @@ pub fn compile(
     let path = Path::new(&entry_point);
     let crate_id = prepare_crate(&mut context, path);
 
-    let dependencies: Vec<String> = dependencies
-        .map(|array| array.iter().map(|element| element.as_string().unwrap()).collect())
-        .unwrap_or_default();
-    for dependency in dependencies {
-        add_noir_lib(&mut context, dependency.as_str());
-    }
+    process_dependency_graph(&mut context, dependency_graph);
 
     let compile_options = CompileOptions::default();
 
@@ -57,7 +77,11 @@ pub fn compile(
     if contracts.unwrap_or_default() {
         let compiled_contract = compile_contract(&mut context, crate_id, &compile_options)
             .map_err(|errs| {
-                JsCompileError::new("Failed to compile contract", errs, &context.file_manager)
+                CompileError::with_file_diagnostics(
+                    "Failed to compile contract",
+                    errs,
+                    &context.file_manager,
+                )
             })?
             .0;
 
@@ -71,7 +95,11 @@ pub fn compile(
     } else {
         let compiled_program = compile_main(&mut context, crate_id, &compile_options, None, true)
             .map_err(|errs| {
-                JsCompileError::new("Failed to compile program", errs, &context.file_manager)
+                CompileError::with_file_diagnostics(
+                    "Failed to compile program",
+                    errs,
+                    &context.file_manager,
+                )
             })?
             .0;
 
@@ -85,32 +113,36 @@ pub fn compile(
     }
 }
 
-fn add_noir_lib(context: &mut Context, library_name: &str) {
-    let path_to_lib = Path::new(&library_name).join("lib.nr");
-    let library_crate_id = prepare_dependency(context, &path_to_lib);
+fn process_dependency_graph(context: &mut Context, dependency_graph: DependencyGraph) {
+    let mut crate_names: HashMap<&CrateName, CrateId> = HashMap::new();
 
-    add_dep(context, *context.root_crate_id(), library_crate_id, library_name.parse().unwrap());
+    for lib in &dependency_graph.root_dependencies {
+        let crate_id = add_noir_lib(context, lib);
+        crate_names.insert(lib, crate_id);
 
-    // TODO: Remove this code that attaches every crate to every other crate as a dependency
-    let root_crate_id = context.root_crate_id();
-    let stdlib_crate_id = context.stdlib_crate_id();
-    let other_crate_ids: Vec<_> = context
-        .crate_graph
-        .iter_keys()
-        .filter(|crate_id| {
-            // We don't want to attach this crate to itself or stdlib, nor re-attach it to the root crate
-            crate_id != &library_crate_id
-                && crate_id != root_crate_id
-                && crate_id != stdlib_crate_id
-        })
-        .collect();
-
-    for crate_id in other_crate_ids {
-        context
-            .crate_graph
-            .add_dep(crate_id, library_name.parse().unwrap(), library_crate_id)
-            .unwrap_or_else(|_| panic!("ICE: Cyclic error triggered by {library_name} library"));
+        add_dep(context, *context.root_crate_id(), crate_id, lib.clone());
     }
+
+    for (lib_name, dependencies) in &dependency_graph.library_dependencies {
+        // first create the library crate if needed
+        // this crate might not have been registered yet because of the order of the HashMap
+        // e.g. {root: [lib1], libs: { lib2 -> [lib3], lib1 -> [lib2] }}
+        let crate_id =
+            *crate_names.entry(lib_name).or_insert_with(|| add_noir_lib(context, lib_name));
+
+        for dependency_name in dependencies {
+            let dep_crate_id: &CrateId = crate_names
+                .entry(dependency_name)
+                .or_insert_with(|| add_noir_lib(context, dependency_name));
+
+            add_dep(context, crate_id, *dep_crate_id, dependency_name.clone());
+        }
+    }
+}
+
+fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
+    let path_to_lib = Path::new(&library_name.to_string()).join("lib.nr");
+    prepare_dependency(context, &path_to_lib)
 }
 
 fn preprocess_program(program: CompiledProgram) -> PreprocessedProgram {
@@ -166,5 +198,103 @@ cfg_if::cfg_if! {
                 Err(_) => Err(Error::new(ErrorKind::Other, "could not read file using wasm")),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use fm::FileManager;
+    use noirc_driver::prepare_crate;
+    use noirc_frontend::{
+        graph::{CrateGraph, CrateName},
+        hir::Context,
+    };
+
+    use super::{process_dependency_graph, DependencyGraph};
+    use std::{collections::HashMap, path::Path};
+
+    fn mock_get_non_stdlib_asset(_path_to_file: &Path) -> std::io::Result<String> {
+        Ok("".to_string())
+    }
+
+    fn setup_test_context() -> Context {
+        let fm = FileManager::new(Path::new("/"), Box::new(mock_get_non_stdlib_asset));
+        let graph = CrateGraph::default();
+        let mut context = Context::new(fm, graph);
+
+        prepare_crate(&mut context, Path::new("/main.nr"));
+
+        context
+    }
+
+    fn crate_name(name: &str) -> CrateName {
+        name.parse().unwrap()
+    }
+
+    #[test]
+    fn test_works_with_empty_dependency_graph() {
+        let mut context = setup_test_context();
+        let dependency_graph =
+            DependencyGraph { root_dependencies: vec![], library_dependencies: HashMap::new() };
+
+        process_dependency_graph(&mut context, dependency_graph);
+
+        // one stdlib + one root crate
+        assert_eq!(context.crate_graph.number_of_crates(), 2);
+    }
+
+    #[test]
+    fn test_works_with_root_dependencies() {
+        let mut context = setup_test_context();
+        let dependency_graph = DependencyGraph {
+            root_dependencies: vec![crate_name("lib1")],
+            library_dependencies: HashMap::new(),
+        };
+
+        process_dependency_graph(&mut context, dependency_graph);
+
+        assert_eq!(context.crate_graph.number_of_crates(), 3);
+    }
+
+    #[test]
+    fn test_works_with_duplicate_root_dependencies() {
+        let mut context = setup_test_context();
+        let dependency_graph = DependencyGraph {
+            root_dependencies: vec![crate_name("lib1"), crate_name("lib1")],
+            library_dependencies: HashMap::new(),
+        };
+
+        process_dependency_graph(&mut context, dependency_graph);
+
+        assert_eq!(context.crate_graph.number_of_crates(), 3);
+    }
+
+    #[test]
+    fn test_works_with_transitive_dependencies() {
+        let mut context = setup_test_context();
+        let dependency_graph = DependencyGraph {
+            root_dependencies: vec![crate_name("lib1")],
+            library_dependencies: HashMap::from([
+                (crate_name("lib1"), vec![crate_name("lib2")]),
+                (crate_name("lib2"), vec![crate_name("lib3")]),
+            ]),
+        };
+
+        process_dependency_graph(&mut context, dependency_graph);
+
+        assert_eq!(context.crate_graph.number_of_crates(), 5);
+    }
+
+    #[test]
+    fn test_works_with_missing_dependencies() {
+        let mut context = setup_test_context();
+        let dependency_graph = DependencyGraph {
+            root_dependencies: vec![crate_name("lib1")],
+            library_dependencies: HashMap::from([(crate_name("lib2"), vec![crate_name("lib3")])]),
+        };
+
+        process_dependency_graph(&mut context, dependency_graph);
+
+        assert_eq!(context.crate_graph.number_of_crates(), 5);
     }
 }
