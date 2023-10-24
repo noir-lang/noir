@@ -101,12 +101,16 @@ jobs:
           name: nargo
           path: ./nargo
 
-      - name: Compile test program with Nargo CLI
-        working-directory: ./compiler/wasm/noir-script
+      - name: Compile fixtures with Nargo CLI
+        working-directory: ./compiler/wasm/fixtures
         run: |
           nargo_binary=${{ github.workspace }}/nargo/nargo
           chmod +x $nargo_binary
-          $nargo_binary compile
+          for dir in $(ls -d */); do
+            pushd $dir/noir-script
+            $nargo_binary compile
+            popd
+          done
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
