@@ -404,7 +404,7 @@ impl DebugShow {
                     result
                 );
             }
-            BlackBoxOp::Pedersen { inputs, domain_separator, output } => {
+            BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
                 debug_println!(
                     self.enable_debug_trace,
                     "  PEDERSEN {} {} -> {}",

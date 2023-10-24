@@ -99,7 +99,7 @@ pub(crate) fn convert_black_box_call(
             ) = (function_arguments, function_results)
             {
                 let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
-                brillig_context.black_box_op_instruction(BlackBoxOp::Pedersen {
+                brillig_context.black_box_op_instruction(BlackBoxOp::PedersenCommitment {
                     inputs: message_vector,
                     domain_separator: *domain_separator,
                     output: *result_array,

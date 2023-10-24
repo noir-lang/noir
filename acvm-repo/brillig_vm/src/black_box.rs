@@ -147,7 +147,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             memory.write_slice(registers.get(result.pointer).to_usize(), &[x.into(), y.into()]);
             Ok(())
         }
-        BlackBoxOp::Pedersen { inputs, domain_separator, output } => {
+        BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
             let inputs: Vec<FieldElement> =
                 read_heap_vector(memory, registers, inputs).iter().map(|x| x.to_field()).collect();
             let domain_separator: u32 =
@@ -157,7 +157,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
                         "Invalid signature length".to_string(),
                     )
                 })?;
-            let (x, y) = solver.pedersen(&inputs, domain_separator)?;
+            let (x, y) = solver.pedersen_commitment(&inputs, domain_separator)?;
             memory.write_slice(registers.get(output.pointer).to_usize(), &[x.into(), y.into()]);
             Ok(())
         }

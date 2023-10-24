@@ -29,7 +29,7 @@ impl BlackBoxFunctionSolver for StubbedBackend {
     ) -> Result<bool, BlackBoxResolutionError> {
         panic!("Path not trodden by this test")
     }
-    fn pedersen(
+    fn pedersen_commitment(
         &self,
         _inputs: &[FieldElement],
         _domain_separator: u32,

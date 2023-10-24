@@ -970,7 +970,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::Keccak256 | BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => Some(32),
         // Hash to field returns a field element
         BlackBoxFunc::HashToField128Security => Some(1),
-        // Pedersen returns a point
+        // Pedersen commitment returns a point
         BlackBoxFunc::PedersenCommitment => Some(2),
         // Pedersen hash returns a field
         BlackBoxFunc::PedersenHash => Some(1),

@@ -63,7 +63,7 @@ impl BlackBoxFunctionSolver for BarretenbergSolver {
         })
     }
 
-    fn pedersen(
+    fn pedersen_commitment(
         &self,
         inputs: &[FieldElement],
         domain_separator: u32,

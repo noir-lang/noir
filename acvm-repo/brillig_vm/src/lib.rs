@@ -417,7 +417,7 @@ impl BlackBoxFunctionSolver for DummyBlackBoxSolver {
     ) -> Result<bool, BlackBoxResolutionError> {
         Ok(true)
     }
-    fn pedersen(
+    fn pedersen_commitment(
         &self,
         _inputs: &[FieldElement],
         _domain_separator: u32,

@@ -1254,7 +1254,7 @@ fn execute_brillig(
         ) -> Result<bool, BlackBoxResolutionError> {
             Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::SchnorrVerify))
         }
-        fn pedersen(
+        fn pedersen_commitment(
             &self,
             _inputs: &[FieldElement],
             _domain_separator: u32,

@@ -34,7 +34,7 @@ pub trait BlackBoxFunctionSolver {
         signature: &[u8],
         message: &[u8],
     ) -> Result<bool, BlackBoxResolutionError>;
-    fn pedersen(
+    fn pedersen_commitment(
         &self,
         inputs: &[FieldElement],
         domain_separator: u32,
