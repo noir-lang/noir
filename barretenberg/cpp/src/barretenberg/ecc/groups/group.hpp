@@ -5,7 +5,7 @@
 #include "./element.hpp"
 #include "./wnaf.hpp"
 #include "barretenberg/common/constexpr_utils.hpp"
-#include "barretenberg/crypto/sha256/sha256.hpp"
+#include "barretenberg/crypto/blake3s/blake3s.hpp"
 #include <array>
 #include <cinttypes>
 #include <cstdint>
@@ -42,28 +42,8 @@ template <typename _coordinate_field, typename _subgroup_field, typename GroupPa
     static constexpr element point_at_infinity = one.set_infinity();
     static constexpr affine_element affine_one{ GroupParams::one_x, GroupParams::one_y };
     static constexpr affine_element affine_point_at_infinity = affine_one.set_infinity();
-
     static constexpr coordinate_field curve_a = GroupParams::a;
     static constexpr coordinate_field curve_b = GroupParams::b;
-
-    // TODO(@zac-wiliamson #2341 remove this method once we migrate to new hash standard)
-    // (and rename derive_generators_secure to derive_generators)
-    template <size_t N> static inline auto derive_generators()
-    {
-        std::array<affine_element, N> generators;
-        size_t count = 0;
-        size_t seed = 0;
-        while (count < N) {
-            ++seed;
-            auto candidate = affine_element::hash_to_curve(seed);
-            if (candidate.on_curve() && !candidate.is_point_at_infinity()) {
-                generators[count] = candidate;
-                ++count;
-            }
-        }
-
-        return generators;
-    }
 
     /**
      * @brief Derives generator points via hash-to-curve
@@ -71,13 +51,13 @@ template <typename _coordinate_field, typename _subgroup_field, typename GroupPa
      * ALGORITHM DESCRIPTION:
      *      1. Each generator has an associated "generator index" described by its location in the vector
      *      2. a 64-byte preimage buffer is generated with the following structure:
-     *          bytes 0-31: SHA256 hash of domain_separator
+     *          bytes 0-31: BLAKE3 hash of domain_separator
      *          bytes 32-63: generator index in big-endian form
      *      3. The hash-to-curve algorithm is used to hash the above into a group element:
      *           a. iterate `count` upwards from `0`
-     *           b. append `count` to the preimage buffer as a 32-byte integer in big-endian form
-     *           c. compute SHA256 hash of concat(preimage buffer, 0)
-     *           d. compute SHA256 hash of concat(preimage buffer, 1)
+     *           b. append `count` to the preimage buffer as a 1-byte integer in big-endian form
+     *           c. compute BLAKE3 hash of concat(preimage buffer, 0)
+     *           d. compute BLAKE3 hash of concat(preimage buffer, 1)
      *           e. interpret (c, d) as (hi, low) limbs of a 512-bit integer
      *           f. reduce 512-bit integer modulo coordinate_field to produce x-coordinate
      *           g. attempt to derive y-coordinate. If not successful go to step (a) and continue
@@ -85,22 +65,27 @@ template <typename _coordinate_field, typename _subgroup_field, typename GroupPa
      *              (d), invert y-coordinate.
      *           j. return (x, y)
      *
+     * NOTE: In step 3b it is sufficient to use 1 byte to store `count`.
+     *       Step 3 has a 50% chance of returning, the probability of `count` exceeding 256 is 1 in 2^256
      * NOTE: The domain separator is included to ensure that it is possible to derive independent sets of
-     * index-addressable generators. NOTE: we produce 64 bytes of SHA256 output when producing x-coordinate field
+     * index-addressable generators.
+     * NOTE: we produce 64 bytes of BLAKE3 output when producing x-coordinate field
      * element, to ensure that x-coordinate is uniformly randomly distributed in the field. Using a 256-bit input adds
-     * significant bias when reducing modulo a ~256-bit coordinate_field NOTE: We ensure y-parity is linked to preimage
+     * significant bias when reducing modulo a ~256-bit coordinate_field
+     * NOTE: We ensure y-parity is linked to preimage
      * hash because there is no canonical deterministic square root algorithm (i.e. if a field element has a square
      * root, there are two of them and `field::sqrt` may return either one)
      * @param num_generators
      * @param domain_separator
      * @return std::vector<affine_element>
      */
-    inline static std::vector<affine_element> derive_generators_secure(const std::vector<uint8_t>& domain_separator,
-                                                                       const size_t num_generators,
-                                                                       const size_t starting_index = 0)
+    inline static constexpr std::vector<affine_element> derive_generators(
+        const std::vector<uint8_t>& domain_separator_bytes,
+        const size_t num_generators,
+        const size_t starting_index = 0)
     {
         std::vector<affine_element> result;
-        std::array<uint8_t, 32> domain_hash = sha256::sha256(domain_separator);
+        const auto domain_hash = blake3::blake3s_constexpr(&domain_separator_bytes[0], domain_separator_bytes.size());
         std::vector<uint8_t> generator_preimage;
         generator_preimage.reserve(64);
         std::copy(domain_hash.begin(), domain_hash.end(), std::back_inserter(generator_preimage));
@@ -119,23 +104,15 @@ template <typename _coordinate_field, typename _subgroup_field, typename GroupPa
         return result;
     }
 
-    inline static affine_element get_secure_generator_from_index(size_t generator_index,
-                                                                 const std::string& domain_separator)
+    inline static constexpr std::vector<affine_element> derive_generators(const std::string_view& domain_separator,
+                                                                          const size_t num_generators,
+                                                                          const size_t starting_index = 0)
     {
-        std::array<uint8_t, 32> domain_hash = sha256::sha256(domain_separator);
-        std::vector<uint8_t> generator_preimage;
-        generator_preimage.reserve(64);
-        std::copy(domain_hash.begin(), domain_hash.end(), std::back_inserter(generator_preimage));
-        for (size_t i = 0; i < 32; ++i) {
-            generator_preimage.emplace_back(0);
+        std::vector<uint8_t> domain_bytes;
+        for (char i : domain_separator) {
+            domain_bytes.emplace_back(static_cast<unsigned char>(i));
         }
-        auto gen_idx = static_cast<uint32_t>(generator_index);
-        uint32_t mask = 0xff;
-        generator_preimage[32] = static_cast<uint8_t>(gen_idx >> 24);
-        generator_preimage[33] = static_cast<uint8_t>((gen_idx >> 16) & mask);
-        generator_preimage[34] = static_cast<uint8_t>((gen_idx >> 8) & mask);
-        generator_preimage[35] = static_cast<uint8_t>(gen_idx & mask);
-        return affine_element::hash_to_curve(generator_preimage);
+        return derive_generators(domain_bytes, num_generators, starting_index);
     }
 
     BBERG_INLINE static void conditional_negate_affine(const affine_element* src,

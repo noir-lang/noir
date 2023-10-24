@@ -1,63 +1,146 @@
 #pragma once
 
-// TODO(@zac-williamson #2341 delete this file once we migrate to new pedersen hash standard)
+#include "barretenberg/common/container.hpp"
+#include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include <array>
-#include <tuple>
+#include <map>
+#include <optional>
 
 namespace crypto {
-namespace generators {
-
-struct generator_index_t {
-    size_t index;
-    size_t sub_index;
-    bool operator<(const generator_index_t& y) const
-    {
-        return std::tie(index, sub_index) < std::tie(y.index, y.sub_index);
-    }
-};
-
-static constexpr generator_index_t DEFAULT_GEN_1 = { 0, 0 };
-static constexpr generator_index_t DEFAULT_GEN_2 = { 0, 1 };
-static constexpr generator_index_t DEFAULT_GEN_3 = { 0, 2 };
-static constexpr generator_index_t DEFAULT_GEN_4 = { 0, 3 };
-
-struct fixed_base_ladder {
-    grumpkin::g1::affine_element one;
-    grumpkin::g1::affine_element three;
-    grumpkin::fq q_x_1;
-    grumpkin::fq q_x_2;
-    grumpkin::fq q_y_1;
-    grumpkin::fq q_y_2;
-};
-
 /**
- * The number of bits in each precomputed lookup table. Regular pedersen hashes use 254 bits, some other
- * fixed-base scalar mul subroutines (e.g. verifying schnorr signatures) use 256 bits.
+ * @brief class that stores precomputed generators used for Pedersen commitments and Pedersen hashes
  *
- * When representing an n-bit integer via a WNAF with a window size of b-bits,
- * one requires a minimum of min = (n/b + 1) windows to represent any integer
- * (The last "window" will essentially be a bit saying if the integer is odd or even)
- * if n = 256 and b = 2, min = 129 windows
+ * @details We create distinct sets of generators via the use of a domain separator.
+ *          This enables the use of context-specific commitments and hashes.
+ *          For example, a circuit that generates commitments `foo = commit({ a, b })` and `bar = commit({c, d})` where
+ *          `foo` and `bar` should not collide.
+ *
+ *          The goal of `generator_data` is twofold:
+ *          1. Prevent redundant computation of the same generators at runtime (i.e. store in a singleton object)
+ *          2. Compute a small number of default generators at compile-time, so that short processes that require a
+ *             small number of generators do not have to execute the expensive `g1::derive_generators` method
+ *
+ *          We store generators in a key:value map, where the key is the domain separator and the value is the vector of
+ *          associated generators. Pedersen methods take in a pointer to a `generator_data` object.
+ *
+ *          `generator_data` contains a static instantiation of the class: `default_data`.
+ *          The intention is for `default_data` to be used as a singleton class.
+ *          All Pedersen methods that require a `*generator_data` parameter (from now on referred to as "generator
+ *          context") should default to using `default_data`.
+ *
+ *          Q: Why make the generator context an input parameter when it defaults to `default_data`?
+ *          A: This is not thread-safe. Each process that uses a `generator_data` object may extend `generator_data` if
+ *             more generators are required.
+ *             i.e. either each process must use an independent `generator_data` object or the author must KNOW that
+ *             `generator_data` will not be extended by any process
+ *
+ * @tparam Curve
  */
-constexpr size_t bit_length = 256;
-constexpr size_t quad_length = bit_length / 2 + 1;
-constexpr size_t aux_length = 2;
-typedef std::array<fixed_base_ladder, quad_length + aux_length> ladder_t;
+template <typename Curve> class generator_data {
+  public:
+    using Group = typename Curve::Group;
+    using AffineElement = typename Curve::AffineElement;
+    using GeneratorList = std::vector<AffineElement>;
+    using GeneratorView = std::span<AffineElement const>;
+    static inline constexpr size_t DEFAULT_NUM_GENERATORS = 8;
+    static inline constexpr std::string_view DEFAULT_DOMAIN_SEPARATOR = "DEFAULT_DOMAIN_SEPARATOR";
+    inline constexpr generator_data() = default;
 
-struct generator_data {
-    grumpkin::g1::affine_element generator;
-    grumpkin::g1::affine_element aux_generator;
-    grumpkin::g1::affine_element skew_generator;
-    ladder_t ladder;
+    static inline constexpr std::array<AffineElement, DEFAULT_NUM_GENERATORS> make_precomputed_generators()
+    {
+        std::array<AffineElement, DEFAULT_NUM_GENERATORS> output;
+        std::vector<AffineElement> res = Group::derive_generators(DEFAULT_DOMAIN_SEPARATOR, DEFAULT_NUM_GENERATORS, 0);
+        std::copy(res.begin(), res.end(), output.begin());
+        return output;
+    }
 
-    const fixed_base_ladder* get_ladder(size_t num_bits) const;
-    const fixed_base_ladder* get_hash_ladder(size_t num_bits) const;
+    /**
+     * @brief Precompute a small number of generators at compile time. For small pedersen commitments + pedersen hashes,
+     * this prevents us from having to derive generators at runtime
+     */
+    static inline constexpr std::array<AffineElement, DEFAULT_NUM_GENERATORS> precomputed_generators =
+        make_precomputed_generators();
+
+    [[nodiscard]] inline GeneratorView get(const size_t num_generators,
+                                           const size_t generator_offset = 0,
+                                           const std::string_view domain_separator = DEFAULT_DOMAIN_SEPARATOR) const
+    {
+        const bool is_default_domain = domain_separator == DEFAULT_DOMAIN_SEPARATOR;
+        if (is_default_domain && (num_generators + generator_offset) < DEFAULT_NUM_GENERATORS) {
+            return GeneratorView{ precomputed_generators.data() + generator_offset, num_generators };
+        }
+
+        if (!generator_map.has_value()) {
+            generator_map = std::map<std::string, GeneratorList>();
+        }
+        std::map<std::string, GeneratorList>& map = generator_map.value();
+
+        // Case 2: we want default generators, but more than we precomputed at compile time. If we have not yet copied
+        // the default generators into the map, do so.
+        if (is_default_domain && !initialized_precomputed_generators) {
+            map.insert({ std::string(DEFAULT_DOMAIN_SEPARATOR),
+                         GeneratorList(precomputed_generators.begin(), precomputed_generators.end()) });
+            initialized_precomputed_generators = true;
+        }
+
+        // if the generator map does not contain our desired generators, add entry into map
+        if (!map.contains(std::string(domain_separator))) {
+            map.insert({
+                std::string(domain_separator),
+                Group::derive_generators(domain_separator, num_generators + generator_offset, 0),
+            });
+        }
+
+        GeneratorList& generators = map.at(std::string(domain_separator));
+
+        // If the current GeneratorList does not contain enough generators, extend it
+        if (num_generators + generator_offset > generators.size()) {
+            const size_t num_extra_generators = num_generators + generator_offset - generators.size();
+            GeneratorList extended_generators =
+                Group::derive_generators(domain_separator, num_extra_generators, generators.size());
+            generators.reserve(num_generators + generator_offset);
+            std::copy(extended_generators.begin(), extended_generators.end(), std::back_inserter(generators));
+        }
+
+        return GeneratorView{ generators.data() + generator_offset, num_generators };
+    }
+
+    // getter method for `default_data`. Object exists as a singleton so we don't need a smart pointer.
+    // Don't call `delete` on this pointer.
+    static inline generator_data* get_default_generators() { return &default_data; }
+
+  private:
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+    static inline constinit generator_data default_data = generator_data();
+
+    // We mark the following two params as `mutable` so that our `get` method can be marked `const`.
+    // A non-const getter creates downstream issues as all const methods that use a non-const `get`
+    // would need to be marked const.
+    // Rationale is that it's ok for `get` to be `const` because all changes are internal to the class and don't change
+    // the external functionality of `generator_data`.
+    // i.e. `generator_data.get` will return the same output regardless of the internal state of `generator_data`.
+
+    // bool that describes whether we've copied the precomputed enerators into `generator_map`. This cannot be done at
+    // compile-time because std::map is a dynamically sized object.
+    mutable bool initialized_precomputed_generators = false;
+
+    // We wrap the std::map in a `std::optional` so that we can construct `generator_data` at compile time.
+    // This allows us to mark `default_data` as `constinit`, which prevents static initialisation ordering fiasco
+    mutable std::optional<std::map<std::string, GeneratorList>> generator_map = {};
 };
 
-std::vector<std::unique_ptr<generator_data>> const& init_generator_data();
-const fixed_base_ladder* get_g1_ladder(const size_t num_bits);
-generator_data const& get_generator_data(generator_index_t index);
+template <typename Curve> struct GeneratorContext {
+    size_t offset = 0;
+    std::string domain_separator = std::string(generator_data<Curve>::DEFAULT_DOMAIN_SEPARATOR);
+    generator_data<Curve>* generators = generator_data<Curve>::get_default_generators();
 
-} // namespace generators
+    GeneratorContext() = default;
+    GeneratorContext(size_t hash_index)
+        : offset(hash_index){};
+    GeneratorContext(size_t _offset, std::string_view _domain_separator)
+        : offset(_offset)
+        , domain_separator(_domain_separator)
+    {}
+};
 } // namespace crypto

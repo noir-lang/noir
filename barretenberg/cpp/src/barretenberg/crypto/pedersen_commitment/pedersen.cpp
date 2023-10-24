@@ -1,123 +1,46 @@
-// TODO(@zac-wiliamson #2341 delete this file once we migrate to new hash standard
-
 #include "./pedersen.hpp"
-#include "./convert_buffer_to_field.hpp"
+#include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 #include <iostream>
 #ifndef NO_OMP_MULTITHREADING
 #include <omp.h>
 #endif
 
-using namespace crypto::generators;
-
 namespace crypto {
-namespace pedersen_commitment {
-
-grumpkin::g1::element commit_single(const barretenberg::fr& in, generator_index_t const& index)
-{
-    auto gen_data = get_generator_data(index);
-    barretenberg::fr scalar_multiplier = in.from_montgomery_form();
-
-    constexpr size_t num_bits = 254;
-    constexpr size_t num_quads_base = (num_bits - 1) >> 1;
-    constexpr size_t num_quads = ((num_quads_base << 1) + 1 < num_bits) ? num_quads_base + 1 : num_quads_base;
-    constexpr size_t num_wnaf_bits = (num_quads << 1) + 1;
-
-    const crypto::generators::fixed_base_ladder* ladder = gen_data.get_hash_ladder(num_bits);
-
-    uint64_t wnaf_entries[num_quads + 2] = { 0 };
-    bool skew = false;
-    barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier.data[0], &wnaf_entries[0], skew, 0);
-
-    grumpkin::g1::element accumulator;
-    accumulator = grumpkin::g1::element(ladder[0].one);
-    if (skew) {
-        accumulator -= gen_data.skew_generator;
-    }
-
-    for (size_t i = 0; i < num_quads; ++i) {
-        uint64_t entry = wnaf_entries[i + 1];
-        const grumpkin::g1::affine_element& point_to_add =
-            ((entry & WNAF_MASK) == 1) ? ladder[i + 1].three : ladder[i + 1].one;
-        uint64_t predicate = (entry >> 31U) & 1U;
-        accumulator.self_mixed_add_or_sub(point_to_add, predicate);
-    }
-    return accumulator;
-}
 
 /**
- * Given a vector of fields, generate a pedersen commitment using the indexed generators.
+ * @brief Given a vector of fields, generate a pedersen commitment using the indexed generators.
+ *
+ * @details This method uses `Curve::BaseField` members as inputs. This aligns with what we expect when creating
+ * grumpkin commitments to field elements inside a BN254 SNARK circuit.
+ * @param inputs
+ * @param context
+ * @return Curve::AffineElement
  */
-grumpkin::g1::affine_element commit_native(const std::vector<grumpkin::fq>& inputs, const size_t hash_index)
+template <typename Curve>
+typename Curve::AffineElement pedersen_commitment_base<Curve>::commit_native(const std::vector<Fq>& inputs,
+                                                                             const GeneratorContext context)
 {
-    ASSERT((inputs.size() < (1 << 16)) && "too many inputs for 16 bit index");
-    std::vector<grumpkin::g1::element> out(inputs.size());
+    const auto generators = context.generators->get(inputs.size(), context.offset, context.domain_separator);
+    Element result = Group::point_at_infinity;
 
-#ifndef NO_OMP_MULTITHREADING
-    // Ensure generator data is initialized before threading...
-    init_generator_data();
-#pragma omp parallel for num_threads(inputs.size())
-#endif
     for (size_t i = 0; i < inputs.size(); ++i) {
-        generator_index_t index = { hash_index, i };
-        out[i] = commit_single(inputs[i], index);
+        result += Element(generators[i]) * static_cast<uint256_t>(inputs[i]);
     }
+    return result.normalize();
+}
 
-    grumpkin::g1::element r = out[0];
-    for (size_t i = 1; i < inputs.size(); ++i) {
-        r = out[i] + r;
+template <typename Curve>
+typename Curve::AffineElement pedersen_commitment_base<Curve>::commit_native(
+    const std::vector<std::pair<Fq, GeneratorContext>>& input_pairs)
+{
+    // (TODO @dbanks12 this method may be slow and can be optimised. Issue at .)
+    Element result = Group::point_at_infinity;
+    for (auto& [scalar, context] : input_pairs) {
+        Element point = context.generators->get(1, context.offset, context.domain_separator)[0];
+        result += point * static_cast<uint256_t>(scalar);
     }
-    return r.is_point_at_infinity() ? grumpkin::g1::affine_element(0, 0) : grumpkin::g1::affine_element(r);
+    return result.normalize();
 }
-
-grumpkin::g1::affine_element commit_native(const std::vector<std::pair<grumpkin::fq, generator_index_t>>& input_pairs)
-{
-    ASSERT((input_pairs.size() < (1 << 16)) && "too many inputs for 16 bit index");
-    std::vector<grumpkin::g1::element> out(input_pairs.size());
-
-#ifndef NO_OMP_MULTITHREADING
-    // Ensure generator data is initialized before threading...
-    init_generator_data();
-#pragma omp parallel for num_threads(input_pairs.size())
-#endif
-    for (size_t i = 0; i < input_pairs.size(); ++i) {
-        out[i] = commit_single(input_pairs[i].first, input_pairs[i].second);
-    }
-
-    grumpkin::g1::element r = out[0];
-    for (size_t i = 1; i < input_pairs.size(); ++i) {
-        r = out[i] + r;
-    }
-    return r.is_point_at_infinity() ? grumpkin::g1::affine_element(0, 0) : grumpkin::g1::affine_element(r);
-}
-
-/**
- * The same as commit_native, but only return the resultant x coordinate (i.e. compress).
- */
-grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs, const size_t hash_index)
-{
-    return commit_native(inputs, hash_index).x;
-}
-
-grumpkin::fq compress_native(const std::vector<std::pair<grumpkin::fq, generator_index_t>>& input_pairs)
-{
-    return commit_native(input_pairs).x;
-}
-
-/**
- * Given an arbitrary length of bytes, convert them to fields and compress the result using the default generators.
- */
-grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input, const size_t hash_index)
-{
-    const auto elements = convert_buffer_to_field(input);
-    grumpkin::fq result_fq = compress_native(elements, hash_index);
-    return result_fq;
-}
-
-grumpkin::fq compress_native(const std::vector<uint8_t>& input, const size_t hash_index)
-{
-    return compress_native_buffer_to_field(input, hash_index);
-}
-
-} // namespace pedersen_commitment
+template class pedersen_commitment_base<curve::Grumpkin>;
 } // namespace crypto

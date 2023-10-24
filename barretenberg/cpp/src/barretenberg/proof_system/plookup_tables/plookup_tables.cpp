@@ -28,15 +28,6 @@ void init_multi_tables()
     MULTI_TABLES[MultiTableId::AES_NORMALIZE] = aes128_tables::get_aes_normalization_table(MultiTableId::AES_NORMALIZE);
     MULTI_TABLES[MultiTableId::AES_INPUT] = aes128_tables::get_aes_input_table(MultiTableId::AES_INPUT);
     MULTI_TABLES[MultiTableId::AES_SBOX] = aes128_tables::get_aes_sbox_table(MultiTableId::AES_SBOX);
-    MULTI_TABLES[MultiTableId::PEDERSEN_LEFT_HI] =
-        pedersen_tables::basic::get_pedersen_left_hi_table(MultiTableId::PEDERSEN_LEFT_HI);
-    MULTI_TABLES[MultiTableId::PEDERSEN_LEFT_LO] =
-        pedersen_tables::basic::get_pedersen_left_lo_table(MultiTableId::PEDERSEN_LEFT_LO);
-    MULTI_TABLES[MultiTableId::PEDERSEN_RIGHT_HI] =
-        pedersen_tables::basic::get_pedersen_right_hi_table(MultiTableId::PEDERSEN_RIGHT_HI);
-    MULTI_TABLES[MultiTableId::PEDERSEN_RIGHT_LO] =
-        pedersen_tables::basic::get_pedersen_right_lo_table(MultiTableId::PEDERSEN_RIGHT_LO);
-    MULTI_TABLES[MultiTableId::PEDERSEN_IV] = pedersen_tables::basic::get_pedersen_iv_table(MultiTableId::PEDERSEN_IV);
     MULTI_TABLES[MultiTableId::UINT32_XOR] = uint_tables::get_uint32_xor_table(MultiTableId::UINT32_XOR);
     MULTI_TABLES[MultiTableId::UINT32_AND] = uint_tables::get_uint32_and_table(MultiTableId::UINT32_AND);
     MULTI_TABLES[MultiTableId::BN254_XLO] = ecc_generator_tables::ecc_generator_table<barretenberg::g1>::get_xlo_table(

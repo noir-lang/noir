@@ -2,7 +2,7 @@
 
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/crypto/blake3s/blake3s.hpp"
-#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
+#include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 
 #include <algorithm>
 #include <array>
@@ -116,7 +116,7 @@ template <typename FF> class BaseTranscript {
         // Only a collision-resistant hash-function like Pedersen is required for this step.
         // Note: this pre-hashing is an efficiency trick that may be discareded if using a SNARK-friendly or in contexts
         // (eg smart contract verification) where the cost of elliptic curve operations is high.
-        std::vector<uint8_t> compressed_buffer = to_buffer(crypto::pedersen_commitment::compress_native(full_buffer));
+        std::vector<uint8_t> compressed_buffer = to_buffer(crypto::pedersen_hash::hash_buffer(full_buffer));
 
         // Use a strong hash function to derive the new challenge_buffer.
         auto base_hash = blake3::blake3s(compressed_buffer);

@@ -129,7 +129,7 @@ typename CircuitTypes<Builder>::fr DefaultSingletonPrivateNote<Builder, V>::comp
 
     // We compress the hash_inputs with Pedersen, because that's cheaper (constraint-wise) than compressing
     // the data directly with Blake2s in the next step.
-    const fr compressed_inputs = CT::compress(hash_inputs, GeneratorIndex::NULLIFIER);
+    const fr compressed_inputs = CT::hash(hash_inputs, GeneratorIndex::NULLIFIER);
 
     // Blake2s hash the compressed result. Without this it's possible to leak info from the pedersen
     // compression.
@@ -205,7 +205,7 @@ typename CircuitTypes<Builder>::fr DefaultSingletonPrivateNote<Builder, V>::get_
     const bool is_dummy = false;
 
     // We compress the hash_inputs with Pedersen, because that's cheap.
-    const fr compressed_storage_slot_point = CT::compress(hash_inputs, GeneratorIndex::INITIALIZATION_NULLIFIER);
+    const fr compressed_storage_slot_point = CT::hash(hash_inputs, GeneratorIndex::INITIALIZATION_NULLIFIER);
 
     // For now, we piggy-back on the regular nullifier function.
     return DefaultSingletonPrivateNote<Builder, V>::compute_nullifier(
@@ -243,7 +243,7 @@ typename CircuitTypes<Builder>::fr DefaultSingletonPrivateNote<Builder, V>::get_
     };
 
     // We compress the hash_inputs with Pedersen, because that's cheap.
-    fr compressed_storage_slot_point = CT::compress(hash_inputs, GeneratorIndex::INITIALIZATION_NULLIFIER);
+    fr compressed_storage_slot_point = CT::hash(hash_inputs, GeneratorIndex::INITIALIZATION_NULLIFIER);
 
     return compressed_storage_slot_point;
 };

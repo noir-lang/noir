@@ -4,8 +4,7 @@
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/crypto/blake3s/blake3s.hpp"
 #include "barretenberg/crypto/keccak/keccak.hpp"
-#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
-#include "barretenberg/crypto/pedersen_commitment/pedersen_lookup.hpp"
+#include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "manifest.hpp"
 #include <array>
 #include <cstddef>
@@ -47,22 +46,7 @@ std::array<uint8_t, Keccak256Hasher::PRNG_OUTPUT_SIZE> Keccak256Hasher::hash(std
 std::array<uint8_t, Blake3sHasher::PRNG_OUTPUT_SIZE> Blake3sHasher::hash(std::vector<uint8_t> const& buffer)
 {
     grumpkin::fq input = grumpkin::fq::serialize_from_buffer(&buffer[0]);
-    grumpkin::fq compressed = crypto::pedersen_commitment::compress_native({ input });
-    std::vector<uint8_t> res = to_buffer(compressed);
-    std::array<uint8_t, PRNG_OUTPUT_SIZE> result;
-    for (size_t i = 0; i < PRNG_OUTPUT_SIZE; ++i) {
-        result[i] = res[i];
-    }
-    return result;
-}
-
-std::array<uint8_t, Blake3sHasher::PRNG_OUTPUT_SIZE> Blake3sHasher::hash_plookup(std::vector<uint8_t> const& buffer)
-{
-    // TODO(@zac-williamson) Change to call a Poseidon hash and create a PoseidonHasher
-    // (not making the name change right now as it will break concurrent work w. getting recursion working in Noir)
-    // We also need to implement a Poseidon gadget
-    grumpkin::fq input = grumpkin::fq::serialize_from_buffer(&buffer[0]);
-    grumpkin::fq compressed = crypto::pedersen_commitment::lookup::compress_native({ input });
+    grumpkin::fq compressed = crypto::pedersen_hash::hash({ input });
     std::vector<uint8_t> res = to_buffer(compressed);
     std::array<uint8_t, PRNG_OUTPUT_SIZE> result;
     for (size_t i = 0; i < PRNG_OUTPUT_SIZE; ++i) {
@@ -233,13 +217,8 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
         break;
     }
     case HashType::PedersenBlake3s: {
-        std::vector<uint8_t> compressed_buffer = to_buffer(crypto::pedersen_commitment::compress_native(buffer));
+        std::vector<uint8_t> compressed_buffer = to_buffer(crypto::pedersen_hash::hash_buffer(buffer));
         base_hash = Blake3sHasher::hash(compressed_buffer);
-        break;
-    }
-    case HashType::PlookupPedersenBlake3s: {
-        std::vector<uint8_t> compressed_buffer = crypto::pedersen_commitment::lookup::compress_native(buffer);
-        base_hash = Blake3sHasher::hash_plookup(compressed_buffer);
         break;
     }
     default: {
@@ -290,10 +269,6 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
         }
         case HashType::PedersenBlake3s: {
             hash_output = Blake3sHasher::hash(rolling_buffer);
-            break;
-        }
-        case HashType::PlookupPedersenBlake3s: {
-            hash_output = Blake3sHasher::hash_plookup(rolling_buffer);
             break;
         }
         default: {

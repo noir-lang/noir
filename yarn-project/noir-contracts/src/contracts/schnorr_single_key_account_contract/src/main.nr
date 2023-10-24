@@ -3,7 +3,6 @@ mod auth_oracle;
 
 contract SchnorrSingleKeyAccount {
     use dep::std::{
-        hash::pedersen_with_separator,
         option::Option,
     };
     use dep::aztec::context::{ PrivateContext, PublicContext, Context };

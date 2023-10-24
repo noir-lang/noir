@@ -26,7 +26,7 @@ struct verification_key_data {
                    commitments,
                    contains_recursive_proof,
                    recursive_proof_public_input_indices);
-    barretenberg::fr compress_native(size_t const hash_index = 0) const;
+    [[nodiscard]] barretenberg::fr hash_native(size_t hash_index = 0) const;
 };
 
 inline std::ostream& operator<<(std::ostream& os, verification_key_data const& key)
@@ -50,20 +50,20 @@ struct verification_key {
     verification_key() = default;
     verification_key(verification_key_data&& data,
                      std::shared_ptr<barretenberg::srs::factories::VerifierCrs<curve::BN254>> const& crs);
-    verification_key(const size_t num_gates,
-                     const size_t num_inputs,
+    verification_key(size_t num_gates,
+                     size_t num_inputs,
                      std::shared_ptr<barretenberg::srs::factories::VerifierCrs<curve::BN254>> const& crs,
                      CircuitType circuit_type);
 
     verification_key(const verification_key& other);
-    verification_key(verification_key&& other);
-    verification_key& operator=(verification_key&& other);
-
+    verification_key(verification_key&& other) noexcept;
+    verification_key& operator=(verification_key&& other) noexcept;
+    verification_key& operator=(const verification_key& other) = delete;
     ~verification_key() = default;
 
     sha256::hash sha256_hash();
 
-    verification_key_data as_data() const
+    [[nodiscard]] verification_key_data as_data() const
     {
         return {
             .circuit_type = static_cast<uint32_t>(circuit_type),

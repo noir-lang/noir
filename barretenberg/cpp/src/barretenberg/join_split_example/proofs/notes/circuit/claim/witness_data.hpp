@@ -6,11 +6,7 @@
 #include "../bridge_call_data.hpp"
 #include "barretenberg/join_split_example/types.hpp"
 
-namespace join_split_example {
-namespace proofs {
-namespace notes {
-namespace circuit {
-namespace claim {
+namespace join_split_example::proofs::notes::circuit::claim {
 
 using namespace proof_system::plonk::stdlib;
 
@@ -66,8 +62,4 @@ inline std::ostream& operator<<(std::ostream& os, partial_claim_note_witness_dat
     return os << "{ deposit_value: " << tx.deposit_value
               << ", bridge_call_data: " << tx.bridge_call_data_local.to_safe_uint() << " }";
 }
-} // namespace claim
-} // namespace circuit
-} // namespace notes
-} // namespace proofs
-} // namespace join_split_example
+} // namespace join_split_example::proofs::notes::circuit::claim

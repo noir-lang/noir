@@ -71,7 +71,7 @@ template <typename NCT> struct GlobalVariables {
         inputs.push_back(block_number);
         inputs.push_back(timestamp);
 
-        return NCT::compress(inputs, GeneratorIndex::GLOBAL_VARIABLES);
+        return NCT::hash(inputs, GeneratorIndex::GLOBAL_VARIABLES);
     }
 
     void set_public()

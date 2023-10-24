@@ -69,7 +69,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
             a = (a * b) + b + a;
             a = a.madd(b, c);
         }
-        pedersen_commitment<InnerBuilder>::compress(a, b);
+        pedersen_hash<InnerBuilder>::hash({ a, b });
         byte_array_ct to_hash(&builder, "nonsense test data");
         blake3s(to_hash);
 
@@ -116,7 +116,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
             a = (a * b) + b + a;
             a = c.madd(b, a);
         }
-        pedersen_commitment<InnerBuilder>::compress(a, a);
+        pedersen_hash<InnerBuilder>::hash({ a, a });
         byte_array_ct to_hash(&builder, "different nonsense test data");
         blake3s(to_hash);
 
@@ -215,8 +215,8 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         auto output = proof_system::plonk::stdlib::recursion::verify_proof<outer_curve, RecursiveSettings>(
             &outer_circuit, verification_key_b, recursive_manifest, proof_to_recursively_verify_b, previous_output);
 
-        verification_key_b->compress();
-        verification_key->compress();
+        verification_key_b->hash();
+        verification_key->hash();
         return { output, verification_key };
     }
 

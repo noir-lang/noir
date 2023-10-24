@@ -170,9 +170,12 @@ export function pedersenGetHashTree(wasm: IWasmModule, values: Buffer[]) {
   const inputPtr = wasm.call('bbmalloc', data.length);
   wasm.writeMemory(inputPtr, data);
 
-  const resultPtr = wasm.call('pedersen__hash_to_tree', inputPtr);
-  const resultNumFields = Buffer.from(wasm.getMemorySlice(resultPtr, resultPtr + 4)).readUInt32BE(0);
-  const resultData = Buffer.from(wasm.getMemorySlice(resultPtr, resultPtr + 4 + resultNumFields * 32));
+  wasm.call('pedersen_hash_to_tree', inputPtr, 0);
+  const resultPtr = Buffer.from(wasm.getMemorySlice(0, 4)).readUInt32LE(0);
+  // First 4 bytes is full response length in byters.
+  // Second 4 bytes is vector length in fields.
+  const resultNumFields = Buffer.from(wasm.getMemorySlice(resultPtr + 4, resultPtr + 8)).readUInt32BE(0);
+  const resultData = Buffer.from(wasm.getMemorySlice(resultPtr + 4, resultPtr + 8 + resultNumFields * 32));
   wasm.call('bbfree', inputPtr);
   wasm.call('bbfree', resultPtr);
 

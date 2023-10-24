@@ -3,16 +3,12 @@
 #include "commit.hpp"
 #include "witness_data.hpp"
 
-namespace join_split_example {
-namespace proofs {
-namespace notes {
-namespace circuit {
-namespace value {
+namespace join_split_example::proofs::notes::circuit::value {
 
 using namespace proof_system::plonk::stdlib;
 
 struct value_note {
-    point_ct owner;
+    group_ct owner;
     suint_ct value;
     field_ct secret;
     suint_ct asset_id;
@@ -35,8 +31,4 @@ struct value_note {
     operator byte_array_ct() const { return byte_array_ct(commitment); }
 };
 
-} // namespace value
-} // namespace circuit
-} // namespace notes
-} // namespace proofs
-} // namespace join_split_example
+} // namespace join_split_example::proofs::notes::circuit::value

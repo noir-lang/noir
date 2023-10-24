@@ -7,8 +7,8 @@ contract Test {
     use dep::aztec::{
         abi,
         abi::PrivateContextInputs,
-        context::PrivateContext,
         hash::pedersen_hash,
+        context::PrivateContext,
         oracle::{
             get_public_key::get_public_key as get_public_key_oracle,
             context::get_portal_address,

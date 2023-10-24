@@ -10,13 +10,13 @@ namespace account {
 
 struct account_note {
     field_ct account_alias_hash;
-    point_ct account_public_key;
-    point_ct signing_pub_key;
+    group_ct account_public_key;
+    group_ct signing_pub_key;
     field_ct commitment;
 
     account_note(field_ct const& account_alias_hash,
-                 point_ct const& account_public_key,
-                 point_ct const& signing_pub_key)
+                 group_ct const& account_public_key,
+                 group_ct const& signing_pub_key)
         : account_alias_hash(account_alias_hash)
         , account_public_key(account_public_key)
         , signing_pub_key(signing_pub_key)

@@ -25,8 +25,7 @@ template <typename NCT> struct NullifierLeafPreimage {
 
     fr hash() const
     {
-        return is_empty() ? fr::zero()
-                          : stdlib::merkle_tree::hash_multiple_native({ leaf_value, next_index, next_value });
+        return is_empty() ? fr::zero() : stdlib::merkle_tree::hash_native({ leaf_value, next_index, next_value });
     }
 };
 

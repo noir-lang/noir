@@ -8,7 +8,7 @@
 // namespace aztec3::db {
 
 // using aztec3::GeneratorIndex;
-// using crypto::pedersen::compress_native;
+// using crypto::pedersen::hash;
 
 // char const* PRIVATE_STATE_DB_PATH = "./private_state_var.db";
 

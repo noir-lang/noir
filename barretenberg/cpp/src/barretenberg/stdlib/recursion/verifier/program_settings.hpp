@@ -28,7 +28,7 @@ template <typename Curve> class recursive_ultra_verifier_settings : public plonk
         PlookupAuxiliaryWidget;
 
     static constexpr size_t num_challenge_bytes = 16;
-    static constexpr transcript::HashType hash_type = transcript::HashType::PlookupPedersenBlake3s;
+    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
     // idpolys is a flag that describes whether we're using Vitalik's trick of using trivial identity permutation
     // polynomials (id_poly = false); OR whether the identity permutation polynomials are circuit-specific and stored in
     // the proving/verification key (id_poly = true).

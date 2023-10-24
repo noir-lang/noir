@@ -13,7 +13,6 @@ using aztec3::circuits::apps::FunctionExecutionContext;
 namespace aztec3::circuits::apps::state_vars {
 
 using aztec3::utils::types::CircuitTypes;
-using crypto::generators::generator_index_t;
 
 template <typename Builder>
 StateVar<Builder>::StateVar(FunctionExecutionContext<Builder>* exec_ctx, std::string const& state_var_name)

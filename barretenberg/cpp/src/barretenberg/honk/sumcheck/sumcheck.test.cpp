@@ -3,6 +3,7 @@
 #include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/honk/proof_system/grand_product_library.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
+#include "barretenberg/proof_system/plookup_tables/fixed_base/fixed_base.hpp"
 #include "barretenberg/proof_system/relations/auxiliary_relation.hpp"
 #include "barretenberg/proof_system/relations/elliptic_relation.hpp"
 #include "barretenberg/proof_system/relations/gen_perm_sort_relation.hpp"
@@ -299,18 +300,21 @@ TEST_F(SumcheckTests, RealCircuitUltra)
 
     // Add some lookup gates (related to pedersen hashing)
     auto pedersen_input_value = FF::random_element();
-    const FF input_hi = uint256_t(pedersen_input_value).slice(126, 256);
-    const FF input_lo = uint256_t(pedersen_input_value).slice(0, 126);
+    const FF input_hi =
+        uint256_t(pedersen_input_value)
+            .slice(plookup::fixed_base::table::BITS_PER_LO_SCALAR,
+                   plookup::fixed_base::table::BITS_PER_LO_SCALAR + plookup::fixed_base::table::BITS_PER_HI_SCALAR);
+    const FF input_lo = uint256_t(pedersen_input_value).slice(0, plookup::fixed_base::table::BITS_PER_LO_SCALAR);
     const auto input_hi_index = builder.add_variable(input_hi);
     const auto input_lo_index = builder.add_variable(input_lo);
 
-    const auto sequence_data_hi = plookup::get_lookup_accumulators(plookup::MultiTableId::PEDERSEN_LEFT_HI, input_hi);
-    const auto sequence_data_lo = plookup::get_lookup_accumulators(plookup::MultiTableId::PEDERSEN_LEFT_LO, input_lo);
+    const auto sequence_data_hi = plookup::get_lookup_accumulators(plookup::MultiTableId::FIXED_BASE_LEFT_HI, input_hi);
+    const auto sequence_data_lo = plookup::get_lookup_accumulators(plookup::MultiTableId::FIXED_BASE_LEFT_LO, input_lo);
 
     builder.create_gates_from_plookup_accumulators(
-        plookup::MultiTableId::PEDERSEN_LEFT_HI, sequence_data_hi, input_hi_index);
+        plookup::MultiTableId::FIXED_BASE_LEFT_HI, sequence_data_hi, input_hi_index);
     builder.create_gates_from_plookup_accumulators(
-        plookup::MultiTableId::PEDERSEN_LEFT_LO, sequence_data_lo, input_lo_index);
+        plookup::MultiTableId::FIXED_BASE_LEFT_LO, sequence_data_lo, input_lo_index);
 
     // Add a sort gate (simply checks that consecutive inputs have a difference of < 4)
     a_idx = builder.add_variable(FF(0));
@@ -320,8 +324,8 @@ TEST_F(SumcheckTests, RealCircuitUltra)
     builder.create_sort_constraint({ a_idx, b_idx, c_idx, d_idx });
 
     // Add an elliptic curve addition gate
-    grumpkin::g1::affine_element p1 = crypto::generators::get_generator_data({ 0, 0 }).generator;
-    grumpkin::g1::affine_element p2 = crypto::generators::get_generator_data({ 0, 1 }).generator;
+    grumpkin::g1::affine_element p1 = grumpkin::g1::affine_element::random_element();
+    grumpkin::g1::affine_element p2 = grumpkin::g1::affine_element::random_element();
 
     grumpkin::fq beta_scalar = grumpkin::fq::cube_root_of_unity();
     grumpkin::g1::affine_element p2_endo = p2;

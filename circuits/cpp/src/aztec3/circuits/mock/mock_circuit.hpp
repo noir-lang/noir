@@ -12,7 +12,7 @@ template <typename Builder> void mock_circuit(Builder& builder, std::vector<fr> 
     for (auto& p : public_inputs) {
         p.set_public();
     }
-    plonk::stdlib::pedersen<Builder>::compress(field_t(witness_t(&builder, 1)), field_t(witness_t(&builder, 1)));
+    plonk::stdlib::pedersen<Builder>::hash({ field_t(witness_t(&builder, 1)), field_t(witness_t(&builder, 1)) });
 }
 
 }  // namespace aztec3::circuits::mock

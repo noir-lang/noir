@@ -1,4 +1,5 @@
 #pragma once
+#include "aztec3/constants.hpp"
 
 #include <barretenberg/barretenberg.hpp>
 namespace aztec3::utils::types {
@@ -21,7 +22,6 @@ struct NativeTypes {
     // typedef fr grumpkin_fq;
     using grumpkin_point = grumpkin::g1::affine_element;
     // typedef grumpkin::g1::element grumpkin_jac_point;
-    using grumpkin_group = grumpkin::g1;
 
     using bn254_point = barretenberg::g1::affine_element;
     // typedef barretenberg::g1::element bn254_jac_point;
@@ -39,34 +39,17 @@ struct NativeTypes {
     using VK = plonk::verification_key;
     using Proof = plonk::proof;
 
-    /// TODO: lots of these compress / commit functions aren't actually used: remove them.
-
-    // Define the 'native' version of the function `compress`, with the name `compress`:
-    static fr compress(const std::vector<fr>& inputs, const size_t hash_index = 0)
+    static crypto::GeneratorContext<curve::Grumpkin> get_generator_context(const size_t hash_index)
     {
-        return crypto::pedersen_commitment::compress_native(inputs, hash_index);
+        crypto::GeneratorContext<curve::Grumpkin> result;
+        result.offset = hash_index;
+        return result;
     }
 
+    // Define the 'native' version of the function `hash`, with the name `hash`:
     static fr hash(const std::vector<fr>& inputs, const size_t hash_index = 0)
     {
-        return crypto::pedersen_commitment::lookup::compress_native(inputs, hash_index);
-    }
-
-    template <size_t SIZE> static fr compress(std::array<fr, SIZE> const& inputs, const size_t hash_index = 0)
-    {
-        std::vector<fr> const inputs_vec(std::begin(inputs), std::end(inputs));
-        return crypto::pedersen_commitment::compress_native(inputs_vec, hash_index);
-    }
-
-    template <size_t SIZE> static fr hash(std::array<fr, SIZE> const& inputs, const size_t hash_index = 0)
-    {
-        std::vector<fr> const inputs_vec(std::begin(inputs), std::end(inputs));
-        return crypto::pedersen_commitment::lookup::compress_native(inputs_vec, hash_index);
-    }
-
-    static fr compress(const std::vector<std::pair<fr, crypto::generators::generator_index_t>>& input_pairs)
-    {
-        return crypto::pedersen_commitment::compress_native(input_pairs);
+        return crypto::pedersen_hash::hash(inputs, get_generator_context(hash_index));
     }
 
     /**
@@ -83,17 +66,12 @@ struct NativeTypes {
     {
         // use 0-generator for internal merkle hashing
         // use lookup namespace since we now use ultraplonk
-        return crypto::pedersen_hash::lookup::hash_multiple({ left, right }, 0);
+        return crypto::pedersen_hash::hash({ left, right }, 0);
     }
 
     static grumpkin_point commit(const std::vector<fr>& inputs, const size_t hash_index = 0)
     {
-        return crypto::pedersen_commitment::commit_native(inputs, hash_index);
-    }
-
-    static grumpkin_point commit(const std::vector<std::pair<fr, crypto::generators::generator_index_t>>& input_pairs)
-    {
-        return crypto::pedersen_commitment::commit_native(input_pairs);
+        return crypto::pedersen_commitment::commit_native(inputs, get_generator_context(hash_index));
     }
 
     static byte_array blake2s(const byte_array& input)
@@ -101,6 +79,8 @@ struct NativeTypes {
         auto res = blake2::blake2s(input);
         return byte_array(res.begin(), res.end());
     }
+
+    static byte_array blake3s(const byte_array& input) { return blake3::blake3s(input); }
 };
 
 }  // namespace aztec3::utils::types

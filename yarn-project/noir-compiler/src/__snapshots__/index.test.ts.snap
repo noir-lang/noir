@@ -161,6 +161,7 @@ pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
         },
       },
     },
+    "events": [],
     "functions": [
       {
         "bytecode": "H4sIAAAAAAAA/61RQQ6DMAwLZfCepElocttXVq38/wXTQASpnMGSZediRfYMAAkODBvn0PP+hR83vuCKMfQdivdAw4NZqctiXERayY2YPpi9mqJoXYyM1PSbjbmZWPHqBZ2EG63qvEbY9Nxf2Hd7+tRtsHc6dR3/AZK4+6agAQAA",

@@ -47,7 +47,7 @@ template <typename Builder> class VerificationKeyFixture : public testing::Test 
 using CircuitTypes = testing::Types<proof_system::StandardCircuitBuilder, proof_system::UltraCircuitBuilder>;
 TYPED_TEST_SUITE(VerificationKeyFixture, CircuitTypes);
 
-TYPED_TEST(VerificationKeyFixture, vk_data_vs_recursion_compress_native)
+TYPED_TEST(VerificationKeyFixture, VkDataVsRecursionHashNative)
 {
     using RecursVk = typename TestFixture::RecursVk;
     TypeParam builder;
@@ -61,14 +61,14 @@ TYPED_TEST(VerificationKeyFixture, vk_data_vs_recursion_compress_native)
     auto native_vk = std::make_shared<verification_key>(std::move(vk_data_copy), file_verifier);
     auto recurs_vk = RecursVk::from_witness(&builder, native_vk);
 
-    EXPECT_EQ(vk_data.compress_native(0), RecursVk::compress_native(native_vk, 0));
-    // EXPECT_EQ(vk_data.compress_native(15), RecursVk::compress_native(native_vk, 15));
+    EXPECT_EQ(vk_data.hash_native(0), RecursVk::hash_native(native_vk, 0));
+    // EXPECT_EQ(vk_data.hash_native(15), RecursVk::hash_native(native_vk, 15));
     // // ne hash indeces still lead to ne compressions
-    // EXPECT_NE(vk_data.compress_native(0), RecursVk::compress_native(native_vk, 15));
-    // EXPECT_NE(vk_data.compress_native(14), RecursVk::compress_native(native_vk, 15));
+    // EXPECT_NE(vk_data.hash_native(0), RecursVk::hash_native(native_vk, 15));
+    // EXPECT_NE(vk_data.hash_native(14), RecursVk::hash_native(native_vk, 15));
 }
 
-TYPED_TEST(VerificationKeyFixture, compress_vs_compress_native)
+TYPED_TEST(VerificationKeyFixture, HashVsHashNative)
 {
     using RecursVk = typename TestFixture::RecursVk;
     TypeParam builder;
@@ -81,9 +81,5 @@ TYPED_TEST(VerificationKeyFixture, compress_vs_compress_native)
     auto native_vk = std::make_shared<verification_key>(std::move(vk_data), file_verifier);
     auto recurs_vk = RecursVk::from_witness(&builder, native_vk);
 
-    EXPECT_EQ(recurs_vk->compress(0).get_value(), RecursVk::compress_native(native_vk, 0));
-    // EXPECT_EQ(recurs_vk->compress(15).get_value(), RecursVk::compress_native(native_vk, 15));
-    // // ne hash indeces still lead to ne compressions
-    // EXPECT_NE(recurs_vk->compress(0).get_value(), RecursVk::compress_native(native_vk, 15));
-    // EXPECT_NE(recurs_vk->compress(14).get_value(), RecursVk::compress_native(native_vk, 15));
+    EXPECT_EQ(recurs_vk->hash().get_value(), RecursVk::hash_native(native_vk));
 }

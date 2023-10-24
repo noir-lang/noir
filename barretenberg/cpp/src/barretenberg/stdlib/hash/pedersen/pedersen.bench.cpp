@@ -1,4 +1,4 @@
-#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
+#include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
@@ -45,7 +45,7 @@ void generate_test_pedersen_circuit(Builder& builder, size_t num_repetitions)
     plonk::stdlib::field_t<Builder> out(plonk::stdlib::witness_t(&builder, barretenberg::fr::random_element()));
 
     for (size_t i = 0; i < num_repetitions; ++i) {
-        out = proof_system::plonk::stdlib::pedersen_commitment<Builder>::compress(left, out);
+        out = proof_system::plonk::stdlib::pedersen_hash<Builder>::hash({ left, out });
     }
 }
 
@@ -58,7 +58,7 @@ grumpkin::fq pedersen_function(const size_t count)
     grumpkin::fq left = grumpkin::fq::random_element();
     grumpkin::fq out = grumpkin::fq::random_element();
     for (size_t i = 0; i < count; ++i) {
-        out = crypto::pedersen_commitment::compress_native({ left, out });
+        out = crypto::pedersen_hash::hash({ left, out });
     }
     return out;
 }
@@ -83,12 +83,12 @@ BENCHMARK(native_pedersen_commitment_bench)
 
 void native_pedersen_eight_hash_bench(State& state) noexcept
 {
-    std::array<grumpkin::fq, 8> elements;
+    std::vector<grumpkin::fq> elements(8);
     for (size_t i = 0; i < 8; ++i) {
         elements[i] = grumpkin::fq::random_element();
     }
     for (auto _ : state) {
-        crypto::pedersen_commitment::compress_native(elements);
+        crypto::pedersen_hash::hash(elements);
     }
 }
 BENCHMARK(native_pedersen_eight_hash_bench)->MinTime(3);

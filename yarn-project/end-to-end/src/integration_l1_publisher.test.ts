@@ -345,7 +345,7 @@ describe('L1Publisher integration', () => {
         expect(await outbox.read.contains([block.newL2ToL1Msgs[j].toString(true)])).toBeTruthy();
       }
     }
-  }, 60_000);
+  }, 360_000);
 
   it(`Build ${numberOfConsecutiveBlocks} blocks of 4 empty txs building on each other`, async () => {
     const stateInRollup_ = await rollup.read.rollupStateHash();

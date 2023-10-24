@@ -8,6 +8,7 @@ namespace merkle_tree {
 MemoryTree::MemoryTree(size_t depth)
     : depth_(depth)
 {
+
     ASSERT(depth_ >= 1 && depth <= 20);
     total_size_ = 1UL << depth_;
     hashes_.resize(total_size_ * 2 - 2);

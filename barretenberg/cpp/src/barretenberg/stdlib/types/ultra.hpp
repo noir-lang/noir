@@ -47,9 +47,8 @@ using uint64_ct = stdlib::uint64<Builder>;
 using bit_array_ct = stdlib::bit_array<Builder>;
 using fq_ct = stdlib::bigfield<Builder, barretenberg::Bn254FqParams>;
 using biggroup_ct = stdlib::element<Builder, fq_ct, field_ct, barretenberg::g1>;
-using point_ct = stdlib::point<Builder>;
 using pedersen_commitment = stdlib::pedersen_commitment<Builder>;
-using group_ct = stdlib::group<Builder>;
+using cycle_group_ct = stdlib::cycle_group<Builder>;
 using bn254 = stdlib::bn254<Builder>;
 using secp256k1_ct = stdlib::secp256k1<Builder>;
 

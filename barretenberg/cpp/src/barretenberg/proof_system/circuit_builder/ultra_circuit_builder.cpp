@@ -468,7 +468,6 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_ecc_add_gate(const 
 /**
  * @brief Create an elliptic curve doubling gate
  *
- *
  * @param in Elliptic curve point doubling gate parameters
  */
 template <typename FF> void UltraCircuitBuilder_<FF>::create_ecc_dbl_gate(const ecc_dbl_gate_<FF>& in)
@@ -786,7 +785,6 @@ void UltraCircuitBuilder_<FF>::create_new_range_constraint(const uint32_t variab
                                                            const uint64_t target_range,
                                                            std::string const msg)
 {
-
     if (uint256_t(this->get_variable(variable_index)).data[0] > target_range) {
         if (!this->failed()) {
             this->failure(msg);

@@ -19,7 +19,6 @@ using aztec3::circuits::apps::FunctionExecutionContext;
 
 namespace aztec3::circuits::apps::state_vars {
 
-using crypto::generators::generator_index_t;
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;

@@ -81,7 +81,7 @@ void create_schnorr_verify_constraints(Builder& builder, const SchnorrConstraint
     fr pubkey_value_x = builder.get_variable(input.public_key_x);
     fr pubkey_value_y = builder.get_variable(input.public_key_y);
 
-    point_ct pub_key{ witness_ct(&builder, pubkey_value_x), witness_ct(&builder, pubkey_value_y) };
+    cycle_group_ct pub_key{ witness_ct(&builder, pubkey_value_x), witness_ct(&builder, pubkey_value_y), false };
 
     schnorr_signature_bits_ct sig = schnorr::convert_signature(&builder, new_sig);
 

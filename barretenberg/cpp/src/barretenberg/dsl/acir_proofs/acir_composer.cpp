@@ -132,7 +132,7 @@ std::vector<barretenberg::fr> AcirComposer::serialize_proof_into_fields(std::vec
 {
     transcript::StandardTranscript transcript(proof,
                                               acir_format::Composer::create_manifest(num_inner_public_inputs),
-                                              transcript::HashType::PlookupPedersenBlake3s,
+                                              transcript::HashType::PedersenBlake3s,
                                               16);
 
     return acir_format::export_transcript_in_recursion_format(transcript);

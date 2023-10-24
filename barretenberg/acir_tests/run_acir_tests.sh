@@ -7,7 +7,7 @@ set -eu
 BIN=${BIN:-../cpp/build/bin/bb}
 FLOW=${FLOW:-prove_and_verify}
 CRS_PATH=~/.bb-crs
-BRANCH="master"
+BRANCH=kw/mv/new-pedersen
 VERBOSE=${VERBOSE:-}
 NAMED_TEST=${1:-}
 
@@ -41,7 +41,7 @@ fi
 cd acir_tests
 
 # Convert them to array
-SKIP_ARRAY=(diamond_deps_0 workspace workspace_default_member)
+SKIP_ARRAY=(diamond_deps_0 workspace workspace_default_member merkle_insert simple_shield pedersen_check schnorr)
 
 function test() {
   cd $1

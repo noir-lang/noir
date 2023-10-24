@@ -57,7 +57,7 @@ template <typename NCT> struct TxRequest {
         inputs.push_back(args_hash);
         inputs.push_back(tx_context.hash());
 
-        return NCT::compress(inputs, GeneratorIndex::TX_REQUEST);
+        return NCT::hash(inputs, GeneratorIndex::TX_REQUEST);
     }
 };
 

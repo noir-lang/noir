@@ -1,5 +1,4 @@
 add_subdirectory(hmac)
-add_subdirectory(generators)
 add_subdirectory(blake2s)
 add_subdirectory(blake3s)
 add_subdirectory(blake3s_full)

@@ -23,7 +23,7 @@ struct partial_claim_note {
     field_ct partial_commitment;
 
     partial_claim_note(partial_claim_note_witness_data const& data,
-                       point_ct const& owner,
+                       group_ct const& owner,
                        bool_ct const& owner_account_required)
     {
         deposit_value = data.deposit_value;

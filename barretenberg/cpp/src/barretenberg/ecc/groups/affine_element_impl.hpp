@@ -1,7 +1,7 @@
 #pragma once
 #include "./element.hpp"
+#include "barretenberg/crypto/blake3s/blake3s.hpp"
 #include "barretenberg/crypto/keccak/keccak.hpp"
-#include "barretenberg/crypto/sha256/sha256.hpp"
 
 namespace barretenberg::group_elements {
 template <class Fq, class Fr, class T>
@@ -211,8 +211,6 @@ constexpr std::optional<affine_element<Fq, Fr, T>> affine_element<Fq, Fr, T>::de
     auto [found_root, y] = yy.sqrt();
 
     if (found_root) {
-        // This is for determinism; a different sqrt algorithm could give -y instead of y and so this parity check
-        // allows all algorithms to get the "same" y
         if (uint256_t(y).get_bit(0) != sign_bit) {
             y = -y;
         }
@@ -221,35 +219,41 @@ constexpr std::optional<affine_element<Fq, Fr, T>> affine_element<Fq, Fr, T>::de
     return std::nullopt;
 }
 
+/**
+ * @brief Hash a seed buffer into a point
+ *
+ * @details ALGORITHM DESCRIPTION:
+ *          1. Initialize unsigned integer `attempt_count = 0`
+ *          2. Copy seed into a buffer whose size is 2 bytes greater than `seed` (initialized to 0)
+ *          3. Interpret `attempt_count` as a byte and write into buffer at [buffer.size() - 2]
+ *          4. Compute Blake3s hash of buffer
+ *          5. Set the end byte of the buffer to `1`
+ *          6. Compute Blake3s hash of buffer
+ *          7. Interpret the two hash outputs as the high / low 256 bits of a 512-bit integer (big-endian)
+ *          8. Derive x-coordinate of point by reducing the 512-bit integer modulo the curve's field modulus (Fq)
+ *          9. Compute y^2 from the curve formula y^2 = x^3 + ax + b (a, b are curve params. for BN254, a = 0, b = 3)
+ *          10. IF y^2 IS NOT A QUADRATIC RESIDUE
+ *              10a. increment `attempt_count` by 1 and go to step 2
+ *          11. IF y^2 IS A QUADRATIC RESIDUE
+ *              11a. derive y coordinate via y = sqrt(y)
+ *              11b. Interpret most significant bit of 512-bit integer as a 'parity' bit
+ *              11c. If parity bit is set AND y's most significant bit is not set, invert y
+ *              11d. If parity bit is not set AND y's most significant bit is set, invert y
+ *              N.B. last 2 steps are because the sqrt() algorithm can return 2 values,
+ *                   we need to a way to canonically distinguish between these 2 values and select a "preferred" one
+ *              11e. return (x, y)
+ *
+ * @note This algorihm is constexpr: we can hash-to-curve (and derive generators) at compile-time!
+ * @tparam Fq
+ * @tparam Fr
+ * @tparam T
+ * @param seed Bytes that uniquely define the point being generated
+ * @param attempt_count
+ * @return constexpr affine_element<Fq, Fr, T>
+ */
 template <class Fq, class Fr, class T>
-template <typename>
-affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::hash_to_curve(uint64_t seed) noexcept
-{
-    static_assert(static_cast<bool>(T::can_hash_to_curve));
-
-    Fq input(seed, 0, 0, 0);
-    keccak256 c = hash_field_element(&input.data[0]);
-    uint256_t hash{ c.word64s[0], c.word64s[1], c.word64s[2], c.word64s[3] };
-
-    uint256_t x_coordinate = hash;
-
-    if constexpr (Fq::modulus.data[3] < 0x8000000000000000ULL) {
-        x_coordinate.data[3] = x_coordinate.data[3] & (~0x8000000000000000ULL);
-    }
-
-    bool y_bit = hash.get_bit(255);
-
-    std::optional<affine_element> result = derive_from_x_coordinate(x_coordinate, y_bit);
-
-    if (result.has_value()) {
-        return result.value();
-    }
-    return affine_element(0, 0);
-}
-
-template <class Fq, class Fr, class T>
-affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::hash_to_curve(const std::vector<uint8_t>& seed,
-                                                                   uint8_t attempt_count) noexcept
+constexpr affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::hash_to_curve(const std::vector<uint8_t>& seed,
+                                                                             uint8_t attempt_count) noexcept
     requires SupportsHashToCurve<T>
 
 {
@@ -260,12 +264,11 @@ affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::hash_to_curve(const std::ve
         target_seed.push_back(0);
     }
     target_seed[seed_size] = attempt_count;
-    target_seed.back() = 0;
-    const auto hash_hi = sha256::sha256(target_seed);
-    target_seed.back() = 1;
-    const auto hash_lo = sha256::sha256(target_seed);
-    // custom serialize methods as common/serialize.hpp is not constexpr
-    // (next PR will make this method constexpr)
+    target_seed[seed_size + 1] = 0;
+    const auto hash_hi = blake3::blake3s_constexpr(&target_seed[0], target_seed.size());
+    target_seed[seed_size + 1] = 1;
+    const auto hash_lo = blake3::blake3s_constexpr(&target_seed[0], target_seed.size());
+    // custom serialize methods as common/serialize.hpp is not constexpr!
     const auto read_uint256 = [](const uint8_t* in) {
         const auto read_limb = [](const uint8_t* in, uint64_t& out) {
             for (size_t i = 0; i < 8; ++i) {

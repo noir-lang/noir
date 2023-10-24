@@ -4,14 +4,12 @@
 #include <algorithm>
 #include <vector>
 
-namespace proof_system::plonk {
-namespace stdlib {
-namespace merkle_tree {
+namespace proof_system::plonk::stdlib::merkle_tree {
 
 using namespace barretenberg;
 
-typedef std::vector<std::pair<fr, fr>> fr_hash_path;
-typedef std::vector<fr> fr_sibling_path;
+using fr_hash_path = std::vector<std::pair<fr, fr>>;
+using fr_sibling_path = std::vector<fr>;
 template <typename Ctx> using hash_path = std::vector<std::pair<field_t<Ctx>, field_t<Ctx>>>;
 
 inline fr_hash_path get_new_hash_path(fr_hash_path const& old_path, uint128_t index, fr const& value)
@@ -63,9 +61,7 @@ inline fr zero_hash_at_height(size_t height)
     return current;
 }
 
-} // namespace merkle_tree
-} // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace proof_system::plonk::stdlib::merkle_tree
 
 // We add to std namespace as fr_hash_path is actually a std::vector, and this is the only way
 // to achieve effective ADL.

@@ -599,7 +599,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         inputs.push_back(*chain_id);
         inputs.push_back(*version);
 
-        return NCT::compress(inputs, GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS);
+        return NCT::hash(inputs, GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS);
     }
 
     // We can remove optionality when using the inputs in a kernel or rollup circuit, for ease of use.

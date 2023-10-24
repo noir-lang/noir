@@ -104,7 +104,7 @@ void update_end_values(PrivateKernelInputsInner<CT> const& private_inputs, Kerne
         // input storage contract address must be 0 if its a constructor call and non-zero otherwise
         auto is_contract_deployment = public_inputs.constants.tx_context.is_contract_deployment_tx;
 
-        auto private_call_vk_hash = private_inputs.private_call.vk->compress(GeneratorIndex::VK);
+        auto private_call_vk_hash = private_inputs.private_call.vk->hash();
         auto constructor_hash = compute_constructor_hash<CT>(private_inputs.private_call.call_stack_item.function_data,
                                                              private_call_public_inputs.args_hash,
                                                              private_call_vk_hash);
@@ -180,7 +180,7 @@ void update_end_values(PrivateKernelInputsInner<CT> const& private_inputs, Kerne
     //         l1_call_stack[i] = CT::fr::conditional_assign(
     //             new_l2_to_l1_msgs[i] == 0,
     //             0,
-    //             CT::compress({ portal_contract_address, new_l2_to_l1_msgs[i] }, GeneratorIndex::L2_TO_L1_MSG));
+    //             CT::hash({ portal_contract_address, new_l2_to_l1_msgs[i] }, GeneratorIndex::L2_TO_L1_MSG));
     //     }
     // }
 }

@@ -2,7 +2,7 @@
 #include "./fixed_base.hpp"
 
 #include "barretenberg/common/constexpr_utils.hpp"
-#include "barretenberg/crypto/pedersen_hash/pedersen_refactor.hpp"
+#include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/numeric/bitop/pow.hpp"
 #include "barretenberg/numeric/bitop/rotate.hpp"
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
@@ -57,7 +57,7 @@ template <size_t num_bits> table::fixed_base_scalar_mul_tables table::generate_t
 
     std::vector<uint8_t> input_buf;
     serialize::write(input_buf, input);
-    const auto offset_generators = grumpkin::g1::derive_generators_secure(input_buf, MAX_TABLE_SIZE);
+    const auto offset_generators = grumpkin::g1::derive_generators(input_buf, NUM_TABLES);
 
     grumpkin::g1::element accumulator = input;
     for (size_t i = 0; i < NUM_TABLES; ++i) {
@@ -88,7 +88,7 @@ grumpkin::g1::affine_element table::generate_generator_offset(const grumpkin::g1
 
     std::vector<uint8_t> input_buf;
     serialize::write(input_buf, input);
-    const auto offset_generators = grumpkin::g1::derive_generators_secure(input_buf, NUM_TABLES);
+    const auto offset_generators = grumpkin::g1::derive_generators(input_buf, NUM_TABLES);
     grumpkin::g1::element acc = grumpkin::g1::point_at_infinity;
     for (const auto& gen : offset_generators) {
         acc += gen;
@@ -103,9 +103,9 @@ grumpkin::g1::affine_element table::generate_generator_offset(const grumpkin::g1
  * @return true
  * @return false
  */
-bool table::lookup_table_exists_for_point(const grumpkin::g1::affine_element& input)
+bool table::lookup_table_exists_for_point(const affine_element& input)
 {
-    return (input == native_pedersen::get_lhs_generator() || input == native_pedersen::get_rhs_generator());
+    return (input == LHS_GENERATOR_POINT || input == RHS_GENERATOR_POINT);
 }
 
 /**
@@ -118,13 +118,13 @@ bool table::lookup_table_exists_for_point(const grumpkin::g1::affine_element& in
 std::optional<std::array<MultiTableId, 2>> table::get_lookup_table_ids_for_point(
     const grumpkin::g1::affine_element& input)
 {
-    if (input == native_pedersen::get_lhs_generator()) {
+    if (input == LHS_GENERATOR_POINT) {
         return { { FIXED_BASE_LEFT_LO, FIXED_BASE_LEFT_HI } };
     }
-    if (input == native_pedersen::get_rhs_generator()) {
+    if (input == RHS_GENERATOR_POINT) {
         return { { FIXED_BASE_RIGHT_LO, FIXED_BASE_RIGHT_HI } };
     }
-    return std::nullopt;
+    return {};
 }
 
 /**

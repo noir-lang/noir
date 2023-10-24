@@ -41,7 +41,11 @@ field_t<Builder> compute_subtree_root(hash_path<Builder> const& hashes,
         // current iff path_bit If either of these does not hold, then the final computed merkle root will not match
         field_t<Builder> left = field_t<Builder>::conditional_assign(path_bit, hashes[i].first, current);
         field_t<Builder> right = field_t<Builder>::conditional_assign(path_bit, current, hashes[i].second);
-        current = pedersen_hash<Builder>::hash_multiple({ left, right }, 0, is_updating_tree);
+        if (is_updating_tree) {
+            current = pedersen_hash<Builder>::hash({ left, right }, 0);
+        } else {
+            current = pedersen_hash<Builder>::hash_skip_field_validation({ left, right }, 0);
+        }
     }
 
     return current;
@@ -251,7 +255,7 @@ template <typename Builder> field_t<Builder> compute_tree_root(std::vector<field
     while (layer.size() > 1) {
         std::vector<field_t<Builder>> next_layer(layer.size() / 2);
         for (size_t i = 0; i < next_layer.size(); ++i) {
-            next_layer[i] = pedersen_hash<Builder>::hash_multiple({ layer[i * 2], layer[i * 2 + 1] });
+            next_layer[i] = pedersen_hash<Builder>::hash({ layer[i * 2], layer[i * 2 + 1] });
         }
         layer = std::move(next_layer);
     }

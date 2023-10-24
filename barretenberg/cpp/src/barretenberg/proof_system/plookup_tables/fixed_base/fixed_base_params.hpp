@@ -38,7 +38,7 @@ struct FixedBaseParams {
     static constexpr size_t NUM_TABLES_PER_LO_MULTITABLE =
         (BITS_PER_LO_SCALAR / BITS_PER_TABLE) + ((BITS_PER_LO_SCALAR % BITS_PER_TABLE == 0) ? 0 : 1);
     static constexpr size_t NUM_TABLES_PER_HI_MULTITABLE =
-        (BITS_PER_LO_SCALAR / BITS_PER_TABLE) + ((BITS_PER_LO_SCALAR % BITS_PER_TABLE == 0) ? 0 : 1);
+        (BITS_PER_HI_SCALAR / BITS_PER_TABLE) + ((BITS_PER_HI_SCALAR % BITS_PER_TABLE == 0) ? 0 : 1);
     // how many lookups are required to perform a scalar mul of a field element with a base point?
     static constexpr size_t NUM_BASIC_TABLES_PER_BASE_POINT =
         (NUM_TABLES_PER_LO_MULTITABLE + NUM_TABLES_PER_HI_MULTITABLE);

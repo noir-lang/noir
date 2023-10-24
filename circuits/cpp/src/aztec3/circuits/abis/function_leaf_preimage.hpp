@@ -90,7 +90,7 @@ template <typename NCT> struct FunctionLeafPreimage {
         std::vector<fr> const inputs = {
             selector.value, fr(is_internal), fr(is_private), vk_hash, acir_hash,
         };
-        return NCT::compress(inputs, GeneratorIndex::FUNCTION_LEAF);
+        return NCT::hash(inputs, GeneratorIndex::FUNCTION_LEAF);
     }
 };
 

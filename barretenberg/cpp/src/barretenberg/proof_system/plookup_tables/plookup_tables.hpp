@@ -11,7 +11,6 @@
 #include "keccak/keccak_rho.hpp"
 #include "keccak/keccak_theta.hpp"
 #include "non_native_group_generator.hpp"
-#include "pedersen.hpp"
 #include "sha256.hpp"
 #include "sparse.hpp"
 #include "types.hpp"
@@ -42,7 +41,7 @@ inline BasicTable create_basic_table(const BasicTableId id, const size_t index)
         return fixed_base::table::generate_basic_fixed_base_table<2>(
             id, index, id_var - static_cast<size_t>(FIXED_BASE_2_0));
     }
-    if (id_var >= static_cast<size_t>(FIXED_BASE_3_0) && id_var < static_cast<size_t>(PEDERSEN_29_SMALL)) {
+    if (id_var >= static_cast<size_t>(FIXED_BASE_3_0) && id_var < static_cast<size_t>(HONK_DUMMY_BASIC1)) {
         return fixed_base::table::generate_basic_fixed_base_table<3>(
             id, index, id_var - static_cast<size_t>(FIXED_BASE_3_0));
     }
@@ -168,99 +167,6 @@ inline BasicTable create_basic_table(const BasicTableId id, const size_t index)
     }
     case BLAKE_XOR_ROTATE4: {
         return blake2s_tables::generate_xor_rotate_table<6, 4>(BLAKE_XOR_ROTATE4, index);
-    }
-    case PEDERSEN_0: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<0>(PEDERSEN_0, index);
-    }
-    case PEDERSEN_1: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<1>(PEDERSEN_1, index);
-    }
-    case PEDERSEN_2: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<2>(PEDERSEN_2, index);
-    }
-    case PEDERSEN_3: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<3>(PEDERSEN_3, index);
-    }
-    case PEDERSEN_4: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<4>(PEDERSEN_4, index);
-    }
-    case PEDERSEN_5: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<5>(PEDERSEN_5, index);
-    }
-    case PEDERSEN_6: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<6>(PEDERSEN_6, index);
-    }
-    case PEDERSEN_7: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<7>(PEDERSEN_7, index);
-    }
-    case PEDERSEN_8: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<8>(PEDERSEN_8, index);
-    }
-    case PEDERSEN_9: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<9>(PEDERSEN_9, index);
-    }
-    case PEDERSEN_10: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<10>(PEDERSEN_10, index);
-    }
-    case PEDERSEN_11: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<11>(PEDERSEN_11, index);
-    }
-    case PEDERSEN_12: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<12>(PEDERSEN_12, index);
-    }
-    case PEDERSEN_13: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<13>(PEDERSEN_13, index);
-    }
-    case PEDERSEN_14_SMALL: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<14, true>(PEDERSEN_14_SMALL, index);
-    }
-    case PEDERSEN_15: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<15>(PEDERSEN_15, index);
-    }
-    case PEDERSEN_16: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<16>(PEDERSEN_16, index);
-    }
-    case PEDERSEN_17: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<17>(PEDERSEN_17, index);
-    }
-    case PEDERSEN_18: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<18>(PEDERSEN_18, index);
-    }
-    case PEDERSEN_19: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<19>(PEDERSEN_19, index);
-    }
-    case PEDERSEN_20: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<20>(PEDERSEN_20, index);
-    }
-    case PEDERSEN_21: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<21>(PEDERSEN_21, index);
-    }
-    case PEDERSEN_22: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<22>(PEDERSEN_22, index);
-    }
-    case PEDERSEN_23: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<23>(PEDERSEN_23, index);
-    }
-    case PEDERSEN_24: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<24>(PEDERSEN_24, index);
-    }
-    case PEDERSEN_25: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<25>(PEDERSEN_25, index);
-    }
-    case PEDERSEN_26: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<26>(PEDERSEN_26, index);
-    }
-    case PEDERSEN_27: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<27>(PEDERSEN_27, index);
-    }
-    case PEDERSEN_28: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<28>(PEDERSEN_28, index);
-    }
-    case PEDERSEN_29_SMALL: {
-        return pedersen_tables::basic::generate_basic_pedersen_table<29, true>(PEDERSEN_29_SMALL, index);
-    }
-    case PEDERSEN_IV_BASE: {
-        return pedersen_tables::basic::generate_pedersen_iv_table(PEDERSEN_IV_BASE);
     }
     case HONK_DUMMY_BASIC1: {
         return dummy_tables::generate_honk_dummy_table<HONK_DUMMY_BASIC1>(HONK_DUMMY_BASIC1, index);

@@ -101,7 +101,7 @@ template <typename NCT> struct TxContext {
             version,
         };
 
-        return NCT::compress(inputs, GeneratorIndex::TX_CONTEXT);
+        return NCT::hash(inputs, GeneratorIndex::TX_CONTEXT);
     }
 };
 

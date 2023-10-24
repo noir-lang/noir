@@ -83,7 +83,7 @@ template <typename NCT> struct NewContractData {
             fr(function_tree_root),
         };
 
-        return NCT::compress(inputs, GeneratorIndex::CONTRACT_LEAF);
+        return NCT::hash(inputs, GeneratorIndex::CONTRACT_LEAF);
     }
 
     void conditional_select(const boolean& condition, const NewContractData<NCT>& other)

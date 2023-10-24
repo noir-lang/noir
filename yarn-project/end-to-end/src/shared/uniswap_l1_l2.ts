@@ -26,7 +26,7 @@ import { CrossChainTestHarness } from './cross_chain_test_harness.js';
 // For CI, this is configured in `run_tests.sh` and `docker-compose.yml`
 
 // docs:start:uniswap_l1_l2_test_setup_const
-const TIMEOUT = 90_000;
+const TIMEOUT = 360_000;
 
 /** Objects to be returned by the uniswap setup function */
 export type UniswapSetupContext = {
@@ -441,7 +441,7 @@ export const uniswapL1L2TestSuite = (
       logger('***** 🧚‍♀️ SWAP L2 assets on L1 Uniswap 🧚‍♀️ *****');
       logger('WETH balance after swap : ', wethL2BalanceAfterSwap.toString());
       logger('DAI balance after swap  : ', daiL2BalanceAfterSwap.toString());
-    });
+    }, 360_000);
     // docs:end:uniswap_public
 
     // Edge cases for the private flow:

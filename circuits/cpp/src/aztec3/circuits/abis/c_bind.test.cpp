@@ -133,7 +133,7 @@ TEST(abi_tests, hash_vk)
     NT::fr const got_hash = NT::fr::serialize_from_buffer(output.data());
 
     // Calculate the expected hash in-test
-    NT::fr const expected_hash = vk_data.compress_native(aztec3::GeneratorIndex::VK);
+    NT::fr const expected_hash = vk_data.hash_native();
 
     // Confirm cbind output == expected hash
     EXPECT_EQ(got_hash, expected_hash);
@@ -227,7 +227,7 @@ TEST(abi_tests, compute_function_tree)
     for (size_t l = num_nonzero_leaves; l < FUNCTION_TREE_NUM_LEAVES; l++) {
         leaves_frs.push_back(zero_leaf);
     }
-    // compare results
+
     EXPECT_EQ(got_tree, plonk::stdlib::merkle_tree::compute_tree_native(leaves_frs));
 }
 
@@ -265,7 +265,7 @@ TEST(abi_tests, hash_constructor)
 
     // Calculate the expected hash in-test
     NT::fr const expected_hash =
-        NT::compress({ func_data.hash(), args_hash, constructor_vk_hash }, aztec3::GeneratorIndex::CONSTRUCTOR);
+        NT::hash({ func_data.hash(), args_hash, constructor_vk_hash }, aztec3::GeneratorIndex::CONSTRUCTOR);
 
     // Confirm cbind output == expected hash
     EXPECT_EQ(got_hash, expected_hash);

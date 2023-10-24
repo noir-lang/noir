@@ -28,7 +28,7 @@ export class BarretenbergApi {
   }
 
   async pedersenPlookupCompressFields(left: Fr, right: Fr): Promise<Fr> {
-    const result = await this.binder.callWasmExport('pedersen___plookup_compress_fields', [left, right], [Fr]);
+    const result = await this.binder.callWasmExport('pedersen___compress_fields', [left, right], [Fr]);
     return result[0];
   }
 
@@ -38,7 +38,7 @@ export class BarretenbergApi {
   }
 
   async pedersenPlookupCompress(inputsBuffer: Fr[]): Promise<Fr> {
-    const result = await this.binder.callWasmExport('pedersen___plookup_compress', [inputsBuffer], [Fr]);
+    const result = await this.binder.callWasmExport('pedersen___compress', [inputsBuffer], [Fr]);
     return result[0];
   }
 
@@ -57,7 +57,7 @@ export class BarretenbergApi {
   }
 
   async pedersenPlookupCommit(inputsBuffer: Fr[]): Promise<Fr> {
-    const result = await this.binder.callWasmExport('pedersen___plookup_commit', [inputsBuffer], [Fr]);
+    const result = await this.binder.callWasmExport('pedersen___commit', [inputsBuffer], [Fr]);
     return result[0];
   }
 

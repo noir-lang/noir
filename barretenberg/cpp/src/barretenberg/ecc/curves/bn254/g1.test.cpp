@@ -376,7 +376,7 @@ TEST(g1, GroupExponentiationConsistencyCheck)
 TEST(g1, DeriveGenerators)
 {
     constexpr size_t num_generators = 128;
-    auto result = g1::derive_generators<num_generators>();
+    auto result = g1::derive_generators("test domain", 128);
 
     const auto is_unique = [&result](const g1::affine_element& y, const size_t j) {
         for (size_t i = 0; i < result.size(); ++i) {

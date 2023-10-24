@@ -2,41 +2,46 @@
 #include "barretenberg/common/serialize.hpp"
 #include "c_bind.hpp"
 #include "pedersen.hpp"
-#include "pedersen_lookup.hpp"
 
 extern "C" {
 
-WASM_EXPORT void pedersen_hash_init()
+WASM_EXPORT void pedersen_hash(uint8_t const* inputs_buffer, uint8_t* output)
 {
-    // TODO: do we need this if we are using lookup-pedersen in merkle trees?
-    crypto::generators::init_generator_data();
-    crypto::pedersen_hash::lookup::init();
+    std::vector<grumpkin::fq> to_compress;
+    read(inputs_buffer, to_compress);
+    auto r = crypto::pedersen_hash::hash(to_compress);
+    barretenberg::fr::serialize_to_buffer(r, output);
 }
+WASM_EXPORT void pedersen_hash_with_hash_index(uint8_t const* inputs_buffer,
+                                               uint32_t const* hash_index,
+                                               uint8_t* output)
+{
+    std::vector<grumpkin::fq> to_compress;
+    read(inputs_buffer, to_compress);
+    auto r = crypto::pedersen_hash::hash(to_compress, ntohl(*hash_index));
+    barretenberg::fr::serialize_to_buffer(r, output);
+}
+
+WASM_EXPORT void pedersen_hash_init() {}
 
 WASM_EXPORT void pedersen_hash_pair(uint8_t const* left, uint8_t const* right, uint8_t* result)
 {
     auto lhs = barretenberg::fr::serialize_from_buffer(left);
     auto rhs = barretenberg::fr::serialize_from_buffer(right);
-    auto r = crypto::pedersen_hash::lookup::hash_multiple({ lhs, rhs });
+    auto r = crypto::pedersen_hash::hash({ lhs, rhs });
     barretenberg::fr::serialize_to_buffer(r, result);
 }
 
 WASM_EXPORT void pedersen_hash_multiple(uint8_t const* inputs_buffer, uint8_t* output)
 {
-    std::vector<grumpkin::fq> to_compress;
-    read(inputs_buffer, to_compress);
-    auto r = crypto::pedersen_hash::lookup::hash_multiple(to_compress);
-    barretenberg::fr::serialize_to_buffer(r, output);
+    pedersen_hash(inputs_buffer, output);
 }
 
 WASM_EXPORT void pedersen_hash_multiple_with_hash_index(uint8_t const* inputs_buffer,
                                                         uint32_t const* hash_index,
                                                         uint8_t* output)
 {
-    std::vector<grumpkin::fq> to_compress;
-    read(inputs_buffer, to_compress);
-    auto r = crypto::pedersen_hash::lookup::hash_multiple(to_compress, ntohl(*hash_index));
-    barretenberg::fr::serialize_to_buffer(r, output);
+    pedersen_hash_with_hash_index(inputs_buffer, hash_index, output);
 }
 
 /**
@@ -54,7 +59,7 @@ WASM_EXPORT void pedersen_hash_to_tree(fr::vec_in_buf data, fr::vec_out_buf out)
     fields.reserve(num_outputs);
 
     for (size_t i = 0; fields.size() < num_outputs; i += 2) {
-        fields.push_back(crypto::pedersen_hash::lookup::hash_multiple({ fields[i], fields[i + 1] }));
+        fields.push_back(crypto::pedersen_hash::hash({ fields[i], fields[i + 1] }));
     }
 
     *out = to_heap_buffer(fields);

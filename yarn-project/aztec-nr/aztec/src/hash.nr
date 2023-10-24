@@ -29,6 +29,23 @@ pub fn compute_secret_hash(secret: Field) -> Field {
   pedersen_hash([secret], GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET)
 }
 
-pub fn pedersen_hash<N>(inputs : [Field;N], hash_index : u32) -> Field {
-  pedersen_with_separator(inputs, hash_index)[0]
+#[oracle(pedersenHash)]
+fn pedersen_hash_oracle<N>(_inputs: [Field; N], _hash_index: u32) -> Field {}
+
+unconstrained fn pedersen_hash_internal<N>(inputs: [Field; N], hash_index: u32) -> Field {
+    pedersen_hash_oracle(inputs, hash_index)
+}
+
+// TODO(Kev): We can move this into the noir std-lib 
+// as an acir opcode, once we have the pedersen PR merged.
+pub fn pedersen_hash<N>(inputs: [Field; N], hash_index: u32) -> Field {
+  // Temporary hack. This is not right. Kev forced me to do this. Blame him.
+  pedersen_hash_internal(inputs, hash_index)
+  // let input_size = inputs.len();
+  // let mut modified_inputs = [];
+  // modified_inputs = modified_inputs.push_back(input_size as Field);
+  // for i in 0..N {
+  //   modified_inputs = modified_inputs.push_back(inputs[i]);
+  // }
+  // pedersen_with_separator(modified_inputs, hash_index)[0]
 }

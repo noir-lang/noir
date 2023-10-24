@@ -4,11 +4,11 @@ use dep::aztec::{
         note_interface::NoteInterface,
         utils::compute_note_hash_for_read_or_nullify,
     },
+    hash::pedersen_hash,
     context::PrivateContext,
     constants_gen::MAX_READ_REQUESTS_PER_CALL,
     state_vars::set::Set,
     log::emit_encrypted_log,
-    hash::pedersen_hash,
 };
 use dep::aztec::types::address::AztecAddress;
 use dep::aztec::oracle::{

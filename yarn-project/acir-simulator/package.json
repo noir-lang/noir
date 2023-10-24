@@ -33,7 +33,7 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/types": "workspace:^",
-    "@noir-lang/acvm_js": "0.26.1",
+    "@kevaundray/acvm_js": "0.28.0-kw-branched-off-of-last-aztec-tag-5b563c08c",
     "levelup": "^5.1.1",
     "memdown": "^6.1.1",
     "tslib": "^2.4.0"

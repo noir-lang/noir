@@ -2,8 +2,8 @@
 #include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/honk/flavor/ultra_recursive.hpp"
 #include "barretenberg/honk/proof_system/ultra_verifier.hpp"
-#include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
 #include "barretenberg/stdlib/hash/blake3s/blake3s.hpp"
+#include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/recursion/honk/verifier/ultra_recursive_verifier.hpp"
 
@@ -72,7 +72,7 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
             a = (a * b) + b + a;
             a = a.madd(b, c);
         }
-        pedersen_commitment<InnerBuilder>::compress(a, b);
+        pedersen_hash<InnerBuilder>::hash({ a, b });
         byte_array_ct to_hash(&builder, "nonsense test data");
         blake3s(to_hash);
 

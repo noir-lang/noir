@@ -15,12 +15,12 @@ using Builder = proof_system::UltraCircuitBuilder;
 using field_ct = field_t<Builder>;
 using witness_ct = witness_t<Builder>;
 
-TEST(stdlib_merkle_tree_hash, compress_native_vs_circuit)
+TEST(stdlib_merkle_tree_hash, hash_native_vs_circuit)
 {
     fr x = uint256_t(0x5ec473eb273a8011, 0x50160109385471ca, 0x2f3095267e02607d, 0x02586f4a39e69b86);
     Builder builder = Builder();
     witness_ct y = witness_ct(&builder, x);
-    field_ct z = pedersen_hash<Builder>::hash_multiple({ y, y });
+    field_ct z = pedersen_hash<Builder>::hash({ y, y });
     auto zz = merkle_tree::hash_pair_native(x, x);
 
     EXPECT_EQ(z.get_value(), zz);

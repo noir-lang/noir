@@ -63,7 +63,7 @@ template <typename NCT> struct PublicDataUpdateRequest {
             new_value,
         };
 
-        return NCT::compress(inputs, GeneratorIndex::PUBLIC_DATA_UPDATE_REQUEST);
+        return NCT::hash(inputs, GeneratorIndex::PUBLIC_DATA_UPDATE_REQUEST);
     }
 
     void set_public()

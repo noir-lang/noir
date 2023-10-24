@@ -30,10 +30,6 @@ struct GrumpkinG1Params {
 };
 using g1 = barretenberg::group<barretenberg::fr, barretenberg::fq, GrumpkinG1Params>;
 
-// TODO(@zac-wiliamson #2341 remove this method once we migrate to new hash standard (derive_generators_secure is
-// curve-agnostic)
-g1::affine_element get_generator(size_t generator_index);
-
 }; // namespace grumpkin
 
 namespace curve {

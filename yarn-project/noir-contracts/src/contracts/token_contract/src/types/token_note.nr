@@ -16,7 +16,6 @@ use dep::aztec::oracle::{
     get_secret_key::get_secret_key,
     get_public_key::get_public_key,
 };
-
 use dep::safe_math::SafeU120;
 use dep::std::option::Option;
 

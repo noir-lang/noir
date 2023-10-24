@@ -1,7 +1,7 @@
 // Convenience struct to hold an account's address and secret that can easily be passed around.
 import { CheatCodes } from '@aztec/aztec.js';
 import { AztecAddress, CircuitsWasm, Fr } from '@aztec/circuits.js';
-import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
+import { pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
 import { LendingContract } from '@aztec/noir-contracts/types';
 
 import { TokenSimulator } from './token_simulator.js';
@@ -26,7 +26,7 @@ export class LendingAccount {
    */
   public async key(): Promise<Fr> {
     return Fr.fromBuffer(
-      pedersenPlookupCommitInputs(
+      pedersenCompressInputs(
         await CircuitsWasm.get(),
         [this.address, this.secret].map(f => f.toBuffer()),
       ),

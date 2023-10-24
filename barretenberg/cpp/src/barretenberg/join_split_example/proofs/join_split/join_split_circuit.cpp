@@ -158,7 +158,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         (inputs.allow_chain == 0 || allow_chain_1 || allow_chain_2).assert_equal(true, "allow_chain out of range");
 
         // When allowing chaining, ensure propagation is to one's self (and not to some other user).
-        point_ct self = input_note_1.owner;
+        group_ct self = input_note_1.owner;
         allow_chain_1.must_imply(output_note_1.owner == self, "inter-user chaining disallowed");
         allow_chain_2.must_imply(output_note_2.owner == self, "inter-user chaining disallowed");
 
@@ -199,7 +199,8 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     // And thus check both input notes have the correct public key (derived from the private key) and
     // account_required.
     inputs.account_private_key.assert_is_not_zero("account private key is zero");
-    auto account_public_key = group_ct::fixed_base_scalar_mul_g1<254>(inputs.account_private_key);
+    auto account_public_key = group_ct(grumpkin::g1::affine_one) *
+                              group_ct::cycle_scalar::create_from_bn254_scalar(inputs.account_private_key);
     account_public_key.assert_equal(input_note_1.owner, "account_private_key incorrect");
     inputs.account_required.assert_equal(input_note_1.account_required, "account_required incorrect");
 
@@ -210,8 +211,8 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
                                                   "output note 2 creator_pubkey mismatch");
 
     // Signer is the account public key if account_required is false, else it's the given signing key.
-    const point_ct signer =
-        point_ct::conditional_assign(inputs.account_required, inputs.signing_pub_key, account_public_key);
+    const group_ct signer =
+        group_ct::conditional_assign(inputs.account_required, inputs.signing_pub_key, account_public_key);
 
     // Verify that the signing key account note exists if account_required == true.
     {
@@ -286,7 +287,7 @@ void join_split_circuit(Builder& builder, join_split_tx const& tx)
         // Construction of partial_claim_note_witness_data includes construction of bridge_call_data, which contains
         // many constraints on the bridge_call_data's format and the bit_config's format:
         .partial_claim_note = claim::partial_claim_note_witness_data(builder, tx.partial_claim_note),
-        .signing_pub_key = stdlib::create_point_witness(builder, tx.signing_pub_key),
+        .signing_pub_key = group_ct::from_witness(&builder, tx.signing_pub_key),
         .signature = stdlib::schnorr::convert_signature(&builder, tx.signature),
         .merkle_root = witness_ct(&builder, tx.old_data_root),
         .input_path1 = stdlib::merkle_tree::create_witness_hash_path(builder, tx.input_path[0]),

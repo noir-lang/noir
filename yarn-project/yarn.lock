@@ -67,7 +67,7 @@ __metadata:
     "@aztec/noir-contracts": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
-    "@noir-lang/acvm_js": 0.26.1
+    "@kevaundray/acvm_js": 0.28.0-kw-branched-off-of-last-aztec-tag-5b563c08c
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
     "@types/levelup": ^5.1.3
@@ -2708,6 +2708,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@kevaundray/acvm_js@npm:0.28.0-kw-branched-off-of-last-aztec-tag-5b563c08c":
+  version: 0.28.0-kw-branched-off-of-last-aztec-tag-5b563c08c
+  resolution: "@kevaundray/acvm_js@npm:0.28.0-kw-branched-off-of-last-aztec-tag-5b563c08c"
+  checksum: 3c23fa6c7842a5da489fe57cddee89a3f9deac1d981038a695cf660858d784f8a6d9a2d99ec97cdab3b6f9793d8ea240d53332a308a412e1d477eb84dca200b9
+  languageName: node
+  linkType: hard
+
 "@koa/cors@npm:^4.0.0":
   version: 4.0.0
   resolution: "@koa/cors@npm:4.0.0"
@@ -3484,13 +3491,6 @@ __metadata:
     "@nodelib/fs.scandir": 2.1.5
     fastq: ^1.6.0
   checksum: 190c643f156d8f8f277bf2a6078af1ffde1fd43f498f187c2db24d35b4b4b5785c02c7dc52e356497b9a1b65b13edc996de08de0b961c32844364da02986dc53
-  languageName: node
-  linkType: hard
-
-"@noir-lang/acvm_js@npm:0.26.1":
-  version: 0.26.1
-  resolution: "@noir-lang/acvm_js@npm:0.26.1"
-  checksum: ae8cb6e31610cd8aa392855342d0c953a1bc4cd9e07236340341afa5815696a69a6635c38241f1d6a5dd30c5a8ae49234f2ba8b71d46c5d1a46756ff6f4dde3a
   languageName: node
   linkType: hard
 

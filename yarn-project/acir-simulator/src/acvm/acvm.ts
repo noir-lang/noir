@@ -9,7 +9,7 @@ import {
   WasmBlackBoxFunctionSolver,
   WitnessMap,
   executeCircuitWithBlackBoxSolver,
-} from '@noir-lang/acvm_js';
+} from '@kevaundray/acvm_js';
 
 import { traverseCauseChain } from '../common/errors.js';
 import { ORACLE_NAMES } from './oracle/index.js';

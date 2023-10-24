@@ -194,7 +194,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
     auto const private_circuit_vk = is_circuit ? utils::get_verification_key_from_file() : utils::fake_vk();
 
     const NT::fr private_circuit_vk_hash =
-        stdlib::recursion::verification_key<CT::bn254>::compress_native(private_circuit_vk, GeneratorIndex::VK);
+        stdlib::recursion::verification_key<CT::bn254>::hash_native(private_circuit_vk);
 
     ContractDeploymentData<NT> contract_deployment_data{};
     NT::fr contract_tree_root = 0;  // TODO(david) set properly for constructor?
@@ -529,8 +529,8 @@ bool validate_deployed_contract_address(PrivateKernelInputsInit<NT> const& priva
     auto tx_request = private_inputs.tx_request;
     auto cdd = private_inputs.tx_request.tx_context.contract_deployment_data;
 
-    auto private_circuit_vk_hash = stdlib::recursion::verification_key<CT::bn254>::compress_native(
-        private_inputs.private_call.vk, GeneratorIndex::VK);
+    auto private_circuit_vk_hash =
+        stdlib::recursion::verification_key<CT::bn254>::hash_native(private_inputs.private_call.vk);
 
     auto expected_constructor_hash = compute_constructor_hash(
         private_inputs.private_call.call_stack_item.function_data, tx_request.args_hash, private_circuit_vk_hash);

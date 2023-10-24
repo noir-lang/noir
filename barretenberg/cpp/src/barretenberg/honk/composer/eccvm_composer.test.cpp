@@ -42,7 +42,7 @@ proof_system::ECCVMCircuitBuilder<Flavor> generate_trace(numeric::random::Engine
     using G1 = typename Flavor::CycleGroup;
     using Fr = typename G1::Fr;
 
-    auto generators = G1::template derive_generators<3>();
+    auto generators = G1::derive_generators("test generators", 3);
 
     typename G1::element a = generators[0];
     typename G1::element b = generators[1];

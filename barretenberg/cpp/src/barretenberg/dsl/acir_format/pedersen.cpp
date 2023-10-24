@@ -14,8 +14,7 @@ void create_pedersen_constraint(Builder& builder, const PedersenConstraint& inpu
         scalars.push_back(scalar_as_field);
     }
 
-    // TODO: Does Noir need additive homomorphic Pedersen hash? If so, using plookup version won't help.
-    auto point = stdlib::pedersen_plookup_commitment<Builder>::commit(scalars, input.hash_index);
+    auto point = stdlib::pedersen_commitment<Builder>::commit(scalars, input.hash_index);
 
     builder.assert_equal(point.x.witness_index, input.result_x);
     builder.assert_equal(point.y.witness_index, input.result_y);

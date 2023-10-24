@@ -1,5 +1,5 @@
 #include "barretenberg/stdlib/primitives/group/cycle_group.hpp"
-#include "barretenberg/crypto/pedersen_commitment/pedersen_refactor.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
@@ -57,7 +57,12 @@ TYPED_TEST(CycleGroupTest, TestDbl)
 
     auto lhs = TestFixture::generators[0];
     cycle_group_ct a = cycle_group_ct::from_witness(&builder, lhs);
-    cycle_group_ct c = a.dbl();
+    cycle_group_ct c;
+    std::cout << "pre = " << builder.get_num_gates() << std::endl;
+    for (size_t i = 0; i < 3; ++i) {
+        c = a.dbl();
+    }
+    std::cout << "post = " << builder.get_num_gates() << std::endl;
     AffineElement expected(Element(lhs).dbl());
     AffineElement result = c.get_value();
     EXPECT_EQ(result, expected);
@@ -441,7 +446,7 @@ TYPED_TEST(CycleGroupTest, TestBatchMul)
         std::vector<typename Group::coordinate_field> scalars_native;
         Element expected = Group::point_at_infinity;
         for (size_t i = 0; i < num_muls; ++i) {
-            auto element = crypto::pedersen_hash_refactor<Curve>::get_lhs_generator();
+            auto element = plookup::fixed_base::table::LHS_GENERATOR_POINT;
             typename Group::subgroup_field scalar = Group::subgroup_field::random_element(&engine);
 
             // 1: add entry where point is constant, scalar is witness
@@ -451,7 +456,7 @@ TYPED_TEST(CycleGroupTest, TestBatchMul)
             scalars_native.emplace_back(uint256_t(scalar));
 
             // 2: add entry where point is constant, scalar is constant
-            element = crypto::pedersen_hash_refactor<Curve>::get_rhs_generator();
+            element = plookup::fixed_base::table::RHS_GENERATOR_POINT;
             expected += (element * scalar);
             points.emplace_back(element);
             scalars.emplace_back(typename cycle_group_ct::cycle_scalar(scalar));
@@ -459,7 +464,7 @@ TYPED_TEST(CycleGroupTest, TestBatchMul)
         }
         auto result = cycle_group_ct::batch_mul(scalars, points);
         EXPECT_EQ(result.get_value(), AffineElement(expected));
-        EXPECT_EQ(result.get_value(), crypto::pedersen_commitment_refactor<Curve>::commit_native(scalars_native));
+        EXPECT_EQ(result.get_value(), crypto::pedersen_commitment::commit_native(scalars_native));
     }
 
     // case 6, fixed-base MSM with inputs that are combinations of constant and witnesses (some group elements are in
@@ -470,7 +475,7 @@ TYPED_TEST(CycleGroupTest, TestBatchMul)
         std::vector<typename Group::subgroup_field> scalars_native;
         Element expected = Group::point_at_infinity;
         for (size_t i = 0; i < num_muls; ++i) {
-            auto element = crypto::pedersen_hash_refactor<Curve>::get_lhs_generator();
+            auto element = plookup::fixed_base::table::LHS_GENERATOR_POINT;
             typename Group::subgroup_field scalar = Group::subgroup_field::random_element(&engine);
 
             // 1: add entry where point is constant, scalar is witness
@@ -480,7 +485,7 @@ TYPED_TEST(CycleGroupTest, TestBatchMul)
             scalars_native.emplace_back(scalar);
 
             // 2: add entry where point is constant, scalar is constant
-            element = crypto::pedersen_hash_refactor<Curve>::get_rhs_generator();
+            element = plookup::fixed_base::table::RHS_GENERATOR_POINT;
             expected += (element * scalar);
             points.emplace_back(element);
             scalars.emplace_back(typename cycle_group_ct::cycle_scalar(scalar));
@@ -504,7 +509,7 @@ TYPED_TEST(CycleGroupTest, TestBatchMul)
         std::vector<typename cycle_group_ct::cycle_scalar> scalars;
 
         for (size_t i = 0; i < num_muls; ++i) {
-            auto element = crypto::pedersen_hash_refactor<Curve>::get_lhs_generator();
+            auto element = plookup::fixed_base::table::LHS_GENERATOR_POINT;
             typename Group::subgroup_field scalar = 0;
 
             // 1: add entry where point is constant, scalar is witness

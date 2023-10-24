@@ -256,8 +256,7 @@ TEST(grumpkin, GroupExponentiationConsistencyCheck)
 TEST(grumpkin, DeriveGenerators)
 {
     constexpr size_t num_generators = 128;
-    auto result = grumpkin::g1::derive_generators<num_generators>();
-
+    auto result = grumpkin::g1::derive_generators("test generators", num_generators);
     const auto is_unique = [&result](const grumpkin::g1::affine_element& y, const size_t j) {
         for (size_t i = 0; i < result.size(); ++i) {
             if ((i != j) && result[i] == y) {

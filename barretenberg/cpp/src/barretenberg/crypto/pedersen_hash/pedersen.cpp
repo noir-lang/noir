@@ -1,74 +1,85 @@
-// TODO(@zac-wiliamson #2341 delete this file once we migrate to new hash standard
-
 #include "./pedersen.hpp"
-#include <iostream>
-#ifndef NO_OMP_MULTITHREADING
-#include <omp.h>
-#endif
+#include "../pedersen_commitment/pedersen.hpp"
 
 namespace crypto {
-namespace pedersen_hash {
 
-using namespace generators;
-
-grumpkin::g1::element hash_single(const barretenberg::fr& in, generator_index_t const& index)
+/**
+ * @brief Converts input uint8_t buffers into vector of field elements. Used to hash the Transcript in a
+ * SNARK-friendly manner for recursive circuits.
+ *
+ * `buffer` is an unstructured byte array we want to convert these into field elements
+ * prior to hashing. We do this by splitting buffer into 31-byte chunks.
+ *
+ * @param buffer
+ * @return std::vector<Fq>
+ */
+template <typename Curve>
+std::vector<typename Curve::BaseField> pedersen_hash_base<Curve>::convert_buffer(const std::vector<uint8_t>& input)
 {
-    auto gen_data = get_generator_data(index);
-    barretenberg::fr scalar_multiplier = in.from_montgomery_form();
+    const size_t num_bytes = input.size();
+    const size_t bytes_per_element = 31;
+    size_t num_elements = static_cast<size_t>(num_bytes % bytes_per_element != 0) + (num_bytes / bytes_per_element);
 
-    constexpr size_t num_bits = 254;
-    constexpr size_t num_quads_base = (num_bits - 1) >> 1;
-    constexpr size_t num_quads = ((num_quads_base << 1) + 1 < num_bits) ? num_quads_base + 1 : num_quads_base;
-    constexpr size_t num_wnaf_bits = (num_quads << 1) + 1;
+    const auto slice = [](const std::vector<uint8_t>& data, const size_t start, const size_t slice_size) {
+        uint256_t result(0);
+        for (size_t i = 0; i < slice_size; ++i) {
+            result = (result << uint256_t(8));
+            result += uint256_t(data[i + start]);
+        }
+        return Fq(result);
+    };
 
-    const fixed_base_ladder* ladder = gen_data.get_hash_ladder(num_bits);
-
-    uint64_t wnaf_entries[num_quads + 2] = { 0 };
-    bool skew = false;
-    barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier.data[0], &wnaf_entries[0], skew, 0);
-
-    grumpkin::g1::element accumulator;
-    accumulator = grumpkin::g1::element(ladder[0].one);
-    if (skew) {
-        accumulator -= gen_data.skew_generator;
+    std::vector<Fq> elements;
+    for (size_t i = 0; i < num_elements; ++i) {
+        size_t bytes_to_slice = 0;
+        if (i == num_elements - 1) {
+            bytes_to_slice = num_bytes - (i * bytes_per_element);
+        } else {
+            bytes_to_slice = bytes_per_element;
+        }
+        Fq element = slice(input, i * bytes_per_element, bytes_to_slice);
+        elements.emplace_back(element);
     }
-
-    for (size_t i = 0; i < num_quads; ++i) {
-        uint64_t entry = wnaf_entries[i + 1];
-        const grumpkin::g1::affine_element& point_to_add =
-            ((entry & WNAF_MASK) == 1) ? ladder[i + 1].three : ladder[i + 1].one;
-        uint64_t predicate = (entry >> 31U) & 1U;
-        accumulator.self_mixed_add_or_sub(point_to_add, predicate);
-    }
-    return accumulator;
+    return elements;
 }
 
 /**
- * Given a vector of fields, generate a pedersen hash using the indexed generators.
+ * @brief Given a vector of fields, generate a pedersen hash using generators from `context`.
+ *
+ * @details `context.offset` is used to access offset elements of `context.generators` if required.
+ *          e.g. if one desires to compute
+ *          `inputs[0] * [generators[hash_index]] + `inputs[1] * [generators[hash_index + 1]]` + ... etc
+ *          Potentially useful to ensure multiple hashes with the same domain separator cannot collide.
+ *
+ * @param inputs what are we hashing?
+ * @param context Stores generator metadata + context pointer to the generators we are using for this hash
+ * @return Fq (i.e. SNARK circuit scalar field, when hashing using a curve defined over the SNARK circuit scalar field)
  */
-grumpkin::fq hash_multiple(const std::vector<grumpkin::fq>& inputs, const size_t hash_index)
+template <typename Curve>
+typename Curve::BaseField pedersen_hash_base<Curve>::hash(const std::vector<Fq>& inputs, const GeneratorContext context)
 {
-    ASSERT((inputs.size() < (1 << 16)) && "too many inputs for 16 bit index");
-    std::vector<grumpkin::g1::element> out(inputs.size());
-
-#ifndef NO_OMP_MULTITHREADING
-    // Ensure generator data is initialized before threading...
-    init_generator_data();
-#pragma omp parallel for num_threads(inputs.size())
-#endif
-    for (size_t i = 0; i < inputs.size(); ++i) {
-        generator_index_t index = { hash_index, i };
-        out[i] = hash_single(inputs[i], index);
-    }
-
-    grumpkin::g1::element r = out[0];
-    for (size_t i = 1; i < inputs.size(); ++i) {
-        r = out[i] + r;
-    }
-    grumpkin::g1::affine_element result =
-        r.is_point_at_infinity() ? grumpkin::g1::affine_element(0, 0) : grumpkin::g1::affine_element(r);
-    return result.x;
+    Element result = length_generator * Fr(inputs.size());
+    return (result + pedersen_commitment_base<Curve>::commit_native(inputs, context)).normalize().x;
 }
 
-} // namespace pedersen_hash
+/**
+ * @brief Given an arbitrary length of bytes, convert them to fields and hash the result using the default generators.
+ */
+template <typename Curve>
+typename Curve::BaseField pedersen_hash_base<Curve>::hash_buffer(const std::vector<uint8_t>& input,
+                                                                 const GeneratorContext context)
+{
+    std::vector<Fq> converted = convert_buffer(input);
+
+    if (converted.size() < 2) {
+        return hash(converted, context);
+    }
+    auto result = hash({ converted[0], converted[1] }, context);
+    for (size_t i = 2; i < converted.size(); ++i) {
+        result = hash({ result, converted[i] }, context);
+    }
+    return result;
+}
+
+template class pedersen_hash_base<curve::Grumpkin>;
 } // namespace crypto

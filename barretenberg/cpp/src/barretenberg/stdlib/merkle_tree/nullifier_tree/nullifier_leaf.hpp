@@ -24,7 +24,7 @@ struct nullifier_leaf {
         return os;
     }
 
-    barretenberg::fr hash() const { return stdlib::merkle_tree::hash_multiple_native({ value, nextIndex, nextValue }); }
+    barretenberg::fr hash() const { return stdlib::merkle_tree::hash_native({ value, nextIndex, nextValue }); }
 };
 
 /**

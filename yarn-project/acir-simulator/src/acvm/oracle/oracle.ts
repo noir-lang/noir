@@ -220,4 +220,9 @@ export class Oracle {
     );
     return toAcvmEnqueuePublicFunctionResult(enqueuedRequest);
   }
+
+  async pedersenHash(inputs: ACVMField[], [hashIndex]: ACVMField[]) {
+    const hash = await this.typedOracle.perdersenHash(inputs.map(fromACVMField), +hashIndex);
+    return toACVMField(hash);
+  }
 }

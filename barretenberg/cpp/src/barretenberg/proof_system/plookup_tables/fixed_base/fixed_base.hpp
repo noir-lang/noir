@@ -2,7 +2,8 @@
 
 #include "../types.hpp"
 #include "./fixed_base_params.hpp"
-#include "barretenberg/crypto/pedersen_hash/pedersen_refactor.hpp"
+#include "barretenberg/crypto/generators/generator_data.hpp"
+#include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
 namespace plookup::fixed_base {
@@ -18,7 +19,12 @@ class table : public FixedBaseParams {
     using single_lookup_table = std::vector<affine_element>;
     using fixed_base_scalar_mul_tables = std::vector<single_lookup_table>;
     using all_multi_tables = std::array<fixed_base_scalar_mul_tables, NUM_FIXED_BASE_MULTI_TABLES>;
-    using native_pedersen = crypto::pedersen_hash_refactor<curve::Grumpkin>;
+
+    static constexpr affine_element LHS_GENERATOR_POINT =
+        crypto::generator_data<curve::Grumpkin>::precomputed_generators[0];
+
+    static constexpr affine_element RHS_GENERATOR_POINT =
+        crypto::generator_data<curve::Grumpkin>::precomputed_generators[1];
 
     static inline single_lookup_table generate_single_lookup_table(const affine_element& base_point,
                                                                    const affine_element& offset_generator);
@@ -32,9 +38,9 @@ class table : public FixedBaseParams {
     // i.e. we treat 1 scalar mul as two independent scalar muls over (roughly) half-width input scalars.
     // The base_point members describe the fixed-base points that correspond to the two independent scalar muls,
     // for our two supported points
-    inline static const affine_element lhs_base_point_lo = native_pedersen::get_lhs_generator();
+    inline static const affine_element lhs_base_point_lo = LHS_GENERATOR_POINT;
     inline static const affine_element lhs_base_point_hi = element(lhs_base_point_lo) * MAX_LO_SCALAR;
-    inline static const affine_element rhs_base_point_lo = native_pedersen::get_rhs_generator();
+    inline static const affine_element rhs_base_point_lo = RHS_GENERATOR_POINT;
     inline static const affine_element rhs_base_point_hi = element(rhs_base_point_lo) * MAX_LO_SCALAR;
 
     // fixed_base_tables = lookup tables of precomputed base points required for our lookup arguments.

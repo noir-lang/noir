@@ -22,7 +22,7 @@ TYPED_TEST(ECCVMCircuitBuilderTests, BaseCase)
     using G1 = typename Flavor::CycleGroup;
     using Fr = typename G1::Fr;
     proof_system::ECCVMCircuitBuilder<Flavor> circuit;
-    auto generators = G1::template derive_generators<3>();
+    auto generators = G1::derive_generators("test generators", 3);
     typename G1::element a = generators[0];
     typename G1::element b = generators[1];
     typename G1::element c = generators[2];
@@ -57,7 +57,7 @@ TYPED_TEST(ECCVMCircuitBuilderTests, Add)
     using G1 = typename Flavor::CycleGroup;
     proof_system::ECCVMCircuitBuilder<Flavor> circuit;
 
-    auto generators = G1::template derive_generators<1>();
+    auto generators = G1::derive_generators("test generators", 3);
     typename G1::element a = generators[0];
 
     circuit.add_accumulate(a);
@@ -72,7 +72,7 @@ TYPED_TEST(ECCVMCircuitBuilderTests, Mul)
     using G1 = typename Flavor::CycleGroup;
     using Fr = typename G1::Fr;
     proof_system::ECCVMCircuitBuilder<Flavor> circuit;
-    auto generators = G1::template derive_generators<3>();
+    auto generators = G1::derive_generators("test generators", 3);
     typename G1::element a = generators[0];
     Fr x = Fr::random_element(&engine);
 
@@ -88,7 +88,7 @@ TYPED_TEST(ECCVMCircuitBuilderTests, ShortMul)
     using G1 = typename Flavor::CycleGroup;
     using Fr = typename G1::Fr;
     proof_system::ECCVMCircuitBuilder<Flavor> circuit;
-    auto generators = G1::template derive_generators<3>();
+    auto generators = G1::derive_generators("test generators", 3);
 
     typename G1::element a = generators[0];
     uint256_t small_x = 0;
@@ -111,7 +111,7 @@ TYPED_TEST(ECCVMCircuitBuilderTests, EqFails)
     using Fr = typename G1::Fr;
     proof_system::ECCVMCircuitBuilder<Flavor> circuit;
 
-    auto generators = G1::template derive_generators<3>();
+    auto generators = G1::derive_generators("test generators", 3);
     typename G1::element a = generators[0];
     Fr x = Fr::random_element(&engine);
 
@@ -139,7 +139,7 @@ TYPED_TEST(ECCVMCircuitBuilderTests, EmptyRowBetweenOps)
     using Fr = typename G1::Fr;
     proof_system::ECCVMCircuitBuilder<Flavor> circuit;
 
-    auto generators = G1::template derive_generators<3>();
+    auto generators = G1::derive_generators("test generators", 3);
     typename G1::element a = generators[0];
     Fr x = Fr::random_element(&engine);
 
@@ -160,7 +160,7 @@ TYPED_TEST(ECCVMCircuitBuilderTests, EndWithEq)
     using Fr = typename G1::Fr;
     proof_system::ECCVMCircuitBuilder<Flavor> circuit;
 
-    auto generators = G1::template derive_generators<3>();
+    auto generators = G1::derive_generators("test generators", 3);
     typename G1::element a = generators[0];
     Fr x = Fr::random_element(&engine);
 
@@ -180,7 +180,7 @@ TYPED_TEST(ECCVMCircuitBuilderTests, EndWithAdd)
     using Fr = typename G1::Fr;
     proof_system::ECCVMCircuitBuilder<Flavor> circuit;
 
-    auto generators = G1::template derive_generators<1>();
+    auto generators = G1::derive_generators("test generators", 3);
     typename G1::element a = generators[0];
     Fr x = Fr::random_element(&engine);
 
@@ -201,7 +201,7 @@ TYPED_TEST(ECCVMCircuitBuilderTests, EndWithMul)
     using Fr = typename G1::Fr;
     proof_system::ECCVMCircuitBuilder<Flavor> circuit;
 
-    auto generators = G1::template derive_generators<1>();
+    auto generators = G1::derive_generators("test generators", 3);
     typename G1::element a = generators[0];
     Fr x = Fr::random_element(&engine);
 
@@ -220,7 +220,7 @@ TYPED_TEST(ECCVMCircuitBuilderTests, EndWithNoop)
     using Fr = typename G1::Fr;
     proof_system::ECCVMCircuitBuilder<Flavor> circuit;
 
-    auto generators = G1::template derive_generators<1>();
+    auto generators = G1::derive_generators("test generators", 3);
     typename G1::element a = generators[0];
     Fr x = Fr::random_element(&engine);
 
@@ -239,7 +239,7 @@ TYPED_TEST(ECCVMCircuitBuilderTests, MSM)
     using Fr = typename G1::Fr;
 
     static constexpr size_t max_num_msms = 9;
-    auto generators = G1::template derive_generators<max_num_msms>();
+    auto generators = G1::derive_generators("test generators", max_num_msms);
 
     const auto try_msms = [&](const size_t num_msms, auto& circuit) {
         std::vector<typename G1::element> points;

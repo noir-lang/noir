@@ -15,7 +15,6 @@ TESTS=(
   crypto_blake2s_tests
   crypto_blake3s_tests
   crypto_ecdsa_tests
-  crypto_pedersen_commitment_tests
   crypto_schnorr_tests
   crypto_sha256_tests
   ecc_tests

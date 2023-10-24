@@ -706,10 +706,9 @@ TEST_F(join_split_tests, test_0_input_notes_and_detect_circuit_change)
     EXPECT_TRUE(result.valid);
 
     // The below part detects any changes in the join-split circuit
-
-    constexpr uint32_t CIRCUIT_GATE_COUNT = 184517;
-    constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 524288;
-    const uint256_t VK_HASH("2e1b6e64cd16912f2740d84a0e6c9e01784b35e09b303a026cc58ff5d6a5934d");
+    constexpr uint32_t CIRCUIT_GATE_COUNT = 49492;
+    constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 65535;
+    const uint256_t VK_HASH("986c3fe747d2f1b84fd9dea37a22c27bd4e1006900f458decf2da20442a7395a");
 
     auto number_of_gates_js = result.number_of_gates;
     std::cout << get_verification_key()->sha256_hash() << std::endl;
@@ -1041,7 +1040,7 @@ TEST_F(join_split_tests, test_total_output_value_larger_than_total_input_value_f
 TEST_F(join_split_tests, test_different_input_note_owners_fails)
 {
     join_split_tx tx = simple_setup({ 1, 2 });
-    tx.input_note[0].owner = grumpkin::g1::affine_element::hash_to_curve(1);
+    tx.input_note[0].owner = grumpkin::g1::affine_element::hash_to_curve({ 1 });
 
     auto result = sign_and_verify_logic(tx, user.owner);
     EXPECT_FALSE(result.valid);
@@ -1178,7 +1177,7 @@ TEST_F(join_split_tests, test_spend_registered_notes_with_owner_key_fails)
 TEST_F(join_split_tests, test_wrong_alias_hash_fails)
 {
     join_split_tx tx = simple_setup({ 2, 3 }, ACCOUNT_INDEX, 1);
-    tx.alias_hash = join_split_example::fixtures::generate_alias_hash("chicken");
+    tx.alias_hash = join_split_example::fixtures::generate_alias_hash("derive_generators");
 
     auto result = sign_and_verify_logic(tx, user.owner);
     EXPECT_FALSE(result.valid);

@@ -12,31 +12,18 @@ void create_fixed_base_constraint(Builder& builder, const FixedBaseScalarMul& in
     // Computes low * G + high * 2^128 * G
     //
     // Low and high need to be less than 2^128
+    auto x = field_ct::from_witness_index(&builder, input.pub_key_x);
+    auto y = field_ct::from_witness_index(&builder, input.pub_key_y);
+    grumpkin::g1::affine_element base_point_var(x.get_value(), y.get_value());
+    cycle_group_ct base_point(base_point_var);
+
     field_ct low_as_field = field_ct::from_witness_index(&builder, input.low);
     field_ct high_as_field = field_ct::from_witness_index(&builder, input.high);
+    cycle_scalar_ct scalar(low_as_field, high_as_field);
+    auto result = cycle_group_ct(grumpkin::g1::affine_one) * scalar;
 
-    low_as_field.create_range_constraint(128);
-    high_as_field.create_range_constraint(128);
-
-    auto low_value = grumpkin::fr(low_as_field.get_value());
-    auto high_value = grumpkin::fr(high_as_field.get_value());
-    auto pow_128 = grumpkin::fr(2).pow(128);
-
-    grumpkin::g1::element result = grumpkin::g1::one * low_value + grumpkin::g1::one * (high_value * pow_128);
-    grumpkin::g1::affine_element result_affine = result.normalize();
-
-    auto x_var = builder.add_variable(result_affine.x);
-    auto y_var = builder.add_variable(result_affine.y);
-    builder.create_add_gate({ x_var,
-                              y_var,
-                              x_var,
-                              barretenberg::fr::zero(),
-                              barretenberg::fr::zero(),
-                              barretenberg::fr::zero(),
-                              barretenberg::fr::zero() });
-
-    builder.assert_equal(x_var, input.pub_key_x);
-    builder.assert_equal(y_var, input.pub_key_y);
+    builder.assert_equal(result.x.get_witness_index(), input.pub_key_x);
+    builder.assert_equal(result.y.get_witness_index(), input.pub_key_y);
 }
 
 } // namespace acir_format

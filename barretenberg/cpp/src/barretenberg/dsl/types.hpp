@@ -3,7 +3,6 @@
 
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
-#include "barretenberg/stdlib/commitment/pedersen/pedersen_plookup.hpp"
 #include "barretenberg/stdlib/encryption/schnorr/schnorr.hpp"
 #include "barretenberg/stdlib/merkle_tree/hash_path.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
@@ -50,9 +49,9 @@ using uint64_ct = proof_system::plonk::stdlib::uint64<Builder>;
 using bit_array_ct = proof_system::plonk::stdlib::bit_array<Builder>;
 using fq_ct = proof_system::plonk::stdlib::bigfield<Builder, barretenberg::Bn254FqParams>;
 using biggroup_ct = proof_system::plonk::stdlib::element<Builder, fq_ct, field_ct, barretenberg::g1>;
-using point_ct = proof_system::plonk::stdlib::point<Builder>;
+using cycle_group_ct = proof_system::plonk::stdlib::cycle_group<Builder>;
+using cycle_scalar_ct = proof_system::plonk::stdlib::cycle_group<Builder>::cycle_scalar;
 using pedersen_commitment = proof_system::plonk::stdlib::pedersen_commitment<Builder>;
-using group_ct = proof_system::plonk::stdlib::group<Builder>;
 using bn254 = proof_system::plonk::stdlib::bn254<Builder>;
 using secp256k1_ct = proof_system::plonk::stdlib::secp256k1<Builder>;
 using secp256r1_ct = proof_system::plonk::stdlib::secp256r1<Builder>;

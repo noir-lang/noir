@@ -2,16 +2,12 @@
 #include "../../native/value/value_note.hpp"
 #include "barretenberg/join_split_example/types.hpp"
 
-namespace join_split_example {
-namespace proofs {
-namespace notes {
-namespace circuit {
-namespace value {
+namespace join_split_example::proofs::notes::circuit::value {
 
 using namespace proof_system::plonk::stdlib;
 
 struct witness_data {
-    point_ct owner;
+    group_ct owner;
     suint_ct value;
     field_ct secret;
     suint_ct asset_id;
@@ -22,6 +18,7 @@ struct witness_data {
     witness_data(Builder& builder, native::value::value_note const& note)
     {
         secret = witness_ct(&builder, note.secret);
+        owner = group_ct(witness_ct(&builder, note.owner.x), witness_ct(&builder, note.owner.y), false);
         owner.x = witness_ct(&builder, note.owner.x);
         owner.y = witness_ct(&builder, note.owner.y);
         value = suint_ct(witness_ct(&builder, note.value), NOTE_VALUE_BIT_LENGTH, "note_value");
@@ -32,8 +29,4 @@ struct witness_data {
     }
 };
 
-} // namespace value
-} // namespace circuit
-} // namespace notes
-} // namespace proofs
-} // namespace join_split_example
+} // namespace join_split_example::proofs::notes::circuit::value

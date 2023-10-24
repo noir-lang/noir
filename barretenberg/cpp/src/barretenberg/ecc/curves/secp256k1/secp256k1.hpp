@@ -120,10 +120,6 @@ struct Secp256k1G1Params {
 
 using g1 = barretenberg::
     group<barretenberg::field<Secp256k1FqParams>, barretenberg::field<Secp256k1FrParams>, Secp256k1G1Params>;
-
-// TODO(@zac-wiliamson #2341 remove this method once we migrate to new hash standard (derive_generators_secure is
-// curve-agnostic)
-g1::affine_element get_generator(size_t generator_index);
 } // namespace secp256k1
 
 namespace curve {

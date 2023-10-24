@@ -1,4 +1,5 @@
-import { PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
+import { CircuitsWasm, PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
+import { pedersenCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -151,5 +152,15 @@ export abstract class TypedOracle {
     _argsHash: Fr,
   ): Promise<PublicCallRequest> {
     throw new Error('Not available.');
+  }
+
+  async perdersenHash(inputs: Fr[], hashIndex: number): Promise<Fr> {
+    const wasm = await CircuitsWasm.get();
+    const hash = pedersenCompressWithHashIndex(
+      wasm,
+      inputs.map(i => i.toBuffer()),
+      hashIndex,
+    );
+    return Fr.fromBuffer(hash);
   }
 }
