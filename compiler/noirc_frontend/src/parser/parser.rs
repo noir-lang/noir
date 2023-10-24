@@ -2023,7 +2023,7 @@ mod test {
 
         match parse_with(assertion(expression()), "assert(x == y, \"assertion message\")").unwrap()
         {
-            StatementKind::Constrain(ConstrainStatement(_, message)) => {
+            StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
                 assert_eq!(message, Some("assertion message".to_owned()));
             }
             _ => unreachable!(),
@@ -2047,7 +2047,7 @@ mod test {
         match parse_with(assertion_eq(expression()), "assert_eq(x, y, \"assertion message\")")
             .unwrap()
         {
-            StatementKind::Constrain(ConstrainStatement(_, message)) => {
+            StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
                 assert_eq!(message, Some("assertion message".to_owned()));
             }
             _ => unreachable!(),
