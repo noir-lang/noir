@@ -21,7 +21,7 @@ permissions:
 jobs:
   build-x86_64-linux-gnu:
     name: Build on Linux GNU
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -40,12 +40,12 @@ jobs:
 
       - name: Install Clang16
         run: |
-          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.0/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
-          tar -xvf clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
-          sudo cp clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/bin/* /usr/local/bin/
-          sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/include/* /usr/local/include/
-          sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/lib/* /usr/local/lib/
-          sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/share/* /usr/local/share/
+          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+          tar -xvf clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+          sudo cp clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04/bin/* /usr/local/bin/
+          sudo cp -r clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04/include/* /usr/local/include/
+          sudo cp -r clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04/lib/* /usr/local/lib/
+          sudo cp -r clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04/share/* /usr/local/share/
 
       - name: Compile Barretenberg
         run: |
@@ -67,7 +67,7 @@ jobs:
 
   build-wasm-ts:
     name: Build WASM and deploy to TS
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -86,12 +86,12 @@ jobs:
 
       - name: Install Clang16
         run: |
-          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.0/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
-          tar -xvf clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
-          sudo cp clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/bin/* /usr/local/bin/
-          sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/include/* /usr/local/include/
-          sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/lib/* /usr/local/lib/
-          sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/share/* /usr/local/share/
+          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+          tar -xvf clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+          sudo cp clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04/bin/* /usr/local/bin/
+          sudo cp -r clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04/include/* /usr/local/include/
+          sudo cp -r clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04/lib/* /usr/local/lib/
+          sudo cp -r clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04/share/* /usr/local/share/
 
       - name: Install yarn
         run: |
