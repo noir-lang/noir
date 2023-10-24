@@ -9,9 +9,6 @@ pub(crate) struct WriteVkCommand {
     #[clap(short = 'b')]
     pub(crate) bytecode_path: PathBuf,
 
-    #[clap(short = 'r')]
-    pub(crate) is_recursive: bool,
-
     #[clap(short = 'o')]
     pub(crate) vk_path: PathBuf,
 }

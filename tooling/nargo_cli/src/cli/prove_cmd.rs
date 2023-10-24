@@ -59,7 +59,6 @@ pub(crate) fn run(
             &workspace,
             package,
             &args.compile_options,
-            false,
             np_language,
             &|opcode| opcode_support.is_opcode_supported(opcode),
         )?;
