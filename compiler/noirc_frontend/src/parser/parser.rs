@@ -37,11 +37,12 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, Distinctness, FunctionDefinition,
-    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
-    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path, PathKind, Pattern,
-    Recoverable, Statement, TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
-    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
+    FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident, IfExpression,
+    InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
+    NoirTypeAlias, Path, PathKind, Pattern, Recoverable, Statement, TraitBound, TraitImplItem,
+    TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree,
+    UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -183,9 +184,15 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                 name,
                 attributes: attrs,
                 is_unconstrained: modifiers.0,
-                is_open: modifiers.1,
-                is_internal: modifiers.2,
-                is_public: modifiers.3,
+                is_open: modifiers.2,
+                is_internal: modifiers.3,
+                visibility: if modifiers.1 {
+                    FunctionVisibility::PublicCrate
+                } else if modifiers.4 {
+                    FunctionVisibility::Public
+                } else {
+                    FunctionVisibility::Private
+                },
                 generics,
                 parameters,
                 body,
@@ -198,18 +205,33 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         })
 }
 
-/// function_modifiers: 'unconstrained'? 'open'? 'internal'?
+/// function_modifiers: 'unconstrained'? 'pub(crate)'? 'pub'? 'open'? 'internal'?
 ///
-/// returns (is_unconstrained, is_open, is_internal) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool)> {
+/// returns (is_unconstrained, is_pub_crate, is_open, is_internal, is_pub) for whether each keyword was present
+fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool, bool)> {
     keyword(Keyword::Unconstrained)
         .or_not()
+        .then(is_pub_crate())
         .then(keyword(Keyword::Pub).or_not())
         .then(keyword(Keyword::Open).or_not())
         .then(keyword(Keyword::Internal).or_not())
-        .map(|(((unconstrained, public), open), internal)| {
-            (unconstrained.is_some(), open.is_some(), internal.is_some(), public.is_some())
+        .map(|((((unconstrained, pub_crate), public), open), internal)| {
+            (
+                unconstrained.is_some(),
+                pub_crate,
+                open.is_some(),
+                internal.is_some(),
+                public.is_some(),
+            )
         })
+}
+fn is_pub_crate() -> impl NoirParser<bool> {
+    (keyword(Keyword::Pub)
+        .then_ignore(just(Token::LeftParen))
+        .then_ignore(keyword(Keyword::Crate))
+        .then_ignore(just(Token::RightParen)))
+    .or_not()
+    .map(|a| a.is_some())
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list
@@ -800,7 +822,7 @@ where
         keyword(Keyword::Constrain).labelled(ParsingRuleLabel::Statement),
         expr_parser,
     )
-    .map(|expr| StatementKind::Constrain(ConstrainStatement(expr, None)))
+    .map(|expr| StatementKind::Constrain(ConstrainStatement(expr, None, ConstrainKind::Constrain)))
     .validate(|expr, span, emit| {
         emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
         expr
@@ -828,7 +850,11 @@ where
                 }
             }
 
-            StatementKind::Constrain(ConstrainStatement(condition, message_str))
+            StatementKind::Constrain(ConstrainStatement(
+                condition,
+                message_str,
+                ConstrainKind::Assert,
+            ))
         })
 }
 
@@ -859,7 +885,11 @@ where
                     emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
                 }
             }
-            StatementKind::Constrain(ConstrainStatement(predicate, message_str))
+            StatementKind::Constrain(ConstrainStatement(
+                predicate,
+                message_str,
+                ConstrainKind::AssertEq,
+            ))
         })
 }
 
@@ -1993,7 +2023,7 @@ mod test {
 
         match parse_with(assertion(expression()), "assert(x == y, \"assertion message\")").unwrap()
         {
-            StatementKind::Constrain(ConstrainStatement(_, message)) => {
+            StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
                 assert_eq!(message, Some("assertion message".to_owned()));
             }
             _ => unreachable!(),
@@ -2017,7 +2047,7 @@ mod test {
         match parse_with(assertion_eq(expression()), "assert_eq(x, y, \"assertion message\")")
             .unwrap()
         {
-            StatementKind::Constrain(ConstrainStatement(_, message)) => {
+            StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
                 assert_eq!(message, Some("assertion message".to_owned()));
             }
             _ => unreachable!(),

@@ -18,4 +18,14 @@ fn foo() {
     my_function(some_function(10, "arg1", another_function()), another_func(20, some_function(), 30));
 
     outer_function(some_function(), another_function(some_function(), some_value));
+
+    assert_eq(x, y);
+
+    assert_eq(x, y, "message");
+
+    assert(x);
+
+    assert(x, "message");
+
+    assert(x == y);
 }

@@ -20,6 +20,12 @@ By default, functions are visible only within the package they are defined. To m
 pub fn foo() {}
 ```
 
+You can also restrict the visibility of the function to only the crate it was defined in, by specifying `pub(crate)`:
+
+```rust
+pub(crate) fn foo() {}  //foo can only be called within its crate
+```
+
 All parameters in a function must have a type and all types are known at compile time. The parameter
 is pre-pended with a colon and the parameter type. Multiple parameters are separated using a comma.
 
@@ -132,6 +138,34 @@ follows:
 assert(MyStruct::sum(s) == 42);
 ```
 
+It is also possible to specialize which method is chosen depending on the [generic](./06_generics.md) type that is used. In this example, the `foo` function returns different values depending on its type:
+
+```rust
+struct Foo<T> {}
+
+impl Foo<u32> {
+    fn foo(self) -> Field { 1 }
+}
+
+impl Foo<u64> {
+    fn foo(self) -> Field { 2 }
+}
+
+fn main() {
+    let f1: Foo<u32> = Foo{};
+    let f2: Foo<u64> = Foo{};
+    assert(f1.foo() + f2.foo() == 3);
+}
+```
+
+Also note that impls with the same method name defined in them cannot overlap. For example, if we already have `foo` defined for `Foo<u32>` and `Foo<u64>` like we do above, we cannot also define `foo` in an `impl<T> Foo<T>` since it would be ambiguous which version of `foo` to choose.
+
+```rs
+// Including this impl in the same project as the above snippet would
+// cause an overlapping impls error
+impl<T> Foo<T> {
+    fn foo(self) -> Field { 3 }
+}
 ## Lambdas
 
 Lambdas are anonymous functions. They follow the syntax of Rust - `|arg1, arg2, ..., argN| return_expression`.
