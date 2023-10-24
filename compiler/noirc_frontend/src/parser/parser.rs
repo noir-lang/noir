@@ -227,7 +227,7 @@ fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool, bool)> {
 fn is_pub_crate() -> impl NoirParser<bool> {
     (keyword(Keyword::Pub)
         .then_ignore(just(Token::LeftParen))
-        .then(keyword(Keyword::Crate))
+        .then_ignore(keyword(Keyword::Crate))
         .then_ignore(just(Token::RightParen)))
     .or_not()
     .map(|a| a.is_some())
