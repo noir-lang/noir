@@ -1,6 +1,10 @@
 use acir::{
-    circuit::{opcodes::BlackBoxFuncCall, Circuit, Opcode},
-    native_types::Witness,
+    circuit::{
+        opcodes::{BlackBoxFuncCall, FunctionInput},
+        Circuit, Opcode,
+    },
+    native_types::{Expression, Witness},
+    FieldElement,
 };
 use std::collections::{BTreeMap, HashSet};
 
@@ -101,7 +105,7 @@ impl RangeOptimizer {
             if is_lowest_bit_size {
                 already_seen_witness.insert(witness);
                 new_order_list.push(order_list[idx]);
-                optimized_opcodes.push(opcode);
+                optimized_opcodes.push(optimized_range_opcode(witness, num_bits));
             }
         }
 
@@ -123,6 +127,20 @@ fn extract_range_opcode(opcode: &Opcode) -> Option<(Witness, u32)> {
     match func_call {
         BlackBoxFuncCall::RANGE { input } => Some((input.witness, input.num_bits)),
         _ => None,
+    }
+}
+
+fn optimized_range_opcode(witness: Witness, num_bits: u32) -> Opcode {
+    if num_bits == 1 {
+        Opcode::Arithmetic(Expression {
+            mul_terms: vec![(FieldElement::one(), witness, witness)],
+            linear_combinations: vec![(-FieldElement::one(), witness)],
+            q_c: FieldElement::zero(),
+        })
+    } else {
+        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+            input: FunctionInput { witness, num_bits },
+        })
     }
 }
 
