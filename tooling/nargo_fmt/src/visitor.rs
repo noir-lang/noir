@@ -4,7 +4,10 @@ mod stmt;
 
 use noirc_frontend::{hir::resolution::errors::Span, token::Token};
 
-use crate::{config::Config, utils::FindToken};
+use crate::{
+    config::Config,
+    utils::{self, FindToken},
+};
 
 pub(crate) struct FmtVisitor<'me> {
     config: &'me Config,
@@ -76,9 +79,10 @@ impl<'me> FmtVisitor<'me> {
     }
 
     #[track_caller]
-    fn push_rewrite(&mut self, s: String, span: Span) {
+    fn push_rewrite(&mut self, rewrite: String, span: Span) {
+        let rewrite = utils::recover_comment_removed(self.slice(span), rewrite);
         self.format_missing_indent(span.start(), true);
-        self.push_str(&s);
+        self.push_str(&rewrite);
     }
 
     fn format_missing(&mut self, end: u32) {
