@@ -21,8 +21,11 @@ test("promise resolved", async () => {
 
 test("prints version", async () => {
   const processOutput = (await $`${NARGO_BIN} --version`).toString();
-  assert.match(processOutput, /nargo\s\d{1,2}.\d{1,2}/);
+  
+  // Regex to match the "nargo version" part of the output
+  assert.match(processOutput, /nargo version = \d{1,2}\.\d{1,2}\.\d{1,2}/);
 });
+
 
 test("reports a clean commit", async () => {
   const processOutput = (await $`${NARGO_BIN} --version`).toString();

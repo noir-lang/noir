@@ -177,8 +177,12 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 self.increment_program_counter()
             }
             Opcode::BinaryIntOp { op, bit_size, lhs, rhs, destination: result } => {
-                self.process_binary_int_op(*op, *bit_size, *lhs, *rhs, *result);
-                self.increment_program_counter()
+                if let Err(error) = self.process_binary_int_op(*op, *bit_size, *lhs, *rhs, *result)
+                {
+                    self.fail(error)
+                } else {
+                    self.increment_program_counter()
+                }
             }
             Opcode::Jump { location: destination } => self.set_program_counter(*destination),
             Opcode::JumpIf { condition, location: destination } => {
@@ -391,17 +395,18 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         lhs: RegisterIndex,
         rhs: RegisterIndex,
         result: RegisterIndex,
-    ) {
+    ) -> Result<(), String> {
         let lhs_value = self.registers.get(lhs);
         let rhs_value = self.registers.get(rhs);
 
         // Convert to big integers
         let lhs_big = BigUint::from_bytes_be(&lhs_value.to_field().to_be_bytes());
         let rhs_big = BigUint::from_bytes_be(&rhs_value.to_field().to_be_bytes());
-        let result_value = evaluate_binary_bigint_op(&op, lhs_big, rhs_big, bit_size);
+        let result_value = evaluate_binary_bigint_op(&op, lhs_big, rhs_big, bit_size)?;
         // Convert back to field element
         self.registers
             .set(result, FieldElement::from_be_bytes_reduce(&result_value.to_bytes_be()).into());
+        Ok(())
     }
 }
 
