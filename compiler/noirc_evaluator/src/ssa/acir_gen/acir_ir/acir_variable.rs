@@ -854,16 +854,16 @@ impl AcirContext {
     ) -> Result<AcirVar, RuntimeError> {
         match numeric_type {
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                if *bit_size == 0 {
-                    // A range constraint of zero bits is equivalent to constraining the value to zero.
-                    let zero = self.add_constant(FieldElement::zero());
-                    self.assert_eq_var(variable, zero, None)?;
-                } else if let Some(constant) = self.var_to_expression(variable)?.to_const() {
+                if let Some(constant) = self.var_to_expression(variable)?.to_const() {
                     // If `variable` is constant then we don't need to add a constraint.
                     // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
                     if constant.num_bits() <= *bit_size {
                         return Ok(variable);
                     }
+                } else if *bit_size == 0 {
+                    // A range constraint of zero bits is equivalent to constraining the value to zero.
+                    let zero = self.add_constant(FieldElement::zero());
+                    self.assert_eq_var(variable, zero, None)?;
                 } else {
                     let witness = self.var_to_witness(variable)?;
                     self.acir_ir.range_constraint(witness, *bit_size)?;
