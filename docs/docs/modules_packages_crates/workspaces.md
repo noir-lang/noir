@@ -34,6 +34,6 @@ default-member = "crates/a"
 
 `default-member` indicates which package various commands process by default.
 
-Libraries can be defined in a workspace. We just don't have a way to consume libraries from inside a workspace as external dependencies right now.
+Libraries can be defined in a workspace. Inside a workspace, these are consumed as `{ path = "../to_lib" }` dependencies in Nargo.toml.
 
 Inside a workspace, these are consumed as `{ path = "../to_lib" }` dependencies in Nargo.toml.

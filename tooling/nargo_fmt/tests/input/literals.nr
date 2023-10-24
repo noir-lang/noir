@@ -7,9 +7,19 @@ fn main() {
 
     [0xff;5];
 
+    [0 as u8; MAX_BYTES];
+
     true;
 
     "hello world";
+
+    "hell\0\"world";
+
+    f"i: {i}, j: {j}";
+
+    (   );
+
+    (/*test*/);
 
     ()
 }
