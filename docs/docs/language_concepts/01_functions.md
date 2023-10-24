@@ -20,6 +20,12 @@ By default, functions are visible only within the package they are defined. To m
 pub fn foo() {}
 ```
 
+You can however restrict the visibility of the function to its own crate, by specifying `pub(crate)`:
+
+```rust
+pub(crate) fn foo() {}  //foo can only be called within its crate
+```
+
 All parameters in a function must have a type and all types are known at compile time. The parameter
 is pre-pended with a colon and the parameter type. Multiple parameters are separated using a comma.
 
