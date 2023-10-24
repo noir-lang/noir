@@ -98,7 +98,6 @@ jobs:
         with:
           branch-name: ${{ github.head_ref || github.ref }}
           site-id: ${{ secrets.NETLIFY_SITE_ID }}
-        continue-on-error: true
 
       - name: Debugging - print deploy_status
         run: echo "${{ steps.check_deploy_status.outputs.deploy_status }}"
