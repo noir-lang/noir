@@ -859,8 +859,8 @@ impl AcirContext {
                     let zero = self.add_constant(FieldElement::zero());
                     self.assert_eq_var(variable, zero, None)?;
                 } else if let Some(constant) = self.var_to_expression(variable)?.to_const() {
-                  // If `variable` is constant then we don't need to add a constraint.
-                  // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
+                    // If `variable` is constant then we don't need to add a constraint.
+                    // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
                     if constant.num_bits() <= *bit_size {
                         return Ok(variable);
                     }
