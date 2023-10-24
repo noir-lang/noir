@@ -568,12 +568,10 @@ impl AcirContext {
             return Ok((zero, zero));
         }
 
-        // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
-        if let (Some(lhs_const), Some(rhs_const)) =
-            (self.var_to_expression(lhs)?.to_const(), self.var_to_expression(rhs)?.to_const())
-        {
-            // Disallow division by zero.
-            if rhs_const != FieldElement::zero() {
+        match (self.var_to_expression(lhs)?.to_const(), self.var_to_expression(rhs)?.to_const()) {
+            // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
+            // `rhs` must be non-zero.
+            (Some(lhs_const), Some(rhs_const)) if rhs_const != FieldElement::zero() => {
                 let quotient = lhs_const.to_u128() / rhs_const.to_u128();
                 let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
 
@@ -581,6 +579,13 @@ impl AcirContext {
                 let remainder_var = self.add_constant(FieldElement::from(remainder));
                 return Ok((quotient_var, remainder_var));
             }
+
+            // If `rhs` is one then we the division is a noop.
+            (_, Some(rhs_const)) if rhs_const == FieldElement::one() => {
+                return Ok((lhs, zero));
+            }
+
+            _ => (),
         }
 
         // Check that we the rhs is not zero.
