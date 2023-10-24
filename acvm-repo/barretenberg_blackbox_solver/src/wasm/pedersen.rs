@@ -38,13 +38,14 @@ impl Pedersen for Barretenberg {
 #[test]
 fn pedersen_hash_to_point() -> Result<(), Error> {
     let barretenberg = Barretenberg::new();
-    let (x, y) = barretenberg.encrypt(vec![FieldElement::zero(), FieldElement::one()], 0)?;
+    let (x, y) = barretenberg
+        .encrypt(vec![FieldElement::from(1 as u128), FieldElement::from(1 as u128)], 1)?;
     let expected_x = FieldElement::from_hex(
-        "0x0c5e1ddecd49de44ed5e5798d3f6fb7c71fe3d37f5bee8664cf88a445b5ba0af",
+        "0x12afb43195f5c621d1d2cabb5f629707095c5307fd4185a663d4e80bb083e878",
     )
     .unwrap();
     let expected_y = FieldElement::from_hex(
-        "0x230294a041e26fe80b827c2ef5cb8784642bbaa83842da2714d62b1f3c4f9752",
+        "0x25793f5b5e62beb92fd18a66050293a9fd554a2ff13bceba0339cae1a038d7c1",
     )
     .unwrap();
 

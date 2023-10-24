@@ -15,7 +15,6 @@ impl FmtVisitor<'_> {
         let span = expr.span;
 
         let rewrite = self.format_expr(expr, expr_type);
-        let rewrite = utils::recover_comment_removed(self.slice(span), rewrite);
         self.push_rewrite(rewrite, span);
 
         self.last_position = span.end();
@@ -174,7 +173,7 @@ impl FmtVisitor<'_> {
                 }
             }
             ExpressionKind::Constructor(constructor) => {
-                let type_name = self.slice(constructor.type_name.span());
+                let type_name = self.slice(span.start()..constructor.type_name.span().end());
                 let fields_span = self
                     .span_before(constructor.type_name.span().end()..span.end(), Token::LeftBrace);
 
@@ -249,6 +248,7 @@ impl FmtVisitor<'_> {
     ) -> String {
         let fields = {
             let mut visitor = self.fork();
+            let is_unit_struct = constructor.fields.is_empty();
 
             visitor.indent.block_indent(visitor.config);
 
@@ -271,6 +271,8 @@ impl FmtVisitor<'_> {
                     nested_indent.indent.to_string_with_newline(),
                     visitor.shape().indent.to_string_with_newline()
                 )
+            } else if is_unit_struct {
+                exprs
             } else {
                 format!(" {exprs} ")
             }
