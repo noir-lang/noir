@@ -793,8 +793,14 @@ impl AcirContext {
     ) -> Result<AcirVar, RuntimeError> {
         match numeric_type {
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                let witness = self.var_to_witness(variable)?;
-                self.acir_ir.range_constraint(witness, *bit_size)?;
+                if *bit_size == 0 {
+                    // A range constraint of zero bits is equivalent to constraining the value to zero.
+                    let zero = self.add_constant(FieldElement::zero());
+                    self.assert_eq_var(variable, zero, None)?;
+                } else {
+                    let witness = self.var_to_witness(variable)?;
+                    self.acir_ir.range_constraint(witness, *bit_size)?;
+                }
             }
             NumericType::NativeField => {
                 // Range constraining a Field is a no-op

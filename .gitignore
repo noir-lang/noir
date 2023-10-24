@@ -37,7 +37,7 @@ result
 *.vk
 **/Verifier.toml
 **/target
-!tooling/nargo_cli/tests/acir_artifacts/*/target
+!tooling/nargo_cli/tests/acir_artifacts/*/target/acir.gz
 !tooling/nargo_cli/tests/acir_artifacts/*/target/witness.gz
 !compiler/wasm/noir-script/target
 
