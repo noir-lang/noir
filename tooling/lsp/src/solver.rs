@@ -73,4 +73,12 @@ impl BlackBoxFunctionSolver for MockBackend {
     ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
         unimplemented!()
     }
+
+    fn pedersen_hash(
+        &self,
+        _inputs: &[acvm::FieldElement],
+        _domain_separator: u32,
+    ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
+        unimplemented!()
+    }
 }
