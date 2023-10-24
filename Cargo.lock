@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir_field",
  "bincode",
@@ -22,7 +22,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -36,7 +36,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -53,7 +53,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir",
  "blake2",
@@ -66,7 +66,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "barretenberg_blackbox_solver",
@@ -87,7 +87,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir",
 ]
@@ -217,7 +217,7 @@ checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
 name = "arena"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "generational-arena",
 ]
@@ -449,13 +449,15 @@ dependencies = [
 
 [[package]]
 name = "barretenberg_blackbox_solver"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
+ "ark-ec",
+ "ark-ff",
  "flate2",
  "getrandom",
- "hex",
+ "grumpkin",
  "js-sys",
  "num-bigint",
  "pkg-config",
@@ -571,7 +573,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir_field",
  "serde",
@@ -579,7 +581,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1609,7 +1611,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -1826,6 +1828,17 @@ dependencies = [
  "ff",
  "rand_core",
  "subtle",
+]
+
+[[package]]
+name = "grumpkin"
+version = "0.1.0"
+source = "git+https://github.com/noir-lang/grumpkin?rev=56d99799381f79e42148aaef0de2b0cf9a4b9a5d#56d99799381f79e42148aaef0de2b0cf9a4b9a5d"
+dependencies = [
+ "ark-bn254",
+ "ark-ec",
+ "ark-ff",
+ "ark-std",
 ]
 
 [[package]]
@@ -2179,7 +2192,7 @@ dependencies = [
 
 [[package]]
 name = "iter-extended"
-version = "0.16.0"
+version = "0.17.0"
 
 [[package]]
 name = "itertools"
@@ -2398,7 +2411,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "base64",
@@ -2418,7 +2431,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -2466,7 +2479,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "bytecount",
  "noirc_frontend",
@@ -2478,7 +2491,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "dirs",
  "fm",
@@ -2526,25 +2539,25 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "easy-repl",
  "nargo",
  "noirc_printable_type",
+ "owo-colors",
  "thiserror",
 ]
 
 [[package]]
 name = "noir_lsp"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "async-lsp",
  "cfg-if",
  "codespan-lsp",
  "codespan-reporting",
- "fm",
  "lsp-types 0.94.0",
  "nargo",
  "nargo_toml",
@@ -2560,7 +2573,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -2582,7 +2595,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -2599,7 +2612,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -2616,7 +2629,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "base64",
@@ -2632,7 +2645,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "chumsky",
@@ -2645,7 +2658,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "fxhash",
@@ -2660,7 +2673,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "arena",
@@ -2681,7 +2694,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "acvm",
  "iter-extended",

@@ -1,0 +1,70 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  --ifm-color-primary: #9f3fff;
+  --ifm-color-primary-dark: #2f1f49;
+  --ifm-color-primary-darker: #2f1f49;
+  --ifm-color-primary-darkest: #2f1f49;
+  --ifm-color-primary-light: #9f3fff;
+  --ifm-color-primary-lighter: #9f3fff;
+  --ifm-color-primary-lightest: #9f3fff;
+  --search-local-highlight-color: #2f1f49;
+  --ifm-menu-color-background-active: #f6f8fa;
+  --ifm-code-font-size: 95%;
+  --ifm-breadcrumb-color-active: white;
+  --ifm-breadcrumb-item-background-active: #2f1f49;
+  --ifm-heading-color: #2f1f49;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: #f5bda9;
+  --ifm-color-primary-dark: #f5bda9;
+  --ifm-color-primary-darker: #f5bda9;
+  --ifm-color-primary-darkest: #f5bda9;
+  --ifm-color-primary-light: #f5bda9;
+  --ifm-color-primary-lighter: #f5bda9;
+  --ifm-color-primary-lightest: #f5bda9;
+
+  --ifm-heading-color: white;
+  --ifm-menu-color-background-active: #282a36;
+  --ifm-breadcrumb-color-active: #2f1f49;
+  --ifm-breadcrumb-item-background-active: #f5bda9;
+
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme='dark'] {
+  --search-local-highlight-color: #f5bda9;
+  --search-local-muted-color: white;
+  --search-local-hit-active-color: #1b1b1d;
+  --search-local-hit-color: white;
+}
+
+[data-theme='dark'] .footer {
+  --ifm-footer-background-color: #282a36
+  --ifm-footer-color: var(--ifm-footer-link-color);
+  --ifm-footer-link-color: var(--ifm-color-secondary);
+  --ifm-footer-title-color: var(--ifm-color-white);
+}
+
+[data-theme='light'] .navbar {
+  background-color: #f6fbfc;
+}
+
+[data-theme='light'] .footer {
+  --ifm-footer-background-color: #f6fbfc;
+  --ifm-footer-color: #2f1f49;
+  --ifm-footer-link-color: #2f1f49;
+  --ifm-footer-title-color: #2f1f49;
+}
+
+.katex-html {
+  display: none;
+}

@@ -7,12 +7,16 @@ use acvm::FieldElement;
 use acvm::Language;
 use tempfile::tempdir;
 
-use crate::cli::{GatesCommand, InfoCommand, ProveCommand, VerifyCommand, WriteVkCommand};
+use crate::cli::{
+    GatesCommand, InfoCommand, ProofAsFieldsCommand, ProveCommand, VerifyCommand,
+    VkAsFieldsCommand, WriteVkCommand,
+};
 use crate::{Backend, BackendError, BackendOpcodeSupport};
 
 impl Backend {
     pub fn get_exact_circuit_size(&self, circuit: &Circuit) -> Result<u32, BackendError> {
         let binary_path = self.assert_binary_exists()?;
+        self.assert_correct_version()?;
 
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
@@ -28,6 +32,7 @@ impl Backend {
 
     pub fn get_backend_info(&self) -> Result<(Language, BackendOpcodeSupport), BackendError> {
         let binary_path = self.assert_binary_exists()?;
+        self.assert_correct_version()?;
         InfoCommand { crs_path: self.crs_directory() }.run(binary_path)
     }
 
@@ -38,6 +43,7 @@ impl Backend {
         is_recursive: bool,
     ) -> Result<Vec<u8>, BackendError> {
         let binary_path = self.assert_binary_exists()?;
+        self.assert_correct_version()?;
 
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
@@ -78,21 +84,14 @@ impl Backend {
         is_recursive: bool,
     ) -> Result<bool, BackendError> {
         let binary_path = self.assert_binary_exists()?;
+        self.assert_correct_version()?;
 
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
 
-        // Unlike when proving, we omit any unassigned witnesses.
-        // Witness values should be ordered by their index but we skip over any indices without an assignment.
-        let flattened_public_inputs: Vec<FieldElement> =
-            public_inputs.into_iter().map(|(_, el)| el).collect();
-
-        let proof_with_public_inputs = bb_abstraction_leaks::prepend_public_inputs(
-            proof.to_vec(),
-            flattened_public_inputs.to_vec(),
-        );
-
         // Create a temporary file for the proof
+        let proof_with_public_inputs =
+            bb_abstraction_leaks::prepend_public_inputs(proof.to_vec(), public_inputs);
         let proof_path = temp_directory.join("proof").with_extension("proof");
         write_to_file(&proof_with_public_inputs, &proof_path);
 
@@ -106,7 +105,6 @@ impl Backend {
 
         WriteVkCommand {
             crs_path: self.crs_directory(),
-            is_recursive,
             bytecode_path,
             vk_path_output: vk_path.clone(),
         }
@@ -115,6 +113,51 @@ impl Backend {
         // Verify the proof
         VerifyCommand { crs_path: self.crs_directory(), is_recursive, proof_path, vk_path }
             .run(binary_path)
+    }
+
+    pub fn get_intermediate_proof_artifacts(
+        &self,
+        circuit: &Circuit,
+        proof: &[u8],
+        public_inputs: WitnessMap,
+    ) -> Result<(Vec<FieldElement>, FieldElement, Vec<FieldElement>), BackendError> {
+        let binary_path = self.assert_binary_exists()?;
+        self.assert_correct_version()?;
+
+        let temp_directory = tempdir().expect("could not create a temporary directory");
+        let temp_directory = temp_directory.path().to_path_buf();
+
+        // Create a temporary file for the circuit
+        //
+        let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
+        let serialized_circuit = serialize_circuit(circuit);
+        write_to_file(&serialized_circuit, &bytecode_path);
+
+        // Create the verification key and write it to the specified path
+        let vk_path = temp_directory.join("vk");
+
+        WriteVkCommand {
+            crs_path: self.crs_directory(),
+            bytecode_path,
+            vk_path_output: vk_path.clone(),
+        }
+        .run(binary_path)?;
+
+        // Create a temporary file for the proof
+
+        let proof_with_public_inputs =
+            bb_abstraction_leaks::prepend_public_inputs(proof.to_vec(), public_inputs);
+        let proof_path = temp_directory.join("proof").with_extension("proof");
+        write_to_file(&proof_with_public_inputs, &proof_path);
+
+        // Now ready to generate intermediate artifacts.
+
+        let proof_as_fields =
+            ProofAsFieldsCommand { proof_path, vk_path: vk_path.clone() }.run(binary_path)?;
+
+        let (vk_hash, vk_as_fields) = VkAsFieldsCommand { vk_path }.run(binary_path)?;
+
+        Ok((proof_as_fields, vk_hash, vk_as_fields))
     }
 }
 

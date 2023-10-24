@@ -78,6 +78,8 @@ pub enum ResolverError {
     InvalidClosureEnvironment { typ: Type, span: Span },
     #[error("{name} is private and not visible from the current module")]
     PrivateFunctionCalled { name: String, span: Span },
+    #[error("Only sized types may be used in the entry point to a program")]
+    InvalidTypeForEntryPoint { span: Span },
 }
 
 impl ResolverError {
@@ -294,6 +296,9 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::PrivateFunctionCalled { span, name } => Diagnostic::simple_warning(
                 format!("{name} is private and not visible from the current module"),
                 format!("{name} is private"), span),
+            ResolverError::InvalidTypeForEntryPoint { span } => Diagnostic::simple_error(
+                "Only sized types may be used in the entry point to a program".to_string(),
+                "Slices, references, or any type containing them may not be used in main or a contract function".to_string(), span),
         }
     }
 }

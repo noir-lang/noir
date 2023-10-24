@@ -1,7 +1,7 @@
 /// A macro to create a slice from a given data source, helping to avoid borrow checker errors.
 #[macro_export]
 macro_rules! slice {
-    ($this:ident, $start:expr, $end:expr) => {
+    ($this:expr, $start:expr, $end:expr) => {
         &$this.source[$start as usize..$end as usize]
     };
 }
@@ -17,8 +17,8 @@ use crate::config::Config;
 pub(crate) struct FmtVisitor<'me> {
     config: &'me Config,
     buffer: String,
-    source: &'me str,
-    block_indent: Indent,
+    pub(crate) source: &'me str,
+    indent: Indent,
     last_position: u32,
 }
 
@@ -29,7 +29,24 @@ impl<'me> FmtVisitor<'me> {
             config,
             source,
             last_position: 0,
-            block_indent: Indent { block_indent: 0 },
+            indent: Indent { block_indent: 0 },
+        }
+    }
+
+    fn shape(&self) -> Shape {
+        Shape {
+            width: self.config.max_width.saturating_sub(self.indent.width()),
+            indent: self.indent,
+        }
+    }
+
+    pub(crate) fn fork(&self) -> Self {
+        Self {
+            buffer: String::new(),
+            config: self.config,
+            source: self.source,
+            last_position: self.last_position,
+            indent: self.indent,
         }
     }
 
@@ -38,9 +55,9 @@ impl<'me> FmtVisitor<'me> {
     }
 
     fn with_indent<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.block_indent.block_indent(self.config);
+        self.indent.block_indent(self.config);
         let ret = f(self);
-        self.block_indent.block_unindent(self.config);
+        self.indent.block_unindent(self.config);
         ret
     }
 
@@ -72,7 +89,7 @@ impl<'me> FmtVisitor<'me> {
             }
 
             if should_indent {
-                let indent = this.block_indent.to_string();
+                let indent = this.indent.to_string();
                 this.push_str(&indent);
             }
         });
@@ -128,14 +145,29 @@ impl<'me> FmtVisitor<'me> {
         let blank_lines = "\n".repeat(newline_count);
         self.push_str(&blank_lines);
     }
+
+    pub(crate) fn format_comment(&self, span: Span) -> String {
+        let slice = slice!(self, span.start(), span.end()).trim();
+        let pos = slice.find('/');
+
+        if !slice.is_empty() && pos.is_some() {
+            slice.to_string()
+        } else {
+            String::new()
+        }
+    }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct Indent {
     block_indent: usize,
 }
 
 impl Indent {
+    fn width(&self) -> usize {
+        self.block_indent
+    }
+
     fn block_indent(&mut self, config: &Config) {
         self.block_indent += config.tab_spaces;
     }
@@ -144,8 +176,18 @@ impl Indent {
         self.block_indent -= config.tab_spaces;
     }
 
+    fn to_string_with_newline(self) -> String {
+        "\n".to_string() + &self.to_string()
+    }
+
     #[allow(clippy::inherent_to_string)]
     fn to_string(self) -> String {
         " ".repeat(self.block_indent)
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Shape {
+    width: usize,
+    indent: Indent,
 }

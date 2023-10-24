@@ -1,0 +1,37 @@
+---
+title: Schnorr Signatures
+description: Learn how you can verify Schnorr signatures using Noir
+keywords: [cryptographic primitives, Noir project, schnorr, signatures]
+---
+
+import BlackBoxInfo from './common/\_blackbox.mdx';
+
+## schnorr::verify_signature
+
+Verifier for Schnorr signatures over the embedded curve (for BN254 it is Grumpkin).
+
+```rust
+fn verify_signature(_public_key_x: Field, _public_key_y: Field, _signature: [u8; 64], _message: [u8]) -> Field
+```
+
+where `_signature` can be generated like so using the npm package
+[@noir-lang/barretenberg](https://www.npmjs.com/package/@noir-lang/barretenberg)
+
+```js
+const { BarretenbergWasm } = require('@noir-lang/barretenberg/dest/wasm');
+const { Schnorr } = require('@noir-lang/barretenberg/dest/crypto/schnorr');
+
+...
+
+const barretenberg = await BarretenbergWasm.new();
+const schnorr = new Schnorr(barretenberg);
+const pubKey = schnorr.computePublicKey(privateKey);
+const message = ...
+const signature = Array.from(
+    schnorr.constructSignature(hash, privateKey).toBuffer()
+);
+
+...
+```
+
+<BlackBoxInfo/>
