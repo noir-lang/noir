@@ -360,13 +360,15 @@ pub fn compile_no_check(
 
     let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
 
-    Ok((CompiledProgram {
-        hash,
-        circuit,
-        debug,
-        abi,
-        file_map,
-        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
-    }, warnings))
-    
+    Ok((
+        CompiledProgram {
+            hash,
+            circuit,
+            debug,
+            abi,
+            file_map,
+            noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
+        },
+        warnings,
+    ))
 }
