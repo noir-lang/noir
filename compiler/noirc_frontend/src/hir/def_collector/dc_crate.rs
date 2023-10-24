@@ -494,25 +494,6 @@ fn collect_trait_impl_methods(
     errors
 }
 
-fn add_method_to_struct_namespace(
-    current_def_map: &mut CrateDefMap,
-    struct_type: &Shared<StructType>,
-    func_id: FuncId,
-    name_ident: &Ident,
-    trait_id: TraitId,
-) -> Result<(), DefCollectorErrorKind> {
-    let struct_type = struct_type.borrow();
-    let type_module = struct_type.id.local_module_id();
-    let module = &mut current_def_map.modules[type_module.0];
-    module.declare_trait_function(name_ident.clone(), func_id, trait_id).map_err(
-        |(first_def, second_def)| DefCollectorErrorKind::Duplicate {
-            typ: DuplicateType::TraitImplementation,
-            first_def,
-            second_def,
-        },
-    )
-}
-
 fn collect_trait_impl(
     context: &mut Context,
     crate_id: CrateId,
@@ -535,28 +516,25 @@ fn collect_trait_impl(
     if let Some(trait_id) = trait_impl.trait_id {
         errors
             .extend(collect_trait_impl_methods(interner, def_maps, crate_id, trait_id, trait_impl));
-        for (_, func_id, ast) in &trait_impl.methods.functions {
-            let file = def_maps[&crate_id].file_id(trait_impl.module_id);
 
-            let path_resolver = StandardPathResolver::new(module);
-            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
-            resolver.add_generics(&ast.def.generics);
-            let typ = resolver.resolve_type(unresolved_type.clone());
+        let path_resolver = StandardPathResolver::new(module);
+        let file = def_maps[&crate_id].file_id(trait_impl.module_id);
+        let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+        let typ = resolver.resolve_type(unresolved_type.clone());
+        errors.extend(take_errors(trait_impl.file_id, resolver));
 
-            if let Some(struct_type) = get_struct_type(&typ) {
-                errors.extend(take_errors(trait_impl.file_id, resolver));
-                let current_def_map = def_maps.get_mut(&struct_type.borrow().id.krate()).unwrap();
-                match add_method_to_struct_namespace(
-                    current_def_map,
-                    struct_type,
-                    *func_id,
-                    ast.name_ident(),
-                    trait_id,
-                ) {
-                    Ok(()) => {}
-                    Err(err) => {
-                        errors.push((err.into(), trait_impl.file_id));
-                    }
+        if let Some(struct_type) = get_struct_type(&typ) {
+            let struct_type = struct_type.borrow();
+            let type_module = struct_type.id.local_module_id();
+            let module = &mut def_maps.get_mut(&crate_id).unwrap().modules[type_module.0];
+
+            for (_, method_id, method) in &trait_impl.methods.functions {
+                // If this method was already declared, remove it from the module so it cannot
+                // be accessed with the `TypeName::method` syntax. We'll check later whether the
+                // object types in each method overlap or not. If they do, we issue an error.
+                // If not, that is specialization which is allowed.
+                if module.declare_function(method.name_ident().clone(), *method_id).is_err() {
+                    module.remove_function(method.name_ident());
                 }
             }
         }
@@ -841,7 +819,7 @@ fn take_errors_filter_self_not_resolved(
 }
 
 fn take_errors(file_id: FileId, resolver: Resolver<'_>) -> Vec<(CompilationError, FileId)> {
-    resolver.take_errors().iter().cloned().map(|e| (e.into(), file_id)).collect()
+    vecmap(resolver.take_errors(), |e| (e.into(), file_id))
 }
 
 /// Create the mappings from TypeId -> TraitType
