@@ -62,7 +62,7 @@ const config = {
 
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
-    ({
+    {
       // Replace with your project's social card
       navbar: {
         logo: {
@@ -87,8 +87,7 @@ const config = {
       metadata: [
         {
           name: 'Noir',
-          content:
-            'noir, programming, language, documentation, zk, zero-knowledge, l2, crypto, layer2, ethereum',
+          content: 'noir, programming, language, documentation, zk, zero-knowledge, l2, crypto, layer2, ethereum',
         },
       ],
       footer: {
@@ -149,7 +148,51 @@ const config = {
 
         indexName: 'noir-lang',
       },
-    }),
+    },
+  plugins: [
+    [
+      'docusaurus-plugin-typedoc',
+      {
+        id: 'noir_js',
+        entryPoints: ['../tooling/noir_js/src/index.ts'],
+        tsconfig: '../tooling/noir_js/tsconfig.json',
+        entryPointStrategy: 'resolve',
+        out: 'noir_js/reference/noir_js',
+        plugin: ['typedoc-plugin-markdown'],
+
+        readme: 'none',
+        skipIndexPage: true,
+        hidePageHeader: true,
+        hideBreadcrumbs: true,
+        hideInPageTOC: true,
+        titleTemplate: '{name}',
+        identifiersAsCodeBlocks: true,
+        propertiesFormat: 'table',
+        typeDeclarationFormat: 'table',
+      },
+    ],
+    [
+      'docusaurus-plugin-typedoc',
+      {
+        id: 'noir_js_backend_barretenberg',
+        entryPoints: ['../tooling/noir_js_backend_barretenberg/src/index.ts'],
+        tsconfig: '../tooling/noir_js_backend_barretenberg/tsconfig.json',
+        entryPointStrategy: 'resolve',
+        out: 'noir_js/reference/backend_barretenberg',
+        plugin: ['typedoc-plugin-markdown'],
+
+        readme: 'none',
+        skipIndexPage: true,
+        hidePageHeader: true,
+        hideBreadcrumbs: true,
+        hideInPageTOC: true,
+        titleTemplate: '{name}',
+        identifiersAsCodeBlocks: true,
+        propertiesFormat: 'table',
+        typeDeclarationFormat: 'table',
+      },
+    ],
+  ],
 };
 
 module.exports = config;

@@ -10,6 +10,7 @@ export class Noir {
     private backend?: Backend,
   ) {}
 
+  /** @ignore */
   async init(): Promise<void> {
     // If these are available, then we are in the
     // web environment. For the node environment, this
@@ -19,6 +20,17 @@ export class Noir {
     }
   }
 
+  /**
+   *
+   * This method destroys the resources allocated in the [instantiate](#instantiate) method.
+   * Noir doesn't currently call this method, but it's highly recommended that developers do so in order to save resources.
+   *
+   * @example
+   * ```typescript
+   * await backend.destroy();
+   * ```
+   *
+   */
   async destroy(): Promise<void> {
     await this.backend?.destroy();
   }
@@ -37,6 +49,11 @@ export class Noir {
   }
 
   // Initial inputs to your program
+  /**
+   *
+   * @param inputs - The initial inputs to your program
+   * @returns a proof which can be verified by the verifier
+   */
   async generateFinalProof(inputs: InputMap): Promise<ProofData> {
     const { witness } = await this.execute(inputs);
     return this.getBackend().generateFinalProof(witness);

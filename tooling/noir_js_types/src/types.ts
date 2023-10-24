@@ -14,11 +14,13 @@ export interface Backend {
   destroy(): Promise<void>;
 }
 
+/** @interface */
 export type ProofData = {
   publicInputs: Uint8Array[];
   proof: Uint8Array;
 };
 
+/** @interface */
 export type CompiledCircuit = {
   bytecode: string;
   abi: Abi;

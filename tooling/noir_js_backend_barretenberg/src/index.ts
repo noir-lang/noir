@@ -68,6 +68,7 @@ export class BarretenbergBackend implements Backend {
     return this.generateProof(witness, makeEasyToVerifyInCircuit);
   }
 
+  /** @ignore */
   async generateProof(compressedWitness: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<ProofData> {
     await this.instantiate();
     const proofWithPublicInputs = await this.api.acirCreateProof(
@@ -142,6 +143,7 @@ export class BarretenbergBackend implements Backend {
     return this.verifyProof(proof, makeEasyToVerifyInCircuit);
   }
 
+  /** @ignore */
   async verifyProof(proof: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<boolean> {
     await this.instantiate();
     await this.api.acirInitVerificationKey(this.acirComposer);
@@ -178,3 +180,6 @@ function flattenUint8Arrays(arrays: Uint8Array[]): Uint8Array {
 
   return result;
 }
+
+// typedoc exports
+export { BackendOptions, CompiledCircuit, ProofData };
