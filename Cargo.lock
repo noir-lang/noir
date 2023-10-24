@@ -2532,6 +2532,7 @@ name = "noir_debugger"
 version = "0.17.0"
 dependencies = [
  "acvm",
+ "codespan-reporting",
  "easy-repl",
  "nargo",
  "noirc_printable_type",
@@ -2623,6 +2624,7 @@ version = "0.17.0"
 dependencies = [
  "acvm",
  "base64",
+ "build-data",
  "clap",
  "fm",
  "fxhash",
@@ -2674,6 +2676,7 @@ dependencies = [
  "noirc_printable_type",
  "regex",
  "rustc-hash",
+ "serde",
  "serde_json",
  "small-ord-set",
  "smol_str",

@@ -428,20 +428,10 @@ impl AcirContext {
         let diff_expr = &lhs_expr - &rhs_expr;
 
         // Check to see if equality can be determined at compile-time.
-        if diff_expr.is_const() {
-            if diff_expr.is_zero() {
-                // Constraint is always true - assertion is unnecessary.
-                self.mark_variables_equivalent(lhs, rhs)?;
-                return Ok(());
-            } else {
-                // Constraint is always false - this program is unprovable.
-                return Err(RuntimeError::FailedConstraint {
-                    lhs: Box::new(lhs_expr),
-                    rhs: Box::new(rhs_expr),
-                    call_stack: self.get_call_stack(),
-                    assert_message,
-                });
-            };
+        if diff_expr.is_zero() {
+            // Constraint is always true - assertion is unnecessary.
+            self.mark_variables_equivalent(lhs, rhs)?;
+            return Ok(());
         }
 
         self.acir_ir.assert_is_zero(diff_expr);

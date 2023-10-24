@@ -1,5 +1,6 @@
 use gloo_utils::format::JsValueSerdeExt;
-use serde::{Deserialize, Serialize};
+use js_sys::JsString;
+use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
 use fm::FileManager;
@@ -9,7 +10,7 @@ use noirc_errors::FileDiagnostic;
 const DIAGNOSTICS: &'static str = r#"
 export type Diagnostic = {
     message: string;
-    file_path: string;
+    file: string;
     secondaries: ReadonlyArray<{
         message: string;
         start: number;
@@ -17,66 +18,116 @@ export type Diagnostic = {
     }>;
 }
 
-interface CompileError {
+export interface CompileError extends Error {
+    message: string;
     diagnostics: ReadonlyArray<Diagnostic>;
 }
 "#;
 
-#[derive(Serialize, Deserialize)]
-struct JsDiagnosticLabel {
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(extends = js_sys::Error, js_name = "CompileError", typescript_type = "CompileError")]
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub type JsCompileError;
+
+    #[wasm_bindgen(constructor, js_class = "Error")]
+    fn constructor(message: JsString) -> JsCompileError;
+}
+
+impl JsCompileError {
+    const DIAGNOSTICS_PROP: &'static str = "diagnostics";
+    const NAME_PROP: &'static str = "name";
+    const ERROR_NAME: &'static str = "CompileError";
+
+    pub fn new(message: String, diagnostics: Vec<Diagnostic>) -> Self {
+        let err = JsCompileError::constructor(JsString::from(message));
+
+        js_sys::Reflect::set(
+            &err,
+            &JsString::from(JsCompileError::NAME_PROP),
+            &JsString::from(JsCompileError::ERROR_NAME),
+        )
+        .unwrap();
+
+        js_sys::Reflect::set(
+            &err,
+            &JsString::from(JsCompileError::DIAGNOSTICS_PROP),
+            &<JsValue as JsValueSerdeExt>::from_serde(&diagnostics).unwrap(),
+        )
+        .unwrap();
+
+        err
+    }
+}
+
+impl From<String> for JsCompileError {
+    fn from(value: String) -> Self {
+        JsCompileError::new(value, vec![])
+    }
+}
+
+impl From<CompileError> for JsCompileError {
+    fn from(value: CompileError) -> Self {
+        JsCompileError::new(value.message, value.diagnostics)
+    }
+}
+
+#[derive(Serialize)]
+struct DiagnosticLabel {
     message: String,
     start: u32,
     end: u32,
 }
 
-#[derive(Serialize, Deserialize)]
-struct JsDiagnostic {
+#[derive(Serialize)]
+pub struct Diagnostic {
     message: String,
-    file_path: String,
-    secondaries: Vec<JsDiagnosticLabel>,
+    file: String,
+    secondaries: Vec<DiagnosticLabel>,
 }
 
-impl JsDiagnostic {
-    fn new(file_diagnostic: &FileDiagnostic, file_path: String) -> JsDiagnostic {
+impl Diagnostic {
+    fn new(file_diagnostic: &FileDiagnostic, file: String) -> Diagnostic {
         let diagnostic = &file_diagnostic.diagnostic;
         let message = diagnostic.message.clone();
 
         let secondaries = diagnostic
             .secondaries
             .iter()
-            .map(|label| JsDiagnosticLabel {
+            .map(|label| DiagnosticLabel {
                 message: label.message.clone(),
                 start: label.span.start(),
                 end: label.span.end(),
             })
             .collect();
 
-        JsDiagnostic { message, file_path, secondaries }
+        Diagnostic { message, file, secondaries }
     }
 }
 
-#[wasm_bindgen(getter_with_clone, js_name = "CompileError")]
-pub struct JsCompileError {
-    pub message: js_sys::JsString,
-    pub diagnostics: JsValue,
+#[derive(Serialize)]
+pub struct CompileError {
+    pub message: String,
+    pub diagnostics: Vec<Diagnostic>,
 }
 
-impl JsCompileError {
-    pub fn new(
+impl CompileError {
+    pub fn new(message: &str) -> CompileError {
+        CompileError { message: message.to_string(), diagnostics: vec![] }
+    }
+
+    pub fn with_file_diagnostics(
         message: &str,
         file_diagnostics: Vec<FileDiagnostic>,
         file_manager: &FileManager,
-    ) -> JsCompileError {
+    ) -> CompileError {
         let diagnostics: Vec<_> = file_diagnostics
             .iter()
             .map(|err| {
-                JsDiagnostic::new(err, file_manager.path(err.file_id).to_str().unwrap().to_string())
+                Diagnostic::new(err, file_manager.path(err.file_id).to_str().unwrap().to_string())
             })
             .collect();
 
-        JsCompileError {
-            message: js_sys::JsString::from(message.to_string()),
-            diagnostics: <JsValue as JsValueSerdeExt>::from_serde(&diagnostics).unwrap(),
-        }
+        CompileError { message: message.to_string(), diagnostics }
     }
 }
