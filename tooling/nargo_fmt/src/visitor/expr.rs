@@ -21,7 +21,7 @@ impl FmtVisitor<'_> {
         self.last_position = span.end();
     }
 
-    pub(crate) fn format_subexpr(&self, expression: Expression) -> String {
+    pub(crate) fn format_sub_expr(&self, expression: Expression) -> String {
         self.format_expr(expression, ExpressionType::SubExpression)
     }
 
@@ -50,24 +50,24 @@ impl FmtVisitor<'_> {
                     }
                 };
 
-                format!("{op}{}", self.format_subexpr(prefix.rhs))
+                format!("{op}{}", self.format_sub_expr(prefix.rhs))
             }
             ExpressionKind::Cast(cast) => {
-                format!("{} as {}", self.format_subexpr(cast.lhs), cast.r#type)
+                format!("{} as {}", self.format_sub_expr(cast.lhs), cast.r#type)
             }
             ExpressionKind::Infix(infix) => {
                 format!(
                     "{} {} {}",
-                    self.format_subexpr(infix.lhs),
+                    self.format_sub_expr(infix.lhs),
                     infix.operator.contents.as_string(),
-                    self.format_subexpr(infix.rhs)
+                    self.format_sub_expr(infix.rhs)
                 )
             }
             ExpressionKind::Call(call_expr) => {
                 let args_span =
                     self.span_before(call_expr.func.span.end()..span.end(), Token::LeftParen);
 
-                let callee = self.format_subexpr(*call_expr.func);
+                let callee = self.format_sub_expr(*call_expr.func);
                 let args = format_parens(self.fork(), false, call_expr.arguments, args_span);
 
                 format!("{callee}{args}")
@@ -78,21 +78,21 @@ impl FmtVisitor<'_> {
                     Token::LeftParen,
                 );
 
-                let object = self.format_subexpr(method_call_expr.object);
+                let object = self.format_sub_expr(method_call_expr.object);
                 let method = method_call_expr.method_name.to_string();
                 let args = format_parens(self.fork(), false, method_call_expr.arguments, args_span);
 
                 format!("{object}.{method}{args}")
             }
             ExpressionKind::MemberAccess(member_access_expr) => {
-                let lhs_str = self.format_subexpr(member_access_expr.lhs);
+                let lhs_str = self.format_sub_expr(member_access_expr.lhs);
                 format!("{}.{}", lhs_str, member_access_expr.rhs)
             }
             ExpressionKind::Index(index_expr) => {
                 let index_span = self
                     .span_before(index_expr.collection.span.end()..span.end(), Token::LeftBracket);
 
-                let collection = self.format_subexpr(index_expr.collection);
+                let collection = self.format_sub_expr(index_expr.collection);
                 let index = format_brackets(self.fork(), false, vec![index_expr.index], index_span);
 
                 format!("{collection}{index}")
@@ -105,8 +105,8 @@ impl FmtVisitor<'_> {
                     self.slice(span).to_string()
                 }
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
-                    let repeated = self.format_subexpr(*repeated_element);
-                    let length = self.format_subexpr(*length);
+                    let repeated = self.format_sub_expr(*repeated_element);
+                    let length = self.format_sub_expr(*length);
 
                     format!("[{repeated}; {length}]")
                 }
@@ -140,7 +140,7 @@ impl FmtVisitor<'_> {
                 }
 
                 if !leading.contains("//") && !trailing.contains("//") {
-                    let sub_expr = self.format_subexpr(*sub_expr);
+                    let sub_expr = self.format_sub_expr(*sub_expr);
                     format!("({leading}{sub_expr}{trailing})")
                 } else {
                     let mut visitor = self.fork();
@@ -149,7 +149,7 @@ impl FmtVisitor<'_> {
                     visitor.indent.block_indent(self.config);
                     let nested_indent = visitor.indent.to_string_with_newline();
 
-                    let sub_expr = visitor.format_subexpr(*sub_expr);
+                    let sub_expr = visitor.format_sub_expr(*sub_expr);
 
                     let mut result = String::new();
                     result.push('(');
@@ -193,13 +193,14 @@ impl FmtVisitor<'_> {
 
                 self.format_if(*if_expr)
             }
-            _ => self.slice(span).to_string(),
+            ExpressionKind::Variable(_) | ExpressionKind::Lambda(_) => self.slice(span).to_string(),
+            ExpressionKind::Error => unreachable!(),
         }
     }
 
     fn format_if(&self, if_expr: IfExpression) -> String {
-        let condition_str = self.format_subexpr(if_expr.condition);
-        let consequence_str = self.format_subexpr(if_expr.consequence);
+        let condition_str = self.format_sub_expr(if_expr.condition);
+        let consequence_str = self.format_sub_expr(if_expr.consequence);
 
         let mut result = format!("if {condition_str} {consequence_str}");
 
@@ -220,8 +221,8 @@ impl FmtVisitor<'_> {
     }
 
     fn format_if_single_line(&self, if_expr: IfExpression) -> Option<String> {
-        let condition_str = self.format_subexpr(if_expr.condition);
-        let consequence_str = self.format_subexpr(extract_simple_expr(if_expr.consequence)?);
+        let condition_str = self.format_sub_expr(if_expr.condition);
+        let consequence_str = self.format_sub_expr(extract_simple_expr(if_expr.consequence)?);
 
         let if_str = if let Some(alternative) = if_expr.alternative {
             let alternative_str = if let Some(ExpressionKind::If(_)) =

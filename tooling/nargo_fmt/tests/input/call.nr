@@ -32,4 +32,14 @@ fn foo() {
         another_function(
                 some_function(), some_value)
     );
+
+    assert_eq( x, y );
+
+    assert_eq( x, y, "message" );
+
+    assert( x );
+
+    assert( x, "message" );
+
+    assert( x == y );
 }
