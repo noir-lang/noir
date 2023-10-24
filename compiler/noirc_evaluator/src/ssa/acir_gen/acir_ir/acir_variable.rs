@@ -644,12 +644,7 @@ impl AcirContext {
         self.range_constrain_var(remainder_var, &NumericType::Unsigned { bit_size: max_rhs_bits })?;
 
         // Constrain `r < rhs`.
-        self.acir_ir.bound_constraint_with_offset(
-            &self.var_to_expression(remainder_var)?,
-            &self.var_to_expression(rhs)?,
-            &self.var_to_expression(predicate)?,
-            max_rhs_bits,
-        )?;
+        self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits)?;
 
         // a * predicate == (b * q + r) * predicate
         // => predicate * (a - b * q - r) == 0
@@ -682,16 +677,82 @@ impl AcirContext {
                 let max_r_predicate = self.mul_var(predicate, max_r_var)?;
                 let r_predicate = self.mul_var(remainder_var, predicate)?;
                 // Bound the remainder to be <p-q0*b, if the predicate is true.
-                self.acir_ir.bound_constraint_with_offset(
-                    &self.var_to_expression(r_predicate)?,
-                    &self.var_to_expression(max_r_predicate)?,
-                    &self.var_to_expression(predicate)?,
+                self.bound_constraint_with_offset(
+                    r_predicate,
+                    max_r_predicate,
+                    predicate,
                     rhs_const.num_bits(),
                 )?;
             }
         }
 
         Ok((quotient_var, remainder_var))
+    }
+
+    /// Generate constraints that are satisfied iff
+    /// lhs < rhs , when offset is 1, or
+    /// lhs <= rhs, when offset is 0
+    /// bits is the bit size of a and b (or an upper bound of the bit size)
+    ///
+    /// lhs<=rhs is done by constraining b-a to a bit size of 'bits':
+    /// if lhs<=rhs, 0 <= rhs-lhs <= b < 2^bits
+    /// if lhs>rhs, rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
+    /// n.b: we do NOT check here that lhs and rhs are indeed 'bits' size
+    /// lhs < rhs <=> a+1<=b
+    /// TODO: Consolidate this with bounds_check function.
+    pub(super) fn bound_constraint_with_offset(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        offset: AcirVar,
+        bits: u32,
+    ) -> Result<(), RuntimeError> {
+        const fn num_bits<T>() -> usize {
+            std::mem::size_of::<T>() * 8
+        }
+
+        fn bit_size_u128(a: u128) -> u32 where {
+            num_bits::<u128>() as u32 - a.leading_zeros()
+        }
+
+        assert!(
+            bits < FieldElement::max_num_bits(),
+            "range check with bit size of the prime field is not implemented yet"
+        );
+
+        let mut lhs_offset = self.add_var(lhs, offset)?;
+
+        // Optimization when rhs is const and fits within a u128
+        let rhs_expr = self.var_to_expression(rhs)?;
+        if rhs_expr.is_const() && rhs_expr.q_c.fits_in_u128() {
+            // We try to move the offset to rhs
+            let rhs_offset = if self.is_constant_one(&offset) && rhs_expr.q_c.to_u128() >= 1 {
+                lhs_offset = lhs;
+                rhs_expr.q_c.to_u128() - 1
+            } else {
+                rhs_expr.q_c.to_u128()
+            };
+            // we now have lhs+offset <= rhs <=> lhs_offset <= rhs_offset
+
+            let bit_size = bit_size_u128(rhs_offset);
+            // r = 2^bit_size - rhs_offset -1, is of bit size  'bit_size' by construction
+            let r = (1_u128 << bit_size) - rhs_offset - 1;
+            // however, since it is a constant, we can compute it's actual bit size
+            let r_bit_size = bit_size_u128(r);
+            // witness = lhs_offset + r
+            assert!(bits + r_bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
+
+            let r_var = self.add_constant(r.into());
+            let aor = self.add_var(lhs_offset, r_var)?;
+            // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
+            self.range_constrain_var(aor, &NumericType::Unsigned { bit_size })?;
+            return Ok(());
+        }
+        // General case:  lhs_offset<=rhs <=> rhs-lhs_offset>=0 <=> rhs-lhs_offset is a 'bits' bit integer
+        let sub_expression = self.sub_var(rhs, lhs_offset)?; //rhs-lhs_offset
+        self.range_constrain_var(sub_expression, &NumericType::Unsigned { bit_size: bits })?;
+
+        Ok(())
     }
 
     // Returns the 2-complement of lhs, using the provided sign bit in 'leading'
@@ -794,6 +855,13 @@ impl AcirContext {
     ) -> Result<AcirVar, RuntimeError> {
         match numeric_type {
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
+                // If `variable` is constant then we don't need to add a constraint.
+                // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
+                if let Some(constant) = self.var_to_expression(variable)?.to_const() {
+                    if constant.num_bits() <= *bit_size {
+                        return Ok(variable);
+                    }
+                }
                 let witness = self.var_to_witness(variable)?;
                 self.acir_ir.range_constraint(witness, *bit_size)?;
                 if let Some(message) = message {
