@@ -31,6 +31,14 @@ impl BlackBoxFunctionSolver for WrapperSolver {
     ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
         self.0.fixed_base_scalar_mul(low, high)
     }
+
+    fn pedersen_hash(
+        &self,
+        inputs: &[acvm::FieldElement],
+        domain_separator: u32,
+    ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
+        self.0.pedersen_hash(inputs, domain_separator)
+    }
 }
 
 // We also have a mocked implementation of the `BlackBoxFunctionSolver` trait for use in tests
