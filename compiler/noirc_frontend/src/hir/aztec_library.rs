@@ -283,7 +283,9 @@ fn transform_module(
     if storage_defined && check_for_compute_note_hash_and_nullifier_definition(&module) {
         let crate_graph = &context.crate_graph[crate_id];
         return Err((
-            DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound {},
+            DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound {
+                span: Span::default(), // Add a default span so we know which contract file the error originates from
+            },
             crate_graph.root_file_id,
         ));
     }
