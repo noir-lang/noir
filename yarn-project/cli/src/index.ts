@@ -186,6 +186,30 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     });
 
   program
+    .command('register-account')
+    .description(
+      'Registers an aztec account that can be used for sending transactions. Registers the account on the PXE. Uses a Schnorr single-key account which uses the same key for encryption and authentication (not secure for production usage).',
+    )
+    .summary('Registers an aztec account that can be used for sending transactions.')
+    .addOption(createPrivateKeyOption('Private key for note encryption and transaction signing.', true))
+    .requiredOption(
+      '-pa, --partial-address <partialAddress>',
+      'The partially computed address of the account contract.',
+      parsePartialAddress,
+    )
+    .addOption(pxeOption)
+    .action(async ({ rpcUrl, privateKey, partialAddress }) => {
+      const client = await createCompatibleClient(rpcUrl, debugLogger);
+
+      const { address, publicKey } = await client.registerAccount(privateKey, partialAddress);
+
+      log(`\nRegistered account:\n`);
+      log(`Address:         ${address.toString()}`);
+      log(`Public key:      ${publicKey.toString()}`);
+      log(`Partial address: ${partialAddress.toString()}`);
+    });
+
+  program
     .command('deploy')
     .description('Deploys a compiled Aztec.nr contract to Aztec.')
     .argument(
