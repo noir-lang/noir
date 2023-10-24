@@ -128,7 +128,7 @@ impl std::fmt::Display for ParserError {
 
 impl From<ParserError> for Diagnostic {
     fn from(error: ParserError) -> Diagnostic {
-        match &error.reason {
+        match error.reason {
             Some(reason) => {
                 match reason {
                     ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_error(
@@ -146,11 +146,11 @@ impl From<ParserError> for Diagnostic {
                         "".into(),
                         error.span,
                     ),
-                    reason @ ParserErrorReason::ExpectedPatternButFoundType(ty) => {
-                        Diagnostic::simple_error(reason.to_string(), format!("{ty} is a type and cannot be used as a variable name"), error.span)
+                    ParserErrorReason::ExpectedPatternButFoundType(ty) => {
+                        Diagnostic::simple_error("Expected a ; separating these two statements".into(), format!("{ty} is a type and cannot be used as a variable name"), error.span)
                     }
+                    ParserErrorReason::Lexer(error) => error.into(),
                     other => {
-
                         Diagnostic::simple_error(format!("{other}"), String::new(), error.span)
                     }
                 }
