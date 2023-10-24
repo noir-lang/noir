@@ -19,8 +19,8 @@ pub enum Token {
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
-    LineComment(String),
-    BlockComment(String),
+    LineComment(String, Option<DocStyle>),
+    BlockComment(String, Option<DocStyle>),
     /// <
     Less,
     /// <=
@@ -97,6 +97,12 @@ pub enum Token {
     Invalid(char),
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+pub enum DocStyle {
+    Outer,
+    Inner,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SpannedToken(Spanned<Token>);
 
@@ -151,8 +157,8 @@ impl fmt::Display for Token {
             Token::FmtStr(ref b) => write!(f, "f{b}"),
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
-            Token::LineComment(ref s) => write!(f, "//{s}"),
-            Token::BlockComment(ref s) => write!(f, "/*{s}*/"),
+            Token::LineComment(ref s, _style) => write!(f, "//{s}"),
+            Token::BlockComment(ref s, _style) => write!(f, "/*{s}*/"),
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -390,6 +396,13 @@ impl Attributes {
 
     pub fn is_test_function(&self) -> bool {
         matches!(self.function, Some(FunctionAttribute::Test(_)))
+    }
+
+    /// True if these attributes mean the given function is an entry point function if it was
+    /// defined within a contract. Note that this does not check if the function is actually part
+    /// of a contract.
+    pub fn is_contract_entry_point(&self) -> bool {
+        !self.has_contract_library_method() && !self.is_test_function()
     }
 
     /// Returns note if a deprecated secondary attribute is found
