@@ -12,6 +12,7 @@ use super::debug::DebugFile;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CompiledProgram {
+    pub noir_version: String,
     /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which this [`CompiledProgram`]
     /// was compiled.
     ///
