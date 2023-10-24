@@ -47,7 +47,6 @@ it(`smart contract can verify a recursive proof`, async () => {
     proof: proofAsFields,
     public_inputs: [main_inputs.y as Field],
     key_hash: vkHash,
-    input_aggregation_object: ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'],
   };
 
   const recursion_proof = await recursion.generateFinalProof(recursion_inputs);
