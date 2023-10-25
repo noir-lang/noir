@@ -24,7 +24,7 @@ jobs:
             HAS_ARTIFACT_LABEL=$(gh pr view $PR --json labels | jq '.labels | any(.name == "publish-acir")')
             echo "publish=$HAS_ARTIFACT_LABEL" >> "$GITHUB_OUTPUT"
           fi
-        with:
+        env:
           PR: ${{ github.event.pull_request.number }}
 
           
