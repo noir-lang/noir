@@ -47,7 +47,7 @@ jobs:
             })
           }
 
-  deploy_docs:
+  build_and_deploy:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -71,11 +71,10 @@ jobs:
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v2.1
         with:
-
           publish-dir: './docs/build'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           enable-github-deployment: false
-          deploy-message: "Deploy from GitHub Actions"
+          deploy-message: "Deploy from GitHub Actions for PR ${{ github.event.number }}"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}

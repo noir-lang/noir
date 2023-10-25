@@ -3,22 +3,22 @@ name: Publish Docs
 on:
   workflow_dispatch:
     inputs:
-      noir-ref:
-        description: The noir reference to checkout
+      tag:
+        description: The tag to build Docs for
         required: false
-        default: 'master'
-
-run-name: Publish Docs from ${{ inputs.noir-ref }}.
 
 jobs:
   publish-docs:
     runs-on: ubuntu-latest
+    if: ${{ inputs.tag != '' }}
     permissions:
       pull-requests: write
     steps:
-    -   name: Checkout code
-        uses: actions/checkout@v2
-    
+    -   name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
     -   name: Setup Node.js
         uses: actions/setup-node@v2
         with:
@@ -26,6 +26,9 @@ jobs:
 
     -   name: Install dependencies
         run: yarn
+    
+    -   name: Cut a new version
+        run: docusaurus docs:version ${{ inputs.tag }}
 
     -   name: Build docs
         run: yarn workspace docs build
@@ -35,9 +38,10 @@ jobs:
         with:
           publish-dir: './docs/build'
           production-branch: master
+          production-deploy: false # TODO change to true
           github-token: ${{ secrets.GITHUB_TOKEN }}
           enable-github-deployment: false
-          deploy-message: "Deploy from GitHub Actions"
+          deploy-message: "Deploy from GitHub Actions for tag ${{ inputs.tag }}"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
