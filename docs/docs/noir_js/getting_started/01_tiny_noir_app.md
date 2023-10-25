@@ -1,16 +1,24 @@
 ---
-title: Full Stack Noir App
+title: End-to-end
 description: Learn how to setup a new app that uses Noir to generate and verify zero-knowledge SNARK proofs in a typescript or javascript environment
 keywords: [how to, guide, javascript, typescript, noir, barretenberg, zero-knowledge, proofs]
 ---
 
-Noir JS works both on the browser and on the server, and works for both ESM and CJS module systems. In this page, we will learn how can we write a simple test and a simple web app to verify the standard Noir example.
+NoirJS works both on the browser and on the server, and works for both ESM and CJS module systems. In this page, we will learn how can we write a simple test and a simple web app to verify the standard Noir example.
 
 ## Before we start
 
+:::note
+
+Feel free to use whatever versions, just keep in mind that Nargo and the NoirJS packages are meant to be in sync. For example, Nargo 0.18.x matches `noir_js@0.18.x`, etc.
+
+In this guide, we will be pinned to 0.17.0.
+
+:::
+
 Make sure you have Node installed on your machine by opening a terminal and executing `node --version`. If you don't see a version, you should install [node](https://github.com/nvm-sh/nvm). You can also use `yarn` if you prefer that package manager over npm (which comes with node).
 
-First of all, follow the the [Nargo guide](../../getting_started/00_nargo_installation.md) to install nargo and create a new project with `nargo new circuit`. Once there, `cd` into the `circuit` folder. You should then be able to compile your circuit into `json` format and see it inside the `target` folder:
+First of all, follow the the [Nargo guide](../../getting_started/00_nargo_installation.md) to install nargo version 0.17.0 and create a new project with `nargo new circuit`. Once there, `cd` into the `circuit` folder. You should then be able to compile your circuit into `json` format and see it inside the `target` folder:
 
 ```bash
 nargo compile
@@ -34,10 +42,10 @@ Go back to the previous folder and start a new project by running run `npm init`
 
 ## Installing dependencies
 
-We'll need two `npm` packages. These packages will provide us the methods we need to run and verify proofs. Let's install them:
+We'll need two `npm` packages. These packages will provide us the methods we need to run and verify proofs:
 
 ```bash
-npm i @noir-lang/backend_barretenberg @noir-lang/noir_js
+npm i @noir-lang/backend_barretenberg@^0.17.0 @noir-lang/noir_js@^0.17.0 
 ```
 
 To serve our page, we can use a build tool such as `vite`. Because we're gonna use some `wasm` files, we need to install a plugin as well. Run:
@@ -175,7 +183,7 @@ You'll see other files and folders showing up (like `package-lock.json`, `yarn.l
 
 ## Importing our dependencies
 
-We're starting with the good stuff now. At the top of a new the typescript file, import the packages:
+We're starting with the good stuff now. At the top of the new javascript file, import the packages:
 
 ```ts
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
@@ -209,17 +217,7 @@ Our dependencies exported two classes: `BarretenbergBackend` and `Noir`. Let's `
 ```ts
 const backend = new BarretenbergBackend(circuit);
 const noir = new Noir(circuit, backend);
-
-display('logs', 'Init... ⌛');
-await noir.init();
-display('logs', 'Init... ✅');
 ```
-
-You're probably eager to see stuff happening, so go and run your app now!
-
-From your terminal, run `npm start` (or `yarn start`). If it doesn't open a browser for you, just visit `localhost:5173`. You'll see your app with the two logs:
-
-![Getting Started 0](./../../../static/img/noir_getting_started_0.png)
 
 ## Proving
 
@@ -230,10 +228,12 @@ const input = { x: 1, y: 2 };
 display('logs', 'Generating proof... ⌛');
 const proof = await noir.generateFinalProof(input);
 display('logs', 'Generating proof... ✅');
-display('results', proof);
+display('results', proof.proof);
 ```
 
-Save your doc and vite should refresh your page automatically. On a modern laptop, proof will generate in less than 100ms, and you'll see this:
+You're probably eager to see stuff happening, so go and run your app now!
+
+From your terminal, run `npm start` (or `yarn start`). If it doesn't open a browser for you, just visit `localhost:5173`. On a modern laptop, proof will generate in less than 100ms, and you'll see this:
 
 ![Getting Started 0](./../../../static/img/noir_getting_started_1.png)
 
@@ -252,3 +252,5 @@ By saving, your app will refresh and here's our complete Tiny Noir App!
 ## Further Reading
 
 You can see how noirjs is used in a full stack Next.js hardhat application in the [noir-starter repo here](https://github.com/noir-lang/noir-starter/tree/main/next-hardhat). The example shows how to calculate a proof in the browser and verify it with a deployed Solidity verifier contract from noirjs.
+
+You should also check out the more advanced examples in the [noir-examples repo](https://github.com/noir-lang/noir-examples), where you'll find reference usage for some cool apps.

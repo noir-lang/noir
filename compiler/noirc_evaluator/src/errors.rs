@@ -7,12 +7,12 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use acvm::acir::native_types::Expression;
+use acvm::{acir::native_types::Expression, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::ssa::ir::dfg::CallStack;
+use crate::ssa::ir::{dfg::CallStack, types::NumericType};
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum RuntimeError {
@@ -29,6 +29,8 @@ pub enum RuntimeError {
     IndexOutOfBounds { index: usize, array_size: usize, call_stack: CallStack },
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
+    #[error("{value} does not fit within the type bounds for {typ}")]
+    IntegerOutOfBounds { value: FieldElement, typ: NumericType, call_stack: CallStack },
     #[error("Expected array index to fit into a u64")]
     TypeConversion { from: String, into: String, call_stack: CallStack },
     #[error("{name:?} is not initialized")]
@@ -91,6 +93,7 @@ impl RuntimeError {
             | RuntimeError::UnInitialized { call_stack, .. }
             | RuntimeError::UnknownLoopBound { call_stack }
             | RuntimeError::AssertConstantFailed { call_stack }
+            | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. } => call_stack,
         }
     }
