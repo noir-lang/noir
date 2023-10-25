@@ -119,7 +119,6 @@ pub(crate) fn debug_program(
         &compiled_program.circuit,
         debug_artifact,
         initial_witness,
-        true,
     )
     .map_err(CliError::from)
 }
