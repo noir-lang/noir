@@ -61,11 +61,19 @@ jobs:
 
       - name: Set nargo on PATH
         run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          tree "${{ github.workspace }}/nargo"
+          cp "${{ github.workspace }}/nargo/nargo" ./nargo_bin
+          rm -rf ./nargo
+          mv ./nargo_bin ./nargo
+          nargo_binary="${{ github.workspace }}/nargo"
           chmod +x $nargo_binary
           echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
           export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+          echo $PATH
+          echo $GITHUB_PATH
+          echo $nargo_binary
+          echo $(which nargo)
+          nargo --version
 
       - name: Generate gates report
         working-directory: ./tooling/nargo_cli/tests
