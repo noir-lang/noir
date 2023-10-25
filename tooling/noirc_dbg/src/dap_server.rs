@@ -19,8 +19,8 @@ use dap::base_message::Sendable;
 use dap::requests::Request;
 #[cfg(not(feature = "dap"))]
 use dap::requests::{
-    Command, ContinueArguments, DisconnectArguments, LaunchRequestArguments, NextArguments,
-    ReadMemoryArguments, VariablesArguments,
+    Command, ContinueArguments, DisassembleArguments, DisconnectArguments, LaunchRequestArguments,
+    NextArguments, ReadMemoryArguments, VariablesArguments,
 };
 #[cfg(feature = "dap")]
 use dap::server::*;
@@ -92,6 +92,13 @@ impl Dap {
     fn get_request_from_stdin(&self) -> Result<Request, TryRecvError> {
         let command = stdin_get("Enter command> ");
         let req = match command.trim() {
+            "c" => {
+                Request { seq: self.seq, command: Command::Continue(ContinueArguments::default()) }
+            }
+            "d" => Request {
+                seq: self.seq,
+                command: Command::Disassemble(DisassembleArguments::default()),
+            },
             "l" => {
                 let path = stdin_get("Enter path to file> ");
                 let vm = stdin_get("Select vm: 'a' for acvm and 'b' for brillig> ");
@@ -113,22 +120,19 @@ impl Dap {
                     }),
                 }
             }
-            "s" => Request { seq: self.seq, command: Command::Next(NextArguments::default()) },
-            "c" => {
-                Request { seq: self.seq, command: Command::Continue(ContinueArguments::default()) }
-            }
             "m" => Request {
                 seq: self.seq,
                 command: Command::ReadMemory(ReadMemoryArguments::default()),
-            },
-            "r" => Request {
-                seq: self.seq,
-                command: Command::Variables(VariablesArguments::default()),
             },
             "q" => Request {
                 seq: self.seq,
                 command: Command::Disconnect(DisconnectArguments::default()),
             },
+            "r" => Request {
+                seq: self.seq,
+                command: Command::Variables(VariablesArguments::default()),
+            },
+            "s" => Request { seq: self.seq, command: Command::Next(NextArguments::default()) },
             _ => unimplemented!(),
         };
         Ok(req)

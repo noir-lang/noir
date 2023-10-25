@@ -6,6 +6,7 @@ use dap::types::{
     Capabilities, Scope, ScopePresentationhint, SourceBreakpoint, StoppedEventReason, Thread,
     Variable,
 };
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_evaluator::brillig::brillig_ir::artifact::GeneratedBrillig;
 use serde_json::Value;
 
@@ -113,18 +114,29 @@ pub(crate) struct RunningState {
 
 impl RunningState {
     pub(crate) fn new(src_path: &str, _vm_type: Option<&str>) -> Result<Self, DebuggingError> {
-        let program =
-            compile(std::env::current_dir().unwrap().join(src_path).as_path().to_str().unwrap())
-                .unwrap();
+        let toml_path = get_package_manifest(std::path::Path::new(src_path)).unwrap();
+        let workspace =
+            resolve_workspace_from_toml(&toml_path, PackageSelection::DefaultOrAll).unwrap();
+
+        let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
+            return Err(DebuggingError::CustomError("No matching binary packages found in workspace. Only binary packages can be debugged.".into()));
+        };
+        let program = compile(package.entry_path.to_str().unwrap()).unwrap();
+
+        let registers = compile::get_input_registers(
+            package,
+            &program.1,
+            &format!("{}.toml", nargo::constants::PROVER_INPUT_FILE),
+        );
 
         #[allow(deprecated)]
         let solver = Box::leak(Box::new(BarretenbergSolver::new()));
-        let bytecode = Box::leak(Box::new(program.byte_code.clone()));
-        let vm = vm::new(bytecode, solver);
+        let bytecode = Box::leak(Box::new(program.0.byte_code.clone()));
+        let vm = vm::new(bytecode, registers, solver);
         Ok(RunningState {
             breakpoints: Vec::new(),
             running: false,
-            program,
+            program: program.0,
             vm: VMType::Brillig(vm),
         })
     }
@@ -176,6 +188,13 @@ impl RunningState {
                 match self.vm.process_opcode() {
                     VMStatus::InProgress => {
                         server.write(Sendable::Response(request.ack()?));
+                        let pc = self.vm.program_counter();
+                        println!(
+                            "Stopped at position {}\nPerformed opcode: {:?}\nNext opcode: {:?}",
+                            pc,
+                            self.program.byte_code[pc - 1],
+                            self.program.byte_code[pc]
+                        );
                         self.stop(server, StoppedEventReason::Step)?;
                     }
                     // TODO: improve
@@ -197,6 +216,11 @@ impl RunningState {
                         return Ok(Some(State::Exit));
                     }
                 }
+            }
+            Command::Disassemble(_) => {
+                // TODO: write proper realization
+                println!("Current position: {}", self.vm.program_counter());
+                println!("Program: {:#?}", self.program.byte_code);
             }
             Command::Pause(_) => {
                 self.running = false;

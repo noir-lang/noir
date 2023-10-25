@@ -7,9 +7,16 @@ use barretenberg_blackbox_solver::BarretenbergSolver;
 #[allow(deprecated)]
 pub(crate) fn new<'a>(
     program: &'a [Opcode],
+    registers: Registers,
     solver: &'a BarretenbergSolver,
 ) -> VM<'a, BarretenbergSolver> {
-    VM::new(Registers { inner: vec![] }, vec![], program, vec![], solver)
+    VM::new(
+        /* registers */ Registers { inner: vec![] },
+        registers.inner,
+        program.to_vec(),
+        vec![],
+        solver,
+    )
 }
 
 #[allow(deprecated)]
