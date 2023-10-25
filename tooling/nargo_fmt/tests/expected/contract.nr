@@ -1,9 +1,7 @@
-// A contract used for running benchmarks.
-// We should try to change this contract as little as possible, since any modification
-// would alter the metrics we're capturing in the benchmarks, and we want to keep the
-// subject being tested as unmodified as possible so we can detect metric changes that 
-// arise from code changes.
-
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
+// Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. 
+// Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
+// Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 contract Benchmarking {
     use dep::value_note::{
         utils::{increment, decrement},
@@ -37,20 +35,16 @@ contract Benchmarking {
     #[aztec(private)]
     fn constructor() {}
 
-    // Creates a new value note for the target owner. Use this method to seed an initial set of notes.
+    // Nec tincidunt praesent semper feugiat nibh sed pulvinar. Nibh nisl condimentum id venenatis a.
     #[aztec(private)]
     fn create_note(owner: Field, value: Field) {
         increment(storage.notes.at(owner), value, owner);
     }
 
-    // Deletes a note at a specific index in the set and creates a new one with the same value.
-    // We explicitly pass in the note index so we can ensure we consume different notes when sending
-    // multiple txs that will land on the same block.
-    // See https://discourse.aztec.network/t/utxo-concurrency-issues-for-private-state/635
-    // by @rahul-kothari for a full explanation on why this is needed.
+    // Diam quam nulla porttitor massa id. Elit ullamcorper dignissim cras tincidunt lobortis feugiat.
     #[aztec(private)]
     fn recreate_note(owner: Field, index: u32) {
-        let owner_notes = storage.notes.at(owner); 
+        let owner_notes = storage.notes.at(owner);
         let getter_options = NoteGetterOptions::new().set_limit(1).set_offset(index);
         let notes = owner_notes.get_notes(getter_options);
         let note = notes[0].unwrap_unchecked();
@@ -58,15 +52,15 @@ contract Benchmarking {
         increment(owner_notes, note.value, owner);
     }
 
-    // Reads and writes to public storage and enqueues a call to another public function.
+    // Ultrices in iaculis nunc sed augue lacus.
     #[aztec(public)]
     fn increment_balance(owner: Field, value: Field) {
         let current = storage.balances.at(owner).read();
         storage.balances.at(owner).write(current + value);
-        let _callStackItem1 = context.call_public_function(context.this_address(), compute_selector("broadcast(Field)"), [owner]);        
+        let _callStackItem1 = context.call_public_function(context.this_address(), compute_selector("broadcast(Field)"), [owner]);
     }
 
-    // Emits a public log.
+    // Est ultricies integer quis auctor elit sed. In nibh mauris cursus mattis molestie a iaculis.
     #[aztec(public)]
     fn broadcast(owner: Field) {
         emit_unencrypted_log(&mut context, storage.balances.at(owner).read());
