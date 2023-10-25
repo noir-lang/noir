@@ -11,6 +11,7 @@ use noirc_frontend::{
     },
     node_interner::NodeInterner,
 };
+use std::ops::Range;
 
 /// Attempts to retrieve the name of this parameter. Returns None
 /// if this parameter is a tuple or struct pattern.
@@ -38,7 +39,7 @@ pub fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParamete
 pub(crate) fn gen_abi(
     context: &Context,
     func_sig: FunctionSignature,
-    input_witnesses: &[Witness],
+    input_witnesses: Vec<Range<Witness>>,
     return_witnesses: Vec<Witness>,
 ) -> Abi {
     let (parameters, return_type) = func_sig;
@@ -52,16 +53,31 @@ pub(crate) fn gen_abi(
 // parameter's constituent values live.
 fn param_witnesses_from_abi_param(
     abi_params: &Vec<AbiParameter>,
-    input_witnesses: &[Witness],
-) -> BTreeMap<String, Vec<Witness>> {
+    input_witnesses: Vec<Range<Witness>>,
+) -> BTreeMap<String, Vec<Range<Witness>>> {
     let mut idx = 0_usize;
+    let mut processed_range = 0;
 
     btree_map(abi_params, |param| {
         let num_field_elements_needed = param.typ.field_count();
         let mut wit = Vec::new();
-        for _ in 0..num_field_elements_needed {
-            wit.push(input_witnesses[idx]);
-            idx += 1;
+        let mut processed_fields = 0;
+        while processed_fields < num_field_elements_needed {
+            let end = input_witnesses[idx].end.witness_index();
+            if num_field_elements_needed <= end - processed_range {
+                wit.push(
+                    Witness(processed_range)..Witness(processed_range + num_field_elements_needed),
+                );
+                processed_range += num_field_elements_needed;
+                processed_fields += num_field_elements_needed;
+            } else {
+                // consume the current range
+                wit.push(Witness(processed_range)..input_witnesses[idx].end);
+                processed_fields += end - processed_range;
+                // and go to the next one
+                idx += 1;
+                processed_range = input_witnesses[idx].start.witness_index();
+            }
         }
         (param.name.clone(), wit)
     })

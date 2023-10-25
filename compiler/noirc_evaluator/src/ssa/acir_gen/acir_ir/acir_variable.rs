@@ -23,6 +23,7 @@ use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use num_bigint::BigUint;
+use std::ops::RangeInclusive;
 use std::{borrow::Cow, hash::Hash};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -1139,8 +1140,23 @@ impl AcirContext {
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
-    pub(crate) fn finish(mut self, inputs: Vec<u32>) -> GeneratedAcir {
-        self.acir_ir.input_witnesses = vecmap(inputs, Witness);
+    pub(crate) fn finish(mut self, inputs: Vec<RangeInclusive<u32>>) -> GeneratedAcir {
+        let mut current_range = 0..0;
+        for range in inputs {
+            if current_range.end == *range.start() {
+                current_range.end = range.end() + 1;
+            } else {
+                self.acir_ir
+                    .input_witnesses
+                    .push(Witness(current_range.start)..Witness(current_range.end));
+                current_range = 0..0;
+            }
+        }
+        if current_range.end != 0 {
+            self.acir_ir
+                .input_witnesses
+                .push(Witness(current_range.start)..Witness(current_range.end));
+        }
         self.acir_ir
     }
 

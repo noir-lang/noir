@@ -3,8 +3,6 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use std::{collections::BTreeMap, str};
-
 use acvm::{
     acir::native_types::{Witness, WitnessMap},
     FieldElement,
@@ -16,6 +14,8 @@ use noirc_frontend::{
     hir::Context, Signedness, StructType, Type, TypeBinding, TypeVariableKind, Visibility,
 };
 use serde::{Deserialize, Serialize};
+use std::ops::Range;
+use std::{collections::BTreeMap, str};
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
 //
@@ -218,7 +218,7 @@ pub struct Abi {
     pub parameters: Vec<AbiParameter>,
     /// A map from the ABI's parameters to the indices they are written to in the [`WitnessMap`].
     /// This defines how to convert between the [`InputMap`] and [`WitnessMap`].
-    pub param_witnesses: BTreeMap<String, Vec<Witness>>,
+    pub param_witnesses: BTreeMap<String, Vec<Range<Witness>>>,
     pub return_type: Option<AbiType>,
     pub return_witnesses: Vec<Witness>,
 }
@@ -315,13 +315,14 @@ impl Abi {
         let mut witness_map: BTreeMap<Witness, FieldElement> = encoded_input_map
             .iter()
             .flat_map(|(param_name, encoded_param_fields)| {
-                let param_witness_indices = &self.param_witnesses[param_name];
+                let param_witness_indices = range_to_vec(&self.param_witnesses[param_name]);
                 param_witness_indices
                     .iter()
                     .zip(encoded_param_fields.iter())
                     .map(|(&witness, &field_element)| (witness, field_element))
+                    .collect::<Vec<_>>()
             })
-            .collect();
+            .collect::<BTreeMap<Witness, FieldElement>>();
 
         // When encoding public inputs to be passed to the verifier, the user can must provide a return value
         // to be inserted into the witness map. This is not needed when generating a witness when proving the circuit.
@@ -398,7 +399,7 @@ impl Abi {
         let public_inputs_map =
             try_btree_map(self.parameters.clone(), |AbiParameter { name, typ, .. }| {
                 let param_witness_values =
-                    try_vecmap(self.param_witnesses[&name].clone(), |witness_index| {
+                    try_vecmap(range_to_vec(&self.param_witnesses[&name]), |witness_index| {
                         witness_map
                             .get(&witness_index)
                             .ok_or_else(|| AbiError::MissingParamWitnessValue {
@@ -529,6 +530,18 @@ impl ContractEvent {
     }
 }
 
+fn range_to_vec(ranges: &Vec<Range<Witness>>) -> Vec<Witness> {
+    let mut result = Vec::new();
+    for range in ranges {
+        let mut w = range.start.witness_index();
+        while w != range.end.witness_index() {
+            result.push(w.into());
+            w += 1;
+        }
+    }
+    result
+}
+
 #[cfg(test)]
 mod test {
     use std::collections::BTreeMap;
@@ -554,8 +567,8 @@ mod test {
             ],
             // Note that the return value shares a witness with `thing2`
             param_witnesses: BTreeMap::from([
-                ("thing1".to_string(), vec![Witness(1), Witness(2)]),
-                ("thing2".to_string(), vec![Witness(3)]),
+                ("thing1".to_string(), vec![(Witness(1)..Witness(3))]),
+                ("thing2".to_string(), vec![(Witness(3)..Witness(4))]),
             ]),
             return_type: Some(AbiType::Field),
             return_witnesses: vec![Witness(3)],
