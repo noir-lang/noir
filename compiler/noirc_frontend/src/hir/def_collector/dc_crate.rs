@@ -1,7 +1,7 @@
 use super::dc_mod::collect_defs;
 use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::graph::CrateId;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleDefId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::resolution::path_resolver::PathResolver;
@@ -296,12 +296,6 @@ impl DefCollector {
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
         resolved_globals.extend(resolve_globals(context, other_globals, crate_id));
 
-        // Before we resolve any function symbols we must go through our impls and
-        // re-collect the methods within into their proper module. This cannot be
-        // done before resolution since we need to be able to resolve the type of the
-        // impl since that determines the module we should collect into.
-        errors.extend(collect_impls(context, crate_id, &def_collector.collected_impls));
-
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
         errors.extend(collect_trait_impls(
@@ -309,6 +303,15 @@ impl DefCollector {
             crate_id,
             &mut def_collector.collected_traits_impls,
         ));
+
+        // Before we resolve any function symbols we must go through our impls and
+        // re-collect the methods within into their proper module. This cannot be
+        // done before resolution since we need to be able to resolve the type of the
+        // impl since that determines the module we should collect into.
+        //
+        // These are resolved after trait impls so that struct methods are chosen
+        // over trait methods if there are name conflicts.
+        errors.extend(collect_impls(context, crate_id, &def_collector.collected_impls));
 
         // Lower each function in the crate. This is now possible since imports have been resolved
         let file_func_ids = resolve_free_functions(
@@ -377,7 +380,6 @@ fn collect_impls(
 
             if let Some(struct_type) = get_struct_type(&typ) {
                 let struct_type = struct_type.borrow();
-                let type_module = struct_type.id.local_module_id();
 
                 // `impl`s are only allowed on types defined within the current crate
                 if struct_type.id.krate() != crate_id {
@@ -391,7 +393,7 @@ fn collect_impls(
                 // Grab the module defined by the struct type. Note that impls are a case
                 // where the module the methods are added to is not the same as the module
                 // they are resolved in.
-                let module = &mut def_maps.get_mut(&crate_id).unwrap().modules[type_module.0];
+                let module = get_module_mut(def_maps, struct_type.id.module_id());
 
                 for (_, method_id, method) in &unresolved.functions {
                     // If this method was already declared, remove it from the module so it cannot
@@ -411,6 +413,13 @@ fn collect_impls(
         }
     }
     errors
+}
+
+fn get_module_mut(
+    def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
+    module: ModuleId,
+) -> &mut ModuleData {
+    &mut def_maps.get_mut(&module.krate).unwrap().modules[module.local_id.0]
 }
 
 fn collect_trait_impl_methods(
@@ -525,8 +534,7 @@ fn collect_trait_impl(
 
         if let Some(struct_type) = get_struct_type(&typ) {
             let struct_type = struct_type.borrow();
-            let type_module = struct_type.id.local_module_id();
-            let module = &mut def_maps.get_mut(&crate_id).unwrap().modules[type_module.0];
+            let module = get_module_mut(def_maps, struct_type.id.module_id());
 
             for (_, method_id, method) in &trait_impl.methods.functions {
                 // If this method was already declared, remove it from the module so it cannot
