@@ -2,15 +2,39 @@ name: Rebuild ACIR artifacts
 
 on:
   push:
+    pull_request:
     branches:
       - master
 
 jobs:
+  check-artifacts-requested:
+    runs-on: ubuntu-22.04
+    outputs:
+      publish: ${{ steps.check.outputs.publish }}
+    
+    steps:
+      - name: Check if artifacts should be published
+        id: check
+        run: |
+          if [ ${{ github.ref_name }} == "master" ]; then
+            # Always publish on master
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            # Only publish on PRs if label is set
+            HAS_ARTIFACT_LABEL=$(gh pr view $PR --json labels | jq '.labels | any(.name == "publish-acir")')
+            echo "publish=$HAS_ARTIFACT_LABEL" >> "$GITHUB_OUTPUT"
+          fi
+        with:
+          PR: ${{ github.event.pull_request.number }}
+
+          
   build-nargo:
     runs-on: ubuntu-22.04
+    needs: [check-artifacts-requested]
+    if:  ${{ needs.check-artifacts-requested.outputs.publish }}
     strategy:
       matrix:
-        target: [x86_64-unknown-linux-gnu]
+        target: [x86_64-unknown-linux-gnu]  
         
     steps:
       - name: Checkout Noir repo
