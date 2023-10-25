@@ -85,7 +85,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                     ExecutionError::SolvingError(err),
                 ));
                 &self.last_result
-            },
+            }
         }
     }
 
@@ -110,9 +110,9 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             let result = match status {
                 ACVMStatus::Solved => DebugCommandResult::Done,
                 ACVMStatus::InProgress => DebugCommandResult::Ok,
-                ACVMStatus::Failure(error) => DebugCommandResult::Error(NargoError::ExecutionError(
-                    ExecutionError::SolvingError(error.clone()),
-                )),
+                ACVMStatus::Failure(error) => DebugCommandResult::Error(
+                    NargoError::ExecutionError(ExecutionError::SolvingError(error)),
+                ),
                 ACVMStatus::RequiresForeignCall(_) => {
                     unreachable!("Unexpected pending foreign call resolution");
                 }

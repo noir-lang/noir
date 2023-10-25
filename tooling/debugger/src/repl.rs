@@ -1,4 +1,4 @@
-use crate::context::{DebugContext, DebugCommandResult};
+use crate::context::{DebugCommandResult, DebugContext};
 
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::BlackBoxFunctionSolver;
