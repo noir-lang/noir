@@ -15,7 +15,7 @@ keywords:
 An integer type is a range constrained field type. The Noir frontend currently supports unsigned,
 arbitrary-sized integer types.
 
-> **Note:** When an integer is defined in Noir without a specific type, it would default to `u64`.
+> **Note:** When an integer is defined in Noir without a specific type, it will default to `Field`. The one exception is for loop indices which default to `u64` since comparisons on `Field`s are not possible.
 
 An integer type is specified first with the letter `u`, indicating its unsigned nature, followed by
 its length in bits (e.g. `32`). For example, a `u32` variable can store a value in the range of
