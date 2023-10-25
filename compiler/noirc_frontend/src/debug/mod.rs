@@ -37,6 +37,10 @@ impl Default for DebugState {
 
 impl DebugState {
     pub fn iter<'a>(&'a self) -> impl Iterator<Item=(&'a str,&'a str)> {
+        println!["ITER"];
+        println!["  var_id_to_value={:?}", &self.var_id_to_value];
+        println!["  var_id_to_name={:?}", &self.var_id_to_name];
+        println!["  var_name_to_id={:?}", &self.var_name_to_id];
         self.var_id_to_value.iter().filter_map(|(var_id,value)| {
             self.var_id_to_name.get(var_id).map(|name| {
                 (name.as_str(),value.as_str())
@@ -58,6 +62,7 @@ impl DebugState {
 
     pub fn insert_symbols(&mut self, module: &mut ParsedModule) {
         if !self.enabled { return }
+        /*
         let empty = Span::single_char(0);
         let prefix = Path {
             segments: vec![ ast::Ident(Spanned::from(empty.clone(), "std".to_string())) ],
@@ -71,7 +76,7 @@ impl DebugState {
             kind: ItemKind::Import(ast::UseTree { prefix, kind }),
             span: empty.clone(),
         });
-
+        */
         module.items.iter_mut().for_each(|item| {
             match item {
                 Item { kind: ItemKind::Function(f), .. } => {
@@ -88,35 +93,26 @@ impl DebugState {
 
     fn debug_expr(&mut self, var_name: &str, expr: ast::Expression) -> ast::Expression {
         let var_id = self.insert_var(var_name);
-        let func = Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Call(Box::new(ast::CallExpression {
-                func: Box::new(ast::Expression {
-                    kind: ast::ExpressionKind::Variable(ast::Path {
-                        segments: vec![ast::Ident(
-                            Spanned::from(Span::single_char(0), "__debug_state_set".to_string())
-                        )],
-                        kind: PathKind::Plain
-                    }),
-                    span: Span::single_char(0),
-                }),
-                arguments: vec![
-                    ast::Expression {
-                        kind: ast::ExpressionKind::Literal(ast::Literal::Integer(
-                            (var_id as u128).into()
-                        )),
-                        span: Span::single_char(0),
-                    },
-                    ast::Expression {
-                        kind: ast::ExpressionKind::Literal(ast::Literal::FmtStr(format!["{}={{{}}}", var_name, var_name])),
-                        span: Span::single_char(0),
-                    }
-                ],
-            })),
-            span: Span::single_char(0),
-        });
+        println!["insert_var({:?}) = {:?}", var_name, var_id];
         let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
-            func,
-            arguments: vec![expr],
+            func: Box::new(ast::Expression {
+                kind: ast::ExpressionKind::Variable(ast::Path {
+                    segments: vec![ast::Ident(
+                        Spanned::from(Span::single_char(0), "__debug_state_set".to_string())
+                    )],
+                    kind: PathKind::Plain
+                }),
+                span: Span::single_char(0),
+            }),
+            arguments: vec![
+                ast::Expression {
+                    kind: ast::ExpressionKind::Literal(ast::Literal::Integer(
+                        (var_id as u128).into()
+                    )),
+                    span: Span::single_char(0),
+                },
+                expr
+            ],
         }));
         ast::Expression { kind, span: Span::single_char(0) }
     }

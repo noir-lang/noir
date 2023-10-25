@@ -1,3 +1,11 @@
+#[oracle(__debug_state_set)]
+unconstrained fn __debug_state_set_oracle<T>(_var_id: u32, _input: T) {}
+
+unconstrained pub fn __debug_state_set<T>(var_id: u32, value: T) -> T {
+    __debug_state_set_oracle(var_id, value);
+    value
+}
+
 // Tests a very simple program.
 // 
 // The features being tested are:

@@ -278,7 +278,10 @@ fn on_did_save_text_document(
 
     for package in &workspace {
         let (mut context, crate_id) =
-            prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
+            prepare_package(package, Box::new(|path| {
+                println!["prepare_package {:?}", &path];
+                std::fs::read_to_string(path)
+            }));
 
         let file_diagnostics = match check_crate(&mut context, crate_id, false) {
             Ok(((), warnings)) => warnings,
