@@ -1,1 +1,0 @@
-{"debug_symbols":[{"locations":{"2":[{"span":{"start":35,"end":45},"file":1}]}}],"file_map":{"1":{"source":"fn main(x: u1, y: u1) {\n    assert(x | y == 1);\n\n    assert(x | y | x == 1);\n}\n\n","path":"/mnt/user-data/kev/noir/tooling/nargo_cli/tests/execution_success/bool_or/src/main.nr"}}}
