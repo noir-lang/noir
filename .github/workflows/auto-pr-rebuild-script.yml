@@ -25,6 +25,7 @@ jobs:
             echo "publish=$HAS_ARTIFACT_LABEL" >> "$GITHUB_OUTPUT"
           fi
         env:
+          GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
 
           
