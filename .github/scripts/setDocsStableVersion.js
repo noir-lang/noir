@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const configFile = path.join(__dirname, '..', 'docs', 'docusaurus.config.js');
+const configFile = path.join(__dirname, '..', '..', '..', 'docs', 'docusaurus.config.js');
 
 // Read the Docusaurus config
 const configContent = fs.readFileSync(configFile, 'utf8');
