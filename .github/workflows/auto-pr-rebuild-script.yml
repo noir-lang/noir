@@ -1,8 +1,8 @@
 name: Rebuild ACIR artifacts
 
 on:
+  pull_request:
   push:
-    pull_request:
     branches:
       - master
 
@@ -34,7 +34,7 @@ jobs:
     if:  ${{ needs.check-artifacts-requested.outputs.publish }}
     strategy:
       matrix:
-        target: [x86_64-unknown-linux-gnu]  
+        target: [x86_64-unknown-linux-gnu]
         
     steps:
       - name: Checkout Noir repo
