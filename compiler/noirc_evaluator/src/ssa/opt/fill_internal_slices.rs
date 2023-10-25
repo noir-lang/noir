@@ -402,8 +402,9 @@ impl<'f> Context<'f> {
         array_id: ValueId,
         slice_sizes: &HashMap<ValueId, (usize, Vec<ValueId>)>,
     ) -> usize {
-        let (current_size, inner_slices) =
-            slice_sizes.get(&array_id).expect(&format!("should have slice sizes: {array_id}"));
+        let (current_size, inner_slices) = slice_sizes
+            .get(&array_id)
+            .unwrap_or_else(|| panic!("should have slice sizes: {array_id}"));
         let mut max = *current_size;
         for inner_slice in inner_slices.iter() {
             if let Some(inner_max) = self.compute_inner_max_size(*inner_slice, slice_sizes) {
