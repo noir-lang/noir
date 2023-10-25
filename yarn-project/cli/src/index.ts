@@ -224,6 +224,11 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       parsePublicKey,
     )
     .option(
+      '-p, --portal-address <hex string>',
+      'Optional L1 portal address to link the contract to.',
+      parseEthereumAddress,
+    )
+    .option(
       '-s, --salt <hex string>',
       'Optional deployment salt as a hex string for generating the deployment address.',
       parseSaltFromHexString,
@@ -231,7 +236,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     // `options.wait` is default true. Passing `--no-wait` will set it to false.
     // https://github.com/tj/commander.js#other-option-types-negatable-boolean-and-booleanvalue
     .option('--no-wait', 'Skip waiting for the contract to be deployed. Print the hash of deployment transaction')
-    .action(async (artifactPath, { rpcUrl, publicKey, args: rawArgs, salt, wait }) => {
+    .action(async (artifactPath, { rpcUrl, publicKey, args: rawArgs, portalAddress, salt, wait }) => {
       const contractArtifact = await getContractArtifact(artifactPath, log);
       const constructorArtifact = contractArtifact.functions.find(({ name }) => name === 'constructor');
 
@@ -247,8 +252,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
 
       const deploy = deployer.deploy(...args);
 
-      await deploy.create({ contractAddressSalt: salt });
-      const tx = deploy.send({ contractAddressSalt: salt });
+      await deploy.create({ contractAddressSalt: salt, portalContract: portalAddress });
+      const tx = deploy.send({ contractAddressSalt: salt, portalContract: portalAddress });
       const txHash = await tx.getTxHash();
       debugLogger(`Deploy tx sent with hash ${txHash}`);
       if (wait) {
