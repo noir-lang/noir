@@ -1,0 +1,18 @@
+FROM ubuntu:focal
+
+# Install nginx
+RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections 
+RUN apt-get update && apt install -y git curl nginx
+
+# Copy nginx config
+COPY . .
+COPY nginx/gateway.conf /etc/nginx/gateway.conf
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+
+# Install foundry
+RUN ./scripts/install_foundry.sh
+ENV PATH="./foundry/bin:${PATH}"
+
+# Run anvil and nginx
+EXPOSE 80
+ENTRYPOINT ["sh", "-c", "./scripts/run_nginx_anvil.sh"]

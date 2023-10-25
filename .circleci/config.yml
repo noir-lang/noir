@@ -465,6 +465,17 @@ jobs:
           name: "Build and test"
           command: build aztec-node | add_timestamps
 
+  mainnet-fork:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: build mainnet-fork | add_timestamps
+
   aztec-faucet:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -1210,6 +1221,8 @@ workflows:
 
       - l1-contracts: *defaults
       - noir-contracts-build: *defaults
+
+      - mainnet-fork: *defaults
 
       # Yarn Project
       - yarn-project-base:

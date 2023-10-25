@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+
+# When destroying and applying mainnet fork terraform, it may not be
+# ready for a while, as it must register with DNS etc.
+# This script waits on a healthy status from the fork - a valid response to the chainid request
+# We retry every 20 seconds, and wait for a total of 5 minutes (15 times)
+
+export ETHEREUM_HOST="https://aztec-mainnet-fork.aztec.network:8545/$FORK_API_KEY"
+
+curl -H "Content-Type: application/json" -X POST --data '{"method":"eth_chainId","params":[],"id":33,"jsonrpc":"2.0"}' \
+  --connect-timeout 30 \
+  --retry 15 \
+  --retry-delay 20 \
+  $ETHEREUM_HOST

@@ -174,6 +174,10 @@ p2p-bootstrap:
   dependencies:
     - yarn-project
 
+mainnet-fork:
+  buildDir: iac/mainnet-fork
+  projectDir: iac/mainnet-fork
+
 docs:
   buildDir: .
   dockerfile: docs/Dockerfile
