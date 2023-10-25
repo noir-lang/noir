@@ -33,14 +33,17 @@ jobs:
         run: |
           nix build -L .
 
-      - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f ./result/bin/nargo)" >> $GITHUB_ENV
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./result/bin/nargo ./dist/nargo
+          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-x86_64-unknown-linux-gnu.tar.gz
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: nargo
-          path: ${{ env.UPLOAD_PATH }}
+          path: ./dist/*
           retention-days: 3
 
   build-wasm:
@@ -93,10 +96,10 @@ jobs:
 
       - name: Set nargo on PATH
         run: |
-          chmod +x ./nargo/nargo
-          echo "./nargo" >> $GITHUB_PATH
-          export PATH="$PATH:./nargo"
-          nargo -V
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
 
       - name: Compile fixtures with Nargo CLI
         working-directory: ./compiler/wasm/fixtures

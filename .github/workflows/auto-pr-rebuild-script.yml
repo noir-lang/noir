@@ -27,14 +27,17 @@ jobs:
         run: |
           nix build -L .
 
-      - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f ./result/bin/nargo)" >> $GITHUB_ENV
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./result/bin/nargo ./dist/nargo
+          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-x86_64-unknown-linux-gnu.tar.gz
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: nargo
-          path: ${{ env.UPLOAD_PATH }}
+          path: ./dist/*
           retention-days: 3
 
   auto-pr-rebuild-script:
