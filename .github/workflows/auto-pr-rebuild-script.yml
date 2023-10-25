@@ -21,12 +21,13 @@ jobs:
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
             # Only publish on PRs if label is set
-            HAS_ARTIFACT_LABEL=$(gh pr view $PR --json labels | jq '.labels | any(.name == "publish-acir")')
+            HAS_ARTIFACT_LABEL=$(gh pr view $PR --repo $REPO_URL --json labels | jq '.labels | any(.name == "publish-acir")')
             echo "publish=$HAS_ARTIFACT_LABEL" >> "$GITHUB_OUTPUT"
           fi
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
+          REPO_URL: ${{ github.repositoryUrl }}
 
           
   build-nargo:
