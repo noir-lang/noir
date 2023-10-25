@@ -1,7 +1,7 @@
 import { LogFn, createDebugLogger } from '@aztec/foundation/log';
 
 import { execSync } from 'child_process';
-import { readFileSync, readdirSync, statSync } from 'fs';
+import { readFileSync, readdirSync, statSync, unlinkSync } from 'fs';
 import { emptyDirSync } from 'fs-extra';
 import path from 'path';
 
@@ -66,6 +66,8 @@ export class NargoContractCompiler {
         } else {
           contractArtifacts.set(filename, JSON.parse(readFileSync(file).toString()) as NoirCompiledContract);
         }
+        // Delete the file as it is not needed anymore and it can cause issues with prettier
+        unlinkSync(file);
       }
     }
 

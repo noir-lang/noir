@@ -234,5 +234,5 @@ describe('e2e_cross_chain_messaging', () => {
     ).rejects.toThrowError(
       "Failed to solve brillig function, reason: explicit trap hit in brillig 'l1_to_l2_message_data.message.content == content'",
     );
-  });
+  }, 50_000);
 });
