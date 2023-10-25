@@ -7,7 +7,7 @@ use noirc_errors::Location;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
-    node_interner::{TraitId, TypeAliasId},
+    node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
@@ -378,11 +378,22 @@ impl<'a> ModCollector<'a> {
                         body,
                     } => {
                         let func_id = context.def_interner.push_empty_fn();
+                        let modifiers = FunctionModifiers {
+                            name: name.to_string(),
+                            visibility: crate::FunctionVisibility::Public,
+                            // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
+                            attributes: crate::token::Attributes::empty(),
+                            is_unconstrained: false,
+                            contract_function_type: None,
+                            is_internal: None,
+                        };
+
+                        context.def_interner.push_function_definition(func_id, modifiers, id.0);
+
                         match self.def_collector.def_map.modules[id.0.local_id.0]
                             .declare_function(name.clone(), func_id)
                         {
                             Ok(()) => {
-                                // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                                 if let Some(body) = body {
                                     let impl_method =
                                         NoirFunction::normal(FunctionDefinition::normal(
