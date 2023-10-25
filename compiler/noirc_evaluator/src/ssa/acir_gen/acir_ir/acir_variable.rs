@@ -995,7 +995,7 @@ impl AcirContext {
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
         let constants = match name {
-            BlackBoxFunc::Pedersen => {
+            BlackBoxFunc::PedersenCommitment | BlackBoxFunc::PedersenHash => {
                 // The last argument of pedersen is the domain separator, which must be a constant
                 let domain_var = match inputs.pop() {
                     Some(domain_var) => domain_var.into_var()?,
@@ -1562,12 +1562,19 @@ fn execute_brillig(
         ) -> Result<bool, BlackBoxResolutionError> {
             Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::SchnorrVerify))
         }
-        fn pedersen(
+        fn pedersen_commitment(
             &self,
             _inputs: &[FieldElement],
             _domain_separator: u32,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::Pedersen))
+            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::PedersenCommitment))
+        }
+        fn pedersen_hash(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<FieldElement, BlackBoxResolutionError> {
+            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::PedersenHash))
         }
         fn fixed_base_scalar_mul(
             &self,

@@ -1,0 +1,1 @@
+{"debug_symbols":[{"locations":{"0":[{"span":{"start":31,"end":37},"file":1}]}}],"file_map":{"1":{"source":"fn main(x: Field) {\n    assert(x == 1);\n}\n","path":"/mnt/user-data/kev/noir/tooling/nargo_cli/tests/execution_success/custom_entry/src/foobarbaz.nr"}}}
