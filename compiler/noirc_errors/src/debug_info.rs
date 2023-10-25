@@ -3,10 +3,11 @@ use acvm::compiler::AcirTransformationMap;
 
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap,HashMap};
 use std::mem;
 
 use crate::Location;
+use fm::FileId;
 use serde::{Deserialize, Serialize};
 
 #[serde_as]
@@ -17,11 +18,15 @@ pub struct DebugInfo {
     /// that they should be serialized to/from strings.
     #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
+    pub variables: HashMap<String, u32>,
 }
 
 impl DebugInfo {
-    pub fn new(locations: BTreeMap<OpcodeLocation, Vec<Location>>) -> Self {
-        DebugInfo { locations }
+    pub fn new(
+        locations: BTreeMap<OpcodeLocation, Vec<Location>>,
+        variables: HashMap<String, u32>,
+    ) -> Self {
+        Self { locations, variables }
     }
 
     /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.

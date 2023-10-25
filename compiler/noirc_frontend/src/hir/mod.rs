@@ -28,7 +28,7 @@ pub struct Context {
     pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
     pub file_manager: FileManager,
     pub root_crate_id: CrateId,
-    pub debug_state: DebugState,
+    pub debug_states: BTreeMap<FileId, DebugState>,
 
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
@@ -58,7 +58,7 @@ impl Context {
             file_manager,
             storage_slots: BTreeMap::new(),
             root_crate_id: CrateId::Dummy,
-            debug_state: DebugState::default(),
+            debug_states: BTreeMap::new(),
         }
     }
 
@@ -207,7 +207,11 @@ impl Context {
     pub fn parse_file(&mut self, file_id: FileId, crate_id: CrateId) -> (SortedModule, Vec<ParserError>) {
         let (mut ast, parsing_errors) = parse_file(&self.file_manager, file_id);
         if crate_id == self.root_crate_id {
-            self.debug_state.insert_symbols(&mut ast);
+            if !self.debug_states.contains_key(&file_id) {
+                let ds = DebugState::default();
+                self.debug_states.insert(file_id, ds);
+            }
+            self.debug_states.get_mut(&file_id).unwrap().insert_symbols(&mut ast);
         }
         (ast.into_sorted(), parsing_errors)
     }

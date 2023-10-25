@@ -9,6 +9,7 @@ use nargo::NargoError;
 use noirc_frontend::debug::DebugState;
 
 use nargo::ops::ForeignCallExecutor;
+use fm::FileId;
 
 use easy_repl::{command, CommandStatus, Critical, Repl};
 use std::cell::{Cell, RefCell};
@@ -25,10 +26,16 @@ struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
     foreign_call_executor: ForeignCallExecutor,
     circuit: &'backend Circuit,
     show_output: bool,
-    debug_state: DebugState,
+    debug_states: HashMap<FileId,DebugState>,
 }
 
 impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
+    pub fn get_current_file(&self) -> FileId {
+        let location = self.acvm.location().unwrap();
+        let locs = self.debug_artifact.debug_symbols[0].opcode_location(&location).unwrap();
+        locs.first().unwrap().file
+    }
+
     fn step_opcode(&mut self) -> Result<SolveResult, NargoError> {
         let solver_status = self.acvm.step_opcode(true);
 
@@ -64,11 +71,12 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                 }))
             }
             ACVMStatus::RequiresForeignCall(foreign_call) => {
+                let file_id = self.get_current_file();
                 let foreign_call_result =
                     self.foreign_call_executor.execute_with_debug(
                         &foreign_call,
                         self.show_output,
-                        &mut self.debug_state,
+                        self.debug_states.get_mut(&file_id).unwrap(),
                     )?;
                 self.acvm.resolve_pending_foreign_call(foreign_call_result);
                 Ok(SolveResult::Ok)
@@ -140,13 +148,14 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     initial_witness: WitnessMap,
     show_output: bool,
 ) -> Result<Option<WitnessMap>, NargoError> {
+    let debug_states = debug_artifact.to_debug_states();
     let context = RefCell::new(DebugContext {
         acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
         foreign_call_executor: ForeignCallExecutor::default(),
         circuit,
         debug_artifact,
         show_output,
-        debug_state: DebugState::default(),
+        debug_states,
     });
     let ref_step = &context;
     let ref_cont = &context;
@@ -189,7 +198,8 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
                 "show variable values available at this point in execution",
                 () => || {
                     let ctx = ref_cont.borrow_mut();
-                    let vars = ctx.debug_state.iter().collect::<HashMap<&str,&str>>();
+                    let file_id = ctx.get_current_file();
+                    let vars = ctx.debug_states.get(&file_id).unwrap().get_values();
                     println!("{:?}", vars);
                     Ok(CommandStatus::Done)
                 }

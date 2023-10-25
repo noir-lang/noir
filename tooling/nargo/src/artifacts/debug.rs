@@ -1,9 +1,10 @@
 use codespan_reporting::files::{Error, Files, SimpleFile};
 use noirc_driver::DebugFile;
 use noirc_errors::debug_info::DebugInfo;
+use noirc_frontend::debug::DebugState;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     ops::Range,
 };
 
@@ -44,6 +45,15 @@ impl DebugArtifact {
         }
 
         Self { debug_symbols, file_map }
+    }
+
+    pub fn to_debug_states(&self) -> HashMap<FileId,DebugState> {
+        let file_id = *self.file_map.first_key_value().unwrap().0;
+        self.debug_symbols.iter()
+            .map(|info| {
+                (file_id, DebugState::new(info.variables.clone()))
+            })
+            .collect()
     }
 }
 
