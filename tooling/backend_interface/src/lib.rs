@@ -8,6 +8,7 @@ mod download;
 mod proof_system;
 mod smart_contract;
 
+use acvm::acir::BlackBoxFunc;
 use acvm::acir::circuit::Opcode;
 use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 use bb_abstraction_leaks::BB_VERSION;
@@ -141,6 +142,22 @@ pub struct BackendOpcodeSupport {
 }
 
 impl BackendOpcodeSupport {
+    pub fn all_opcodes_supported() -> Self {
+        BackendOpcodeSupport {
+            opcodes: vec![
+                "arithmetic",
+                "directive",
+                "brillig",
+                "memory_init",
+                "memory_op",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect(),
+            black_box_functions: BlackBoxFunc::all_blackbox_functions().into_iter().collect(),
+        }
+    }
+
     pub fn is_opcode_supported(&self, opcode: &Opcode) -> bool {
         match opcode {
             Opcode::Arithmetic(_) => self.opcodes.contains("arithmetic"),

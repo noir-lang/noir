@@ -40,6 +40,10 @@ pub(crate) struct CompileCommand {
     #[arg(long)]
     include_keys: bool,
 
+    /// Compile without a backend
+    #[clap(long, default_value = "false", hide = true)]
+    no_backend: bool,
+
     /// The name of the package to compile
     #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
@@ -70,7 +74,12 @@ pub(crate) fn run(
         .cloned()
         .partition(|package| package.is_binary());
 
-    let (np_language, opcode_support) = backend.get_backend_info()?;
+    let (np_language, opcode_support) = if args.no_backend {
+        (Language::PLONKCSat{ width: 3 }, BackendOpcodeSupport::all_opcodes_supported())
+    } else {
+        backend.get_backend_info()?
+    };
+
     let (_, compiled_contracts) = compile_workspace(
         &workspace,
         &binary_packages,
