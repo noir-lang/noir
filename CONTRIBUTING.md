@@ -187,7 +187,7 @@ In the docs folder, you'll find the current, unreleased version, which we call `
 While the versioning is intended to be managed by the core maintainers, we feel it's important for external contributors to understand why and how is it maintained. To bump to a new version, run the following command, replacing with the intended version:
 
 ```bash
-npm run docusaurus docs:version <new_version_tag>
+yarn docusaurus docs:version <new_version_tag>
 ```
 
 This should create a new version by copying the docs folder and the sidebars.js file to the relevant folders, as well as adding this version to versions.json.
