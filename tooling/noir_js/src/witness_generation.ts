@@ -4,11 +4,15 @@ import { executeCircuit, WitnessMap, ForeignCallHandler, ForeignCallInput } from
 import { CompiledCircuit } from '@noir-lang/types';
 
 const defaultForeignCallHandler: ForeignCallHandler = (name: string, args: ForeignCallInput[]) => {
-  throw Error(`Unexpected oracle during execution: ${name}(${args.join(', ')})`)
-}
+  throw Error(`Unexpected oracle during execution: ${name}(${args.join(', ')})`);
+};
 
 // Generates the witnesses needed to feed into the chosen proving system
-export async function generateWitness(compiledProgram: CompiledCircuit, inputs: InputMap, foreignCallHandler: ForeignCallHandler = defaultForeignCallHandler): Promise<WitnessMap> {
+export async function generateWitness(
+  compiledProgram: CompiledCircuit,
+  inputs: InputMap,
+  foreignCallHandler: ForeignCallHandler = defaultForeignCallHandler,
+): Promise<WitnessMap> {
   // Throws on ABI encoding error
   const witnessMap = abiEncode(compiledProgram.abi, inputs);
 

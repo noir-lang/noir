@@ -8,7 +8,7 @@ export class Noir {
   constructor(
     private circuit: CompiledCircuit,
     private backend?: Backend,
-  ) { }
+  ) {}
 
   async init(): Promise<void> {
     // If these are available, then we are in the
@@ -29,7 +29,10 @@ export class Noir {
   }
 
   // Initial inputs to your program
-  async execute(inputs: InputMap, foreignCallHandler?: ForeignCallHandler): Promise<{ witness: Uint8Array; returnValue: InputValue }> {
+  async execute(
+    inputs: InputMap,
+    foreignCallHandler?: ForeignCallHandler,
+  ): Promise<{ witness: Uint8Array; returnValue: InputValue }> {
     await this.init();
     const witness = await generateWitness(this.circuit, inputs, foreignCallHandler);
     const { return_value: returnValue } = abiDecode(this.circuit.abi, witness);
