@@ -5,6 +5,8 @@ use acir::{
 };
 use acvm_blackbox_solver::{blake2s, keccak256, sha256};
 
+use self::pedersen::pedersen_hash;
+
 use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
 use crate::BlackBoxFunctionSolver;
 
@@ -117,8 +119,11 @@ pub(crate) fn solve(
             message,
             *output,
         ),
-        BlackBoxFuncCall::Pedersen { inputs, domain_separator, outputs } => {
+        BlackBoxFuncCall::PedersenCommitment { inputs, domain_separator, outputs } => {
             pedersen(backend, initial_witness, inputs, *domain_separator, *outputs)
+        }
+        BlackBoxFuncCall::PedersenHash { inputs, domain_separator, output } => {
+            pedersen_hash(backend, initial_witness, inputs, *domain_separator, *output)
         }
         BlackBoxFuncCall::EcdsaSecp256k1 {
             public_key_x,

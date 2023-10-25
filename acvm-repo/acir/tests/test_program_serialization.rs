@@ -77,9 +77,9 @@ fn fixed_base_scalar_mul_circuit() {
     circuit.write(&mut bytes).unwrap();
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 77, 138, 91, 10, 0, 48, 12, 194, 178, 215, 207, 78, 189,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 77, 138, 91, 10, 0, 48, 12, 194, 178, 215, 215, 46, 189,
         163, 175, 165, 10, 21, 36, 10, 57, 192, 160, 146, 188, 226, 139, 78, 113, 69, 183, 190, 61,
-        111, 218, 182, 231, 124, 68, 185, 243, 207, 92, 0, 0, 0,
+        111, 218, 182, 231, 124, 122, 8, 177, 65, 92, 0, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)
@@ -87,7 +87,7 @@ fn fixed_base_scalar_mul_circuit() {
 
 #[test]
 fn pedersen_circuit() {
-    let pedersen = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Pedersen {
+    let pedersen = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::PedersenCommitment {
         inputs: vec![FunctionInput { witness: Witness(1), num_bits: FieldElement::max_num_bits() }],
         outputs: (Witness(2), Witness(3)),
         domain_separator: 0,

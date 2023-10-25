@@ -26,6 +26,13 @@ pub fn pedersen_with_separator<N>(input : [Field; N], separator : u32) -> Peders
   }
 }
 
+pub fn pedersen_hash<N>(input : [Field; N]) -> Field {
+    pedersen_hash_with_separator(input, 0)
+}
+
+#[foreign(pedersen_hash)]
+pub fn pedersen_hash_with_separator<N>(_input : [Field; N], _separator : u32) -> Field {}
+
 #[foreign(hash_to_field_128_security)]
 pub fn hash_to_field<N>(_input : [Field; N]) -> Field {}
 
