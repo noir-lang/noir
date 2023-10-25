@@ -109,7 +109,7 @@ jobs:
         run: |
           if [ ${{ github.ref_name }} == "master" ]; then
             git diff --quiet tooling/nargo_cli/tests/acir_artifacts/ || echo "::set-output name=changes::true"
-          else
+          fi
           
       - name: Create or Update PR
         if: steps.check_changes.outputs.changes == 'true'
