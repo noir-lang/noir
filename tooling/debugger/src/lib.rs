@@ -1,5 +1,8 @@
 use acvm::acir::circuit::OpcodeLocation;
-use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM};
+use acvm::pwg::{
+    ACVMStatus, BrilligSolver, BrilligSolverStatus, ErrorLocation, OpcodeResolutionError,
+    StepResult, ACVM,
+};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
@@ -26,6 +29,7 @@ enum SolveResult {
 
 struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
     acvm: ACVM<'backend, B>,
+    brillig_solver: Option<BrilligSolver<'backend, B>>,
     debug_artifact: DebugArtifact,
     foreign_call_executor: ForeignCallExecutor,
     circuit: &'backend Circuit,
@@ -33,10 +37,52 @@ struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
 }
 
 impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
-    fn step_opcode(&mut self) -> Result<SolveResult, NargoError> {
-        let solver_status = self.acvm.solve_opcode();
+    fn step_brillig_opcode(&mut self) -> Result<SolveResult, NargoError> {
+        let Some(mut solver) = self.brillig_solver.take() else {
+            unreachable!("Missing Brillig solver");
+        };
+        match solver.step() {
+            Ok(status) => {
+                println!("Brillig step result: {:?}", status);
+                println!("Brillig program counter: {:?}", solver.program_counter());
+                match status {
+                    BrilligSolverStatus::InProgress => {
+                        self.brillig_solver = Some(solver);
+                        Ok(SolveResult::Ok)
+                    }
+                    BrilligSolverStatus::Finished => {
+                        let status = self.acvm.finish_brillig_with_solver(solver);
+                        self.handle_acvm_status(status)
+                    }
+                    BrilligSolverStatus::ForeignCallWait(foreign_call) => {
+                        let foreign_call_result =
+                            self.foreign_call_executor.execute(&foreign_call, self.show_output)?;
+                        solver.resolve_pending_foreign_call(foreign_call_result);
+                        self.brillig_solver = Some(solver);
+                        Ok(SolveResult::Ok)
+                    }
+                }
+            }
+            Err(err) => self.handle_acvm_status(ACVMStatus::Failure(err)),
+        }
+    }
 
-        match solver_status {
+    fn step_opcode(&mut self) -> Result<SolveResult, NargoError> {
+        if matches!(self.brillig_solver, Some(_)) {
+            self.step_brillig_opcode()
+        } else {
+            match self.acvm.step_into_brillig_opcode() {
+                StepResult::IntoBrillig(solver) => {
+                    self.brillig_solver = Some(solver);
+                    self.step_brillig_opcode()
+                }
+                StepResult::Status(status) => self.handle_acvm_status(status),
+            }
+        }
+    }
+
+    fn handle_acvm_status(&mut self, status: ACVMStatus) -> Result<SolveResult, NargoError> {
+        match status {
             ACVMStatus::Solved => Ok(SolveResult::Done),
             ACVMStatus::InProgress => Ok(SolveResult::Ok),
             ACVMStatus::Failure(error) => {
@@ -189,6 +235,7 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     let context = RefCell::new(DebugContext {
         acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
         foreign_call_executor: ForeignCallExecutor::default(),
+        brillig_solver: None,
         circuit,
         debug_artifact,
         show_output,

@@ -1,6 +1,11 @@
 name: Test acvm_js
 
-on: [push, pull_request]
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - master
 
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
