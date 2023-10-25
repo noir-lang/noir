@@ -618,9 +618,10 @@ impl NodeInterner {
     #[cfg(test)]
     pub fn push_test_function_definition(&mut self, name: String) -> FuncId {
         let id = self.push_fn(HirFunction::empty());
-        let modifiers = FunctionModifiers::new();
+        let mut modifiers = FunctionModifiers::new();
+        modifiers.name = name;
         let module = ModuleId::dummy_id();
-        self.push_function_definition(name, id, modifiers, module);
+        self.push_function_definition(id, modifiers, module);
         id
     }
 
@@ -631,7 +632,6 @@ impl NodeInterner {
         module: ModuleId,
     ) -> DefinitionId {
         use ContractFunctionType::*;
-        let name = function.name.0.contents.clone();
 
         // We're filling in contract_function_type and is_internal now, but these will be verified
         // later during name resolution.
@@ -643,16 +643,16 @@ impl NodeInterner {
             contract_function_type: Some(if function.is_open { Open } else { Secret }),
             is_internal: Some(function.is_internal),
         };
-        self.push_function_definition(name, id, modifiers, module)
+        self.push_function_definition(id, modifiers, module)
     }
 
     pub fn push_function_definition(
         &mut self,
-        name: String,
         func: FuncId,
         modifiers: FunctionModifiers,
         module: ModuleId,
     ) -> DefinitionId {
+        let name = modifiers.name.clone();
         self.function_modifiers.insert(func, modifiers);
         self.function_modules.insert(func, module);
         self.push_definition(name, false, DefinitionKind::Function(func))
