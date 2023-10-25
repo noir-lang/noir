@@ -119,7 +119,11 @@ fn dynamic_slice_merge_if(mut slice: [Field], x: Field) {
         assert(slice[6] == 30);
 
         let (popped_slice, last_elem) = slice.pop_back();
+        // dep::std::println(slice[slice.len() - a]);
+        dep::std::println(last_elem);
         assert(last_elem == 10);
+        dep::std::println(popped_slice.len());
+
         assert(popped_slice.len() == 7);
 
         let (first_elem, rest_of_slice) = popped_slice.pop_front();
@@ -192,6 +196,8 @@ fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: Field, y: 
     }
     assert(slice[4] == 10);
     assert(slice.len() == 6);
+    // dep::std::println(slice.len() - 1);
+    dep::std::println(slice[slice.len() - 1]);
     assert(slice[slice.len() - 1] == 15);
 
     slice = slice.push_back(20);
