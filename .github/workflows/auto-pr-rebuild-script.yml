@@ -8,6 +8,7 @@ on:
 
 jobs:
   check-artifacts-requested:
+    name: Check if artifacts should be published
     runs-on: ubuntu-22.04
     outputs:
       publish: ${{ steps.check.outputs.publish }}
@@ -29,8 +30,8 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           REPO_URL: ${{ github.repositoryUrl }}
 
-          
   build-nargo:
+    name: Build nargo binary
     runs-on: ubuntu-22.04
     needs: [check-artifacts-requested]
     if:  ${{ needs.check-artifacts-requested.outputs.publish }}
@@ -68,6 +69,7 @@ jobs:
           retention-days: 3
 
   auto-pr-rebuild-script:
+    name: Rebuild ACIR artifacts
     needs: [build-nargo]
     runs-on: ubuntu-latest
 
