@@ -71,6 +71,13 @@ jobs:
           chmod +x ./rebuild.sh
           ./rebuild.sh
 
+      - name: Upload ACIR artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: acir-artifacts
+          path: ./tooling/nargo_cli/tests/acir_artifacts
+          retention-days: 10
+
       - name: Check for changes in acir_artifacts directory
         id: check_changes
         run: |
