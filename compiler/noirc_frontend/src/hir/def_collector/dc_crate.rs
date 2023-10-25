@@ -529,7 +529,7 @@ fn collect_trait_impl(
         let path_resolver = StandardPathResolver::new(module);
         let file = def_maps[&crate_id].file_id(trait_impl.module_id);
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
-        let typ = resolver.resolve_type(unresolved_type.clone());
+        let typ = resolver.resolve_type(unresolved_type);
         errors.extend(take_errors(trait_impl.file_id, resolver));
 
         if let Some(struct_type) = get_struct_type(&typ) {
