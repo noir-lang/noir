@@ -92,20 +92,36 @@ pub(crate) fn convert_black_box_call(
                 )
             }
         }
-        BlackBoxFunc::Pedersen => {
+        BlackBoxFunc::PedersenCommitment => {
             if let (
                 [message, RegisterOrMemory::RegisterIndex(domain_separator)],
                 [RegisterOrMemory::HeapArray(result_array)],
             ) = (function_arguments, function_results)
             {
                 let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
-                brillig_context.black_box_op_instruction(BlackBoxOp::Pedersen {
+                brillig_context.black_box_op_instruction(BlackBoxOp::PedersenCommitment {
                     inputs: message_vector,
                     domain_separator: *domain_separator,
                     output: *result_array,
                 });
             } else {
                 unreachable!("ICE: Pedersen expects one array argument, a register for the domain separator, and one array result")
+            }
+        }
+        BlackBoxFunc::PedersenHash => {
+            if let (
+                [message, RegisterOrMemory::RegisterIndex(domain_separator)],
+                [RegisterOrMemory::RegisterIndex(result)],
+            ) = (function_arguments, function_results)
+            {
+                let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
+                brillig_context.black_box_op_instruction(BlackBoxOp::PedersenHash {
+                    inputs: message_vector,
+                    domain_separator: *domain_separator,
+                    output: *result,
+                });
+            } else {
+                unreachable!("ICE: Pedersen hash expects one array argument, a register for the domain separator, and one register result")
             }
         }
         BlackBoxFunc::SchnorrVerify => {

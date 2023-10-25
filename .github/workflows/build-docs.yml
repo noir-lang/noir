@@ -100,8 +100,10 @@ jobs:
           site-id: ${{ secrets.NETLIFY_SITE_ID }}
         continue-on-error: true
 
+
       - name: Debugging - print deploy_status
         run: echo "${{ steps.check_deploy_status.outputs.deploy_status }}"
+
 
       - name: Change PR Comment for Successful Deployment
         if: steps.check_deploy_status.outputs.deploy_status == 'success'
@@ -134,3 +136,7 @@ jobs:
             Deployment didn't succeed. Please check logs below and resolve the issue 🧐
             
             [![Netlify Status](https://api.netlify.com/api/v1/badges/${{ secrets.NETLIFY_SITE_ID }}/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
+
+      - name: Fail the workflow if deployment failed
+        if: steps.check_deploy_status.outputs.deploy_status == 'failure'
+        run: exit 1
