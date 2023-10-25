@@ -46,11 +46,6 @@ export class BarretenbergApi {
     return result[0];
   }
 
-  async pedersenBufferToField(data: Uint8Array): Promise<Fr> {
-    const result = await this.binder.callWasmExport('pedersen___buffer_to_field', [data], [Fr]);
-    return result[0];
-  }
-
   async pedersenHashInit(): Promise<void> {
     const result = await this.binder.callWasmExport('pedersen_hash_init', [], []);
     return;

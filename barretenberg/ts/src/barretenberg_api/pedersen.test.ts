@@ -33,13 +33,6 @@ describe('pedersen', () => {
     expect(result).toEqual(new Fr(18374309251862457296563484909553154519357910650678202211610516068880120638872n));
   });
 
-  it('pedersenBufferToField', async () => {
-    const result = await api.pedersenBufferToField(
-      Buffer.from('Hello world! I am a buffer to be converted to a field!'),
-    );
-    expect(result).toEqual(new Fr(5836632387256708040349959803326023895450290698906238002955147410646852307074n));
-  });
-
   it('pedersenHashPair', async () => {
     const result = await api.pedersenHashPair(new Fr(4n), new Fr(8n));
     expect(result).toEqual(new Fr(1521373897829389584529155077412196627698249315427143054350987371861781120260n));

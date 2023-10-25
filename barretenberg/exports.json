@@ -78,22 +78,6 @@
     "isAsync": false
   },
   {
-    "functionName": "pedersen___buffer_to_field",
-    "inArgs": [
-      {
-        "name": "data",
-        "type": "const uint8_t *"
-      }
-    ],
-    "outArgs": [
-      {
-        "name": "r",
-        "type": "fr::out_buf"
-      }
-    ],
-    "isAsync": false
-  },
-  {
     "functionName": "pedersen_hash_init",
     "inArgs": [],
     "outArgs": [],
