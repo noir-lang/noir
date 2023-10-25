@@ -8,6 +8,8 @@ pub(crate) trait Pedersen {
         inputs: Vec<FieldElement>,
         hash_index: u32,
     ) -> Result<(FieldElement, FieldElement), Error>;
+
+    fn hash(&self, inputs: Vec<FieldElement>, hash_index: u32) -> Result<FieldElement, Error>;
 }
 
 impl Pedersen for Barretenberg {
@@ -32,6 +34,23 @@ impl Pedersen for Barretenberg {
         let point_y = FieldElement::from_be_bytes_reduce(point_y_bytes);
 
         Ok((point_x, point_y))
+    }
+
+    fn hash(&self, inputs: Vec<FieldElement>, hash_index: u32) -> Result<FieldElement, Error> {
+        let input_buf = Assignments::from(inputs).to_bytes();
+        let input_ptr = self.allocate(&input_buf)?;
+        let result_ptr: usize = 0;
+
+        self.call_multiple(
+            "pedersen_plookup_compress_with_hash_index",
+            vec![&input_ptr, &result_ptr.into(), &hash_index.into()],
+        )?;
+
+        let result_bytes: [u8; FIELD_BYTES] = self.read_memory(result_ptr);
+
+        let hash = FieldElement::from_be_bytes_reduce(&result_bytes);
+
+        Ok(hash)
     }
 }
 
