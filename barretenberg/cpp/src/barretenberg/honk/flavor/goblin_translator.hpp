@@ -311,9 +311,9 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
     // define the tuple of Relations that comprise the Sumcheck relation
     using Relations = std::tuple<GoblinTranslatorPermutationRelation<FF>,
                                  GoblinTranslatorGenPermSortRelation<FF>,
-                                 GoblinTranslatorDecompositionRelation<FF>,
                                  GoblinTranslatorOpcodeConstraintRelation<FF>,
                                  GoblinTranslatorAccumulatorTransferRelation<FF>,
+                                 GoblinTranslatorDecompositionRelation<FF>,
                                  GoblinTranslatorNonNativeFieldRelation<FF>>;
 
     static constexpr size_t MAX_RELATION_LENGTH = get_max_relation_length<Relations>();
