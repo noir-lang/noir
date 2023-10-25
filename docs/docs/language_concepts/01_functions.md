@@ -20,6 +20,12 @@ By default, functions are visible only within the package they are defined. To m
 pub fn foo() {}
 ```
 
+You can also restrict the visibility of the function to only the crate it was defined in, by specifying `pub(crate)`:
+
+```rust
+pub(crate) fn foo() {}  //foo can only be called within its crate
+```
+
 All parameters in a function must have a type and all types are known at compile time. The parameter
 is pre-pended with a colon and the parameter type. Multiple parameters are separated using a comma.
 
@@ -132,6 +138,36 @@ follows:
 assert(MyStruct::sum(s) == 42);
 ```
 
+It is also possible to specialize which method is chosen depending on the [generic](./06_generics.md) type that is used. In this example, the `foo` function returns different values depending on its type:
+
+```rust
+struct Foo<T> {}
+
+impl Foo<u32> {
+    fn foo(self) -> Field { 1 }
+}
+
+impl Foo<u64> {
+    fn foo(self) -> Field { 2 }
+}
+
+fn main() {
+    let f1: Foo<u32> = Foo{};
+    let f2: Foo<u64> = Foo{};
+    assert(f1.foo() + f2.foo() == 3);
+}
+```
+
+Also note that impls with the same method name defined in them cannot overlap. For example, if we already have `foo` defined for `Foo<u32>` and `Foo<u64>` like we do above, we cannot also define `foo` in an `impl<T> Foo<T>` since it would be ambiguous which version of `foo` to choose.
+
+```rust
+// Including this impl in the same project as the above snippet would
+// cause an overlapping impls error
+impl<T> Foo<T> {
+    fn foo(self) -> Field { 3 }
+}
+```
+
 ## Lambdas
 
 Lambdas are anonymous functions. They follow the syntax of Rust - `|arg1, arg2, ..., argN| return_expression`.
@@ -148,19 +184,21 @@ See [Lambdas](./08_lambdas.md) for more details.
 Attributes are metadata that can be applied to a function, using the following syntax: `#[attribute(value)]`.
 
 Supported attributes include:
+
 - **builtin**: the function is implemented by the compiler, for efficiency purposes.
-- **deprecated**: mark the function as *deprecated*. Calling the function will generate a warning: `warning: use of deprecated function`
+- **deprecated**: mark the function as _deprecated_. Calling the function will generate a warning: `warning: use of deprecated function`
 - **field**: Used to enable conditional compilation of code depending on the field size. See below for more details
-- **oracle**: mark the function as *oracle*; meaning it is an external unconstrained function, implemented in noir_js. See [Unconstrained](./05_unconstrained.md) and [Noir js](../noir_js/noir_js.md) for more details.
+- **oracle**: mark the function as _oracle_; meaning it is an external unconstrained function, implemented in noir_js. See [Unconstrained](./05_unconstrained.md) and [NoirJS](../noir_js/noir_js.md) for more details.
 - **test**: mark the function as unit tests. See [Tests](../nargo/02_testing.md) for more details
 
 ### Field Attribute
+
 The field attribute defines which field the function is compatible for. The function is conditionally compiled, under the condition that the field attribute matches the Noir native field.
 The field can be defined implicitly, by using the name of the elliptic curve usually associated to it - for instance bn254, bls12_381 - or explicitly by using the field (prime) order, in decimal or hexadecimal form.
 As a result, it is possible to define multiple versions of a function with each version specialized for a different field attribute. This can be useful when a function requires different parameters depending on the underlying elliptic curve.
 
-
 Example: we define the function `foo()` three times below. Once for the default Noir bn254 curve, once for the field $\mathbb F_{23}$, which will normally never be used by Noir, and once again for the bls12_381 curve.
+
 ```rust
 #[field(bn254)]
 fn foo() -> u32 {

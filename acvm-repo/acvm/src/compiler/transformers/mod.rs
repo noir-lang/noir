@@ -131,7 +131,10 @@ pub(super) fn transform_internal(
                         outputs,
                         ..
                     }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::Pedersen { outputs, .. } => {
+                    | acir::circuit::opcodes::BlackBoxFuncCall::PedersenCommitment {
+                        outputs,
+                        ..
+                    } => {
                         transformer.mark_solvable(outputs.0);
                         transformer.mark_solvable(outputs.1);
                     }
@@ -141,7 +144,8 @@ pub(super) fn transform_internal(
                     }
                     | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1 { output, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::SchnorrVerify { output, .. } => {
+                    | acir::circuit::opcodes::BlackBoxFuncCall::SchnorrVerify { output, .. }
+                    | acir::circuit::opcodes::BlackBoxFuncCall::PedersenHash { output, .. } => {
                         transformer.mark_solvable(*output);
                     }
                 }

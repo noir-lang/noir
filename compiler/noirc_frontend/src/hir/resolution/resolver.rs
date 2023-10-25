@@ -36,10 +36,10 @@ use crate::{
     StatementKind,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
-    Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable,
-    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+    ArrayLiteral, ContractFunctionType, Distinctness, FunctionVisibility, Generics, LValue,
+    NoirStruct, NoirTypeAlias, Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType,
+    TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -87,6 +87,14 @@ pub struct Resolver<'a> {
     /// Set to the current type if we're resolving an impl
     self_type: Option<Type>,
 
+    /// True if the current module is a contract.
+    /// This is usually determined by self.path_resolver.module_id(), but it can
+    /// be overriden for impls. Impls are an odd case since the methods within resolve
+    /// as if they're in the parent module, but should be placed in a child module.
+    /// Since they should be within a child module, in_contract is manually set to false
+    /// for these so we can still resolve them in the parent module without them being in a contract.
+    in_contract: bool,
+
     /// Contains a mapping of the current struct or functions's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
     /// This is a Vec rather than a map to preserve the order a functions generics
@@ -119,6 +127,9 @@ impl<'a> Resolver<'a> {
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
         file: FileId,
     ) -> Resolver<'a> {
+        let module_id = path_resolver.module_id();
+        let in_contract = module_id.module(def_maps).is_contract;
+
         Self {
             path_resolver,
             def_maps,
@@ -131,6 +142,7 @@ impl<'a> Resolver<'a> {
             errors: Vec::new(),
             lambda_stack: Vec::new(),
             file,
+            in_contract,
         }
     }
 
@@ -805,9 +817,16 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// Override whether this name resolver is within a contract or not.
+    /// This will affect which types are allowed as parameters to methods as well
+    /// as which modifiers are allowed on a function.
+    pub(crate) fn set_in_contract(&mut self, in_contract: bool) {
+        self.in_contract = in_contract;
+    }
+
     /// True if the 'pub' keyword is allowed on parameters in this function
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
-        if self.in_contract() {
+        if self.in_contract {
             !func.def.is_unconstrained
         } else {
             func.name() == MAIN_FUNCTION
@@ -815,7 +834,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
-        if self.in_contract() {
+        if self.in_contract {
             func.attributes().is_contract_entry_point()
         } else {
             func.name() == MAIN_FUNCTION
@@ -824,7 +843,7 @@ impl<'a> Resolver<'a> {
 
     /// True if the `distinct` keyword is allowed on a function's return type
     fn distinct_allowed(&self, func: &NoirFunction) -> bool {
-        if self.in_contract() {
+        if self.in_contract {
             // "open" and "unconstrained" functions are compiled to brillig and thus duplication of
             // witness indices in their abis is not a concern.
             !func.def.is_unconstrained && !func.def.is_open
@@ -836,7 +855,7 @@ impl<'a> Resolver<'a> {
     fn handle_function_type(&mut self, function: &FuncId) {
         let function_type = self.interner.function_modifiers(function).contract_function_type;
 
-        if !self.in_contract() && function_type == Some(ContractFunctionType::Open) {
+        if !self.in_contract && function_type == Some(ContractFunctionType::Open) {
             let span = self.interner.function_ident(function).span();
             self.errors.push(ResolverError::ContractFunctionTypeInNormalFunction { span });
             self.interner.function_modifiers_mut(function).contract_function_type = None;
@@ -844,7 +863,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn handle_is_function_internal(&mut self, function: &FuncId) {
-        if !self.in_contract() {
+        if !self.in_contract {
             if self.interner.function_modifiers(function).is_internal == Some(true) {
                 let span = self.interner.function_ident(function).span();
                 self.push_err(ResolverError::ContractFunctionInternalInNormalFunction { span });
@@ -1039,20 +1058,39 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    // Issue an error if the given private function is being called from a non-child module
-    fn check_can_reference_private_function(&mut self, func: FuncId, span: Span) {
+    // Issue an error if the given private function is being called from a non-child module, or
+    // if the given pub(crate) function is being called from another crate
+    fn check_can_reference_function(
+        &mut self,
+        func: FuncId,
+        span: Span,
+        visibility: FunctionVisibility,
+    ) {
         let function_module = self.interner.function_module(func);
         let current_module = self.path_resolver.module_id();
 
         let same_crate = function_module.krate == current_module.krate;
         let krate = function_module.krate;
         let current_module = current_module.local_id;
-
-        if !same_crate
-            || !self.module_descendent_of_target(krate, function_module.local_id, current_module)
-        {
-            let name = self.interner.function_name(&func).to_string();
-            self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
+        let name = self.interner.function_name(&func).to_string();
+        match visibility {
+            FunctionVisibility::Public => (),
+            FunctionVisibility::Private => {
+                if !same_crate
+                    || !self.module_descendent_of_target(
+                        krate,
+                        function_module.local_id,
+                        current_module,
+                    )
+                {
+                    self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
+                }
+            }
+            FunctionVisibility::PublicCrate => {
+                if !same_crate {
+                    self.errors.push(ResolverError::NonCrateFunctionCalled { span, name });
+                }
+            }
         }
     }
 
@@ -1146,9 +1184,15 @@ impl<'a> Resolver<'a> {
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
                             DefinitionKind::Function(id) => {
-                                if self.interner.function_visibility(id) == Visibility::Private {
+                                if self.interner.function_visibility(id)
+                                    != FunctionVisibility::Public
+                                {
                                     let span = hir_ident.location.span;
-                                    self.check_can_reference_private_function(id, span);
+                                    self.check_can_reference_function(
+                                        id,
+                                        span,
+                                        self.interner.function_visibility(id),
+                                    );
                                 }
                             }
                             DefinitionKind::Global(_) => {}
@@ -1603,11 +1647,6 @@ impl<'a> Resolver<'a> {
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }
-    }
-
-    fn in_contract(&self) -> bool {
-        let module_id = self.path_resolver.module_id();
-        module_id.module(self.def_maps).is_contract
     }
 
     fn resolve_fmt_str_literal(&mut self, str: String, call_expr_span: Span) -> HirLiteral {

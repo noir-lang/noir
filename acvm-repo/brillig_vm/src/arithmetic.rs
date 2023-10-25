@@ -25,18 +25,28 @@ pub(crate) fn evaluate_binary_bigint_op(
     a: BigUint,
     b: BigUint,
     bit_size: u32,
-) -> BigUint {
+) -> Result<BigUint, String> {
     let bit_modulo = &(BigUint::one() << bit_size);
-    match op {
+    let result = match op {
         // Perform addition, subtraction, and multiplication, applying a modulo operation to keep the result within the bit size.
         BinaryIntOp::Add => (a + b) % bit_modulo,
         BinaryIntOp::Sub => (bit_modulo + a - b) % bit_modulo,
         BinaryIntOp::Mul => (a * b) % bit_modulo,
         // Perform unsigned division using the modulo operation on a and b.
-        BinaryIntOp::UnsignedDiv => (a % bit_modulo) / (b % bit_modulo),
+        BinaryIntOp::UnsignedDiv => {
+            let b_mod = b % bit_modulo;
+            if b_mod.is_zero() {
+                return Err("Division by zero".to_owned());
+            }
+            (a % bit_modulo) / b_mod
+        }
         // Perform signed division by first converting a and b to signed integers and then back to unsigned after the operation.
         BinaryIntOp::SignedDiv => {
-            let signed_div = to_big_signed(a, bit_size) / to_big_signed(b, bit_size);
+            let b_signed = to_big_signed(b, bit_size);
+            if b_signed.is_zero() {
+                return Err("Division by zero".to_owned());
+            }
+            let signed_div = to_big_signed(a, bit_size) / b_signed;
             to_big_unsigned(signed_div, bit_size)
         }
         // Perform a == operation, returning 0 or 1
@@ -77,7 +87,9 @@ pub(crate) fn evaluate_binary_bigint_op(
             let b = b.to_u128().unwrap();
             (a >> b) % bit_modulo
         }
-    }
+    };
+
+    Ok(result)
 }
 
 fn to_big_signed(a: BigUint, bit_size: u32) -> BigInt {
@@ -111,7 +123,7 @@ mod tests {
         // Convert to big integers
         let lhs_big = BigUint::from(a);
         let rhs_big = BigUint::from(b);
-        let result_value = evaluate_binary_bigint_op(op, lhs_big, rhs_big, bit_size);
+        let result_value = evaluate_binary_bigint_op(op, lhs_big, rhs_big, bit_size).unwrap();
         // Convert back to u128
         result_value.to_u128().unwrap()
     }

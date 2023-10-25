@@ -414,7 +414,10 @@ fn simplify_black_box_func(
             simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256r1_verify)
         }
 
-        BlackBoxFunc::FixedBaseScalarMul | BlackBoxFunc::SchnorrVerify | BlackBoxFunc::Pedersen => {
+        BlackBoxFunc::FixedBaseScalarMul
+        | BlackBoxFunc::SchnorrVerify
+        | BlackBoxFunc::PedersenCommitment
+        | BlackBoxFunc::PedersenHash => {
             // Currently unsolvable here as we rely on an implementation in the backend.
             SimplifyResult::None
         }

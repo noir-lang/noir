@@ -16,8 +16,8 @@ use crate::{
     UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::{
-    ForLoopStatement, FunctionDefinition, ImportStatement, NoirStruct, PrefixExpression,
-    Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
+    ForLoopStatement, FunctionDefinition, FunctionVisibility, ImportStatement, NoirStruct,
+    PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
 };
 use fm::FileId;
 
@@ -434,7 +434,7 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
         &FunctionReturnType::Ty(make_type(UnresolvedTypeData::FieldElement)),
     );
 
-    selector_fn_def.is_public = true;
+    selector_fn_def.visibility = FunctionVisibility::Public;
 
     // Seems to be necessary on contract modules
     selector_fn_def.return_visibility = Visibility::Public;
