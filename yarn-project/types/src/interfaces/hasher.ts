@@ -18,13 +18,6 @@ export interface Hasher {
   compressInputs(inputs: Buffer[]): Buffer;
 
   /**
-   * Get a 32-byte hash from a buffer.
-   * @param data - The data buffer.
-   * @returns The resulting hash buffer.
-   */
-  hashToField(data: Uint8Array): Buffer;
-
-  /**
    * Given a buffer containing 32 byte leaves, return a new buffer containing the leaves and all pairs of
    * nodes that define a merkle tree.
    *

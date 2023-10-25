@@ -14,15 +14,7 @@ import { deserializeArrayFromVector, deserializeField, serializeBufferArrayToVec
  * purposes.
  */
 export function pedersenCompress(wasm: IWasmModule, lhs: Uint8Array, rhs: Uint8Array): Buffer {
-  // If not done already, precompute constants.
-  wasm.call('pedersen__init');
-  if (lhs.length !== 32 || rhs.length !== 32) {
-    throw new Error(`Pedersen lhs and rhs inputs must be 32 bytes (got ${lhs.length} and ${rhs.length} respectively)`);
-  }
-  wasm.writeMemory(0, lhs);
-  wasm.writeMemory(32, rhs);
-  wasm.call('pedersen__hash_pair', 0, 32, 64);
-  return Buffer.from(wasm.getMemorySlice(64, 96));
+  return pedersenCompressWithHashIndex(wasm, [Buffer.from(lhs), Buffer.from(rhs)], 0);
 }
 
 /**
@@ -35,12 +27,7 @@ export function pedersenCompress(wasm: IWasmModule, lhs: Uint8Array, rhs: Uint8A
  * purposes.
  */
 export function pedersenHashInputs(wasm: IWasmModule, inputs: Buffer[]): Buffer {
-  // If not done already, precompute constants.
-  wasm.call('pedersen__init');
-  const inputVectors = serializeBufferArrayToVector(inputs);
-  wasm.writeMemory(0, inputVectors);
-  wasm.call('pedersen__hash_multiple', 0, 0);
-  return Buffer.from(wasm.getMemorySlice(0, 32));
+  return pedersenCompressWithHashIndex(wasm, inputs, 0);
 }
 
 /**
@@ -52,12 +39,7 @@ export function pedersenHashInputs(wasm: IWasmModule, inputs: Buffer[]): Buffer 
  * purposes.
  */
 export function pedersenCompressInputs(wasm: IWasmModule, inputs: Buffer[]): Buffer {
-  // If not done already, precompute constants.
-  wasm.call('pedersen__init');
-  const inputVectors = serializeBufferArrayToVector(inputs);
-  wasm.writeMemory(0, inputVectors);
-  wasm.call('pedersen__compress', 0, 0);
-  return Buffer.from(wasm.getMemorySlice(0, 32));
+  return pedersenCompressWithHashIndex(wasm, inputs, 0);
 }
 
 /**
@@ -75,24 +57,6 @@ export function pedersenCompressWithHashIndex(wasm: IWasmModule, inputs: Buffer[
   const inputVectors = serializeBufferArrayToVector(inputs);
   wasm.writeMemory(0, inputVectors);
   wasm.call('pedersen__compress_with_hash_index', 0, 0, hashIndex);
-  return Buffer.from(wasm.getMemorySlice(0, 32));
-}
-
-/**
- * Get a 32-byte pedersen hash from a buffer.
- * @param wasm - The barretenberg module.
- * @param data - The data buffer.
- * @returns The hash buffer.
- * @deprecated Don't call pedersen directly in production code. Instead, create suitably-named functions for specific
- * purposes.
- */
-export function pedersenGetHash(wasm: IWasmModule, data: Buffer): Buffer {
-  // If not done already, precompute constants.
-  wasm.call('pedersen__init');
-  const mem = wasm.call('bbmalloc', data.length);
-  wasm.writeMemory(mem, data);
-  wasm.call('pedersen__buffer_to_field', mem, data.length, 0);
-  wasm.call('bbfree', mem);
   return Buffer.from(wasm.getMemorySlice(0, 32));
 }
 
