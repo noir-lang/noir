@@ -26,7 +26,7 @@ ARCH=$(uname -m)
 if [ "$OS" == "macos" ]; then
   PRESET=default
 else
-  if [ "$(which clang++-15)" != "" ]; then
+  if [ "$(which clang++-16)" != "" ]; then
     PRESET=clang16
   else
     PRESET=default
