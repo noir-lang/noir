@@ -2,6 +2,7 @@ import { SignerlessWallet, Wallet } from '@aztec/aztec.js';
 import { CircuitsWasm, Fr } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/abis';
 import { DebugLogger } from '@aztec/foundation/log';
+import { toBigInt } from '@aztec/foundation/serialize';
 import { TestContract } from '@aztec/noir-contracts/types';
 import { AztecNode, PXE, TxStatus } from '@aztec/types';
 
@@ -42,5 +43,20 @@ describe('e2e_non_contract_account', () => {
     const siloedNullifier = tx!.newNullifiers[1];
 
     expect(siloedNullifier.equals(expectedSiloedNullifier)).toBeTruthy();
+  }, 120_000);
+
+  it('msg.sender is 0 when a non-contract account calls a private function on a contract', async () => {
+    const contractWithNoContractWallet = await TestContract.at(contract.address, nonContractAccountWallet);
+
+    // Send transaction as arbitrary non-contract account
+    const tx = contractWithNoContractWallet.methods.emit_msg_sender().send();
+    const receipt = await tx.wait({ interval: 0.1 });
+    expect(receipt.status).toBe(TxStatus.MINED);
+
+    const logs = (await tx.getUnencryptedLogs()).logs;
+    expect(logs.length).toBe(1);
+
+    const msgSender = toBigInt(logs[0].log.data);
+    expect(msgSender).toBe(0n);
   }, 120_000);
 });
