@@ -65,9 +65,27 @@ jobs:
       - name: Install dependencies
         run: yarn
         
-        # Stub for annoying workflow issue (can't run it on a branch wtf)
+
+
+        #### Stub for annoying workflow issue (can't run it on a branch wtf)
+
+      - name: Get latest release
+        id: get_version
+        run: |
+            LATEST_STABLE=$(curl --silent "https://api.github.com/repos/${{ github.repository }}/releases" | jq '[.[] | select(.prerelease == false)][0].tag_name' -r)
+            echo "::set-output name=version::$LATEST_STABLE"
+
+      - name: Set stable version for docs
+        run: node .github/scripts/setDocsStableVersion.js ${{ steps.get_version.outputs.version }}
+
       - name: Cut a new version
         run: cd docs && yarn docusaurus docs:version 0.17.0-test
+
+
+        # should cut a new version, but set the latest as stable (0.17.0)
+        #### END STUB
+
+
 
       - name: Build docs
         run: yarn workspace docs build

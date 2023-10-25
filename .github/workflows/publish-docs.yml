@@ -6,6 +6,8 @@ on:
       tag:
         description: The tag to build Docs for
         required: false
+  release:
+    types: [published]
 
 jobs:
   publish-docs:
@@ -26,7 +28,16 @@ jobs:
 
     -   name: Install dependencies
         run: yarn
-    
+
+    -   name: Get latest release
+        id: get_version
+        run: |
+            LATEST_STABLE=$(curl --silent "https://api.github.com/repos/${{ github.repository }}/releases" | jq '[.[] | select(.prerelease == false)][0].tag_name' -r)
+            echo "::set-output name=version::$LATEST_STABLE"
+
+    -   name: Set stable version for docs
+        run: node .github/scripts/setDocsStableVersion.js ${{ steps.get_version.outputs.version }}
+
     -   name: Cut a new version
         run: cd docs && yarn docusaurus docs:version ${{ inputs.tag }}
 

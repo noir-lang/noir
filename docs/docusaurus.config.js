@@ -40,6 +40,7 @@ const config = {
           routeBasePath: '/',
           remarkPlugins: [math],
           rehypePlugins: [katex],
+          lastVersion: 'current', // updated by the release workflow
           versions: {
             current: {
               label: 'dev',
@@ -62,7 +63,7 @@ const config = {
 
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
-    ({
+    {
       // Replace with your project's social card
       navbar: {
         logo: {
@@ -87,8 +88,7 @@ const config = {
       metadata: [
         {
           name: 'Noir',
-          content:
-            'noir, programming, language, documentation, zk, zero-knowledge, l2, crypto, layer2, ethereum',
+          content: 'noir, programming, language, documentation, zk, zero-knowledge, l2, crypto, layer2, ethereum',
         },
       ],
       footer: {
@@ -149,7 +149,7 @@ const config = {
 
         indexName: 'noir-lang',
       },
-    }),
+    },
 };
 
 module.exports = config;
