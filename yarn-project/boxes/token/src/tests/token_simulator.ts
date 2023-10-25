@@ -6,11 +6,7 @@ export class TokenSimulator {
   private balancePublic: Map<AztecAddress, bigint> = new Map();
   public totalSupply: bigint = 0n;
 
-  constructor(
-    protected token: TokenContract,
-    protected logger: DebugLogger,
-    protected accounts: AztecAddress[],
-  ) {}
+  constructor(protected token: TokenContract, protected logger: DebugLogger, protected accounts: AztecAddress[]) {}
 
   public mintPrivate(amount: bigint) {
     this.totalSupply += amount;
