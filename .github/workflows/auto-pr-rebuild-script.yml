@@ -34,7 +34,7 @@ jobs:
     name: Build nargo binary
     runs-on: ubuntu-22.04
     needs: [check-artifacts-requested]
-    if:  ${{ needs.check-artifacts-requested.outputs.publish }}
+    if:  ${{ needs.check-artifacts-requested.outputs.publish == true }}
     strategy:
       matrix:
         target: [x86_64-unknown-linux-gnu]
