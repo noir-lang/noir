@@ -64,6 +64,10 @@ jobs:
 
       - name: Install dependencies
         run: yarn
+        
+        # Stub for annoying workflow issue (can't run it on a branch wtf)
+      - name: Cut a new version
+        run: docusaurus docs:version 0.17.0-test
 
       - name: Build docs
         run: yarn workspace docs build
