@@ -5,12 +5,12 @@
 //! These are implemented inside the ACVM stdlib.
 
 use serde::{Deserialize, Serialize};
-#[cfg(test)]
 use strum_macros::EnumIter;
+use strum::IntoEnumIterator;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(EnumIter))]
+#[derive(EnumIter)]
 pub enum BlackBoxFunc {
     /// Bitwise AND.
     AND,
@@ -98,6 +98,10 @@ impl BlackBoxFunc {
     }
     pub fn is_valid_black_box_func_name(op_name: &str) -> bool {
         BlackBoxFunc::lookup(op_name).is_some()
+    }
+
+    pub fn all_blackbox_functions() -> Vec<String> {
+        Self::iter().map(|x| x.name().to_string()).collect()
     }
 }
 
