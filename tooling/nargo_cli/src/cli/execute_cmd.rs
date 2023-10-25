@@ -1,4 +1,6 @@
+use acvm::Language;
 use acvm::acir::native_types::WitnessMap;
+use backend_interface::BackendOpcodeSupport;
 use clap::Args;
 
 use nargo::artifacts::debug::DebugArtifact;
@@ -22,6 +24,10 @@ use crate::errors::CliError;
 pub(crate) struct ExecuteCommand {
     /// Write the execution witness to named file
     witness_name: Option<String>,
+
+    /// Compile without a backend
+    #[clap(long, default_value = "false", hide = true)]
+    no_backend: bool,
 
     /// The name of the toml file which contains the inputs for the prover
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
@@ -51,7 +57,12 @@ pub(crate) fn run(
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let target_dir = &workspace.target_directory_path();
 
-    let (np_language, opcode_support) = backend.get_backend_info()?;
+    let (np_language, opcode_support) = if args.no_backend {
+        (Language::PLONKCSat{ width: 3 }, BackendOpcodeSupport::all_opcodes_supported())
+    } else {
+        backend.get_backend_info()?
+    };
+    
     for package in &workspace {
         let compiled_program = compile_bin_package(
             &workspace,
