@@ -635,5 +635,515 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorExtraRelationsCorrectness)
     // Check that Accumulator Transfer relation is satisfied across each row of the prover polynomials
     check_relation<Flavor, std::tuple_element_t<3, Relations>>(circuit_size, prover_polynomials, params);
 }
+/**
+ * @brief Test the correctness of GoblinTranslator's Decomposition Relation
+ *
+ */
+TEST_F(RelationCorrectnessTests, GoblinTranslatorDecompositionRelationCorrectness)
+{
+    using Flavor = flavor::GoblinTranslatorBasic;
+    using FF = typename Flavor::FF;
+    using BF = typename Flavor::BF;
+    using ProverPolynomials = typename Flavor::ProverPolynomials;
+    using ProverPolynomialIds = typename Flavor::ProverPolynomialIds;
+    using Polynomial = barretenberg::Polynomial<FF>;
+    auto& engine = numeric::random::get_debug_engine();
+
+    auto circuit_size = Flavor::FULL_CIRCUIT_SIZE;
+
+    // Decomposition relation doesn't use any relation parameters
+    proof_system::RelationParameters<FF> params;
+
+    // Create storage for polynomials
+    ProverPolynomials prover_polynomials;
+    // We use polynomial ids to make shifting the polynomials easier
+    ProverPolynomialIds prover_polynomial_ids;
+    std::vector<Polynomial> polynomial_container;
+    std::vector<size_t> polynomial_ids;
+    for (size_t i = 0; i < prover_polynomials.size(); i++) {
+        Polynomial temporary_polynomial(circuit_size);
+        // Allocate polynomials
+        polynomial_container.push_back(temporary_polynomial);
+        // Push sequential ids to polynomial ids
+        polynomial_ids.push_back(i);
+        prover_polynomial_ids[i] = polynomial_ids[i];
+    }
+    // Get ids of shifted polynomials and put them in a set
+    auto shifted_ids = prover_polynomial_ids.get_shifted();
+    std::unordered_set<size_t> shifted_id_set;
+    for (auto& id : shifted_ids) {
+        shifted_id_set.emplace(id);
+    }
+    // Assign spans to non-shifted prover polynomials
+    for (size_t i = 0; i < prover_polynomials.size(); i++) {
+        if (!shifted_id_set.contains(i)) {
+            prover_polynomials[i] = polynomial_container[i];
+        }
+    }
+
+    // Assign shifted spans to shifted prover polynomials using ids
+    for (size_t i = 0; i < shifted_ids.size(); i++) {
+        auto shifted_id = shifted_ids[i];
+        auto to_be_shifted_id = prover_polynomial_ids.get_to_be_shifted()[i];
+        prover_polynomials[shifted_id] = polynomial_container[to_be_shifted_id].shifted();
+    }
+
+    // Fill in lagrange odd polynomial (the only non-witness one we are using)
+    for (size_t i = 1; i < Flavor::MINI_CIRCUIT_SIZE - 1; i += 2) {
+        prover_polynomials.lagrange_odd_in_minicircuit[i] = 1;
+    }
+
+    constexpr size_t NUM_LIMB_BITS = Flavor::CircuitBuilder::NUM_LIMB_BITS;
+    constexpr size_t HIGH_WIDE_LIMB_WIDTH =
+        Flavor::CircuitBuilder::NUM_LIMB_BITS + Flavor::CircuitBuilder::NUM_LAST_LIMB_BITS;
+    constexpr size_t LOW_WIDE_LIMB_WIDTH = Flavor::CircuitBuilder::NUM_LIMB_BITS * 2;
+    constexpr size_t Z_LIMB_WIDTH = 128;
+    constexpr size_t MICRO_LIMB_WIDTH = Flavor::MICRO_LIMB_BITS;
+    constexpr size_t SHIFT_12_TO_14 = 4;
+    constexpr size_t SHIFT_10_TO_14 = 16;
+    constexpr size_t SHIFT_8_TO_14 = 64;
+    constexpr size_t SHIFT_4_TO_14 = 1024;
+
+    /**
+     * @brief Decompose a standard 68-bit limb of binary into 5 14-bit limbs and the 6th limb that is the same as the
+     * 5th but shifted by 2 bits
+     *
+     */
+    auto decompose_standard_limb =
+        [](auto& input, auto& limb_0, auto& limb_1, auto& limb_2, auto& limb_3, auto& limb_4, auto& shifted_limb) {
+            limb_0 = uint256_t(input).slice(0, MICRO_LIMB_WIDTH);
+            limb_1 = uint256_t(input).slice(MICRO_LIMB_WIDTH, MICRO_LIMB_WIDTH * 2);
+            limb_2 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 2, MICRO_LIMB_WIDTH * 3);
+            limb_3 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 3, MICRO_LIMB_WIDTH * 4);
+            limb_4 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 4, MICRO_LIMB_WIDTH * 5);
+            shifted_limb = limb_4 * SHIFT_12_TO_14;
+        };
+
+    /**
+     * @brief Decompose a standard 50-bit top limb into 4 14-bit limbs and the 5th limb that is the same as 5th, but
+     * shifted by 6 bits
+     *
+     */
+    auto decompose_standard_top_limb =
+        [](auto& input, auto& limb_0, auto& limb_1, auto& limb_2, auto& limb_3, auto& shifted_limb) {
+            limb_0 = uint256_t(input).slice(0, MICRO_LIMB_WIDTH);
+            limb_1 = uint256_t(input).slice(MICRO_LIMB_WIDTH, MICRO_LIMB_WIDTH * 2);
+            limb_2 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 2, MICRO_LIMB_WIDTH * 3);
+            limb_3 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 3, MICRO_LIMB_WIDTH * 4);
+            shifted_limb = limb_3 * SHIFT_8_TO_14;
+        };
+
+    /**
+     * @brief Decompose the 60-bit top limb of z1 or z2 into 5 14-bit limbs and a 6th limb which is equal to the 5th,
+     * but shifted by 10 bits.
+     *
+     */
+    auto decompose_standard_top_z_limb =
+        [](auto& input, auto& limb_0, auto& limb_1, auto& limb_2, auto& limb_3, auto& limb_4, auto& shifted_limb) {
+            limb_0 = uint256_t(input).slice(0, MICRO_LIMB_WIDTH);
+            limb_1 = uint256_t(input).slice(MICRO_LIMB_WIDTH, MICRO_LIMB_WIDTH * 2);
+            limb_2 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 2, MICRO_LIMB_WIDTH * 3);
+            limb_3 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 3, MICRO_LIMB_WIDTH * 4);
+            limb_4 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 4, MICRO_LIMB_WIDTH * 5);
+            shifted_limb = limb_4 * SHIFT_4_TO_14;
+        };
+
+    /**
+     * @brief Decompose the 52-bit top limb of quotient into 4 14-bit limbs and the 5th limb that is the same as 5th,
+     * but shifted by 4 bits
+     *
+     */
+    auto decompose_top_quotient_limb =
+        [](auto& input, auto& limb_0, auto& limb_1, auto& limb_2, auto& limb_3, auto& shifted_limb) {
+            limb_0 = uint256_t(input).slice(0, MICRO_LIMB_WIDTH);
+            limb_1 = uint256_t(input).slice(MICRO_LIMB_WIDTH, MICRO_LIMB_WIDTH * 2);
+            limb_2 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 2, MICRO_LIMB_WIDTH * 3);
+            limb_3 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 3, MICRO_LIMB_WIDTH * 4);
+            shifted_limb = limb_3 * SHIFT_10_TO_14;
+        };
+
+    /**
+     * @brief Decompose relation wide limb into 6 14-bit limbs
+     *
+     */
+    auto decompose_relation_limb =
+        [](auto& input, auto& limb_0, auto& limb_1, auto& limb_2, auto& limb_3, auto& limb_4, auto& limb_5) {
+            limb_0 = uint256_t(input).slice(0, MICRO_LIMB_WIDTH);
+            limb_1 = uint256_t(input).slice(MICRO_LIMB_WIDTH, MICRO_LIMB_WIDTH * 2);
+            limb_2 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 2, MICRO_LIMB_WIDTH * 3);
+            limb_3 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 3, MICRO_LIMB_WIDTH * 4);
+            limb_4 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 4, MICRO_LIMB_WIDTH * 5);
+            limb_5 = uint256_t(input).slice(MICRO_LIMB_WIDTH * 5, MICRO_LIMB_WIDTH * 6);
+        };
+
+    // Put random values in all the non-concatenated constraint polynomials used to range constrain the values
+    for (size_t i = 1; i < Flavor::MINI_CIRCUIT_SIZE - 1; i += 2) {
+        // P.x
+        prover_polynomials.x_lo_y_hi[i] = FF(engine.get_random_uint256() & ((uint256_t(1) << LOW_WIDE_LIMB_WIDTH) - 1));
+        prover_polynomials.x_hi_z_1[i] = FF(engine.get_random_uint256() & ((uint256_t(1) << HIGH_WIDE_LIMB_WIDTH) - 1));
+
+        // P.y
+        prover_polynomials.y_lo_z_2[i] = FF(engine.get_random_uint256() & ((uint256_t(1) << LOW_WIDE_LIMB_WIDTH) - 1));
+        prover_polynomials.x_lo_y_hi[i + 1] =
+            FF(engine.get_random_uint256() & ((uint256_t(1) << HIGH_WIDE_LIMB_WIDTH) - 1));
+
+        // z1 and z2
+        prover_polynomials.x_hi_z_1[i + 1] = FF(engine.get_random_uint256() & ((uint256_t(1) << Z_LIMB_WIDTH) - 1));
+        prover_polynomials.y_lo_z_2[i + 1] = FF(engine.get_random_uint256() & ((uint256_t(1) << Z_LIMB_WIDTH) - 1));
+
+        // Slice P.x into chunks
+        prover_polynomials.p_x_low_limbs[i] = uint256_t(prover_polynomials.x_lo_y_hi[i]).slice(0, NUM_LIMB_BITS);
+        prover_polynomials.p_x_low_limbs[i + 1] =
+            uint256_t(prover_polynomials.x_lo_y_hi[i]).slice(NUM_LIMB_BITS, 2 * NUM_LIMB_BITS);
+        prover_polynomials.p_x_high_limbs[i] = uint256_t(prover_polynomials.x_hi_z_1[i]).slice(0, NUM_LIMB_BITS);
+        prover_polynomials.p_x_high_limbs[i + 1] =
+            uint256_t(prover_polynomials.x_hi_z_1[i]).slice(NUM_LIMB_BITS, 2 * NUM_LIMB_BITS);
+
+        // Slice P.y into chunks
+        prover_polynomials.p_y_low_limbs[i] = uint256_t(prover_polynomials.y_lo_z_2[i]).slice(0, NUM_LIMB_BITS);
+        prover_polynomials.p_y_low_limbs[i + 1] =
+            uint256_t(prover_polynomials.y_lo_z_2[i]).slice(NUM_LIMB_BITS, 2 * NUM_LIMB_BITS);
+        prover_polynomials.p_y_high_limbs[i] = uint256_t(prover_polynomials.x_lo_y_hi[i + 1]).slice(0, NUM_LIMB_BITS);
+        prover_polynomials.p_y_high_limbs[i + 1] =
+            uint256_t(prover_polynomials.x_lo_y_hi[i + 1]).slice(NUM_LIMB_BITS, 2 * NUM_LIMB_BITS);
+
+        // Slice z1 and z2 into chunks
+        prover_polynomials.z_low_limbs[i] = uint256_t(prover_polynomials.x_hi_z_1[i + 1]).slice(0, NUM_LIMB_BITS);
+        prover_polynomials.z_low_limbs[i + 1] = uint256_t(prover_polynomials.y_lo_z_2[i + 1]).slice(0, NUM_LIMB_BITS);
+        prover_polynomials.z_high_limbs[i] =
+            uint256_t(prover_polynomials.x_hi_z_1[i + 1]).slice(NUM_LIMB_BITS, 2 * NUM_LIMB_BITS);
+        prover_polynomials.z_high_limbs[i + 1] =
+            uint256_t(prover_polynomials.y_lo_z_2[i + 1]).slice(NUM_LIMB_BITS, 2 * NUM_LIMB_BITS);
+
+        // Slice accumulator
+        auto tmp = uint256_t(BF::random_element(&engine));
+        prover_polynomials.accumulators_binary_limbs_0[i] = tmp.slice(0, NUM_LIMB_BITS);
+        prover_polynomials.accumulators_binary_limbs_1[i] = tmp.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2);
+        prover_polynomials.accumulators_binary_limbs_2[i] = tmp.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3);
+        prover_polynomials.accumulators_binary_limbs_3[i] = tmp.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4);
+
+        // Slice low limbs of P.x into range constraint microlimbs
+        decompose_standard_limb(prover_polynomials.p_x_low_limbs[i],
+                                prover_polynomials.p_x_low_limbs_range_constraint_0[i],
+                                prover_polynomials.p_x_low_limbs_range_constraint_1[i],
+                                prover_polynomials.p_x_low_limbs_range_constraint_2[i],
+                                prover_polynomials.p_x_low_limbs_range_constraint_3[i],
+                                prover_polynomials.p_x_low_limbs_range_constraint_4[i],
+                                prover_polynomials.p_x_low_limbs_range_constraint_tail[i]);
+
+        decompose_standard_limb(prover_polynomials.p_x_low_limbs[i + 1],
+                                prover_polynomials.p_x_low_limbs_range_constraint_0[i + 1],
+                                prover_polynomials.p_x_low_limbs_range_constraint_1[i + 1],
+                                prover_polynomials.p_x_low_limbs_range_constraint_2[i + 1],
+                                prover_polynomials.p_x_low_limbs_range_constraint_3[i + 1],
+                                prover_polynomials.p_x_low_limbs_range_constraint_4[i + 1],
+                                prover_polynomials.p_x_low_limbs_range_constraint_tail[i + 1]);
+
+        // Slice high limbs of P.x into range constraint microlimbs
+        decompose_standard_limb(prover_polynomials.p_x_high_limbs[i],
+                                prover_polynomials.p_x_high_limbs_range_constraint_0[i],
+                                prover_polynomials.p_x_high_limbs_range_constraint_1[i],
+                                prover_polynomials.p_x_high_limbs_range_constraint_2[i],
+                                prover_polynomials.p_x_high_limbs_range_constraint_3[i],
+                                prover_polynomials.p_x_high_limbs_range_constraint_4[i],
+                                prover_polynomials.p_x_high_limbs_range_constraint_tail[i]);
+
+        decompose_standard_top_limb(prover_polynomials.p_x_high_limbs[i + 1],
+                                    prover_polynomials.p_x_high_limbs_range_constraint_0[i + 1],
+                                    prover_polynomials.p_x_high_limbs_range_constraint_1[i + 1],
+                                    prover_polynomials.p_x_high_limbs_range_constraint_2[i + 1],
+                                    prover_polynomials.p_x_high_limbs_range_constraint_3[i + 1],
+                                    prover_polynomials.p_x_high_limbs_range_constraint_4[i + 1]);
+
+        // Slice low limbs of P.y into range constraint microlimbs
+        decompose_standard_limb(prover_polynomials.p_y_low_limbs[i],
+                                prover_polynomials.p_y_low_limbs_range_constraint_0[i],
+                                prover_polynomials.p_y_low_limbs_range_constraint_1[i],
+                                prover_polynomials.p_y_low_limbs_range_constraint_2[i],
+                                prover_polynomials.p_y_low_limbs_range_constraint_3[i],
+                                prover_polynomials.p_y_low_limbs_range_constraint_4[i],
+                                prover_polynomials.p_y_low_limbs_range_constraint_tail[i]);
+
+        decompose_standard_limb(prover_polynomials.p_y_low_limbs[i + 1],
+                                prover_polynomials.p_y_low_limbs_range_constraint_0[i + 1],
+                                prover_polynomials.p_y_low_limbs_range_constraint_1[i + 1],
+                                prover_polynomials.p_y_low_limbs_range_constraint_2[i + 1],
+                                prover_polynomials.p_y_low_limbs_range_constraint_3[i + 1],
+                                prover_polynomials.p_y_low_limbs_range_constraint_4[i + 1],
+                                prover_polynomials.p_y_low_limbs_range_constraint_tail[i + 1]);
+
+        // Slice high limbs of P.y into range constraint microlimbs
+        decompose_standard_limb(prover_polynomials.p_y_high_limbs[i],
+                                prover_polynomials.p_y_high_limbs_range_constraint_0[i],
+                                prover_polynomials.p_y_high_limbs_range_constraint_1[i],
+                                prover_polynomials.p_y_high_limbs_range_constraint_2[i],
+                                prover_polynomials.p_y_high_limbs_range_constraint_3[i],
+                                prover_polynomials.p_y_high_limbs_range_constraint_4[i],
+                                prover_polynomials.p_y_high_limbs_range_constraint_tail[i]);
+
+        decompose_standard_top_limb(prover_polynomials.p_y_high_limbs[i + 1],
+                                    prover_polynomials.p_y_high_limbs_range_constraint_0[i + 1],
+                                    prover_polynomials.p_y_high_limbs_range_constraint_1[i + 1],
+                                    prover_polynomials.p_y_high_limbs_range_constraint_2[i + 1],
+                                    prover_polynomials.p_y_high_limbs_range_constraint_3[i + 1],
+                                    prover_polynomials.p_y_high_limbs_range_constraint_4[i + 1]);
+
+        // Slice low limb of of z1 and z2 into range constraints
+        decompose_standard_limb(prover_polynomials.z_low_limbs[i],
+                                prover_polynomials.z_low_limbs_range_constraint_0[i],
+                                prover_polynomials.z_low_limbs_range_constraint_1[i],
+                                prover_polynomials.z_low_limbs_range_constraint_2[i],
+                                prover_polynomials.z_low_limbs_range_constraint_3[i],
+                                prover_polynomials.z_low_limbs_range_constraint_4[i],
+                                prover_polynomials.z_low_limbs_range_constraint_tail[i]);
+
+        decompose_standard_limb(prover_polynomials.z_low_limbs[i + 1],
+                                prover_polynomials.z_low_limbs_range_constraint_0[i + 1],
+                                prover_polynomials.z_low_limbs_range_constraint_1[i + 1],
+                                prover_polynomials.z_low_limbs_range_constraint_2[i + 1],
+                                prover_polynomials.z_low_limbs_range_constraint_3[i + 1],
+                                prover_polynomials.z_low_limbs_range_constraint_4[i + 1],
+                                prover_polynomials.z_low_limbs_range_constraint_tail[i + 1]);
+
+        // Slice high limb of of z1 and z2 into range constraints
+        decompose_standard_top_z_limb(prover_polynomials.z_high_limbs[i],
+                                      prover_polynomials.z_high_limbs_range_constraint_0[i],
+                                      prover_polynomials.z_high_limbs_range_constraint_1[i],
+                                      prover_polynomials.z_high_limbs_range_constraint_2[i],
+                                      prover_polynomials.z_high_limbs_range_constraint_3[i],
+                                      prover_polynomials.z_high_limbs_range_constraint_4[i],
+                                      prover_polynomials.z_high_limbs_range_constraint_tail[i]);
+
+        decompose_standard_top_z_limb(prover_polynomials.z_high_limbs[i + 1],
+                                      prover_polynomials.z_high_limbs_range_constraint_0[i + 1],
+                                      prover_polynomials.z_high_limbs_range_constraint_1[i + 1],
+                                      prover_polynomials.z_high_limbs_range_constraint_2[i + 1],
+                                      prover_polynomials.z_high_limbs_range_constraint_3[i + 1],
+                                      prover_polynomials.z_high_limbs_range_constraint_4[i + 1],
+                                      prover_polynomials.z_high_limbs_range_constraint_tail[i + 1]);
+
+        // Slice accumulator limbs into range constraints
+        decompose_standard_limb(prover_polynomials.accumulators_binary_limbs_0[i],
+                                prover_polynomials.accumulator_low_limbs_range_constraint_0[i],
+                                prover_polynomials.accumulator_low_limbs_range_constraint_1[i],
+                                prover_polynomials.accumulator_low_limbs_range_constraint_2[i],
+                                prover_polynomials.accumulator_low_limbs_range_constraint_3[i],
+                                prover_polynomials.accumulator_low_limbs_range_constraint_4[i],
+                                prover_polynomials.accumulator_low_limbs_range_constraint_tail[i]);
+        decompose_standard_limb(prover_polynomials.accumulators_binary_limbs_1[i],
+                                prover_polynomials.accumulator_low_limbs_range_constraint_0[i + 1],
+                                prover_polynomials.accumulator_low_limbs_range_constraint_1[i + 1],
+                                prover_polynomials.accumulator_low_limbs_range_constraint_2[i + 1],
+                                prover_polynomials.accumulator_low_limbs_range_constraint_3[i + 1],
+                                prover_polynomials.accumulator_low_limbs_range_constraint_4[i + 1],
+                                prover_polynomials.accumulator_low_limbs_range_constraint_tail[i + 1]);
+
+        decompose_standard_limb(prover_polynomials.accumulators_binary_limbs_2[i],
+                                prover_polynomials.accumulator_high_limbs_range_constraint_0[i],
+                                prover_polynomials.accumulator_high_limbs_range_constraint_1[i],
+                                prover_polynomials.accumulator_high_limbs_range_constraint_2[i],
+                                prover_polynomials.accumulator_high_limbs_range_constraint_3[i],
+                                prover_polynomials.accumulator_high_limbs_range_constraint_4[i],
+                                prover_polynomials.accumulator_high_limbs_range_constraint_tail[i]);
+        decompose_standard_top_limb(prover_polynomials.accumulators_binary_limbs_3[i],
+                                    prover_polynomials.accumulator_high_limbs_range_constraint_0[i + 1],
+                                    prover_polynomials.accumulator_high_limbs_range_constraint_1[i + 1],
+                                    prover_polynomials.accumulator_high_limbs_range_constraint_2[i + 1],
+                                    prover_polynomials.accumulator_high_limbs_range_constraint_3[i + 1],
+                                    prover_polynomials.accumulator_high_limbs_range_constraint_4[i + 1]);
+
+        // Slice quotient limbs into range constraints
+        decompose_standard_limb(prover_polynomials.quotient_low_binary_limbs[i],
+                                prover_polynomials.quotient_low_limbs_range_constraint_0[i],
+                                prover_polynomials.quotient_low_limbs_range_constraint_1[i],
+                                prover_polynomials.quotient_low_limbs_range_constraint_2[i],
+                                prover_polynomials.quotient_low_limbs_range_constraint_3[i],
+                                prover_polynomials.quotient_low_limbs_range_constraint_4[i],
+                                prover_polynomials.quotient_low_limbs_range_constraint_tail[i]);
+        decompose_standard_limb(prover_polynomials.quotient_low_binary_limbs_shift[i],
+                                prover_polynomials.quotient_low_limbs_range_constraint_0[i + 1],
+                                prover_polynomials.quotient_low_limbs_range_constraint_1[i + 1],
+                                prover_polynomials.quotient_low_limbs_range_constraint_2[i + 1],
+                                prover_polynomials.quotient_low_limbs_range_constraint_3[i + 1],
+                                prover_polynomials.quotient_low_limbs_range_constraint_4[i + 1],
+                                prover_polynomials.quotient_low_limbs_range_constraint_tail[i + 1]);
+
+        decompose_standard_limb(prover_polynomials.quotient_high_binary_limbs[i],
+                                prover_polynomials.quotient_high_limbs_range_constraint_0[i],
+                                prover_polynomials.quotient_high_limbs_range_constraint_1[i],
+                                prover_polynomials.quotient_high_limbs_range_constraint_2[i],
+                                prover_polynomials.quotient_high_limbs_range_constraint_3[i],
+                                prover_polynomials.quotient_high_limbs_range_constraint_4[i],
+                                prover_polynomials.quotient_high_limbs_range_constraint_tail[i]);
+
+        decompose_top_quotient_limb(prover_polynomials.quotient_high_binary_limbs_shift[i],
+                                    prover_polynomials.quotient_high_limbs_range_constraint_0[i + 1],
+                                    prover_polynomials.quotient_high_limbs_range_constraint_1[i + 1],
+                                    prover_polynomials.quotient_high_limbs_range_constraint_2[i + 1],
+                                    prover_polynomials.quotient_high_limbs_range_constraint_3[i + 1],
+                                    prover_polynomials.quotient_high_limbs_range_constraint_4[i + 1]);
+
+        // Decompose wide relation limbs into range constraints
+        decompose_relation_limb(prover_polynomials.relation_wide_limbs[i],
+                                prover_polynomials.relation_wide_limbs_range_constraint_0[i],
+                                prover_polynomials.relation_wide_limbs_range_constraint_1[i],
+                                prover_polynomials.relation_wide_limbs_range_constraint_2[i],
+                                prover_polynomials.relation_wide_limbs_range_constraint_3[i],
+                                prover_polynomials.p_x_high_limbs_range_constraint_tail[i + 1],
+                                prover_polynomials.accumulator_high_limbs_range_constraint_tail[i + 1]);
+
+        decompose_relation_limb(prover_polynomials.relation_wide_limbs[i + 1],
+                                prover_polynomials.relation_wide_limbs_range_constraint_0[i + 1],
+                                prover_polynomials.relation_wide_limbs_range_constraint_1[i + 1],
+                                prover_polynomials.relation_wide_limbs_range_constraint_2[i + 1],
+                                prover_polynomials.relation_wide_limbs_range_constraint_3[i + 1],
+                                prover_polynomials.p_y_high_limbs_range_constraint_tail[i + 1],
+                                prover_polynomials.quotient_high_limbs_range_constraint_tail[i + 1]);
+    }
+
+    using Relations = Flavor::Relations;
+    // Check that Decomposition relation is satisfied across each row of the prover polynomials
+    check_relation<Flavor, std::tuple_element_t<4, Relations>>(circuit_size, prover_polynomials, params);
+}
+
+/**
+ * @brief Test the correctness of GoblinTranslator's  NonNativeField Relation
+ *
+ */
+TEST_F(RelationCorrectnessTests, GoblinTranslatorNonNativeRelationCorrectness)
+{
+    using Flavor = flavor::GoblinTranslatorBasic;
+    using FF = typename Flavor::FF;
+    using BF = typename Flavor::BF;
+    using ProverPolynomials = typename Flavor::ProverPolynomials;
+    using ProverPolynomialIds = typename Flavor::ProverPolynomialIds;
+    using GroupElement = typename Flavor::GroupElement;
+    using Polynomial = barretenberg::Polynomial<FF>;
+
+    constexpr size_t NUM_LIMB_BITS = Flavor::NUM_LIMB_BITS;
+    constexpr auto circuit_size = Flavor::FULL_CIRCUIT_SIZE;
+    constexpr auto mini_circuit_size = Flavor::MINI_CIRCUIT_SIZE;
+
+    auto& engine = numeric::random::get_debug_engine();
+
+    proof_system::ECCOpQueue op_queue;
+
+    // Generate random EccOpQueue actions
+    for (size_t i = 0; i < ((Flavor::MINI_CIRCUIT_SIZE >> 1) - 1); i++) {
+        switch (engine.get_random_uint8() & 3) {
+        case 0:
+            op_queue.empty_row();
+            break;
+        case 1:
+            op_queue.eq();
+            break;
+        case 2:
+            op_queue.add_accumulate(GroupElement::random_element(&engine));
+            break;
+        case 3:
+            op_queue.mul_accumulate(GroupElement::random_element(&engine), FF::random_element(&engine));
+            break;
+        }
+    }
+    const auto batching_challenge_v = BF::random_element(&engine);
+    const auto evaluation_input_x = BF::random_element(&engine);
+
+    // Generating all the values is pretty tedious, so just use CircuitBuilder
+    auto circuit_builder =
+        proof_system::GoblinTranslatorCircuitBuilder(batching_challenge_v, evaluation_input_x, op_queue);
+
+    // The non-native field relation uses limbs of evaluation_input_x and powers of batching_challenge_v as inputs
+    proof_system::RelationParameters<FF> params;
+    auto v_power = BF::one();
+    for (size_t i = 0; i < 4 /*Number of powers of v that we need {1,2,3,4}*/; i++) {
+        v_power *= batching_challenge_v;
+        auto uint_v_power = uint256_t(v_power);
+        params.batching_challenge_v[i] = { uint_v_power.slice(0, NUM_LIMB_BITS),
+                                           uint_v_power.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2),
+                                           uint_v_power.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3),
+                                           uint_v_power.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4),
+                                           uint_v_power };
+    }
+    auto uint_input_x = uint256_t(evaluation_input_x);
+    params.evaluation_input_x = { uint_input_x.slice(0, NUM_LIMB_BITS),
+                                  uint_input_x.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2),
+                                  uint_input_x.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3),
+                                  uint_input_x.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4),
+                                  uint_input_x };
+
+    // Create storage for polynomials
+    ProverPolynomials prover_polynomials;
+    // We use polynomial ids to make shifting the polynomials easier
+    ProverPolynomialIds prover_polynomial_ids;
+    std::vector<Polynomial> polynomial_container;
+    std::vector<size_t> polynomial_ids;
+    for (size_t i = 0; i < prover_polynomials.size(); i++) {
+        Polynomial temporary_polynomial(circuit_size);
+        // Allocate polynomials
+        polynomial_container.push_back(temporary_polynomial);
+        // Push sequential ids to polynomial ids
+        polynomial_ids.push_back(i);
+        prover_polynomial_ids[i] = polynomial_ids[i];
+    }
+    // Get ids of shifted polynomials and put them in a set
+    auto shifted_ids = prover_polynomial_ids.get_shifted();
+    std::unordered_set<size_t> shifted_id_set;
+    for (auto& id : shifted_ids) {
+        shifted_id_set.emplace(id);
+    }
+    // Assign spans to non-shifted prover polynomials
+    for (size_t i = 0; i < prover_polynomials.size(); i++) {
+        if (!shifted_id_set.contains(i)) {
+            prover_polynomials[i] = polynomial_container[i];
+        }
+    }
+
+    // Assign shifted spans to shifted prover polynomials using ids
+    for (size_t i = 0; i < shifted_ids.size(); i++) {
+        auto shifted_id = shifted_ids[i];
+        auto to_be_shifted_id = prover_polynomial_ids.get_to_be_shifted()[i];
+        prover_polynomials[shifted_id] = polynomial_container[to_be_shifted_id].shifted();
+    }
+
+    // Copy values of wires used in the non-native field relation from the circuit builder
+    for (size_t i = 1; i < circuit_builder.get_num_gates(); i++) {
+        prover_polynomials.op[i] = circuit_builder.get_variable(circuit_builder.wires[circuit_builder.OP][i]);
+        prover_polynomials.p_x_low_limbs[i] =
+            circuit_builder.get_variable(circuit_builder.wires[circuit_builder.P_X_LOW_LIMBS][i]);
+        prover_polynomials.p_x_high_limbs[i] =
+            circuit_builder.get_variable(circuit_builder.wires[circuit_builder.P_X_HIGH_LIMBS][i]);
+        prover_polynomials.p_y_low_limbs[i] =
+            circuit_builder.get_variable(circuit_builder.wires[circuit_builder.P_Y_LOW_LIMBS][i]);
+        prover_polynomials.p_y_high_limbs[i] =
+            circuit_builder.get_variable(circuit_builder.wires[circuit_builder.P_Y_HIGH_LIMBS][i]);
+        prover_polynomials.z_low_limbs[i] =
+            circuit_builder.get_variable(circuit_builder.wires[circuit_builder.Z_LOW_LIMBS][i]);
+        prover_polynomials.z_high_limbs[i] =
+            circuit_builder.get_variable(circuit_builder.wires[circuit_builder.Z_HIGH_LIMBS][i]);
+        prover_polynomials.accumulators_binary_limbs_0[i] =
+            circuit_builder.get_variable(circuit_builder.wires[circuit_builder.ACCUMULATORS_BINARY_LIMBS_0][i]);
+        prover_polynomials.accumulators_binary_limbs_1[i] =
+            circuit_builder.get_variable(circuit_builder.wires[circuit_builder.ACCUMULATORS_BINARY_LIMBS_1][i]);
+        prover_polynomials.accumulators_binary_limbs_2[i] =
+            circuit_builder.get_variable(circuit_builder.wires[circuit_builder.ACCUMULATORS_BINARY_LIMBS_2][i]);
+        prover_polynomials.accumulators_binary_limbs_3[i] =
+            circuit_builder.get_variable(circuit_builder.wires[circuit_builder.ACCUMULATORS_BINARY_LIMBS_3][i]);
+        prover_polynomials.quotient_low_binary_limbs[i] =
+            circuit_builder.get_variable(circuit_builder.wires[circuit_builder.QUOTIENT_LOW_BINARY_LIMBS][i]);
+        prover_polynomials.quotient_high_binary_limbs[i] =
+            circuit_builder.get_variable(circuit_builder.wires[circuit_builder.QUOTIENT_HIGH_BINARY_LIMBS][i]);
+        prover_polynomials.relation_wide_limbs[i] =
+            circuit_builder.get_variable(circuit_builder.wires[circuit_builder.RELATION_WIDE_LIMBS][i]);
+    }
+
+    // Fill in lagrange odd polynomial
+    for (size_t i = 1; i < mini_circuit_size - 1; i += 2) {
+        prover_polynomials.lagrange_odd_in_minicircuit[i] = 1;
+    }
+
+    using Relations = Flavor::Relations;
+    // Check that Non-Native Field relation is satisfied across each row of the prover polynomials
+    check_relation<Flavor, std::tuple_element_t<5, Relations>>(circuit_size, prover_polynomials, params);
+}
 
 } // namespace test_honk_relations
