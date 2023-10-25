@@ -126,7 +126,7 @@ pub struct DefCollector {
 pub enum CompilationError {
     ParseError(ParserError),
     DefinitionError(DefCollectorErrorKind),
-    ResolveError(ResolverError),
+    ResolverError(ResolverError),
     TypeError(TypeCheckError),
 }
 
@@ -135,7 +135,7 @@ impl From<CompilationError> for CustomDiagnostic {
         match value {
             CompilationError::ParseError(error) => error.into(),
             CompilationError::DefinitionError(error) => error.into(),
-            CompilationError::ResolveError(error) => error.into(),
+            CompilationError::ResolverError(error) => error.into(),
             CompilationError::TypeError(error) => error.into(),
         }
     }
@@ -155,7 +155,7 @@ impl From<DefCollectorErrorKind> for CompilationError {
 
 impl From<ResolverError> for CompilationError {
     fn from(value: ResolverError) -> Self {
-        CompilationError::ResolveError(value)
+        CompilationError::ResolverError(value)
     }
 }
 impl From<TypeCheckError> for CompilationError {
