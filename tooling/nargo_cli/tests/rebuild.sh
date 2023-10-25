@@ -27,7 +27,7 @@ for dir in $base_path/*; do
       if [ -d ./target/ ]; then
         rm -r ./target/
       fi
-      nargo compile && nargo execute witness
+      nargo compile --no-backend && nargo execute --no-backend witness
 
       # Rename witness.tr to witness.gz
       if [ -f ./target/witness.tr ]; then
