@@ -67,7 +67,7 @@ jobs:
         
         # Stub for annoying workflow issue (can't run it on a branch wtf)
       - name: Cut a new version
-        run: yarn docusaurus docs:version 0.17.0-test
+        run: cd docs && yarn docusaurus docs:version 0.17.0-test
 
       - name: Build docs
         run: yarn workspace docs build
