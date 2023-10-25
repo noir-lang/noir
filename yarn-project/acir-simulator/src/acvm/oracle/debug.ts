@@ -1,4 +1,4 @@
-import { ForeignCallInput } from '@kevaundray/acvm_js';
+import { ForeignCallInput } from '@noir-lang/acvm_js';
 
 import { ACVMField } from '../acvm.js';
 

@@ -33,7 +33,7 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/types": "workspace:^",
-    "@kevaundray/acvm_js": "0.29.0-kw-switch-backend-e9641725f",
+    "@noir-lang/acvm_js": "0.30.0",
     "levelup": "^5.1.1",
     "memdown": "^6.1.1",
     "tslib": "^2.4.0"
