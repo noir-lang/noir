@@ -20,6 +20,7 @@
 /// in both placement and content during the formatting process.
 mod config;
 pub mod errors;
+mod utils;
 mod visitor;
 
 use noirc_frontend::ParsedModule;

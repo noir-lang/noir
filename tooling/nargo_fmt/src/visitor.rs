@@ -1,24 +1,19 @@
-/// A macro to create a slice from a given data source, helping to avoid borrow checker errors.
-#[macro_export]
-macro_rules! slice {
-    ($this:ident, $start:expr, $end:expr) => {
-        &$this.source[$start as usize..$end as usize]
-    };
-}
-
 mod expr;
 mod item;
 mod stmt;
 
-use noirc_frontend::hir::resolution::errors::Span;
+use noirc_frontend::{hir::resolution::errors::Span, token::Token};
 
-use crate::config::Config;
+use crate::{
+    config::Config,
+    utils::{self, FindToken},
+};
 
 pub(crate) struct FmtVisitor<'me> {
     config: &'me Config,
     buffer: String,
-    source: &'me str,
-    block_indent: Indent,
+    pub(crate) source: &'me str,
+    indent: Indent,
     last_position: u32,
 }
 
@@ -29,17 +24,38 @@ impl<'me> FmtVisitor<'me> {
             config,
             source,
             last_position: 0,
-            block_indent: Indent { block_indent: 0 },
+            indent: Indent { block_indent: 0 },
+        }
+    }
+
+    pub(crate) fn slice(&self, span: impl Into<Span>) -> &'me str {
+        let span = span.into();
+        &self.source[span.start() as usize..span.end() as usize]
+    }
+
+    fn span_before(&self, span: impl Into<Span>, token: Token) -> Span {
+        let span = span.into();
+
+        let slice = self.slice(span);
+        let offset = slice.find_token(token).unwrap();
+
+        (span.start() + offset..span.end()).into()
+    }
+
+    fn shape(&self) -> Shape {
+        Shape {
+            width: self.config.max_width.saturating_sub(self.indent.width()),
+            indent: self.indent,
         }
     }
 
     pub(crate) fn fork(&self) -> Self {
         Self {
-            config: self.config,
             buffer: String::new(),
+            config: self.config,
             source: self.source,
-            block_indent: self.block_indent,
             last_position: self.last_position,
+            indent: self.indent,
         }
     }
 
@@ -48,9 +64,9 @@ impl<'me> FmtVisitor<'me> {
     }
 
     fn with_indent<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.block_indent.block_indent(self.config);
+        self.indent.block_indent(self.config);
         let ret = f(self);
-        self.block_indent.block_unindent(self.config);
+        self.indent.block_unindent(self.config);
         ret
     }
 
@@ -63,9 +79,10 @@ impl<'me> FmtVisitor<'me> {
     }
 
     #[track_caller]
-    fn push_rewrite(&mut self, s: String, span: Span) {
+    fn push_rewrite(&mut self, rewrite: String, span: Span) {
+        let rewrite = utils::recover_comment_removed(self.slice(span), rewrite);
         self.format_missing_indent(span.start(), true);
-        self.push_str(&s);
+        self.push_str(&rewrite);
     }
 
     fn format_missing(&mut self, end: u32) {
@@ -82,7 +99,7 @@ impl<'me> FmtVisitor<'me> {
             }
 
             if should_indent {
-                let indent = this.block_indent.to_string();
+                let indent = this.indent.to_string();
                 this.push_str(&indent);
             }
         });
@@ -103,7 +120,7 @@ impl<'me> FmtVisitor<'me> {
             return;
         }
 
-        let slice = slice!(self, start, end);
+        let slice = self.slice(start..end);
         self.last_position = end;
 
         if slice.trim().is_empty() && !self.at_start() {
@@ -140,7 +157,7 @@ impl<'me> FmtVisitor<'me> {
     }
 
     pub(crate) fn format_comment(&self, span: Span) -> String {
-        let slice = slice!(self, span.start(), span.end()).trim();
+        let slice = self.slice(span).trim();
         let pos = slice.find('/');
 
         if !slice.is_empty() && pos.is_some() {
@@ -151,12 +168,16 @@ impl<'me> FmtVisitor<'me> {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Default)]
 struct Indent {
     block_indent: usize,
 }
 
 impl Indent {
+    fn width(&self) -> usize {
+        self.block_indent
+    }
+
     fn block_indent(&mut self, config: &Config) {
         self.block_indent += config.tab_spaces;
     }
@@ -173,4 +194,16 @@ impl Indent {
     fn to_string(self) -> String {
         " ".repeat(self.block_indent)
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Shape {
+    width: usize,
+    indent: Indent,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub(crate) enum ExpressionType {
+    Statement,
+    SubExpression,
 }

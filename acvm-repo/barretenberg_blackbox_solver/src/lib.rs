@@ -63,15 +63,26 @@ impl BlackBoxFunctionSolver for BarretenbergSolver {
         })
     }
 
-    fn pedersen(
+    fn pedersen_commitment(
         &self,
         inputs: &[FieldElement],
         domain_separator: u32,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         #[allow(deprecated)]
-        self.blackbox_vendor
-            .encrypt(inputs.to_vec(), domain_separator)
-            .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Pedersen, err.to_string()))
+        self.blackbox_vendor.encrypt(inputs.to_vec(), domain_separator).map_err(|err| {
+            BlackBoxResolutionError::Failed(BlackBoxFunc::PedersenCommitment, err.to_string())
+        })
+    }
+
+    fn pedersen_hash(
+        &self,
+        inputs: &[FieldElement],
+        domain_separator: u32,
+    ) -> Result<FieldElement, BlackBoxResolutionError> {
+        #[allow(deprecated)]
+        self.blackbox_vendor.hash(inputs.to_vec(), domain_separator).map_err(|err| {
+            BlackBoxResolutionError::Failed(BlackBoxFunc::PedersenCommitment, err.to_string())
+        })
     }
 
     fn fixed_base_scalar_mul(

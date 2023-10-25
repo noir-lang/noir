@@ -8,17 +8,57 @@ on:
       - opened
       - synchronize
       - labeled
-  push:
-    paths:
-      - 'docs/**'
 
 jobs:
-  
-  build_and_deploy:
+  add_label:
+    runs-on: ubuntu-latest
+    outputs:
+      has_label: ${{ steps.check-labels.outputs.result }}
+    steps:
+    - name: Check if label is present
+      id: check-labels
+      uses: actions/github-script@v3
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const labels = context.payload.pull_request.labels.map(label => label.name);
+          if (labels.includes('documentation')) {
+            return true;
+          }
+
+          // Fetch the list of files changed in the PR
+          const { data: files } = await github.pulls.listFiles({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number
+          });
+
+          // Check if any file is within the 'docs' folder
+          const docsChanged = files.some(file => file.filename.startsWith('docs/'));
+          return docsChanged;
+    
+    - name: Add label if not present
+      if: steps.check-labels.outputs.result == 'true'
+      uses: actions/github-script@v3
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const labels = context.payload.pull_request.labels.map(label => label.name);
+          if (!labels.includes('documentation')) {
+            github.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['documentation']
+            })
+          }
+
+  deploy_docs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-    if: contains(github.event.pull_request.labels.*.name, 'documentation')
+    needs: add_label
+    if: needs.add_label.outputs.has_label == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -60,8 +100,10 @@ jobs:
           site-id: ${{ secrets.NETLIFY_SITE_ID }}
         continue-on-error: true
 
+
       - name: Debugging - print deploy_status
         run: echo "${{ steps.check_deploy_status.outputs.deploy_status }}"
+
 
       - name: Change PR Comment for Successful Deployment
         if: steps.check_deploy_status.outputs.deploy_status == 'success'
@@ -94,3 +136,7 @@ jobs:
             Deployment didn't succeed. Please check logs below and resolve the issue 🧐
             
             [![Netlify Status](https://api.netlify.com/api/v1/badges/${{ secrets.NETLIFY_SITE_ID }}/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
+
+      - name: Fail the workflow if deployment failed
+        if: steps.check_deploy_status.outputs.deploy_status == 'failure'
+        run: exit 1

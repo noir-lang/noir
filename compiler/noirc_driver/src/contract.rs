@@ -28,6 +28,8 @@ pub enum ContractFunctionType {
 
 #[derive(Serialize, Deserialize)]
 pub struct CompiledContract {
+    pub noir_version: String,
+
     /// The name of the contract.
     pub name: String,
     /// Each of the contract's functions are compiled into a separate `CompiledProgram`

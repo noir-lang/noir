@@ -1,0 +1,8 @@
+[package]
+name="lib_a"
+type="lib"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]
+lib_b = { path = "../lib-b" }

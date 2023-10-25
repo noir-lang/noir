@@ -93,4 +93,4 @@ The next verifier can either perform a final verification (returning true or fal
 
 ## Example
 
-You can see an example of how to do recursive proofs in [this example recursion demo repo](https://github.com/Savio-Sou/recursion-demo/tree/main).
+You can see an example of how to do recursive proofs in [this example recursion demo repo](https://github.com/noir-lang/noir-examples/tree/master/recursion).
