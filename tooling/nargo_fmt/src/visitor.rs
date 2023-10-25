@@ -137,7 +137,7 @@ impl<'me> FmtVisitor<'me> {
             process_last_slice(self, "", slice);
         } else {
             if !self.at_start() {
-                if self.buffer.ends_with("{") {
+                if self.buffer.ends_with('{') {
                     self.push_str("\n");
                 } else {
                     self.push_vertical_spaces(slice);
@@ -149,7 +149,7 @@ impl<'me> FmtVisitor<'me> {
             if result.is_empty() {
                 process_last_slice(self, slice, slice);
             } else {
-                self.push_str(&result.trim_end());
+                self.push_str(result.trim_end());
                 let subslice = &slice[last_end as usize..];
                 process_last_slice(self, subslice, subslice);
             }

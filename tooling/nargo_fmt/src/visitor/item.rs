@@ -50,13 +50,13 @@ impl super::FmtVisitor<'_> {
                     self.push_str(&format!("{indent}{keyword} {name} "));
 
                     if module.contents.items.is_empty() {
-                        self.visit_empty_block((after_brace - 1..span.end()).into())
+                        self.visit_empty_block((after_brace - 1..span.end()).into());
                     } else {
                         self.push_str("{");
                         let indent = self.with_indent(|this| {
                             this.visit_module(module.contents);
 
-                            let mut indent = this.indent.clone();
+                            let mut indent = this.indent;
                             indent.block_unindent(self.config);
                             indent.to_string_with_newline()
                         });

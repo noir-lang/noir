@@ -56,7 +56,7 @@ impl super::FmtVisitor<'_> {
                     self.push_rewrite(constrain, span);
                 }
                 StatementKind::For(_) | StatementKind::Assign(_) => {
-                    self.push_rewrite(self.slice(span).to_string(), span)
+                    self.push_rewrite(self.slice(span).to_string(), span);
                 }
                 StatementKind::Error => unreachable!(),
             }
