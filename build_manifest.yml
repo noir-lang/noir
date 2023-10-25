@@ -23,6 +23,11 @@ barretenberg-wasm-linux-clang:
   dockerfile: dockerfiles/Dockerfile.wasm-linux-clang
   rebuildPatterns: .rebuild_patterns
 
+barretenberg-x86_64-linux-clang-sol:
+  buildDir: barretenberg
+  dockerfile: sol/Dockerfile
+  rebuildPatterns: sol/.rebuild_patterns
+
 bb.js:
   buildDir: barretenberg/ts
   dependencies:

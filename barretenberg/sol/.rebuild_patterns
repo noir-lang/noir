@@ -1,0 +1,7 @@
+^barretenberg/cpp/.*\.(cpp|cc|cxx|c\+\+|h|hpp|hxx|h\+\+|c|h|inl|inc|ipp|tpp|cmake)$
+^barretenberg/cpp/.*CMakeLists\.txt$
+^barretenberg/cpp/.*Dockerfile.*$
+^barretenberg/cpp/scripts/
+^barretenberg/sol/src/
+^barretenberg/sol/scripts/
+^barretenberg/sol/test/

@@ -1,9 +1,9 @@
-FROM alpine:3.17
+FROM alpine:3.18
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
         build-base \
-        clang15 \
+        clang16 \
         openmp-dev \
         cmake \
         ninja \
@@ -15,7 +15,7 @@ WORKDIR /usr/src/barretenberg/cpp
 
 COPY ./cpp .
 # Build everything to ensure everything builds. All tests will be run from the result of this build.
-RUN cmake --preset default  && cmake --build --preset default --target solidity_key_gen solidity_proof_gen
+RUN cmake --preset clang16  && cmake --build --preset clang16 --target solidity_key_gen solidity_proof_gen
 
 FROM docker.io/frolvlad/alpine-glibc:alpine-3.17_glibc-2.34 as builder
 RUN apk update && apk add git curl build-base openmp-dev bash
@@ -38,4 +38,5 @@ RUN cd ../cpp/srs_db && ./download_ignition.sh 3 && cd ../../sol
 
 RUN ./scripts/init.sh
 
+# TestBase is excluded as it is just boilerplate 
 RUN forge test --no-match-contract TestBase
