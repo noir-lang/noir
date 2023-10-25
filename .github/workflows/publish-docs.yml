@@ -28,7 +28,7 @@ jobs:
         run: yarn
     
     -   name: Cut a new version
-        run: docusaurus docs:version ${{ inputs.tag }}
+        run: cd docs && yarn docusaurus docs:version ${{ inputs.tag }}
 
     -   name: Build docs
         run: yarn workspace docs build

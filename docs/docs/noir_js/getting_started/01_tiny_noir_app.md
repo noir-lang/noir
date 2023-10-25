@@ -235,7 +235,7 @@ You're probably eager to see stuff happening, so go and run your app now!
 
 From your terminal, run `npm start` (or `yarn start`). If it doesn't open a browser for you, just visit `localhost:5173`. On a modern laptop, proof will generate in less than 100ms, and you'll see this:
 
-![Getting Started 0](./../../../static/img/noir_getting_started_1.png)
+![Getting Started 0](@site/static/img/noir_getting_started_1.png)
 
 If you're human, you shouldn't be able to understand anything on the "proof" box. That's OK. We like you, human.
 
