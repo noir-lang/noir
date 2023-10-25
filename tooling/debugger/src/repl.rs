@@ -1,5 +1,4 @@
-use crate::context::DebugCommandResult;
-use crate::context::DebugContext;
+use crate::context::{DebugContext, DebugCommandResult};
 
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::BlackBoxFunctionSolver;
@@ -8,7 +7,7 @@ use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::NargoError;
 
-use easy_repl::{command, CommandStatus, Critical, Repl};
+use easy_repl::{command, CommandStatus, Repl};
 use std::cell::RefCell;
 
 use codespan_reporting::files::Files;
@@ -55,7 +54,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         }
     }
 
-    fn handle_debug_command_result(&self, _result: DebugCommandResult) {
+    fn handle_debug_command_result(&self) {
         self.show_current_vm_status();
     }
 
@@ -125,35 +124,41 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         }
     }
 
-    fn step_acir_opcode(&mut self) -> Result<(), NargoError> {
-        if self.context.is_finished() {
-            println!("Execution finished");
-        } else {
-            let result = self.context.step_acir_opcode()?;
-            self.handle_debug_command_result(result);
+    fn validate_in_progress(&self) -> bool {
+        match self.context.get_last_result() {
+            DebugCommandResult::Ok => true,
+            DebugCommandResult::Done => {
+                println!("Execution finished");
+                false
+            }
+            DebugCommandResult::Error(error) => {
+                println!("ERROR: {}", error);
+                self.show_current_vm_status();
+                false
+            }
         }
-        Ok(())
     }
 
-    fn step_into_opcode(&mut self) -> Result<(), NargoError> {
-        if self.context.is_finished() {
-            println!("Execution finished");
-        } else {
-            let result = self.context.step_into_opcode()?;
-            self.handle_debug_command_result(result);
+    fn step_acir_opcode(&mut self) {
+        if self.validate_in_progress() {
+            _ = self.context.step_acir_opcode();
+            self.handle_debug_command_result();
         }
-        Ok(())
     }
 
-    fn cont(&mut self) -> Result<(), NargoError> {
-        if self.context.is_finished() {
-            println!("Execution finished");
-        } else {
+    fn step_into_opcode(&mut self) {
+        if self.validate_in_progress() {
+            _ = self.context.step_into_opcode();
+            self.handle_debug_command_result();
+        }
+    }
+
+    fn cont(&mut self) {
+        if self.validate_in_progress() {
             println!("(Continuing execution...)");
-            let result = self.context.cont()?;
-            self.handle_debug_command_result(result);
+            _ = self.context.cont();
+            self.handle_debug_command_result();
         }
-        Ok(())
     }
 
     fn is_solved(&self) -> bool {
@@ -191,7 +196,7 @@ pub fn run<B: BlackBoxFunctionSolver>(
             command! {
                 "step to the next ACIR opcode",
                 () => || {
-                    ref_context.borrow_mut().step_acir_opcode().into_critical()?;
+                    ref_context.borrow_mut().step_acir_opcode();
                     Ok(CommandStatus::Done)
                 }
             },
@@ -201,7 +206,7 @@ pub fn run<B: BlackBoxFunctionSolver>(
             command! {
                 "step into to the next opcode",
                 () => || {
-                    ref_context.borrow_mut().step_into_opcode().into_critical()?;
+                    ref_context.borrow_mut().step_into_opcode();
                     Ok(CommandStatus::Done)
                 }
             },
@@ -211,7 +216,7 @@ pub fn run<B: BlackBoxFunctionSolver>(
             command! {
                 "continue execution until the end of the program",
                 () => || {
-                    ref_context.borrow_mut().cont().into_critical()?;
+                    ref_context.borrow_mut().cont();
                     Ok(CommandStatus::Done)
                 }
             },

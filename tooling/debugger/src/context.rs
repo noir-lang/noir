@@ -1,27 +1,27 @@
 use acvm::acir::circuit::{Opcode, OpcodeLocation};
 use acvm::pwg::{
-    ACVMStatus, BrilligSolver, BrilligSolverStatus, ErrorLocation, OpcodeResolutionError,
-    StepResult, ACVM,
+    ACVMStatus, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo, StepResult, ACVM,
 };
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
 use nargo::errors::ExecutionError;
+use nargo::ops::ForeignCallExecutor;
 use nargo::NargoError;
 
-use nargo::ops::ForeignCallExecutor;
-
+#[derive(Debug)]
 pub(super) enum DebugCommandResult {
     Done,
     Ok,
+    Error(NargoError),
 }
 
 pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     acvm: ACVM<'a, B>,
     brillig_solver: Option<BrilligSolver<'a, B>>,
     foreign_call_executor: ForeignCallExecutor,
-    circuit: &'a Circuit,
     show_output: bool,
+    last_result: DebugCommandResult,
 }
 
 impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
@@ -34,8 +34,8 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
             brillig_solver: None,
             foreign_call_executor: ForeignCallExecutor::default(),
-            circuit,
             show_output: true,
+            last_result: DebugCommandResult::Ok,
         }
     }
 
@@ -57,7 +57,11 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    fn step_brillig_opcode(&mut self) -> Result<DebugCommandResult, NargoError> {
+    pub(super) fn get_last_result(&self) -> &DebugCommandResult {
+        &self.last_result
+    }
+
+    fn step_brillig_opcode(&mut self) -> &DebugCommandResult {
         let Some(mut solver) = self.brillig_solver.take() else {
             unreachable!("Missing Brillig solver");
         };
@@ -65,25 +69,60 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             Ok(status) => match status {
                 BrilligSolverStatus::InProgress => {
                     self.brillig_solver = Some(solver);
-                    Ok(DebugCommandResult::Ok)
+                    self.last_result = DebugCommandResult::Ok;
+                    &self.last_result
                 }
                 BrilligSolverStatus::Finished => {
                     let status = self.acvm.finish_brillig_with_solver(solver);
                     self.handle_acvm_status(status)
                 }
                 BrilligSolverStatus::ForeignCallWait(foreign_call) => {
-                    let foreign_call_result =
-                        self.foreign_call_executor.execute(&foreign_call, self.show_output)?;
-                    solver.resolve_pending_foreign_call(foreign_call_result);
-                    self.brillig_solver = Some(solver);
-                    Ok(DebugCommandResult::Ok)
+                    self.handle_foreign_call(foreign_call)
                 }
             },
-            Err(err) => self.handle_acvm_status(ACVMStatus::Failure(err)),
+            Err(err) => {
+                self.last_result = DebugCommandResult::Error(NargoError::ExecutionError(
+                    ExecutionError::SolvingError(err),
+                ));
+                &self.last_result
+            },
         }
     }
 
-    pub(super) fn step_into_opcode(&mut self) -> Result<DebugCommandResult, NargoError> {
+    fn handle_foreign_call(&mut self, foreign_call: ForeignCallWaitInfo) -> &DebugCommandResult {
+        let foreign_call_result =
+            self.foreign_call_executor.execute(&foreign_call, self.show_output);
+        self.last_result = match foreign_call_result {
+            Ok(foreign_call_result) => {
+                self.acvm.resolve_pending_foreign_call(foreign_call_result);
+                // TODO: should we retry executing the opcode somehow in this case?
+                DebugCommandResult::Ok
+            }
+            Err(error) => DebugCommandResult::Error(error),
+        };
+        &self.last_result
+    }
+
+    fn handle_acvm_status(&mut self, status: ACVMStatus) -> &DebugCommandResult {
+        if let ACVMStatus::RequiresForeignCall(foreign_call) = status {
+            self.handle_foreign_call(foreign_call)
+        } else {
+            let result = match status {
+                ACVMStatus::Solved => DebugCommandResult::Done,
+                ACVMStatus::InProgress => DebugCommandResult::Ok,
+                ACVMStatus::Failure(error) => DebugCommandResult::Error(NargoError::ExecutionError(
+                    ExecutionError::SolvingError(error.clone()),
+                )),
+                ACVMStatus::RequiresForeignCall(_) => {
+                    unreachable!("Unexpected pending foreign call resolution");
+                }
+            };
+            self.last_result = result;
+            self.get_last_result()
+        }
+    }
+
+    pub(super) fn step_into_opcode(&mut self) -> &DebugCommandResult {
         if matches!(self.brillig_solver, Some(_)) {
             self.step_brillig_opcode()
         } else {
@@ -97,7 +136,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn step_acir_opcode(&mut self) -> Result<DebugCommandResult, NargoError> {
+    pub(super) fn step_acir_opcode(&mut self) -> &DebugCommandResult {
         let status = if let Some(solver) = self.brillig_solver.take() {
             self.acvm.finish_brillig_with_solver(solver)
         } else {
@@ -106,58 +145,13 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         self.handle_acvm_status(status)
     }
 
-    fn handle_acvm_status(&mut self, status: ACVMStatus) -> Result<DebugCommandResult, NargoError> {
-        match status {
-            ACVMStatus::Solved => Ok(DebugCommandResult::Done),
-            ACVMStatus::InProgress => Ok(DebugCommandResult::Ok),
-            ACVMStatus::Failure(error) => {
-                let call_stack = match &error {
-                    OpcodeResolutionError::UnsatisfiedConstrain {
-                        opcode_location: ErrorLocation::Resolved(opcode_location),
-                    } => Some(vec![*opcode_location]),
-                    OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
-                        Some(call_stack.clone())
-                    }
-                    _ => None,
-                };
-
-                Err(NargoError::ExecutionError(match call_stack {
-                    Some(call_stack) => {
-                        if let Some(assert_message) = self.circuit.get_assert_message(
-                            *call_stack.last().expect("Call stacks should not be empty"),
-                        ) {
-                            ExecutionError::AssertionFailed(assert_message.to_owned(), call_stack)
-                        } else {
-                            ExecutionError::SolvingError(error)
-                        }
-                    }
-                    None => ExecutionError::SolvingError(error),
-                }))
-            }
-            ACVMStatus::RequiresForeignCall(foreign_call) => {
-                let foreign_call_result =
-                    self.foreign_call_executor.execute(&foreign_call, self.show_output)?;
-                self.acvm.resolve_pending_foreign_call(foreign_call_result);
-                Ok(DebugCommandResult::Ok)
-            }
-        }
-    }
-
-    pub(super) fn cont(&mut self) -> Result<DebugCommandResult, NargoError> {
+    pub(super) fn cont(&mut self) -> &DebugCommandResult {
         loop {
-            match self.step_acir_opcode()? {
-                DebugCommandResult::Done => break,
-                DebugCommandResult::Ok => {}
+            let result = self.step_into_opcode();
+            if !matches!(result, DebugCommandResult::Ok) {
+                return self.get_last_result();
             }
         }
-        Ok(DebugCommandResult::Done)
-    }
-
-    pub(super) fn is_finished(&self) -> bool {
-        !matches!(
-            self.acvm.get_status(),
-            ACVMStatus::InProgress | ACVMStatus::RequiresForeignCall { .. }
-        )
     }
 
     pub(super) fn is_solved(&self) -> bool {
