@@ -192,7 +192,7 @@ impl FmtVisitor<'_> {
 
                 self.format_if(*if_expr)
             }
-            ExpressionKind::Variable(_) | ExpressionKind::Lambda(_) => self.slice(span).to_string(),
+            ExpressionKind::Lambda(_) | ExpressionKind::Variable(_) => self.slice(span).to_string(),
             ExpressionKind::Error => unreachable!(),
         }
     }
