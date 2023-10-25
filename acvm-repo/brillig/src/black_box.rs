@@ -42,7 +42,9 @@ pub enum BlackBoxOp {
         result: RegisterIndex,
     },
     /// Calculates a Pedersen commitment to the inputs.
-    Pedersen { inputs: HeapVector, domain_separator: RegisterIndex, output: HeapArray },
+    PedersenCommitment { inputs: HeapVector, domain_separator: RegisterIndex, output: HeapArray },
+    /// Calculates a Pedersen hash to the inputs.
+    PedersenHash { inputs: HeapVector, domain_separator: RegisterIndex, output: RegisterIndex },
     /// Performs scalar multiplication over the embedded curve.
     FixedBaseScalarMul { low: RegisterIndex, high: RegisterIndex, result: HeapArray },
 }

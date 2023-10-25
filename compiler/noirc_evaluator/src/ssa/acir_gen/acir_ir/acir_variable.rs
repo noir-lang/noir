@@ -563,13 +563,36 @@ impl AcirContext {
         // lhs = rhs * q + r
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
+        let zero = self.add_constant(FieldElement::zero());
+        if self.var_to_expression(predicate)?.is_zero() {
+            return Ok((zero, zero));
+        }
+
+        match (self.var_to_expression(lhs)?.to_const(), self.var_to_expression(rhs)?.to_const()) {
+            // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
+            // `rhs` must be non-zero.
+            (Some(lhs_const), Some(rhs_const)) if rhs_const != FieldElement::zero() => {
+                let quotient = lhs_const.to_u128() / rhs_const.to_u128();
+                let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
+
+                let quotient_var = self.add_constant(FieldElement::from(quotient));
+                let remainder_var = self.add_constant(FieldElement::from(remainder));
+                return Ok((quotient_var, remainder_var));
+            }
+
+            // If `rhs` is one then the division is a noop.
+            (_, Some(rhs_const)) if rhs_const == FieldElement::one() => {
+                return Ok((lhs, zero));
+            }
+
+            _ => (),
+        }
 
         // Check that we the rhs is not zero.
         // Otherwise, when executing the brillig quotient we may attempt to divide by zero, causing a VM panic.
         //
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the rhs must not be 0.
-        let zero = self.add_constant(FieldElement::zero());
         let one = self.add_constant(FieldElement::one());
 
         let rhs_expr = self.var_to_expression(rhs)?;
@@ -989,7 +1012,7 @@ impl AcirContext {
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
         let constants = match name {
-            BlackBoxFunc::Pedersen => {
+            BlackBoxFunc::PedersenCommitment | BlackBoxFunc::PedersenHash => {
                 // The last argument of pedersen is the domain separator, which must be a constant
                 let domain_var = match inputs.pop() {
                     Some(domain_var) => domain_var.into_var()?,
@@ -1556,12 +1579,19 @@ fn execute_brillig(
         ) -> Result<bool, BlackBoxResolutionError> {
             Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::SchnorrVerify))
         }
-        fn pedersen(
+        fn pedersen_commitment(
             &self,
             _inputs: &[FieldElement],
             _domain_separator: u32,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::Pedersen))
+            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::PedersenCommitment))
+        }
+        fn pedersen_hash(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<FieldElement, BlackBoxResolutionError> {
+            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::PedersenHash))
         }
         fn fixed_base_scalar_mul(
             &self,

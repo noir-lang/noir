@@ -73,6 +73,7 @@ jobs:
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v2.1
         with:
+
           publish-dir: './docs/build'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           enable-github-deployment: false
