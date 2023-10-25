@@ -2,7 +2,7 @@
 name = "acir"
 description = "ACIR is the IR that the VM processes, it is analogous to LLVM IR"
 # x-release-please-start-version
-version = "0.29.0"
+version = "0.30.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true

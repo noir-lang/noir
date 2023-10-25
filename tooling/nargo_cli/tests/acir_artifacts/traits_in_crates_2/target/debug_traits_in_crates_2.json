@@ -1,1 +1,0 @@
-{"debug_symbols":[{"locations":{"0":[{"span":{"start":110,"end":118},"file":1}]}}],"file_map":{"1":{"source":"fn main(x : Field, y : pub Field) {\n    let mut V = dep::crate2::MyStruct { Q: x };\n    V.Add10();\n    assert(V.Q == y);\n}\n","path":"/mnt/user-data/kev/noir/tooling/nargo_cli/tests/execution_success/traits_in_crates_2/src/main.nr"}}}
