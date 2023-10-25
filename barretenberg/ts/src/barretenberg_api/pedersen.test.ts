@@ -18,18 +18,8 @@ describe('pedersen', () => {
     expect(result).toEqual(new Fr(1521373897829389584529155077412196627698249315427143054350987371861781120260n));
   });
 
-  it('pedersenPlookupCompressFields', async () => {
-    const result = await api.pedersenPlookupCompressFields(new Fr(4n), new Fr(8n));
-    expect(result).toEqual(new Fr(1521373897829389584529155077412196627698249315427143054350987371861781120260n));
-  });
-
   it('pedersenCompress', async () => {
     const result = await api.pedersenCompress([new Fr(4n), new Fr(8n), new Fr(12n)]);
-    expect(result).toEqual(new Fr(16354408412011670665169322571938780771784319449166930406648760506154417354381n));
-  });
-
-  it('pedersenPlookupCompress', async () => {
-    const result = await api.pedersenPlookupCompress([new Fr(4n), new Fr(8n), new Fr(12n)]);
     expect(result).toEqual(new Fr(16354408412011670665169322571938780771784319449166930406648760506154417354381n));
   });
 
@@ -41,11 +31,6 @@ describe('pedersen', () => {
   it('pedersenCommit', async () => {
     const result = await api.pedersenCommit([new Fr(4n), new Fr(8n), new Fr(12n)]);
     expect(result).toEqual(new Fr(18374309251862457296563484909553154519357910650678202211610516068880120638872n));
-  });
-
-  it('pedersenPlookupCommit', async () => {
-    const result = await api.pedersenPlookupCommit([new Fr(4n), new Fr(8n)]);
-    expect(result).toEqual(new Fr(7336965135159957330095956915667769834743631571088528744280187985812103412470n));
   });
 
   it('pedersenBufferToField', async () => {

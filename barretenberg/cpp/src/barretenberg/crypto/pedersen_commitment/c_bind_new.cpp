@@ -17,21 +17,12 @@ WASM_EXPORT void pedersen___compress_fields(fr::in_buf left, fr::in_buf right, f
     barretenberg::fr::serialize_to_buffer(r, result);
 }
 
-WASM_EXPORT void pedersen___plookup_compress_fields(fr::in_buf left, fr::in_buf right, fr::out_buf result)
-{
-    pedersen___compress_fields(left, right, result);
-}
 WASM_EXPORT void pedersen___compress(fr::vec_in_buf inputs_buffer, fr::out_buf output)
 {
     std::vector<grumpkin::fq> to_compress;
     read(inputs_buffer, to_compress);
     auto r = crypto::pedersen_hash::hash(to_compress);
     barretenberg::fr::serialize_to_buffer(r, output);
-}
-
-WASM_EXPORT void pedersen___plookup_compress(fr::vec_in_buf inputs_buffer, fr::out_buf output)
-{
-    pedersen___compress(inputs_buffer, output);
 }
 
 WASM_EXPORT void pedersen___compress_with_hash_index(fr::vec_in_buf inputs_buffer,
@@ -54,23 +45,6 @@ WASM_EXPORT void pedersen___commit(fr::vec_in_buf inputs_buffer, fr::out_buf out
     grumpkin::g1::affine_element pedersen_hash = crypto::pedersen_commitment::commit_native(to_compress);
 
     serialize::write(output, pedersen_hash);
-}
-WASM_EXPORT void pedersen___plookup_commit(fr::vec_in_buf inputs_buffer, fr::out_buf output)
-{
-    pedersen___commit(inputs_buffer, output);
-}
-
-WASM_EXPORT void pedersen___plookup_commit_with_hash_index(fr::vec_in_buf inputs_buffer,
-                                                           uint32_t const* hash_index,
-                                                           fr::out_buf output)
-{
-    std::vector<grumpkin::fq> to_compress;
-    read(inputs_buffer, to_compress);
-    const size_t generator_offset = ntohl(*hash_index);
-    crypto::GeneratorContext<curve::Grumpkin> ctx;
-    ctx.offset = generator_offset;
-    auto commitment = crypto::pedersen_commitment::commit_native(to_compress, ctx);
-    serialize::write(output, commitment);
 }
 
 WASM_EXPORT void pedersen___buffer_to_field(uint8_t const* data, fr::out_buf r)

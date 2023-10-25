@@ -1,5 +1,5 @@
 import { AztecAddress, CircuitsWasm, GeneratorIndex } from '@aztec/circuits.js';
-import { pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
+import { pedersenCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { FunctionCall, PackedArguments } from '@aztec/types';
 
 // docs:start:authwit_computeAuthWitMessageHash
@@ -12,7 +12,7 @@ import { FunctionCall, PackedArguments } from '@aztec/types';
  */
 export const computeAuthWitMessageHash = async (caller: AztecAddress, request: FunctionCall) => {
   const wasm = await CircuitsWasm.get();
-  return pedersenPlookupCompressWithHashIndex(
+  return pedersenCompressWithHashIndex(
     wasm,
     [
       caller.toField(),

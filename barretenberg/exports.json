@@ -26,43 +26,7 @@
     "isAsync": false
   },
   {
-    "functionName": "pedersen___plookup_compress_fields",
-    "inArgs": [
-      {
-        "name": "left",
-        "type": "fr::in_buf"
-      },
-      {
-        "name": "right",
-        "type": "fr::in_buf"
-      }
-    ],
-    "outArgs": [
-      {
-        "name": "result",
-        "type": "fr::out_buf"
-      }
-    ],
-    "isAsync": false
-  },
-  {
     "functionName": "pedersen___compress",
-    "inArgs": [
-      {
-        "name": "inputs_buffer",
-        "type": "fr::vec_in_buf"
-      }
-    ],
-    "outArgs": [
-      {
-        "name": "output",
-        "type": "fr::out_buf"
-      }
-    ],
-    "isAsync": false
-  },
-  {
-    "functionName": "pedersen___plookup_compress",
     "inArgs": [
       {
         "name": "inputs_buffer",
@@ -114,42 +78,6 @@
     "isAsync": false
   },
   {
-    "functionName": "pedersen___plookup_commit",
-    "inArgs": [
-      {
-        "name": "inputs_buffer",
-        "type": "fr::vec_in_buf"
-      }
-    ],
-    "outArgs": [
-      {
-        "name": "output",
-        "type": "fr::out_buf"
-      }
-    ],
-    "isAsync": false
-  },
-  {
-    "functionName": "pedersen___plookup_commit_with_hash_index",
-    "inArgs": [
-      {
-        "name": "inputs_buffer",
-        "type": "fr::vec_in_buf"
-      },
-      {
-        "name": "hash_index",
-        "type": "const uint32_t *"
-      }
-    ],
-    "outArgs": [
-      {
-        "name": "output",
-        "type": "fr::out_buf"
-      }
-    ],
-    "isAsync": false
-  },
-  {
     "functionName": "pedersen___buffer_to_field",
     "inArgs": [
       {
@@ -169,6 +97,42 @@
     "functionName": "pedersen_hash_init",
     "inArgs": [],
     "outArgs": [],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen_hash",
+    "inArgs": [
+      {
+        "name": "inputs_buffer",
+        "type": "fr::vec_in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "output",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen_hash_with_hash_index",
+    "inArgs": [
+      {
+        "name": "inputs_buffer",
+        "type": "fr::vec_in_buf"
+      },
+      {
+        "name": "hash_index",
+        "type": "const uint32_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "output",
+        "type": "fr::out_buf"
+      }
+    ],
     "isAsync": false
   },
   {
@@ -530,18 +494,6 @@
         "type": "uint32_t *"
       }
     ],
-    "isAsync": false
-  },
-  {
-    "functionName": "test_thread_abort",
-    "inArgs": [],
-    "outArgs": [],
-    "isAsync": false
-  },
-  {
-    "functionName": "test_abort",
-    "inArgs": [],
-    "outArgs": [],
     "isAsync": false
   },
   {

@@ -61,41 +61,6 @@ export function pedersenCompressInputs(wasm: IWasmModule, inputs: Buffer[]): Buf
 }
 
 /**
- * Commits to an array of buffers.
- * @param wasm - The barretenberg module.
- * @param inputs - The array of buffers to compress.
- * @returns The resulting 32-byte hash.
- * @deprecated Don't call pedersen directly in production code. Instead, create suitably-named functions for specific
- * purposes.
- */
-export function pedersenPlookupCommitInputs(wasm: IWasmModule, inputs: Buffer[]): Buffer {
-  // If not done already, precompute constants.
-  wasm.call('pedersen__init');
-  const inputVectors = serializeBufferArrayToVector(inputs);
-  wasm.writeMemory(0, inputVectors);
-  wasm.call('pedersen_plookup_commit', 0, 0);
-  return Buffer.from(wasm.getMemorySlice(0, 32));
-}
-
-/**
- * Commits an array of buffers.
- * @param wasm - The barretenberg module.
- * @param inputs - The array of buffers to compress.
- * @param hashIndex - Hash index of the generator to use (See GeneratorIndex enum).
- * @returns The resulting 32-byte hash.
- * @deprecated Don't call pedersen directly in production code. Instead, create suitably-named functions for specific
- * purposes.
- */
-export function pedersenPlookupCommitWithHashIndex(wasm: IWasmModule, inputs: Buffer[], hashIndex: number): Buffer {
-  // If not done already, precompute constants.
-  wasm.call('pedersen__init');
-  const inputVectors = serializeBufferArrayToVector(inputs);
-  wasm.writeMemory(0, inputVectors);
-  wasm.call('pedersen_plookup_commit_with_hash_index', 0, 0, hashIndex);
-  return Buffer.from(wasm.getMemorySlice(0, 32));
-}
-
-/**
  * Compresses an array of buffers.
  * @param wasm - The barretenberg module.
  * @param inputs - The array of buffers to compress.
@@ -110,24 +75,6 @@ export function pedersenCompressWithHashIndex(wasm: IWasmModule, inputs: Buffer[
   const inputVectors = serializeBufferArrayToVector(inputs);
   wasm.writeMemory(0, inputVectors);
   wasm.call('pedersen__compress_with_hash_index', 0, 0, hashIndex);
-  return Buffer.from(wasm.getMemorySlice(0, 32));
-}
-
-/**
- * Compresses an array of buffers.
- * @param wasm - The barretenberg module.
- * @param inputs - The array of buffers to compress.
- * @param hashIndex - Hash index of the generator to use (See GeneratorIndex enum).
- * @returns The resulting 32-byte hash.
- * @deprecated Don't call pedersen directly in production code. Instead, create suitably-named functions for specific
- * purposes.
- */
-export function pedersenPlookupCompressWithHashIndex(wasm: IWasmModule, inputs: Buffer[], hashIndex: number): Buffer {
-  // If not done already, precompute constants.
-  wasm.call('pedersen__init');
-  const inputVectors = serializeBufferArrayToVector(inputs);
-  wasm.writeMemory(0, inputVectors);
-  wasm.call('pedersen_plookup_compress_with_hash_index', 0, 0, hashIndex);
   return Buffer.from(wasm.getMemorySlice(0, 32));
 }
 
