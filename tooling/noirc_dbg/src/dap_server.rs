@@ -22,6 +22,9 @@ use dap::requests::{
     Command, ContinueArguments, DisassembleArguments, DisconnectArguments, LaunchRequestArguments,
     NextArguments, ReadMemoryArguments, VariablesArguments,
 };
+#[cfg(not(feature = "dap"))]
+use dap::responses::ResponseBody;
+
 #[cfg(feature = "dap")]
 use dap::server::*;
 #[cfg(not(feature = "dap"))]
@@ -140,7 +143,19 @@ impl Dap {
 
     pub(crate) fn write(&self, message: Sendable) {
         match message {
-            Sendable::Response(r) => println!("{:#?}", r),
+            Sendable::Response(r) => {
+                let body = &r.body;
+                match body {
+                    Some(ResponseBody::Variables(v)) => {
+                        println!("Registers:");
+                        v.variables.iter().for_each(|v| {
+                            println!("    {} => {}", v.name, v.value);
+                        });
+                    }
+                    Some(any) => println!("{:#?}", any),
+                    None => println!("{:#?}", r),
+                };
+            }
             Sendable::Event(e) => println!("{:#?}", e),
             Sendable::ReverseRequest(r) => println!("{:#?}", r),
         }

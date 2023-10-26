@@ -123,7 +123,7 @@ impl RunningState {
         };
         let program = compile(package.entry_path.to_str().unwrap()).unwrap();
 
-        let registers = compile::get_input_registers(
+        let (registers, memory) = compile::get_input_registers_and_memory(
             package,
             &program.1,
             &format!("{}.toml", nargo::constants::PROVER_INPUT_FILE),
@@ -132,7 +132,7 @@ impl RunningState {
         #[allow(deprecated)]
         let solver = Box::leak(Box::new(BarretenbergSolver::new()));
         let bytecode = Box::leak(Box::new(program.0.byte_code.clone()));
-        let vm = vm::new(bytecode, registers, solver);
+        let vm = vm::new(bytecode, registers, memory, solver);
         Ok(RunningState {
             breakpoints: Vec::new(),
             running: false,
@@ -220,7 +220,12 @@ impl RunningState {
             Command::Disassemble(_) => {
                 // TODO: write proper realization
                 println!("Current position: {}", self.vm.program_counter());
-                println!("Program: {:#?}", self.program.byte_code);
+                println!("Program:");
+                self.program
+                    .byte_code
+                    .iter()
+                    .enumerate()
+                    .for_each(|(i, opcode)| println!("{}  {:#?}", i, opcode));
             }
             Command::Pause(_) => {
                 self.running = false;
@@ -303,7 +308,7 @@ impl RunningState {
             Command::ReadMemory(_) => {
                 let memory = self.vm.get_memory();
                 let memory = memory.iter().map(|v| format!("{}", v.to_u128())).collect::<Vec<_>>();
-                let memory_string = memory.join(".");
+                let memory_string = memory.join(", ");
 
                 server.write(Sendable::Response(request.success(ResponseBody::ReadMemory(
                     ReadMemoryResponse {

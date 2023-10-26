@@ -1,4 +1,5 @@
 use acvm::acir::brillig::Opcode;
+use acvm::brillig_vm::brillig::Value;
 use acvm::brillig_vm::{Registers, VM};
 #[allow(deprecated)]
 use barretenberg_blackbox_solver::BarretenbergSolver;
@@ -8,11 +9,12 @@ use barretenberg_blackbox_solver::BarretenbergSolver;
 pub(crate) fn new<'a>(
     program: &'a [Opcode],
     registers: Registers,
+    memory: Vec<Value>,
     solver: &'a BarretenbergSolver,
 ) -> VM<'a, BarretenbergSolver> {
     VM::new(
-        /* registers */ Registers { inner: vec![] },
-        registers.inner,
+        registers, // Registers { inner: vec![] },
+        memory,    // registers.inner,
         program.to_vec(),
         vec![],
         solver,
