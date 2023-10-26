@@ -16,8 +16,9 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag }}
+        # TODO uncomment this
+        # with:
+        #   ref: ${{ inputs.tag }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v2
