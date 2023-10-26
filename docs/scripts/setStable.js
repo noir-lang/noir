@@ -17,8 +17,10 @@ function main() {
   // }
   // const updatedContent = configContent.replace(/lastVersion: '[^']+'/, `lastVersion: '${newVersion}'`);
 
+  const updatedConfigContent = `module.exports = ${JSON.stringify(config, null, 2)};`;
+
   // Write the updated content back
-  fs.writeFileSync(configFile, config, 'utf8');
+  fs.writeFileSync(configFile, updatedConfigContent, 'utf8');
 }
 
 main();
