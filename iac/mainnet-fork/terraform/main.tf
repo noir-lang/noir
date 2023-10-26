@@ -194,22 +194,6 @@ resource "aws_alb_target_group" "mainnet_fork" {
   }
 }
 
-
-resource "aws_lb_listener_rule" "mainnet_fork_route" {
-  listener_arn = data.terraform_remote_state.aztec2_iac.outputs.mainnet-fork-listener-id
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_alb_target_group.mainnet_fork.arn
-  }
-
-  condition {
-    host_header {
-      values = ["aztec-network-mainnet-fork.aztec.network"]
-    }
-  }
-}
-
 resource "aws_ecs_service" "aztec_mainnet_fork" {
   name                               = "aztec-network-mainnet-fork"
   cluster                            = data.terraform_remote_state.setup_iac.outputs.ecs_cluster_id
@@ -248,7 +232,6 @@ resource "aws_cloudwatch_log_group" "aztec_mainnet_fork_logs" {
 }
 
 resource "aws_lb_listener_rule" "aztec_mainnet_fork_route" {
-  # listener_arn = data.terraform_remote_state.setup_iac.outputs.mainnet-fork-listener-id
   listener_arn = data.terraform_remote_state.aztec2_iac.outputs.mainnet-fork-listener-id
 
   action {
