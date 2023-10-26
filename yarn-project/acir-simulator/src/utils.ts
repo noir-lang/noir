@@ -1,5 +1,5 @@
 import { CircuitsWasm, GrumpkinPrivateKey } from '@aztec/circuits.js';
-import { Grumpkin, pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
+import { Grumpkin, pedersenHashInputs } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/foundation/fields';
 
 /**
@@ -24,7 +24,7 @@ export function computeSlotForMapping(mappingSlot: Fr, owner: NoirPoint | Fr, bb
   const ownerField = isFr(owner) ? owner : new Fr(owner.x);
 
   return Fr.fromBuffer(
-    pedersenCompressInputs(
+    pedersenHashInputs(
       bbWasm,
       [mappingSlot, ownerField].map(f => f.toBuffer()),
     ),

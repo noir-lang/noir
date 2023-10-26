@@ -38,7 +38,7 @@ describe('StandardTree_batchAppend', () => {
     pedersen.resetCounter();
   });
 
-  it('correctly computes root when batch appending and calls compress function expected num times', async () => {
+  it('correctly computes root when batch appending and calls hash function expected num times', async () => {
     const db = levelup(createMemDown());
     const tree = await createDb(db, pedersen, 'test', 3);
     const leaves = Array.from({ length: 5 }, _ => randomBytes(32));
@@ -58,18 +58,18 @@ describe('StandardTree_batchAppend', () => {
     const level0NumHashing = 1;
     const expectedNumHashing = level2NumHashing + level1NumHashing + level0NumHashing;
 
-    expect(pedersen.compressCounter).toEqual(expectedNumHashing);
+    expect(pedersen.hashCounter).toEqual(expectedNumHashing);
 
-    const level2Node0 = pedersen.compress(leaves[0], leaves[1]);
-    const level2Node1 = pedersen.compress(leaves[2], leaves[3]);
-    const level2Node2 = pedersen.compress(leaves[4], INITIAL_LEAF);
+    const level2Node0 = pedersen.hash(leaves[0], leaves[1]);
+    const level2Node1 = pedersen.hash(leaves[2], leaves[3]);
+    const level2Node2 = pedersen.hash(leaves[4], INITIAL_LEAF);
 
-    const level2ZeroHash = pedersen.compress(INITIAL_LEAF, INITIAL_LEAF);
+    const level2ZeroHash = pedersen.hash(INITIAL_LEAF, INITIAL_LEAF);
 
-    const level1Node0 = pedersen.compress(level2Node0, level2Node1);
-    const level1Node1 = pedersen.compress(level2Node2, level2ZeroHash);
+    const level1Node0 = pedersen.hash(level2Node0, level2Node1);
+    const level1Node1 = pedersen.hash(level2Node2, level2ZeroHash);
 
-    const root = pedersen.compress(level1Node0, level1Node1);
+    const root = pedersen.hash(level1Node0, level1Node1);
 
     expect(tree.getRoot(true)).toEqual(root);
   });

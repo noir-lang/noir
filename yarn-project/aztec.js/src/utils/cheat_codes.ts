@@ -1,5 +1,5 @@
 import { AztecAddress, CircuitsWasm, EthAddress, Fr } from '@aztec/circuits.js';
-import { pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
+import { pedersenHashInputs } from '@aztec/circuits.js/barretenberg';
 import { toBigIntBE, toHex } from '@aztec/foundation/bigint-buffer';
 import { keccak } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -236,7 +236,7 @@ export class AztecCheatCodes {
     // Based on `at` function in
     // aztec3-packages/yarn-project/aztec-nr/aztec/src/state_vars/map.nr
     return Fr.fromBuffer(
-      pedersenCompressInputs(
+      pedersenHashInputs(
         this.wasm,
         [new Fr(baseSlot), new Fr(key)].map(f => f.toBuffer()),
       ),

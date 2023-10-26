@@ -1,5 +1,5 @@
 import { CircuitsWasm, Fr, GeneratorIndex } from '@aztec/circuits.js';
-import { pedersenCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
+import { pedersenHashWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { FunctionCall, PackedArguments, emptyFunctionCall } from '@aztec/types';
 
@@ -69,7 +69,7 @@ export async function buildPayload(calls: FunctionCall[]): Promise<{
 
 /** Compresses an entrypoint payload to a 32-byte buffer (useful for signing) */
 export async function hashPayload(payload: EntrypointPayload) {
-  return pedersenCompressWithHashIndex(
+  return pedersenHashWithHashIndex(
     await CircuitsWasm.get(),
     flattenPayload(payload).map(fr => fr.toBuffer()),
     GeneratorIndex.SIGNATURE_PAYLOAD,

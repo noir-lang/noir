@@ -28,6 +28,34 @@ describe('pedersen', () => {
     expect(result).toEqual(new Fr(2152386650411553803409271316104075950536496387580531018130718456431861859990n));
   });
 
+  it('pedersenCompressAndHashSame', async () => {
+    const resultCompress = await api.pedersenCompressWithHashIndex([new Fr(4n), new Fr(8n)], 7);
+    const resultHash = await api.pedersenHashWithHashIndex([new Fr(4n), new Fr(8n)], 7);
+    expect(resultCompress).toEqual(resultHash);
+  });
+
+  it('pedersenHashWith0IndexSameAsNoIndex', async () => {
+    const resultHashImplicit0 = await api.pedersenHash([new Fr(4n), new Fr(8n)]);
+    const resultCompressImplicit0 = await api.pedersenCompress([new Fr(4n), new Fr(8n)]);
+    const resultCompressFieldsImplicit0 = await api.pedersenCompressFields(new Fr(4n), new Fr(8n));
+    const resultHashExplicit0 = await api.pedersenHashWithHashIndex([new Fr(4n), new Fr(8n)], 0);
+    expect(resultHashImplicit0).toEqual(resultCompressImplicit0);
+    expect(resultHashImplicit0).toEqual(resultHashExplicit0);
+    expect(resultHashImplicit0).toEqual(resultCompressFieldsImplicit0);
+  });
+
+  it('pedersenHashPairSameAsWith0Index', async () => {
+    const resultHashPair = await api.pedersenHashPair(new Fr(4n), new Fr(8n));
+    const resultHashExplicit0 = await api.pedersenHashWithHashIndex([new Fr(4n), new Fr(8n)], 0);
+    expect(resultHashExplicit0).toEqual(resultHashPair);
+  });
+
+  it('pedersenHashMultipleSameAsWith0Index', async () => {
+    const resultHashPair = await api.pedersenHashMultiple([new Fr(4n), new Fr(8n)]);
+    const resultHashExplicit0 = await api.pedersenHashWithHashIndex([new Fr(4n), new Fr(8n)], 0);
+    expect(resultHashExplicit0).toEqual(resultHashPair);
+  });
+
   it('pedersenCommit', async () => {
     const result = await api.pedersenCommit([new Fr(4n), new Fr(8n), new Fr(12n)]);
     expect(result).toEqual(new Fr(18374309251862457296563484909553154519357910650678202211610516068880120638872n));

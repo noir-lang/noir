@@ -1,4 +1,4 @@
-import { pedersenCompress, pedersenGetHashTree, pedersenHashInputs } from '@aztec/circuits.js/barretenberg';
+import { pedersenGetHashTree, pedersenHash, pedersenHashInputs } from '@aztec/circuits.js/barretenberg';
 import { IWasmModule } from '@aztec/foundation/wasm';
 import { Hasher } from '@aztec/types';
 
@@ -14,15 +14,15 @@ export class Pedersen implements Hasher {
    * @deprecated Don't call pedersen directly in production code. Instead, create suitably-named functions for specific
    * purposes.
    */
-  public compress(lhs: Uint8Array, rhs: Uint8Array): Buffer {
-    return pedersenCompress(this.wasm, lhs, rhs);
+  public hash(lhs: Uint8Array, rhs: Uint8Array): Buffer {
+    return pedersenHash(this.wasm, lhs, rhs);
   }
 
   /*
    * @deprecated Don't call pedersen directly in production code. Instead, create suitably-named functions for specific
    * purposes.
    */
-  public compressInputs(inputs: Buffer[]): Buffer {
+  public hashInputs(inputs: Buffer[]): Buffer {
     return pedersenHashInputs(this.wasm, inputs);
   }
 

@@ -573,7 +573,7 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
     if (!hash0Leaf && leaf.value == 0n) {
       encodedLeaf = toBufferBE(0n, 32);
     } else {
-      encodedLeaf = this.hasher.compressInputs(
+      encodedLeaf = this.hasher.hashInputs(
         [leaf.value, leaf.nextIndex, leaf.nextValue].map(val => toBufferBE(val, 32)),
       );
     }

@@ -34,7 +34,7 @@ export class SiblingPath<N extends number> {
     let current = zeroElement;
     for (let i = 0; i < size; ++i) {
       bufs.push(current);
-      current = hasher.compress(current, current);
+      current = hasher.hash(current, current);
     }
     return new SiblingPath(size, bufs);
   }

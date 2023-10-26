@@ -53,7 +53,7 @@ export abstract class TreeBase implements MerkleTree {
     let current = INITIAL_LEAF;
     for (let i = depth - 1; i >= 0; --i) {
       this.zeroHashes[i] = current;
-      current = hasher.compress(current, current);
+      current = hasher.hash(current, current);
     }
 
     this.root = root ? root : current;
@@ -173,7 +173,7 @@ export abstract class TreeBase implements MerkleTree {
       const sibling = await this.getLatestValueAtIndex(level, isRight ? index - 1n : index + 1n, true);
       const lhs = isRight ? sibling : current;
       const rhs = isRight ? current : sibling;
-      current = this.hasher.compress(lhs, rhs);
+      current = this.hasher.hash(lhs, rhs);
       level -= 1;
       index >>= 1n;
       const cacheKey = indexToKeyHash(this.name, level, index);
@@ -280,7 +280,7 @@ export abstract class TreeBase implements MerkleTree {
         const lhs = await this.getLatestValueAtIndex(level, index * 2n, true);
         const rhs = await this.getLatestValueAtIndex(level, index * 2n + 1n, true);
         const cacheKey = indexToKeyHash(this.name, level - 1, index);
-        this.cache[cacheKey] = this.hasher.compress(lhs, rhs);
+        this.cache[cacheKey] = this.hasher.hash(lhs, rhs);
       }
 
       level -= 1;
