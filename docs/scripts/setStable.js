@@ -3,7 +3,7 @@ const path = require('path');
 const process = require('process');
 
 function main() {
-  const configFile = path.join('docusaurus.config.js');
+  const configFile = path.join(__dirname, 'docusaurus.config.js');
 
   // Read the Docusaurus config
   const config = require(configFile);
