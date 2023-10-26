@@ -10,7 +10,12 @@ import {
   getSchnorrAccount,
   isContractDeployed,
 } from '@aztec/aztec.js';
-import { StructType, decodeFunctionSignatureWithParameterNames } from '@aztec/foundation/abi';
+import {
+  FunctionSelector,
+  StructType,
+  decodeFunctionSignature,
+  decodeFunctionSignatureWithParameterNames,
+} from '@aztec/foundation/abi';
 import { JsonStringify } from '@aztec/foundation/json-rpc';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import { sleep } from '@aztec/foundation/sleep';
@@ -677,9 +682,22 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
         log(`No external functions found for contract ${contractArtifact.name}`);
       }
       for (const fn of contractFns) {
-        const signature = decodeFunctionSignatureWithParameterNames(fn.name, fn.parameters);
-        log(`${fn.functionType} ${signature}`);
+        const signatureWithParameterNames = decodeFunctionSignatureWithParameterNames(fn.name, fn.parameters);
+        const signature = decodeFunctionSignature(fn.name, fn.parameters);
+        const selector = FunctionSelector.fromSignature(signature);
+        log(
+          `${fn.functionType} ${signatureWithParameterNames} \n\tfunction signature: ${signature}\n\tselector: ${selector}`,
+        );
       }
+    });
+
+  program
+    .command('compute-selector')
+    .description('Given a function signature, it computes a selector')
+    .argument('<functionSignature>', 'Function signature to compute selector for e.g. foo(Field)')
+    .action((functionSignature: string) => {
+      const selector = FunctionSelector.fromSignature(functionSignature);
+      log(`${selector}`);
     });
 
   compileContract(program, 'compile', log);

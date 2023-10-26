@@ -136,3 +136,9 @@ The `call` command calls a read-only method on a contract, one that will not gen
 - `--contract-address` - The address of the deployed contract
 
 As you can see from the result, this address has a public balance of 543, as expected.
+
+## Compute Function Selector
+`aztec-cli --compute-selector <signature e.g. foo(Field,Field)>` gives the function selector.  
+
+## Inspect Contract
+`aztec-cli --compute-selector <json artifact file e.g. artifacts/token_contract.json>` gives the list of all callable functions along with their function signature and selector.
