@@ -21,7 +21,6 @@ pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     brillig_solver: Option<BrilligSolver<'a, B>>,
     foreign_call_executor: ForeignCallExecutor,
     show_output: bool,
-    last_result: DebugCommandResult,
 }
 
 impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
@@ -35,7 +34,6 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             brillig_solver: None,
             foreign_call_executor: ForeignCallExecutor::default(),
             show_output: true,
-            last_result: DebugCommandResult::Ok,
         }
     }
 
@@ -57,11 +55,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn get_last_result(&self) -> &DebugCommandResult {
-        &self.last_result
-    }
-
-    fn step_brillig_opcode(&mut self) -> &DebugCommandResult {
+    fn step_brillig_opcode(&mut self) -> DebugCommandResult {
         let Some(mut solver) = self.brillig_solver.take() else {
             unreachable!("Missing Brillig solver");
         };
@@ -69,8 +63,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             Ok(status) => match status {
                 BrilligSolverStatus::InProgress => {
                     self.brillig_solver = Some(solver);
-                    self.last_result = DebugCommandResult::Ok;
-                    &self.last_result
+                    DebugCommandResult::Ok
                 }
                 BrilligSolverStatus::Finished => {
                     let status = self.acvm.finish_brillig_with_solver(solver);
@@ -80,34 +73,30 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                     self.handle_foreign_call(foreign_call)
                 }
             },
-            Err(err) => {
-                self.last_result = DebugCommandResult::Error(NargoError::ExecutionError(
-                    ExecutionError::SolvingError(err),
-                ));
-                &self.last_result
-            }
+            Err(err) => DebugCommandResult::Error(NargoError::ExecutionError(
+                ExecutionError::SolvingError(err),
+            )),
         }
     }
 
-    fn handle_foreign_call(&mut self, foreign_call: ForeignCallWaitInfo) -> &DebugCommandResult {
+    fn handle_foreign_call(&mut self, foreign_call: ForeignCallWaitInfo) -> DebugCommandResult {
         let foreign_call_result =
             self.foreign_call_executor.execute(&foreign_call, self.show_output);
-        self.last_result = match foreign_call_result {
+        match foreign_call_result {
             Ok(foreign_call_result) => {
                 self.acvm.resolve_pending_foreign_call(foreign_call_result);
                 // TODO: should we retry executing the opcode somehow in this case?
                 DebugCommandResult::Ok
             }
             Err(error) => DebugCommandResult::Error(error),
-        };
-        &self.last_result
+        }
     }
 
-    fn handle_acvm_status(&mut self, status: ACVMStatus) -> &DebugCommandResult {
+    fn handle_acvm_status(&mut self, status: ACVMStatus) -> DebugCommandResult {
         if let ACVMStatus::RequiresForeignCall(foreign_call) = status {
             self.handle_foreign_call(foreign_call)
         } else {
-            let result = match status {
+            match status {
                 ACVMStatus::Solved => DebugCommandResult::Done,
                 ACVMStatus::InProgress => DebugCommandResult::Ok,
                 ACVMStatus::Failure(error) => DebugCommandResult::Error(
@@ -116,13 +105,11 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 ACVMStatus::RequiresForeignCall(_) => {
                     unreachable!("Unexpected pending foreign call resolution");
                 }
-            };
-            self.last_result = result;
-            self.get_last_result()
+            }
         }
     }
 
-    pub(super) fn step_into_opcode(&mut self) -> &DebugCommandResult {
+    pub(super) fn step_into_opcode(&mut self) -> DebugCommandResult {
         if matches!(self.brillig_solver, Some(_)) {
             self.step_brillig_opcode()
         } else {
@@ -136,7 +123,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn step_acir_opcode(&mut self) -> &DebugCommandResult {
+    pub(super) fn step_acir_opcode(&mut self) -> DebugCommandResult {
         let status = if let Some(solver) = self.brillig_solver.take() {
             self.acvm.finish_brillig_with_solver(solver)
         } else {
@@ -145,11 +132,11 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         self.handle_acvm_status(status)
     }
 
-    pub(super) fn cont(&mut self) -> &DebugCommandResult {
+    pub(super) fn cont(&mut self) -> DebugCommandResult {
         loop {
             let result = self.step_into_opcode();
             if !matches!(result, DebugCommandResult::Ok) {
-                return self.get_last_result();
+                return result;
             }
         }
     }

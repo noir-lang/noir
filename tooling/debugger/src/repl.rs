@@ -20,6 +20,7 @@ use std::ops::Range;
 pub struct ReplDebugger<'a, B: BlackBoxFunctionSolver> {
     context: DebugContext<'a, B>,
     debug_artifact: &'a DebugArtifact,
+    last_result: DebugCommandResult,
 }
 
 impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
@@ -30,7 +31,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         initial_witness: WitnessMap,
     ) -> Self {
         let context = DebugContext::new(blackbox_solver, circuit, initial_witness);
-        Self { context, debug_artifact }
+        Self { context, debug_artifact, last_result: DebugCommandResult::Ok }
     }
 
     pub fn show_current_vm_status(&self) {
@@ -54,7 +55,8 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         }
     }
 
-    fn handle_debug_command_result(&self) {
+    fn handle_debug_command_result(&mut self, result: DebugCommandResult) {
+        self.last_result = result;
         self.show_current_vm_status();
     }
 
@@ -125,13 +127,13 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     }
 
     fn validate_in_progress(&self) -> bool {
-        match self.context.get_last_result() {
+        match self.last_result {
             DebugCommandResult::Ok => true,
             DebugCommandResult::Done => {
                 println!("Execution finished");
                 false
             }
-            DebugCommandResult::Error(error) => {
+            DebugCommandResult::Error(ref error) => {
                 println!("ERROR: {}", error);
                 self.show_current_vm_status();
                 false
@@ -141,23 +143,23 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
 
     fn step_acir_opcode(&mut self) {
         if self.validate_in_progress() {
-            _ = self.context.step_acir_opcode();
-            self.handle_debug_command_result();
+            let result = self.context.step_acir_opcode();
+            self.handle_debug_command_result(result);
         }
     }
 
     fn step_into_opcode(&mut self) {
         if self.validate_in_progress() {
-            _ = self.context.step_into_opcode();
-            self.handle_debug_command_result();
+            let result = self.context.step_into_opcode();
+            self.handle_debug_command_result(result);
         }
     }
 
     fn cont(&mut self) {
         if self.validate_in_progress() {
             println!("(Continuing execution...)");
-            _ = self.context.cont();
-            self.handle_debug_command_result();
+            let result = self.context.cont();
+            self.handle_debug_command_result(result);
         }
     }
 
