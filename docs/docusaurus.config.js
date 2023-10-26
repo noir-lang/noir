@@ -7,6 +7,8 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 const math = require('remark-math');
 const katex = require('rehype-katex');
 
+const stableVersion = require('./stableVersion.json');
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'Noir Documentation',
@@ -40,7 +42,7 @@ const config = {
           routeBasePath: '/',
           remarkPlugins: [math],
           rehypePlugins: [katex],
-          lastVersion: 'current', // updated by the release workflow
+          lastVersion: stableVersion.lastVersion, // updated by the release workflow
           versions: {
             current: {
               label: 'dev',
