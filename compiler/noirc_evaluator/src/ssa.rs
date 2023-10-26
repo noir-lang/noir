@@ -59,7 +59,7 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
         .run_pass(Ssa::fill_internal_slices, "After Fill Slice Dummy Data:")
         .finish();
-    
+
     // TODO: don't fill internal slices for brillig
     let brillig = ssa.to_brillig(print_brillig_trace);
     let last_array_uses = ssa.find_last_array_uses();

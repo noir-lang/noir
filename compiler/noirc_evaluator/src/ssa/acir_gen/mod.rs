@@ -395,7 +395,7 @@ impl Context {
                     rhs: AcirValue,
                     read_from_index: &mut impl FnMut(BlockId, usize) -> Result<AcirVar, InternalError>,
                 ) -> Result<Vec<(AcirVar, AcirVar)>, InternalError> {
-                    match (lhs.clone(), rhs.clone()) {
+                    match (lhs, rhs) {
                         (AcirValue::Var(lhs, _), AcirValue::Var(rhs, _)) => Ok(vec![(lhs, rhs)]),
                         (AcirValue::Array(lhs_values), AcirValue::Array(rhs_values)) => {
                             let var_equality_assertions = lhs_values
@@ -425,62 +425,8 @@ impl Context {
                             let rhs_var = read_from_index(rhs_block_id, i)?;
                             Ok((lhs_var, rhs_var))
                         }),
-                        (
-                            AcirValue::DynamicArray(AcirDynamicArray { 
-                                block_id, 
-                                len, 
-                                .. 
-                            }),
-                            AcirValue::Array(rhs_values),
-                        ) => {
-                            let rhs_vars = rhs_values
-                                .into_iter()
-                                .flat_map(|val| val.clone().flatten())
-                                .map(|(var, _)| var)
-                                .collect::<Vec<_>>();
-
-                            assert_eq!(
-                                len,
-                                rhs_vars.len(),
-                                "ICE: The store value and dummy must have the same number of inner values"
-                            );
-
-                            try_vecmap(0..len, |i| {
-                                let lhs_var = read_from_index(block_id, i)?;
-                                let rhs_var = rhs_vars[i];
-                                Ok((lhs_var, rhs_var))
-                            })
-                        }
-                        (
-                            AcirValue::Array(lhs_values),
-                            AcirValue::DynamicArray(AcirDynamicArray { 
-                                block_id, 
-                                len, 
-                                .. 
-                            }),
-                        ) => {
-                            let lhs_vars = lhs_values
-                            .into_iter()
-                            .flat_map(|val| val.clone().flatten())
-                            .map(|(var, _)| var)
-                            .collect::<Vec<_>>();
-
-                            assert_eq!(
-                                len,
-                                lhs_vars.len(),
-                                "ICE: The store value and dummy must have the same number of inner values"
-                            );
-
-                            try_vecmap(0..len, |i| {
-                                let lhs_var = lhs_vars[i];
-                                let rhs_var = read_from_index(block_id, i)?;
-                                Ok((lhs_var, rhs_var))
-                            })
-                        }
                         _ => {
-                            // dbg!(lhs.clone());
-                            // dbg!(rhs.clone());
-                            unreachable!("ICE: lhs and rhs should be of the same type, lhs: {lhs:?}, rhs: {rhs:?}")
+                            unreachable!("ICE: lhs and rhs should be of the same type")
                         }
                     }
                 }
@@ -559,7 +505,11 @@ impl Context {
                                     self.initialize_array(block_id, len, Some(output.clone()))?;
                                     self.ssa_values.insert(*result, output);
                                 }
-                                AcirValue::DynamicArray(AcirDynamicArray { block_id, len, element_type_sizes }) => {
+                                AcirValue::DynamicArray(AcirDynamicArray {
+                                    block_id,
+                                    len,
+                                    element_type_sizes,
+                                }) => {
                                     // let result_block_id = self.block_id(result);
                                     // self.copy_dynamic_array(*block_id, result_block_id, *len)?;
                                     // let output = AcirDynamicArray {
@@ -953,40 +903,7 @@ impl Context {
             value
         };
 
-        match &value {
-            // We need to make sure we initialize arrays returned from array get calls
-            // or else they will fail if accessed with a dynamic index
-            AcirValue::Array(_) => {
-                let block_id = self.block_id(&results[0]);
-                let array_typ = dfg.type_of_value(results[0]);
-                let len = if !array_typ.contains_slice_element() {
-                    array_typ.flattened_size()
-                } else {
-                    Self::flattened_value_size(&value)
-                };
-                self.initialize_array(block_id, len, Some(value.clone()))?;
-                self.define_result(dfg, instruction, value.clone());
-
-                let element_type_sizes = self.init_element_type_sizes_array(&res_typ, results[0], None, dfg)?;
-                let new_value = AcirValue::DynamicArray(AcirDynamicArray 
-                    { 
-                        block_id, 
-                        len, 
-                        element_type_sizes
-                });
-                // dbg!(new_value.clone());
-                self.define_result(dfg, instruction, new_value);
-
-            }
-            AcirValue::DynamicArray(_) => {
-                unreachable!("cannot fetch a dynamic array from array_get_value")
-            }
-            AcirValue::Var(_, _) => {
-                // Do nothing
-                self.define_result(dfg, instruction, value.clone());
-            }
-        }
-        // self.define_result(dfg, instruction, value.clone());
+        self.define_result(dfg, instruction, value.clone());
 
         Ok(value)
     }
@@ -1136,7 +1053,8 @@ impl Context {
         //     self.slice_sizes.insert(results[0], slice_sizes);
         // }
 
-        let element_type_sizes = self.init_element_type_sizes_array(&array_typ, array_id, None, dfg)?;
+        let element_type_sizes =
+            self.init_element_type_sizes_array(&array_typ, array_id, None, dfg)?;
         let result_value = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
             len: array_len,
@@ -1407,9 +1325,13 @@ impl Context {
         let init_values = try_vecmap(0..capacity, |i| {
             let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
 
-            let pred = self.acir_context.less_than_var(true_len, capacity_var, 64, self.current_side_effects_enabled_var)?;
-            let true_pred =
-            self.acir_context.mul_var(index_var, pred)?;
+            let pred = self.acir_context.less_than_var(
+                true_len,
+                capacity_var,
+                64,
+                self.current_side_effects_enabled_var,
+            )?;
+            let true_pred = self.acir_context.mul_var(index_var, pred)?;
             let not_pred = self.acir_context.sub_var(one, pred)?;
             let false_pred = self.acir_context.mul_var(not_pred, zero)?;
             // let new_
@@ -1428,7 +1350,8 @@ impl Context {
         var_index: AcirVar,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
-        let element_type_sizes = self.init_element_type_sizes_array(array_typ, array_id, None, dfg)?;
+        let element_type_sizes =
+            self.init_element_type_sizes_array(array_typ, array_id, None, dfg)?;
 
         let true_pred =
             self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?;
@@ -1889,7 +1812,8 @@ impl Context {
             }
             Intrinsic::SlicePushBack => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
-                let (array_id, array_typ, _) = self.check_array_is_initialized(arguments[1], dfg)?;
+                let (array_id, array_typ, _) =
+                    self.check_array_is_initialized(arguments[1], dfg)?;
                 let slice = self.convert_value(arguments[1], dfg);
 
                 // TODO(#2461): make sure that we have handled nested struct inputs
@@ -1898,7 +1822,7 @@ impl Context {
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
                 // We attach the element no matter what in case len == capacity, as otherwise we
-                // may get an out of bounds error. This leads to inefficiencies 
+                // may get an out of bounds error. This leads to inefficiencies
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice.clone())?;
                 new_slice.push_back(element.clone());
@@ -1908,19 +1832,25 @@ impl Context {
                 let new_elem_size = Self::flattened_value_size(&element);
                 let new_slice_val = AcirValue::Array(new_slice);
                 let result_block_id = self.block_id(&result_ids[1]);
-                self.initialize_array(result_block_id, len + new_elem_size, Some(new_slice_val.clone()))?;
+                self.initialize_array(
+                    result_block_id,
+                    len + new_elem_size,
+                    Some(new_slice_val.clone()),
+                )?;
                 let mut var_index = slice_length;
                 self.array_set_value(element, result_block_id, &mut var_index)?;
 
-                let result = AcirValue::DynamicArray(AcirDynamicArray { 
-                    block_id: result_block_id, 
-                    len: len + new_elem_size, 
-                    element_type_sizes: self.init_element_type_sizes_array(&array_typ, array_id, Some(new_slice_val), dfg)?
+                let result = AcirValue::DynamicArray(AcirDynamicArray {
+                    block_id: result_block_id,
+                    len: len + new_elem_size,
+                    element_type_sizes: self.init_element_type_sizes_array(
+                        &array_typ,
+                        array_id,
+                        Some(new_slice_val),
+                        dfg,
+                    )?,
                 });
-                Ok(vec![
-                    AcirValue::Var(new_slice_length, AcirType::field()),
-                    result,
-                ])
+                Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), result])
             }
             Intrinsic::SlicePushFront => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
@@ -1949,7 +1879,12 @@ impl Context {
 
                 let (_, _, block_id) = self.check_array_is_initialized(arguments[1], dfg)?;
                 let mut var_index = new_slice_length;
-                let elem = self.array_get_value(&dfg.type_of_value(result_ids[2]), block_id, &mut var_index, &[])?;
+                let elem = self.array_get_value(
+                    &dfg.type_of_value(result_ids[2]),
+                    block_id,
+                    &mut var_index,
+                    &[],
+                )?;
 
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
