@@ -11,7 +11,7 @@ function main() {
   const configContent = fs.readFileSync(configFile, 'utf8');
 
   // Update the lastVersion property
-  const newVersion = process.env.STABLE; // Get the version from the script argument
+  const newVersion = process.env.STABLE.replace('v', ''); // Get the version from the script argument
   if (!newVersion) {
     console.log('No stable version provided');
     process.exit(1);
