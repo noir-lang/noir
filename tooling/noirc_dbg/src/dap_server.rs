@@ -30,21 +30,35 @@ use dap::server::*;
 #[cfg(not(feature = "dap"))]
 use serde_json::Value;
 
+pub trait Server {
+    /// Read request from input.
+    fn read(&mut self) -> Option<Request>;
+    /// Write response to server output.
+    fn write(&self, message: Sendable);
+}
+
 #[cfg(feature = "dap")]
-pub(crate) struct Dap {
+/// Dap realization of server. It is realization to communicate with IDEs and provide standard
+/// debugging interface.
+pub struct Dap {
+    /// Write output to server communicated through stdin and stdout
     output: Mutex<Server<Stdin, Stdout>>,
+    /// Handled input from receiver thread
     input: Receiver<Request>,
 }
 
 #[cfg(not(feature = "dap"))]
+/// Repl realization of server. For cli usage.
 #[derive(Debug, Default)]
-pub(crate) struct Dap {
+pub struct Dap {
+    /// Sequential number of request
     seq: i64,
 }
 
 #[cfg(feature = "dap")]
 impl Dap {
-    pub(crate) fn new() -> Self {
+    /// Create dap server.
+    pub fn new() -> Self {
         let (tx, rx) = unbounded::<Request>();
         spawn(move || {
             let mut server = Server::new(BufReader::new(stdin()), BufWriter::new(stdout()));
@@ -63,8 +77,11 @@ impl Dap {
         let server = Server::new(BufReader::new(stdin()), BufWriter::new(stdout()));
         Dap { output: Mutex::new(server), input: rx }
     }
-
-    pub(crate) fn read(&self) -> Option<Request> {
+}
+#[cfg(feature = "dap")]
+impl Server for Dap {
+    /// Read request from receiver.
+    fn read(&mut self) -> Option<Request> {
         match self.input.try_recv() {
             Ok(req) => Some(req),
             Err(TryRecvError::Disconnected) => None,
@@ -72,26 +89,20 @@ impl Dap {
         }
     }
 
-    pub(crate) fn write(&self, message: Sendable) {
+    /// Write response to server.
+    fn write(&self, message: Sendable) {
         self.output.lock().unwrap().send(message).unwrap();
     }
 }
 
 #[cfg(not(feature = "dap"))]
 impl Dap {
-    pub(crate) fn new() -> Self {
+    /// Create repl server.
+    pub fn new() -> Self {
         Dap::default()
     }
 
-    pub(crate) fn read(&mut self) -> Option<Request> {
-        self.seq += 1;
-        match self.get_request_from_stdin() {
-            Ok(req) => Some(req),
-            Err(TryRecvError::Disconnected) => None,
-            Err(TryRecvError::Empty) => None,
-        }
-    }
-
+    /// Read input from stdin and map it to requests.
     fn get_request_from_stdin(&self) -> Result<Request, TryRecvError> {
         let command = stdin_get("Enter command> ");
         let req = match command.trim() {
@@ -140,8 +151,19 @@ impl Dap {
         };
         Ok(req)
     }
+}
+#[cfg(not(feature = "dap"))]
+impl Server for Dap {
+    fn read(&mut self) -> Option<Request> {
+        self.seq += 1;
+        match self.get_request_from_stdin() {
+            Ok(req) => Some(req),
+            Err(TryRecvError::Disconnected) => None,
+            Err(TryRecvError::Empty) => None,
+        }
+    }
 
-    pub(crate) fn write(&self, message: Sendable) {
+    fn write(&self, message: Sendable) {
         match message {
             Sendable::Response(r) => {
                 let body = &r.body;
@@ -162,6 +184,7 @@ impl Dap {
     }
 }
 
+/// Handler for stdin.
 fn stdin_get(msg: &str) -> String {
     let mut response = String::new();
     print!("{msg}");

@@ -1,9 +1,10 @@
 use dap::errors::ServerError;
 use thiserror::Error;
 
+/// Wraps app specific errors.
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug, Error)]
-pub(crate) enum DebuggingError {
+pub enum DebuggingError {
     /// ACIR circuit execution error
     #[error(transparent)]
     ExecutionError(#[from] nargo::errors::ExecutionError),
@@ -12,11 +13,11 @@ pub(crate) enum DebuggingError {
     #[error("{0:?}")]
     CustomError(String),
 
-    /// Custom debugger error
+    /// Dap server error
     #[error(transparent)]
     ServerError(ServerError),
 
-    /// Oracle handling error
+    /// Bytecode handling error
     #[error(transparent)]
     ForeignCallError(#[from] noirc_printable_type::ForeignCallError),
 }

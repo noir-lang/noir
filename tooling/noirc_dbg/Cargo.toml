@@ -7,14 +7,6 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-# acvm = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
-# barretenberg_blackbox_solver = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
-# fm = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
-# noirc_evaluator = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
-# noirc_errors = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
-# noirc_frontend = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
-# noirc_driver = { git = "https://github.com/dmvict/noir", branch = "alt_compiler", features = [ "brillig" ] }
-# noirc_printable_type = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
 acvm = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e" }
 barretenberg_blackbox_solver = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e" }
 fm = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e" }

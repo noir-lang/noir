@@ -1,3 +1,4 @@
+//! Main module, provides access to debugger functionality through the dap server implementation.
 use dap::base_message::Sendable;
 use dap::events::*;
 use dap::requests::*;
@@ -10,7 +11,7 @@ use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelec
 use noirc_evaluator::brillig::brillig_ir::artifact::GeneratedBrillig;
 use serde_json::Value;
 
-use crate::{compile, dap_server::Dap, error::DebuggingError, vm, vm::VMType};
+use crate::{compile, dap_server::Server, error::DebuggingError, vm, vm::VMType};
 
 use acvm::brillig_vm::VMStatus;
 #[allow(deprecated)]
@@ -27,21 +28,24 @@ impl Breakpoint {
     }
 }
 
-pub(crate) enum State {
+pub enum State {
     Uninitialized(UninitializedState),
     Running(RunningState),
     Exit,
 }
 
 #[derive(Clone, Debug, Default)]
-pub(crate) struct UninitializedState;
+pub struct UninitializedState;
 
 impl UninitializedState {
     pub(crate) fn new() -> Self {
         Self
     }
 
-    pub(crate) fn run(&mut self, server: &mut Dap) -> Result<Option<State>, DebuggingError> {
+    pub(crate) fn run<T: Server>(
+        &mut self,
+        server: &mut T,
+    ) -> Result<Option<State>, DebuggingError> {
         let request = match server.read() {
             Some(req) => req,
             None => return Ok(None),
@@ -103,11 +107,9 @@ impl UninitializedState {
     }
 }
 
-pub(crate) struct RunningState {
+pub struct RunningState {
     breakpoints: Vec<Breakpoint>,
     running: bool,
-    #[allow(dead_code)]
-    // for now to get access to bytecode
     program: GeneratedBrillig,
     vm: VMType,
 }
@@ -121,7 +123,7 @@ impl RunningState {
         let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
             return Err(DebuggingError::CustomError("No matching binary packages found in workspace. Only binary packages can be debugged.".into()));
         };
-        let program = compile(package.entry_path.to_str().unwrap()).unwrap();
+        let program = compile::compile(package.entry_path.to_str().unwrap()).unwrap();
 
         let (registers, memory) = compile::get_input_registers_and_memory(
             package,
@@ -141,7 +143,7 @@ impl RunningState {
         })
     }
 
-    pub(crate) fn init(&mut self, server: &Dap) -> Result<(), DebuggingError> {
+    pub(crate) fn init<T: Server>(&mut self, server: &T) -> Result<(), DebuggingError> {
         self.stop(server, StoppedEventReason::Entry)
     }
 
@@ -149,7 +151,11 @@ impl RunningState {
         self.breakpoints = vec![];
     }
 
-    fn stop(&mut self, server: &Dap, reason: StoppedEventReason) -> Result<(), DebuggingError> {
+    fn stop<T: Server>(
+        &mut self,
+        server: &T,
+        reason: StoppedEventReason,
+    ) -> Result<(), DebuggingError> {
         let description = format!("{:?}", &reason);
         let stop_event = Event::Stopped(StoppedEventBody {
             reason,
@@ -171,7 +177,10 @@ impl RunningState {
         self.vm.program_counter()
     }
 
-    pub(crate) fn run(&mut self, server: &mut Dap) -> Result<Option<State>, DebuggingError> {
+    pub(crate) fn run<T: Server>(
+        &mut self,
+        server: &mut T,
+    ) -> Result<Option<State>, DebuggingError> {
         if self.running {
             let current_instruction = self.get_current_instruction();
             if self.breakpoints.iter().any(|b| b.instruction == current_instruction) {
@@ -337,17 +346,17 @@ impl RunningState {
     }
 }
 
-pub(crate) struct App {
-    pub(crate) state: State,
-    pub(crate) server: Dap,
+pub struct App<T: Server> {
+    pub state: State,
+    pub(crate) server: T,
 }
 
-impl App {
-    pub(crate) fn initialize() -> Self {
-        App { state: State::Uninitialized(UninitializedState::new()), server: Dap::new() }
+impl<T: Server> App<T> {
+    pub fn initialize(server: T) -> Self {
+        App { state: State::Uninitialized(UninitializedState::new()), server }
     }
 
-    pub(crate) fn run(&mut self) -> Result<(), DebuggingError> {
+    pub fn run(&mut self) -> Result<(), DebuggingError> {
         let res = match self.state {
             State::Uninitialized(ref mut s) => s.run(&mut self.server)?,
             State::Running(ref mut s) => s.run(&mut self.server)?,
