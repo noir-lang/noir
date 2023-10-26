@@ -16,7 +16,7 @@
     "outArgs": [
       {
         "name": "output",
-        "type": "fr::out_buf"
+        "type": "affine_element::out_buf"
       }
     ],
     "isAsync": false

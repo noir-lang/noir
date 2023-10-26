@@ -1,5 +1,5 @@
 import { Barretenberg } from '../barretenberg/index.js';
-import { Fr } from '../types/index.js';
+import { Fr, Point } from '../types/index.js';
 
 describe('pedersen', () => {
   let api: Barretenberg;
@@ -20,6 +20,11 @@ describe('pedersen', () => {
 
   it('pedersenCommit', async () => {
     const result = await api.pedersenCommit([new Fr(4n), new Fr(8n), new Fr(12n)]);
-    expect(result).toEqual(new Fr(18374309251862457296563484909553154519357910650678202211610516068880120638872n));
+    expect(result).toEqual(
+      new Point(
+        new Fr(18374309251862457296563484909553154519357910650678202211610516068880120638872n),
+        new Fr(2572141322478528249692953821523229170092797347760799983831061874108357705739n),
+      ),
+    );
   });
 });
