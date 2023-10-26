@@ -213,8 +213,288 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
     }
 };
 
+template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentTest<Curve> {
+  public:
+    using Fr = typename Curve::ScalarField;
+    using Polynomial = barretenberg::Polynomial<Fr>;
+    using Commitment = typename Curve::AffineElement;
+    using GroupElement = typename Curve::Element;
+    using ZeroMorphProver = ZeroMorphProver_<Curve>;
+    using ZeroMorphVerifier = ZeroMorphVerifier_<Curve>;
+
+    // Evaluate Phi_k(x) = \sum_{i=0}^k x^i using the direct inefficent formula
+    Fr Phi(Fr challenge, size_t subscript)
+    {
+        size_t length = 1 << subscript;
+        auto result = Fr(0);
+        for (size_t idx = 0; idx < length; ++idx) {
+            result += challenge.pow(idx);
+        }
+        return result;
+    }
+
+    /**
+     * @brief Construct and verify ZeroMorph proof of batched multilinear evaluation with shifts and concatenation
+     * @details The goal is to construct and verify a single batched multilinear evaluation proof for m polynomials f_i,
+     * l polynomials h_i and o groups of polynomials where each polynomial is concatenated from several shorter
+     * polynomials. It is assumed that the h_i are shifts of polynomials g_i (the "to-be-shifted" polynomials), which
+     * are a subset of the f_i. This is what is encountered in practice. We accomplish this using evaluations of h_i but
+     * commitments to only their unshifted counterparts g_i (which we get for "free" since commitments [g_i] are
+     * contained in the set of commitments [f_i]).
+     *
+     */
+    bool execute_zeromorph_protocol(size_t NUM_UNSHIFTED, size_t NUM_SHIFTED, size_t NUM_CONCATENATED)
+    {
+        bool verified = false;
+        size_t concatenation_index = 2;
+        size_t N = 64;
+        size_t MINI_CIRCUIT_N = N / concatenation_index;
+        size_t log_N = numeric::get_msb(N);
+
+        auto u_challenge = this->random_evaluation_point(log_N);
+
+        // Construct some random multilinear polynomials f_i and their evaluations v_i = f_i(u)
+        std::vector<Polynomial> f_polynomials; // unshifted polynomials
+        std::vector<Fr> v_evaluations;
+        for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
+            f_polynomials.emplace_back(this->random_polynomial(N));
+            f_polynomials[i][0] = Fr(0); // ensure f is "shiftable"
+            v_evaluations.emplace_back(f_polynomials[i].evaluate_mle(u_challenge));
+        }
+
+        // Construct some "shifted" multilinear polynomials h_i as the left-shift-by-1 of f_i
+        std::vector<Polynomial> g_polynomials; // to-be-shifted polynomials
+        std::vector<Polynomial> h_polynomials; // shifts of the to-be-shifted polynomials
+        std::vector<Fr> w_evaluations;
+        for (size_t i = 0; i < NUM_SHIFTED; ++i) {
+            g_polynomials.emplace_back(f_polynomials[i]);
+            h_polynomials.emplace_back(g_polynomials[i].shifted());
+            w_evaluations.emplace_back(h_polynomials[i].evaluate_mle(u_challenge));
+            // ASSERT_EQ(w_evaluations[i], g_polynomials[i].evaluate_mle(u_challenge, /* shift = */ true));
+        }
+
+        // Polynomials "chunks" that are concatenated in the PCS
+        std::vector<std::vector<Polynomial>> concatenation_groups;
+
+        // Concatenated polynomials
+        std::vector<Polynomial> concatenated_polynomials;
+
+        // Evaluations of concatenated polynomials
+        std::vector<Fr> c_evaluations;
+
+        // For each polynomial to be concatenated
+        for (size_t i = 0; i < NUM_CONCATENATED; ++i) {
+            std::vector<Polynomial> concatenation_group;
+            Polynomial concatenated_polynomial(N);
+            // For each chunk
+            for (size_t j = 0; j < concatenation_index; j++) {
+                Polynomial chunk_polynomial(N);
+                // Fill the chunk polynomial with random values and appropriately fill the space in
+                // concatenated_polynomial
+                for (size_t k = 0; k < MINI_CIRCUIT_N; k++) {
+                    // Chunks should be shiftable
+                    auto tmp = Fr(0);
+                    if (k > 0) {
+                        tmp = Fr::random_element(this->engine);
+                    }
+                    chunk_polynomial[k] = tmp;
+                    concatenated_polynomial[j * MINI_CIRCUIT_N + k] = tmp;
+                }
+                concatenation_group.emplace_back(chunk_polynomial);
+            }
+            // Store chunks
+            concatenation_groups.emplace_back(concatenation_group);
+            // Store concatenated polynomial
+            concatenated_polynomials.emplace_back(concatenated_polynomial);
+            // Get evaluation
+            c_evaluations.emplace_back(concatenated_polynomial.evaluate_mle(u_challenge));
+        }
+
+        // Compute commitments [f_i]
+        std::vector<Commitment> f_commitments;
+        for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
+            f_commitments.emplace_back(this->commit(f_polynomials[i]));
+        }
+
+        // Construct container of commitments of the "to-be-shifted" polynomials [g_i] (= [f_i])
+        std::vector<Commitment> g_commitments;
+        for (size_t i = 0; i < NUM_SHIFTED; ++i) {
+            g_commitments.emplace_back(f_commitments[i]);
+        }
+
+        // Compute commitments of all polynomial chunks
+        std::vector<std::vector<Commitment>> concatenation_groups_commitments;
+        for (size_t i = 0; i < NUM_CONCATENATED; ++i) {
+            std::vector<Commitment> concatenation_group_commitment;
+            for (size_t j = 0; j < concatenation_index; j++) {
+                concatenation_group_commitment.emplace_back(this->commit(concatenation_groups[i][j]));
+            }
+            concatenation_groups_commitments.emplace_back(concatenation_group_commitment);
+        }
+
+        // Initialize an empty ProverTranscript
+        auto prover_transcript = ProverTranscript<Fr>::init_empty();
+
+        // Execute Prover protocol
+        {
+            auto rho = prover_transcript.get_challenge("ZM:rho");
+
+            // Compute batching of f_i and g_i polynomials: sum_{i=0}^{m-1}\rho^i*f_i and
+            // sum_{i=0}^{l-1}\rho^{m+i}*h_i, and also batched evaluation v = sum_{i=0}^{m-1}\rho^i*v_i +
+            // sum_{i=0}^{l-1}\rho^{m+i}*w_i.
+            auto f_batched = Polynomial(N);
+            auto g_batched = Polynomial(N);
+            auto concatenated_batched = Polynomial(N);
+            std::vector<Polynomial> concatenation_groups_batched;
+            auto v_evaluation = Fr(0);
+            auto rho_pow = Fr(1);
+            for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
+                f_batched.add_scaled(f_polynomials[i], rho_pow);
+                v_evaluation += rho_pow * v_evaluations[i];
+                rho_pow *= rho;
+            }
+            for (size_t i = 0; i < NUM_SHIFTED; ++i) {
+                g_batched.add_scaled(g_polynomials[i], rho_pow);
+                v_evaluation += rho_pow * w_evaluations[i];
+                rho_pow *= rho;
+            }
+            for (size_t i = 0; i < concatenation_index; ++i) {
+                concatenation_groups_batched.push_back(Polynomial(N));
+            }
+            for (size_t i = 0; i < NUM_CONCATENATED; ++i) {
+                concatenated_batched.add_scaled(concatenated_polynomials[i], rho_pow);
+                for (size_t j = 0; j < concatenation_index; ++j) {
+                    concatenation_groups_batched[j].add_scaled(concatenation_groups[i][j], rho_pow);
+                }
+                v_evaluation += rho_pow * c_evaluations[i];
+                rho_pow *= rho;
+            }
+
+            // The new f is f_batched + g_batched.shifted() = f_batched + h_batched
+            auto f_polynomial = f_batched;
+            f_polynomial += g_batched.shifted();
+            f_polynomial += concatenated_batched;
+
+            // Compute the multilinear quotients q_k = q_k(X_0, ..., X_{k-1})
+            auto quotients = ZeroMorphProver::compute_multilinear_quotients(f_polynomial, u_challenge);
+
+            // Compute and send commitments C_{q_k} = [q_k], k = 0,...,d-1
+            std::vector<Commitment> q_k_commitments;
+            q_k_commitments.reserve(log_N);
+            for (size_t idx = 0; idx < log_N; ++idx) {
+                q_k_commitments[idx] = this->commit(quotients[idx]);
+                std::string label = "ZM:C_q_" + std::to_string(idx);
+                prover_transcript.send_to_verifier(label, q_k_commitments[idx]);
+            }
+
+            // Get challenge y
+            auto y_challenge = prover_transcript.get_challenge("ZM:y");
+
+            // Compute the batched, lifted-degree quotient \hat{q}
+            auto batched_quotient = ZeroMorphProver::compute_batched_lifted_degree_quotient(quotients, y_challenge, N);
+
+            // Compute and send the commitment C_q = [\hat{q}]
+            auto q_commitment = this->commit(batched_quotient);
+            prover_transcript.send_to_verifier("ZM:C_q", q_commitment);
+
+            // Get challenges x and z
+            auto [x_challenge, z_challenge] = prover_transcript.get_challenges("ZM:x", "ZM:z");
+
+            // Compute degree check polynomial \zeta partially evaluated at x
+            auto zeta_x = ZeroMorphProver::compute_partially_evaluated_degree_check_polynomial(
+                batched_quotient, quotients, y_challenge, x_challenge);
+
+            // Compute ZeroMorph identity polynomial Z partially evaluated at x
+            auto Z_x = ZeroMorphProver::compute_partially_evaluated_zeromorph_identity_polynomial(
+                f_batched, g_batched, quotients, v_evaluation, u_challenge, x_challenge, concatenation_groups_batched);
+
+            // Compute batched degree and ZM-identity quotient polynomial pi
+            auto pi_polynomial = ZeroMorphProver::compute_batched_evaluation_and_degree_check_quotient(
+                zeta_x, Z_x, x_challenge, z_challenge);
+
+            // Compute and send proof commitment pi
+            auto pi_commitment = this->commit(pi_polynomial);
+            prover_transcript.send_to_verifier("ZM:PI", pi_commitment);
+        }
+
+        auto verifier_transcript = VerifierTranscript<Fr>::init_empty(prover_transcript);
+
+        // Execute Verifier protocol
+        {
+            // Challenge rho
+            auto rho = verifier_transcript.get_challenge("ZM:rho");
+
+            // Construct batched evaluation v = sum_{i=0}^{m-1}\rho^i*v_i + sum_{i=0}^{l-1}\rho^{m+i}*w_i
+            auto v_evaluation = Fr(0);
+            auto rho_pow = Fr(1);
+            for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
+                v_evaluation += rho_pow * v_evaluations[i];
+                rho_pow *= rho;
+            }
+            for (size_t i = 0; i < NUM_SHIFTED; ++i) {
+                v_evaluation += rho_pow * w_evaluations[i];
+                rho_pow *= rho;
+            }
+            for (size_t i = 0; i < NUM_CONCATENATED; ++i) {
+                v_evaluation += rho_pow * c_evaluations[i];
+                rho_pow *= rho;
+            }
+            // Receive commitments [q_k]
+            std::vector<Commitment> C_q_k;
+            C_q_k.reserve(log_N);
+            for (size_t i = 0; i < log_N; ++i) {
+                C_q_k.emplace_back(
+                    verifier_transcript.template receive_from_prover<Commitment>("ZM:C_q_" + std::to_string(i)));
+            }
+
+            // Challenge y
+            auto y_challenge = verifier_transcript.get_challenge("ZM:y");
+
+            // Receive commitment C_{q}
+            auto C_q = verifier_transcript.template receive_from_prover<Commitment>("ZM:C_q");
+
+            // Challenges x, z
+            auto [x_challenge, z_challenge] = verifier_transcript.get_challenges("ZM:x", "ZM:z");
+
+            // Compute commitment C_{\zeta_x}
+            auto C_zeta_x = ZeroMorphVerifier::compute_C_zeta_x(C_q, C_q_k, y_challenge, x_challenge);
+
+            // Compute commitment C_{Z_x}
+            Commitment C_Z_x = ZeroMorphVerifier::compute_C_Z_x(f_commitments,
+                                                                g_commitments,
+                                                                C_q_k,
+                                                                rho,
+                                                                v_evaluation,
+                                                                x_challenge,
+                                                                u_challenge,
+                                                                concatenation_groups_commitments);
+
+            // Compute commitment C_{\zeta,Z}
+            auto C_zeta_Z = C_zeta_x + C_Z_x * z_challenge;
+
+            // Receive proof commitment \pi
+            auto C_pi = verifier_transcript.template receive_from_prover<Commitment>("ZM:PI");
+
+            // The prover and verifier manifests should agree
+            EXPECT_EQ(prover_transcript.get_manifest(), verifier_transcript.get_manifest());
+
+            // Construct inputs and perform pairing check to verify claimed evaluation
+            // Note: The pairing check (without the degree check component X^{N_max-N-1}) can be expressed naturally as
+            // e(C_{\zeta,Z}, [1]_2) = e(pi, [X - x]_2). This can be rearranged (e.g. see the plonk paper) as
+            // e(C_{\zeta,Z} - x*pi, [1]_2) * e(-pi, [X]_2) = 1, or
+            // e(P_0, [1]_2) * e(P_1, [X]_2) = 1
+            auto P0 = C_zeta_Z + C_pi * x_challenge;
+            auto P1 = -C_pi;
+            verified = this->vk()->pairing_check(P0, P1);
+            // EXPECT_TRUE(verified);
+        }
+        return verified;
+    }
+};
+
 using CurveTypes = ::testing::Types<curve::BN254>;
 TYPED_TEST_SUITE(ZeroMorphTest, CurveTypes);
+TYPED_TEST_SUITE(ZeroMorphWithConcatenationTest, CurveTypes);
 
 /**
  * @brief Test method for computing q_k given multilinear f
@@ -476,4 +756,16 @@ TYPED_TEST(ZeroMorphTest, ProveAndVerifyBatchedWithShifts)
     EXPECT_TRUE(verified);
 }
 
+/**
+ * @brief Test full Prover/Verifier protocol for proving single multilinear evaluation
+ *
+ */
+TYPED_TEST(ZeroMorphWithConcatenationTest, ProveAndVerify)
+{
+    size_t num_unshifted = 1;
+    size_t num_shifted = 0;
+    size_t num_concatenated = 3;
+    auto verified = this->execute_zeromorph_protocol(num_unshifted, num_shifted, num_concatenated);
+    EXPECT_TRUE(verified);
+}
 } // namespace proof_system::honk::pcs::zeromorph
