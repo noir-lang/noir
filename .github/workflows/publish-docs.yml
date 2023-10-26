@@ -27,6 +27,14 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
     
+        # sets the stable version to be the latest stable release
+      - name: Get latest release
+        id: get_version
+        run: |
+            LATEST_STABLE=$(curl --silent "https://api.github.com/repos/${{ github.repository }}/releases" | jq '[.[] | select(.prerelease == false)][0].tag_name' -r)
+            cd docs && STABLE=$LATEST_STABLE yarn setStable
+
+        # cuts a new version for the new tag
       - name: Cut a new version
         working-directory: ./docs
         run: yarn docusaurus docs:version ${{ inputs.tag }}
