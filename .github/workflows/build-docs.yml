@@ -76,7 +76,7 @@ jobs:
             echo "::set-output name=version::$LATEST_STABLE"
 
       - name: Set stable version for docs
-        run: node .github/scripts/setDocsStableVersion.js ${{ steps.get_version.outputs.version }}
+        run: STABLE=${{ steps.get_version.outputs.version }} yarn setStable
 
       - name: Cut a new version
         run: cd docs && yarn docusaurus docs:version 0.17.0-test
