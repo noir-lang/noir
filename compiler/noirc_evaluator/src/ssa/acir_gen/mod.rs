@@ -884,21 +884,18 @@ impl Context {
         let value = if !res_typ.contains_slice_element() {
             self.array_get_value(&res_typ, block_id, &mut var_index, &[])?
         } else {
-            let slice_sizes = self
+            let mut slice_sizes = self
                 .slice_sizes
                 .get(&array_id)
                 .expect("ICE: Array with slices should have associated slice sizes")
                 .clone();
-            if results[0].to_usize() == 1252 {
-                dbg!(slice_sizes.clone());
-            }
-            let (_, slice_sizes) =
-                slice_sizes.split_first().expect("ICE: should be able to split slice size");
 
-            let value = self.array_get_value(&res_typ, block_id, &mut var_index, slice_sizes)?;
+            slice_sizes.remove(0);
+
+            let value = self.array_get_value(&res_typ, block_id, &mut var_index, &slice_sizes)?;
 
             // Insert the resulting slice sizes
-            self.slice_sizes.insert(results[0], slice_sizes.to_vec());
+            self.slice_sizes.insert(results[0], slice_sizes);
 
             value
         };
