@@ -36,7 +36,6 @@ Provide links to discourse (if applicable), so that people can get context on pr
 Flag any requirements that are not-yet being met by the protocol described within this doc.
 Discuss what we've considered (or link to a discourse discussion).
 
-
 # ToC
 
 Names of 'owners' are in brackets (they don't necessarily need to write the sections).
@@ -44,7 +43,7 @@ Names of 'owners' are in brackets (they don't necessarily need to write the sect
 The draft subsections are mere suggestions (and serve as a helpful reminder of topics). The actual layout can be adjusted.
 
 - Abstract [Mike]
-- High-level overview [Mike] 
+- High-level overview [Mike]
 - Constants [all]
 - Cryptography [Dont do yet]
   <!-- I wouldn't focus on this section much, in Q4 -->
@@ -63,7 +62,7 @@ The draft subsections are mere suggestions (and serve as a helpful reminder of t
 - Addresses & Keys [Palla/Mike]
   - Requirements
   - Addresses
-    <!-- 
+    <!--
     - Still undecided whether this should be a hash or a public key. A public key is nice for EoAs.
     - Embedding Bytecode
     - Updating Bytecode
@@ -88,7 +87,7 @@ The draft subsections are mere suggestions (and serve as a helpful reminder of t
     - Updating keys
 - State
   - L2 State
-    - Trees 
+    - Trees
       - Note Hash Tree
       - Indexed merkle trees
       - Nullifier tree(s)
@@ -175,10 +174,9 @@ The draft subsections are mere suggestions (and serve as a helpful reminder of t
   - Describe the logic of the protocol.
   - Describe the assertions that must be in place.
     - The constraints (assertions) of the system are spread across many circuits and L1 contracts, but they should be described as a whole, in one place. _Where_ the assertions are located (i.e. in which circuit/contract) is a matter of optimisation, which might change over time. This can then serve as a checklist, to ensure those assertions are included in at least one of the circuits/contracts.
-    -  In particular, exhaustively explain what _shouldn't_ be possible.
+    - In particular, exhaustively explain what _shouldn't_ be possible.
   - Sub-protocols
-    <!--
-    It might help to describe certain sub-protocols, which need to be sound in their own right.
+    <!--It might help to describe certain sub-protocols, which need to be sound in their own right.
     E.g.:
     - Contract Deployment
     - (Account abstraction)
@@ -197,15 +195,9 @@ The draft subsections are mere suggestions (and serve as a helpful reminder of t
     - Fee payments
     - Sequencer Selection
     - Prover Selection
-    - Initiating an upgrade
-    -->
+    - Initiating an upgrade-->
   - Circuits
-   <!-- 
-    - For each:
-      - Explain / justify the requirements.
-      - Describe the Public Inputs ABI & the Bus ABI.
-      - Explain the statements (logic) and assertions.
-  -->
+    <!-- For each: Explain / justify the requirements. Describe the Public Inputs ABI & the Bus ABI. Explain the statements logic and assertions. -->
     - High-level topology [David/Leila?]
     - Private Circuits [David/Leila?]
       - General features a private circuit must adhere-to.
