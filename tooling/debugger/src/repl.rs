@@ -19,7 +19,10 @@ use std::ops::Range;
 
 pub struct ReplDebugger<'a, B: BlackBoxFunctionSolver> {
     context: DebugContext<'a, B>,
+    blackbox_solver: &'a B,
+    circuit: &'a Circuit,
     debug_artifact: &'a DebugArtifact,
+    initial_witness: WitnessMap,
     last_result: DebugCommandResult,
 }
 
@@ -30,8 +33,15 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
     ) -> Self {
-        let context = DebugContext::new(blackbox_solver, circuit, initial_witness);
-        Self { context, debug_artifact, last_result: DebugCommandResult::Ok }
+        let context = DebugContext::new(blackbox_solver, circuit, initial_witness.clone());
+        Self {
+            context,
+            blackbox_solver,
+            circuit,
+            debug_artifact,
+            initial_witness,
+            last_result: DebugCommandResult::Ok,
+        }
     }
 
     pub fn show_current_vm_status(&self) {
@@ -163,6 +173,13 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         }
     }
 
+    fn restart_session(&mut self) {
+        self.context =
+            DebugContext::new(self.blackbox_solver, self.circuit, self.initial_witness.clone());
+        println!("Restarted debugging session.");
+        self.show_current_vm_status();
+    }
+
     fn is_solved(&self) -> bool {
         self.context.is_solved()
     }
@@ -219,6 +236,16 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "continue execution until the end of the program",
                 () => || {
                     ref_context.borrow_mut().cont();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "restart",
+            command! {
+                "restart the debugging session",
+                () => || {
+                    ref_context.borrow_mut().restart_session();
                     Ok(CommandStatus::Done)
                 }
             },
