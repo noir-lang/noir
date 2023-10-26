@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap};
+use std::collections::BTreeMap;
 
 use crate::ssa::{
     ir::{
@@ -8,7 +8,7 @@ use crate::ssa::{
         instruction::{Instruction, Intrinsic},
         post_order::PostOrder,
         types::Type,
-        value::{Value, ValueId}, dfg::InsertInstructionResult,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -100,7 +100,6 @@ impl<'f> Context<'f> {
                     }
 
                     let value_typ = self.inserter.function.dfg.type_of_value(*value);
-                    // let value_ssa_value = &self.inserter.function.dfg[*array];
                     if value_typ.contains_slice_element() {
                         self.compute_slice_sizes(*value, &mut slice_sizes);
                     }
@@ -117,9 +116,6 @@ impl<'f> Context<'f> {
                     }
 
                     if let Some(inner_sizes) = slice_sizes.get_mut(array) {
-                        // let inner_sizes =
-                        // slice_sizes.get_mut(array).expect(&format!("ICE expected slice sizes for {array}"));
-
                         let inner_sizes = inner_sizes.clone();
                         slice_sizes.insert(results[0], inner_sizes);
 
