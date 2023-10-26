@@ -28,7 +28,6 @@ template <typename Curve> class pedersen_commitment_base {
     using GeneratorContext = typename crypto::GeneratorContext<Curve>;
 
     static AffineElement commit_native(const std::vector<Fq>& inputs, GeneratorContext context = {});
-    static AffineElement commit_native(const std::vector<std::pair<Fq, GeneratorContext>>& input_pairs);
 };
 
 extern template class pedersen_commitment_base<curve::Grumpkin>;

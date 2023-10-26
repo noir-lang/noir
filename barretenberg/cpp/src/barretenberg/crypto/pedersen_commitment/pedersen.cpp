@@ -29,18 +29,5 @@ typename Curve::AffineElement pedersen_commitment_base<Curve>::commit_native(con
     }
     return result.normalize();
 }
-
-template <typename Curve>
-typename Curve::AffineElement pedersen_commitment_base<Curve>::commit_native(
-    const std::vector<std::pair<Fq, GeneratorContext>>& input_pairs)
-{
-    // (TODO @dbanks12 this method may be slow and can be optimised. Issue at .)
-    Element result = Group::point_at_infinity;
-    for (auto& [scalar, context] : input_pairs) {
-        Element point = context.generators->get(1, context.offset, context.domain_separator)[0];
-        result += point * static_cast<uint256_t>(scalar);
-    }
-    return result.normalize();
-}
 template class pedersen_commitment_base<curve::Grumpkin>;
 } // namespace crypto
