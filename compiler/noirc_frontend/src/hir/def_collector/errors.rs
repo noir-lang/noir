@@ -33,8 +33,12 @@ pub enum DefCollectorErrorKind {
     PathResolutionError(PathResolutionError),
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { span: Span },
-    #[error("Trait implementation is not allowed for this")]
-    TraitImplNotAllowedFor { trait_path: Path, span: Span },
+    #[error("Cannot implement trait on a mutable reference type")]
+    MutableReferenceInTraitImpl { span: Span },
+    #[error("Impl overlaps with existing impl for type {typ}")]
+    OverlappingImpl { span: Span, typ: crate::Type },
+    #[error("Previous impl defined here")]
+    OverlappingImplNote { span: Span },
     #[error("Cannot `impl` a type defined outside the current crate")]
     ForeignImpl { span: Span, type_name: String },
     #[error("Mismatch number of parameters in of trait implementation")]
@@ -130,10 +134,25 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 "Only struct types may have implementation methods".into(),
                 span,
             ),
-            DefCollectorErrorKind::TraitImplNotAllowedFor { trait_path, span } => {
+            DefCollectorErrorKind::MutableReferenceInTraitImpl { span } => Diagnostic::simple_error(
+                "Trait impls are not allowed on mutable reference types".into(),
+                "Try using a struct type here instead".into(),
+                span,
+            ),
+            DefCollectorErrorKind::OverlappingImpl { span, typ } => {
                 Diagnostic::simple_error(
-                    format!("Only limited types may implement trait `{trait_path}`"),
-                    "Only limited types may implement traits".into(),
+                    format!("Impl overlaps with existing impl for type `{typ}`"),
+                    "Overlapping impl".into(),
+                    span,
+                )
+            }
+            DefCollectorErrorKind::OverlappingImplNote { span } => {
+                // This should be a note or part of the previous error eventually.
+                // This must be an error to appear next to the previous OverlappingImpl
+                // error since we sort warnings first.
+                Diagnostic::simple_error(
+                    format!("Previous impl defined here"),
+                    "Previous impl defined here".into(),
                     span,
                 )
             }

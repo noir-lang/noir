@@ -3,6 +3,7 @@ use crate::{
     node_interner::{FuncId, TraitId, TraitMethodId},
     Generics, Ident, NoirFunction, Type, TypeVariable, TypeVariableId,
 };
+use fm::FileId;
 use noirc_errors::Span;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -62,6 +63,7 @@ pub struct TraitImpl {
     pub ident: Ident,
     pub typ: Type,
     pub trait_id: TraitId,
+    pub file: FileId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
 }
 
