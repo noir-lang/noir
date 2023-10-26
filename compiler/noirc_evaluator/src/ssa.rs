@@ -39,7 +39,7 @@ pub(crate) fn optimize_into_acir(
     print_brillig_trace: bool,
 ) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
-    let ssa = SsaBuilder::new(program, print_ssa_passes)
+    let ssa = SsaBuilder::new(program, print_ssa_passes)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
         // Run mem2reg with the CFG separated into blocks
@@ -130,8 +130,9 @@ struct SsaBuilder {
 }
 
 impl SsaBuilder {
-    fn new(program: Program, print_ssa_passes: bool) -> SsaBuilder {
-        SsaBuilder { print_ssa_passes, ssa: ssa_gen::generate_ssa(program) }.print("Initial SSA:")
+    fn new(program: Program, print_ssa_passes: bool) -> Result<SsaBuilder, RuntimeError> {
+        let ssa = ssa_gen::generate_ssa(program)?;
+        Ok(SsaBuilder { print_ssa_passes, ssa }.print("Initial SSA:"))
     }
 
     fn finish(self) -> Ssa {

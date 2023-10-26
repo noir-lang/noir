@@ -50,7 +50,7 @@ fn only_comment() {
 
 fn only_comments() {
     // Keep this here
-// Keep this here
+    // Keep this here
 }
 
 fn only_comments() {
