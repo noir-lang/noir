@@ -160,6 +160,7 @@ impl<'a> ModCollector<'a> {
                 trait_path: trait_name,
                 methods: unresolved_functions,
                 object_type: trait_impl.object_type,
+                generics: trait_impl.impl_generics,
                 trait_id: None, // will be filled later
             };
 
