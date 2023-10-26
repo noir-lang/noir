@@ -41,10 +41,24 @@ export function pedersenHashInputs(wasm: IWasmModule, inputs: Buffer[]): Buffer 
 export function pedersenHashWithHashIndex(wasm: IWasmModule, inputs: Buffer[], hashIndex: number): Buffer {
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
-  const inputVectors = serializeBufferArrayToVector(inputs);
-  wasm.writeMemory(0, inputVectors);
-  wasm.call('pedersen__compress_with_hash_index', 0, 0, hashIndex);
-  return Buffer.from(wasm.getMemorySlice(0, 32));
+
+  // Allocate memory for the inputs. We can optimize this
+  // by checking the length and copying the data to the
+  // wasm scratch space if it is small enough.
+  const data = serializeBufferArrayToVector(inputs);
+  const inputPtr = wasm.call('bbmalloc', data.length);
+  wasm.writeMemory(inputPtr, data);
+
+  // Since the output is 32 bytes, instead of allocating memory
+  // we can simply use the scratch space.
+  const outputPtr = 0;
+
+  wasm.call('pedersen__compress_with_hash_index', inputPtr, hashIndex, outputPtr);
+  const hashOutput = wasm.getMemorySlice(0, 32);
+
+  wasm.call('bbfree', inputPtr);
+
+  return Buffer.from(hashOutput);
 }
 
 /**

@@ -20,7 +20,7 @@ WASM_EXPORT void pedersen__compress(uint8_t const* inputs_buffer, uint8_t* outpu
     barretenberg::fr::serialize_to_buffer(r, output);
 }
 
-WASM_EXPORT void pedersen__compress_with_hash_index(uint8_t const* inputs_buffer, uint8_t* output, uint32_t hash_index)
+WASM_EXPORT void pedersen__compress_with_hash_index(uint8_t const* inputs_buffer, uint32_t hash_index, uint8_t* output)
 {
     std::vector<grumpkin::fq> to_compress;
     read(inputs_buffer, to_compress);
