@@ -60,6 +60,7 @@ impl<'f> Context<'f> {
         let mut slice_values = Vec::new();
         // Maps SSA array ID representing slice contents to its length and a list of its potential internal slices
         let mut slice_sizes: HashMap<ValueId, (usize, Vec<ValueId>)> = HashMap::default();
+        // let mut new_sizes: HashMap<ValueId, (usize, &[ValueId])> = HashMap::default();
         let mut mapped_slice_values = BTreeMap::new();
         for instruction in instructions.iter() {
             match &self.inserter.function.dfg[*instruction] {
@@ -74,17 +75,6 @@ impl<'f> Context<'f> {
                     let results = self.inserter.function.dfg.instruction_results(*instruction);
                     let res_typ = self.inserter.function.dfg.type_of_value(results[0]);
                     if res_typ.contains_slice_element() {
-                        // let inner_sizes =
-                        //     slice_sizes.get_mut(array).expect("ICE expected slice sizes");
-                        // inner_sizes.1.push(results[0]);
-                        // let inner_sizes_iter = inner_sizes.1.clone();
-                        // for slice_value in inner_sizes_iter {
-                        //     let inner_slice = slice_sizes
-                        //         .get(&slice_value)
-                        //         .unwrap_or_else(|| panic!("ICE: should have inner slice set for {slice_value}"));
-                        //     slice_sizes.insert(results[0], inner_slice.clone());
-                        //     // mapped_slice_values.insert(results[0], slice_value);
-                        // }
                         if let Some(inner_sizes) = slice_sizes.get_mut(array) {
                             inner_sizes.1.push(results[0]);
                             mapped_slice_values.insert(*array, results[0]);
@@ -126,15 +116,6 @@ impl<'f> Context<'f> {
                         mapped_slice_values.insert(*value, results[0]);
                     }
 
-                    // let array_typ = self.inserter.function.dfg.type_of_value(*array);
-                    // if array_typ.contains_slice_element() {
-                    //     let inner_sizes =
-                    //         slice_sizes.get_mut(array).expect(&format!("ICE expected slice sizes for {array}"));
-                    //     let inner_sizes = inner_sizes.clone();
-                    //     slice_sizes.insert(results[0], inner_sizes);
-                    //     // TODO: probably should include checks with array get as well
-                    //     mapped_slice_values.insert(*array, results[0]);
-                    // }
                     if let Some(inner_sizes) = slice_sizes.get_mut(array) {
                         // let inner_sizes =
                         // slice_sizes.get_mut(array).expect(&format!("ICE expected slice sizes for {array}"));
@@ -148,6 +129,57 @@ impl<'f> Context<'f> {
                         dbg!("got here");
                     }
                 }
+                Instruction::Call { func, arguments } => {
+                    let results = self.inserter.function.dfg.instruction_results(*instruction);
+
+                    let func = &self.inserter.function.dfg[*func];
+                    match func {
+                        Value::Intrinsic(intrinsic) => {
+                            let (argument_index, result_index) = match intrinsic {
+                                Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SlicePopBack | Intrinsic::SliceInsert | Intrinsic::SliceRemove => {
+                                    (1, 1)
+                                }
+                                Intrinsic::SlicePopFront => {
+                                    (1, 2)
+                                }
+                                _ => continue,
+                            };
+                            match intrinsic {
+                                Intrinsic::SlicePushBack
+                                | Intrinsic::SlicePushFront
+                                | Intrinsic::SliceInsert => {
+                                    let slice_contents = arguments[argument_index];
+                                    if let Some(inner_sizes) = slice_sizes.get_mut(&slice_contents) {
+                                        // dbg!(inner_sizes.clone());
+                                        inner_sizes.0 += 1;
+    
+                                        let inner_sizes = inner_sizes.clone();
+                                        slice_sizes.insert(results[result_index], inner_sizes);
+                
+                                        mapped_slice_values.insert(slice_contents, results[result_index]);       
+                                    }
+                                }
+                                Intrinsic::SlicePopBack
+                                | Intrinsic::SlicePopFront
+                                | Intrinsic::SliceRemove => {
+                                    let slice_contents = arguments[argument_index];
+                                    // We do not decrement the size on intrinsics that could remove values from a slice.
+                                    // This is because we could potentially go back to the smaller slice and not fill in dummies.
+                                    // This pass should be tracking the potential max that a slice ***could be***
+                                    if let Some(inner_sizes) = slice_sizes.get(&slice_contents) {    
+                                        let inner_sizes = inner_sizes.clone();
+                                        slice_sizes.insert(results[result_index], inner_sizes);
+                
+                                        mapped_slice_values.insert(slice_contents, results[result_index]);       
+                                    }
+                                }
+                                _ => {}
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+                
                 _ => {}
             }
         }
@@ -168,36 +200,20 @@ impl<'f> Context<'f> {
                 nested_slice_max = nested_depth;
             }
         }
-        dbg!(nested_slice_max);
-        dbg!(slice_values.clone());
-        dbg!(mapped_slice_values.clone());
-        for instruction in instructions {
 
+        for instruction in instructions {
             match &self.inserter.function.dfg[instruction] {
                 Instruction::ArrayGet { array, .. } => {
                     let typ = self.inserter.function.dfg.type_of_value(*array);
-                    // let mut new_array = None;
-                    // if matches!(typ, Type::Slice(_)) {
-                    //     if let Value::Array { .. } = self.inserter.function.dfg[*array] {
-                    //         new_array = Some(self.attach_slice_dummies(
-                    //             &typ,
-                    //             Some(*array),
-                    //             nested_slice_max,
-                    //         ));
-                    //     }
-                    // };
-                    // let mut new_array = None;
-                    // let res = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    // dbg!(res.clone());
                     if slice_values.contains(array) {
-                        let mut mapped_slice_value: crate::ssa::ir::map::Id<Value> = *array;
+                        let mut mapped_slice_value = *array;
                         Self::follow_mapped_slice_values(
                             *array,
                             &mapped_slice_values,
                             &mut mapped_slice_value,
                         );
                         let nested_slice_max = self.find_max_nested_depth(mapped_slice_value, &slice_sizes);
-                        // dbg!(nested_slice_max);
+                        dbg!(nested_slice_max);
                         let new_array = self.attach_slice_dummies(
                                 &typ,
                                 Some(*array),
@@ -229,14 +245,14 @@ impl<'f> Context<'f> {
                     let typ = self.inserter.function.dfg.type_of_value(*array);
 
                     if slice_values.contains(array) {
-                        let mut mapped_slice_value: crate::ssa::ir::map::Id<Value> = *array;
+                        let mut mapped_slice_value = *array;
                         Self::follow_mapped_slice_values(
                             *array,
                             &mapped_slice_values,
                             &mut mapped_slice_value,
                         );
                         let nested_slice_max = self.find_max_nested_depth(mapped_slice_value, &slice_sizes);
-
+                        dbg!(nested_slice_max);
                         let new_array = self.attach_slice_dummies(
                             &typ,
                             Some(*array),
