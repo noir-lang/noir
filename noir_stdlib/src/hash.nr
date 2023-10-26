@@ -46,6 +46,7 @@ fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field {
 global MIMC_BN254_ROUNDS = 91;
 
 //mimc implementation with hardcoded parameters for BN254 curve.
+#[field(bn254)]
 pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
     //mimc parameters
     let exponent = 7;
