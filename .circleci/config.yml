@@ -487,6 +487,17 @@ jobs:
           name: "Build"
           command: build mainnet-fork | add_timestamps
 
+  deploy-mainnet-fork:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: medium
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Deploy mainnet fork"
+          command: deploy_ecr mainnet-fork
+
   aztec-faucet:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -1235,6 +1246,10 @@ workflows:
       - noir-contracts-build: *defaults
 
       - mainnet-fork: *defaults
+      - deploy-mainnet-fork:
+          requires:
+            - mainnet-fork
+          <<: *deploy_defaults
 
       # Yarn Project
       - yarn-project-base:

@@ -228,7 +228,7 @@ resource "aws_ecs_service" "aztec_mainnet_fork" {
   }
 
   load_balancer {
-    target_group_arn = aws_alb_target_group.aztec_mainnet_fork.arn
+    target_group_arn = aws_alb_target_group.mainnet_fork.arn
     container_name   = "aztec-network-mainnet-fork"
     container_port   = 80
   }
@@ -253,7 +253,7 @@ resource "aws_lb_listener_rule" "aztec_mainnet_fork_route" {
 
   action {
     type             = "forward"
-    target_group_arn = aws_alb_target_group.aztec_mainnet_fork.arn
+    target_group_arn = aws_alb_target_group.mainnet_fork.arn
   }
 
   condition {
