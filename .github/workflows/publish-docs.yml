@@ -26,7 +26,7 @@ jobs:
           node-version: '18'
 
       - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
+        run: yarn
     
         # sets the stable version to be the latest stable release
       - name: Get latest release
