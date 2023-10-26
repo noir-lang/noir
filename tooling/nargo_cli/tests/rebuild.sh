@@ -42,13 +42,14 @@ for dir in $base_path/*; do
       # Delete the JSON file after extracting bytecode field
       rm ./target/${dir_name}.json
 
-      # Delete the target directory in acir_artifacts if it exists
+      # Clear the target directory in acir_artifacts
       if [ -d "$current_dir/acir_artifacts/$dir_name/target" ]; then
         rm -r "$current_dir/acir_artifacts/$dir_name/target"
       fi
+      mkdir $current_dir/acir_artifacts/$dir_name/target
       
-      # Move the target directory to the corresponding directory in acir_artifacts
-      mv ./target/ $current_dir/acir_artifacts/$dir_name/
+      # Move the artifacts from the target directory to the corresponding directory in acir_artifacts
+      mv ./target/*.gz $current_dir/acir_artifacts/$dir_name/target/
 
       cd $base_path
   fi
