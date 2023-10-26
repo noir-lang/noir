@@ -151,7 +151,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 // This must be an error to appear next to the previous OverlappingImpl
                 // error since we sort warnings first.
                 Diagnostic::simple_error(
-                    format!("Previous impl defined here"),
+                    "Previous impl defined here".into(),
                     "Previous impl defined here".into(),
                     span,
                 )

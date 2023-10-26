@@ -953,7 +953,7 @@ impl NodeInterner {
     ) -> Option<Shared<TraitImpl>> {
         let impls = self.trait_implementation_map.get(&trait_id)?;
         for (existing_object_type, impl_id) in impls {
-            if object_type.try_unify(&existing_object_type).is_ok() {
+            if object_type.try_unify(existing_object_type).is_ok() {
                 return Some(self.get_trait_implementation(*impl_id));
             }
         }
@@ -974,7 +974,7 @@ impl NodeInterner {
 
         // Check that this new impl does not overlap with any existing impls first
         for (existing_object_type, existing_impl_id) in entries {
-            if object_type.try_unify(&existing_object_type).is_ok() {
+            if object_type.try_unify(existing_object_type).is_ok() {
                 // Overlapping impl
                 let existing_impl = &self.trait_implementations[existing_impl_id.0];
                 let existing_impl = existing_impl.borrow();
