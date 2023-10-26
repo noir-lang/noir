@@ -31,12 +31,12 @@ verification_key_data rand_vk_data()
 }
 
 /**
- * @brief expect that two vk data compressions are equal for a few different hash indices
+ * @brief expect that two vk data hashes are equal for a few different hash indices
  *
  * @param vk0_data
  * @param vk1_data
  */
-void expect_compressions_eq(const verification_key_data& vk0_data, const verification_key_data& vk1_data)
+void expect_hashes_eq(const verification_key_data& vk0_data, const verification_key_data& vk1_data)
 {
     // 0 hash index
     EXPECT_EQ(vk0_data.hash_native(0), vk1_data.hash_native(0));
@@ -45,16 +45,16 @@ void expect_compressions_eq(const verification_key_data& vk0_data, const verific
 }
 
 /**
- * @brief expect that two vk data compressions are not-equal for a few different hash indices
+ * @brief expect that two vk data hashes are not-equal for a few different hash indices
  *
  * @param vk0_data
  * @param vk1_data
  */
-void expect_compressions_ne(const verification_key_data& vk0_data, const verification_key_data& vk1_data)
+void expect_hashes_ne(const verification_key_data& vk0_data, const verification_key_data& vk1_data)
 {
     EXPECT_NE(vk0_data.hash_native(0), vk1_data.hash_native(0));
     // EXPECT_NE(vk0_data.hash_native(15), vk1_data.hash_native(15));
-    // ne hash indices still lead to ne compressions
+    // ne hash indices still lead to ne hashes
     // EXPECT_NE(vk0_data.hash_native(0), vk1_data.hash_native(15));
     // EXPECT_NE(vk0_data.hash_native(14), vk1_data.hash_native(15));
 }
@@ -82,14 +82,14 @@ TEST(VerificationKey, StreamSerialization)
     EXPECT_EQ(vk_data, result);
 }
 
-TEST(VerificationKey, BasicCompressionEquality)
+TEST(VerificationKey, BasicHashEquality)
 {
     verification_key_data vk0_data = rand_vk_data();
     verification_key_data vk1_data = vk0_data; // copy
-    expect_compressions_eq(vk0_data, vk1_data);
+    expect_hashes_eq(vk0_data, vk1_data);
 }
 
-TEST(VerificationKey, CompressionInequalityIndexMismatch)
+TEST(VerificationKey, HashInequalityIndexMismatch)
 {
     verification_key_data vk0_data = rand_vk_data();
     verification_key_data vk1_data = vk0_data; // copy
@@ -98,60 +98,60 @@ TEST(VerificationKey, CompressionInequalityIndexMismatch)
     // EXPECT_NE(vk0_data.hash_native(14), vk1_data.hash_native(15));
 }
 
-TEST(VerificationKey, CompressionInequalityCircuitType)
+TEST(VerificationKey, HashInequalityCircuitType)
 {
     verification_key_data vk0_data = rand_vk_data();
     verification_key_data vk1_data = vk0_data; // copy
     vk0_data.circuit_type = static_cast<uint32_t>(CircuitType::ULTRA);
-    expect_compressions_ne(vk0_data, vk1_data);
+    expect_hashes_ne(vk0_data, vk1_data);
 }
 
-TEST(VerificationKey, CompressionInequalityDifferentCircuitSize)
+TEST(VerificationKey, HashInequalityDifferentCircuitSize)
 {
     verification_key_data vk0_data = rand_vk_data();
     verification_key_data vk1_data = vk0_data;
     vk0_data.circuit_size = 4096;
-    expect_compressions_ne(vk0_data, vk1_data);
+    expect_hashes_ne(vk0_data, vk1_data);
 }
 
-TEST(VerificationKey, CompressionInequalityDifferentNumPublicInputs)
+TEST(VerificationKey, HashInequalityDifferentNumPublicInputs)
 {
     verification_key_data vk0_data = rand_vk_data();
     verification_key_data vk1_data = vk0_data;
     vk0_data.num_public_inputs = 42;
-    expect_compressions_ne(vk0_data, vk1_data);
+    expect_hashes_ne(vk0_data, vk1_data);
 }
 
-TEST(VerificationKey, CompressionInequalityDifferentCommitments)
+TEST(VerificationKey, HashInequalityDifferentCommitments)
 {
     verification_key_data vk0_data = rand_vk_data();
     verification_key_data vk1_data = vk0_data;
     vk0_data.commitments["test1"] = g1::element::random_element();
-    expect_compressions_ne(vk0_data, vk1_data);
+    expect_hashes_ne(vk0_data, vk1_data);
 }
 
-TEST(VerificationKey, CompressionInequalityDifferentNumCommitments)
+TEST(VerificationKey, HashInequalityDifferentNumCommitments)
 {
     verification_key_data vk0_data = rand_vk_data();
     verification_key_data vk1_data = vk0_data;
     vk0_data.commitments["new"] = g1::element::random_element();
-    expect_compressions_ne(vk0_data, vk1_data);
+    expect_hashes_ne(vk0_data, vk1_data);
 }
 
-TEST(VerificationKey, CompressionEqualityDifferentContainsRecursiveProof)
+TEST(VerificationKey, HashEqualityDifferentContainsRecursiveProof)
 {
     verification_key_data vk0_data = rand_vk_data();
     verification_key_data vk1_data = vk0_data;
     vk0_data.contains_recursive_proof = false;
     vk1_data.contains_recursive_proof = true;
-    expect_compressions_eq(vk0_data, vk1_data);
+    expect_hashes_eq(vk0_data, vk1_data);
 }
 
-TEST(VerificationKey, CompressionEqualityDifferentRecursiveProofPublicInputIndices)
+TEST(VerificationKey, HashEqualityDifferentRecursiveProofPublicInputIndices)
 {
     verification_key_data vk0_data = rand_vk_data();
     verification_key_data vk1_data = vk0_data;
     vk1_data.recursive_proof_public_input_indices.push_back(42);
-    expect_compressions_eq(vk0_data, vk1_data);
+    expect_hashes_eq(vk0_data, vk1_data);
 }
 } // namespace proof_system::plonk::test_verification_key

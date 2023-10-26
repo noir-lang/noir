@@ -46,8 +46,8 @@ std::array<uint8_t, Keccak256Hasher::PRNG_OUTPUT_SIZE> Keccak256Hasher::hash(std
 std::array<uint8_t, Blake3sHasher::PRNG_OUTPUT_SIZE> Blake3sHasher::hash(std::vector<uint8_t> const& buffer)
 {
     grumpkin::fq input = grumpkin::fq::serialize_from_buffer(&buffer[0]);
-    grumpkin::fq compressed = crypto::pedersen_hash::hash({ input });
-    std::vector<uint8_t> res = to_buffer(compressed);
+    grumpkin::fq hashed = crypto::pedersen_hash::hash({ input });
+    std::vector<uint8_t> res = to_buffer(hashed);
     std::array<uint8_t, PRNG_OUTPUT_SIZE> result;
     for (size_t i = 0; i < PRNG_OUTPUT_SIZE; ++i) {
         result[i] = res[i];
@@ -217,8 +217,8 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
         break;
     }
     case HashType::PedersenBlake3s: {
-        std::vector<uint8_t> compressed_buffer = to_buffer(crypto::pedersen_hash::hash_buffer(buffer));
-        base_hash = Blake3sHasher::hash(compressed_buffer);
+        std::vector<uint8_t> hashed_buffer = to_buffer(crypto::pedersen_hash::hash_buffer(buffer));
+        base_hash = Blake3sHasher::hash(hashed_buffer);
         break;
     }
     default: {

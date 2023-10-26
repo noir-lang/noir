@@ -67,7 +67,7 @@ export async function buildPayload(calls: FunctionCall[]): Promise<{
   };
 }
 
-/** Compresses an entrypoint payload to a 32-byte buffer (useful for signing) */
+/** Hashes an entrypoint payload to a 32-byte buffer (useful for signing) */
 export async function hashPayload(payload: EntrypointPayload) {
   return pedersenHashWithHashIndex(
     await CircuitsWasm.get(),

@@ -63,7 +63,7 @@ TYPED_TEST(VerificationKeyFixture, VkDataVsRecursionHashNative)
 
     EXPECT_EQ(vk_data.hash_native(0), RecursVk::hash_native(native_vk, 0));
     // EXPECT_EQ(vk_data.hash_native(15), RecursVk::hash_native(native_vk, 15));
-    // // ne hash indeces still lead to ne compressions
+    // // ne hash indices still lead to ne hashes
     // EXPECT_NE(vk_data.hash_native(0), RecursVk::hash_native(native_vk, 15));
     // EXPECT_NE(vk_data.hash_native(14), RecursVk::hash_native(native_vk, 15));
 }

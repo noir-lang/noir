@@ -14,11 +14,10 @@ namespace proof_system::plonk {
  * defined in polynomials/evaluation_domain.hpp, and `polynomial` is a bberg library which does not depend on `crypto`
  * in its CMakeLists.txt file. (We'd need `crypto` to be able to call native pedersen functions).
  *
- * @param domain to compress
- * @param circuit_type to use when choosing pedersen compression function
- * @return barretenberg::fr compression of the evaluation domain as a field
+ * @param domain to hash
+ * @return barretenberg::fr hash of the evaluation domain as a field
  */
-barretenberg::fr hash_native_evaluation_domain(barretenberg::evaluation_domain const& domain, proof_system::CircuitType)
+barretenberg::fr hash_native_evaluation_domain(barretenberg::evaluation_domain const& domain)
 {
     barretenberg::fr out = crypto::pedersen_hash::hash({
         domain.root,
@@ -30,14 +29,14 @@ barretenberg::fr hash_native_evaluation_domain(barretenberg::evaluation_domain c
 }
 
 /**
- * @brief Compress the verification key data.
+ * @brief Hash the verification key data.
  *
- * @details Native pedersen compression of VK data that is truly core to a VK.
+ * @details Native pedersen hash of VK data that is truly core to a VK.
  * Omits recursion proof flag and recursion input indices as they are not really
  * core to the VK itself.
  *
- * @param hash_index generator index to use during pedersen compression
- * @returns a field containing the compression
+ * @param hash_index generator index to use during pedersen hashing
+ * @returns a field containing the hash
  */
 barretenberg::fr verification_key_data::hash_native(const size_t hash_index) const
 {

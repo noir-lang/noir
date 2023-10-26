@@ -12,7 +12,7 @@ export class PedersenWithCounter extends Pedersen {
   public hashCounter = 0;
 
   /**
-   * Compresses two 32-byte hashes.
+   * Hashes two 32-byte arrays.
    * @param lhs - The first 32-byte array.
    * @param rhs - The second 32-byte array.
    * @returns The new 32-byte hash.

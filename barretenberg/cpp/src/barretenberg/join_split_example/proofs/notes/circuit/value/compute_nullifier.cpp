@@ -25,11 +25,12 @@ field_ct compute_nullifier(field_ct const& note_commitment,
         is_note_in_use,
     };
 
-    // We compress the hash_inputs with Pedersen, because that's cheaper (constraint-wise) than compressing
+    // We hash the `hash_inputs` with Pedersen, because that's cheaper (constraint-wise) than hashing
     // the data directly with Blake2s in the next step.
-    const auto compressed_inputs = pedersen_hash::hash(hash_inputs, GeneratorIndex::JOIN_SPLIT_NULLIFIER);
+    const auto hashed_inputs = pedersen_hash::hash(hash_inputs, GeneratorIndex::JOIN_SPLIT_NULLIFIER);
 
-    // Blake2s hash the compressed result. Without this it's possible to leak info from the pedersen compression.
+    // Blake2s hash the pedersen hash's result. Without this it's possible to leak info from the pedersen hash because
+    // it is not a random oracle.
     /** E.g. we can extract a representation of the hashed_pk:
      * Paraphrasing, if:
      *     nullifier = note_comm * G1 + hashed_pk * G2 + is_note_in_use * G3
@@ -38,7 +39,7 @@ field_ct compute_nullifier(field_ct const& note_commitment,
      * Notably, at the point someone withdraws, the observer would be able to connect `hashed_pk * G2` with a specific
      * eth address.
      */
-    auto blake_input = byte_array_ct(compressed_inputs);
+    auto blake_input = byte_array_ct(hashed_inputs);
     auto blake_result = proof_system::plonk::stdlib::blake2s(blake_input);
     return field_ct(blake_result);
 }
