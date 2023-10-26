@@ -345,6 +345,14 @@ impl FunctionBuilder {
     }
 
     /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
+    /// Pseudo-code of the computation:
+    /// let mut r = 1;
+    /// let rhs_bits = to_bits(rhs);
+    /// for i in 1 .. bit_size + 1 {
+    ///     let r_squared = r * r;
+    ///     let b = rhs_bits[bit_size - i];
+    ///     r = (r_squared * lhs * b) + (1 - b) * r_squared;
+    /// }
     pub(crate) fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let typ = self.current_function.dfg.type_of_value(rhs);
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
@@ -357,14 +365,14 @@ impl FunctionBuilder {
             let one = self.field_constant(FieldElement::one());
             let mut r = one;
             for i in 1..bit_size + 1 {
-                let r1 = self.insert_binary(r, BinaryOp::Mul, r);
-                let a = self.insert_binary(r1, BinaryOp::Mul, lhs);
+                let r_squared = self.insert_binary(r, BinaryOp::Mul, r);
+                let a = self.insert_binary(r_squared, BinaryOp::Mul, lhs);
                 let idx = self.field_constant(FieldElement::from((bit_size - i) as i128));
                 let b = self.insert_array_get(rhs_bits, idx, Type::field());
-                let r2 = self.insert_binary(a, BinaryOp::Mul, b);
+                let r1 = self.insert_binary(a, BinaryOp::Mul, b);
                 let c = self.insert_binary(one, BinaryOp::Sub, b);
-                let r3 = self.insert_binary(c, BinaryOp::Mul, r1);
-                r = self.insert_binary(r2, BinaryOp::Add, r3);
+                let r2 = self.insert_binary(c, BinaryOp::Mul, r_squared);
+                r = self.insert_binary(r1, BinaryOp::Add, r2);
             }
             r
         } else {
