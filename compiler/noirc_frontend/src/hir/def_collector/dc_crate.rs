@@ -92,6 +92,7 @@ pub struct UnresolvedTraitImpl {
     pub trait_path: Path,
     pub object_type: UnresolvedType,
     pub methods: UnresolvedFunctions,
+    pub generics: UnresolvedGenerics,
 }
 
 #[derive(Clone)]
@@ -529,6 +530,7 @@ fn collect_trait_impl(
         let path_resolver = StandardPathResolver::new(module);
         let file = def_maps[&crate_id].file_id(trait_impl.module_id);
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+        resolver.add_generics(&trait_impl.generics);
         let typ = resolver.resolve_type(unresolved_type);
         errors.extend(take_errors(trait_impl.file_id, resolver));
 
@@ -964,13 +966,11 @@ fn resolve_trait_impls(
 
         let self_type_span = unresolved_type.span;
 
-        let self_type = {
-            let mut resolver =
-                Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
-            resolver.resolve_type(unresolved_type.clone())
-        };
-
-        let maybe_trait_id = trait_impl.trait_id;
+        let mut resolver =
+            Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
+        resolver.add_generics(&trait_impl.generics);
+        let self_type = resolver.resolve_type(unresolved_type.clone());
+        let generics = resolver.get_generics().to_vec();
 
         let mut impl_methods = resolve_function_set(
             interner,
@@ -978,10 +978,11 @@ fn resolve_trait_impls(
             &context.def_maps,
             trait_impl.methods.clone(),
             Some(self_type.clone()),
-            vec![], // TODO
+            generics,
             errors,
         );
 
+        let maybe_trait_id = trait_impl.trait_id;
         if let Some(trait_id) = maybe_trait_id {
             for (_, func) in &impl_methods {
                 interner.set_function_trait(*func, self_type.clone(), trait_id);
