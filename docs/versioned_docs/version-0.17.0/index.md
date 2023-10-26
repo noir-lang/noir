@@ -97,3 +97,5 @@ Some libraries that are available today include:
 - [Fraction](https://github.com/resurgencelabs/fraction) - a library for accessing fractional number data type in Noir, allowing results that aren't whole numbers
 
 See the section on [dependencies](./modules_packages_crates/dependencies) for more information.
+
+I'm stable
