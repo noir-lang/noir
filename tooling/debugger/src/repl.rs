@@ -55,11 +55,6 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         }
     }
 
-    fn handle_debug_command_result(&mut self, result: DebugCommandResult) {
-        self.last_result = result;
-        self.show_current_vm_status();
-    }
-
     fn print_location_path(&self, loc: Location) {
         let line_number = self.debug_artifact.location_line_number(loc).unwrap();
         let column_number = self.debug_artifact.location_column_number(loc).unwrap();
@@ -139,6 +134,11 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                 false
             }
         }
+    }
+
+    fn handle_debug_command_result(&mut self, result: DebugCommandResult) {
+        self.last_result = result;
+        self.show_current_vm_status();
     }
 
     fn step_acir_opcode(&mut self) {

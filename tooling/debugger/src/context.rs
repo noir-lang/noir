@@ -70,6 +70,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                     self.handle_acvm_status(status)
                 }
                 BrilligSolverStatus::ForeignCallWait(foreign_call) => {
+                    self.brillig_solver = Some(solver);
                     self.handle_foreign_call(foreign_call)
                 }
             },
