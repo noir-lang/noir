@@ -6,13 +6,13 @@ import {
   PublicKernelPublicInputs,
   makeEmptyProof,
 } from '@aztec/circuits.js';
-import { Tx, TxHash, TxL2Logs } from '@aztec/types';
+import { ExtendedContractData, Tx, TxHash, TxL2Logs } from '@aztec/types';
 
 /**
  * Represents a tx that has been processed by the sequencer public processor,
  * so its kernel circuit public inputs are filled in.
  */
-export type ProcessedTx = Pick<Tx, 'proof' | 'encryptedLogs' | 'unencryptedLogs'> & {
+export type ProcessedTx = Pick<Tx, 'proof' | 'encryptedLogs' | 'unencryptedLogs' | 'newContracts'> & {
   /**
    * Output of the public kernel circuit for this tx.
    */
@@ -78,6 +78,7 @@ export async function makeProcessedTx(
     proof: proof ?? tx.proof,
     encryptedLogs: tx.encryptedLogs,
     unencryptedLogs: tx.unencryptedLogs,
+    newContracts: tx.newContracts,
     isEmpty: false,
   };
 }
@@ -104,6 +105,7 @@ export function makeEmptyProcessedTx(
     unencryptedLogs: new TxL2Logs([]),
     data: emptyKernelOutput,
     proof: emptyProof,
+    newContracts: [ExtendedContractData.empty()],
     isEmpty: true,
   });
 }

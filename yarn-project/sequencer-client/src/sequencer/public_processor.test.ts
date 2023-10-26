@@ -97,6 +97,7 @@ describe('public_processor', () => {
           proof: tx.proof,
           encryptedLogs: tx.encryptedLogs,
           unencryptedLogs: tx.unencryptedLogs,
+          newContracts: tx.newContracts,
         },
       ]);
       expect(failed).toEqual([]);

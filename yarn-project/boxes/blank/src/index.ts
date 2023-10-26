@@ -14,6 +14,7 @@ import {
 } from '@aztec/aztec.js';
 import { ContractArtifact, FunctionArtifact, encodeArguments } from '@aztec/foundation/abi';
 import { FieldsOf } from '@aztec/foundation/types';
+
 // docs:end:imports
 
 export const contractArtifact: ContractArtifact = BlankContractArtifact;

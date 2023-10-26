@@ -28,6 +28,7 @@ import {
   RollupBytecode,
 } from '@aztec/l1-artifacts';
 import { PXEService, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
+import { SequencerClient } from '@aztec/sequencer-client';
 import { AztecNode, L2BlockL2Logs, LogType, PXE, createAztecNodeRpcClient } from '@aztec/types';
 
 import * as path from 'path';
@@ -193,6 +194,7 @@ async function setupWithSandbox(account: Account, config: AztecNodeConfig, logge
   const teardown = () => Promise.resolve();
   return {
     aztecNode,
+    sequencer: undefined,
     pxe: pxeClient,
     deployL1ContractsValues,
     accounts: await pxeClient!.getRegisteredAccounts(),
@@ -212,6 +214,8 @@ type SetupOptions = { /** State load */ stateLoad?: string } & Partial<AztecNode
 export type EndToEndContext = {
   /** The Aztec Node service or client a connected to it. */
   aztecNode: AztecNode | undefined;
+  /** A client to the sequencer service */
+  sequencer: SequencerClient | undefined;
   /** The Private eXecution Environment (PXE). */
   pxe: PXE;
   /** Return values from deployL1Contracts function. */
@@ -273,6 +277,7 @@ export async function setup(numberOfAccounts = 1, opts: SetupOptions = {}): Prom
 
   logger('Creating and synching an aztec node...');
   const aztecNode = await AztecNodeService.createAndSync(config);
+  const sequencer = aztecNode.getSequencer();
 
   const { pxe, accounts, wallets } = await setupPXEService(numberOfAccounts, aztecNode!, logger);
 
@@ -293,6 +298,7 @@ export async function setup(numberOfAccounts = 1, opts: SetupOptions = {}): Prom
     wallets,
     logger,
     cheatCodes,
+    sequencer,
     teardown,
   };
 }

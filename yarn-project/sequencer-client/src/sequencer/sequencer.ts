@@ -201,7 +201,7 @@ export class Sequencer {
 
       await assertBlockHeight();
 
-      await this.publishExtendedContractData(validTxs, block);
+      await this.publishExtendedContractData(processedValidTxs, block);
 
       await assertBlockHeight();
 
@@ -218,16 +218,13 @@ export class Sequencer {
    * @param validTxs - The set of real transactions being published as part of the block.
    * @param block - The L2Block to be published.
    */
-  protected async publishExtendedContractData(validTxs: Tx[], block: L2Block) {
+  protected async publishExtendedContractData(validTxs: ProcessedTx[], block: L2Block) {
     // Publishes contract data for txs to the network and awaits the tx to be mined
     this.state = SequencerState.PUBLISHING_CONTRACT_DATA;
     const newContractData = validTxs
       .map(tx => {
         // Currently can only have 1 new contract per tx
-        const newContract = tx.data?.end.newContracts[0];
-        if (newContract) {
-          return tx.newContracts[0];
-        }
+        return tx.newContracts[0];
       })
       .filter((cd): cd is Exclude<typeof cd, undefined> => cd !== undefined);
 

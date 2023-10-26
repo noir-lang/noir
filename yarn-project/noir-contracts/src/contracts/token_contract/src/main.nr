@@ -36,8 +36,8 @@ contract Token {
     // docs:start:import_authwit
     use dep::authwit::{
         auth::{
-            assert_current_call_valid_authwit, 
-            assert_current_call_valid_authwit_public, 
+            assert_current_call_valid_authwit,
+            assert_current_call_valid_authwit_public,
         },
     };
     // docs:end:import_authwit
@@ -363,6 +363,7 @@ contract Token {
     internal fn _initialize(
         new_admin: AztecAddress,
     ) {
+        assert(new_admin.address != 0, "invalid admin");
         storage.admin.write(new_admin);
         storage.minters.at(new_admin.address).write(true);
     }
