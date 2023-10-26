@@ -27,13 +27,22 @@ struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
     circuit: &'backend Circuit,
     show_output: bool,
     debug_states: HashMap<FileId,DebugState>,
+    current_file: Option<FileId>,
 }
 
 impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
-    pub fn get_current_file(&self) -> FileId {
-        let location = self.acvm.location().unwrap();
-        let locs = self.debug_artifact.debug_symbols[0].opcode_location(&location).unwrap();
-        locs.first().unwrap().file
+    pub fn get_current_file(&mut self) -> FileId {
+        let mut file: Option<FileId> = self.acvm.location().and_then(|loc| {
+            self.debug_artifact.debug_symbols[0].opcode_location(&loc).and_then(|locs| {
+                locs.first().map(|f| f.file)
+            })
+        });
+        if file.is_none() {
+            file = self.current_file.clone();
+        } else {
+            self.current_file = file.clone();
+        }
+        file.unwrap()
     }
 
     fn step_opcode(&mut self) -> Result<SolveResult, NargoError> {
@@ -156,6 +165,7 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
         debug_artifact,
         show_output,
         debug_states,
+        current_file: None,
     });
     let ref_step = &context;
     let ref_cont = &context;
@@ -197,7 +207,7 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
             command! {
                 "show variable values available at this point in execution",
                 () => || {
-                    let ctx = ref_cont.borrow_mut();
+                    let mut ctx = ref_cont.borrow_mut();
                     let file_id = ctx.get_current_file();
                     let vars = ctx.debug_states.get(&file_id).unwrap().get_values();
                     println!("{:?}", vars);

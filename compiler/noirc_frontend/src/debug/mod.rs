@@ -13,6 +13,7 @@ use noirc_errors::{Span, Spanned};
 
 // set empty locations to make the instructions skippable
 
+#[derive(Debug,Clone)]
 pub struct DebugState {
     pub var_id_to_name: HashMap<u32,String>,
     pub var_name_to_id: HashMap<String,u32>,
