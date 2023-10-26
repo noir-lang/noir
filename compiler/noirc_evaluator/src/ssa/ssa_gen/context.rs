@@ -265,8 +265,6 @@ impl<'a> FunctionContext<'a> {
         Ok(self.builder.numeric_constant(value, typ))
     }
 
-    
-
     /// Insert a binary instruction at the end of the current block.
     /// Converts the form of the binary instruction as necessary
     /// (e.g. swapping arguments, inserting a not) to represent it in the IR.
