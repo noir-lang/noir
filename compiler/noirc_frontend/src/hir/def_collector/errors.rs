@@ -57,13 +57,18 @@ pub enum DefCollectorErrorKind {
     ModuleAlreadyPartOfCrate { mod_name: Ident, span: Span },
     #[error("Module was originally declared here")]
     ModuleOriginallyDefined { mod_name: Ident, span: Span },
-    #[cfg(feature = "aztec")]
-    #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
-    AztecNotFound {},
     #[error(
         "Either the type or the trait must be from the same crate as the trait implementation"
     )]
     TraitImplOrphaned { span: Span },
+
+    // Aztec feature flag errors
+    #[cfg(feature = "aztec")]
+    #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
+    AztecNotFound {},
+    #[cfg(feature = "aztec")]
+    #[error("compute_note_hash_and_nullifier function not found. Define it in your contract.")]
+    AztecComputeNoteHashAndNullifierNotFound { span: Span },
 }
 
 impl DefCollectorErrorKind {
@@ -194,14 +199,20 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 let secondary = String::new();
                 Diagnostic::simple_error(message, secondary, span)
             }
-            #[cfg(feature = "aztec")]
-            DefCollectorErrorKind::AztecNotFound {} => Diagnostic::from_message(
-                "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml",
-            ),
             DefCollectorErrorKind::TraitImplOrphaned { span } => Diagnostic::simple_error(
                 "Orphaned trait implementation".into(),
                 "Either the type or the trait must be from the same crate as the trait implementation".into(),
                 span,
+            ),
+            #[cfg(feature = "aztec")]
+            DefCollectorErrorKind::AztecNotFound {} => Diagnostic::from_message(
+                "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml",
+            ),
+            #[cfg(feature = "aztec")]
+            DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound  {span} => Diagnostic::simple_error(
+                "compute_note_hash_and_nullifier function not found. Define it in your contract.".into(),
+                "".into(),
+                span
             ),
         }
     }
