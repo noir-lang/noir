@@ -24,8 +24,8 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install dependencies
-        run: yarn
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
     
       - name: Cut a new version
         working-directory: ./docs
