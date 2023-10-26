@@ -22,25 +22,6 @@ export class BarretenbergApi {
     return;
   }
 
-  async pedersenCompressFields(left: Fr, right: Fr): Promise<Fr> {
-    const result = await this.binder.callWasmExport('pedersen___compress_fields', [left, right], [Fr]);
-    return result[0];
-  }
-
-  async pedersenCompress(inputsBuffer: Fr[]): Promise<Fr> {
-    const result = await this.binder.callWasmExport('pedersen___compress', [inputsBuffer], [Fr]);
-    return result[0];
-  }
-
-  async pedersenCompressWithHashIndex(inputsBuffer: Fr[], hashIndex: number): Promise<Fr> {
-    const result = await this.binder.callWasmExport(
-      'pedersen___compress_with_hash_index',
-      [inputsBuffer, hashIndex],
-      [Fr],
-    );
-    return result[0];
-  }
-
   async pedersenCommit(inputsBuffer: Fr[]): Promise<Fr> {
     const result = await this.binder.callWasmExport('pedersen___commit', [inputsBuffer], [Fr]);
     return result[0];
@@ -51,37 +32,8 @@ export class BarretenbergApi {
     return;
   }
 
-  async pedersenHash(inputsBuffer: Fr[]): Promise<Fr> {
-    const result = await this.binder.callWasmExport('pedersen_hash', [inputsBuffer], [Fr]);
-    return result[0];
-  }
-
   async pedersenHashWithHashIndex(inputsBuffer: Fr[], hashIndex: number): Promise<Fr> {
     const result = await this.binder.callWasmExport('pedersen_hash_with_hash_index', [inputsBuffer, hashIndex], [Fr]);
-    return result[0];
-  }
-
-  async pedersenHashPair(left: Fr, right: Fr): Promise<Fr> {
-    const result = await this.binder.callWasmExport('pedersen_hash_pair', [left, right], [Fr]);
-    return result[0];
-  }
-
-  async pedersenHashMultiple(inputsBuffer: Fr[]): Promise<Fr> {
-    const result = await this.binder.callWasmExport('pedersen_hash_multiple', [inputsBuffer], [Fr]);
-    return result[0];
-  }
-
-  async pedersenHashMultipleWithHashIndex(inputsBuffer: Fr[], hashIndex: number): Promise<Fr> {
-    const result = await this.binder.callWasmExport(
-      'pedersen_hash_multiple_with_hash_index',
-      [inputsBuffer, hashIndex],
-      [Fr],
-    );
-    return result[0];
-  }
-
-  async pedersenHashToTree(data: Fr[]): Promise<Fr[]> {
-    const result = await this.binder.callWasmExport('pedersen_hash_to_tree', [data], [VectorDeserializer(Fr)]);
     return result[0];
   }
 
