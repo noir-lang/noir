@@ -60,8 +60,5 @@ pub fn wrapping_mul<T>(x : T, y: T) -> T {
     crate::from_field(crate::as_field(x) * crate::as_field(y))
 }
 
-#[builtin(as_field)]
+#[builtin(wrapping_shift_left)]
 pub fn wrapping_shift_left<T>(x : T, y: T) -> T {}
-// pub fn wrapping_shift_left<T>(x : T, y: T) -> T {
-//     crate::from_field(crate::as_field(x) * 2.pow_32(crate::as_field(y)))
-// }
