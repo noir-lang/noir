@@ -76,7 +76,7 @@ jobs:
             cd docs && STABLE=$LATEST_STABLE yarn setStable
 
       - name: Cut a new version
-        run: cd docs && yarn docusaurus docs:version 0.17.0-test
+        run: cd docs && cat docusaurus.config.js && yarn docusaurus docs:version 0.18.0-test
 
 
         # should cut a new version, but set the latest as stable (0.17.0)
