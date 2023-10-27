@@ -263,12 +263,17 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     }
 
     fn restart_session(&mut self) {
+        let breakpoints: Vec<OpcodeLocation> =
+            self.context.iterate_breakpoints().cloned().collect();
         self.context = DebugContext::new(
             self.blackbox_solver,
             self.circuit,
             self.debug_artifact,
             self.initial_witness.clone(),
         );
+        for opcode_location in breakpoints {
+            self.context.add_breakpoint(opcode_location);
+        }
         self.last_result = DebugCommandResult::Ok;
         println!("Restarted debugging session.");
         self.show_current_vm_status();

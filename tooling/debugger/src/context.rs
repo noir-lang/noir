@@ -10,7 +10,7 @@ use nargo::errors::{ExecutionError, Location};
 use nargo::ops::ForeignCallExecutor;
 use nargo::NargoError;
 
-use std::collections::HashSet;
+use std::collections::{hash_set::Iter, HashSet};
 
 #[derive(Debug)]
 pub(super) enum DebugCommandResult {
@@ -220,6 +220,10 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
 
     pub(super) fn delete_breakpoint(&mut self, location: &OpcodeLocation) {
         _ = self.breakpoints.remove(location);
+    }
+
+    pub(super) fn iterate_breakpoints(&self) -> Iter<'_, OpcodeLocation> {
+        self.breakpoints.iter()
     }
 
     pub(super) fn is_solved(&self) -> bool {
