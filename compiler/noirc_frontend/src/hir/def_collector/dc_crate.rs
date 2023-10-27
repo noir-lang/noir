@@ -13,9 +13,7 @@ use crate::hir::resolution::{
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
 use crate::hir_def::traits::{Trait, TraitConstant, TraitFunction, TraitImpl, TraitType};
-use crate::node_interner::{
-    FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplKey, TypeAliasId,
-};
+use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
 
 use crate::parser::{ParserError, SortedModule};
 use crate::{
@@ -331,7 +329,6 @@ impl DefCollector {
             def_collector.collected_impls,
             &mut errors,
         );
-        // resolve_trait_impls can fill different type of errors, therefore we pass errors by mut ref
         let file_trait_impls_ids = resolve_trait_impls(
             context,
             def_collector.collected_traits_impls,
@@ -930,7 +927,7 @@ fn resolve_impls(
                     let method_name = interner.function_name(method_id).to_owned();
 
                     if let Some(first_fn) =
-                        interner.add_method(&self_type, method_name.clone(), *method_id)
+                        interner.add_method(&self_type, method_name.clone(), *method_id, false)
                     {
                         let error = ResolverError::DuplicateDefinition {
                             name: method_name,
@@ -962,7 +959,6 @@ fn resolve_trait_impls(
         let local_mod_id = trait_impl.module_id;
         let module_id = ModuleId { krate: crate_id, local_id: local_mod_id };
         let path_resolver = StandardPathResolver::new(module_id);
-        let trait_definition_ident = trait_impl.trait_path.last_segment();
 
         let self_type_span = unresolved_type.span;
 
@@ -989,6 +985,12 @@ fn resolve_trait_impls(
             }
         }
 
+        if matches!(self_type, Type::MutableReference(_)) {
+            let span = self_type_span.unwrap_or_else(|| trait_impl.trait_path.span());
+            let error = DefCollectorErrorKind::MutableReferenceInTraitImpl { span };
+            errors.push((error.into(), trait_impl.file_id));
+        }
+
         let mut new_resolver =
             Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
         new_resolver.set_self_type(Some(self_type.clone()));
@@ -996,28 +998,27 @@ fn resolve_trait_impls(
         if let Some(trait_id) = maybe_trait_id {
             check_methods_signatures(&mut new_resolver, &impl_methods, trait_id, errors);
 
-            let key = TraitImplKey { typ: self_type.clone(), trait_id };
-            if let Some(prev_trait_impl_ident) = interner.get_trait_implementation(&key) {
-                let err = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::TraitImplementation,
-                    first_def: prev_trait_impl_ident.borrow().ident.clone(),
-                    second_def: trait_definition_ident.clone(),
-                };
-                errors.push((err.into(), trait_impl.methods.file_id));
-            } else {
-                let resolved_trait_impl = Shared::new(TraitImpl {
-                    ident: trait_impl.trait_path.last_segment().clone(),
+            let resolved_trait_impl = Shared::new(TraitImpl {
+                ident: trait_impl.trait_path.last_segment().clone(),
+                typ: self_type.clone(),
+                trait_id,
+                file: trait_impl.file_id,
+                methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
+            });
+
+            if let Some((prev_span, prev_file)) =
+                interner.add_trait_implementation(self_type.clone(), trait_id, resolved_trait_impl)
+            {
+                let error = DefCollectorErrorKind::OverlappingImpl {
                     typ: self_type.clone(),
-                    trait_id,
-                    methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
-                });
-                if !interner.add_trait_implementation(&key, resolved_trait_impl.clone()) {
-                    let error = DefCollectorErrorKind::TraitImplNotAllowedFor {
-                        trait_path: trait_impl.trait_path.clone(),
-                        span: self_type_span.unwrap_or_else(|| trait_impl.trait_path.span()),
-                    };
-                    errors.push((error.into(), trait_impl.file_id));
-                }
+                    span: self_type_span.unwrap_or_else(|| trait_impl.trait_path.span()),
+                };
+                errors.push((error.into(), trait_impl.file_id));
+
+                // The 'previous impl defined here' note must be a separate error currently
+                // since it may be in a different file and all errors have the same file id.
+                let error = DefCollectorErrorKind::OverlappingImplNote { span: prev_span };
+                errors.push((error.into(), prev_file));
             }
 
             methods.append(&mut impl_methods);
