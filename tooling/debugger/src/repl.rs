@@ -1,6 +1,6 @@
 use crate::context::{DebugCommandResult, DebugContext};
 
-use acvm::acir::circuit::OpcodeLocation;
+use acvm::acir::circuit::{Opcode, OpcodeLocation};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
@@ -56,10 +56,15 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                     OpcodeLocation::Acir(ip) => {
                         println!("At opcode {}: {}", ip, opcodes[ip])
                     }
-                    OpcodeLocation::Brillig { acir_index: ip, brillig_index } => println!(
-                        "At opcode {} in Brillig block {}: {}",
-                        brillig_index, ip, opcodes[ip]
-                    ),
+                    OpcodeLocation::Brillig { acir_index, brillig_index } => {
+                        let Opcode::Brillig(ref brillig) = opcodes[acir_index] else {
+                            unreachable!("Brillig location does not contain a Brillig block");
+                        };
+                        println!(
+                            "At opcode {}.{}: {:?}",
+                            acir_index, brillig_index, brillig.bytecode[brillig_index]
+                        );
+                    }
                 }
                 self.show_source_code_location(&location);
             }
@@ -128,6 +133,38 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                 } else {
                     print_dimmed_line(current_line_number, line);
                 }
+            }
+        }
+    }
+
+    fn display_opcodes(&self) {
+        let opcodes = self.context.get_opcodes();
+        let current_opcode_location = self.context.get_current_opcode_location();
+        let current_ip = match current_opcode_location {
+            Some(OpcodeLocation::Acir(ip)) => Some(ip),
+            Some(OpcodeLocation::Brillig { acir_index, .. }) => Some(acir_index),
+            None => None,
+        };
+        let current_brillig_pc = match current_opcode_location {
+            Some(OpcodeLocation::Brillig { brillig_index, .. }) => brillig_index,
+            _ => 0,
+        };
+        for (ip, opcode) in opcodes.iter().enumerate() {
+            let marker = if current_ip == Some(ip) { "->" } else { "" };
+            if let Opcode::Brillig(brillig) = opcode {
+                println!("{:>3} {:2} BRILLIG inputs={:?}", ip, marker, brillig.inputs);
+                println!("       |       outputs={:?}", brillig.outputs);
+                for (pc, brillig_opcode) in brillig.bytecode.iter().enumerate() {
+                    println!(
+                        "{:>3}.{:<2} |{:2} {:?}",
+                        ip,
+                        pc,
+                        if pc == current_brillig_pc { marker } else { "" },
+                        brillig_opcode
+                    );
+                }
+            } else {
+                println!("{:>3} {:2} {:?}", ip, marker, opcode);
             }
         }
     }
@@ -268,6 +305,16 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "restart the debugging session",
                 () => || {
                     ref_context.borrow_mut().restart_session();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "opcodes",
+            command! {
+                "display ACIR opcodes",
+                () => || {
+                    ref_context.borrow().display_opcodes();
                     Ok(CommandStatus::Done)
                 }
             },
