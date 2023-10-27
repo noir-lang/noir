@@ -47,6 +47,10 @@ describe('noir wasm', () => {
       const wasmCircuit = await compile('/main.nr');
       const cliCircuit = await getPrecompiledSource(simpleScriptExpectedArtifact);
 
+      if (!('program' in wasmCircuit)) {
+        throw Error('Expected program to be present');
+      }
+
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
       expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
@@ -86,6 +90,10 @@ describe('noir wasm', () => {
           lib_a: ['lib_b'],
         },
       });
+
+      if (!('program' in wasmCircuit)) {
+        throw Error('Expected program to be present');
+      }
 
       const cliCircuit = await getPrecompiledSource(depsScriptExpectedArtifact);
 
