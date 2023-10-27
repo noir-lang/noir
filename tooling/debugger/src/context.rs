@@ -1,5 +1,6 @@
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
+use acvm::brillig_vm::Registers;
 use acvm::pwg::{
     ACVMStatus, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo, StepResult, ACVM,
 };
@@ -200,6 +201,16 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 return result;
             }
         }
+    }
+
+    pub(super) fn is_executing_brillig(&self) -> bool {
+        let opcodes = self.get_opcodes();
+        let acir_index = self.acvm.instruction_pointer();
+        acir_index < opcodes.len() && matches!(opcodes[acir_index], Opcode::Brillig(..))
+    }
+
+    pub(super) fn get_brillig_registers(&self) -> Option<&Registers> {
+        self.brillig_solver.as_ref().map(|solver| solver.get_registers())
     }
 
     fn breakpoint_reached(&self) -> bool {

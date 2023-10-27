@@ -307,6 +307,22 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         }
     }
 
+    pub fn show_brillig_registers(&self) {
+        if !self.context.is_executing_brillig() {
+            println!("Not executing a Brillig block");
+            return;
+        }
+
+        let Some(registers) = self.context.get_brillig_registers() else {
+            println!("Brillig VM registers not available");
+            return;
+        };
+
+        for (index, value) in registers.inner.iter().enumerate() {
+            println!("{index} = {:?}", value);
+        }
+    }
+
     fn is_solved(&self) -> bool {
         self.context.is_solved()
     }
@@ -443,6 +459,16 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "update a witness with the given value",
                 (index: u32, value: String) => |index, value| {
                     ref_context.borrow_mut().update_witness(index, value);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "registers",
+            command! {
+                "show Brillig registers (valid when executing a Brillig block)",
+                () => || {
+                    ref_context.borrow().show_brillig_registers();
                     Ok(CommandStatus::Done)
                 }
             },

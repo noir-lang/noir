@@ -112,6 +112,10 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         Ok(Self { vm, acir_index })
     }
 
+    pub fn get_registers(&self) -> &Registers {
+        self.vm.get_registers()
+    }
+
     pub(super) fn solve(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
         let status = self.vm.process_opcodes();
         self.handle_vm_status(status)
