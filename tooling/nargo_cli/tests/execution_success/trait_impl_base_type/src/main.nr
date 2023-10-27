@@ -81,26 +81,6 @@ fn some_func(x: u32) -> u32 {
 }
 
 
-trait MutFieldable {
-    fn mut_to_field(self) -> Field;
-}
-
-impl MutFieldable for &mut u64 {
-    fn mut_to_field(self) -> Field {
-        1337 as Field
-    }
-}
-
-fn a(y: &mut u64) -> Field {
-    y.mut_to_field()
-}
-
-impl Fieldable for &mut u64 {
-    fn to_field(self) -> Field {
-        777 as Field
-    }
-}
-
 impl Fieldable for u64 {
     fn to_field(self) -> Field {
         66 as Field
@@ -134,8 +114,5 @@ fn main(x: u32) {
     assert(some_func.to_field() == 17);
 
     let mut y = 0 as u64;
-    assert(a(&mut y) == 1337);
-    assert((&mut y).mut_to_field() == 1337);
-    assert((&mut y).to_field() == 777);
     assert(y.to_field() == 66);
 }

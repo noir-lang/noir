@@ -11,6 +11,7 @@ unconstrained fn main(x: Field, y: Field, salt: Field, out_x: Field, out_y: Fiel
 
     assert(res_hash != res.x);
 
+
     let raw_data = [x,y];
     let mut state = 0;
     for i in 0..(2 as u32) {
