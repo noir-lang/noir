@@ -20,11 +20,10 @@ mod private_kernel_init;
 mod private_kernel_inner;
 mod private_kernel_ordering;
 
+mod tests;
+
 use abis::kernel_circuit_public_inputs::{ KernelCircuitPublicInputs, KernelCircuitPublicInputsFinal };
 use private_kernel_init::PrivateKernelInputsInit;
 use private_kernel_inner::PrivateKernelInputsInner;
 use private_kernel_ordering::PrivateKernelInputsOrdering;
 
-// Hmm
-// PrivateCircuitPublicInputs vs CombinedAccumulatedData (Duplicated fields)
-// ?Que es la diferencia entre contract_address y storage_address?
