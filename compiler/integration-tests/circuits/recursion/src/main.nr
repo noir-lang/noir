@@ -6,7 +6,7 @@ fn main(
     public_inputs : [Field; 1], 
     key_hash : Field, 
     input_aggregation_object : [Field; 16],
-) -> pub [Field;16] {
+) -> pub [Field; 16] {
     let vk : [Field] = verification_key;
     let p : [Field] = proof;
     let pi : [Field] = public_inputs;
