@@ -23,7 +23,7 @@ use super::{
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
-use crate::errors::{InternalError, RuntimeError};
+use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 
 use acvm::{
@@ -202,9 +202,9 @@ impl Context {
             self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, last_array_uses)?;
         }
 
-        self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
+        let warnings = self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
-        Ok(self.acir_context.finish(vec![input_witness]))
+        Ok(self.acir_context.finish(vec![input_witness], warnings))
     }
 
     fn convert_brillig_main(
@@ -244,7 +244,7 @@ impl Context {
         for input in witness_inputs {
             wit.push(RangeInclusive::new(input, input));
         }
-        Ok(self.acir_context.finish(wit))
+        Ok(self.acir_context.finish(wit, Vec::new()))
     }
 
     /// Adds and binds `AcirVar`s for each numeric block parameter or block parameter array element.
@@ -1251,8 +1251,8 @@ impl Context {
         &mut self,
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
-    ) -> Result<(), InternalError> {
-        let (return_values, _call_stack) = match terminator {
+    ) -> Result<Vec<SsaReport>, InternalError> {
+        let (return_values, call_stack) = match terminator {
             TerminatorInstruction::Return { return_values, call_stack } => {
                 (return_values, call_stack)
             }
@@ -1262,16 +1262,16 @@ impl Context {
         // The return value may or may not be an array reference. Calling `flatten_value_list`
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
+        let mut warnings = Vec::new();
         for acir_var in return_acir_vars {
-            // TODO(Guillaume) -- disabled as it has shown to break
-            // TODO with important programs. We will add it back once
-            // TODO we change it to a warning.
-            // if self.acir_context.is_constant(&acir_var) {
-            //     return Err(InternalError::ReturnConstant { call_stack: call_stack.clone() });
-            // }
+            if self.acir_context.is_constant(&acir_var) {
+                warnings.push(SsaReport::Warning(InternalWarning::ReturnConstant {
+                    call_stack: call_stack.clone(),
+                }));
+            }
             self.acir_context.return_var(acir_var)?;
         }
-        Ok(())
+        Ok(warnings)
     }
 
     /// Gets the cached `AcirVar` that was converted from the corresponding `ValueId`. If it does

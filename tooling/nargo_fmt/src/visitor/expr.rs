@@ -32,7 +32,7 @@ impl FmtVisitor<'_> {
         match kind {
             ExpressionKind::Block(block) => {
                 let mut visitor = self.fork();
-                visitor.visit_block(block, span, true);
+                visitor.visit_block(block, span);
                 visitor.buffer
             }
             ExpressionKind::Prefix(prefix) => {
@@ -192,7 +192,7 @@ impl FmtVisitor<'_> {
 
                 self.format_if(*if_expr)
             }
-            ExpressionKind::Variable(_) | ExpressionKind::Lambda(_) => self.slice(span).to_string(),
+            ExpressionKind::Lambda(_) | ExpressionKind::Variable(_) => self.slice(span).to_string(),
             ExpressionKind::Error => unreachable!(),
         }
     }
@@ -281,14 +281,9 @@ impl FmtVisitor<'_> {
         format!("{type_name} {{{fields}}}")
     }
 
-    pub(crate) fn visit_block(
-        &mut self,
-        block: BlockExpression,
-        block_span: Span,
-        should_indent: bool,
-    ) {
+    pub(crate) fn visit_block(&mut self, block: BlockExpression, block_span: Span) {
         if block.is_empty() {
-            self.visit_empty_block(block_span, should_indent);
+            self.visit_empty_block(block_span);
             return;
         }
 
@@ -306,10 +301,7 @@ impl FmtVisitor<'_> {
 
         self.last_position = block_span.end();
 
-        self.push_str("\n");
-        if should_indent {
-            self.push_str(&self.indent.to_string());
-        }
+        self.push_str(&self.indent.to_string_with_newline());
         self.push_str("}");
     }
 
@@ -322,19 +314,18 @@ impl FmtVisitor<'_> {
         }
     }
 
-    fn visit_empty_block(&mut self, block_span: Span, should_indent: bool) {
+    pub(crate) fn visit_empty_block(&mut self, block_span: Span) {
         let slice = self.slice(block_span);
         let comment_str = slice[1..slice.len() - 1].trim();
         let block_str = if comment_str.is_empty() {
             "{}".to_string()
         } else {
             self.indent.block_indent(self.config);
-            let open_indent = self.indent.to_string();
+            let (comment_str, _) = self.format_comment_in_block(comment_str);
+            let comment_str = comment_str.trim_matches('\n');
             self.indent.block_unindent(self.config);
-            let close_indent = if should_indent { self.indent.to_string() } else { String::new() };
-
-            let ret = format!("{{\n{open_indent}{comment_str}\n{close_indent}}}");
-            ret
+            let close_indent = self.indent.to_string();
+            format!("{{\n{comment_str}\n{close_indent}}}")
         };
         self.last_position = block_span.end();
         self.push_str(&block_str);
