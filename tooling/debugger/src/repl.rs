@@ -150,7 +150,13 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             _ => 0,
         };
         for (ip, opcode) in opcodes.iter().enumerate() {
-            let marker = if current_ip == Some(ip) { "->" } else { "" };
+            let marker = if current_ip == Some(ip) {
+                "->"
+            } else if self.context.is_breakpoint_set(&OpcodeLocation::Acir(ip)) {
+                " *"
+            } else {
+                ""
+            };
             if let Opcode::Brillig(brillig) = opcode {
                 println!("{:>3} {:2} BRILLIG inputs={:?}", ip, marker, brillig.inputs);
                 println!("       |       outputs={:?}", brillig.outputs);
@@ -159,13 +165,42 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                         "{:>3}.{:<2} |{:2} {:?}",
                         ip,
                         pc,
-                        if pc == current_brillig_pc { marker } else { "" },
+                        if pc == current_brillig_pc {
+                            marker
+                        } else if self.context.is_breakpoint_set(&OpcodeLocation::Brillig {
+                            acir_index: ip,
+                            brillig_index: pc,
+                        }) {
+                            " *"
+                        } else {
+                            ""
+                        },
                         brillig_opcode
                     );
                 }
             } else {
                 println!("{:>3} {:2} {:?}", ip, marker, opcode);
             }
+        }
+    }
+
+    fn add_breakpoint_at(&mut self, location: OpcodeLocation) {
+        if self.context.is_breakpoint_set(&location) {
+            println!("Breakpoint at opcode {location} already set");
+        } else if !self.context.is_valid_location(&location) {
+            println!("Invalid opcode location {location}");
+        } else {
+            self.context.add_breakpoint(location);
+            println!("Added breakpoint at opcode {location}");
+        }
+    }
+
+    fn delete_breakpoint_at(&mut self, location: OpcodeLocation) {
+        if self.context.is_breakpoint_set(&location) {
+            self.context.delete_breakpoint(&location);
+            println!("Breakpoint at opcode {location} deleted");
+        } else {
+            println!("Breakpoint at opcode {location} not set");
         }
     }
 
@@ -315,6 +350,26 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "display ACIR opcodes",
                 () => || {
                     ref_context.borrow().display_opcodes();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "break",
+            command! {
+                "add a breakpoint at an opcode location",
+                (LOCATION:OpcodeLocation) => |location| {
+                    ref_context.borrow_mut().add_breakpoint_at(location);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "delete",
+            command! {
+                "delete breakpoint at an opcode location",
+                (LOCATION:OpcodeLocation) => |location| {
+                    ref_context.borrow_mut().delete_breakpoint_at(location);
                     Ok(CommandStatus::Done)
                 }
             },

@@ -10,6 +10,8 @@ use nargo::errors::{ExecutionError, Location};
 use nargo::ops::ForeignCallExecutor;
 use nargo::NargoError;
 
+use std::collections::HashSet;
+
 #[derive(Debug)]
 pub(super) enum DebugCommandResult {
     Done,
@@ -23,6 +25,7 @@ pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     foreign_call_executor: ForeignCallExecutor,
     debug_artifact: &'a DebugArtifact,
     show_output: bool,
+    breakpoints: HashSet<OpcodeLocation>,
 }
 
 impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
@@ -38,6 +41,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             foreign_call_executor: ForeignCallExecutor::default(),
             debug_artifact,
             show_output: true,
+            breakpoints: HashSet::new(),
         }
     }
 
@@ -164,6 +168,35 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 return result;
             }
         }
+    }
+
+    pub(super) fn is_valid_location(&self, location: &OpcodeLocation) -> bool {
+        let opcodes = self.get_opcodes();
+        match *location {
+            OpcodeLocation::Acir(acir_index) => acir_index < opcodes.len(),
+            OpcodeLocation::Brillig { acir_index, brillig_index } => {
+                acir_index < opcodes.len()
+                    && matches!(opcodes[acir_index], Opcode::Brillig(..))
+                    && {
+                        let Opcode::Brillig(ref brillig) = opcodes[acir_index] else {
+                            unreachable!("opcode at {acir_index} is not Brillig")
+                        };
+                        brillig_index < brillig.bytecode.len()
+                    }
+            }
+        }
+    }
+
+    pub(super) fn is_breakpoint_set(&self, location: &OpcodeLocation) -> bool {
+        self.breakpoints.contains(location)
+    }
+
+    pub(super) fn add_breakpoint(&mut self, location: OpcodeLocation) {
+        _ = self.breakpoints.insert(location);
+    }
+
+    pub(super) fn delete_breakpoint(&mut self, location: &OpcodeLocation) {
+        _ = self.breakpoints.remove(location);
     }
 
     pub(super) fn is_solved(&self) -> bool {
