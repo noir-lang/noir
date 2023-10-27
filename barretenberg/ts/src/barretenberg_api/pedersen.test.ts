@@ -6,7 +6,6 @@ describe('pedersen', () => {
 
   beforeAll(async () => {
     api = await Barretenberg.new(1);
-    await api.pedersenHashInit();
   }, 30000);
 
   afterAll(async () => {

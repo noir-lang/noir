@@ -5,8 +5,6 @@
 
 extern "C" {
 
-WASM_EXPORT void pedersen_hash__init() {}
-
 WASM_EXPORT void pedersen__hash_with_hash_index(uint8_t const* inputs_buffer, uint32_t hash_index, uint8_t* output)
 {
     std::vector<grumpkin::fq> to_hash;

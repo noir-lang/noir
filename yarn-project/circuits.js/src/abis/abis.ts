@@ -103,7 +103,6 @@ export function inputBuffersToOutputBuffer(
  * @returns The hash of the transaction request.
  */
 export function hashTxRequest(wasm: IWasmModule, txRequest: TxRequest): Buffer {
-  wasm.call('pedersen__init');
   return wasmSyncCall(wasm, 'abis__hash_tx_request', txRequest, 32);
 }
 
@@ -131,7 +130,6 @@ export function computeFunctionSelector(wasm: IWasmModule, funcSig: string): Buf
  * @returns The hash of the verification key.
  */
 export function hashVK(wasm: IWasmModule, vkBuf: Buffer) {
-  wasm.call('pedersen__init');
   return wasmSyncCall(wasm, 'abis__hash_vk', vkBuf, 32);
 }
 
@@ -142,7 +140,6 @@ export function hashVK(wasm: IWasmModule, vkBuf: Buffer) {
  * @returns The function leaf.
  */
 export function computeFunctionLeaf(wasm: IWasmModule, fnLeaf: FunctionLeafPreimage): Fr {
-  wasm.call('pedersen__init');
   return Fr.fromBuffer(wasmSyncCall(wasm, 'abis__compute_function_leaf', fnLeaf, 32));
 }
 
@@ -154,7 +151,6 @@ export function computeFunctionLeaf(wasm: IWasmModule, fnLeaf: FunctionLeafPreim
  */
 export function computeFunctionTreeRoot(wasm: IWasmModule, fnLeaves: Fr[]) {
   const inputVector = serializeBufferArrayToVector(fnLeaves.map(fr => fr.toBuffer()));
-  wasm.call('pedersen__init');
   const result = wasmSyncCall(wasm, 'abis__compute_function_tree_root', inputVector, 32);
   return Fr.fromBuffer(result);
 }
@@ -173,7 +169,6 @@ export function hashConstructor(
   argsHash: Fr,
   constructorVKHash: Buffer,
 ): Fr {
-  wasm.call('pedersen__init');
   const result = inputBuffersToOutputBuffer(
     wasm,
     'abis__hash_constructor',
@@ -199,7 +194,6 @@ export function computeCompleteAddress(
   fnTreeRoot: Fr,
   constructorHash: Fr,
 ): CompleteAddress {
-  wasm.call('pedersen__init');
   return abisComputeCompleteAddress(wasm, deployerPubKey, contractAddrSalt, fnTreeRoot, constructorHash);
 }
 
@@ -216,7 +210,6 @@ export function computeContractAddressFromPartial(
   pubKey: PublicKey,
   partialAddress: Fr,
 ): AztecAddress {
-  wasm.call('pedersen__init');
   const result = inputBuffersToOutputBuffer(
     wasm,
     'abis__compute_contract_address_from_partial',
@@ -234,7 +227,6 @@ export function computeContractAddressFromPartial(
  * @returns A commitment nonce.
  */
 export function computeCommitmentNonce(wasm: IWasmModule, nullifierZero: Fr, commitmentIndex: number): Fr {
-  wasm.call('pedersen__init');
   return abisComputeCommitmentNonce(wasm, nullifierZero, new Fr(commitmentIndex));
 }
 
@@ -247,7 +239,6 @@ export function computeCommitmentNonce(wasm: IWasmModule, nullifierZero: Fr, com
  * @returns A siloed commitment.
  */
 export function siloCommitment(wasm: IWasmModule, contract: AztecAddress, innerCommitment: Fr): Fr {
-  wasm.call('pedersen__init');
   return abisSiloCommitment(wasm, contract, innerCommitment);
 }
 
@@ -259,7 +250,6 @@ export function siloCommitment(wasm: IWasmModule, contract: AztecAddress, innerC
  * @returns A unique commitment.
  */
 export function computeUniqueCommitment(wasm: IWasmModule, nonce: Fr, siloedCommitment: Fr): Fr {
-  wasm.call('pedersen__init');
   return abisComputeUniqueCommitment(wasm, nonce, siloedCommitment);
 }
 
@@ -272,7 +262,6 @@ export function computeUniqueCommitment(wasm: IWasmModule, nonce: Fr, siloedComm
  * @returns A siloed nullifier.
  */
 export function siloNullifier(wasm: IWasmModule, contract: AztecAddress, innerNullifier: Fr): Fr {
-  wasm.call('pedersen__init');
   return abisSiloNullifier(wasm, contract, innerNullifier);
 }
 
@@ -296,7 +285,6 @@ export function computeBlockHashWithGlobals(
   l1ToL2DataTreeRoot: Fr,
   publicDataTreeRoot: Fr,
 ): Fr {
-  wasm.call('pedersen__init');
   return abisComputeBlockHashWithGlobals(
     wasm,
     globals,
@@ -328,7 +316,6 @@ export function computeBlockHash(
   l1ToL2DataTreeRoot: Fr,
   publicDataTreeRoot: Fr,
 ): Fr {
-  wasm.call('pedersen__init');
   return abisComputeBlockHash(
     wasm,
     globalsHash,
@@ -347,7 +334,6 @@ export function computeBlockHash(
  * @returns The globals hash.
  */
 export function computeGlobalsHash(wasm: IWasmModule, globals: GlobalVariables): Fr {
-  wasm.call('pedersen__init');
   return abisComputeGlobalsHash(wasm, globals);
 }
 
@@ -359,7 +345,6 @@ export function computeGlobalsHash(wasm: IWasmModule, globals: GlobalVariables):
 
  */
 export function computePublicDataTreeValue(wasm: IWasmModule, value: Fr): Fr {
-  wasm.call('pedersen__init');
   return abisComputePublicDataTreeValue(wasm, value);
 }
 
@@ -372,7 +357,6 @@ export function computePublicDataTreeValue(wasm: IWasmModule, value: Fr): Fr {
 
  */
 export function computePublicDataTreeIndex(wasm: IWasmModule, contractAddress: AztecAddress, storageSlot: Fr): Fr {
-  wasm.call('pedersen__init');
   return abisComputePublicDataTreeIndex(wasm, contractAddress, storageSlot);
 }
 
@@ -389,7 +373,6 @@ export function computeVarArgsHash(wasm: IWasmModule, args: Fr[]): Promise<Fr> {
   if (args.length === 0) return Promise.resolve(Fr.ZERO);
   if (args.length > ARGS_HASH_CHUNK_SIZE * ARGS_HASH_CHUNK_COUNT)
     throw new Error(`Cannot hash more than ${ARGS_HASH_CHUNK_SIZE * ARGS_HASH_CHUNK_COUNT} arguments`);
-  wasm.call('pedersen__init');
 
   const wasmComputeVarArgs = (args: Fr[]) =>
     Fr.fromBuffer(wasmSyncCall(wasm, 'abis__compute_var_args_hash', new Vector(args), 32));
@@ -415,7 +398,6 @@ export function computeVarArgsHash(wasm: IWasmModule, args: Fr[]): Promise<Fr> {
  * @returns The contract leaf.
  */
 export function computeContractLeaf(wasm: IWasmModule, cd: NewContractData): Fr {
-  wasm.call('pedersen__init');
   const value = wasmSyncCall(wasm, 'abis__compute_contract_leaf', cd, 32);
   return Fr.fromBuffer(value);
 }
@@ -427,7 +409,6 @@ export function computeContractLeaf(wasm: IWasmModule, cd: NewContractData): Fr 
  * @returns The transaction hash.
  */
 export function computeTxHash(wasm: IWasmModule, txRequest: TxRequest): Fr {
-  wasm.call('pedersen__init');
   const value = wasmSyncCall(wasm, 'abis__compute_transaction_hash', txRequest, 32);
   return Fr.fromBuffer(value);
 }
@@ -458,7 +439,6 @@ export function computeCallStackItemHash(
  * @returns The call stack item hash.
  */
 export function computePrivateCallStackItemHash(wasm: IWasmModule, callStackItem: PrivateCallStackItem): Fr {
-  wasm.call('pedersen__init');
   const value = wasmSyncCall(wasm, 'abis__compute_private_call_stack_item_hash', callStackItem, 32);
   return Fr.fromBuffer(value);
 }
@@ -470,7 +450,6 @@ export function computePrivateCallStackItemHash(wasm: IWasmModule, callStackItem
  * @returns The call stack item hash.
  */
 export function computePublicCallStackItemHash(wasm: IWasmModule, callStackItem: PublicCallStackItem): Fr {
-  wasm.call('pedersen__init');
   const value = wasmSyncCall(wasm, 'abis__compute_public_call_stack_item_hash', callStackItem, 32);
   return Fr.fromBuffer(value);
 }
@@ -481,7 +460,6 @@ export function computePublicCallStackItemHash(wasm: IWasmModule, callStackItem:
  * @returns
  */
 export function computeSecretMessageHash(wasm: IWasmModule, secretMessage: Fr) {
-  wasm.call('pedersen__init');
   const value = wasmSyncCall(wasm, 'abis__compute_message_secret_hash', secretMessage, 32);
   return Fr.fromBuffer(value);
 }

@@ -15,9 +15,6 @@ export { privateKernelSimOrdering, privateKernelSimInit, privateKernelSimInner }
  * @returns All of a function tree's nodes.
  */
 export function computeFunctionTree(wasm: CircuitsWasm, leaves: Fr[]): Fr[] {
-  // Init pedersen if needed
-  wasm.call('pedersen__init');
-
   // Size of the tree is 2^height times size of each element,
   // plus 4 for the size used in the std::vector serialization
   const outputBufSize = 2 ** (FUNCTION_TREE_HEIGHT + 1) * Fr.SIZE_IN_BYTES + 4;

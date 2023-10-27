@@ -7,7 +7,6 @@ extern "C" {
 
 using namespace barretenberg;
 
-WASM_EXPORT void pedersen_hash_init();
 WASM_EXPORT void pedersen_hash_with_hash_index(fr::vec_in_buf inputs_buffer,
                                                uint32_t const* hash_index,
                                                fr::out_buf output);

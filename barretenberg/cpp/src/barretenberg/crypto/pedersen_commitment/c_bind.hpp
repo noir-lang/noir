@@ -4,5 +4,4 @@
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/common/timer.hpp"
 
-WASM_EXPORT void pedersen__init();
 WASM_EXPORT void pedersen__commit(uint8_t const* inputs_buffer, uint8_t* output);

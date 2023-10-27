@@ -9,7 +9,6 @@ describe('schnorr', () => {
 
   beforeAll(async () => {
     api = await Barretenberg.new(1);
-    await api.pedersenInit();
   }, 30000);
 
   afterAll(async () => {

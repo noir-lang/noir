@@ -1,11 +1,5 @@
 [
   {
-    "functionName": "pedersen___init",
-    "inArgs": [],
-    "outArgs": [],
-    "isAsync": false
-  },
-  {
     "functionName": "pedersen___commit",
     "inArgs": [
       {
@@ -19,12 +13,6 @@
         "type": "affine_element::out_buf"
       }
     ],
-    "isAsync": false
-  },
-  {
-    "functionName": "pedersen_hash_init",
-    "inArgs": [],
-    "outArgs": [],
     "isAsync": false
   },
   {

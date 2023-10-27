@@ -17,19 +17,9 @@ export class BarretenbergApi {
     await this.binder.wasm.destroy();
   }
 
-  async pedersenInit(): Promise<void> {
-    const result = await this.binder.callWasmExport('pedersen___init', [], []);
-    return;
-  }
-
   async pedersenCommit(inputsBuffer: Fr[]): Promise<Point> {
     const result = await this.binder.callWasmExport('pedersen___commit', [inputsBuffer], [Point]);
     return result[0];
-  }
-
-  async pedersenHashInit(): Promise<void> {
-    const result = await this.binder.callWasmExport('pedersen_hash_init', [], []);
-    return;
   }
 
   async pedersenHashWithHashIndex(inputsBuffer: Fr[], hashIndex: number): Promise<Fr> {

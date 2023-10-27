@@ -5,8 +5,6 @@
 
 extern "C" {
 
-WASM_EXPORT void pedersen_hash_init() {}
-
 WASM_EXPORT void pedersen_hash_with_hash_index(uint8_t const* inputs_buffer,
                                                uint32_t const* hash_index,
                                                uint8_t* output)

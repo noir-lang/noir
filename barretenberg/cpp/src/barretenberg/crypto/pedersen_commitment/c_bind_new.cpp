@@ -7,8 +7,6 @@ extern "C" {
 
 using namespace barretenberg;
 
-WASM_EXPORT void pedersen___init() {}
-
 WASM_EXPORT void pedersen___commit(fr::vec_in_buf inputs_buffer, affine_element::out_buf output)
 {
     std::vector<grumpkin::fq> to_commit;

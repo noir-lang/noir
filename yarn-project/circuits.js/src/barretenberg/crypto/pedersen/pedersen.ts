@@ -39,9 +39,6 @@ export function pedersenHashInputs(wasm: IWasmModule, inputs: Buffer[]): Buffer 
  * purposes.
  */
 export function pedersenHashWithHashIndex(wasm: IWasmModule, inputs: Buffer[], hashIndex: number): Buffer {
-  // If not done already, precompute constants.
-  wasm.call('pedersen__init');
-
   const data = serializeBufferArrayToVector(inputs);
 
   // WASM gives us 1024 bytes of scratch space which we can use without
