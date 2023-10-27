@@ -37,6 +37,7 @@ export class BarretenbergBackend implements Backend {
       await api.commonInitSlabAllocator(subgroupSize);
       await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));
 
+      await api.acirInitProvingKey(this.acirComposer, this.acirUncompressedBytecode);
       this.acirComposer = await api.acirNewAcirComposer(subgroupSize);
       this.api = api;
     }
