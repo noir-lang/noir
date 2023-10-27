@@ -78,6 +78,8 @@ template <class Fr, size_t _length> class Univariate {
         return output;
     };
 
+    static Univariate random_element() { return get_random(); };
+
     // Operations between Univariate and other Univariate
     bool operator==(const Univariate& other) const = default;
 

@@ -121,8 +121,8 @@ template <typename Flavor> class RelationUtils {
      * @param tuple A tuple of tuples of Univariates
      * @param result A Univariate of length extended_size
      */
-    template <typename ExtendedUnivariate, typename OfTuplesOfUnivariates>
-    static void extend_and_batch_univariates(const OfTuplesOfUnivariates& tuple,
+    template <typename ExtendedUnivariate, typename TupleOfTuplesOfUnivariates>
+    static void extend_and_batch_univariates(const TupleOfTuplesOfUnivariates& tuple,
                                              const PowUnivariate<FF>& pow_univariate,
                                              ExtendedUnivariate& result)
     {
@@ -175,12 +175,12 @@ template <typename Flavor> class RelationUtils {
      * together, with appropriate scaling factors, produces the expected value of the full Honk relation. This value is
      * checked against the final value of the target total sum (called sigma_0 in the thesis).
      */
-    template <size_t relation_idx = 0>
+    template <typename Parameters, size_t relation_idx = 0>
     // TODO(#224)(Cody): Input should be an array?
-    static void accumulate_relation_evaluations(PolynomialEvaluations evaluations,
-                                                RelationEvaluations& relation_evaluations,
-                                                const proof_system::RelationParameters<FF>& relation_parameters,
-                                                const FF& partial_evaluation_constant)
+    inline static void accumulate_relation_evaluations(PolynomialEvaluations evaluations,
+                                                       RelationEvaluations& relation_evaluations,
+                                                       const Parameters& relation_parameters,
+                                                       const FF& partial_evaluation_constant)
     {
         using Relation = std::tuple_element_t<relation_idx, Relations>;
         Relation::accumulate(std::get<relation_idx>(relation_evaluations),
@@ -190,7 +190,7 @@ template <typename Flavor> class RelationUtils {
 
         // Repeat for the next relation.
         if constexpr (relation_idx + 1 < NUM_RELATIONS) {
-            accumulate_relation_evaluations<relation_idx + 1>(
+            accumulate_relation_evaluations<Parameters, relation_idx + 1>(
                 evaluations, relation_evaluations, relation_parameters, partial_evaluation_constant);
         }
     }

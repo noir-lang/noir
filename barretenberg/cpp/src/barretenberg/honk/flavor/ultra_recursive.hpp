@@ -76,16 +76,17 @@ template <typename BuilderType> class UltraRecursive_ {
                                  proof_system::EllipticRelation<FF>,
                                  proof_system::AuxiliaryRelation<FF>>;
 
-    static constexpr size_t MAX_RELATION_LENGTH = get_max_relation_length<Relations>();
+    static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
 
-    // MAX_RANDOM_RELATION_LENGTH = algebraic degree of sumcheck relation *after* multiplying by the `pow_zeta` random
-    // polynomial e.g. For \sum(x) [A(x) * B(x) + C(x)] * PowZeta(X), relation length = 2 and random relation length = 3
-    static constexpr size_t MAX_RANDOM_RELATION_LENGTH = MAX_RELATION_LENGTH + 1;
+    // BATCHED_RELATION_PARTIAL_LENGTH = algebraic degree of sumcheck relation *after* multiplying by the `pow_zeta`
+    // random polynomial e.g. For \sum(x) [A(x) * B(x) + C(x)] * PowZeta(X), relation length = 2 and random relation
+    // length = 3
+    static constexpr size_t BATCHED_RELATION_PARTIAL_LENGTH = MAX_PARTIAL_RELATION_LENGTH + 1;
     static constexpr size_t NUM_RELATIONS = std::tuple_size<Relations>::value;
 
     // define the container for storing the univariate contribution from each relation in Sumcheck
     using SumcheckTupleOfTuplesOfUnivariates = decltype(create_sumcheck_tuple_of_tuples_of_univariates<Relations>());
-    using TupleOfArraysOfValues = decltype(create_sumcheck_tuple_of_arrays_of_values<Relations>());
+    using TupleOfArraysOfValues = decltype(create_tuple_of_arrays_of_values<Relations>());
 
   private:
     template <typename DataType, typename HandleType>

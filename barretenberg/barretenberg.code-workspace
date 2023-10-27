@@ -83,7 +83,7 @@
         // Clangd. Note that this setting may be overridden by  user settings
         // to the default value "clangd".
         //
-        "clangd.path": "clangd-15",
+        "clangd.path": "clangd-16",
         // We should disable automatic inclusion of headers unless we decide to follow "WhyIWYU".
         "clangd.arguments": [
             "-header-insertion=never"
@@ -156,6 +156,7 @@
             "-g"
         ],
         "cmake.useCMakePresets": "auto",
-        "editor.inlayHints.enabled": "offUnlessPressed"
+        "editor.inlayHints.enabled": "offUnlessPressed",
+        "git.detectSubmodules": false
     },
 }

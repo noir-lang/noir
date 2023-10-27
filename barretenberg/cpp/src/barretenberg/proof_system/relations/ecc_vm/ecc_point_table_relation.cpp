@@ -1,7 +1,6 @@
 #include "ecc_point_table_relation.hpp"
 #include "barretenberg/honk/flavor/ecc_vm.hpp"
 #include "barretenberg/honk/sumcheck/relation_definitions_fwd.hpp"
-#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 
 namespace proof_system::honk::sumcheck {
 
@@ -18,10 +17,10 @@ namespace proof_system::honk::sumcheck {
  * @param scaling_factor optional term to scale the evaluation before adding to evals.
  */
 template <typename FF>
-template <typename ContainerOverSubrelations, typename AllEntities>
+template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
 void ECCVMPointTableRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulator,
                                                  const AllEntities& in,
-                                                 const RelationParameters<FF>& /*unused*/,
+                                                 const Parameters& /*unused*/,
                                                  const FF& scaling_factor)
 {
     using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;

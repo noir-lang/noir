@@ -4,14 +4,20 @@
 namespace proof_system::honk {
 
 template <typename Flavor_, size_t NUM_> struct ProverInstances_ {
+  public:
     using Flavor = Flavor_;
     using FF = typename Flavor::FF;
-    using Instance = ProverInstance_<Flavor>;
-    using ArrayType = std::array<std::shared_ptr<Instance>, NUM_>;
-
-  public:
     static constexpr size_t NUM = NUM_;
+    using Instance = ProverInstance_<Flavor>;
+
+    using ArrayType = std::array<std::shared_ptr<Instance>, NUM_>;
+    // The extended length here is the length of a composition of polynomials.
+    static constexpr size_t EXTENDED_LENGTH = (Flavor::MAX_TOTAL_RELATION_LENGTH - 1) * (NUM - 1) + 1;
+    using RelationParameters = proof_system::RelationParameters<Univariate<FF, EXTENDED_LENGTH>>;
+
     ArrayType _data;
+    RelationParameters relation_parameters;
+
     std::shared_ptr<Instance> const& operator[](size_t idx) const { return _data[idx]; }
     typename ArrayType::iterator begin() { return _data.begin(); };
     typename ArrayType::iterator end() { return _data.end(); };

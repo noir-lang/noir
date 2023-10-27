@@ -1,6 +1,5 @@
 #include "barretenberg/honk/flavor/ecc_vm.hpp"
 #include "barretenberg/honk/sumcheck/relation_definitions_fwd.hpp"
-#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 #include "ecc_msm_relation.hpp"
 
 namespace proof_system::honk::sumcheck {
@@ -34,9 +33,8 @@ namespace proof_system::honk::sumcheck {
  * @return ECCVMSetRelationBase<FF>::template Accumulator<AccumulatorTypes>
  */
 template <typename FF>
-template <typename Accumulator, typename AllEntities>
-Accumulator ECCVMSetRelationBase<FF>::compute_permutation_numerator(const AllEntities& in,
-                                                                    const RelationParameters<FF>& relation_params)
+template <typename Accumulator, typename AllEntities, typename Parameters>
+Accumulator ECCVMSetRelationBase<FF>::compute_permutation_numerator(const AllEntities& in, const Parameters& params)
 {
     using View = typename Accumulator::View;
 
@@ -44,10 +42,10 @@ Accumulator ECCVMSetRelationBase<FF>::compute_permutation_numerator(const AllEnt
     const auto precompute_round2 = precompute_round + precompute_round;
     const auto precompute_round4 = precompute_round2 + precompute_round2;
 
-    const auto& gamma = relation_params.gamma;
-    const auto& beta = relation_params.beta;
-    const auto& beta_sqr = relation_params.beta_sqr;
-    const auto& beta_cube = relation_params.beta_cube;
+    const auto& gamma = params.gamma;
+    const auto& beta = params.beta;
+    const auto& beta_sqr = params.beta_sqr;
+    const auto& beta_cube = params.beta_cube;
     const auto& precompute_pc = View(in.precompute_pc);
     const auto& precompute_select = View(in.precompute_select);
 
@@ -115,7 +113,7 @@ Accumulator ECCVMSetRelationBase<FF>::compute_permutation_numerator(const AllEnt
         numerator *= skew_input; // degree-5
     }
     {
-        const auto& eccvm_set_permutation_delta = relation_params.eccvm_set_permutation_delta;
+        const auto& eccvm_set_permutation_delta = params.eccvm_set_permutation_delta;
         numerator *= precompute_select * (-eccvm_set_permutation_delta + 1) + eccvm_set_permutation_delta; // degree-7
     }
 
@@ -228,18 +226,17 @@ Accumulator ECCVMSetRelationBase<FF>::compute_permutation_numerator(const AllEnt
 }
 
 template <typename FF>
-template <typename Accumulator, typename AllEntities>
-Accumulator ECCVMSetRelationBase<FF>::compute_permutation_denominator(const AllEntities& in,
-                                                                      const RelationParameters<FF>& relation_params)
+template <typename Accumulator, typename AllEntities, typename Parameters>
+Accumulator ECCVMSetRelationBase<FF>::compute_permutation_denominator(const AllEntities& in, const Parameters& params)
 {
     using View = typename Accumulator::View;
 
     // TODO(@zac-williamson). The degree of this contribution is 17! makes overall relation degree 19.
     // Can optimise by refining the algebra, once we have a stable base to iterate off of.
-    const auto& gamma = relation_params.gamma;
-    const auto& beta = relation_params.beta;
-    const auto& beta_sqr = relation_params.beta_sqr;
-    const auto& beta_cube = relation_params.beta_cube;
+    const auto& gamma = params.gamma;
+    const auto& beta = params.beta;
+    const auto& beta_sqr = params.beta_sqr;
+    const auto& beta_cube = params.beta_cube;
     const auto& msm_pc = View(in.msm_pc);
     const auto& msm_count = View(in.msm_count);
     const auto& msm_round = View(in.msm_round);
@@ -366,20 +363,20 @@ Accumulator ECCVMSetRelationBase<FF>::compute_permutation_denominator(const AllE
  * @param scaling_factor optional term to scale the evaluation before adding to evals.
  */
 template <typename FF>
-template <typename ContainerOverSubrelations, typename AllEntities>
+template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
 void ECCVMSetRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulator,
                                           const AllEntities& in,
-                                          const RelationParameters<FF>& relation_params,
+                                          const Parameters& params,
                                           const FF& scaling_factor)
 {
     using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
     using View = typename Accumulator::View;
 
     // degree-11
-    Accumulator numerator_evaluation = compute_permutation_numerator<Accumulator>(in, relation_params);
+    Accumulator numerator_evaluation = compute_permutation_numerator<Accumulator>(in, params);
 
     // degree-17
-    Accumulator denominator_evaluation = compute_permutation_denominator<Accumulator>(in, relation_params);
+    Accumulator denominator_evaluation = compute_permutation_denominator<Accumulator>(in, params);
 
     const auto& lagrange_first = View(in.lagrange_first);
     const auto& lagrange_last = View(in.lagrange_last);

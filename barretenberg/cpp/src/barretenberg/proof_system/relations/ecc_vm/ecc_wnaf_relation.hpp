@@ -35,14 +35,14 @@ template <typename FF_> class ECCVMWnafRelationBase {
   public:
     using FF = FF_;
 
-    static constexpr std::array<size_t, 21> SUBRELATION_LENGTHS{
+    static constexpr std::array<size_t, 21> SUBRELATION_PARTIAL_LENGTHS{
         5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
     };
 
-    template <typename ContainerOverSubrelations, typename AllEntities>
+    template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
     static void accumulate(ContainerOverSubrelations& accumulator,
                            const AllEntities& in,
-                           const RelationParameters<FF>& /* unused */,
+                           const Parameters& /* unused */,
                            const FF& scaling_factor);
 };
 

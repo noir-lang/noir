@@ -1,8 +1,7 @@
 #pragma once
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/numeric/uintx/uintx.hpp"
-#include "relation_parameters.hpp"
-#include "relation_types.hpp"
+#include "barretenberg/proof_system/relations/relation_types.hpp"
 
 namespace proof_system {
 
@@ -11,7 +10,7 @@ template <typename FF_> class GoblinTranslatorNonNativeFieldRelationImpl {
     using FF = FF_;
 
     // 1 + polynomial degree of this relation
-    static constexpr std::array<size_t, 3> SUBRELATION_LENGTHS{
+    static constexpr std::array<size_t, 3> SUBRELATION_PARTIAL_LENGTHS{
         3, // Lower wide limb subrelation (checks result is 0 mod 2¹³⁶)
         3, // Higher wide limb subrelation (checks result is 0 in higher mod 2¹³⁶),
         3  // Prime subrelation (checks result in native field)
@@ -79,11 +78,11 @@ template <typename FF_> class GoblinTranslatorNonNativeFieldRelationImpl {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename ContainerOverSubrelations, typename AllEntitites>
-    void static accumulate(ContainerOverSubrelations& accumulators,
-                           const AllEntitites& in,
-                           const RelationParameters<FF>& relation_parameters,
-                           const FF& scaling_factor)
+    template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
+    inline static void accumulate(ContainerOverSubrelations& accumulators,
+                                  const AllEntities& in,
+                                  const Parameters& params,
+                                  const FF& scaling_factor)
     {
 
         using Accumulator = std::tuple_element_t<0, ContainerOverSubrelations>;
@@ -104,33 +103,33 @@ template <typename FF_> class GoblinTranslatorNonNativeFieldRelationImpl {
             -FF(curve::BN254::BaseField::modulus)
         };
 
-        const auto& evaluation_input_x_0 = relation_parameters.evaluation_input_x[0];
-        const auto& evaluation_input_x_1 = relation_parameters.evaluation_input_x[1];
-        const auto& evaluation_input_x_2 = relation_parameters.evaluation_input_x[2];
-        const auto& evaluation_input_x_3 = relation_parameters.evaluation_input_x[3];
-        const auto& evaluation_input_x_4 = relation_parameters.evaluation_input_x[4];
+        const auto& evaluation_input_x_0 = params.evaluation_input_x[0];
+        const auto& evaluation_input_x_1 = params.evaluation_input_x[1];
+        const auto& evaluation_input_x_2 = params.evaluation_input_x[2];
+        const auto& evaluation_input_x_3 = params.evaluation_input_x[3];
+        const auto& evaluation_input_x_4 = params.evaluation_input_x[4];
         // for j < 4,  v_i_j is the j-th limb of v^{1+i}
         // v_i_4 is v^{1+i} in the native field
-        const auto& v_0_0 = relation_parameters.batching_challenge_v[0][0];
-        const auto& v_0_1 = relation_parameters.batching_challenge_v[0][1];
-        const auto& v_0_2 = relation_parameters.batching_challenge_v[0][2];
-        const auto& v_0_3 = relation_parameters.batching_challenge_v[0][3];
-        const auto& v_0_4 = relation_parameters.batching_challenge_v[0][4];
-        const auto& v_1_0 = relation_parameters.batching_challenge_v[1][0];
-        const auto& v_1_1 = relation_parameters.batching_challenge_v[1][1];
-        const auto& v_1_2 = relation_parameters.batching_challenge_v[1][2];
-        const auto& v_1_3 = relation_parameters.batching_challenge_v[1][3];
-        const auto& v_1_4 = relation_parameters.batching_challenge_v[1][4];
-        const auto& v_2_0 = relation_parameters.batching_challenge_v[2][0];
-        const auto& v_2_1 = relation_parameters.batching_challenge_v[2][1];
-        const auto& v_2_2 = relation_parameters.batching_challenge_v[2][2];
-        const auto& v_2_3 = relation_parameters.batching_challenge_v[2][3];
-        const auto& v_2_4 = relation_parameters.batching_challenge_v[2][4];
-        const auto& v_3_0 = relation_parameters.batching_challenge_v[3][0];
-        const auto& v_3_1 = relation_parameters.batching_challenge_v[3][1];
-        const auto& v_3_2 = relation_parameters.batching_challenge_v[3][2];
-        const auto& v_3_3 = relation_parameters.batching_challenge_v[3][3];
-        const auto& v_3_4 = relation_parameters.batching_challenge_v[3][4];
+        const auto& v_0_0 = params.batching_challenge_v[0][0];
+        const auto& v_0_1 = params.batching_challenge_v[0][1];
+        const auto& v_0_2 = params.batching_challenge_v[0][2];
+        const auto& v_0_3 = params.batching_challenge_v[0][3];
+        const auto& v_0_4 = params.batching_challenge_v[0][4];
+        const auto& v_1_0 = params.batching_challenge_v[1][0];
+        const auto& v_1_1 = params.batching_challenge_v[1][1];
+        const auto& v_1_2 = params.batching_challenge_v[1][2];
+        const auto& v_1_3 = params.batching_challenge_v[1][3];
+        const auto& v_1_4 = params.batching_challenge_v[1][4];
+        const auto& v_2_0 = params.batching_challenge_v[2][0];
+        const auto& v_2_1 = params.batching_challenge_v[2][1];
+        const auto& v_2_2 = params.batching_challenge_v[2][2];
+        const auto& v_2_3 = params.batching_challenge_v[2][3];
+        const auto& v_2_4 = params.batching_challenge_v[2][4];
+        const auto& v_3_0 = params.batching_challenge_v[3][0];
+        const auto& v_3_1 = params.batching_challenge_v[3][1];
+        const auto& v_3_2 = params.batching_challenge_v[3][2];
+        const auto& v_3_3 = params.batching_challenge_v[3][3];
+        const auto& v_3_4 = params.batching_challenge_v[3][4];
 
         const auto& op = View(in.op);
         const auto& p_x_low_limbs = View(in.p_x_low_limbs);

@@ -1,7 +1,6 @@
 #pragma once
 #include "barretenberg/numeric/uint256/uint256.hpp"
-#include "relation_parameters.hpp"
-#include "relation_types.hpp"
+#include "barretenberg/proof_system/relations/relation_types.hpp"
 
 namespace proof_system {
 
@@ -12,7 +11,7 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH =
         3; // degree(lagrange_odd_in_minicircuit_in_minicircuit(a - a_0 - a_1*2¹⁴ ... - a_l⋅2¹⁴ˡ )) = 2
-    static constexpr std::array<size_t, 48> SUBRELATION_LENGTHS{
+    static constexpr std::array<size_t, 48> SUBRELATION_PARTIAL_LENGTHS{
         3, // decomposition of P.x limb 0 into microlimbs subrelation
         3, // decomposition of P.x limb 1 into microlimbs subrelation
         3, // decomposition of P.x limb 2 into microlimbs subrelation
@@ -81,10 +80,10 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename ContainerOverSubrelations, typename AllEntities>
+    template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
     inline static void accumulate(ContainerOverSubrelations& accumulators,
                                   const AllEntities& in,
-                                  const RelationParameters<FF>&,
+                                  const Parameters&,
                                   const FF& scaling_factor)
     {
         static constexpr size_t NUM_LIMB_BITS = 68; // Number of bits in a standard limb used for bigfield operations

@@ -107,7 +107,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_relation_check_
 
     auto sumcheck = Sumcheck(instance->proving_key->circuit_size, transcript);
 
-    sumcheck_output = sumcheck.prove(instance->prover_polynomials, instance->relation_parameters);
+    sumcheck_output = sumcheck.prove(instance);
 }
 
 /**

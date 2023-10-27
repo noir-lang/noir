@@ -30,14 +30,14 @@ template <typename FF_> class ECCVMTranscriptRelationBase {
   public:
     using FF = FF_;
 
-    static constexpr std::array<size_t, 35> SUBRELATION_LENGTHS{
+    static constexpr std::array<size_t, 35> SUBRELATION_PARTIAL_LENGTHS{
         6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
     };
 
-    template <typename ContainerOverSubrelations, typename AllEntities>
+    template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
     static void accumulate(ContainerOverSubrelations& accumulator,
                            const AllEntities& in,
-                           const RelationParameters<FF>& /* unused */,
+                           const Parameters& /* unused */,
                            const FF& scaling_factor);
 
     // TODO(@zac-williamson #2609 find more generic way of doing this)

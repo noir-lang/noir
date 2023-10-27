@@ -1,6 +1,5 @@
 #pragma once
-#include "relation_parameters.hpp"
-#include "relation_types.hpp"
+#include "barretenberg/proof_system/relations/relation_types.hpp"
 
 namespace proof_system {
 
@@ -8,7 +7,7 @@ template <typename FF_> class UltraArithmeticRelationImpl {
   public:
     using FF = FF_;
 
-    static constexpr std::array<size_t, 2> SUBRELATION_LENGTHS{
+    static constexpr std::array<size_t, 2> SUBRELATION_PARTIAL_LENGTHS{
         6, // primary arithmetic sub-relation
         5  // secondary arithmetic sub-relation
     };
@@ -64,11 +63,11 @@ template <typename FF_> class UltraArithmeticRelationImpl {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename ContainerOverSubrelations, typename AllEntities>
-    void static accumulate(ContainerOverSubrelations& evals,
-                           const AllEntities& in,
-                           const RelationParameters<FF>&,
-                           const FF& scaling_factor)
+    template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
+    inline static void accumulate(ContainerOverSubrelations& evals,
+                                  const AllEntities& in,
+                                  const Parameters&,
+                                  const FF& scaling_factor)
     {
         {
             using Accumulator = std::tuple_element_t<0, ContainerOverSubrelations>;

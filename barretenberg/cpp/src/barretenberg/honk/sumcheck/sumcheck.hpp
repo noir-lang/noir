@@ -1,6 +1,7 @@
 #pragma once
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
+#include "barretenberg/honk/instance/prover_instance.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/utils/grand_product_delta.hpp"
@@ -17,6 +18,7 @@ template <typename Flavor> class SumcheckProver {
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using PartiallyEvaluatedMultivariates = typename Flavor::PartiallyEvaluatedMultivariates;
     using ClaimedEvaluations = typename Flavor::AllValues;
+    using Instance = ProverInstance_<Flavor>;
 
     ProverTranscript<FF>& transcript;
     const size_t multivariate_n;
@@ -120,6 +122,15 @@ template <typename Flavor> class SumcheckProver {
     };
 
     /**
+     * @brief Compute univariate restriction place in transcript, generate challenge, partially evaluate,... repeat
+     * until final round, then compute multivariate evaluations and place in transcript.
+     */
+    SumcheckOutput<Flavor> prove(std::shared_ptr<Instance> instance)
+    {
+        return prove(instance->prover_polynomials, instance->relation_parameters);
+    };
+
+    /**
      * @brief Evaluate at the round challenge and prepare class for next round.
      * Illustration of layout in example of first round when d==3 (showing just one Honk polynomial,
      * i.e., what happens in just one column of our two-dimensional array):
@@ -155,7 +166,7 @@ template <typename Flavor> class SumcheckVerifier {
     using FF = typename Flavor::FF;
     using ClaimedEvaluations = typename Flavor::AllValues;
 
-    static constexpr size_t MAX_RANDOM_RELATION_LENGTH = Flavor::MAX_RANDOM_RELATION_LENGTH;
+    static constexpr size_t BATCHED_RELATION_PARTIAL_LENGTH = Flavor::BATCHED_RELATION_PARTIAL_LENGTH;
     static constexpr size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
 
     const size_t multivariate_d;
@@ -196,7 +207,7 @@ template <typename Flavor> class SumcheckVerifier {
             // Obtain the round univariate from the transcript
             std::string round_univariate_label = "Sumcheck:univariate_" + std::to_string(round_idx);
             auto round_univariate =
-                transcript.template receive_from_prover<barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH>>(
+                transcript.template receive_from_prover<barretenberg::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(
                     round_univariate_label);
 
             bool checked = round.check_sum(round_univariate);

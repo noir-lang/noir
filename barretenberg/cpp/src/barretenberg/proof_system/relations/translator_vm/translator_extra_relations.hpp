@@ -1,7 +1,6 @@
 #pragma once
 #include "barretenberg/numeric/uint256/uint256.hpp"
-#include "relation_parameters.hpp"
-#include "relation_types.hpp"
+#include "barretenberg/proof_system/relations/relation_types.hpp"
 
 namespace proof_system {
 
@@ -11,7 +10,7 @@ template <typename FF_> class GoblinTranslatorOpcodeConstraintRelationImpl {
 
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 7; // degree(op(op - 1)(op - 2)(op - 3)(op - 4)(op - 8)) = 6
-    static constexpr std::array<size_t, 1> SUBRELATION_LENGTHS{
+    static constexpr std::array<size_t, 1> SUBRELATION_PARTIAL_LENGTHS{
         7 // opcode constraint relation
     };
 
@@ -26,11 +25,11 @@ template <typename FF_> class GoblinTranslatorOpcodeConstraintRelationImpl {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename ContainerOverSubrelations, typename AllEntitites>
-    void static accumulate(ContainerOverSubrelations& accumulators,
-                           const AllEntitites& in,
-                           const RelationParameters<FF>&,
-                           const FF& scaling_factor)
+    template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
+    inline static void accumulate(ContainerOverSubrelations& accumulators,
+                                  const AllEntities& in,
+                                  const Parameters&,
+                                  const FF& scaling_factor)
     {
 
         using Accumulator = std::tuple_element_t<0, ContainerOverSubrelations>;
@@ -60,7 +59,7 @@ template <typename FF_> class GoblinTranslatorAccumulatorTransferRelationImpl {
 
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 3; // degree((SOME_LAGRANGE)(A-B)) = 2
-    static constexpr std::array<size_t, 12> SUBRELATION_LENGTHS{
+    static constexpr std::array<size_t, 12> SUBRELATION_PARTIAL_LENGTHS{
         3, // transfer accumulator limb 0 at even index subrelation
         3, // transfer accumulator limb 1 at even index subrelation
         3, // transfer accumulator limb 2 at even index subrelation
@@ -89,11 +88,11 @@ template <typename FF_> class GoblinTranslatorAccumulatorTransferRelationImpl {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename ContainerOverSubrelations, typename AllEntities>
-    void static accumulate(ContainerOverSubrelations& accumulators,
-                           const AllEntities& in,
-                           const RelationParameters<FF>& relation_parameters,
-                           const FF& scaling_factor)
+    template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
+    inline static void accumulate(ContainerOverSubrelations& accumulators,
+                                  const AllEntities& in,
+                                  const Parameters& params,
+                                  const FF& scaling_factor)
     {
         using Accumulator = std::tuple_element_t<0, ContainerOverSubrelations>;
         using View = typename Accumulator::View;
@@ -159,22 +158,22 @@ template <typename FF_> class GoblinTranslatorAccumulatorTransferRelationImpl {
 
         // Contribution (9) (9-12 ensure the output is as stated, we basically use this to get the result out of the
         // proof)
-        auto tmp_9 = (accumulators_binary_limbs_0 - relation_parameters.accumulated_result[0]) * lagrange_second;
+        auto tmp_9 = (accumulators_binary_limbs_0 - params.accumulated_result[0]) * lagrange_second;
         tmp_9 *= scaling_factor;
         std::get<8>(accumulators) += tmp_9;
 
         // Contribution (10)
-        auto tmp_10 = (accumulators_binary_limbs_1 - relation_parameters.accumulated_result[1]) * lagrange_second;
+        auto tmp_10 = (accumulators_binary_limbs_1 - params.accumulated_result[1]) * lagrange_second;
         tmp_10 *= scaling_factor;
         std::get<9>(accumulators) += tmp_10;
 
         // Contribution (11)
-        auto tmp_11 = (accumulators_binary_limbs_2 - relation_parameters.accumulated_result[2]) * lagrange_second;
+        auto tmp_11 = (accumulators_binary_limbs_2 - params.accumulated_result[2]) * lagrange_second;
         tmp_11 *= scaling_factor;
         std::get<10>(accumulators) += tmp_11;
 
         // Contribution (12)
-        auto tmp_12 = (accumulators_binary_limbs_3 - relation_parameters.accumulated_result[3]) * lagrange_second;
+        auto tmp_12 = (accumulators_binary_limbs_3 - params.accumulated_result[3]) * lagrange_second;
         tmp_12 *= scaling_factor;
         std::get<11>(accumulators) += tmp_12;
     };

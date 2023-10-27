@@ -13,6 +13,7 @@
 #include "barretenberg/proof_system/relations/ecc_vm/ecc_set_relation.hpp"
 #include "barretenberg/proof_system/relations/ecc_vm/ecc_transcript_relation.hpp"
 #include "barretenberg/proof_system/relations/ecc_vm/ecc_wnaf_relation.hpp"
+#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 #include "barretenberg/proof_system/relations/relation_types.hpp"
 #include <array>
 #include <concepts>
@@ -65,19 +66,19 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
                                  sumcheck::ECCVMLookupRelation<FF>>;
 
     using LookupRelation = sumcheck::ECCVMLookupRelation<FF>;
-    static constexpr size_t MAX_RELATION_LENGTH = get_max_relation_length<Relations>();
+    static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
 
-    // MAX_RANDOM_RELATION_LENGTH = algebraic degree of sumcheck relation *after* multiplying by the `pow_zeta` random
-    // polynomial e.g. For \sum(x) [A(x) * B(x) + C(x)] * PowZeta(X), relation length = 2 and random relation length = 3
-    static constexpr size_t MAX_RANDOM_RELATION_LENGTH = MAX_RELATION_LENGTH + 1;
+    // BATCHED_RELATION_PARTIAL_LENGTH = algebraic degree of sumcheck relation *after* multiplying by the `pow_zeta`
+    // random polynomial e.g. For \sum(x) [A(x) * B(x) + C(x)] * PowZeta(X), relation length = 2 and random relation
+    // length = 3
+    static constexpr size_t BATCHED_RELATION_PARTIAL_LENGTH = MAX_PARTIAL_RELATION_LENGTH + 1;
     static constexpr size_t NUM_RELATIONS = std::tuple_size<Relations>::value;
 
     // Instantiate the BarycentricData needed to extend each Relation Univariate
-    // static_assert(instantiate_barycentric_utils<FF, MAX_RANDOM_RELATION_LENGTH>());
 
     // define the containers for storing the contributions from each relation in Sumcheck
     using SumcheckTupleOfTuplesOfUnivariates = decltype(create_sumcheck_tuple_of_tuples_of_univariates<Relations>());
-    using TupleOfArraysOfValues = decltype(create_sumcheck_tuple_of_arrays_of_values<Relations>());
+    using TupleOfArraysOfValues = decltype(create_tuple_of_arrays_of_values<Relations>());
 
   private:
     /**
@@ -721,7 +722,7 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     /**
      * @brief A container for univariates produced during the hot loop in sumcheck.
      */
-    using ExtendedEdges = ProverUnivariates<MAX_RELATION_LENGTH>;
+    using ExtendedEdges = ProverUnivariates<MAX_PARTIAL_RELATION_LENGTH>;
 
     /**
      * @brief A container for the prover polynomials handles; only stores spans.

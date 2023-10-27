@@ -1,6 +1,5 @@
 #include "barretenberg/honk/flavor/ecc_vm.hpp"
 #include "barretenberg/honk/sumcheck/relation_definitions_fwd.hpp"
-#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 #include "ecc_msm_relation.hpp"
 
 namespace proof_system::honk::sumcheck {
@@ -19,10 +18,10 @@ namespace proof_system::honk::sumcheck {
  * @param scaling_factor optional term to scale the evaluation before adding to evals.
  */
 template <typename FF>
-template <typename ContainerOverSubrelations, typename AllEntities>
+template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
 void ECCVMLookupRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulator,
                                              const AllEntities& in,
-                                             const RelationParameters<FF>& relation_params,
+                                             const Parameters& params,
                                              [[maybe_unused]] const FF& scaling_factor)
 {
     using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
@@ -41,9 +40,9 @@ void ECCVMLookupRelationBase<FF>::accumulate(ContainerOverSubrelations& accumula
     // i.e. (1 / read_term[i]) = lookup_inverse * \prod_{j /ne i} (read_term[j]) * \prod_k (write_term[k])
     //      (1 / write_term[i]) = lookup_inverse * \prod_j (read_term[j]) * \prod_{k ne i} (write_term[k])
     barretenberg::constexpr_for<0, READ_TERMS, 1>(
-        [&]<size_t i>() { lookup_terms[i] = compute_read_term<Accumulator, i>(in, relation_params); });
+        [&]<size_t i>() { lookup_terms[i] = compute_read_term<Accumulator, i>(in, params); });
     barretenberg::constexpr_for<0, WRITE_TERMS, 1>(
-        [&]<size_t i>() { lookup_terms[i + READ_TERMS] = compute_write_term<Accumulator, i>(in, relation_params); });
+        [&]<size_t i>() { lookup_terms[i + READ_TERMS] = compute_write_term<Accumulator, i>(in, params); });
 
     barretenberg::constexpr_for<0, NUM_TOTAL_TERMS, 1>(
         [&]<size_t i>() { denominator_accumulator[i] = lookup_terms[i]; });

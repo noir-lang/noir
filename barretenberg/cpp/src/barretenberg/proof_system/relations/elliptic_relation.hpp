@@ -1,9 +1,7 @@
 #pragma once
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-
-#include "relation_parameters.hpp"
-#include "relation_types.hpp"
+#include "barretenberg/proof_system/relations/relation_types.hpp"
 
 namespace proof_system {
 
@@ -11,7 +9,7 @@ template <typename FF_> class EllipticRelationImpl {
   public:
     using FF = FF_;
 
-    static constexpr std::array<size_t, 2> SUBRELATION_LENGTHS{
+    static constexpr std::array<size_t, 2> SUBRELATION_PARTIAL_LENGTHS{
         6, // x-coordinate sub-relation
         6, // y-coordinate sub-relation
     };
@@ -38,11 +36,11 @@ template <typename FF_> class EllipticRelationImpl {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename ContainerOverSubrelations, typename AllEntities>
-    static void accumulate(ContainerOverSubrelations& accumulators,
-                           const AllEntities& in,
-                           const RelationParameters<FF>&,
-                           const FF& scaling_factor)
+    template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
+    inline static void accumulate(ContainerOverSubrelations& accumulators,
+                                  const AllEntities& in,
+                                  const Parameters&,
+                                  const FF& scaling_factor)
     {
         // TODO(@zac - williamson #2608 when Pedersen refactor is completed,
         // replace old addition relations with these ones and

@@ -18,6 +18,7 @@
 #include "barretenberg/proof_system/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/proof_system/relations/lookup_relation.hpp"
 #include "barretenberg/proof_system/relations/permutation_relation.hpp"
+#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 #include "barretenberg/proof_system/relations/ultra_arithmetic_relation.hpp"
 #include <gtest/gtest.h>
 

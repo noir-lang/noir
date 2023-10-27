@@ -5,7 +5,6 @@
 #include "barretenberg/common/constexpr_utils.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
-#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 #include "barretenberg/proof_system/relations/relation_types.hpp"
 
 namespace proof_system::honk::sumcheck {
@@ -18,7 +17,7 @@ template <typename FF_> class ECCVMLookupRelationBase {
     // 1 + polynomial degree of this relation
     static constexpr size_t LENGTH = READ_TERMS + WRITE_TERMS + 3; // 9
 
-    static constexpr std::array<size_t, 2> SUBRELATION_LENGTHS{
+    static constexpr std::array<size_t, 2> SUBRELATION_PARTIAL_LENGTHS{
         LENGTH, // grand product construction sub-relation
         LENGTH  // left-shiftable polynomial sub-relation
     };
@@ -31,46 +30,46 @@ template <typename FF_> class ECCVMLookupRelationBase {
         return (row.msm_add == 1) || (row.msm_skew == 1) || (row.precompute_select == 1);
     }
 
-    template <typename Accumulator0, size_t read_index, typename AllEntities>
-    static Accumulator0 compute_read_term_predicate(const AllEntities& in)
+    template <typename Accumulator, size_t read_index, typename AllEntities>
+    static Accumulator compute_read_term_predicate(const AllEntities& in)
 
     {
-        using View = typename Accumulator0::View;
+        using View = typename Accumulator::View;
 
         if constexpr (read_index == 0) {
-            return Accumulator0(View(in.msm_add1));
+            return Accumulator(View(in.msm_add1));
         }
         if constexpr (read_index == 1) {
-            return Accumulator0(View(in.msm_add2));
+            return Accumulator(View(in.msm_add2));
         }
         if constexpr (read_index == 2) {
-            return Accumulator0(View(in.msm_add3));
+            return Accumulator(View(in.msm_add3));
         }
         if constexpr (read_index == 3) {
-            return Accumulator0(View(in.msm_add4));
+            return Accumulator(View(in.msm_add4));
         }
-        return Accumulator0(1);
+        return Accumulator(1);
     }
 
-    template <typename Accumulator0, size_t write_index, typename AllEntities>
-    static Accumulator0 compute_write_term_predicate(const AllEntities& in)
+    template <typename Accumulator, size_t write_index, typename AllEntities>
+    static Accumulator compute_write_term_predicate(const AllEntities& in)
     {
-        using View = typename Accumulator0::View;
+        using View = typename Accumulator::View;
 
         if constexpr (write_index == 0) {
-            return Accumulator0(View(in.precompute_select));
+            return Accumulator(View(in.precompute_select));
         }
         if constexpr (write_index == 1) {
             // TODO(https://github.com/AztecProtocol/barretenberg/issues/750) Is this a bug?
-            return Accumulator0(View(in.precompute_select));
+            return Accumulator(View(in.precompute_select));
         }
-        return Accumulator0(1);
+        return Accumulator(1);
     }
 
-    template <typename Accumulator0, size_t write_index, typename AllEntities>
-    static Accumulator0 compute_write_term(const AllEntities& in, const RelationParameters<FF>& relation_params)
+    template <typename Accumulator, size_t write_index, typename AllEntities, typename Parameters>
+    static Accumulator compute_write_term(const AllEntities& in, const Parameters& params)
     {
-        using View = typename Accumulator0::View;
+        using View = typename Accumulator::View;
 
         static_assert(write_index < WRITE_TERMS);
 
@@ -95,10 +94,10 @@ template <typename FF_> class ECCVMLookupRelationBase {
         const auto& tx = View(in.precompute_tx);
         const auto& ty = View(in.precompute_ty);
         const auto& precompute_round = View(in.precompute_round);
-        const auto& gamma = relation_params.gamma;
-        const auto& beta = relation_params.beta;
-        const auto& beta_sqr = relation_params.beta_sqr;
-        const auto& beta_cube = relation_params.beta_cube;
+        const auto& gamma = params.gamma;
+        const auto& beta = params.beta;
+        const auto& beta_sqr = params.beta_sqr;
+        const auto& beta_cube = params.beta_cube;
 
         // slice value : (wnaf value) : lookup term
         // 0 : -15 : 0
@@ -135,21 +134,21 @@ template <typename FF_> class ECCVMLookupRelationBase {
         if constexpr (write_index == 1) {
             return negative_term; // degree 1
         }
-        return Accumulator0(1);
+        return Accumulator(1);
     }
 
-    template <typename Accumulator0, size_t read_index, typename AllEntities>
-    static Accumulator0 compute_read_term(const AllEntities& in, const RelationParameters<FF>& relation_params)
+    template <typename Accumulator, size_t read_index, typename AllEntities, typename Parameters>
+    static Accumulator compute_read_term(const AllEntities& in, const Parameters& params)
     {
-        using View = typename Accumulator0::View;
+        using View = typename Accumulator::View;
 
         // read term:
         // pc, slice, x, y
         static_assert(read_index < READ_TERMS);
-        const auto& gamma = relation_params.gamma;
-        const auto& beta = relation_params.beta;
-        const auto& beta_sqr = relation_params.beta_sqr;
-        const auto& beta_cube = relation_params.beta_cube;
+        const auto& gamma = params.gamma;
+        const auto& beta = params.beta;
+        const auto& beta_sqr = params.beta_sqr;
+        const auto& beta_cube = params.beta_cube;
         const auto& msm_pc = View(in.msm_pc);
         const auto& msm_count = View(in.msm_count);
         const auto& msm_slice1 = View(in.msm_slice1);
@@ -190,7 +189,7 @@ template <typename FF_> class ECCVMLookupRelationBase {
         if constexpr (read_index == 3) {
             return read_term4; // degree 1
         }
-        return Accumulator0(1);
+        return Accumulator(1);
     }
 
     /**
@@ -206,10 +205,10 @@ template <typename FF_> class ECCVMLookupRelationBase {
      * @param relation_params contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename ContainerOverSubrelations, typename AllEntities>
+    template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
     static void accumulate(ContainerOverSubrelations& accumulator,
                            const AllEntities& in,
-                           const RelationParameters<FF>& relation_params,
+                           const Parameters& params,
                            const FF& /*unused*/);
 };
 

@@ -7,11 +7,11 @@
 #include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_translator_circuit_builder.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
-#include "barretenberg/proof_system/relations/decomposition_relation.hpp"
-#include "barretenberg/proof_system/relations/extra_relations.hpp"
-#include "barretenberg/proof_system/relations/gen_perm_sort_relation.hpp"
-#include "barretenberg/proof_system/relations/non_native_field_relation.hpp"
-#include "barretenberg/proof_system/relations/permutation_relation.hpp"
+#include "barretenberg/proof_system/relations/translator_vm/translator_decomposition_relation.hpp"
+#include "barretenberg/proof_system/relations/translator_vm/translator_extra_relations.hpp"
+#include "barretenberg/proof_system/relations/translator_vm/translator_gen_perm_sort_relation.hpp"
+#include "barretenberg/proof_system/relations/translator_vm/translator_non_native_field_relation.hpp"
+#include "barretenberg/proof_system/relations/translator_vm/translator_permutation_relation.hpp"
 #include <array>
 #include <concepts>
 #include <span>
@@ -316,16 +316,19 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
                                  GoblinTranslatorDecompositionRelation<FF>,
                                  GoblinTranslatorNonNativeFieldRelation<FF>>;
 
-    static constexpr size_t MAX_RELATION_LENGTH = get_max_relation_length<Relations>();
+    static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
+    static constexpr size_t MAX_TOTAL_RELATION_LENGTH = compute_max_total_relation_length<Relations>();
 
-    // MAX_RANDOM_RELATION_LENGTH = algebraic degree of sumcheck relation *after* multiplying by the `pow_zeta` random
-    // polynomial e.g. For \sum(x) [A(x) * B(x) + C(x)] * PowZeta(X), relation length = 2 and random relation length = 3
-    static constexpr size_t MAX_RANDOM_RELATION_LENGTH = MAX_RELATION_LENGTH + 1;
-    static constexpr size_t NUM_RELATIONS = std::tuple_size<Relations>::value;
+    // BATCHED_RELATION_PARTIAL_LENGTH = algebraic degree of sumcheck relation *after* multiplying by the `pow_zeta`
+    // random polynomial e.g. For \sum(x) [A(x) * B(x) + C(x)] * PowZeta(X), relation length = 2 and random relation
+    // length = 3
+    static constexpr size_t BATCHED_RELATION_PARTIAL_LENGTH = MAX_PARTIAL_RELATION_LENGTH + 1;
+    static constexpr size_t BATCHED_RELATION_TOTAL_LENGTH = MAX_TOTAL_RELATION_LENGTH + 1;
+    static constexpr size_t NUM_RELATIONS = std::tuple_size_v<Relations>;
 
     // define the containers for storing the contributions from each relation in Sumcheck
     using SumcheckTupleOfTuplesOfUnivariates = decltype(create_sumcheck_tuple_of_tuples_of_univariates<Relations>());
-    using TupleOfArraysOfValues = decltype(create_sumcheck_tuple_of_arrays_of_values<Relations>());
+    using TupleOfArraysOfValues = decltype(create_tuple_of_arrays_of_values<Relations>());
 
   private:
     template <typename DataType, typename HandleType>
@@ -1503,7 +1506,7 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
     /**
      * @brief A container for univariates produced during the hot loop in sumcheck.
      */
-    using ExtendedEdges = ProverUnivariates<MAX_RELATION_LENGTH>;
+    using ExtendedEdges = ProverUnivariates<MAX_PARTIAL_RELATION_LENGTH>;
 
     /**
      * @brief A container for commitment labels.

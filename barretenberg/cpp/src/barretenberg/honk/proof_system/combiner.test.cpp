@@ -34,7 +34,6 @@ TEST(Protogalaxy, CombinerOn2Instances)
         if (is_random_input) {
             std::vector<std::shared_ptr<ProverInstance>> instance_data(NUM_INSTANCES);
             std::array<std::array<Polynomial, Flavor::NUM_ALL_ENTITIES>, NUM_INSTANCES> storage_arrays;
-            auto relation_parameters = RelationParameters::get_random();
             ProtoGalaxyProver prover;
             auto pow_univariate = PowUnivariate<FF>(/*zeta_pow=*/2);
             auto alpha = FF(0); // focus on the arithmetic relation only
@@ -51,21 +50,25 @@ TEST(Protogalaxy, CombinerOn2Instances)
 
             ProverInstances instances{ instance_data };
 
-            auto result = prover.compute_combiner(instances, relation_parameters, pow_univariate, alpha);
+            auto result = prover.compute_combiner(instances, pow_univariate, alpha);
             auto expected_result =
-                barretenberg::Univariate<FF, 7>(std::array<FF, 7>{ 87706,
-                                                                   27289140,
-                                                                   229355214,
-                                                                   905031784,
-                                                                   static_cast<uint64_t>(2504059650),
-                                                                   static_cast<uint64_t>(5627174556),
-                                                                   static_cast<uint64_t>(11026107190) });
-
+                barretenberg::Univariate<FF, 13>(std::array<FF, 13>{ 87706,
+                                                                     27289140,
+                                                                     229355214,
+                                                                     905031784,
+                                                                     static_cast<uint64_t>(2504059650),
+                                                                     static_cast<uint64_t>(5627174556),
+                                                                     static_cast<uint64_t>(11026107190),
+                                                                     static_cast<uint64_t>(19603583184),
+                                                                     static_cast<uint64_t>(32413323114),
+                                                                     static_cast<uint64_t>(50660042500),
+                                                                     static_cast<uint64_t>(75699451806),
+                                                                     static_cast<uint64_t>(109038256440),
+                                                                     static_cast<uint64_t>(152334156754) });
             EXPECT_EQ(result, expected_result);
         } else {
             std::vector<std::shared_ptr<ProverInstance>> instance_data(NUM_INSTANCES);
             std::array<std::array<Polynomial, Flavor::NUM_ALL_ENTITIES>, NUM_INSTANCES> storage_arrays;
-            auto relation_parameters = RelationParameters::get_random();
             ProtoGalaxyProver prover;
             auto pow_univariate = PowUnivariate<FF>(/*zeta_pow=*/2);
             auto alpha = FF(0); // focus on the arithmetic relation only
@@ -126,8 +129,9 @@ TEST(Protogalaxy, CombinerOn2Instances)
             relation value:
                       0    0    0    0    0    0    0              0    0    6   18   36   60   90      */
 
-            auto result = prover.compute_combiner(instances, relation_parameters, pow_univariate, alpha);
-            auto expected_result = barretenberg::Univariate<FF, 7>(std::array<FF, 7>{ 0, 0, 36, 144, 360, 720, 1260 });
+            auto result = prover.compute_combiner(instances, pow_univariate, alpha);
+            auto expected_result = barretenberg::Univariate<FF, 13>(
+                std::array<FF, 13>{ 0, 0, 36, 144, 360, 720, 1260, 2016, 3024, 4320, 5940, 7920, 10296 });
             EXPECT_EQ(result, expected_result);
         }
     };
@@ -156,7 +160,6 @@ TEST(Protogalaxy, CombinerOn4Instances)
     auto run_test = [&]() {
         std::vector<std::shared_ptr<ProverInstance>> instance_data(NUM_INSTANCES);
         std::array<std::array<Polynomial, Flavor::NUM_ALL_ENTITIES>, NUM_INSTANCES> storage_arrays;
-        auto relation_parameters = RelationParameters::get_random();
         ProtoGalaxyProver prover;
         auto pow_univariate = PowUnivariate<FF>(/*zeta_pow=*/2);
         auto alpha = FF(0); // focus on the arithmetic relation only
@@ -177,10 +180,10 @@ TEST(Protogalaxy, CombinerOn4Instances)
         zero_all_selectors(instances[2]->prover_polynomials);
         zero_all_selectors(instances[3]->prover_polynomials);
 
-        auto result = prover.compute_combiner(instances, relation_parameters, pow_univariate, alpha);
-        std::array<FF, 19> zeroes;
+        auto result = prover.compute_combiner(instances, pow_univariate, alpha);
+        std::array<FF, 37> zeroes;
         std::fill(zeroes.begin(), zeroes.end(), 0);
-        auto expected_result = barretenberg::Univariate<FF, 19>(zeroes);
+        auto expected_result = barretenberg::Univariate<FF, 37>(zeroes);
         EXPECT_EQ(result, expected_result);
     };
     run_test();

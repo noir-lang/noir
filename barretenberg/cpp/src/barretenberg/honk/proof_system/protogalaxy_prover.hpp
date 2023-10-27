@@ -22,11 +22,15 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     using RowEvaluations = typename Flavor::AllValues;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Relations = typename Flavor::Relations;
+
     using BaseUnivariate = Univariate<FF, ProverInstances::NUM>;
-    using ExtendedUnivariate = Univariate<FF, (Flavor::MAX_RELATION_LENGTH - 1) * (ProverInstances::NUM - 1) + 1>;
-    using RandomExtendedUnivariate =
-        Univariate<FF, (Flavor::MAX_RANDOM_RELATION_LENGTH - 1) * (ProverInstances::NUM - 1) + 1>;
+    // The length of ExtendedUnivariate is the largest length (==degree + 1) of a univariate polynomial obtained by
+    // composing a relation with folded instance + challenge data.
+    using ExtendedUnivariate = Univariate<FF, (Flavor::MAX_TOTAL_RELATION_LENGTH - 1) * (ProverInstances::NUM - 1) + 1>;
+    using ExtendedUnivariateWithRandomization =
+        Univariate<FF, (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 1) * (ProverInstances::NUM - 1) + 1>;
     using ExtendedUnivariates = typename Flavor::template ProverUnivariates<ExtendedUnivariate::LENGTH>;
+
     using TupleOfTuplesOfUnivariates =
         typename Flavor::template ProtogalaxyTupleOfTuplesOfUnivariates<ProverInstances::NUM>;
     using RelationEvaluations = typename Flavor::TupleOfArraysOfValues;
@@ -192,10 +196,10 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
         }
     }
 
-    template <size_t relation_idx = 0>
+    template <typename Parameters, size_t relation_idx = 0>
     void accumulate_relation_univariates(TupleOfTuplesOfUnivariates& univariate_accumulators,
                                          const ExtendedUnivariates& extended_univariates,
-                                         const proof_system::RelationParameters<FF>& relation_parameters,
+                                         const Parameters& relation_parameters,
                                          const FF& scaling_factor)
     {
         using Relation = std::tuple_element_t<relation_idx, Relations>;
@@ -204,7 +208,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
 
         // Repeat for the next relation.
         if constexpr (relation_idx + 1 < Flavor::NUM_RELATIONS) {
-            accumulate_relation_univariates<relation_idx + 1>(
+            accumulate_relation_univariates<Parameters, relation_idx + 1>(
                 univariate_accumulators, extended_univariates, relation_parameters, scaling_factor);
         }
     }
@@ -214,11 +218,9 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      *
      * @todo TODO(https://github.com/AztecProtocol/barretenberg/issues/754) Provide the right challenge to here
      */
-    RandomExtendedUnivariate compute_combiner(
-        const ProverInstances& instances,
-        const proof_system::RelationParameters<typename Flavor::FF>& relation_parameters,
-        const PowUnivariate<typename Flavor::FF>& pow_univariate,
-        const typename Flavor::FF alpha)
+    ExtendedUnivariateWithRandomization compute_combiner(const ProverInstances& instances,
+                                                         const PowUnivariate<typename Flavor::FF>& pow_univariate,
+                                                         const typename Flavor::FF alpha)
     {
         size_t common_circuit_size = instances[0]->prover_polynomials._data[0].size();
         // Precompute the vector of required powers of zeta
@@ -261,11 +263,13 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
 
                 FF pow_challenge = pow_challenges[idx];
 
-                // Accumulate the i-th row's univariate contribution
-                accumulate_relation_univariates(thread_univariate_accumulators[thread_idx],
-                                                extended_univariates[thread_idx],
-                                                relation_parameters,
-                                                pow_challenge);
+                // Accumulate the i-th row's univariate contribution. Note that the relation parameters passed to this
+                // function have already been folded
+                accumulate_relation_univariates(
+                    thread_univariate_accumulators[thread_idx],
+                    extended_univariates[thread_idx],
+                    instances.relation_parameters, // these parameters have already been folded
+                    pow_challenge);
             }
         });
 
@@ -274,8 +278,31 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
             Utils::add_nested_tuples(univariate_accumulators, accumulators);
         }
         // Batch the univariate contributions from each sub-relation to obtain the round univariate
-        return Utils::template batch_over_relations<RandomExtendedUnivariate>(
+        return Utils::template batch_over_relations<ExtendedUnivariateWithRandomization>(
             univariate_accumulators, alpha, pow_univariate);
+    }
+
+    /**
+     * @brief Create folded (univariate) relation parameters.
+     * @details For a given relation parameter type, extract that parameter from each instance, place the values in a
+     * univariate (i.e., sum them against an appropriate univariate Lagrange basis) and then extended as needed during
+     * the constuction of the combiner.
+     */
+    static void fold_parameters(ProverInstances& instances)
+    {
+        // array of parameters to be computed
+        auto& folded_parameters = instances.relation_parameters.to_fold;
+        size_t param_idx = 0;
+        for (auto& folded_parameter : folded_parameters) {
+            Univariate<FF, ProverInstances::NUM> tmp(0);
+            size_t instance_idx = 0;
+            for (auto& instance : instances) {
+                tmp.value_at(instance_idx) = instance->relation_parameters.to_fold[param_idx];
+                instance_idx++;
+            }
+            folded_parameter.get() = tmp.template extend_to<ProverInstances::EXTENDED_LENGTH>();
+            param_idx++;
+        }
     }
 };
 

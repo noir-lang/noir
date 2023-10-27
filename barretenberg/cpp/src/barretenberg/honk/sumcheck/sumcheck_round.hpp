@@ -65,8 +65,8 @@ template <typename Flavor> class SumcheckProverRound {
     size_t round_size; // a power of 2
 
     static constexpr size_t NUM_RELATIONS = Flavor::NUM_RELATIONS;
-    static constexpr size_t MAX_RELATION_LENGTH = Flavor::MAX_RELATION_LENGTH;
-    static constexpr size_t MAX_RANDOM_RELATION_LENGTH = Flavor::MAX_RANDOM_RELATION_LENGTH;
+    static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = Flavor::MAX_PARTIAL_RELATION_LENGTH;
+    static constexpr size_t BATCHED_RELATION_PARTIAL_LENGTH = Flavor::BATCHED_RELATION_PARTIAL_LENGTH;
 
     SumcheckTupleOfTuplesOfUnivariates univariate_accumulators;
 
@@ -93,7 +93,7 @@ template <typename Flavor> class SumcheckProverRound {
         size_t univariate_idx = 0; // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
         for (auto& poly : multivariates) {
             auto edge = barretenberg::Univariate<FF, 2>({ poly[edge_idx], poly[edge_idx + 1] });
-            extended_edges[univariate_idx] = edge.template extend_to<MAX_RELATION_LENGTH>();
+            extended_edges[univariate_idx] = edge.template extend_to<MAX_PARTIAL_RELATION_LENGTH>();
             ++univariate_idx;
         }
     }
@@ -104,7 +104,7 @@ template <typename Flavor> class SumcheckProverRound {
      * univariate accumulators to be zero.
      */
     template <typename ProverPolynomialsOrPartiallyEvaluatedMultivariates>
-    barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH> compute_univariate(
+    barretenberg::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH> compute_univariate(
         ProverPolynomialsOrPartiallyEvaluatedMultivariates& polynomials,
         const proof_system::RelationParameters<FF>& relation_parameters,
         const barretenberg::PowUnivariate<FF>& pow_univariate,
@@ -153,10 +153,10 @@ template <typename Flavor> class SumcheckProverRound {
                 // Compute the i-th edge's univariate contribution,
                 // scale it by the pow polynomial's constant and zeta power "c_l ⋅ ζ_{l+1}ⁱ"
                 // and add it to the accumulators for Sˡ(Xₗ)
-                accumulate_relation_univariates<>(thread_univariate_accumulators[thread_idx],
-                                                  extended_edges[thread_idx],
-                                                  relation_parameters,
-                                                  pow_challenge);
+                accumulate_relation_univariates(thread_univariate_accumulators[thread_idx],
+                                                extended_edges[thread_idx],
+                                                relation_parameters,
+                                                pow_challenge);
             }
         });
 
@@ -165,7 +165,7 @@ template <typename Flavor> class SumcheckProverRound {
             Utils::add_nested_tuples(univariate_accumulators, accumulators);
         }
         // Batch the univariate contributions from each sub-relation to obtain the round univariate
-        return Utils::template batch_over_relations<barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH>>(
+        return Utils::template batch_over_relations<barretenberg::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(
             univariate_accumulators, alpha, pow_univariate);
     }
 
@@ -215,7 +215,7 @@ template <typename Flavor> class SumcheckVerifierRound {
     bool round_failed = false;
 
     static constexpr size_t NUM_RELATIONS = Flavor::NUM_RELATIONS;
-    static constexpr size_t MAX_RANDOM_RELATION_LENGTH = Flavor::MAX_RANDOM_RELATION_LENGTH;
+    static constexpr size_t BATCHED_RELATION_PARTIAL_LENGTH = Flavor::BATCHED_RELATION_PARTIAL_LENGTH;
 
     FF target_total_sum = 0;
 
@@ -224,7 +224,7 @@ template <typename Flavor> class SumcheckVerifierRound {
     // Verifier constructor
     explicit SumcheckVerifierRound() { Utils::zero_elements(relation_evaluations); };
 
-    bool check_sum(barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate)
+    bool check_sum(barretenberg::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>& univariate)
     {
         // S^{l}(0) = ( (1−0) + 0⋅ζ^{ 2^l } ) ⋅ T^{l}(0) = T^{l}(0)
         // S^{l}(1) = ( (1−1) + 1⋅ζ^{ 2^l } ) ⋅ T^{l}(1) = ζ^{ 2^l } ⋅ T^{l}(1)
@@ -252,7 +252,7 @@ template <typename Flavor> class SumcheckVerifierRound {
      * @param round_challenge u_l
      * @return FF sigma_{l+1} = S^l(u_l)
      */
-    FF compute_next_target_sum(barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate,
+    FF compute_next_target_sum(barretenberg::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>& univariate,
                                FF& round_challenge)
     {
         // Evaluate T^{l}(u_{l})
