@@ -1,3 +1,4 @@
+use lsp_types::DocumentSymbolClientCapabilities;
 use noirc_frontend::graph::CrateName;
 use serde::{Deserialize, Serialize};
 
@@ -5,8 +6,9 @@ use serde::{Deserialize, Serialize};
 pub(crate) use lsp_types::{
     CodeLens, CodeLensOptions, CodeLensParams, Command, Diagnostic, DiagnosticSeverity,
     DidChangeConfigurationParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DidSaveTextDocumentParams, InitializeParams, InitializedParams,
-    LogMessageParams, MessageType, Position, PublishDiagnosticsParams, Range, ServerInfo,
+    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentSymbolOptions,
+    DocumentSymbolParams, DocumentSymbolResponse, InitializeParams, InitializedParams,
+    LogMessageParams, MessageType, OneOf, Position, PublishDiagnosticsParams, Range, ServerInfo,
     TextDocumentSyncCapability, TextDocumentSyncOptions, Url,
 };
 
@@ -19,7 +21,9 @@ pub(crate) mod request {
     };
 
     // Re-providing lsp_types that we don't need to override
-    pub(crate) use lsp_types::request::{CodeLensRequest as CodeLens, Shutdown};
+    pub(crate) use lsp_types::request::{
+        CodeLensRequest as CodeLens, DocumentSymbolRequest, Shutdown,
+    };
 
     #[derive(Debug)]
     pub(crate) struct Initialize;
@@ -98,6 +102,9 @@ pub(crate) struct ServerCapabilities {
     /// The server provides code lens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) code_lens_provider: Option<CodeLensOptions>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) document_symbol_provider: Option<OneOf<bool, DocumentSymbolOptions>>,
 
     /// The server handles and provides custom nargo messages.
     #[serde(skip_serializing_if = "Option::is_none")]
