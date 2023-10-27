@@ -55,7 +55,7 @@ module.exports = {
   plugins: ['@typescript-eslint', 'eslint-plugin-tsdoc', 'jsdoc', 'no-only-tests'],
   overrides: [
     {
-      files: ['*.ts', '*.tsx'],
+      files: ['*.cts', '*.mts', '*.ts', '*.tsx'],
       parserOptions: {
         // hacky workaround for CI not having the same tsconfig setup
         project: true,

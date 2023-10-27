@@ -26,6 +26,7 @@ boxes/*/*
 !.yarnrc.yml
 !.yarn/plugins
 !.yarn/releases
+!.yarn/patches
 
 # Unexclude tsconfig files for running project reference checks.
 !**/tsconfig.json

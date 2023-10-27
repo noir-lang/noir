@@ -1,11 +1,16 @@
 import { LogFn } from '@aztec/foundation/log';
 
 import { Command } from 'commander';
-import { writeFileSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 import { mkdirpSync } from 'fs-extra';
 import path, { resolve } from 'path';
 
-import { compileUsingNargo, generateNoirContractInterface, generateTypescriptContractInterface } from '../index.js';
+import {
+  compileUsingNargo,
+  compileUsingNoirWasm,
+  generateNoirContractInterface,
+  generateTypescriptContractInterface,
+} from '../index.js';
 
 /**
  * Registers a 'contract' command on the given commander program that compiles an Aztec.nr contract project.
@@ -20,6 +25,7 @@ export function compileContract(program: Command, name = 'contract', log: LogFn 
     .option('-o, --outdir <path>', 'Output folder for the binary artifacts, relative to the project path', 'target')
     .option('-ts, --typescript <path>', 'Optional output folder for generating typescript wrappers', undefined)
     .option('-i, --interface <path>', 'Optional output folder for generating an Aztec.nr contract interface', undefined)
+    .option('-c --compiler <string>', 'Which compiler to use. Either nargo or wasm. Defaults to nargo', 'nargo')
     .description('Compiles the contracts in the target project')
 
     .action(
@@ -30,20 +36,23 @@ export function compileContract(program: Command, name = 'contract', log: LogFn 
           outdir: string;
           typescript: string | undefined;
           interface: string | undefined;
+          compiler: string | undefined;
         },
         /* eslint-enable jsdoc/require-jsdoc */
       ) => {
-        const { outdir, typescript, interface: noirInterface } = options;
+        const { outdir, typescript, interface: noirInterface, compiler = 'nargo' } = options;
         if (typeof projectPath !== 'string') throw new Error(`Missing project path argument`);
+        if (compiler !== 'nargo' && compiler !== 'wasm') throw new Error(`Invalid compiler: ${compiler}`);
         const currentDir = process.cwd();
 
-        const compile = compileUsingNargo;
+        const compile = compiler === 'wasm' ? compileUsingNoirWasm : compileUsingNargo;
         log(`Compiling contracts...`);
         const result = await compile(projectPath, { log });
 
         for (const contract of result) {
           const artifactPath = resolve(projectPath, outdir, `${contract.name}.json`);
           log(`Writing ${contract.name} artifact to ${path.relative(currentDir, artifactPath)}`);
+          mkdirSync(path.dirname(artifactPath), { recursive: true });
           writeFileSync(artifactPath, JSON.stringify(contract, null, 2));
 
           if (noirInterface) {

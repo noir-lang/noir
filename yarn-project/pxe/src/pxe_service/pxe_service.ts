@@ -22,7 +22,7 @@ import { encodeArguments } from '@aztec/foundation/abi';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import NoirVersion from '@aztec/noir-compiler/noir-version';
+import { NoirVersion } from '@aztec/noir-compiler/noir-version';
 import {
   AuthWitness,
   AztecNode,

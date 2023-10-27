@@ -320,7 +320,7 @@ export async function unboxContract(
 
   if (!contractNames.includes(contractName)) {
     log(
-      `The noir contract named "${contractName}" was not found in "@aztec/boxes" package.  Valid options are: 
+      `The noir contract named "${contractName}" was not found in "@aztec/boxes" package.  Valid options are:
         ${contractNames.join('\n\t')}
       We recommend "token" as a default.`,
     );

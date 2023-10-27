@@ -32,8 +32,6 @@ yarn --cwd circuits.js remake-constants
 (cd boxes && ./bootstrap.sh)
 (cd .. && l1-contracts/bootstrap.sh)
 
-# Until we push .yarn/cache, we still need to install.
-yarn
 # We do not need to build individual packages, yarn build will build the root tsconfig.json
 yarn build
 

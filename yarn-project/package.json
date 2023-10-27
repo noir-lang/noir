@@ -59,5 +59,9 @@
     "prettier": "^2.8.8",
     "typedoc": "^0.24.8",
     "typescript": "^5.0.4"
+  },
+  "resolutions": {
+    "ts-jest@^29.1.0": "patch:ts-jest@npm%3A29.1.1#./.yarn/patches/ts-jest-npm-29.1.1-04e888e48e.patch",
+    "ts-jest@^29.1.1": "patch:ts-jest@npm%3A29.1.1#./.yarn/patches/ts-jest-npm-29.1.1-04e888e48e.patch"
   }
 }

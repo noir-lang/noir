@@ -1,0 +1,16 @@
+diff --git a/dist/constants.js b/dist/constants.js
+index 15a900a5ea36e38e7344d5713cdffa1edbdd539d..850352d4b76ac7518c3cd46010023dee0dd8cca0 100644
+--- a/dist/constants.js
++++ b/dist/constants.js
+@@ -4,8 +4,9 @@ exports.DEFAULT_JEST_TEST_MATCH = exports.JS_EXT_TO_TREAT_AS_ESM = exports.TS_EX
+ exports.LINE_FEED = '\n';
+ exports.DECLARATION_TYPE_EXT = '.d.ts';
+ exports.JS_JSX_EXTENSIONS = ['.js', '.jsx'];
+-exports.TS_TSX_REGEX = /\.m?tsx?$/;
+-exports.JS_JSX_REGEX = /\.m?jsx?$/;
++// Remove this patch when this issue is fixed https://github.com/kulshekhar/ts-jest/issues/3996
++exports.TS_TSX_REGEX = /\.[cm]?tsx?$/;
++exports.JS_JSX_REGEX = /\.[cm]?jsx?$/;
+ // `extensionsToTreatAsEsm` will throw error with `.mjs`
+ exports.TS_EXT_TO_TREAT_AS_ESM = ['.ts', '.tsx', '.mts'];
+ exports.JS_EXT_TO_TREAT_AS_ESM = ['.jsx'];

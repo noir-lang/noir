@@ -25,6 +25,7 @@
 !.yarnrc.yml
 !.yarn/plugins
 !.yarn/releases
+!.yarn/patches
 
 # Unexclude scripts we use in the Dockerfile.
 !yarn-project-base/scripts
