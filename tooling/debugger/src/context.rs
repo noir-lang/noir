@@ -5,7 +5,8 @@ use acvm::pwg::{
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
-use nargo::errors::ExecutionError;
+use nargo::artifacts::debug::DebugArtifact;
+use nargo::errors::{ExecutionError, Location};
 use nargo::ops::ForeignCallExecutor;
 use nargo::NargoError;
 
@@ -20,6 +21,7 @@ pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     acvm: ACVM<'a, B>,
     brillig_solver: Option<BrilligSolver<'a, B>>,
     foreign_call_executor: ForeignCallExecutor,
+    debug_artifact: &'a DebugArtifact,
     show_output: bool,
 }
 
@@ -27,12 +29,14 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
     pub(super) fn new(
         blackbox_solver: &'a B,
         circuit: &'a Circuit,
+        debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
     ) -> Self {
         Self {
             acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
             brillig_solver: None,
             foreign_call_executor: ForeignCallExecutor::default(),
+            debug_artifact,
             show_output: true,
         }
     }
@@ -53,6 +57,12 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         } else {
             Some(OpcodeLocation::Acir(ip))
         }
+    }
+
+    pub(super) fn get_current_source_location(&self) -> Option<Vec<Location>> {
+        self.get_current_opcode_location()
+            .as_ref()
+            .and_then(|location| self.debug_artifact.debug_symbols[0].opcode_location(location))
     }
 
     fn step_brillig_opcode(&mut self) -> DebugCommandResult {
@@ -131,6 +141,20 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             self.acvm.solve_opcode()
         };
         self.handle_acvm_status(status)
+    }
+
+    pub(super) fn next(&mut self) -> DebugCommandResult {
+        let start_location = self.get_current_source_location();
+        loop {
+            let result = self.step_into_opcode();
+            if !matches!(result, DebugCommandResult::Ok) {
+                return result;
+            }
+            let new_location = self.get_current_source_location();
+            if matches!(new_location, Some(..)) && new_location != start_location {
+                return DebugCommandResult::Ok;
+            }
+        }
     }
 
     pub(super) fn cont(&mut self) -> DebugCommandResult {

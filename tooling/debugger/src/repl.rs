@@ -33,7 +33,8 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
     ) -> Self {
-        let context = DebugContext::new(blackbox_solver, circuit, initial_witness.clone());
+        let context =
+            DebugContext::new(blackbox_solver, circuit, debug_artifact, initial_witness.clone());
         Self {
             context,
             blackbox_solver,
@@ -165,6 +166,13 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         }
     }
 
+    fn next(&mut self) {
+        if self.validate_in_progress() {
+            let result = self.context.next();
+            self.handle_debug_command_result(result);
+        }
+    }
+
     fn cont(&mut self) {
         if self.validate_in_progress() {
             println!("(Continuing execution...)");
@@ -174,8 +182,12 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     }
 
     fn restart_session(&mut self) {
-        self.context =
-            DebugContext::new(self.blackbox_solver, self.circuit, self.initial_witness.clone());
+        self.context = DebugContext::new(
+            self.blackbox_solver,
+            self.circuit,
+            self.debug_artifact,
+            self.initial_witness.clone(),
+        );
         println!("Restarted debugging session.");
         self.show_current_vm_status();
     }
@@ -226,6 +238,16 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "step into to the next opcode",
                 () => || {
                     ref_context.borrow_mut().step_into_opcode();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "next",
+            command! {
+                "step until a new source location is reached",
+                () => || {
+                    ref_context.borrow_mut().next();
                     Ok(CommandStatus::Done)
                 }
             },
