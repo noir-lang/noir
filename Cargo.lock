@@ -2068,6 +2068,7 @@ dependencies = [
  "bitmaps",
  "rand_core",
  "rand_xoshiro",
+ "serde",
  "sized-chunks",
  "typenum",
  "version_check",
@@ -2661,6 +2662,7 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "num-bigint",
+ "serde",
  "thiserror",
 ]
 
