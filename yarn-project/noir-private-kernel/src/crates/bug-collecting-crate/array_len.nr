@@ -1,0 +1,1 @@
+array.len() should return a u64

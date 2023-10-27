@@ -1,0 +1,1 @@
+add a is_zero and is_one method to field for devex

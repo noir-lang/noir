@@ -45,7 +45,7 @@ describe('e2e_block_building', () => {
       const deployer = new ContractDeployer(artifact, owner);
       const methods = times(TX_COUNT, () => deployer.deploy());
 
-      for (const i in methods) {
+      for (let i = 0; i < TX_COUNT; i++) {
         await methods[i].create({ contractAddressSalt: new Fr(BigInt(i + 1)) });
         await methods[i].simulate({});
       }

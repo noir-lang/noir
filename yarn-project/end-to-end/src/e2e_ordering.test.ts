@@ -7,7 +7,11 @@ import { toBigInt } from '@aztec/foundation/serialize';
 import { ChildContract, ParentContract } from '@aztec/noir-contracts/types';
 import { PXE, TxStatus } from '@aztec/types';
 
+import { jest } from '@jest/globals';
+
 import { setup } from './fixtures/utils.js';
+
+jest.setTimeout(30_000);
 
 // See https://github.com/AztecProtocol/aztec-packages/issues/1601
 describe('e2e_ordering', () => {

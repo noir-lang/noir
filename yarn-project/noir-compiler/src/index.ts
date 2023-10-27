@@ -11,6 +11,8 @@ export { generateNoirContractInterface } from './contract-interface-gen/noir.js'
 export { generateTypescriptContractInterface } from './contract-interface-gen/typescript.js';
 export { generateContractArtifact };
 
+export * from './noir_artifact.js';
+
 /**
  * Compile Aztec.nr contracts in project path using a nargo binary available in the shell.
  * @param projectPath - Path to project.

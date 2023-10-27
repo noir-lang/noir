@@ -1,0 +1,21 @@
+{
+  "extends": "..",
+  "compilerOptions": {
+    "outDir": "dest",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../circuits.js"
+    },
+    {
+      "path": "../foundation"
+    },
+    {
+      "path": "../noir-compiler"
+    }
+  ],
+  "include": ["src", "src/**/*.json"],
+  "exclude": ["src/contracts"]
+}

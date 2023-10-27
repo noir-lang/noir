@@ -1,0 +1,9 @@
+util = { path = "../utils" }
+
+If utils does not exist,
+
+It will say:
+
+Cannot read file /mnt/user-data/kev/private-kernel/pki/crates/util/Nargo.toml - does it exist?
+
+It would be good if it also said which package is trying to access that file

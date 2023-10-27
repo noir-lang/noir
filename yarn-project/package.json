@@ -38,6 +38,7 @@
     "merkle-tree",
     "noir-compiler",
     "noir-contracts",
+    "noir-private-kernel",
     "p2p",
     "p2p-bootstrap",
     "prover-client",

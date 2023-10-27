@@ -279,6 +279,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@aztec/bb.js@npm:0.7.10":
+  version: 0.7.10
+  resolution: "@aztec/bb.js@npm:0.7.10"
+  dependencies:
+    comlink: ^4.4.1
+    commander: ^10.0.1
+    debug: ^4.3.4
+    tslib: ^2.4.0
+  bin:
+    bb.js: dest/node/main.js
+  checksum: 0410278e6ec2a6ecdcbaa58633b181ec1d91e1c267c76e7e587fb69c8f2fd394e79f65bd96cfcdb2a2b20fe5abeb86ababd45bd6364ba07555fc0643bf0e4307
+  languageName: node
+  linkType: hard
+
 "@aztec/canary@workspace:canary":
   version: 0.0.0-use.local
   resolution: "@aztec/canary@workspace:canary"
@@ -621,6 +635,29 @@ __metadata:
     lodash.omit: ^4.5.0
     lodash.snakecase: ^4.1.1
     lodash.upperfirst: ^4.3.1
+    ts-jest: ^29.1.0
+    ts-node: ^10.9.1
+    tslib: ^2.4.0
+    typescript: ^5.0.4
+  languageName: unknown
+  linkType: soft
+
+"@aztec/noir-private-kernel@workspace:noir-private-kernel":
+  version: 0.0.0-use.local
+  resolution: "@aztec/noir-private-kernel@workspace:noir-private-kernel"
+  dependencies:
+    "@aztec/circuits.js": "workspace:^"
+    "@aztec/foundation": "workspace:^"
+    "@aztec/noir-compiler": "workspace:^"
+    "@jest/globals": ^29.5.0
+    "@noir-lang/acvm_js": ^0.30.0
+    "@noir-lang/backend_barretenberg": ^0.7.10
+    "@noir-lang/noir_js": ^0.16.0
+    "@noir-lang/noirc_abi": ^0.16.0
+    "@rushstack/eslint-patch": ^1.1.4
+    "@types/jest": ^29.5.0
+    "@types/node": ^18.7.23
+    jest: ^29.5.0
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
     tslib: ^2.4.0
@@ -3463,10 +3500,56 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noir-lang/acvm_js@npm:0.30.0":
+"@noir-lang/acvm_js@npm:0.28.0":
+  version: 0.28.0
+  resolution: "@noir-lang/acvm_js@npm:0.28.0"
+  checksum: 2eaeabb2a510702fa437dff7ea3a6c54aa11d2930d11d3a1a1dfda1d27fd5e28b268f96c4db85e1d76ba96cb49c509018d7c897c432de5e8d3d01b04778cf82f
+  languageName: node
+  linkType: hard
+
+"@noir-lang/acvm_js@npm:0.30.0, @noir-lang/acvm_js@npm:^0.30.0":
   version: 0.30.0
   resolution: "@noir-lang/acvm_js@npm:0.30.0"
   checksum: 4209b8b572f35b90c577a3235303c9fdf4be0dbf20ac750c3580faac8256efd5f3810e10a1646d38b1607b67fbd11ec57c8a5c90935662be55b6edfa8a6b0c10
+  languageName: node
+  linkType: hard
+
+"@noir-lang/backend_barretenberg@npm:^0.7.10":
+  version: 0.7.10
+  resolution: "@noir-lang/backend_barretenberg@npm:0.7.10"
+  dependencies:
+    "@aztec/bb.js": 0.7.10
+    "@noir-lang/types": 0.14.1
+    fflate: ^0.8.0
+  peerDependencies:
+    "@noir-lang/backend_barretenberg": 0.7.10
+  checksum: d42e2405f70d493bb9251e63d58ca084e00d2c4653acb1ba6be2dd490f592b014a404c975d32f202ae65ed117d551ddc3acfa6dc8b5ecb587d21410b6ff9e8c5
+  languageName: node
+  linkType: hard
+
+"@noir-lang/noir_js@npm:^0.16.0":
+  version: 0.16.0
+  resolution: "@noir-lang/noir_js@npm:0.16.0"
+  dependencies:
+    "@noir-lang/acvm_js": 0.28.0
+    "@noir-lang/noirc_abi": 0.16.0
+    "@noir-lang/types": 0.14.1
+    fflate: ^0.8.0
+  checksum: fcb5cc730795800f8cf5093c99afac494c8ad26fa78a325ddbacd4fabedc08bdcaa9a002adfa746c853c237edd2098812ec8ec10a918e4a4100c19ed2f7fcb60
+  languageName: node
+  linkType: hard
+
+"@noir-lang/noirc_abi@npm:0.16.0, @noir-lang/noirc_abi@npm:^0.16.0":
+  version: 0.16.0
+  resolution: "@noir-lang/noirc_abi@npm:0.16.0"
+  checksum: 41308bbf64b8b895bea00a8534eb7a6aad6872f6b4dfab653194e273ae51fed93001e99c1eaf8a6aa6d791c3b1a7d09ea9730db4da1be6a172b37dbf6fa1b077
+  languageName: node
+  linkType: hard
+
+"@noir-lang/types@npm:0.14.1":
+  version: 0.14.1
+  resolution: "@noir-lang/types@npm:0.14.1"
+  checksum: 0c2a7967a62ad3348567d72302c4485a5612d4fd514437f25362cafb9fdc0bca47771bd9d97685b6098ebffd500f2d1e5d7104a38a510397cb9258435cb7f037
   languageName: node
   linkType: hard
 
@@ -9974,6 +10057,13 @@ __metadata:
     node-domexception: ^1.0.0
     web-streams-polyfill: ^3.0.3
   checksum: f19bc28a2a0b9626e69fd7cf3a05798706db7f6c7548da657cbf5026a570945f5eeaedff52007ea35c8bcd3d237c58a20bf1543bc568ab2422411d762dd3d5bf
+  languageName: node
+  linkType: hard
+
+"fflate@npm:^0.8.0":
+  version: 0.8.1
+  resolution: "fflate@npm:0.8.1"
+  checksum: 7207e2d333243724485d2488095256b776184bd4545aa9967b655feaee5dc18e9525ed9b6d75f94cfd71d98fb285336f4902641683472f1d0c19a99137084cec
   languageName: node
   linkType: hard
 

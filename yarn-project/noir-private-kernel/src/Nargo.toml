@@ -1,0 +1,10 @@
+[workspace]
+members = [
+    "crates/private-kernel-lib",
+    "crates/private-kernel-init",
+    "crates/private-kernel-init-simulated",
+    "crates/private-kernel-inner",
+    "crates/private-kernel-inner-simulated",
+    "crates/private-kernel-ordering",
+    "crates/private-kernel-ordering-simulated",
+]

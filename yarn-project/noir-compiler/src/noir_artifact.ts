@@ -4,7 +4,7 @@ import { ABIParameter, ABIType, DebugFileMap, DebugInfo, EventAbi } from '@aztec
 type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
 
 /** The ABI of an Aztec.nr function. */
-interface NoirFunctionAbi {
+export interface NoirFunctionAbi {
   /** The parameters of the function. */
   parameters: ABIParameter[];
   /** The witness indices of the parameters. Indexed by parameter name. */
@@ -47,6 +47,22 @@ export interface NoirCompiledContract {
   functions: NoirFunctionEntry[];
   /** The events of the contract */
   events: EventAbi[];
+}
+
+/**
+ * The compilation result of an Aztec.nr contract.
+ */
+export interface NoirCompiledCircuit {
+  /** The hash of the circuit. */
+  hash: number;
+  /** Compilation backend. */
+  backend: string;
+  /**
+   * The ABI of the function.
+   */
+  abi: NoirFunctionAbi;
+  /** The bytecode of the circuit in base64. */
+  bytecode: string;
 }
 
 /**
