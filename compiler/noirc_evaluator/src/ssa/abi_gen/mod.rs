@@ -56,7 +56,10 @@ fn param_witnesses_from_abi_param(
     input_witnesses: Vec<Range<Witness>>,
 ) -> BTreeMap<String, Vec<Range<Witness>>> {
     let mut idx = 0_usize;
-    let mut processed_range = 0;
+    if input_witnesses.is_empty() {
+        return BTreeMap::new();
+    }
+    let mut processed_range = input_witnesses[idx].start.witness_index();
 
     btree_map(abi_params, |param| {
         let num_field_elements_needed = param.typ.field_count();
@@ -74,7 +77,6 @@ fn param_witnesses_from_abi_param(
                 // consume the current range
                 wit.push(Witness(processed_range)..input_witnesses[idx].end);
                 processed_fields += end - processed_range;
-                // and go to the next one
                 idx += 1;
                 processed_range = input_witnesses[idx].start.witness_index();
             }

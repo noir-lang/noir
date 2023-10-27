@@ -1173,10 +1173,12 @@ impl AcirContext {
             if current_range.end == *range.start() {
                 current_range.end = range.end() + 1;
             } else {
-                self.acir_ir
-                    .input_witnesses
-                    .push(Witness(current_range.start)..Witness(current_range.end));
-                current_range = 0..0;
+                if current_range.end != 0 {
+                    self.acir_ir
+                        .input_witnesses
+                        .push(Witness(current_range.start)..Witness(current_range.end));
+                }
+                current_range = *range.start()..range.end() + 1;
             }
         }
         if current_range.end != 0 {
