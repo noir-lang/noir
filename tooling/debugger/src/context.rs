@@ -1,9 +1,9 @@
-use acvm::acir::circuit::{Opcode, OpcodeLocation};
+use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
+use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::pwg::{
     ACVMStatus, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo, StepResult, ACVM,
 };
-use acvm::BlackBoxFunctionSolver;
-use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::errors::{ExecutionError, Location};
@@ -48,6 +48,18 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
 
     pub(super) fn get_opcodes(&self) -> &[Opcode] {
         self.acvm.opcodes()
+    }
+
+    pub(super) fn get_witness_map(&self) -> &WitnessMap {
+        self.acvm.witness_map()
+    }
+
+    pub(super) fn overwrite_witness(
+        &mut self,
+        witness: Witness,
+        value: FieldElement,
+    ) -> Option<FieldElement> {
+        self.acvm.overwrite_witness(witness, value)
     }
 
     pub(super) fn get_current_opcode_location(&self) -> Option<OpcodeLocation> {

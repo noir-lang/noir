@@ -1,8 +1,8 @@
 use crate::context::{DebugCommandResult, DebugContext};
 
-use acvm::acir::circuit::{Opcode, OpcodeLocation};
-use acvm::BlackBoxFunctionSolver;
-use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
+use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
+use acvm::acir::native_types::{Witness, WitnessMap};
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::NargoError;
@@ -283,6 +283,30 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         self.show_current_vm_status();
     }
 
+    pub fn show_witness_map(&self) {
+        let witness_map = self.context.get_witness_map();
+        // NOTE: we need to clone() here to get the iterator
+        for (witness, value) in witness_map.clone().into_iter() {
+            println!("_{} = {value}", witness.witness_index());
+        }
+    }
+
+    pub fn show_witness(&self, index: u32) {
+        if let Some(value) = self.context.get_witness_map().get_index(index) {
+            println!("_{} = {value}", index);
+        }
+    }
+
+    pub fn update_witness(&mut self, index: u32, value: String) {
+        if let Some(field_value) = FieldElement::try_from_str(&value) {
+            let witness = Witness::from(index);
+            _ = self.context.overwrite_witness(witness, field_value);
+            println!("_{} = {value}", index);
+        } else {
+            println!("Invalid witness value: {value}");
+        }
+    }
+
     fn is_solved(&self) -> bool {
         self.context.is_solved()
     }
@@ -389,6 +413,36 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "delete breakpoint at an opcode location",
                 (LOCATION:OpcodeLocation) => |location| {
                     ref_context.borrow_mut().delete_breakpoint_at(location);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "witness",
+            command! {
+                "show witness map",
+                () => || {
+                    ref_context.borrow().show_witness_map();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "witness",
+            command! {
+                "display a single witness from the witness map",
+                (index: u32) => |index| {
+                    ref_context.borrow().show_witness(index);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "witness",
+            command! {
+                "update a witness with the given value",
+                (index: u32, value: String) => |index, value| {
+                    ref_context.borrow_mut().update_witness(index, value);
                     Ok(CommandStatus::Done)
                 }
             },
