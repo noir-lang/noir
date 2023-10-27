@@ -206,7 +206,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
 
     fn validate_in_progress(&self) -> bool {
         match self.last_result {
-            DebugCommandResult::Ok => true,
+            DebugCommandResult::Ok | DebugCommandResult::BreakpointReached(..) => true,
             DebugCommandResult::Done => {
                 println!("Execution finished");
                 false
@@ -220,6 +220,15 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     }
 
     fn handle_debug_command_result(&mut self, result: DebugCommandResult) {
+        match &result {
+            DebugCommandResult::BreakpointReached(location) => {
+                println!("Stopped at breakpoint in opcode {}", location);
+            }
+            DebugCommandResult::Error(error) => {
+                println!("ERROR: {}", error);
+            }
+            _ => (),
+        }
         self.last_result = result;
         self.show_current_vm_status();
     }

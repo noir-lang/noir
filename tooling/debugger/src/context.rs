@@ -16,6 +16,7 @@ use std::collections::HashSet;
 pub(super) enum DebugCommandResult {
     Done,
     Ok,
+    BreakpointReached(OpcodeLocation),
     Error(NargoError),
 }
 
@@ -74,20 +75,25 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             unreachable!("Missing Brillig solver");
         };
         match solver.step() {
-            Ok(status) => match status {
-                BrilligSolverStatus::InProgress => {
-                    self.brillig_solver = Some(solver);
+            Ok(BrilligSolverStatus::InProgress) => {
+                self.brillig_solver = Some(solver);
+                if self.breakpoint_reached() {
+                    DebugCommandResult::BreakpointReached(
+                        self.get_current_opcode_location()
+                            .expect("Breakpoint reached but we have no location"),
+                    )
+                } else {
                     DebugCommandResult::Ok
                 }
-                BrilligSolverStatus::Finished => {
-                    let status = self.acvm.finish_brillig_with_solver(solver);
-                    self.handle_acvm_status(status)
-                }
-                BrilligSolverStatus::ForeignCallWait(foreign_call) => {
-                    self.brillig_solver = Some(solver);
-                    self.handle_foreign_call(foreign_call)
-                }
-            },
+            }
+            Ok(BrilligSolverStatus::Finished) => {
+                let status = self.acvm.finish_brillig_with_solver(solver);
+                self.handle_acvm_status(status)
+            }
+            Ok(BrilligSolverStatus::ForeignCallWait(foreign_call)) => {
+                self.brillig_solver = Some(solver);
+                self.handle_foreign_call(foreign_call)
+            }
             Err(err) => DebugCommandResult::Error(NargoError::ExecutionError(
                 ExecutionError::SolvingError(err),
             )),
@@ -109,32 +115,41 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
 
     fn handle_acvm_status(&mut self, status: ACVMStatus) -> DebugCommandResult {
         if let ACVMStatus::RequiresForeignCall(foreign_call) = status {
-            self.handle_foreign_call(foreign_call)
-        } else {
-            match status {
-                ACVMStatus::Solved => DebugCommandResult::Done,
-                ACVMStatus::InProgress => DebugCommandResult::Ok,
-                ACVMStatus::Failure(error) => DebugCommandResult::Error(
-                    NargoError::ExecutionError(ExecutionError::SolvingError(error)),
-                ),
-                ACVMStatus::RequiresForeignCall(_) => {
-                    unreachable!("Unexpected pending foreign call resolution");
+            return self.handle_foreign_call(foreign_call);
+        }
+
+        match status {
+            ACVMStatus::Solved => DebugCommandResult::Done,
+            ACVMStatus::InProgress => {
+                if self.breakpoint_reached() {
+                    DebugCommandResult::BreakpointReached(
+                        self.get_current_opcode_location()
+                            .expect("Breakpoint reached but we have no location"),
+                    )
+                } else {
+                    DebugCommandResult::Ok
                 }
+            }
+            ACVMStatus::Failure(error) => DebugCommandResult::Error(NargoError::ExecutionError(
+                ExecutionError::SolvingError(error),
+            )),
+            ACVMStatus::RequiresForeignCall(_) => {
+                unreachable!("Unexpected pending foreign call resolution");
             }
         }
     }
 
     pub(super) fn step_into_opcode(&mut self) -> DebugCommandResult {
         if matches!(self.brillig_solver, Some(_)) {
-            self.step_brillig_opcode()
-        } else {
-            match self.acvm.step_into_brillig_opcode() {
-                StepResult::IntoBrillig(solver) => {
-                    self.brillig_solver = Some(solver);
-                    self.step_brillig_opcode()
-                }
-                StepResult::Status(status) => self.handle_acvm_status(status),
+            return self.step_brillig_opcode();
+        }
+
+        match self.acvm.step_into_brillig_opcode() {
+            StepResult::IntoBrillig(solver) => {
+                self.brillig_solver = Some(solver);
+                self.step_brillig_opcode()
             }
+            StepResult::Status(status) => self.handle_acvm_status(status),
         }
     }
 
@@ -167,6 +182,14 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             if !matches!(result, DebugCommandResult::Ok) {
                 return result;
             }
+        }
+    }
+
+    fn breakpoint_reached(&self) -> bool {
+        if let Some(location) = self.get_current_opcode_location() {
+            self.breakpoints.contains(&location)
+        } else {
+            false
         }
     }
 
