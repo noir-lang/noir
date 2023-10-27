@@ -537,14 +537,9 @@ mod test {
         ";
         let errors = get_program_errors(src);
         assert!(!has_parser_error(&errors));
-        assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
+        assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
         for (err, _file_id) in errors {
             match &err {
-                CompilationError::DefinitionError(
-                    DefCollectorErrorKind::TraitImplNotAllowedFor { trait_path, span: _ },
-                ) => {
-                    assert_eq!(trait_path.as_string(), "Default");
-                }
                 CompilationError::ResolverError(ResolverError::Expected {
                     expected, got, ..
                 }) => {
@@ -663,18 +658,15 @@ mod test {
         ";
         let errors = get_program_errors(src);
         assert!(!has_parser_error(&errors));
-        assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
+        assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
         for (err, _file_id) in errors {
             match &err {
-                CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate {
-                    typ,
-                    first_def,
-                    second_def,
-                }) => {
-                    assert_eq!(typ, &DuplicateType::TraitImplementation);
-                    assert_eq!(first_def, "Default");
-                    assert_eq!(second_def, "Default");
-                }
+                CompilationError::DefinitionError(DefCollectorErrorKind::OverlappingImpl {
+                    ..
+                }) => (),
+                CompilationError::DefinitionError(DefCollectorErrorKind::OverlappingImplNote {
+                    ..
+                }) => (),
                 _ => {
                     panic!("No other errors are expected! Found = {:?}", err);
                 }
@@ -704,18 +696,15 @@ mod test {
         ";
         let errors = get_program_errors(src);
         assert!(!has_parser_error(&errors));
-        assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
+        assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
         for (err, _file_id) in errors {
             match &err {
-                CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate {
-                    typ,
-                    first_def,
-                    second_def,
-                }) => {
-                    assert_eq!(typ, &DuplicateType::TraitImplementation);
-                    assert_eq!(first_def, "Default");
-                    assert_eq!(second_def, "Default");
-                }
+                CompilationError::DefinitionError(DefCollectorErrorKind::OverlappingImpl {
+                    ..
+                }) => (),
+                CompilationError::DefinitionError(DefCollectorErrorKind::OverlappingImplNote {
+                    ..
+                }) => (),
                 _ => {
                     panic!("No other errors are expected! Found = {:?}", err);
                 }
