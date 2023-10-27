@@ -1119,7 +1119,7 @@ impl Type {
                 env.find_all_unbound_type_variables(interner, bindings);
             }
             Type::MutableReference(elem) => {
-                elem.find_all_unbound_type_variables(interner, bindings)
+                elem.find_all_unbound_type_variables(interner, bindings);
             }
             Type::Forall(_, typ) => typ.find_all_unbound_type_variables(interner, bindings),
             Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _) => {
