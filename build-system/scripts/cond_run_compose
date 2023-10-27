@@ -27,7 +27,7 @@ if ! check_rebuild $SUCCESS_TAG $REPOSITORY; then
   cd $(query_manifest projectDir $REPOSITORY)
 
   export $@
-  docker-compose -f $COMPOSE_FILE run $REPOSITORY
+  docker-compose -f $COMPOSE_FILE up --exit-code-from $REPOSITORY --force-recreate
 
   upload_logs_to_s3 log
 

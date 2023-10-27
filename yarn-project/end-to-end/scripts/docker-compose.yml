@@ -32,7 +32,7 @@ services:
     environment:
       BENCHMARK: 'true'
       LOG_LEVL: 'debug'
-      DEBUG: ${DEBUG:-'aztec:*'}
+      DEBUG: ${DEBUG:-aztec:*}
       ETHEREUM_HOST: http://fork:8545
       CHAIN_ID: 31337
       PXE_URL: http://sandbox:8080
