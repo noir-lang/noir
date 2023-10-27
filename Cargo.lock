@@ -2535,6 +2535,7 @@ dependencies = [
  "codespan-reporting",
  "easy-repl",
  "nargo",
+ "noirc_errors",
  "noirc_printable_type",
  "owo-colors",
  "thiserror",
