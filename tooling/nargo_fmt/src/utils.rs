@@ -111,15 +111,13 @@ impl<'me, T> Exprs<'me, T> {
 }
 
 pub(crate) trait FindToken {
-    fn find_token(&self, token: Token) -> Option<u32>;
+    fn find_token(&self, token: Token) -> Option<Span>;
     fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32>;
 }
 
 impl FindToken for str {
-    fn find_token(&self, token: Token) -> Option<u32> {
-        Lexer::new(self)
-            .flatten()
-            .find_map(|it| (it.token() == &token).then(|| it.to_span().start()))
+    fn find_token(&self, token: Token) -> Option<Span> {
+        Lexer::new(self).flatten().find_map(|it| (it.token() == &token).then(|| it.to_span()))
     }
 
     fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32> {
@@ -155,7 +153,9 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
     }
 
     let newline_index = slice.find('\n');
-    if let Some(separator_index) = slice.find_token(Token::Comma).map(|index| index as usize) {
+    if let Some(separator_index) =
+        slice.find_token(Token::Comma).map(|index| index.start() as usize)
+    {
         match (block_open_index, newline_index) {
             (Some(block), None) if block > separator_index => separator_index + 1,
             (Some(block), None) => {
@@ -210,7 +210,7 @@ impl Item for Expression {
     }
 
     fn format(self, visitor: &FmtVisitor) -> String {
-        visitor.format_subexpr(self)
+        visitor.format_sub_expr(self)
     }
 }
 
@@ -224,7 +224,7 @@ impl Item for (Ident, Expression) {
         let (name, expr) = self;
 
         let name = name.0.contents;
-        let expr = visitor.format_subexpr(expr);
+        let expr = visitor.format_sub_expr(expr);
 
         if name == expr {
             name

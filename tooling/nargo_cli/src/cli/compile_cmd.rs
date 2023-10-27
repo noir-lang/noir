@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use acvm::acir::circuit::opcodes::BlackBoxFuncCall;
 use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use backend_interface::BackendOpcodeSupport;
@@ -13,6 +14,7 @@ use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, CompiledProgram};
 use noirc_frontend::graph::CrateName;
 
@@ -183,6 +185,7 @@ fn compile_program(
             hash: preprocessed_program.hash,
             circuit: preprocessed_program.bytecode,
             abi: preprocessed_program.abi,
+            noir_version: preprocessed_program.noir_version,
             debug: debug_artifact.debug_symbols.remove(0),
             file_map: debug_artifact.file_map,
         })
@@ -190,12 +193,14 @@ fn compile_program(
         None
     };
 
+    let force_recompile =
+        cached_program.as_ref().map_or(false, |p| p.noir_version != NOIR_ARTIFACT_VERSION_STRING);
     let (program, warnings) = match noirc_driver::compile_main(
         &mut context,
         crate_id,
         compile_options,
         cached_program,
-        false,
+        force_recompile,
     ) {
         Ok(program_and_warnings) => program_and_warnings,
         Err(errors) => {
@@ -203,9 +208,18 @@ fn compile_program(
         }
     };
 
+    // TODO: we say that pedersen hashing is supported by all backends for now
+    let is_opcode_supported_pedersen_hash = |opcode: &Opcode| -> bool {
+        if let Opcode::BlackBoxFuncCall(BlackBoxFuncCall::PedersenHash { .. }) = opcode {
+            true
+        } else {
+            is_opcode_supported(opcode)
+        }
+    };
+
     // Apply backend specific optimizations.
     let optimized_program =
-        nargo::ops::optimize_program(program, np_language, &is_opcode_supported)
+        nargo::ops::optimize_program(program, np_language, &is_opcode_supported_pedersen_hash)
             .expect("Backend does not support an opcode that is in the IR");
 
     save_program(optimized_program.clone(), package, &workspace.target_directory_path());
@@ -241,6 +255,7 @@ fn save_program(program: CompiledProgram, package: &Package, circuit_dir: &Path)
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
+        noir_version: program.noir_version,
         bytecode: program.circuit,
     };
 
@@ -271,6 +286,7 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
     });
 
     let preprocessed_contract = PreprocessedContract {
+        noir_version: contract.noir_version,
         name: contract.name,
         backend: String::from(BACKEND_IDENTIFIER),
         functions: preprocessed_functions,
