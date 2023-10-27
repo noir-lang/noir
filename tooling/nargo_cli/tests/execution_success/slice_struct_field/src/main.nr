@@ -85,12 +85,15 @@ fn main(y : pub Field) {
     let mut foo_parents = [foo_parent_one];
     foo_parents = foo_parents.push_back(foo_parent_two);
 
-    // // TODO: Merging nested slices is broken
-    // // if y == 3 {
-    // //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
-    // // } else {
-    // //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 1000;
-    // // }
+    // TODO: make a separate test for compile time
+    // foo_parents[1].foos.push_back(foo_four);
+
+    // TODO: Merging nested slices is broken
+    // if y == 3 {
+    //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
+    // } else {
+    //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 1000;
+    // }
 
     assert(foo_parents[y - 2].foos[y - 2].b[y - 1] == 21);
     foo_parents[y - 2].foos[y - 2].b[y - 1] = 5000;
@@ -123,6 +126,11 @@ fn main(y : pub Field) {
     // Test setting a nested array with non-dynamic 
     let x = [5, 6, 5000, 21, 100, 101].as_slice();
     foo_parents[y - 2].foos[y - 1].b = x;
+    // println(foo_parents[y - 2].foos[y - 1].b.len());
+    // println(foo_parents[y - 2].foos[y - 1].b[2]);
+    // println(foo_parents[y - 2].foos[y - 1].b[3]);
+    // println(foo_parents[y - 2].foos[y - 1].b[4]);
+
     assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
     assert(foo_parents[y - 2].foos[y - 1].b[4] == 100);
     assert(foo_parents[y - 2].foos[y - 1].b[5] == 101);
@@ -134,7 +142,6 @@ fn main(y : pub Field) {
     // assert(foo_parents[y - 2].foos.len() == 6);
     
     let b_array = foo_parents[y - 2].foos[y - 1].b;
-    println(b_array[0]);
     assert(b_array[0] == 5);
     assert(b_array[1] == 6);
     assert(b_array[2] == 5000);

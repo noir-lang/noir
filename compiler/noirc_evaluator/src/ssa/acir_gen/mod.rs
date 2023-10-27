@@ -876,11 +876,7 @@ impl Context {
 
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
-        if results[0].to_usize() == 1252 {
-            dbg!("got res 1252");
-            dbg!(array_id);
-            dbg!(res_typ.contains_slice_element());
-        }
+
         let value = if !res_typ.contains_slice_element() {
             self.array_get_value(&res_typ, block_id, &mut var_index, &[])?
         } else {
@@ -1037,18 +1033,6 @@ impl Context {
                 self.slice_sizes.insert(results[0], slice_sizes);
             }
         }
-
-        // if array_typ.contains_slice_element() {
-        //     let slice_sizes = self
-        //     .slice_sizes
-        //     .get(&array_id)
-        //     .expect(
-        //         "ICE: Expected array with internal slices to have associated slice sizes",
-        //     )
-        //     .clone();
-        //     let results = dfg.instruction_results(instruction);
-        //     self.slice_sizes.insert(results[0], slice_sizes);
-        // }
 
         let element_type_sizes =
             self.init_element_type_sizes_array(&array_typ, array_id, None, dfg)?;

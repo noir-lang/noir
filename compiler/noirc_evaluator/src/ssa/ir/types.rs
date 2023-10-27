@@ -78,6 +78,8 @@ impl Type {
         }
     }
 
+    // TODO: update this method to only look in a slice type internally
+    // a slice of numeric types will currently return true for this method
     pub(crate) fn contains_slice_element(&self) -> bool {
         match self {
             Type::Array(elements, _) => {
