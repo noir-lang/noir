@@ -1,6 +1,6 @@
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
-use js_sys::Object;
+use js_sys::{JsString, Object};
 use nargo::artifacts::{
     contract::{PreprocessedContract, PreprocessedContractFunction},
     debug::DebugArtifact,
@@ -28,6 +28,37 @@ export type DependencyGraph = {
     root_dependencies: readonly string[];
     library_dependencies: Readonly<Record<string, readonly string[]>>;
 }
+
+export type CompiledContract = {
+    noir_version: string;
+    name: string;
+    backend: string;
+    functions: Array<any>;
+    events: Array<any>;
+};
+
+export type CompiledProgram = {
+    noir_version: string;
+    backend: string;
+    abi: any;
+    bytecode: string;
+}
+
+export type DebugArtifact = {
+    debug_symbols: Array<any>;
+    file_map: Record<number, any>;
+};
+
+export type CompileResult = (
+    | {
+        contract: CompiledContract;
+        debug: DebugArtifact;
+    }
+    | {
+        program: CompiledProgram;
+        debug: DebugArtifact;
+    }
+);
 "#;
 
 #[wasm_bindgen]
@@ -35,6 +66,57 @@ extern "C" {
     #[wasm_bindgen(extends = Object, js_name = "DependencyGraph", typescript_type = "DependencyGraph")]
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub type JsDependencyGraph;
+
+    #[wasm_bindgen(extends = Object, js_name = "CompileResult", typescript_type = "CompileResult")]
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub type JsCompileResult;
+
+    #[wasm_bindgen(constructor, js_class = "Object")]
+    fn constructor() -> JsCompileResult;
+}
+
+impl JsCompileResult {
+    const CONTRACT_PROP: &'static str = "contract";
+    const PROGRAM_PROP: &'static str = "program";
+    const DEBUG_PROP: &'static str = "debug";
+
+    pub fn new(resp: CompileResult) -> JsCompileResult {
+        let obj = JsCompileResult::constructor();
+        match resp {
+            CompileResult::Contract { contract, debug } => {
+                js_sys::Reflect::set(
+                    &obj,
+                    &JsString::from(JsCompileResult::CONTRACT_PROP),
+                    &<JsValue as JsValueSerdeExt>::from_serde(&contract).unwrap(),
+                )
+                .unwrap();
+
+                js_sys::Reflect::set(
+                    &obj,
+                    &JsString::from(JsCompileResult::DEBUG_PROP),
+                    &<JsValue as JsValueSerdeExt>::from_serde(&debug).unwrap(),
+                )
+                .unwrap();
+            }
+            CompileResult::Program { program, debug } => {
+                js_sys::Reflect::set(
+                    &obj,
+                    &JsString::from(JsCompileResult::PROGRAM_PROP),
+                    &<JsValue as JsValueSerdeExt>::from_serde(&program).unwrap(),
+                )
+                .unwrap();
+
+                js_sys::Reflect::set(
+                    &obj,
+                    &JsString::from(JsCompileResult::DEBUG_PROP),
+                    &<JsValue as JsValueSerdeExt>::from_serde(&debug).unwrap(),
+                )
+                .unwrap();
+            }
+        };
+
+        obj
+    }
 }
 
 #[derive(Deserialize)]
@@ -43,16 +125,9 @@ struct DependencyGraph {
     library_dependencies: HashMap<CrateName, Vec<CrateName>>,
 }
 
-#[derive(serde::Serialize)]
-struct ContractWithDebug {
-    contract: PreprocessedContract,
-    debug: DebugArtifact,
-}
-
-#[derive(serde::Serialize)]
-struct ProgramWithDebug {
-    program: PreprocessedProgram,
-    debug: DebugArtifact,
+pub enum CompileResult {
+    Contract { contract: PreprocessedContract, debug: DebugArtifact },
+    Program { program: PreprocessedProgram, debug: DebugArtifact },
 }
 
 #[wasm_bindgen]
@@ -60,7 +135,7 @@ pub fn compile(
     entry_point: String,
     contracts: Option<bool>,
     dependency_graph: Option<JsDependencyGraph>,
-) -> Result<JsValue, JsCompileError> {
+) -> Result<JsCompileResult, JsCompileError> {
     console_error_panic_hook::set_once();
 
     let dependency_graph: DependencyGraph = if let Some(dependency_graph) = dependency_graph {
@@ -103,7 +178,7 @@ pub fn compile(
                 .expect("Contract optimization failed");
 
         let compile_output = preprocess_contract(optimized_contract);
-        Ok(<JsValue as JsValueSerdeExt>::from_serde(&compile_output).unwrap())
+        Ok(JsCompileResult::new(compile_output))
     } else {
         let compiled_program = compile_main(&mut context, crate_id, &compile_options, None, true)
             .map_err(|errs| {
@@ -120,7 +195,7 @@ pub fn compile(
                 .expect("Program optimization failed");
 
         let compile_output = preprocess_program(optimized_program);
-        Ok(<JsValue as JsValueSerdeExt>::from_serde(&compile_output).unwrap())
+        Ok(JsCompileResult::new(compile_output))
     }
 }
 
@@ -156,7 +231,7 @@ fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
     prepare_dependency(context, &path_to_lib)
 }
 
-fn preprocess_program(program: CompiledProgram) -> ProgramWithDebug {
+fn preprocess_program(program: CompiledProgram) -> CompileResult {
     let debug_artifact =
         DebugArtifact { debug_symbols: vec![program.debug], file_map: program.file_map };
 
@@ -168,10 +243,10 @@ fn preprocess_program(program: CompiledProgram) -> ProgramWithDebug {
         bytecode: program.circuit,
     };
 
-    ProgramWithDebug { program: preprocessed_program, debug: debug_artifact }
+    CompileResult::Program { program: preprocessed_program, debug: debug_artifact }
 }
 
-fn preprocess_contract(contract: CompiledContract) -> ContractWithDebug {
+fn preprocess_contract(contract: CompiledContract) -> CompileResult {
     let debug_artifact = DebugArtifact {
         debug_symbols: contract.functions.iter().map(|function| function.debug.clone()).collect(),
         file_map: contract.file_map,
@@ -196,7 +271,7 @@ fn preprocess_contract(contract: CompiledContract) -> ContractWithDebug {
         events: contract.events,
     };
 
-    ContractWithDebug { contract: preprocessed_contract, debug: debug_artifact }
+    CompileResult::Contract { contract: preprocessed_contract, debug: debug_artifact }
 }
 
 cfg_if::cfg_if! {
