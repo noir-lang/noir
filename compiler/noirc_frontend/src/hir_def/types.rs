@@ -1076,8 +1076,8 @@ impl Type {
         self.substitute(&substitutions)
     }
 
-    /// Returns a list of substituions from each unbound type variable in the current type
-    /// to a fresh type variable
+    /// For each unbound type variable in the current type, add a type binding to the given list
+    /// to bind the unbound type variable to a fresh type variable.
     fn find_all_unbound_type_variables(
         &self,
         interner: &NodeInterner,
