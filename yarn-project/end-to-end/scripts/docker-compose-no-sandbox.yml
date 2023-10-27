@@ -15,7 +15,7 @@ services:
   end-to-end:
     image: aztecprotocol/end-to-end:latest
     environment:
-      BENCHMARK: true
+      BENCHMARK: 'true'
       DEBUG: ${DEBUG:-'aztec:*'}
       ETHEREUM_HOST: http://fork:8545
       CHAIN_ID: 31337
@@ -28,3 +28,5 @@ services:
     command: ${TEST:-./src/e2e_deploy_contract.test.ts}
     volumes:
       - ../log:/usr/src/yarn-project/end-to-end/log:rw
+    depends_on:
+      - fork

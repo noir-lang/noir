@@ -75,6 +75,12 @@ case "$CMD" in
   dependencies)
     yq -r ".\"$REPO\".dependencies // [] | .[]" $MANIFEST
     ;;
+  runDependencies)
+    echo $REPO
+    RUN_NAME=$3
+    yq -r ".\"$REPO\".runDependencies // [] | .[]" $MANIFEST
+    yq -r ".\"$REPO\".run.\"$RUN_NAME\".dependencies // [] | .[]" $MANIFEST
+    ;;
   allDependencies)
     # Get dependencies for a given repo. Inclusive of repo itself.
     # If a string, attempt to execute <projectDir>/<string> if exists to get dependencies, else error.
@@ -94,8 +100,6 @@ case "$CMD" in
       ALL_DEPS+=("$1")
     }
     add_deps $REPO
-    # Remove ourself as a dependency.
-    # unset ALL_DEPS[-1]
     for DEP in "${ALL_DEPS[@]}"; do
       echo $DEP
     done

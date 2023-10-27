@@ -30,7 +30,7 @@ services:
   end-to-end:
     image: aztecprotocol/end-to-end:latest
     environment:
-      BENCHMARK: true
+      BENCHMARK: 'true'
       DEBUG: ${DEBUG:-'aztec:*'}
       ETHEREUM_HOST: http://fork:8545
       CHAIN_ID: 31337
@@ -38,3 +38,6 @@ services:
     entrypoint: ['./scripts/start_e2e_ci_browser.sh', './src/e2e_aztec_js_browser.test.ts']
     volumes:
       - ../log:/usr/src/yarn-project/end-to-end/log:rw
+    depends_on:
+      - sandbox
+      - fork

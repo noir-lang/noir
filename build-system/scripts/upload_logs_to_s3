@@ -8,8 +8,8 @@
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
+LOG_FOLDER=$1
 BUCKET_NAME="aztec-ci-artifacts"
-LOG_FOLDER="${LOG_FOLDER:-log}"
 COMMIT_HASH="${COMMIT_HASH:-$(git rev-parse HEAD)}"
 
 if [ ! -d "$LOG_FOLDER" ] || [ -z "$(ls -A "$LOG_FOLDER")" ]; then
@@ -18,10 +18,10 @@ if [ ! -d "$LOG_FOLDER" ] || [ -z "$(ls -A "$LOG_FOLDER")" ]; then
 fi
 
 # Duplicated in scripts/ci/assemble_e2e_benchmark.sh
-if [ "${CIRCLE_BRANCH:-}" = "master" ]; then
+if [ "${BRANCH:-}" = "master" ]; then
   TARGET_FOLDER="logs-v1/master/$COMMIT_HASH/"
-elif [ -n "${CIRCLE_PULL_REQUEST:-}" ]; then
-  TARGET_FOLDER="logs-v1/pulls/${CIRCLE_PULL_REQUEST##*/}"
+elif [ -n "${PULL_REQUEST:-}" ]; then
+  TARGET_FOLDER="logs-v1/pulls/${PULL_REQUEST##*/}"
 fi
 
 if [ -n "${TARGET_FOLDER:-}" ]; then

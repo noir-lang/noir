@@ -105,7 +105,7 @@ for PARENT_REPO in $(query_manifest dependencies $REPOSITORY); do
   fetch_image $PARENT_IMAGE_URI
   # Tag it to look like an official release as that's what we use in Dockerfiles.
   TAG=$ECR_DEPLOY_URL/$PARENT_REPO
-  retry docker tag $PARENT_IMAGE_URI $TAG
+  docker tag $PARENT_IMAGE_URI $TAG
 done
 
 COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY false)

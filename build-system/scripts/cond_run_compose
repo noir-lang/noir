@@ -1,0 +1,35 @@
+#!/bin/bash
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
+set -eu
+
+REPOSITORY=$1
+COMPOSE_FILE=$2
+shift 2
+
+CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
+BASE_TAG=cache-$CONTENT_HASH
+SUCCESS_TAG=$BASE_TAG-$JOB_NAME
+
+echo "Content hash: $CONTENT_HASH"
+
+if ! check_rebuild $SUCCESS_TAG $REPOSITORY; then
+  # Login to pull our ecr images with docker.
+  ecr_login
+
+  # For each dependency and self, pull in the latest image and give it correct tag.
+  for REPO in $(query_manifest runDependencies $REPOSITORY $JOB_NAME) $REPOSITORY; do
+    echo "Pulling $REPO..."
+    REPO_IMAGE_URI=$(calculate_image_uri $REPO)
+    retry docker pull $REPO_IMAGE_URI
+    docker tag $REPO_IMAGE_URI aztecprotocol/$REPO
+  done
+
+  cd $(query_manifest projectDir $REPOSITORY)
+
+  export $@
+  docker-compose -f $COMPOSE_FILE run $REPOSITORY
+
+  upload_logs_to_s3 log
+
+  retry tag_remote_image $REPOSITORY $BASE_TAG $SUCCESS_TAG
+fi

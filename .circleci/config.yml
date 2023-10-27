@@ -12,7 +12,7 @@
 # The docker executor uses a custom image build in `build_image`. It's specifically streamlined for fast download
 # with just enough tools to execute the build system, and launch EC2 instances etc.
 #
-# There are some `join` steps that are just noops. They are just used to produce cleaner graph rendering in CCI.
+# There are some `join` steps that are just no-ops. They are just used to produce cleaner graph rendering in CCI.
 
 version: 2.1
 
@@ -61,12 +61,12 @@ checkout: &checkout
       retry git checkout FETCH_HEAD
 
 # Called setup_env to setup a bunch of global variables used throughout the rest of the build process.
-# It takes the required CCI environment variables as inputs, and gives them normalised names for the rest of
+# It takes the required CCI environment variables as inputs, and gives them normalized names for the rest of
 # the build process. This enables easy running of the build system external to CCI, as used for powerful EC2 builds.
 setup_env: &setup_env
   run:
     name: "Setup environment"
-    command: ./build-system/scripts/setup_env "$CIRCLE_SHA1" "$CIRCLE_TAG" "$CIRCLE_JOB" "$CIRCLE_REPOSITORY_URL" "$CIRCLE_BRANCH"
+    command: ./build-system/scripts/setup_env "$CIRCLE_SHA1" "$CIRCLE_TAG" "$CIRCLE_JOB" "$CIRCLE_REPOSITORY_URL" "$CIRCLE_BRANCH" "$CIRCLE_PULL_REQUEST"
 
 # This step is used to save logs from various barretenberg test to the workspace so that they can be used later to parse benchmark values out of them
 save_logs: &save_logs
@@ -604,378 +604,345 @@ jobs:
           command: build end-to-end
 
   e2e-2-pxes:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_2_pxes.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_2_pxes.test.ts
 
   e2e-multiple-accounts-1-enc-key:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_multiple_accounts_1_enc_key.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_multiple_accounts_1_enc_key.test.ts
 
   e2e-deploy-contract:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_deploy_contract.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_deploy_contract.test.ts
 
   e2e-lending-contract:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_lending_contract.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_lending_contract.test.ts
 
   e2e-token-contract:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_token_contract.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_token_contract.test.ts
 
   e2e-sandbox-example:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_sandbox_example.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_sandbox_example.test.ts
 
   e2e-block-building:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_block_building.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_block_building.test.ts
 
   e2e-nested-contract:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_nested_contract.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_nested_contract.test.ts
 
   e2e-non-contract-account:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_non_contract_account.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_non_contract_account.test.ts
 
   e2e-cross-chain-messaging:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_cross_chain_messaging.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_cross_chain_messaging.test.ts
 
   e2e-public-cross-chain-messaging:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_public_cross_chain_messaging.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_public_cross_chain_messaging.test.ts
 
   e2e-public-to-private-messaging:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_public_to_private_messaging.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_public_to_private_messaging.test.ts
 
   e2e-account-contracts:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_account_contracts.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_account_contracts.test.ts
 
   e2e-escrow-contract:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_escrow_contract.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_escrow_contract.test.ts
 
   e2e-pending-commitments-contract:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_pending_commitments_contract.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_pending_commitments_contract.test.ts
 
   e2e-ordering:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_ordering.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_ordering.test.ts
 
   uniswap-trade-on-l1-from-l2:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local uniswap_trade_on_l1_from_l2.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=uniswap_trade_on_l1_from_l2.test.ts
 
   integration-archiver-l1-to-l2:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local integration_archiver_l1_to_l2.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=integration_archiver_l1_to_l2.test.ts
 
   integration-l1-publisher:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local integration_l1_publisher.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=integration_l1_publisher.test.ts
 
   e2e-cli:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_cli.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_cli.test.ts
 
   e2e-p2p:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_p2p_network.test.ts ./scripts/docker-compose-no-sandbox.yml
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose-no-sandbox.yml TEST=e2e_p2p_network.test.ts
 
   e2e-browser-sandbox:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_aztec_js_browser.test.ts ./scripts/docker-compose-browser.yml
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose-browser.yml TEST=e2e_aztec_js_browser.test.ts
 
   e2e-card-game:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_card_game.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_card_game.test.ts
 
   pxe-sandbox:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local pxe_sandbox.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=pxe_sandbox.test.ts
 
   cli-docs-sandbox:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local cli_docs_sandbox.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=cli_docs_sandbox.test.ts
 
   guides-writing-an-account-contract:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local guides/writing_an_account_contract.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=guides/writing_an_account_contract.test.ts
 
   guides-dapp-testing:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local guides/dapp_testing.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=guides/dapp_testing.test.ts
 
   guides-sample-dapp:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local sample-dapp
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=sample-dapp
 
   guides-up-quick-start:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local guides/up_quick_start.test.ts
-          environment: { DEBUG: "aztec:*" }
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=guides/up_quick_start.test.ts
 
   bench-publish-rollup:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Benchmark"
-          command: cond_run_script end-to-end ./scripts/run_tests_local benchmarks/bench_publish_rollup.test.ts ./scripts/docker-compose-no-sandbox.yml
-          environment:
-            DEBUG: "aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees"
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose-no-sandbox.yml TEST=benchmarks/bench_publish_rollup.test.ts DEBUG=aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees
 
   bench-process-history:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Benchmark"
-          command: cond_run_script end-to-end ./scripts/run_tests_local benchmarks/bench_process_history.test.ts ./scripts/docker-compose-no-sandbox.yml
-          environment:
-            DEBUG: "aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees"
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose-no-sandbox.yml TEST=benchmarks/bench_process_history.test.ts DEBUG=aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees
 
   build-docs:
     machine:

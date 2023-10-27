@@ -13,7 +13,7 @@ COMMIT_TAG=${2##*aztec-packages-}
 JOB_NAME=$3
 GIT_REPOSITORY_URL=${4:-}
 BRANCH=${5:-}
-COMMIT_MESSAGE=${6:-}
+PULL_REQUEST=${6:-}
 
 BASH_ENV=${BASH_ENV:-}
 BUILD_SYSTEM_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -87,6 +87,7 @@ echo export GIT_REPOSITORY_URL=$GIT_REPOSITORY_URL >> $BASH_ENV
 echo export VERSION_TAG=$VERSION_TAG >> $BASH_ENV
 echo export DEPLOY_TAG=$DEPLOY_TAG >> $BASH_ENV
 echo export BRANCH=$BRANCH >> $BASH_ENV
+echo export PULL_REQUEST=$PULL_REQUEST >> $BASH_ENV
 
 # Only run the following if we're the result of a commit (i.e. not being run manually).
 if [ -n "$COMMIT_HASH" ]; then

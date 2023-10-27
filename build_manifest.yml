@@ -166,6 +166,8 @@ end-to-end:
   projectDir: yarn-project/end-to-end
   dependencies:
     - yarn-project
+  runDependencies:
+    - aztec-sandbox
 
 aztec-node:
   buildDir: yarn-project
