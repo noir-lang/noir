@@ -48,9 +48,9 @@ describe('noir wasm', () => {
       const cliCircuit = await getPrecompiledSource(simpleScriptExpectedArtifact);
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
-      expect(wasmCircuit.bytecode).to.eq(cliCircuit.bytecode);
-      expect(wasmCircuit.abi).to.deep.eq(cliCircuit.abi);
-      expect(wasmCircuit.backend).to.eq(cliCircuit.backend);
+      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
+      expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
+      expect(wasmCircuit.program.backend).to.eq(cliCircuit.backend);
     }).timeout(20e3); // 20 seconds
   });
 
@@ -90,9 +90,9 @@ describe('noir wasm', () => {
       const cliCircuit = await getPrecompiledSource(depsScriptExpectedArtifact);
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
-      expect(wasmCircuit.bytecode).to.eq(cliCircuit.bytecode);
-      expect(wasmCircuit.abi).to.deep.eq(cliCircuit.abi);
-      expect(wasmCircuit.backend).to.eq(cliCircuit.backend);
+      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
+      expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
+      expect(wasmCircuit.program.backend).to.eq(cliCircuit.backend);
     }).timeout(20e3); // 20 seconds
   });
 });
