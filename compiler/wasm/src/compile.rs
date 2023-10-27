@@ -3,6 +3,7 @@ use gloo_utils::format::JsValueSerdeExt;
 use js_sys::Object;
 use nargo::artifacts::{
     contract::{PreprocessedContract, PreprocessedContractFunction},
+    debug::DebugArtifact,
     program::PreprocessedProgram,
 };
 use noirc_driver::{
@@ -40,6 +41,18 @@ extern "C" {
 struct DependencyGraph {
     root_dependencies: Vec<CrateName>,
     library_dependencies: HashMap<CrateName, Vec<CrateName>>,
+}
+
+#[derive(serde::Serialize)]
+struct ContractWithDebug {
+    contract: PreprocessedContract,
+    debug: DebugArtifact,
+}
+
+#[derive(serde::Serialize)]
+struct ProgramWithDebug {
+    program: PreprocessedProgram,
+    debug: DebugArtifact,
 }
 
 #[wasm_bindgen]
@@ -89,9 +102,8 @@ pub fn compile(
             nargo::ops::optimize_contract(compiled_contract, np_language, &is_opcode_supported)
                 .expect("Contract optimization failed");
 
-        let preprocessed_contract = preprocess_contract(optimized_contract);
-
-        Ok(<JsValue as JsValueSerdeExt>::from_serde(&preprocessed_contract).unwrap())
+        let compile_output = preprocess_contract(optimized_contract);
+        Ok(<JsValue as JsValueSerdeExt>::from_serde(&compile_output).unwrap())
     } else {
         let compiled_program = compile_main(&mut context, crate_id, &compile_options, None, true)
             .map_err(|errs| {
@@ -107,9 +119,8 @@ pub fn compile(
             nargo::ops::optimize_program(compiled_program, np_language, &is_opcode_supported)
                 .expect("Program optimization failed");
 
-        let preprocessed_program = preprocess_program(optimized_program);
-
-        Ok(<JsValue as JsValueSerdeExt>::from_serde(&preprocessed_program).unwrap())
+        let compile_output = preprocess_program(optimized_program);
+        Ok(<JsValue as JsValueSerdeExt>::from_serde(&compile_output).unwrap())
     }
 }
 
@@ -145,17 +156,26 @@ fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
     prepare_dependency(context, &path_to_lib)
 }
 
-fn preprocess_program(program: CompiledProgram) -> PreprocessedProgram {
-    PreprocessedProgram {
+fn preprocess_program(program: CompiledProgram) -> ProgramWithDebug {
+    let debug_artifact =
+        DebugArtifact { debug_symbols: vec![program.debug], file_map: program.file_map };
+
+    let preprocessed_program = PreprocessedProgram {
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         bytecode: program.circuit,
-    }
+    };
+
+    ProgramWithDebug { program: preprocessed_program, debug: debug_artifact }
 }
 
-fn preprocess_contract(contract: CompiledContract) -> PreprocessedContract {
+fn preprocess_contract(contract: CompiledContract) -> ContractWithDebug {
+    let debug_artifact = DebugArtifact {
+        debug_symbols: contract.functions.iter().map(|function| function.debug.clone()).collect(),
+        file_map: contract.file_map,
+    };
     let preprocessed_functions = contract
         .functions
         .into_iter()
@@ -168,13 +188,15 @@ fn preprocess_contract(contract: CompiledContract) -> PreprocessedContract {
         })
         .collect();
 
-    PreprocessedContract {
+    let preprocessed_contract = PreprocessedContract {
         noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
         name: contract.name,
         backend: String::from(BACKEND_IDENTIFIER),
         functions: preprocessed_functions,
         events: contract.events,
-    }
+    };
+
+    ContractWithDebug { contract: preprocessed_contract, debug: debug_artifact }
 }
 
 cfg_if::cfg_if! {
