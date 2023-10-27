@@ -19,13 +19,13 @@ template <typename settings> class ProverBase {
     ProverBase& operator=(const ProverBase& other) = delete;
     ProverBase& operator=(ProverBase&& other);
 
-    void execute_preamble_round();
-    void execute_first_round();
-    void execute_second_round();
-    void execute_third_round();
-    void execute_fourth_round();
-    void execute_fifth_round();
-    void execute_sixth_round();
+    BBERG_PROFILE void execute_preamble_round();
+    BBERG_PROFILE void execute_first_round();
+    BBERG_PROFILE void execute_second_round();
+    BBERG_PROFILE void execute_third_round();
+    BBERG_PROFILE void execute_fourth_round();
+    BBERG_PROFILE void execute_fifth_round();
+    BBERG_PROFILE void execute_sixth_round();
 
     void add_polynomial_evaluations_to_transcript();
     void compute_batch_opening_polynomials();

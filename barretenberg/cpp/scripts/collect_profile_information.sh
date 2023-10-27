@@ -1,9 +1,14 @@
 #!/bin/bash
 set -eu
 
-PRESET=${1:-xray} # can also be 'xray-1thread'
+# can also be 'xray-1thread'
+PRESET=${1:-xray}
+# pass "" to run and 1 to reuse old results
 ONLY_PROCESS=${2:-}
+# pass the executable name from build/bin
 EXECUTABLE=${3:-ultra_honk_rounds_bench}
+# by default run the executable, but we can provide an alt command e.g. use taskset and benchmark flags
+COMMAND=${4:-./bin/$EXECUTABLE}
 
 # Move above script dir.
 cd $(dirname $0)/..
@@ -19,7 +24,7 @@ if [ -z "$ONLY_PROCESS" ]; then
   rm -f xray-log.$EXECUTABLE.*
 
   # Run benchmark with profiling.
-  XRAY_OPTIONS="patch_premain=true xray_mode=xray-basic verbosity=1" ./bin/$EXECUTABLE
+  XRAY_OPTIONS="patch_premain=true xray_mode=xray-basic verbosity=1" $COMMAND
 fi
 
 function shorten_cpp_names() {

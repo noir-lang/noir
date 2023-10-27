@@ -4,6 +4,7 @@ set(BENCHMARK_SOURCES
   ultra_honk.bench.cpp
   ultra_honk_rounds.bench.cpp
   ultra_plonk.bench.cpp
+  ultra_plonk_rounds.bench.cpp
 )
 
 # Required libraries for benchmark suites
