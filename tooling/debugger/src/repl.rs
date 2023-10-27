@@ -269,6 +269,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             self.debug_artifact,
             self.initial_witness.clone(),
         );
+        self.last_result = DebugCommandResult::Ok;
         println!("Restarted debugging session.");
         self.show_current_vm_status();
     }
