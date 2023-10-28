@@ -40,6 +40,12 @@ const config = {
           routeBasePath: '/',
           remarkPlugins: [math],
           rehypePlugins: [katex],
+          versions: {
+            current: {
+              label: 'dev',
+              path: 'dev',
+            },
+          },
           editUrl: ({ versionDocsDirPath, docPath }) =>
             `https://github.com/noir-lang/noir/edit/master/docs/${versionDocsDirPath}/${docPath}`,
         },
