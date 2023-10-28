@@ -27,7 +27,6 @@ use super::fs::program::{
     save_debug_artifact_to_file, save_program_to_file,
 };
 use super::NargoConfig;
-use super::NARGO_VERSION;
 use rayon::prelude::*;
 
 // TODO(#1388): pull this from backend.
