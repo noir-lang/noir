@@ -1,6 +1,7 @@
 use codespan_reporting::files::{Error, Files, SimpleFile};
 use noirc_driver::DebugFile;
 use noirc_errors::{debug_info::DebugInfo, Location};
+use noirc_evaluator::errors::SsaReport;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -15,6 +16,7 @@ use fm::{FileId, FileManager, PathString};
 pub struct DebugArtifact {
     pub debug_symbols: Vec<DebugInfo>,
     pub file_map: BTreeMap<FileId, DebugFile>,
+    pub warnings: Vec<SsaReport>,
 }
 
 impl DebugArtifact {
@@ -43,7 +45,7 @@ impl DebugArtifact {
             );
         }
 
-        Self { debug_symbols, file_map }
+        Self { debug_symbols, file_map, warnings: Vec::new() }
     }
 
     /// Given a location, returns its file's source code

@@ -1,4 +1,3 @@
-
 #[test(should_fail_with = "Not equal")]
 fn test_different_string() {
     assert_eq(0, 1, "Different string");
