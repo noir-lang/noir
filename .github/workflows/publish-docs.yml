@@ -30,14 +30,14 @@ jobs:
       - name: Install Yarn dependencies
         run: yarn
     
+      - name: Cut a new version
+        working-directory: ./docs
+        run: yarn docusaurus docs:version ${{ inputs.tag }}
+      
       - name: Remove pre-releases
         id: get_version
         run: |
             cd docs && yarn setStable
-
-      - name: Cut a new version
-        working-directory: ./docs
-        run: yarn docusaurus docs:version ${{ inputs.tag }}
 
       - name: Build docs
         run: yarn workspace docs build
