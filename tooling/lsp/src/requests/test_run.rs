@@ -38,12 +38,15 @@ fn on_test_run_request_inner(
     let crate_name = params.id.crate_name();
     let function_name = params.id.function_name();
 
-    let workspace =
-        resolve_workspace_from_toml(&toml_path, PackageSelection::Selected(crate_name.clone()))
-            .map_err(|err| {
-                // If we found a manifest, but the workspace is invalid, we raise an error about it
-                ResponseError::new(ErrorCode::REQUEST_FAILED, err)
-            })?;
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        PackageSelection::Selected(crate_name.clone()),
+        None,
+    )
+    .map_err(|err| {
+        // If we found a manifest, but the workspace is invalid, we raise an error about it
+        ResponseError::new(ErrorCode::REQUEST_FAILED, err)
+    })?;
 
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {

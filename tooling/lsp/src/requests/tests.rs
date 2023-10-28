@@ -41,7 +41,7 @@ fn on_tests_request_inner(
     };
 
     let workspace =
-        resolve_workspace_from_toml(&toml_path, PackageSelection::All).map_err(|err| {
+        resolve_workspace_from_toml(&toml_path, PackageSelection::All, None).map_err(|err| {
             // If we found a manifest, but the workspace is invalid, we raise an error about it
             ResponseError::new(ErrorCode::REQUEST_FAILED, err)
         })?;

@@ -60,7 +60,8 @@ pub(crate) fn run(
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
-    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
+
+    let workspace = resolve_workspace_from_toml(&toml_path, selection, None)?;
     let circuit_dir = workspace.target_directory_path();
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace

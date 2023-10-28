@@ -15,7 +15,7 @@ pub(crate) struct FormatCommand {}
 
 pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
-    let workspace = resolve_workspace_from_toml(&toml_path, PackageSelection::All)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, PackageSelection::All, None)?;
 
     let config = nargo_fmt::Config::read(&config.program_dir)
         .map_err(|err| CliError::Generic(err.to_string()))?;

@@ -41,7 +41,7 @@ pub(crate) fn run(
 ) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let selection = args.package.map_or(PackageSelection::DefaultOrAll, PackageSelection::Selected);
-    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, selection, None)?;
     let target_dir = &workspace.target_directory_path();
     let (np_language, opcode_support) = backend.get_backend_info()?;
 
