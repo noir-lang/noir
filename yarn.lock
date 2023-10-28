@@ -8233,6 +8233,7 @@ __metadata:
     "@mdx-js/react": ^1.6.22
     axios: ^1.4.0
     clsx: ^1.2.1
+    dotenv: ^16.3.1
     hast-util-is-element: ^1.1.0
     prism-react-renderer: ^1.3.5
     react: ^17.0.2
@@ -8345,6 +8346,13 @@ __metadata:
   dependencies:
     is-obj: ^2.0.0
   checksum: d5775790093c234ef4bfd5fbe40884ff7e6c87573e5339432870616331189f7f5d86575c5b5af2dcf0f61172990f4f734d07844b1f23482fff09e3c4bead05ea
+  languageName: node
+  linkType: hard
+
+"dotenv@npm:^16.3.1":
+  version: 16.3.1
+  resolution: "dotenv@npm:16.3.1"
+  checksum: 15d75e7279018f4bafd0ee9706593dd14455ddb71b3bcba9c52574460b7ccaf67d5cf8b2c08a5af1a9da6db36c956a04a1192b101ee102a3e0cf8817bbcf3dfd
   languageName: node
   linkType: hard
 

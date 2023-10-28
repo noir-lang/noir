@@ -67,6 +67,9 @@ jobs:
         
       - name: Build docs
         run: yarn workspace docs build
+
+      - name: Remove pre-releases
+        run: 
     
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v2.1
