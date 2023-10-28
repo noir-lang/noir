@@ -13,8 +13,7 @@ pub(crate) fn semver_check_workspace(
     let version = Version::parse(&current_compiler_version)
         .expect("The compiler version is not a valid semver version");
     for package in &workspace.members {
-        semver_check_package(package, &version)
-            .map_err(ManifestError::SemverError)?;
+        semver_check_package(package, &version).map_err(ManifestError::SemverError)?;
     }
 
     Ok(())
