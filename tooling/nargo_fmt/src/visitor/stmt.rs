@@ -61,7 +61,7 @@ impl super::FmtVisitor<'_> {
                     let identifier = self.slice(for_stmt.identifier.span());
                     let range = match for_stmt.range {
                         ForRange::Range(start, end) => format!(
-                            "{} in {}",
+                            "{}..{}",
                             self.format_sub_expr(start),
                             self.format_sub_expr(end)
                         ),

@@ -5,8 +5,8 @@ fn for_stmt() {
 }
 
 fn for_stmt() {
-    for i in 0 in (C1 - 1) {
-        for _j in 1 in (C1 - i - 1) {
+    for i in 0..(C1 - 1) {
+        for _j in 1..(C1 - i - 1) {
             b *= b;
         }
 
