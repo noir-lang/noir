@@ -18,11 +18,11 @@ while [[ "$DEPLOY_STATUS" != "ready" && $COUNT -lt $MAX_RETRIES ]]; do
         exit 0
     elif [[ "$DEPLOY_STATUS" == "error" ]]; then
         echo "deploy_status=failure" >> $GITHUB_OUTPUT
-        exit 0
+        exit 1
     fi
 
     echo "Deploy still running. Retrying..."
 done
 
 echo "deploy_status=failure" >> $GITHUB_OUTPUT
-exit 0
+exit 1

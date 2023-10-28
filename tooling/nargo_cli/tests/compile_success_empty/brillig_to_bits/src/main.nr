@@ -20,5 +20,4 @@ unconstrained fn main() {
         let le_bit = le_bits_x[3-i];
         assert(be_bit == le_bit);
     }
-
 }

@@ -1032,12 +1032,19 @@ pub(crate) mod tests {
         ) -> Result<bool, BlackBoxResolutionError> {
             Ok(true)
         }
-        fn pedersen(
+        fn pedersen_commitment(
             &self,
             _inputs: &[FieldElement],
             _domain_separator: u32,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             Ok((2_u128.into(), 3_u128.into()))
+        }
+        fn pedersen_hash(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<FieldElement, BlackBoxResolutionError> {
+            Ok(6_u128.into())
         }
         fn fixed_base_scalar_mul(
             &self,

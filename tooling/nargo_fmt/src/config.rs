@@ -47,6 +47,7 @@ config! {
     remove_nested_parens: bool, true, "Remove nested parens";
     short_array_element_width_threshold: usize, 10, "Width threshold for an array element to be considered short";
     array_width: usize, 100, "Maximum width of an array literal before falling back to vertical formatting";
+    single_line_if_else_max_width: usize, 50, "Maximum line length for single line if-else expressions";
 }
 
 impl Config {

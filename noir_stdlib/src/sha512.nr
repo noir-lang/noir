@@ -5,7 +5,9 @@
 // Auxiliary mappings; names as in FIPS PUB 180-4
 fn rotr64(a: u64, b: u64) -> u64 // 64-bit right rotation
 {
-    (a >> b) | (a << (64 - b))
+    // None of the bits overlap between `(a >> b)` and `(a << (64 - b))`
+    // Addition is then equivalent to OR, with fewer constraints.
+    (a >> b) + (crate::wrapping_shift_left(a, 64 - b))
 }
 
 fn sha_ch(x: u64, y: u64, z: u64) -> u64
