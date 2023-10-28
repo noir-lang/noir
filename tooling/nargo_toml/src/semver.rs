@@ -13,8 +13,8 @@ pub(crate) fn semver_check_workspace(
     let version = Version::parse(&current_compiler_version)
         .expect("The compiler version is not a valid semver version");
     for package in &workspace.members {
-        semver_check_package(&package, &version)
-            .map_err(|semver_err| ManifestError::SemverError(semver_err))?;
+        semver_check_package(package, &version)
+            .map_err(ManifestError::SemverError)?;
     }
 
     Ok(())
@@ -36,7 +36,7 @@ pub(crate) fn semver_check_package(
                 })
             }
         };
-        if !version_req.matches(&compiler_version) {
+        if !version_req.matches(compiler_version) {
             return Err(SemverError::IncompatibleVersion {
                 package_name: package.name.clone(),
                 required_compiler_version: version.clone(),
@@ -49,11 +49,12 @@ pub(crate) fn semver_check_package(
     for dep in package.dependencies.values() {
         match dep {
             Dependency::Local { package } | Dependency::Remote { package } => {
-                semver_check_package(&package, compiler_version)?;
+                semver_check_package(package, compiler_version)?;
             }
         }
     }
-    return Ok(());
+
+    Ok(())
 }
 
 #[cfg(test)]
