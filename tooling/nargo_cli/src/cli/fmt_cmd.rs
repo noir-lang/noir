@@ -10,6 +10,7 @@ use crate::errors::CliError;
 
 use super::NargoConfig;
 
+/// Format the Noir files in a workspace
 #[derive(Debug, Clone, Args)]
 pub(crate) struct FormatCommand {}
 
