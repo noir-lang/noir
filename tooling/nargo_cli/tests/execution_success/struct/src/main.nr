@@ -34,11 +34,7 @@ struct MyStruct {
     my_nest: Nested,
 }
 fn test_struct_in_tuple(a_bool : bool,x:Field, y:Field) -> (MyStruct, bool) {
-    let my_struct = MyStruct {
-        my_bool: a_bool,
-        my_int: 5,
-        my_nest: Nested{a:x,b:y},
-    };
+    let my_struct = MyStruct { my_bool: a_bool, my_int: 5, my_nest: Nested { a: x, b: y } };
     (my_struct, a_bool)
 }
 
@@ -57,7 +53,7 @@ struct Unit;
 fn main(x: Field, y: Field) {
     let unit = Unit {};
 
-    let first = Foo::default(x,y);
+    let first = Foo::default(x, y);
     let p = Pair { first, second: 1 };
 
     assert(p.bar() == x);
@@ -65,7 +61,7 @@ fn main(x: Field, y: Field) {
     assert(p.first.array[0] != p.first.array[1]);
 
     // Nested structs
-    let (struct_from_tuple, a_bool) = test_struct_in_tuple(true,x,y);
+    let (struct_from_tuple, a_bool) = test_struct_in_tuple(true, x, y);
     assert(struct_from_tuple.my_bool == true);
     assert(a_bool == true);
     assert(struct_from_tuple.my_int == 5);
