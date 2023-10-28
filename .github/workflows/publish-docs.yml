@@ -16,8 +16,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        # with:
-        #   ref: ${{ inputs.tag }}
+        with:
+          ref: ${{ inputs.tag }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v2
@@ -47,7 +47,7 @@ jobs:
         with:
           publish-dir: './docs/build'
           production-branch: master
-          production-deploy: false # TODO change to true
+          production-deploy: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
           enable-github-deployment: false
           deploy-message: "Deploy from GitHub Actions for tag ${{ inputs.tag }}"
