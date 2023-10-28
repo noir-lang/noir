@@ -69,7 +69,8 @@ jobs:
         run: yarn workspace docs build
 
       - name: Remove pre-releases
-        run: 
+        working-directory: docs
+        run: yarn setStable
     
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v2.1
