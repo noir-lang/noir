@@ -27,6 +27,7 @@ use super::fs::program::{
     save_debug_artifact_to_file, save_program_to_file,
 };
 use super::NargoConfig;
+use super::NARGO_VERSION;
 use rayon::prelude::*;
 
 // TODO(#1388): pull this from backend.
@@ -61,7 +62,11 @@ pub(crate) fn run(
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
 
-    let workspace = resolve_workspace_from_toml(&toml_path, selection, None)?;
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        selection,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+    )?;
     let circuit_dir = workspace.target_directory_path();
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
