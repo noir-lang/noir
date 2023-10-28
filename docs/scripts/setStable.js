@@ -1,9 +1,22 @@
+/* eslint-disable */
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 
-const stableVersionPath = path.join(__dirname, '../stableVersion.json');
-const stableVersionConfig = require(stableVersionPath);
+async function main() {
+  const versionsFile = path.join(__dirname, '../versions.json');
 
-stableVersionConfig.lastVersion = process.env.STABLE.replace('v', '');
+  const { data } = await axios.get('https://api.github.com/repos/noir-lang/noir/releases', {
+    headers: { Authorization: `token ${process.env.GITHUB_TOKEN}` },
+    params: { per_page: 100 },
+  });
 
-fs.writeFileSync(stableVersionPath, JSON.stringify(stableVersionConfig, null, 2));
+  const stables = data
+    .filter((release) => !release.prerelease && !release.tag_name.includes('aztec'))
+    .map((release) => release.tag_name.replace('v', ''))
+    .slice(0, 3);
+
+  fs.writeFileSync(versionsFile, JSON.stringify(stables, null, 2));
+}
+
+main();

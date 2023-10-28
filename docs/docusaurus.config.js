@@ -7,8 +7,6 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 const math = require('remark-math');
 const katex = require('rehype-katex');
 
-const stableVersion = require('./stableVersion.json');
-
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'Noir Documentation',
@@ -42,16 +40,6 @@ const config = {
           routeBasePath: '/',
           remarkPlugins: [math],
           rehypePlugins: [katex],
-          lastVersion: stableVersion.lastVersion, // updated by the release workflow
-          versions: {
-            current: {
-              label: 'dev',
-              path: 'dev',
-            },
-            '0.7.1': {
-              label: '0.7.1 / 0.8.0',
-            },
-          },
           editUrl: ({ versionDocsDirPath, docPath }) =>
             `https://github.com/noir-lang/noir/edit/master/docs/${versionDocsDirPath}/${docPath}`,
         },
