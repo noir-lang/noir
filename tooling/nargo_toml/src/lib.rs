@@ -18,6 +18,7 @@ use serde::Deserialize;
 
 mod errors;
 mod git;
+mod semver;
 
 pub use errors::ManifestError;
 use git::clone_git_repo;
@@ -163,6 +164,7 @@ impl PackageConfig {
         };
 
         Ok(Package {
+            compiler_required_version: self.package.compiler_version.clone(),
             root_dir: root_dir.to_path_buf(),
             entry_path,
             package_type,
@@ -228,7 +230,7 @@ struct PackageMetadata {
     entry: Option<PathBuf>,
     description: Option<String>,
     authors: Option<Vec<String>>,
-    // If not compiler version is supplied, the latest is used
+    // If no compiler version is supplied, the latest is used
     // For now, we state that all packages must be compiled under the same
     // compiler version.
     // We also state that ACIR and the compiler will upgrade in lockstep.
@@ -391,10 +393,14 @@ pub enum PackageSelection {
 pub fn resolve_workspace_from_toml(
     toml_path: &Path,
     package_selection: PackageSelection,
+    current_compiler_version: Option<String>,
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
-
-    toml_to_workspace(nargo_toml, package_selection)
+    let workspace = toml_to_workspace(nargo_toml, package_selection)?;
+    if let Some(current_compiler_version) = current_compiler_version {
+        semver::semver_check_workspace(workspace.clone(), current_compiler_version)?;
+    }
+    Ok(workspace)
 }
 
 #[test]
