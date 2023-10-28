@@ -1,0 +1,17 @@
+---
+title: EdDSA Verification
+description: Learn about the cryptographic primitives regarding EdDSA
+keywords: [cryptographic primitives, Noir project, eddsa, signatures]
+---
+
+import BlackBoxInfo from './common/_blackbox.mdx';
+
+## eddsa::eddsa_poseidon_verify
+
+Verifier for EdDSA signatures
+
+```rust
+fn eddsa_poseidon_verify(public_key_x : Field, public_key_y : Field, signature_s: Field, signature_r8_x: Field, signature_r8_y: Field, message: Field) -> bool
+```
+
+<BlackBoxInfo />
