@@ -5,6 +5,8 @@ import { readFileSync, writeFileSync } from 'fs';
 import { gunzipSync } from 'zlib';
 import { Command } from 'commander';
 import { acvmInfoJson } from './info.js';
+import { Timer, writeBenchmark } from './benchmark/index.js';
+import path from 'path';
 createDebug.log = console.error.bind(console);
 const debug = createDebug('bb.js');
 
@@ -15,6 +17,7 @@ const debug = createDebug('bb.js');
 // aware of this discrepancy, when creating proofs in bb versus
 // creating the same proofs in the node CLI.
 const MAX_CIRCUIT_SIZE = 2 ** 19;
+const threads = +process.env.HARDWARE_CONCURRENCY! || undefined;
 
 function getBytecode(bytecodePath: string) {
   const encodedCircuit = readFileSync(bytecodePath);
@@ -41,7 +44,7 @@ async function computeCircuitSize(bytecodePath: string, api: Barretenberg) {
 }
 
 async function init(bytecodePath: string, crsPath: string) {
-  const api = await Barretenberg.new();
+  const api = await Barretenberg.new(threads);
 
   const circuitSize = await getGates(bytecodePath, api);
   const subgroupSize = Math.pow(2, Math.ceil(Math.log2(circuitSize)));
@@ -63,7 +66,7 @@ async function init(bytecodePath: string, crsPath: string) {
   await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));
 
   const acirComposer = await api.acirNewAcirComposer(subgroupSize);
-  return { api, acirComposer, circuitSize: subgroupSize };
+  return { api, acirComposer, circuitSize, subgroupSize };
 }
 
 async function initLite() {
@@ -80,12 +83,24 @@ async function initLite() {
 }
 
 export async function proveAndVerify(bytecodePath: string, witnessPath: string, crsPath: string, isRecursive: boolean) {
-  const { api, acirComposer } = await init(bytecodePath, crsPath);
+  /* eslint-disable camelcase */
+  const acir_test = path.basename(process.cwd());
+
+  const { api, acirComposer, circuitSize, subgroupSize } = await init(bytecodePath, crsPath);
   try {
     debug(`creating proof...`);
     const bytecode = getBytecode(bytecodePath);
     const witness = getWitness(witnessPath);
+
+    const pkTimer = new Timer();
+    await api.acirInitProvingKey(acirComposer, bytecode);
+    writeBenchmark('pk_construction_time', pkTimer.ms(), { acir_test, threads });
+    writeBenchmark('gate_count', circuitSize, { acir_test, threads });
+    writeBenchmark('subgroup_size', subgroupSize, { acir_test, threads });
+
+    const proofTimer = new Timer();
     const proof = await api.acirCreateProof(acirComposer, bytecode, witness, isRecursive);
+    writeBenchmark('proof_construction_time', proofTimer.ms(), { acir_test, threads });
 
     debug(`verifying...`);
     const verified = await api.acirVerifyProof(acirComposer, proof, isRecursive);
@@ -94,6 +109,7 @@ export async function proveAndVerify(bytecodePath: string, witnessPath: string, 
   } finally {
     await api.destroy();
   }
+  /* eslint-enable camelcase */
 }
 
 export async function prove(

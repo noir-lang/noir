@@ -9,7 +9,7 @@ FLOW=${FLOW:-prove_and_verify}
 CRS_PATH=~/.bb-crs
 BRANCH=master
 VERBOSE=${VERBOSE:-}
-NAMED_TEST=${1:-}
+TEST_NAMES=("$@")
 
 FLOW_SCRIPT=$(realpath ./flows/${FLOW}.sh)
 
@@ -47,12 +47,15 @@ function test() {
   cd $1
 
   set +e
+  start=$(date +%s%3N)
   $FLOW_SCRIPT
   result=$?
+  end=$(date +%s%3N)
+  duration=$((end - start))
   set -eu
 
   if [ $result -eq 0 ]; then
-    echo -e "\033[32mPASSED\033[0m"
+    echo -e "\033[32mPASSED\033[0m ($duration ms)"
   else
     echo -e "\033[31mFAILED\033[0m"
     exit 1
@@ -61,9 +64,11 @@ function test() {
   cd ..
 }
 
-if [ -n "$NAMED_TEST" ]; then
-  echo -n "Testing $NAMED_TEST... "
-  test $NAMED_TEST
+if [ "${#TEST_NAMES[@]}" -ne 0 ]; then
+  for NAMED_TEST in "${TEST_NAMES[@]}"; do
+    echo -n "Testing $NAMED_TEST... "
+    test $NAMED_TEST
+  done
 else
   for TEST_NAME in $(find -maxdepth 1 -type d -not -path '.' | sed 's|^\./||'); do
     echo -n "Testing $TEST_NAME... "

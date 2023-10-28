@@ -56,6 +56,15 @@ class Timer {
     }
 
     /**
+     * @brief Return the number of nanoseconds elapsed since the start of the timer.
+     */
+    [[nodiscard]] int64_t milliseconds() const
+    {
+        int64_t nanos = nanoseconds();
+        return nanos / 1000000;
+    }
+
+    /**
      * @brief Return the number of seconds elapsed since the start of the timer.
      */
     [[nodiscard]] double seconds() const
