@@ -37,7 +37,7 @@ fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
         // ]);
 
         // let s_a = (r_a + _priv_key_a * h_a) % bjj.suborder; // modulus computed manually
-        let s_a =  30333430637424319196043722294837632681219980330991241982145549329256671548;
+        let s_a = 30333430637424319196043722294837632681219980330991241982145549329256671548;
         // let s_b = (r_b + _priv_key_b * h_b) % bjj.suborder; // modulus computed manually
         let s_b = 1646085314320208098241070054368798527940102577261034947654839408482102287019;
 
