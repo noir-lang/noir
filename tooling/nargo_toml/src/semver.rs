@@ -1,9 +1,9 @@
+use crate::{errors::SemverError, ManifestError};
 use nargo::{
     package::{Dependency, Package},
     workspace::Workspace,
 };
 use semver::{Version, VersionReq};
-use crate::{errors::SemverError, ManifestError};
 
 // Check that all of the packages in the workspace are compatible with the current compiler version
 pub(crate) fn semver_check_workspace(
@@ -39,7 +39,7 @@ pub(crate) fn semver_check_package(
         if !version_req.matches(&compiler_version) {
             return Err(SemverError::IncompatibleVersion {
                 package_name: package.name.clone(),
-                package_required_compiler_version: version.clone(),
+                required_compiler_version: version.clone(),
                 compiler_version_found: compiler_version.to_string(),
             });
         };
@@ -89,7 +89,7 @@ mod tests {
 
         let expected_version_error = SemverError::IncompatibleVersion {
             package_name: CrateName::from_str("test").unwrap(),
-            package_required_compiler_version: "0.2.0".to_string(),
+            required_compiler_version: "0.2.0".to_string(),
             compiler_version_found: "0.1.0".to_string(),
         };
         assert_eq!(got_err, expected_version_error);
@@ -145,7 +145,7 @@ mod tests {
 
         let expected_version_error = SemverError::IncompatibleVersion {
             package_name: CrateName::from_str("bad_dependency").unwrap(),
-            package_required_compiler_version: "0.2.0".to_string(),
+            required_compiler_version: "0.2.0".to_string(),
             compiler_version_found: "0.1.0".to_string(),
         };
         assert_eq!(got_err, expected_version_error.into());
