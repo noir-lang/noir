@@ -19,6 +19,7 @@ use crate::hir_def::expr::{
 };
 
 use crate::hir_def::traits::{Trait, TraitConstraint};
+use crate::parser::ForRange;
 use crate::token::FunctionAttribute;
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
@@ -1007,23 +1008,37 @@ impl<'a> Resolver<'a> {
                 HirStatement::Assign(stmt)
             }
             StatementKind::For(for_loop) => {
-                let start_range = self.resolve_expression(for_loop.start_range);
-                let end_range = self.resolve_expression(for_loop.end_range);
-                let (identifier, block) = (for_loop.identifier, for_loop.block);
+                match for_loop.range {
+                    ForRange::Range(start_range, end_range) => {
+                        let start_range = self.resolve_expression(start_range);
+                        let end_range = self.resolve_expression(end_range);
+                        let (identifier, block) = (for_loop.identifier, for_loop.block);
 
-                // TODO: For loop variables are currently mutable by default since we haven't
-                //       yet implemented syntax for them to be optionally mutable.
-                let (identifier, block) = self.in_new_scope(|this| {
-                    let decl = this.add_variable_decl(
-                        identifier,
-                        false,
-                        true,
-                        DefinitionKind::Local(None),
-                    );
-                    (decl, this.resolve_expression(block))
-                });
+                        // TODO: For loop variables are currently mutable by default since we haven't
+                        //       yet implemented syntax for them to be optionally mutable.
+                        let (identifier, block) = self.in_new_scope(|this| {
+                            let decl = this.add_variable_decl(
+                                identifier,
+                                false,
+                                true,
+                                DefinitionKind::Local(None),
+                            );
+                            (decl, this.resolve_expression(block))
+                        });
 
-                HirStatement::For(HirForStatement { start_range, end_range, block, identifier })
+                        HirStatement::For(HirForStatement {
+                            start_range,
+                            end_range,
+                            block,
+                            identifier,
+                        })
+                    }
+                    range @ ForRange::Array(_) => {
+                        let for_stmt =
+                            range.into_for(for_loop.identifier, for_loop.block, for_loop.span);
+                        self.resolve_stmt(for_stmt)
+                    }
+                }
             }
             StatementKind::Error => HirStatement::Error,
         }

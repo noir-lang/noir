@@ -478,7 +478,8 @@ impl Precedence {
     }
 }
 
-enum ForRange {
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum ForRange {
     Range(/*start:*/ Expression, /*end:*/ Expression),
     Array(Expression),
 }
@@ -494,10 +495,15 @@ impl ForRange {
     ///         ...
     ///     }
     /// }
-    fn into_for(self, identifier: Ident, block: Expression, for_loop_span: Span) -> StatementKind {
+    pub(crate) fn into_for(
+        self,
+        identifier: Ident,
+        block: Expression,
+        for_loop_span: Span,
+    ) -> StatementKind {
         match self {
-            ForRange::Range(start_range, end_range) => {
-                StatementKind::For(ForLoopStatement { identifier, start_range, end_range, block })
+            ForRange::Range(..) => {
+                unreachable!()
             }
             ForRange::Array(array) => {
                 let array_span = array.span;
@@ -564,9 +570,9 @@ impl ForRange {
                 let for_loop = Statement {
                     kind: StatementKind::For(ForLoopStatement {
                         identifier: fresh_identifier,
-                        start_range,
-                        end_range,
+                        range: ForRange::Range(start_range, end_range),
                         block: new_block,
+                        span: for_loop_span,
                     }),
                     span: for_loop_span,
                 };

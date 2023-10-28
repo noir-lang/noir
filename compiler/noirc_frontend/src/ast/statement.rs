@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::lexer::token::SpannedToken;
-use crate::parser::{ParserError, ParserErrorReason};
+use crate::parser::{ForRange, ParserError, ParserErrorReason};
 use crate::token::Token;
 use crate::{Expression, ExpressionKind, IndexExpression, MemberAccessExpression, UnresolvedType};
 use iter_extended::vecmap;
@@ -481,6 +481,14 @@ impl LValue {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ForLoopStatement {
     pub identifier: Ident,
+    pub range: ForRange,
+    pub block: Expression,
+    pub span: Span,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ForRangeLoopStatement {
+    pub identifier: Ident,
     pub start_range: Expression,
     pub end_range: Expression,
     pub block: Expression,
@@ -575,10 +583,11 @@ impl Display for Pattern {
 
 impl Display for ForLoopStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "for {} in {} .. {} {}",
-            self.identifier, self.start_range, self.end_range, self.block
-        )
+        let range = match &self.range {
+            ForRange::Range(start, end) => format!("{start}..{end}"),
+            ForRange::Array(expr) => expr.to_string(),
+        };
+
+        write!(f, "for {} in {range} {}", self.identifier, self.block)
     }
 }

@@ -38,11 +38,11 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
-    FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident, IfExpression,
-    InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    NoirTypeAlias, Path, PathKind, Pattern, Recoverable, Statement, TraitBound, TraitImplItem,
-    TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree,
-    UseTreeKind, Visibility,
+    ForLoopStatement, FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident,
+    IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
+    NoirTraitImpl, NoirTypeAlias, Path, PathKind, Pattern, Recoverable, Statement, TraitBound,
+    TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint,
+    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -1482,7 +1482,9 @@ where
         .then_ignore(keyword(Keyword::In))
         .then(for_range(expr_no_constructors))
         .then(block_expr(statement))
-        .map_with_span(|((identifier, range), block), span| range.into_for(identifier, block, span))
+        .map_with_span(|((identifier, range), block), span| {
+            StatementKind::For(ForLoopStatement { identifier, range, block, span })
+        })
 }
 
 /// The 'range' of a for loop. Either an actual range `start .. end` or an array expression.
