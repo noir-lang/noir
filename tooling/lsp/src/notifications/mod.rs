@@ -88,7 +88,7 @@ pub(super) fn on_did_save_text_document(
             return ControlFlow::Continue(());
         }
     };
-    let workspace = match resolve_workspace_from_toml(&toml_path, PackageSelection::All) {
+    let workspace = match resolve_workspace_from_toml(&toml_path, PackageSelection::All, None) {
         Ok(workspace) => workspace,
         Err(err) => {
             // If we found a manifest, but the workspace is invalid, we raise an error about it
