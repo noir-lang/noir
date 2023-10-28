@@ -51,8 +51,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-    needs: add_label
-    if: needs.add_label.outputs.has_label == 'true'
+    # needs: add_label
+    # if: needs.add_label.outputs.has_label == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -70,6 +70,8 @@ jobs:
 
       - name: Remove pre-releases
         working-directory: docs
+        env: 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: yarn setStable
     
       - name: Deploy to Netlify
