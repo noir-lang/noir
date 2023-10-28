@@ -880,20 +880,14 @@ impl<'interner> TypeChecker<'interner> {
             // This may be a struct or a primitive type.
             Type::MutableReference(element) => self
                 .interner
-                .lookup_mut_primitive_trait_method(element.as_ref(), method_name)
+                .lookup_primitive_trait_method_mut(element.as_ref(), method_name)
                 .map(HirMethodReference::FuncId)
                 .or_else(|| self.lookup_method(element, method_name, expr_id)),
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
             Type::Error => None,
 
-            // In the future we could support methods for non-struct types if we have a context
-            // (in the interner?) essentially resembling HashMap<Type, Methods>
-            other => match self
-                .interner
-                .lookup_primitive_method(other, method_name)
-                .or_else(|| self.interner.lookup_primitive_trait_method(other, method_name))
-            {
+            other => match self.interner.lookup_primitive_method(other, method_name) {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     self.errors.push(TypeCheckError::UnresolvedMethodCall {
