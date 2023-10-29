@@ -410,7 +410,7 @@ fn parse_standard_toml() {
         [package]
         name = "test"
         authors = ["kev", "foo"]
-        compiler_version = "0.1"
+        compiler_version = "*"
 
         [dependencies]
         rand = { tag = "next", git = "https://github.com/rust-lang-nursery/rand"}
@@ -428,7 +428,7 @@ fn parse_package_toml_no_deps() {
         [package]
         name = "test"
         authors = ["kev", "foo"]
-        compiler_version = "0.1"
+        compiler_version = "*"
     "#;
 
     assert!(Config::try_from(String::from(src)).is_ok());
