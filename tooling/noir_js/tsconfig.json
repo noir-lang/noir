@@ -14,7 +14,7 @@
   "exclude": ["node_modules"],
   "references": [
     {
-      "path": "../noir_js_types/tsconfig.json"
+      "path": "../noir_js_types"
     },
   ]
 }

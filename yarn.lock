@@ -8240,7 +8240,7 @@ __metadata:
     "@mdx-js/react": ^1.6.22
     axios: ^1.4.0
     clsx: ^1.2.1
-    docusaurus-plugin-typedoc: 1.0.0-next.15
+    docusaurus-plugin-typedoc: 1.0.0-next.18
     hast-util-is-element: ^1.1.0
     prism-react-renderer: ^1.3.5
     react: ^17.0.2
@@ -8249,7 +8249,7 @@ __metadata:
     remark-math: ^3.0.1
     typedoc: ^0.25.0
     typedoc-plugin-frontmatter: ^0.0.2
-    typedoc-plugin-markdown: 4.0.0-next.20
+    typedoc-plugin-markdown: 4.0.0-next.25
     typedoc-plugin-merge-modules: ^5.1.0
     typescript: ^5.2.2
   languageName: unknown
@@ -8264,14 +8264,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"docusaurus-plugin-typedoc@npm:1.0.0-next.15":
-  version: 1.0.0-next.15
-  resolution: "docusaurus-plugin-typedoc@npm:1.0.0-next.15"
+"docusaurus-plugin-typedoc@npm:1.0.0-next.18":
+  version: 1.0.0-next.18
+  resolution: "docusaurus-plugin-typedoc@npm:1.0.0-next.18"
   dependencies:
     "@docusaurus/types": ^2.4.1
   peerDependencies:
-    typedoc-plugin-markdown: ">=4.0.0-next.19"
-  checksum: 69fcadcb90288151d40140d75cb06612dedf60c34fd0806c3ea309267dfe3b25406f280d4b883676d3924e06588483b8d5ac895a5cd67957e715a3d0425de628
+    typedoc-plugin-markdown: ">=4.0.0-next.24"
+  checksum: a501e3bd1cc5b33d215a1b71b018a34d4aa5bd98f39580ab114a127d3f555078443d6b690119c0adb17fb8867ba4131382ad5d14dbaa7919715020cdfaf6b9c4
   languageName: node
   linkType: hard
 
@@ -16452,12 +16452,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typedoc-plugin-markdown@npm:4.0.0-next.20":
-  version: 4.0.0-next.20
-  resolution: "typedoc-plugin-markdown@npm:4.0.0-next.20"
+"typedoc-plugin-markdown@npm:4.0.0-next.25":
+  version: 4.0.0-next.25
+  resolution: "typedoc-plugin-markdown@npm:4.0.0-next.25"
   peerDependencies:
-    typedoc: ">=0.24.0"
-  checksum: f1217bc822940cdc978cde54e7fead86441254ca443e9760ccb63e9cc9c0ee05df1d3e846f081fc35ee1385d75b85f92d18e5474a5a5a698a0e5679fbcb9121f
+    typedoc: ">=0.25.0"
+  checksum: 284e2ce44446faf8db5fc54dfa84e7cd819cfc60bbed12ffb781cb24a166ba6b3a220c542990a3eb14aefff33f1d7c8322378297551f55476155cf532fbbb807
   languageName: node
   linkType: hard
 

@@ -25,6 +25,7 @@ export class BarretenbergBackend implements Backend {
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
   }
 
+  /** @ignore */
   async instantiate(): Promise<void> {
     if (!this.api) {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -47,6 +48,7 @@ export class BarretenbergBackend implements Backend {
   //
   // The settings for this proof are the same as the settings for a "normal" proof
   // ie one that is not in the recursive setting.
+  /** @ignore */
   async generateFinalProof(decompressedWitness: Uint8Array): Promise<ProofData> {
     const makeEasyToVerifyInCircuit = false;
     return this.generateProof(decompressedWitness, makeEasyToVerifyInCircuit);
@@ -63,6 +65,14 @@ export class BarretenbergBackend implements Backend {
   // We set `makeEasyToVerifyInCircuit` to true, which will tell the backend to
   // generate the proof using components that will make the proof
   // easier to verify in a circuit.
+
+  /**
+   *
+   * @example
+   * ```typescript
+   * const intermediateProof = await backend.generateIntermediateProof(witness);
+   * ```
+   */
   async generateIntermediateProof(witness: Uint8Array): Promise<ProofData> {
     const makeEasyToVerifyInCircuit = true;
     return this.generateProof(witness, makeEasyToVerifyInCircuit);
@@ -104,6 +114,14 @@ export class BarretenbergBackend implements Backend {
   // method.
   //
   // The number of public inputs denotes how many public inputs are in the inner proof.
+
+  /**
+   *
+   * @example
+   * ```typescript
+   * const artifacts = await backend.generateIntermediateProofArtifacts(proof, numOfPublicInputs);
+   * ```
+   */
   async generateIntermediateProofArtifacts(
     proofData: ProofData,
     numOfPublicInputs = 0,
@@ -130,6 +148,7 @@ export class BarretenbergBackend implements Backend {
     };
   }
 
+  /** @ignore */
   async verifyFinalProof(proofData: ProofData): Promise<boolean> {
     const proof = reconstructProofWithPublicInputs(proofData);
     const makeEasyToVerifyInCircuit = false;
@@ -137,6 +156,13 @@ export class BarretenbergBackend implements Backend {
     return verified;
   }
 
+  /**
+   *
+   * @example
+   * ```typescript
+   * const isValidIntermediate = await backend.verifyIntermediateProof(proof);
+   * ```
+   */
   async verifyIntermediateProof(proofData: ProofData): Promise<boolean> {
     const proof = reconstructProofWithPublicInputs(proofData);
     const makeEasyToVerifyInCircuit = true;
@@ -150,6 +176,7 @@ export class BarretenbergBackend implements Backend {
     return await this.api.acirVerifyProof(this.acirComposer, proof, makeEasyToVerifyInCircuit);
   }
 
+  /** @ignore */
   async destroy(): Promise<void> {
     if (!this.api) {
       return;
@@ -182,4 +209,4 @@ function flattenUint8Arrays(arrays: Uint8Array[]): Uint8Array {
 }
 
 // typedoc exports
-export { BackendOptions, CompiledCircuit, ProofData };
+export { Backend, BackendOptions, CompiledCircuit, ProofData };

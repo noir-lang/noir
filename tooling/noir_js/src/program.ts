@@ -22,12 +22,12 @@ export class Noir {
 
   /**
    *
-   * This method destroys the resources allocated in the [instantiate](#instantiate) method.
-   * Noir doesn't currently call this method, but it's highly recommended that developers do so in order to save resources.
+   * @description
+   * Destroys the underlying backend instance.
    *
    * @example
    * ```typescript
-   * await backend.destroy();
+   * await noir.destroy();
    * ```
    *
    */
@@ -40,7 +40,15 @@ export class Noir {
     return this.backend;
   }
 
-  // Initial inputs to your program
+  /**
+   * @description
+   * Allows to execute a circuit to get its witness and return value.
+   *
+   * @example
+   * ```typescript
+   * async execute(inputs)
+   * ```
+   */
   async execute(inputs: InputMap): Promise<{ witness: Uint8Array; returnValue: InputValue }> {
     await this.init();
     const witness = await generateWitness(this.circuit, inputs);
@@ -48,17 +56,34 @@ export class Noir {
     return { witness: compressWitness(witness), returnValue };
   }
 
-  // Initial inputs to your program
   /**
    *
-   * @param inputs - The initial inputs to your program
-   * @returns a proof which can be verified by the verifier
+   * @description
+   * Generates a witness and a proof given an object as input.
+   *
+   * @example
+   * ```typescript
+   * async generateFinalproof(input)
+   * ```
+   *
    */
   async generateFinalProof(inputs: InputMap): Promise<ProofData> {
     const { witness } = await this.execute(inputs);
     return this.getBackend().generateFinalProof(witness);
   }
 
+  /**
+   *
+   * @description
+   * Instantiates the verification key and verifies a proof.
+   *
+   *
+   * @example
+   * ```typescript
+   * async verifyFinalProof(proof)
+   * ```
+   *
+   */
   async verifyFinalProof(proofData: ProofData): Promise<boolean> {
     return this.getBackend().verifyFinalProof(proofData);
   }
