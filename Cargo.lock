@@ -7,6 +7,7 @@ name = "acir"
 version = "0.30.0"
 dependencies = [
  "acir_field",
+ "base64",
  "bincode",
  "brillig",
  "flate2",
@@ -2405,7 +2406,6 @@ name = "nargo"
 version = "0.18.0"
 dependencies = [
  "acvm",
- "base64",
  "codespan-reporting",
  "fm",
  "iter-extended",
@@ -2625,7 +2625,6 @@ name = "noirc_driver"
 version = "0.18.0"
 dependencies = [
  "acvm",
- "base64",
  "build-data",
  "clap",
  "fm",
