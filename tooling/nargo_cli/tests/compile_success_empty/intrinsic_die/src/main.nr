@@ -4,6 +4,6 @@ use dep::std;
 fn main(x: Field) {
     let bytes = x.to_be_bytes(32);
 
-    let hash = std::hash::pedersen([x]);
+    let hash = std::hash::pedersen_commitment([x]);
     let _p1 = std::scalar_mul::fixed_base_embedded_curve(x, 0);
 }
