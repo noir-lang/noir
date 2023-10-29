@@ -1,7 +1,6 @@
 [package]
 name = "dynamic_index_failure"
 type = "bin"
-authors = [""]
-compiler_version = "0.10.3"
+authors = [""]10.3"
 
 [dependencies]

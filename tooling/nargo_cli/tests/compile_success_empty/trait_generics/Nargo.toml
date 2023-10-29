@@ -1,7 +1,6 @@
 [package]
 name = "trait_generics"
 type = "bin"
-authors = [""]
-compiler_version = "0.10.5"
+authors = [""]10.5"
 
 [dependencies]

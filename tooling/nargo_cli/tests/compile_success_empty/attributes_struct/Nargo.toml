@@ -1,7 +1,6 @@
 [package]
 name = "attributes_struct"
 type = "bin"
-authors = [""]
-compiler_version = "0.11.1"
+authors = [""]11.1"
 
 [dependencies]

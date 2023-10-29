@@ -1,7 +1,6 @@
 [package]
 name = "dup_trait_implementation_4"
 type = "bin"
-authors = [""]
-compiler_version = "0.11.1"
+authors = [""]11.1"
 
 [dependencies]

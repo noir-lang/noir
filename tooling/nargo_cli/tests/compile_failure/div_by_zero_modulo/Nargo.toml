@@ -1,7 +1,6 @@
 [package]
 name = "div_by_zero_modulo"
 type = "bin"
-authors = [""]
-compiler_version = "0.10.5"
+authors = [""]10.5"
 
 [dependencies]
