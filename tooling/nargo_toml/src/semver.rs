@@ -39,7 +39,7 @@ pub(crate) fn semver_check_package(
             return Err(SemverError::IncompatibleVersion {
                 package_name: package.name.clone(),
                 required_compiler_version: version.clone(),
-                compiler_version_found: compiler_version.to_string(),
+                compiler_version_found: strip_build_meta_data(compiler_version),
             });
         };
     }
@@ -54,6 +54,13 @@ pub(crate) fn semver_check_package(
     }
 
     Ok(())
+}
+
+// Strip the build meta data from the version string since it is ignored by semver.
+fn strip_build_meta_data(version: &Version) -> String {
+    let version_string = version.to_string();
+    let mut split = version_string.split('+');    
+    split.next().expect("split was called on an empty string").to_string()
 }
 
 #[cfg(test)]

@@ -73,7 +73,7 @@ pub enum ManifestError {
 
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum SemverError {
-    #[error("Incompatible compiler version in package {package_name}. Required version is {required_compiler_version} but the compiler version is {compiler_version_found}")]
+    #[error("Incompatible compiler version in package {package_name}. Required compiler version is {required_compiler_version} but the compiler version is {compiler_version_found}.\n Update the compiler_version field in Nargo.toml to >={compiler_version_found} or compile this project with version {compiler_version_found}")]
     IncompatibleVersion {
         package_name: CrateName,
         required_compiler_version: String,
