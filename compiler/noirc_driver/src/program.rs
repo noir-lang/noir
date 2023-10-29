@@ -18,7 +18,10 @@ pub struct CompiledProgram {
     /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
     pub hash: u64,
 
-    #[serde(serialize_with = "Circuit::serialize_circuit_base64", deserialize_with = "Circuit::deserialize_circuit_base64")]
+    #[serde(
+        serialize_with = "Circuit::serialize_circuit_base64",
+        deserialize_with = "Circuit::deserialize_circuit_base64"
+    )]
     pub circuit: Circuit,
     pub abi: noirc_abi::Abi,
     pub debug: DebugInfo,

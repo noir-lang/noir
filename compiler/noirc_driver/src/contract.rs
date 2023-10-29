@@ -61,7 +61,10 @@ pub struct ContractFunction {
 
     pub abi: Abi,
 
-    #[serde(serialize_with = "Circuit::serialize_circuit_base64", deserialize_with = "Circuit::deserialize_circuit_base64")]
+    #[serde(
+        serialize_with = "Circuit::serialize_circuit_base64",
+        deserialize_with = "Circuit::deserialize_circuit_base64"
+    )]
     pub bytecode: Circuit,
 
     pub debug: DebugInfo,

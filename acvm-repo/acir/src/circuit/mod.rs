@@ -9,12 +9,9 @@ use thiserror::Error;
 
 use std::{io::prelude::*, num::ParseIntError, str::FromStr};
 
-use flate2::Compression;
 use base64::Engine;
-use serde::{
-    Deserialize, Deserializer, Serialize, Serializer,
-    de::Error as DeserializationError
-};
+use flate2::Compression;
+use serde::{de::Error as DeserializationError, Deserialize, Deserializer, Serialize, Serializer};
 
 use std::collections::BTreeSet;
 
@@ -158,13 +155,13 @@ impl Circuit {
     // Serialize and base64 encode circuit
     pub fn serialize_circuit_base64<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
     where
-    S: Serializer,
+        S: Serializer,
     {
         let circuit_bytes = Circuit::serialize_circuit(circuit);
         let encoded_b64 = base64::engine::general_purpose::STANDARD.encode(circuit_bytes);
         s.serialize_str(&encoded_b64)
     }
-    
+
     // Deserialize and base64 decode circuit
     pub fn deserialize_circuit_base64<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
     where
