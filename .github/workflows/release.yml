@@ -11,7 +11,6 @@ jobs:
     outputs:
       release-pr: ${{ steps.release.outputs.pr }}
       tag-name: ${{ steps.release.outputs.tag_name }}
-      major: ${{ steps.release.outputs.major }}
     runs-on: ubuntu-latest
     steps:
       - name: Run release-please
@@ -84,8 +83,7 @@ jobs:
   publish-docs:
     name: Publish docs
     needs: [release-please]
-    # hopefully running only on major releases?
-    if: ${{ needs.release-please.outputs.tag-name && needs.release-please.outputs.major }}
+    if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch to publish workflow
