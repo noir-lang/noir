@@ -1,6 +1,6 @@
 [package]
 name = "vectors"
 type = "bin"
-authors = [""]7.1"
+authors = [""]
 
 [dependencies]

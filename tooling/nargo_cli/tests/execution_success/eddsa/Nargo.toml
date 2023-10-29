@@ -2,6 +2,6 @@
 name = "eddsa"
 description = "Eddsa verification"
 type = "bin"
-authors = [""]3.2"
+authors = [""]
 
 [dependencies]

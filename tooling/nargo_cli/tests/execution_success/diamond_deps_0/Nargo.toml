@@ -1,7 +1,7 @@
 [package]
 name = "diamond_deps_0"
 type = "bin"
-authors = [""]7.1"
+authors = [""]
 
 [dependencies]
 dep1 = { path = "../../test_libraries/diamond_deps_1" }

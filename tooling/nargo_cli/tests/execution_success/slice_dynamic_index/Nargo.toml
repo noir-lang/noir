@@ -1,6 +1,6 @@
 [package]
 name = "slice_dynamic_index"
 type = "bin"
-authors = [""]10.3"
+authors = [""]
 
 [dependencies]

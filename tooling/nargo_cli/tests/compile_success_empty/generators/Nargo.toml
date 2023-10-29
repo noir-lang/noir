@@ -1,6 +1,6 @@
 [package]
 name = "generators"
 type = "bin"
-authors = [""]10.3"
+authors = [""]
 
 [dependencies]

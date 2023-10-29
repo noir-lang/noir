@@ -1,6 +1,6 @@
 [package]
 name = "div_by_zero_witness"
 type = "bin"
-authors = [""]10.3"
+authors = [""]
 
 [dependencies]

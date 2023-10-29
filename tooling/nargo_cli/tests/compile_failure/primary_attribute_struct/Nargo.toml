@@ -2,6 +2,6 @@
 [package]
 name = "primary_attribute_struct"
 type = "bin"
-authors = [""]11.1"
+authors = [""]
 
 [dependencies]

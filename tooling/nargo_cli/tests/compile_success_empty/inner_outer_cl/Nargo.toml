@@ -1,6 +1,6 @@
 [package]
 name = "inner_outer_cl"
 type = "bin"
-authors = [""]7.1"
+authors = [""]
 
 [dependencies]

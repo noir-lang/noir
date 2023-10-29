@@ -1,6 +1,6 @@
 [package]
 name = "brillig_references"
 type = "bin"
-authors = [""]5.1"
+authors = [""]
 
 [dependencies]

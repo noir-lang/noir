@@ -1,6 +1,6 @@
 [package]
 name = "dynamic_index_failure"
 type = "bin"
-authors = [""]10.3"
+authors = [""]
 
 [dependencies]
