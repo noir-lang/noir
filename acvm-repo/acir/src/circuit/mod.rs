@@ -263,9 +263,8 @@ mod tests {
         };
 
         fn read_write(circuit: Circuit) -> (Circuit, Circuit) {
-            let mut bytes = Vec::new();
-            circuit.write(&mut bytes).unwrap();
-            let got_circuit = Circuit::read(&*bytes).unwrap();
+            let bytes = Circuit::serialize_circuit(&circuit);
+            let got_circuit = Circuit::deserialize_circuit(&bytes).unwrap();
             (circuit, got_circuit)
         }
 
@@ -311,7 +310,7 @@ mod tests {
         encoder.write_all(bad_circuit).unwrap();
         encoder.finish().unwrap();
 
-        let deserialization_result = Circuit::read(&*zipped_bad_circuit);
+        let deserialization_result = Circuit::deserialize_circuit(&zipped_bad_circuit);
         assert!(deserialization_result.is_err());
     }
 }
