@@ -8,7 +8,6 @@ use noirc_errors::debug_info::DebugInfo;
 use noirc_evaluator::errors::SsaReport;
 
 use super::debug::DebugFile;
-use crate::program::{deserialize_circuit, serialize_circuit};
 
 /// Describes the types of smart contract functions that are allowed.
 /// Unlike the similar enum in noirc_frontend, 'open' and 'unconstrained'
@@ -62,7 +61,7 @@ pub struct ContractFunction {
 
     pub abi: Abi,
 
-    #[serde(serialize_with = "serialize_circuit", deserialize_with = "deserialize_circuit")]
+    #[serde(serialize_with = "Circuit::serialize_circuit_base64", deserialize_with = "Circuit::deserialize_circuit_base64")]
     pub bytecode: Circuit,
 
     pub debug: DebugInfo,
