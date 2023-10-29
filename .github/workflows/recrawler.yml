@@ -1,7 +1,7 @@
 name: Algolia Recrawl
 on:
   push:
-    branches: [ kw/add-back-recrawler ]
+    branches: [ master ]
   workflow_dispatch:
 
 jobs:
