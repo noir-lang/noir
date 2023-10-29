@@ -220,7 +220,7 @@ Advanced: If you aren't using direnv nor launching your editor within the subshe
 
 ### Option 4: WSL (for Windows)
 
-Windows is not directly supported at this time. To install Noir on a Windows machine, it is recommended to use WSL.
+The default backend for Noir (Barretenberg) doesn't provide Windows binaries at this time. For that reason, Noir cannot be installed nativerly. However, it is available by using Windows Subsystem for Linux (WSL).
 
 Step 1: Follow the instructions [here](https://learn.microsoft.com/en-us/windows/wsl/install) to install and run WSL.
 
