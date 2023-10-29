@@ -6,9 +6,11 @@
 use clap::Args;
 use debug::filter_relevant_files;
 use fm::FileId;
+use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::errors::RuntimeError;
+use noirc_evaluator::errors::SsaReport;
 use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
@@ -164,7 +166,7 @@ pub fn compile_main(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, warnings) = check_crate(context, crate_id, options.deny_warnings)?;
+    let (_, mut warnings) = check_crate(context, crate_id, options.deny_warnings)?;
 
     let main = match context.get_main_function(&crate_id) {
         Some(m) => m,
@@ -178,8 +180,14 @@ pub fn compile_main(
         }
     };
 
-    let compiled_program = compile_no_check(context, options, main, cached_program, force_compile)
-        .map_err(FileDiagnostic::from)?;
+    let (compiled_program, compilation_warnings) =
+        compile_no_check(context, options, main, cached_program, force_compile)
+            .map_err(FileDiagnostic::from)?;
+    let compilation_warnings = vecmap(compilation_warnings, FileDiagnostic::from);
+    if options.deny_warnings && !compilation_warnings.is_empty() {
+        return Err(compilation_warnings);
+    }
+    warnings.extend(compilation_warnings);
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
@@ -274,7 +282,7 @@ fn compile_contract_inner(
         }
 
         let function = match compile_no_check(context, options, function_id, None, true) {
-            Ok(function) => function,
+            Ok((function, _warnings)) => function,
             Err(new_error) => {
                 errors.push(FileDiagnostic::from(new_error));
                 continue;
@@ -332,7 +340,7 @@ pub fn compile_no_check(
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
-) -> Result<CompiledProgram, RuntimeError> {
+) -> Result<(CompiledProgram, Vec<SsaReport>), RuntimeError> {
     let program = monomorphize(main_function, &context.def_interner);
 
     let hash = fxhash::hash64(&program);
@@ -342,22 +350,25 @@ pub fn compile_no_check(
     if !(force_compile || options.print_acir || options.show_brillig || options.show_ssa) {
         if let Some(cached_program) = cached_program {
             if hash == cached_program.hash {
-                return Ok(cached_program);
+                return Ok((cached_program, Vec::new()));
             }
         }
     }
 
-    let (circuit, debug, abi) =
+    let (circuit, debug, abi, warnings) =
         create_circuit(context, program, options.show_ssa, options.show_brillig)?;
 
     let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
 
-    Ok(CompiledProgram {
-        hash,
-        circuit,
-        debug,
-        abi,
-        file_map,
-        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
-    })
+    Ok((
+        CompiledProgram {
+            hash,
+            circuit,
+            debug,
+            abi,
+            file_map,
+            noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
+        },
+        warnings,
+    ))
 }

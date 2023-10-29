@@ -13,6 +13,13 @@ pub fn pedersen<N>(input : [Field; N]) -> [Field; 2] {
 #[foreign(pedersen)]
 pub fn pedersen_with_separator<N>(_input : [Field; N], _separator : u32) -> [Field; 2] {}
 
+pub fn pedersen_hash<N>(input : [Field; N]) -> Field {
+    pedersen_hash_with_separator(input, 0)
+}
+
+#[foreign(pedersen_hash)]
+pub fn pedersen_hash_with_separator<N>(_input : [Field; N], _separator : u32) -> Field {}
+
 #[foreign(hash_to_field_128_security)]
 pub fn hash_to_field<N>(_input : [Field; N]) -> Field {}
 
@@ -39,6 +46,7 @@ fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field {
 global MIMC_BN254_ROUNDS = 91;
 
 //mimc implementation with hardcoded parameters for BN254 curve.
+#[field(bn254)]
 pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
     //mimc parameters
     let exponent = 7;

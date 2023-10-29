@@ -413,7 +413,14 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement(pub Expression, pub Option<String>);
+pub struct ConstrainStatement(pub Expression, pub Option<String>, pub ConstrainKind);
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum ConstrainKind {
+    Assert,
+    AssertEq,
+    Constrain,
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
