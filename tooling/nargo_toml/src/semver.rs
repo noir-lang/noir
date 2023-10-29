@@ -59,7 +59,7 @@ pub(crate) fn semver_check_package(
 // Strip the build meta data from the version string since it is ignored by semver.
 fn strip_build_meta_data(version: &Version) -> String {
     let version_string = version.to_string();
-    let mut split = version_string.split('+');    
+    let mut split = version_string.split('+');
     split.next().expect("split was called on an empty string").to_string()
 }
 
