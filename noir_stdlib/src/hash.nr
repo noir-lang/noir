@@ -22,6 +22,19 @@ pub fn pedersen_hash_with_separator<N>(_input : [Field; N], _separator : u32) ->
 
 #[foreign(hash_to_field_128_security)]
 pub fn hash_to_field<N>(_input : [Field; N]) -> Field {}
+pub fn hash_to_field_native<N>(_input : [Field; N]) -> Field {
+    let mut inputs_as_bytes = [];
+    
+    for i in 0..N {
+        let input_bytes = _input[i].to_le_bytes(32);
+        for i in 0..32 {
+            inputs_as_bytes = inputs_as_bytes.push_back(input_bytes[i]);
+        }
+    }
+
+    let hashed_input = blake2s(inputs_as_bytes);
+    crate::field::bytes32_to_field(hashed_input)
+}
 
 #[foreign(keccak256)]
 pub fn keccak256<N>(_input : [u8; N], _message_size: u32) -> [u8; 32] {}
