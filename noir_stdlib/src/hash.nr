@@ -6,12 +6,12 @@ pub fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
 #[foreign(blake2s)]
 pub fn blake2s<N>(_input : [u8; N]) -> [u8; 32] {}
 
-pub fn pedersen<N>(input : [Field; N]) -> [Field; 2] {
-    pedersen_with_separator(input, 0)
+pub fn pedersen_commitment<N>(input : [Field; N]) -> [Field; 2] {
+    pedersen_commitment_with_separator(input, 0)
 }
 
 #[foreign(pedersen)]
-pub fn pedersen_with_separator<N>(_input : [Field; N], _separator : u32) -> [Field; 2] {}
+pub fn pedersen_commitment_with_separator<N>(_input : [Field; N], _separator : u32) -> [Field; 2] {}
 
 pub fn pedersen_hash<N>(input : [Field; N]) -> Field {
     pedersen_hash_with_separator(input, 0)

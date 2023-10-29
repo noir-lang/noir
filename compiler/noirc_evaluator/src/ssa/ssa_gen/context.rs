@@ -13,7 +13,7 @@ use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::instruction::{BinaryOp, Endian, Intrinsic};
+use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
@@ -265,50 +265,6 @@ impl<'a> FunctionContext<'a> {
         Ok(self.builder.numeric_constant(value, typ))
     }
 
-    /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
-    fn insert_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
-        let base = self.builder.field_constant(FieldElement::from(2_u128));
-        let pow = self.pow(base, rhs);
-        let typ = self.builder.current_function.dfg.type_of_value(lhs);
-        let pow = self.builder.insert_cast(pow, typ);
-        self.builder.insert_binary(lhs, BinaryOp::Mul, pow)
-    }
-
-    /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
-    fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
-        let base = self.builder.field_constant(FieldElement::from(2_u128));
-        let pow = self.pow(base, rhs);
-        self.builder.insert_binary(lhs, BinaryOp::Div, pow)
-    }
-
-    /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
-    fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
-        let typ = self.builder.current_function.dfg.type_of_value(rhs);
-        if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
-            let to_bits = self.builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
-            let length = self.builder.field_constant(FieldElement::from(bit_size as i128));
-            let result_types =
-                vec![Type::field(), Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
-            let rhs_bits = self.builder.insert_call(to_bits, vec![rhs, length], result_types);
-            let rhs_bits = rhs_bits[1];
-            let one = self.builder.field_constant(FieldElement::one());
-            let mut r = one;
-            for i in 1..bit_size + 1 {
-                let r1 = self.builder.insert_binary(r, BinaryOp::Mul, r);
-                let a = self.builder.insert_binary(r1, BinaryOp::Mul, lhs);
-                let idx = self.builder.field_constant(FieldElement::from((bit_size - i) as i128));
-                let b = self.builder.insert_array_get(rhs_bits, idx, Type::field());
-                let r2 = self.builder.insert_binary(a, BinaryOp::Mul, b);
-                let c = self.builder.insert_binary(one, BinaryOp::Sub, b);
-                let r3 = self.builder.insert_binary(c, BinaryOp::Mul, r1);
-                r = self.builder.insert_binary(r2, BinaryOp::Add, r3);
-            }
-            r
-        } else {
-            unreachable!("Value must be unsigned in power operation");
-        }
-    }
-
     /// Insert a binary instruction at the end of the current block.
     /// Converts the form of the binary instruction as necessary
     /// (e.g. swapping arguments, inserting a not) to represent it in the IR.
@@ -321,8 +277,8 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> Values {
         let mut result = match operator {
-            BinaryOpKind::ShiftLeft => self.insert_shift_left(lhs, rhs),
-            BinaryOpKind::ShiftRight => self.insert_shift_right(lhs, rhs),
+            BinaryOpKind::ShiftLeft => self.builder.insert_shift_left(lhs, rhs),
+            BinaryOpKind::ShiftRight => self.builder.insert_shift_right(lhs, rhs),
             BinaryOpKind::Equal | BinaryOpKind::NotEqual
                 if matches!(self.builder.type_of_value(lhs), Type::Array(..)) =>
             {

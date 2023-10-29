@@ -79,7 +79,8 @@ ACIR Supported OPCODES:
 - Blake2s
 - Schnorr signature verification
 - MerkleMembership
-- Pedersen
+- Pedersen Commitment
+- Pedersen Hash
 - HashToField
 
 ## Libraries
