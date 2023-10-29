@@ -48,7 +48,6 @@ export class BarretenbergBackend implements Backend {
   //
   // The settings for this proof are the same as the settings for a "normal" proof
   // ie one that is not in the recursive setting.
-  /** @ignore */
   async generateFinalProof(decompressedWitness: Uint8Array): Promise<ProofData> {
     const makeEasyToVerifyInCircuit = false;
     return this.generateProof(decompressedWitness, makeEasyToVerifyInCircuit);
@@ -148,7 +147,6 @@ export class BarretenbergBackend implements Backend {
     };
   }
 
-  /** @ignore */
   async verifyFinalProof(proofData: ProofData): Promise<boolean> {
     const proof = reconstructProofWithPublicInputs(proofData);
     const makeEasyToVerifyInCircuit = false;
@@ -176,7 +174,6 @@ export class BarretenbergBackend implements Backend {
     return await this.api.acirVerifyProof(this.acirComposer, proof, makeEasyToVerifyInCircuit);
   }
 
-  /** @ignore */
   async destroy(): Promise<void> {
     if (!this.api) {
       return;

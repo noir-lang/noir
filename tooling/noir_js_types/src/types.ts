@@ -2,7 +2,6 @@ import { Abi } from '@noir-lang/noirc_abi';
 
 export interface Backend {
   /**
-   * @ignore
    * @description Generates a final proof (not meant to be verified in another circuit) */
   generateFinalProof(decompressedWitness: Uint8Array): Promise<ProofData>;
 
@@ -27,7 +26,6 @@ export interface Backend {
   }>;
 
   /**
-   * @ignore
    * @description Verifies a final proof */
   verifyFinalProof(proofData: ProofData): Promise<boolean>;
 
@@ -35,7 +33,6 @@ export interface Backend {
   verifyIntermediateProof(proofData: ProofData): Promise<boolean>;
 
   /**
-   * @ignore
    * @description Destroys the backend */
   destroy(): Promise<void>;
 }
