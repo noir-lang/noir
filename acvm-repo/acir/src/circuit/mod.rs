@@ -149,7 +149,7 @@ impl Circuit {
     }
 
     pub fn deserialize_circuit(serialized_circuit: &[u8]) -> std::io::Result<Self> {
-        Circuit::read(&*serialized_circuit)
+        Circuit::read(serialized_circuit)
     }
 
     // Serialize and base64 encode circuit
@@ -171,7 +171,7 @@ impl Circuit {
         let circuit_bytes = base64::engine::general_purpose::STANDARD
             .decode(bytecode_b64)
             .map_err(D::Error::custom)?;
-        let circuit = Self::deserialize_circuit(&*circuit_bytes).map_err(D::Error::custom)?;
+        let circuit = Self::deserialize_circuit(&circuit_bytes).map_err(D::Error::custom)?;
         Ok(circuit)
     }
 }
