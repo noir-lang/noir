@@ -73,7 +73,7 @@ pub(crate) fn initialize_project(
 name = "{package_name}"
 type = "{package_type}"
 authors = [""]
-compiler_version = "{NOIRC_VERSION}"
+compiler_version = "{>=NOIRC_VERSION}"
 
 [dependencies]"#
     );
