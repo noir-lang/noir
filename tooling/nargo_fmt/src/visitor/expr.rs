@@ -13,10 +13,8 @@ use crate::{
 impl FmtVisitor<'_> {
     pub(crate) fn visit_expr(&mut self, expr: Expression, expr_type: ExpressionType) {
         let span = expr.span;
-
         let rewrite = self.format_expr(expr, expr_type);
         self.push_rewrite(rewrite, span);
-
         self.last_position = span.end();
     }
 
