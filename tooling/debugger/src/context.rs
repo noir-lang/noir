@@ -64,6 +64,11 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
+    // Returns the callstack in source code locations for the currently
+    // executing opcode. This can be None if the execution finished (and
+    // get_current_opcode_location() returns None) or if the opcode is not
+    // mapped to a specific source location in the debug artifact (which can
+    // happen for certain opcodes inserted synthetically by the compiler)
     pub(super) fn get_current_source_location(&self) -> Option<Vec<Location>> {
         self.get_current_opcode_location()
             .as_ref()
@@ -193,7 +198,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn is_valid_location(&self, location: &OpcodeLocation) -> bool {
+    pub(super) fn is_valid_opcode_location(&self, location: &OpcodeLocation) -> bool {
         let opcodes = self.get_opcodes();
         match *location {
             OpcodeLocation::Acir(acir_index) => acir_index < opcodes.len(),
@@ -215,12 +220,12 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         self.breakpoints.contains(location)
     }
 
-    pub(super) fn add_breakpoint(&mut self, location: OpcodeLocation) {
-        _ = self.breakpoints.insert(location);
+    pub(super) fn add_breakpoint(&mut self, location: OpcodeLocation) -> bool {
+        self.breakpoints.insert(location)
     }
 
-    pub(super) fn delete_breakpoint(&mut self, location: &OpcodeLocation) {
-        _ = self.breakpoints.remove(location);
+    pub(super) fn delete_breakpoint(&mut self, location: &OpcodeLocation) -> bool {
+        self.breakpoints.remove(location)
     }
 
     pub(super) fn iterate_breakpoints(&self) -> Iter<'_, OpcodeLocation> {
