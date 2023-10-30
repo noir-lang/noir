@@ -1,14 +1,18 @@
-use std::{fs::{File, self}, io::Write, path::Path};
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::Path,
+};
 
 use askama::Template;
-use noirc_frontend::token::{Token, Keyword};
+use noirc_frontend::token::{Keyword, Token};
 
-use crate::{Type, Output, fn_signature, doc, Code, get_text};
+use crate::{doc, fn_signature, get_text, Code, Output, Type};
 
 fn generate_code_page(input_file: &str) -> Result<(), Box<dyn std::error::Error>> {
     let codelines = get_text(input_file)?;
 
-    let code = Code{ codelines };
+    let code = Code { codelines };
 
     let rendered_html = code.render().unwrap();
 
@@ -23,8 +27,8 @@ fn generate_code_page(input_file: &str) -> Result<(), Box<dyn std::error::Error>
 #[derive(Debug, Clone, Template, Eq, Hash, PartialEq)]
 #[template(path = "func_template.html")]
 pub(crate) struct Function {
-    pub(crate) name: String, 
-    pub(crate) doc: String, 
+    pub(crate) name: String,
+    pub(crate) doc: String,
     pub(crate) signature: String,
     pub(crate) is_method: bool,
 }
@@ -46,8 +50,8 @@ fn generate_function_pages(func: Function) -> Result<(), Box<dyn std::error::Err
 #[derive(Debug, Template)]
 #[template(path = "struct_template.html")]
 pub(crate) struct Structure {
-    name: String, 
-    doc: String, 
+    name: String,
+    doc: String,
     additional_doc: String,
     signature: String,
     implementations: Vec<Implementation>,
@@ -60,7 +64,11 @@ pub(crate) struct Implementation {
 }
 
 impl Implementation {
-    pub(crate) fn get_implementations(tokens: &[Token], index: usize, orig_name: String) -> Vec<Implementation> {
+    pub(crate) fn get_implementations(
+        tokens: &[Token],
+        index: usize,
+        orig_name: String,
+    ) -> Vec<Implementation> {
         let mut res = Vec::new();
         let mut functions = Vec::new();
         let mut signature = String::new();
@@ -70,70 +78,77 @@ impl Implementation {
 
         while i < tokens.len() {
             match tokens[i] {
-                Token::Keyword(Keyword::Impl) => {
-                    loop {
-                        match &tokens[i] {
-                            Token::Ident(name) => {
-                                if name == &orig_name {
-                                    right_impl = true;
-                                }
-                                signature.push_str(&tokens[i].to_string());
-                                signature.push_str(" ");
-                                i +=1;
+                Token::Keyword(Keyword::Impl) => loop {
+                    match &tokens[i] {
+                        Token::Ident(name) => {
+                            if name == &orig_name {
+                                right_impl = true;
                             }
-                            Token::LeftBrace => {
-                                if !right_impl {
-                                    signature = "".to_string();
-                                    break;
-                                }
-                                else {
-                                    brace_counter += 1;
-                                    i += 1;
-                                    while brace_counter != 0 {
-                                        match &tokens[i] {
-                                            Token::Keyword(Keyword::Fn) => {
-                                                let name = match &tokens[i + 1] {
-                                                    Token::Ident(idn) => {
-                                                        idn.clone()
-                                                    }
-                                                    _ => {continue;}
-                                                };
-                                                let doc = doc(&tokens, i);
-                                                let sign = fn_signature(&tokens, i);
-                                                
-                                                functions.push(Function{ name, doc, signature: sign, is_method: true });
+                            signature.push_str(&tokens[i].to_string());
+                            signature.push_str(" ");
+                            i += 1;
+                        }
+                        Token::LeftBrace => {
+                            if !right_impl {
+                                signature = "".to_string();
+                                break;
+                            } else {
+                                brace_counter += 1;
+                                i += 1;
+                                while brace_counter != 0 {
+                                    match &tokens[i] {
+                                        Token::Keyword(Keyword::Fn) => {
+                                            let name = match &tokens[i + 1] {
+                                                Token::Ident(idn) => idn.clone(),
+                                                _ => {
+                                                    continue;
+                                                }
+                                            };
+                                            let doc = doc(&tokens, i);
+                                            let sign = fn_signature(&tokens, i);
 
-                                                i += 1;
-                                            }
-                                            Token::LeftBrace => {
-                                                i += 1;
-                                                brace_counter += 1;
-                                            }
-                                            Token::RightBrace => {
-                                                i += 1;
-                                                brace_counter -= 1;
-                                            }
-                                            _ => {
-                                                i += 1;
-                                            }
+                                            functions.push(Function {
+                                                name,
+                                                doc,
+                                                signature: sign,
+                                                is_method: true,
+                                            });
+
+                                            i += 1;
+                                        }
+                                        Token::LeftBrace => {
+                                            i += 1;
+                                            brace_counter += 1;
+                                        }
+                                        Token::RightBrace => {
+                                            i += 1;
+                                            brace_counter -= 1;
+                                        }
+                                        _ => {
+                                            i += 1;
                                         }
                                     }
-
-                                    res.push(Implementation { signature: signature.clone(), functions: functions.clone() });
-                                    signature = "".to_string();
-                                    functions = vec![];
-                                    break;
                                 }
-                            }
-                            _ => {
-                                signature.push_str(&tokens[i].to_string());
-                                signature.push_str(" ");
-                                i +=1;
+
+                                res.push(Implementation {
+                                    signature: signature.clone(),
+                                    functions: functions.clone(),
+                                });
+                                signature = "".to_string();
+                                functions = vec![];
+                                break;
                             }
                         }
+                        _ => {
+                            signature.push_str(&tokens[i].to_string());
+                            signature.push_str(" ");
+                            i += 1;
+                        }
                     }
+                },
+                _ => {
+                    i += 1;
                 }
-                _ => {i += 1;}
             }
         }
 
@@ -155,8 +170,8 @@ fn generate_structure_pages(structure: Structure) -> Result<(), Box<dyn std::err
 #[derive(Debug, Template)]
 #[template(path = "trait_template.html")]
 pub(crate) struct Trait {
-    name: String, 
-    doc: String, 
+    name: String,
+    doc: String,
     signature: String,
     additional_doc: String,
     required_methods: Vec<Function>,
@@ -185,10 +200,13 @@ pub(crate) struct AllOutput {
 #[derive(Debug, Template)]
 #[template(path = "search_results_template.html")]
 pub(crate) struct SearchResults {
-    results: Vec<Output>
+    results: Vec<Output>,
 }
 
-fn generate_search_page(res: SearchResults, module_name: String) -> Result<(), Box<dyn std::error::Error>> {
+fn generate_search_page(
+    res: SearchResults,
+    module_name: String,
+) -> Result<(), Box<dyn std::error::Error>> {
     let rendered_html = res.render().unwrap();
 
     let filename = format!("generated_doc/search_results_{}.html", module_name);
@@ -221,53 +239,45 @@ pub(crate) fn generate_module_page(module: AllOutput) -> Result<(), Box<dyn std:
         generate_code_page(&fname)?;
     }
 
-    let res = SearchResults{ results: module.all_output.clone() };
+    let res = SearchResults { results: module.all_output.clone() };
 
     generate_search_page(res, module.filename)?;
 
     for i in module.all_output.iter() {
         match i.r#type {
             Type::Function => {
-                generate_function_pages(
-                    Function { 
-                        name: i.name.clone(), 
-                        doc: i.doc.clone(), 
-                        signature: i.information.get_signature().unwrap(),
-                        is_method: false, 
-                    }
-                )?;
-            } 
+                generate_function_pages(Function {
+                    name: i.name.clone(),
+                    doc: i.doc.clone(),
+                    signature: i.information.get_signature().unwrap(),
+                    is_method: false,
+                })?;
+            }
             Type::Struct => {
-                generate_structure_pages(
-                    Structure { 
-                        name: i.name.clone(), 
-                        doc: i.doc.clone(), 
-                        additional_doc: i.information.get_additional_doc().unwrap(),
-                        signature: i.information.get_signature().unwrap(), 
-                        implementations: i.information.get_implementations().unwrap()
-                    } 
-                )?;
-            } 
+                generate_structure_pages(Structure {
+                    name: i.name.clone(),
+                    doc: i.doc.clone(),
+                    additional_doc: i.information.get_additional_doc().unwrap(),
+                    signature: i.information.get_signature().unwrap(),
+                    implementations: i.information.get_implementations().unwrap(),
+                })?;
+            }
             Type::Trait => {
-                generate_trait_pages(
-                    Trait { 
-                        name: i.name.clone(),
-                        doc: i.doc.clone(), 
-                        signature: i.information.get_signature().unwrap(), 
-                        additional_doc: i.information.get_additional_doc().unwrap(),
-                        required_methods: i.information.get_required_methods().unwrap(), 
-                        provided_methods: i.information.get_provided_methods().unwrap(), 
-                        implementations: i.information.get_implementations().unwrap()
-                    }
-                )?;
+                generate_trait_pages(Trait {
+                    name: i.name.clone(),
+                    doc: i.doc.clone(),
+                    signature: i.information.get_signature().unwrap(),
+                    additional_doc: i.information.get_additional_doc().unwrap(),
+                    required_methods: i.information.get_required_methods().unwrap(),
+                    provided_methods: i.information.get_provided_methods().unwrap(),
+                    implementations: i.information.get_implementations().unwrap(),
+                })?;
             }
             Type::Module => {
-                generate_module_page(
-                    AllOutput { 
-                        all_output: i.information.get_content().unwrap(), 
-                        filename: i.name.clone() 
-                    } 
-                )?;
+                generate_module_page(AllOutput {
+                    all_output: i.information.get_content().unwrap(),
+                    filename: i.name.clone(),
+                })?;
             }
             _ => {}
         }

@@ -2,7 +2,7 @@
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{generate_doc, Info, get_map, Map};
+    use crate::{generate_doc, get_map, Info, Map};
 
     #[test]
     fn one_file() {
@@ -17,11 +17,12 @@ mod tests {
     #[test]
     fn function_output() {
         let mut map = HashMap::new();
-        map.insert(Info::Function { signature: "fn main ( x : Field , y : pub Field ) ".to_string() }, "doc comment".to_string());
+        map.insert(
+            Info::Function { signature: "fn main ( x : Field , y : pub Field ) ".to_string() },
+            "doc comment".to_string(),
+        );
 
-        let result = Map { 
-            map
-        };
+        let result = Map { map };
 
         assert_eq!(get_map("input_files/function_example.nr"), result);
     }
@@ -30,16 +31,15 @@ mod tests {
     fn structure_output() {
         let mut map = HashMap::new();
         map.insert(
-            Info::Struct { 
-                signature: "struct MyStruct {\n/* private fields */\n}".to_string(), 
-                additional_doc: "".to_string(), 
-                implementations: vec![] 
-            }, 
-            "struct".to_string());
+            Info::Struct {
+                signature: "struct MyStruct {\n/* private fields */\n}".to_string(),
+                additional_doc: "".to_string(),
+                implementations: vec![],
+            },
+            "struct".to_string(),
+        );
 
-        let result = Map { 
-            map
-        };
+        let result = Map { map };
 
         assert_eq!(get_map("input_files/struct_example.nr"), result);
     }

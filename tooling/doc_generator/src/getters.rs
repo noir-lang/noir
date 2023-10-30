@@ -1,7 +1,14 @@
-use std::{fs::File, io::{BufReader, BufRead, Read}};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader, Read},
+};
 
 use askama::Template;
-use noirc_frontend::{lexer::Lexer, token::{SpannedToken, Token, DocComments, Keyword}, hir::resolution::errors::Span};
+use noirc_frontend::{
+    hir::resolution::errors::Span,
+    lexer::Lexer,
+    token::{DocComments, Keyword, SpannedToken, Token},
+};
 
 use crate::{Function, Output};
 
@@ -9,8 +16,6 @@ pub(crate) fn get_module_content(tokens: &[Token], index: usize) -> Vec<Output> 
     let mut content = Vec::new();
     let mut i = index;
     let mut brace_counter = 0;
-
-    
 
     loop {
         match &tokens[i] {
@@ -26,16 +31,19 @@ pub(crate) fn get_module_content(tokens: &[Token], index: usize) -> Vec<Output> 
                     match &tokens[i] {
                         Token::LeftBrace => {
                             brace_counter += 1;
-                            content.push(SpannedToken::new(tokens[i].clone(), Span::inclusive(0, 1)));
+                            content
+                                .push(SpannedToken::new(tokens[i].clone(), Span::inclusive(0, 1)));
                             i += 1;
                         }
                         Token::RightBrace => {
                             brace_counter -= 1;
-                            content.push(SpannedToken::new(tokens[i].clone(), Span::inclusive(0, 1)));
+                            content
+                                .push(SpannedToken::new(tokens[i].clone(), Span::inclusive(0, 1)));
                             i += 1;
                         }
                         _ => {
-                            content.push(SpannedToken::new(tokens[i].clone(), Span::inclusive(0, 1)));
+                            content
+                                .push(SpannedToken::new(tokens[i].clone(), Span::inclusive(0, 1)));
                             i += 1;
                         }
                     }
@@ -133,8 +141,7 @@ pub(crate) fn struct_signature(tokens: &[Token], index: usize) -> String {
                                     Token::Comma => {
                                         if tokens[i + 2] == Token::RightBrace {
                                             res.push_str(",");
-                                        }
-                                        else {
+                                        } else {
                                             res.push_str(",\n");
                                         }
                                         i += 1;
@@ -151,7 +158,9 @@ pub(crate) fn struct_signature(tokens: &[Token], index: usize) -> String {
                                 }
                             }
                         }
-                        _ => { i += 1; }
+                        _ => {
+                            i += 1;
+                        }
                     }
                 }
                 break;
@@ -187,10 +196,10 @@ pub(crate) fn trait_info(tokens: &[Token], index: usize) -> (String, Vec<Functio
                         }
                         Token::Keyword(Keyword::Fn) => {
                             let name = match &tokens[i + 2] {
-                                Token::Ident(idn) => {
-                                    idn.clone()
+                                Token::Ident(idn) => idn.clone(),
+                                _ => {
+                                    break;
                                 }
-                                _ => {break;}
                             };
                             let doc = doc(&tokens, i + 1);
                             let fn_sign = fn_signature(&tokens, i + 1);
@@ -198,13 +207,23 @@ pub(crate) fn trait_info(tokens: &[Token], index: usize) -> (String, Vec<Functio
                             loop {
                                 match tokens[i + 1] {
                                     Token::Semicolon => {
-                                        required_methods.push(Function { name, doc, signature: fn_sign, is_method: true });
+                                        required_methods.push(Function {
+                                            name,
+                                            doc,
+                                            signature: fn_sign,
+                                            is_method: true,
+                                        });
                                         sign.push_str(";");
                                         sign.push_str("\n");
                                         break;
                                     }
                                     Token::LeftBrace => {
-                                        provided_methods.push(Function { name, doc, signature: fn_sign, is_method: true });
+                                        provided_methods.push(Function {
+                                            name,
+                                            doc,
+                                            signature: fn_sign,
+                                            is_method: true,
+                                        });
                                         brace_counter = 1;
                                         sign.push_str("{ ... }");
                                         sign.push_str("\n");
@@ -212,15 +231,15 @@ pub(crate) fn trait_info(tokens: &[Token], index: usize) -> (String, Vec<Functio
                                             i += 1;
                                             match tokens[i + 1] {
                                                 Token::LeftBrace => {
-                                                    brace_counter +=1;
+                                                    brace_counter += 1;
                                                 }
                                                 Token::RightBrace => {
-                                                    brace_counter -=1;
+                                                    brace_counter -= 1;
                                                 }
                                                 _ => {}
                                             }
                                         }
-                                        i +=1;
+                                        i += 1;
                                         break;
                                     }
                                     _ => {
@@ -231,7 +250,9 @@ pub(crate) fn trait_info(tokens: &[Token], index: usize) -> (String, Vec<Functio
                                 }
                             }
                         }
-                        _ => { i += 1; }
+                        _ => {
+                            i += 1;
+                        }
                     }
                 }
                 break;
@@ -268,7 +289,7 @@ pub(crate) fn additional_doc(tokens: &[Token], index: usize) -> String {
         }
         _ => {
             let mut res = String::new();
-        
+
             let mut doc_find = true;
             let mut iter = 2;
             while doc_find && ((index as i32) - (iter as i32)) >= 0 {
@@ -277,12 +298,16 @@ pub(crate) fn additional_doc(tokens: &[Token], index: usize) -> String {
                         res.insert_str(0, &doc.to_string());
                         iter += 1;
                     }
-                    Token::Keyword(Keyword::Fn) | Token::Keyword(Keyword::Mod) |
-                    Token::Keyword(Keyword::Struct) | Token::Keyword(Keyword::Trait) |
-                    Token::Keyword(Keyword::Impl) => {
+                    Token::Keyword(Keyword::Fn)
+                    | Token::Keyword(Keyword::Mod)
+                    | Token::Keyword(Keyword::Struct)
+                    | Token::Keyword(Keyword::Trait)
+                    | Token::Keyword(Keyword::Impl) => {
                         doc_find = false;
                     }
-                    _ => { iter += 1; }
+                    _ => {
+                        iter += 1;
+                    }
                 }
             }
             res
@@ -296,15 +321,14 @@ pub(crate) fn doc(tokens: &[Token], index: usize) -> String {
         return String::new();
     }
     let res = match &tokens[index - 1] {
-        Token::DocComment(DocComments::Single(dc)) | 
-        Token::DocComment(DocComments::Block(dc)) => {
+        Token::DocComment(DocComments::Single(dc)) | Token::DocComment(DocComments::Block(dc)) => {
             let mut res = dc.to_string();
             let mut doc_end = true;
             let mut iter = 2;
             while doc_end && ((index as i32) - (iter as i32)) >= 0 {
                 match &tokens[index - iter] {
-                    Token::DocComment(DocComments::Single(doc)) | 
-                    Token::DocComment(DocComments::Block(doc)) => {
+                    Token::DocComment(DocComments::Single(doc))
+                    | Token::DocComment(DocComments::Block(doc)) => {
                         res.insert_str(0, &doc.to_string());
                         iter += 1;
                     }
@@ -317,22 +341,26 @@ pub(crate) fn doc(tokens: &[Token], index: usize) -> String {
         }
         _ => {
             let mut res = String::new();
-        
+
             let mut doc_find = true;
             let mut iter = 2;
             while doc_find && ((index as i32) - (iter as i32)) >= 0 {
                 match &tokens[index - iter] {
-                    Token::DocComment(DocComments::Single(doc)) | 
-                    Token::DocComment(DocComments::Block(doc)) => {
+                    Token::DocComment(DocComments::Single(doc))
+                    | Token::DocComment(DocComments::Block(doc)) => {
                         res.insert_str(0, &doc.to_string());
                         iter += 1;
                     }
-                    Token::Keyword(Keyword::Fn) | Token::Keyword(Keyword::Mod) |
-                    Token::Keyword(Keyword::Struct) | Token::Keyword(Keyword::Trait) |
-                    Token::Keyword(Keyword::Impl) => {
+                    Token::Keyword(Keyword::Fn)
+                    | Token::Keyword(Keyword::Mod)
+                    | Token::Keyword(Keyword::Struct)
+                    | Token::Keyword(Keyword::Trait)
+                    | Token::Keyword(Keyword::Impl) => {
                         doc_find = false;
                     }
-                    _ => { iter += 1; }
+                    _ => {
+                        iter += 1;
+                    }
                 }
             }
             res
@@ -351,7 +379,9 @@ pub(crate) fn outer_doc(tokens: &[Token], index: usize) -> (String, usize) {
                 res.push_str(doc);
                 i += 1;
             }
-            _ => { doc_find = false; }
+            _ => {
+                doc_find = false;
+            }
         }
     }
 
@@ -391,7 +421,7 @@ pub(crate) fn get_text(input_file: &str) -> Result<Vec<CodeLine>, Box<dyn std::e
 
     for line in reader.lines() {
         i += 1;
-        code.push(CodeLine{ number: i, text: line? });
+        code.push(CodeLine { number: i, text: line? });
     }
 
     Ok(code)

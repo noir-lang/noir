@@ -1,8 +1,11 @@
 use std::fmt;
 
-use noirc_frontend::token::{Token, Keyword, DocComments, SpannedToken};
+use noirc_frontend::token::{DocComments, Keyword, SpannedToken, Token};
 
-use crate::{Function, Implementation, doc, fn_signature, struct_signature, additional_doc, skip_impl_block, trait_info, get_module_content, outer_doc};
+use crate::{
+    additional_doc, doc, fn_signature, get_module_content, outer_doc, skip_impl_block,
+    struct_signature, trait_info, Function, Implementation,
+};
 
 #[derive(Debug, Clone, Copy, Eq, Hash, PartialEq)]
 pub(crate) enum Type {
@@ -27,10 +30,10 @@ impl fmt::Display for Type {
 
 #[derive(Debug, Clone, Eq, Hash, PartialEq)]
 pub(crate) enum Info {
-    Function{
+    Function {
         signature: String,
     },
-    Module{
+    Module {
         content: Vec<Output>,
     },
     Struct {
@@ -51,79 +54,47 @@ pub(crate) enum Info {
 impl Info {
     pub(crate) fn get_signature(&self) -> Option<String> {
         match self {
-            Info::Function { signature } => {
-                Some(signature.to_string())
-            },
-            Info::Struct { signature, .. } => {
-                Some(signature.to_string())
-            }
-            Info::Trait { signature, .. } => {
-                Some(signature.to_string())
-            }
-            _ => {
-                None
-            }
+            Info::Function { signature } => Some(signature.to_string()),
+            Info::Struct { signature, .. } => Some(signature.to_string()),
+            Info::Trait { signature, .. } => Some(signature.to_string()),
+            _ => None,
         }
     }
 
     pub(crate) fn get_implementations(&self) -> Option<Vec<Implementation>> {
         match self {
-            Info::Struct { implementations, .. } => {
-                Some(implementations.clone())
-            }
-            Info::Trait { implementations, .. } => {
-                Some(implementations.clone())
-            }
-            _ => {
-                None
-            }
+            Info::Struct { implementations, .. } => Some(implementations.clone()),
+            Info::Trait { implementations, .. } => Some(implementations.clone()),
+            _ => None,
         }
     }
 
     pub(crate) fn get_additional_doc(&self) -> Option<String> {
         match self {
-            Info::Struct { additional_doc, .. } => {
-                Some(additional_doc.to_string())
-            }
-            Info::Trait { additional_doc, .. } => {
-                Some(additional_doc.to_string())
-            }
-            _ => {
-                None
-            }
+            Info::Struct { additional_doc, .. } => Some(additional_doc.to_string()),
+            Info::Trait { additional_doc, .. } => Some(additional_doc.to_string()),
+            _ => None,
         }
     }
 
     pub(crate) fn get_required_methods(&self) -> Option<Vec<Function>> {
         match self {
-            Info::Trait { required_methods, .. } => {
-                Some(required_methods.clone())
-            }
-            _ => {
-                None
-            }
+            Info::Trait { required_methods, .. } => Some(required_methods.clone()),
+            _ => None,
         }
     }
 
     pub(crate) fn get_provided_methods(&self) -> Option<Vec<Function>> {
         match self {
-            Info::Trait { provided_methods, .. } => {
-                Some(provided_methods.clone())
-            }
-            _ => {
-                None
-            }
+            Info::Trait { provided_methods, .. } => Some(provided_methods.clone()),
+            _ => None,
         }
     }
 
     pub(crate) fn get_content(&self) -> Option<Vec<Output>> {
         match self {
-            Info::Module { content } => {
-                Some(content.clone())
-            }
-            _ => {
-                None
-            }
+            Info::Module { content } => Some(content.clone()),
+            _ => None,
         }
     }
 }
@@ -152,39 +123,48 @@ impl Output {
                 Token::Keyword(Keyword::Fn) => {
                     let r#type = Type::Function;
                     let name = match &tokens[i + 1] {
-                        Token::Ident(idn) => {
-                            idn.clone()
+                        Token::Ident(idn) => idn.clone(),
+                        _ => {
+                            continue;
                         }
-                        _ => {continue;}
                     };
                     let doc = doc(&tokens, i);
                     let sign = fn_signature(&tokens, i);
-                    
-                    Output{r#type, name, doc, information: Info::Function { signature: sign }}
+
+                    Output { r#type, name, doc, information: Info::Function { signature: sign } }
                 }
                 Token::Keyword(Keyword::Struct) => {
                     let r#type = Type::Struct;
                     let name = match &tokens[i + 1] {
-                        Token::Ident(idn) => {
-                            idn.clone()
+                        Token::Ident(idn) => idn.clone(),
+                        _ => {
+                            continue;
                         }
-                        _ => {continue;}
                     };
                     let doc = doc(&tokens, i);
                     let sign = struct_signature(&tokens, i - 1);
                     let ad_doc = additional_doc(&tokens, i);
 
-                    Output{r#type, name: name.clone(), doc, information: Info::Struct { signature: sign, additional_doc: ad_doc, implementations: Implementation::get_implementations(&tokens, i, name) }}
+                    Output {
+                        r#type,
+                        name: name.clone(),
+                        doc,
+                        information: Info::Struct {
+                            signature: sign,
+                            additional_doc: ad_doc,
+                            implementations: Implementation::get_implementations(&tokens, i, name),
+                        },
+                    }
                 }
                 Token::Keyword(Keyword::Trait) => {
                     skip_count = skip_impl_block(&tokens, i);
 
                     let r#type = Type::Trait;
                     let name = match &tokens[i + 1] {
-                        Token::Ident(idn) => {
-                            idn.clone()
+                        Token::Ident(idn) => idn.clone(),
+                        _ => {
+                            continue;
                         }
-                        _ => {continue;}
                     };
                     let doc = doc(&tokens, i);
 
@@ -192,7 +172,18 @@ impl Output {
                     let impls = Implementation::get_implementations(&tokens, i, name.clone());
                     let info = trait_info(&tokens, i);
 
-                    Output{r#type, name, doc, information: Info::Trait { signature: info.0, additional_doc: ad_doc, required_methods: info.1, provided_methods: info.2, implementations: impls }}
+                    Output {
+                        r#type,
+                        name,
+                        doc,
+                        information: Info::Trait {
+                            signature: info.0,
+                            additional_doc: ad_doc,
+                            required_methods: info.1,
+                            provided_methods: info.2,
+                            implementations: impls,
+                        },
+                    }
                 }
                 Token::Keyword(Keyword::Mod) => {
                     if tokens[i + 2] == Token::LeftBrace {
@@ -201,15 +192,15 @@ impl Output {
 
                     let r#type = Type::Module;
                     let name = match &tokens[i + 1] {
-                        Token::Ident(idn) => {
-                            idn.clone()
+                        Token::Ident(idn) => idn.clone(),
+                        _ => {
+                            continue;
                         }
-                        _ => {continue;}
                     };
                     let doc = doc(&tokens, i);
                     let content = get_module_content(&tokens, i);
 
-                    Output{r#type, name, doc, information: Info::Module { content }}
+                    Output { r#type, name, doc, information: Info::Module { content } }
                 }
                 Token::DocComment(DocComments::Outer(_)) => {
                     let r#type = Type::OuterComment;
@@ -220,22 +211,22 @@ impl Output {
                     let doc = if is_first {
                         is_first = false;
                         res.0
-                    }
-                    else {
+                    } else {
                         if res.1 == i {
                             is_first = true;
                         }
                         "".to_string()
                     };
-                    
 
-                    Output{r#type, name, doc, information: Info::Blanc}
+                    Output { r#type, name, doc, information: Info::Blanc }
                 }
                 Token::Keyword(Keyword::Impl) => {
                     skip_count = skip_impl_block(&tokens, i);
                     continue;
                 }
-                _ => {continue;}
+                _ => {
+                    continue;
+                }
             };
 
             res.push(out);

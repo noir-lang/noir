@@ -3,10 +3,10 @@ mod output;
 mod pages_generation;
 mod tests;
 
-use std::collections::HashMap;
 use getters::*;
 use output::*;
 use pages_generation::*;
+use std::collections::HashMap;
 
 /// the main function of the program
 /// generates all documentation files
@@ -18,7 +18,7 @@ pub fn generate_doc(input_file: &str) -> Result<(), Box<dyn std::error::Error>> 
 
     let filename = extract_filename(input_file).unwrap().to_string();
 
-    let out = AllOutput{ all_output: tokens.clone(), filename };
+    let out = AllOutput { all_output: tokens.clone(), filename };
 
     generate_module_page(out)?;
 
