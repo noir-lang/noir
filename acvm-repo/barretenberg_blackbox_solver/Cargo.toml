@@ -34,12 +34,12 @@ wasmer = { version = "3.3", default-features = false, features = [
     "js-default",
 ] }
 
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { workspace = true, features = ["js"] }
 wasm-bindgen-futures.workspace = true
 js-sys.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-getrandom = "0.2"
+getrandom.workspace = true
 wasmer = "3.3"
 
 [build-dependencies]

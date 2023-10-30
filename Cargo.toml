@@ -89,6 +89,7 @@ wasm-bindgen-futures = "0.4.36"
 console_error_panic_hook = "0.1.7"
 gloo-utils = { version = "0.1", features = ["serde"] }
 js-sys = "0.3.62"
+getrandom = "0.2"
 
 
 cfg-if = "1.0.0"
