@@ -293,9 +293,9 @@ impl<'interner> TypeChecker<'interner> {
         argument_types: &mut [(Type, ExprId, noirc_errors::Span)],
     ) {
         let expected_object_type = match function_type {
-            Type::Function(args, _, _) => args.get(0),
+            Type::Function(args, _, _) => args.first(),
             Type::Forall(_, typ) => match typ.as_ref() {
-                Type::Function(args, _, _) => args.get(0),
+                Type::Function(args, _, _) => args.first(),
                 typ => unreachable!("Unexpected type for function: {typ}"),
             },
             typ => unreachable!("Unexpected type for function: {typ}"),
