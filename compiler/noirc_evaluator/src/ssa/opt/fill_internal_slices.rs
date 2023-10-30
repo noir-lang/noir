@@ -13,7 +13,7 @@
 //! array_get [[Field 3, [Field 1, Field 1, Field 1]], [Field 4, [Field 2, Field 2, Field 2, Field 2]]], index Field v0
 //! Will get translated into a new instruction like such:
 //! array_get [[Field 3, [Field 1, Field 1, Field 1, Field 0]], [Field 4, [Field 2, Field 2, Field 2, Field 2]]], index Field v0
-//! 
+//!
 //!
 //! TODO(#3188): Currently the pass only works on a single flattened block. This should be updated in followup work.
 //! The steps of the pass are as follows:
