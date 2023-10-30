@@ -84,7 +84,7 @@ async execute(inputs, foreignCallHandler)
 
 ```js
 const { witness, returnValue } = await noir.execute(inputs)
-const { witness, returnValue } = await noir.execute(inputs, (event) => console.log(event))
+const { witness, returnValue } = await noir.execute(inputs, (name, args) => console.log(`Received foreign call ${name} with arguments ${args}`))
 ```
 
 ## `generateFinalProof`
