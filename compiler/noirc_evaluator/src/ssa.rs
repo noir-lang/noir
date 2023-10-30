@@ -39,6 +39,7 @@ pub(crate) fn optimize_into_acir(
     print_brillig_trace: bool,
 ) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
+
     let ssa = SsaBuilder::new(program, print_ssa_passes)
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
@@ -57,11 +58,16 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
         .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
-        .run_pass(Ssa::fill_internal_slices, "After Fill Slice Dummy Data:")
         .finish();
 
-    // TODO: don't fill internal slices for brillig
     let brillig = ssa.to_brillig(print_brillig_trace);
+
+    // Split off any passes the are not necessary for Brillig generation but are necessary for ACIR generation.
+    // We only need to fill out nested slices as we need to have a known length when dealing with memory operations
+    // in ACIR gen while this is not necessary in the Brillig IR.
+    let ssa = SsaBuilder::new_with_generated_ssa(ssa, print_ssa_passes)
+        .run_pass(Ssa::fill_internal_slices, "After Fill Internal Slice Dummy Data:")
+        .finish();
     let last_array_uses = ssa.find_last_array_uses();
     ssa.into_acir(brillig, abi_distinctness, &last_array_uses)
 }
@@ -133,6 +139,10 @@ struct SsaBuilder {
 impl SsaBuilder {
     fn new(program: Program, print_ssa_passes: bool) -> SsaBuilder {
         SsaBuilder { print_ssa_passes, ssa: ssa_gen::generate_ssa(program) }.print("Initial SSA:")
+    }
+
+    fn new_with_generated_ssa(ssa: Ssa, print_ssa_passes: bool) -> SsaBuilder {
+        SsaBuilder { ssa, print_ssa_passes }
     }
 
     fn finish(self) -> Ssa {

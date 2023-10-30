@@ -1134,7 +1134,6 @@ impl Context {
                     Value::Instruction { .. } | Value::Param { .. } => {
                         // An instruction representing the slice means it has been processed previously during ACIR gen.
                         // Use the previously defined result of an array operation to fetch the internal type information.
-                        // let array_acir_value = self.convert_value(array_id, dfg);
                         let array_acir_value = if let Some(array_acir_value) = array_acir_value {
                             array_acir_value
                         } else {
@@ -1210,7 +1209,6 @@ impl Context {
                 .into());
             }
         }
-        // dbg!(flat_elem_type_sizes.clone());
 
         // The final array should will the flattened index at each outer array index
         let init_values = vecmap(flat_elem_type_sizes, |type_size| {
@@ -1756,7 +1754,7 @@ impl Context {
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
                 // We attach the element no matter what in case len == capacity, as otherwise we
-                // may get an out of bounds error. This leads to inefficiencies
+                // may get an out of bounds error.
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice.clone())?;
                 new_slice.push_back(element.clone());
@@ -1820,12 +1818,9 @@ impl Context {
                     &[],
                 )?;
 
+                // TODO(#2461): make sure that we have handled nested struct inputs
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
-                // TODO(#2461): make sure that we have handled nested struct inputs
-                // let elem = new_slice
-                //     .pop_back()
-                //     .expect("There are no elements in this slice to be removed");
 
                 Ok(vec![
                     AcirValue::Var(new_slice_length, AcirType::field()),

@@ -10,13 +10,10 @@
 //! If we have a slice of the type [[Field]] which is of length 2. The internal slies themselves
 //! could be of different sizes, such as 3 and 4. An array operation on this nested slice would look
 //! something like below:
-//! ```
 //! array_get [[Field 3, [Field 1, Field 1, Field 1]], [Field 4, [Field 2, Field 2, Field 2, Field 2]]], index Field v0
-//! ```
-//! Will get translate into a new instruction like such:
-//! ```
+//! Will get translated into a new instruction like such:
 //! array_get [[Field 3, [Field 1, Field 1, Field 1, Field 0]], [Field 4, [Field 2, Field 2, Field 2, Field 2]]], index Field v0
-//! ```
+//! 
 //!
 //! TODO(#3188): Currently the pass only works on a single flattened block. This should be updated in followup work.
 //! The steps of the pass are as follows:
