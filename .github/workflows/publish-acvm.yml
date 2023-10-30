@@ -20,7 +20,7 @@ jobs:
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.66.0
+          toolchain: 1.71.1
 
       # These steps are in a specific order so crate dependencies are updated first
       - name: Publish acir_field
