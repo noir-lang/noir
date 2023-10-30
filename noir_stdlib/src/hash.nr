@@ -20,9 +20,7 @@ pub fn pedersen_hash<N>(input : [Field; N]) -> Field {
 #[foreign(pedersen_hash)]
 pub fn pedersen_hash_with_separator<N>(_input : [Field; N], _separator : u32) -> Field {}
 
-#[foreign(hash_to_field_128_security)]
-pub fn hash_to_field<N>(_input : [Field; N]) -> Field {}
-pub fn hash_to_field_native<N>(_input : [Field; N]) -> Field {
+pub fn hash_to_field<N>(_input : [Field; N]) -> Field {
     let mut inputs_as_bytes = [];
     
     for i in 0..N {
