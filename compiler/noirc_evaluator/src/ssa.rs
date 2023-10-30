@@ -107,15 +107,13 @@ pub fn create_circuit(
         assert_messages: assert_messages.into_iter().collect(),
     };
 
-    let file_id = locations.first_key_value().unwrap().1[0].file;
-
     // This converts each im::Vector in the BTreeMap to a Vec
     let locations = locations
         .into_iter()
         .map(|(index, locations)| (index, locations.into_iter().collect()))
         .collect();
 
-    let variables = context.debug_states.get(&file_id).unwrap().var_name_to_id.clone();
+    let variables = context.debug_state.get_variables();
     let mut debug_info = DebugInfo::new(locations, variables);
 
     // Perform any ACIR-level optimizations

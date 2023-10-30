@@ -10,6 +10,7 @@ use serde::{Deserializer, Serializer};
 pub mod contract;
 pub mod debug;
 pub mod program;
+mod debug_vars;
 
 // TODO: move these down into ACVM.
 fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>

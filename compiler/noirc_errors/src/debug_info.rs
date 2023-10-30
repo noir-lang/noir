@@ -1,5 +1,6 @@
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::compiler::AcirTransformationMap;
+use fm::FileId;
 
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
@@ -7,7 +8,6 @@ use std::collections::{BTreeMap,HashMap};
 use std::mem;
 
 use crate::Location;
-use fm::FileId;
 use serde::{Deserialize, Serialize};
 
 #[serde_as]
@@ -46,5 +46,15 @@ impl DebugInfo {
 
     pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<Vec<Location>> {
         self.locations.get(loc).cloned()
+    }
+
+    pub fn get_file_ids(&self) -> Vec<FileId> {
+        self
+            .locations
+            .values()
+            .filter_map(|call_stack| {
+                call_stack.last().map(|location| location.file)
+            })
+            .collect()
     }
 }

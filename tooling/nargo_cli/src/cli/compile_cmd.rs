@@ -273,15 +273,14 @@ fn save_program(
     let preprocessed_program = PreprocessedProgram {
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
-        abi: program.abi,
-        bytecode: program.circuit,
+        abi: program.abi.clone(),
+        bytecode: program.circuit.clone(),
     };
 
     save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
 
     if output_debug {
-        let debug_artifact =
-            DebugArtifact { debug_symbols: vec![program.debug], file_map: program.file_map };
+        let debug_artifact = DebugArtifact::from_program(&program);
         let circuit_name: String = (&package.name).into();
         save_debug_artifact_to_file(&debug_artifact, &circuit_name, circuit_dir);
     }

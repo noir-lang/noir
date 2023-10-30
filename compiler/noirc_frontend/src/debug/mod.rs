@@ -3,22 +3,10 @@ use crate::parser::ParsedModule;
 use crate::{ast, parser::{Item,ItemKind}, ast::{Path,PathKind,UseTreeKind}};
 use noirc_errors::{Span, Spanned};
 
-// debug struct
-// assert values
-// variable values
-// function arguments
-// program gets linearized so maybe show arguments as if that wasn't the case
-
-// annotate things like division which do not have direct mappings to opcodes
-
-// set empty locations to make the instructions skippable
-
 #[derive(Debug,Clone)]
 pub struct DebugState {
-    pub var_id_to_name: HashMap<u32,String>,
-    pub var_name_to_id: HashMap<String,u32>,
-    pub var_id_to_value: HashMap<u32,String>, // TODO: something more sophisticated for lexical levels
-    // TODO: ^ use Value type?
+    var_id_to_name: HashMap<u32,String>,
+    var_name_to_id: HashMap<String,u32>,
     next_var_id: u32,
     pub enabled: bool,
 }
@@ -28,7 +16,6 @@ impl Default for DebugState {
         Self {
             var_id_to_name: HashMap::new(),
             var_name_to_id: HashMap::new(),
-            var_id_to_value: HashMap::new(),
             next_var_id: 0,
             enabled: true, // TODO
         }
@@ -46,16 +33,8 @@ impl DebugState {
         debug_state
     }
 
-    pub fn get_values(&self) -> HashMap<String,String> {
-        println!["ITER"];
-        println!["  var_id_to_value={:?}", &self.var_id_to_value];
-        println!["  var_id_to_name={:?}", &self.var_id_to_name];
-        println!["  var_name_to_id={:?}", &self.var_name_to_id];
-        self.var_id_to_value.iter().filter_map(|(var_id,value)| {
-            self.var_id_to_name.get(var_id).map(|name| {
-                (name.clone(),value.clone())
-            })
-        }).collect()
+    pub fn get_variables(&self) -> HashMap<String,u32> {
+        self.var_name_to_id.clone()
     }
 
     fn insert_var(&mut self, var_name: &str) -> u32 {
@@ -64,10 +43,6 @@ impl DebugState {
         self.var_id_to_name.insert(var_id, var_name.to_string());
         self.var_name_to_id.insert(var_name.to_string(), var_id);
         var_id
-    }
-
-    pub fn set_var_by_id(&mut self, var_id: u32, value: String) {
-        self.var_id_to_value.insert(var_id, value);
     }
 
     pub fn insert_symbols(&mut self, module: &mut ParsedModule) {
@@ -103,7 +78,6 @@ impl DebugState {
 
     fn debug_expr(&mut self, var_name: &str, expr: ast::Expression) -> ast::Expression {
         let var_id = self.insert_var(var_name);
-        println!["insert_var({:?}) = {:?}", var_name, var_id];
         let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
             func: Box::new(ast::Expression {
                 kind: ast::ExpressionKind::Variable(ast::Path {

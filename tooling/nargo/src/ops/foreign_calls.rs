@@ -4,9 +4,8 @@ use acvm::{
 };
 use iter_extended::vecmap;
 use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
-use noirc_frontend::debug::DebugState;
 
-use crate::NargoError;
+use crate::{NargoError, artifacts::debug::DebugVars};
 
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
@@ -113,16 +112,16 @@ impl ForeignCallExecutor {
         &mut self,
         foreign_call: &ForeignCallWaitInfo,
         show_output: bool,
-        debug_state: &mut DebugState,
+        debug_vars: &mut DebugVars,
     ) -> Result<ForeignCallResult, NargoError> {
-        self.execute_optional_debug(foreign_call, show_output, Some(debug_state))
+        self.execute_optional_debug(foreign_call, show_output, Some(debug_vars))
     }
 
     fn execute_optional_debug(
         &mut self,
         foreign_call: &ForeignCallWaitInfo,
         show_output: bool,
-        debug_state: Option<&mut DebugState>,
+        debug_vars: Option<&mut DebugVars>,
     ) -> Result<ForeignCallResult, NargoError> {
         let foreign_call_name = foreign_call.function.as_str();
         match ForeignCall::lookup(foreign_call_name) {
@@ -134,11 +133,14 @@ impl ForeignCallExecutor {
             }
             Some(ForeignCall::DebugStateSet) => {
                 let fcp_var_id = &foreign_call.inputs[0];
-                let value = &foreign_call.inputs[1];
-                if let (Some(ds), ForeignCallParam::Single(var_id_value)) = (debug_state, fcp_var_id) {
+                let fcp_value = &foreign_call.inputs[1];
+                if let (
+                    Some(ds),
+                    ForeignCallParam::Single(var_id_value),
+                    ForeignCallParam::Single(value),
+                ) = (debug_vars, fcp_var_id, fcp_value) {
                     let var_id = var_id_value.to_u128() as u32;
-                    let s = format!("{:?}", value);
-                    ds.set_var_by_id(var_id, s);
+                    ds.set_by_id(var_id, value.clone());
                 }
                 // pass-through return value is handled by the oracle wrapper, returning nothing here
                 Ok(ForeignCallResult { values: vec![] })

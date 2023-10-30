@@ -1,15 +1,13 @@
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM};
 use acvm::BlackBoxFunctionSolver;
-use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
+use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap, FieldElement};
 
-use nargo::artifacts::debug::DebugArtifact;
+use nargo::artifacts::debug::{DebugArtifact,DebugVars};
 use nargo::errors::ExecutionError;
 use nargo::NargoError;
-use noirc_frontend::debug::DebugState;
 
 use nargo::ops::ForeignCallExecutor;
-use fm::FileId;
 
 use easy_repl::{command, CommandStatus, Critical, Repl};
 use std::cell::{Cell, RefCell};
@@ -23,28 +21,13 @@ enum SolveResult {
 struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
     acvm: ACVM<'backend, B>,
     debug_artifact: DebugArtifact,
+    debug_vars: DebugVars,
     foreign_call_executor: ForeignCallExecutor,
     circuit: &'backend Circuit,
     show_output: bool,
-    debug_states: HashMap<FileId,DebugState>,
-    current_file: Option<FileId>,
 }
 
 impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
-    pub fn get_current_file(&mut self) -> FileId {
-        let mut file: Option<FileId> = self.acvm.location().and_then(|loc| {
-            self.debug_artifact.debug_symbols[0].opcode_location(&loc).and_then(|locs| {
-                locs.first().map(|f| f.file)
-            })
-        });
-        if file.is_none() {
-            file = self.current_file.clone();
-        } else {
-            self.current_file = file.clone();
-        }
-        file.unwrap()
-    }
-
     fn step_opcode(&mut self) -> Result<SolveResult, NargoError> {
         let solver_status = self.acvm.step_opcode(true);
 
@@ -80,12 +63,11 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                 }))
             }
             ACVMStatus::RequiresForeignCall(foreign_call) => {
-                let file_id = self.get_current_file();
                 let foreign_call_result =
                     self.foreign_call_executor.execute_with_debug(
                         &foreign_call,
                         self.show_output,
-                        self.debug_states.get_mut(&file_id).unwrap(),
+                        &mut self.debug_vars,
                     )?;
                 self.acvm.resolve_pending_foreign_call(foreign_call_result);
                 Ok(SolveResult::Ok)
@@ -157,15 +139,17 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     initial_witness: WitnessMap,
     show_output: bool,
 ) -> Result<Option<WitnessMap>, NargoError> {
-    let debug_states = debug_artifact.to_debug_states();
+    let mut debug_vars = DebugVars::default();
+    debug_artifact.debug_symbols.iter().for_each(|info| {
+        debug_vars.insert_variables(&info.variables);
+    });
     let context = RefCell::new(DebugContext {
         acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
         foreign_call_executor: ForeignCallExecutor::default(),
         circuit,
         debug_artifact,
         show_output,
-        debug_states,
-        current_file: None,
+        debug_vars,
     });
     let ref_step = &context;
     let ref_cont = &context;
@@ -208,9 +192,10 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
                 "show variable values available at this point in execution",
                 () => || {
                     let mut ctx = ref_cont.borrow_mut();
-                    let file_id = ctx.get_current_file();
-                    let vars = ctx.debug_states.get(&file_id).unwrap().get_values();
-                    println!("{:?}", vars);
+                    let vars = ctx.debug_vars.get_values();
+                    println!("{:?}", vars.iter().map(|(var_name,value)| {
+                        (var_name, value.to_field())
+                    }).collect::<HashMap<_,_>>());
                     Ok(CommandStatus::Done)
                 }
             },
