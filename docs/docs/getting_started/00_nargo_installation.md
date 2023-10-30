@@ -205,7 +205,7 @@ code .
 #### Building and testing
 
 Assuming you are using `direnv` to populate your environment, building and testing the project can be done
-with the typical `cargo build`, `cargo test`, and `cargo clippy` commands. You'll notice that the `cargo` version matches the version we specify in `flake.nix`, which is 1.71.1 at the time of this writing.
+with the typical `cargo build`, `cargo test`, and `cargo clippy` commands. You'll notice that the `cargo` version matches the version we specify in `rust-toolchain.toml`, which is 1.71.1 at the time of this writing.
 
 If you want to build the entire project in an isolated sandbox, you can use Nix commands:
 
