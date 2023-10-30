@@ -22,9 +22,7 @@ fn main(x : [Field; 2]) {
     let e: Three = (c, d);
     assert(e.0 == 1);
 
-    let s = MyStruct { 
-        foo: 10
-    };
+    let s = MyStruct { foo: 10 };
     assert(s.foo == 10);
 
     let _regression2502: Regression2502Alias = Regression2502 {};

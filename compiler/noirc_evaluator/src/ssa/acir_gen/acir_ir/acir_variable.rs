@@ -1,7 +1,7 @@
 use super::generated_acir::GeneratedAcir;
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
-use crate::errors::{InternalError, RuntimeError};
+use crate::errors::{InternalError, RuntimeError, SsaReport};
 use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
@@ -1162,8 +1162,9 @@ impl AcirContext {
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
-    pub(crate) fn finish(mut self, inputs: Vec<u32>) -> GeneratedAcir {
+    pub(crate) fn finish(mut self, inputs: Vec<u32>, warnings: Vec<SsaReport>) -> GeneratedAcir {
         self.acir_ir.input_witnesses = vecmap(inputs, Witness);
+        self.acir_ir.warnings = warnings;
         self.acir_ir
     }
 

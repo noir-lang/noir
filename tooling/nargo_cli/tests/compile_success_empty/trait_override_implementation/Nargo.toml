@@ -2,6 +2,5 @@
 name = "trait_override_implementation"
 type = "bin"
 authors = [""]
-compiler_version = "0.1"
 
 [dependencies]

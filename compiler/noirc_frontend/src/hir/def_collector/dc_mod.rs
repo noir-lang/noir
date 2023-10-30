@@ -145,12 +145,13 @@ impl<'a> ModCollector<'a> {
         for trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
 
-            let unresolved_functions =
+            let mut unresolved_functions =
                 self.collect_trait_impl_function_overrides(context, &trait_impl, krate);
 
             let module = ModuleId { krate, local_id: self.module_id };
 
-            for (_, func_id, noir_function) in &unresolved_functions.functions {
+            for (_, func_id, noir_function) in &mut unresolved_functions.functions {
+                noir_function.def.where_clause.append(&mut trait_impl.where_clause.clone());
                 context.def_interner.push_function(*func_id, &noir_function.def, module);
             }
 
@@ -160,6 +161,7 @@ impl<'a> ModCollector<'a> {
                 trait_path: trait_name,
                 methods: unresolved_functions,
                 object_type: trait_impl.object_type,
+                generics: trait_impl.impl_generics,
                 trait_id: None, // will be filled later
             };
 

@@ -33,6 +33,6 @@ fn call_intrinsic(x: [u8; 5], result: [u8; 32]) {
 }
 
 fn test4() -> [u32; 4] {
-    let b: [u32; 4] = [1,2,3,4];
+    let b: [u32; 4] = [1, 2, 3, 4];
     b
 }

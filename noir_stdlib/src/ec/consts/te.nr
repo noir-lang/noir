@@ -8,9 +8,8 @@ struct BabyJubjub {
     suborder: Field,
 }
 
+#[field(bn254)]
 pub fn baby_jubjub() -> BabyJubjub {
-    assert(compat::is_bn254());
-
     BabyJubjub {
         // Baby Jubjub (ERC-2494) parameters in affine representation
         curve: TECurve::new(
