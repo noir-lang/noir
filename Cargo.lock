@@ -4,12 +4,25 @@ version = 3
 
 [[package]]
 name = "acir"
+version = "0.28.0"
+source = "git+https://github.com/Sakapoi/noir_fork.git?branch=doc_comments#928eae80edde911af8890040578e9d98daac190c"
+dependencies = [
+ "acir_field 0.28.0",
+ "bincode",
+ "brillig 0.28.0",
+ "flate2",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "acir"
 version = "0.30.0"
 dependencies = [
- "acir_field",
+ "acir_field 0.30.0",
  "base64",
  "bincode",
- "brillig",
+ "brillig 0.30.0",
  "flate2",
  "fxhash",
  "serde",
@@ -19,6 +32,20 @@ dependencies = [
  "strum",
  "strum_macros",
  "thiserror",
+]
+
+[[package]]
+name = "acir_field"
+version = "0.28.0"
+source = "git+https://github.com/Sakapoi/noir_fork.git?branch=doc_comments#928eae80edde911af8890040578e9d98daac190c"
+dependencies = [
+ "ark-bn254",
+ "ark-ff",
+ "cfg-if",
+ "hex",
+ "num-bigint",
+ "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -37,12 +64,27 @@ dependencies = [
 
 [[package]]
 name = "acvm"
+version = "0.28.0"
+source = "git+https://github.com/Sakapoi/noir_fork.git?branch=doc_comments#928eae80edde911af8890040578e9d98daac190c"
+dependencies = [
+ "acir 0.28.0",
+ "acvm_blackbox_solver 0.28.0",
+ "acvm_stdlib 0.28.0",
+ "brillig_vm 0.28.0",
+ "indexmap 1.9.3",
+ "num-bigint",
+ "num-traits",
+ "thiserror",
+]
+
+[[package]]
+name = "acvm"
 version = "0.30.0"
 dependencies = [
- "acir",
- "acvm_blackbox_solver",
- "acvm_stdlib",
- "brillig_vm",
+ "acir 0.30.0",
+ "acvm_blackbox_solver 0.30.0",
+ "acvm_stdlib 0.30.0",
+ "brillig_vm 0.30.0",
  "indexmap 1.9.3",
  "num-bigint",
  "num-traits",
@@ -54,9 +96,23 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
+version = "0.28.0"
+source = "git+https://github.com/Sakapoi/noir_fork.git?branch=doc_comments#928eae80edde911af8890040578e9d98daac190c"
+dependencies = [
+ "acir 0.28.0",
+ "blake2",
+ "k256",
+ "p256",
+ "sha2",
+ "sha3",
+ "thiserror",
+]
+
+[[package]]
+name = "acvm_blackbox_solver"
 version = "0.30.0"
 dependencies = [
- "acir",
+ "acir 0.30.0",
  "blake2",
  "k256",
  "p256",
@@ -69,7 +125,7 @@ dependencies = [
 name = "acvm_js"
 version = "0.30.0"
 dependencies = [
- "acvm",
+ "acvm 0.30.0",
  "barretenberg_blackbox_solver",
  "build-data",
  "cfg-if",
@@ -88,9 +144,17 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
+version = "0.28.0"
+source = "git+https://github.com/Sakapoi/noir_fork.git?branch=doc_comments#928eae80edde911af8890040578e9d98daac190c"
+dependencies = [
+ "acir 0.28.0",
+]
+
+[[package]]
+name = "acvm_stdlib"
 version = "0.30.0"
 dependencies = [
- "acir",
+ "acir 0.30.0",
 ]
 
 [[package]]
@@ -215,6 +279,14 @@ name = "anyhow"
 version = "1.0.75"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
+
+[[package]]
+name = "arena"
+version = "0.16.0"
+source = "git+https://github.com/Sakapoi/noir_fork.git?branch=doc_comments#928eae80edde911af8890040578e9d98daac190c"
+dependencies = [
+ "generational-arena",
+]
 
 [[package]]
 name = "arena"
@@ -359,6 +431,50 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
 
 [[package]]
+name = "askama"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b79091df18a97caea757e28cd2d5fda49c6cd4bd01ddffd7ff01ace0c0ad2c28"
+dependencies = [
+ "askama_derive",
+ "askama_escape",
+ "humansize",
+ "num-traits",
+ "percent-encoding",
+]
+
+[[package]]
+name = "askama_derive"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a0fc7dcf8bd4ead96b1d36b41df47c14beedf7b0301fc543d8f2384e66a2ec0"
+dependencies = [
+ "askama_parser",
+ "basic-toml",
+ "mime",
+ "mime_guess",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn 2.0.32",
+]
+
+[[package]]
+name = "askama_escape"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "619743e34b5ba4e9703bba34deac3427c72507c7159f5fd030aea8cac0cfe341"
+
+[[package]]
+name = "askama_parser"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c268a96e01a4c47c8c5c2472aaa570707e006a875ea63e819f75474ceedaf7b4"
+dependencies = [
+ "nom",
+]
+
+[[package]]
 name = "assert_cmd"
 version = "2.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -418,7 +534,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 name = "backend-interface"
 version = "0.11.0"
 dependencies = [
- "acvm",
+ "acvm 0.30.0",
  "bb_abstraction_leaks",
  "build-target",
  "const_format",
@@ -452,8 +568,8 @@ dependencies = [
 name = "barretenberg_blackbox_solver"
 version = "0.30.0"
 dependencies = [
- "acir",
- "acvm_blackbox_solver",
+ "acir 0.30.0",
+ "acvm_blackbox_solver 0.30.0",
  "ark-ec",
  "ark-ff",
  "flate2",
@@ -489,10 +605,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 
 [[package]]
+name = "basic-toml"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f2139706359229bfa8f19142ac1155b4b80beafb7a60471ac5dd109d4a19778"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "bb_abstraction_leaks"
 version = "0.11.0"
 dependencies = [
- "acvm",
+ "acvm 0.30.0",
  "build-target",
  "const_format",
 ]
@@ -574,18 +699,38 @@ dependencies = [
 
 [[package]]
 name = "brillig"
+version = "0.28.0"
+source = "git+https://github.com/Sakapoi/noir_fork.git?branch=doc_comments#928eae80edde911af8890040578e9d98daac190c"
+dependencies = [
+ "acir_field 0.28.0",
+ "serde",
+]
+
+[[package]]
+name = "brillig"
 version = "0.30.0"
 dependencies = [
- "acir_field",
+ "acir_field 0.30.0",
  "serde",
+]
+
+[[package]]
+name = "brillig_vm"
+version = "0.28.0"
+source = "git+https://github.com/Sakapoi/noir_fork.git?branch=doc_comments#928eae80edde911af8890040578e9d98daac190c"
+dependencies = [
+ "acir 0.28.0",
+ "acvm_blackbox_solver 0.28.0",
+ "num-bigint",
+ "num-traits",
 ]
 
 [[package]]
 name = "brillig_vm"
 version = "0.30.0"
 dependencies = [
- "acir",
- "acvm_blackbox_solver",
+ "acir 0.30.0",
+ "acvm_blackbox_solver 0.30.0",
  "num-bigint",
  "num-traits",
 ]
@@ -813,7 +958,7 @@ dependencies = [
  "heck 0.4.1",
  "proc-macro2",
  "quote",
- "syn 2.0.26",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -1214,7 +1359,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strsim",
- "syn 2.0.26",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -1225,7 +1370,7 @@ checksum = "836a9bbc7ad63342d6d6e7b815ccab164bc77a2d95d84bc3117a8c0d5c98e2d5"
 dependencies = [
  "darling_core",
  "quote",
- "syn 2.0.26",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -1345,6 +1490,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 
 [[package]]
+name = "doc-generator"
+version = "0.1.0"
+dependencies = [
+ "askama",
+ "noirc_frontend 0.16.0",
+]
+
+[[package]]
 name = "easy-repl"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1462,7 +1615,7 @@ dependencies = [
  "darling",
  "proc-macro2",
  "quote",
- "syn 2.0.26",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -1602,10 +1755,20 @@ dependencies = [
 
 [[package]]
 name = "fm"
+version = "0.16.0"
+source = "git+https://github.com/Sakapoi/noir_fork.git?branch=doc_comments#928eae80edde911af8890040578e9d98daac190c"
+dependencies = [
+ "codespan-reporting",
+ "rust-embed",
+ "serde",
+]
+
+[[package]]
+name = "fm"
 version = "0.18.0"
 dependencies = [
  "codespan-reporting",
- "iter-extended",
+ "iter-extended 0.18.0",
  "rust-embed",
  "serde",
  "tempfile",
@@ -1676,7 +1839,7 @@ checksum = "89ca545a94061b6365f2c7355b4b32bd20df3ff95f02da9329b34ccc3bd6ee72"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.26",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -1961,6 +2124,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4a1e36c821dbe04574f602848a19f742f4fb3c98d40449f11bcad18d6b17421"
 
 [[package]]
+name = "humansize"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6cb51c9a029ddc91b07a787f1d86b53ccfa49b0e86688c946ebe8d3555685dd7"
+dependencies = [
+ "libm",
+]
+
+[[package]]
 name = "hyper"
 version = "0.14.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2184,6 +2356,11 @@ dependencies = [
 
 [[package]]
 name = "iter-extended"
+version = "0.16.0"
+source = "git+https://github.com/Sakapoi/noir_fork.git?branch=doc_comments#928eae80edde911af8890040578e9d98daac190c"
+
+[[package]]
+name = "iter-extended"
 version = "0.18.0"
 
 [[package]]
@@ -2376,6 +2553,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
+name = "mime_guess"
+version = "2.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4192263c238a5f0d0c6bfd21f336a313a4ce1c450542449ca191bb657b4642ef"
+dependencies = [
+ "mime",
+ "unicase",
+]
+
+[[package]]
+name = "minimal-lexical"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+
+[[package]]
 name = "miniz_oxide"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2405,16 +2598,16 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 name = "nargo"
 version = "0.18.0"
 dependencies = [
- "acvm",
+ "acvm 0.30.0",
  "codespan-reporting",
- "fm",
- "iter-extended",
+ "fm 0.18.0",
+ "iter-extended 0.18.0",
  "noirc_abi",
  "noirc_driver",
- "noirc_errors",
+ "noirc_errors 0.18.0",
  "noirc_evaluator",
- "noirc_frontend",
- "noirc_printable_type",
+ "noirc_frontend 0.18.0",
+ "noirc_printable_type 0.18.0",
  "rustc_version",
  "serde",
  "thiserror",
@@ -2424,7 +2617,7 @@ dependencies = [
 name = "nargo_cli"
 version = "0.18.0"
 dependencies = [
- "acvm",
+ "acvm 0.30.0",
  "assert_cmd",
  "assert_fs",
  "async-lsp",
@@ -2437,10 +2630,10 @@ dependencies = [
  "const_format",
  "criterion",
  "dirs",
- "fm",
+ "fm 0.18.0",
  "hex",
  "iai",
- "iter-extended",
+ "iter-extended 0.18.0",
  "nargo",
  "nargo_fmt",
  "nargo_toml",
@@ -2448,8 +2641,8 @@ dependencies = [
  "noir_lsp",
  "noirc_abi",
  "noirc_driver",
- "noirc_errors",
- "noirc_frontend",
+ "noirc_errors 0.18.0",
+ "noirc_frontend 0.18.0",
  "paste",
  "pprof",
  "predicates 2.1.5",
@@ -2473,7 +2666,7 @@ name = "nargo_fmt"
 version = "0.18.0"
 dependencies = [
  "bytecount",
- "noirc_frontend",
+ "noirc_frontend 0.18.0",
  "serde",
  "similar-asserts",
  "thiserror",
@@ -2485,9 +2678,9 @@ name = "nargo_toml"
 version = "0.18.0"
 dependencies = [
  "dirs",
- "fm",
+ "fm 0.18.0",
  "nargo",
- "noirc_frontend",
+ "noirc_frontend 0.18.0",
  "serde",
  "thiserror",
  "toml",
@@ -2532,12 +2725,12 @@ dependencies = [
 name = "noir_debugger"
 version = "0.18.0"
 dependencies = [
- "acvm",
+ "acvm 0.30.0",
  "codespan-reporting",
  "easy-repl",
  "nargo",
- "noirc_errors",
- "noirc_printable_type",
+ "noirc_errors 0.18.0",
+ "noirc_printable_type 0.18.0",
  "owo-colors",
  "thiserror",
 ]
@@ -2546,7 +2739,7 @@ dependencies = [
 name = "noir_lsp"
 version = "0.18.0"
 dependencies = [
- "acvm",
+ "acvm 0.30.0",
  "async-lsp",
  "cfg-if",
  "codespan-lsp",
@@ -2555,8 +2748,8 @@ dependencies = [
  "nargo",
  "nargo_toml",
  "noirc_driver",
- "noirc_errors",
- "noirc_frontend",
+ "noirc_errors 0.18.0",
+ "noirc_frontend 0.18.0",
  "serde",
  "serde_json",
  "tokio",
@@ -2568,19 +2761,19 @@ dependencies = [
 name = "noir_wasm"
 version = "0.18.0"
 dependencies = [
- "acvm",
+ "acvm 0.30.0",
  "build-data",
  "cfg-if",
  "console_error_panic_hook",
- "fm",
+ "fm 0.18.0",
  "getrandom",
  "gloo-utils",
  "js-sys",
  "log",
  "nargo",
  "noirc_driver",
- "noirc_errors",
- "noirc_frontend",
+ "noirc_errors 0.18.0",
+ "noirc_frontend 0.18.0",
  "serde",
  "wasm-bindgen",
  "wasm-logger",
@@ -2590,9 +2783,9 @@ dependencies = [
 name = "noirc_abi"
 version = "0.18.0"
 dependencies = [
- "acvm",
- "iter-extended",
- "noirc_frontend",
+ "acvm 0.30.0",
+ "iter-extended 0.18.0",
+ "noirc_frontend 0.18.0",
  "num-bigint",
  "num-traits",
  "serde",
@@ -2607,12 +2800,12 @@ dependencies = [
 name = "noirc_abi_wasm"
 version = "0.18.0"
 dependencies = [
- "acvm",
+ "acvm 0.30.0",
  "build-data",
  "console_error_panic_hook",
  "getrandom",
  "gloo-utils",
- "iter-extended",
+ "iter-extended 0.18.0",
  "js-sys",
  "noirc_abi",
  "serde",
@@ -2624,28 +2817,42 @@ dependencies = [
 name = "noirc_driver"
 version = "0.18.0"
 dependencies = [
- "acvm",
+ "acvm 0.30.0",
  "build-data",
  "clap",
- "fm",
+ "fm 0.18.0",
  "fxhash",
- "iter-extended",
+ "iter-extended 0.18.0",
  "noirc_abi",
- "noirc_errors",
+ "noirc_errors 0.18.0",
  "noirc_evaluator",
- "noirc_frontend",
+ "noirc_frontend 0.18.0",
  "serde",
+]
+
+[[package]]
+name = "noirc_errors"
+version = "0.16.0"
+source = "git+https://github.com/Sakapoi/noir_fork.git?branch=doc_comments#928eae80edde911af8890040578e9d98daac190c"
+dependencies = [
+ "acvm 0.28.0",
+ "chumsky",
+ "codespan",
+ "codespan-reporting",
+ "fm 0.16.0",
+ "serde",
+ "serde_with",
 ]
 
 [[package]]
 name = "noirc_errors"
 version = "0.18.0"
 dependencies = [
- "acvm",
+ "acvm 0.30.0",
  "chumsky",
  "codespan",
  "codespan-reporting",
- "fm",
+ "fm 0.18.0",
  "serde",
  "serde_with",
 ]
@@ -2654,13 +2861,13 @@ dependencies = [
 name = "noirc_evaluator"
 version = "0.18.0"
 dependencies = [
- "acvm",
+ "acvm 0.30.0",
  "fxhash",
  "im",
- "iter-extended",
+ "iter-extended 0.18.0",
  "noirc_abi",
- "noirc_errors",
- "noirc_frontend",
+ "noirc_errors 0.18.0",
+ "noirc_frontend 0.18.0",
  "num-bigint",
  "serde",
  "thiserror",
@@ -2668,15 +2875,35 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
+version = "0.16.0"
+source = "git+https://github.com/Sakapoi/noir_fork.git?branch=doc_comments#928eae80edde911af8890040578e9d98daac190c"
+dependencies = [
+ "acvm 0.28.0",
+ "arena 0.16.0",
+ "chumsky",
+ "fm 0.16.0",
+ "iter-extended 0.16.0",
+ "noirc_errors 0.16.0",
+ "noirc_printable_type 0.16.0",
+ "regex",
+ "rustc-hash",
+ "serde_json",
+ "small-ord-set",
+ "smol_str",
+ "thiserror",
+]
+
+[[package]]
+name = "noirc_frontend"
 version = "0.18.0"
 dependencies = [
- "acvm",
- "arena",
+ "acvm 0.30.0",
+ "arena 0.18.0",
  "chumsky",
- "fm",
- "iter-extended",
- "noirc_errors",
- "noirc_printable_type",
+ "fm 0.18.0",
+ "iter-extended 0.18.0",
+ "noirc_errors 0.18.0",
+ "noirc_printable_type 0.18.0",
  "regex",
  "rustc-hash",
  "serde",
@@ -2690,14 +2917,37 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "0.18.0"
+version = "0.16.0"
+source = "git+https://github.com/Sakapoi/noir_fork.git?branch=doc_comments#928eae80edde911af8890040578e9d98daac190c"
 dependencies = [
- "acvm",
- "iter-extended",
+ "acvm 0.28.0",
+ "iter-extended 0.16.0",
  "regex",
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "noirc_printable_type"
+version = "0.18.0"
+dependencies = [
+ "acvm 0.30.0",
+ "iter-extended 0.18.0",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "nom"
+version = "7.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
+dependencies = [
+ "memchr",
+ "minimal-lexical",
 ]
 
 [[package]]
@@ -3428,7 +3678,7 @@ dependencies = [
  "quote",
  "rust-embed-utils",
  "shellexpand",
- "syn 2.0.26",
+ "syn 2.0.32",
  "walkdir",
 ]
 
@@ -3695,9 +3945,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.171"
+version = "1.0.190"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30e27d1e4fd7659406c492fd6cfaf2066ba8773de45ca75e855590f856dc34a9"
+checksum = "91d3c334ca1ee894a2c6f6ad698fe8c435b76d504b13d436f0685d648d6d96f7"
 dependencies = [
  "serde_derive",
 ]
@@ -3740,13 +3990,13 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.171"
+version = "1.0.190"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "389894603bd18c46fa56231694f8d827779c0951a667087194cf9de94ed24682"
+checksum = "67c5609f394e5c2bd7fc51efda478004ea80ef42fee983d5c67a65e34f32c0e3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.26",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -3768,7 +4018,7 @@ checksum = "1d89a8107374290037607734c0b73a85db7ed80cae314b3c5791f192a496e731"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.26",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -3818,7 +4068,7 @@ dependencies = [
  "darling",
  "proc-macro2",
  "quote",
- "syn 2.0.26",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -4080,9 +4330,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.26"
+version = "2.0.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45c3457aacde3c65315de5031ec191ce46604304d2446e803d71ade03308d970"
+checksum = "239814284fd6f1a4ffe4ca893952cdd93c224b6a1571c9a9eadd670295c0c9e2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4203,7 +4453,7 @@ checksum = "463fe12d7993d3b327787537ce8dd4dfa058de32fc2b195ef3cde03dc4771e8f"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.26",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -4295,7 +4545,7 @@ checksum = "630bdcf245f78637c13ec01ffae6187cca34625e8c63150d424b59e55af2675e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.26",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -4401,7 +4651,7 @@ checksum = "5f4f31f56159e98206da9efd823404b79b6ef3143b4a7ab76e67b1751b25a4ab"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.26",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -4461,6 +4711,15 @@ name = "unarray"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eaea85b334db583fe3274d12b4cd1880032beab409c0d774be044d4480ab9a94"
+
+[[package]]
+name = "unicase"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7d2d4dafb69621809a81864c9c1b864479e1235c0dd4e199924b9742439ed89"
+dependencies = [
+ "version_check",
+]
 
 [[package]]
 name = "unicode-bidi"
@@ -4616,7 +4875,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.26",
+ "syn 2.0.32",
  "wasm-bindgen-shared",
 ]
 
@@ -4673,7 +4932,7 @@ checksum = "e128beba882dd1eb6200e1dc92ae6c5dbaa4311aa7bb211ca035779e5efc39f8"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.26",
+ "syn 2.0.32",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -5177,5 +5436,5 @@ checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.26",
+ "syn 2.0.32",
 ]
