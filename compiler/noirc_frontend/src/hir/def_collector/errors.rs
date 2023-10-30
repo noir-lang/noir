@@ -35,7 +35,7 @@ pub enum DefCollectorErrorKind {
     NonStructTypeInImpl { span: Span },
     #[error("Cannot implement trait on a mutable reference type")]
     MutableReferenceInTraitImpl { span: Span },
-    #[error("Impl overlaps with existing impl for type {typ}")]
+    #[error("Impl for type `{typ}` overlaps with existing impl")]
     OverlappingImpl { span: Span, typ: crate::Type },
     #[error("Previous impl defined here")]
     OverlappingImplNote { span: Span },
@@ -67,6 +67,7 @@ pub enum DefCollectorErrorKind {
     TraitImplOrphaned { span: Span },
 
     // Aztec feature flag errors
+    // TODO(benesjan): https://github.com/AztecProtocol/aztec-packages/issues/2905
     #[cfg(feature = "aztec")]
     #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
     AztecNotFound {},
@@ -141,7 +142,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
             ),
             DefCollectorErrorKind::OverlappingImpl { span, typ } => {
                 Diagnostic::simple_error(
-                    format!("Impl overlaps with existing impl for type `{typ}`"),
+                    format!("Impl for type `{typ}` overlaps with existing impl"),
                     "Overlapping impl".into(),
                     span,
                 )

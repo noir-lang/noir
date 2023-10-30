@@ -145,7 +145,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
     }
 
     pub(super) fn step_into_opcode(&mut self) -> DebugCommandResult {
-        if matches!(self.brillig_solver, Some(_)) {
+        if self.brillig_solver.is_some() {
             return self.step_brillig_opcode();
         }
 

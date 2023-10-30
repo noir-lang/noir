@@ -970,15 +970,19 @@ impl NodeInterner {
 
         self.trait_implementations.push(trait_impl.clone());
 
-        let entries = self.trait_implementation_map.entry(trait_id).or_default();
+        if let Some(entries) = self.trait_implementation_map.get(&trait_id) {
+            // Check that this new impl does not overlap with any existing impls first
+            for (existing_object_type, existing_impl_id) in entries {
+                // Instantiate named generics so that S<T> overlaps with S<u32>
+                let object_type = object_type.instantiate_named_generics(self);
+                let existing_object_type = existing_object_type.instantiate_named_generics(self);
 
-        // Check that this new impl does not overlap with any existing impls first
-        for (existing_object_type, existing_impl_id) in entries {
-            if object_type.try_unify(existing_object_type).is_ok() {
-                // Overlapping impl
-                let existing_impl = &self.trait_implementations[existing_impl_id.0];
-                let existing_impl = existing_impl.borrow();
-                return Some((existing_impl.ident.span(), existing_impl.file));
+                if object_type.try_unify(&existing_object_type).is_ok() {
+                    // Overlapping impl
+                    let existing_impl = &self.trait_implementations[existing_impl_id.0];
+                    let existing_impl = existing_impl.borrow();
+                    return Some((existing_impl.ident.span(), existing_impl.file));
+                }
             }
         }
 

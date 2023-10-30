@@ -1,4 +1,17 @@
+//@error_on_lost_comment=false
 fn main() {
+    let (x,y) = if is_square(gx1) {
+        (x1, sqrt(gx1))
+    } else {
+        (x2, sqrt(gx2))
+    };
+
+    let n = if x != y {
+        if x != 20 { slice.push_back(y) } else { slice }
+    } else {
+        slice
+    };
+
     if false {
         ();
         ();

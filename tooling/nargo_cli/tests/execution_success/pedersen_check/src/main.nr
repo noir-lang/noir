@@ -1,7 +1,7 @@
 use dep::std;
 
 fn main(x: Field, y: Field, salt: Field, out_x: Field, out_y: Field, out_hash: Field) {
-    let res = std::hash::pedersen([x, y]);
+    let res = std::hash::pedersen_commitment([x, y]);
     assert(res[0] == out_x);
     assert(res[1] == out_y);
     let res_hash = std::hash::pedersen_hash_with_separator([x, y], 0);
@@ -15,7 +15,7 @@ fn main(x: Field, y: Field, salt: Field, out_x: Field, out_y: Field, out_hash: F
         state = state * 8 + raw_data[i];
     }
     state += salt;
-    let hash = std::hash::pedersen([state]);
-    assert(std::hash::pedersen([43])[0] == hash[0]);
+    let hash = std::hash::pedersen_commitment([state]);
+    assert(std::hash::pedersen_commitment([43])[0] == hash[0]);
 }
 

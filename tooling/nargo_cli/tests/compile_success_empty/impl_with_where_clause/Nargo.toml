@@ -1,7 +1,6 @@
 [package]
-name = "sha2_blocks"
+name = "impl_with_where_clause"
 type = "bin"
 authors = [""]
-compiler_version = "0.1"
 
 [dependencies]

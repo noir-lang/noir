@@ -14,8 +14,7 @@ pub fn compute_merkle_root<N>(leaf: Field, index: Field, hash_path: [Field; N]) 
          } else {
             (current, hash_path[i])
          };
-
-      current = crate::hash::pedersen([hash_left, hash_right])[0];
+      current = crate::hash::pedersen_hash([hash_left, hash_right]);
     };
     current
 }
