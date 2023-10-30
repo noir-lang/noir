@@ -87,8 +87,6 @@ struct Context {
 
     /// Maps SSA array values to their slice size and any nested slices internal to the parent slice.
     /// This enables us to maintain the slice structure of a slice when performing an array get.
-    /// [2, 4, 4, 4, 3, 3, 5, 4, 4, 3, 3, 3]
-    /// [2, 5, 4]
     slice_sizes: HashMap<Id<Value>, Vec<usize>>,
 }
 
@@ -503,29 +501,15 @@ impl Context {
                                         Self::flattened_value_size(&output)
                                     };
                                     self.initialize_array(block_id, len, Some(output.clone()))?;
-                                    self.ssa_values.insert(*result, output);
                                 }
-                                AcirValue::DynamicArray(AcirDynamicArray {
-                                    block_id,
-                                    len,
-                                    element_type_sizes,
-                                }) => {
-                                    // let result_block_id = self.block_id(result);
-                                    // self.copy_dynamic_array(*block_id, result_block_id, *len)?;
-                                    // let output = AcirDynamicArray {
-                                    //     block_id: result_block_id,
-                                    //     len: *len,
-                                    //     element_type_sizes: *element_type_sizes
-                                    // };
-                                    // self.ssa_values.insert(*result, AcirValue::DynamicArray(output));
-
-                                    self.ssa_values.insert(*result, output);
+                                AcirValue::DynamicArray(_) => {
+                                    // Do nothing as a dynamic array returned from a slice intrinsic should already be initialized
                                 }
                                 AcirValue::Var(_, _) => {
-                                    self.ssa_values.insert(*result, output);
+                                    // Do nothing
                                 }
                             }
-                            // self.ssa_values.insert(*result, output);
+                            self.ssa_values.insert(*result, output);
                         }
                     }
                     Value::ForeignFunction(_) => unreachable!(
@@ -1290,37 +1274,6 @@ impl Context {
             Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
         })?;
         self.initialize_array(destination, array_len, Some(AcirValue::Array(init_values.into())))?;
-        Ok(())
-    }
-
-    fn copy_dynamic_slice(
-        &mut self,
-        source: BlockId,
-        destination: BlockId,
-        capacity: usize,
-        true_len: AcirVar,
-    ) -> Result<(), RuntimeError> {
-        let capacity_var = self.acir_context.add_constant(FieldElement::from(capacity as u128));
-        let one = self.acir_context.add_constant(FieldElement::one());
-        let zero = self.acir_context.add_constant(FieldElement::zero());
-        let init_values = try_vecmap(0..capacity, |i| {
-            let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
-
-            let pred = self.acir_context.less_than_var(
-                true_len,
-                capacity_var,
-                64,
-                self.current_side_effects_enabled_var,
-            )?;
-            let true_pred = self.acir_context.mul_var(index_var, pred)?;
-            let not_pred = self.acir_context.sub_var(one, pred)?;
-            let false_pred = self.acir_context.mul_var(not_pred, zero)?;
-            // let new_
-
-            let read = self.acir_context.read_from_memory(source, &index_var)?;
-            Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
-        })?;
-        self.initialize_array(destination, capacity, Some(AcirValue::Array(init_values.into())))?;
         Ok(())
     }
 

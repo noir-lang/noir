@@ -126,10 +126,6 @@ fn main(y : pub Field) {
     // Test setting a nested array with non-dynamic 
     let x = [5, 6, 5000, 21, 100, 101].as_slice();
     foo_parents[y - 2].foos[y - 1].b = x;
-    // println(foo_parents[y - 2].foos[y - 1].b.len());
-    // println(foo_parents[y - 2].foos[y - 1].b[2]);
-    // println(foo_parents[y - 2].foos[y - 1].b[3]);
-    // println(foo_parents[y - 2].foos[y - 1].b[4]);
 
     assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
     assert(foo_parents[y - 2].foos[y - 1].b[4] == 100);
