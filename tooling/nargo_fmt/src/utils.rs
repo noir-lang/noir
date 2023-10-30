@@ -124,7 +124,6 @@ impl FindToken for str {
         Lexer::new(self)
             .skip_comments(false)
             .flatten()
-            .into_iter()
             .find_map(|spanned| f(spanned.token()).then(|| spanned.to_span().end()))
     }
 }
