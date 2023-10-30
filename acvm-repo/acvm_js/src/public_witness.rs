@@ -30,7 +30,8 @@ pub fn get_return_witness(
     witness_map: JsWitnessMap,
 ) -> Result<JsWitnessMap, JsString> {
     console_error_panic_hook::set_once();
-    let circuit: Circuit = Circuit::read(&*circuit).expect("Failed to deserialize circuit");
+    let circuit: Circuit =
+        Circuit::deserialize_circuit(&circuit).expect("Failed to deserialize circuit");
     let witness_map = WitnessMap::from(witness_map);
 
     let return_witness =
@@ -50,7 +51,8 @@ pub fn get_public_parameters_witness(
     solved_witness: JsWitnessMap,
 ) -> Result<JsWitnessMap, JsString> {
     console_error_panic_hook::set_once();
-    let circuit: Circuit = Circuit::read(&*circuit).expect("Failed to deserialize circuit");
+    let circuit: Circuit =
+        Circuit::deserialize_circuit(&circuit).expect("Failed to deserialize circuit");
     let witness_map = WitnessMap::from(solved_witness);
 
     let public_params_witness =
@@ -70,7 +72,8 @@ pub fn get_public_witness(
     solved_witness: JsWitnessMap,
 ) -> Result<JsWitnessMap, JsString> {
     console_error_panic_hook::set_once();
-    let circuit: Circuit = Circuit::read(&*circuit).expect("Failed to deserialize circuit");
+    let circuit: Circuit =
+        Circuit::deserialize_circuit(&circuit).expect("Failed to deserialize circuit");
     let witness_map = WitnessMap::from(solved_witness);
 
     let public_witness =
