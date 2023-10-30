@@ -17,5 +17,6 @@ serde.workspace = true
 thiserror.workspace = true
 toml.workspace = true
 url.workspace = true
+semver = "1.0.20"
 
 [dev-dependencies]
