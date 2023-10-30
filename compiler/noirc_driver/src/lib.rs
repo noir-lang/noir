@@ -10,7 +10,6 @@ use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::errors::SsaReport;
 use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
@@ -282,7 +281,7 @@ fn compile_contract_inner(
         }
 
         let function = match compile_no_check(context, options, function_id, None, true) {
-            Ok((function, _warnings)) => function,
+            Ok(function) => function,
             Err(new_error) => {
                 errors.push(FileDiagnostic::from(new_error));
                 continue;
@@ -342,7 +341,7 @@ pub fn compile_no_check(
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
-) -> Result<(CompiledProgram, Vec<SsaReport>), RuntimeError> {
+) -> Result<CompiledProgram, RuntimeError> {
     let program = monomorphize(main_function, &context.def_interner);
 
     let hash = fxhash::hash64(&program);
@@ -352,7 +351,7 @@ pub fn compile_no_check(
     if !(force_compile || options.print_acir || options.show_brillig || options.show_ssa) {
         if let Some(cached_program) = cached_program {
             if hash == cached_program.hash {
-                return Ok((cached_program, Vec::new()));
+                return Ok(cached_program);
             }
         }
     }

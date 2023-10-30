@@ -14,6 +14,7 @@ use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
 use crate::ssa::ir::instruction::BinaryOp;
+use crate::ssa::ir::instruction::Instruction;
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
