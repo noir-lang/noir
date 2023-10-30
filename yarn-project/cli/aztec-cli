@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+
+# Wrapper script around @aztec/cli using Docker. This is intended to be used by devs that don't have
+# a NodeJS environment setup locally. The script starts a Docker container passing any commands and
+# arguments to the CLI running inside the container.
+# If this wrapper script detecs a global install of @aztec/cli it falls back on that instead of Docker.
+
+set -euo pipefail
+
+# use node.js aztec-cli if available
+# check local node_modules (e.g. @aztec/cli is a dependency in current package.json)
+# this doesn't check node_modules hierarchy
+if [[ -f "$PWD/node_modules/.bin/aztec-cli" ]]; then
+  "$PWD/node_modules/.bin/aztec-cli" $@
+  exit 0
+elif command -v npm &> /dev/null; then
+  # next look for a global install
+  # e.g. if user has run `npm install -g @aztec/cli` after playing with the cli in dockerized form
+  GLOBAL_NPM_BIN_DIR=$(npm --global prefix)/bin
+  if [[ -f "$GLOBAL_NPM_BIN_DIR/aztec-cli" ]]; then
+    "$GLOBAL_NPM_BIN_DIR/aztec-cli" $@
+    exit 0
+  fi
+elif command -v yarn &> /dev/null; then
+  YARN_VER=$(yarn --version)
+  if [[ "$YARN_VER" =~ ^1\..* ]]; then
+    GLOBAL_YARN_BIN_DIR=$(yarn --global bin)
+    if [[ -f "$GLOBAL_YARN_BIN_DIR/aztec-cli" ]]; then
+      "$GLOBAL_YARN_BIN_DIR/aztec-cli" $@
+      exit 0
+    fi
+  fi
+fi
+
+# fallback on docker
+
+CLI_IMAGE=${CLI_IMAGE:-"aztecprotocol/aztec-cli"}
+CLI_VERSION=${CLI_VERSION:-"latest"}
+
+DOCKER_PATH=""
+
+# any host bindings we might send to the container
+DOCKER_HOST=""
+
+# env vars to pass to the container
+DOCKER_ENV=""
+
+# volumes to pass to the container
+DOCKER_VOLUME=""
+
+# assume the sandbox is running on listening on the host interface
+# unless something else was passed through
+DEFAULT_PXE_URL="http://host.docker.internal:8080"
+PXE_URL=${PXE_URL:-$DEFAULT_PXE_URL}
+
+# need to know if we're running on macOS or Linux
+UNAME=$(uname -s)
+
+if command -v podman &> /dev/null; then
+  DOCKER_PATH="podman"
+elif command -v docker &> /dev/null; then
+  DOCKER_PATH="docker"
+else
+  echo "No docker or podman found"
+  exit 1
+fi
+
+# set up host.docker.internal alias on Linux, just like it is on mac
+if [[ "$UNAME" == "Linux" && "$PXE_URL" == "$DEFAULT_PXE_URL" ]]; then
+  DOCKER_HOST="$DOCKER_HOST --add-host host.docker.internal:host-gateway"
+fi
+
+# Build a list of mount points
+function add_mount() {
+  DIR="$1"
+
+  # grab its dirname if its a file
+  # e.g. passing the file path to a JSON artifact
+  if [[ -f "$DIR" ]]; then
+    DIR=$(dirname "$DIR")
+  fi
+
+  if [[ ! -d "$DIR" ]]; then
+    return
+  fi
+
+  # check if it's already been added
+  REALDIR=$(realpath $DIR)
+  if [[ "$DOCKER_VOLUME" =~ "$REALDIR:" ]]; then
+    return
+  fi
+
+  DOCKER_VOLUME="$DOCKER_VOLUME -v $REALDIR:$REALDIR"
+}
+
+# we need to look at which command was run in order to set up mount points
+AZTEC_CLI_COMMAND="$1"
+AZTEC_CLI_EXTRA_ARGS=""
+
+# first process commands with positional arguments
+# assumes positional arguments are the first thing
+if [[ "$AZTEC_CLI_COMMAND" == "compile" || "$AZTEC_CLI_COMMAND" == "deploy" || "$AZTEC_CLI_COMMAND" == "inspect-contract" ]]; then
+  add_mount "$2"
+fi
+
+# aztec-cli unbox Token my_token_contract
+# if my_token_contract is missing then pass current folder
+if [[ "$AZTEC_CLI_COMMAND" == "unbox" ]]; then
+  DIR="${3:-$PWD}"
+
+  if [[ ! -d "$DIR" ]]; then
+    mkdir -p "$DIR"
+  fi
+
+  add_mount "$DIR"
+fi
+
+# process flags
+if [[ "$AZTEC_CLI_COMMAND" == "compile" || "$AZTEC_CLI_COMMAND" == "call" || "$AZTEC_CLI_COMMAND" == "send" ]]; then
+
+  # bash's builtin getops only works with single characeter flags
+  # GNU getopt doesn't exist on macOS
+  # process the flags manually
+  # NOTE: this won't work with assignement-style flags, e.g. --outdir=/foo
+  for (( i=2; i <= "$#"; i++ )); do
+      arg_value=${!i}
+      next_index=$((i+1))
+      # edge case: odd number of flags
+      if [[ "$next_index" -gt "$#" ]]; then
+          continue
+      fi
+      next_arg=${!next_index}
+      case $arg_value in
+          -o | --outdir)
+              add_mount "$next_arg"
+              ;;
+          -ts | --typescript)
+              add_mount "$next_arg"
+              ;;
+          -i | --interface)
+              add_mount "$next_arg"
+              ;;
+          -c | --contract-artifact)
+              add_mount "$next_arg"
+              ;;
+          *)
+              ;;
+      esac
+  done
+fi
+
+if [[ "$AZTEC_CLI_COMMAND" == "compile" ]]; then
+  # can't use Nargo inside the container
+  AZTEC_CLI_EXTRA_ARGS="$AZTEC_CLI_EXTRA_ARGS --compiler wasm"
+fi
+
+DOCKER_ENV="$DOCKER_ENV -e PXE_URL=$PXE_URL"
+
+# pass along any private keys
+if [[ ! -z "${PRIVATE_KEY:-}" ]]; then
+  DOCKER_ENV="$DOCKER_ENV -e PRIVATE_KEY=$PRIVATE_KEY"
+fi
+
+DOCKER_VOLUME="$DOCKER_VOLUME -v cache:/cache"
+
+DOCKER_CMD="$DOCKER_PATH run \
+  --rm \
+  --user $(id -u):$(id -g) \
+  --workdir \"$PWD\" \
+  $DOCKER_HOST \
+  $DOCKER_ENV \
+  $DOCKER_VOLUME \
+  $CLI_IMAGE:$CLI_VERSION $@ $AZTEC_CLI_EXTRA_ARGS"
+
+eval "$DOCKER_CMD"

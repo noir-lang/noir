@@ -124,6 +124,12 @@ aztec-faucet:
   dependencies:
     - yarn-project
 
+aztec-cli:
+  buildDir: yarn-project
+  projectDir: yarn-project/cli
+  dependencies:
+    - yarn-project
+
 pxe:
   buildDir: yarn-project
   projectDir: yarn-project/pxe
