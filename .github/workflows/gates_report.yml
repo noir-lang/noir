@@ -37,7 +37,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: nargo
+          name: nargo-x86_64-unknown-linux-gnu.tar.gz
           path: ./dist/*
           retention-days: 3
 
@@ -57,23 +57,20 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: nargo
-          path: ./nargo
+          path: ./nargo_bin
 
       - name: Set nargo on PATH
         run: |
-          tree "${{ github.workspace }}/nargo"
-          cp "${{ github.workspace }}/nargo/nargo" ./nargo_bin
-          rm -rf ./nargo
-          mv ./nargo_bin ./nargo
-          nargo_binary="${{ github.workspace }}/nargo"
+          tree "${{ github.workspace }}/nargo_bin/nargo-x86_64-unknown-linux-gnu.tar.gz"
+          7z e "${{ github.workspace }}/nargo_bin/nargo-x86_64-unknown-linux-gnu.tar.gz"
+          tree "${{ github.workspace }}/nargo_bin"
+       
+          nargo_binary="${{ github.workspace }}/nargo_bin/nargo"
           chmod +x $nargo_binary
           echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
           export PATH="$PATH:$(dirname $nargo_binary)"
-          echo $PATH
-          echo $GITHUB_PATH
-          echo $nargo_binary
           echo $(which nargo)
-          $nargo_binary --version
+          nargo --version
 
       - name: Generate gates report
         working-directory: ./tooling/nargo_cli/tests
