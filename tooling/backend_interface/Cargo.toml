@@ -32,4 +32,4 @@ test-binary = "3.0.1"
 
 [build-dependencies]
 build-target = "0.4.0"
-const_format = "0.2.30"
+const_format.workspace = true
