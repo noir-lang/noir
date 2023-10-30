@@ -58,7 +58,7 @@ await noirInstance.init();
 
 This async method allows to execute a circuit to get its witness and return value. [`generateFinalProof`](#generatefinalproof) calls it for you, but you can call it directly (i.e. to feed directly to a backend, or to get the return value).
 
-You can optionally provide a foreignCallHandler, to handle functions that should run outside of the prover (i.e. println)
+You can optionally provide a foreignCallHandler, to handle functions that should run outside of the prover (e.g. `std::println`)
 
 ### Syntax
 
