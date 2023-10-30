@@ -6,15 +6,33 @@ pub fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
 #[foreign(blake2s)]
 pub fn blake2s<N>(_input : [u8; N]) -> [u8; 32] {}
 
-pub fn pedersen<N>(input : [Field; N]) -> [Field; 2] {
-    pedersen_with_separator(input, 0)
+pub fn pedersen_commitment<N>(input : [Field; N]) -> [Field; 2] {
+    pedersen_commitment_with_separator(input, 0)
 }
 
 #[foreign(pedersen)]
-pub fn pedersen_with_separator<N>(_input : [Field; N], _separator : u32) -> [Field; 2] {}
+pub fn pedersen_commitment_with_separator<N>(_input : [Field; N], _separator : u32) -> [Field; 2] {}
 
-#[foreign(hash_to_field_128_security)]
-pub fn hash_to_field<N>(_input : [Field; N]) -> Field {}
+pub fn pedersen_hash<N>(input : [Field; N]) -> Field {
+    pedersen_hash_with_separator(input, 0)
+}
+
+#[foreign(pedersen_hash)]
+pub fn pedersen_hash_with_separator<N>(_input : [Field; N], _separator : u32) -> Field {}
+
+pub fn hash_to_field<N>(_input : [Field; N]) -> Field {
+    let mut inputs_as_bytes = [];
+    
+    for i in 0..N {
+        let input_bytes = _input[i].to_le_bytes(32);
+        for i in 0..32 {
+            inputs_as_bytes = inputs_as_bytes.push_back(input_bytes[i]);
+        }
+    }
+
+    let hashed_input = blake2s(inputs_as_bytes);
+    crate::field::bytes32_to_field(hashed_input)
+}
 
 #[foreign(keccak256)]
 pub fn keccak256<N>(_input : [u8; N], _message_size: u32) -> [u8; 32] {}
@@ -39,6 +57,7 @@ fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field {
 global MIMC_BN254_ROUNDS = 91;
 
 //mimc implementation with hardcoded parameters for BN254 curve.
+#[field(bn254)]
 pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
     //mimc parameters
     let exponent = 7;

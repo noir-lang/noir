@@ -12,9 +12,9 @@ fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
 
         // Manually computed as fields can't use modulo. Importantantly the commitment is within
         // the subgroup order. Note that choice of hash is flexible for this step.
-        // let r_a = hash::pedersen([_priv_key_a, msg])[0] % bjj.suborder; // modulus computed manually
+        // let r_a = hash::pedersen_commitment([_priv_key_a, msg])[0] % bjj.suborder; // modulus computed manually
         let r_a = 1414770703199880747815475415092878800081323795074043628810774576767372531818;
-        // let r_b = hash::pedersen([_priv_key_b, msg])[0] % bjj.suborder; // modulus computed manually
+        // let r_b = hash::pedersen_commitment([_priv_key_b, msg])[0] % bjj.suborder; // modulus computed manually
         let r_b = 571799555715456644614141527517766533395606396271089506978608487688924659618;
 
         let r8_a = bjj.curve.mul(r_a, bjj.base8);
@@ -37,7 +37,7 @@ fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
         // ]);
 
         // let s_a = (r_a + _priv_key_a * h_a) % bjj.suborder; // modulus computed manually
-        let s_a =  30333430637424319196043722294837632681219980330991241982145549329256671548;
+        let s_a = 30333430637424319196043722294837632681219980330991241982145549329256671548;
         // let s_b = (r_b + _priv_key_b * h_b) % bjj.suborder; // modulus computed manually
         let s_b = 1646085314320208098241070054368798527940102577261034947654839408482102287019;
 

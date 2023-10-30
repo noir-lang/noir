@@ -2,7 +2,7 @@ mod expr;
 mod item;
 mod stmt;
 
-use noirc_frontend::{hir::resolution::errors::Span, token::Token};
+use noirc_frontend::{hir::resolution::errors::Span, lexer::Lexer, token::Token};
 
 use crate::{
     config::Config,
@@ -33,11 +33,20 @@ impl<'me> FmtVisitor<'me> {
         &self.source[span.start() as usize..span.end() as usize]
     }
 
+    fn span_after(&self, span: impl Into<Span>, token: Token) -> Span {
+        let span = span.into();
+
+        let slice = self.slice(span);
+        let offset = slice.find_token(token).unwrap().end();
+
+        (span.start() + offset..span.end()).into()
+    }
+
     fn span_before(&self, span: impl Into<Span>, token: Token) -> Span {
         let span = span.into();
 
         let slice = self.slice(span);
-        let offset = slice.find_token(token).unwrap();
+        let offset = slice.find_token(token).unwrap().start();
 
         (span.start() + offset..span.end()).into()
     }
@@ -80,7 +89,15 @@ impl<'me> FmtVisitor<'me> {
 
     #[track_caller]
     fn push_rewrite(&mut self, rewrite: String, span: Span) {
-        let rewrite = utils::recover_comment_removed(self.slice(span), rewrite);
+        let original = self.slice(span);
+        let changed_comment_content = utils::changed_comment_content(original, &rewrite);
+
+        if changed_comment_content && self.config.error_on_lost_comment {
+            panic!("not formatted because a comment would be lost: {rewrite:?}");
+        }
+
+        let rewrite = if changed_comment_content { original.to_string() } else { rewrite };
+
         self.format_missing_indent(span.start(), true);
         self.push_str(&rewrite);
     }
@@ -127,8 +144,42 @@ impl<'me> FmtVisitor<'me> {
             self.push_vertical_spaces(slice);
             process_last_slice(self, "", slice);
         } else {
-            process_last_slice(self, slice, slice);
+            if !self.at_start() {
+                if self.buffer.ends_with('{') {
+                    self.push_str("\n");
+                } else {
+                    self.push_vertical_spaces(slice);
+                }
+            }
+
+            let (result, last_end) = self.format_comment_in_block(slice);
+
+            if result.is_empty() {
+                process_last_slice(self, slice, slice);
+            } else {
+                self.push_str(result.trim_end());
+                let subslice = &slice[last_end as usize..];
+                process_last_slice(self, subslice, subslice);
+            }
         }
+    }
+
+    fn format_comment_in_block(&mut self, slice: &str) -> (String, u32) {
+        let mut result = String::new();
+        let mut last_end = 0;
+
+        for spanned in Lexer::new(slice).skip_comments(false).flatten() {
+            let span = spanned.to_span();
+            last_end = span.end();
+
+            if let Token::LineComment(_, _) | Token::BlockComment(_, _) = spanned.token() {
+                result.push_str(&self.indent.to_string());
+                result.push_str(&slice[span.start() as usize..span.end() as usize]);
+                result.push('\n');
+            }
+        }
+
+        (result, last_end)
     }
 
     fn push_vertical_spaces(&mut self, slice: &str) {

@@ -16,8 +16,8 @@ use crate::{
     UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::{
-    ForLoopStatement, FunctionDefinition, ImportStatement, NoirStruct, PrefixExpression,
-    Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
+    ForLoopStatement, FunctionDefinition, FunctionVisibility, ImportStatement, NoirStruct,
+    PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
 };
 use fm::FileId;
 
@@ -170,15 +170,9 @@ pub(crate) fn transform(
 
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
-        let storage_defined = check_for_storage_definition(&submodule.contents);
-
-        if transform_module(&mut submodule.contents, storage_defined) {
-            match check_for_aztec_dependency(crate_id, context) {
-                Ok(()) => include_relevant_imports(&mut submodule.contents),
-                Err(file_id) => {
-                    return Err((DefCollectorErrorKind::AztecNotFound {}, file_id));
-                }
-            }
+        if transform_module(&mut submodule.contents, crate_id, context)? {
+            check_for_aztec_dependency(crate_id, context)?;
+            include_relevant_imports(&mut submodule.contents);
         }
     }
     Ok(ast)
@@ -209,19 +203,59 @@ fn include_relevant_imports(ast: &mut SortedModule) {
 }
 
 /// Creates an error alerting the user that they have not downloaded the Aztec-noir library
-fn check_for_aztec_dependency(crate_id: &CrateId, context: &Context) -> Result<(), FileId> {
+fn check_for_aztec_dependency(
+    crate_id: &CrateId,
+    context: &Context,
+) -> Result<(), (DefCollectorErrorKind, FileId)> {
     let crate_graph = &context.crate_graph[crate_id];
     let has_aztec_dependency = crate_graph.dependencies.iter().any(|dep| dep.as_name() == "aztec");
     if has_aztec_dependency {
         Ok(())
     } else {
-        Err(crate_graph.root_file_id)
+        Err((DefCollectorErrorKind::AztecNotFound {}, crate_graph.root_file_id))
     }
 }
 
 // Check to see if the user has defined a storage struct
 fn check_for_storage_definition(module: &SortedModule) -> bool {
-    module.types.iter().any(|function| function.name.0.contents == "Storage")
+    module.types.iter().any(|r#struct| r#struct.name.0.contents == "Storage")
+}
+
+// Check if "compute_note_hash_and_nullifier(Field,Field,Field,[Field; N]) -> [Field; 4]" is defined
+fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -> bool {
+    module.functions.iter().any(|func| {
+        func.def.name.0.contents == "compute_note_hash_and_nullifier"
+                && func.def.parameters.len() == 4
+                && func.def.parameters[0].1.typ == UnresolvedTypeData::FieldElement
+                && func.def.parameters[1].1.typ == UnresolvedTypeData::FieldElement
+                && func.def.parameters[2].1.typ == UnresolvedTypeData::FieldElement
+                // checks if the 4th parameter is an array and the Box<UnresolvedType> in
+                // Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>) contains only fields
+                && match &func.def.parameters[3].1.typ {
+                    UnresolvedTypeData::Array(_, inner_type) => {
+                        match inner_type.typ {
+                            UnresolvedTypeData::FieldElement => true,
+                            _ => false,
+                        }
+                    },
+                    _ => false,
+                }
+                // We check the return type the same way as we did the 4th parameter
+                && match &func.def.return_type {
+                    FunctionReturnType::Default(_) => false,
+                    FunctionReturnType::Ty(unresolved_type) => {
+                        match &unresolved_type.typ {
+                            UnresolvedTypeData::Array(_, inner_type) => {
+                                match inner_type.typ {
+                                    UnresolvedTypeData::FieldElement => true,
+                                    _ => false,
+                                }
+                            },
+                            _ => false,
+                        }
+                    }
+                }
+    })
 }
 
 /// Checks if an attribute is a custom attribute with a specific name
@@ -236,8 +270,25 @@ fn is_custom_attribute(attr: &SecondaryAttribute, attribute_name: &str) -> bool 
 /// Determines if ast nodes are annotated with aztec attributes.
 /// For annotated functions it calls the `transform` function which will perform the required transformations.
 /// Returns true if an annotated node is found, false otherwise
-fn transform_module(module: &mut SortedModule, storage_defined: bool) -> bool {
+fn transform_module(
+    module: &mut SortedModule,
+    crate_id: &CrateId,
+    context: &Context,
+) -> Result<bool, (DefCollectorErrorKind, FileId)> {
     let mut has_transformed_module = false;
+
+    // Check for a user defined storage struct
+    let storage_defined = check_for_storage_definition(&module);
+
+    if storage_defined && !check_for_compute_note_hash_and_nullifier_definition(&module) {
+        let crate_graph = &context.crate_graph[crate_id];
+        return Err((
+            DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound {
+                span: Span::default(), // Add a default span so we know which contract file the error originates from
+            },
+            crate_graph.root_file_id,
+        ));
+    }
 
     for structure in module.types.iter() {
         if structure.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event)) {
@@ -262,7 +313,7 @@ fn transform_module(module: &mut SortedModule, storage_defined: bool) -> bool {
             has_transformed_module = true;
         }
     }
-    has_transformed_module
+    Ok(has_transformed_module)
 }
 
 /// If it does, it will insert the following things:
@@ -434,7 +485,7 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
         &FunctionReturnType::Ty(make_type(UnresolvedTypeData::FieldElement)),
     );
 
-    selector_fn_def.is_public = true;
+    selector_fn_def.visibility = FunctionVisibility::Public;
 
     // Seems to be necessary on contract modules
     selector_fn_def.return_visibility = Visibility::Public;

@@ -44,7 +44,7 @@
 
       rustToolchain = fenix.packages.${system}.fromToolchainFile {
         file = ./rust-toolchain.toml;
-        sha256 = "sha256-Zk2rxv6vwKFkTTidgjPm6gDsseVmmljVt201H7zuDkk=";
+        sha256 = "sha256-R0F0Risbr74xg9mEYydyebx/z0Wu6HI0/KWwrV30vZo=";
       };
 
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
@@ -73,7 +73,7 @@
       # Configuration shared between builds
       config = {
         # x-release-please-start-version
-        version = "0.17.0";
+        version = "0.18.0";
         # x-release-please-end
 
         src = pkgs.lib.cleanSourceWith {

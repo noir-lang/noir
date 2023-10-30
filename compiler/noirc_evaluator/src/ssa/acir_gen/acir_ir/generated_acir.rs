@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     brillig::{brillig_gen::brillig_directive, brillig_ir::artifact::GeneratedBrillig},
-    errors::{InternalError, RuntimeError},
+    errors::{InternalError, RuntimeError, SsaReport},
     ssa::ir::dfg::CallStack,
 };
 
@@ -53,6 +53,8 @@ pub(crate) struct GeneratedAcir {
 
     /// Correspondence between an opcode index and the error message associated with it.
     pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
+
+    pub(crate) warnings: Vec<SsaReport>,
 }
 
 impl GeneratedAcir {
@@ -167,9 +169,14 @@ impl GeneratedAcir {
                     output: outputs[0],
                 }
             }
-            BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
+            BlackBoxFunc::PedersenCommitment => BlackBoxFuncCall::PedersenCommitment {
                 inputs: inputs[0].clone(),
                 outputs: (outputs[0], outputs[1]),
+                domain_separator: constants[0].to_u128() as u32,
+            },
+            BlackBoxFunc::PedersenHash => BlackBoxFuncCall::PedersenHash {
+                inputs: inputs[0].clone(),
+                output: outputs[0],
                 domain_separator: constants[0].to_u128() as u32,
             },
             BlackBoxFunc::EcdsaSecp256k1 => {
@@ -337,72 +344,6 @@ impl GeneratedAcir {
         };
 
         (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree <= 1")
-    }
-
-    /// Generate constraints that are satisfied iff
-    /// lhs < rhs , when offset is 1, or
-    /// lhs <= rhs, when offset is 0
-    /// bits is the bit size of a and b (or an upper bound of the bit size)
-    ///
-    /// lhs<=rhs is done by constraining b-a to a bit size of 'bits':
-    /// if lhs<=rhs, 0 <= rhs-lhs <= b < 2^bits
-    /// if lhs>rhs, rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
-    /// n.b: we do NOT check here that lhs and rhs are indeed 'bits' size
-    /// lhs < rhs <=> a+1<=b
-    /// TODO: Consolidate this with bounds_check function.
-    pub(super) fn bound_constraint_with_offset(
-        &mut self,
-        lhs: &Expression,
-        rhs: &Expression,
-        offset: &Expression,
-        bits: u32,
-    ) -> Result<(), RuntimeError> {
-        const fn num_bits<T>() -> usize {
-            std::mem::size_of::<T>() * 8
-        }
-
-        fn bit_size_u128(a: u128) -> u32 where {
-            num_bits::<u128>() as u32 - a.leading_zeros()
-        }
-
-        assert!(
-            bits < FieldElement::max_num_bits(),
-            "range check with bit size of the prime field is not implemented yet"
-        );
-
-        let mut lhs_offset = lhs + offset;
-
-        // Optimization when rhs is const and fits within a u128
-        if rhs.is_const() && rhs.q_c.fits_in_u128() {
-            // We try to move the offset to rhs
-            let rhs_offset = if *offset == Expression::one() && rhs.q_c.to_u128() >= 1 {
-                lhs_offset = lhs.clone();
-                rhs.q_c.to_u128() - 1
-            } else {
-                rhs.q_c.to_u128()
-            };
-            // we now have lhs+offset <= rhs <=> lhs_offset <= rhs_offset
-
-            let bit_size = bit_size_u128(rhs_offset);
-            // r = 2^bit_size - rhs_offset -1, is of bit size  'bit_size' by construction
-            let r = (1_u128 << bit_size) - rhs_offset - 1;
-            // however, since it is a constant, we can compute it's actual bit size
-            let r_bit_size = bit_size_u128(r);
-            // witness = lhs_offset + r
-            assert!(bits + r_bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
-            let mut aor = lhs_offset;
-            aor.q_c += FieldElement::from(r);
-            let witness = self.get_or_create_witness(&aor);
-            // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
-            self.range_constraint(witness, bit_size)?;
-            return Ok(());
-        }
-        // General case:  lhs_offset<=rhs <=> rhs-lhs_offset>=0 <=> rhs-lhs_offset is a 'bits' bit integer
-        let sub_expression = rhs - &lhs_offset; //rhs-lhs_offset
-        let w = self.create_witness_for_expression(&sub_expression);
-        self.range_constraint(w, bits)?;
-
-        Ok(())
     }
 
     /// Adds an inversion brillig opcode.
@@ -632,7 +573,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::Keccak256
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
-        | BlackBoxFunc::Pedersen
+        | BlackBoxFunc::PedersenCommitment
+        | BlackBoxFunc::PedersenHash
         | BlackBoxFunc::HashToField128Security => None,
 
         // Can only apply a range constraint to one
@@ -663,8 +605,10 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::Keccak256 | BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => Some(32),
         // Hash to field returns a field element
         BlackBoxFunc::HashToField128Security => Some(1),
-        // Pedersen returns a point
-        BlackBoxFunc::Pedersen => Some(2),
+        // Pedersen commitment returns a point
+        BlackBoxFunc::PedersenCommitment => Some(2),
+        // Pedersen hash returns a field
+        BlackBoxFunc::PedersenHash => Some(1),
         // Can only apply a range constraint to one
         // witness at a time.
         BlackBoxFunc::RANGE => Some(0),

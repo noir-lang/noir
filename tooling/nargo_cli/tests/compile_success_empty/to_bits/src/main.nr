@@ -1,4 +1,3 @@
-
 fn main() {
     let field = 1000;
     let be_bits = field.to_be_bits(16);
@@ -19,5 +18,4 @@ fn main() {
         let le_bit = le_bits_x[3-i];
         assert(be_bit == le_bit);
     }
-
 }

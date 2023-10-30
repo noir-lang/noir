@@ -13,14 +13,12 @@ use crate::{
 impl FmtVisitor<'_> {
     pub(crate) fn visit_expr(&mut self, expr: Expression, expr_type: ExpressionType) {
         let span = expr.span;
-
         let rewrite = self.format_expr(expr, expr_type);
         self.push_rewrite(rewrite, span);
-
         self.last_position = span.end();
     }
 
-    pub(crate) fn format_subexpr(&self, expression: Expression) -> String {
+    pub(crate) fn format_sub_expr(&self, expression: Expression) -> String {
         self.format_expr(expression, ExpressionType::SubExpression)
     }
 
@@ -32,7 +30,7 @@ impl FmtVisitor<'_> {
         match kind {
             ExpressionKind::Block(block) => {
                 let mut visitor = self.fork();
-                visitor.visit_block(block, span, true);
+                visitor.visit_block(block, span);
                 visitor.buffer
             }
             ExpressionKind::Prefix(prefix) => {
@@ -49,24 +47,24 @@ impl FmtVisitor<'_> {
                     }
                 };
 
-                format!("{op}{}", self.format_subexpr(prefix.rhs))
+                format!("{op}{}", self.format_sub_expr(prefix.rhs))
             }
             ExpressionKind::Cast(cast) => {
-                format!("{} as {}", self.format_subexpr(cast.lhs), cast.r#type)
+                format!("{} as {}", self.format_sub_expr(cast.lhs), cast.r#type)
             }
             ExpressionKind::Infix(infix) => {
                 format!(
                     "{} {} {}",
-                    self.format_subexpr(infix.lhs),
+                    self.format_sub_expr(infix.lhs),
                     infix.operator.contents.as_string(),
-                    self.format_subexpr(infix.rhs)
+                    self.format_sub_expr(infix.rhs)
                 )
             }
             ExpressionKind::Call(call_expr) => {
                 let args_span =
                     self.span_before(call_expr.func.span.end()..span.end(), Token::LeftParen);
 
-                let callee = self.format_subexpr(*call_expr.func);
+                let callee = self.format_sub_expr(*call_expr.func);
                 let args = format_parens(self.fork(), false, call_expr.arguments, args_span);
 
                 format!("{callee}{args}")
@@ -77,21 +75,21 @@ impl FmtVisitor<'_> {
                     Token::LeftParen,
                 );
 
-                let object = self.format_subexpr(method_call_expr.object);
+                let object = self.format_sub_expr(method_call_expr.object);
                 let method = method_call_expr.method_name.to_string();
                 let args = format_parens(self.fork(), false, method_call_expr.arguments, args_span);
 
                 format!("{object}.{method}{args}")
             }
             ExpressionKind::MemberAccess(member_access_expr) => {
-                let lhs_str = self.format_subexpr(member_access_expr.lhs);
+                let lhs_str = self.format_sub_expr(member_access_expr.lhs);
                 format!("{}.{}", lhs_str, member_access_expr.rhs)
             }
             ExpressionKind::Index(index_expr) => {
                 let index_span = self
                     .span_before(index_expr.collection.span.end()..span.end(), Token::LeftBracket);
 
-                let collection = self.format_subexpr(index_expr.collection);
+                let collection = self.format_sub_expr(index_expr.collection);
                 let index = format_brackets(self.fork(), false, vec![index_expr.index], index_span);
 
                 format!("{collection}{index}")
@@ -104,8 +102,8 @@ impl FmtVisitor<'_> {
                     self.slice(span).to_string()
                 }
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
-                    let repeated = self.format_subexpr(*repeated_element);
-                    let length = self.format_subexpr(*length);
+                    let repeated = self.format_sub_expr(*repeated_element);
+                    let length = self.format_sub_expr(*length);
 
                     format!("[{repeated}; {length}]")
                 }
@@ -139,7 +137,7 @@ impl FmtVisitor<'_> {
                 }
 
                 if !leading.contains("//") && !trailing.contains("//") {
-                    let sub_expr = self.format_subexpr(*sub_expr);
+                    let sub_expr = self.format_sub_expr(*sub_expr);
                     format!("({leading}{sub_expr}{trailing})")
                 } else {
                     let mut visitor = self.fork();
@@ -148,7 +146,7 @@ impl FmtVisitor<'_> {
                     visitor.indent.block_indent(self.config);
                     let nested_indent = visitor.indent.to_string_with_newline();
 
-                    let sub_expr = visitor.format_subexpr(*sub_expr);
+                    let sub_expr = visitor.format_sub_expr(*sub_expr);
 
                     let mut result = String::new();
                     result.push('(');
@@ -192,13 +190,14 @@ impl FmtVisitor<'_> {
 
                 self.format_if(*if_expr)
             }
-            _ => self.slice(span).to_string(),
+            ExpressionKind::Lambda(_) | ExpressionKind::Variable(_) => self.slice(span).to_string(),
+            ExpressionKind::Error => unreachable!(),
         }
     }
 
     fn format_if(&self, if_expr: IfExpression) -> String {
-        let condition_str = self.format_subexpr(if_expr.condition);
-        let consequence_str = self.format_subexpr(if_expr.consequence);
+        let condition_str = self.format_sub_expr(if_expr.condition);
+        let consequence_str = self.format_sub_expr(if_expr.consequence);
 
         let mut result = format!("if {condition_str} {consequence_str}");
 
@@ -219,8 +218,8 @@ impl FmtVisitor<'_> {
     }
 
     fn format_if_single_line(&self, if_expr: IfExpression) -> Option<String> {
-        let condition_str = self.format_subexpr(if_expr.condition);
-        let consequence_str = self.format_subexpr(extract_simple_expr(if_expr.consequence)?);
+        let condition_str = self.format_sub_expr(if_expr.condition);
+        let consequence_str = self.format_sub_expr(extract_simple_expr(if_expr.consequence)?);
 
         let if_str = if let Some(alternative) = if_expr.alternative {
             let alternative_str = if let Some(ExpressionKind::If(_)) =
@@ -280,14 +279,9 @@ impl FmtVisitor<'_> {
         format!("{type_name} {{{fields}}}")
     }
 
-    pub(crate) fn visit_block(
-        &mut self,
-        block: BlockExpression,
-        block_span: Span,
-        should_indent: bool,
-    ) {
+    pub(crate) fn visit_block(&mut self, block: BlockExpression, block_span: Span) {
         if block.is_empty() {
-            self.visit_empty_block(block_span, should_indent);
+            self.visit_empty_block(block_span);
             return;
         }
 
@@ -305,10 +299,7 @@ impl FmtVisitor<'_> {
 
         self.last_position = block_span.end();
 
-        self.push_str("\n");
-        if should_indent {
-            self.push_str(&self.indent.to_string());
-        }
+        self.push_str(&self.indent.to_string_with_newline());
         self.push_str("}");
     }
 
@@ -321,19 +312,18 @@ impl FmtVisitor<'_> {
         }
     }
 
-    fn visit_empty_block(&mut self, block_span: Span, should_indent: bool) {
+    pub(crate) fn visit_empty_block(&mut self, block_span: Span) {
         let slice = self.slice(block_span);
         let comment_str = slice[1..slice.len() - 1].trim();
         let block_str = if comment_str.is_empty() {
             "{}".to_string()
         } else {
             self.indent.block_indent(self.config);
-            let open_indent = self.indent.to_string();
+            let (comment_str, _) = self.format_comment_in_block(comment_str);
+            let comment_str = comment_str.trim_matches('\n');
             self.indent.block_unindent(self.config);
-            let close_indent = if should_indent { self.indent.to_string() } else { String::new() };
-
-            let ret = format!("{{\n{open_indent}{comment_str}\n{close_indent}}}");
-            ret
+            let close_indent = self.indent.to_string();
+            format!("{{\n{comment_str}\n{close_indent}}}")
         };
         self.last_position = block_span.end();
         self.push_str(&block_str);

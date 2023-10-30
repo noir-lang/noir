@@ -27,10 +27,10 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
           assert(test_struct.y[i] != NESTED[1][0].v);
      }
 
-     assert(N != M);
+    assert(N != M);
 
     let expected: u32 = 42;
-     assert(foo::TYPE_INFERRED == expected);
+    assert(foo::TYPE_INFERRED == expected);
 
     let mut y = 5;
     let mut x = M;
@@ -40,30 +40,30 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
           
           y = i;
      }
-     assert(y == 24);
-     assert(x == 10);
+    assert(y == 24);
+    assert(x == 10);
 
     let q = multiplyByM(3);
-     assert(q == 96);
+    assert(q == 96);
 
     arrays_neq(a, b);
 
     let t: [Field; T_LEN] = [N, M];
-     assert(t[1] == 32);
+    assert(t[1] == 32);
 
-     assert(15 == mysubmodule::my_helper());
+    assert(15 == mysubmodule::my_helper());
 
     let add_submodules_N = mysubmodule::N + foo::bar::N;
-     assert(15 == add_submodules_N);
+    assert(15 == add_submodules_N);
     let add_from_bar_N = mysubmodule::N + foo::bar::from_bar(1);
-     assert(15 == add_from_bar_N);
+    assert(15 == add_from_bar_N);
 
      // Example showing an array filled with (mysubmodule::N + 2) 0's
     let sugared = [0; mysubmodule::N + 2];
-     assert(sugared[mysubmodule::N + 1] == 0);
+    assert(sugared[mysubmodule::N + 1] == 0);
 
     let arr: [Field; mysubmodule::N] = [N; 10];
-     assert((arr[0] == 5) & (arr[9] == 5));
+    assert((arr[0] == 5) & (arr[9] == 5));
 
     foo::from_foo(d);
     baz::from_baz(c);
@@ -74,7 +74,7 @@ fn multiplyByM(x: Field) -> Field {
 }
 
 fn arrays_neq(a: [Field; M], b: [Field; M]) {
-     assert(a != b);
+    assert(a != b);
 }
 
 mod mysubmodule {
