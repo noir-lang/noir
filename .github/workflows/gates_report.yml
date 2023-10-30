@@ -56,12 +56,12 @@ jobs:
       - name: Download nargo binary
         uses: actions/download-artifact@v3
         with:
-          name: nargo
+          name: nargo-x86_64-unknown-linux-gnu.tar.gz
           path: ./nargo_bin
 
       - name: Set nargo on PATH
         run: |
-          tree "${{ github.workspace }}/nargo_bin/nargo-x86_64-unknown-linux-gnu.tar.gz"
+          tree "${{ github.workspace }}/nargo_bin"
           7z e "${{ github.workspace }}/nargo_bin/nargo-x86_64-unknown-linux-gnu.tar.gz"
           tree "${{ github.workspace }}/nargo_bin"
        
