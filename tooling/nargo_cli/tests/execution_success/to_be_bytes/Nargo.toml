@@ -2,6 +2,4 @@
 name = "to_be_bytes"
 type = "bin"
 authors = [""]
-compiler_version = "0.1"
-
 [dependencies]
