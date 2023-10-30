@@ -953,7 +953,10 @@ impl NodeInterner {
     ) -> Option<Shared<TraitImpl>> {
         let impls = self.trait_implementation_map.get(&trait_id)?;
         for (existing_object_type, impl_id) in impls {
-            if object_type.try_unify(existing_object_type).is_ok() {
+            let object_type = object_type.instantiate_named_generics(self);
+            let existing_object_type = existing_object_type.instantiate_named_generics(self);
+
+            if object_type.try_unify(&existing_object_type).is_ok() {
                 return Some(self.get_trait_implementation(*impl_id));
             }
         }
