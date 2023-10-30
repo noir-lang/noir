@@ -177,6 +177,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
+          prerelease: true
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
 
