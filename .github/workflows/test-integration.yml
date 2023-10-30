@@ -43,6 +43,33 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
+  build-acvm-js:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: ./.github/actions/nix
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          nix-cache-name: ${{ vars.NIX_CACHE_NAME }}
+          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+
+      - name: Build acvm-js
+        run: |
+          nix build -L .#acvm_js
+
+      - name: Dereference symlink
+        run: echo "UPLOAD_PATH=$(readlink -f result/acvm_js)" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: acvm-js
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 3
+
   build-wasm:
     runs-on: ubuntu-latest
 
@@ -103,7 +130,7 @@ jobs:
 
   test-solidity-verifier:
     runs-on: ubuntu-latest
-    needs: [build-wasm, build-nargo, build-noirc]
+    needs: [build-acvm-js, build-wasm, build-nargo, build-noirc]
     env:
       CACHED_PATH: /tmp/nix-cache
 
@@ -117,13 +144,19 @@ jobs:
           name: nargo
           path: ./nargo
 
-      - name: Download wasm package artifact
+      - name: Download acvm_js package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: acvm-js
+          path: ./acvm-repo/acvm_js
+
+      - name: Download noir_wasm package artifact
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
           path: ./compiler/wasm
 
-      - name: Download noirc package artifact
+      - name: Download noirc_abi package artifact
         uses: actions/download-artifact@v3
         with:
           name: noirc_abi_wasm
@@ -143,22 +176,9 @@ jobs:
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
 
-      - name: Install jq
-        run: sudo apt-get install jq
-
-      - name: Install wasm-bindgen-cli
-        uses: taiki-e/install-action@v2
-        with:
-          tool: wasm-bindgen-cli@0.2.86
-
-      - name: Install wasm-opt
-        run: |
-          npm i wasm-opt -g
-
       - name: Setup `integration-tests`
         run: |
           yarn workspace @noir-lang/source-resolver build
-          yarn workspace @noir-lang/acvm_js build
           yarn workspace @noir-lang/types build
           yarn workspace @noir-lang/backend_barretenberg build
           yarn workspace @noir-lang/noir_js build
