@@ -2,6 +2,5 @@
 name="noir_wasm_testing"
 type="bin"
 authors = [""]
-compiler_version = "0.1"
 
 [dependencies]
