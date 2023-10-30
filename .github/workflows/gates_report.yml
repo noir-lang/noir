@@ -73,7 +73,7 @@ jobs:
           echo $GITHUB_PATH
           echo $nargo_binary
           echo $(which nargo)
-          nargo --version
+          $nargo_binary --version
 
       - name: Generate gates report
         working-directory: ./tooling/nargo_cli/tests
