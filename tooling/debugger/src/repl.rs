@@ -161,10 +161,10 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         let brillig_marker = |acir_index, brillig_index| {
             if current_acir_index == Some(acir_index) && brillig_index == current_brillig_index {
                 "->"
-            } else if self.context.is_breakpoint_set(&OpcodeLocation::Brillig {
-                acir_index,
-                brillig_index,
-            }) {
+            } else if self
+                .context
+                .is_breakpoint_set(&OpcodeLocation::Brillig { acir_index, brillig_index })
+            {
                 " *"
             } else {
                 ""
