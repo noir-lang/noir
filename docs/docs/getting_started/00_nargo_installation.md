@@ -23,8 +23,8 @@ There are four approaches for installing Nargo:
 
 - [Option 1: Noirup](#option-1-noirup)
 - [Option 2: Binaries](#option-2-binaries)
-- [Option 3: Install via Nix](#option-3-install-via-nix)
-- [Option 4: Compile from Source](#option-4-compile-from-source)
+- [Option 3: Compile from Source](#option-3-compile-from-source)
+- [Option 4: WSL for Windows](#option-4-wsl-for-windows)
 
 Optionally you can also install [Noir VS Code extension] for syntax highlighting.
 
@@ -96,21 +96,6 @@ curl -o $HOME/.nargo/bin/nargo-x86_64-apple-darwin.tar.gz -L https://github.com/
 tar -xvf $HOME/.nargo/bin/nargo-x86_64-apple-darwin.tar.gz -C $HOME/.nargo/bin/ && \
 echo '\nexport PATH=$PATH:$HOME/.nargo/bin' >> ~/.zshrc && \
 source ~/.zshrc
-```
-
-##### Windows (PowerShell)
-
-Open PowerShell as Administrator and run:
-
-```powershell
-mkdir -f -p "$env:USERPROFILE\.nargo\bin\"; `
-Invoke-RestMethod -Method Get -Uri https://github.com/noir-lang/noir/releases/download/v0.4.1/nargo-x86_64-pc-windows-msvc.zip -Outfile "$env:USERPROFILE\.nargo\bin\nargo-x86_64-pc-windows-msvc.zip"; `
-Expand-Archive -Path "$env:USERPROFILE\.nargo\bin\nargo-x86_64-pc-windows-msvc.zip" -DestinationPath "$env:USERPROFILE\.nargo\bin\"; `
-$Reg = "Registry::HKLM\System\CurrentControlSet\Control\Session Manager\Environment"; `
-$OldPath = (Get-ItemProperty -Path "$Reg" -Name PATH).Path; `
-$NewPath = $OldPath + ’;’ + "$env:USERPROFILE\.nargo\bin\"; `
-Set-ItemProperty -Path "$Reg" -Name PATH –Value "$NewPath"; `
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 ```
 
 ##### Linux (Bash)
@@ -232,6 +217,14 @@ If you want to build the entire project in an isolated sandbox, you can use Nix 
 If you have hesitations with using direnv, you can launch a subshell with `nix develop` and then launch your editor from within the subshell. However, if VSCode was already launched in the project directory, the environment won't be updated.
 
 Advanced: If you aren't using direnv nor launching your editor within the subshell, you can try to install Barretenberg and other global dependencies the package needs. This is an advanced workflow and likely won't receive support!
+
+### Option 4: WSL (for Windows)
+
+The default backend for Noir (Barretenberg) doesn't provide Windows binaries at this time. For that reason, Noir cannot be installed nativerly. However, it is available by using Windows Subsystem for Linux (WSL).
+
+Step 1: Follow the instructions [here](https://learn.microsoft.com/en-us/windows/wsl/install) to install and run WSL.
+
+step 2: Follow the [Noirup instructions](#option-1-noirup).
 
 ## Uninstalling Nargo
 

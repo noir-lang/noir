@@ -5,6 +5,7 @@ use fm::FileId;
 
 use base64::Engine;
 use noirc_errors::debug_info::DebugInfo;
+use noirc_evaluator::errors::SsaReport;
 use serde::{de::Error as DeserializationError, ser::Error as SerializationError};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -24,6 +25,7 @@ pub struct CompiledProgram {
     pub abi: noirc_abi::Abi,
     pub debug: DebugInfo,
     pub file_map: BTreeMap<FileId, DebugFile>,
+    pub warnings: Vec<SsaReport>,
 }
 
 pub(crate) fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>

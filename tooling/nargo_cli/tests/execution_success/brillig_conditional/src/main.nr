@@ -6,9 +6,5 @@ fn main(x: Field) {
 }
 
 unconstrained fn conditional(x : bool) -> Field {
-    if x {
-        4
-    }else {
-        5
-    }
+    if x { 4 } else { 5 }
 }
