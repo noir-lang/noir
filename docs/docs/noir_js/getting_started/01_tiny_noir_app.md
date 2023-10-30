@@ -251,7 +251,7 @@ if (verification) display('logs', 'Verifying proof... ✅');
 
 By saving, your app will refresh and here's our complete Tiny Noir App!
 
-You can find the complete app code for this guide [here](https://github.com/noir-lang/tiny-noirjs-app/tree/master).
+You can find the complete app code for this guide [here](https://github.com/noir-lang/tiny-noirjs-app).
 
 ## Further Reading
 
