@@ -2,6 +2,4 @@
 name = "nested_slice_dynamic"
 type = "bin"
 authors = [""]
-compiler_version = "0.13.0"
-
 [dependencies]
