@@ -47,6 +47,7 @@ export type CompiledProgram = {
 export type DebugArtifact = {
     debug_symbols: Array<any>;
     file_map: Record<number, any>;
+    warnings: Array<any>;
 };
 
 export type CompileResult = (
@@ -232,8 +233,11 @@ fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
 }
 
 fn preprocess_program(program: CompiledProgram) -> CompileResult {
-    let debug_artifact =
-        DebugArtifact { debug_symbols: vec![program.debug], file_map: program.file_map };
+    let debug_artifact = DebugArtifact {
+        debug_symbols: vec![program.debug],
+        file_map: program.file_map,
+        warnings: program.warnings,
+    };
 
     let preprocessed_program = PreprocessedProgram {
         hash: program.hash,
@@ -250,6 +254,7 @@ fn preprocess_contract(contract: CompiledContract) -> CompileResult {
     let debug_artifact = DebugArtifact {
         debug_symbols: contract.functions.iter().map(|function| function.debug.clone()).collect(),
         file_map: contract.file_map,
+        warnings: contract.warnings,
     };
     let preprocessed_functions = contract
         .functions
