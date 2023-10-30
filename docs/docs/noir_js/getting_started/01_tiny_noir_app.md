@@ -6,7 +6,7 @@ keywords: [how to, guide, javascript, typescript, noir, barretenberg, zero-knowl
 
 NoirJS works both on the browser and on the server, and works for both ESM and CJS module systems. In this page, we will learn how can we write a simple test and a simple web app to verify the standard Noir example.
 
-You can find the complete app code for this guide [here](https://github.com/AztecProtocol/dev-rel/tree/main/tutorials/noirjs_guide).
+You can find the complete app code for this guide [here](https://github.com/noir-lang/tiny-noirjs-app/tree/master).
 
 ## Before we start
 
@@ -251,7 +251,7 @@ if (verification) display('logs', 'Verifying proof... ✅');
 
 By saving, your app will refresh and here's our complete Tiny Noir App!
 
-You can find the complete app code for this guide [here](https://github.com/AztecProtocol/dev-rel/tree/main/tutorials/noirjs_guide).
+You can find the complete app code for this guide [here](https://github.com/noir-lang/tiny-noirjs-app/tree/master).
 
 ## Further Reading
 
