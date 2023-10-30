@@ -26,8 +26,8 @@
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
-    ForRange, NoirParser, ParsedModule, ParsedSubModule, ParserError, ParserErrorReason,
-    Precedence, TopLevelStatement,
+    NoirParser, ParsedModule, ParsedSubModule, ParserError, ParserErrorReason, Precedence,
+    TopLevelStatement,
 };
 use super::{spanned, Item, ItemKind};
 use crate::ast::{
@@ -38,7 +38,7 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
-    ForLoopStatement, FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident,
+    ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident,
     IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
     NoirTraitImpl, NoirTypeAlias, Path, PathKind, Pattern, Recoverable, Statement, TraitBound,
     TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint,

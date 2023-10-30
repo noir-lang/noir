@@ -19,7 +19,6 @@ use crate::hir_def::expr::{
 };
 
 use crate::hir_def::traits::{Trait, TraitConstraint};
-use crate::parser::ForRange;
 use crate::token::FunctionAttribute;
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
@@ -37,10 +36,11 @@ use crate::{
     StatementKind,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Distinctness, FunctionVisibility, Generics, LValue,
-    NoirStruct, NoirTypeAlias, Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType,
-    TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+    ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionVisibility, Generics,
+    LValue, NoirStruct, NoirTypeAlias, Path, PathKind, Pattern, Shared, StructType, Type,
+    TypeAliasType, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics,
+    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;

@@ -1,8 +1,6 @@
 use std::iter::zip;
 
-use noirc_frontend::{
-    parser::ForRange, ConstrainKind, ConstrainStatement, ExpressionKind, Statement, StatementKind,
-};
+use noirc_frontend::{ConstrainKind, ConstrainStatement, ExpressionKind, Statement, StatementKind, ForRange};
 
 use super::ExpressionType;
 
