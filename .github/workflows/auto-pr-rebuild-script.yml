@@ -17,7 +17,7 @@ jobs:
       - name: Check if artifacts should be published
         id: check
         run: |
-          if [ ${{ github.ref_name }} == "master" ]; then
+          if [ ${{ github.ref_name }} == master ]; then
             # Always publish on master
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
