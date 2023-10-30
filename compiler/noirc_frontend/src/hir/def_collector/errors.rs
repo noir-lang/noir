@@ -1,5 +1,7 @@
 use crate::hir::resolution::import::PathResolutionError;
 use crate::Ident;
+use crate::Path;
+
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::FileDiagnostic;
 use noirc_errors::Span;
@@ -7,7 +9,7 @@ use thiserror::Error;
 
 use std::fmt;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DuplicateType {
     Function,
     Module,
@@ -16,9 +18,12 @@ pub enum DuplicateType {
     Import,
     Trait,
     TraitImplementation,
+    TraitAssociatedType,
+    TraitAssociatedConst,
+    TraitAssociatedFunction,
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum DefCollectorErrorKind {
     #[error("duplicate {typ} found in namespace")]
     Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
@@ -28,8 +33,12 @@ pub enum DefCollectorErrorKind {
     PathResolutionError(PathResolutionError),
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { span: Span },
-    #[error("Non-struct type used in trait impl")]
-    NonStructTraitImpl { trait_ident: Ident, span: Span },
+    #[error("Cannot implement trait on a mutable reference type")]
+    MutableReferenceInTraitImpl { span: Span },
+    #[error("Impl for type `{typ}` overlaps with existing impl")]
+    OverlappingImpl { span: Span, typ: crate::Type },
+    #[error("Previous impl defined here")]
+    OverlappingImplNote { span: Span },
     #[error("Cannot `impl` a type defined outside the current crate")]
     ForeignImpl { span: Span, type_name: String },
     #[error("Mismatch number of parameters in of trait implementation")]
@@ -43,18 +52,27 @@ pub enum DefCollectorErrorKind {
     #[error("Method is not defined in trait")]
     MethodNotInTrait { trait_name: Ident, impl_method: Ident },
     #[error("Only traits can be implemented")]
-    NotATrait { not_a_trait_name: Ident },
+    NotATrait { not_a_trait_name: Path },
     #[error("Trait not found")]
-    TraitNotFound { trait_ident: Ident },
+    TraitNotFound { trait_path: Path },
     #[error("Missing Trait method implementation")]
     TraitMissingMethod { trait_name: Ident, method_name: Ident, trait_impl_span: Span },
     #[error("Module is already part of the crate")]
     ModuleAlreadyPartOfCrate { mod_name: Ident, span: Span },
     #[error("Module was originally declared here")]
-    ModuleOrignallyDefined { mod_name: Ident, span: Span },
+    ModuleOriginallyDefined { mod_name: Ident, span: Span },
+    #[error(
+        "Either the type or the trait must be from the same crate as the trait implementation"
+    )]
+    TraitImplOrphaned { span: Span },
+
+    // Aztec feature flag errors
     #[cfg(feature = "aztec")]
     #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
     AztecNotFound {},
+    #[cfg(feature = "aztec")]
+    #[error("compute_note_hash_and_nullifier function not found. Define it in your contract.")]
+    AztecComputeNoteHashAndNullifierNotFound { span: Span },
 }
 
 impl DefCollectorErrorKind {
@@ -73,6 +91,9 @@ impl fmt::Display for DuplicateType {
             DuplicateType::Trait => write!(f, "trait definition"),
             DuplicateType::TraitImplementation => write!(f, "trait implementation"),
             DuplicateType::Import => write!(f, "import"),
+            DuplicateType::TraitAssociatedType => write!(f, "trait associated type"),
+            DuplicateType::TraitAssociatedConst => write!(f, "trait associated constant"),
+            DuplicateType::TraitAssociatedFunction => write!(f, "trait associated function"),
         }
     }
 }
@@ -113,10 +134,25 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 "Only struct types may have implementation methods".into(),
                 span,
             ),
-            DefCollectorErrorKind::NonStructTraitImpl { trait_ident, span } => {
+            DefCollectorErrorKind::MutableReferenceInTraitImpl { span } => Diagnostic::simple_error(
+                "Trait impls are not allowed on mutable reference types".into(),
+                "Try using a struct type here instead".into(),
+                span,
+            ),
+            DefCollectorErrorKind::OverlappingImpl { span, typ } => {
                 Diagnostic::simple_error(
-                    format!("Only struct types may implement trait `{trait_ident}`"),
-                    "Only struct types may implement traits".into(),
+                    format!("Impl for type `{typ}` overlaps with existing impl"),
+                    "Overlapping impl".into(),
+                    span,
+                )
+            }
+            DefCollectorErrorKind::OverlappingImplNote { span } => {
+                // This should be a note or part of the previous error eventually.
+                // This must be an error to appear next to the previous OverlappingImpl
+                // error since we sort warnings first.
+                Diagnostic::simple_error(
+                    "Previous impl defined here".into(),
+                    "Previous impl defined here".into(),
                     span,
                 )
             }
@@ -125,10 +161,10 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 format!("{type_name} was defined outside the current crate"),
                 span,
             ),
-            DefCollectorErrorKind::TraitNotFound { trait_ident } => Diagnostic::simple_error(
-                format!("Trait {trait_ident} not found"),
+            DefCollectorErrorKind::TraitNotFound { trait_path } => Diagnostic::simple_error(
+                format!("Trait {trait_path} not found"),
                 "".to_string(),
-                trait_ident.span(),
+                trait_path.span(),
             ),
             DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
                 expected_num_parameters,
@@ -165,10 +201,9 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 )
             }
             DefCollectorErrorKind::NotATrait { not_a_trait_name } => {
-                let span = not_a_trait_name.0.span();
-                let name = &not_a_trait_name.0.contents;
+                let span = not_a_trait_name.span();
                 Diagnostic::simple_error(
-                    format!("{name} is not a trait, therefore it can't be implemented"),
+                    format!("{not_a_trait_name} is not a trait, therefore it can't be implemented"),
                     String::new(),
                     span,
                 )
@@ -178,14 +213,25 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 let secondary = String::new();
                 Diagnostic::simple_error(message, secondary, span)
             }
-            DefCollectorErrorKind::ModuleOrignallyDefined { mod_name, span } => {
+            DefCollectorErrorKind::ModuleOriginallyDefined { mod_name, span } => {
                 let message = format!("Note: {mod_name} was originally declared here");
                 let secondary = String::new();
                 Diagnostic::simple_error(message, secondary, span)
             }
+            DefCollectorErrorKind::TraitImplOrphaned { span } => Diagnostic::simple_error(
+                "Orphaned trait implementation".into(),
+                "Either the type or the trait must be from the same crate as the trait implementation".into(),
+                span,
+            ),
             #[cfg(feature = "aztec")]
             DefCollectorErrorKind::AztecNotFound {} => Diagnostic::from_message(
                 "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml",
+            ),
+            #[cfg(feature = "aztec")]
+            DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound  {span} => Diagnostic::simple_error(
+                "compute_note_hash_and_nullifier function not found. Define it in your contract.".into(),
+                "".into(),
+                span
             ),
         }
     }

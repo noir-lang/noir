@@ -6,13 +6,11 @@
 
 mod barretenberg_structures;
 mod pedersen;
-mod scalar_mul;
 mod schnorr;
 
 use barretenberg_structures::Assignments;
 
 pub(crate) use pedersen::Pedersen;
-pub(crate) use scalar_mul::ScalarMul;
 pub(crate) use schnorr::SchnorrSig;
 
 /// The number of bytes necessary to store a `FieldElement`.
@@ -34,10 +32,6 @@ pub(crate) enum FeatureError {
     NoValue,
     #[error("Value expected to be i32")]
     InvalidI32,
-    #[error("Value {scalar_as_hex} is not a valid grumpkin scalar")]
-    InvalidGrumpkinScalar { scalar_as_hex: String },
-    #[error("Limb {limb_as_hex} is not less than 2^128")]
-    InvalidGrumpkinScalarLimb { limb_as_hex: String },
     #[error("Could not convert value {value} from i32 to u32")]
     InvalidU32 { value: i32, source: std::num::TryFromIntError },
     #[error("Could not convert value {value} from i32 to usize")]
@@ -195,7 +189,7 @@ impl Barretenberg {
         let store = self.store.borrow();
         let memory_view = memory.view(&store);
 
-        memory_view.write(offset as u64, data).unwrap()
+        memory_view.write(offset as u64, data).unwrap();
     }
 
     // TODO: Consider making this Result-returning
@@ -231,7 +225,7 @@ impl Barretenberg {
 
         let mut args: Vec<Value> = vec![];
         for param in params.into_iter().cloned() {
-            args.push(param.try_into()?)
+            args.push(param.try_into()?);
         }
         let func = self
             .instance

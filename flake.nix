@@ -73,15 +73,15 @@
       # Configuration shared between builds
       config = {
         # x-release-please-start-version
-        version = "0.14.1";
+        version = "0.18.0";
         # x-release-please-end
 
         src = pkgs.lib.cleanSourceWith {
           src = craneLib.path ./.;
           # Custom filter with various file extensions that we rely upon to build packages
-          # Currently: `.nr`, `.sol`, `.sh`, `.json`, `.md`
+          # Currently: `.nr`, `.sol`, `.sh`, `.json`, `.md` and `.wasm`
           filter = path: type:
-            (builtins.match ".*\.(nr|sol|sh|json|md)$" path != null) || (craneLib.filterCargoSources path type);
+            (builtins.match ".*\.(nr|sol|sh|json|md|wasm)$" path != null) || (craneLib.filterCargoSources path type);
         };
 
         # TODO(#1198): It'd be nice to include these flags when running `cargo clippy` in a devShell.
@@ -139,14 +139,12 @@
         doCheck = false;
       });
 
-      noir_wasm = craneLib.buildPackage (wasmConfig // rec {
+      noir_wasm = craneLib.buildPackage (wasmConfig // {
         pname = "noir_wasm";
 
         inherit GIT_COMMIT GIT_DIRTY;
 
         cargoArtifacts = noir-wasm-cargo-artifacts;
-
-        cargoExtraArgs = "--package ${pname} --target wasm32-unknown-unknown";
 
         buildPhaseCargoCommand = ''
           bash compiler/wasm/buildPhaseCargoCommand.sh release

@@ -1,0 +1,7 @@
+[package]
+name = "trait_associated_member_names_clashes"
+type = "bin"
+authors = [""]
+compiler_version = "0.16.0"
+
+[dependencies]

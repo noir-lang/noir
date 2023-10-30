@@ -5,6 +5,7 @@ use acvm::acir::circuit::Circuit;
 use fm::FileId;
 use noirc_abi::{Abi, ContractEvent};
 use noirc_errors::debug_info::DebugInfo;
+use noirc_evaluator::errors::SsaReport;
 
 use super::debug::DebugFile;
 use crate::program::{deserialize_circuit, serialize_circuit};
@@ -28,6 +29,8 @@ pub enum ContractFunctionType {
 
 #[derive(Serialize, Deserialize)]
 pub struct CompiledContract {
+    pub noir_version: String,
+
     /// The name of the contract.
     pub name: String,
     /// Each of the contract's functions are compiled into a separate `CompiledProgram`
@@ -40,6 +43,7 @@ pub struct CompiledContract {
     pub events: Vec<ContractEvent>,
 
     pub file_map: BTreeMap<FileId, DebugFile>,
+    pub warnings: Vec<SsaReport>,
 }
 
 /// Each function in the contract will be compiled

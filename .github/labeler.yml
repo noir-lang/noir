@@ -1,3 +1,0 @@
-# Add/remove 'doc needed' label if issue/PR contains the line '- [x] This PR requires documentation updates when merged.'
-"doc needed":
-  - '- \[(x|X)\] This PR requires documentation updates when merged.'

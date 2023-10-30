@@ -1,4 +1,4 @@
-fn main() -> pub Field {
+fn main(w: Field) -> pub Field {
     let f = if 3 * 7 > 200 as u32 { foo } else { bar };
     assert(f()[1] == 2);
     // Lambdas:
@@ -39,7 +39,7 @@ fn main() -> pub Field {
     let ret = twice(add1, 3);
 
     test_array_functions();
-    ret
+    w + ret
 }
 
 /// Test the array functions in std::array

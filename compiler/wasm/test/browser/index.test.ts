@@ -1,38 +1,98 @@
-import { expect } from "@esm-bundle/chai";
-import initNoirWasm from "@noir-lang/noir_wasm";
+import { expect } from '@esm-bundle/chai';
+import initNoirWasm, { compile } from '@noir-lang/noir_wasm';
+import { initializeResolver } from '@noir-lang/source-resolver';
 import {
-  compileNoirSource,
-  nargoArtifactPath,
-  noirSourcePath,
-} from "../shared";
+  depsScriptExpectedArtifact,
+  depsScriptSourcePath,
+  libASourcePath,
+  libBSourcePath,
+  simpleScriptExpectedArtifact,
+  simpleScriptSourcePath,
+} from '../shared';
 
 beforeEach(async () => {
   await initNoirWasm();
 });
 
 async function getFileContent(path: string): Promise<string> {
-  const mainnrSourceURL = new URL(path, import.meta.url);
-  const response = await fetch(mainnrSourceURL);
+  const url = new URL(path, import.meta.url);
+  const response = await fetch(url);
   return await response.text();
 }
 
-async function getSource(): Promise<string> {
-  return getFileContent(noirSourcePath);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getPrecompiledSource(path: string): Promise<any> {
+  const compiledData = await getFileContent(path);
+  return JSON.parse(compiledData);
 }
 
-async function getPrecompiledSource(): Promise<string> {
-  const compiledData = await getFileContent(nargoArtifactPath);
-  return JSON.parse(compiledData).bytecode;
-}
+describe('noir wasm', () => {
+  describe('can compile script without dependencies', () => {
+    beforeEach(async () => {
+      const source = await getFileContent(simpleScriptSourcePath);
+      initializeResolver((id: string) => {
+        console.log(`Resolving source ${id}`);
 
-describe("noir wasm compilation", () => {
-  it("matches nargos compilation", async () => {
-    const source = await getSource();
+        if (typeof source === 'undefined') {
+          throw Error(`Could not resolve source for '${id}'`);
+        } else if (id !== '/main.nr') {
+          throw Error(`Unexpected id: '${id}'`);
+        } else {
+          return source;
+        }
+      });
+    });
 
-    const wasmCircuitBase64 = await compileNoirSource(source);
+    it('matching nargos compilation', async () => {
+      const wasmCircuit = await compile('/main.nr');
+      const cliCircuit = await getPrecompiledSource(simpleScriptExpectedArtifact);
 
-    const cliCircuitBase64 = await getPrecompiledSource();
+      // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
+      expect(wasmCircuit.bytecode).to.eq(cliCircuit.bytecode);
+      expect(wasmCircuit.abi).to.deep.eq(cliCircuit.abi);
+      expect(wasmCircuit.backend).to.eq(cliCircuit.backend);
+    }).timeout(20e3); // 20 seconds
+  });
 
-    expect(wasmCircuitBase64).to.equal(cliCircuitBase64);
-  }).timeout(20e3); // 20 seconds
+  describe('can compile script with dependencies', () => {
+    beforeEach(async () => {
+      const [scriptSource, libASource, libBSource] = await Promise.all([
+        getFileContent(depsScriptSourcePath),
+        getFileContent(libASourcePath),
+        getFileContent(libBSourcePath),
+      ]);
+
+      initializeResolver((file: string) => {
+        switch (file) {
+          case '/script/main.nr':
+            return scriptSource;
+
+          case '/lib_a/lib.nr':
+            return libASource;
+
+          case '/lib_b/lib.nr':
+            return libBSource;
+
+          default:
+            return '';
+        }
+      });
+    });
+
+    it('matching nargos compilation', async () => {
+      const wasmCircuit = await compile('/script/main.nr', false, {
+        root_dependencies: ['lib_a'],
+        library_dependencies: {
+          lib_a: ['lib_b'],
+        },
+      });
+
+      const cliCircuit = await getPrecompiledSource(depsScriptExpectedArtifact);
+
+      // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
+      expect(wasmCircuit.bytecode).to.eq(cliCircuit.bytecode);
+      expect(wasmCircuit.abi).to.deep.eq(cliCircuit.abi);
+      expect(wasmCircuit.backend).to.eq(cliCircuit.backend);
+    }).timeout(20e3); // 20 seconds
+  });
 });

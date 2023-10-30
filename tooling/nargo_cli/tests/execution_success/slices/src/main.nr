@@ -49,6 +49,7 @@ fn main(x : Field, y : pub Field) {
     regression_2083();
     // The parameters to this function must come from witness values (inputs to main)
     regression_merge_slices(x, y);
+    regression_2370();
 }
 
 // Ensure that slices of struct/tuple values work.
@@ -60,7 +61,6 @@ fn regression_2083() {
 
     let y = y.push_front((10, 11)); // [(10, 11), (1, 2), (3, 4), (5, 6)]
     let y = y.push_front((12, 13)); // [(12, 13), (10, 11), (1, 2), (3, 4), (5, 6)]
-
     assert(y[1].0 == 10);
 
     let y = y.insert(1, (55, 56)); // [(12, 13), (55, 56), (10, 11), (1, 2), (3, 4), (5, 6)]
@@ -110,10 +110,24 @@ fn merge_slices_if(x: Field, y: Field) {
     assert(slice[5] == 30);
 
     let slice = merge_slices_mutate_between_ifs(x, y);
-    assert(slice.len() == 6);
+    assert(slice.len() == 8);
     assert(slice[3] == 5);
     assert(slice[4] == 30);
     assert(slice[5] == 15);
+    assert(slice[6] == 50);
+    assert(slice[7] == 60);
+
+    merge_slices_push_then_pop(x, y);
+
+    let slice = merge_slices_push_then_insert(x, y);
+    assert(slice.len() == 7);
+    assert(slice[1] == 50);
+    assert(slice[2] == 0);
+    assert(slice[5] == 30);
+    assert(slice[6] == 100);
+
+    let slice = merge_slices_remove_between_ifs(x, y);
+    assert(slice.len() == 5);
 }
 
 fn merge_slices_else(x: Field) {
@@ -134,15 +148,7 @@ fn merge_slices_else(x: Field) {
 // Test returning a merged slice without a mutation
 fn merge_slices_return(x: Field, y: Field) -> [Field] {
     let slice = [0; 2];
-    if x != y {
-        if x != 20 {
-            slice.push_back(y)
-        } else {
-            slice
-        }
-    } else {
-        slice
-    }
+    if x != y { if x != 20 { slice.push_back(y) } else { slice } } else { slice }
 }
 
 // Test mutating a slice inside of an if statement
@@ -178,15 +184,14 @@ fn merge_slices_mutate_two_ifs(x: Field, y: Field) -> [Field] {
     } else {
         slice = slice.push_back(x);
     }
+
     if x == 20 {
         slice = slice.push_back(20);
-    } else {
-        slice = slice.push_back(15);
-    }
-    // TODO(#2599): Breaks if the push back happens without the else case
-    // slice = slice.push_back(15);
+    } 
+
+    slice = slice.push_back(15);
     slice = slice.push_back(30);
-    
+
     slice
 }
 
@@ -203,11 +208,95 @@ fn merge_slices_mutate_between_ifs(x: Field, y: Field) -> [Field] {
 
     if x == 20 {
         slice = slice.push_back(20);
-    } else {
-        slice = slice.push_back(15);
     }
-    // TODO(#2599): Breaks if the push back happens without the else case
-    // slice = slice.push_back(15);
+
+    slice = slice.push_back(15);
+
+    if x != 20 {
+        slice = slice.push_back(50);
+    }
+
+    slice = slice.push_back(60);
 
     slice
+}
+
+fn merge_slices_push_then_pop(x: Field, y: Field) {
+    let mut slice = [0; 2];
+    if x != y {
+        slice = slice.push_back(y);
+        slice = slice.push_back(x);
+    } else {
+        slice = slice.push_back(x);
+    }
+
+    slice = slice.push_back(30);
+
+    if x == 20 {
+        slice = slice.push_back(20);
+    }
+
+    let (slice, elem) = slice.pop_back();
+    assert(slice.len() == 4);
+    assert(elem == 30);
+
+    let (slice, elem) = slice.pop_back();
+    assert(slice.len() == 3);
+    assert(elem == x);
+}
+
+fn merge_slices_push_then_insert(x: Field, y: Field) -> [Field] {
+    let mut slice = [0; 2];
+    if x != y {
+        slice = slice.push_back(y);
+        slice = slice.push_back(x);
+    } else {
+        slice = slice.push_back(x);
+    }
+
+    slice = slice.push_back(30);
+
+    if x == 20 {
+        slice = slice.push_back(20);
+        slice = slice.push_back(15);
+    }
+
+    slice = slice.insert(1, 50);
+
+    // Test that we can use slice insert the same as slice push back
+    slice = slice.insert(6, 100);
+
+    slice
+}
+
+fn merge_slices_remove_between_ifs(x: Field, y: Field) -> [Field] {
+    let mut slice = [0; 2];
+    if x != y {
+        slice = slice.push_back(y);
+        slice = slice.push_back(x);
+    } else {
+        slice = slice.push_back(x);
+    }
+
+    let (mut slice, elem) = slice.remove(2);
+    assert(elem == y);
+
+    if x == 20 {
+        slice = slice.push_back(20);
+    }
+
+    slice = slice.push_back(15);
+
+    if x != 20 {
+        slice = slice.push_back(50);
+    }
+
+    slice
+}
+
+// Previously, we'd get a type error when trying to assign an array of a different size to
+// an existing array variable. Now, we infer the variable must be a slice.
+fn regression_2370() {
+    let mut slice = [];
+    slice = [1, 2, 3];
 }

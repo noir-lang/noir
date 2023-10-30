@@ -1,4 +1,3 @@
-
 fn main() {
     another_func()
 }

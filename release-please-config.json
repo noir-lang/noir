@@ -3,8 +3,8 @@
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
   "prerelease": true,
-  "pull-request-title-pattern": "chore(noir): Release ${scope}",
-  "group-pull-request-title-pattern": "chore(noir): Release ${scope}",
+  "pull-request-title-pattern": "chore: Release Noir(${version})",
+  "group-pull-request-title-pattern": "chore: Release Noir(${version})",
   "packages": {
     ".": {
       "release-type": "simple",
@@ -16,12 +16,12 @@
         "flake.nix",
         {
           "type": "json",
-          "path": "compiler/wasm/package.json",
+          "path": "compiler/source-resolver/package.json",
           "jsonpath": "$.version"
         },
         {
           "type": "json",
-          "path": "tooling/noirc_abi_wasm/package.json",
+          "path": "compiler/wasm/package.json",
           "jsonpath": "$.version"
         },
         {
@@ -31,7 +31,17 @@
         },
         {
           "type": "json",
-          "path": "compiler/source-resolver/package.json",
+          "path": "tooling/noir_js_backend_barretenberg/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "tooling/noir_js_types/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "tooling/noirc_abi_wasm/package.json",
           "jsonpath": "$.version"
         }
       ]

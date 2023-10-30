@@ -63,30 +63,43 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let (expr_span, empty_function) = function_info(interner, function_body_id);
-
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        function_last_type.unify_with_coercions(
-            &declared_return_type,
-            *function_body_id,
-            interner,
-            &mut errors,
-            || {
-                let mut error = TypeCheckError::TypeMismatchWithSource {
+        if let Type::TraitAsType(t) = &declared_return_type {
+            if interner
+                .lookup_trait_implementation(function_last_type.follow_bindings(), t.id)
+                .is_none()
+            {
+                let error = TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: function_last_type.clone(),
                     span: func_span,
                     source: Source::Return(meta.return_type, expr_span),
                 };
+                errors.push(error);
+            }
+        } else {
+            function_last_type.unify_with_coercions(
+                &declared_return_type,
+                *function_body_id,
+                interner,
+                &mut errors,
+                || {
+                    let mut error = TypeCheckError::TypeMismatchWithSource {
+                        expected: declared_return_type.clone(),
+                        actual: function_last_type.clone(),
+                        span: func_span,
+                        source: Source::Return(meta.return_type, expr_span),
+                    };
 
-                if empty_function {
-                    error = error.add_context(
+                    if empty_function {
+                        error = error.add_context(
                         "implicitly returns `()` as its body has no tail or `return` expression",
                     );
-                }
-
-                error
-            },
-        );
+                    }
+                    error
+                },
+            );
+        }
     }
 
     errors
@@ -325,11 +338,11 @@ mod test {
     fn basic_for_expr() {
         let src = r#"
             fn main(_x : Field) {
-                let _j = for _i in 0..10 {
+                for _i in 0..10 {
                     for _k in 0..100 {
 
                     }
-                };
+                }
             }
 
         "#;
@@ -446,7 +459,7 @@ mod test {
             },
         );
 
-        let func_meta = vecmap(program.functions, |nf| {
+        let func_meta = vecmap(program.into_sorted().functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
             let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
             assert_eq!(resolver_errors, vec![]);

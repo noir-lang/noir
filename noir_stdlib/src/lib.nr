@@ -18,6 +18,7 @@ mod collections;
 mod compat;
 mod option;
 mod string;
+mod test;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident 
@@ -59,6 +60,7 @@ pub fn wrapping_mul<T>(x : T, y: T) -> T {
     crate::from_field(crate::as_field(x) * crate::as_field(y))
 }
 
-pub fn wrapping_shift_left<T>(x : T, y: T) -> T {
-    crate::from_field(crate::as_field(x) * 2.pow_32(crate::as_field(y)))
-}
+/// Shift-left x by y bits
+/// If the result overflow the bitsize; it does not fail and returns 0 instead
+#[builtin(wrapping_shift_left)]
+pub fn wrapping_shift_left<T>(x : T, y: T) -> T {}

@@ -6,7 +6,8 @@ excluded_dirs=("workspace" "workspace_default_member")
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
 
-# Ensure the base acir_artifacts directory exists
+# Clear the acir_artifacts directory of any existing artifacts
+rm -rf $current_dir/acir_artifacts
 mkdir -p $current_dir/acir_artifacts
 
 # Loop over every directory
@@ -41,13 +42,14 @@ for dir in $base_path/*; do
       # Delete the JSON file after extracting bytecode field
       rm ./target/${dir_name}.json
 
-      # Delete the target directory in acir_artifacts if it exists
+      # Clear the target directory in acir_artifacts
       if [ -d "$current_dir/acir_artifacts/$dir_name/target" ]; then
         rm -r "$current_dir/acir_artifacts/$dir_name/target"
       fi
+      mkdir $current_dir/acir_artifacts/$dir_name/target
       
-      # Move the target directory to the corresponding directory in acir_artifacts
-      mv ./target/ $current_dir/acir_artifacts/$dir_name/
+      # Move the artifacts from the target directory to the corresponding directory in acir_artifacts
+      mv ./target/*.gz $current_dir/acir_artifacts/$dir_name/target/
 
       cd $base_path
   fi

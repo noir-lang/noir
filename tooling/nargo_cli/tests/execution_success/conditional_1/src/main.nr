@@ -1,6 +1,6 @@
 use dep::std;
 
-fn sort(mut a: [u32; 4]) -> [u32; 4] { 
+fn sort(mut a: [u32; 4]) -> [u32; 4] {
     for i in 1..4 {
         for j in 0..i {
             if a[i] < a[j] {
@@ -13,13 +13,11 @@ fn sort(mut a: [u32; 4]) -> [u32; 4] {
     a
 }
 
-
 fn must_be_zero(x: u8) {
     assert(x == 0);
 }
 
-fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
-  
+fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {
     //Test case for short-circuit
     let mut data = [0 as u32; 32];
     let mut ba = a;
@@ -42,7 +40,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
   
 
     //Test case for conditional with arrays from function parameters
-    let b = sort([1,2,3,4]);
+    let b = sort([1, 2, 3, 4]);
     assert(b[0] == 1);
 
     if a == 0 {
@@ -53,7 +51,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         c[0] = 1;
         c[1] = c[2] / a + 11 % a;
         let f1 = a as Field;
-        assert(10/f1 != 0);
+        assert(10 / f1 != 0);
     }
     assert(c[0] == 3);
 
@@ -96,5 +94,4 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         }
     }
     assert(x == 0);
-
 }

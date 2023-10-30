@@ -1,42 +1,70 @@
-import { expect } from "chai";
+import { expect } from 'chai';
 import {
-  compileNoirSource,
-  nargoArtifactPath,
-  noirSourcePath,
-} from "../shared";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+  depsScriptSourcePath,
+  depsScriptExpectedArtifact,
+  libASourcePath,
+  libBSourcePath,
+  simpleScriptSourcePath,
+  simpleScriptExpectedArtifact,
+} from '../shared';
+import { readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { compile } from '@noir-lang/noir_wasm';
+import { initializeResolver } from '@noir-lang/source-resolver';
 
-async function getFileContent(path: string): Promise<string> {
-  return readFileSync(join(__dirname, path)).toString();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getPrecompiledSource(path: string): Promise<any> {
+  const compiledData = readFileSync(resolve(__dirname, path)).toString();
+  return JSON.parse(compiledData);
 }
 
-async function getSource(): Promise<string> {
-  return getFileContent(noirSourcePath);
-}
+describe('noir wasm compilation', () => {
+  describe('can compile simple scripts', () => {
+    it('matching nargos compilation', async () => {
+      const wasmCircuit = await compile(join(__dirname, simpleScriptSourcePath));
+      const cliCircuit = await getPrecompiledSource(simpleScriptExpectedArtifact);
 
-async function getPrecompiledSource(): Promise<string> {
-  const compiledData = await getFileContent(nargoArtifactPath);
-  return JSON.parse(compiledData).bytecode;
-}
+      // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
+      expect(wasmCircuit.bytecode).to.eq(cliCircuit.bytecode);
+      expect(wasmCircuit.abi).to.deep.eq(cliCircuit.abi);
+      expect(wasmCircuit.backend).to.eq(cliCircuit.backend);
+    }).timeout(10e3);
+  });
 
-describe("noir wasm compilation", () => {
-  it("matches nargos compilation", async () => {
-    const source = await getSource();
+  describe('can compile scripts with dependencies', () => {
+    beforeEach(() => {
+      // this test requires a custom resolver in order to correctly resolve dependencies
+      initializeResolver((file) => {
+        switch (file) {
+          case '/script/main.nr':
+            return readFileSync(join(__dirname, depsScriptSourcePath), 'utf-8');
 
-    const wasmCircuitBase64 = await compileNoirSource(source);
+          case '/lib_a/lib.nr':
+            return readFileSync(join(__dirname, libASourcePath), 'utf-8');
 
-    const cliCircuitBase64 = await getPrecompiledSource();
+          case '/lib_b/lib.nr':
+            return readFileSync(join(__dirname, libBSourcePath), 'utf-8');
 
-    console.log("wasm", wasmCircuitBase64);
+          default:
+            return '';
+        }
+      });
+    });
 
-    console.log("cli", cliCircuitBase64);
+    it('matching nargos compilation', async () => {
+      const wasmCircuit = await compile('/script/main.nr', false, {
+        root_dependencies: ['lib_a'],
+        library_dependencies: {
+          lib_a: ['lib_b'],
+        },
+      });
 
-    console.log(
-      "Compilation is a match? ",
-      wasmCircuitBase64 === cliCircuitBase64,
-    );
+      const cliCircuit = await getPrecompiledSource(depsScriptExpectedArtifact);
 
-    expect(wasmCircuitBase64).to.equal(cliCircuitBase64);
-  }).timeout(10e3);
+      // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
+      expect(wasmCircuit.bytecode).to.eq(cliCircuit.bytecode);
+      expect(wasmCircuit.abi).to.deep.eq(cliCircuit.abi);
+      expect(wasmCircuit.backend).to.eq(cliCircuit.backend);
+    }).timeout(10e3);
+  });
 });

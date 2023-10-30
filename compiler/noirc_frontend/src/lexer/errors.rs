@@ -1,3 +1,5 @@
+use crate::parser::ParserError;
+use crate::parser::ParserErrorReason;
 use crate::token::SpannedToken;
 
 use super::token::Token;
@@ -9,15 +11,15 @@ use thiserror::Error;
 pub enum LexerErrorKind {
     #[error("An unexpected character {:?} was found.", found)]
     UnexpectedCharacter { span: Span, expected: String, found: Option<char> },
-    #[error("NotADoubleChar : {:?} is not a double char token", found)]
+    #[error("Internal error: Tried to lex {:?} as a double char token", found)]
     NotADoubleChar { span: Span, found: Token },
-    #[error("InvalidIntegerLiteral : {:?} is not a integer", found)]
+    #[error("Invalid integer literal, {:?} is not a integer", found)]
     InvalidIntegerLiteral { span: Span, found: String },
-    #[error("MalformedFuncAttribute : {:?} is not a valid attribute", found)]
+    #[error("{:?} is not a valid attribute", found)]
     MalformedFuncAttribute { span: Span, found: String },
-    #[error("TooManyBits")]
+    #[error("Integer type is larger than the maximum supported size of u127")]
     TooManyBits { span: Span, max: u32, got: u32 },
-    #[error("LogicalAnd used instead of bitwise and")]
+    #[error("Logical and used instead of bitwise and")]
     LogicalAnd { span: Span },
     #[error("Unterminated block comment")]
     UnterminatedBlockComment { span: Span },
@@ -27,6 +29,13 @@ pub enum LexerErrorKind {
         "'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."
     )]
     InvalidEscape { escaped: char, span: Span },
+}
+
+impl From<LexerErrorKind> for ParserError {
+    fn from(value: LexerErrorKind) -> Self {
+        let span = value.span();
+        ParserError::with_reason(ParserErrorReason::Lexer(value), span)
+    }
 }
 
 impl LexerErrorKind {
