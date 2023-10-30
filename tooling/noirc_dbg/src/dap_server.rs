@@ -30,6 +30,7 @@ use dap::server::*;
 #[cfg(not(feature = "dap"))]
 use serde_json::Value;
 
+/// To ability change app server.
 pub trait Server {
     /// Read request from input.
     fn read(&mut self) -> Option<Request>;

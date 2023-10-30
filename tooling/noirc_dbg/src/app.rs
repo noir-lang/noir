@@ -17,23 +17,30 @@ use acvm::brillig_vm::VMStatus;
 #[allow(deprecated)]
 use barretenberg_blackbox_solver::BarretenbergSolver;
 
+/// Breakpoint for program. Sets opcode position to stop.
 #[derive(Clone, Debug)]
 struct Breakpoint {
     instruction: usize,
 }
 
 impl Breakpoint {
+    /// Create breakpoint from request.
     pub(crate) fn new(breakpoint: &SourceBreakpoint) -> Option<Self> {
         Some(Breakpoint { instruction: breakpoint.line as usize })
     }
 }
 
+/// App state.
 pub enum State {
+    /// The startup state. The state handle only launch command.
     Uninitialized(UninitializedState),
+    /// Main loop state. Handles debugging commands.
     Running(RunningState),
+    /// Indicates end of work.
     Exit,
 }
 
+/// Indicates uninitialized state of app. Handles Initialize and Launch commands.
 #[derive(Clone, Debug, Default)]
 pub struct UninitializedState;
 
@@ -107,14 +114,20 @@ impl UninitializedState {
     }
 }
 
+/// Implements main debugging functionality.
 pub struct RunningState {
+    /// Breakpoints to interrupt execution.
     breakpoints: Vec<Breakpoint>,
+    /// Indicate machine state.
     running: bool,
+    /// Keep compiled program to provide access to bytecode and service information.
     program: GeneratedBrillig,
+    /// Virtual machine that handles program.
     vm: VMType,
 }
 
 impl RunningState {
+    /// Create instance using path to file and virtual machine type.
     pub(crate) fn new(src_path: &str, _vm_type: Option<&str>) -> Result<Self, DebuggingError> {
         let toml_path = get_package_manifest(std::path::Path::new(src_path)).unwrap();
         let workspace =
@@ -143,14 +156,17 @@ impl RunningState {
         })
     }
 
+    /// Enter to debugging mode in the state.
     pub(crate) fn init<T: Server>(&mut self, server: &T) -> Result<(), DebuggingError> {
         self.stop(server, StoppedEventReason::Entry)
     }
 
+    /// Clear the defined breakpoints.
     fn clear_breakpoints(&mut self) {
         self.breakpoints = vec![];
     }
 
+    /// Stop machine and provide response with reason.
     fn stop<T: Server>(
         &mut self,
         server: &T,
@@ -173,10 +189,12 @@ impl RunningState {
         Ok(())
     }
 
+    /// Getter for program counter.
     fn get_current_instruction(&self) -> usize {
         self.vm.program_counter()
     }
 
+    /// Perform command from a request.
     pub(crate) fn run<T: Server>(
         &mut self,
         server: &mut T,
@@ -346,16 +364,19 @@ impl RunningState {
     }
 }
 
+/// Application struct. Handles server operations and reports its state.
 pub struct App<T: Server> {
     pub state: State,
     pub(crate) server: T,
 }
 
 impl<T: Server> App<T> {
+    /// Initialize app using any instance that implements trait Server.
     pub fn initialize(server: T) -> Self {
         App { state: State::Uninitialized(UninitializedState::new()), server }
     }
 
+    /// Perform single run for app.
     pub fn run(&mut self) -> Result<(), DebuggingError> {
         let res = match self.state {
             State::Uninitialized(ref mut s) => s.run(&mut self.server)?,
