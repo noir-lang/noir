@@ -28,11 +28,14 @@ jobs:
         run: |
           nix build -L .
 
+      - name: Dereference symlink
+        run: echo "UPLOAD_PATH=$(readlink -f ./result/bin/nargo)" >> $GITHUB_ENV
+
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: nargo-x86_64-unknown-linux-gnu
-          path: ./result/bin/nargo
+          path: ${{ env.UPLOAD_PATH }}
           retention-days: 3
 
 
@@ -44,8 +47,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-        with:
-          submodules: recursive
 
       - name: Download nargo binary
         uses: actions/download-artifact@v3
@@ -66,7 +67,7 @@ jobs:
           export PATH="$PATH:$nargo_bin_dir"
           echo $(which nargo)
 
-          $nargo_binary --version
+          nargo --version
 
       - name: Generate gates report
         working-directory: ./tooling/nargo_cli/tests
