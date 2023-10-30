@@ -264,7 +264,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
 
     fn restart_session(&mut self) {
         let breakpoints: Vec<OpcodeLocation> =
-            self.context.iterate_breakpoints().cloned().collect();
+            self.context.iterate_breakpoints().copied().collect();
         self.context = DebugContext::new(
             self.blackbox_solver,
             self.circuit,

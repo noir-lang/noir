@@ -170,7 +170,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 return result;
             }
             let new_location = self.get_current_source_location();
-            if matches!(new_location, Some(..)) && new_location != start_location {
+            if new_location.is_some() && new_location != start_location {
                 return DebugCommandResult::Ok;
             }
         }
@@ -201,10 +201,11 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 acir_index < opcodes.len()
                     && matches!(opcodes[acir_index], Opcode::Brillig(..))
                     && {
-                        let Opcode::Brillig(ref brillig) = opcodes[acir_index] else {
-                            unreachable!("opcode at {acir_index} is not Brillig")
-                        };
-                        brillig_index < brillig.bytecode.len()
+                        if let Opcode::Brillig(ref brillig) = opcodes[acir_index] {
+                            brillig_index < brillig.bytecode.len()
+                        } else {
+                            false
+                        }
                     }
             }
         }
