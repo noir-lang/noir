@@ -27,9 +27,9 @@ for A in $ARCH_LIST
 do
   ARCH_IMAGE=$IMAGE_URI-$A
   echo "Adding image $ARCH_IMAGE to manifest list."
-  docker manifest create $IMAGE_URI --amend $ARCH_IMAGE
+  retry docker manifest create $IMAGE_URI --amend $ARCH_IMAGE
 done
 IFS=$OLD_IFS
 unset OLD_IFS
 
-docker manifest push --purge $IMAGE_URI
+retry docker manifest push --purge $IMAGE_URI

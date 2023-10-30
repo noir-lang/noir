@@ -24,7 +24,7 @@ INSTANCE_TYPE_SUFFIX=${cpu_map[$CPUS]}
 
 # Check if INSTANCE_TYPE_SUFFIX is set, if not, the CPU count is not recognized.
 if [ -z "$INSTANCE_TYPE_SUFFIX" ]; then
-  echo "Unrecognized CPU count: $CPUS"
+  >&2 echo "Unrecognized CPU count: $CPUS"
   exit 1
 fi
 
@@ -110,6 +110,11 @@ done
 
 # Wait till ssh port is open.
 >&2 echo "Waiting for SSH at $IP..."
-while ! nc -z $IP 22; do sleep 1; done;
-
-echo $IP
+for I in {1..60}; do
+  if nc -z $IP 22; then
+    echo $IP
+    exit 0
+  fi
+  sleep 1
+done
+exit 1

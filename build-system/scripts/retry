@@ -3,5 +3,5 @@ ATTEMPTS=3
 for i in $(seq 1 $ATTEMPTS); do
     "$@" && exit || sleep 10
 done
-echo "$@ failed after $ATTEMPTS attempts"
+>&2 echo "$@ failed after $ATTEMPTS attempts"
 exit 1
