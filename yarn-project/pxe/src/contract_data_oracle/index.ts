@@ -45,6 +45,19 @@ export class ContractDataOracle {
   }
 
   /**
+   * Retrieves the artifact of a specified function within a given contract.
+   * The function is identified by its name, which is unique within a contract.
+   *
+   * @param contractAddress - The AztecAddress representing the contract containing the function.
+   * @param functionName - The name of the function.
+   * @returns The corresponding function's artifact as an object.
+   */
+  public async getFunctionArtifactByName(contractAddress: AztecAddress, functionName: string) {
+    const contract = await this.db.getContract(contractAddress);
+    return contract?.functions.find(f => f.name === functionName);
+  }
+
+  /**
    * Retrieves the debug metadata of a specified function within a given contract.
    * The function is identified by its selector, which is a unique code generated from the function's signature.
    * Returns undefined if the debug metadata for the given function is not found.

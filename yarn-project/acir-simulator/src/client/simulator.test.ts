@@ -1,0 +1,113 @@
+import { CircuitsWasm, CompleteAddress } from '@aztec/circuits.js';
+import { computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/abis';
+import { pedersenHashInputs } from '@aztec/circuits.js/barretenberg';
+import { ABIParameterVisibility } from '@aztec/foundation/abi';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
+import { TokenContractArtifact } from '@aztec/noir-contracts/artifacts';
+
+import { MockProxy, mock } from 'jest-mock-extended';
+
+import { getFunctionArtifact } from '../test/utils.js';
+import { DBOracle, FunctionArtifactWithDebugMetadata } from './db_oracle.js';
+import { AcirSimulator } from './simulator.js';
+
+describe('Simulator', () => {
+  let oracle: MockProxy<DBOracle>;
+  let simulator: AcirSimulator;
+  let circuitsWasm: CircuitsWasm;
+  let ownerCompleteAddress: CompleteAddress;
+  let owner: AztecAddress;
+  const ownerPk = GrumpkinScalar.fromString('2dcc5485a58316776299be08c78fa3788a1a7961ae30dc747fb1be17692a8d32');
+
+  const hashFields = (data: Fr[]) =>
+    Fr.fromBuffer(
+      pedersenHashInputs(
+        circuitsWasm,
+        data.map(f => f.toBuffer()),
+      ),
+    );
+
+  beforeAll(async () => {
+    circuitsWasm = await CircuitsWasm.get();
+
+    ownerCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
+    owner = ownerCompleteAddress.address;
+  });
+
+  beforeEach(() => {
+    oracle = mock<DBOracle>();
+    oracle.getSecretKey.mockResolvedValue(ownerPk);
+    oracle.getCompleteAddress.mockResolvedValue(ownerCompleteAddress);
+
+    simulator = new AcirSimulator(oracle);
+  });
+
+  describe('computeNoteHashAndNullifier', () => {
+    const artifact = getFunctionArtifact(TokenContractArtifact, 'compute_note_hash_and_nullifier');
+    const contractAddress = AztecAddress.random();
+    const nonce = Fr.random();
+    const storageSlot = Fr.random();
+
+    const createPreimage = (amount = 123n) => [new Fr(amount), owner.toField(), Fr.random()];
+
+    it('should compute note hashes and nullifier', async () => {
+      oracle.getFunctionArtifactByName.mockResolvedValue(artifact);
+
+      const preimage = createPreimage();
+      const valueNoteHash = hashFields(preimage);
+      const innerNoteHash = hashFields([storageSlot, valueNoteHash]);
+      const siloedNoteHash = siloCommitment(circuitsWasm, contractAddress, innerNoteHash);
+      const uniqueSiloedNoteHash = computeUniqueCommitment(circuitsWasm, nonce, siloedNoteHash);
+      const innerNullifier = hashFields([uniqueSiloedNoteHash, ownerPk.low, ownerPk.high]);
+
+      const result = await simulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, preimage);
+
+      expect(result).toEqual({
+        innerNoteHash,
+        siloedNoteHash,
+        uniqueSiloedNoteHash,
+        innerNullifier,
+      });
+    });
+
+    it('throw if the contract does not implement "compute_note_hash_and_nullifier"', async () => {
+      oracle.getFunctionArtifactByName.mockResolvedValue(undefined);
+
+      const preimage = createPreimage();
+      await expect(
+        simulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, preimage),
+      ).rejects.toThrowError(/Mandatory implementation of "compute_note_hash_and_nullifier" missing/);
+    });
+
+    it('throw if a note has more fields than "compute_note_hash_and_nullifier" can process', async () => {
+      const preimage = createPreimage();
+      const wrongPreimageLength = preimage.length - 1;
+
+      const modifiedArtifact: FunctionArtifactWithDebugMetadata = {
+        ...artifact,
+        parameters: [
+          ...artifact.parameters.slice(0, -1),
+          {
+            name: 'preimage',
+            type: {
+              kind: 'array',
+              length: wrongPreimageLength,
+              type: {
+                kind: 'field',
+              },
+            },
+            visibility: ABIParameterVisibility.SECRET,
+          },
+        ],
+      };
+      oracle.getFunctionArtifactByName.mockResolvedValue(modifiedArtifact);
+
+      await expect(
+        simulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, preimage),
+      ).rejects.toThrowError(
+        new RegExp(`"compute_note_hash_and_nullifier" can only handle a maximum of ${wrongPreimageLength} fields`),
+      );
+    });
+  });
+});

@@ -72,6 +72,19 @@ export interface DBOracle extends CommitmentsDB {
   ): Promise<FunctionArtifactWithDebugMetadata>;
 
   /**
+   * Retrieves the artifact of a specified function within a given contract.
+   * The function is identified by its name, which is unique within a contract.
+   *
+   * @param contractAddress - The AztecAddress representing the contract containing the function.
+   * @param functionName - The name of the function.
+   * @returns The corresponding function's artifact as an object.
+   */
+  getFunctionArtifactByName(
+    contractAddress: AztecAddress,
+    functionName: string,
+  ): Promise<FunctionArtifactWithDebugMetadata | undefined>;
+
+  /**
    * Retrieves the portal contract address associated with the given contract address.
    * Throws an error if the input contract address is not found or invalid.
    *

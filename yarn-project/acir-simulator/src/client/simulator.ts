@@ -1,4 +1,4 @@
-import { CallContext, FunctionData, MAX_NOTE_FIELDS_LENGTH } from '@aztec/circuits.js';
+import { CallContext, FunctionData } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { ArrayType, FunctionSelector, FunctionType, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -161,28 +161,24 @@ export class AcirSimulator {
     storageSlot: Fr,
     notePreimage: Fr[],
   ) {
-    let artifact: FunctionArtifactWithDebugMetadata | undefined = undefined;
-
-    // Brute force
-    for (let i = notePreimage.length; i < MAX_NOTE_FIELDS_LENGTH; i++) {
-      const signature = `compute_note_hash_and_nullifier(Field,Field,Field,[Field;${i}])`;
-      const selector = FunctionSelector.fromSignature(signature);
-      try {
-        artifact = await this.db.getFunctionArtifact(contractAddress, selector);
-        if (artifact !== undefined) break;
-      } catch (e) {
-        // ignore
-      }
-    }
-
-    if (artifact == undefined) {
+    const artifact: FunctionArtifactWithDebugMetadata | undefined = await this.db.getFunctionArtifactByName(
+      contractAddress,
+      'compute_note_hash_and_nullifier',
+    );
+    if (!artifact) {
       throw new Error(
         `Mandatory implementation of "compute_note_hash_and_nullifier" missing in noir contract ${contractAddress.toString()}.`,
       );
     }
 
-    const preimageLen = (artifact.parameters[3].type as ArrayType).length;
-    const extendedPreimage = notePreimage.concat(Array(preimageLen - notePreimage.length).fill(Fr.ZERO));
+    const maxNoteFields = (artifact.parameters[artifact.parameters.length - 1].type as ArrayType).length;
+    if (maxNoteFields < notePreimage.length) {
+      throw new Error(
+        `The note being processed has ${notePreimage.length} fields, while "compute_note_hash_and_nullifier" can only handle a maximum of ${maxNoteFields} fields. Please consider increasing the allowed field size to accommodate all notes generated from the contract.`,
+      );
+    }
+
+    const extendedPreimage = notePreimage.concat(Array(maxNoteFields - notePreimage.length).fill(Fr.ZERO));
 
     const execRequest: FunctionCall = {
       to: AztecAddress.ZERO,

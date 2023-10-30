@@ -18,7 +18,6 @@ import {
   computeCallStackItemHash,
   computeCommitmentNonce,
   computeSecretMessageHash,
-  computeUniqueCommitment,
   computeVarArgsHash,
   siloCommitment,
 } from '@aztec/circuits.js/abis';
@@ -226,35 +225,9 @@ describe('Private Execution test suite', () => {
         throw new Error(`Unknown address ${address}`);
       });
 
-      oracle.getFunctionArtifact.mockImplementation((_, selector) =>
-        Promise.resolve(getFunctionArtifactWithSelector(StatefulTestContractArtifact, selector)),
+      oracle.getFunctionArtifactByName.mockImplementation((_, functionName: string) =>
+        Promise.resolve(getFunctionArtifact(StatefulTestContractArtifact, functionName)),
       );
-    });
-
-    it('should have an artifact for computing note hash and nullifier', async () => {
-      const storageSlot = Fr.random();
-      const note = buildNote(60n, owner, storageSlot);
-
-      // Should be the same as how we compute the values for the ValueNote in the Aztec.nr library.
-      const valueNoteHash = hashFields(note.preimage);
-      const innerNoteHash = hashFields([storageSlot, valueNoteHash]);
-      const siloedNoteHash = siloCommitment(circuitsWasm, contractAddress, innerNoteHash);
-      const uniqueSiloedNoteHash = computeUniqueCommitment(circuitsWasm, note.nonce, siloedNoteHash);
-      const innerNullifier = hashFields([uniqueSiloedNoteHash, ownerPk.low, ownerPk.high]);
-
-      const result = await acirSimulator.computeNoteHashAndNullifier(
-        contractAddress,
-        note.nonce,
-        storageSlot,
-        note.preimage,
-      );
-
-      expect(result).toEqual({
-        innerNoteHash,
-        siloedNoteHash,
-        uniqueSiloedNoteHash,
-        innerNullifier,
-      });
     });
 
     it('should have a constructor with arguments that inserts notes', async () => {
@@ -607,6 +580,9 @@ describe('Private Execution test suite', () => {
     beforeEach(() => {
       oracle.getFunctionArtifact.mockImplementation((_, selector) =>
         Promise.resolve(getFunctionArtifactWithSelector(PendingCommitmentsContractArtifact, selector)),
+      );
+      oracle.getFunctionArtifactByName.mockImplementation((_, functionName: string) =>
+        Promise.resolve(getFunctionArtifact(PendingCommitmentsContractArtifact, functionName)),
       );
     });
 
