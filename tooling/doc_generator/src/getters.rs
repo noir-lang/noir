@@ -385,6 +385,12 @@ pub(crate) fn outer_doc(tokens: &[Token], index: usize) -> (String, usize) {
         }
     }
 
+    if let Some(pos) = res.find(' ') {
+        res = res.split_off(pos + 1);
+    } else {
+        res.clear();
+    }
+
     (res, i)
 }
 
