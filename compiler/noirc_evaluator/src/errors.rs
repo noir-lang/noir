@@ -13,6 +13,7 @@ use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
 use crate::ssa::ir::{dfg::CallStack, types::NumericType};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum RuntimeError {
@@ -53,7 +54,7 @@ fn format_failed_constraint(message: &Option<String>) -> String {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SsaReport {
     Warning(InternalWarning),
 }
@@ -78,7 +79,7 @@ impl From<SsaReport> for FileDiagnostic {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Error)]
+#[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize)]
 pub enum InternalWarning {
     #[error("Returning a constant value is not allowed")]
     ReturnConstant { call_stack: CallStack },
