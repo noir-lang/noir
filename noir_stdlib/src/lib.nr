@@ -60,19 +60,7 @@ pub fn wrapping_mul<T>(x : T, y: T) -> T {
     crate::from_field(crate::as_field(x) * crate::as_field(y))
 }
 
-pub fn wrapping_shift_left_64<T>(x : T, y: T) -> T {
-    let mut r: Field = 1;
-    let b = crate::as_field(y).to_le_bits(64);
-
-    for i in 1..65 {
-        r *= r;
-        r = (b[64-i] as Field) * (r * 2) + (1 - b[64-i] as Field) * r;
-    }
-   let a: T =  crate::from_field(crate::as_field(x) *  r);
-    a
-}
-
-
-pub fn wrapping_shift_left<T>(x : T, y: T) -> T {
-    crate::from_field(crate::as_field(x) * 2.pow_32(crate::as_field(y)))
-}
+/// Shift-left x by y bits
+/// If the result overflow the bitsize; it does not fail and returns 0 instead
+#[builtin(wrapping_shift_left)]
+pub fn wrapping_shift_left<T>(x : T, y: T) -> T {}

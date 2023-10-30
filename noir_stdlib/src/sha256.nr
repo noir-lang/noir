@@ -7,7 +7,7 @@ fn rotr32(a: u32, b: u32) -> u32 // 32-bit right rotation
 {
     // None of the bits overlap between `(a >> b)` and `(a << (32 - b))`
     // Addition is then equivalent to OR, with fewer constraints.
-    (a >> b) + (a << crate::wrapping_shift_left(a, 32 - b)) 
+    (a >> b) + (crate::wrapping_shift_left(a, 32 - b))
 }
 
 fn ch(x: u32, y: u32, z: u32) -> u32

@@ -24,7 +24,7 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
-    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKey, TraitMethodId},
+    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitMethodId},
     token::FunctionAttribute,
     ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind,
     Visibility,
@@ -820,10 +820,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let trait_impl = self
             .interner
-            .get_trait_implementation(&TraitImplKey {
-                typ: self_type.follow_bindings(),
-                trait_id: method.trait_id,
-            })
+            .lookup_trait_implementation(self_type.follow_bindings(), method.trait_id)
             .expect("ICE: missing trait impl - should be caught during type checking");
 
         let hir_func_id = trait_impl.borrow().methods[method.method_index];

@@ -180,10 +180,9 @@ pub fn compile_main(
         }
     };
 
-    let (compiled_program, compilation_warnings) =
-        compile_no_check(context, options, main, cached_program, force_compile)
-            .map_err(FileDiagnostic::from)?;
-    let compilation_warnings = vecmap(compilation_warnings, FileDiagnostic::from);
+    let compiled_program = compile_no_check(context, options, main, cached_program, force_compile)
+        .map_err(FileDiagnostic::from)?;
+    let compilation_warnings = vecmap(compiled_program.warnings.clone(), FileDiagnostic::from);
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
     }
@@ -267,6 +266,7 @@ fn compile_contract_inner(
 ) -> Result<CompiledContract, ErrorsAndWarnings> {
     let mut functions = Vec::new();
     let mut errors = Vec::new();
+    let mut warnings = Vec::new();
     for contract_function in &contract.functions {
         let function_id = contract_function.function_id;
         let is_entry_point = contract_function.is_entry_point;
@@ -288,6 +288,7 @@ fn compile_contract_inner(
                 continue;
             }
         };
+        warnings.extend(function.warnings);
         let modifiers = context.def_interner.function_modifiers(&function_id);
         let func_type = modifiers
             .contract_function_type
@@ -323,6 +324,7 @@ fn compile_contract_inner(
             functions,
             file_map,
             noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
+            warnings,
         })
     } else {
         Err(errors)
@@ -360,15 +362,13 @@ pub fn compile_no_check(
 
     let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
 
-    Ok((
-        CompiledProgram {
-            hash,
-            circuit,
-            debug,
-            abi,
-            file_map,
-            noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
-        },
+    Ok(CompiledProgram {
+        hash,
+        circuit,
+        debug,
+        abi,
+        file_map,
+        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-    ))
+    })
 }
