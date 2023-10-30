@@ -24,7 +24,7 @@ export class KernelOracle implements ProvingDataOracle {
   }
 
   async getNoteMembershipWitness(leafIndex: bigint): Promise<MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>> {
-    const path = await this.node.getDataTreePath(leafIndex);
+    const path = await this.node.getNoteHashSiblingPath(leafIndex);
     return new MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>(
       path.pathSize,
       leafIndex,

@@ -154,7 +154,7 @@ export class ContractTree {
   public async getContractMembershipWitness() {
     const index = await this.getContractIndex();
 
-    const siblingPath = await this.stateInfoProvider.getContractPath(index);
+    const siblingPath = await this.stateInfoProvider.getContractSiblingPath(index);
     return new MembershipWitness<typeof CONTRACT_TREE_HEIGHT>(
       CONTRACT_TREE_HEIGHT,
       index,
