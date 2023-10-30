@@ -18,9 +18,7 @@ jobs:
           ref: ${{ inputs.acvm-ref }}
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.71.1
+        uses: dtolnay/rust-toolchain@1.71.1
 
       # These steps are in a specific order so crate dependencies are updated first
       - name: Publish acir_field
