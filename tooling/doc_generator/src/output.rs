@@ -7,6 +7,10 @@ use crate::{
     struct_signature, trait_info, Function, Implementation,
 };
 
+/// Represents the type or category of code element or information.
+
+/// The `Type` enum is used to categorize code elements or information based on their type or purpose.
+/// This classification can help in organizing and processing code elements and their associated documentation.
 #[derive(Debug, Clone, Copy, Eq, Hash, PartialEq)]
 pub(crate) enum Type {
     Function,
@@ -28,6 +32,11 @@ impl fmt::Display for Type {
     }
 }
 
+/// Represents detailed information about a code element.
+
+/// The `Info` enum provides detailed information about code elements, including their type, signature,
+/// documentation, and any additional details. It is used to capture and organize information related to code elements
+/// for documentation and processing purposes.
 #[derive(Debug, Clone, Eq, Hash, PartialEq)]
 pub(crate) enum Info {
     Function {
@@ -99,6 +108,11 @@ impl Info {
     }
 }
 
+/// Represents an output object that combines code information, documentation, and type details.
+
+/// The `Output` struct serves as a container for code-related information, documentation, and type details.
+/// It allows you to bundle these attributes together, making it convenient for storing and processing code
+/// elements, their associated documentation, and their categorized types.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub(crate) struct Output {
     pub(crate) r#type: Type,
@@ -108,6 +122,11 @@ pub(crate) struct Output {
 }
 
 impl Output {
+    /// Converts a vector of spanned tokens into a vector of structured output objects.
+
+    /// The `to_output` function processes a vector of spanned tokens, typically representing source code,
+    /// and converts them into a vector of structured output objects. Each output object includes information
+    /// about the code element, its type, name, documentation, and additional details as applicable.
     pub(crate) fn to_output(input: Vec<SpannedToken>) -> Vec<Self> {
         let mut res = Vec::new();
         let tokens = input.into_iter().map(|x| x.into_token()).collect::<Vec<_>>();

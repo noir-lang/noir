@@ -9,6 +9,11 @@ use noirc_frontend::token::{Keyword, Token};
 
 use crate::{doc, fn_signature, get_text, Code, Output, Type};
 
+/// Generates an HTML code page from the content of a text file.
+
+/// The `generate_code_page` function reads the content of a text file specified by the `input_file` path,
+/// processes the text content as code lines, and generates an HTML page that displays the code lines.
+/// The resulting HTML page can be used for code documentation or rendering purposes.
 fn generate_code_page(input_file: &str) -> Result<(), Box<dyn std::error::Error>> {
     let codelines = get_text(input_file)?;
 
@@ -24,6 +29,11 @@ fn generate_code_page(input_file: &str) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
+/// Represents a function with associated documentation and signature.
+
+/// The `Function` struct is used to represent a function, providing information about its name,
+/// documentation, signature, and whether it's a method. This structure is typically used to organize
+/// and process information related to functions within the code.
 #[derive(Debug, Clone, Template, Eq, Hash, PartialEq)]
 #[template(path = "func_template.html")]
 pub(crate) struct Function {
@@ -33,6 +43,11 @@ pub(crate) struct Function {
     pub(crate) is_method: bool,
 }
 
+/// Generates an HTML page for a function with associated documentation.
+
+/// The `generate_function_pages` function generates an HTML page for a function represented by the `func` parameter.
+/// The HTML page displays the function's name, documentation, and signature. This function is typically used to
+/// generate documentation pages for functions.
 fn generate_function_pages(func: Function) -> Result<(), Box<dyn std::error::Error>> {
     if func.is_method {
         return Ok(());
@@ -47,6 +62,11 @@ fn generate_function_pages(func: Function) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
+/// Represents a structured code element, typically a struct, with associated documentation and details.
+
+/// The `Structure` struct is used to represent a structured code element, such as a struct. It provides information
+/// about the name, documentation, additional documentation, signature, and implementations related to the struct.
+/// This structure is designed to organize and process information related to structured code elements.
 #[derive(Debug, Template)]
 #[template(path = "struct_template.html")]
 pub(crate) struct Structure {
@@ -57,6 +77,11 @@ pub(crate) struct Structure {
     implementations: Vec<Implementation>,
 }
 
+/// Represents an implementation of methods for a code element.
+
+/// The `Implementation` struct provides information about the signature of an implementation and the associated
+/// functions within the implementation. It is used to organize and process information related to the implementation
+/// of methods for a code element.
 #[derive(Debug, Clone, Eq, Hash, PartialEq)]
 pub(crate) struct Implementation {
     signature: String,
@@ -64,6 +89,10 @@ pub(crate) struct Implementation {
 }
 
 impl Implementation {
+    /// Retrieves a list of implementations for a code element.
+
+    /// The `get_implementations` method is used to retrieve a list of implementations for a code element.
+    /// It searches through the provided tokens and identifies implementations associated with the original code element.
     pub(crate) fn get_implementations(
         tokens: &[Token],
         index: usize,
@@ -156,6 +185,11 @@ impl Implementation {
     }
 }
 
+/// Generates an HTML page for a structured code element with associated documentation.
+
+/// The `generate_structure_pages` function generates an HTML page for a structured code element represented by the `structure` parameter.
+/// The HTML page displays information about the structured code element, including its name, documentation, signature, additional documentation,
+/// and any associated implementations. This function is typically used to generate documentation pages for structured code elements.
 fn generate_structure_pages(structure: Structure) -> Result<(), Box<dyn std::error::Error>> {
     let rendered_html = structure.render().unwrap();
 
@@ -167,6 +201,11 @@ fn generate_structure_pages(structure: Structure) -> Result<(), Box<dyn std::err
     Ok(())
 }
 
+/// Represents a trait with associated documentation, methods, and implementations.
+
+/// The `Trait` struct is used to represent a trait, providing information about its name, documentation, signature,
+/// additional documentation, required methods, provided methods, and any associated implementations. This structure is
+/// designed to organize and process information related to traits within the code.
 #[derive(Debug, Template)]
 #[template(path = "trait_template.html")]
 pub(crate) struct Trait {
@@ -179,6 +218,12 @@ pub(crate) struct Trait {
     implementations: Vec<Implementation>,
 }
 
+/// Generates an HTML page for a trait with associated documentation, methods, and implementations.
+
+/// The `generate_trait_pages` function generates an HTML page for a trait represented by the `r#trait` parameter.
+/// The HTML page displays information about the trait, including its name, documentation, signature, additional documentation,
+/// required methods, provided methods, and any associated implementations. This function is typically used to generate
+/// documentation pages for traits.
 fn generate_trait_pages(r#trait: Trait) -> Result<(), Box<dyn std::error::Error>> {
     let rendered_html = r#trait.render().unwrap();
 
@@ -190,6 +235,11 @@ fn generate_trait_pages(r#trait: Trait) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
+/// Represents a collection of code outputs and their associated filename.
+
+/// The `AllOutput` struct is used to group together a collection of code outputs, typically representing documentation for code elements,
+/// and associate them with a specific filename. This structure is commonly used to organize and generate documentation pages that include
+/// multiple code outputs from various parts of the codebase.
 #[derive(Debug, Template)]
 #[template(path = "doc_template.html")]
 pub(crate) struct AllOutput {
@@ -197,12 +247,21 @@ pub(crate) struct AllOutput {
     pub(crate) filename: String,
 }
 
+/// Represents search results containing a list of code outputs.
+
+/// The `SearchResults` struct is used to represent search results containing a list of code outputs. This structure is typically used
+/// when generating search result pages, allowing users to view and navigate code outputs matching their search queries.
 #[derive(Debug, Template)]
 #[template(path = "search_results_template.html")]
 pub(crate) struct SearchResults {
     results: Vec<Output>,
 }
 
+/// Generates an HTML page for displaying search results.
+
+/// The `generate_search_page` function generates an HTML page to display search results provided in the `res` parameter.
+/// The generated page includes a list of code outputs that match the search criteria. This function is typically used to
+/// create search result pages for users searching for code documentation.
 fn generate_search_page(
     res: SearchResults,
     module_name: String,
@@ -217,6 +276,11 @@ fn generate_search_page(
     Ok(())
 }
 
+/// Extracts the filename from a path, given the full filename with its path.
+
+/// The `extract_filename` function takes a full filename with its path as input and extracts the filename portion, excluding the path.
+/// This function is useful when you need to isolate the filename from a file path, which can be particularly helpful when generating documentation
+/// pages or handling file-related operations.
 pub(crate) fn extract_filename(filename_with_path: &str) -> Option<&str> {
     let path = Path::new(filename_with_path);
     match path.file_stem() {
@@ -225,6 +289,11 @@ pub(crate) fn extract_filename(filename_with_path: &str) -> Option<&str> {
     }
 }
 
+/// Generates an HTML documentation page for a module, including associated code elements.
+
+/// The `generate_module_page` function generates an HTML documentation page for a module and its associated code elements.
+/// This page typically includes code outputs, such as functions, structs, traits, and other code constructs. It also provides
+/// links to related code documentation and a search feature for easier navigation.
 pub(crate) fn generate_module_page(module: AllOutput) -> Result<(), Box<dyn std::error::Error>> {
     let rendered_html = module.render().unwrap();
 
