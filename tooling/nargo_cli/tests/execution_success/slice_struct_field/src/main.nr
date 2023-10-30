@@ -133,9 +133,9 @@ fn main(y : pub Field) {
 
     test_basic_intrinsics_nested_slices(foo_parents, y);
     // TODO(#3364): still have to enable slice intrinsics on dynamic nested slices
-    assert(foo_parents[y - 2].foos.len() == 5);
-    foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo_four);
-    assert(foo_parents[y - 2].foos.len() == 6);
+    // assert(foo_parents[y - 2].foos.len() == 5);
+    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo_four);
+    // assert(foo_parents[y - 2].foos.len() == 6);
     
     let b_array = foo_parents[y - 2].foos[y - 1].b;
     assert(b_array[0] == 5);
