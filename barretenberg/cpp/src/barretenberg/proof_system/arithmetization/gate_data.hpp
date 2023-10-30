@@ -124,7 +124,6 @@ template <typename FF> struct ecc_add_gate_ {
     uint32_t y2;
     uint32_t x3;
     uint32_t y3;
-    FF endomorphism_coefficient;
     FF sign_coefficient;
 };
 template <typename FF> struct ecc_dbl_gate_ {

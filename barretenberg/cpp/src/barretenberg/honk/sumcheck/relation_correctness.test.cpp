@@ -174,11 +174,7 @@ template <typename Flavor> void create_some_elliptic_curve_addition_gates(auto& 
     grumpkin::g1::affine_element p1 = grumpkin::g1::affine_element::random_element();
     grumpkin::g1::affine_element p2 = grumpkin::g1::affine_element::random_element();
 
-    grumpkin::fq beta_scalar = grumpkin::fq::cube_root_of_unity();
-    grumpkin::g1::affine_element p2_endo = p2;
-    p2_endo.x *= beta_scalar;
-
-    grumpkin::g1::affine_element p3(grumpkin::g1::element(p1) - grumpkin::g1::element(p2_endo));
+    grumpkin::g1::affine_element p3(grumpkin::g1::element(p1) - grumpkin::g1::element(p2));
 
     uint32_t x1 = circuit_builder.add_variable(p1.x);
     uint32_t y1 = circuit_builder.add_variable(p1.y);
@@ -187,7 +183,7 @@ template <typename Flavor> void create_some_elliptic_curve_addition_gates(auto& 
     uint32_t x3 = circuit_builder.add_variable(p3.x);
     uint32_t y3 = circuit_builder.add_variable(p3.y);
 
-    circuit_builder.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, beta_scalar, -1 });
+    circuit_builder.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, -1 });
 }
 
 template <typename Flavor> void create_some_ecc_op_queue_gates(auto& circuit_builder)

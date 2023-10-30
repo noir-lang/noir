@@ -289,7 +289,6 @@ cycle_group<Composer> cycle_group<Composer>::unconditional_add(const cycle_group
         .y2 = other.y.get_witness_index(),
         .x3 = result.x.get_witness_index(),
         .y3 = result.y.get_witness_index(),
-        .endomorphism_coefficient = 1,
         .sign_coefficient = 1,
     };
     context->create_ecc_add_gate(add_gate);
@@ -342,7 +341,6 @@ cycle_group<Composer> cycle_group<Composer>::unconditional_subtract(const cycle_
             .y2 = other.y.get_witness_index(),
             .x3 = result.x.get_witness_index(),
             .y3 = result.y.get_witness_index(),
-            .endomorphism_coefficient = 1,
             .sign_coefficient = -1,
         };
         context->create_ecc_add_gate(add_gate);

@@ -254,21 +254,17 @@ TEST_F(UltraHonkComposerTests, test_elliptic_gate)
     uint32_t x3 = circuit_builder.add_variable(p3.x);
     uint32_t y3 = circuit_builder.add_variable(p3.y);
 
-    circuit_builder.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, 1, 1 });
+    circuit_builder.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, 1 });
 
-    grumpkin::fq beta = grumpkin::fq::cube_root_of_unity();
-    affine_element p2_endo = p2;
-    p2_endo.x *= beta;
-    p3 = affine_element(element(p1) + element(p2_endo));
+    p3 = affine_element(element(p1) + element(p2));
     x3 = circuit_builder.add_variable(p3.x);
     y3 = circuit_builder.add_variable(p3.y);
-    circuit_builder.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, beta, 1 });
+    circuit_builder.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, 1 });
 
-    p2_endo.x *= beta;
-    p3 = affine_element(element(p1) - element(p2_endo));
+    p3 = affine_element(element(p1) - element(p2));
     x3 = circuit_builder.add_variable(p3.x);
     y3 = circuit_builder.add_variable(p3.y);
-    circuit_builder.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, beta.sqr(), -1 });
+    circuit_builder.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, -1 });
 
     auto composer = UltraComposer();
     prove_and_verify(circuit_builder, composer, /*expected_result=*/true);

@@ -383,12 +383,10 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_poly_gate(const pol
 /**
  * @brief Create an elliptic curve addition gate
  *
- * @details x and y are defined over scalar field. Addition can handle applying the curve endomorphism to one of the
- * points being summed at the time of addition.
+ * @details x and y are defined over scalar field.
  *
  * @param in Elliptic curve point addition gate parameters, including the the affine coordinates of the two points being
- * added, the resulting point coordinates and the selector values that describe whether the endomorphism is used on the
- * second point and whether it is negated.
+ * added, the resulting point coordinates and the selector values that describe whether the second point is negated.
  */
 template <typename FF> void UltraCircuitBuilder_<FF>::create_ecc_add_gate(const ecc_add_gate_<FF>& in)
 {
@@ -411,25 +409,16 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_ecc_add_gate(const 
     can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_arith[this->num_gates - 1] == 0);
     can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_m[this->num_gates - 1] == 0);
 
-    // TODO(@zac-williamson #2608 remove endomorphism coefficient)
-    bool endomorphism_present = in.endomorphism_coefficient != 1;
     if (can_fuse_into_previous_gate) {
-        q_3[this->num_gates - 1] = in.endomorphism_coefficient;
-        q_4[this->num_gates - 1] = in.endomorphism_coefficient.sqr();
         q_1[this->num_gates - 1] = in.sign_coefficient;
-
-        // TODO(@zac-williamson #2608) Change this back to 1 when pedersen refactor is complete.
-        // This is temporary stopgap. We can't support both a double gate and support the ecc enodmorphism
-        // without pushing the degree of the constraint above 5, which breaks ultraplonk.
-        // The pedersen refactor will remove all uses of the endomorphism
-        q_elliptic[this->num_gates - 1] = endomorphism_present ? 0 : 1;
+        q_elliptic[this->num_gates - 1] = 1;
     } else {
         w_l.emplace_back(this->zero_idx);
         w_r.emplace_back(in.x1);
         w_o.emplace_back(in.y1);
         w_4.emplace_back(this->zero_idx);
-        q_3.emplace_back(in.endomorphism_coefficient);
-        q_4.emplace_back(in.endomorphism_coefficient.sqr());
+        q_3.emplace_back(0);
+        q_4.emplace_back(0);
         q_1.emplace_back(in.sign_coefficient);
 
         q_arith.emplace_back(0);
@@ -438,12 +427,7 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_ecc_add_gate(const 
         q_c.emplace_back(0);
         q_sort.emplace_back(0);
         q_lookup_type.emplace_back(0);
-
-        // TODO(@zac-williamson #2608) Change this back to 1 when pedersen refactor is complete.
-        // This is temporary stopgap. We can't support both a double gate and support the ecc enodmorphism
-        // without pushing the degree of the constraint above 5, which breaks ultraplonk.
-        // The pedersen refactor will remove all uses of the endomorphism
-        q_elliptic.emplace_back(endomorphism_present ? 0 : 1);
+        q_elliptic.emplace_back(1);
         q_aux.emplace_back(0);
         ++this->num_gates;
     }
@@ -2771,8 +2755,7 @@ inline FF UltraCircuitBuilder_<FF>::compute_genperm_sort_identity(FF q_sort_valu
 }
 
 /**
- * @brief Elliptic curve identity gate methods implement elliptic curve point addition. The gate is enhanced to handle
- * the case where one of the points is automatically scaled by the endomorphism constant β or negated
+ * @brief Elliptic curve identity gate methods implement elliptic curve point addition.
  *
  *
  * @details The basic equation for the elliptic curve in short weierstrass form is y^2 == x^3 + a * x + b.
@@ -2785,48 +2768,12 @@ inline FF UltraCircuitBuilder_<FF>::compute_genperm_sort_identity(FF q_sort_valu
  * If we assume that the points being added are distinct and not invereses of each other (so their x coordinates
  * differ), then we can rephrase this equality:
  *    x_3 * (x_2 - x_1)^2 = ((y_2 - y_1)^2 - (x_2 - x_1) * (x_2^2 - x_1^2))
- * Let's say we want to apply the endomorphism to the (x_2, y_2) point at the same time and maybe change the sign of
- * y_2:
- *
- *    (x_2, y_2) = (β * x_2', sign * y_2')
- *    x_3 * (β * x_2' - x_1)^2 = ((sign * y_2' - y_1)^2 - (β * x_2' - x_1) * ((β * x_2')^2 - x_1^2))
- *
- * Let's open the brackets and group the terms by β, β^2, sign:
- *
- *  x_2'^2 * x_3 * β^2 - 2 * β * x_1 * x_2' * x_3 - x_1^2 * x_3 = sign^2 * y_2'^2 - 2 * sign * y_1 * y_2  + y_1^2 - β^3
- * * x_2'^3 + β * x_1^2 * x_2' + β^2 * x_1 * x_2'^2 - x_1^3
- *
- *  β^3 = 1
- *  sign^2 = 1 (at least we always expect sign to be set to 1 or -1)
- *
- *  sign * (-2 * y_1 * y_2) + β * (2 * x_1 * x_2' * x_3 +x_1^2 * x_2') + β^2 * (x_1 * x_2'^2 - x_2'^2 * x_3) + (x_1^2 *
- * x_3 + y_2'^2 + y_1^2 - x_2'^3 - x_1^3) = 0
- *  This is the equation computed in x_identity and scaled by α
- *
- *  Now let's deal with the y equation:
- *    y_3 = λ * (x_3 - x_1) + y_1 = (y_2 - y_1) * (x_3 - x_1) / (x_2 - x_1) + y_1 = ((y_2 - y_1) * (x_3 - x_1) + y_1 *
- * (x_2 - x_1)) / (x_2 - x_1)
- *
- *    (x_2 - x_1) * y_3 = (y_2 - y_1) * (x_3 - x_1) + y_1 * (x_2 - x_1)
- *
- * Let's substitute  (x_2, y_2) = (β * x_2', sign * y_2'):
- *
- *    β * x_2' * y_3 - x_1 * y_3 - sign * y_2' * x_3  + y_1 * x_3 + sign * y_2' * x_1 - y_1 * x_1 - β * y_1 * x_2' + x_1
- * * y_1 = 0
- *
- * Let's group:
- *
- *    sign * (-y_2' * x_3 + y_2' * x_1) + β * (x_2' * x_3 + y_1 * x_2') + (-x_1 * y_3 + y_1 * x_3 - x_1 * y_1 +
- * x_1 * y_1) = 0
- *
  */
 
 /**
- * @brief Compute the identity of the arithmetic gate fiven all coefficients
+ * @brief Compute the identity of the arithmetic gate given all coefficients
  *
  * @param q_1_value 1 or -1 (the sign). Controls whether we are subtracting or adding the second point
- * @param q_3_value The endomorphism coefficient β, if we are using the endomorphism here
- * @param q_4_value β² if we need it
  * @param w_2_value x₁
  * @param w_3_value y₁
  * @param w_1_shifted_value x₂

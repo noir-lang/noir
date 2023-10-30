@@ -115,7 +115,6 @@ TEST(ultra_circuit_constructor, test_elliptic_gate)
     affine_element p1 = crypto::pedersen_commitment::commit_native({ barretenberg::fr(1) }, 0);
 
     affine_element p2 = crypto::pedersen_commitment::commit_native({ barretenberg::fr(1) }, 1);
-    ;
     affine_element p3(element(p1) + element(p2));
 
     uint32_t x1 = circuit_constructor.add_variable(p1.x);
@@ -125,7 +124,7 @@ TEST(ultra_circuit_constructor, test_elliptic_gate)
     uint32_t x3 = circuit_constructor.add_variable(p3.x);
     uint32_t y3 = circuit_constructor.add_variable(p3.y);
 
-    circuit_constructor.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, 1, 1 });
+    circuit_constructor.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, 1 });
 
     auto saved_state = UltraCircuitBuilder::CircuitDataBackup::store_full_state(circuit_constructor);
     bool result = circuit_constructor.check_circuit();
@@ -133,7 +132,7 @@ TEST(ultra_circuit_constructor, test_elliptic_gate)
     EXPECT_EQ(result, true);
     EXPECT_TRUE(saved_state.is_same_state(circuit_constructor));
 
-    circuit_constructor.create_ecc_add_gate({ x1 + 1, y1, x2, y2, x3, y3, 1, 1 });
+    circuit_constructor.create_ecc_add_gate({ x1 + 1, y1, x2, y2, x3, y3, 1 });
 
     EXPECT_EQ(circuit_constructor.check_circuit(), false);
 }

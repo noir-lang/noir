@@ -327,11 +327,7 @@ TEST_F(SumcheckTests, RealCircuitUltra)
     grumpkin::g1::affine_element p1 = grumpkin::g1::affine_element::random_element();
     grumpkin::g1::affine_element p2 = grumpkin::g1::affine_element::random_element();
 
-    grumpkin::fq beta_scalar = grumpkin::fq::cube_root_of_unity();
-    grumpkin::g1::affine_element p2_endo = p2;
-    p2_endo.x *= beta_scalar;
-
-    grumpkin::g1::affine_element p3(grumpkin::g1::element(p1) - grumpkin::g1::element(p2_endo));
+    grumpkin::g1::affine_element p3(grumpkin::g1::element(p1) + grumpkin::g1::element(p2));
 
     uint32_t x1 = builder.add_variable(p1.x);
     uint32_t y1 = builder.add_variable(p1.y);
@@ -340,7 +336,7 @@ TEST_F(SumcheckTests, RealCircuitUltra)
     uint32_t x3 = builder.add_variable(p3.x);
     uint32_t y3 = builder.add_variable(p3.y);
 
-    builder.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, beta_scalar, -1 });
+    builder.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, 1 });
 
     // Add some RAM gates
     uint32_t ram_values[8]{
