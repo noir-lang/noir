@@ -280,7 +280,7 @@ fn transform_module(
     // Check for a user defined storage struct
     let storage_defined = check_for_storage_definition(&module);
 
-    if storage_defined && check_for_compute_note_hash_and_nullifier_definition(&module) {
+    if storage_defined && !check_for_compute_note_hash_and_nullifier_definition(&module) {
         let crate_graph = &context.crate_graph[crate_id];
         return Err((
             DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound {
