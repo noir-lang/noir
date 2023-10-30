@@ -4,7 +4,7 @@ use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 
 use nargo::{package::Package, prepare_package, workspace::Workspace};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::check_crate;
+use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
@@ -67,11 +67,15 @@ fn on_code_lens_request_inner(
             return Ok(None);
         }
     };
-    let workspace =
-        resolve_workspace_from_toml(&toml_path, PackageSelection::All, None).map_err(|err| {
-            // If we found a manifest, but the workspace is invalid, we raise an error about it
-            ResponseError::new(ErrorCode::REQUEST_FAILED, err)
-        })?;
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        PackageSelection::All,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    )
+    .map_err(|err| {
+        // If we found a manifest, but the workspace is invalid, we raise an error about it
+        ResponseError::new(ErrorCode::REQUEST_FAILED, err)
+    })?;
 
     let mut lenses: Vec<CodeLens> = vec![];
 

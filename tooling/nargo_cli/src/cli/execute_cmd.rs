@@ -8,7 +8,7 @@ use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
 use super::compile_cmd::compile_bin_package;
@@ -48,7 +48,11 @@ pub(crate) fn run(
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
-    let workspace = resolve_workspace_from_toml(&toml_path, selection, None)?;
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        selection,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    )?;
     let target_dir = &workspace.target_directory_path();
 
     let (np_language, opcode_support) = backend.get_backend_info()?;

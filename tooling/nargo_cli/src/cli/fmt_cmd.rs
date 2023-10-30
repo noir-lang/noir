@@ -3,6 +3,7 @@ use std::{fs::DirEntry, path::Path};
 use clap::Args;
 use fm::FileManager;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::def_map::parse_file;
 
@@ -15,7 +16,11 @@ pub(crate) struct FormatCommand {}
 
 pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
-    let workspace = resolve_workspace_from_toml(&toml_path, PackageSelection::All, None)?;
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        PackageSelection::All,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    )?;
 
     let config = nargo_fmt::Config::read(&config.program_dir)
         .map_err(|err| CliError::Generic(err.to_string()))?;

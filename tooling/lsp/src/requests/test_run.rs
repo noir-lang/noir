@@ -6,7 +6,7 @@ use nargo::{
     prepare_package,
 };
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{check_crate, CompileOptions};
+use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
@@ -41,7 +41,7 @@ fn on_test_run_request_inner(
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         PackageSelection::Selected(crate_name.clone()),
-        None,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )
     .map_err(|err| {
         // If we found a manifest, but the workspace is invalid, we raise an error about it
