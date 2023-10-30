@@ -1748,7 +1748,7 @@ impl Context {
                     self.check_array_is_initialized(arguments[1], dfg)?;
                 let slice = self.convert_value(arguments[1], dfg);
 
-                // TODO(#2461): make sure that we have handled nested struct inputs
+                // TODO(#3364): make sure that we have handled nested struct inputs
                 let element = self.convert_value(arguments[2], dfg);
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
@@ -1759,7 +1759,7 @@ impl Context {
                 self.slice_intrinsic_input(&mut new_slice, slice.clone())?;
                 new_slice.push_back(element.clone());
 
-                // TODO(#2461): This works for non-nested outputs
+                // TODO(#3364): This works for non-nested outputs
                 let len = Self::flattened_value_size(&slice);
                 let new_elem_size = Self::flattened_value_size(&element);
                 let new_slice_val = AcirValue::Array(new_slice);
@@ -1786,8 +1786,8 @@ impl Context {
             }
             Intrinsic::SlicePushFront => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
-                let slice = self.convert_value(arguments[1], dfg);
-                // TODO(#2461): make sure that we have handled nested struct inputs
+                let slice: AcirValue = self.convert_value(arguments[1], dfg);
+                // TODO(#3364): make sure that we have handled nested struct inputs
                 let element = self.convert_value(arguments[2], dfg);
 
                 let one = self.acir_context.add_constant(FieldElement::one());
@@ -1818,7 +1818,7 @@ impl Context {
                     &[],
                 )?;
 
-                // TODO(#2461): make sure that we have handled nested struct inputs
+                // TODO(#3364): make sure that we have handled nested struct inputs
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
@@ -1837,7 +1837,7 @@ impl Context {
 
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
-                // TODO(#2461): make sure that we have handled nested struct inputs
+                // TODO(#3364): make sure that we have handled nested struct inputs
                 let elem = new_slice
                     .pop_front()
                     .expect("There are no elements in this slice to be removed");
@@ -1877,7 +1877,7 @@ impl Context {
                 // they are attempting to insert at too large of an index.
                 // This check prevents a panic inside of the im::Vector insert method.
                 if index <= new_slice.len() {
-                    // TODO(#2461): make sure that we have handled nested struct inputs
+                    // TODO(#3364): make sure that we have handled nested struct inputs
                     new_slice.insert(index, element);
                 }
 
@@ -1915,7 +1915,7 @@ impl Context {
                 // they are attempting to remove at too large of an index.
                 // This check prevents a panic inside of the im::Vector remove method.
                 let removed_elem = if index < new_slice.len() {
-                    // TODO(#2461): make sure that we have handled nested struct inputs
+                    // TODO(#3364): make sure that we have handled nested struct inputs
                     new_slice.remove(index)
                 } else {
                     // This is a dummy value which should never be used if the appropriate

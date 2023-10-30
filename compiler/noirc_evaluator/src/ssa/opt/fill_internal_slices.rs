@@ -3,11 +3,11 @@
 //! "Filling out" a nested slice specifically refers to making a nested slice's internal slice types
 //! match up in their size. This pass is necessary for dynamic array operations to work in ACIR gen
 //! as we need to have a known size for any memory operations. As slice types do not carry a size we
-//! need to make sure all nested internal slices have the same size in order to accruately
+//! need to make sure all nested internal slices have the same size in order to accurately
 //! read from or write to a nested slice. This pass ultimately attaches dummy data to any smaller internal slice types.
 //!
 //! A simple example:
-//! If we have a slice of the type [[Field]] which is of length 2. The internal slies themselves
+//! If we have a slice of the type [[Field]] which is of length 2. The internal slices themselves
 //! could be of different sizes, such as 3 and 4. An array operation on this nested slice would look
 //! something like below:
 //! array_get [[Field 3, [Field 1, Field 1, Field 1]], [Field 4, [Field 2, Field 2, Field 2, Field 2]]], index Field v0
@@ -26,9 +26,9 @@
 //!     - On an ArrayGet operation add the resulting value as a possible child of the original slice. In SSA we will reuse the same memory block
 //!       for the nested slice and must account for an internal slice being fetched and set to a larger value, otherwise we may have an out of bounds error.
 //!       Also set the resulting fetched value to have the same internal slice size map as the children of the original array used in the operation.
-//!     - On an ArraySet operation we set the resulting value to have the same slize sizes map as the original array used in the operation. Like the result of an
+//!     - On an ArraySet operation we set the resulting value to have the same slice sizes map as the original array used in the operation. Like the result of an
 //!       an ArrayGet we need to also add the `value` for an ArraySet as a possible child slice of the original array.
-//!     - For slice intrinsics we set the resulting value to have the same slize sizes map as the original array the same way as we do in an ArraySet.
+//!     - For slice intrinsics we set the resulting value to have the same slice sizes map as the original array the same way as we do in an ArraySet.
 //!       However, with a slice intrinsic we also increase the size for the respective slice intrinsics.  
 //!       We do not decrement the size on intrinsics that could remove values from a slice. This is because we could potentially go back to the smaller slice size,
 //!       not fill in the appropriate dummies and then get an out of bounds error later when executing the ACIR. We always want to compute
@@ -80,7 +80,7 @@ struct Context<'f> {
 
     /// Maps an updated array value following an array operation to its previous value.
     /// When used in conjunction with `mapped_slice_values` we form a two way map of all array
-    /// values being used in array operaitons.
+    /// values being used in array operations.
     /// Maps result -> original value
     slice_parents: HashMap<ValueId, ValueId>,
 }
@@ -143,7 +143,7 @@ impl<'f> Context<'f> {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let array_value = &self.inserter.function.dfg[*array];
                 // If we have an SSA value containing nested slices we should mark it
-                // as a slice that potenitally requires to be filled with dummy data.
+                // as a slice that potentially requires to be filled with dummy data.
                 if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
                 {
                     slice_values.push(*array);
@@ -176,7 +176,7 @@ impl<'f> Context<'f> {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let array_value = &self.inserter.function.dfg[*array];
                 // If we have an SSA value containing nested slices we should mark it
-                // as a slice that potenitally requires to be filled with dummy data.
+                // as a slice that potentially requires to be filled with dummy data.
                 if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
                 {
                     slice_values.push(*array);
@@ -520,7 +520,7 @@ impl<'f> Context<'f> {
 
     /// Resolves a ValueId representing a slice's contents to its previous value.
     /// If there is no resolved parent value it means we have the original slice value
-    /// and the vlaue which was passed to the method is returned.
+    /// and the value which was passed to the method is returned.
     fn resolve_slice_parent(&self, array_id: ValueId) -> ValueId {
         match self.slice_parents.get(&array_id) {
             Some(value) => self.resolve_slice_parent(*value),
