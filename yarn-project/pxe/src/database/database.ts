@@ -1,9 +1,9 @@
-import { CompleteAddress, HistoricBlockData } from '@aztec/circuits.js';
+import { CompleteAddress, HistoricBlockData, PublicKey } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
-import { ContractDatabase, MerkleTreeId, PublicKey } from '@aztec/types';
+import { ContractDatabase, MerkleTreeId, NoteFilter } from '@aztec/types';
 
-import { NoteSpendingInfoDao } from './note_spending_info_dao.js';
+import { NoteDao } from './note_dao.js';
 
 /**
  * A database interface that provides methods for retrieving, adding, and removing transactional data related to Aztec
@@ -25,46 +25,35 @@ export interface Database extends ContractDatabase {
   getAuthWitness(messageHash: Fr): Promise<Fr[]>;
 
   /**
-   * Get auxiliary transaction data based on contract address and storage slot.
-   * It searches for matching NoteSpendingInfoDao objects in the MemoryDB's noteSpendingInfoTable
-   * where both the contractAddress and storageSlot properties match the given inputs.
-   *
-   * @param contract - The contract address.
-   * @param storageSlot - A Fr object representing the storage slot to search for in the auxiliary data.
-   * @returns An array of NoteSpendingInfoDao objects that fulfill the contract address and storage slot criteria.
+   * Gets notes based on the provided filter.
+   * @param filter - The filter to apply to the notes.
+   * @returns The requested notes.
    */
-  getNoteSpendingInfo(contract: AztecAddress, storageSlot: Fr): Promise<NoteSpendingInfoDao[]>;
+  getNotes(filter: NoteFilter): Promise<NoteDao[]>;
 
   /**
-   * Add a NoteSpendingInfoDao instance to the noteSpendingInfoTable.
-   * This function is used to store auxiliary data related to a transaction,
-   * such as contract address and storage slot, in the database.
-   *
-   * @param noteSpendingInfoDao - The NoteSpendingInfoDao instance containing the auxiliary data of a transaction.
-   * @returns A promise that resolves when the auxiliary data is added to the database.
+   * Adds a note to DB.
+   * @param note - The note to add.
    */
-  addNoteSpendingInfo(noteSpendingInfoDao: NoteSpendingInfoDao): Promise<void>;
+  addNote(note: NoteDao): Promise<void>;
 
   /**
-   * Adds an array of NoteSpendingInfoDaos to the noteSpendingInfoTable.
-   * This function is used to insert multiple transaction auxiliary data objects into the database at once,
+   * Adds an array of notes to DB.
+   * This function is used to insert multiple notes to the database at once,
    * which can improve performance when dealing with large numbers of transactions.
    *
-   * @param noteSpendingInfoDaos - An array of NoteSpendingInfoDao instances representing the auxiliary data of transactions.
-   * @returns A Promise that resolves when all NoteSpendingInfoDaos have been successfully added to the noteSpendingInfoTable.
+   * @param notes - An array of notes.
    */
-  addNoteSpendingInfoBatch(noteSpendingInfoDaos: NoteSpendingInfoDao[]): Promise<void>;
+  addNotes(notes: NoteDao[]): Promise<void>;
 
   /**
-   * Remove nullified transaction auxiliary data records associated with the given account and nullifiers.
-   * The function filters the records based on matching account and nullifier values, and updates the
-   * noteSpendingInfoTable with the remaining records. It returns an array of removed NoteSpendingInfoDao instances.
+   * Remove nullified notes associated with the given account and nullifiers.
    *
    * @param nullifiers - An array of Fr instances representing nullifiers to be matched.
    * @param account - A PublicKey instance representing the account for which the records are being removed.
-   * @returns A Promise resolved with an array of removed NoteSpendingInfoDao instances.
+   * @returns Removed notes.
    */
-  removeNullifiedNoteSpendingInfo(nullifiers: Fr[], account: PublicKey): Promise<NoteSpendingInfoDao[]>;
+  removeNullifiedNotes(nullifiers: Fr[], account: PublicKey): Promise<NoteDao[]>;
 
   /**
    * Retrieve the stored Merkle tree roots from the database.

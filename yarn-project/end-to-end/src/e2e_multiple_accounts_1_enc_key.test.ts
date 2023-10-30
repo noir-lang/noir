@@ -1,6 +1,6 @@
 import {
   AztecAddress,
-  NotePreimage,
+  Note,
   Wallet,
   computeMessageSecretHash,
   generatePublicKey,
@@ -10,7 +10,7 @@ import {
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts/types';
-import { AztecNode, CompleteAddress, PXE, TxStatus } from '@aztec/types';
+import { AztecNode, CompleteAddress, ExtendedNote, PXE, TxStatus } from '@aztec/types';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
 
@@ -75,8 +75,9 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     expect(receipt.status).toEqual(TxStatus.MINED);
 
     const storageSlot = new Fr(5);
-    const preimage = new NotePreimage([new Fr(initialBalance), secretHash]);
-    await pxe.addNote(accounts[0], token.address, storageSlot, preimage, receipt.txHash);
+    const note = new Note([new Fr(initialBalance), secretHash]);
+    const extendedNote = new ExtendedNote(note, accounts[0], token.address, storageSlot, receipt.txHash);
+    await pxe.addNote(extendedNote);
 
     expect((await token.methods.redeem_shield(accounts[0], initialBalance, secret).send().wait()).status).toEqual(
       TxStatus.MINED,

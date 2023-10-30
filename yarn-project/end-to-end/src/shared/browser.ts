@@ -171,11 +171,12 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
           const {
             GrumpkinScalar,
             DeployMethod,
-            createPXEClient: createPXEClient,
+            createPXEClient,
             getUnsafeSchnorrAccount,
             Contract,
             Fr,
-            NotePreimage,
+            ExtendedNote,
+            Note,
             computeMessageSecretHash,
             getSandboxAccountsWallets,
           } = window.AztecJs;
@@ -202,8 +203,15 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
           const mintPrivateReceipt = await token.methods.mint_private(initialBalance, secretHash).send().wait();
 
           const storageSlot = new Fr(5);
-          const preimage = new NotePreimage([new Fr(initialBalance), secretHash]);
-          await pxe.addNote(ownerAddress, token.address, storageSlot, preimage, mintPrivateReceipt.txHash);
+          const note = new Note([new Fr(initialBalance), secretHash]);
+          const extendedNote = new ExtendedNote(
+            note,
+            ownerAddress,
+            token.address,
+            storageSlot,
+            mintPrivateReceipt.txHash,
+          );
+          await pxe.addNote(extendedNote);
 
           await token.methods.redeem_shield(ownerAddress, initialBalance, secret).send().wait();
 

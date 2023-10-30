@@ -1,4 +1,4 @@
-import { ExecutionResult, NewNoteData } from '@aztec/acir-simulator';
+import { ExecutionResult, NoteAndSlot } from '@aztec/acir-simulator';
 import {
   KernelCircuitPublicInputs,
   MAX_NEW_COMMITMENTS_PER_CALL,
@@ -19,7 +19,7 @@ import { makeTxRequest } from '@aztec/circuits.js/factories';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { Tuple } from '@aztec/foundation/serialize';
-import { FunctionL2Logs } from '@aztec/types';
+import { FunctionL2Logs, Note } from '@aztec/types';
 
 import { mock } from 'jest-mock-extended';
 
@@ -34,23 +34,23 @@ describe('Kernel Prover', () => {
   let prover: KernelProver;
   let dependencies: { [name: string]: string[] } = {};
 
-  const notes: NewNoteData[] = Array(10)
+  const notesAndSlots: NoteAndSlot[] = Array(10)
     .fill(null)
     .map(() => ({
-      preimage: [Fr.random(), Fr.random(), Fr.random()],
+      note: new Note([Fr.random(), Fr.random(), Fr.random()]),
       storageSlot: Fr.random(),
       owner: { x: Fr.random(), y: Fr.random() },
     }));
 
   const createFakeSiloedCommitment = (commitment: Fr) => new Fr(commitment.value + 1n);
-  const generateFakeCommitment = (note: NewNoteData) => note.preimage[0];
-  const generateFakeSiloedCommitment = (note: NewNoteData) => createFakeSiloedCommitment(generateFakeCommitment(note));
+  const generateFakeCommitment = (noteAndSlot: NoteAndSlot) => noteAndSlot.note.items[0];
+  const generateFakeSiloedCommitment = (note: NoteAndSlot) => createFakeSiloedCommitment(generateFakeCommitment(note));
 
   const createExecutionResult = (fnName: string, newNoteIndices: number[] = []): ExecutionResult => {
     const publicInputs = PrivateCircuitPublicInputs.empty();
     publicInputs.newCommitments = makeTuple(
       MAX_NEW_COMMITMENTS_PER_CALL,
-      i => (i < newNoteIndices.length ? generateFakeCommitment(notes[newNoteIndices[i]]) : Fr.ZERO),
+      i => (i < newNoteIndices.length ? generateFakeCommitment(notesAndSlots[newNoteIndices[i]]) : Fr.ZERO),
       0,
     );
     return {
@@ -58,7 +58,7 @@ describe('Kernel Prover', () => {
       callStackItem: new PrivateCallStackItem(AztecAddress.ZERO, fnName as any, publicInputs, false),
       nestedExecutions: (dependencies[fnName] || []).map(name => createExecutionResult(name)),
       vk: VerificationKey.makeFake().toBuffer(),
-      newNotes: newNoteIndices.map(idx => notes[idx]),
+      newNotes: newNoteIndices.map(idx => notesAndSlots[idx]),
       // TODO(dbanks12): should test kernel prover with non-transient reads.
       // This will be necessary once kernel actually checks (attempts to match) transient reads.
       readRequestPartialWitnesses: Array.from({ length: MAX_READ_REQUESTS_PER_CALL }, () =>
@@ -76,7 +76,7 @@ describe('Kernel Prover', () => {
 
   const createProofOutput = (newNoteIndices: number[]) => {
     const publicInputs = KernelCircuitPublicInputs.empty();
-    const commitments = newNoteIndices.map(idx => generateFakeSiloedCommitment(notes[idx]));
+    const commitments = newNoteIndices.map(idx => generateFakeSiloedCommitment(notesAndSlots[idx]));
     // TODO(AD) FIXME(AD) This cast is bad. Why is this not the correct length when this is called?
     publicInputs.end.newCommitments = commitments as Tuple<Fr, typeof MAX_NEW_COMMITMENTS_PER_TX>;
     return {
@@ -103,7 +103,7 @@ describe('Kernel Prover', () => {
   const expectOutputNotes = (outputNotes: OutputNoteData[], expectedNoteIndices: number[]) => {
     expect(outputNotes.length).toBe(expectedNoteIndices.length);
     outputNotes.forEach((n, i) => {
-      expect(n.data).toEqual(notes[expectedNoteIndices[i]]);
+      expect(n.data).toEqual(notesAndSlots[expectedNoteIndices[i]]);
     });
   };
 

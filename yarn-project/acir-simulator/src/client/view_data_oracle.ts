@@ -57,16 +57,13 @@ export class ViewDataOracle extends TypedOracle {
   }
 
   /**
-   * Gets some notes for a contract address and storage slot.
-   * Returns a flattened array containing real-note-count and note preimages.
+   * Gets some notes for a storage slot.
    *
    * @remarks
-   *
-   * Check for pending notes with matching address/slot.
+   * Check for pending notes with matching slot.
    * Real notes coming from DB will have a leafIndex which
    * represents their index in the note hash tree.
    *
-   * @param contractAddress - The contract address.
    * @param storageSlot - The storage slot.
    * @param numSelects - The number of valid selects in selectBy and selectValues.
    * @param selectBy - An array of indices of the fields to selects.
@@ -75,11 +72,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param sortOrder - The order of the corresponding index in sortBy. (1: DESC, 2: ASC, 0: Do nothing)
    * @param limit - The number of notes to retrieve per query.
    * @param offset - The starting index for pagination.
-   * @returns Flattened array of ACVMFields (format expected by Noir/ACVM) containing:
-   * count - number of real (non-padding) notes retrieved,
-   * contractAddress - the contract address,
-   * preimages - the real note preimages retrieved, and
-   * paddedZeros - zeros to ensure an array with length returnSize expected by Noir circuit
+   * @returns Array of note data.
    */
   public async getNotes(
     storageSlot: Fr,

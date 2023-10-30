@@ -1,7 +1,7 @@
 // docs:start:imports
 import {
   Fr,
-  NotePreimage,
+  Note,
   PXE,
   computeMessageSecretHash,
   createDebugLogger,
@@ -12,6 +12,7 @@ import {
 } from '@aztec/aztec.js';
 import { GrumpkinScalar } from '@aztec/circuits.js';
 import { TokenContract } from '@aztec/noir-contracts/types';
+import { ExtendedNote } from '@aztec/types';
 
 import { format } from 'util';
 
@@ -76,8 +77,8 @@ describe('e2e_sandbox_example', () => {
 
     // Add the newly created "pending shield" note to PXE
     const pendingShieldsStorageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
-    const preimage = new NotePreimage([new Fr(initialSupply), aliceSecretHash]);
-    await pxe.addNote(alice, contract.address, pendingShieldsStorageSlot, preimage, receipt.txHash);
+    const note = new Note([new Fr(initialSupply), aliceSecretHash]);
+    await pxe.addNote(new ExtendedNote(note, alice, contract.address, pendingShieldsStorageSlot, receipt.txHash));
 
     // Make the tokens spendable by redeeming them using the secret (converts the "pending shield note" created above
     // to a "token note")
@@ -142,8 +143,10 @@ describe('e2e_sandbox_example', () => {
     logger(`Minting ${mintQuantity} tokens to Bob...`);
     const mintPrivateReceipt = await tokenContractBob.methods.mint_private(mintQuantity, bobSecretHash).send().wait();
 
-    const bobPendingShield = new NotePreimage([new Fr(mintQuantity), bobSecretHash]);
-    await pxe.addNote(bob, contract.address, pendingShieldsStorageSlot, bobPendingShield, mintPrivateReceipt.txHash);
+    const bobPendingShield = new Note([new Fr(mintQuantity), bobSecretHash]);
+    await pxe.addNote(
+      new ExtendedNote(bobPendingShield, bob, contract.address, pendingShieldsStorageSlot, mintPrivateReceipt.txHash),
+    );
 
     await tokenContractBob.methods.redeem_shield(bob, mintQuantity, bobSecret).send().wait();
 

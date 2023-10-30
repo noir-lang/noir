@@ -1,7 +1,6 @@
-import { Tx, TxHash, mockTx } from '@aztec/types';
+import { Tx, mockTx, randomTxHash } from '@aztec/types';
 
 import { expect } from '@jest/globals';
-import { randomBytes } from 'crypto';
 
 import {
   Messages,
@@ -16,10 +15,6 @@ import {
   getEncodedMessage,
   toTxMessage,
 } from './tx_messages.js';
-
-const makeTxHash = () => {
-  return new TxHash(randomBytes(32));
-};
 
 const verifyTx = (actual: Tx, expected: Tx) => {
   expect(actual.data!.toBuffer()).toEqual(expected.data?.toBuffer());
@@ -50,7 +45,7 @@ describe('Messages', () => {
   });
 
   it('Correctly serializes and deserializes transaction hashes message', () => {
-    const txHashes = [makeTxHash(), makeTxHash(), makeTxHash()];
+    const txHashes = [randomTxHash(), randomTxHash(), randomTxHash()];
     const message = createTransactionHashesMessage(txHashes);
     expect(decodeMessageType(message)).toEqual(Messages.POOLED_TRANSACTION_HASHES);
     const decodedHashes = decodeTransactionHashesMessage(getEncodedMessage(message));
@@ -58,7 +53,7 @@ describe('Messages', () => {
   });
 
   it('Correctly serializes and deserializes get transactions message', () => {
-    const txHashes = [makeTxHash(), makeTxHash(), makeTxHash()];
+    const txHashes = [randomTxHash(), randomTxHash(), randomTxHash()];
     const message = createGetTransactionsRequestMessage(txHashes);
     expect(decodeMessageType(message)).toEqual(Messages.GET_TRANSACTIONS);
     const decodedHashes = decodeGetTransactionsRequestMessage(getEncodedMessage(message));

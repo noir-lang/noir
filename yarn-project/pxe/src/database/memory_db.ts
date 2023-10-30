@@ -1,12 +1,12 @@
-import { CompleteAddress, HistoricBlockData } from '@aztec/circuits.js';
+import { CompleteAddress, HistoricBlockData, PublicKey } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { MerkleTreeId, PublicKey } from '@aztec/types';
+import { MerkleTreeId, NoteFilter } from '@aztec/types';
 
 import { MemoryContractDatabase } from '../contract_database/index.js';
 import { Database } from './database.js';
-import { NoteSpendingInfoDao, getNoteSpendingInfoDaoSize } from './note_spending_info_dao.js';
+import { NoteDao } from './note_dao.js';
 
 /**
  * The MemoryDB class provides an in-memory implementation of a database to manage transactions and auxiliary data.
@@ -15,7 +15,7 @@ import { NoteSpendingInfoDao, getNoteSpendingInfoDaoSize } from './note_spending
  * As an in-memory database, the stored data will not persist beyond the life of the application instance.
  */
 export class MemoryDB extends MemoryContractDatabase implements Database {
-  private noteSpendingInfoTable: NoteSpendingInfoDao[] = [];
+  private notesTable: NoteDao[] = [];
   private treeRoots: Record<MerkleTreeId, Fr> | undefined;
   private globalVariablesHash: Fr | undefined;
   private addresses: CompleteAddress[] = [];
@@ -44,41 +44,51 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     return Promise.resolve(this.authWitnesses[messageHash.toString()]);
   }
 
-  public addNoteSpendingInfo(noteSpendingInfoDao: NoteSpendingInfoDao) {
-    this.noteSpendingInfoTable.push(noteSpendingInfoDao);
+  public addNote(note: NoteDao) {
+    this.notesTable.push(note);
     return Promise.resolve();
   }
 
-  public addNoteSpendingInfoBatch(noteSpendingInfoDaos: NoteSpendingInfoDao[]) {
-    this.noteSpendingInfoTable.push(...noteSpendingInfoDaos);
+  public addNotes(notes: NoteDao[]) {
+    this.notesTable.push(...notes);
     return Promise.resolve();
   }
 
-  public getNoteSpendingInfo(contract: AztecAddress, storageSlot: Fr) {
-    const res = this.noteSpendingInfoTable.filter(
-      noteSpendingInfo =>
-        noteSpendingInfo.contractAddress.equals(contract) &&
-        noteSpendingInfo.storageSlot.toBuffer().equals(storageSlot.toBuffer()),
+  public async getNotes(filter: NoteFilter): Promise<NoteDao[]> {
+    let ownerPublicKey: PublicKey | undefined;
+    if (filter.owner !== undefined) {
+      const ownerCompleteAddress = await this.getCompleteAddress(filter.owner);
+      if (ownerCompleteAddress === undefined) {
+        throw new Error(`Owner ${filter.owner.toString()} not found in memory database`);
+      }
+      ownerPublicKey = ownerCompleteAddress.publicKey;
+    }
+
+    return this.notesTable.filter(
+      note =>
+        (filter.contractAddress == undefined || note.contractAddress.equals(filter.contractAddress)) &&
+        (filter.txHash == undefined || note.txHash.equals(filter.txHash)) &&
+        (filter.storageSlot == undefined || note.storageSlot.equals(filter.storageSlot!)) &&
+        (ownerPublicKey == undefined || note.publicKey.equals(ownerPublicKey!)),
     );
-    return Promise.resolve(res);
   }
 
-  public removeNullifiedNoteSpendingInfo(nullifiers: Fr[], account: PublicKey) {
+  public removeNullifiedNotes(nullifiers: Fr[], account: PublicKey) {
     const nullifierSet = new Set(nullifiers.map(nullifier => nullifier.toString()));
-    const [remaining, removed] = this.noteSpendingInfoTable.reduce(
-      (acc: [NoteSpendingInfoDao[], NoteSpendingInfoDao[]], noteSpendingInfo) => {
-        const nullifier = noteSpendingInfo.siloedNullifier.toString();
-        if (noteSpendingInfo.publicKey.equals(account) && nullifierSet.has(nullifier)) {
-          acc[1].push(noteSpendingInfo);
+    const [remaining, removed] = this.notesTable.reduce(
+      (acc: [NoteDao[], NoteDao[]], note) => {
+        const nullifier = note.siloedNullifier.toString();
+        if (note.publicKey.equals(account) && nullifierSet.has(nullifier)) {
+          acc[1].push(note);
         } else {
-          acc[0].push(noteSpendingInfo);
+          acc[0].push(note);
         }
         return acc;
       },
       [[], []],
     );
 
-    this.noteSpendingInfoTable = remaining;
+    this.notesTable = remaining;
 
     return Promise.resolve(removed);
   }
@@ -146,7 +156,7 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   }
 
   public estimateSize() {
-    const notesSize = this.noteSpendingInfoTable.reduce((sum, note) => sum + getNoteSpendingInfoDaoSize(note), 0);
+    const notesSize = this.notesTable.reduce((sum, note) => sum + note.getSize(), 0);
     const treeRootsSize = this.treeRoots ? Object.entries(this.treeRoots).length * Fr.SIZE_IN_BYTES : 0;
     const authWits = Object.entries(this.authWitnesses);
     const authWitsSize = authWits.reduce((sum, [key, value]) => sum + key.length + value.length * Fr.SIZE_IN_BYTES, 0);

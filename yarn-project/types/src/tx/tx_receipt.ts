@@ -1,5 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { TxHash } from '@aztec/types';
+import { ExtendedNote, TxHash } from '@aztec/types';
 
 /**
  * Possible status of a transaction.
@@ -40,6 +40,10 @@ export class TxReceipt {
      * The deployed contract's address.
      */
     public contractAddress?: AztecAddress,
+    /**
+     * Notes created in this tx.
+     */
+    public notes?: ExtendedNote[],
   ) {}
 
   /**

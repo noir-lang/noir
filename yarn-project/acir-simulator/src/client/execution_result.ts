@@ -1,16 +1,16 @@
 import { PrivateCallStackItem, PublicCallRequest, ReadRequestMembershipWitness } from '@aztec/circuits.js';
 import { DecodedReturn } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
-import { FunctionL2Logs } from '@aztec/types';
+import { FunctionL2Logs, Note } from '@aztec/types';
 
 import { ACVMField } from '../acvm/index.js';
 
 /**
  * The contents of a new note.
  */
-export interface NewNoteData {
-  /** The preimage of the note. */
-  preimage: Fr[];
+export interface NoteAndSlot {
+  /** The note. */
+  note: Note;
   /** The storage slot of the note. */
   storageSlot: Fr;
 }
@@ -33,7 +33,7 @@ export interface ExecutionResult {
   readRequestPartialWitnesses: ReadRequestMembershipWitness[];
   // Needed when we enable chained txs. The new notes can be cached and used in a later transaction.
   /** The notes created in the executed function. */
-  newNotes: NewNoteData[];
+  newNotes: NoteAndSlot[];
   /** The decoded return values of the executed function. */
   returnValues: DecodedReturn;
   /** The nested executions. */

@@ -3,20 +3,20 @@ import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
-import { CompleteAddress, PublicKey, UnencryptedL2Log } from '@aztec/types';
+import { CompleteAddress, Note, PublicKey, UnencryptedL2Log } from '@aztec/types';
 
 /**
  * Information about a note needed during execution.
  */
 export interface NoteData {
+  /** The note. */
+  note: Note;
   /** The contract address of the note. */
   contractAddress: AztecAddress;
   /** The storage slot of the note. */
   storageSlot: Fr;
   /** The nonce of the note. */
   nonce: Fr;
-  /** The preimage of the note */
-  preimage: Fr[];
   /** The inner note hash of the note. */
   innerNoteHash: Fr;
   /** The corresponding nullifier of the note. Undefined for pending notes. */
@@ -93,7 +93,7 @@ export abstract class TypedOracle {
     throw new Error('Not available.');
   }
 
-  notifyCreatedNote(_storageSlot: Fr, _preimage: Fr[], _innerNoteHash: Fr): void {
+  notifyCreatedNote(_storageSlot: Fr, _note: Fr[], _innerNoteHash: Fr): void {
     throw new Error('Not available.');
   }
 
@@ -121,7 +121,7 @@ export abstract class TypedOracle {
     throw new Error('Not available.');
   }
 
-  emitEncryptedLog(_contractAddress: AztecAddress, _storageSlot: Fr, _publicKey: PublicKey, _preimage: Fr[]): void {
+  emitEncryptedLog(_contractAddress: AztecAddress, _storageSlot: Fr, _publicKey: PublicKey, _log: Fr[]): void {
     throw new Error('Not available.');
   }
 

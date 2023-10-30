@@ -16,7 +16,7 @@ export class L2BlockContext {
 
   /**
    * Returns the tx hash of the tx in the block at the given index.
-   * @param txIndex - The index of the tx.
+   * @param txIndex - The index of the tx in the block.
    * @returns The tx's hash.
    */
   public getTxHash(txIndex: number): TxHash {

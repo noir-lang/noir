@@ -64,7 +64,7 @@ export class Oracle {
     [offset]: ACVMField[],
     [returnSize]: ACVMField[],
   ): Promise<ACVMField[]> {
-    const notes = await this.typedOracle.getNotes(
+    const noteDatas = await this.typedOracle.getNotes(
       fromACVMField(storageSlot),
       +numSelects,
       selectBy.map(s => +s),
@@ -75,26 +75,26 @@ export class Oracle {
       +offset,
     );
 
-    const preimageLength = notes?.[0]?.preimage.length ?? 0;
-    if (!notes.every(({ preimage }) => preimageLength === preimage.length)) {
-      throw new Error('Preimages for a particular note type should all be the same length.');
+    const noteLength = noteDatas?.[0]?.note.items.length ?? 0;
+    if (!noteDatas.every(({ note }) => noteLength === note.items.length)) {
+      throw new Error('Notes should all be the same length.');
     }
 
-    const contractAddress = notes[0]?.contractAddress ?? Fr.ZERO;
+    const contractAddress = noteDatas[0]?.contractAddress ?? Fr.ZERO;
 
     // Values indicates whether the note is settled or transient.
     const noteTypes = {
       isSettled: new Fr(0),
       isTransient: new Fr(1),
     };
-    const flattenData = notes.flatMap(({ nonce, preimage, index }) => [
+    const flattenData = noteDatas.flatMap(({ nonce, note, index }) => [
       nonce,
       index === undefined ? noteTypes.isTransient : noteTypes.isSettled,
-      ...preimage,
+      ...note.items,
     ]);
 
     const returnFieldSize = +returnSize;
-    const returnData = [notes.length, contractAddress, ...flattenData].map(v => toACVMField(v));
+    const returnData = [noteDatas.length, contractAddress, ...flattenData].map(v => toACVMField(v));
     if (returnData.length > returnFieldSize) {
       throw new Error(`Return data size too big. Maximum ${returnFieldSize} fields. Got ${flattenData.length}.`);
     }
@@ -103,10 +103,10 @@ export class Oracle {
     return returnData.concat(paddedZeros);
   }
 
-  notifyCreatedNote([storageSlot]: ACVMField[], preimage: ACVMField[], [innerNoteHash]: ACVMField[]): ACVMField {
+  notifyCreatedNote([storageSlot]: ACVMField[], note: ACVMField[], [innerNoteHash]: ACVMField[]): ACVMField {
     this.typedOracle.notifyCreatedNote(
       fromACVMField(storageSlot),
-      preimage.map(fromACVMField),
+      note.map(fromACVMField),
       fromACVMField(innerNoteHash),
     );
     return toACVMField(0);
@@ -148,14 +148,14 @@ export class Oracle {
     [storageSlot]: ACVMField[],
     [publicKeyX]: ACVMField[],
     [publicKeyY]: ACVMField[],
-    preimage: ACVMField[],
+    log: ACVMField[],
   ): ACVMField {
     const publicKey = new Point(fromACVMField(publicKeyX), fromACVMField(publicKeyY));
     this.typedOracle.emitEncryptedLog(
       AztecAddress.fromString(contractAddress),
       Fr.fromString(storageSlot),
       publicKey,
-      preimage.map(fromACVMField),
+      log.map(fromACVMField),
     );
     return toACVMField(0);
   }

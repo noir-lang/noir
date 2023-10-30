@@ -5,7 +5,7 @@ import {
   EthAddress,
   Fr,
   GrumpkinScalar,
-  NotePreimage,
+  Note,
   generatePublicKey,
   getSchnorrAccount,
   isContractDeployed,
@@ -21,7 +21,7 @@ import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import { sleep } from '@aztec/foundation/sleep';
 import { fileURLToPath } from '@aztec/foundation/url';
 import { compileContract, generateNoirInterface, generateTypescriptInterface } from '@aztec/noir-compiler/cli';
-import { CompleteAddress, ContractData, LogFilter } from '@aztec/types';
+import { CompleteAddress, ContractData, ExtendedNote, LogFilter } from '@aztec/types';
 
 import { createSecp256k1PeerId } from '@libp2p/peer-id-factory';
 import { Command, Option } from 'commander';
@@ -585,12 +585,13 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .argument('<contractAddress>', 'Aztec address of the contract.', parseAztecAddress)
     .argument('<storageSlot>', 'The storage slot of the note.', parseField)
     .argument('<txHash>', 'The tx hash of the tx containing the note.', parseTxHash)
-    .requiredOption('-p, --preimage [notePreimage...]', 'Note preimage.', [])
+    .requiredOption('-n, --note [note...]', 'The members of a Note serialized as hex strings.', [])
     .addOption(pxeOption)
     .action(async (address, contractAddress, storageSlot, txHash, options) => {
-      const preimage = new NotePreimage(parseFields(options.preimage));
+      const note = new Note(parseFields(options.note));
+      const extendedNote = new ExtendedNote(note, address, contractAddress, storageSlot, txHash);
       const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      await client.addNote(address, contractAddress, storageSlot, preimage, txHash);
+      await client.addNote(extendedNote);
     });
 
   // Helper for users to decode hex strings into structs if needed.

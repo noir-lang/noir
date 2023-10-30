@@ -3,7 +3,7 @@ import { pedersenHashInputs } from '@aztec/circuits.js/barretenberg';
 import { toBigIntBE, toHex } from '@aztec/foundation/bigint-buffer';
 import { keccak } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { NotePreimage, PXE } from '@aztec/types';
+import { Note, PXE } from '@aztec/types';
 
 import fs from 'fs';
 
@@ -287,7 +287,8 @@ export class AztecCheatCodes {
    * @param slot - The storage slot to lookup
    * @returns The notes stored at the given slot
    */
-  public loadPrivate(owner: AztecAddress, contract: AztecAddress, slot: Fr | bigint): Promise<NotePreimage[]> {
-    return this.pxe.getPrivateStorageAt(owner, contract, new Fr(slot));
+  public async loadPrivate(owner: AztecAddress, contract: AztecAddress, slot: Fr | bigint): Promise<Note[]> {
+    const extendedNotes = await this.pxe.getNotes({ owner, contractAddress: contract, storageSlot: new Fr(slot) });
+    return extendedNotes.map(extendedNote => extendedNote.note);
   }
 }

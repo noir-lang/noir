@@ -1,26 +1,27 @@
 import { Fr } from '@aztec/foundation/fields';
+import { Note } from '@aztec/types';
 
 import { SortOrder, pickNotes } from './pick_notes.js';
 
 describe('getNotes', () => {
-  const expectNotesFields = (notes: { preimage: Fr[] }[], ...expected: [number, bigint[]][]) => {
+  const expectNotesFields = (notes: { note: Note }[], ...expected: [number, bigint[]][]) => {
     expect(notes.length).toBe(expected[0][1].length);
     expected.forEach(([fieldIndex, fields]) => {
       for (let i = 0; i < notes.length; ++i) {
-        expect(notes[i].preimage[fieldIndex].value).toBe(fields[i]);
+        expect(notes[i].note.items[fieldIndex].value).toBe(fields[i]);
       }
     });
   };
 
-  const expectNotes = (notes: { preimage: Fr[] }[], expected: bigint[][]) => {
+  const expectNotes = (notes: { note: Note }[], expected: bigint[][]) => {
     expect(notes.length).toBe(expected.length);
     notes.forEach((note, i) => {
-      expect(note.preimage.map(p => p.value)).toEqual(expected[i]);
+      expect(note.note.items.map(p => p.value)).toEqual(expected[i]);
     });
   };
 
-  const createNote = (preimage: bigint[]) => ({
-    preimage: preimage.map(f => new Fr(f)),
+  const createNote = (items: bigint[]) => ({
+    note: new Note(items.map(f => new Fr(f))),
   });
 
   it('should get sorted notes', () => {

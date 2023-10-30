@@ -15,7 +15,7 @@ import { FunctionAbi, FunctionArtifact, countArgumentsSize } from '@aztec/founda
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AuthWitness, FunctionL2Logs, NotePreimage, NoteSpendingInfo, UnencryptedL2Log } from '@aztec/types';
+import { AuthWitness, FunctionL2Logs, L1NotePayload, Note, UnencryptedL2Log } from '@aztec/types';
 
 import {
   NoteData,
@@ -28,7 +28,7 @@ import { SideEffectCounter } from '../common/index.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
 import { DBOracle } from './db_oracle.js';
 import { ExecutionNoteCache } from './execution_note_cache.js';
-import { ExecutionResult, NewNoteData } from './execution_result.js';
+import { ExecutionResult, NoteAndSlot } from './execution_result.js';
 import { pickNotes } from './pick_notes.js';
 import { executePrivateFunction } from './private_execution.js';
 import { ViewDataOracle } from './view_data_oracle.js';
@@ -44,7 +44,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * This information is only for references (currently used for tests), and is not used for any sort of constrains.
    * Users can also use this to get a clearer idea of what's happened during a simulation.
    */
-  private newNotes: NewNoteData[] = [];
+  private newNotes: NoteAndSlot[] = [];
   /**
    * Notes from previous transactions that are returned to the oracle call `getNotes` during this execution.
    * The mapping maps from the unique siloed note hash to the index for notes created in private executions.
@@ -135,7 +135,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * Get the data for the newly created notes.
    * @param innerNoteHashes - Inner note hashes for the notes.
    */
-  public getNewNotes(): NewNoteData[] {
+  public getNewNotes(): NoteAndSlot[] {
     return this.newNotes;
   }
 
@@ -176,16 +176,13 @@ export class ClientExecutionContext extends ViewDataOracle {
   }
 
   /**
-   * Gets some notes for a contract address and storage slot.
-   * Returns a flattened array containing real-note-count and note preimages.
+   * Gets some notes for a storage slot.
    *
    * @remarks
-   *
-   * Check for pending notes with matching address/slot.
+   * Check for pending notes with matching slot.
    * Real notes coming from DB will have a leafIndex which
    * represents their index in the note hash tree.
    *
-   * @param contractAddress - The contract address.
    * @param storageSlot - The storage slot.
    * @param numSelects - The number of valid selects in selectBy and selectValues.
    * @param selectBy - An array of indices of the fields to selects.
@@ -194,12 +191,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param sortOrder - The order of the corresponding index in sortBy. (1: DESC, 2: ASC, 0: Do nothing)
    * @param limit - The number of notes to retrieve per query.
    * @param offset - The starting index for pagination.
-   * @param returnSize - The return size.
-   * @returns Flattened array of ACVMFields (format expected by Noir/ACVM) containing:
-   * count - number of real (non-padding) notes retrieved,
-   * contractAddress - the contract address,
-   * preimages - the real note preimages retrieved, and
-   * paddedZeros - zeros to ensure an array with length returnSize expected by Noir circuit
+   * @returns Array of note data.
    */
   public async getNotes(
     storageSlot: Fr,
@@ -227,7 +219,7 @@ export class ClientExecutionContext extends ViewDataOracle {
 
     this.log(
       `Returning ${notes.length} notes for ${this.contractAddress} at ${storageSlot}: ${notes
-        .map(n => `${n.nonce.toString()}:[${n.preimage.map(i => i.toString()).join(',')}]`)
+        .map(n => `${n.nonce.toString()}:[${n.note.items.map(i => i.toString()).join(',')}]`)
         .join(', ')}`,
     );
 
@@ -251,22 +243,23 @@ export class ClientExecutionContext extends ViewDataOracle {
    * It can be used in subsequent calls (or transactions when chaining txs is possible).
    * @param contractAddress - The contract address.
    * @param storageSlot - The storage slot.
-   * @param preimage - The preimage of the new note.
+   * @param noteItems - The items to be included in a Note.
    * @param innerNoteHash - The inner note hash of the new note.
    * @returns
    */
-  public notifyCreatedNote(storageSlot: Fr, preimage: Fr[], innerNoteHash: Fr) {
+  public notifyCreatedNote(storageSlot: Fr, noteItems: Fr[], innerNoteHash: Fr) {
+    const note = new Note(noteItems);
     this.noteCache.addNewNote({
       contractAddress: this.contractAddress,
       storageSlot,
       nonce: Fr.ZERO, // Nonce cannot be known during private execution.
-      preimage,
+      note,
       siloedNullifier: undefined, // Siloed nullifier cannot be known for newly created note.
       innerNoteHash,
     });
     this.newNotes.push({
       storageSlot,
-      preimage,
+      note,
     });
   }
 
@@ -285,13 +278,13 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param contractAddress - The contract address of the note.
    * @param storageSlot - The storage slot the note is at.
    * @param publicKey - The public key of the account that can decrypt the log.
-   * @param preimage - The preimage of the note.
+   * @param log - The log contents.
    */
-  public emitEncryptedLog(contractAddress: AztecAddress, storageSlot: Fr, publicKey: Point, preimage: Fr[]) {
-    const notePreimage = new NotePreimage(preimage);
-    const noteSpendingInfo = new NoteSpendingInfo(notePreimage, contractAddress, storageSlot);
-    const encryptedNotePreimage = noteSpendingInfo.toEncryptedBuffer(publicKey, this.curve);
-    this.encryptedLogs.push(encryptedNotePreimage);
+  public emitEncryptedLog(contractAddress: AztecAddress, storageSlot: Fr, publicKey: Point, log: Fr[]) {
+    const note = new Note(log);
+    const l1NotePayload = new L1NotePayload(note, contractAddress, storageSlot);
+    const encryptedNote = l1NotePayload.toEncryptedBuffer(publicKey, this.curve);
+    this.encryptedLogs.push(encryptedNote);
   }
 
   /**

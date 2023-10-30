@@ -2,13 +2,14 @@ import {
   AccountWallet,
   Fr,
   GrumpkinScalar,
-  NotePreimage,
+  Note,
   computeMessageSecretHash,
   createPXEClient,
   getUnsafeSchnorrAccount,
 } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts/types';
+import { ExtendedNote } from '@aztec/types';
 
 const logger = createDebugLogger('aztec:http-rpc-client');
 
@@ -56,8 +57,9 @@ async function main() {
 
   // Add the newly created "pending shield" note to PXE
   const pendingShieldsStorageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
-  const preimage = new NotePreimage([new Fr(ALICE_MINT_BALANCE), aliceSecretHash]);
-  await pxe.addNote(alice.address, token.address, pendingShieldsStorageSlot, preimage, receipt.txHash);
+  const note = new Note([new Fr(ALICE_MINT_BALANCE), aliceSecretHash]);
+  const extendedNote = new ExtendedNote(note, alice.address, token.address, pendingShieldsStorageSlot, receipt.txHash);
+  await pxe.addNote(extendedNote);
 
   // Make the tokens spendable by redeeming them using the secret (converts the "pending shield note" created above
   // to a "token note")

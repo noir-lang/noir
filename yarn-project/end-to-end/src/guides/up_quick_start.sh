@@ -34,7 +34,7 @@ MINT_PRIVATE_TX_HASH=$(echo "$MINT_PRIVATE_OUTPUT" | grep "Transaction hash:" | 
 
 aztec-cli add-note \
   $ALICE $CONTRACT 5 $MINT_PRIVATE_TX_HASH \
-  --preimage 1000 $SECRET_HASH
+  --note 1000 $SECRET_HASH
 
 aztec-cli send redeem_shield \
   --args $ALICE 1000 $SECRET \

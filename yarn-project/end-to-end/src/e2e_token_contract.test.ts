@@ -1,6 +1,6 @@
 import {
   AccountWallet,
-  NotePreimage,
+  Note,
   TxHash,
   TxStatus,
   computeAuthWitMessageHash,
@@ -9,6 +9,7 @@ import {
 import { CompleteAddress, Fr, FunctionSelector } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts/types';
+import { ExtendedNote } from '@aztec/types';
 
 import { jest } from '@jest/globals';
 
@@ -31,8 +32,9 @@ describe('e2e_token_contract', () => {
 
   const addPendingShieldNoteToPXE = async (accountIndex: number, amount: bigint, secretHash: Fr, txHash: TxHash) => {
     const storageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
-    const preimage = new NotePreimage([new Fr(amount), secretHash]);
-    await wallets[accountIndex].addNote(accounts[0].address, asset.address, storageSlot, preimage, txHash);
+    const note = new Note([new Fr(amount), secretHash]);
+    const extendedNote = new ExtendedNote(note, accounts[accountIndex].address, asset.address, storageSlot, txHash);
+    await wallets[accountIndex].addNote(extendedNote);
   };
 
   beforeAll(async () => {
@@ -168,9 +170,13 @@ describe('e2e_token_contract', () => {
         it('redeem as recipient', async () => {
           await addPendingShieldNoteToPXE(0, amount, secretHash, txHash);
           const txClaim = asset.methods.redeem_shield(accounts[0].address, amount, secret).send();
-          const receiptClaim = await txClaim.wait();
+          const receiptClaim = await txClaim.wait({ getNotes: true });
           expect(receiptClaim.status).toBe(TxStatus.MINED);
           tokenSim.redeemShield(accounts[0].address, amount);
+          // 1 note should be created containing `amount` of tokens
+          const notes = receiptClaim.notes!;
+          expect(notes.length).toBe(1);
+          expect(notes[0].note.items[0].toBigInt()).toBe(amount);
         });
       });
 

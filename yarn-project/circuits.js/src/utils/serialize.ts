@@ -1,7 +1,7 @@
 /**
  * For serializing an array of fixed length buffers.
  * TODO move to foundation pkg.
- * @param arr - Array of bufffers.
+ * @param arr - Array of buffers.
  * @returns The serialized buffers.
  */
 export function serializeBufferArrayToVector(arr: Buffer[]): Buffer {
@@ -29,7 +29,7 @@ type DeserializeFn<T> = (
 
 /**
  * Deserializes an array from a vector on an element-by-element basis.
- * @param deserialize - A function used to deserialize each element of the vecotr.
+ * @param deserialize - A function used to deserialize each element of the vector.
  * @param vector - The vector to deserialize.
  * @param offset - The position in the vector to start deserializing from.
  * @returns Deserialized array and how many bytes we advanced by.
@@ -174,7 +174,7 @@ export function serializeToBufferArray(...objs: Bufferable[]): Buffer[] {
       ret.push(boolToBuffer(obj));
     } else if (typeof obj === 'number') {
       // Note: barretenberg assumes everything is big-endian
-      ret.push(numToUInt32BE(obj)); // TODO: Are we always passsing numbers as UInt32?
+      ret.push(numToUInt32BE(obj)); // TODO: Are we always passing numbers as UInt32?
     } else if (typeof obj === 'string') {
       ret.push(numToUInt32BE(obj.length));
       ret.push(Buffer.from(obj));

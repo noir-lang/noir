@@ -4,16 +4,17 @@ import {
   CompleteAddress,
   ContractData,
   ExtendedContractData,
+  ExtendedNote,
   GetUnencryptedLogsResponse,
   L2Tx,
   LogFilter,
-  NotePreimage,
   Tx,
   TxExecutionRequest,
   TxHash,
   TxReceipt,
 } from '@aztec/types';
 
+import { NoteFilter } from '../notes/note_filter.js';
 import { DeployedContract } from './deployed-contract.js';
 import { NodeInfo } from './node-info.js';
 import { SyncStatus } from './sync-status.js';
@@ -149,19 +150,6 @@ export interface PXE {
   getTx(txHash: TxHash): Promise<L2Tx | undefined>;
 
   /**
-   * Retrieves the private storage data at a specified contract address and storage slot. Returns only data
-   * encrypted for the specified owner that has been already decrypted by the PXE Service. Note that there
-   * may be multiple notes for a user in a single slot.
-   *
-   * @param owner - The address for whom the private data is encrypted.
-   * @param contract - The AztecAddress of the target contract.
-   * @param storageSlot - The storage slot to be fetched.
-   * @returns A set of note preimages for the owner in that contract and slot.
-   * @throws If the contract is not deployed.
-   */
-  getPrivateStorageAt(owner: AztecAddress, contract: AztecAddress, storageSlot: Fr): Promise<NotePreimage[]>;
-
-  /**
    * Retrieves the public storage data at a specified contract address and storage slot.
    *
    * @param contract - The AztecAddress of the target contract.
@@ -172,33 +160,26 @@ export interface PXE {
   getPublicStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<Buffer | undefined>;
 
   /**
-   * Adds a note to the database. Throw if the note hash of the note doesn't exist in the tree.
-   * @param account - The account the note is associated with.
-   * @param contract - The contract address of the note.
-   * @param storageSlot - The storage slot of the note.
-   * @param preimage - The note preimage.
-   * @param txHash - The tx hash of the tx containing the note.
-   * @param nonce - The nonce of the note. If undefined, will look for the first index that matches the preimage.
+   * Gets notes based on the provided filter.
+   * @param filter - The filter to apply to the notes.
+   * @returns The requested notes.
    */
-  addNote(
-    account: AztecAddress,
-    contract: AztecAddress,
-    storageSlot: Fr,
-    preimage: NotePreimage,
-    txHash: TxHash,
-    nonce?: Fr,
-  ): Promise<void>;
+  getNotes(filter: NoteFilter): Promise<ExtendedNote[]>;
 
   /**
-   * Finds the nonce(s) for a note in a tx with given preimage at a specified contract address and storage slot.
-   * @param contract - The contract address of the note.
-   * @param storageSlot - The storage slot of the note.
-   * @param preimage - The note preimage.
-   * @param txHash - The tx hash of the tx containing the note.
-   * @returns The nonces of the note.
-   * @remarks More than single nonce may be returned since there might be more than one note with the same preimage.
+   * Adds a note to the database.
+   * @throws If the note hash of the note doesn't exist in the tree.
+   * @param note - The note to add.
    */
-  getNoteNonces(contract: AztecAddress, storageSlot: Fr, preimage: NotePreimage, txHash: TxHash): Promise<Fr[]>;
+  addNote(note: ExtendedNote): Promise<void>;
+
+  /**
+   * Finds the nonce(s) for a given note.
+   * @param note - The note to find the nonces for.
+   * @returns The nonces of the note.
+   * @remarks More than a single nonce may be returned since there might be more than one nonce for a given note.
+   */
+  getNoteNonces(note: ExtendedNote): Promise<Fr[]>;
 
   /**
    * Simulate the execution of a view (read-only) function on a deployed contract without actually modifying state.
