@@ -57,7 +57,6 @@ pub(crate) fn run(
             &workspace,
             package,
             &args.compile_options,
-            false,
             np_language,
             &|opcode| opcode_support.is_opcode_supported(opcode),
         )?;
@@ -104,7 +103,7 @@ pub(crate) fn execute_program(
 
     let solved_witness_err = nargo::ops::execute_circuit(
         &blackbox_solver,
-        compiled_program.circuit.clone(),
+        &compiled_program.circuit,
         initial_witness,
         true,
     );

@@ -5,12 +5,14 @@ use fm::FileId;
 
 use base64::Engine;
 use noirc_errors::debug_info::DebugInfo;
+use serde::{de::Error as DeserializationError, ser::Error as SerializationError};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::debug::DebugFile;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CompiledProgram {
+    pub noir_version: String,
     /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which this [`CompiledProgram`]
     /// was compiled.
     ///
@@ -29,7 +31,7 @@ where
     S: Serializer,
 {
     let mut circuit_bytes: Vec<u8> = Vec::new();
-    circuit.write(&mut circuit_bytes).unwrap();
+    circuit.write(&mut circuit_bytes).map_err(S::Error::custom)?;
 
     let encoded_b64 = base64::engine::general_purpose::STANDARD.encode(circuit_bytes);
     s.serialize_str(&encoded_b64)
@@ -40,7 +42,8 @@ where
     D: Deserializer<'de>,
 {
     let bytecode_b64: String = serde::Deserialize::deserialize(deserializer)?;
-    let circuit_bytes = base64::engine::general_purpose::STANDARD.decode(bytecode_b64).unwrap();
-    let circuit = Circuit::read(&*circuit_bytes).unwrap();
+    let circuit_bytes =
+        base64::engine::general_purpose::STANDARD.decode(bytecode_b64).map_err(D::Error::custom)?;
+    let circuit = Circuit::read(&*circuit_bytes).map_err(D::Error::custom)?;
     Ok(circuit)
 }

@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 use crate::token::{Attributes, Token};
 use crate::{
-    Distinctness, Ident, Path, Pattern, Recoverable, Statement, StatementKind,
+    Distinctness, FunctionVisibility, Ident, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use acvm::FieldElement;
@@ -26,6 +26,7 @@ pub enum ExpressionKind {
     Variable(Path),
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
+    Parenthesized(Box<Expression>),
     Error,
 }
 
@@ -365,8 +366,8 @@ pub struct FunctionDefinition {
     /// True if this function was defined with the 'unconstrained' keyword
     pub is_unconstrained: bool,
 
-    /// True if this function was defined with the 'pub' keyword
-    pub is_public: bool,
+    /// Indicate if this function was defined with the 'pub' keyword
+    pub visibility: FunctionVisibility,
 
     pub generics: UnresolvedGenerics,
     pub parameters: Vec<(Pattern, UnresolvedType, Visibility)>,
@@ -479,6 +480,7 @@ impl Display for ExpressionKind {
                 write!(f, "({})", elements.join(", "))
             }
             Lambda(lambda) => lambda.fmt(f),
+            Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Error => write!(f, "Error"),
         }
     }
@@ -642,7 +644,7 @@ impl FunctionDefinition {
             is_open: false,
             is_internal: false,
             is_unconstrained: false,
-            is_public: false,
+            visibility: FunctionVisibility::Private,
             generics: generics.clone(),
             parameters: p,
             body: body.clone(),

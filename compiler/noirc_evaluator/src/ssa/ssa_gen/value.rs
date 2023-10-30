@@ -24,7 +24,7 @@ pub(super) enum Tree<T> {
 ///
 /// Note that these values wrap the ValueIds
 /// used internally by functions in the ssa ir and should thus be isolated
-/// to a given function. If used outisde their function of origin, the IDs
+/// to a given function. If used outside their function of origin, the IDs
 /// would be invalid.
 #[derive(Debug, Clone)]
 pub(super) enum Value {

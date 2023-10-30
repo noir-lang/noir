@@ -239,10 +239,19 @@ impl Instruction {
 
     pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
-
         match self {
-            Binary(_)
-            | Cast(_, _)
+            Binary(binary) => {
+                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+                    if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
+                        rhs == FieldElement::zero()
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                }
+            }
+            Cast(_, _)
             | Not(_)
             | Truncate { .. }
             | Allocate

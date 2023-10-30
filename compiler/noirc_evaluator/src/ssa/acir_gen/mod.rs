@@ -23,7 +23,7 @@ use super::{
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
-use crate::errors::{InternalError, RuntimeError};
+use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
@@ -201,9 +201,9 @@ impl Context {
             self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, last_array_uses)?;
         }
 
-        self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
+        let warnings = self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
-        Ok(self.acir_context.finish(input_witness.collect()))
+        Ok(self.acir_context.finish(input_witness.collect(), warnings))
     }
 
     fn convert_brillig_main(
@@ -240,7 +240,7 @@ impl Context {
             self.acir_context.return_var(acir_var)?;
         }
 
-        Ok(self.acir_context.finish(witness_inputs))
+        Ok(self.acir_context.finish(witness_inputs, Vec::new()))
     }
 
     /// Adds and binds `AcirVar`s for each numeric block parameter or block parameter array element.
@@ -1247,7 +1247,7 @@ impl Context {
         &mut self,
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
-    ) -> Result<(), InternalError> {
+    ) -> Result<Vec<SsaReport>, InternalError> {
         let (return_values, call_stack) = match terminator {
             TerminatorInstruction::Return { return_values, call_stack } => {
                 (return_values, call_stack)
@@ -1258,13 +1258,16 @@ impl Context {
         // The return value may or may not be an array reference. Calling `flatten_value_list`
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
+        let mut warnings = Vec::new();
         for acir_var in return_acir_vars {
             if self.acir_context.is_constant(&acir_var) {
-                return Err(InternalError::ReturnConstant { call_stack: call_stack.clone() });
+                warnings.push(SsaReport::Warning(InternalWarning::ReturnConstant {
+                    call_stack: call_stack.clone(),
+                }));
             }
             self.acir_context.return_var(acir_var)?;
         }
-        Ok(())
+        Ok(warnings)
     }
 
     /// Gets the cached `AcirVar` that was converted from the corresponding `ValueId`. If it does
@@ -1859,54 +1862,3 @@ impl Context {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use std::{collections::HashMap, rc::Rc};
-
-    use acvm::{
-        acir::{
-            circuit::Opcode,
-            native_types::{Expression, Witness},
-        },
-        FieldElement,
-    };
-
-    use crate::{
-        brillig::Brillig,
-        errors::{InternalError, RuntimeError},
-        ssa::{
-            function_builder::FunctionBuilder,
-            ir::{function::RuntimeType, map::Id, types::Type},
-        },
-    };
-
-    use super::Context;
-
-    #[test]
-    fn returns_body_scoped_arrays() {
-        // fn main {
-        //   b0():
-        //     return [Field 1]
-        // }
-        let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-
-        let one = builder.field_constant(FieldElement::one());
-
-        let element_type = Rc::new(vec![Type::field()]);
-        let array_type = Type::Array(element_type, 1);
-        let array = builder.array_constant(im::Vector::unit(one), array_type);
-
-        builder.terminate_with_return(vec![array]);
-
-        let ssa = builder.finish();
-
-        let context = Context::new();
-        let acir = context
-            .convert_ssa(ssa, Brillig::default(), &HashMap::default())
-            .expect_err("Return constant value");
-        assert!(matches!(acir, RuntimeError::InternalError(InternalError::ReturnConstant { .. })));
-    }
-}
-//

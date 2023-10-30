@@ -327,29 +327,29 @@ mod test {
         
         // wrong trait name method should not compile
         impl Default for Foo {
-            fn doesnt_exist(x: Field, y: Field) -> Self {
+            fn does_not_exist(x: Field, y: Field) -> Self {
                 Self { bar: x, array: [x,y] }
             }
         }
         
         fn main() {
         }";
-        let compilator_errors = get_program_errors(src);
-        assert!(!has_parser_error(&compilator_errors));
+        let compilation_errors = get_program_errors(src);
+        assert!(!has_parser_error(&compilation_errors));
         assert!(
-            compilator_errors.len() == 1,
+            compilation_errors.len() == 1,
             "Expected 1 compilation error, got: {:?}",
-            compilator_errors
+            compilation_errors
         );
 
-        for (err, _file_id) in compilator_errors {
+        for (err, _file_id) in compilation_errors {
             match &err {
                 CompilationError::DefinitionError(DefCollectorErrorKind::MethodNotInTrait {
                     trait_name,
                     impl_method,
                 }) => {
                     assert_eq!(trait_name, "Default");
-                    assert_eq!(impl_method, "doesnt_exist");
+                    assert_eq!(impl_method, "does_not_exist");
                 }
                 _ => {
                     panic!("No other errors are expected! Found = {:?}", err);
@@ -461,7 +461,7 @@ mod test {
 
         for (err, _file_id) in errors {
             match &err {
-                CompilationError::ResolveError(ResolverError::PathResolutionError(
+                CompilationError::ResolverError(ResolverError::PathResolutionError(
                     PathResolutionError::Unresolved(ident),
                 )) => {
                     assert_eq!(ident, "NotAType");
@@ -533,18 +533,23 @@ mod test {
             }
         }
 
-        fn main() {
-        }
+        fn main() {}
         ";
         let errors = get_program_errors(src);
         assert!(!has_parser_error(&errors));
-        assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
+        assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
         for (err, _file_id) in errors {
             match &err {
                 CompilationError::DefinitionError(
                     DefCollectorErrorKind::TraitImplNotAllowedFor { trait_path, span: _ },
                 ) => {
                     assert_eq!(trait_path.as_string(), "Default");
+                }
+                CompilationError::ResolverError(ResolverError::Expected {
+                    expected, got, ..
+                }) => {
+                    assert_eq!(expected, "type");
+                    assert_eq!(got, "function");
                 }
                 _ => {
                     panic!("No other errors are expected! Found = {:?}", err);
@@ -810,7 +815,7 @@ mod test {
         assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
         // It should be regarding the unused variable
         match &errors[0].0 {
-            CompilationError::ResolveError(ResolverError::UnusedVariable { ident }) => {
+            CompilationError::ResolverError(ResolverError::UnusedVariable { ident }) => {
                 assert_eq!(&ident.0.contents, "y");
             }
             _ => unreachable!("we should only have an unused var error"),
@@ -829,7 +834,7 @@ mod test {
         assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
         // It should be regarding the unresolved var `z` (Maybe change to undeclared and special case)
         match &errors[0].0 {
-            CompilationError::ResolveError(ResolverError::VariableNotDeclared {
+            CompilationError::ResolverError(ResolverError::VariableNotDeclared {
                 name,
                 span: _,
             }) => assert_eq!(name, "z"),
@@ -848,7 +853,7 @@ mod test {
         assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
         for (compilation_error, _file_id) in errors {
             match compilation_error {
-                CompilationError::ResolveError(err) => {
+                CompilationError::ResolverError(err) => {
                     match err {
                         ResolverError::PathResolutionError(PathResolutionError::Unresolved(
                             name,
@@ -892,7 +897,7 @@ mod test {
         // `foo::bar` does not exist
         for (compilation_error, _file_id) in errors {
             match compilation_error {
-                CompilationError::ResolveError(err) => {
+                CompilationError::ResolverError(err) => {
                     match err {
                         ResolverError::UnusedVariable { ident } => {
                             assert_eq!(&ident.0.contents, "z");
@@ -1057,7 +1062,7 @@ mod test {
                 println(f"I want to print {0}");
 
                 let new_val = 10;
-                println(f"randomstring{new_val}{new_val}");
+                println(f"random_string{new_val}{new_val}");
             }
             fn println<T>(x : T) -> T {
                 x
@@ -1069,12 +1074,13 @@ mod test {
 
         for (err, _file_id) in errors {
             match &err {
-                CompilationError::ResolveError(ResolverError::VariableNotDeclared {
-                    name, ..
+                CompilationError::ResolverError(ResolverError::VariableNotDeclared {
+                    name,
+                    ..
                 }) => {
                     assert_eq!(name, "i");
                 }
-                CompilationError::ResolveError(ResolverError::NumericConstantInFormatString {
+                CompilationError::ResolverError(ResolverError::NumericConstantInFormatString {
                     name,
                     ..
                 }) => {
@@ -1088,7 +1094,7 @@ mod test {
                     assert!(
                         a == "println(string)"
                             || a == "println(f\"I want to print {0}\")"
-                            || a == "println(f\"randomstring{new_val}{new_val}\")"
+                            || a == "println(f\"random_string{new_val}{new_val}\")"
                     );
                 }
                 _ => unimplemented!(),

@@ -49,6 +49,7 @@ fn main(x : Field, y : pub Field) {
     regression_2083();
     // The parameters to this function must come from witness values (inputs to main)
     regression_merge_slices(x, y);
+    regression_2370();
 }
 
 // Ensure that slices of struct/tuple values work.
@@ -116,7 +117,7 @@ fn merge_slices_if(x: Field, y: Field) {
     assert(slice[5] == 15);
     assert(slice[6] == 50);
     assert(slice[7] == 60);
-    
+
     merge_slices_push_then_pop(x, y);
 
     let slice = merge_slices_push_then_insert(x, y);
@@ -199,7 +200,7 @@ fn merge_slices_mutate_two_ifs(x: Field, y: Field) -> [Field] {
 
     slice = slice.push_back(15);
     slice = slice.push_back(30);
-    
+
     slice
 }
 
@@ -213,7 +214,7 @@ fn merge_slices_mutate_between_ifs(x: Field, y: Field) -> [Field] {
     }
 
     slice = slice.push_back(30);
-    
+
     if x == 20 {
         slice = slice.push_back(20);
     }
@@ -300,4 +301,11 @@ fn merge_slices_remove_between_ifs(x: Field, y: Field) -> [Field] {
     }
 
     slice
+}
+
+// Previously, we'd get a type error when trying to assign an array of a different size to
+// an existing array variable. Now, we infer the variable must be a slice.
+fn regression_2370() {
+    let mut slice = [];
+    slice = [1, 2, 3];
 }
