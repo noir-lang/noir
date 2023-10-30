@@ -23,7 +23,7 @@ fn main(message : [Field; 62], index : Field, hashpath : [Field; 40], root : Fie
 
 The message is hashed using `hash_to_field`. The specific hash function that is being used is chosen
 by the backend. The only requirement is that this hash function can heuristically be used as a
-random oracle. If only collision resistance is needed, then one can call `std::hash::pedersen`
+random oracle. If only collision resistance is needed, then one can call `std::hash::pedersen_hash`
 instead.
 
 ```rust
