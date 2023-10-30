@@ -2,6 +2,4 @@
 name = "auto_deref"
 type = "bin"
 authors = [""]
-compiler_version = "0.16.0"
-
 [dependencies]

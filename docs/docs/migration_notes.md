@@ -6,6 +6,14 @@ keywords: [Noir, notes, migration, updating, upgrading]
 
 Noir is in full-speed development. Things break fast, wild, and often. This page attempts to leave some notes on errors you might encounter when upgrading and how to resolve them until proper patches are built.
 
+## ≥0.19
+
+### Enforcing `compiler_version`
+
+From this version on, the compiler will check for the `compiler_version` field in `Nargo.toml`, and will error if it doesn't match the current Nargo version in use.
+
+To update, please make sure this field in `Nargo.toml` matches the output of `nargo --version`.
+
 ## ≥0.14
 
 The index of the [for loops](./language_concepts/02_control_flow.md#loops) is now of type `u64` instead of `Field`. An example refactor would be:
