@@ -16,20 +16,21 @@ jobs:
     steps:
       - name: Check if artifacts should be published
         id: check
-        run: |
-          if [ ${{ github.ref_name }} == master ]; then
-            # Always publish on master
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          else
-            # Only publish on PRs if label is set
-            HAS_ARTIFACT_LABEL=$(gh pr view $PR --repo $REPO_URL --json labels | jq '.labels | any(.name == "publish-acir")')
-            echo "publish=$HAS_ARTIFACT_LABEL" >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-          REPO_URL: ${{ github.repositoryUrl }}
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { REF_NAME } = process.env;
+            if (REF_NAME == "master") {
+              return true;
+            }
 
+            const labels = context.payload.pull_request.labels.map(label => label.name);
+            return labels.includes('publish-acir');
+          result-encoding: string
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          
   build-nargo:
     name: Build nargo binary
     runs-on: ubuntu-22.04
