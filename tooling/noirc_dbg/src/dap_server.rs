@@ -15,8 +15,7 @@ use std::sync::Mutex;
 #[cfg(feature = "dap")]
 use std::thread::spawn;
 
-use dap::base_message::Sendable;
-use dap::requests::Request;
+use dap::{requests::Request, base_message::Sendable};
 #[cfg(not(feature = "dap"))]
 use dap::requests::{
     Command, ContinueArguments, DisassembleArguments, DisconnectArguments, LaunchRequestArguments,
