@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script type="module" src="https://md-block.verou.me/md-block.js"></script>
+    <title>{{ name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+        }
+
+        .h1 {
+            background-color: #333;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        hr {
+            border: 1px solid #ccc;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .section {
+            width: 100%;
+            background-color: #f0f0f0;
+            padding: 10px;
+            margin-top: 20px;
+        }
+
+        .section h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .source-link {
+            position: absolute;
+            top: 120px;
+            right: 50px;
+            font-size: 16px;
+            color: #000;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .source-link:hover {
+            color: blue;
+        }
+
+        .mod-link {
+            font-size: 16px;
+            color: #000;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .mod-link:hover {
+            color: blue;
+            cursor: pointer;
+        }
+
+        li {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="trait-header">
+        <h1>Trait {{ name }}</h1>
+        <pre>{{ signature }}</pre>
+        <p><md-block>{{ doc }}</md-block></p>
+    </div>
+
+    <div class="documentation">
+        <h2 class="h1">Documentation</h2>
+        <hr>
+        <p><md_block>{{ additional_doc }}</md_block></p>
+    </div>
+
+    <div class="methods">
+        <h2 class="h1">Required methods</h2>
+        <hr>
+        <ul>
+            {% for method in required_methods %}
+            <li>{{ method.signature }}</li>
+            <a>{{ method.doc }}</a>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="methods">
+        <h2 class="h1">Provided methods</h2>
+        <hr>
+        <ul>
+            {% for method in provided_methods %}
+            <li>{{ method.signature }}</li>
+            <a>{{ method.doc }}</a>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="implementations">
+        <h2 class="h1">Implementors</h2>
+        <hr> 
+        <ul>
+            {% for implementation in implementations %}
+            <li>{{ implementation.signature }}</li> 
+            <ul>
+                {% for func in implementation.functions %}
+                <li>{{ func.signature }}</li> 
+                {% endfor %}
+            </ul>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>

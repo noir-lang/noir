@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+        }
+
+        .h1 {
+            background-color: #333;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        hr {
+            border: 1px solid #ccc;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .section {
+            width: 100%;
+            background-color: #f0f0f0;
+            padding: 10px;
+            margin-top: 20px;
+        }
+
+        .section h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .source-link {
+            position: absolute;
+            top: 120px;
+            right: 50px;
+            font-size: 16px;
+            color: #000;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .source-link:hover {
+            color: blue;
+        }
+
+        .mod-link {
+            font-size: 16px;
+            color: #000;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .mod-link:hover {
+            color: blue;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="section">
+        <h2>
+            Function {{name}}
+        </h2>
+        <pre>{{signature}}</pre>
+        <p><md-block>{{ doc }}</md-block></p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Code Page</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            padding: 20px;
+        }
+
+        .code {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-left: 4px solid #3498db;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+
+        .line-numbers {
+            display: inline-block;
+            text-align: left;
+            margin-right: 10px;
+            color: #555;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="code">
+        <div class="line-numbers">
+            <table>
+                <colgroup>
+                    <col span="1" style="width: 5%;">
+                    <col span="1" style="width: 95%;">
+                </colgroup>
+                <tbody>
+                {% for code_line in codelines %}
+                <tr>
+                    <td>{{ code_line.number }}</td>
+                    <td>{{ code_line.text }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

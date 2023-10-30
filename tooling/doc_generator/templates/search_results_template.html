@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search results</title>
+    <style>
+        body {
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        #results {
+            margin: 0 auto;
+            width: 80%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #000;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #000;
+            font-size: 16px;
+        }
+
+        th:nth-child(1),
+        td:nth-child(1) {
+            width: 20%;
+        }
+
+        th:nth-child(2),
+        td:nth-child(2) {
+            width: 20%;
+        }
+
+        th:nth-child(3),
+        td:nth-child(3) {
+            width: 60%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Search results</h1>
+    <div id="results">
+
+    </div>
+
+    <div id="all">
+        <table class="table">
+            <tbody>
+            {% for result in results %}
+            {% if result.type == Type::Struct ||
+                result.type == Type::Function ||
+                result.type == Type::Trait %}
+            <tr>
+                <td>{{result.name}}</td>
+                <td>{{result.type}}</td>
+                <td>{{result.doc}}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchTerm = urlParams.get('search');
+
+        const resultsDiv = document.getElementById('results');
+        
+        const allTable = document.querySelector('#all table');
+        const tbody = allTable.querySelector('tbody');
+
+        function getDataFromTable() {
+            allTable.style.display = 'none';
+            const rows = tbody.querySelectorAll('tr');
+            const data = [];
+
+            rows.forEach((row) => {
+                const columns = row.querySelectorAll('td');
+                const name = columns[0].textContent;
+                const type = columns[1].textContent;
+                const comments = columns[2].textContent;
+
+                data.push({ name, type, comments });
+            });
+
+            return data;
+        }
+
+        const searchResults = getDataFromTable();
+
+        function createTable(results) {
+            const table = document.createElement('table');
+            table.innerHTML = `
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Doc</th>
+                </tr>
+            `;
+
+            results.forEach((result) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><a href="${result.name}.html">${result.name}</a></td>
+                    <td>${result.type}</td>
+                    <td>${result.comments}</td>
+                `;
+                table.appendChild(row);
+            });
+
+            return table;
+        }
+
+        function performSearch(searchTerm) {
+            const filteredResults = searchResults.filter((result) => {
+                return result.name.toLowerCase().includes(searchTerm.toLowerCase());
+            });
+
+            if (filteredResults.length > 0) {
+                const table = createTable(filteredResults);
+                resultsDiv.appendChild(table);
+            } else {
+                resultsDiv.textContent = 'No results';
+            }
+        }
+
+        performSearch(searchTerm);
+    </script>
+</body>
+</html>
