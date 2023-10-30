@@ -89,7 +89,15 @@ impl<'me> FmtVisitor<'me> {
 
     #[track_caller]
     fn push_rewrite(&mut self, rewrite: String, span: Span) {
-        let rewrite = utils::recover_comment_removed(self.slice(span), rewrite);
+        let original = self.slice(span);
+        let changed_comment_content = utils::changed_comment_content(original, &rewrite);
+
+        if changed_comment_content && self.config.error_on_lost_comment {
+            panic!("not formatted because a comment would be lost: {rewrite:?}");
+        }
+
+        let rewrite = if changed_comment_content { original.to_string() } else { rewrite };
+
         self.format_missing_indent(span.start(), true);
         self.push_str(&rewrite);
     }

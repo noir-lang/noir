@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
@@ -9,7 +11,7 @@ use noirc_errors::Span;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitFunction {
     pub name: Ident,
-    pub generics: Generics,
+    pub generics: Vec<(Rc<String>, TypeVariable, Span)>,
     pub arguments: Vec<Type>,
     pub return_type: Type,
     pub span: Span,
