@@ -56,8 +56,8 @@ jobs:
       - name: Set nargo on PATH
         run: |
           ls -l .
-          7z e ./nargo-x86_64-unknown-linux-gnu
-          ls -l .
+          # 7z e ./nargo-x86_64-unknown-linux-gnu
+          # ls -l .
           
           nargo_binary="${{ github.workspace }}/nargo"
           chmod +x $nargo_binary
