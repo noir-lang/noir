@@ -7,6 +7,7 @@ import {
   ExtendedNote,
   FunctionCall,
   GetUnencryptedLogsResponse,
+  L2Block,
   L2Tx,
   LogFilter,
   NodeInfo,
@@ -81,6 +82,9 @@ export abstract class BaseWallet implements Wallet {
   }
   getNoteNonces(note: ExtendedNote): Promise<Fr[]> {
     return this.pxe.getNoteNonces(note);
+  }
+  getBlock(number: number): Promise<L2Block | undefined> {
+    return this.pxe.getBlock(number);
   }
   viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress | undefined): Promise<any> {
     return this.pxe.viewTx(functionName, args, to, from);

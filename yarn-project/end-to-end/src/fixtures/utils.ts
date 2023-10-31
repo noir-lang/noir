@@ -29,7 +29,7 @@ import {
 } from '@aztec/l1-artifacts';
 import { PXEService, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 import { SequencerClient } from '@aztec/sequencer-client';
-import { AztecNode, L2BlockL2Logs, LogType, PXE, createAztecNodeRpcClient } from '@aztec/types';
+import { AztecNode, L2BlockL2Logs, LogType, PXE, createAztecNodeClient } from '@aztec/types';
 
 import * as path from 'path';
 import {
@@ -166,7 +166,7 @@ async function setupWithSandbox(account: Account, config: AztecNodeConfig, logge
   // we are setting up against the sandbox, l1 contracts are already deployed
   const aztecNodeUrl = getAztecNodeUrl();
   logger(`Creating Aztec Node client to remote host ${aztecNodeUrl}`);
-  const aztecNode = createAztecNodeRpcClient(aztecNodeUrl);
+  const aztecNode = createAztecNodeClient(aztecNodeUrl);
   logger(`Creating PXE client to remote host ${PXE_URL}`);
   const pxeClient = createPXEClient(PXE_URL);
   await waitForPXE(pxeClient, logger);

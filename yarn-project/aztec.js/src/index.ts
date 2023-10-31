@@ -32,6 +32,7 @@ export {
   TxStatus,
   UnencryptedL2Log,
   emptyFunctionCall,
+  createAztecNodeClient,
 } from '@aztec/types';
 export { ContractArtifact } from '@aztec/foundation/abi';
 export { createDebugLogger, DebugLogger } from '@aztec/foundation/log';

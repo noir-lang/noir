@@ -19,13 +19,13 @@ import {
 } from '@aztec/types';
 
 /**
- * Creates a JSON-RPC client to remotely talk to an AztecNode.
- * @param url - The URL of the AztecNode
- * @param fetch - The fetch implementation to use
- * @returns A JSON-RPC client
+ * Creates a JSON-RPC client to remotely talk to an Aztec Node.
+ * @param url - The URL of the Aztec Node.
+ * @param fetch - The fetch implementation to use.
+ * @returns A JSON-RPC client of Aztec Node.
  */
-export function createAztecNodeRpcClient(url: string, fetch = defaultFetch): AztecNode {
-  const rpcClient = createJsonRpcClient<AztecNode>(
+export function createAztecNodeClient(url: string, fetch = defaultFetch): AztecNode {
+  return createJsonRpcClient<AztecNode>(
     url,
     {
       AztecAddress,
@@ -47,5 +47,4 @@ export function createAztecNodeRpcClient(url: string, fetch = defaultFetch): Azt
     false,
     fetch,
   );
-  return rpcClient;
 }

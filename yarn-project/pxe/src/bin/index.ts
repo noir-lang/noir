@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --no-warnings
 import { createDebugLogger } from '@aztec/foundation/log';
-import { createAztecNodeRpcClient } from '@aztec/types';
+import { createAztecNodeClient } from '@aztec/types';
 
 import { getPXEServiceConfig } from '../config/index.js';
 import { startPXEHttpServer } from '../pxe_http/index.js';
@@ -17,7 +17,7 @@ async function main() {
   logger.info(`Setting up PXE...`);
 
   const pxeConfig = getPXEServiceConfig();
-  const nodeRpcClient = createAztecNodeRpcClient(AZTEC_NODE_URL);
+  const nodeRpcClient = createAztecNodeClient(AZTEC_NODE_URL);
   const pxeService = await createPXEService(nodeRpcClient, pxeConfig);
 
   const shutdown = async () => {

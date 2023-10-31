@@ -6,6 +6,7 @@ import {
   ExtendedContractData,
   ExtendedNote,
   GetUnencryptedLogsResponse,
+  L2Block,
   L2Tx,
   LogFilter,
   Tx,
@@ -180,6 +181,13 @@ export interface PXE {
    * @remarks More than a single nonce may be returned since there might be more than one nonce for a given note.
    */
   getNoteNonces(note: ExtendedNote): Promise<Fr[]>;
+
+  /**
+   * Get the a given block.
+   * @param number - The block number being requested.
+   * @returns The blocks requested.
+   */
+  getBlock(number: number): Promise<L2Block | undefined>;
 
   /**
    * Simulate the execution of a view (read-only) function on a deployed contract without actually modifying state.
