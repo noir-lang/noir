@@ -314,12 +314,34 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         }
 
         let Some(registers) = self.context.get_brillig_registers() else {
+            // this can happen when just entering the Brillig block since ACVM
+            // would have not initialized the Brillig VM yet; in fact, the
+            // Brillig code may be skipped altogether
             println!("Brillig VM registers not available");
             return;
         };
 
         for (index, value) in registers.inner.iter().enumerate() {
-            println!("{index} = {:?}", value);
+            println!("{index} = {}", value.to_field());
+        }
+    }
+
+    pub fn show_brillig_memory(&self) {
+        if !self.context.is_executing_brillig() {
+            println!("Not executing a Brillig block");
+            return;
+        }
+
+        let Some(memory) = self.context.get_brillig_memory() else {
+            // this can happen when just entering the Brillig block since ACVM
+            // would have not initialized the Brillig VM yet; in fact, the
+            // Brillig code may be skipped altogether
+            println!("Brillig VM memory not available");
+            return;
+        };
+
+        for (index, value) in memory.iter().enumerate() {
+            println!("{index} = {}", value.to_field());
         }
     }
 
@@ -469,6 +491,16 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "show Brillig registers (valid when executing a Brillig block)",
                 () => || {
                     ref_context.borrow().show_brillig_registers();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "memory",
+            command! {
+                "show Brillig memory (valid when executing a Brillig block)",
+                () => || {
+                    ref_context.borrow().show_brillig_memory();
                     Ok(CommandStatus::Done)
                 }
             },
