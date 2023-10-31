@@ -2,6 +2,4 @@
 name = "simple_print"
 type = "bin"
 authors = [""]
-compiler_version = "0.6.0"
-
 [dependencies]

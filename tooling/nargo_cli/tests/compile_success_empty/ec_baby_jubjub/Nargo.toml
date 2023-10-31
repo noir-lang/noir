@@ -3,6 +3,5 @@ name = "ec_baby_jubjub"
 description = "Baby Jubjub sanity checks"
 type = "bin"
 authors = [""]
-compiler_version = "0.1"
 
 [dependencies]

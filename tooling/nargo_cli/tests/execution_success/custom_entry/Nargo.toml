@@ -3,6 +3,5 @@ name = "custom_entry"
 type = "bin"
 entry = "src/foobarbaz.nr"
 authors = [""]
-compiler_version = "0.1"
 
 [dependencies]

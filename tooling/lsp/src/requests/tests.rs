@@ -4,7 +4,7 @@ use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use lsp_types::{LogMessageParams, MessageType};
 use nargo::prepare_package;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::check_crate;
+use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
 
 use crate::{
     get_non_stdlib_asset, get_package_tests_in_crate,
@@ -40,11 +40,15 @@ fn on_tests_request_inner(
         }
     };
 
-    let workspace =
-        resolve_workspace_from_toml(&toml_path, PackageSelection::All).map_err(|err| {
-            // If we found a manifest, but the workspace is invalid, we raise an error about it
-            ResponseError::new(ErrorCode::REQUEST_FAILED, err)
-        })?;
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        PackageSelection::All,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    )
+    .map_err(|err| {
+        // If we found a manifest, but the workspace is invalid, we raise an error about it
+        ResponseError::new(ErrorCode::REQUEST_FAILED, err)
+    })?;
 
     let package_tests: Vec<_> = workspace
         .into_iter()

@@ -2,6 +2,5 @@
 name = "3_add"
 type = "bin"
 authors = [""]
-compiler_version = "0.1"
 
 [dependencies]

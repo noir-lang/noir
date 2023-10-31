@@ -20,16 +20,16 @@ fn main(
     let pubkey_y = pubkey[1];
 
     // Compute input note commitment
-    let note_commitment = std::hash::pedersen([pubkey_x, pubkey_y]);
+    let note_commitment = std::hash::pedersen_commitment([pubkey_x, pubkey_y]);
     
     // Compute input note nullifier
-    let nullifier = std::hash::pedersen([note_commitment[0], index, priv_key]);
+    let nullifier = std::hash::pedersen_commitment([note_commitment.x, index, priv_key]);
 
     // Compute output note nullifier
-    let receiver_note_commitment = std::hash::pedersen([to_pubkey_x, to_pubkey_y]);
+    let receiver_note_commitment = std::hash::pedersen_commitment([to_pubkey_x, to_pubkey_y]);
 
     // Check that the input note nullifier is in the root
-    assert(note_root == std::merkle::compute_merkle_root(note_commitment[0], index, note_hash_path));
+    assert(note_root == std::merkle::compute_merkle_root(note_commitment.x, index, note_hash_path));
 
-    [nullifier[0], receiver_note_commitment[0]]
+    [nullifier.x, receiver_note_commitment.x]
 }

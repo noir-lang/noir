@@ -58,9 +58,7 @@ fn d_method(input: D) -> Field {
 }
 
 fn get_d_method_interface() -> MethodInterface<D> {
-    MethodInterface {
-            some_method_on_t_d: d_method,
-        }
+    MethodInterface { some_method_on_t_d: d_method }
 }  
 
 // ---

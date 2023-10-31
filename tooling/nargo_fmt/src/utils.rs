@@ -4,14 +4,6 @@ use noirc_frontend::lexer::Lexer;
 use noirc_frontend::token::Token;
 use noirc_frontend::{Expression, Ident};
 
-pub(crate) fn recover_comment_removed(original: &str, new: String) -> String {
-    if changed_comment_content(original, &new) {
-        original.to_string()
-    } else {
-        new
-    }
-}
-
 pub(crate) fn changed_comment_content(original: &str, new: &str) -> bool {
     comments(original).ne(comments(new))
 }
@@ -119,22 +111,19 @@ impl<'me, T> Exprs<'me, T> {
 }
 
 pub(crate) trait FindToken {
-    fn find_token(&self, token: Token) -> Option<u32>;
+    fn find_token(&self, token: Token) -> Option<Span>;
     fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32>;
 }
 
 impl FindToken for str {
-    fn find_token(&self, token: Token) -> Option<u32> {
-        Lexer::new(self)
-            .flatten()
-            .find_map(|it| (it.token() == &token).then(|| it.to_span().start()))
+    fn find_token(&self, token: Token) -> Option<Span> {
+        Lexer::new(self).flatten().find_map(|it| (it.token() == &token).then(|| it.to_span()))
     }
 
     fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32> {
         Lexer::new(self)
             .skip_comments(false)
             .flatten()
-            .into_iter()
             .find_map(|spanned| f(spanned.token()).then(|| spanned.to_span().end()))
     }
 }
@@ -163,7 +152,9 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
     }
 
     let newline_index = slice.find('\n');
-    if let Some(separator_index) = slice.find_token(Token::Comma).map(|index| index as usize) {
+    if let Some(separator_index) =
+        slice.find_token(Token::Comma).map(|index| index.start() as usize)
+    {
         match (block_open_index, newline_index) {
             (Some(block), None) if block > separator_index => separator_index + 1,
             (Some(block), None) => {
