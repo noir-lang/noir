@@ -18,9 +18,10 @@ template <typename Flavor> class SumcheckProver {
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using PartiallyEvaluatedMultivariates = typename Flavor::PartiallyEvaluatedMultivariates;
     using ClaimedEvaluations = typename Flavor::AllValues;
+    using Transcript = typename Flavor::Transcript;
     using Instance = ProverInstance_<Flavor>;
 
-    ProverTranscript<FF>& transcript;
+    Transcript& transcript;
     const size_t multivariate_n;
     const size_t multivariate_d;
     SumcheckProverRound<Flavor> round;
@@ -59,7 +60,7 @@ template <typename Flavor> class SumcheckProver {
     PartiallyEvaluatedMultivariates partially_evaluated_polynomials;
 
     // prover instantiates sumcheck with circuit size and a prover transcript
-    SumcheckProver(size_t multivariate_n, ProverTranscript<FF>& transcript)
+    SumcheckProver(size_t multivariate_n, Transcript& transcript)
         : transcript(transcript)
         , multivariate_n(multivariate_n)
         , multivariate_d(numeric::get_msb(multivariate_n))

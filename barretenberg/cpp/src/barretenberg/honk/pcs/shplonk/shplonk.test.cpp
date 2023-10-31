@@ -28,7 +28,7 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
 
     const size_t n = 16;
 
-    auto prover_transcript = ProverTranscript<Fr>::init_empty();
+    auto prover_transcript = BaseTranscript<Fr>::prover_init_empty();
 
     // Generate two random (unrelated) polynomials of two different sizes, as well as their evaluations at a (single but
     // different) random point and their commitments.
@@ -64,7 +64,7 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
     opening_claims.emplace_back(OpeningClaim{ opening_pairs[0], commitment1 });
     opening_claims.emplace_back(OpeningClaim{ opening_pairs[1], commitment2 });
 
-    auto verifier_transcript = VerifierTranscript<Fr>::init_empty(prover_transcript);
+    auto verifier_transcript = BaseTranscript<Fr>::verifier_init_empty(prover_transcript);
 
     // Execute the shplonk verifier functionality
     const auto verifier_claim = ShplonkVerifier::reduce_verification(this->vk(), opening_claims, verifier_transcript);

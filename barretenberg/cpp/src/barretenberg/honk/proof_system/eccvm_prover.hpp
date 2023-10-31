@@ -21,6 +21,7 @@ template <ECCVMFlavor Flavor> class ECCVMProver_ {
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using Curve = typename Flavor::Curve;
+    using Transcript = typename Flavor::Transcript;
 
   public:
     explicit ECCVMProver_(std::shared_ptr<ProvingKey> input_key, std::shared_ptr<PCSCommitmentKey> commitment_key);
@@ -39,7 +40,7 @@ template <ECCVMFlavor Flavor> class ECCVMProver_ {
     plonk::proof& export_proof();
     plonk::proof& construct_proof();
 
-    ProverTranscript<FF> transcript;
+    Transcript transcript;
 
     std::vector<FF> public_inputs;
 

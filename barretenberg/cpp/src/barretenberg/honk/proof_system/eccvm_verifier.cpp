@@ -44,10 +44,11 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const plonk
     using Shplonk = pcs::shplonk::ShplonkVerifier_<Curve>;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
+    using Transcript = typename Flavor::Transcript;
 
     RelationParameters<FF> relation_parameters;
 
-    transcript = VerifierTranscript<FF>{ proof.proof_data };
+    transcript = Transcript{ proof.proof_data };
 
     auto commitments = VerifierCommitments(key, transcript);
     auto commitment_labels = CommitmentLabels();
@@ -168,7 +169,7 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const plonk
         transcript.template receive_from_prover<Commitment>(commitment_labels.lookup_read_counts_1);
 
     // Get challenge for sorted list batching and wire four memory records
-    auto [beta, gamma] = transcript.get_challenges("bbeta", "gamma");
+    auto [beta, gamma] = transcript.get_challenges("beta", "gamma");
     relation_parameters.gamma = gamma;
     auto beta_sqr = beta * beta;
     relation_parameters.beta = beta;

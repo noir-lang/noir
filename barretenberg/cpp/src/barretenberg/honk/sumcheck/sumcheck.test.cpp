@@ -104,7 +104,7 @@ TEST_F(SumcheckTests, PolynomialNormalization)
     info(full_polynomials.w_l[2]);
     info(full_polynomials.w_l[3]);
 
-    auto transcript = ProverTranscript<FF>::init_empty();
+    Flavor::Transcript transcript = Flavor::Transcript::prover_init_empty();
 
     auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
 
@@ -169,7 +169,7 @@ TEST_F(SumcheckTests, Prover)
     }
     auto full_polynomials = construct_ultra_full_polynomials(random_polynomials);
 
-    auto transcript = ProverTranscript<FF>::init_empty();
+    Flavor::Transcript transcript = Flavor::Transcript::prover_init_empty();
 
     auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
 
@@ -243,13 +243,13 @@ TEST_F(SumcheckTests, ProverAndVerifierSimple)
             .public_input_delta = FF::one(),
         };
 
-        auto prover_transcript = ProverTranscript<FF>::init_empty();
+        Flavor::Transcript prover_transcript = Flavor::Transcript::prover_init_empty();
 
         auto sumcheck_prover = SumcheckProver<Flavor>(multivariate_n, prover_transcript);
 
         auto prover_output = sumcheck_prover.prove(full_polynomials, relation_parameters);
 
-        auto verifier_transcript = VerifierTranscript<FF>::init_empty(prover_transcript);
+        Flavor::Transcript verifier_transcript = Flavor::Transcript::verifier_init_empty(prover_transcript);
 
         auto sumcheck_verifier = SumcheckVerifier<Flavor>(multivariate_n);
 
@@ -396,14 +396,14 @@ TEST_F(SumcheckTests, RealCircuitUltra)
     instance->compute_sorted_accumulator_polynomials(eta);
     instance->compute_grand_product_polynomials(beta, gamma);
 
-    auto prover_transcript = ProverTranscript<FF>::init_empty();
+    Flavor::Transcript prover_transcript = Flavor::Transcript::prover_init_empty();
     auto circuit_size = instance->proving_key->circuit_size;
 
     auto sumcheck_prover = SumcheckProver<Flavor>(circuit_size, prover_transcript);
 
     auto prover_output = sumcheck_prover.prove(instance->prover_polynomials, instance->relation_parameters);
 
-    auto verifier_transcript = VerifierTranscript<FF>::init_empty(prover_transcript);
+    Flavor::Transcript verifier_transcript = Flavor::Transcript::verifier_init_empty(prover_transcript);
 
     auto sumcheck_verifier = SumcheckVerifier<Flavor>(circuit_size);
 

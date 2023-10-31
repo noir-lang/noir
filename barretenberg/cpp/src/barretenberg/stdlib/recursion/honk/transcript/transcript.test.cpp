@@ -14,8 +14,7 @@ using Builder = UltraCircuitBuilder;
 using UltraFlavor = ::proof_system::honk::flavor::Ultra;
 using UltraRecursiveFlavor = ::proof_system::honk::flavor::UltraRecursive_<Builder>;
 using FF = barretenberg::fr;
-using ProverTranscript = ::proof_system::honk::ProverTranscript<FF>;
-using VerifierTranscript = ::proof_system::honk::VerifierTranscript<FF>;
+using BaseTranscript = ::proof_system::honk::BaseTranscript<FF>;
 
 /**
  * @brief Create some mock data; add it to the provided prover transcript in various mock rounds
@@ -97,11 +96,11 @@ TEST(RecursiveHonkTranscript, InterfacesMatch)
     constexpr size_t LENGTH = 8; // arbitrary length of Univariate to be serialized
 
     // Instantiate a Prover Transcript and use it to generate some mock proof data
-    ProverTranscript prover_transcript;
+    BaseTranscript prover_transcript;
     auto proof_data = generate_mock_proof_data<UltraFlavor, LENGTH>(prover_transcript);
 
     // Instantiate a (native) Verifier Transcript with the proof data and perform some mock transcript operations
-    VerifierTranscript native_transcript(proof_data);
+    BaseTranscript native_transcript(proof_data);
     perform_mock_verifier_transcript_operations<UltraFlavor, LENGTH>(native_transcript);
 
     // Confirm that Prover and Verifier transcripts have generated the same manifest via the operations performed
@@ -145,7 +144,7 @@ TEST(RecursiveHonkTranscript, ReturnValuesMatch)
     }
 
     // Construct a mock proof via the prover transcript
-    ProverTranscript prover_transcript;
+    BaseTranscript prover_transcript;
     prover_transcript.send_to_verifier("scalar", scalar);
     prover_transcript.send_to_verifier("commitment", commitment);
     prover_transcript.send_to_verifier("evaluations", evaluations);
@@ -153,7 +152,7 @@ TEST(RecursiveHonkTranscript, ReturnValuesMatch)
     auto proof_data = prover_transcript.proof_data;
 
     // Perform the corresponding operations with the native verifier transcript
-    VerifierTranscript native_transcript(proof_data);
+    BaseTranscript native_transcript(proof_data);
     auto native_scalar = native_transcript.template receive_from_prover<FF>("scalar");
     auto native_commitment = native_transcript.template receive_from_prover<Commitment>("commitment");
     auto native_evaluations = native_transcript.template receive_from_prover<std::array<FF, LENGTH>>("evaluations");

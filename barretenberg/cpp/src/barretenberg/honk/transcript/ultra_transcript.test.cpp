@@ -1,9 +1,9 @@
-#include "transcript.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "transcript.hpp"
 #include <gtest/gtest.h>
 
 using namespace proof_system::honk;
@@ -38,7 +38,6 @@ class UltraTranscriptTests : public ::testing::Test {
         size_t size_uni = MAX_PARTIAL_RELATION_LENGTH * size_FF;
         size_t size_evals = (Flavor::NUM_ALL_ENTITIES)*size_FF;
         size_t size_uint32 = 4;
-        size_t size_uint64 = 8;
 
         size_t round = 0;
         manifest_expected.add_entry(round, "circuit_size", size_uint32);
@@ -85,28 +84,26 @@ class UltraTranscriptTests : public ::testing::Test {
 
         round++;
         // TODO(Mara): Make testing more flavor agnostic so we can test this with all flavors
-        if constexpr (proof_system::IsGrumpkinFlavor<Flavor>) {
-            manifest_expected.add_entry(round, "IPA:poly_degree", size_uint64);
-            manifest_expected.add_challenge(round, "IPA:generator_challenge");
-
-            for (size_t i = 0; i < log_n; i++) {
-                round++;
-                std::string idx = std::to_string(i);
-                manifest_expected.add_entry(round, "IPA:L_" + idx, size_G);
-                manifest_expected.add_entry(round, "IPA:R_" + idx, size_G);
-                std::string label = "IPA:round_challenge_" + idx;
-                manifest_expected.add_challenge(round, label);
-            }
-
-            round++;
-            manifest_expected.add_entry(round, "IPA:a_0", size_FF);
-        } else {
-            manifest_expected.add_entry(round, "ZM:PI", size_G);
-        }
-
+        manifest_expected.add_entry(round, "ZM:PI", size_G);
         manifest_expected.add_challenge(round); // no challenge
 
         return manifest_expected;
+    }
+
+    void generate_test_circuit(auto& builder)
+    {
+        FF a = 1;
+        builder.add_variable(a);
+        builder.add_public_variable(a);
+    }
+
+    void generate_random_test_circuit(auto& builder)
+    {
+        auto a = FF::random_element();
+        auto b = FF::random_element();
+        builder.add_variable(a);
+        builder.add_public_variable(a);
+        builder.add_public_variable(b);
     }
 };
 
@@ -117,10 +114,8 @@ class UltraTranscriptTests : public ::testing::Test {
 TEST_F(UltraTranscriptTests, ProverManifestConsistency)
 {
     // Construct a simple circuit of size n = 8 (i.e. the minimum circuit size)
-    typename Flavor::FF a = 1;
     auto builder = typename Flavor::CircuitBuilder();
-    builder.add_variable(a);
-    builder.add_public_variable(a);
+    generate_test_circuit(builder);
 
     // Automatically generate a transcript manifest by constructing a proof
     auto composer = UltraComposer();
@@ -146,11 +141,8 @@ TEST_F(UltraTranscriptTests, VerifierManifestConsistency)
 {
 
     // Construct a simple circuit of size n = 8 (i.e. the minimum circuit size)
-    auto builder = proof_system::UltraCircuitBuilder();
-
-    auto a = 2;
-    builder.add_variable(a);
-    builder.add_public_variable(a);
+    auto builder = Flavor::CircuitBuilder();
+    generate_test_circuit(builder);
 
     // Automatically generate a transcript manifest in the prover by constructing a proof
     auto composer = UltraComposer();
@@ -181,7 +173,7 @@ TEST_F(UltraTranscriptTests, VerifierManifestConsistency)
 TEST_F(UltraTranscriptTests, ChallengeGenerationTest)
 {
     // initialized with random value sent to verifier
-    auto transcript = ProverTranscript<FF>::init_empty();
+    auto transcript = Flavor::Transcript::prover_init_empty();
     // test a bunch of challenges
     auto challenges = transcript.get_challenges("a", "b", "c", "d", "e", "f");
     // check they are not 0
@@ -197,6 +189,38 @@ TEST_F(UltraTranscriptTests, ChallengeGenerationTest)
     ASSERT_NE(b, 0) << "Challenge a is 0";
 }
 
+TEST_F(UltraTranscriptTests, StructureTest)
+{
+    // Construct a simple circuit of size n = 8 (i.e. the minimum circuit size)
+    auto builder = typename Flavor::CircuitBuilder();
+    generate_test_circuit(builder);
+
+    // Automatically generate a transcript manifest by constructing a proof
+    auto composer = UltraComposer();
+    auto instance = composer.create_instance(builder);
+    auto prover = composer.create_prover(instance);
+    auto proof = prover.construct_proof();
+    auto verifier = composer.create_verifier(instance);
+    EXPECT_TRUE(verifier.verify_proof(proof));
+
+    // try deserializing and serializing with no changes and check proof is still valid
+    prover.transcript.deserialize_full_transcript();
+    prover.transcript.serialize_full_transcript();
+    EXPECT_TRUE(verifier.verify_proof(prover.export_proof())); // we have changed nothing so proof is still valid
+
+    Flavor::Commitment one_group_val = Flavor::Commitment::one();
+    FF rand_val = FF::random_element();
+    prover.transcript.sorted_accum_comm = one_group_val * rand_val; // choose random object to modify
+    EXPECT_TRUE(verifier.verify_proof(
+        prover.export_proof())); // we have not serialized it back to the proof so it should still be fine
+
+    prover.transcript.serialize_full_transcript();
+    EXPECT_FALSE(verifier.verify_proof(prover.export_proof())); // the proof is now wrong after serializing it
+
+    prover.transcript.deserialize_full_transcript();
+    EXPECT_EQ(static_cast<Flavor::Commitment>(prover.transcript.sorted_accum_comm), one_group_val * rand_val);
+}
+
 TEST_F(UltraTranscriptTests, FoldingManifestTest)
 {
     using Flavor = flavor::Ultra;
@@ -205,11 +229,7 @@ TEST_F(UltraTranscriptTests, FoldingManifestTest)
     std::vector<std::shared_ptr<ProverInstance_<Flavor>>> insts(2);
     std::generate(insts.begin(), insts.end(), [&]() {
         auto builder = proof_system::UltraCircuitBuilder();
-        auto a = FF::random_element();
-        auto b = FF::random_element();
-        builder.add_variable(a);
-        builder.add_public_variable(a);
-        builder.add_public_variable(b);
+        generate_random_test_circuit(builder);
         return composer.create_instance(builder);
     });
 

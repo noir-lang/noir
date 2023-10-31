@@ -382,7 +382,8 @@ class Ultra {
 
     class VerifierCommitments : public AllEntities<Commitment, CommitmentHandle> {
       public:
-        VerifierCommitments(std::shared_ptr<VerificationKey> verification_key, VerifierTranscript<FF> transcript)
+        VerifierCommitments(std::shared_ptr<VerificationKey> verification_key,
+                            [[maybe_unused]] const BaseTranscript<FF>& transcript)
         {
             static_cast<void>(transcript);
             q_m = verification_key->q_m;
@@ -417,6 +418,127 @@ class Ultra {
       public:
         std::vector<FF> gate_separation_challenges;
         FF target_sum;
+    };
+
+    /**
+     * @brief Derived class that defines proof structure for Ultra proofs, as well as supporting functions.
+     *
+     */
+    class Transcript : public BaseTranscript<FF> {
+      public:
+        // Transcript objects defined as public member variables for easy access and modification
+        uint32_t circuit_size;
+        uint32_t public_input_size;
+        uint32_t pub_inputs_offset;
+        std::vector<FF> public_inputs;
+        Commitment w_l_comm;
+        Commitment w_r_comm;
+        Commitment w_o_comm;
+        Commitment sorted_accum_comm;
+        Commitment w_4_comm;
+        Commitment z_perm_comm;
+        Commitment z_lookup_comm;
+        std::vector<barretenberg::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>> sumcheck_univariates;
+        std::array<FF, NUM_ALL_ENTITIES> sumcheck_evaluations;
+        std::vector<Commitment> zm_cq_comms;
+        Commitment zm_cq_comm;
+        Commitment zm_pi_comm;
+
+        Transcript() = default;
+
+        // Used by verifier to initialize the transcript
+        Transcript(const std::vector<uint8_t>& proof)
+            : BaseTranscript<FF>(proof)
+        {}
+
+        static Transcript prover_init_empty()
+        {
+            Transcript transcript;
+            constexpr uint32_t init{ 42 }; // arbitrary
+            transcript.send_to_verifier("Init", init);
+            return transcript;
+        };
+
+        static Transcript verifier_init_empty(const Transcript& transcript)
+        {
+            Transcript verifier_transcript{ transcript.proof_data };
+            [[maybe_unused]] auto _ = verifier_transcript.template receive_from_prover<uint32_t>("Init");
+            return verifier_transcript;
+        };
+
+        /**
+         * @brief Takes a FULL Ultra proof and deserializes it into the public member variables that compose the
+         * structure. Must be called in order to access the structure of the proof.
+         *
+         */
+        void deserialize_full_transcript() override
+        {
+            // take current proof and put them into the struct
+            size_t num_bytes_read = 0;
+            circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_bytes_read);
+            size_t log_n = numeric::get_msb(circuit_size);
+
+            public_input_size = deserialize_from_buffer<uint32_t>(proof_data, num_bytes_read);
+            pub_inputs_offset = deserialize_from_buffer<uint32_t>(proof_data, num_bytes_read);
+            for (size_t i = 0; i < public_input_size; ++i) {
+                public_inputs.push_back(deserialize_from_buffer<FF>(proof_data, num_bytes_read));
+            }
+            w_l_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            w_r_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            w_o_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            sorted_accum_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            w_4_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            z_perm_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            z_lookup_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            for (size_t i = 0; i < log_n; ++i) {
+                sumcheck_univariates.push_back(
+                    deserialize_from_buffer<barretenberg::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(
+                        proof_data, num_bytes_read));
+            }
+            sumcheck_evaluations =
+                deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(proof_data, num_bytes_read);
+            for (size_t i = 0; i < log_n; ++i) {
+                zm_cq_comms.push_back(deserialize_from_buffer<Commitment>(proof_data, num_bytes_read));
+            }
+            zm_cq_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            zm_pi_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+        }
+        /**
+         * @brief Serializes the structure variables into a FULL Ultra proof. Should be called only if
+         * deserialize_full_transcript() was called and some transcript variable was modified.
+         *
+         */
+        void serialize_full_transcript() override
+        {
+            size_t old_proof_length = proof_data.size();
+            proof_data.clear(); // clear proof_data so the rest of the function can replace it
+            size_t log_n = numeric::get_msb(circuit_size);
+            serialize_to_buffer(circuit_size, proof_data);
+            serialize_to_buffer(public_input_size, proof_data);
+            serialize_to_buffer(pub_inputs_offset, proof_data);
+            for (size_t i = 0; i < public_input_size; ++i) {
+                serialize_to_buffer(public_inputs[i], proof_data);
+            }
+            serialize_to_buffer(w_l_comm, proof_data);
+            serialize_to_buffer(w_r_comm, proof_data);
+            serialize_to_buffer(w_o_comm, proof_data);
+            serialize_to_buffer(sorted_accum_comm, proof_data);
+            serialize_to_buffer(w_4_comm, proof_data);
+            serialize_to_buffer(z_perm_comm, proof_data);
+            serialize_to_buffer(z_lookup_comm, proof_data);
+            for (size_t i = 0; i < log_n; ++i) {
+                serialize_to_buffer(sumcheck_univariates[i], proof_data);
+            }
+            serialize_to_buffer(sumcheck_evaluations, proof_data);
+            for (size_t i = 0; i < log_n; ++i) {
+                serialize_to_buffer(zm_cq_comms[i], proof_data);
+            }
+            serialize_to_buffer(zm_cq_comm, proof_data);
+            serialize_to_buffer(zm_pi_comm, proof_data);
+
+            // sanity check to make sure we generate the same length of proof as before.
+            ASSERT(proof_data.size() == old_proof_length);
+        }
     };
 };
 

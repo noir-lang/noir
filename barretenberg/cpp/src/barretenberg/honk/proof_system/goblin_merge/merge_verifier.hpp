@@ -26,7 +26,7 @@ template <typename Flavor> class MergeVerifier_ {
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
 
   public:
-    VerifierTranscript<FF> transcript;
+    BaseTranscript<FF> transcript;
     std::shared_ptr<ECCOpQueue> op_queue;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
 

@@ -9,6 +9,7 @@ template <typename Flavor> class ECCVMVerifier_ {
     using Commitment = typename Flavor::Commitment;
     using VerificationKey = typename Flavor::VerificationKey;
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
+    using Transcript = typename Flavor::Transcript;
 
   public:
     explicit ECCVMVerifier_(std::shared_ptr<VerificationKey> verifier_key = nullptr);
@@ -16,7 +17,7 @@ template <typename Flavor> class ECCVMVerifier_ {
                    std::map<std::string, Commitment> commitments,
                    std::map<std::string, FF> pcs_fr_elements,
                    std::shared_ptr<VerifierCommitmentKey> pcs_verification_key,
-                   VerifierTranscript<FF> transcript)
+                   Transcript& transcript)
         : key(std::move(key))
         , commitments(std::move(commitments))
         , pcs_fr_elements(std::move(pcs_fr_elements))
@@ -35,7 +36,7 @@ template <typename Flavor> class ECCVMVerifier_ {
     std::map<std::string, Commitment> commitments;
     std::map<std::string, FF> pcs_fr_elements;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
-    VerifierTranscript<FF> transcript;
+    Transcript transcript;
 };
 
 extern template class ECCVMVerifier_<honk::flavor::ECCVM>;

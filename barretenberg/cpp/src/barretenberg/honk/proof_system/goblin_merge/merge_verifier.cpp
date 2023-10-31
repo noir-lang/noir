@@ -19,7 +19,7 @@ MergeVerifier_<Flavor>::MergeVerifier_(std::unique_ptr<VerifierCommitmentKey> ve
  */
 template <typename Flavor> bool MergeVerifier_<Flavor>::verify_proof(const plonk::proof& proof)
 {
-    transcript = VerifierTranscript<FF>{ proof.proof_data };
+    transcript = BaseTranscript<FF>{ proof.proof_data };
 
     // Receive commitments [t_i^{shift}], [T_{i-1}], and [T_i]
     std::array<Commitment, Flavor::NUM_WIRES> C_T_prev;

@@ -329,7 +329,7 @@ template <ECCVMFlavor Flavor> plonk::proof& ECCVMProver_<Flavor>::construct_proo
     // Compute sorted list accumulator and commitment
     execute_log_derivative_commitments_round();
 
-    // Fiat-Shamir: bbeta & gamma
+    // Fiat-Shamir: beta & gamma
     // Compute grand product(s) and commitments.
     execute_grand_product_computation_round();
 

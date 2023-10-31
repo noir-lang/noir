@@ -35,7 +35,7 @@ template <typename Curve> class IPA {
     static void compute_opening_proof(std::shared_ptr<CK> ck,
                                       const OpeningPair<Curve>& opening_pair,
                                       const Polynomial& polynomial,
-                                      ProverTranscript<Fr>& transcript)
+                                      BaseTranscript<Fr>& transcript)
     {
         ASSERT(opening_pair.challenge != 0 && "The challenge point should not be zero");
         auto poly_degree = static_cast<size_t>(polynomial.size());
@@ -134,9 +134,7 @@ template <typename Curve> class IPA {
      *
      * @return true/false depending on if the proof verifies
      */
-    static bool verify(std::shared_ptr<VK> vk,
-                       const OpeningClaim<Curve>& opening_claim,
-                       VerifierTranscript<Fr>& transcript)
+    static bool verify(std::shared_ptr<VK> vk, const OpeningClaim<Curve>& opening_claim, BaseTranscript<Fr>& transcript)
     {
         auto poly_degree = static_cast<size_t>(transcript.template receive_from_prover<uint64_t>("IPA:poly_degree"));
         Fr generator_challenge = transcript.get_challenge("IPA:generator_challenge");

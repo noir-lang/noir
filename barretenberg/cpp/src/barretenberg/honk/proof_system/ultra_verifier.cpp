@@ -42,7 +42,7 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
 
     proof_system::RelationParameters<FF> relation_parameters;
 
-    transcript = VerifierTranscript<FF>{ proof.proof_data };
+    transcript = BaseTranscript<FF>{ proof.proof_data };
 
     auto commitments = VerifierCommitments(key, transcript);
     auto commitment_labels = CommitmentLabels();

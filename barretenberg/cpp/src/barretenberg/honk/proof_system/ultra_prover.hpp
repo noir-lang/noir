@@ -20,6 +20,7 @@ template <UltraFlavor Flavor> class UltraProver_ {
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using Curve = typename Flavor::Curve;
     using Instance = ProverInstance_<Flavor>;
+    using Transcript = typename Flavor::Transcript;
 
   public:
     explicit UltraProver_(std::shared_ptr<Instance>);
@@ -33,7 +34,7 @@ template <UltraFlavor Flavor> class UltraProver_ {
     plonk::proof& export_proof();
     plonk::proof& construct_proof();
 
-    ProverTranscript<FF> transcript;
+    Transcript transcript;
 
     std::vector<FF> public_inputs;
     size_t pub_inputs_offset;

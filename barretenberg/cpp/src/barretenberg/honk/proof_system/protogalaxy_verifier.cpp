@@ -5,7 +5,7 @@ template <class VerifierInstances>
 VerifierFoldingResult<typename VerifierInstances::Flavor> ProtoGalaxyVerifier_<
     VerifierInstances>::fold_public_parameters(std::vector<uint8_t> fold_data)
 {
-    transcript = VerifierTranscript<FF>{ fold_data };
+    transcript = BaseTranscript<FF>{ fold_data };
     auto index = 0;
     for (auto it = verifier_instances.begin(); it != verifier_instances.end(); it++, index++) {
         auto inst = *it;

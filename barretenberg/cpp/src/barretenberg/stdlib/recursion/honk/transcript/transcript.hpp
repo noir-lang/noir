@@ -18,12 +18,12 @@ template <typename Builder> class Transcript {
   public:
     using field_ct = field_t<Builder>;
     using FF = barretenberg::fr;
-    using VerifierTranscript = proof_system::honk::VerifierTranscript<FF>;
+    using BaseTranscript = proof_system::honk::BaseTranscript<FF>;
     using StdlibTypes = utility::StdlibTypesUtility<Builder>;
 
-    static constexpr size_t HASH_OUTPUT_SIZE = VerifierTranscript::HASH_OUTPUT_SIZE;
+    static constexpr size_t HASH_OUTPUT_SIZE = BaseTranscript::HASH_OUTPUT_SIZE;
 
-    VerifierTranscript native_transcript;
+    BaseTranscript native_transcript;
     Builder* builder;
 
     Transcript() = default;

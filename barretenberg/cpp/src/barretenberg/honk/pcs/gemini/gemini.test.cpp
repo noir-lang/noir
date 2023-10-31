@@ -25,7 +25,7 @@ template <class Curve> class GeminiTest : public CommitmentTest<Curve> {
                                           std::vector<GroupElement> multilinear_commitments,
                                           std::vector<GroupElement> multilinear_commitments_to_be_shifted)
     {
-        auto prover_transcript = ProverTranscript<Fr>::init_empty();
+        auto prover_transcript = BaseTranscript<Fr>::prover_init_empty();
 
         const Fr rho = Fr::random_element();
 
@@ -79,7 +79,7 @@ template <class Curve> class GeminiTest : public CommitmentTest<Curve> {
         // Check that the Fold polynomials have been evaluated correctly in the prover
         this->verify_batch_opening_pair(prover_output.opening_pairs, prover_output.witnesses);
 
-        auto verifier_transcript = VerifierTranscript<Fr>::init_empty(prover_transcript);
+        auto verifier_transcript = BaseTranscript<Fr>::verifier_init_empty(prover_transcript);
 
         // Compute:
         // - Single opening pair: {r, \hat{a}_0}

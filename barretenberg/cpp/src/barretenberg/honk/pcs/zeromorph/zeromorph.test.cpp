@@ -76,8 +76,8 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
             g_commitments.emplace_back(f_commitments[i]);
         }
 
-        // Initialize an empty ProverTranscript
-        auto prover_transcript = ProverTranscript<Fr>::init_empty();
+        // Initialize an empty BaseTranscript
+        auto prover_transcript = BaseTranscript<Fr>::prover_init_empty();
 
         // Execute Prover protocol
         {
@@ -147,7 +147,7 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
             prover_transcript.send_to_verifier("ZM:PI", pi_commitment);
         }
 
-        auto verifier_transcript = VerifierTranscript<Fr>::init_empty(prover_transcript);
+        auto verifier_transcript = BaseTranscript<Fr>::verifier_init_empty(prover_transcript);
 
         // Execute Verifier protocol
         {
@@ -332,8 +332,8 @@ template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentT
             concatenation_groups_commitments.emplace_back(concatenation_group_commitment);
         }
 
-        // Initialize an empty ProverTranscript
-        auto prover_transcript = ProverTranscript<Fr>::init_empty();
+        // Initialize an empty BaseTranscript
+        auto prover_transcript = BaseTranscript<Fr>::prover_init_empty();
 
         // Execute Prover protocol
         {
@@ -417,7 +417,7 @@ template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentT
             prover_transcript.send_to_verifier("ZM:PI", pi_commitment);
         }
 
-        auto verifier_transcript = VerifierTranscript<Fr>::init_empty(prover_transcript);
+        auto verifier_transcript = BaseTranscript<Fr>::verifier_init_empty(prover_transcript);
 
         // Execute Verifier protocol
         {
