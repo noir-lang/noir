@@ -325,11 +325,13 @@ impl<'f> Context<'f> {
                 let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
                 self.inline_block(destination, &arguments)
             }
-            TerminatorInstruction::Return { return_values } => {
+            TerminatorInstruction::Return { return_values, call_stack } => {
+                let call_stack = call_stack.clone();
                 let return_values =
                     vecmap(return_values.clone(), |value| self.inserter.resolve(value));
+                let new_return = TerminatorInstruction::Return { return_values, call_stack };
                 let entry = self.inserter.function.entry_block();
-                let new_return = TerminatorInstruction::Return { return_values };
+
                 self.inserter.function.dfg.set_block_terminator(entry, new_return);
                 block
             }
@@ -1079,7 +1081,7 @@ mod test {
 
         let main = ssa.main();
         let ret = match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values }) => return_values[0],
+            Some(TerminatorInstruction::Return { return_values, .. }) => return_values[0],
             _ => unreachable!(),
         };
 
@@ -1282,8 +1284,8 @@ mod test {
         let zero = builder.field_constant(0_u128);
         let zero_array = builder.array_constant(im::Vector::unit(zero), array_type);
         let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
-        let pedersen =
-            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Pedersen));
+        let pedersen = builder
+            .import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::PedersenCommitment));
         let v4 = builder.insert_call(
             pedersen,
             vec![zero_array, i_zero],
@@ -1442,7 +1444,7 @@ mod test {
 
         // The return value should be 200, not 310
         match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values }) => {
+            Some(TerminatorInstruction::Return { return_values, .. }) => {
                 match main.dfg.get_numeric_constant(return_values[0]) {
                     Some(constant) => {
                         let value = constant.to_u128();

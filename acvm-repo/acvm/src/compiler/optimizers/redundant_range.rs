@@ -1,6 +1,10 @@
 use acir::{
-    circuit::{opcodes::BlackBoxFuncCall, Circuit, Opcode},
-    native_types::Witness,
+    circuit::{
+        opcodes::{BlackBoxFuncCall, FunctionInput},
+        Circuit, Opcode,
+    },
+    native_types::{Expression, Witness},
+    FieldElement,
 };
 use std::collections::{BTreeMap, HashSet};
 
@@ -74,13 +78,13 @@ impl RangeOptimizer {
 
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
-        for (idx, opcode) in self.circuit.opcodes.iter().enumerate() {
-            let (witness, num_bits) = match extract_range_opcode(opcode) {
+        for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate() {
+            let (witness, num_bits) = match extract_range_opcode(&opcode) {
                 Some(range_opcode) => range_opcode,
                 None => {
                     // If its not the range opcode, add it to the opcode
                     // list and continue;
-                    optimized_opcodes.push(opcode.clone());
+                    optimized_opcodes.push(opcode);
                     new_order_list.push(order_list[idx]);
                     continue;
                 }
@@ -101,18 +105,11 @@ impl RangeOptimizer {
             if is_lowest_bit_size {
                 already_seen_witness.insert(witness);
                 new_order_list.push(order_list[idx]);
-                optimized_opcodes.push(opcode.clone());
+                optimized_opcodes.push(optimized_range_opcode(witness, num_bits));
             }
         }
 
-        (
-            Circuit {
-                current_witness_index: self.circuit.current_witness_index,
-                opcodes: optimized_opcodes,
-                ..self.circuit
-            },
-            new_order_list,
-        )
+        (Circuit { opcodes: optimized_opcodes, ..self.circuit }, new_order_list)
     }
 }
 
@@ -130,6 +127,20 @@ fn extract_range_opcode(opcode: &Opcode) -> Option<(Witness, u32)> {
     match func_call {
         BlackBoxFuncCall::RANGE { input } => Some((input.witness, input.num_bits)),
         _ => None,
+    }
+}
+
+fn optimized_range_opcode(witness: Witness, num_bits: u32) -> Opcode {
+    if num_bits == 1 {
+        Opcode::Arithmetic(Expression {
+            mul_terms: vec![(FieldElement::one(), witness, witness)],
+            linear_combinations: vec![(-FieldElement::one(), witness)],
+            q_c: FieldElement::zero(),
+        })
+    } else {
+        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+            input: FunctionInput { witness, num_bits },
+        })
     }
 }
 

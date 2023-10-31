@@ -49,7 +49,6 @@ fn main(x: Field, y: Field) {
 
     // Expected type error
     // assert(bar2.get_other() == bar2.other);
-
     let one = x;
     let two = y;
     let nested_generics: Bar<Bar<Field>> = Bar { one, two, other: Bar { one, two, other: 0 } };

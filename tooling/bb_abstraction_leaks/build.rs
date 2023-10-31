@@ -10,7 +10,7 @@ use const_format::formatcp;
 
 const USERNAME: &str = "AztecProtocol";
 const REPO: &str = "aztec-packages";
-const VERSION: &str = "0.7.3";
+const VERSION: &str = "0.12.0";
 const TAG: &str = formatcp!("aztec-packages-v{}", VERSION);
 
 const API_URL: &str =
@@ -35,6 +35,7 @@ fn main() -> Result<(), String> {
     };
 
     println!("cargo:rustc-env=BB_BINARY_URL={}", get_bb_download_url(arch, os));
+    println!("cargo:rustc-env=BB_VERSION={}", VERSION);
 
     Ok(())
 }

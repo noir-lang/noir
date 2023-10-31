@@ -8,11 +8,12 @@ use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::{BinaryOpKind, Signedness};
 
+use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::instruction::{BinaryOp, Endian, Intrinsic};
+use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
@@ -240,48 +241,28 @@ impl<'a> FunctionContext<'a> {
         Values::empty()
     }
 
-    /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
-    fn insert_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
-        let base = self.builder.field_constant(FieldElement::from(2_u128));
-        let pow = self.pow(base, rhs);
-        let typ = self.builder.current_function.dfg.type_of_value(lhs);
-        let pow = self.builder.insert_cast(pow, typ);
-        self.builder.insert_binary(lhs, BinaryOp::Mul, pow)
-    }
+    /// Insert a numeric constant into the current function
+    ///
+    /// Unlike FunctionBuilder::numeric_constant, this version checks the given constant
+    /// is within the range of the given type. This is needed for user provided values where
+    /// otherwise values like 2^128 can be assigned to a u8 without error or wrapping.
+    pub(super) fn checked_numeric_constant(
+        &mut self,
+        value: impl Into<FieldElement>,
+        typ: Type,
+    ) -> Result<ValueId, RuntimeError> {
+        let value = value.into();
 
-    /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
-    fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
-        let base = self.builder.field_constant(FieldElement::from(2_u128));
-        let pow = self.pow(base, rhs);
-        self.builder.insert_binary(lhs, BinaryOp::Div, pow)
-    }
-
-    /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
-    fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
-        let typ = self.builder.current_function.dfg.type_of_value(rhs);
-        if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
-            let to_bits = self.builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
-            let length = self.builder.field_constant(FieldElement::from(bit_size as i128));
-            let result_types =
-                vec![Type::field(), Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
-            let rhs_bits = self.builder.insert_call(to_bits, vec![rhs, length], result_types);
-            let rhs_bits = rhs_bits[1];
-            let one = self.builder.field_constant(FieldElement::one());
-            let mut r = one;
-            for i in 1..bit_size + 1 {
-                let r1 = self.builder.insert_binary(r, BinaryOp::Mul, r);
-                let a = self.builder.insert_binary(r1, BinaryOp::Mul, lhs);
-                let idx = self.builder.field_constant(FieldElement::from((bit_size - i) as i128));
-                let b = self.builder.insert_array_get(rhs_bits, idx, Type::field());
-                let r2 = self.builder.insert_binary(a, BinaryOp::Mul, b);
-                let c = self.builder.insert_binary(one, BinaryOp::Sub, b);
-                let r3 = self.builder.insert_binary(c, BinaryOp::Mul, r1);
-                r = self.builder.insert_binary(r2, BinaryOp::Add, r3);
+        if let Type::Numeric(typ) = typ {
+            if !typ.value_is_within_limits(value) {
+                let call_stack = self.builder.get_call_stack();
+                return Err(RuntimeError::IntegerOutOfBounds { value, typ, call_stack });
             }
-            r
         } else {
-            unreachable!("Value must be unsigned in power operation");
+            panic!("Expected type for numeric constant to be a numeric type, found {typ}");
         }
+
+        Ok(self.builder.numeric_constant(value, typ))
     }
 
     /// Insert a binary instruction at the end of the current block.
@@ -296,8 +277,8 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> Values {
         let mut result = match operator {
-            BinaryOpKind::ShiftLeft => self.insert_shift_left(lhs, rhs),
-            BinaryOpKind::ShiftRight => self.insert_shift_right(lhs, rhs),
+            BinaryOpKind::ShiftLeft => self.builder.insert_shift_left(lhs, rhs),
+            BinaryOpKind::ShiftRight => self.builder.insert_shift_right(lhs, rhs),
             BinaryOpKind::Equal | BinaryOpKind::NotEqual
                 if matches!(self.builder.type_of_value(lhs), Type::Array(..)) =>
             {
@@ -544,8 +525,11 @@ impl<'a> FunctionContext<'a> {
     /// This is operationally equivalent to extract_current_value_recursive, but splitting these
     /// into two separate functions avoids cloning the outermost `Values` returned by the recursive
     /// version, as it is only needed for recursion.
-    pub(super) fn extract_current_value(&mut self, lvalue: &ast::LValue) -> LValue {
-        match lvalue {
+    pub(super) fn extract_current_value(
+        &mut self,
+        lvalue: &ast::LValue,
+    ) -> Result<LValue, RuntimeError> {
+        Ok(match lvalue {
             ast::LValue::Ident(ident) => {
                 let (reference, should_auto_deref) = self.ident_lvalue(ident);
                 if should_auto_deref {
@@ -555,18 +539,18 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             ast::LValue::Index { array, index, location, .. } => {
-                self.index_lvalue(array, index, location).2
+                self.index_lvalue(array, index, location)?.2
             }
             ast::LValue::MemberAccess { object, field_index } => {
-                let (old_object, object_lvalue) = self.extract_current_value_recursive(object);
+                let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 LValue::MemberAccess { old_object, object_lvalue, index: *field_index }
             }
             ast::LValue::Dereference { reference, .. } => {
-                let (reference, _) = self.extract_current_value_recursive(reference);
+                let (reference, _) = self.extract_current_value_recursive(reference)?;
                 LValue::Dereference { reference }
             }
-        }
+        })
     }
 
     fn dereference_lvalue(&mut self, values: &Values, element_type: &ast::Type) -> Values {
@@ -596,16 +580,16 @@ impl<'a> FunctionContext<'a> {
         array: &ast::LValue,
         index: &ast::Expression,
         location: &Location,
-    ) -> (ValueId, ValueId, LValue, Option<ValueId>) {
-        let (old_array, array_lvalue) = self.extract_current_value_recursive(array);
-        let index = self.codegen_non_tuple_expression(index);
+    ) -> Result<(ValueId, ValueId, LValue, Option<ValueId>), RuntimeError> {
+        let (old_array, array_lvalue) = self.extract_current_value_recursive(array)?;
+        let index = self.codegen_non_tuple_expression(index)?;
         let array_lvalue = Box::new(array_lvalue);
         let array_values = old_array.clone().into_value_list(self);
 
         let location = *location;
         // A slice is represented as a tuple (length, slice contents).
         // We need to fetch the second value.
-        if array_values.len() > 1 {
+        Ok(if array_values.len() > 1 {
             let slice_lvalue = LValue::SliceIndex {
                 old_slice: old_array,
                 index,
@@ -617,37 +601,45 @@ impl<'a> FunctionContext<'a> {
             let array_lvalue =
                 LValue::Index { old_array: array_values[0], index, array_lvalue, location };
             (array_values[0], index, array_lvalue, None)
-        }
+        })
     }
 
-    fn extract_current_value_recursive(&mut self, lvalue: &ast::LValue) -> (Values, LValue) {
+    fn extract_current_value_recursive(
+        &mut self,
+        lvalue: &ast::LValue,
+    ) -> Result<(Values, LValue), RuntimeError> {
         match lvalue {
             ast::LValue::Ident(ident) => {
                 let (variable, should_auto_deref) = self.ident_lvalue(ident);
                 if should_auto_deref {
                     let dereferenced = self.dereference_lvalue(&variable, &ident.typ);
-                    (dereferenced, LValue::Dereference { reference: variable })
+                    Ok((dereferenced, LValue::Dereference { reference: variable }))
                 } else {
-                    (variable.clone(), LValue::Ident)
+                    Ok((variable.clone(), LValue::Ident))
                 }
             }
             ast::LValue::Index { array, index, element_type, location } => {
                 let (old_array, index, index_lvalue, max_length) =
-                    self.index_lvalue(array, index, location);
-                let element =
-                    self.codegen_array_index(old_array, index, element_type, *location, max_length);
-                (element, index_lvalue)
+                    self.index_lvalue(array, index, location)?;
+                let element = self.codegen_array_index(
+                    old_array,
+                    index,
+                    element_type,
+                    *location,
+                    max_length,
+                )?;
+                Ok((element, index_lvalue))
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
-                let (old_object, object_lvalue) = self.extract_current_value_recursive(object);
+                let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 let element = Self::get_field_ref(&old_object, *index).clone();
-                (element, LValue::MemberAccess { old_object, object_lvalue, index: *index })
+                Ok((element, LValue::MemberAccess { old_object, object_lvalue, index: *index }))
             }
             ast::LValue::Dereference { reference, element_type } => {
-                let (reference, _) = self.extract_current_value_recursive(reference);
+                let (reference, _) = self.extract_current_value_recursive(reference)?;
                 let dereferenced = self.dereference_lvalue(&reference, element_type);
-                (dereferenced, LValue::Dereference { reference })
+                Ok((dereferenced, LValue::Dereference { reference }))
             }
         }
     }
@@ -774,7 +766,15 @@ fn operator_result_max_bit_size_to_truncate(
     match op {
         Add => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
         Subtract => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
-        Multiply => Some(lhs_bit_size + rhs_bit_size),
+        Multiply => {
+            if lhs_bit_size == 1 || rhs_bit_size == 1 {
+                // Truncation is unnecessary as multiplication by a boolean value cannot cause an overflow.
+                None
+            } else {
+                Some(lhs_bit_size + rhs_bit_size)
+            }
+        }
+
         ShiftLeft => {
             if let Some(rhs_constant) = dfg.get_numeric_constant(rhs) {
                 // Happy case is that we know precisely by how many bits the the integer will
@@ -855,7 +855,7 @@ impl SharedContext {
     /// and return this new id.
     pub(super) fn get_or_queue_function(&self, id: ast::FuncId) -> IrFunctionId {
         // Start a new block to guarantee the destructor for the map lock is released
-        // before map needs to be aquired again in self.functions.write() below
+        // before map needs to be acquired again in self.functions.write() below
         {
             let map = self.functions.read().expect("Failed to read self.functions");
             if let Some(existing_id) = map.get(&id) {

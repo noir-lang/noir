@@ -19,6 +19,8 @@ pub enum Token {
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
+    LineComment(String, Option<DocStyle>),
+    BlockComment(String, Option<DocStyle>),
     /// <
     Less,
     /// <=
@@ -95,6 +97,12 @@ pub enum Token {
     Invalid(char),
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+pub enum DocStyle {
+    Outer,
+    Inner,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SpannedToken(Spanned<Token>);
 
@@ -149,6 +157,8 @@ impl fmt::Display for Token {
             Token::FmtStr(ref b) => write!(f, "f{b}"),
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
+            Token::LineComment(ref s, _style) => write!(f, "//{s}"),
+            Token::BlockComment(ref s, _style) => write!(f, "/*{s}*/"),
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -388,12 +398,28 @@ impl Attributes {
         matches!(self.function, Some(FunctionAttribute::Test(_)))
     }
 
+    /// True if these attributes mean the given function is an entry point function if it was
+    /// defined within a contract. Note that this does not check if the function is actually part
+    /// of a contract.
+    pub fn is_contract_entry_point(&self) -> bool {
+        !self.has_contract_library_method() && !self.is_test_function()
+    }
+
     /// Returns note if a deprecated secondary attribute is found
     pub fn get_deprecated_note(&self) -> Option<Option<String>> {
         self.secondary.iter().find_map(|attr| match attr {
             SecondaryAttribute::Deprecated(note) => Some(note.clone()),
             _ => None,
         })
+    }
+
+    pub fn get_field_attribute(&self) -> Option<String> {
+        for secondary in &self.secondary {
+            if let SecondaryAttribute::Field(field) = secondary {
+                return Some(field.to_lowercase());
+            }
+        }
+        None
     }
 }
 
@@ -465,6 +491,10 @@ impl Attribute {
                     Some(scope) => Attribute::Function(FunctionAttribute::Test(scope)),
                     None => return Err(malformed_scope),
                 }
+            }
+            ["field", name] => {
+                validate(name)?;
+                Attribute::Secondary(SecondaryAttribute::Field(name.to_string()))
             }
             // Secondary attributes
             ["deprecated"] => Attribute::Secondary(SecondaryAttribute::Deprecated(None)),
@@ -550,6 +580,7 @@ pub enum SecondaryAttribute {
     // the entry point.
     ContractLibraryMethod,
     Event,
+    Field(String),
     Custom(String),
 }
 
@@ -563,6 +594,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
             SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
             SecondaryAttribute::Event => write!(f, "#[event]"),
+            SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
         }
     }
 }
@@ -583,7 +615,7 @@ impl AsRef<str> for SecondaryAttribute {
         match self {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
-            SecondaryAttribute::Custom(string) => string,
+            SecondaryAttribute::Custom(string) | SecondaryAttribute::Field(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Event => "",
         }

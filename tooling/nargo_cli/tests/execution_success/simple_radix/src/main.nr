@@ -1,5 +1,4 @@
 // Simple program to test to_radix
-
 fn main(x : Field) {
     let bits = x.to_le_bits(3);
     assert(bits[0] == 0);

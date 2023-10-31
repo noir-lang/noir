@@ -42,8 +42,7 @@ fn addition_circuit() {
         ..Circuit::default()
     };
 
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
         31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 144, 187, 13, 192, 32, 12, 68, 249, 100, 32, 27,
@@ -73,13 +72,12 @@ fn fixed_base_scalar_mul_circuit() {
         ..Circuit::default()
     };
 
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 77, 138, 91, 10, 0, 48, 12, 194, 178, 215, 207, 78, 189,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 77, 138, 91, 10, 0, 48, 12, 194, 178, 215, 215, 46, 189,
         163, 175, 165, 10, 21, 36, 10, 57, 192, 160, 146, 188, 226, 139, 78, 113, 69, 183, 190, 61,
-        111, 218, 182, 231, 124, 68, 185, 243, 207, 92, 0, 0, 0,
+        111, 218, 182, 231, 124, 122, 8, 177, 65, 92, 0, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)
@@ -87,7 +85,7 @@ fn fixed_base_scalar_mul_circuit() {
 
 #[test]
 fn pedersen_circuit() {
-    let pedersen = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Pedersen {
+    let pedersen = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::PedersenCommitment {
         inputs: vec![FunctionInput { witness: Witness(1), num_bits: FieldElement::max_num_bits() }],
         outputs: (Witness(2), Witness(3)),
         domain_separator: 0,
@@ -101,8 +99,7 @@ fn pedersen_circuit() {
         ..Circuit::default()
     };
 
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
         31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 93, 138, 9, 10, 0, 64, 8, 2, 103, 15, 250, 255, 139,
@@ -143,8 +140,7 @@ fn schnorr_verify_circuit() {
         ..Circuit::default()
     };
 
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
         31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 77, 210, 87, 78, 2, 1, 20, 134, 209, 177, 247, 222, 123,
@@ -181,8 +177,6 @@ fn simple_brillig_foreign_call() {
         outputs: vec![
             BrilligOutputs::Simple(w_inverted), // Output Register 1
         ],
-        // stack of foreign call/oracle resolutions, starts empty
-        foreign_call_results: vec![],
         bytecode: vec![brillig::Opcode::ForeignCall {
             function: "invert".into(),
             destinations: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(0))],
@@ -199,15 +193,13 @@ fn simple_brillig_foreign_call() {
         ..Circuit::default()
     };
 
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 143, 81, 10, 0, 16, 16, 68, 199, 42, 57, 14, 55,
-        112, 25, 31, 126, 124, 72, 206, 79, 161, 86, 225, 135, 87, 219, 78, 187, 53, 205, 104, 0,
-        2, 29, 201, 52, 103, 222, 220, 216, 230, 13, 43, 254, 121, 25, 158, 151, 54, 153, 117, 27,
-        53, 116, 136, 197, 167, 124, 107, 184, 64, 236, 73, 56, 83, 1, 18, 139, 122, 157, 67, 1, 0,
-        0,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 143, 49, 10, 64, 33, 12, 67, 99, 63, 124, 60, 142,
+        222, 192, 203, 56, 184, 56, 136, 120, 126, 5, 21, 226, 160, 139, 62, 40, 13, 45, 132, 68,
+        3, 80, 232, 124, 164, 153, 121, 115, 99, 155, 59, 172, 122, 231, 101, 56, 175, 80, 86, 221,
+        230, 31, 58, 196, 226, 83, 62, 53, 91, 16, 122, 10, 246, 84, 99, 243, 0, 30, 59, 1, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)
@@ -248,8 +240,6 @@ fn complex_brillig_foreign_call() {
             BrilligOutputs::Simple(a_plus_b_plus_c),                      // Output Register 1
             BrilligOutputs::Simple(a_plus_b_plus_c_times_2),              // Output Register 2
         ],
-        // stack of foreign call/oracle resolutions, starts empty
-        foreign_call_results: vec![],
         bytecode: vec![
             // Oracles are named 'foreign calls' in brillig
             brillig::Opcode::ForeignCall {
@@ -276,17 +266,16 @@ fn complex_brillig_foreign_call() {
         ..Circuit::default()
     };
 
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 83, 219, 10, 128, 48, 8, 245, 210, 101, 159, 179,
-        254, 160, 127, 137, 222, 138, 122, 236, 243, 27, 228, 64, 44, 232, 33, 7, 237, 128, 56,
-        157, 147, 131, 103, 6, 0, 64, 184, 192, 201, 72, 206, 40, 177, 70, 174, 27, 197, 199, 111,
-        24, 208, 175, 87, 44, 197, 145, 42, 224, 200, 5, 56, 230, 255, 240, 83, 189, 61, 117, 113,
-        157, 31, 63, 236, 79, 147, 172, 77, 214, 73, 220, 139, 15, 106, 214, 168, 114, 249, 126,
-        218, 214, 125, 153, 15, 54, 37, 90, 26, 155, 39, 227, 95, 223, 232, 230, 4, 247, 157, 215,
-        56, 1, 153, 86, 63, 138, 44, 4, 0, 0,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 83, 219, 10, 128, 48, 8, 117, 174, 139, 159, 179,
+        254, 160, 127, 137, 222, 138, 122, 236, 243, 19, 114, 32, 22, 244, 144, 131, 118, 64, 156,
+        178, 29, 14, 59, 74, 0, 16, 224, 66, 228, 64, 57, 7, 169, 53, 242, 189, 81, 114, 250, 134,
+        33, 248, 113, 165, 82, 26, 177, 2, 141, 177, 128, 198, 60, 15, 63, 245, 219, 211, 23, 215,
+        255, 139, 15, 251, 211, 112, 180, 28, 157, 212, 189, 100, 82, 179, 64, 170, 63, 109, 235,
+        190, 204, 135, 166, 178, 150, 216, 62, 154, 252, 250, 70, 147, 35, 220, 119, 93, 227, 4,
+        182, 131, 81, 25, 36, 4, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)
@@ -315,8 +304,7 @@ fn memory_op_circuit() {
         return_values: PublicInputs([Witness(4)].into()),
         ..Circuit::default()
     };
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
         31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 146, 49, 14, 0, 32, 8, 3, 139, 192, 127, 240, 7,

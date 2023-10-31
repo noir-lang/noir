@@ -173,9 +173,9 @@ impl CrateDefMap {
                         .value_definitions()
                         .filter_map(|id| {
                             id.as_function().map(|function_id| {
-                                let attributes = interner.function_attributes(&function_id);
-                                let is_entry_point = !attributes.has_contract_library_method()
-                                    && !attributes.is_test_function();
+                                let is_entry_point = interner
+                                    .function_attributes(&function_id)
+                                    .is_contract_entry_point();
                                 ContractFunctionMeta { function_id, is_entry_point }
                             })
                         })
@@ -260,9 +260,7 @@ pub struct Contract {
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
 pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
     let file = fm.fetch_file(file_id);
-    let (program, errors) = parse_program(file.source());
-
-    (program, errors)
+    parse_program(file.source())
 }
 
 impl std::ops::Index<LocalModuleId> for CrateDefMap {

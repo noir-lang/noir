@@ -36,10 +36,11 @@ use crate::{
     StatementKind,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
-    Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable,
-    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+    ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionVisibility, Generics,
+    LValue, NoirStruct, NoirTypeAlias, Path, PathKind, Pattern, Shared, StructType, Type,
+    TypeAliasType, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics,
+    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -87,6 +88,14 @@ pub struct Resolver<'a> {
     /// Set to the current type if we're resolving an impl
     self_type: Option<Type>,
 
+    /// True if the current module is a contract.
+    /// This is usually determined by self.path_resolver.module_id(), but it can
+    /// be overriden for impls. Impls are an odd case since the methods within resolve
+    /// as if they're in the parent module, but should be placed in a child module.
+    /// Since they should be within a child module, in_contract is manually set to false
+    /// for these so we can still resolve them in the parent module without them being in a contract.
+    in_contract: bool,
+
     /// Contains a mapping of the current struct or functions's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
     /// This is a Vec rather than a map to preserve the order a functions generics
@@ -119,6 +128,9 @@ impl<'a> Resolver<'a> {
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
         file: FileId,
     ) -> Resolver<'a> {
+        let module_id = path_resolver.module_id();
+        let in_contract = module_id.module(def_maps).is_contract;
+
         Self {
             path_resolver,
             def_maps,
@@ -131,6 +143,7 @@ impl<'a> Resolver<'a> {
             errors: Vec::new(),
             lambda_stack: Vec::new(),
             file,
+            in_contract,
         }
     }
 
@@ -376,6 +389,8 @@ impl<'a> Resolver<'a> {
             Unspecified => Type::Error,
             Error => Type::Error,
             Named(path, args) => self.resolve_named_type(path, args, new_variables),
+            TraitAsType(path, args) => self.resolve_trait_as_type(path, args, new_variables),
+
             Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
@@ -476,6 +491,19 @@ impl<'a> Resolver<'a> {
                 Type::Struct(struct_type, args)
             }
             None => Type::Error,
+        }
+    }
+
+    fn resolve_trait_as_type(
+        &mut self,
+        path: Path,
+        _args: Vec<UnresolvedType>,
+        _new_variables: &mut Generics,
+    ) -> Type {
+        if let Some(t) = self.lookup_trait_or_error(path) {
+            Type::TraitAsType(t)
+        } else {
+            Type::Error
         }
     }
 
@@ -721,6 +749,10 @@ impl<'a> Resolver<'a> {
                 });
             }
 
+            if self.is_entry_point_function(func) {
+                self.verify_type_valid_for_program_input(&typ);
+            }
+
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
             let typ = self.resolve_type_inner(typ, &mut generics);
 
@@ -786,10 +818,25 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// Override whether this name resolver is within a contract or not.
+    /// This will affect which types are allowed as parameters to methods as well
+    /// as which modifiers are allowed on a function.
+    pub(crate) fn set_in_contract(&mut self, in_contract: bool) {
+        self.in_contract = in_contract;
+    }
+
     /// True if the 'pub' keyword is allowed on parameters in this function
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
-        if self.in_contract() {
+        if self.in_contract {
             !func.def.is_unconstrained
+        } else {
+            func.name() == MAIN_FUNCTION
+        }
+    }
+
+    fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
+        if self.in_contract {
+            func.attributes().is_contract_entry_point()
         } else {
             func.name() == MAIN_FUNCTION
         }
@@ -797,7 +844,7 @@ impl<'a> Resolver<'a> {
 
     /// True if the `distinct` keyword is allowed on a function's return type
     fn distinct_allowed(&self, func: &NoirFunction) -> bool {
-        if self.in_contract() {
+        if self.in_contract {
             // "open" and "unconstrained" functions are compiled to brillig and thus duplication of
             // witness indices in their abis is not a concern.
             !func.def.is_unconstrained && !func.def.is_open
@@ -809,7 +856,7 @@ impl<'a> Resolver<'a> {
     fn handle_function_type(&mut self, function: &FuncId) {
         let function_type = self.interner.function_modifiers(function).contract_function_type;
 
-        if !self.in_contract() && function_type == Some(ContractFunctionType::Open) {
+        if !self.in_contract && function_type == Some(ContractFunctionType::Open) {
             let span = self.interner.function_ident(function).span();
             self.errors.push(ResolverError::ContractFunctionTypeInNormalFunction { span });
             self.interner.function_modifiers_mut(function).contract_function_type = None;
@@ -817,7 +864,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn handle_is_function_internal(&mut self, function: &FuncId) {
-        if !self.in_contract() {
+        if !self.in_contract {
             if self.interner.function_modifiers(function).is_internal == Some(true) {
                 let span = self.interner.function_ident(function).span();
                 self.push_err(ResolverError::ContractFunctionInternalInNormalFunction { span });
@@ -874,6 +921,7 @@ impl<'a> Resolver<'a> {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
+            | Type::TraitAsType(_)
             | Type::Forall(_, _) => (),
 
             Type::Array(length, element_type) => {
@@ -960,23 +1008,37 @@ impl<'a> Resolver<'a> {
                 HirStatement::Assign(stmt)
             }
             StatementKind::For(for_loop) => {
-                let start_range = self.resolve_expression(for_loop.start_range);
-                let end_range = self.resolve_expression(for_loop.end_range);
-                let (identifier, block) = (for_loop.identifier, for_loop.block);
+                match for_loop.range {
+                    ForRange::Range(start_range, end_range) => {
+                        let start_range = self.resolve_expression(start_range);
+                        let end_range = self.resolve_expression(end_range);
+                        let (identifier, block) = (for_loop.identifier, for_loop.block);
 
-                // TODO: For loop variables are currently mutable by default since we haven't
-                //       yet implemented syntax for them to be optionally mutable.
-                let (identifier, block) = self.in_new_scope(|this| {
-                    let decl = this.add_variable_decl(
-                        identifier,
-                        false,
-                        true,
-                        DefinitionKind::Local(None),
-                    );
-                    (decl, this.resolve_expression(block))
-                });
+                        // TODO: For loop variables are currently mutable by default since we haven't
+                        //       yet implemented syntax for them to be optionally mutable.
+                        let (identifier, block) = self.in_new_scope(|this| {
+                            let decl = this.add_variable_decl(
+                                identifier,
+                                false,
+                                true,
+                                DefinitionKind::Local(None),
+                            );
+                            (decl, this.resolve_expression(block))
+                        });
 
-                HirStatement::For(HirForStatement { start_range, end_range, block, identifier })
+                        HirStatement::For(HirForStatement {
+                            start_range,
+                            end_range,
+                            block,
+                            identifier,
+                        })
+                    }
+                    range @ ForRange::Array(_) => {
+                        let for_stmt =
+                            range.into_for(for_loop.identifier, for_loop.block, for_loop.span);
+                        self.resolve_stmt(for_stmt)
+                    }
+                }
             }
             StatementKind::Error => HirStatement::Error,
         }
@@ -1011,20 +1073,39 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    // Issue an error if the given private function is being called from a non-child module
-    fn check_can_reference_private_function(&mut self, func: FuncId, span: Span) {
+    // Issue an error if the given private function is being called from a non-child module, or
+    // if the given pub(crate) function is being called from another crate
+    fn check_can_reference_function(
+        &mut self,
+        func: FuncId,
+        span: Span,
+        visibility: FunctionVisibility,
+    ) {
         let function_module = self.interner.function_module(func);
         let current_module = self.path_resolver.module_id();
 
         let same_crate = function_module.krate == current_module.krate;
         let krate = function_module.krate;
         let current_module = current_module.local_id;
-
-        if !same_crate
-            || !self.module_descendent_of_target(krate, function_module.local_id, current_module)
-        {
-            let name = self.interner.function_name(&func).to_string();
-            self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
+        let name = self.interner.function_name(&func).to_string();
+        match visibility {
+            FunctionVisibility::Public => (),
+            FunctionVisibility::Private => {
+                if !same_crate
+                    || !self.module_descendent_of_target(
+                        krate,
+                        function_module.local_id,
+                        current_module,
+                    )
+                {
+                    self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
+                }
+            }
+            FunctionVisibility::PublicCrate => {
+                if !same_crate {
+                    self.errors.push(ResolverError::NonCrateFunctionCalled { span, name });
+                }
+            }
         }
     }
 
@@ -1118,9 +1199,15 @@ impl<'a> Resolver<'a> {
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
                             DefinitionKind::Function(id) => {
-                                if self.interner.function_visibility(id) == Visibility::Private {
+                                if self.interner.function_visibility(id)
+                                    != FunctionVisibility::Public
+                                {
                                     let span = hir_ident.location.span;
-                                    self.check_can_reference_private_function(id, span);
+                                    self.check_can_reference_function(
+                                        id,
+                                        span,
+                                        self.interner.function_visibility(id),
+                                    );
                                 }
                             }
                             DefinitionKind::Global(_) => {}
@@ -1260,6 +1347,7 @@ impl<'a> Resolver<'a> {
                     captures: lambda_context.captures,
                 })
             }),
+            ExpressionKind::Parenthesized(sub_expr) => return self.resolve_expression(*sub_expr),
         };
 
         let expr_id = self.interner.push_expr(hir_expr);
@@ -1429,6 +1517,17 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// Lookup a given trait by name/path.
+    fn lookup_trait_or_error(&mut self, path: Path) -> Option<Trait> {
+        match self.lookup(path) {
+            Ok(trait_id) => Some(self.get_trait(trait_id)),
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
     /// Looks up a given type by name.
     /// This will also instantiate any struct types found.
     fn lookup_type_or_error(&mut self, path: Path) -> Option<Type> {
@@ -1565,11 +1664,6 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn in_contract(&self) -> bool {
-        let module_id = self.path_resolver.module_id();
-        module_id.module(self.def_maps).is_contract
-    }
-
     fn resolve_fmt_str_literal(&mut self, str: String, call_expr_span: Span) -> HirLiteral {
         let re = Regex::new(r"\{([a-zA-Z0-9_]+)\}")
             .expect("ICE: an invalid regex pattern was used for checking format strings");
@@ -1599,6 +1693,88 @@ impl<'a> Resolver<'a> {
         }
         HirLiteral::FmtStr(str, fmt_str_idents)
     }
+
+    /// Only sized types are valid to be used as main's parameters or the parameters to a contract
+    /// function. If the given type is not sized (e.g. contains a slice or NamedGeneric type), an
+    /// error is issued.
+    fn verify_type_valid_for_program_input(&mut self, typ: &UnresolvedType) {
+        match &typ.typ {
+            UnresolvedTypeData::FieldElement
+            | UnresolvedTypeData::Integer(_, _)
+            | UnresolvedTypeData::Bool
+            | UnresolvedTypeData::Unit
+            | UnresolvedTypeData::Error => (),
+
+            UnresolvedTypeData::MutableReference(_)
+            | UnresolvedTypeData::Function(_, _, _)
+            | UnresolvedTypeData::FormatString(_, _)
+            | UnresolvedTypeData::TraitAsType(..)
+            | UnresolvedTypeData::Unspecified => {
+                let span = typ.span.expect("Function parameters should always have spans");
+                self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
+            }
+
+            UnresolvedTypeData::Array(length, element) => {
+                if let Some(length) = length {
+                    self.verify_type_expression_valid_for_program_input(length);
+                } else {
+                    let span = typ.span.expect("Function parameters should always have spans");
+                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
+                }
+                self.verify_type_valid_for_program_input(element);
+            }
+            UnresolvedTypeData::Expression(expression) => {
+                self.verify_type_expression_valid_for_program_input(expression);
+            }
+            UnresolvedTypeData::String(length) => {
+                if let Some(length) = length {
+                    self.verify_type_expression_valid_for_program_input(length);
+                } else {
+                    let span = typ.span.expect("Function parameters should always have spans");
+                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
+                }
+            }
+            UnresolvedTypeData::Named(path, generics) => {
+                // Since the type is named, we need to resolve it to see what it actually refers to
+                // in order to check whether it is valid. Since resolving it may lead to a
+                // resolution error, we have to truncate our error count to the previous count just
+                // in case. This is to ensure resolution errors are not issued twice when this type
+                // is later resolved properly.
+                let error_count = self.errors.len();
+                let resolved = self.resolve_named_type(path.clone(), generics.clone(), &mut vec![]);
+                self.errors.truncate(error_count);
+
+                if !resolved.is_valid_for_program_input() {
+                    let span = typ.span.expect("Function parameters should always have spans");
+                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
+                }
+            }
+            UnresolvedTypeData::Tuple(elements) => {
+                for element in elements {
+                    self.verify_type_valid_for_program_input(element);
+                }
+            }
+        }
+    }
+
+    fn verify_type_expression_valid_for_program_input(&mut self, expr: &UnresolvedTypeExpression) {
+        match expr {
+            UnresolvedTypeExpression::Constant(_, _) => (),
+            UnresolvedTypeExpression::Variable(path) => {
+                let error_count = self.errors.len();
+                let resolved = self.resolve_named_type(path.clone(), vec![], &mut vec![]);
+                self.errors.truncate(error_count);
+
+                if !resolved.is_valid_for_program_input() {
+                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span: path.span() });
+                }
+            }
+            UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
+                self.verify_type_expression_valid_for_program_input(lhs);
+                self.verify_type_expression_valid_for_program_input(rhs);
+            }
+        }
+    }
 }
 
 /// Gives an error if a user tries to create a mutable reference
@@ -1624,518 +1800,5 @@ pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<
             Ok(())
         }
         _ => Ok(()),
-    }
-}
-
-// XXX: These tests repeat a lot of code
-// what we should do is have test cases which are passed to a test harness
-// A test harness will allow for more expressive and readable tests
-#[cfg(test)]
-mod test {
-
-    use core::panic;
-    use std::collections::BTreeMap;
-
-    use fm::FileId;
-    use iter_extended::vecmap;
-    use noirc_errors::Location;
-
-    use crate::hir::def_map::{ModuleData, ModuleId};
-    use crate::hir::resolution::errors::ResolverError;
-    use crate::hir::resolution::import::PathResolutionError;
-    use crate::hir::resolution::resolver::StmtId;
-
-    use super::{PathResolver, Resolver};
-    use crate::graph::CrateId;
-    use crate::hir_def::expr::HirExpression;
-    use crate::hir_def::stmt::HirStatement;
-    use crate::node_interner::{FuncId, NodeInterner};
-    use crate::ParsedModule;
-    use crate::{
-        hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
-        parse_program, Path,
-    };
-    use noirc_errors::CustomDiagnostic;
-
-    // func_namespace is used to emulate the fact that functions can be imported
-    // and functions can be forward declared
-    fn init_src_code_resolution(
-        src: &str,
-    ) -> (ParsedModule, NodeInterner, BTreeMap<CrateId, CrateDefMap>, FileId, TestPathResolver)
-    {
-        let (program, errors) = parse_program(src);
-        if errors.iter().any(|e| {
-            let diagnostic: CustomDiagnostic = e.clone().into();
-            diagnostic.is_error()
-        }) {
-            panic!("Unexpected parse errors in test code: {:?}", errors);
-        }
-
-        let interner: NodeInterner = NodeInterner::default();
-
-        let mut def_maps: BTreeMap<CrateId, CrateDefMap> = BTreeMap::new();
-        let file = FileId::default();
-
-        let mut modules = arena::Arena::new();
-        let location = Location::new(Default::default(), file);
-        modules.insert(ModuleData::new(None, location, false));
-
-        let path_resolver = TestPathResolver(BTreeMap::new());
-
-        def_maps.insert(
-            CrateId::dummy_id(),
-            CrateDefMap {
-                root: path_resolver.local_module_id(),
-                modules,
-                krate: CrateId::dummy_id(),
-                extern_prelude: BTreeMap::new(),
-            },
-        );
-
-        (program, interner, def_maps, file, path_resolver)
-    }
-
-    // func_namespace is used to emulate the fact that functions can be imported
-    // and functions can be forward declared
-    fn resolve_src_code(src: &str, func_namespace: Vec<&str>) -> Vec<ResolverError> {
-        let (program, mut interner, def_maps, file, mut path_resolver) =
-            init_src_code_resolution(src);
-
-        let func_ids = vecmap(&func_namespace, |name| {
-            interner.push_test_function_definition(name.to_string())
-        });
-
-        for (name, id) in func_namespace.into_iter().zip(func_ids) {
-            path_resolver.insert_func(name.to_owned(), id);
-        }
-
-        let mut errors = Vec::new();
-        for func in program.into_sorted().functions {
-            let id = interner.push_test_function_definition(func.name().to_string());
-
-            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (_, _, err) = resolver.resolve_function(func, id);
-            errors.extend(err);
-        }
-
-        errors
-    }
-
-    fn get_program_captures(src: &str) -> Vec<Vec<String>> {
-        let (program, mut interner, def_maps, file, mut path_resolver) =
-            init_src_code_resolution(src);
-
-        let mut all_captures: Vec<Vec<String>> = Vec::new();
-        for func in program.into_sorted().functions {
-            let name = func.name().to_string();
-            let id = interner.push_test_function_definition(name);
-            path_resolver.insert_func(func.name().to_owned(), id);
-
-            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, _, _) = resolver.resolve_function(func, id);
-
-            // Iterate over function statements and apply filtering function
-            find_lambda_captures(
-                hir_func.block(&interner).statements(),
-                &interner,
-                &mut all_captures,
-            );
-        }
-        all_captures
-    }
-
-    fn find_lambda_captures(
-        stmts: &[StmtId],
-        interner: &NodeInterner,
-        result: &mut Vec<Vec<String>>,
-    ) {
-        for stmt_id in stmts.iter() {
-            let hir_stmt = interner.statement(stmt_id);
-            let expr_id = match hir_stmt {
-                HirStatement::Expression(expr_id) => expr_id,
-                HirStatement::Let(let_stmt) => let_stmt.expression,
-                HirStatement::Assign(assign_stmt) => assign_stmt.expression,
-                HirStatement::Constrain(constr_stmt) => constr_stmt.0,
-                HirStatement::Semi(semi_expr) => semi_expr,
-                HirStatement::For(for_loop) => for_loop.block,
-                HirStatement::Error => panic!("Invalid HirStatement!"),
-            };
-            let expr = interner.expression(&expr_id);
-            get_lambda_captures(expr, interner, result); // TODO: dyn filter function as parameter
-        }
-    }
-
-    fn get_lambda_captures(
-        expr: HirExpression,
-        interner: &NodeInterner,
-        result: &mut Vec<Vec<String>>,
-    ) {
-        if let HirExpression::Lambda(lambda_expr) = expr {
-            let mut cur_capture = Vec::new();
-
-            for capture in lambda_expr.captures.iter() {
-                cur_capture.push(interner.definition(capture.ident.id).name.clone());
-            }
-            result.push(cur_capture);
-
-            // Check for other captures recursively within the lambda body
-            let hir_body_expr = interner.expression(&lambda_expr.body);
-            if let HirExpression::Block(block_expr) = hir_body_expr {
-                find_lambda_captures(block_expr.statements(), interner, result);
-            }
-        }
-    }
-
-    #[test]
-    fn resolve_empty_function() {
-        let src = "
-            fn main() {
-
-            }
-        ";
-
-        let errors = resolve_src_code(src, vec!["main"]);
-        assert!(errors.is_empty());
-    }
-    #[test]
-    fn resolve_basic_function() {
-        let src = r#"
-            fn main(x : Field) {
-                let y = x + x;
-                assert(y == x);
-            }
-        "#;
-
-        let errors = resolve_src_code(src, vec!["main"]);
-        assert!(errors.is_empty());
-    }
-    #[test]
-    fn resolve_unused_var() {
-        let src = r#"
-            fn main(x : Field) {
-                let y = x + x;
-                assert(x == x);
-            }
-        "#;
-
-        let errors = resolve_src_code(src, vec!["main"]);
-
-        // There should only be one error
-        assert!(errors.len() == 1, "Expected 1 error, got: {errors:?}");
-
-        // It should be regarding the unused variable
-        match &errors[0] {
-            ResolverError::UnusedVariable { ident } => {
-                assert_eq!(&ident.0.contents, "y");
-            }
-            _ => unreachable!("we should only have an unused var error"),
-        }
-    }
-
-    #[test]
-    fn resolve_unresolved_var() {
-        let src = r#"
-            fn main(x : Field) {
-                let y = x + x;
-                assert(y == z);
-            }
-        "#;
-
-        let errors = resolve_src_code(src, vec!["main"]);
-
-        // There should only be one error
-        assert!(errors.len() == 1);
-
-        // It should be regarding the unresolved var `z` (Maybe change to undeclared and special case)
-        match &errors[0] {
-            ResolverError::VariableNotDeclared { name, span: _ } => assert_eq!(name, "z"),
-            _ => unimplemented!("we should only have an unresolved variable"),
-        }
-    }
-
-    #[test]
-    fn unresolved_path() {
-        let src = "
-            fn main(x : Field) {
-                let _z = some::path::to::a::func(x);
-            }
-        ";
-
-        let mut errors = resolve_src_code(src, vec!["main", "foo"]);
-        assert_eq!(errors.len(), 1);
-        let err = errors.pop().unwrap();
-
-        path_unresolved_error(err, "func");
-    }
-
-    #[test]
-    fn resolve_literal_expr() {
-        let src = r#"
-            fn main(x : Field) {
-                let y = 5;
-                assert(y == x);
-            }
-        "#;
-
-        let errors = resolve_src_code(src, vec!["main"]);
-        assert!(errors.is_empty());
-    }
-
-    #[test]
-    fn multiple_resolution_errors() {
-        let src = r#"
-            fn main(x : Field) {
-               let y = foo::bar(x);
-               let z = y + a;
-            }
-        "#;
-
-        let errors = resolve_src_code(src, vec!["main"]);
-        assert!(errors.len() == 3, "Expected 3 errors, got: {errors:?}");
-
-        // Errors are:
-        // `a` is undeclared
-        // `z` is unused
-        // `foo::bar` does not exist
-        for err in errors {
-            match &err {
-                ResolverError::UnusedVariable { ident } => {
-                    assert_eq!(&ident.0.contents, "z");
-                }
-                ResolverError::VariableNotDeclared { name, .. } => {
-                    assert_eq!(name, "a");
-                }
-                ResolverError::PathResolutionError(_) => path_unresolved_error(err, "bar"),
-                _ => unimplemented!(),
-            };
-        }
-    }
-
-    #[test]
-    fn resolve_prefix_expr() {
-        let src = r#"
-            fn main(x : Field) {
-                let _y = -x;
-            }
-        "#;
-
-        let errors = resolve_src_code(src, vec!["main"]);
-        assert!(errors.is_empty());
-    }
-    #[test]
-    fn resolve_for_expr() {
-        let src = r#"
-            fn main(x : Field) {
-                for i in 1..20 {
-                    let _z = x + i;
-                };
-            }
-        "#;
-
-        let errors = resolve_src_code(src, vec!["main"]);
-        assert!(errors.is_empty());
-    }
-    #[test]
-    fn resolve_call_expr() {
-        let src = r#"
-            fn main(x : Field) {
-                let _z = foo(x);
-            }
-
-            fn foo(x : Field) -> Field {
-                x
-            }
-        "#;
-
-        let errors = resolve_src_code(src, vec!["main", "foo"]);
-        assert!(errors.is_empty());
-    }
-
-    #[test]
-    fn resolve_shadowing() {
-        let src = r#"
-            fn main(x : Field) {
-                let x = foo(x);
-                let x = x;
-                let (x, x) = (x, x);
-                let _ = x;
-            }
-
-            fn foo(x : Field) -> Field {
-                x
-            }
-        "#;
-        let errors = resolve_src_code(src, vec!["main", "foo"]);
-        if !errors.is_empty() {
-            println!("Unexpected errors: {errors:?}");
-            unreachable!("there should be no errors");
-        }
-    }
-
-    #[test]
-    fn resolve_basic_closure() {
-        let src = r#"
-            fn main(x : Field) -> pub Field {
-                let closure = |y| y + x;
-                closure(x)
-            }
-        "#;
-
-        let errors = resolve_src_code(src, vec!["main", "foo"]);
-        if !errors.is_empty() {
-            panic!("Unexpected errors: {:?}", errors);
-        }
-    }
-
-    #[test]
-    fn resolve_simplified_closure() {
-        // based on bug https://github.com/noir-lang/noir/issues/1088
-
-        let src = r#"fn do_closure(x: Field) -> Field {
-            let y = x;
-            let ret_capture = || {
-              y
-            };
-            ret_capture()
-          }
-
-          fn main(x: Field) {
-              assert(do_closure(x) == 100);
-          }
-
-          "#;
-        let parsed_captures = get_program_captures(src);
-        let expected_captures = vec![vec!["y".to_string()]];
-        assert_eq!(expected_captures, parsed_captures);
-    }
-
-    #[test]
-    fn resolve_complex_closures() {
-        let src = r#"
-            fn main(x: Field) -> pub Field {
-                let closure_without_captures = |x| x + x;
-                let a = closure_without_captures(1);
-
-                let closure_capturing_a_param = |y| y + x;
-                let b = closure_capturing_a_param(2);
-
-                let closure_capturing_a_local_var = |y| y + b;
-                let c = closure_capturing_a_local_var(3);
-
-                let closure_with_transitive_captures = |y| {
-                    let d = 5;
-                    let nested_closure = |z| {
-                        let doubly_nested_closure = |w| w + x + b;
-                        a + z + y + d + x + doubly_nested_closure(4) + x + y
-                    };
-                    let res = nested_closure(5);
-                    res
-                };
-
-                a + b + c + closure_with_transitive_captures(6)
-            }
-        "#;
-
-        let errors = resolve_src_code(src, vec!["main", "foo"]);
-        assert!(errors.is_empty());
-        if !errors.is_empty() {
-            println!("Unexpected errors: {errors:?}");
-            unreachable!("there should be no errors");
-        }
-
-        let expected_captures = vec![
-            vec![],
-            vec!["x".to_string()],
-            vec!["b".to_string()],
-            vec!["x".to_string(), "b".to_string(), "a".to_string()],
-            vec![
-                "x".to_string(),
-                "b".to_string(),
-                "a".to_string(),
-                "y".to_string(),
-                "d".to_string(),
-            ],
-            vec!["x".to_string(), "b".to_string()],
-        ];
-
-        let parsed_captures = get_program_captures(src);
-
-        assert_eq!(expected_captures, parsed_captures);
-    }
-
-    #[test]
-    fn resolve_fmt_strings() {
-        let src = r#"
-            fn main() {
-                let string = f"this is i: {i}";
-                println(string);
-
-                println(f"I want to print {0}");
-
-                let new_val = 10;
-                println(f"randomstring{new_val}{new_val}");
-            }
-            fn println<T>(x : T) -> T {
-                x
-            }
-        "#;
-
-        let errors = resolve_src_code(src, vec!["main", "println"]);
-        assert!(errors.len() == 2, "Expected 2 errors, got: {errors:?}");
-
-        for err in errors {
-            match &err {
-                ResolverError::VariableNotDeclared { name, .. } => {
-                    assert_eq!(name, "i");
-                }
-                ResolverError::NumericConstantInFormatString { name, .. } => {
-                    assert_eq!(name, "0");
-                }
-                _ => unimplemented!(),
-            };
-        }
-    }
-
-    // possible TODO: Create a more sophisticated set of search functions over the HIR, so we can check
-    //       that the correct variables are captured in each closure
-
-    fn path_unresolved_error(err: ResolverError, expected_unresolved_path: &str) {
-        match err {
-            ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
-                assert_eq!(name.to_string(), expected_unresolved_path);
-            }
-            _ => unimplemented!("expected an unresolved path"),
-        }
-    }
-
-    struct TestPathResolver(BTreeMap<String, ModuleDefId>);
-
-    impl PathResolver for TestPathResolver {
-        fn resolve(
-            &self,
-            _def_maps: &BTreeMap<CrateId, CrateDefMap>,
-            path: Path,
-        ) -> Result<ModuleDefId, PathResolutionError> {
-            // Not here that foo::bar and hello::foo::bar would fetch the same thing
-            let name = path.segments.last().unwrap();
-            let mod_def = self.0.get(&name.0.contents).cloned();
-            mod_def.ok_or_else(move || PathResolutionError::Unresolved(name.clone()))
-        }
-
-        fn local_module_id(&self) -> LocalModuleId {
-            // This is not LocalModuleId::dummy since we need to use this to index into a Vec
-            // later and do not want to push u32::MAX number of elements before we do.
-            LocalModuleId(arena::Index::from_raw_parts(0, 0))
-        }
-
-        fn module_id(&self) -> ModuleId {
-            ModuleId { krate: CrateId::dummy_id(), local_id: self.local_module_id() }
-        }
-    }
-
-    impl TestPathResolver {
-        fn insert_func(&mut self, name: String, func_id: FuncId) {
-            self.0.insert(name, func_id.into());
-        }
     }
 }

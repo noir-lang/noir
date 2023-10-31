@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 /// - Proving and verification keys have been pregenerated based on this ACIR.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PreprocessedProgram {
+    pub noir_version: String,
+
     /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which this [`PreprocessedProgram`]
     /// was compiled.
     ///
@@ -19,8 +21,8 @@ pub struct PreprocessedProgram {
     pub abi: Abi,
 
     #[serde(
-        serialize_with = "super::serialize_circuit",
-        deserialize_with = "super::deserialize_circuit"
+        serialize_with = "Circuit::serialize_circuit_base64",
+        deserialize_with = "Circuit::deserialize_circuit_base64"
     )]
     pub bytecode: Circuit,
 }

@@ -3,8 +3,9 @@ import { Logger } from 'tslog';
 import * as TOML from 'smol-toml';
 
 import { initializeResolver } from '@noir-lang/source-resolver';
-import newCompiler, { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
+import newCompiler, { CompiledProgram, compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
+import { InputMap } from '@noir-lang/noirc_abi';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 
 import { getFile } from './utils.js';
@@ -31,7 +32,7 @@ const suite = Mocha.Suite.create(mocha.suite, 'Noir end to end test');
 
 suite.timeout(60 * 20e3); //20mins
 
-async function getCircuit(noirSource: string) {
+function getCircuit(noirSource: string): CompiledProgram {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   initializeResolver((id: string) => {
     logger.debug('source-resolver: resolving:', id);
@@ -39,7 +40,12 @@ async function getCircuit(noirSource: string) {
   });
 
   // We're ignoring this in the resolver but pass in something sensible.
-  return compile('/main.nr');
+  const result = compile('/main.nr');
+  if (!('program' in result)) {
+    throw new Error('Compilation failed');
+  }
+
+  return result.program;
 }
 
 test_cases.forEach((testInfo) => {
@@ -50,11 +56,11 @@ test_cases.forEach((testInfo) => {
 
     const noir_source = await getFile(`${base_relative_path}/${test_case}/src/main.nr`);
 
-    let noir_program;
+    let noir_program: CompiledProgram;
     try {
-      noir_program = await getCircuit(noir_source);
+      noir_program = getCircuit(noir_source);
 
-      expect(await noir_program, 'Compile output ').to.be.an('object');
+      expect(noir_program, 'Compile output ').to.be.an('object');
     } catch (e) {
       expect(e, 'Compilation Step').to.not.be.an('error');
       throw e;
@@ -64,7 +70,7 @@ test_cases.forEach((testInfo) => {
     const program = new Noir(noir_program, backend);
 
     const prover_toml = await getFile(`${base_relative_path}/${test_case}/Prover.toml`);
-    const inputs = TOML.parse(prover_toml);
+    const inputs: InputMap = TOML.parse(prover_toml) as InputMap;
 
     // JS Proving
 

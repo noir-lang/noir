@@ -5,11 +5,13 @@
 use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
+mod fixed_base_scalar_mul;
 mod wasm;
 
+pub use fixed_base_scalar_mul::fixed_base_scalar_mul;
 use wasm::Barretenberg;
 
-use self::wasm::{Pedersen, ScalarMul, SchnorrSig};
+use self::wasm::{Pedersen, SchnorrSig};
 
 #[deprecated = "The `BarretenbergSolver` is a temporary solution and will be removed in future."]
 pub struct BarretenbergSolver {
@@ -61,15 +63,26 @@ impl BlackBoxFunctionSolver for BarretenbergSolver {
         })
     }
 
-    fn pedersen(
+    fn pedersen_commitment(
         &self,
         inputs: &[FieldElement],
         domain_separator: u32,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         #[allow(deprecated)]
-        self.blackbox_vendor
-            .encrypt(inputs.to_vec(), domain_separator)
-            .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Pedersen, err.to_string()))
+        self.blackbox_vendor.encrypt(inputs.to_vec(), domain_separator).map_err(|err| {
+            BlackBoxResolutionError::Failed(BlackBoxFunc::PedersenCommitment, err.to_string())
+        })
+    }
+
+    fn pedersen_hash(
+        &self,
+        inputs: &[FieldElement],
+        domain_separator: u32,
+    ) -> Result<FieldElement, BlackBoxResolutionError> {
+        #[allow(deprecated)]
+        self.blackbox_vendor.hash(inputs.to_vec(), domain_separator).map_err(|err| {
+            BlackBoxResolutionError::Failed(BlackBoxFunc::PedersenCommitment, err.to_string())
+        })
     }
 
     fn fixed_base_scalar_mul(
@@ -77,9 +90,6 @@ impl BlackBoxFunctionSolver for BarretenbergSolver {
         low: &FieldElement,
         high: &FieldElement,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        #[allow(deprecated)]
-        self.blackbox_vendor.fixed_base(low, high).map_err(|err| {
-            BlackBoxResolutionError::Failed(BlackBoxFunc::FixedBaseScalarMul, err.to_string())
-        })
+        fixed_base_scalar_mul(low, high)
     }
 }

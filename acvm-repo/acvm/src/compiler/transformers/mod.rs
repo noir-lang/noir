@@ -76,13 +76,13 @@ pub(super) fn transform_internal(
     // maps a normalized expression to the intermediate variable which represents the expression, along with its 'norm'
     // the 'norm' is simply the value of the first non zero coefficient in the expression, taken from the linear terms, or quadratic terms if there is none.
     let mut intermediate_variables: IndexMap<Expression, (FieldElement, Witness)> = IndexMap::new();
-    for (index, opcode) in acir.opcodes.iter().enumerate() {
+    for (index, opcode) in acir.opcodes.into_iter().enumerate() {
         match opcode {
             Opcode::Arithmetic(arith_expr) => {
                 let len = intermediate_variables.len();
 
                 let arith_expr = transformer.transform(
-                    arith_expr.clone(),
+                    arith_expr,
                     &mut intermediate_variables,
                     &mut next_witness_index,
                 );
@@ -104,7 +104,7 @@ pub(super) fn transform_internal(
                     transformed_opcodes.push(Opcode::Arithmetic(opcode));
                 }
             }
-            Opcode::BlackBoxFuncCall(func) => {
+            Opcode::BlackBoxFuncCall(ref func) => {
                 match func {
                     acir::circuit::opcodes::BlackBoxFuncCall::AND { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::XOR { output, .. } => {
@@ -130,7 +130,10 @@ pub(super) fn transform_internal(
                         outputs,
                         ..
                     }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::Pedersen { outputs, .. } => {
+                    | acir::circuit::opcodes::BlackBoxFuncCall::PedersenCommitment {
+                        outputs,
+                        ..
+                    } => {
                         transformer.mark_solvable(outputs.0);
                         transformer.mark_solvable(outputs.1);
                     }
@@ -140,15 +143,16 @@ pub(super) fn transform_internal(
                     }
                     | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1 { output, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::SchnorrVerify { output, .. } => {
+                    | acir::circuit::opcodes::BlackBoxFuncCall::SchnorrVerify { output, .. }
+                    | acir::circuit::opcodes::BlackBoxFuncCall::PedersenHash { output, .. } => {
                         transformer.mark_solvable(*output);
                     }
                 }
 
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode.clone());
+                transformed_opcodes.push(opcode);
             }
-            Opcode::Directive(directive) => {
+            Opcode::Directive(ref directive) => {
                 match directive {
                     Directive::Quotient(quotient_directive) => {
                         transformer.mark_solvable(quotient_directive.q);
@@ -166,14 +170,14 @@ pub(super) fn transform_internal(
                     }
                 }
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode.clone());
+                transformed_opcodes.push(opcode);
             }
             Opcode::MemoryInit { .. } => {
                 // `MemoryInit` does not write values to the `WitnessMap`
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode.clone());
+                transformed_opcodes.push(opcode);
             }
-            Opcode::MemoryOp { op, .. } => {
+            Opcode::MemoryOp { ref op, .. } => {
                 for (_, witness1, witness2) in &op.value.mul_terms {
                     transformer.mark_solvable(*witness1);
                     transformer.mark_solvable(*witness2);
@@ -182,9 +186,9 @@ pub(super) fn transform_internal(
                     transformer.mark_solvable(*witness);
                 }
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode.clone());
+                transformed_opcodes.push(opcode);
             }
-            Opcode::Brillig(brillig) => {
+            Opcode::Brillig(ref brillig) => {
                 for output in &brillig.outputs {
                     match output {
                         BrilligOutputs::Simple(w) => transformer.mark_solvable(*w),
@@ -196,7 +200,7 @@ pub(super) fn transform_internal(
                     }
                 }
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode.clone());
+                transformed_opcodes.push(opcode);
             }
         }
     }

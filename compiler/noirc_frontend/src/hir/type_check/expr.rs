@@ -11,7 +11,7 @@ use crate::{
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
-    Signedness, TypeBinding, TypeVariableKind, UnaryOp,
+    BinaryOpKind, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -35,6 +35,7 @@ impl<'interner> TypeChecker<'interner> {
             }
         }
     }
+
     /// Infers a type for a given expression, and return this type.
     /// As a side-effect, this function will also remember this type in the NodeInterner
     /// for the given expr_id key.
@@ -50,7 +51,7 @@ impl<'interner> TypeChecker<'interner> {
                 // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
                 // We must instantiate identifiers at every call site to replace this T with a new type
                 // variable to handle generic functions.
-                let t = self.interner.id_type(ident.id);
+                let t = self.interner.id_type_substitute_trait_as_type(ident.id);
                 let (typ, bindings) = t.instantiate(self.interner);
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
                 typ
@@ -128,10 +129,9 @@ impl<'interner> TypeChecker<'interner> {
                         Type::Error
                     })
             }
-            HirExpression::Index(index_expr) => self.check_index_expression(index_expr),
+            HirExpression::Index(index_expr) => self.check_index_expression(expr_id, index_expr),
             HirExpression::Call(call_expr) => {
                 self.check_if_deprecated(&call_expr.func);
-
                 let function = self.check_expression(&call_expr.func);
                 let args = vecmap(&call_expr.arguments, |arg| {
                     let typ = self.check_expression(arg);
@@ -266,6 +266,7 @@ impl<'interner> TypeChecker<'interner> {
                     Box::new(method.return_type.clone()),
                     Box::new(Type::Unit),
                 );
+
                 let (typ, bindings) = typ.instantiate(self.interner);
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
                 typ
@@ -293,9 +294,9 @@ impl<'interner> TypeChecker<'interner> {
         argument_types: &mut [(Type, ExprId, noirc_errors::Span)],
     ) {
         let expected_object_type = match function_type {
-            Type::Function(args, _, _) => args.get(0),
+            Type::Function(args, _, _) => args.first(),
             Type::Forall(_, typ) => match typ.as_ref() {
-                Type::Function(args, _, _) => args.get(0),
+                Type::Function(args, _, _) => args.first(),
                 typ => unreachable!("Unexpected type for function: {typ}"),
             },
             typ => unreachable!("Unexpected type for function: {typ}"),
@@ -396,7 +397,11 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
-    fn check_index_expression(&mut self, index_expr: expr::HirIndexExpression) -> Type {
+    fn check_index_expression(
+        &mut self,
+        id: &ExprId,
+        mut index_expr: expr::HirIndexExpression,
+    ) -> Type {
         let index_type = self.check_expression(&index_expr.index);
         let span = self.interner.expr_span(&index_expr.index);
 
@@ -408,14 +413,20 @@ impl<'interner> TypeChecker<'interner> {
             }
         });
 
+        // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
+        // times as needed to get the underlying array.
         let lhs_type = self.check_expression(&index_expr.collection);
-        match lhs_type {
+        let (new_lhs, lhs_type) = self.insert_auto_dereferences(index_expr.collection, lhs_type);
+        index_expr.collection = new_lhs;
+        self.interner.replace_expr(id, HirExpression::Index(index_expr));
+
+        match lhs_type.follow_bindings() {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
             Type::Error => Type::Error,
             typ => {
-                let span = self.interner.expr_span(&index_expr.collection);
+                let span = self.interner.expr_span(&new_lhs);
                 self.errors.push(TypeCheckError::TypeMismatch {
                     expected_typ: "Array".to_owned(),
                     expr_typ: typ.to_string(),
@@ -465,7 +476,7 @@ impl<'interner> TypeChecker<'interner> {
         arguments: Vec<(Type, ExprId, Span)>,
         span: Span,
     ) -> Type {
-        let (fntyp, param_len) = match method_ref {
+        let (fn_typ, param_len) = match method_ref {
             HirMethodReference::FuncId(func_id) => {
                 if func_id == FuncId::dummy_id() {
                     return Type::Error;
@@ -494,7 +505,7 @@ impl<'interner> TypeChecker<'interner> {
             });
         }
 
-        let (function_type, instantiation_bindings) = fntyp.instantiate(self.interner);
+        let (function_type, instantiation_bindings) = fn_typ.instantiate(self.interner);
 
         self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
         self.interner.push_expr_type(function_ident_id, function_type.clone());
@@ -816,7 +827,8 @@ impl<'interner> TypeChecker<'interner> {
     ) -> Option<HirMethodReference> {
         match object_type {
             Type::Struct(typ, _args) => {
-                match self.interner.lookup_method(typ.borrow().id, method_name) {
+                let id = typ.borrow().id;
+                match self.interner.lookup_method(object_type, id, method_name, false) {
                     Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                     None => {
                         self.errors.push(TypeCheckError::UnresolvedMethodCall {
@@ -827,6 +839,14 @@ impl<'interner> TypeChecker<'interner> {
                         None
                     }
                 }
+            }
+            Type::TraitAsType(_trait) => {
+                self.errors.push(TypeCheckError::UnresolvedMethodCall {
+                    method_name: method_name.to_string(),
+                    object_type: object_type.clone(),
+                    span: self.interner.expr_span(expr_id),
+                });
+                None
             }
             Type::NamedGeneric(_, _) => {
                 let func_meta = self.interner.function_meta(
@@ -861,20 +881,14 @@ impl<'interner> TypeChecker<'interner> {
             // This may be a struct or a primitive type.
             Type::MutableReference(element) => self
                 .interner
-                .lookup_mut_primitive_trait_method(element.as_ref(), method_name)
+                .lookup_primitive_trait_method_mut(element.as_ref(), method_name)
                 .map(HirMethodReference::FuncId)
                 .or_else(|| self.lookup_method(element, method_name, expr_id)),
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
             Type::Error => None,
 
-            // In the future we could support methods for non-struct types if we have a context
-            // (in the interner?) essentially resembling HashMap<Type, Methods>
-            other => match self
-                .interner
-                .lookup_primitive_method(other, method_name)
-                .or_else(|| self.interner.lookup_primitive_trait_method(other, method_name))
-            {
+            other => match self.interner.lookup_primitive_method(other, method_name) {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     self.errors.push(TypeCheckError::UnresolvedMethodCall {
@@ -974,8 +988,8 @@ impl<'interner> TypeChecker<'interner> {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
-
-                if op.is_bitwise() && (other.is_bindable() || other.is_field()) {
+                if (op.is_modulo() || op.is_bitwise()) && (other.is_bindable() || other.is_field())
+                {
                     let other = other.follow_bindings();
                     let kind = op.kind;
                     // This will be an error if these types later resolve to a Field, or stay
@@ -983,7 +997,11 @@ impl<'interner> TypeChecker<'interner> {
                     // finishes resolving so we can still allow cases like `let x: u8 = 1 << 2;`.
                     self.push_delayed_type_check(Box::new(move || {
                         if other.is_field() {
-                            Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
+                            if kind == BinaryOpKind::Modulo {
+                                Err(TypeCheckError::FieldModulo { span })
+                            } else {
+                                Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
+                            }
                         } else if other.is_bindable() {
                             Err(TypeCheckError::AmbiguousBitWidth { span })
                         } else if kind.is_bit_shift() && other.is_signed() {
@@ -1053,6 +1071,9 @@ impl<'interner> TypeChecker<'interner> {
             (FieldElement, FieldElement) => {
                 if op.is_bitwise() {
                     return Err(TypeCheckError::InvalidBitwiseOperationOnField { span });
+                }
+                if op.is_modulo() {
+                    return Err(TypeCheckError::FieldModulo { span });
                 }
                 Ok(FieldElement)
             }

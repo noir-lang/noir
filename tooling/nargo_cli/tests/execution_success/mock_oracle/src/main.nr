@@ -8,13 +8,10 @@ struct Point {
 #[oracle(foo)]
 unconstrained fn foo_oracle(_point: Point, _array: [Field; 4]) -> Field {}
 
-unconstrained fn main()  {
-    let array = [1,2,3,4];
-    let another_array = [4,3,2,1];
-    let point = Point {
-        x: 14,
-        y: 27,
-    };
+unconstrained fn main() {
+    let array = [1, 2, 3, 4];
+    let another_array = [4, 3, 2, 1];
+    let point = Point { x: 14, y: 27 };
 
     OracleMock::mock("foo").returns(42).times(1);
     let mock = OracleMock::mock("foo").returns(0);

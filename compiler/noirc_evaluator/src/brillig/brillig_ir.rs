@@ -1032,12 +1032,19 @@ pub(crate) mod tests {
         ) -> Result<bool, BlackBoxResolutionError> {
             Ok(true)
         }
-        fn pedersen(
+        fn pedersen_commitment(
             &self,
             _inputs: &[FieldElement],
             _domain_separator: u32,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             Ok((2_u128.into(), 3_u128.into()))
+        }
+        fn pedersen_hash(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<FieldElement, BlackBoxResolutionError> {
+            Ok(6_u128.into())
         }
         fn fixed_base_scalar_mul(
             &self,
@@ -1069,14 +1076,12 @@ pub(crate) mod tests {
     pub(crate) fn create_and_run_vm(
         memory: Vec<Value>,
         param_registers: Vec<Value>,
-        context: BrilligContext,
-        arguments: Vec<BrilligParameter>,
-        returns: Vec<BrilligParameter>,
-    ) -> VM<'static, DummyBlackBoxSolver> {
+        bytecode: &[BrilligOpcode],
+    ) -> VM<'_, DummyBlackBoxSolver> {
         let mut vm = VM::new(
             Registers { inner: param_registers },
             memory,
-            create_entry_point_bytecode(context, arguments, returns).byte_code,
+            bytecode,
             vec![],
             &DummyBlackBoxSolver,
         );
@@ -1132,7 +1137,7 @@ pub(crate) mod tests {
         let mut vm = VM::new(
             Registers { inner: vec![] },
             vec![],
-            bytecode,
+            &bytecode,
             vec![ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] }],
             &DummyBlackBoxSolver,
         );

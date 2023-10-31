@@ -112,7 +112,7 @@ pub(crate) fn display_terminator(
                 else_destination
             )
         }
-        Some(TerminatorInstruction::Return { return_values }) => {
+        Some(TerminatorInstruction::Return { return_values, .. }) => {
             writeln!(f, "    return {}", value_list(function, return_values))
         }
         None => writeln!(f, "    (no terminator instruction)"),

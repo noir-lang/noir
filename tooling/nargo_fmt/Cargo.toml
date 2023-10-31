@@ -11,3 +11,6 @@ noirc_frontend.workspace = true
 serde.workspace = true
 toml.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+similar-asserts = "1.5.0"

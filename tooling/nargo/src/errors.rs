@@ -2,7 +2,10 @@ use acvm::{
     acir::circuit::OpcodeLocation,
     pwg::{ErrorLocation, OpcodeResolutionError},
 };
-use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic, FileDiagnostic, Location};
+use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic, FileDiagnostic};
+
+pub use noirc_errors::Location;
+
 use noirc_printable_type::ForeignCallError;
 use thiserror::Error;
 
@@ -88,7 +91,7 @@ fn extract_locations_from_error(
         _ => None,
     }?;
 
-    if let Some(OpcodeLocation::Brillig { acir_index, .. }) = opcode_locations.get(0) {
+    if let Some(OpcodeLocation::Brillig { acir_index, .. }) = opcode_locations.first() {
         opcode_locations.insert(0, OpcodeLocation::Acir(*acir_index));
     }
 

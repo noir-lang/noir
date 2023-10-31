@@ -23,5 +23,4 @@ noirc_printable_type.workspace = true
 iter-extended.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-base64.workspace = true
 codespan-reporting.workspace = true

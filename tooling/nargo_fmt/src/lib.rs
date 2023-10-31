@@ -1,8 +1,7 @@
 #![forbid(unsafe_code)]
-#![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
-#![warn(unused_qualifications, clippy::use_self)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 /// A Rust code formatting utility designed to manage and format untouched fragments of source code,
 /// including comments, whitespace, and other characters. While the module doesn't directly address comments,
@@ -21,6 +20,7 @@
 /// in both placement and content during the formatting process.
 mod config;
 pub mod errors;
+mod utils;
 mod visitor;
 
 use noirc_frontend::ParsedModule;
@@ -30,6 +30,6 @@ pub use config::Config;
 
 pub fn format(source: &str, parsed_module: ParsedModule, config: &Config) -> String {
     let mut fmt = FmtVisitor::new(source, config);
-    fmt.visit_module(parsed_module);
+    fmt.visit_file(parsed_module);
     fmt.finish()
 }

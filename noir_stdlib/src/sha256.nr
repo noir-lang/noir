@@ -5,7 +5,9 @@
 // Auxiliary mappings; names as in FIPS PUB 180-4
 fn rotr32(a: u32, b: u32) -> u32 // 32-bit right rotation
 {
-    (a >> b) | (a << (32 as u32 - b))
+    // None of the bits overlap between `(a >> b)` and `(a << (32 - b))`
+    // Addition is then equivalent to OR, with fewer constraints.
+    (a >> b) + (crate::wrapping_shift_left(a, 32 - b))
 }
 
 fn ch(x: u32, y: u32, z: u32) -> u32

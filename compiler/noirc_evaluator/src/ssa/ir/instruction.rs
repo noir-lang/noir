@@ -46,6 +46,7 @@ pub(crate) enum Intrinsic {
     BlackBox(BlackBoxFunc),
     FromField,
     AsField,
+    WrappingShiftLeft,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -68,6 +69,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
             Intrinsic::FromField => write!(f, "from_field"),
             Intrinsic::AsField => write!(f, "as_field"),
+            Intrinsic::WrappingShiftLeft => write!(f, "wrapping_shift_left"),
         }
     }
 }
@@ -92,7 +94,8 @@ impl Intrinsic {
             | Intrinsic::ToBits(_)
             | Intrinsic::ToRadix(_)
             | Intrinsic::FromField
-            | Intrinsic::AsField => false,
+            | Intrinsic::AsField
+            | Intrinsic::WrappingShiftLeft => false,
 
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
@@ -119,6 +122,7 @@ impl Intrinsic {
             "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
             "from_field" => Some(Intrinsic::FromField),
             "as_field" => Some(Intrinsic::AsField),
+            "wrapping_shift_left" => Some(Intrinsic::WrappingShiftLeft),
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }
@@ -239,10 +243,19 @@ impl Instruction {
 
     pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
-
         match self {
-            Binary(_)
-            | Cast(_, _)
+            Binary(binary) => {
+                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+                    if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
+                        rhs == FieldElement::zero()
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                }
+            }
+            Cast(_, _)
             | Not(_)
             | Truncate { .. }
             | Allocate
@@ -536,7 +549,7 @@ pub(crate) enum TerminatorInstruction {
     /// unconditionally jump to a single exit block with the return values
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
-    Return { return_values: Vec<ValueId> },
+    Return { return_values: Vec<ValueId>, call_stack: CallStack },
 }
 
 impl TerminatorInstruction {
@@ -557,9 +570,10 @@ impl TerminatorInstruction {
                 arguments: vecmap(arguments, |value| f(*value)),
                 call_stack: call_stack.clone(),
             },
-            Return { return_values } => {
-                Return { return_values: vecmap(return_values, |value| f(*value)) }
-            }
+            Return { return_values, call_stack } => Return {
+                return_values: vecmap(return_values, |value| f(*value)),
+                call_stack: call_stack.clone(),
+            },
         }
     }
 
@@ -575,7 +589,7 @@ impl TerminatorInstruction {
                     *argument = f(*argument);
                 }
             }
-            Return { return_values } => {
+            Return { return_values, .. } => {
                 for return_value in return_values {
                     *return_value = f(*return_value);
                 }
@@ -595,7 +609,7 @@ impl TerminatorInstruction {
                     f(*argument);
                 }
             }
-            Return { return_values } => {
+            Return { return_values, .. } => {
                 for return_value in return_values {
                     f(*return_value);
                 }
@@ -646,15 +660,11 @@ impl Binary {
         let operand_type = dfg.type_of_value(self.lhs);
 
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-            // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
-            // Thus, we do not evaluate this divison as we want to avoid triggering a panic,
-            // and division by zero should be handled by laying down constraints during ACIR generation.
-            if matches!(self.operator, BinaryOp::Div | BinaryOp::Mod) && rhs == FieldElement::zero()
-            {
-                return SimplifyResult::None;
-            }
-            return match self.eval_constants(dfg, lhs, rhs, operand_type) {
-                Some(value) => SimplifyResult::SimplifiedTo(value),
+            return match eval_constant_binary_op(lhs, rhs, self.operator, operand_type) {
+                Some((result, result_type)) => {
+                    let value = dfg.make_constant(result, result_type);
+                    SimplifyResult::SimplifiedTo(value)
+                }
                 None => SimplifyResult::None,
             };
         }
@@ -775,47 +785,51 @@ impl Binary {
         }
         SimplifyResult::None
     }
+}
 
-    /// Evaluate the two constants with the operation specified by self.operator.
-    /// Pushes the resulting value to the given DataFlowGraph's constants and returns it.
-    fn eval_constants(
-        &self,
-        dfg: &mut DataFlowGraph,
-        lhs: FieldElement,
-        rhs: FieldElement,
-        mut operand_type: Type,
-    ) -> Option<Id<Value>> {
-        let value = match &operand_type {
-            Type::Numeric(NumericType::NativeField) => {
-                self.operator.get_field_function()?(lhs, rhs)
+/// Evaluate a binary operation with constant arguments.
+fn eval_constant_binary_op(
+    lhs: FieldElement,
+    rhs: FieldElement,
+    operator: BinaryOp,
+    mut operand_type: Type,
+) -> Option<(FieldElement, Type)> {
+    let value = match &operand_type {
+        Type::Numeric(NumericType::NativeField) => {
+            // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
+            // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+            // and the operation should be handled by ACIR generation.
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == FieldElement::zero() {
+                return None;
             }
-            Type::Numeric(NumericType::Unsigned { bit_size }) => {
-                let function = self.operator.get_u128_function();
-
-                let lhs = truncate(lhs.try_into_u128()?, *bit_size);
-                let rhs = truncate(rhs.try_into_u128()?, *bit_size);
-
-                // The divisor is being truncated into the type of the operand, which can potentially
-                // lead to the rhs being zero.
-                // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
-                // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
-                // and the operation should be handled by ACIR generation.
-                if matches!(self.operator, BinaryOp::Div) && rhs == 0 {
-                    return None;
-                }
-
-                let result = function(lhs, rhs);
-                truncate(result, *bit_size).into()
-            }
-            _ => return None,
-        };
-
-        if matches!(self.operator, BinaryOp::Eq | BinaryOp::Lt) {
-            operand_type = Type::bool();
+            operator.get_field_function()?(lhs, rhs)
         }
+        Type::Numeric(NumericType::Unsigned { bit_size }) => {
+            let function = operator.get_u128_function();
 
-        Some(dfg.make_constant(value, operand_type))
+            let lhs = truncate(lhs.try_into_u128()?, *bit_size);
+            let rhs = truncate(rhs.try_into_u128()?, *bit_size);
+
+            // The divisor is being truncated into the type of the operand, which can potentially
+            // lead to the rhs being zero.
+            // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
+            // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+            // and the operation should be handled by ACIR generation.
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == 0 {
+                return None;
+            }
+
+            let result = function(lhs, rhs);
+            truncate(result, *bit_size).into()
+        }
+        _ => return None,
+    };
+
+    if matches!(operator, BinaryOp::Eq | BinaryOp::Lt) {
+        operand_type = Type::bool();
     }
+
+    Some((value, operand_type))
 }
 
 fn truncate(int: u128, bit_size: u32) -> u128 {

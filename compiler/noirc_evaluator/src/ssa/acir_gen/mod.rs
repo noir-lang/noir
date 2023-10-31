@@ -23,7 +23,7 @@ use super::{
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
-use crate::errors::{InternalError, RuntimeError};
+use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
@@ -201,9 +201,9 @@ impl Context {
             self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, last_array_uses)?;
         }
 
-        self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
+        let warnings = self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
-        Ok(self.acir_context.finish(input_witness.collect()))
+        Ok(self.acir_context.finish(input_witness.collect(), warnings))
     }
 
     fn convert_brillig_main(
@@ -240,7 +240,7 @@ impl Context {
             self.acir_context.return_var(acir_var)?;
         }
 
-        Ok(self.acir_context.finish(witness_inputs))
+        Ok(self.acir_context.finish(witness_inputs, Vec::new()))
     }
 
     /// Adds and binds `AcirVar`s for each numeric block parameter or block parameter array element.
@@ -766,6 +766,36 @@ impl Context {
 
                 Ok(AcirValue::Array(elements))
             }
+            (
+                AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }),
+                AcirValue::Array(dummy_values),
+            ) => {
+                let dummy_values = dummy_values
+                    .into_iter()
+                    .flat_map(|val| val.clone().flatten())
+                    .map(|(var, typ)| AcirValue::Var(var, typ))
+                    .collect::<Vec<_>>();
+
+                assert_eq!(
+                    *len,
+                    dummy_values.len(),
+                    "ICE: The store value and dummy must have the same number of inner values"
+                );
+
+                let values = try_vecmap(0..*len, |i| {
+                    let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+
+                    let read = self.acir_context.read_from_memory(*block_id, &index_var)?;
+                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+                })?;
+
+                let mut elements = im::Vector::new();
+                for (val, dummy_val) in values.iter().zip(dummy_values) {
+                    elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
+                }
+
+                Ok(AcirValue::Array(elements))
+            }
             (AcirValue::DynamicArray(_), AcirValue::DynamicArray(_)) => {
                 unimplemented!("ICE: setting a dynamic array not supported");
             }
@@ -925,8 +955,14 @@ impl Context {
                     self.array_set_value(value, block_id, var_index)?;
                 }
             }
-            AcirValue::DynamicArray(_) => {
-                unimplemented!("ICE: setting a dynamic array not supported");
+            AcirValue::DynamicArray(AcirDynamicArray { block_id: inner_block_id, len, .. }) => {
+                let values = try_vecmap(0..len, |i| {
+                    let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+
+                    let read = self.acir_context.read_from_memory(inner_block_id, &index_var)?;
+                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+                })?;
+                self.array_set_value(AcirValue::Array(values.into()), block_id, var_index)?;
             }
         }
         Ok(())
@@ -951,7 +987,7 @@ impl Context {
         if !already_initialized {
             let value = &dfg[array_id];
             match value {
-                Value::Array { .. } => {
+                Value::Array { .. } | Value::Instruction { .. } => {
                     let value = self.convert_value(array_id, dfg);
                     let len = if matches!(array_typ, Type::Array(_, _)) {
                         array_typ.flattened_size()
@@ -965,7 +1001,7 @@ impl Context {
                         message: format!("Array {array_id} should be initialized"),
                         call_stack: self.acir_context.get_call_stack(),
                     }
-                    .into())
+                    .into());
                 }
             }
         }
@@ -1211,19 +1247,27 @@ impl Context {
         &mut self,
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
-    ) -> Result<(), InternalError> {
-        let return_values = match terminator {
-            TerminatorInstruction::Return { return_values } => return_values,
+    ) -> Result<Vec<SsaReport>, InternalError> {
+        let (return_values, call_stack) = match terminator {
+            TerminatorInstruction::Return { return_values, call_stack } => {
+                (return_values, call_stack)
+            }
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
         // The return value may or may not be an array reference. Calling `flatten_value_list`
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
+        let mut warnings = Vec::new();
         for acir_var in return_acir_vars {
+            if self.acir_context.is_constant(&acir_var) {
+                warnings.push(SsaReport::Warning(InternalWarning::ReturnConstant {
+                    call_stack: call_stack.clone(),
+                }));
+            }
             self.acir_context.return_var(acir_var)?;
         }
-        Ok(())
+        Ok(warnings)
     }
 
     /// Gets the cached `AcirVar` that was converted from the corresponding `ValueId`. If it does
@@ -1818,55 +1862,3 @@ impl Context {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use std::{collections::HashMap, rc::Rc};
-
-    use acvm::{
-        acir::{
-            circuit::Opcode,
-            native_types::{Expression, Witness},
-        },
-        FieldElement,
-    };
-
-    use crate::{
-        brillig::Brillig,
-        ssa::{
-            function_builder::FunctionBuilder,
-            ir::{function::RuntimeType, map::Id, types::Type},
-        },
-    };
-
-    use super::Context;
-
-    #[test]
-    fn returns_body_scoped_arrays() {
-        // fn main {
-        //   b0():
-        //     return [Field 1]
-        // }
-        let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-
-        let one = builder.field_constant(FieldElement::one());
-
-        let element_type = Rc::new(vec![Type::field()]);
-        let array_type = Type::Array(element_type, 1);
-        let array = builder.array_constant(im::Vector::unit(one), array_type);
-
-        builder.terminate_with_return(vec![array]);
-
-        let ssa = builder.finish();
-
-        let context = Context::new();
-        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::default()).unwrap();
-
-        let expected_opcodes =
-            vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
-        assert_eq!(acir.take_opcodes(), expected_opcodes);
-        assert_eq!(acir.return_witnesses, vec![Witness(1)]);
-    }
-}
-//
