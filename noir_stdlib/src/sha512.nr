@@ -69,12 +69,9 @@ fn sha_c(msg: [u64; 16], hash: [u64; 8]) -> [u64; 8]
     let w = sha_w(msg);
     for j in 0..80
     {
-                
-        let t1 = crate::wrapping_add(
-                    crate::wrapping_add(
-                        crate::wrapping_add(
-                            crate::wrapping_add(out_h[7] , sha_bigma1(out_h[4])) , sha_ch(out_h[4], out_h[5], out_h[6])),
-                                K[j]) ,w[j]);
+        let out1 = crate::wrapping_add(out_h[7] , sha_bigma1(out_h[4]));
+        let out2 = crate::wrapping_add(out1, sha_ch(out_h[4], out_h[5], out_h[6]));
+        let t1 = crate::wrapping_add(crate::wrapping_add(out2, K[j]), w[j]);
         let t2 = crate::wrapping_add( sha_bigma0(out_h[0]) , sha_maj(out_h[0], out_h[1], out_h[2]));
         out_h[7] = out_h[6];
         out_h[6] = out_h[5];

@@ -268,7 +268,7 @@ impl<'a> FunctionContext<'a> {
 
     /// helper function which add instructions to the block computing the absolute value of the
     /// given signed integer input. When the input is negative, we return its two complement, and itself when it is positive.
-    fn absolute_value_hlp(&mut self, input: ValueId, sign: ValueId, bit_size: u32) -> ValueId {
+    fn absolute_value_helper(&mut self, input: ValueId, sign: ValueId, bit_size: u32) -> ValueId {
         // We compute the absolute value of lhs
         let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
         let bit_width =
@@ -418,8 +418,8 @@ impl<'a> FunctionContext<'a> {
             BinaryOpKind::Multiply => {
                 // Overflow check for the multiplication:
                 // First we compute the absolute value of operands, and their product
-                let lhs_abs = self.absolute_value_hlp(lhs, lhs_sign, bit_size);
-                let rhs_abs = self.absolute_value_hlp(rhs, rhs_sign, bit_size);
+                let lhs_abs = self.absolute_value_helper(lhs, lhs_sign, bit_size);
+                let rhs_abs = self.absolute_value_helper(rhs, rhs_sign, bit_size);
                 let product_field = self.builder.insert_binary(lhs_abs, BinaryOp::Mul, rhs_abs);
                 // It must not already overflow the bit_size
                 let message = "attempt to multiply with overflow".to_string();
