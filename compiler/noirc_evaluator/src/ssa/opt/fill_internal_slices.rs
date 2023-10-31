@@ -551,7 +551,7 @@ mod tests {
 
     #[test]
     fn test_simple_nested_slice() {
-        // We want to test that a nested slice with two internal slices of primtive types
+        // We want to test that a nested slice with two internal slices of primitive types
         // fills the smaller internal slice with dummy data to match the length of the
         // larger internal slice.
 
