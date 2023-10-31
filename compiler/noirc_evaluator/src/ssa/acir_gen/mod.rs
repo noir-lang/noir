@@ -1002,13 +1002,8 @@ impl Context {
 
         // Set new resulting array to have the same slice sizes as the instruction input
         if let Type::Slice(element_types) = &array_typ {
-            let mut has_internal_slices = false;
-            for typ in element_types.as_ref() {
-                if typ.contains_slice_element() {
-                    has_internal_slices = true;
-                    break;
-                }
-            }
+            let has_internal_slices =
+                element_types.as_ref().iter().any(|typ| typ.contains_slice_element());
             if has_internal_slices {
                 let slice_sizes = self
                     .slice_sizes
