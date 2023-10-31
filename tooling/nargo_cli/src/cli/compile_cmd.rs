@@ -80,7 +80,7 @@ pub(crate) fn run(
         .partition(|package| package.is_binary());
 
     let (np_language, opcode_support) = if args.no_backend {
-        (Language::PLONKCSat{ width: 3 }, BackendOpcodeSupport::all_opcodes_supported())
+        (Language::PLONKCSat { width: 3 }, BackendOpcodeSupport::all_opcodes_supported())
     } else {
         backend.get_backend_info()?
     };

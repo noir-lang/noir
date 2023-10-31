@@ -1,5 +1,5 @@
-use acvm::Language;
 use acvm::acir::native_types::WitnessMap;
+use acvm::Language;
 use backend_interface::BackendOpcodeSupport;
 use clap::Args;
 
@@ -62,11 +62,11 @@ pub(crate) fn run(
     let target_dir = &workspace.target_directory_path();
 
     let (np_language, opcode_support) = if args.no_backend {
-        (Language::PLONKCSat{ width: 3 }, BackendOpcodeSupport::all_opcodes_supported())
+        (Language::PLONKCSat { width: 3 }, BackendOpcodeSupport::all_opcodes_supported())
     } else {
         backend.get_backend_info()?
     };
-    
+
     for package in &workspace {
         let compiled_program = compile_bin_package(
             &workspace,

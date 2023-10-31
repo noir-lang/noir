@@ -5,12 +5,11 @@
 //! These are implemented inside the ACVM stdlib.
 
 use serde::{Deserialize, Serialize};
-use strum_macros::EnumIter;
 use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(EnumIter)]
+#[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 pub enum BlackBoxFunc {
     /// Bitwise AND.
     AND,
