@@ -2,6 +2,4 @@
 name = "instruction_deduplication"
 type = "bin"
 authors = [""]
-compiler_version = "0.8.0"
-
 [dependencies]

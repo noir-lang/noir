@@ -2,6 +2,5 @@
 name = "regression_method_cannot_be_found"
 type = "bin"
 authors = [""]
-compiler_version = "0.1"
 
 [dependencies]
