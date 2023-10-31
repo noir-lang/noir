@@ -363,38 +363,30 @@ impl<'f> Context<'f> {
                 let mut max_size = *current_size;
                 if let Some(value) = value {
                     let mut slice = im::Vector::new();
-                    match &self.inserter.function.dfg[value].clone() {
-                        Value::Array { array, .. } => {
-                            if is_parent_slice {
-                                max_size = array.len() / element_types.len();
-                            }
-                            for i in 0..max_size {
-                                for (element_index, element_type) in
-                                    element_types.iter().enumerate()
-                                {
-                                    let index_usize = i * element_types.len() + element_index;
-                                    if index_usize < array.len() {
-                                        slice.push_back(self.attach_slice_dummies(
-                                            element_type,
-                                            Some(array[index_usize]),
-                                            false,
-                                            max_sizes,
-                                        ));
-                                    } else {
-                                        slice.push_back(self.attach_slice_dummies(
-                                            element_type,
-                                            None,
-                                            false,
-                                            max_sizes,
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-                        _ => {
-                            panic!("Expected an array value");
+
+                    let array = match self.inserter.function.dfg[value].clone() {
+                        Value::Array { array, .. } => array,
+                        _ => panic!("Expected an array value"),
+                    };
+
+                    if is_parent_slice {
+                        max_size = array.len() / element_types.len();
+                    }
+                    for i in 0..max_size {
+                        for (element_index, element_type) in element_types.iter().enumerate() {
+                            let index_usize = i * element_types.len() + element_index;
+                            let valid_index = index_usize < array.len();
+                            let maybe_value =
+                                if valid_index { Some(array[index_usize]) } else { None };
+                            slice.push_back(self.attach_slice_dummies(
+                                element_type,
+                                maybe_value,
+                                false,
+                                max_sizes,
+                            ));
                         }
                     }
+
                     self.inserter.function.dfg.make_array(slice, typ.clone())
                 } else {
                     let mut slice = im::Vector::new();
