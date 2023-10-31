@@ -586,13 +586,12 @@ mod tests {
         let inner_slice_small_contents =
             builder.array_constant(vector![one, one, one], inner_slice_contents_type.clone());
 
-        let outer_slice_element_type =
-            Rc::new(vec![Type::field(), inner_slice_contents_type.clone()]);
-        let outer_slice_type = Type::Slice(outer_slice_element_type);
-
         let inner_slice_big_len = builder.field_constant(4_u128);
         let inner_slice_big_contents =
-            builder.array_constant(vector![two, two, two, two], inner_slice_contents_type);
+            builder.array_constant(vector![two, two, two, two], inner_slice_contents_type.clone());
+
+        let outer_slice_element_type = Rc::new(vec![Type::field(), inner_slice_contents_type]);
+        let outer_slice_type = Type::Slice(outer_slice_element_type);
 
         let outer_slice_contents = builder.array_constant(
             vector![
