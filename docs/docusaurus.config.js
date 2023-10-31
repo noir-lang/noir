@@ -45,9 +45,6 @@ const config = {
               label: 'dev',
               path: 'dev',
             },
-            '0.7.1': {
-              label: '0.7.1 / 0.8.0',
-            },
           },
           editUrl: ({ versionDocsDirPath, docPath }) =>
             `https://github.com/noir-lang/noir/edit/master/docs/${versionDocsDirPath}/${docPath}`,
@@ -62,7 +59,7 @@ const config = {
 
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
-    ({
+    {
       // Replace with your project's social card
       navbar: {
         logo: {
@@ -87,8 +84,7 @@ const config = {
       metadata: [
         {
           name: 'Noir',
-          content:
-            'noir, programming, language, documentation, zk, zero-knowledge, l2, crypto, layer2, ethereum',
+          content: 'noir, programming, language, documentation, zk, zero-knowledge, l2, crypto, layer2, ethereum',
         },
       ],
       footer: {
@@ -149,7 +145,7 @@ const config = {
 
         indexName: 'noir-lang',
       },
-    }),
+    },
 };
 
 module.exports = config;

@@ -14,8 +14,7 @@ pub fn compute_merkle_root<N>(leaf: Field, index: Field, hash_path: [Field; N]) 
          } else {
             (current, hash_path[i])
          };
-    // TODO(Kev): This should be changed to use pedersen_hash
-      current = crate::hash::pedersen_commitment([hash_left, hash_right]).x;
+      current = crate::hash::pedersen_hash([hash_left, hash_right]);
     };
     current
 }

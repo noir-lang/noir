@@ -757,7 +757,7 @@ fn resolve_trait_methods(
     for item in &unresolved_trait.trait_def.items {
         if let TraitItem::Function {
             name,
-            generics: _,
+            generics,
             parameters,
             return_type,
             where_clause: _,
@@ -769,14 +769,14 @@ fn resolve_trait_methods(
                 Type::TypeVariable(the_trait.self_type_typevar.clone(), TypeVariableKind::Normal);
 
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            resolver.add_generics(generics);
             resolver.set_self_type(Some(self_type));
 
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
             let resolved_return_type = resolver.resolve_type(return_type.get_type().into_owned());
+            let generics = resolver.get_generics().to_vec();
 
             let name = name.clone();
-            // TODO
-            let generics: Generics = vec![];
             let span: Span = name.span();
             let default_impl_list: Vec<_> = unresolved_trait
                 .fns_with_default_impl
