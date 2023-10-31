@@ -13,4 +13,5 @@ acvm.workspace = true
 noir_lsp.workspace = true
 tower.workspace = true
 futures = { version = "0.3.28", default-features = false, features = ["async-await", "std", "executor"] }
-async-lsp = { workspace = true, features = ["omni-trait", "stdio"] }
+async-lsp = { workspace = true, features = ["omni-trait", "stdio", "async-io"] }
+async-io = "2"

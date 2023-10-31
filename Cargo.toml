@@ -127,4 +127,4 @@ num-traits = "0.2"
 opt-level = 1
 
 [patch.crates-io]
-async-lsp = { git = "https://github.com/TomAFrench/async-lsp", branch = "tf/futures" }
+async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "4568bd6c2039bb03d88eae2f4f8aa2a64d71fadb" }
