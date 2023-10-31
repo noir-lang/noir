@@ -226,7 +226,12 @@ impl<'f> Context<'f> {
                         | Intrinsic::SlicePushFront
                         | Intrinsic::SliceInsert => {
                             let slice_contents = arguments[argument_index];
+                            let slice_typ = self.inserter.function.dfg.type_of_value(slice_contents);
+                            dbg!(slice_typ.clone());
                             if let Some(inner_sizes) = slice_sizes.get_mut(&slice_contents) {
+                                // TODO: Consider the accurate increase here
+                                // We simply add and write in ACIR for both length < capacity and length == capacity
+                                dbg!(inner_sizes.0);
                                 inner_sizes.0 += 1;
 
                                 let inner_sizes = inner_sizes.clone();
@@ -310,6 +315,7 @@ impl<'f> Context<'f> {
         max_sizes.resize(depth, 0);
         max_sizes[0] = *current_size;
         self.compute_slice_max_sizes(array_id, slice_sizes, &mut max_sizes, 1);
+        dbg!(max_sizes.clone());
 
         let new_array = self.attach_slice_dummies(&typ, Some(array_id), true, &max_sizes);
 

@@ -78,6 +78,21 @@ impl Type {
         }
     }
 
+    /// Returns the flattened size of a Type
+    pub(crate) fn flattened_size(&self) -> usize {
+        let mut size = 0;
+        match self {
+            Type::Array(elements, len) => {
+                size = elements.iter().fold(size, |sum, elem| sum + (elem.flattened_size() * len));
+            }
+            Type::Slice(_) => {
+                unimplemented!("ICE: cannot fetch flattened slice size");
+            }
+            _ => size += 1,
+        }
+        size
+    }
+
     pub(crate) fn contains_slice_element(&self) -> bool {
         match self {
             Type::Array(elements, _) => {
@@ -92,19 +107,17 @@ impl Type {
         }
     }
 
-    /// Returns the flattened size of a Type
-    pub(crate) fn flattened_size(&self) -> usize {
-        let mut size = 0;
-        match self {
-            Type::Array(elements, len) => {
-                size = elements.iter().fold(size, |sum, elem| sum + (elem.flattened_size() * len));
+    pub(crate) fn is_nested_slice(&self) -> bool {
+        let mut has_internal_slices = false;
+        if let Type::Slice(element_types) = self {
+            for typ in element_types.as_ref() {
+                if typ.contains_slice_element() {
+                    has_internal_slices = true;
+                    break;
+                }
             }
-            Type::Slice(_) => {
-                unimplemented!("ICE: cannot fetch flattened slice size");
-            }
-            _ => size += 1,
         }
-        size
+        return has_internal_slices;
     }
 }
 

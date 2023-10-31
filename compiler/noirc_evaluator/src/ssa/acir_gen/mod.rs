@@ -994,6 +994,16 @@ impl Context {
             self.copy_dynamic_array(block_id, result_block_id, array_len)?;
         }
 
+        // TODO: add max sizes to this? 
+        // if array_typ.contains_slice_element() {
+            // let slice_sizes = self.slice_sizes.get(&array_id);
+            // dbg!(slice_sizes);
+
+            // dbg!(store_value.clone());
+
+            // dbg!(map_array);
+        // }
+
         self.array_set_value(store_value, result_block_id, &mut var_index)?;
 
         // Set new resulting array to have the same slice sizes as the instruction input
@@ -1020,6 +1030,8 @@ impl Context {
 
         let element_type_sizes =
             self.init_element_type_sizes_array(&array_typ, array_id, None, dfg)?;
+
+        // dbg!(array_len);
         let result_value = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
             len: array_len,
@@ -1209,7 +1221,8 @@ impl Context {
                 .into());
             }
         }
-
+        // dbg!(array_id);
+        // dbg!(flat_elem_type_sizes.clone());
         // The final array should will the flattened index at each outer array index
         let init_values = vecmap(flat_elem_type_sizes, |type_size| {
             let var = self.acir_context.add_constant(FieldElement::from(type_size as u128));
@@ -1743,38 +1756,70 @@ impl Context {
                 Ok(vec![AcirValue::Var(self.acir_context.add_constant(len), AcirType::field())])
             }
             Intrinsic::SlicePushBack => {
+                dbg!(arguments.len());
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
                 let (array_id, array_typ, _) =
                     self.check_array_is_initialized(arguments[1], dfg)?;
                 let slice = self.convert_value(arguments[1], dfg);
 
                 // TODO(#3364): make sure that we have handled nested struct inputs
-                let element = self.convert_value(arguments[2], dfg);
+                let mut new_slice = Vector::new();
+                self.slice_intrinsic_input(&mut new_slice, slice.clone())?;
+
+                let mut new_elem_size = Self::flattened_value_size(&slice);
+                dbg!(new_elem_size);
+                dbg!(self.flattened_slice_size(arguments[1], dfg));
+                // TODO: just adding like this for a complex type that is at the end of the slice
+                // will cause OOB when we later do an array set as the dynamic array is larger than expected
+                // perhaps if we have a nested slice we just write and other we do the normal version
+                // Perhaps we need to actually predicate check whether length == capacity
+                // as we have an overflow when we later 
+                let slice_typ = dfg.type_of_value(arguments[1]);
+                dbg!(slice_typ.contains_slice_element());
+                dbg!(slice_typ.is_nested_slice());
+                if !slice_typ.is_nested_slice() {
+                    for elem in &arguments[2..] {
+                        let element = self.convert_value(*elem, dfg);
+    
+                        new_elem_size += Self::flattened_value_size(&element);
+                        // dbg!(element.clone());
+                        new_slice.push_back(element);
+                    }
+                }
+
+                // NOTE: This works for a primitive type
+                // let element = self.convert_value(arguments[2], dfg);
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
                 // We attach the element no matter what in case len == capacity, as otherwise we
                 // may get an out of bounds error.
-                let mut new_slice = Vector::new();
-                self.slice_intrinsic_input(&mut new_slice, slice.clone())?;
-                new_slice.push_back(element.clone());
+                // let mut new_slice = Vector::new();
+                // self.slice_intrinsic_input(&mut new_slice, slice.clone())?;
+                // new_slice.push_back(element.clone());
 
                 // TODO(#3364): This works for non-nested outputs
-                let len = Self::flattened_value_size(&slice);
-                let new_elem_size = Self::flattened_value_size(&element);
                 let new_slice_val = AcirValue::Array(new_slice);
                 let result_block_id = self.block_id(&result_ids[1]);
                 self.initialize_array(
                     result_block_id,
-                    len + new_elem_size,
+                    new_elem_size,
                     Some(new_slice_val.clone()),
                 )?;
                 let mut var_index = slice_length;
-                self.array_set_value(element, result_block_id, &mut var_index)?;
+                let mut var_index = self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
+                // This is just for testing
+                // let zero = self.acir_context.add_constant(FieldElement::zero());
+                // let mut var_index = zero;
+
+                for elem in &arguments[2..] {
+                    let element = self.convert_value(*elem, dfg);
+                    self.array_set_value(element, result_block_id, &mut var_index)?;
+                }
 
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
-                    len: len + new_elem_size,
+                    len: new_elem_size,
                     element_type_sizes: self.init_element_type_sizes_array(
                         &array_typ,
                         array_id,
@@ -1787,6 +1832,7 @@ impl Context {
             Intrinsic::SlicePushFront => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
                 let slice: AcirValue = self.convert_value(arguments[1], dfg);
+
                 // TODO(#3364): make sure that we have handled nested struct inputs
                 let element = self.convert_value(arguments[2], dfg);
 
