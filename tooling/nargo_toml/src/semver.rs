@@ -155,7 +155,7 @@ mod tests {
             required_compiler_version: "0.2.0".to_string(),
             compiler_version_found: "0.1.0".to_string(),
         };
-        assert_eq!(got_err, expected_version_error.into());
+        assert_eq!(got_err, expected_version_error);
     }
 
     #[test]
