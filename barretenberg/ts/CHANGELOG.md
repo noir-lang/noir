@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.13.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.12.0...barretenberg.js-v0.13.0) (2023-10-31)
+
+
+### Features
+
+* New script to output table of benchmarks for README pasting. ([#2780](https://github.com/AztecProtocol/aztec-packages/issues/2780)) ([6c20b45](https://github.com/AztecProtocol/aztec-packages/commit/6c20b45993ee9cbd319ab8351e2722e0c912f427))
+
+
+### Miscellaneous
+
+* Automatic c_binds for commit should return a point instead of an Fr element ([#3072](https://github.com/AztecProtocol/aztec-packages/issues/3072)) ([2e289a5](https://github.com/AztecProtocol/aztec-packages/commit/2e289a5d11d28496ac47220bede03268065e0cb7))
+* Remove unecessary calls to `pedersen__init` ([#3079](https://github.com/AztecProtocol/aztec-packages/issues/3079)) ([84f8db2](https://github.com/AztecProtocol/aztec-packages/commit/84f8db20f482242ac29a23eb4c8876f14f060b4c))
+* Remove unused pedersen c_binds ([#3058](https://github.com/AztecProtocol/aztec-packages/issues/3058)) ([e71e5f9](https://github.com/AztecProtocol/aztec-packages/commit/e71e5f94ba920208e7cc9b2b1b9d62678b699812))
+
 ## [0.12.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.11.1...barretenberg.js-v0.12.0) (2023-10-26)
 
 
