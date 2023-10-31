@@ -85,10 +85,9 @@ it('end-to-end proving and verification with different instances', async () => {
 
   const proof = await prover.generateFinalProof(witness);
 
-  // try {
   const verifier = new Backend(assert_lt_program);
-  const verify = await verifier.verifyFinalProof(proof);
-  expect(verify).to.be.true;
+  const proof_is_valid = await verifier.verifyFinalProof(proof);
+  expect(proof_is_valid).to.be.true;
 });
 
 // This bug occurs when we use the same backend to create an inner proof and then an outer proof
