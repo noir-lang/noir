@@ -454,6 +454,32 @@ jobs:
             echo "export DOCKER_BUILDKIT=" > $BASH_ENV
             build aztec-sandbox false arm64
 
+  cli-x86_64:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build cli false x86_64
+
+  cli-arm64:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: arm.large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          # We need to force not to use docker buildkit because for some reason on arm only, it ends up making a call
+          # out to eu-west2 despite the image being locally tagged, resulting in unauthorized 401. Weird docker bug?
+          command: |
+            echo "export DOCKER_BUILDKIT=" > $BASH_ENV
+            build cli false arm64
+
   aztec-p2p-bootstrap:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -547,6 +573,7 @@ jobs:
           command: |
             create_ecr_manifest aztec-sandbox x86_64,arm64
             create_ecr_manifest pxe x86_64,arm64
+            create_ecr_manifest cli x86_64,arm64
 
   boxes-blank-react:
     machine:
@@ -1260,6 +1287,15 @@ workflows:
             - yarn-project
           <<: *defaults
 
+      - cli-x86_64:
+          requires:
+            - yarn-project
+          <<: *defaults
+      - cli-arm64:
+          requires:
+            - yarn-project
+          <<: *defaults
+
       - aztec-p2p-bootstrap:
           requires:
             - yarn-project
@@ -1290,6 +1326,8 @@ workflows:
             - aztec-sandbox-arm64
             - pxe-x86_64
             - pxe-arm64
+            - cli-x86_64
+            - cli-arm64
           <<: *defaults
 
       - boxes-blank-react:

@@ -34,7 +34,7 @@ fi
 
 # fallback on docker
 
-CLI_IMAGE=${CLI_IMAGE:-"aztecprotocol/aztec-cli"}
+CLI_IMAGE=${CLI_IMAGE:-"aztecprotocol/cli"}
 CLI_VERSION=${CLI_VERSION:-"latest"}
 
 DOCKER_PATH=""

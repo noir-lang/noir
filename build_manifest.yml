@@ -124,7 +124,7 @@ aztec-faucet:
   dependencies:
     - yarn-project
 
-aztec-cli:
+cli:
   buildDir: yarn-project
   projectDir: yarn-project/cli
   dependencies:
