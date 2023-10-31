@@ -16,4 +16,5 @@ fxhash.workspace = true
 iter-extended.workspace = true
 thiserror.workspace = true
 num-bigint = "0.4"
-im = "15.1"
+im = { version = "15.1", features = ["serde"] }
+serde.workspace = true

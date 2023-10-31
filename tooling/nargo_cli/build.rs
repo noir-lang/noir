@@ -6,8 +6,8 @@ use std::{env, fs};
 
 fn check_rustc_version() {
     assert!(
-        version().unwrap() >= Version::parse("1.66.0").unwrap(),
-        "The minimal supported rustc version is 1.66.0."
+        version().unwrap() >= Version::parse("1.71.1").unwrap(),
+        "The minimal supported rustc version is 1.71.1."
     );
 }
 

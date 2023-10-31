@@ -1,4 +1,3 @@
-
 fn ret_normal_lambda1() -> fn() -> Field {
     || 10
 }
@@ -70,10 +69,10 @@ fn main() {
     assert(accepts_closure3(|| y as u64 + z) == 70);
 
     let w = 50;
-    assert(add_results(|| 100, || x ) == 150);
-    assert(add_results(|| x + 100, || w + x ) == 250);
+    assert(add_results(|| 100, || x) == 150);
+    assert(add_results(|| x + 100, || w + x) == 250);
 
-    let arr = [1,2,3,4];
+    let arr = [1, 2, 3, 4];
 
     assert(map(arr, |n| n + 1) == [2, 3, 4, 5]);
     assert(map(arr, |n| n + x) == [51, 52, 53, 54]);

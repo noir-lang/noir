@@ -2,6 +2,4 @@
 name = "to_bytes_integration"
 type = "bin"
 authors = [""]
-compiler_version = "0.1"
-
 [dependencies]

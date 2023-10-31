@@ -2,10 +2,11 @@ use crate::backends::Backend;
 use crate::errors::CliError;
 
 use super::fs::{create_named_dir, write_to_file};
-use super::{NargoConfig, CARGO_PKG_VERSION};
+use super::NargoConfig;
 use clap::Args;
 use nargo::constants::{PKG_FILE, SRC_DIR};
 use nargo::package::PackageType;
+use noirc_driver::NOIRC_VERSION;
 use noirc_frontend::graph::CrateName;
 use std::path::PathBuf;
 
@@ -29,38 +30,9 @@ pub(crate) struct InitCommand {
     pub(crate) contract: bool,
 }
 
-const BIN_EXAMPLE: &str = r#"fn main(x : Field, y : pub Field) {
-    assert(x != y);
-}
-
-#[test]
-fn test_main() {
-    main(1, 2);
-
-    // Uncomment to make test fail
-    // main(1, 1);
-}
-"#;
-
-const CONTRACT_EXAMPLE: &str = r#"contract Main {
-    internal fn double(x: Field) -> pub Field { x * 2 }
-    fn triple(x: Field) -> pub Field { x * 3 }
-    fn quadruple(x: Field) -> pub Field { double(double(x)) }
-}
-"#;
-
-const LIB_EXAMPLE: &str = r#"fn my_util(x : Field, y : Field) -> bool {
-    x != y
-}
-
-#[test]
-fn test_my_util() {
-    assert(my_util(1, 2));
-
-    // Uncomment to make test fail
-    // assert(my_util(1, 1));
-}
-"#;
+const BIN_EXAMPLE: &str = include_str!("./noir_template_files/binary.nr");
+const CONTRACT_EXAMPLE: &str = include_str!("./noir_template_files/contract.nr");
+const LIB_EXAMPLE: &str = include_str!("./noir_template_files/library.nr");
 
 pub(crate) fn run(
     // Backend is currently unused, but we might want to use it to inform the "new" template in the future
@@ -101,7 +73,7 @@ pub(crate) fn initialize_project(
 name = "{package_name}"
 type = "{package_type}"
 authors = [""]
-compiler_version = "{CARGO_PKG_VERSION}"
+compiler_version = ">={NOIRC_VERSION}"
 
 [dependencies]"#
     );
