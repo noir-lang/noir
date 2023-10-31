@@ -55,7 +55,7 @@ impl BlackBoxFunctionSolver for MockBackend {
         _signature: &[u8],
         _message: &[u8],
     ) -> Result<bool, acvm::BlackBoxResolutionError> {
-        unimplemented!()
+        Err(acvm::BlackBoxResolutionError::Unsupported(acvm::acir::BlackBoxFunc::SchnorrVerify))
     }
 
     fn pedersen_commitment(
@@ -63,7 +63,9 @@ impl BlackBoxFunctionSolver for MockBackend {
         _inputs: &[acvm::FieldElement],
         _domain_separator: u32,
     ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
-        unimplemented!()
+        Err(acvm::BlackBoxResolutionError::Unsupported(
+            acvm::acir::BlackBoxFunc::PedersenCommitment,
+        ))
     }
 
     fn fixed_base_scalar_mul(
@@ -71,7 +73,9 @@ impl BlackBoxFunctionSolver for MockBackend {
         _low: &acvm::FieldElement,
         _high: &acvm::FieldElement,
     ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
-        unimplemented!()
+        Err(acvm::BlackBoxResolutionError::Unsupported(
+            acvm::acir::BlackBoxFunc::FixedBaseScalarMul,
+        ))
     }
 
     fn pedersen_hash(
@@ -79,6 +83,6 @@ impl BlackBoxFunctionSolver for MockBackend {
         _inputs: &[acvm::FieldElement],
         _domain_separator: u32,
     ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
-        unimplemented!()
+        Err(acvm::BlackBoxResolutionError::Unsupported(acvm::acir::BlackBoxFunc::PedersenHash))
     }
 }
