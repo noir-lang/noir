@@ -1,21 +1,9 @@
-name: Publish Nargo
+name: Publish Nargo Feature
 
 on:
-  workflow_dispatch:
-    # Allow pushing a manual nightly release
-    inputs:
-      tag:
-        description: The tag to build Nargo from (leave empty to build a nightly release from master)
-        required: false
-      features:
-        description: Extra feature flags to release with
-        required: false
-      publish:
-        description: Whether to publish the build artifacts
-        type: boolean
-        default: false
-  merge_group:
   pull_request:
+    branches:
+      - '*'
 
 permissions:
   # Necessary to upload new release artifacts
@@ -26,7 +14,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
-      NIGHTLY_RELEASE: ${{ inputs.tag == '' }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -36,7 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || env.GITHUB_REF }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
@@ -55,4 +43,4 @@ jobs:
           tool: cross@0.2.5
 
       - name: Build Nargo
-        run: cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }} noirc_frontend/aztec"
+        run: cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ github.event.pull_request.body }} noirc_frontend/aztec"
