@@ -657,11 +657,8 @@ mod tests {
 
         let (inner_slice_small_contents, _) =
             func.dfg.get_array_constant(array_constant[1]).expect("should have an array constant");
-        assert_eq!(
-            inner_slice_small_contents.len(),
-            4,
-            "The inner slice contents should contain dummy element"
-        );
+        let small_capacity = inner_slice_small_contents.len();
+        assert_eq!(small_capacity, 4, "The inner slice contents should contain dummy element");
 
         compare_array_constants(&inner_slice_small_contents, &[1, 1, 1, 0], &func.dfg);
 
@@ -677,9 +674,9 @@ mod tests {
 
         let (inner_slice_big_contents, _) =
             func.dfg.get_array_constant(array_constant[3]).expect("should have an array constant");
+        let big_capacity = inner_slice_big_contents.len();
         assert_eq!(
-            inner_slice_small_contents.len(),
-            inner_slice_big_contents.len(),
+            small_capacity, big_capacity,
             "The length of both internal slice contents should be the same"
         );
 
