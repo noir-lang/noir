@@ -4,7 +4,7 @@ import { siloNullifier } from '@aztec/circuits.js/abis';
 import { DebugLogger } from '@aztec/foundation/log';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { TestContract } from '@aztec/noir-contracts/types';
-import { AztecNode, NotePreimage, PXE, TxStatus } from '@aztec/types';
+import { AztecNode, ExtendedNote, Note, PXE, TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
@@ -74,8 +74,16 @@ describe('e2e_non_contract_account', () => {
     expect(nonZeroCommitments?.length).toBe(1);
 
     // Add the note
-    const preimage = new NotePreimage([new Fr(value)]);
-    await wallet.addNote(wallet.getCompleteAddress().address, contract.address, new Fr(1), preimage, receipt.txHash);
+    const note = new Note([new Fr(value)]);
+    const storageSlot = new Fr(1);
+    const extendedNote = new ExtendedNote(
+      note,
+      wallet.getCompleteAddress().address,
+      contract.address,
+      storageSlot,
+      receipt.txHash,
+    );
+    await wallet.addNote(extendedNote);
 
     expect(await contract.methods.get_constant().view()).toEqual(value);
   });
