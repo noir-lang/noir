@@ -6,24 +6,24 @@ use dep::aztec::constants_gen::RETURN_VALUES_LENGTH;
 
 struct AStructTestCodeGenStruct {
   amount: Field,
-  secretHash: Field,
+  secret_hash: Field,
 }
 
 struct ADeepStructTestCodeGenStruct {
-  aField: Field,
-  aBool: bool,
-  aNote: ANoteADeepStructTestCodeGenStruct,
-  manyNotes: [ManyNotesADeepStructTestCodeGenStruct;3],
+  a_field: Field,
+  a_bool: bool,
+  a_note: ANoteADeepStructTestCodeGenStruct,
+  many_notes: [ManyNotesADeepStructTestCodeGenStruct;3],
 }
 
 struct ANoteADeepStructTestCodeGenStruct {
   amount: Field,
-  secretHash: Field,
+  secret_hash: Field,
 }
 
 struct ManyNotesADeepStructTestCodeGenStruct {
   amount: Field,
-  secretHash: Field,
+  secret_hash: Field,
 }
 
 
@@ -83,11 +83,11 @@ impl TestPrivateContextInterface {
     self,
     context: &mut PrivateContext,
     amount: Field,
-    secretHash: Field
+    secret_hash: Field
   ) {
     let mut serialized_args = [0; 2];
     serialized_args[0] = amount;
-    serialized_args[1] = secretHash;
+    serialized_args[1] = secret_hash;
 
     context.call_public_function(self.address, 0x9749ca06, serialized_args)
   }
@@ -97,11 +97,11 @@ impl TestPrivateContextInterface {
     self,
     context: &mut PrivateContext,
     amount: Field,
-    secretHash: Field
+    secret_hash: Field
   ) {
     let mut serialized_args = [0; 2];
     serialized_args[0] = amount;
-    serialized_args[1] = secretHash;
+    serialized_args[1] = secret_hash;
 
     context.call_public_function(self.address, 0xdf02db8d, serialized_args)
   }
@@ -197,34 +197,46 @@ impl TestPrivateContextInterface {
   }
   
 
+  pub fn set_constant(
+    self,
+    context: &mut PrivateContext,
+    value: Field
+  ) -> [Field; RETURN_VALUES_LENGTH] {
+    let mut serialized_args = [0; 1];
+    serialized_args[0] = value;
+
+    context.call_private_function(self.address, 0x1b3b9e18, serialized_args)
+  }
+  
+
   pub fn test_code_gen(
     self,
     context: &mut PrivateContext,
-    aField: Field,
-    aBool: bool,
-    aNumber: u32,
-    anArray: [Field;2],
-    aStruct: AStructTestCodeGenStruct,
-    aDeepStruct: ADeepStructTestCodeGenStruct
+    a_field: Field,
+    a_bool: bool,
+    a_number: u32,
+    an_array: [Field;2],
+    a_struct: AStructTestCodeGenStruct,
+    a_deep_struct: ADeepStructTestCodeGenStruct
   ) -> [Field; RETURN_VALUES_LENGTH] {
     let mut serialized_args = [0; 17];
-    serialized_args[0] = aField;
-    serialized_args[1] = aBool as Field;
-    serialized_args[2] = aNumber as Field;
-    serialized_args[3] = anArray[0];
-    serialized_args[4] = anArray[1];
-    serialized_args[5] = aStruct.amount;
-    serialized_args[6] = aStruct.secretHash;
-    serialized_args[7] = aDeepStruct.aField;
-    serialized_args[8] = aDeepStruct.aBool as Field;
-    serialized_args[9] = aDeepStruct.aNote.amount;
-    serialized_args[10] = aDeepStruct.aNote.secretHash;
-    serialized_args[11] = aDeepStruct.manyNotes[0].amount;
-    serialized_args[12] = aDeepStruct.manyNotes[0].secretHash;
-    serialized_args[13] = aDeepStruct.manyNotes[1].amount;
-    serialized_args[14] = aDeepStruct.manyNotes[1].secretHash;
-    serialized_args[15] = aDeepStruct.manyNotes[2].amount;
-    serialized_args[16] = aDeepStruct.manyNotes[2].secretHash;
+    serialized_args[0] = a_field;
+    serialized_args[1] = a_bool as Field;
+    serialized_args[2] = a_number as Field;
+    serialized_args[3] = an_array[0];
+    serialized_args[4] = an_array[1];
+    serialized_args[5] = a_struct.amount;
+    serialized_args[6] = a_struct.secret_hash;
+    serialized_args[7] = a_deep_struct.a_field;
+    serialized_args[8] = a_deep_struct.a_bool as Field;
+    serialized_args[9] = a_deep_struct.a_note.amount;
+    serialized_args[10] = a_deep_struct.a_note.secret_hash;
+    serialized_args[11] = a_deep_struct.many_notes[0].amount;
+    serialized_args[12] = a_deep_struct.many_notes[0].secret_hash;
+    serialized_args[13] = a_deep_struct.many_notes[1].amount;
+    serialized_args[14] = a_deep_struct.many_notes[1].secret_hash;
+    serialized_args[15] = a_deep_struct.many_notes[2].amount;
+    serialized_args[16] = a_deep_struct.many_notes[2].secret_hash;
 
     context.call_private_function(self.address, 0x0f054f9b, serialized_args)
   }
@@ -270,11 +282,11 @@ impl TestPublicContextInterface {
     self,
     context: PublicContext,
     amount: Field,
-    secretHash: Field
+    secret_hash: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
     let mut serialized_args = [0; 2];
     serialized_args[0] = amount;
-    serialized_args[1] = secretHash;
+    serialized_args[1] = secret_hash;
 
     context.call_public_function(self.address, 0x9749ca06, serialized_args)
   }
@@ -284,11 +296,11 @@ impl TestPublicContextInterface {
     self,
     context: PublicContext,
     amount: Field,
-    secretHash: Field
+    secret_hash: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
     let mut serialized_args = [0; 2];
     serialized_args[0] = amount;
-    serialized_args[1] = secretHash;
+    serialized_args[1] = secret_hash;
 
     context.call_public_function(self.address, 0xdf02db8d, serialized_args)
   }

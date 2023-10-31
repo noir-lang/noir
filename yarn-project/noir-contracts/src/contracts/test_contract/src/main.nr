@@ -1,28 +1,49 @@
 // A contract used for testing a random hodgepodge of small features from simulator and end-to-end tests.
 contract Test {
+    use dep::std::option::Option;
+
     // docs:start:unencrypted_import
     use dep::aztec::log::emit_unencrypted_log;
     // docs:end:unencrypted_import
 
     use dep::aztec::{
+        context::Context,
         abi,
         abi::PrivateContextInputs,
         hash::pedersen_hash,
         context::PrivateContext,
+        note::{
+            note_header::NoteHeader,
+            utils as note_utils,
+        },
         oracle::{
             get_public_key::get_public_key as get_public_key_oracle,
             context::get_portal_address,
             rand::rand
         },
+        state_vars::immutable_singleton::ImmutableSingleton,
         log::emit_unencrypted_log_from_private,
         types::vec::BoundedVec,
         constants_gen::EMPTY_NULLIFIED_COMMITMENT,
     };
     use dep::token_portal_content_hash_lib::{get_mint_private_content_hash, get_mint_public_content_hash};
+    use dep::field_note::field_note::{FieldNote, FieldNoteMethods, FIELD_NOTE_LEN};
 
     #[event]
     struct ExampleEvent {
         value: Field,
+    }
+
+    struct Storage {
+        example_constant: ImmutableSingleton<FieldNote, FIELD_NOTE_LEN>,
+    }
+
+    impl Storage {
+        fn init(context: Context) -> pub Self {
+            Storage {
+                example_constant: ImmutableSingleton::new(context, 1, FieldNoteMethods),
+            }
+        }
     }
 
     #[aztec(private)]
@@ -64,27 +85,27 @@ contract Test {
     // Note; this function is deliberately NOT annotated with #[aztec(private)] due to its use in tests
     fn test_code_gen(
         inputs: PrivateContextInputs,
-        aField: Field,
-        aBool: bool,
-        aNumber: u32,
-        anArray: [Field; 2],
-        aStruct: DummyNote,
-        aDeepStruct: DeepStruct,
+        a_field: Field,
+        a_bool: bool,
+        a_number: u32,
+        an_array: [Field; 2],
+        a_struct: DummyNote,
+        a_deep_struct: DeepStruct,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let mut args: BoundedVec<Field, 17> = BoundedVec::new(0);
-        args.push(aField);
-        args.push(aBool as Field);
-        args.push(aNumber as Field);
-        args.push_array(anArray);
-        args.push(aStruct.amount);
-        args.push(aStruct.secretHash);
-        args.push(aDeepStruct.aField);
-        args.push(aDeepStruct.aBool as Field);
-        args.push(aDeepStruct.aNote.amount);
-        args.push(aDeepStruct.aNote.secretHash);
-        for note in aDeepStruct.manyNotes {
+        args.push(a_field);
+        args.push(a_bool as Field);
+        args.push(a_number as Field);
+        args.push_array(an_array);
+        args.push(a_struct.amount);
+        args.push(a_struct.secret_hash);
+        args.push(a_deep_struct.a_field);
+        args.push(a_deep_struct.a_bool as Field);
+        args.push(a_deep_struct.a_note.amount);
+        args.push(a_deep_struct.a_note.secret_hash);
+        for note in a_deep_struct.many_notes {
             args.push(note.amount);
-            args.push(note.secretHash);            
+            args.push(note.secret_hash);            
         }
         let args_hash = abi::hash_args(args.storage);
         let mut context = PrivateContext::new(inputs, args_hash);
@@ -96,10 +117,10 @@ contract Test {
     #[aztec(public)]
     fn create_l2_to_l1_message_public(
         amount: Field,
-        secretHash: Field,
+        secret_hash: Field,
     ) {
         // Create a commitment to the amount
-        let note = DummyNote::new(amount, secretHash);
+        let note = DummyNote::new(amount, secret_hash);
         
         // Public oracle call to emit new commitment.
         context.message_portal(note.get_commitment());
@@ -110,10 +131,10 @@ contract Test {
     #[aztec(public)]
     fn create_nullifier_public(
         amount: Field,
-        secretHash: Field,
+        secret_hash: Field,
     ) {
         // Create a commitment to the amount
-        let note = DummyNote::new(amount, secretHash);
+        let note = DummyNote::new(amount, secret_hash);
         
         // Public oracle call to emit new commitment.
         context.push_new_nullifier(note.get_commitment(), EMPTY_NULLIFIED_COMMITMENT);
@@ -177,6 +198,19 @@ contract Test {
         context.consume_l1_to_l2_message(msg_key, content_hash, secret_for_L1_to_L2_message_consumption);
     }
 
+    #[aztec(private)]
+    fn set_constant(
+        value: Field,
+    ) {
+        let mut note = FieldNote::new(value);
+        storage.example_constant.initialize(&mut note, Option::none(), false);
+    }
+
+    unconstrained fn get_constant() -> Field {
+        let constant = storage.example_constant.view_note();
+        constant.value
+    }
+
     // Purely exists for testing
     unconstrained fn get_random(
         kindaSeed: Field
@@ -186,26 +220,35 @@ contract Test {
 
     struct DummyNote {
         amount: Field,
-        secretHash: Field
+        secret_hash: Field
     }
 
     impl DummyNote {
-        fn new(amount: Field, secretHash: Field) -> pub Self {
+        fn new(amount: Field, secret_hash: Field) -> pub Self {
             Self {
                 amount: amount,
-                secretHash: secretHash
+                secret_hash: secret_hash
             }
         }
 
         fn get_commitment(self) -> pub Field {
-            pedersen_hash([self.amount, self.secretHash],0)
+            pedersen_hash([self.amount, self.secret_hash],0)
         }
     }
 
     struct DeepStruct {
-        aField: Field,
-        aBool: bool,
-        aNote: DummyNote,
-        manyNotes: [DummyNote; 3],
+        a_field: Field,
+        a_bool: bool,
+        a_note: DummyNote,
+        many_notes: [DummyNote; 3],
+    }
+
+    // Computes note hash and nullifier.
+    // Note 1: Needs to be defined by every contract producing logs.
+    // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
+    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; FIELD_NOTE_LEN]) -> [Field; 4] {
+        assert(storage_slot == 1);
+        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+        note_utils::compute_note_hash_and_nullifier(FieldNoteMethods, note_header, preimage)
     }
 }

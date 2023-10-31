@@ -32,15 +32,15 @@ contract ImportTest {
             true,
             1 as u32,
             [1, 2],
-            AStructTestCodeGenStruct { amount: 1, secretHash: 2 },
+            AStructTestCodeGenStruct { amount: 1, secret_hash: 2 },
             ADeepStructTestCodeGenStruct {
-                aField: 1, 
-                aBool: true, 
-                aNote: ANoteADeepStructTestCodeGenStruct { amount: 1, secretHash: 2 },
-                manyNotes: [
-                    ManyNotesADeepStructTestCodeGenStruct { amount: 1, secretHash: 2 },
-                    ManyNotesADeepStructTestCodeGenStruct { amount: 1, secretHash: 2 },
-                    ManyNotesADeepStructTestCodeGenStruct { amount: 1, secretHash: 2 },
+                a_field: 1, 
+                a_bool: true, 
+                a_note: ANoteADeepStructTestCodeGenStruct { amount: 1, secret_hash: 2 },
+                many_notes: [
+                    ManyNotesADeepStructTestCodeGenStruct { amount: 1, secret_hash: 2 },
+                    ManyNotesADeepStructTestCodeGenStruct { amount: 1, secret_hash: 2 },
+                    ManyNotesADeepStructTestCodeGenStruct { amount: 1, secret_hash: 2 },
                 ]
             }
         );

@@ -4,7 +4,7 @@ import { siloNullifier } from '@aztec/circuits.js/abis';
 import { DebugLogger } from '@aztec/foundation/log';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { TestContract } from '@aztec/noir-contracts/types';
-import { AztecNode, PXE, TxStatus } from '@aztec/types';
+import { AztecNode, NotePreimage, PXE, TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
@@ -17,9 +17,9 @@ describe('e2e_non_contract_account', () => {
   let logger: DebugLogger;
 
   let contract: TestContract;
+  let wallet: Wallet;
 
   beforeEach(async () => {
-    let wallet: Wallet;
     ({ teardown, aztecNode, pxe, wallet, logger } = await setup(1));
     nonContractAccountWallet = new SignerlessWallet(pxe);
 
@@ -59,4 +59,24 @@ describe('e2e_non_contract_account', () => {
     const msgSender = toBigInt(logs[0].log.data);
     expect(msgSender).toBe(0n);
   }, 120_000);
+
+  // Note: This test doesn't really belong here as it doesn't have anything to do with non-contract accounts. I needed
+  // to test the FieldNote functionality and it doesn't really fit anywhere else. Creating a separate e2e test for this
+  // seems wasteful. Move this test if a better place is found.
+  it('can set and get a constant', async () => {
+    const value = 123n;
+
+    const receipt = await contract.methods.set_constant(value).send().wait({ interval: 0.1 });
+
+    // check that 1 commitment was created
+    const tx = await pxe.getTx(receipt.txHash);
+    const nonZeroCommitments = tx?.newCommitments.filter(c => c.value > 0);
+    expect(nonZeroCommitments?.length).toBe(1);
+
+    // Add the note
+    const preimage = new NotePreimage([new Fr(value)]);
+    await wallet.addNote(wallet.getCompleteAddress().address, contract.address, new Fr(1), preimage, receipt.txHash);
+
+    expect(await contract.methods.get_constant().view()).toEqual(value);
+  });
 });

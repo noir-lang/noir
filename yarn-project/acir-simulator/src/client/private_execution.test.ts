@@ -385,8 +385,10 @@ describe('Private Execution test suite', () => {
 
     beforeAll(async () => {
       // These args should match the ones hardcoded in importer contract
-      const dummyNote = { amount: 1, secretHash: 2 };
-      const deepStruct = { aField: 1, aBool: true, aNote: dummyNote, manyNotes: [dummyNote, dummyNote, dummyNote] };
+      // eslint-disable-next-line camelcase
+      const dummyNote = { amount: 1, secret_hash: 2 };
+      // eslint-disable-next-line camelcase
+      const deepStruct = { a_field: 1, a_bool: true, a_note: dummyNote, many_notes: [dummyNote, dummyNote, dummyNote] };
       args = [1, true, 1, [1, 2], dummyNote, deepStruct];
       testCodeGenArtifact = getFunctionArtifact(TestContractArtifact, 'test_code_gen');
       const serializedArgs = encodeArguments(testCodeGenArtifact, args);
