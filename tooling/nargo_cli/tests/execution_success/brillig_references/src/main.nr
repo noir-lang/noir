@@ -18,12 +18,7 @@ unconstrained fn main(mut x: Field) {
     assert(**nested_allocations.y == 1);
 
     // Test nested struct allocations with a mutable reference to an array.
-    let mut c = C {
-        foo: 0,
-        bar: &mut C2 {
-            array: &mut [1, 2],
-        },
-    };
+    let mut c = C { foo: 0, bar: &mut C2 { array: &mut [1, 2] } };
     *c.bar.array = [3, 4];
     let arr: [Field; 2] = *c.bar.array;
     assert(arr[0] == 3);

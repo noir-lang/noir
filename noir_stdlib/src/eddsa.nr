@@ -33,7 +33,6 @@ pub fn eddsa_poseidon_verify(
 ) -> bool {
     // Verifies by testing:
     // S * B8 = R8 + H(R8, A, m) * A8
-
     let bjj = baby_jubjub();
 
     let pub_key = TEPoint::new(pub_key_x, pub_key_y);
@@ -46,13 +45,7 @@ pub fn eddsa_poseidon_verify(
     assert(lt_bytes32(signature_s, bjj.suborder));
 
     // Calculate the h = H(R, A, msg)
-    let hash: Field = poseidon::bn254::hash_5([
-        signature_r8_x,
-        signature_r8_y,
-        pub_key_x,
-        pub_key_y,
-        message,
-    ]);
+    let hash: Field = poseidon::bn254::hash_5([signature_r8_x, signature_r8_y, pub_key_x, pub_key_y, message]);
 
     // Calculate second part of the right side:  right2 = h*8*A
 
