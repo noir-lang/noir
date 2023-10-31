@@ -213,8 +213,20 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         self.brillig_solver.as_ref().map(|solver| solver.get_registers())
     }
 
+    pub(super) fn set_brillig_register(&mut self, register_index: usize, value: FieldElement) {
+        if let Some(solver) = self.brillig_solver.as_mut() {
+            solver.set_register(register_index, value.into());
+        }
+    }
+
     pub(super) fn get_brillig_memory(&self) -> Option<&Vec<Value>> {
         self.brillig_solver.as_ref().map(|solver| solver.get_memory())
+    }
+
+    pub(super) fn write_brillig_memory(&mut self, ptr: usize, value: FieldElement) {
+        if let Some(solver) = self.brillig_solver.as_mut() {
+            solver.write_memory_at(ptr, value.into());
+        }
     }
 
     fn breakpoint_reached(&self) -> bool {

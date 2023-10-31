@@ -298,13 +298,14 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     }
 
     pub fn update_witness(&mut self, index: u32, value: String) {
-        if let Some(field_value) = FieldElement::try_from_str(&value) {
-            let witness = Witness::from(index);
-            _ = self.context.overwrite_witness(witness, field_value);
-            println!("_{} = {value}", index);
-        } else {
+        let Some(field_value) = FieldElement::try_from_str(&value) else {
             println!("Invalid witness value: {value}");
-        }
+            return;
+        };
+
+        let witness = Witness::from(index);
+        _ = self.context.overwrite_witness(witness, field_value);
+        println!("_{} = {value}", index);
     }
 
     pub fn show_brillig_registers(&self) {
@@ -326,6 +327,18 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         }
     }
 
+    pub fn set_brillig_register(&mut self, index: usize, value: String) {
+        let Some(field_value) = FieldElement::try_from_str(&value) else {
+            println!("Invalid value: {value}");
+            return;
+        };
+        if !self.context.is_executing_brillig() {
+            println!("Not executing a Brillig block");
+            return;
+        }
+        self.context.set_brillig_register(index, field_value);
+    }
+
     pub fn show_brillig_memory(&self) {
         if !self.context.is_executing_brillig() {
             println!("Not executing a Brillig block");
@@ -343,6 +356,18 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         for (index, value) in memory.iter().enumerate() {
             println!("{index} = {}", value.to_field());
         }
+    }
+
+    pub fn write_brillig_memory(&mut self, index: usize, value: String) {
+        let Some(field_value) = FieldElement::try_from_str(&value) else {
+            println!("Invalid value: {value}");
+            return;
+        };
+        if !self.context.is_executing_brillig() {
+            println!("Not executing a Brillig block");
+            return;
+        }
+        self.context.write_brillig_memory(index, field_value);
     }
 
     fn is_solved(&self) -> bool {
@@ -496,11 +521,31 @@ pub fn run<B: BlackBoxFunctionSolver>(
             },
         )
         .add(
+            "regset",
+            command! {
+                "update a Brillig register with the given value",
+                (index: usize, value: String) => |index, value| {
+                    ref_context.borrow_mut().set_brillig_register(index, value);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
             "memory",
             command! {
                 "show Brillig memory (valid when executing a Brillig block)",
                 () => || {
                     ref_context.borrow().show_brillig_memory();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "memset",
+            command! {
+                "update a Brillig memory cell with the given value",
+                (index: usize, value: String) => |index, value| {
+                    ref_context.borrow_mut().write_brillig_memory(index, value);
                     Ok(CommandStatus::Done)
                 }
             },

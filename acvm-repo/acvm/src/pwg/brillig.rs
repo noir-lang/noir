@@ -116,8 +116,16 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         self.vm.get_registers()
     }
 
+    pub fn set_register(&mut self, register_index: usize, value: Value) {
+        self.vm.set_register(RegisterIndex(register_index), value);
+    }
+
     pub fn get_memory(&self) -> &Vec<Value> {
         self.vm.get_memory()
+    }
+
+    pub fn write_memory_at(&mut self, ptr: usize, value: Value) {
+        self.vm.write_memory_at(ptr, value);
     }
 
     pub(super) fn solve(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
