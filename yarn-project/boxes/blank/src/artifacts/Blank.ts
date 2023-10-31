@@ -79,6 +79,9 @@ export class BlankContract extends ContractBase {
   /** Type-safe wrappers for the public methods exposed by the contract. */
   public methods!: {
     
+    /** compute_note_hash_and_nullifier(contract_address: field, nonce: field, storage_slot: field, preimage: array) */
+    compute_note_hash_and_nullifier: ((contract_address: FieldLike, nonce: FieldLike, storage_slot: FieldLike, preimage: FieldLike[]) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
+
     /** getPublicKey(address: field) */
     getPublicKey: ((address: FieldLike) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
   };

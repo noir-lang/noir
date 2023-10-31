@@ -84,7 +84,7 @@ Add the following dependencies to your Nargo.toml file, below the package inform
 [package]
 name = "token_contract"
 authors = [""]
-compiler_version = "0.1"
+compiler_version = ">=0.18.0"
 type = "contract"
 
 [dependencies]
@@ -242,7 +242,7 @@ We are importing the Option type, items from the `value_note` library to help ma
 
 [SafeU120](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/safe-math/src/safe_u120.nr) is a library to do safe math operations on unsigned integers that protects against overflows and underflows.
 
-For more detail on execution contexts, see [Contract Communitaction](../../concepts/foundation/communication/main).
+For more detail on execution contexts, see [Contract Communication](../../concepts/foundation/communication/main).
 
 We are also importing types from a `types.nr` file. The main thing to note from this types file is the `TransparentNote` definition. This defines how the contract moves value from the public domain into the private domain. It is similar to the `value_note` that we imported, but with some modifications namely, instead of a defined `owner`, it allows anyone that can produce the pre-image to the stored `secret_hash` to spend the note.
 
@@ -475,6 +475,13 @@ A getter function to compute the note hash and nullifier for notes in the contra
 This must be included in every contract because it depends on the storage slots, which are defined when we set up storage.
 
 #include_code compute_note_hash_and_nullifier /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+:::danger
+If your contract works with storage (has Storage struct defined), you **MUST** include a `compute_note_hash_and_nullifier` function.
+If you don't yet have any private state variables defined put there a placeholder function:
+
+#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr rust
+:::
 
 ## Compiling
 

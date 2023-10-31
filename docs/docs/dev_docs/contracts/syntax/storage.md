@@ -38,8 +38,12 @@ struct Storage {
 }
 ```
 
-:::info
-If your contract storage includes private state variables, it must include a `compute_note_hash_and_nullifier` function to allow the RPC to process encrypted events. See [encrypted events](./events.md#processing-encrypted-events) for more.
+:::danger
+If your contract works with storage (has Storage struct defined), you **MUST** include a `compute_note_hash_and_nullifier` function to allow PXE to process encrypted events. See [encrypted events](./events.md#processing-encrypted-events) for more.
+
+If you don't yet have any private state variables defined put there a placeholder function:
+
+#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr rust
 :::
 
 Since Aztec.nr is written in Noir, which on its own is state-less, we need to specify how the storage struct should be initialized to read and write data correctly. This is done by specifying an `init` function that is run in functions that rely on reading or altering the state variables. This `init` function must declare the storage struct with an instantiation defining how variables are accessed and manipulated. The function MUST be called `init` for the Aztec.nr library to properly handle it (this will be relaxed in the future).

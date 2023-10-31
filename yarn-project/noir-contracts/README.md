@@ -126,7 +126,7 @@ It has prebuilt binaries and is super easy to install using `noirup`
    ```
    [package]
    authors = [""]
-   compiler_version = "0.7.1"
+   compiler_version = "0>=.18.0"
 
    [dependencies]
    aztec = { path = "../../../../aztec-nr/aztec" }

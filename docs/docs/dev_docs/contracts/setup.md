@@ -28,7 +28,7 @@ You need to setup the [Aztec sandbox](../getting_started/sandbox.md).
 
 ## Set up for aztec.nr contracts
 
-1. Inside the yarn project you created from the [Sanbox page](../getting_started/sandbox.md), create a sub-folder where the contracts will reside.
+1. Inside the yarn project you created from the [Sandbox page](../getting_started/sandbox.md), create a sub-folder where the contracts will reside.
 
 ```bash
 mkdir contracts
@@ -71,7 +71,7 @@ Open Nargo.toml that is in the `contracts/example_contract` folder, and add the 
 [package]
 name = "example_contract"
 authors = [""]
-compiler_version = "0.1"
+compiler_version = ">=0.18.0"
 type = "contract"
 
 [dependencies]

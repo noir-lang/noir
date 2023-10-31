@@ -381,4 +381,9 @@ contract Lending {
         
         [storage.collateral_asset.read(), storage.stable_coin.read()]
     }
+
+    // TODO: remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented
+    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; 0]) -> [Field; 4] {
+        [0, 0, 0, 0]
+    }
 }
