@@ -5,7 +5,9 @@
 // Auxiliary mappings; names as in FIPS PUB 180-4
 fn rotr64(a: u64, b: u64) -> u64 // 64-bit right rotation
 {
-    (a >> b) | (a << (64 - b))
+    // None of the bits overlap between `(a >> b)` and `(a << (64 - b))`
+    // Addition is then equivalent to OR, with fewer constraints.
+    (a >> b) + (crate::wrapping_shift_left(a, 64 - b))
 }
 
 fn sha_ch(x: u64, y: u64, z: u64) -> u64
@@ -50,9 +52,11 @@ fn sha_w(msg: [u64; 16]) -> [u64; 80] // Expanded message blocks
 
     for j in 16..80
     {
-        w[j] = sha_sigma1(w[j-2]) + w[j-7] + sha_sigma0(w[j-15]) + w[j-16];
+       w[j] = crate::wrapping_add(
+            crate::wrapping_add(sha_sigma1(w[j-2]), w[j-7]), 
+            crate::wrapping_add(sha_sigma0(w[j-15]), w[j-16]),
+        );
     };
-    
     w
 }
 
@@ -65,17 +69,18 @@ fn sha_c(msg: [u64; 16], hash: [u64; 8]) -> [u64; 8]
     let w = sha_w(msg);
     for j in 0..80
     {
-        let t1 = out_h[7] + sha_bigma1(out_h[4]) + sha_ch(out_h[4], out_h[5], out_h[6])
-            + K[j] + w[j];
-        let t2 = sha_bigma0(out_h[0]) + sha_maj(out_h[0], out_h[1], out_h[2]);
+        let out1 = crate::wrapping_add(out_h[7] , sha_bigma1(out_h[4]));
+        let out2 = crate::wrapping_add(out1, sha_ch(out_h[4], out_h[5], out_h[6]));
+        let t1 = crate::wrapping_add(crate::wrapping_add(out2, K[j]), w[j]);
+        let t2 = crate::wrapping_add( sha_bigma0(out_h[0]) , sha_maj(out_h[0], out_h[1], out_h[2]));
         out_h[7] = out_h[6];
         out_h[6] = out_h[5];
         out_h[5] = out_h[4];
-        out_h[4] = out_h[3] + t1;
+        out_h[4] = crate::wrapping_add(out_h[3] , t1);
         out_h[3] = out_h[2];
         out_h[2] = out_h[1];
         out_h[1] = out_h[0];
-        out_h[0] = t1 + t2;
+        out_h[0] = crate::wrapping_add(t1, t2);
     };
     
     out_h
@@ -98,7 +103,7 @@ fn msg_u8_to_u64(msg: [u8; 128]) -> [u64; 16]
 }
 
 // SHA-512 hash function
-fn digest<N>(msg: [u8; N]) -> [u8; 64]
+pub fn digest<N>(msg: [u8; N]) -> [u8; 64]
 {
     let mut msg_block: [u8; 128] = [0; 128];
     let mut h: [u64; 8] = [7640891576956012808, 13503953896175478587, 4354685564936845355, 11912009170470909681, 5840696475078001361, 11170449401992604703, 2270897969802886507, 6620516959819538809]; // Intermediate hash, starting with the canonical initial value
@@ -113,7 +118,7 @@ fn digest<N>(msg: [u8; N]) -> [u8; 64]
         if i == 128 { // Enough to hash block
             c = sha_c(msg_u8_to_u64(msg_block), h);
             for j in 0..8 {
-                h[j] += c[j];
+                h[j] = crate::wrapping_add(h[j], c[j]);
             }
             
             i = 0;
@@ -138,7 +143,7 @@ fn digest<N>(msg: [u8; N]) -> [u8; 64]
         }
         c = sha_c(msg_u8_to_u64(msg_block), h);
         for j in 0..8 {
-            h[j] += c[j];
+            h[j] = crate::wrapping_add(h[j], c[j]);
         }
         
         i = 0;
@@ -161,7 +166,7 @@ fn digest<N>(msg: [u8; N]) -> [u8; 64]
     // Hash final padded block
     c = sha_c(msg_u8_to_u64(msg_block), h);
     for j in 0..8 {
-        h[j] += c[j];
+        h[j] = crate::wrapping_add(h[j], c[j]);
     }
 
     // Return final hash as byte array

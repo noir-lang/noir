@@ -1,6 +1,6 @@
 use clap::Args;
 
-use acvm_backend_barretenberg::{backends_directory, download_backend};
+use backend_interface::{backends_directory, download_backend};
 
 use crate::errors::{BackendError, CliError};
 

@@ -4,10 +4,11 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 use clap::Args;
-use debug::filter_relevant_files;
 use fm::FileId;
-use noirc_abi::{AbiParameter, AbiType};
+use iter_extended::vecmap;
+use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
+use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
@@ -21,11 +22,22 @@ mod contract;
 mod debug;
 mod program;
 
+use debug::filter_relevant_files;
+
 pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
 pub use debug::DebugFile;
 pub use program::CompiledProgram;
 
 const STD_CRATE_NAME: &str = "std";
+
+pub const GIT_COMMIT: &str = env!("GIT_COMMIT");
+pub const GIT_DIRTY: &str = env!("GIT_DIRTY");
+pub const NOIRC_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Version string that gets placed in artifacts that Noir builds. This is semver compatible.
+/// Note: You can't directly use the value of a constant produced with env! inside a concat! macro.
+pub const NOIR_ARTIFACT_VERSION_STRING: &str =
+    concat!(env!("CARGO_PKG_VERSION"), "+", env!("GIT_COMMIT"));
 
 #[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CompileOptions {
@@ -41,8 +53,12 @@ pub struct CompileOptions {
     pub print_acir: bool,
 
     /// Treat all warnings as errors
-    #[arg(long)]
+    #[arg(long, conflicts_with = "silence_warnings")]
     pub deny_warnings: bool,
+
+    /// Suppress warnings
+    #[arg(long, conflicts_with = "deny_warnings")]
+    pub silence_warnings: bool,
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
@@ -53,13 +69,6 @@ pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
 
 /// Helper type for connecting a compilation artifact to the errors or warnings which were produced during compilation.
 pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
-
-// This is here for backwards compatibility
-// with the restricted version which only uses one file
-pub fn compile_file(context: &mut Context, root_file: &Path) -> CompilationResult<CompiledProgram> {
-    let crate_id = prepare_crate(context, root_file);
-    compile_main(context, crate_id, &CompileOptions::default())
-}
 
 /// Adds the file from the file system at `Path` to the crate graph as a root file
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
@@ -112,7 +121,11 @@ pub fn check_crate(
     deny_warnings: bool,
 ) -> CompilationResult<()> {
     let mut errors = vec![];
-    CrateDefMap::collect_defs(crate_id, context, &mut errors);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context);
+    errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
+        let diagnostic: CustomDiagnostic = error.into();
+        diagnostic.in_file(file_id)
+    }));
 
     if has_errors(&errors, deny_warnings) {
         Err(errors)
@@ -143,22 +156,27 @@ pub fn compile_main(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
+    cached_program: Option<CompiledProgram>,
+    force_compile: bool,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, warnings) = check_crate(context, crate_id, options.deny_warnings)?;
+    let (_, mut warnings) = check_crate(context, crate_id, options.deny_warnings)?;
 
-    let main = match context.get_main_function(&crate_id) {
-        Some(m) => m,
-        None => {
-            // TODO(#2155): This error might be a better to exist in Nargo
-            let err = CustomDiagnostic::from_message(
-                "cannot compile crate into a program as it does not contain a `main` function",
-            )
-            .in_file(FileId::default());
-            return Err(vec![err]);
-        }
-    };
+    let main = context.get_main_function(&crate_id).ok_or_else(|| {
+        // TODO(#2155): This error might be a better to exist in Nargo
+        let err = CustomDiagnostic::from_message(
+            "cannot compile crate into a program as it does not contain a `main` function",
+        )
+        .in_file(FileId::default());
+        vec![err]
+    })?;
 
-    let compiled_program = compile_no_check(context, options, main)?;
+    let compiled_program = compile_no_check(context, options, main, cached_program, force_compile)
+        .map_err(FileDiagnostic::from)?;
+    let compilation_warnings = vecmap(compiled_program.warnings.clone(), FileDiagnostic::from);
+    if options.deny_warnings && !compilation_warnings.is_empty() {
+        return Err(compilation_warnings);
+    }
+    warnings.extend(compilation_warnings);
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
@@ -185,6 +203,12 @@ pub fn compile_contract(
     if contracts.len() > 1 {
         let err = CustomDiagnostic::from_message("Packages are limited to a single contract")
             .in_file(FileId::default());
+        return Err(vec![err]);
+    } else if contracts.is_empty() {
+        let err = CustomDiagnostic::from_message(
+            "cannot compile crate into a contract as it does not contain any contracts",
+        )
+        .in_file(FileId::default());
         return Err(vec![err]);
     };
 
@@ -232,26 +256,40 @@ fn compile_contract_inner(
 ) -> Result<CompiledContract, ErrorsAndWarnings> {
     let mut functions = Vec::new();
     let mut errors = Vec::new();
-    for function_id in &contract.functions {
-        let name = context.function_name(function_id).to_owned();
-        let function = match compile_no_check(context, options, *function_id) {
+    let mut warnings = Vec::new();
+    for contract_function in &contract.functions {
+        let function_id = contract_function.function_id;
+        let is_entry_point = contract_function.is_entry_point;
+
+        let name = context.function_name(&function_id).to_owned();
+
+        // We assume that functions have already been type checked.
+        // This is the exact same assumption that compile_no_check makes.
+        // If it is not an entry-point point, we can then just skip the
+        // compilation step. It will also not be added to the ABI.
+        if !is_entry_point {
+            continue;
+        }
+
+        let function = match compile_no_check(context, options, function_id, None, true) {
             Ok(function) => function,
             Err(new_error) => {
-                errors.push(new_error);
+                errors.push(FileDiagnostic::from(new_error));
                 continue;
             }
         };
-        let func_meta = context.def_interner.function_meta(function_id);
-        let func_type = func_meta
+        warnings.extend(function.warnings);
+        let modifiers = context.def_interner.function_modifiers(&function_id);
+        let func_type = modifiers
             .contract_function_type
             .expect("Expected contract function to have a contract visibility");
 
-        let function_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
+        let function_type = ContractFunctionType::new(func_type, modifiers.is_unconstrained);
 
         functions.push(ContractFunction {
             name,
             function_type,
-            is_internal: func_meta.is_internal.unwrap_or(false),
+            is_internal: modifiers.is_internal.unwrap_or(false),
             abi: function.abi,
             bytecode: function.circuit,
             debug: function.debug,
@@ -262,28 +300,63 @@ fn compile_contract_inner(
         let debug_infos: Vec<_> = functions.iter().map(|function| function.debug.clone()).collect();
         let file_map = filter_relevant_files(&debug_infos, &context.file_manager);
 
-        Ok(CompiledContract { name: contract.name, functions, file_map })
+        Ok(CompiledContract {
+            name: contract.name,
+            events: contract
+                .events
+                .iter()
+                .map(|event_id| {
+                    let typ = context.def_interner.get_struct(*event_id);
+                    let typ = typ.borrow();
+                    ContractEvent::from_struct_type(context, &typ)
+                })
+                .collect(),
+            functions,
+            file_map,
+            noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
+            warnings,
+        })
     } else {
         Err(errors)
     }
 }
 
-/// Compile the current crate. Assumes self.check_crate is called beforehand!
+/// Compile the current crate using `main_function` as the entrypoint.
 ///
-/// This function also assumes all errors in experimental_create_circuit and create_circuit
-/// are not warnings.
-#[allow(deprecated)]
+/// This function assumes [`check_crate`] is called beforehand.
 pub fn compile_no_check(
     context: &Context,
     options: &CompileOptions,
     main_function: FuncId,
-) -> Result<CompiledProgram, FileDiagnostic> {
+    cached_program: Option<CompiledProgram>,
+    force_compile: bool,
+) -> Result<CompiledProgram, RuntimeError> {
     let program = monomorphize(main_function, &context.def_interner);
 
-    let (circuit, debug, abi) =
+    let hash = fxhash::hash64(&program);
+    let hashes_match = cached_program.as_ref().map_or(false, |program| program.hash == hash);
+
+    // If user has specified that they want to see intermediate steps printed then we should
+    // force compilation even if the program hasn't changed.
+    let force_compile =
+        force_compile || options.print_acir || options.show_brillig || options.show_ssa;
+
+    if !force_compile && hashes_match {
+        return Ok(cached_program.expect("cache must exist for hashes to match"));
+    }
+
+    let (circuit, debug, abi, warnings) =
         create_circuit(context, program, options.show_ssa, options.show_brillig)?;
 
     let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
 
-    Ok(CompiledProgram { circuit, debug, abi, file_map })
+    Ok(CompiledProgram {
+        hash,
+        circuit,
+        debug,
+        abi,
+        file_map,
+        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
+        warnings,
+    })
 }

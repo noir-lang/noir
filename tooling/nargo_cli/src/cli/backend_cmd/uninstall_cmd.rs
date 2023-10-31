@@ -1,6 +1,6 @@
 use clap::Args;
 
-use acvm_backend_barretenberg::backends_directory;
+use backend_interface::backends_directory;
 
 use crate::{
     backends::{

@@ -3,7 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-mod errors;
+pub mod errors;
 
 // SSA code to create the SSA based IR
 // for functions and execute different optimizations.

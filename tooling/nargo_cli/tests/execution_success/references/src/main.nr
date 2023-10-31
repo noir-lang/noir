@@ -22,12 +22,7 @@ fn main(mut x: Field) {
     assert(**nested_allocations.y == 1);
 
     // Test nested struct allocations with a mutable reference to an array.
-    let mut c = C {
-        foo: 0,
-        bar: &mut C2 {
-            array: &mut [1, 2],
-        },
-    };
+    let mut c = C { foo: 0, bar: &mut C2 { array: &mut [1, 2] } };
     *c.bar.array = [3, 4];
     assert(*c.bar.array == [3, 4]);
 
@@ -135,15 +130,14 @@ fn regression_2218(x: Field, y: Field) -> Field {
         if x != 20 {
             *q1 = 10;
             *q2 = 2; // now we'd expect q1 == q2 == 2
-
-            assert(*q1 == 2);  
+            assert(*q1 == 2);
         } else {
             *q2 = 15;
             assert(*q1 == 15);
         }
     } else {
         *q2 = 20;
-        assert(*q1 == 20);  
+        assert(*q1 == 20);
     }
     // Have to assign value to return it
     let value = *q1;
@@ -162,7 +156,7 @@ fn regression_2218_if_inner_else(x: Field, y: Field) {
 
 fn regression_2218_else(x: Field, y: Field) {
     let value = regression_2218(x, y);
-    assert(value == 20);  
+    assert(value == 20);
 }
 
 fn regression_2218_loop(x: Field, y: Field) {
@@ -215,7 +209,7 @@ fn regression_2218_loop(x: Field, y: Field) {
             assert(*q1 == 20);  
         }
     }
-    assert(*q1 == 2);  
+    assert(*q1 == 2);
 
     if x != y {
         for _ in 0..5 {
@@ -232,9 +226,9 @@ fn regression_2218_loop(x: Field, y: Field) {
         }
     } else {
         *q2 = 20;
-        assert(*q1 == 20);  
+        assert(*q1 == 20);
     }
-    assert(*q1 == 2);  
+    assert(*q1 == 2);
 }
 
 // This is more a feature test than a proper regression.

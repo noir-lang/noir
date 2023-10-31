@@ -11,28 +11,19 @@ mod labels;
 #[allow(clippy::module_inception)]
 mod parser;
 
-use std::sync::atomic::{AtomicU32, Ordering};
-
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
-    BlockExpression, ExpressionKind, ForExpression, Ident, IndexExpression, LetStatement,
-    MethodCallExpression, NoirFunction, NoirTrait, NoirTypeAlias, Path, PathKind, Pattern,
-    Recoverable, Statement, TraitImpl, TypeImpl, UnresolvedType, UseTree,
+    Ident, LetStatement, NoirFunction, NoirTrait, NoirTraitImpl, NoirTypeAlias, Recoverable,
+    StatementKind, TypeImpl, UseTree,
 };
 
-use acvm::FieldElement;
 use chumsky::prelude::*;
 use chumsky::primitive::Container;
 pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Span;
 pub use parser::parse_program;
-
-/// Counter used to generate unique names when desugaring
-/// code in the parser requires the creation of fresh variables.
-/// The parser is stateless so this is a static global instead.
-static UNIQUE_NAME_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Debug, Clone)]
 pub(crate) enum TopLevelStatement {
@@ -41,10 +32,10 @@ pub(crate) enum TopLevelStatement {
     Import(UseTree),
     Struct(NoirStruct),
     Trait(NoirTrait),
-    TraitImpl(TraitImpl),
+    TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
-    SubModule(SubModule),
+    SubModule(ParsedSubModule),
     Global(LetStatement),
     Error,
 }
@@ -190,7 +181,7 @@ where
 
 /// Recovery strategy for statements: If a statement fails to parse skip until the next ';' or fail
 /// if we find a '}' first.
-fn statement_recovery() -> impl NoirParser<Statement> {
+fn statement_recovery() -> impl NoirParser<StatementKind> {
     use Token::*;
     try_skip_until([Semicolon, RightBrace], RightBrace)
 }
@@ -217,14 +208,13 @@ fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T
     parser.map(Some).recover_via(empty().map(|_| None))
 }
 
-/// A ParsedModule contains an entire Ast for one file.
-#[derive(Clone, Debug, Default)]
-pub struct ParsedModule {
+#[derive(Default)]
+pub struct SortedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
     pub types: Vec<NoirStruct>,
     pub traits: Vec<NoirTrait>,
-    pub trait_impls: Vec<TraitImpl>,
+    pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
     pub type_aliases: Vec<NoirTypeAlias>,
     pub globals: Vec<LetStatement>,
@@ -233,19 +223,134 @@ pub struct ParsedModule {
     pub module_decls: Vec<Ident>,
 
     /// Full submodules as in `mod foo { ... definitions ... }`
-    pub submodules: Vec<SubModule>,
+    pub submodules: Vec<SortedSubModule>,
+}
+
+impl std::fmt::Display for SortedModule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for decl in &self.module_decls {
+            writeln!(f, "mod {decl};")?;
+        }
+
+        for import in &self.imports {
+            write!(f, "{import}")?;
+        }
+
+        for global_const in &self.globals {
+            write!(f, "{global_const}")?;
+        }
+
+        for type_ in &self.types {
+            write!(f, "{type_}")?;
+        }
+
+        for function in &self.functions {
+            write!(f, "{function}")?;
+        }
+
+        for impl_ in &self.impls {
+            write!(f, "{impl_}")?;
+        }
+
+        for type_alias in &self.type_aliases {
+            write!(f, "{type_alias}")?;
+        }
+
+        for submodule in &self.submodules {
+            write!(f, "{submodule}")?;
+        }
+
+        Ok(())
+    }
+}
+
+/// A ParsedModule contains an entire Ast for one file.
+#[derive(Clone, Debug, Default)]
+pub struct ParsedModule {
+    pub items: Vec<Item>,
+}
+
+impl ParsedModule {
+    pub fn into_sorted(self) -> SortedModule {
+        let mut module = SortedModule::default();
+
+        for item in self.items {
+            match item.kind {
+                ItemKind::Import(import) => module.push_import(import),
+                ItemKind::Function(func) => module.push_function(func),
+                ItemKind::Struct(typ) => module.push_type(typ),
+                ItemKind::Trait(noir_trait) => module.push_trait(noir_trait),
+                ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
+                ItemKind::Impl(r#impl) => module.push_impl(r#impl),
+                ItemKind::TypeAlias(type_alias) => module.push_type_alias(type_alias),
+                ItemKind::Global(global) => module.push_global(global),
+                ItemKind::ModuleDecl(mod_name) => module.push_module_decl(mod_name),
+                ItemKind::Submodules(submodule) => module.push_submodule(submodule.into_sorted()),
+            }
+        }
+
+        module
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Item {
+    pub kind: ItemKind,
+    pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub enum ItemKind {
+    Import(UseTree),
+    Function(NoirFunction),
+    Struct(NoirStruct),
+    Trait(NoirTrait),
+    TraitImpl(NoirTraitImpl),
+    Impl(TypeImpl),
+    TypeAlias(NoirTypeAlias),
+    Global(LetStatement),
+    ModuleDecl(Ident),
+    Submodules(ParsedSubModule),
 }
 
 /// A submodule defined via `mod name { contents }` in some larger file.
 /// These submodules always share the same file as some larger ParsedModule
 #[derive(Clone, Debug)]
-pub struct SubModule {
+pub struct ParsedSubModule {
     pub name: Ident,
     pub contents: ParsedModule,
     pub is_contract: bool,
 }
 
-impl ParsedModule {
+impl ParsedSubModule {
+    pub fn into_sorted(self) -> SortedSubModule {
+        SortedSubModule {
+            name: self.name,
+            contents: self.contents.into_sorted(),
+            is_contract: self.is_contract,
+        }
+    }
+}
+
+impl std::fmt::Display for SortedSubModule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "mod {} {{", self.name)?;
+
+        for line in self.contents.to_string().lines() {
+            write!(f, "\n    {line}")?;
+        }
+
+        write!(f, "\n}}")
+    }
+}
+
+pub struct SortedSubModule {
+    pub name: Ident,
+    pub contents: SortedModule,
+    pub is_contract: bool,
+}
+
+impl SortedModule {
     fn push_function(&mut self, func: NoirFunction) {
         self.functions.push(func);
     }
@@ -258,7 +363,7 @@ impl ParsedModule {
         self.traits.push(noir_trait);
     }
 
-    fn push_trait_impl(&mut self, trait_impl: TraitImpl) {
+    fn push_trait_impl(&mut self, trait_impl: NoirTraitImpl) {
         self.trait_impls.push(trait_impl);
     }
 
@@ -278,7 +383,7 @@ impl ParsedModule {
         self.module_decls.push(mod_name);
     }
 
-    fn push_submodule(&mut self, submodule: SubModule) {
+    fn push_submodule(&mut self, submodule: SortedSubModule) {
         self.submodules.push(submodule);
     }
 
@@ -364,101 +469,6 @@ impl Precedence {
     }
 }
 
-enum ForRange {
-    Range(/*start:*/ Expression, /*end:*/ Expression),
-    Array(Expression),
-}
-
-impl ForRange {
-    /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
-    /// into the following if needed:
-    ///
-    /// {
-    ///     let fresh1 = array;
-    ///     for fresh2 in 0 .. std::array::len(fresh1) {
-    ///         let elem = fresh1[fresh2];
-    ///         ...
-    ///     }
-    /// }
-    fn into_for(self, identifier: Ident, block: Expression, for_loop_span: Span) -> ExpressionKind {
-        match self {
-            ForRange::Range(start_range, end_range) => {
-                ExpressionKind::For(Box::new(ForExpression {
-                    identifier,
-                    start_range,
-                    end_range,
-                    block,
-                }))
-            }
-            ForRange::Array(array) => {
-                let array_span = array.span;
-                let start_range = ExpressionKind::integer(FieldElement::zero());
-                let start_range = Expression::new(start_range, array_span);
-
-                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
-                let array_name = format!("$i{next_unique_id}");
-                let array_span = array.span;
-                let array_ident = Ident::new(array_name, array_span);
-
-                // let fresh1 = array;
-                let let_array = Statement::Let(LetStatement {
-                    pattern: Pattern::Identifier(array_ident.clone()),
-                    r#type: UnresolvedType::unspecified(),
-                    expression: array,
-                });
-
-                // array.len()
-                let segments = vec![array_ident];
-                let array_ident =
-                    ExpressionKind::Variable(Path { segments, kind: PathKind::Plain });
-
-                let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                    object: Expression::new(array_ident.clone(), array_span),
-                    method_name: Ident::new("len".to_string(), array_span),
-                    arguments: vec![],
-                }));
-                let end_range = Expression::new(end_range, array_span);
-
-                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
-                let index_name = format!("$i{next_unique_id}");
-                let fresh_identifier = Ident::new(index_name.clone(), array_span);
-
-                // array[i]
-                let segments = vec![Ident::new(index_name, array_span)];
-                let index_ident =
-                    ExpressionKind::Variable(Path { segments, kind: PathKind::Plain });
-
-                let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
-                    collection: Expression::new(array_ident, array_span),
-                    index: Expression::new(index_ident, array_span),
-                }));
-
-                // let elem = array[i];
-                let let_elem = Statement::Let(LetStatement {
-                    pattern: Pattern::Identifier(identifier),
-                    r#type: UnresolvedType::unspecified(),
-                    expression: Expression::new(loop_element, array_span),
-                });
-
-                let block_span = block.span;
-                let new_block = BlockExpression(vec![let_elem, Statement::Expression(block)]);
-                let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
-                let for_loop = ExpressionKind::For(Box::new(ForExpression {
-                    identifier: fresh_identifier,
-                    start_range,
-                    end_range,
-                    block: new_block,
-                }));
-
-                ExpressionKind::Block(BlockExpression(vec![
-                    let_array,
-                    Statement::Expression(Expression::new(for_loop, for_loop_span)),
-                ]))
-            }
-        }
-    }
-}
-
 impl std::fmt::Display for TopLevelStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -479,50 +489,12 @@ impl std::fmt::Display for TopLevelStatement {
 
 impl std::fmt::Display for ParsedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for decl in &self.module_decls {
-            writeln!(f, "mod {decl};")?;
-        }
-
-        for import in &self.imports {
-            write!(f, "{import}")?;
-        }
-
-        for global_const in &self.globals {
-            write!(f, "{global_const}")?;
-        }
-
-        for type_ in &self.types {
-            write!(f, "{type_}")?;
-        }
-
-        for function in &self.functions {
-            write!(f, "{function}")?;
-        }
-
-        for impl_ in &self.impls {
-            write!(f, "{impl_}")?;
-        }
-
-        for type_alias in &self.type_aliases {
-            write!(f, "{type_alias}")?;
-        }
-
-        for submodule in &self.submodules {
-            write!(f, "{submodule}")?;
-        }
-
-        Ok(())
+        self.clone().into_sorted().fmt(f)
     }
 }
 
-impl std::fmt::Display for SubModule {
+impl std::fmt::Display for ParsedSubModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "mod {} {{", self.name)?;
-
-        for line in self.contents.to_string().lines() {
-            write!(f, "\n    {line}")?;
-        }
-
-        write!(f, "\n}}")
+        self.clone().into_sorted().fmt(f)
     }
 }

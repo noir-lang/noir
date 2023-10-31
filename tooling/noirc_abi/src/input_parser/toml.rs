@@ -1,4 +1,4 @@
-use super::{parse_str_to_field, InputValue};
+use super::{parse_str_to_field, parse_str_to_signed, InputValue};
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::FieldElement;
 use iter_extended::{try_btree_map, try_vecmap};
@@ -102,6 +102,13 @@ impl TomlTypes {
                 TomlTypes::Table(map_with_toml_types)
             }
 
+            (InputValue::Vec(vector), AbiType::Tuple { fields }) => {
+                let fields = try_vecmap(vector.iter().zip(fields), |(value, typ)| {
+                    TomlTypes::try_from_input_value(value, typ)
+                })?;
+                TomlTypes::Array(fields)
+            }
+
             _ => return Err(InputParserError::AbiTypeMismatch(abi_type.clone())),
         };
         Ok(toml_value)
@@ -118,9 +125,13 @@ impl InputValue {
             (TomlTypes::String(string), AbiType::String { .. }) => InputValue::String(string),
             (
                 TomlTypes::String(string),
-                AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
+                AbiType::Field
+                | AbiType::Integer { sign: crate::Sign::Unsigned, .. }
+                | AbiType::Boolean,
             ) => InputValue::Field(parse_str_to_field(&string)?),
-
+            (TomlTypes::String(string), AbiType::Integer { sign: crate::Sign::Signed, width }) => {
+                InputValue::Field(parse_str_to_signed(&string, *width)?)
+            }
             (
                 TomlTypes::Integer(integer),
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
@@ -150,6 +161,13 @@ impl InputValue {
                 })?;
 
                 InputValue::Struct(native_table)
+            }
+
+            (TomlTypes::Array(array), AbiType::Tuple { fields }) => {
+                let tuple_fields = try_vecmap(array.into_iter().zip(fields), |(value, typ)| {
+                    InputValue::try_from_toml(value, typ, arg_name)
+                })?;
+                InputValue::Vec(tuple_fields)
             }
 
             (_, _) => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),

@@ -317,27 +317,40 @@ mod tests {
     use acvm::brillig_vm::brillig::{RegisterIndex, RegisterOrMemory};
 
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
+    use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
     use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
     use crate::brillig::brillig_ir::artifact::BrilligParameter;
-    use crate::brillig::brillig_ir::tests::{create_and_run_vm, create_context};
+    use crate::brillig::brillig_ir::tests::{
+        create_and_run_vm, create_context, create_entry_point_bytecode,
+    };
     use crate::brillig::brillig_ir::BrilligContext;
+    use crate::ssa::function_builder::FunctionBuilder;
+    use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::map::Id;
-    use fxhash::FxHashMap as HashMap;
+    use crate::ssa::ssa_gen::Ssa;
 
-    fn create_test_environment() -> (FunctionContext, BrilligContext) {
-        let function_context = FunctionContext {
-            function_id: Id::test_new(0),
-            ssa_value_to_brillig_variable: HashMap::default(),
-        };
-        let brillig_context = create_context();
-        (function_context, brillig_context)
+    fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext) {
+        let builder =
+            FunctionBuilder::new("main".to_string(), Id::test_new(0), RuntimeType::Brillig);
+        let ssa = builder.finish();
+        let mut brillig_context = create_context();
+
+        let function_context = FunctionContext::new(ssa.main(), &mut brillig_context);
+        (ssa, function_context, brillig_context)
     }
 
     fn create_brillig_block<'a>(
         function_context: &'a mut FunctionContext,
         brillig_context: &'a mut BrilligContext,
     ) -> BrilligBlock<'a> {
-        BrilligBlock { function_context, block_id: Id::test_new(0), brillig_context }
+        let variables = BlockVariables::default();
+        BrilligBlock {
+            function_context,
+            block_id: Id::test_new(0),
+            brillig_context,
+            variables,
+            last_uses: Default::default(),
+        }
     }
 
     #[test]
@@ -357,7 +370,7 @@ mod tests {
                 BrilligParameter::Simple,
             ];
 
-            let (mut function_context, mut context) = create_test_environment();
+            let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
             let array_pointer = context.allocate_register();
@@ -388,12 +401,11 @@ mod tests {
 
             context.return_instruction(&[copied_array_pointer, copied_array_size]);
 
+            let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
             let vm = create_and_run_vm(
                 array.clone(),
                 vec![Value::from(0_usize), item_to_push],
-                context,
-                arguments,
-                returns,
+                &bytecode,
             );
 
             assert_eq!(vm.get_memory(), &expected_mem);
@@ -450,7 +462,7 @@ mod tests {
                 BrilligParameter::Simple,
             ];
 
-            let (mut function_context, mut context) = create_test_environment();
+            let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
             let array_pointer = context.allocate_register();
@@ -482,13 +494,8 @@ mod tests {
 
             context.return_instruction(&[copied_array_pointer, copied_array_size, removed_item]);
 
-            let vm = create_and_run_vm(
-                array.clone(),
-                vec![Value::from(0_usize)],
-                context,
-                arguments,
-                returns,
-            );
+            let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+            let vm = create_and_run_vm(array.clone(), vec![Value::from(0_usize)], &bytecode);
 
             assert_eq!(vm.get_memory(), &expected_mem);
 
@@ -547,7 +554,7 @@ mod tests {
                 BrilligParameter::Simple,
             ];
 
-            let (mut function_context, mut context) = create_test_environment();
+            let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
             let array_pointer = context.allocate_register();
@@ -573,12 +580,11 @@ mod tests {
 
             context.return_instruction(&[copied_array_pointer, copied_array_size]);
 
+            let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
             let vm = create_and_run_vm(
                 array.clone(),
                 vec![Value::from(0_usize), item, index],
-                context,
-                arguments,
-                returns,
+                &bytecode,
             );
 
             assert_eq!(vm.get_memory(), &expected_mem);
@@ -670,7 +676,7 @@ mod tests {
                 BrilligParameter::Simple,
             ];
 
-            let (mut function_context, mut context) = create_test_environment();
+            let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
             let array_pointer = context.allocate_register();
@@ -696,13 +702,8 @@ mod tests {
 
             context.return_instruction(&[copied_array_pointer, copied_array_size, removed_item]);
 
-            let vm = create_and_run_vm(
-                array.clone(),
-                vec![Value::from(0_usize), index],
-                context,
-                arguments,
-                returns,
-            );
+            let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+            let vm = create_and_run_vm(array.clone(), vec![Value::from(0_usize), index], &bytecode);
 
             assert_eq!(vm.get_memory(), &expected_mem);
 

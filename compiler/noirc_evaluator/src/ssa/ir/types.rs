@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 
 /// A numeric type in the Intermediate representation
@@ -11,7 +12,7 @@ use iter_extended::vecmap;
 /// Fields do not have a notion of ordering, so this distinction
 /// is reasonable.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
-pub(crate) enum NumericType {
+pub enum NumericType {
     Signed { bit_size: u32 },
     Unsigned { bit_size: u32 },
     NativeField,
@@ -75,6 +76,41 @@ impl Type {
         match self {
             Type::Array(elements, _) | Type::Slice(elements) => elements.len(),
             other => panic!("element_size: Expected array or slice, found {other}"),
+        }
+    }
+
+    /// Returns the flattened size of a Type
+    pub(crate) fn flattened_size(&self) -> usize {
+        let mut size = 0;
+        match self {
+            Type::Array(elements, len) => {
+                size = elements.iter().fold(size, |sum, elem| sum + (elem.flattened_size() * len));
+            }
+            Type::Slice(_) => {
+                unimplemented!("ICE: cannot fetch flattened slice size");
+            }
+            _ => size += 1,
+        }
+        size
+    }
+}
+
+impl NumericType {
+    /// Returns true if the given Field value is within the numeric limits
+    /// for the current NumericType.
+    pub(crate) fn value_is_within_limits(self, field: FieldElement) -> bool {
+        match self {
+            NumericType::Signed { bit_size } => {
+                let min = -(2i128.pow(bit_size - 1));
+                let max = 2u128.pow(bit_size - 1) - 1;
+                // Signed integers are odd since they will overflow the field value
+                field <= max.into() || field >= min.into()
+            }
+            NumericType::Unsigned { bit_size } => {
+                let max = 2u128.pow(bit_size) - 1;
+                field <= max.into()
+            }
+            NumericType::NativeField => true,
         }
     }
 }

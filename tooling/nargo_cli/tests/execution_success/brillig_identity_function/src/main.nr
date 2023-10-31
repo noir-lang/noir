@@ -6,7 +6,7 @@ struct myStruct {
 // Tests a very simple program.
 // 
 // The features being tested is the identity function in Brillig
-fn main(x : Field)  {
+fn main(x : Field) {
     assert(x == identity(x));
     // TODO: add support for array comparison
     let arr = identity_array([x, x]);
@@ -21,13 +21,13 @@ fn main(x : Field)  {
 }
 
 unconstrained fn identity(x : Field) -> Field {
-  x
+    x
 }
 
 unconstrained fn identity_array(arr : [Field; 2]) -> [Field; 2] {
-  arr
+    arr
 }
 
 unconstrained fn identity_struct(s : myStruct) -> myStruct {
-  s
+    s
 }

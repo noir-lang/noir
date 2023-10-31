@@ -104,6 +104,10 @@ impl BrilligContext {
         }
     }
 
+    pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<RegisterIndex>) {
+        self.registers = BrilligRegistersContext::from_preallocated_registers(allocated_registers);
+    }
+
     /// Adds a brillig instruction to the brillig byte code
     pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode) {
         self.obj.push_opcode(opcode);
@@ -243,7 +247,7 @@ impl BrilligContext {
 
     /// This instruction will issue a loop that will iterate iteration_count times
     /// The body of the loop should be issued by the caller in the on_iteration closure.
-    fn loop_instruction<F>(&mut self, iteration_count: RegisterIndex, on_iteration: F)
+    pub(crate) fn loop_instruction<F>(&mut self, iteration_count: RegisterIndex, on_iteration: F)
     where
         F: FnOnce(&mut BrilligContext, RegisterIndex),
     {
@@ -721,13 +725,14 @@ impl BrilligContext {
     }
 
     /// Saves all of the registers that have been used up until this point.
-    fn save_all_used_registers(&mut self) -> Vec<RegisterIndex> {
+    fn save_registers_of_vars(&mut self, vars: &[RegisterOrMemory]) -> Vec<RegisterIndex> {
         // Save all of the used registers at this point in memory
         // because the function call will/may overwrite them.
         //
         // Note that here it is important that the stack pointer register is at register 0,
         // as after the first register save we add to the pointer.
-        let mut used_registers: Vec<_> = self.registers.used_registers_iter().collect();
+        let mut used_registers: Vec<_> =
+            vars.iter().flat_map(|var| extract_registers(*var)).collect();
 
         // Also dump the previous stack pointer
         used_registers.push(ReservedRegisters::previous_stack_pointer());
@@ -806,9 +811,10 @@ impl BrilligContext {
     pub(crate) fn pre_call_save_registers_prep_args(
         &mut self,
         arguments: &[RegisterIndex],
+        variables_to_save: &[RegisterOrMemory],
     ) -> Vec<RegisterIndex> {
         // Save all the registers we have used to the stack.
-        let saved_registers = self.save_all_used_registers();
+        let saved_registers = self.save_registers_of_vars(variables_to_save);
 
         // Move argument values to the front of the registers
         //
@@ -961,6 +967,33 @@ impl BrilligContext {
     }
 }
 
+pub(crate) fn extract_register(variable: RegisterOrMemory) -> RegisterIndex {
+    match variable {
+        RegisterOrMemory::RegisterIndex(register_index) => register_index,
+        _ => unreachable!("ICE: Expected register, got {variable:?}"),
+    }
+}
+
+pub(crate) fn extract_heap_array(variable: RegisterOrMemory) -> HeapArray {
+    match variable {
+        RegisterOrMemory::HeapArray(array) => array,
+        _ => unreachable!("ICE: Expected array, got {variable:?}"),
+    }
+}
+
+/// Collects the registers that a given variable is stored in.
+pub(crate) fn extract_registers(variable: RegisterOrMemory) -> Vec<RegisterIndex> {
+    match variable {
+        RegisterOrMemory::RegisterIndex(register_index) => vec![register_index],
+        RegisterOrMemory::HeapArray(array) => {
+            vec![array.pointer]
+        }
+        RegisterOrMemory::HeapVector(vector) => {
+            vec![vector.pointer, vector.size]
+        }
+    }
+}
+
 /// Type to encapsulate the binary operation types in Brillig
 #[derive(Clone)]
 pub(crate) enum BrilligBinaryOp {
@@ -976,7 +1009,7 @@ pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
-        BinaryIntOp, ForeignCallOutput, ForeignCallResult, HeapVector, RegisterIndex,
+        BinaryIntOp, ForeignCallParam, ForeignCallResult, HeapVector, RegisterIndex,
         RegisterOrMemory, Value,
     };
     use acvm::brillig_vm::{Registers, VMStatus, VM};
@@ -999,12 +1032,19 @@ pub(crate) mod tests {
         ) -> Result<bool, BlackBoxResolutionError> {
             Ok(true)
         }
-        fn pedersen(
+        fn pedersen_commitment(
             &self,
             _inputs: &[FieldElement],
             _domain_separator: u32,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             Ok((2_u128.into(), 3_u128.into()))
+        }
+        fn pedersen_hash(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<FieldElement, BlackBoxResolutionError> {
+            Ok(6_u128.into())
         }
         fn fixed_base_scalar_mul(
             &self,
@@ -1036,14 +1076,12 @@ pub(crate) mod tests {
     pub(crate) fn create_and_run_vm(
         memory: Vec<Value>,
         param_registers: Vec<Value>,
-        context: BrilligContext,
-        arguments: Vec<BrilligParameter>,
-        returns: Vec<BrilligParameter>,
-    ) -> VM<'static, DummyBlackBoxSolver> {
+        bytecode: &[BrilligOpcode],
+    ) -> VM<'_, DummyBlackBoxSolver> {
         let mut vm = VM::new(
             Registers { inner: param_registers },
             memory,
-            create_entry_point_bytecode(context, arguments, returns).byte_code,
+            bytecode,
             vec![],
             &DummyBlackBoxSolver,
         );
@@ -1099,8 +1137,8 @@ pub(crate) mod tests {
         let mut vm = VM::new(
             Registers { inner: vec![] },
             vec![],
-            bytecode,
-            vec![ForeignCallResult { values: vec![ForeignCallOutput::Array(number_sequence)] }],
+            &bytecode,
+            vec![ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] }],
             &DummyBlackBoxSolver,
         );
         let status = vm.process_opcodes();

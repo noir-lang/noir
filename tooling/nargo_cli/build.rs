@@ -6,8 +6,8 @@ use std::{env, fs};
 
 fn check_rustc_version() {
     assert!(
-        version().unwrap() >= Version::parse("1.66.0").unwrap(),
-        "The minimal supported rustc version is 1.66.0."
+        version().unwrap() >= Version::parse("1.71.1").unwrap(),
+        "The minimal supported rustc version is 1.71.1."
     );
 }
 
@@ -40,6 +40,8 @@ fn main() {
     let test_dir = manifest_dir.join("tests");
 
     generate_execution_success_tests(&mut test_file, &test_dir);
+    generate_noir_test_success_tests(&mut test_file, &test_dir);
+    generate_noir_test_failure_tests(&mut test_file, &test_dir);
     generate_compile_success_empty_tests(&mut test_file, &test_dir);
     generate_compile_success_contract_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
@@ -83,6 +85,82 @@ fn execution_success_{test_name}() {{
     }
 }
 
+fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "noir_test_success";
+    let test_data_dir = test_data_dir.join(test_sub_dir);
+
+    let test_case_dirs =
+        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+
+    for test_dir in test_case_dirs {
+        let test_name =
+            test_dir.file_name().into_string().expect("Directory can't be converted to string");
+        if test_name.contains('-') {
+            panic!(
+                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
+            );
+        };
+        let test_dir = &test_dir.path();
+
+        write!(
+            test_file,
+            r#"
+#[test]
+fn noir_test_success_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("test");
+
+    cmd.assert().success();
+}}
+            "#,
+            test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+    }
+}
+
+fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "noir_test_failure";
+    let test_data_dir = test_data_dir.join(test_sub_dir);
+
+    let test_case_dirs =
+        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+
+    for test_dir in test_case_dirs {
+        let test_name =
+            test_dir.file_name().into_string().expect("Directory can't be converted to string");
+        if test_name.contains('-') {
+            panic!(
+                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
+            );
+        };
+        let test_dir = &test_dir.path();
+
+        write!(
+            test_file,
+            r#"
+#[test]
+fn noir_test_failure_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("test");
+
+    cmd.assert().failure();
+}}
+            "#,
+            test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+    }
+}
+
 fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_sub_dir = "compile_success_empty";
     let test_data_dir = test_data_dir.join(test_sub_dir);
@@ -105,7 +183,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             r#"
 #[test]
 fn compile_success_empty_{test_name}() {{
-    
+
     // We use a mocked backend for this test as we do not rely on the returned circuit size
     // but we must call a backend as part of querying the number of opcodes in the circuit.
 

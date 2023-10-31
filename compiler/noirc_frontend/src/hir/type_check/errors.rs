@@ -6,6 +6,7 @@ use thiserror::Error;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::types::Type;
+use crate::BinaryOpKind;
 use crate::FunctionReturnType;
 use crate::Signedness;
 
@@ -23,8 +24,8 @@ pub enum Source {
     StringLen,
     #[error("Comparison")]
     Comparison,
-    #[error("BinOp")]
-    BinOp,
+    #[error("{0}")]
+    BinOp(BinaryOpKind),
     #[error("Return")]
     Return(FunctionReturnType, Span),
 }
@@ -77,6 +78,8 @@ pub enum TypeCheckError {
     IntegerTypeMismatch { typ: Type, span: Span },
     #[error("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first")]
     IntegerAndFieldBinaryOperation { span: Span },
+    #[error("Cannot do modulo on Fields, try casting to an integer first")]
+    FieldModulo { span: Span },
     #[error("Fields cannot be compared, try casting to an integer first")]
     FieldComparison { span: Span },
     #[error("The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified")]
@@ -100,6 +103,14 @@ pub enum TypeCheckError {
     ResolverError(ResolverError),
     #[error("Unused expression result of type {expr_type}")]
     UnusedResultError { expr_type: Type, expr_span: Span },
+    #[error("Expected type {expected_typ:?} is not the same as {actual_typ:?}")]
+    TraitMethodParameterTypeMismatch {
+        method_name: String,
+        expected_typ: String,
+        actual_typ: String,
+        parameter_span: Span,
+        parameter_index: usize,
+    },
 }
 
 impl TypeCheckError {
@@ -131,6 +142,13 @@ impl From<TypeCheckError> for Diagnostic {
                     format!("Expected type {expected_typ}, found type {expr_typ}"),
                     String::new(),
                     expr_span,
+                )
+            }
+            TypeCheckError::TraitMethodParameterTypeMismatch { method_name, expected_typ, actual_typ, parameter_index, parameter_span } => {
+                Diagnostic::simple_error(
+                    format!("Parameter #{parameter_index} of method `{method_name}` must be of type {expected_typ}, not {actual_typ}"),
+                    String::new(),
+                    parameter_span,
                 )
             }
             TypeCheckError::NonHomogeneousArray {
@@ -179,7 +197,8 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldComparison { span, .. }
             | TypeCheckError::AmbiguousBitWidth { span, .. }
             | TypeCheckError::IntegerAndFieldBinaryOperation { span }
-            | TypeCheckError::OverflowingAssignment { span, .. } => {
+            | TypeCheckError::OverflowingAssignment { span, .. }
+            | TypeCheckError::FieldModulo { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
@@ -203,7 +222,7 @@ impl From<TypeCheckError> for Diagnostic {
                     Source::ArrayLen => format!("Can only compare arrays of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
                     Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
                     Source::Comparison => format!("Unsupported types for comparison: {expected} and {actual}"),
-                    Source::BinOp => format!("Unsupported types for binary operation: {expected} and {actual}"),
+                    Source::BinOp(kind) => format!("Unsupported types for operator `{kind}`: {expected} and {actual}"),
                     Source::Return(ret_ty, expr_span) => {
                         let ret_ty_span = match ret_ty.clone() {
                             FunctionReturnType::Default(span) => span,

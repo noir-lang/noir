@@ -1,4 +1,4 @@
-use acvm_backend_barretenberg::backends_directory;
+use backend_interface::backends_directory;
 use clap::Args;
 
 use crate::errors::CliError;

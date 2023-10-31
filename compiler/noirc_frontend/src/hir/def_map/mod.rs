@@ -1,14 +1,13 @@
 use crate::graph::CrateId;
-use crate::hir::def_collector::dc_crate::DefCollector;
+use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner};
-use crate::parser::{parse_program, ParsedModule};
-use crate::token::{PrimaryAttribute, TestScope};
+use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::parser::{parse_program, ParsedModule, ParserError};
+use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
-use noirc_errors::{FileDiagnostic, Location};
+use noirc_errors::Location;
 use std::collections::BTreeMap;
-
 mod module_def;
 pub use module_def::*;
 mod item_scope;
@@ -17,9 +16,6 @@ mod module_data;
 pub use module_data::*;
 mod namespace;
 pub use namespace::*;
-
-#[cfg(feature = "aztec")]
-mod aztec_library;
 
 /// The name that is used for a non-contract program's entry-point function.
 pub const MAIN_FUNCTION: &str = "main";
@@ -73,23 +69,30 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        errors: &mut Vec<FileDiagnostic>,
-    ) {
+    ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
         // Without this check, the compiler will panic as it does not
         // expect the same crate to be processed twice. It would not
         // make the implementation wrong, if the same crate was processed twice, it just makes it slow.
+        let mut errors: Vec<(CompilationError, FileId)> = vec![];
         if context.def_map(&crate_id).is_some() {
-            return;
+            return errors;
         }
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let ast = parse_file(&mut context.file_manager, root_file_id, errors);
+        let (ast, parsing_errors) = parse_file(&context.file_manager, root_file_id);
+        let ast = ast.into_sorted();
 
         #[cfg(feature = "aztec")]
-        let ast = aztec_library::transform(ast, &crate_id, context, errors);
+        let ast = match super::aztec_library::transform(ast, &crate_id, context) {
+            Ok(ast) => ast,
+            Err((error, file_id)) => {
+                errors.push((error.into(), file_id));
+                return errors;
+            }
+        };
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
@@ -104,7 +107,12 @@ impl CrateDefMap {
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        DefCollector::collect(def_map, context, ast, root_file_id, errors);
+        errors.extend(DefCollector::collect(def_map, context, ast, root_file_id));
+
+        errors.extend(
+            parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),
+        );
+        errors
     }
 
     pub fn root(&self) -> LocalModuleId {
@@ -139,9 +147,11 @@ impl CrateDefMap {
         self.modules.iter().flat_map(|(_, module)| {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
-                    match interner.function_meta(&func_id).attributes.primary {
-                        Some(PrimaryAttribute::Test(scope)) => {
-                            Some(TestFunction::new(func_id, scope))
+                    let attributes = interner.function_attributes(&func_id);
+                    match &attributes.function {
+                        Some(FunctionAttribute::Test(scope)) => {
+                            let location = interner.function_meta(&func_id).name.location;
+                            Some(TestFunction::new(func_id, scope.clone(), location))
                         }
                         _ => None,
                     }
@@ -154,15 +164,37 @@ impl CrateDefMap {
 
     /// Go through all modules in this crate, find all `contract ... { ... }` declarations,
     /// and collect them all into a Vec.
-    pub fn get_all_contracts(&self) -> Vec<Contract> {
+    pub fn get_all_contracts(&self, interner: &NodeInterner) -> Vec<Contract> {
         self.modules
             .iter()
             .filter_map(|(id, module)| {
                 if module.is_contract {
-                    let functions =
-                        module.value_definitions().filter_map(|id| id.as_function()).collect();
+                    let functions = module
+                        .value_definitions()
+                        .filter_map(|id| {
+                            id.as_function().map(|function_id| {
+                                let is_entry_point = interner
+                                    .function_attributes(&function_id)
+                                    .is_contract_entry_point();
+                                ContractFunctionMeta { function_id, is_entry_point }
+                            })
+                        })
+                        .collect();
+
+                    let events = module
+                        .type_definitions()
+                        .filter_map(|id| {
+                            id.as_type().filter(|struct_id| {
+                                interner
+                                    .struct_attributes(struct_id)
+                                    .iter()
+                                    .any(|attr| attr == &SecondaryAttribute::Event)
+                            })
+                        })
+                        .collect();
+
                     let name = self.get_module_path(id, module.parent);
-                    Some(Contract { name, location: module.location, functions })
+                    Some(Contract { name, location: module.location, functions, events })
                 } else {
                     None
                 }
@@ -203,25 +235,32 @@ impl CrateDefMap {
     }
 }
 
-/// A 'contract' in Noir source code with the given name and functions.
+/// Specifies a contract function and extra metadata that
+/// one can use when processing a contract function.
+///
+/// One of these is whether the contract function is an entry point.
+/// The caller should only type-check these functions and not attempt
+/// to create a circuit for them.
+pub struct ContractFunctionMeta {
+    pub function_id: FuncId,
+    /// Indicates whether the function is an entry point
+    pub is_entry_point: bool,
+}
+
+/// A 'contract' in Noir source code with a given name, functions and events.
 /// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
 pub struct Contract {
     /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
     pub name: String,
     pub location: Location,
-    pub functions: Vec<FuncId>,
+    pub functions: Vec<ContractFunctionMeta>,
+    pub events: Vec<StructId>,
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
-pub fn parse_file(
-    fm: &mut FileManager,
-    file_id: FileId,
-    all_errors: &mut Vec<FileDiagnostic>,
-) -> ParsedModule {
+pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
     let file = fm.fetch_file(file_id);
-    let (program, errors) = parse_program(file.source());
-    all_errors.extend(errors.into_iter().map(|error| error.in_file(file_id)));
-    program
+    parse_program(file.source())
 }
 
 impl std::ops::Index<LocalModuleId> for CrateDefMap {
@@ -239,16 +278,21 @@ impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
 pub struct TestFunction {
     id: FuncId,
     scope: TestScope,
+    location: Location,
 }
 
 impl TestFunction {
-    fn new(id: FuncId, scope: TestScope) -> Self {
-        TestFunction { id, scope }
+    fn new(id: FuncId, scope: TestScope, location: Location) -> Self {
+        TestFunction { id, scope, location }
     }
 
     /// Returns the function id of the test function
     pub fn get_id(&self) -> FuncId {
         self.id
+    }
+
+    pub fn file_id(&self) -> FileId {
+        self.location.file
     }
 
     /// Returns true if the test function has been specified to fail

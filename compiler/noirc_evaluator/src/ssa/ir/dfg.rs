@@ -4,7 +4,7 @@ use crate::ssa::ir::instruction::SimplifyResult;
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
-    function::{FunctionId, Signature},
+    function::FunctionId,
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
@@ -60,9 +60,6 @@ pub(crate) struct DataFlowGraph {
     /// This map is used to ensure that the ValueId for any given foreign functôn is always
     /// represented by only 1 ValueId within this function.
     foreign_functions: HashMap<String, ValueId>,
-
-    /// Function signatures of external methods
-    signatures: DenseMap<Signature>,
 
     /// All blocks in a function
     blocks: DenseMap<BasicBlock>,
@@ -161,7 +158,7 @@ impl DataFlowGraph {
         call_stack: CallStack,
     ) -> InsertInstructionResult {
         use InsertInstructionResult::*;
-        match instruction.simplify(self, block) {
+        match instruction.simplify(self, block, ctrl_typevars.clone()) {
             SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
             SimplifyResult::SimplifiedToMultiple(simplification) => {
                 SimplifiedToMultiple(simplification)

@@ -19,13 +19,13 @@ fn main(message : pub str<11>, y : Field, hex_as_string : str<4>, hex_as_field :
     assert(y == 5); // Change to y != 5 to see how the later print statements are not called
     std::println(array);
 
-    bad_message = "helld world";
+    bad_message = "hell\0\"world";
     std::println(bad_message);
     assert(message != bad_message);
 
-    let hash = std::hash::pedersen([x]);
+    let hash = std::hash::pedersen_commitment([x]);
     std::println(hash);
-    
+
     assert(hex_as_string == "0x41");
     // assert(hex_as_string != 0x41); This will fail with a type mismatch between str[4] and Field
     assert(hex_as_field == 0x41);
@@ -48,7 +48,7 @@ fn test_prints_array() {
 
     std::println(array);
 
-    let hash = std::hash::pedersen(array);
+    let hash = std::hash::pedersen_commitment(array);
     std::println(hash);
 }
 
@@ -57,7 +57,7 @@ fn failed_constraint(hex_as_field: Field) {
     // evaluated at compile time. 
     // When this method is called from a test method or with constant values
     // a `Failed constraint` compile error will be caught before this `println`
-    // is executed as the input will be a constant. 
+    // is executed as the input will be a constant.
     std::println(hex_as_field);
     assert(hex_as_field != 0x41);
 }

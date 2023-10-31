@@ -1,0 +1,6 @@
+[package]
+name = "crate2"
+type = "lib"
+authors = [""]
+[dependencies]
+crate1 = { path = "../crate1" }

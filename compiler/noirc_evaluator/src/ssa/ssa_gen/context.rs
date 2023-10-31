@@ -8,11 +8,13 @@ use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::{BinaryOpKind, Signedness};
 
+use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::instruction::{BinaryOp, Endian, Intrinsic};
+use crate::ssa::ir::instruction::BinaryOp;
+use crate::ssa::ir::instruction::Instruction;
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
@@ -240,48 +242,214 @@ impl<'a> FunctionContext<'a> {
         Values::empty()
     }
 
-    /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
-    fn insert_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
-        let base = self.builder.field_constant(FieldElement::from(2_u128));
-        let pow = self.pow(base, rhs);
-        self.builder.insert_binary(lhs, BinaryOp::Mul, pow)
-    }
+    /// Insert a numeric constant into the current function
+    ///
+    /// Unlike FunctionBuilder::numeric_constant, this version checks the given constant
+    /// is within the range of the given type. This is needed for user provided values where
+    /// otherwise values like 2^128 can be assigned to a u8 without error or wrapping.
+    pub(super) fn checked_numeric_constant(
+        &mut self,
+        value: impl Into<FieldElement>,
+        typ: Type,
+    ) -> Result<ValueId, RuntimeError> {
+        let value = value.into();
 
-    /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
-    fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
-        let base = self.builder.field_constant(FieldElement::from(2_u128));
-        let pow = self.pow(base, rhs);
-        self.builder.insert_binary(lhs, BinaryOp::Div, pow)
-    }
-
-    /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
-    fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
-        let typ = self.builder.current_function.dfg.type_of_value(rhs);
-        if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
-            let to_bits = self.builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
-            let length = self.builder.field_constant(FieldElement::from(bit_size as i128));
-            let result_types =
-                vec![Type::field(), Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
-            let rhs_bits = self.builder.insert_call(to_bits, vec![rhs, length], result_types);
-            let rhs_bits = rhs_bits[1];
-            let one = self.builder.field_constant(FieldElement::one());
-            let mut r = one;
-            for i in 1..bit_size + 1 {
-                let r1 = self.builder.insert_binary(r, BinaryOp::Mul, r);
-                let a = self.builder.insert_binary(r1, BinaryOp::Mul, lhs);
-                let idx = self.builder.field_constant(FieldElement::from((bit_size - i) as i128));
-                let b = self.builder.insert_array_get(rhs_bits, idx, Type::field());
-                let r2 = self.builder.insert_binary(a, BinaryOp::Mul, b);
-                let c = self.builder.insert_binary(one, BinaryOp::Sub, b);
-                let r3 = self.builder.insert_binary(c, BinaryOp::Mul, r1);
-                r = self.builder.insert_binary(r2, BinaryOp::Add, r3);
+        if let Type::Numeric(typ) = typ {
+            if !typ.value_is_within_limits(value) {
+                let call_stack = self.builder.get_call_stack();
+                return Err(RuntimeError::IntegerOutOfBounds { value, typ, call_stack });
             }
-            r
         } else {
-            unreachable!("Value must be unsigned in power operation");
+            panic!("Expected type for numeric constant to be a numeric type, found {typ}");
+        }
+
+        Ok(self.builder.numeric_constant(value, typ))
+    }
+
+    /// helper function which add instructions to the block computing the absolute value of the
+    /// given signed integer input. When the input is negative, we return its two complement, and itself when it is positive.
+    fn absolute_value_helper(&mut self, input: ValueId, sign: ValueId, bit_size: u32) -> ValueId {
+        // We compute the absolute value of lhs
+        let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
+        let bit_width =
+            self.builder.numeric_constant(FieldElement::from(2_i128.pow(bit_size)), Type::field());
+        let sign_not = self.builder.insert_binary(one, BinaryOp::Sub, sign);
+        let as_field =
+            self.builder.insert_instruction(Instruction::Cast(input, Type::field()), None).first();
+        let sign_field =
+            self.builder.insert_instruction(Instruction::Cast(sign, Type::field()), None).first();
+        let positive_predicate = self.builder.insert_binary(sign_field, BinaryOp::Mul, as_field);
+        let two_complement = self.builder.insert_binary(bit_width, BinaryOp::Sub, as_field);
+        let sign_not_field = self
+            .builder
+            .insert_instruction(Instruction::Cast(sign_not, Type::field()), None)
+            .first();
+        let negative_predicate =
+            self.builder.insert_binary(sign_not_field, BinaryOp::Mul, two_complement);
+        self.builder.insert_binary(positive_predicate, BinaryOp::Add, negative_predicate)
+    }
+
+    fn check_overflow(
+        &mut self,
+        result: ValueId,
+        lhs: ValueId,
+        rhs: ValueId,
+        operator: BinaryOpKind,
+        location: Location,
+    ) -> ValueId {
+        let result_type = self.builder.current_function.dfg.type_of_value(result);
+        match result_type {
+            Type::Numeric(NumericType::Signed { bit_size }) => {
+                match operator {
+                    BinaryOpKind::Add | BinaryOpKind::Subtract => {
+                        // Result is computed modulo the bit size
+                        let mut result = self
+                            .builder
+                            .insert_instruction(
+                                Instruction::Truncate {
+                                    value: result,
+                                    bit_size,
+                                    max_bit_size: bit_size + 1,
+                                },
+                                None,
+                            )
+                            .first();
+                        result = self.builder.insert_cast(result, Type::unsigned(bit_size));
+
+                        self.check_signed_overflow(result, lhs, rhs, operator, bit_size, location);
+                        self.builder.insert_cast(result, result_type)
+                    }
+                    BinaryOpKind::Multiply => {
+                        // Result is computed modulo the bit size
+                        let mut result =
+                            self.builder.insert_cast(result, Type::unsigned(2 * bit_size));
+                        result = self
+                            .builder
+                            .insert_instruction(
+                                Instruction::Truncate {
+                                    value: result,
+                                    bit_size,
+                                    max_bit_size: 2 * bit_size,
+                                },
+                                None,
+                            )
+                            .first();
+
+                        self.check_signed_overflow(result, lhs, rhs, operator, bit_size, location);
+                        self.builder.insert_cast(result, result_type)
+                    }
+                    BinaryOpKind::ShiftLeft => {
+                        unreachable!("shift is not supported for signed integer")
+                    }
+                    _ => unreachable!("operator {} should not overflow", operator),
+                }
+            }
+            Type::Numeric(NumericType::Unsigned { bit_size }) => {
+                let op_name = match operator {
+                    BinaryOpKind::Add => "add",
+                    BinaryOpKind::Subtract => "subtract",
+                    BinaryOpKind::Multiply => "multiply",
+                    BinaryOpKind::ShiftLeft => "left shift",
+                    _ => unreachable!("operator {} should not overflow", operator),
+                };
+                let message = format!("attempt to {} with overflow", op_name);
+                let range_constraint = Instruction::RangeCheck {
+                    value: result,
+                    max_bit_size: bit_size,
+                    assert_message: Some(message),
+                };
+                self.builder.set_location(location).insert_instruction(range_constraint, None);
+                if operator == BinaryOpKind::ShiftLeft {
+                    match result_type {
+                        Type::Numeric(NumericType::Signed { bit_size })
+                        | Type::Numeric(NumericType::Unsigned { bit_size }) => {
+                            self.builder.insert_truncate(result, bit_size, bit_size + 1)
+                        }
+                        _ => result,
+                    }
+                } else {
+                    result
+                }
+            }
+            _ => result,
         }
     }
 
+    fn check_signed_overflow(
+        &mut self,
+        result: ValueId,
+        lhs: ValueId,
+        rhs: ValueId,
+        operator: BinaryOpKind,
+        bit_size: u32,
+        location: Location,
+    ) {
+        let is_sub = operator == BinaryOpKind::Subtract;
+        let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
+        let half_width = self.builder.numeric_constant(
+            FieldElement::from(2_i128.pow(bit_size - 1)),
+            Type::unsigned(bit_size),
+        );
+        // We compute the sign of the operands. The overflow checks for signed integers depends on these signs
+        let lhs_as_unsigned = self.builder.insert_cast(lhs, Type::unsigned(bit_size));
+        let rhs_as_unsigned = self.builder.insert_cast(rhs, Type::unsigned(bit_size));
+        let lhs_sign = self.builder.insert_binary(lhs_as_unsigned, BinaryOp::Lt, half_width);
+        let mut rhs_sign = self.builder.insert_binary(rhs_as_unsigned, BinaryOp::Lt, half_width);
+        let message = if is_sub {
+            // lhs - rhs = lhs + (-rhs)
+            rhs_sign = self.builder.insert_binary(one, BinaryOp::Sub, rhs_sign);
+            "attempt to subtract with overflow".to_string()
+        } else {
+            "attempt to add with overflow".to_string()
+        };
+        // same_sign is true if both operands have the same sign
+        let same_sign = self.builder.insert_binary(lhs_sign, BinaryOp::Eq, rhs_sign);
+        match operator {
+            BinaryOpKind::Add | BinaryOpKind::Subtract => {
+                //Check the result has the same sign as its inputs
+                let result_sign = self.builder.insert_binary(result, BinaryOp::Lt, half_width);
+                let sign_diff = self.builder.insert_binary(result_sign, BinaryOp::Eq, lhs_sign);
+                let sign_diff_with_predicate =
+                    self.builder.insert_binary(sign_diff, BinaryOp::Mul, same_sign);
+                let overflow_check =
+                    Instruction::Constrain(sign_diff_with_predicate, same_sign, Some(message));
+                self.builder.set_location(location).insert_instruction(overflow_check, None);
+            }
+            BinaryOpKind::Multiply => {
+                // Overflow check for the multiplication:
+                // First we compute the absolute value of operands, and their product
+                let lhs_abs = self.absolute_value_helper(lhs, lhs_sign, bit_size);
+                let rhs_abs = self.absolute_value_helper(rhs, rhs_sign, bit_size);
+                let product_field = self.builder.insert_binary(lhs_abs, BinaryOp::Mul, rhs_abs);
+                // It must not already overflow the bit_size
+                let message = "attempt to multiply with overflow".to_string();
+                let size_overflow = Instruction::RangeCheck {
+                    value: product_field,
+                    max_bit_size: bit_size,
+                    assert_message: Some(message.clone()),
+                };
+                self.builder.set_location(location).insert_instruction(size_overflow, None);
+                let product = self.builder.insert_cast(product_field, Type::unsigned(bit_size));
+
+                // Then we check the signed product fits in a signed integer of bit_size-bits
+                let not_same = self.builder.insert_binary(one, BinaryOp::Sub, same_sign);
+                let not_same_sign_field = self
+                    .builder
+                    .insert_instruction(Instruction::Cast(not_same, Type::unsigned(bit_size)), None)
+                    .first();
+                let positive_maximum_with_offset =
+                    self.builder.insert_binary(half_width, BinaryOp::Add, not_same_sign_field);
+                let product_overflow_check =
+                    self.builder.insert_binary(product, BinaryOp::Lt, positive_maximum_with_offset);
+                self.builder.set_location(location).insert_instruction(
+                    Instruction::Constrain(product_overflow_check, one, Some(message)),
+                    None,
+                );
+            }
+            BinaryOpKind::ShiftLeft => unreachable!("shift is not supported for signed integer"),
+            _ => unreachable!("operator {} should not overflow", operator),
+        }
+    }
     /// Insert a binary instruction at the end of the current block.
     /// Converts the form of the binary instruction as necessary
     /// (e.g. swapping arguments, inserting a not) to represent it in the IR.
@@ -294,8 +462,8 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> Values {
         let mut result = match operator {
-            BinaryOpKind::ShiftLeft => self.insert_shift_left(lhs, rhs),
-            BinaryOpKind::ShiftRight => self.insert_shift_right(lhs, rhs),
+            BinaryOpKind::ShiftLeft => self.builder.insert_shift_left(lhs, rhs),
+            BinaryOpKind::ShiftRight => self.builder.insert_shift_right(lhs, rhs),
             BinaryOpKind::Equal | BinaryOpKind::NotEqual
                 if matches!(self.builder.type_of_value(lhs), Type::Array(..)) =>
             {
@@ -311,21 +479,15 @@ impl<'a> FunctionContext<'a> {
             }
         };
 
-        if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
+        // Check for integer overflow
+        if matches!(
             operator,
-            lhs,
-            rhs,
-            &self.builder.current_function.dfg,
+            BinaryOpKind::Add
+                | BinaryOpKind::Subtract
+                | BinaryOpKind::Multiply
+                | BinaryOpKind::ShiftLeft
         ) {
-            let result_type = self.builder.current_function.dfg.type_of_value(result);
-            let bit_size = match result_type {
-                Type::Numeric(NumericType::Signed { bit_size })
-                | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-                _ => {
-                    unreachable!("ICE: Truncation attempted on non-integer");
-                }
-            };
-            result = self.builder.insert_truncate(result, bit_size, max_bit_size);
+            result = self.check_overflow(result, lhs, rhs, operator, location);
         }
 
         if operator_requires_not(operator) {
@@ -542,8 +704,11 @@ impl<'a> FunctionContext<'a> {
     /// This is operationally equivalent to extract_current_value_recursive, but splitting these
     /// into two separate functions avoids cloning the outermost `Values` returned by the recursive
     /// version, as it is only needed for recursion.
-    pub(super) fn extract_current_value(&mut self, lvalue: &ast::LValue) -> LValue {
-        match lvalue {
+    pub(super) fn extract_current_value(
+        &mut self,
+        lvalue: &ast::LValue,
+    ) -> Result<LValue, RuntimeError> {
+        Ok(match lvalue {
             ast::LValue::Ident(ident) => {
                 let (reference, should_auto_deref) = self.ident_lvalue(ident);
                 if should_auto_deref {
@@ -553,18 +718,18 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             ast::LValue::Index { array, index, location, .. } => {
-                self.index_lvalue(array, index, location).2
+                self.index_lvalue(array, index, location)?.2
             }
             ast::LValue::MemberAccess { object, field_index } => {
-                let (old_object, object_lvalue) = self.extract_current_value_recursive(object);
+                let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 LValue::MemberAccess { old_object, object_lvalue, index: *field_index }
             }
             ast::LValue::Dereference { reference, .. } => {
-                let (reference, _) = self.extract_current_value_recursive(reference);
+                let (reference, _) = self.extract_current_value_recursive(reference)?;
                 LValue::Dereference { reference }
             }
-        }
+        })
     }
 
     fn dereference_lvalue(&mut self, values: &Values, element_type: &ast::Type) -> Values {
@@ -594,16 +759,16 @@ impl<'a> FunctionContext<'a> {
         array: &ast::LValue,
         index: &ast::Expression,
         location: &Location,
-    ) -> (ValueId, ValueId, LValue, Option<ValueId>) {
-        let (old_array, array_lvalue) = self.extract_current_value_recursive(array);
-        let index = self.codegen_non_tuple_expression(index);
+    ) -> Result<(ValueId, ValueId, LValue, Option<ValueId>), RuntimeError> {
+        let (old_array, array_lvalue) = self.extract_current_value_recursive(array)?;
+        let index = self.codegen_non_tuple_expression(index)?;
         let array_lvalue = Box::new(array_lvalue);
         let array_values = old_array.clone().into_value_list(self);
 
         let location = *location;
         // A slice is represented as a tuple (length, slice contents).
         // We need to fetch the second value.
-        if array_values.len() > 1 {
+        Ok(if array_values.len() > 1 {
             let slice_lvalue = LValue::SliceIndex {
                 old_slice: old_array,
                 index,
@@ -615,37 +780,45 @@ impl<'a> FunctionContext<'a> {
             let array_lvalue =
                 LValue::Index { old_array: array_values[0], index, array_lvalue, location };
             (array_values[0], index, array_lvalue, None)
-        }
+        })
     }
 
-    fn extract_current_value_recursive(&mut self, lvalue: &ast::LValue) -> (Values, LValue) {
+    fn extract_current_value_recursive(
+        &mut self,
+        lvalue: &ast::LValue,
+    ) -> Result<(Values, LValue), RuntimeError> {
         match lvalue {
             ast::LValue::Ident(ident) => {
                 let (variable, should_auto_deref) = self.ident_lvalue(ident);
                 if should_auto_deref {
                     let dereferenced = self.dereference_lvalue(&variable, &ident.typ);
-                    (dereferenced, LValue::Dereference { reference: variable })
+                    Ok((dereferenced, LValue::Dereference { reference: variable }))
                 } else {
-                    (variable.clone(), LValue::Ident)
+                    Ok((variable.clone(), LValue::Ident))
                 }
             }
             ast::LValue::Index { array, index, element_type, location } => {
                 let (old_array, index, index_lvalue, max_length) =
-                    self.index_lvalue(array, index, location);
-                let element =
-                    self.codegen_array_index(old_array, index, element_type, *location, max_length);
-                (element, index_lvalue)
+                    self.index_lvalue(array, index, location)?;
+                let element = self.codegen_array_index(
+                    old_array,
+                    index,
+                    element_type,
+                    *location,
+                    max_length,
+                )?;
+                Ok((element, index_lvalue))
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
-                let (old_object, object_lvalue) = self.extract_current_value_recursive(object);
+                let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 let element = Self::get_field_ref(&old_object, *index).clone();
-                (element, LValue::MemberAccess { old_object, object_lvalue, index: *index })
+                Ok((element, LValue::MemberAccess { old_object, object_lvalue, index: *index }))
             }
             ast::LValue::Dereference { reference, element_type } => {
-                let (reference, _) = self.extract_current_value_recursive(reference);
+                let (reference, _) = self.extract_current_value_recursive(reference)?;
                 let dereferenced = self.dereference_lvalue(&reference, element_type);
-                (dereferenced, LValue::Dereference { reference })
+                Ok((dereferenced, LValue::Dereference { reference }))
             }
         }
     }
@@ -659,19 +832,14 @@ impl<'a> FunctionContext<'a> {
         match lvalue {
             LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
             LValue::Index { old_array: mut array, index, array_lvalue, location } => {
-                array = self.assign_lvalue_index(new_value, array, index, None, location);
+                array = self.assign_lvalue_index(new_value, array, index, location);
                 self.assign_new_value(*array_lvalue, array.into());
             }
             LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } => {
                 let mut slice_values = slice.into_value_list(self);
 
-                slice_values[1] = self.assign_lvalue_index(
-                    new_value,
-                    slice_values[1],
-                    index,
-                    Some(slice_values[0]),
-                    location,
-                );
+                slice_values[1] =
+                    self.assign_lvalue_index(new_value, slice_values[1], index, location);
 
                 // The size of the slice does not change in a slice index assignment so we can reuse the same length value
                 let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);
@@ -692,7 +860,6 @@ impl<'a> FunctionContext<'a> {
         new_value: Values,
         mut array: ValueId,
         index: ValueId,
-        length: Option<ValueId>,
         location: Location,
     ) -> ValueId {
         let element_size = self.builder.field_constant(self.element_size(array));
@@ -704,7 +871,7 @@ impl<'a> FunctionContext<'a> {
 
         new_value.for_each(|value| {
             let value = value.eval(self);
-            array = self.builder.insert_array_set(array, index, value, length);
+            array = self.builder.insert_array_set(array, index, value);
             index = self.builder.insert_binary(index, BinaryOp::Add, one);
         });
         array
@@ -778,7 +945,15 @@ fn operator_result_max_bit_size_to_truncate(
     match op {
         Add => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
         Subtract => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
-        Multiply => Some(lhs_bit_size + rhs_bit_size),
+        Multiply => {
+            if lhs_bit_size == 1 || rhs_bit_size == 1 {
+                // Truncation is unnecessary as multiplication by a boolean value cannot cause an overflow.
+                None
+            } else {
+                Some(lhs_bit_size + rhs_bit_size)
+            }
+        }
+
         ShiftLeft => {
             if let Some(rhs_constant) = dfg.get_numeric_constant(rhs) {
                 // Happy case is that we know precisely by how many bits the the integer will
@@ -859,7 +1034,7 @@ impl SharedContext {
     /// and return this new id.
     pub(super) fn get_or_queue_function(&self, id: ast::FuncId) -> IrFunctionId {
         // Start a new block to guarantee the destructor for the map lock is released
-        // before map needs to be aquired again in self.functions.write() below
+        // before map needs to be acquired again in self.functions.write() below
         {
             let map = self.functions.read().expect("Failed to read self.functions");
             if let Some(existing_id) = map.get(&id) {

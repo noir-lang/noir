@@ -89,6 +89,12 @@ impl From<Span> for Range<usize> {
     }
 }
 
+impl From<Range<u32>> for Span {
+    fn from(Range { start, end }: Range<u32>) -> Self {
+        Self(ByteSpan::new(start, end))
+    }
+}
+
 impl chumsky::Span for Span {
     type Context = ();
 
@@ -118,5 +124,9 @@ pub struct Location {
 impl Location {
     pub fn new(span: Span, file: FileId) -> Self {
         Self { span, file }
+    }
+
+    pub fn dummy() -> Self {
+        Self { span: Span::single_char(0), file: FileId::dummy() }
     }
 }

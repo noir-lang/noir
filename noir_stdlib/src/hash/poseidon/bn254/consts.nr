@@ -17,7 +17,7 @@ fn alpha() -> Field {
 }
 
 // Poseidon configurations for states of size 2 to 17.
-fn x5_2_config() -> PoseidonConfig<128, 4> {
+pub fn x5_2_config() -> PoseidonConfig<128, 4> {
     config(
         2,
         8,
@@ -28,7 +28,7 @@ fn x5_2_config() -> PoseidonConfig<128, 4> {
     )
         
 }
-fn x5_3_config() -> PoseidonConfig<195, 9> {
+pub fn x5_3_config() -> PoseidonConfig<195, 9> {
     config(
         3,
         8,
@@ -39,7 +39,7 @@ fn x5_3_config() -> PoseidonConfig<195, 9> {
         
 }
 
-fn x5_4_config() -> PoseidonConfig<256, 16> {
+pub fn x5_4_config() -> PoseidonConfig<256, 16> {
     config(
         4,
         8,
@@ -50,7 +50,7 @@ fn x5_4_config() -> PoseidonConfig<256, 16> {
     )
 }
 
-fn x5_5_config() -> PoseidonConfig<340, 25> {
+pub fn x5_5_config() -> PoseidonConfig<340, 25> {
     config(
         5,
         8,
@@ -61,7 +61,7 @@ fn x5_5_config() -> PoseidonConfig<340, 25> {
     )
 }
 
-fn x5_6_config() -> PoseidonConfig<408, 36> {
+pub fn x5_6_config() -> PoseidonConfig<408, 36> {
     config(
         6,
         8,
@@ -72,7 +72,7 @@ fn x5_6_config() -> PoseidonConfig<408, 36> {
     )
 }
 
-fn x5_7_config() -> PoseidonConfig<497, 49> {
+pub fn x5_7_config() -> PoseidonConfig<497, 49> {
     config(
         7,
         8,
@@ -83,7 +83,7 @@ fn x5_7_config() -> PoseidonConfig<497, 49> {
     )
 }
 
-fn x5_8_config() -> PoseidonConfig<576, 64> {
+pub fn x5_8_config() -> PoseidonConfig<576, 64> {
     config(
         8,
         8,
@@ -94,7 +94,7 @@ fn x5_8_config() -> PoseidonConfig<576, 64> {
     )
 }
 
-fn x5_9_config() -> PoseidonConfig<639, 81> {
+pub fn x5_9_config() -> PoseidonConfig<639, 81> {
     config(
         9,
         8,
@@ -105,7 +105,7 @@ fn x5_9_config() -> PoseidonConfig<639, 81> {
     )
 }
 
-fn x5_10_config() -> PoseidonConfig<680, 100> {
+pub fn x5_10_config() -> PoseidonConfig<680, 100> {
     config(
         10,
         8,
@@ -116,7 +116,7 @@ fn x5_10_config() -> PoseidonConfig<680, 100> {
     )
 }
 
-fn x5_11_config() -> PoseidonConfig<814, 121> {
+pub fn x5_11_config() -> PoseidonConfig<814, 121> {
     config(
         11,
         8,
@@ -127,7 +127,7 @@ fn x5_11_config() -> PoseidonConfig<814, 121> {
     )
 }
 
-fn x5_12_config() -> PoseidonConfig<816, 144> {
+pub fn x5_12_config() -> PoseidonConfig<816, 144> {
     config(
         12,
         8,
@@ -138,7 +138,7 @@ fn x5_12_config() -> PoseidonConfig<816, 144> {
     )
 }
 
-fn x5_13_config() -> PoseidonConfig<949, 169> {
+pub fn x5_13_config() -> PoseidonConfig<949, 169> {
     config(
         13,
         8,
@@ -149,7 +149,7 @@ fn x5_13_config() -> PoseidonConfig<949, 169> {
     )
 }
 
-fn x5_14_config() -> PoseidonConfig<1092, 196> {
+pub fn x5_14_config() -> PoseidonConfig<1092, 196> {
     config(
         14,
         8,
@@ -160,7 +160,7 @@ fn x5_14_config() -> PoseidonConfig<1092, 196> {
     )
 }
 
-fn x5_15_config() -> PoseidonConfig<1020, 225> {
+pub fn x5_15_config() -> PoseidonConfig<1020, 225> {
     config(
         15,
         8,
@@ -171,7 +171,7 @@ fn x5_15_config() -> PoseidonConfig<1020, 225> {
     )
 }
 
-fn x5_16_config() -> PoseidonConfig<1152, 256> {
+pub fn x5_16_config() -> PoseidonConfig<1152, 256> {
     config(
         16,
         8,
@@ -182,7 +182,7 @@ fn x5_16_config() -> PoseidonConfig<1152, 256> {
     )
 }
 
-fn x5_17_config() -> PoseidonConfig<1292, 289> {
+pub fn x5_17_config() -> PoseidonConfig<1292, 289> {
     config(
         17,
         8,

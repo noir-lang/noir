@@ -8,7 +8,7 @@ use nargo::{
     prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::CompileOptions;
+use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::{graph::CrateName, hir::FunctionNameMatch};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -51,7 +51,11 @@ pub(crate) fn run(
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
-    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        selection,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    )?;
 
     let pattern = match &args.test_name {
         Some(name) => {
@@ -65,7 +69,7 @@ pub(crate) fn run(
     };
 
     #[allow(deprecated)]
-    let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::new();
+    let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
     for package in &workspace {
         // By unwrapping here with `?`, we stop the test runner upon a package failing
         // TODO: We should run the whole suite even if there are failures in a package
@@ -82,8 +86,14 @@ fn run_tests<S: BlackBoxFunctionSolver>(
     show_output: bool,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let (mut context, crate_id) = prepare_package(package);
-    check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
+    let (mut context, crate_id) =
+        prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
+    check_crate_and_report_errors(
+        &mut context,
+        crate_id,
+        compile_options.deny_warnings,
+        compile_options.silence_warnings,
+    )?;
 
     let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, test_name);
 
@@ -105,7 +115,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                     .expect("Failed to set color");
                 writeln!(writer, "ok").expect("Failed to write to stdout");
             }
-            TestStatus::Fail { message } => {
+            TestStatus::Fail { message, error_diagnostic } => {
                 let writer = StandardStream::stderr(ColorChoice::Always);
                 let mut writer = writer.lock();
                 writer
@@ -113,6 +123,14 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                     .expect("Failed to set color");
                 writeln!(writer, "{message}").expect("Failed to write to stdout");
                 writer.reset().expect("Failed to reset writer");
+                if let Some(diag) = error_diagnostic {
+                    noirc_errors::reporter::report_all(
+                        context.file_manager.as_file_map(),
+                        &[diag],
+                        compile_options.deny_warnings,
+                        compile_options.silence_warnings,
+                    );
+                }
                 failing += 1;
             }
             TestStatus::CompileError(err) => {
@@ -120,6 +138,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                     context.file_manager.as_file_map(),
                     &[err],
                     compile_options.deny_warnings,
+                    compile_options.silence_warnings,
                 );
                 failing += 1;
             }

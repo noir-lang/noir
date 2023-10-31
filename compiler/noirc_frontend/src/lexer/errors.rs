@@ -1,3 +1,5 @@
+use crate::parser::ParserError;
+use crate::parser::ParserErrorReason;
 use crate::token::SpannedToken;
 
 use super::token::Token;
@@ -9,18 +11,31 @@ use thiserror::Error;
 pub enum LexerErrorKind {
     #[error("An unexpected character {:?} was found.", found)]
     UnexpectedCharacter { span: Span, expected: String, found: Option<char> },
-    #[error("NotADoubleChar : {:?} is not a double char token", found)]
+    #[error("Internal error: Tried to lex {:?} as a double char token", found)]
     NotADoubleChar { span: Span, found: Token },
-    #[error("InvalidIntegerLiteral : {:?} is not a integer", found)]
+    #[error("Invalid integer literal, {:?} is not a integer", found)]
     InvalidIntegerLiteral { span: Span, found: String },
-    #[error("MalformedFuncAttribute : {:?} is not a valid attribute", found)]
+    #[error("{:?} is not a valid attribute", found)]
     MalformedFuncAttribute { span: Span, found: String },
-    #[error("TooManyBits")]
+    #[error("Integer type is larger than the maximum supported size of u127")]
     TooManyBits { span: Span, max: u32, got: u32 },
-    #[error("LogicalAnd used instead of bitwise and")]
+    #[error("Logical and used instead of bitwise and")]
     LogicalAnd { span: Span },
     #[error("Unterminated block comment")]
     UnterminatedBlockComment { span: Span },
+    #[error("Unterminated string literal")]
+    UnterminatedStringLiteral { span: Span },
+    #[error(
+        "'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."
+    )]
+    InvalidEscape { escaped: char, span: Span },
+}
+
+impl From<LexerErrorKind> for ParserError {
+    fn from(value: LexerErrorKind) -> Self {
+        let span = value.span();
+        ParserError::with_reason(ParserErrorReason::Lexer(value), span)
+    }
 }
 
 impl LexerErrorKind {
@@ -33,6 +48,8 @@ impl LexerErrorKind {
             LexerErrorKind::TooManyBits { span, .. } => *span,
             LexerErrorKind::LogicalAnd { span } => *span,
             LexerErrorKind::UnterminatedBlockComment { span } => *span,
+            LexerErrorKind::UnterminatedStringLiteral { span } => *span,
+            LexerErrorKind::InvalidEscape { span, .. } => *span,
         }
     }
 
@@ -46,30 +63,30 @@ impl LexerErrorKind {
                 let found: String = found.map(Into::into).unwrap_or_else(|| "<eof>".into());
 
                 (
-                    "an unexpected character was found".to_string(),
-                    format!(" expected {expected} , but got {found}"),
+                    "An unexpected character was found".to_string(),
+                    format!("Expected {expected}, but found {found}"),
                     *span,
                 )
             },
             LexerErrorKind::NotADoubleChar { span, found } => (
-                format!("tried to parse {found} as double char"),
+                format!("Tried to parse {found} as double char"),
                 format!(
                     " {found:?} is not a double char, this is an internal error"
                 ),
                 *span,
             ),
             LexerErrorKind::InvalidIntegerLiteral { span, found } => (
-                "invalid integer literal".to_string(),
+                "Invalid integer literal".to_string(),
                 format!(" {found} is not an integer"),
                 *span,
             ),
             LexerErrorKind::MalformedFuncAttribute { span, found } => (
-                "malformed function attribute".to_string(),
+                "Malformed function attribute".to_string(),
                 format!(" {found} is not a valid attribute"),
                 *span,
             ),
             LexerErrorKind::TooManyBits { span, max, got } => (
-                "integer literal too large".to_string(),
+                "Integer literal too large".to_string(),
                 format!(
                     "The maximum number of bits needed to represent a field is {max}, This integer type needs {got} bits"
                 ),
@@ -80,7 +97,11 @@ impl LexerErrorKind {
                 "Try `&` instead, or use `if` only if you require short-circuiting".to_string(),
                 *span,
             ),
-            LexerErrorKind::UnterminatedBlockComment { span } => ("unterminated block comment".to_string(), "Unterminated block comment".to_string(), *span),
+            LexerErrorKind::UnterminatedBlockComment { span } => ("Unterminated block comment".to_string(), "Unterminated block comment".to_string(), *span),
+            LexerErrorKind::UnterminatedStringLiteral { span } =>
+                ("Unterminated string literal".to_string(), "Unterminated string literal".to_string(), *span),
+            LexerErrorKind::InvalidEscape { escaped, span } =>
+                (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), *span),
         }
     }
 }

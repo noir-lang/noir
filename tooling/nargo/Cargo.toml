@@ -4,6 +4,7 @@ description = "Noir's package manager"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,10 +17,10 @@ fm.workspace = true
 noirc_abi.workspace = true
 noirc_driver.workspace = true
 noirc_errors.workspace = true
+noirc_evaluator.workspace = true
 noirc_frontend.workspace = true
 noirc_printable_type.workspace = true
 iter-extended.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-base64.workspace = true
 codespan-reporting.workspace = true

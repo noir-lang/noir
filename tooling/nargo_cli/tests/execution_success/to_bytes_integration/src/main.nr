@@ -1,10 +1,10 @@
 use dep::std;
 
-fn main(x : Field, a: Field)  {
+fn main(x : Field, a: Field) {
     let y: Field = 2040124;
     let be_byte_array = y.to_be_bytes(31);
     let le_byte_array = x.to_le_bytes(31);
-    
+
     assert(le_byte_array[0] == 60);
     assert(le_byte_array[0] == be_byte_array[30]);
     assert(le_byte_array[1] == be_byte_array[29]);

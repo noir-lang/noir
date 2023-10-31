@@ -8,6 +8,7 @@ use std::{fmt::Display, str::FromStr};
 
 use fm::FileId;
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -32,7 +33,7 @@ impl CrateId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct CrateName(SmolStr);
 
 impl CrateName {
@@ -89,6 +90,11 @@ mod crate_name {
             let bad_char_string = bad_char.to_string();
             assert!(!CrateName::is_valid_name(&bad_char_string));
         }
+    }
+
+    #[test]
+    fn it_rejects_bad_crate_names_when_deserializing() {
+        assert!(serde_json::from_str::<CrateName>("bad-name").is_err());
     }
 }
 
@@ -312,7 +318,7 @@ mod tests {
         let mut vec_ids = Vec::with_capacity(n);
         for i in 0..n {
             let mut pth = PathBuf::new();
-            pth.push(format!("{}", i));
+            pth.push(format!("{i}"));
             pth.set_extension(FILE_EXTENSION);
             vec_ids.push(fm.add_file(pth.into(), String::new()));
         }

@@ -1,3 +1,4 @@
+use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::Expression;
 use small_ord_set::SmallOrdSet;
@@ -32,11 +33,15 @@ pub enum ParserErrorReason {
     #[error("Where clauses are allowed only on functions with generic parameters")]
     WhereClauseOnNonGenericFunction,
     #[error(
-        "Multiple primary attributes found. Only one primary attribute is allowed per function."
+        "Multiple primary attributes found. Only one function attribute is allowed per function"
     )]
-    MultiplePrimaryAttributesFound,
+    MultipleFunctionAttributesFound,
+    #[error("A function attribute cannot be placed on a struct")]
+    NoFunctionAttributesAllowedOnStruct,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
+    #[error("{0}")]
+    Lexer(LexerErrorKind),
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -90,6 +95,10 @@ impl ParserError {
     pub fn span(&self) -> Span {
         self.span
     }
+
+    pub fn reason(&self) -> Option<&ParserErrorReason> {
+        self.reason.as_ref()
+    }
 }
 
 impl std::fmt::Display for ParserError {
@@ -119,12 +128,12 @@ impl std::fmt::Display for ParserError {
 
 impl From<ParserError> for Diagnostic {
     fn from(error: ParserError) -> Diagnostic {
-        match &error.reason {
+        match error.reason {
             Some(reason) => {
                 match reason {
-                    ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_warning(
+                    ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_error(
                         "Use of deprecated keyword 'constrain'".into(),
-                        "The 'constrain' keyword has been deprecated. Please use the 'assert' function instead.".into(),
+                        "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
                         error.span,
                     ),
                     ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
@@ -137,11 +146,11 @@ impl From<ParserError> for Diagnostic {
                         "".into(),
                         error.span,
                     ),
-                    reason @ ParserErrorReason::ExpectedPatternButFoundType(ty) => {
-                        Diagnostic::simple_error(reason.to_string(), format!("{ty} is a type and cannot be used as a variable name"), error.span)
+                    ParserErrorReason::ExpectedPatternButFoundType(ty) => {
+                        Diagnostic::simple_error("Expected a ; separating these two statements".into(), format!("{ty} is a type and cannot be used as a variable name"), error.span)
                     }
+                    ParserErrorReason::Lexer(error) => error.into(),
                     other => {
-
                         Diagnostic::simple_error(format!("{other}"), String::new(), error.span)
                     }
                 }
