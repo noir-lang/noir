@@ -26,7 +26,7 @@
 //!     - On an ArrayGet operation add the resulting value as a possible child of the original slice. In SSA we will reuse the same memory block
 //!       for the nested slice and must account for an internal slice being fetched and set to a larger value, otherwise we may have an out of bounds error.
 //!       Also set the resulting fetched value to have the same internal slice size map as the children of the original array used in the operation.
-//!     - On an ArraySet operation we set the resulting value to have the same slice sizes map as the original array used in the operation. Like the result of an
+//!     - On an ArraySet operation we set the resulting value to have the same slice sizes map as the original array used in the operation. Like the result of
 //!       an ArrayGet we need to also add the `value` for an ArraySet as a possible child slice of the original array.
 //!     - For slice intrinsics we set the resulting value to have the same slice sizes map as the original array the same way as we do in an ArraySet.
 //!       However, with a slice intrinsic we also increase the size for the respective slice intrinsics.  
