@@ -632,59 +632,59 @@ mod tests {
         // Check the array get expression has replaced its nested slice with a new slice
         // where the internal slice has dummy data attached to it.
         let instructions = func.dfg[block_id].instructions();
-        for instruction in instructions.iter() {
-            match func.dfg[*instruction] {
-                Instruction::ArrayGet { array, .. } => {
-                    let (array_constant, _) =
-                        func.dfg.get_array_constant(array).expect("should have an array constant");
-
-                    let inner_slice_small_len = func
-                        .dfg
-                        .get_numeric_constant(array_constant[0])
-                        .expect("should have a numeric constant");
-                    assert_eq!(
-                        inner_slice_small_len,
-                        FieldElement::from(3u128),
-                        "The length of the smaller internal slice should be unchanged"
-                    );
-
-                    let (inner_slice_small_contents, _) = func
-                        .dfg
-                        .get_array_constant(array_constant[1])
-                        .expect("should have an array constant");
-                    assert_eq!(
-                        inner_slice_small_contents.len(),
-                        4,
-                        "The inner slice contents should contain dummy element"
-                    );
-
-                    compare_array_constants(&inner_slice_small_contents, &[1, 1, 1, 0], &func.dfg);
-
-                    let inner_slice_big_len = func
-                        .dfg
-                        .get_numeric_constant(array_constant[2])
-                        .expect("should have a numeric constant");
-                    assert_eq!(
-                        inner_slice_big_len,
-                        FieldElement::from(4u128),
-                        "The length of the larger internal slice should be unchanged"
-                    );
-
-                    let (inner_slice_big_contents, _) = func
-                        .dfg
-                        .get_array_constant(array_constant[3])
-                        .expect("should have an array constant");
-                    assert_eq!(
-                        inner_slice_small_contents.len(),
-                        inner_slice_big_contents.len(),
-                        "The length of both internal slice contents should be the same"
-                    );
-
-                    compare_array_constants(&inner_slice_big_contents, &[2u128; 4], &func.dfg);
+        let array_id = instructions
+            .iter()
+            .find_map(|instruction| {
+                if let Instruction::ArrayGet { array, .. } = func.dfg[*instruction] {
+                    Some(array)
+                } else {
+                    None
                 }
-                _ => {}
-            }
-        }
+            })
+            .expect("Should find array_get instruction");
+
+        let (array_constant, _) =
+            func.dfg.get_array_constant(array_id).expect("should have an array constant");
+
+        let inner_slice_small_len = func
+            .dfg
+            .get_numeric_constant(array_constant[0])
+            .expect("should have a numeric constant");
+        assert_eq!(
+            inner_slice_small_len,
+            FieldElement::from(3u128),
+            "The length of the smaller internal slice should be unchanged"
+        );
+
+        let (inner_slice_small_contents, _) =
+            func.dfg.get_array_constant(array_constant[1]).expect("should have an array constant");
+        assert_eq!(
+            inner_slice_small_contents.len(),
+            4,
+            "The inner slice contents should contain dummy element"
+        );
+
+        compare_array_constants(&inner_slice_small_contents, &[1, 1, 1, 0], &func.dfg);
+
+        let inner_slice_big_len = func
+            .dfg
+            .get_numeric_constant(array_constant[2])
+            .expect("should have a numeric constant");
+        assert_eq!(
+            inner_slice_big_len,
+            FieldElement::from(4u128),
+            "The length of the larger internal slice should be unchanged"
+        );
+
+        let (inner_slice_big_contents, _) =
+            func.dfg.get_array_constant(array_constant[3]).expect("should have an array constant");
+        assert_eq!(
+            inner_slice_small_contents.len(),
+            inner_slice_big_contents.len(),
+            "The length of both internal slice contents should be the same"
+        );
+
+        compare_array_constants(&inner_slice_big_contents, &[2u128; 4], &func.dfg);
     }
 
     fn compare_array_constants(
