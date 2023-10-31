@@ -4,3 +4,4 @@ members = [
     "library2",
     "binary"
 ]
+default-member = "binary"
