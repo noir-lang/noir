@@ -3,6 +3,5 @@ name = "eddsa"
 description = "Eddsa verification"
 type = "bin"
 authors = [""]
-compiler_version = "0.3.2"
 
 [dependencies]

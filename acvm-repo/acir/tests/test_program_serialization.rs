@@ -42,8 +42,7 @@ fn addition_circuit() {
         ..Circuit::default()
     };
 
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
         31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 144, 187, 13, 192, 32, 12, 68, 249, 100, 32, 27,
@@ -73,13 +72,12 @@ fn fixed_base_scalar_mul_circuit() {
         ..Circuit::default()
     };
 
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 77, 138, 91, 10, 0, 48, 12, 194, 178, 215, 207, 78, 189,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 77, 138, 91, 10, 0, 48, 12, 194, 178, 215, 215, 46, 189,
         163, 175, 165, 10, 21, 36, 10, 57, 192, 160, 146, 188, 226, 139, 78, 113, 69, 183, 190, 61,
-        111, 218, 182, 231, 124, 68, 185, 243, 207, 92, 0, 0, 0,
+        111, 218, 182, 231, 124, 122, 8, 177, 65, 92, 0, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)
@@ -87,7 +85,7 @@ fn fixed_base_scalar_mul_circuit() {
 
 #[test]
 fn pedersen_circuit() {
-    let pedersen = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Pedersen {
+    let pedersen = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::PedersenCommitment {
         inputs: vec![FunctionInput { witness: Witness(1), num_bits: FieldElement::max_num_bits() }],
         outputs: (Witness(2), Witness(3)),
         domain_separator: 0,
@@ -101,8 +99,7 @@ fn pedersen_circuit() {
         ..Circuit::default()
     };
 
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
         31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 93, 138, 9, 10, 0, 64, 8, 2, 103, 15, 250, 255, 139,
@@ -143,8 +140,7 @@ fn schnorr_verify_circuit() {
         ..Circuit::default()
     };
 
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
         31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 77, 210, 87, 78, 2, 1, 20, 134, 209, 177, 247, 222, 123,
@@ -197,8 +193,7 @@ fn simple_brillig_foreign_call() {
         ..Circuit::default()
     };
 
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
         31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 143, 49, 10, 64, 33, 12, 67, 99, 63, 124, 60, 142,
@@ -271,8 +266,7 @@ fn complex_brillig_foreign_call() {
         ..Circuit::default()
     };
 
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
         31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 83, 219, 10, 128, 48, 8, 117, 174, 139, 159, 179,
@@ -310,8 +304,7 @@ fn memory_op_circuit() {
         return_values: PublicInputs([Witness(4)].into()),
         ..Circuit::default()
     };
-    let mut bytes = Vec::new();
-    circuit.write(&mut bytes).unwrap();
+    let bytes = Circuit::serialize_circuit(&circuit);
 
     let expected_serialization: Vec<u8> = vec![
         31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 146, 49, 14, 0, 32, 8, 3, 139, 192, 127, 240, 7,

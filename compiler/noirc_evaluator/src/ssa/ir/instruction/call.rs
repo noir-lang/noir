@@ -245,6 +245,9 @@ pub(super) fn simplify_call(
             let instruction = Instruction::Cast(arguments[0], ctrl_typevars.unwrap().remove(0));
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
+        Intrinsic::WrappingShiftLeft => {
+            unreachable!("ICE - wrapping shift left should have been proccessed before")
+        }
     }
 }
 
@@ -413,7 +416,10 @@ fn simplify_black_box_func(
             simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256r1_verify)
         }
 
-        BlackBoxFunc::FixedBaseScalarMul | BlackBoxFunc::SchnorrVerify | BlackBoxFunc::Pedersen => {
+        BlackBoxFunc::FixedBaseScalarMul
+        | BlackBoxFunc::SchnorrVerify
+        | BlackBoxFunc::PedersenCommitment
+        | BlackBoxFunc::PedersenHash => {
             // Currently unsolvable here as we rely on an implementation in the backend.
             SimplifyResult::None
         }
