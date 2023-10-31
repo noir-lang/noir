@@ -560,6 +560,21 @@ impl Type {
                 .all(|(_, field)| field.is_valid_for_program_input()),
         }
     }
+
+    /// Returns the number of `Forall`-quantified type variables on this type.
+    /// Returns 0 if this is not a Type::Forall
+    pub fn generic_count(&self) -> usize {
+        match self {
+            Type::Forall(generics, _) => generics.len(),
+            Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.generic_count(),
+                    TypeBinding::Unbound(_) => 0,
+                }
+            }
+            _ => 0,
+        }
+    }
 }
 
 impl std::fmt::Display for Type {

@@ -996,7 +996,14 @@ fn resolve_trait_impls(
         new_resolver.set_self_type(Some(self_type.clone()));
 
         if let Some(trait_id) = maybe_trait_id {
-            check_methods_signatures(&mut new_resolver, &impl_methods, trait_id, errors);
+            let trait_impl_generic_count = trait_impl.generics.len();
+            check_methods_signatures(
+                &mut new_resolver,
+                &impl_methods,
+                trait_id,
+                trait_impl_generic_count,
+                errors,
+            );
 
             let resolved_trait_impl = Shared::new(TraitImpl {
                 ident: trait_impl.trait_path.last_segment().clone(),
@@ -1033,6 +1040,7 @@ fn check_methods_signatures(
     resolver: &mut Resolver,
     impl_methods: &Vec<(FileId, FuncId)>,
     trait_id: TraitId,
+    trait_impl_generic_count: usize,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) {
     let the_trait = resolver.interner.get_trait(trait_id);
@@ -1043,7 +1051,7 @@ fn check_methods_signatures(
     let _ = the_trait.self_type_typevar.borrow_mut().bind_to(self_type.clone(), the_trait.span);
 
     for (file_id, func_id) in impl_methods {
-        let meta = resolver.interner.function_meta(func_id);
+        let impl_method = resolver.interner.function_meta(func_id);
         let func_name = resolver.interner.function_name(func_id).to_owned();
 
         let mut typecheck_errors = Vec::new();
@@ -1051,16 +1059,35 @@ fn check_methods_signatures(
         // `method` is None in the case where the impl block has a method that's not part of the trait.
         // If that's the case, a `MethodNotInTrait` error has already been thrown, and we can ignore
         // the impl method, since there's nothing in the trait to match its signature against.
-        if let Some(method) =
+        if let Some(trait_method) =
             the_trait.methods.iter().find(|method| method.name.0.contents == func_name)
         {
-            let function_typ = meta.typ.instantiate(resolver.interner);
+            let function_typ = impl_method.typ.instantiate(resolver.interner);
+
+            let impl_method_generic_count =
+                impl_method.typ.generic_count() - trait_impl_generic_count;
+            let trait_method_generic_count = trait_method.generics.len();
+
+            if dbg!(impl_method_generic_count) != dbg!(trait_method_generic_count) {
+                let error = DefCollectorErrorKind::MismatchTraitImplementationNumGenerics {
+                    impl_method_generic_count,
+                    trait_method_generic_count,
+                    trait_name: the_trait.name.to_string(),
+                    method_name: func_name.to_string(),
+                    span: impl_method.location.span,
+                };
+                errors.push((error.into(), *file_id));
+            }
 
             if let Type::Function(params, _, _) = function_typ.0 {
-                if method.arguments.len() == params.len() {
+                if trait_method.arguments.len() == params.len() {
                     // Check the parameters of the impl method against the parameters of the trait method
-                    for (parameter_index, ((expected, actual), (hir_pattern, _, _))) in
-                        method.arguments.iter().zip(&params).zip(&meta.parameters.0).enumerate()
+                    for (parameter_index, ((expected, actual), (hir_pattern, _, _))) in trait_method
+                        .arguments
+                        .iter()
+                        .zip(&params)
+                        .zip(&impl_method.parameters.0)
+                        .enumerate()
                     {
                         expected.unify(actual, &mut typecheck_errors, || {
                             TypeCheckError::TraitMethodParameterTypeMismatch {
@@ -1075,11 +1102,11 @@ fn check_methods_signatures(
                 } else {
                     errors.push((
                         DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
-                            actual_num_parameters: meta.parameters.0.len(),
-                            expected_num_parameters: method.arguments.len(),
+                            actual_num_parameters: impl_method.parameters.0.len(),
+                            expected_num_parameters: trait_method.arguments.len(),
                             trait_name: the_trait.name.to_string(),
                             method_name: func_name.to_string(),
-                            span: meta.location.span,
+                            span: impl_method.location.span,
                         }
                         .into(),
                         *file_id,
@@ -1089,15 +1116,18 @@ fn check_methods_signatures(
 
             // Check that impl method return type matches trait return type:
             let resolved_return_type =
-                resolver.resolve_type(meta.return_type.get_type().into_owned());
+                resolver.resolve_type(impl_method.return_type.get_type().into_owned());
 
-            method.return_type.unify(&resolved_return_type, &mut typecheck_errors, || {
-                let ret_type_span =
-                    meta.return_type.get_type().span.expect("return type must always have a span");
+            trait_method.return_type.unify(&resolved_return_type, &mut typecheck_errors, || {
+                let ret_type_span = impl_method
+                    .return_type
+                    .get_type()
+                    .span
+                    .expect("return type must always have a span");
 
                 TypeCheckError::TypeMismatch {
-                    expected_typ: method.return_type.to_string(),
-                    expr_typ: meta.return_type().to_string(),
+                    expected_typ: trait_method.return_type.to_string(),
+                    expr_typ: impl_method.return_type().to_string(),
                     expr_span: ret_type_span,
                 }
             });
