@@ -16,8 +16,8 @@ use crate::{
     UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::{
-    ForLoopStatement, FunctionDefinition, FunctionVisibility, ImportStatement, NoirStruct,
-    PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
+    ForLoopStatement, ForRange, FunctionDefinition, FunctionVisibility, ImportStatement,
+    NoirStruct, PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
 };
 use fm::FileId;
 
@@ -873,6 +873,7 @@ fn add_struct_to_hasher(identifier: &Ident) -> Statement {
 fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     // If this is an array of primitive types (integers / fields) we can add them each to the hasher
     // casted to a field
+    let span = var.span.clone();
 
     // `array.len()`
     let end_range_expression = method_call(
@@ -887,12 +888,15 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
 
     // `for i in 0..{ident}.len()`
     make_statement(StatementKind::For(ForLoopStatement {
+        range: ForRange::Range(
+            expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(i128::from(
+                0,
+            ))))),
+            end_range_expression,
+        ),
         identifier: ident("i"),
-        start_range: expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(
-            i128::from(0),
-        )))),
-        end_range: end_range_expression,
         block: for_loop_block,
+        span,
     }))
 }
 
