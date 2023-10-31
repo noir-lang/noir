@@ -10,7 +10,7 @@ use dep::aztec::{
 global FIELD_NOTE_LEN: Field = 1;
 
 // A note which stores a field and is expected to be passed around using the `addNote` function.
-// WARNING: This Note is not private as it does not contain randomness and hence it can be easy to perform preimage
+// WARNING: This Note is not private as it does not contain randomness and hence it can be easy to perform serialized_note
 // attack on it.
 struct FieldNote {
     value: Field,
@@ -29,9 +29,9 @@ impl FieldNote {
         [self.value]
     }
 
-    pub fn deserialize(preimage: [Field; FIELD_NOTE_LEN]) -> Self {
+    pub fn deserialize(serialized_note: [Field; FIELD_NOTE_LEN]) -> Self {
         FieldNote {
-            value: preimage[0],
+            value: serialized_note[0],
             header: NoteHeader::empty(),
         }
     }
@@ -51,8 +51,8 @@ impl FieldNote {
     }
 }
 
-fn deserialize(preimage: [Field; FIELD_NOTE_LEN]) -> FieldNote {
-    FieldNote::deserialize(preimage)
+fn deserialize(serialized_note: [Field; FIELD_NOTE_LEN]) -> FieldNote {
+    FieldNote::deserialize(serialized_note)
 }
 
 fn serialize(note: FieldNote) -> [Field; FIELD_NOTE_LEN]{

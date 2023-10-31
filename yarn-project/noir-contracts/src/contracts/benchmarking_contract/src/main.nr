@@ -72,8 +72,8 @@ contract Benchmarking {
         emit_unencrypted_log(&mut context, storage.balances.at(owner).read());
     }
 
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
+        note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)
     }
 }

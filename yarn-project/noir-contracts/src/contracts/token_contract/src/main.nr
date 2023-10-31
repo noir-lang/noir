@@ -432,18 +432,18 @@ contract Token {
     // docs:end:balance_of_public
 
     // Below this point is the stuff of nightmares.
-    // This should ideally not be required. What do we do if vastly different types of preimages?
+    // This should ideally not be required. What do we do if vastly different types of serialized_notes?
 
     // docs:start:compute_note_hash_and_nullifier
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; TOKEN_NOTE_LEN]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; TOKEN_NOTE_LEN]) -> [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
         if (storage_slot == 5) {
-            note_utils::compute_note_hash_and_nullifier(TransparentNoteMethods, note_header, preimage)
+            note_utils::compute_note_hash_and_nullifier(TransparentNoteMethods, note_header, serialized_note)
         } else {
-            note_utils::compute_note_hash_and_nullifier(TokenNoteMethods, note_header, preimage)
+            note_utils::compute_note_hash_and_nullifier(TokenNoteMethods, note_header, serialized_note)
         }
     }
     // docs:end:compute_note_hash_and_nullifier

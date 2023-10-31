@@ -38,11 +38,11 @@ impl CardNote {
         [self.points as Field, self.secret, self.owner]
     }
 
-    pub fn deserialize(preimage: [Field; CARD_NOTE_LEN]) -> Self {
+    pub fn deserialize(serialized_note: [Field; CARD_NOTE_LEN]) -> Self {
         CardNote {
-            points: preimage[0] as u8,
-            secret: preimage[1],
-            owner: preimage[2],
+            points: serialized_note[0] as u8,
+            secret: serialized_note[1],
+            owner: serialized_note[2],
             header: NoteHeader::empty(),
         }
     }
@@ -82,8 +82,8 @@ impl CardNote {
     }
 }
 
-fn deserialize(preimage: [Field; CARD_NOTE_LEN]) -> CardNote {
-    CardNote::deserialize(preimage)
+fn deserialize(serialized_note: [Field; CARD_NOTE_LEN]) -> CardNote {
+    CardNote::deserialize(serialized_note)
 }
 
 fn serialize(note: CardNote) -> [Field; CARD_NOTE_LEN] {

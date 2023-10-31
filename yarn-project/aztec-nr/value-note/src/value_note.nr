@@ -41,11 +41,11 @@ impl ValueNote {
         [self.value, self.owner, self.randomness]
     }
 
-    pub fn deserialize(preimage: [Field; VALUE_NOTE_LEN]) -> Self {
+    pub fn deserialize(serialized_note: [Field; VALUE_NOTE_LEN]) -> Self {
         ValueNote {
-            value: preimage[0],
-            owner: preimage[1],
-            randomness: preimage[2],
+            value: serialized_note[0],
+            owner: serialized_note[1],
+            randomness: serialized_note[2],
             header: NoteHeader::empty(),
         }
     }
@@ -87,8 +87,8 @@ impl ValueNote {
     }
 }
 
-fn deserialize(preimage: [Field; VALUE_NOTE_LEN]) -> ValueNote {
-    ValueNote::deserialize(preimage)
+fn deserialize(serialized_note: [Field; VALUE_NOTE_LEN]) -> ValueNote {
+    ValueNote::deserialize(serialized_note)
 }
 
 fn serialize(note: ValueNote) -> [Field; VALUE_NOTE_LEN] {

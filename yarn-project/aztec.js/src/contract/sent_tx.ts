@@ -68,7 +68,7 @@ export class SentTx {
     if (receipt.status !== TxStatus.MINED)
       throw new Error(`Transaction ${await this.getTxHash()} was ${receipt.status}`);
     if (opts?.getNotes) {
-      receipt.notes = await this.pxe.getNotes({ txHash: await this.getTxHash() });
+      receipt.visibleNotes = await this.pxe.getNotes({ txHash: await this.getTxHash() });
     }
     return receipt;
   }
@@ -84,11 +84,11 @@ export class SentTx {
   }
 
   /**
-   * Gets notes created in this tx.
+   * Get notes of accounts registered in the provided PXE/Wallet created in this tx.
    * @remarks This function will wait for the tx to be mined if it hasn't been already.
    * @returns The requested notes.
    */
-  public async getNotes(): Promise<ExtendedNote[]> {
+  public async getVisibleNotes(): Promise<ExtendedNote[]> {
     await this.wait();
     return this.pxe.getNotes({ txHash: await this.getTxHash() });
   }

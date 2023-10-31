@@ -28,7 +28,7 @@
           "visibility": "private"
         },
         {
-          "name": "preimage",
+          "name": "serialized_note",
           "type": {
             "kind": "array",
             "length": 3,

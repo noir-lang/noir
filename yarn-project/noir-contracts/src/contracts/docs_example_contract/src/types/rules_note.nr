@@ -33,10 +33,10 @@ impl RulesNote {
         [self.min_points as Field, self.max_points as Field]
     }
 
-    pub fn deserialize(preimage: [Field; RULES_NOTE_LEN]) -> Self {
+    pub fn deserialize(serialized_note: [Field; RULES_NOTE_LEN]) -> Self {
         RulesNote {
-            min_points: preimage[0] as u8,
-            max_points: preimage[1] as u8,
+            min_points: serialized_note[0] as u8,
+            max_points: serialized_note[1] as u8,
             maybe_owner: Option::none(),
             header: NoteHeader::empty(),
         }
@@ -78,8 +78,8 @@ impl RulesNote {
     }
 }
 
-fn deserialize(preimage: [Field; RULES_NOTE_LEN]) -> RulesNote {
-    RulesNote::deserialize(preimage)
+fn deserialize(serialized_note: [Field; RULES_NOTE_LEN]) -> RulesNote {
+    RulesNote::deserialize(serialized_note)
 }
 
 fn serialize(note: RulesNote) -> [Field; RULES_NOTE_LEN] {

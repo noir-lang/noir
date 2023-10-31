@@ -41,11 +41,11 @@ impl AddressNote {
         [self.address, self.owner, self.randomness]
     }
 
-    pub fn deserialize(preimage: [Field; ADDRESS_NOTE_LEN]) -> Self {
+    pub fn deserialize(serialized_note: [Field; ADDRESS_NOTE_LEN]) -> Self {
         AddressNote {
-            address: preimage[0],
-            owner: preimage[1],
-            randomness: preimage[2],
+            address: serialized_note[0],
+            owner: serialized_note[1],
+            randomness: serialized_note[2],
             header: NoteHeader::empty(),
         }
     }
@@ -85,8 +85,8 @@ impl AddressNote {
     }
 }
 
-fn deserialize(preimage: [Field; ADDRESS_NOTE_LEN]) -> AddressNote {
-    AddressNote::deserialize(preimage)
+fn deserialize(serialized_note: [Field; ADDRESS_NOTE_LEN]) -> AddressNote {
+    AddressNote::deserialize(serialized_note)
 }
 
 fn serialize(note: AddressNote) -> [Field; ADDRESS_NOTE_LEN]{

@@ -28,7 +28,7 @@
           "visibility": "private"
         },
         {
-          "name": "preimage",
+          "name": "serialized_note",
           "type": {
             "kind": "array",
             "length": 0,
@@ -87,7 +87,7 @@
     ],
     "fileMap": {
       "1": {
-        "source": "contract Blank {\n    use dep::aztec::{\n        abi,\n        oracle::{\n            get_public_key::get_public_key,\n        },\n    };\n\n    #[aztec(private)]\n    fn constructor() {}\n\n    #[aztec(private)]\n    fn getPublicKey(\n        address: Field,\n    ) -> [Field; 2]{\n        let pub_key = get_public_key(address);\n        \n        [pub_key.x, pub_key.y]\n    }\n\n    // A function which needs to be implemented by every contract working with storage. Replace it's content with your\n    // own logic once you start working with private storage.\n    // TODO: Remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented.\n    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; 0]) -> [Field; 4] {\n        [0, 0, 0, 0]\n    }\n}\n",
+        "source": "contract Blank {\n    use dep::aztec::{\n        abi,\n        oracle::{\n            get_public_key::get_public_key,\n        },\n    };\n\n    #[aztec(private)]\n    fn constructor() {}\n\n    #[aztec(private)]\n    fn getPublicKey(\n        address: Field,\n    ) -> [Field; 2]{\n        let pub_key = get_public_key(address);\n        \n        [pub_key.x, pub_key.y]\n    }\n\n    // A function which needs to be implemented by every contract working with storage. Replace it's content with your\n    // own logic once you start working with private storage.\n    // TODO: Remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented.\n    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; 0]) -> [Field; 4] {\n        [0, 0, 0, 0]\n    }\n}\n",
         "path": "/mnt/user-data/jan/aztec-packages/yarn-project/boxes/blank/src/contracts/src/main.nr"
       },
       "35": {

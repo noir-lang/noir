@@ -8,16 +8,16 @@ use crate::utils::arr_copy_slice;
 #[oracle(notifyCreatedNote)]
 fn notify_created_note_oracle<N>(
     _storage_slot: Field,
-    _preimage: [Field; N],
+    _serialized_note: [Field; N],
     _inner_note_hash: Field,
 ) -> Field {}
 
 unconstrained pub fn notify_created_note<N>(
     storage_slot: Field,
-    preimage: [Field; N],
+    serialized_note: [Field; N],
     inner_note_hash: Field,
 ) -> Field {
-    notify_created_note_oracle(storage_slot, preimage, inner_note_hash)
+    notify_created_note_oracle(storage_slot, serialized_note, inner_note_hash)
 }
 
 #[oracle(notifyNullifiedNote)]
@@ -89,8 +89,8 @@ unconstrained pub fn get_notes<Note, N, M, S, NS>(
             let nonce = fields[read_offset];
             let is_transient = fields[read_offset + 1] as bool;
             let header = NoteHeader { contract_address, nonce, storage_slot, is_transient };
-            let preimage = arr_copy_slice(fields, [0; N], read_offset + 2);
-            let mut note = deserialize(preimage);
+            let serialized_note = arr_copy_slice(fields, [0; N], read_offset + 2);
+            let mut note = deserialize(serialized_note);
             set_header(&mut note, header);
             placeholder_opt_notes[i] = Option::some(note);
         };

@@ -58,7 +58,7 @@ contract PendingCommitments {
         let owner_balance = storage.balances.at(owner);
         let mut note = ValueNote::new(amount, owner);
 
-        // Insert note and emit encrypted note preimage via oracle call
+        // Insert note
         owner_balance.insert(&mut note, true);
 
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, amount);
@@ -91,7 +91,7 @@ contract PendingCommitments {
         assert(maybe_notes[0].is_none());
         assert(maybe_notes[1].is_none());
 
-        // Insert note and emit encrypted note preimage via oracle call
+        // Insert note
         let mut note = ValueNote::new(amount, owner);
         owner_balance.insert(&mut note, true);
 
@@ -116,7 +116,7 @@ contract PendingCommitments {
         let owner_balance = storage.balances.at(owner);
         let mut note = ValueNote::new(amount, owner);
 
-        // Insert note and emit encrypted note preimage via oracle call
+        // Insert note
         owner_balance.insert(&mut note, true);
     }
 
@@ -256,8 +256,8 @@ contract PendingCommitments {
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
+        note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)
     }
 }

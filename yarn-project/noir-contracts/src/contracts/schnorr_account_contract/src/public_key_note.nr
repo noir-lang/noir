@@ -67,11 +67,11 @@ impl PublicKeyNote {
     }
 }
 
-fn deserialize(preimage: [Field; PUBLIC_KEY_NOTE_LEN]) -> PublicKeyNote {
+fn deserialize(serialized_note: [Field; PUBLIC_KEY_NOTE_LEN]) -> PublicKeyNote {
     PublicKeyNote {
-        x: preimage[0],
-        y: preimage[1],
-        owner: preimage[2],
+        x: serialized_note[0],
+        y: serialized_note[1],
+        owner: serialized_note[2],
         header: NoteHeader::empty(),
     }
 }

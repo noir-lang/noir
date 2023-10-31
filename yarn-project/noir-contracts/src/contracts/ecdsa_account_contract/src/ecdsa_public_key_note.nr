@@ -88,22 +88,22 @@ impl EcdsaPublicKeyNote {
     }
 }
 
-fn deserialize(preimage: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> EcdsaPublicKeyNote {
+fn deserialize(serialized_note: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> EcdsaPublicKeyNote {
     let mut x: [u8; 32] = [0;32];
     let mut y: [u8; 32] = [0;32];
 
-    let part_x = preimage[0].to_be_bytes(32);
+    let part_x = serialized_note[0].to_be_bytes(32);
     for i in 0..31 { x[i] = part_x[i + 1]; }
-    x[31] = preimage[1].to_be_bytes(32)[31];
+    x[31] = serialized_note[1].to_be_bytes(32)[31];
 
-    let part_y = preimage[2].to_be_bytes(32);
+    let part_y = serialized_note[2].to_be_bytes(32);
     for i in 0..31 { y[i] = part_y[i + 1]; }
-    y[31] = preimage[3].to_be_bytes(32)[31];
+    y[31] = serialized_note[3].to_be_bytes(32)[31];
 
     EcdsaPublicKeyNote {
         x,
         y,
-        owner: preimage[4],
+        owner: serialized_note[4],
         header: NoteHeader::empty(),
     }
 }

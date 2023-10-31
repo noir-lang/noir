@@ -53,10 +53,10 @@ impl TransparentNote {
         [self.amount, self.secret_hash]
     }
 
-    pub fn deserialize(preimage: [Field; TRANSPARENT_NOTE_LEN]) -> Self {
+    pub fn deserialize(serialized_note: [Field; TRANSPARENT_NOTE_LEN]) -> Self {
         TransparentNote {
-            amount: preimage[0],
-            secret_hash: preimage[1],
+            amount: serialized_note[0],
+            secret_hash: serialized_note[1],
             secret: 0,
             header: NoteHeader::empty(),
         }
@@ -90,8 +90,8 @@ impl TransparentNote {
     }
 }
 
-fn deserialize(preimage: [Field; TRANSPARENT_NOTE_LEN]) -> TransparentNote {
-    TransparentNote::deserialize(preimage)
+fn deserialize(serialized_note: [Field; TRANSPARENT_NOTE_LEN]) -> TransparentNote {
+    TransparentNote::deserialize(serialized_note)
 }
 
 fn serialize(note: TransparentNote) -> [Field; TRANSPARENT_NOTE_LEN] {

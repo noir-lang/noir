@@ -69,11 +69,11 @@ pub fn compute_note_hash_for_read_or_nullify<Note, N>(
 pub fn compute_note_hash_and_nullifier<Note, N, S>(
     note_interface: NoteInterface<Note, N>,
     note_header: NoteHeader,
-    preimage: [Field; S],
+    serialized_note: [Field; S],
 ) -> [Field; 4] {
     let deserialize = note_interface.deserialize;
     let set_header = note_interface.set_header;
-    let mut note = deserialize(arr_copy_slice(preimage, [0; N], 0));
+    let mut note = deserialize(arr_copy_slice(serialized_note, [0; N], 0));
     set_header(&mut note, note_header);
 
     let compute_note_hash = note_interface.compute_note_hash;

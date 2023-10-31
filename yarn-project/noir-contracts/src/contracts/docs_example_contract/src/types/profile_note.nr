@@ -33,10 +33,10 @@ impl ProfileNote {
         [self.avatar, self.xp]
     }
 
-    pub fn deserialize(preimage: [Field; PROFILE_NOTE_LEN]) -> Self {
+    pub fn deserialize(serialized_note: [Field; PROFILE_NOTE_LEN]) -> Self {
         ProfileNote {
-            avatar: preimage[0],
-            xp: preimage[1],
+            avatar: serialized_note[0],
+            xp: serialized_note[1],
             maybe_owner: Option::none(),
             header: NoteHeader::empty(),
         }
@@ -78,8 +78,8 @@ impl ProfileNote {
     }
 }
 
-fn deserialize(preimage: [Field; PROFILE_NOTE_LEN]) -> ProfileNote {
-    ProfileNote::deserialize(preimage)
+fn deserialize(serialized_note: [Field; PROFILE_NOTE_LEN]) -> ProfileNote {
+    ProfileNote::deserialize(serialized_note)
 }
 
 fn serialize(note: ProfileNote) -> [Field; PROFILE_NOTE_LEN] {

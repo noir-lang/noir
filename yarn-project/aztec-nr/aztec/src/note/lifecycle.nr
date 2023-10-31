@@ -26,8 +26,8 @@ pub fn create_note<Note, N>(
     let inner_note_hash = compute_inner_note_hash(note_interface, *note);
 
     let serialize = note_interface.serialize;
-    let preimage = serialize(*note);
-    assert(notify_created_note(storage_slot, preimage, inner_note_hash) == 0);
+    let serialized_note = serialize(*note);
+    assert(notify_created_note(storage_slot, serialized_note, inner_note_hash) == 0);
 
     context.push_new_note_hash(inner_note_hash);
 

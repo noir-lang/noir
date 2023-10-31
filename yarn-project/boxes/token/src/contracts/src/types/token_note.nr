@@ -50,11 +50,11 @@ impl TokenNote {
         [self.amount.value as Field, self.owner.address, self.randomness]
     }
 
-    pub fn deserialize(preimage: [Field; TOKEN_NOTE_LEN]) -> Self {
+    pub fn deserialize(serialized_note: [Field; TOKEN_NOTE_LEN]) -> Self {
         Self {
-            amount: SafeU120::new(preimage[0]),
-            owner: AztecAddress::new(preimage[1]),
-            randomness: preimage[2],
+            amount: SafeU120::new(serialized_note[0]),
+            owner: AztecAddress::new(serialized_note[1]),
+            randomness: serialized_note[2],
             header: NoteHeader::empty(),
         }
     }
@@ -101,8 +101,8 @@ impl TokenNote {
   }
 }
 
-fn deserialize(preimage: [Field; TOKEN_NOTE_LEN]) -> TokenNote {
-    TokenNote::deserialize(preimage)
+fn deserialize(serialized_note: [Field; TOKEN_NOTE_LEN]) -> TokenNote {
+    TokenNote::deserialize(serialized_note)
 }
 
 fn serialize(note: TokenNote) -> [Field; TOKEN_NOTE_LEN] {
