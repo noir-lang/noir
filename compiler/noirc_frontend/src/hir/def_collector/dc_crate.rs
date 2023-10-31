@@ -996,12 +996,11 @@ fn resolve_trait_impls(
         new_resolver.set_self_type(Some(self_type.clone()));
 
         if let Some(trait_id) = maybe_trait_id {
-            let trait_impl_generic_count = trait_impl.generics.len();
             check_methods_signatures(
                 &mut new_resolver,
                 &impl_methods,
                 trait_id,
-                trait_impl_generic_count,
+                trait_impl.generics.len(),
                 errors,
             );
 
@@ -1056,13 +1055,13 @@ fn check_methods_signatures(
 
         let mut typecheck_errors = Vec::new();
 
-        // `method` is None in the case where the impl block has a method that's not part of the trait.
+        // This is None in the case where the impl block has a method that's not part of the trait.
         // If that's the case, a `MethodNotInTrait` error has already been thrown, and we can ignore
         // the impl method, since there's nothing in the trait to match its signature against.
         if let Some(trait_method) =
             the_trait.methods.iter().find(|method| method.name.0.contents == func_name)
         {
-            let function_typ = impl_method.typ.instantiate(resolver.interner);
+            let impl_function_type = impl_method.typ.instantiate(resolver.interner);
 
             let impl_method_generic_count =
                 impl_method.typ.generic_count() - trait_impl_generic_count;
@@ -1079,15 +1078,14 @@ fn check_methods_signatures(
                 errors.push((error.into(), *file_id));
             }
 
-            if let Type::Function(params, _, _) = function_typ.0 {
-                if trait_method.arguments.len() == params.len() {
+            if let Type::Function(impl_params, _, _) = impl_function_type.0 {
+                if trait_method.arguments.len() == impl_params.len() {
                     // Check the parameters of the impl method against the parameters of the trait method
-                    for (parameter_index, ((expected, actual), (hir_pattern, _, _))) in trait_method
-                        .arguments
-                        .iter()
-                        .zip(&params)
-                        .zip(&impl_method.parameters.0)
-                        .enumerate()
+                    let args = trait_method.arguments.iter();
+                    let args_and_params = args.zip(&impl_params).zip(&impl_method.parameters.0);
+
+                    for (parameter_index, ((expected, actual), (hir_pattern, _, _))) in
+                        args_and_params.enumerate()
                     {
                         expected.unify(actual, &mut typecheck_errors, || {
                             TypeCheckError::TraitMethodParameterTypeMismatch {
@@ -1100,17 +1098,14 @@ fn check_methods_signatures(
                         });
                     }
                 } else {
-                    errors.push((
-                        DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
-                            actual_num_parameters: impl_method.parameters.0.len(),
-                            expected_num_parameters: trait_method.arguments.len(),
-                            trait_name: the_trait.name.to_string(),
-                            method_name: func_name.to_string(),
-                            span: impl_method.location.span,
-                        }
-                        .into(),
-                        *file_id,
-                    ));
+                    let error = DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
+                        actual_num_parameters: impl_method.parameters.0.len(),
+                        expected_num_parameters: trait_method.arguments.len(),
+                        trait_name: the_trait.name.to_string(),
+                        method_name: func_name.to_string(),
+                        span: impl_method.location.span,
+                    };
+                    errors.push((error.into(), *file_id));
                 }
             }
 
@@ -1119,17 +1114,12 @@ fn check_methods_signatures(
                 resolver.resolve_type(impl_method.return_type.get_type().into_owned());
 
             trait_method.return_type.unify(&resolved_return_type, &mut typecheck_errors, || {
-                let ret_type_span = impl_method
-                    .return_type
-                    .get_type()
-                    .span
-                    .expect("return type must always have a span");
+                let ret_type_span = impl_method.return_type.get_type().span;
+                let expr_span = ret_type_span.expect("return type must always have a span");
 
-                TypeCheckError::TypeMismatch {
-                    expected_typ: trait_method.return_type.to_string(),
-                    expr_typ: impl_method.return_type().to_string(),
-                    expr_span: ret_type_span,
-                }
+                let expected_typ = trait_method.return_type.to_string();
+                let expr_typ = impl_method.return_type().to_string();
+                TypeCheckError::TypeMismatch { expr_typ, expected_typ, expr_span }
             });
 
             errors.extend(typecheck_errors.iter().cloned().map(|e| (e.into(), *file_id)));
