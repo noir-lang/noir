@@ -2,6 +2,4 @@
 name = "1327_concrete_in_generic"
 type = "bin"
 authors = [""]
-compiler_version = "0.6.0"
-
 [dependencies]
