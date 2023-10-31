@@ -27,12 +27,12 @@ Currently, Noir provides a Language Client for Visual Studio Code via the [vscod
 
 When your language server is running correctly and the VSCode plugin is installed, you should see handy codelens buttons for compilation, measuring circuit size, execution, and tests:
 
-![Compile and Execute](./../../../static/img/codelens_compile_execute.png)
-![Run test](../../../static/img/codelens_run_test.png)
+![Compile and Execute](@site/static/img/codelens_compile_execute.png)
+![Run test](@site/static/img/codelens_run_test.png)
 
 You should also see your tests in the `testing` panel:
 
-![Testing panel](./../../../static/img/codelens_testing_panel.png)
+![Testing panel](@site/static/img/codelens_testing_panel.png)
 
 ### Configuration
 

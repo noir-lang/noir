@@ -266,6 +266,7 @@ impl<'interner> TypeChecker<'interner> {
                     Box::new(method.return_type.clone()),
                     Box::new(Type::Unit),
                 );
+
                 let (typ, bindings) = typ.instantiate(self.interner);
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
                 typ

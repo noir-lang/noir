@@ -3,7 +3,7 @@ import { expect } from '@esm-bundle/chai';
 import { TEST_LOG_LEVEL } from '../environment.js';
 import { Logger } from 'tslog';
 import { initializeResolver } from '@noir-lang/source-resolver';
-import newCompiler, { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
+import newCompiler, { CompiledProgram, compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
 import { acvm, abi, Noir } from '@noir-lang/noir_js';
 
 import * as TOML from 'smol-toml';
@@ -26,7 +26,7 @@ const base_relative_path = '../../../../..';
 const circuit_main = 'compiler/integration-tests/circuits/main';
 const circuit_recursion = 'compiler/integration-tests/circuits/recursion';
 
-async function getCircuit(noirSource: string) {
+function getCircuit(noirSource: string): CompiledProgram {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   initializeResolver((id: string) => {
     logger.debug('source-resolver: resolving:', id);
@@ -34,7 +34,12 @@ async function getCircuit(noirSource: string) {
   });
 
   // We're ignoring this in the resolver but pass in something sensible.
-  return compile('./main.nr');
+  const result = compile('/main.nr');
+  if (!('program' in result)) {
+    throw new Error('Compilation failed');
+  }
+
+  return result.program;
 }
 
 describe('It compiles noir program code, receiving circuit bytes and abi object.', () => {
@@ -50,7 +55,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
   });
 
   it('Should generate valid inner proof for correct input, then verify proof within a proof', async () => {
-    const main_program = await getCircuit(circuit_main_source);
+    const main_program = getCircuit(circuit_main_source);
     const main_inputs: InputMap = TOML.parse(circuit_main_toml) as InputMap;
 
     const main_backend = new BarretenbergBackend(main_program);
