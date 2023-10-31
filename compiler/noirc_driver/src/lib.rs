@@ -4,13 +4,11 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 use clap::Args;
-use debug::filter_relevant_files;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::errors::SsaReport;
 use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
@@ -23,6 +21,8 @@ use std::path::Path;
 mod contract;
 mod debug;
 mod program;
+
+use debug::filter_relevant_files;
 
 pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
 pub use debug::DebugFile;
@@ -69,13 +69,6 @@ pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
 
 /// Helper type for connecting a compilation artifact to the errors or warnings which were produced during compilation.
 pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
-
-// This is here for backwards compatibility
-// with the restricted version which only uses one file
-pub fn compile_file(context: &mut Context, root_file: &Path) -> CompilationResult<CompiledProgram> {
-    let crate_id = prepare_crate(context, root_file);
-    compile_main(context, crate_id, &CompileOptions::default(), None, true)
-}
 
 /// Adds the file from the file system at `Path` to the crate graph as a root file
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
@@ -168,22 +161,18 @@ pub fn compile_main(
 ) -> CompilationResult<CompiledProgram> {
     let (_, mut warnings) = check_crate(context, crate_id, options.deny_warnings)?;
 
-    let main = match context.get_main_function(&crate_id) {
-        Some(m) => m,
-        None => {
-            // TODO(#2155): This error might be a better to exist in Nargo
-            let err = CustomDiagnostic::from_message(
-                "cannot compile crate into a program as it does not contain a `main` function",
-            )
-            .in_file(FileId::default());
-            return Err(vec![err]);
-        }
-    };
+    let main = context.get_main_function(&crate_id).ok_or_else(|| {
+        // TODO(#2155): This error might be a better to exist in Nargo
+        let err = CustomDiagnostic::from_message(
+            "cannot compile crate into a program as it does not contain a `main` function",
+        )
+        .in_file(FileId::default());
+        vec![err]
+    })?;
 
-    let (compiled_program, compilation_warnings) =
-        compile_no_check(context, options, main, cached_program, force_compile)
-            .map_err(FileDiagnostic::from)?;
-    let compilation_warnings = vecmap(compilation_warnings, FileDiagnostic::from);
+    let compiled_program = compile_no_check(context, options, main, cached_program, force_compile)
+        .map_err(FileDiagnostic::from)?;
+    let compilation_warnings = vecmap(compiled_program.warnings.clone(), FileDiagnostic::from);
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
     }
@@ -267,6 +256,7 @@ fn compile_contract_inner(
 ) -> Result<CompiledContract, ErrorsAndWarnings> {
     let mut functions = Vec::new();
     let mut errors = Vec::new();
+    let mut warnings = Vec::new();
     for contract_function in &contract.functions {
         let function_id = contract_function.function_id;
         let is_entry_point = contract_function.is_entry_point;
@@ -282,12 +272,13 @@ fn compile_contract_inner(
         }
 
         let function = match compile_no_check(context, options, function_id, None, true) {
-            Ok((function, _warnings)) => function,
+            Ok(function) => function,
             Err(new_error) => {
                 errors.push(FileDiagnostic::from(new_error));
                 continue;
             }
         };
+        warnings.extend(function.warnings);
         let modifiers = context.def_interner.function_modifiers(&function_id);
         let func_type = modifiers
             .contract_function_type
@@ -323,36 +314,35 @@ fn compile_contract_inner(
             functions,
             file_map,
             noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
+            warnings,
         })
     } else {
         Err(errors)
     }
 }
 
-/// Compile the current crate. Assumes self.check_crate is called beforehand!
+/// Compile the current crate using `main_function` as the entrypoint.
 ///
-/// This function also assumes all errors in experimental_create_circuit and create_circuit
-/// are not warnings.
-#[allow(deprecated)]
+/// This function assumes [`check_crate`] is called beforehand.
 pub fn compile_no_check(
     context: &Context,
     options: &CompileOptions,
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
-) -> Result<(CompiledProgram, Vec<SsaReport>), RuntimeError> {
+) -> Result<CompiledProgram, RuntimeError> {
     let program = monomorphize(main_function, &context.def_interner);
 
     let hash = fxhash::hash64(&program);
+    let hashes_match = cached_program.as_ref().map_or(false, |program| program.hash == hash);
 
     // If user has specified that they want to see intermediate steps printed then we should
     // force compilation even if the program hasn't changed.
-    if !(force_compile || options.print_acir || options.show_brillig || options.show_ssa) {
-        if let Some(cached_program) = cached_program {
-            if hash == cached_program.hash {
-                return Ok((cached_program, Vec::new()));
-            }
-        }
+    let force_compile =
+        force_compile || options.print_acir || options.show_brillig || options.show_ssa;
+
+    if !force_compile && hashes_match {
+        return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
 
     let (circuit, debug, abi, warnings) =
@@ -360,15 +350,13 @@ pub fn compile_no_check(
 
     let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
 
-    Ok((
-        CompiledProgram {
-            hash,
-            circuit,
-            debug,
-            abi,
-            file_map,
-            noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
-        },
+    Ok(CompiledProgram {
+        hash,
+        circuit,
+        debug,
+        abi,
+        file_map,
+        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-    ))
+    })
 }

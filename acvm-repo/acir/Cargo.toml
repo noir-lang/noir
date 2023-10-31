@@ -21,6 +21,7 @@ flate2 = "1.0.24"
 bincode.workspace = true
 strum = "0.24"
 strum_macros = "0.24"
+base64.workspace = true
 
 [dev-dependencies]
 serde_json = "1.0"

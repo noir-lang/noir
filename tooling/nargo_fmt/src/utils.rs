@@ -4,14 +4,6 @@ use noirc_frontend::lexer::Lexer;
 use noirc_frontend::token::Token;
 use noirc_frontend::{Expression, Ident};
 
-pub(crate) fn recover_comment_removed(original: &str, new: String) -> String {
-    if changed_comment_content(original, &new) {
-        original.to_string()
-    } else {
-        new
-    }
-}
-
 pub(crate) fn changed_comment_content(original: &str, new: &str) -> bool {
     comments(original).ne(comments(new))
 }
@@ -132,7 +124,6 @@ impl FindToken for str {
         Lexer::new(self)
             .skip_comments(false)
             .flatten()
-            .into_iter()
             .find_map(|spanned| f(spanned.token()).then(|| spanned.to_span().end()))
     }
 }

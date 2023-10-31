@@ -2,6 +2,4 @@
 name = "simple_array_param"
 type = "bin"
 authors = [""]
-compiler_version = "0.6.0"
-
 [dependencies]

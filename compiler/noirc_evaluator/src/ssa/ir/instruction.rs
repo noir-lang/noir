@@ -46,6 +46,7 @@ pub(crate) enum Intrinsic {
     BlackBox(BlackBoxFunc),
     FromField,
     AsField,
+    WrappingShiftLeft,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -68,6 +69,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
             Intrinsic::FromField => write!(f, "from_field"),
             Intrinsic::AsField => write!(f, "as_field"),
+            Intrinsic::WrappingShiftLeft => write!(f, "wrapping_shift_left"),
         }
     }
 }
@@ -92,7 +94,8 @@ impl Intrinsic {
             | Intrinsic::ToBits(_)
             | Intrinsic::ToRadix(_)
             | Intrinsic::FromField
-            | Intrinsic::AsField => false,
+            | Intrinsic::AsField
+            | Intrinsic::WrappingShiftLeft => false,
 
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
@@ -119,6 +122,7 @@ impl Intrinsic {
             "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
             "from_field" => Some(Intrinsic::FromField),
             "as_field" => Some(Intrinsic::AsField),
+            "wrapping_shift_left" => Some(Intrinsic::WrappingShiftLeft),
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }

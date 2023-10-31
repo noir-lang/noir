@@ -27,6 +27,7 @@ fn main(pair : (Field, Field), x: [(u8, u8, u8); 2], struct_pair: (Foo, Bar)) ->
     } else {
         (pair.0 + 1, pair.0)
     };
+
     assert(u == pair.0 + 1);
     assert(v == pair.0);
 

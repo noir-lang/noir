@@ -65,7 +65,12 @@ pub(crate) fn run(
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
-    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
+
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        selection,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+    )?;
     let circuit_dir = workspace.target_directory_path();
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
@@ -197,6 +202,7 @@ fn compile_program(
             noir_version: preprocessed_program.noir_version,
             debug: debug_artifact.debug_symbols.remove(0),
             file_map: debug_artifact.file_map,
+            warnings: debug_artifact.warnings,
         })
     } else {
         None
@@ -270,8 +276,11 @@ fn save_program(program: CompiledProgram, package: &Package, circuit_dir: &Path)
 
     save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
 
-    let debug_artifact =
-        DebugArtifact { debug_symbols: vec![program.debug], file_map: program.file_map };
+    let debug_artifact = DebugArtifact {
+        debug_symbols: vec![program.debug],
+        file_map: program.file_map,
+        warnings: program.warnings,
+    };
     let circuit_name: String = (&package.name).into();
     save_debug_artifact_to_file(&debug_artifact, &circuit_name, circuit_dir);
 }
@@ -284,6 +293,7 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
     let debug_artifact = DebugArtifact {
         debug_symbols: contract.functions.iter().map(|function| function.debug.clone()).collect(),
         file_map: contract.file_map,
+        warnings: contract.warnings,
     };
 
     let preprocessed_functions = vecmap(contract.functions, |func| PreprocessedContractFunction {
