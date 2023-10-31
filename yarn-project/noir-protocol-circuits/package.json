@@ -1,5 +1,5 @@
 {
-  "name": "@aztec/noir-private-kernel",
+  "name": "@aztec/noir-protocol-circuits",
   "version": "0.1.0",
   "type": "module",
   "exports": {

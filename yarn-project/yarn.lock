@@ -648,9 +648,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/noir-private-kernel@workspace:noir-private-kernel":
+"@aztec/noir-protocol-circuits@workspace:noir-protocol-circuits":
   version: 0.0.0-use.local
-  resolution: "@aztec/noir-private-kernel@workspace:noir-private-kernel"
+  resolution: "@aztec/noir-protocol-circuits@workspace:noir-protocol-circuits"
   dependencies:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
