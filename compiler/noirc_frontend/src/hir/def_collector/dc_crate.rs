@@ -1068,7 +1068,7 @@ fn check_methods_signatures(
                 impl_method.typ.generic_count() - trait_impl_generic_count;
             let trait_method_generic_count = trait_method.generics.len();
 
-            if dbg!(impl_method_generic_count) != dbg!(trait_method_generic_count) {
+            if impl_method_generic_count != trait_method_generic_count {
                 let error = DefCollectorErrorKind::MismatchTraitImplementationNumGenerics {
                     impl_method_generic_count,
                     trait_method_generic_count,
