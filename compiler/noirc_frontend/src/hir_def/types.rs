@@ -520,6 +520,61 @@ impl Type {
             }
         }
     }
+
+    /// True if this type can be used as a parameter to `main` or a contract function.
+    /// This is only false for unsized types like slices or slices that do not make sense
+    /// as a program input such as named generics or mutable references.
+    ///
+    /// This function should match the same check done in `create_value_from_type` in acir_gen.
+    /// If this function does not catch a case where a type should be valid, it will later lead to a
+    /// panic in that function instead of a user-facing compiler error message.
+    pub(crate) fn is_valid_for_program_input(&self) -> bool {
+        match self {
+            // Type::Error is allowed as usual since it indicates an error was already issued and
+            // we don't need to issue further errors about this likely unresolved type
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Constant(_)
+            | Type::Error => true,
+
+            Type::FmtString(_, _)
+            | Type::TypeVariable(_, _)
+            | Type::NamedGeneric(_, _)
+            | Type::Function(_, _, _)
+            | Type::MutableReference(_)
+            | Type::Forall(_, _)
+            | Type::TraitAsType(..)
+            | Type::NotConstant => false,
+
+            Type::Array(length, element) => {
+                length.is_valid_for_program_input() && element.is_valid_for_program_input()
+            }
+            Type::String(length) => length.is_valid_for_program_input(),
+            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_for_program_input()),
+            Type::Struct(definition, generics) => definition
+                .borrow()
+                .get_fields(generics)
+                .into_iter()
+                .all(|(_, field)| field.is_valid_for_program_input()),
+        }
+    }
+
+    /// Returns the number of `Forall`-quantified type variables on this type.
+    /// Returns 0 if this is not a Type::Forall
+    pub fn generic_count(&self) -> usize {
+        match self {
+            Type::Forall(generics, _) => generics.len(),
+            Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.generic_count(),
+                    TypeBinding::Unbound(_) => 0,
+                }
+            }
+            _ => 0,
+        }
+    }
 }
 
 impl std::fmt::Display for Type {
@@ -1026,6 +1081,75 @@ impl Type {
                 (instantiated, replacements)
             }
             other => (other.clone(), HashMap::new()),
+        }
+    }
+
+    /// Replace each NamedGeneric (and TypeVariable) in this type with a fresh type variable
+    pub(crate) fn instantiate_named_generics(&self, interner: &NodeInterner) -> Type {
+        let mut substitutions = HashMap::new();
+        self.find_all_unbound_type_variables(interner, &mut substitutions);
+        self.substitute(&substitutions)
+    }
+
+    /// For each unbound type variable in the current type, add a type binding to the given list
+    /// to bind the unbound type variable to a fresh type variable.
+    fn find_all_unbound_type_variables(
+        &self,
+        interner: &NodeInterner,
+        bindings: &mut TypeBindings,
+    ) {
+        match self {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::TraitAsType(_)
+            | Type::Constant(_)
+            | Type::NotConstant
+            | Type::Error => (),
+            Type::Array(length, elem) => {
+                length.find_all_unbound_type_variables(interner, bindings);
+                elem.find_all_unbound_type_variables(interner, bindings);
+            }
+            Type::String(length) => length.find_all_unbound_type_variables(interner, bindings),
+            Type::FmtString(length, env) => {
+                length.find_all_unbound_type_variables(interner, bindings);
+                env.find_all_unbound_type_variables(interner, bindings);
+            }
+            Type::Struct(_, generics) => {
+                for generic in generics {
+                    generic.find_all_unbound_type_variables(interner, bindings);
+                }
+            }
+            Type::Tuple(fields) => {
+                for field in fields {
+                    field.find_all_unbound_type_variables(interner, bindings);
+                }
+            }
+            Type::Function(args, ret, env) => {
+                for arg in args {
+                    arg.find_all_unbound_type_variables(interner, bindings);
+                }
+                ret.find_all_unbound_type_variables(interner, bindings);
+                env.find_all_unbound_type_variables(interner, bindings);
+            }
+            Type::MutableReference(elem) => {
+                elem.find_all_unbound_type_variables(interner, bindings);
+            }
+            Type::Forall(_, typ) => typ.find_all_unbound_type_variables(interner, bindings),
+            Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => {
+                        binding.find_all_unbound_type_variables(interner, bindings);
+                    }
+                    TypeBinding::Unbound(id) => {
+                        if !bindings.contains_key(id) {
+                            let fresh_type_variable = interner.next_type_variable();
+                            bindings.insert(*id, (type_variable.clone(), fresh_type_variable));
+                        }
+                    }
+                }
+            }
         }
     }
 

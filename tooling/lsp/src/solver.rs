@@ -16,12 +16,12 @@ impl BlackBoxFunctionSolver for WrapperSolver {
         self.0.schnorr_verify(public_key_x, public_key_y, signature, message)
     }
 
-    fn pedersen(
+    fn pedersen_commitment(
         &self,
         inputs: &[acvm::FieldElement],
         domain_separator: u32,
     ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
-        self.0.pedersen(inputs, domain_separator)
+        self.0.pedersen_commitment(inputs, domain_separator)
     }
 
     fn fixed_base_scalar_mul(
@@ -30,6 +30,14 @@ impl BlackBoxFunctionSolver for WrapperSolver {
         high: &acvm::FieldElement,
     ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
         self.0.fixed_base_scalar_mul(low, high)
+    }
+
+    fn pedersen_hash(
+        &self,
+        inputs: &[acvm::FieldElement],
+        domain_separator: u32,
+    ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
+        self.0.pedersen_hash(inputs, domain_separator)
     }
 }
 
@@ -50,7 +58,7 @@ impl BlackBoxFunctionSolver for MockBackend {
         unimplemented!()
     }
 
-    fn pedersen(
+    fn pedersen_commitment(
         &self,
         _inputs: &[acvm::FieldElement],
         _domain_separator: u32,
@@ -63,6 +71,14 @@ impl BlackBoxFunctionSolver for MockBackend {
         _low: &acvm::FieldElement,
         _high: &acvm::FieldElement,
     ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
+        unimplemented!()
+    }
+
+    fn pedersen_hash(
+        &self,
+        _inputs: &[acvm::FieldElement],
+        _domain_separator: u32,
+    ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
         unimplemented!()
     }
 }

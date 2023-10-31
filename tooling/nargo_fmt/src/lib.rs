@@ -20,9 +20,8 @@
 /// in both placement and content during the formatting process.
 mod config;
 pub mod errors;
-#[macro_use]
-mod visitor;
 mod utils;
+mod visitor;
 
 use noirc_frontend::ParsedModule;
 use visitor::FmtVisitor;
@@ -31,6 +30,6 @@ pub use config::Config;
 
 pub fn format(source: &str, parsed_module: ParsedModule, config: &Config) -> String {
     let mut fmt = FmtVisitor::new(source, config);
-    fmt.visit_module(parsed_module);
+    fmt.visit_file(parsed_module);
     fmt.finish()
 }

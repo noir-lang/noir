@@ -1,4 +1,3 @@
-
 fn g(x: &mut Field) -> () {
     *x *= 2;
 }
@@ -8,11 +7,7 @@ fn h(x: &mut Field) -> () {
 }
 
 fn selector(flag: &mut bool) -> fn(&mut Field) -> () {
-    let my_func = if *flag {
-        g
-    } else {
-        h
-    };
+    let my_func = if *flag { g } else { h };
 
     // Flip the flag for the next function call
     *flag = !(*flag);
@@ -20,7 +15,6 @@ fn selector(flag: &mut bool) -> fn(&mut Field) -> () {
 }
 
 fn main() {
-    
     let mut flag: bool = true;
 
     let mut x: Field = 100;
@@ -34,5 +28,4 @@ fn main() {
     returned_func2(&mut y);
 
     assert(y == 300);
-
 }

@@ -398,6 +398,13 @@ impl Attributes {
         matches!(self.function, Some(FunctionAttribute::Test(_)))
     }
 
+    /// True if these attributes mean the given function is an entry point function if it was
+    /// defined within a contract. Note that this does not check if the function is actually part
+    /// of a contract.
+    pub fn is_contract_entry_point(&self) -> bool {
+        !self.has_contract_library_method() && !self.is_test_function()
+    }
+
     /// Returns note if a deprecated secondary attribute is found
     pub fn get_deprecated_note(&self) -> Option<Option<String>> {
         self.secondary.iter().find_map(|attr| match attr {
