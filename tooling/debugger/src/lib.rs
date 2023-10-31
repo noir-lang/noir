@@ -5,6 +5,7 @@ use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
 use nargo::artifacts::debug::DebugArtifact;
+
 use nargo::NargoError;
 
 pub fn debug_circuit<B: BlackBoxFunctionSolver>(
