@@ -77,11 +77,11 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    // Returns the callstack in source code locations for the currently
-    // executing opcode. This can be None if the execution finished (and
-    // get_current_opcode_location() returns None) or if the opcode is not
-    // mapped to a specific source location in the debug artifact (which can
-    // happen for certain opcodes inserted synthetically by the compiler)
+    /// Returns the callstack in source code locations for the currently
+    /// executing opcode. This can be `None` if the execution finished (and
+    /// `get_current_opcode_location()` returns `None`) or if the opcode is not
+    /// mapped to a specific source location in the debug artifact (which can
+    /// happen for certain opcodes inserted synthetically by the compiler)
     pub(super) fn get_current_source_location(&self) -> Option<Vec<Location>> {
         self.get_current_opcode_location()
             .as_ref()
