@@ -222,7 +222,7 @@ fn compile_contract(
     (context.file_manager, Ok((optimized_contract, warnings)))
 }
 
-fn save_program(
+pub(super) fn save_program(
     program: CompiledProgram,
     package: &Package,
     circuit_dir: &Path,
