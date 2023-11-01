@@ -8,6 +8,8 @@ use crate::{
         deployment_data::ContractDeploymentData,
     },
     abis::{
+        combined_constant_data::CombinedConstantData,
+        previous_kernel_data::PreviousKernelData,
         private_kernel::private_call_data::PrivateCallData,
         historical_block_data::HistoricalBlockData,
         call_context::CallContext,
@@ -35,6 +37,7 @@ use crate::{
 use dep::aztec::{
     abi::hash_args,
     constants_gen::{
+        EMPTY_NULLIFIED_COMMITMENT,
         MAX_READ_REQUESTS_PER_CALL,
         MAX_NEW_COMMITMENTS_PER_CALL,
         MAX_NEW_NULLIFIERS_PER_CALL,
@@ -151,6 +154,20 @@ impl PrivateCircuitPublicInputsBuilder {
             chain_id : self.chain_id,
             version : self.version,
         }
+    }
+}
+
+pub fn build_tx_context(
+    is_constructor: bool, 
+    contract_deployment_data: ContractDeploymentData,
+) -> TxContext {
+     TxContext {
+        is_fee_payment_tx : false,
+        is_rebate_payment_tx : false,
+        is_contract_deployment_tx : is_constructor,
+        contract_deployment_data,
+        chain_id : 1,
+        version: 0,
     }
 }
 
@@ -315,6 +332,42 @@ pub fn create_private_call_data<N, T>(
     };
 
     (private_call, contract_deployment_data)
+}
+
+pub fn create_previous_kernel_data<T>(
+    is_constructor: bool,
+    function: fn (PrivateAppInputs, T) -> PrivateCircuitPublicInputs,
+    params: T,
+    msg_sender: Address,
+) -> PreviousKernelData {
+    let (private_call, contract_deployment_data) = create_private_call_data(
+        is_constructor,
+        function,
+        params,
+        msg_sender,
+    );
+
+    // Turn the private call data into the previous kernel.
+    let mut previous_kernel: PreviousKernelData = dep::std::unsafe::zeroed();
+
+    let tx_context = build_tx_context(is_constructor, contract_deployment_data);
+    previous_kernel.public_inputs.constants = CombinedConstantData {
+        block_data: private_call.call_stack_item.public_inputs().historical_block_data,
+        tx_context,
+    };
+
+    previous_kernel.public_inputs.is_private = true;
+    previous_kernel.public_inputs.end.encrypted_logs_hash = [0, 0];
+    previous_kernel.public_inputs.end.unencrypted_logs_hash = [0, 0];
+    previous_kernel.public_inputs.end.encrypted_log_preimages_length = 0;
+    previous_kernel.public_inputs.end.unencrypted_log_preimages_length = 0;
+
+    previous_kernel.public_inputs.end.new_nullifiers[0] = 321; // 0th nullifier must be non-zero.
+    previous_kernel.public_inputs.end.nullified_commitments[0] = EMPTY_NULLIFIED_COMMITMENT;
+
+    previous_kernel.public_inputs.end.private_call_stack[0] = private_call.call_stack_item.hash();
+
+    previous_kernel
 }
 
 pub fn generate_read_requests(how_many: u64) -> ([Field; MAX_READ_REQUESTS_PER_CALL], [ReadRequestMembershipWitness<NOTE_HASH_TREE_HEIGHT>; MAX_READ_REQUESTS_PER_CALL]) {

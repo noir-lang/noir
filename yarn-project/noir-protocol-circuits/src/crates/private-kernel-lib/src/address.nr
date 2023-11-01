@@ -1,11 +1,16 @@
 use crate::utils;
 
 // Aztec address
-struct Address{
+struct Address {
     inner : Field
 }
 
-impl Address{
+impl Address {
+    pub fn ZERO() -> Self {
+        Self {
+            inner: 0
+        }
+    }
 
     pub fn default() -> Self {
         Self {
@@ -44,6 +49,11 @@ struct EthAddress{
 }
 
 impl EthAddress{
+    pub fn ZERO() -> Self {
+        Self {
+            inner: 0
+        }
+    }
 
     pub fn default() -> Self {
         Self {

@@ -22,7 +22,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
     }
 
     pub fn push(&mut self, elem: T) {
-        assert(self.len as u64 < MaxLen as u64);
+        assert(self.len as u64 < MaxLen as u64, "push out of bounds");
 
         self.storage[self.len] = elem;
         self.len += 1;
@@ -44,7 +44,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
 
     pub fn push_array<Len>(&mut self, array: [T; Len]) {
         let newLen = self.len + array.len();
-        assert(newLen as u64 <= MaxLen as u64);
+        assert(newLen as u64 <= MaxLen as u64, "push_array out of bounds");
         for i in 0..array.len() {
             self.storage[self.len + i] = array[i];
         }
@@ -53,7 +53,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
 
     pub fn push_vec<Len>(&mut self, vec: BoundedVec<T, Len>) {
         let newLen = self.len + vec.len();
-        assert(newLen as u64 <= MaxLen as u64);
+        assert(newLen as u64 <= MaxLen as u64, "push_vec out of bounds");
         for i in 0..Len {
             if i < (vec.len() as u64) {
                 self.storage[self.len + (i as Field)] = vec.get_unchecked(i as Field);
@@ -110,6 +110,20 @@ fn test_vec_push_array() {
     assert(vec.get(1) == 4);
 }
 
+#[test(should_fail_with="push_array out of bounds")]
+fn test_vec_push_array_out_of_bound() {
+    let mut vec: BoundedVec<Field, 2> = BoundedVec::new(0);
+    vec.push_array([2, 4, 6]);
+}
+
+#[test(should_fail_with="push_array out of bounds")]
+fn test_vec_push_array_twice_out_of_bound() {
+    let mut vec: BoundedVec<Field, 2> = BoundedVec::new(0);
+    vec.push_array([2]);
+    assert(vec.len == 1);
+    vec.push_array([4, 6]);
+}
+
 #[test(should_fail)]
 fn test_vec_get_out_of_bound() {
     let mut vec: BoundedVec<Field, 2> = BoundedVec::new(0);
@@ -130,11 +144,32 @@ fn test_vec_get_uninitialized() {
     let _x = vec.get(0);
 }
 
-#[test(should_fail)]
-fn test_vec_push_overflow() {
+#[test(should_fail_with="push out of bounds")]
+fn test_vec_push_out_of_bound() {
     let mut vec: BoundedVec<Field, 1> = BoundedVec::new(0);
     vec.push(1);
     vec.push(2);
+}
+
+#[test(should_fail_with="push_vec out of bounds")]
+fn test_vec_push_vec_out_of_bound() {
+    let mut vec: BoundedVec<Field, 2> = BoundedVec::new(0);
+
+    let mut another_vec: BoundedVec<Field, 3> = BoundedVec::new(0);
+    another_vec.push_array([1, 2, 3]);
+
+    vec.push_vec(another_vec);
+}
+
+#[test(should_fail_with="push_vec out of bounds")]
+fn test_vec_push_vec_twice_out_of_bound() {
+    let mut vec: BoundedVec<Field, 2> = BoundedVec::new(0);
+    vec.push_array([1, 2]);
+
+    let mut another_vec: BoundedVec<Field, 1> = BoundedVec::new(0);
+    another_vec.push(3);
+
+    vec.push_vec(another_vec);
 }
 
 #[test]

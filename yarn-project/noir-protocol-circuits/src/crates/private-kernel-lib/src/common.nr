@@ -289,7 +289,9 @@ pub fn contract_logic(private_call : PrivateCallData, public_inputs : &mut Kerne
         public_inputs.end.new_nullifiers.push(new_contract_address_nullifier);
     } else {
         // non-contract deployments must specify contract address being interacted with
-        assert(storage_contract_address.to_field() != 0, "contract address can't be 0 for non-contract deployment related transactions");
+        // TODO - Allow special characters in error message.
+        // assert(storage_contract_address.to_field() != 0, "contract address can't be 0 for non-contract deployment related transactions");
+        assert(storage_contract_address.to_field() != 0, "contract address cannot be 0");
 
          /* We need to compute the root of the contract tree, starting from the function's VK:
          * - Compute the vk_hash (done above)
@@ -302,7 +304,9 @@ pub fn contract_logic(private_call : PrivateCallData, public_inputs : &mut Kerne
         // Ensures that if the function is internal, only the contract itself can call it
         if (private_call.call_stack_item.function_data().is_internal) {
             let msg_sender = private_call.call_stack_item.public_inputs().call_context.msg_sender;
-            assert(storage_contract_address.eq(msg_sender), "call is internal, but msg_sender is not self");
+            // TODO - Allow special characters in error message.
+            // assert(storage_contract_address.eq(msg_sender), "call is internal, but msg_sender is not self");
+            assert(storage_contract_address.eq(msg_sender), "call is internal but msg_sender is not self");
         }
 
         // The logic below ensures that the contract exists in the contracts tree
@@ -321,7 +325,9 @@ pub fn contract_logic(private_call : PrivateCallData, public_inputs : &mut Kerne
                                                  private_call.contract_leaf_membership_witness.sibling_path);
 
         let purported_contract_tree_root = private_call.call_stack_item.public_inputs().historical_block_data.contract_tree_root();
-        assert_eq(computed_contract_tree_root, purported_contract_tree_root, "computed_contract_tree_root doesn't match purported_contract_tree_root");
+        // TODO - Allow special characters in error message.
+        // assert_eq(computed_contract_tree_root, purported_contract_tree_root, "computed_contract_tree_root doesn't match purported_contract_tree_root");
+        assert_eq(computed_contract_tree_root, purported_contract_tree_root, "computed_contract_tree_root does not match purported_contract_tree_root");
     }
 }
 
