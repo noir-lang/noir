@@ -4,10 +4,11 @@ description: Explore the Integer data type in Noir. Learn about its methods, see
 keywords: [noir, integer types, methods, examples, arithmetic]
 ---
 
-An integer type is a range constrained field type. The Noir frontend currently supports unsigned,
-arbitrary-sized integer types.
+An integer type is a range constrained field type. The Noir frontend currently supports arbitrary-sized, both unsigned and signed integer types.
 
 When an integer is defined in Noir without a specific type, it will default to `Field`. The one exception is for loop indices which default to `u64` since comparisons on `Field`s are not possible.
+
+## Unsigned Integers
 
 An unsigned integer type is specified first with the letter `u`, indicating its unsigned nature, followed by
 its length in bits (e.g. `8`). For example, a `u8` variable can store a value in the range of
@@ -42,11 +43,54 @@ Would result in:
 ```
 $ nargo prove
 error: Assertion failed: 'attempt to add with overflow'
-  ┌─ ~/src/main.nr:2:13
-  │
-2 │     let z = x as u8 + y;
-  │             -----------
-  │
-  = Call stack:
-    ...
+┌─ ~/src/main.nr:2:13
+│
+│     let z = x as u8 + y;
+│             -----------
+│
+= Call stack:
+  ...
+```
+
+## Signed Integers
+
+A signed integer type is specified first with the letter `i`, followed by
+its length in bits (e.g. `8`). For example, a `i8` variable can store a value in the range of
+$\\([-2^{7}+1,2^{7}-1]\\)$.
+
+An example of how the type is used:
+
+```rust
+fn main() {
+    let x : i8 = -1;
+    let y : i8 = -1;
+    let z = x + y;
+    assert (z == -2);
+}
+```
+
+Similar to unsigned integers, signed integers are also range constrained.
+
+For example, attempting to prove:
+
+```rust
+fn main() {
+    let x : i8 = -127;
+    let y : i8 = -10;
+    let z = x + y;
+}
+```
+
+Would result in:
+
+```
+$ nargo prove
+error: Assertion failed: 'attempt to add with overflow'
+┌─ ~/src/main.nr:4:13
+│
+│     let z = x + y;
+│             -----
+│
+= Call stack:
+  ...
 ```
