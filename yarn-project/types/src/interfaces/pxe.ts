@@ -158,7 +158,7 @@ export interface PXE {
    * @returns A buffer containing the public storage data at the storage slot.
    * @throws If the contract is not deployed.
    */
-  getPublicStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<Buffer | undefined>;
+  getPublicStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<Fr | undefined>;
 
   /**
    * Gets notes of accounts registered in this PXE based on the provided filter.

@@ -229,10 +229,7 @@ export class ContractTree {
       const root = await this.getFunctionTreeRoot();
       const newContractData = new NewContractData(completeAddress.address, portalContract, root);
       const commitment = computeContractLeaf(this.wasm, newContractData);
-      this.contractIndex = await this.stateInfoProvider.findLeafIndex(
-        MerkleTreeId.CONTRACT_TREE,
-        commitment.toBuffer(),
-      );
+      this.contractIndex = await this.stateInfoProvider.findLeafIndex(MerkleTreeId.CONTRACT_TREE, commitment);
       if (this.contractIndex === undefined) {
         throw new Error(
           `Failed to find contract at ${completeAddress.address} with portal ${portalContract} resulting in commitment ${commitment}.`,

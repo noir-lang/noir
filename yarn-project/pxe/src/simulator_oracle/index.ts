@@ -116,11 +116,11 @@ export class SimulatorOracle implements DBOracle {
    * @returns - The index of the commitment. Undefined if it does not exist in the tree.
    */
   async getCommitmentIndex(commitment: Fr) {
-    return await this.stateInfoProvider.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, commitment.toBuffer());
+    return await this.stateInfoProvider.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, commitment);
   }
 
   async getNullifierIndex(nullifier: Fr) {
-    return await this.stateInfoProvider.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
+    return await this.stateInfoProvider.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier);
   }
 
   /**

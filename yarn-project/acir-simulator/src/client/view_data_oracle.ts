@@ -143,9 +143,8 @@ export class ViewDataOracle extends TypedOracle {
         throw new Error(`Oracle storage read undefined: slot=${storageSlot.toString(16)}`);
       }
 
-      const frValue = Fr.fromBuffer(value);
-      this.log(`Oracle storage read: slot=${storageSlot.toString(16)} value=${frValue}`);
-      values.push(frValue);
+      this.log(`Oracle storage read: slot=${storageSlot.toString(16)} value=${value}`);
+      values.push(value);
     }
     return values;
   }

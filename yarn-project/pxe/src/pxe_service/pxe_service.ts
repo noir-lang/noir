@@ -232,14 +232,14 @@ export class PXEService implements PXE {
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
     // This can always be `uniqueSiloedNoteHash` once notes added from public also include nonces.
     const noteHashToLookUp = nonce.isZero() ? siloedNoteHash : uniqueSiloedNoteHash;
-    const index = await this.node.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, noteHashToLookUp.toBuffer());
+    const index = await this.node.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, noteHashToLookUp);
     if (index === undefined) {
       throw new Error('Note does not exist.');
     }
 
     const wasm = await CircuitsWasm.get();
     const siloedNullifier = siloNullifier(wasm, note.contractAddress, innerNullifier!);
-    const nullifierIndex = await this.node.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, siloedNullifier.toBuffer());
+    const nullifierIndex = await this.node.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, siloedNullifier);
     if (nullifierIndex !== undefined) {
       throw new Error('The note has been destroyed.');
     }

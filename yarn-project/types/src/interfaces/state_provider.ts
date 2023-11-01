@@ -14,7 +14,7 @@ export interface StateInfoProvider {
    * @param leafValue - The value to search for
    * @returns The index of the given leaf in the given tree or undefined if not found.
    */
-  findLeafIndex(treeId: MerkleTreeId, leafValue: Buffer): Promise<bigint | undefined>;
+  findLeafIndex(treeId: MerkleTreeId, leafValue: Fr): Promise<bigint | undefined>;
 
   /**
    * Returns the sibling path for the given index in the contract tree.

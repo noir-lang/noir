@@ -11,7 +11,6 @@ import {
   getSandboxAccountsWallets,
   waitForSandbox,
 } from '@aztec/aztec.js';
-import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { TestContract, TokenContract } from '@aztec/noir-contracts/types';
 import { ExtendedNote } from '@aztec/types';
 
@@ -166,7 +165,7 @@ describe('guides/dapp/testing', () => {
         await token.methods.mint_public(owner.getAddress(), 100n).send().wait();
         const ownerPublicBalanceSlot = cheats.aztec.computeSlotInMap(6n, owner.getAddress());
         const balance = await pxe.getPublicStorageAt(token.address, ownerPublicBalanceSlot);
-        expect(toBigIntBE(balance!)).toEqual(100n);
+        expect(balance!.value).toEqual(100n);
         // docs:end:public-storage
       });
 

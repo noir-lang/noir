@@ -11,7 +11,6 @@ import { FunctionArtifact, FunctionSelector, encodeArguments } from '@aztec/foun
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { toBigInt } from '@aztec/foundation/serialize';
 import {
   ChildContractArtifact,
   ParentContractArtifact,
@@ -240,8 +239,8 @@ describe('ACIR public execution simulator', () => {
 
         const functionData = new FunctionData(parentEntryPointFnSelector, isInternal ?? false, false, false);
         const args = encodeArguments(parentEntryPointFn, [
-          childContractAddress.toField().value,
-          toBigInt(childValueFnSelector.toBuffer()),
+          childContractAddress.toField(),
+          childValueFnSelector.toField(),
           initialValue,
         ]);
 
