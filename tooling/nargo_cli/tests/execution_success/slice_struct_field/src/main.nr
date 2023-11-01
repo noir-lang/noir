@@ -63,6 +63,13 @@ fn main(y : pub Field) {
     // // Check that switching the lhs and rhs is still valid
     // assert([109, 110, 111] == x[y].bar.inner);
 
+    assert(x[y - 3].bar.inner == [100, 101, 102]);
+    assert(x[y - 2].bar.inner == [103, 104, 105]);
+    assert(x[y - 1].bar.inner == [106, 107, 108]);
+    assert(x[y].bar.inner == [109, 110, 111]);
+    // Check that switching the lhs and rhs is still valid
+    assert([109, 110, 111] == x[y].bar.inner);
+
     // TODO: Enable merging nested slices 
     // if y != 2 {
     //     x[y].a = 50;
@@ -137,11 +144,44 @@ fn main(y : pub Field) {
     // We need to accurately fill the element input to the slice intrinsic
     // TODO: For some reason the nested slice push back mixed with the basic slice push back
     // is causing the assertion before both of them to fail
-    // assert(foo_parents[y - 2].foos.len() == 5);
-    // println(foo_parents[y - 2].foos.len());
-    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo_four);
-    // println(foo_parents[y - 2].foos.len());
-    // assert(foo_parents[y - 2].foos.len() == 6);
+
+    // foo_parents[y - 2].foos[y - 1].b = foo_parents[y - 2].foos[y - 1].b.push_back(500);
+    // assert(foo_parents[y - 2].foos[y - 1].b.len() == 7);
+    // println(foo_parents[y - 2].foos[y - 1].b[6]);
+    // assert(foo_parents[y - 2].foos[y - 1].b[6] == 500);
+
+    // let (popped_slice, last_elem) = foo_parents[y - 2].foos[y - 1].b.pop_back();
+    // foo_parents[y - 2].foos[y - 1].b = popped_slice;
+    // assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
+    // assert(last_elem == 500);
+
+    // foo_parents[y - 2].foos[y - 1].b = foo_parents[y - 2].foos[y - 1].b.push_front(11);
+    // assert(foo_parents[y - 2].foos[y - 1].b.len() == 7);
+    // assert(foo_parents[y - 2].foos[y - 1].b[0] == 11);
+
+    // let (first_elem, rest_of_slice) = foo_parents[y - 2].foos[y - 1].b.pop_front();
+    // foo_parents[y - 2].foos[y - 1].b = rest_of_slice;
+    // assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
+    // assert(first_elem == 11);
+
+    // foo_parents[y - 2].foos[y - 1].b = foo_parents[y - 2].foos[y - 1].b.insert(2, 20);
+    // assert(foo_parents[y - 2].foos[y - 1].b.len() == 7);
+    // assert(foo_parents[y - 2].foos[y - 1].b[y - 1] == 20);
+    // assert(foo_parents[y - 2].foos[y - 1].b[y] == 5000);
+    // assert(foo_parents[y - 2].foos[y - 1].b[6] == 101);
+
+    // let (rest_of_slice, removed_elem) = foo_parents[y - 2].foos[y - 1].b.remove(3);
+    // foo_parents[y - 2].foos[y - 1].b = rest_of_slice;
+    // assert(removed_elem == 5000);
+    // assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
+    // assert(foo_parents[y - 2].foos[y - 1].b[2] == 20);
+    // assert(foo_parents[y - 2].foos[y - 1].b[3] == 21);
+
+    assert(foo_parents[y - 2].foos.len() == 5);
+    println(foo_parents[y - 2].foos.len());
+    foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo_four);
+    println(foo_parents[y - 2].foos.len());
+    assert(foo_parents[y - 2].foos.len() == 6);
 
     // TODO: this is broken at the end need to account for the new strategy of dynamic SlicePushBack
     // assert(foo_parents[1].foos.len() == 5);

@@ -7,7 +7,7 @@ use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
 use super::compile_cmd::compile_bin_package;
@@ -41,7 +41,11 @@ pub(crate) fn run(
 ) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let selection = args.package.map_or(PackageSelection::DefaultOrAll, PackageSelection::Selected);
-    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        selection,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    )?;
     let target_dir = &workspace.target_directory_path();
     let (np_language, opcode_support) = backend.get_backend_info()?;
 
@@ -52,14 +56,10 @@ pub(crate) fn run(
         return Ok(());
     };
 
-    let compiled_program = compile_bin_package(
-        &workspace,
-        package,
-        &args.compile_options,
-        true,
-        np_language,
-        &|opcode| opcode_support.is_opcode_supported(opcode),
-    )?;
+    let compiled_program =
+        compile_bin_package(&workspace, package, &args.compile_options, np_language, &|opcode| {
+            opcode_support.is_opcode_supported(opcode)
+        })?;
 
     println!("[{}] Starting debugger", package.name);
     let (return_value, solved_witness) =
@@ -116,6 +116,7 @@ pub(crate) fn debug_program(
     let debug_artifact = DebugArtifact {
         debug_symbols: vec![compiled_program.debug.clone()],
         file_map: compiled_program.file_map.clone(),
+        warnings: compiled_program.warnings.clone(),
     };
 
     noir_debugger::debug_circuit(
@@ -123,7 +124,6 @@ pub(crate) fn debug_program(
         &compiled_program.circuit,
         debug_artifact,
         initial_witness,
-        true,
     )
     .map_err(CliError::from)
 }

@@ -1,4 +1,4 @@
-use super::proof_system::{serialize_circuit, write_to_file};
+use super::proof_system::write_to_file;
 use crate::{
     cli::{ContractCommand, WriteVkCommand},
     Backend, BackendError,
@@ -16,7 +16,7 @@ impl Backend {
 
         // Create a temporary file for the circuit
         let bytecode_path = temp_directory_path.join("circuit").with_extension("bytecode");
-        let serialized_circuit = serialize_circuit(circuit);
+        let serialized_circuit = Circuit::serialize_circuit(circuit);
         write_to_file(&serialized_circuit, &bytecode_path);
 
         // Create the verification key and write it to the specified path
@@ -24,7 +24,6 @@ impl Backend {
 
         WriteVkCommand {
             crs_path: self.crs_directory(),
-            is_recursive: false,
             bytecode_path,
             vk_path_output: vk_path.clone(),
         }

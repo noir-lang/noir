@@ -35,6 +35,7 @@ impl<'interner> TypeChecker<'interner> {
             }
         }
     }
+
     /// Infers a type for a given expression, and return this type.
     /// As a side-effect, this function will also remember this type in the NodeInterner
     /// for the given expr_id key.
@@ -50,7 +51,7 @@ impl<'interner> TypeChecker<'interner> {
                 // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
                 // We must instantiate identifiers at every call site to replace this T with a new type
                 // variable to handle generic functions.
-                let t = self.interner.id_type(ident.id);
+                let t = self.interner.id_type_substitute_trait_as_type(ident.id);
                 let (typ, bindings) = t.instantiate(self.interner);
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
                 typ
@@ -131,7 +132,6 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Index(index_expr) => self.check_index_expression(expr_id, index_expr),
             HirExpression::Call(call_expr) => {
                 self.check_if_deprecated(&call_expr.func);
-
                 let function = self.check_expression(&call_expr.func);
                 let args = vecmap(&call_expr.arguments, |arg| {
                     let typ = self.check_expression(arg);
@@ -266,6 +266,7 @@ impl<'interner> TypeChecker<'interner> {
                     Box::new(method.return_type.clone()),
                     Box::new(Type::Unit),
                 );
+
                 let (typ, bindings) = typ.instantiate(self.interner);
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
                 typ
@@ -293,9 +294,9 @@ impl<'interner> TypeChecker<'interner> {
         argument_types: &mut [(Type, ExprId, noirc_errors::Span)],
     ) {
         let expected_object_type = match function_type {
-            Type::Function(args, _, _) => args.get(0),
+            Type::Function(args, _, _) => args.first(),
             Type::Forall(_, typ) => match typ.as_ref() {
-                Type::Function(args, _, _) => args.get(0),
+                Type::Function(args, _, _) => args.first(),
                 typ => unreachable!("Unexpected type for function: {typ}"),
             },
             typ => unreachable!("Unexpected type for function: {typ}"),
@@ -839,6 +840,14 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 }
             }
+            Type::TraitAsType(_trait) => {
+                self.errors.push(TypeCheckError::UnresolvedMethodCall {
+                    method_name: method_name.to_string(),
+                    object_type: object_type.clone(),
+                    span: self.interner.expr_span(expr_id),
+                });
+                None
+            }
             Type::NamedGeneric(_, _) => {
                 let func_meta = self.interner.function_meta(
                     &self.current_function.expect("unexpected method outside a function"),
@@ -872,20 +881,14 @@ impl<'interner> TypeChecker<'interner> {
             // This may be a struct or a primitive type.
             Type::MutableReference(element) => self
                 .interner
-                .lookup_mut_primitive_trait_method(element.as_ref(), method_name)
+                .lookup_primitive_trait_method_mut(element.as_ref(), method_name)
                 .map(HirMethodReference::FuncId)
                 .or_else(|| self.lookup_method(element, method_name, expr_id)),
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
             Type::Error => None,
 
-            // In the future we could support methods for non-struct types if we have a context
-            // (in the interner?) essentially resembling HashMap<Type, Methods>
-            other => match self
-                .interner
-                .lookup_primitive_method(other, method_name)
-                .or_else(|| self.interner.lookup_primitive_trait_method(other, method_name))
-            {
+            other => match self.interner.lookup_primitive_method(other, method_name) {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     self.errors.push(TypeCheckError::UnresolvedMethodCall {

@@ -7,6 +7,9 @@ license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[build-dependencies]
+build-data.workspace = true
+
 [dependencies]
 clap.workspace = true
 noirc_errors.workspace = true
@@ -14,7 +17,7 @@ noirc_frontend.workspace = true
 noirc_evaluator.workspace = true
 noirc_abi.workspace = true
 acvm.workspace = true
+iter-extended.workspace = true
 fm.workspace = true
 serde.workspace = true
-base64.workspace = true
 fxhash.workspace = true

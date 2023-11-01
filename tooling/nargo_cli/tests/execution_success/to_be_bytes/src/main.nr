@@ -5,8 +5,8 @@ fn main(x : Field) -> pub [u8; 31] {
     for i in 0..31 {
         bytes[i] = byte_array[i];
     }
-    if ( bytes[30] != 60) | (bytes[29] != 33) | (bytes[28] != 31) {
-        assert(false);    
+    if (bytes[30] != 60) | (bytes[29] != 33) | (bytes[28] != 31) {
+        assert(false);
     }
     bytes
 }

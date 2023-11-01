@@ -9,7 +9,10 @@
 
 use std::collections::BTreeSet;
 
-use crate::errors::RuntimeError;
+use crate::{
+    brillig::Brillig,
+    errors::{RuntimeError, SsaReport},
+};
 use acvm::acir::{
     circuit::{Circuit, PublicInputs},
     native_types::Witness,
@@ -40,7 +43,7 @@ pub(crate) fn optimize_into_acir(
 ) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
 
-    let ssa = SsaBuilder::new(program, print_ssa_passes)
+    let ssa_builder = SsaBuilder::new(program, print_ssa_passes)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
         // Run mem2reg with the CFG separated into blocks
@@ -57,17 +60,17 @@ pub(crate) fn optimize_into_acir(
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
-        .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
-        .finish();
+        .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:");
 
-    let brillig = ssa.to_brillig(print_brillig_trace);
+    let brillig = ssa_builder.to_brillig(print_brillig_trace);
 
     // Split off any passes the are not necessary for Brillig generation but are necessary for ACIR generation.
     // We only need to fill out nested slices as we need to have a known length when dealing with memory operations
     // in ACIR gen while this is not necessary in the Brillig IR.
-    let ssa = SsaBuilder::new_with_generated_ssa(ssa, print_ssa_passes)
+    let ssa = ssa_builder
         .run_pass(Ssa::fill_internal_slices, "After Fill Internal Slice Dummy Data:")
         .finish();
+
     let last_array_uses = ssa.find_last_array_uses();
     ssa.into_acir(brillig, abi_distinctness, &last_array_uses)
 }
@@ -80,7 +83,7 @@ pub fn create_circuit(
     program: Program,
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
-) -> Result<(Circuit, DebugInfo, Abi), RuntimeError> {
+) -> Result<(Circuit, DebugInfo, Abi, Vec<SsaReport>), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
     let mut generated_acir =
         optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
@@ -91,6 +94,7 @@ pub fn create_circuit(
         locations,
         input_witnesses,
         assert_messages,
+        warnings,
         ..
     } = generated_acir;
 
@@ -127,7 +131,7 @@ pub fn create_circuit(
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
     debug_info.update_acir(transformation_map);
 
-    Ok((optimized_circuit, debug_info, abi))
+    Ok((optimized_circuit, debug_info, abi, warnings))
 }
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
@@ -137,8 +141,9 @@ struct SsaBuilder {
 }
 
 impl SsaBuilder {
-    fn new(program: Program, print_ssa_passes: bool) -> SsaBuilder {
-        SsaBuilder { print_ssa_passes, ssa: ssa_gen::generate_ssa(program) }.print("Initial SSA:")
+    fn new(program: Program, print_ssa_passes: bool) -> Result<SsaBuilder, RuntimeError> {
+        let ssa = ssa_gen::generate_ssa(program)?;
+        Ok(SsaBuilder { print_ssa_passes, ssa }.print("Initial SSA:"))
     }
 
     fn new_with_generated_ssa(ssa: Ssa, print_ssa_passes: bool) -> SsaBuilder {
@@ -163,6 +168,10 @@ impl SsaBuilder {
     ) -> Result<Self, RuntimeError> {
         self.ssa = pass(self.ssa)?;
         Ok(self.print(msg))
+    }
+
+    fn to_brillig(&self, print_brillig_trace: bool) -> Brillig {
+        self.ssa.to_brillig(print_brillig_trace)
     }
 
     fn print(self, msg: &str) -> Self {

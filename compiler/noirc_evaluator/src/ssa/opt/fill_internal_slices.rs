@@ -10,9 +10,9 @@
 //! If we have a slice of the type [[Field]] which is of length 2. The internal slices themselves
 //! could be of different sizes, such as 3 and 4. An array operation on this nested slice would look
 //! something like below:
-//! array_get [[Field 3, [Field 1, Field 1, Field 1]], [Field 4, [Field 2, Field 2, Field 2, Field 2]]], index Field v0
+//! array_get [Field 3, [Field 1, Field 1, Field 1], Field 4, [Field 2, Field 2, Field 2, Field 2]], index Field v0
 //! Will get translated into a new instruction like such:
-//! array_get [[Field 3, [Field 1, Field 1, Field 1, Field 0]], [Field 4, [Field 2, Field 2, Field 2, Field 2]]], index Field v0
+//! array_get [Field 3, [Field 1, Field 1, Field 1, Field 0], Field 4, [Field 2, Field 2, Field 2, Field 2]], index Field v0
 //!
 //!
 //! TODO(#3188): Currently the pass only works on a single flattened block. This should be updated in followup work.
@@ -26,7 +26,7 @@
 //!     - On an ArrayGet operation add the resulting value as a possible child of the original slice. In SSA we will reuse the same memory block
 //!       for the nested slice and must account for an internal slice being fetched and set to a larger value, otherwise we may have an out of bounds error.
 //!       Also set the resulting fetched value to have the same internal slice size map as the children of the original array used in the operation.
-//!     - On an ArraySet operation we set the resulting value to have the same slice sizes map as the original array used in the operation. Like the result of an
+//!     - On an ArraySet operation we set the resulting value to have the same slice sizes map as the original array used in the operation. Like the result of
 //!       an ArrayGet we need to also add the `value` for an ArraySet as a possible child slice of the original array.
 //!     - For slice intrinsics we set the resulting value to have the same slice sizes map as the original array the same way as we do in an ArraySet.
 //!       However, with a slice intrinsic we also increase the size for the respective slice intrinsics.  
@@ -226,12 +226,7 @@ impl<'f> Context<'f> {
                         | Intrinsic::SlicePushFront
                         | Intrinsic::SliceInsert => {
                             let slice_contents = arguments[argument_index];
-                            let slice_typ = self.inserter.function.dfg.type_of_value(slice_contents);
-                            dbg!(slice_typ.clone());
                             if let Some(inner_sizes) = slice_sizes.get_mut(&slice_contents) {
-                                // TODO: Consider the accurate increase here
-                                // We simply add and write in ACIR for both length < capacity and length == capacity
-                                dbg!(inner_sizes.0);
                                 inner_sizes.0 += 1;
 
                                 let inner_sizes = inner_sizes.clone();
@@ -315,7 +310,6 @@ impl<'f> Context<'f> {
         max_sizes.resize(depth, 0);
         max_sizes[0] = *current_size;
         self.compute_slice_max_sizes(array_id, slice_sizes, &mut max_sizes, 1);
-        dbg!(max_sizes.clone());
 
         let new_array = self.attach_slice_dummies(&typ, Some(array_id), true, &max_sizes);
 
@@ -369,38 +363,30 @@ impl<'f> Context<'f> {
                 let mut max_size = *current_size;
                 if let Some(value) = value {
                     let mut slice = im::Vector::new();
-                    match &self.inserter.function.dfg[value].clone() {
-                        Value::Array { array, .. } => {
-                            if is_parent_slice {
-                                max_size = array.len() / element_types.len();
-                            }
-                            for i in 0..max_size {
-                                for (element_index, element_type) in
-                                    element_types.iter().enumerate()
-                                {
-                                    let index_usize = i * element_types.len() + element_index;
-                                    if index_usize < array.len() {
-                                        slice.push_back(self.attach_slice_dummies(
-                                            element_type,
-                                            Some(array[index_usize]),
-                                            false,
-                                            max_sizes,
-                                        ));
-                                    } else {
-                                        slice.push_back(self.attach_slice_dummies(
-                                            element_type,
-                                            None,
-                                            false,
-                                            max_sizes,
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-                        _ => {
-                            panic!("Expected an array value");
+
+                    let array = match self.inserter.function.dfg[value].clone() {
+                        Value::Array { array, .. } => array,
+                        _ => panic!("Expected an array value"),
+                    };
+
+                    if is_parent_slice {
+                        max_size = array.len() / element_types.len();
+                    }
+                    for i in 0..max_size {
+                        for (element_index, element_type) in element_types.iter().enumerate() {
+                            let index_usize = i * element_types.len() + element_index;
+                            let valid_index = index_usize < array.len();
+                            let maybe_value =
+                                if valid_index { Some(array[index_usize]) } else { None };
+                            slice.push_back(self.attach_slice_dummies(
+                                element_type,
+                                maybe_value,
+                                false,
+                                max_sizes,
+                            ));
                         }
                     }
+
                     self.inserter.function.dfg.make_array(slice, typ.clone())
                 } else {
                     let mut slice = im::Vector::new();
@@ -557,7 +543,7 @@ mod tests {
 
     #[test]
     fn test_simple_nested_slice() {
-        // We want to test that a nested slice with two internal slices of primtive types
+        // We want to test that a nested slice with two internal slices of primitive types
         // fills the smaller internal slice with dummy data to match the length of the
         // larger internal slice.
 
@@ -592,13 +578,12 @@ mod tests {
         let inner_slice_small_contents =
             builder.array_constant(vector![one, one, one], inner_slice_contents_type.clone());
 
-        let outer_slice_element_type =
-            Rc::new(vec![Type::field(), inner_slice_contents_type.clone()]);
-        let outer_slice_type = Type::Slice(outer_slice_element_type);
-
         let inner_slice_big_len = builder.field_constant(4_u128);
         let inner_slice_big_contents =
-            builder.array_constant(vector![two, two, two, two], inner_slice_contents_type);
+            builder.array_constant(vector![two, two, two, two], inner_slice_contents_type.clone());
+
+        let outer_slice_element_type = Rc::new(vec![Type::field(), inner_slice_contents_type]);
+        let outer_slice_type = Type::Slice(outer_slice_element_type);
 
         let outer_slice_contents = builder.array_constant(
             vector![
@@ -638,59 +623,56 @@ mod tests {
         // Check the array get expression has replaced its nested slice with a new slice
         // where the internal slice has dummy data attached to it.
         let instructions = func.dfg[block_id].instructions();
-        for instruction in instructions.iter() {
-            match func.dfg[*instruction] {
-                Instruction::ArrayGet { array, .. } => {
-                    let (array_constant, _) =
-                        func.dfg.get_array_constant(array).expect("should have an array constant");
-
-                    let inner_slice_small_len = func
-                        .dfg
-                        .get_numeric_constant(array_constant[0])
-                        .expect("should have a numeric constant");
-                    assert_eq!(
-                        inner_slice_small_len,
-                        FieldElement::from(3u128),
-                        "The length of the smaller internal slice should be unchanged"
-                    );
-
-                    let (inner_slice_small_contents, _) = func
-                        .dfg
-                        .get_array_constant(array_constant[1])
-                        .expect("should have an array constant");
-                    assert_eq!(
-                        inner_slice_small_contents.len(),
-                        4,
-                        "The inner slice contents should contain dummy element"
-                    );
-
-                    compare_array_constants(&inner_slice_small_contents, &[1, 1, 1, 0], &func.dfg);
-
-                    let inner_slice_big_len = func
-                        .dfg
-                        .get_numeric_constant(array_constant[2])
-                        .expect("should have a numeric constant");
-                    assert_eq!(
-                        inner_slice_big_len,
-                        FieldElement::from(4u128),
-                        "The length of the larger internal slice should be unchanged"
-                    );
-
-                    let (inner_slice_big_contents, _) = func
-                        .dfg
-                        .get_array_constant(array_constant[3])
-                        .expect("should have an array constant");
-                    assert_eq!(
-                        inner_slice_small_contents.len(),
-                        inner_slice_big_contents.len(),
-                        "The length of both internal slice contents should be the same"
-                    );
-
-                    compare_array_constants(&inner_slice_big_contents, &[2u128; 4], &func.dfg);
+        let array_id = instructions
+            .iter()
+            .find_map(|instruction| {
+                if let Instruction::ArrayGet { array, .. } = func.dfg[*instruction] {
+                    Some(array)
+                } else {
+                    None
                 }
-                _ => {}
-            }
-        }
+            })
+            .expect("Should find array_get instruction");
+
+        let (array_constant, _) =
+            func.dfg.get_array_constant(array_id).expect("should have an array constant");
+
+        let inner_slice_small_len = func
+            .dfg
+            .get_numeric_constant(array_constant[0])
+            .expect("should have a numeric constant");
+        assert_eq!(
+            inner_slice_small_len,
+            FieldElement::from(3u128),
+            "The length of the smaller internal slice should be unchanged"
+        );
+
+        let (inner_slice_small_contents, _) =
+            func.dfg.get_array_constant(array_constant[1]).expect("should have an array constant");
+        let small_capacity = inner_slice_small_contents.len();
+        assert_eq!(small_capacity, 4, "The inner slice contents should contain dummy element");
+
+        compare_array_constants(&inner_slice_small_contents, &[1, 1, 1, 0], &func.dfg);
+
+        let inner_slice_big_len = func
+            .dfg
+            .get_numeric_constant(array_constant[2])
+            .expect("should have a numeric constant");
+        assert_eq!(
+            inner_slice_big_len,
+            FieldElement::from(4u128),
+            "The length of the larger internal slice should be unchanged"
+        );
+
+        let (inner_slice_big_contents, _) =
+            func.dfg.get_array_constant(array_constant[3]).expect("should have an array constant");
+        let big_capacity = inner_slice_big_contents.len();
+        assert_eq!(
+            small_capacity, big_capacity,
+            "The length of both internal slice contents should be the same"
+        );
+
+        compare_array_constants(&inner_slice_big_contents, &[2u128; 4], &func.dfg);
     }
 
     fn compare_array_constants(

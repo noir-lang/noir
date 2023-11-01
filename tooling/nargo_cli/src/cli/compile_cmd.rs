@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
 use std::path::Path;
 
+use acvm::acir::circuit::opcodes::BlackBoxFuncCall;
 use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use backend_interface::BackendOpcodeSupport;
@@ -14,8 +14,8 @@ use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, CompiledProgram};
-use noirc_errors::debug_info::DebugInfo;
 use noirc_frontend::graph::CrateName;
 
 use clap::Args;
@@ -23,9 +23,9 @@ use clap::Args;
 use crate::backends::Backend;
 use crate::errors::{CliError, CompileError};
 
-use super::fs::program::read_program_from_file;
 use super::fs::program::{
-    save_contract_to_file, save_debug_artifact_to_file, save_program_to_file,
+    read_debug_artifact_from_file, read_program_from_file, save_contract_to_file,
+    save_debug_artifact_to_file, save_program_to_file,
 };
 use super::NargoConfig;
 use rayon::prelude::*;
@@ -39,10 +39,6 @@ pub(crate) struct CompileCommand {
     /// Include Proving and Verification keys in the build artifacts.
     #[arg(long)]
     include_keys: bool,
-
-    /// Output debug files
-    #[arg(long, hide = true)]
-    output_debug: bool,
 
     /// The name of the package to compile
     #[clap(long, conflicts_with = "workspace")]
@@ -65,7 +61,12 @@ pub(crate) fn run(
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
-    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
+
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        selection,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+    )?;
     let circuit_dir = workspace.target_directory_path();
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
@@ -82,12 +83,11 @@ pub(crate) fn run(
         np_language,
         &opcode_support,
         &args.compile_options,
-        args.output_debug,
     )?;
 
     // Save build artifacts to disk.
     for (package, contract) in contract_packages.into_iter().zip(compiled_contracts) {
-        save_contract(contract, &package, &circuit_dir, args.output_debug);
+        save_contract(contract, &package, &circuit_dir);
     }
 
     Ok(())
@@ -100,7 +100,6 @@ pub(super) fn compile_workspace(
     np_language: Language,
     opcode_support: &BackendOpcodeSupport,
     compile_options: &CompileOptions,
-    output_debug: bool,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
     let is_opcode_supported = |opcode: &_| opcode_support.is_opcode_supported(opcode);
 
@@ -108,14 +107,7 @@ pub(super) fn compile_workspace(
     let program_results: Vec<(FileManager, CompilationResult<CompiledProgram>)> = binary_packages
         .par_iter()
         .map(|package| {
-            compile_program(
-                workspace,
-                package,
-                compile_options,
-                output_debug,
-                np_language,
-                &is_opcode_supported,
-            )
+            compile_program(workspace, package, compile_options, np_language, &is_opcode_supported)
         })
         .collect();
     let contract_results: Vec<(FileManager, CompilationResult<CompiledContract>)> =
@@ -157,7 +149,6 @@ pub(crate) fn compile_bin_package(
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
-    output_debug: bool,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<CompiledProgram, CliError> {
@@ -165,14 +156,8 @@ pub(crate) fn compile_bin_package(
         return Err(CompileError::LibraryCrate(package.name.clone()).into());
     }
 
-    let (file_manager, compilation_result) = compile_program(
-        workspace,
-        package,
-        compile_options,
-        output_debug,
-        np_language,
-        &is_opcode_supported,
-    );
+    let (file_manager, compilation_result) =
+        compile_program(workspace, package, compile_options, np_language, &is_opcode_supported);
 
     let program = report_errors(
         compilation_result,
@@ -188,31 +173,34 @@ fn compile_program(
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
-    output_debug: bool,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> (FileManager, CompilationResult<CompiledProgram>) {
     let (mut context, crate_id) =
         prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
 
-    let cached_program = if let Ok(preprocessed_program) =
-        read_program_from_file(workspace.package_build_path(package))
-    {
-        // TODO: Load debug information.
+    let program_artifact_path = workspace.package_build_path(package);
+    let mut debug_artifact_path = program_artifact_path.clone();
+    debug_artifact_path.set_file_name(format!("debug_{}.json", package.name));
+    let cached_program = if let (Ok(preprocessed_program), Ok(mut debug_artifact)) = (
+        read_program_from_file(program_artifact_path),
+        read_debug_artifact_from_file(debug_artifact_path),
+    ) {
         Some(CompiledProgram {
             hash: preprocessed_program.hash,
             circuit: preprocessed_program.bytecode,
             abi: preprocessed_program.abi,
-            debug: DebugInfo::default(),
-            file_map: BTreeMap::new(),
+            noir_version: preprocessed_program.noir_version,
+            debug: debug_artifact.debug_symbols.remove(0),
+            file_map: debug_artifact.file_map,
+            warnings: debug_artifact.warnings,
         })
     } else {
         None
     };
 
-    // If we want to output the debug information then we need to perform a full recompilation of the ACIR.
-    let force_recompile = output_debug;
-
+    let force_recompile =
+        cached_program.as_ref().map_or(false, |p| p.noir_version != NOIR_ARTIFACT_VERSION_STRING);
     let (program, warnings) = match noirc_driver::compile_main(
         &mut context,
         crate_id,
@@ -226,17 +214,21 @@ fn compile_program(
         }
     };
 
+    // TODO: we say that pedersen hashing is supported by all backends for now
+    let is_opcode_supported_pedersen_hash = |opcode: &Opcode| -> bool {
+        if let Opcode::BlackBoxFuncCall(BlackBoxFuncCall::PedersenHash { .. }) = opcode {
+            true
+        } else {
+            is_opcode_supported(opcode)
+        }
+    };
+
     // Apply backend specific optimizations.
     let optimized_program =
-        nargo::ops::optimize_program(program, np_language, &is_opcode_supported)
+        nargo::ops::optimize_program(program, np_language, &is_opcode_supported_pedersen_hash)
             .expect("Backend does not support an opcode that is in the IR");
 
-    save_program(
-        optimized_program.clone(),
-        package,
-        &workspace.target_directory_path(),
-        output_debug,
-    );
+    save_program(optimized_program.clone(), package, &workspace.target_directory_path());
 
     (context.file_manager, Ok((optimized_program, warnings)))
 }
@@ -264,35 +256,27 @@ fn compile_contract(
     (context.file_manager, Ok((optimized_contract, warnings)))
 }
 
-fn save_program(
-    program: CompiledProgram,
-    package: &Package,
-    circuit_dir: &Path,
-    output_debug: bool,
-) {
+fn save_program(program: CompiledProgram, package: &Package, circuit_dir: &Path) {
     let preprocessed_program = PreprocessedProgram {
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
+        noir_version: program.noir_version,
         bytecode: program.circuit,
     };
 
     save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
 
-    if output_debug {
-        let debug_artifact =
-            DebugArtifact { debug_symbols: vec![program.debug], file_map: program.file_map };
-        let circuit_name: String = (&package.name).into();
-        save_debug_artifact_to_file(&debug_artifact, &circuit_name, circuit_dir);
-    }
+    let debug_artifact = DebugArtifact {
+        debug_symbols: vec![program.debug],
+        file_map: program.file_map,
+        warnings: program.warnings,
+    };
+    let circuit_name: String = (&package.name).into();
+    save_debug_artifact_to_file(&debug_artifact, &circuit_name, circuit_dir);
 }
 
-fn save_contract(
-    contract: CompiledContract,
-    package: &Package,
-    circuit_dir: &Path,
-    output_debug: bool,
-) {
+fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Path) {
     // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
     // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
     // are compiled via nargo-core and then the PreprocessedContract is constructed here.
@@ -300,6 +284,7 @@ fn save_contract(
     let debug_artifact = DebugArtifact {
         debug_symbols: contract.functions.iter().map(|function| function.debug.clone()).collect(),
         file_map: contract.file_map,
+        warnings: contract.warnings,
     };
 
     let preprocessed_functions = vecmap(contract.functions, |func| PreprocessedContractFunction {
@@ -311,6 +296,7 @@ fn save_contract(
     });
 
     let preprocessed_contract = PreprocessedContract {
+        noir_version: contract.noir_version,
         name: contract.name,
         backend: String::from(BACKEND_IDENTIFIER),
         functions: preprocessed_functions,
@@ -323,13 +309,11 @@ fn save_contract(
         circuit_dir,
     );
 
-    if output_debug {
-        save_debug_artifact_to_file(
-            &debug_artifact,
-            &format!("{}-{}", package.name, preprocessed_contract.name),
-            circuit_dir,
-        );
-    }
+    save_debug_artifact_to_file(
+        &debug_artifact,
+        &format!("{}-{}", package.name, preprocessed_contract.name),
+        circuit_dir,
+    );
 }
 
 /// Helper function for reporting any errors in a `CompilationResult<T>`

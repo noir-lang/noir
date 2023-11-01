@@ -64,7 +64,8 @@ pub async fn execute_circuit_with_black_box_solver(
     foreign_call_handler: ForeignCallHandler,
 ) -> Result<JsWitnessMap, Error> {
     console_error_panic_hook::set_once();
-    let circuit: Circuit = Circuit::read(&*circuit).expect("Failed to deserialize circuit");
+    let circuit: Circuit =
+        Circuit::deserialize_circuit(&circuit).expect("Failed to deserialize circuit");
 
     let mut acvm = ACVM::new(&solver.0, &circuit.opcodes, initial_witness.into());
 
