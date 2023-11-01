@@ -1140,17 +1140,13 @@ impl Context {
                                 ..
                             }) => {
                                 if self.initialized_arrays.contains(&inner_elem_type_sizes) {
-                                    let type_sizes_array_len = if let Some(len) =
-                                        self.internal_mem_block_lengths.get(&inner_elem_type_sizes)
-                                    {
-                                        *len
-                                    } else {
-                                        return Err(InternalError::General {
+                                    let type_sizes_array_len = 
+                                        self.internal_mem_block_lengths.get(&inner_elem_type_sizes).copied().ok_or_else(||
+                                        InternalError::General {
                                             message: format!("Array {array_id}'s inner element type sizes array does not have a tracked length"),
                                             call_stack: self.acir_context.get_call_stack(),
                                         }
-                                        .into());
-                                    };
+                                    )?;
                                     self.copy_dynamic_array(
                                         inner_elem_type_sizes,
                                         element_type_sizes,
