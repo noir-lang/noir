@@ -741,16 +741,13 @@ impl Context {
                 // We must setup the dummy value to match the type of the value we wish to store
                 let slice_sizes = if store_type.contains_slice_element() {
                     self.compute_slice_sizes(store, None, dfg);
-                    if let Some(slice_sizes) = self.slice_sizes.get(&store) {
-                        slice_sizes.clone()
-                    } else {
-                        return Err(InternalError::UnExpected {
+                    self.slice_sizes.get(&store).cloned().ok_or_else(|| {
+                        InternalError::UnExpected {
                             expected: "Store value should have slice sizes computed".to_owned(),
                             found: "Missing key in slice sizes map".to_owned(),
                             call_stack: self.acir_context.get_call_stack(),
                         }
-                        .into());
-                    }
+                    })?
                 } else {
                     vec![]
                 };
@@ -1140,8 +1137,7 @@ impl Context {
                                 ..
                             }) => {
                                 if self.initialized_arrays.contains(&inner_elem_type_sizes) {
-                                    let type_sizes_array_len = 
-                                        self.internal_mem_block_lengths.get(&inner_elem_type_sizes).copied().ok_or_else(||
+                                    let type_sizes_array_len = self.internal_mem_block_lengths.get(&inner_elem_type_sizes).copied().ok_or_else(||
                                         InternalError::General {
                                             message: format!("Array {array_id}'s inner element type sizes array does not have a tracked length"),
                                             call_stack: self.acir_context.get_call_stack(),
