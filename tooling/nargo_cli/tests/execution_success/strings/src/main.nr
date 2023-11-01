@@ -23,9 +23,9 @@ fn main(message : pub str<11>, y : Field, hex_as_string : str<4>, hex_as_field :
     std::println(bad_message);
     assert(message != bad_message);
 
-    let hash = std::hash::pedersen([x]);
+    let hash = std::hash::pedersen_commitment([x]);
     std::println(hash);
-    
+
     assert(hex_as_string == "0x41");
     // assert(hex_as_string != 0x41); This will fail with a type mismatch between str[4] and Field
     assert(hex_as_field == 0x41);
@@ -48,7 +48,7 @@ fn test_prints_array() {
 
     std::println(array);
 
-    let hash = std::hash::pedersen(array);
+    let hash = std::hash::pedersen_commitment(array);
     std::println(hash);
 }
 

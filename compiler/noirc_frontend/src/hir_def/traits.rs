@@ -1,14 +1,17 @@
+use std::rc::Rc;
+
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
     Generics, Ident, NoirFunction, Type, TypeVariable, TypeVariableId,
 };
+use fm::FileId;
 use noirc_errors::Span;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitFunction {
     pub name: Ident,
-    pub generics: Generics,
+    pub generics: Vec<(Rc<String>, TypeVariable, Span)>,
     pub arguments: Vec<Type>,
     pub return_type: Type,
     pub span: Span,
@@ -62,6 +65,7 @@ pub struct TraitImpl {
     pub ident: Ident,
     pub typ: Type,
     pub trait_id: TraitId,
+    pub file: FileId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
 }
 

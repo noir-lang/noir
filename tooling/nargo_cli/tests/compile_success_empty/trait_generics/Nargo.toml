@@ -1,7 +1,6 @@
 [package]
-name = "sha2_blocks"
+name = "trait_generics"
 type = "bin"
 authors = [""]
-compiler_version = "0.1"
 
 [dependencies]

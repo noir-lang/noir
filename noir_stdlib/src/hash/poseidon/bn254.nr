@@ -7,6 +7,7 @@ use crate::hash::poseidon::apply_matrix;
 
 // Optimised permutation for this particular field; uses hardcoded rf and rp values,
 // which should agree with those in pos_conf.
+#[field(bn254)]
 pub fn permute<M,N,O>(
     pos_conf: PoseidonConfig<M, N>,
     mut state: [Field; O])
@@ -65,6 +66,7 @@ pub fn permute<M,N,O>(
 }
 
 // Corresponding absorption.
+#[field(bn254)]
 fn absorb<M,N,O,P>(
     pos_conf: PoseidonConfig<M, N>,
     mut state: [Field; O], // Initial state; usually [0; O]
@@ -98,6 +100,7 @@ fn absorb<M,N,O,P>(
 }
 
 // Variable-length Poseidon-128 sponge as suggested in second bullet point of §3 of https://eprint.iacr.org/2019/458.pdf
+#[field(bn254)]
 pub fn sponge<N>(msg: [Field; N]) -> Field {
     absorb(consts::x5_5_config(), [0;5], 4, 1, msg)[1]
 }

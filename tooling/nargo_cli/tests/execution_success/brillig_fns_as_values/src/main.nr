@@ -1,3 +1,5 @@
+use dep::std;
+
 struct MyStruct {
     operation: fn (u32) -> u32,
 }
@@ -5,9 +7,9 @@ struct MyStruct {
 fn main(x: u32) {
     assert(wrapper(increment, x) == x + 1);
     assert(wrapper(increment_acir, x) == x + 1);
-    assert(wrapper(decrement, x) == x - 1);
+    assert(wrapper(decrement, x) ==  std::wrapping_sub(x, 1));
     assert(wrapper_with_struct(MyStruct { operation: increment }, x) == x + 1);
-    assert(wrapper_with_struct(MyStruct { operation: decrement }, x) == x - 1);
+    assert(wrapper_with_struct(MyStruct { operation: decrement }, x) == std::wrapping_sub(x, 1));
     // https://github.com/noir-lang/noir/issues/1975
     assert(increment(x) == x + 1);
 }

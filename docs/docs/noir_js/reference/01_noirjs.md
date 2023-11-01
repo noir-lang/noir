@@ -58,10 +58,12 @@ await noirInstance.init();
 
 This async method allows to execute a circuit to get its witness and return value. [`generateFinalProof`](#generatefinalproof) calls it for you, but you can call it directly (i.e. to feed directly to a backend, or to get the return value).
 
+You can optionally provide a foreignCallHandler, to handle functions that should run outside of the prover (e.g. `std::println`)
+
 ### Syntax
 
 ```js
-async execute(inputs)
+async execute(inputs, foreignCallHandler)
 ```
 
 ### Parameters
@@ -69,6 +71,7 @@ async execute(inputs)
 | Parameter | Type   | Description                                      |
 | --------- | ------ | ------------------------------------------------ |
 | `inputs`   | Object | An object containing the inputs to your circuit. |
+| `foreignCallHandler` (optional) | Function | A function handling the foreign call from your circuit |
 
 ### Returns
 
@@ -81,6 +84,7 @@ async execute(inputs)
 
 ```js
 const { witness, returnValue } = await noir.execute(inputs)
+const { witness, returnValue } = await noir.execute(inputs, (name, args) => console.log(`Received foreign call ${name} with arguments ${args}`))
 ```
 
 ## `generateFinalProof`

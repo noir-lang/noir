@@ -1,7 +1,7 @@
 use super::generated_acir::GeneratedAcir;
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
-use crate::errors::{InternalError, RuntimeError};
+use crate::errors::{InternalError, RuntimeError, SsaReport};
 use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
@@ -563,13 +563,36 @@ impl AcirContext {
         // lhs = rhs * q + r
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
+        let zero = self.add_constant(FieldElement::zero());
+        if self.var_to_expression(predicate)?.is_zero() {
+            return Ok((zero, zero));
+        }
+
+        match (self.var_to_expression(lhs)?.to_const(), self.var_to_expression(rhs)?.to_const()) {
+            // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
+            // `rhs` must be non-zero.
+            (Some(lhs_const), Some(rhs_const)) if rhs_const != FieldElement::zero() => {
+                let quotient = lhs_const.to_u128() / rhs_const.to_u128();
+                let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
+
+                let quotient_var = self.add_constant(FieldElement::from(quotient));
+                let remainder_var = self.add_constant(FieldElement::from(remainder));
+                return Ok((quotient_var, remainder_var));
+            }
+
+            // If `rhs` is one then the division is a noop.
+            (_, Some(rhs_const)) if rhs_const == FieldElement::one() => {
+                return Ok((lhs, zero));
+            }
+
+            _ => (),
+        }
 
         // Check that we the rhs is not zero.
         // Otherwise, when executing the brillig quotient we may attempt to divide by zero, causing a VM panic.
         //
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the rhs must not be 0.
-        let zero = self.add_constant(FieldElement::zero());
         let one = self.add_constant(FieldElement::one());
 
         let rhs_expr = self.var_to_expression(rhs)?;
@@ -633,7 +656,11 @@ impl AcirContext {
         let remainder_var = r_value.into_var()?;
 
         // Constrain `q < 2^{max_q_bits}`.
-        self.range_constrain_var(quotient_var, &NumericType::Unsigned { bit_size: max_q_bits })?;
+        self.range_constrain_var(
+            quotient_var,
+            &NumericType::Unsigned { bit_size: max_q_bits },
+            None,
+        )?;
 
         // Constrain `r < 2^{max_rhs_bits}`.
         //
@@ -641,7 +668,11 @@ impl AcirContext {
         // In the case where `rhs` isn't a power of 2 then this range constraint is required
         // as the bound constraint creates a new witness.
         // This opcode will be optimized out if it is redundant so we always add it for safety.
-        self.range_constrain_var(remainder_var, &NumericType::Unsigned { bit_size: max_rhs_bits })?;
+        self.range_constrain_var(
+            remainder_var,
+            &NumericType::Unsigned { bit_size: max_rhs_bits },
+            None,
+        )?;
 
         // Constrain `r < rhs`.
         self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits)?;
@@ -745,12 +776,12 @@ impl AcirContext {
             let r_var = self.add_constant(r.into());
             let aor = self.add_var(lhs_offset, r_var)?;
             // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
-            self.range_constrain_var(aor, &NumericType::Unsigned { bit_size })?;
+            self.range_constrain_var(aor, &NumericType::Unsigned { bit_size }, None)?;
             return Ok(());
         }
         // General case:  lhs_offset<=rhs <=> rhs-lhs_offset>=0 <=> rhs-lhs_offset is a 'bits' bit integer
         let sub_expression = self.sub_var(rhs, lhs_offset)?; //rhs-lhs_offset
-        self.range_constrain_var(sub_expression, &NumericType::Unsigned { bit_size: bits })?;
+        self.range_constrain_var(sub_expression, &NumericType::Unsigned { bit_size: bits }, None)?;
 
         Ok(())
     }
@@ -851,6 +882,7 @@ impl AcirContext {
         &mut self,
         variable: AcirVar,
         numeric_type: &NumericType,
+        message: Option<String>,
     ) -> Result<AcirVar, RuntimeError> {
         match numeric_type {
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
@@ -863,6 +895,11 @@ impl AcirContext {
                 }
                 let witness = self.var_to_witness(variable)?;
                 self.acir_ir.range_constraint(witness, *bit_size)?;
+                if let Some(message) = message {
+                    self.acir_ir
+                        .assert_messages
+                        .insert(self.acir_ir.last_acir_opcode_location(), message);
+                }
             }
             NumericType::NativeField => {
                 // Range constraining a Field is a no-op
@@ -1139,8 +1176,9 @@ impl AcirContext {
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
-    pub(crate) fn finish(mut self, inputs: Vec<u32>) -> GeneratedAcir {
+    pub(crate) fn finish(mut self, inputs: Vec<u32>, warnings: Vec<SsaReport>) -> GeneratedAcir {
         self.acir_ir.input_witnesses = vecmap(inputs, Witness);
+        self.acir_ir.warnings = warnings;
         self.acir_ir
     }
 

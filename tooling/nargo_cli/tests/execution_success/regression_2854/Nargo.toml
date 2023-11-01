@@ -2,6 +2,5 @@
 name = "regression_2854"
 type = "bin"
 authors = [""]
-compiler_version = "0.1"
 
 [dependencies]

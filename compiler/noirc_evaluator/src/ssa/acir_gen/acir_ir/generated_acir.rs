@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     brillig::{brillig_gen::brillig_directive, brillig_ir::artifact::GeneratedBrillig},
-    errors::{InternalError, RuntimeError},
+    errors::{InternalError, RuntimeError, SsaReport},
     ssa::ir::dfg::CallStack,
 };
 
@@ -53,6 +53,8 @@ pub(crate) struct GeneratedAcir {
 
     /// Correspondence between an opcode index and the error message associated with it.
     pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
+
+    pub(crate) warnings: Vec<SsaReport>,
 }
 
 impl GeneratedAcir {

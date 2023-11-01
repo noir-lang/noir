@@ -21,8 +21,8 @@ pub struct PreprocessedProgram {
     pub abi: Abi,
 
     #[serde(
-        serialize_with = "super::serialize_circuit",
-        deserialize_with = "super::deserialize_circuit"
+        serialize_with = "Circuit::serialize_circuit_base64",
+        deserialize_with = "Circuit::deserialize_circuit_base64"
     )]
     pub bytecode: Circuit,
 }
