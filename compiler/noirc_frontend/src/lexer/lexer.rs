@@ -542,15 +542,15 @@ mod tests {
     }
 
     #[test]
-    fn test_attribute_with_speed_marks() {
-        let input = r#"#[test(should_fail_with = "this can't compile")]"#;
+    fn test_attribute_with_apostrophe() {
+        let input = r#"#[test(should_fail_with = "the eagle's feathers")]"#;
         let mut lexer = Lexer::new(input);
 
         let token = lexer.next_token().unwrap().token().clone();
         assert_eq!(
             token,
             Token::Attribute(Attribute::Function(FunctionAttribute::Test(
-                TestScope::ShouldFailWith { reason: "this can't compile".to_owned().into() }
+                TestScope::ShouldFailWith { reason: "the eagle's feathers".to_owned().into() }
             )))
         );
     }
