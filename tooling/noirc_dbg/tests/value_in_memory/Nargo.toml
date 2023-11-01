@@ -1,0 +1,5 @@
+[package]
+name = "value_in_memory"
+type = "bin"
+authors = [""]
+[dependencies]

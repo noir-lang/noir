@@ -12,13 +12,7 @@ pub(crate) fn new<'a>(
     memory: Vec<Value>,
     solver: &'a BarretenbergSolver,
 ) -> VM<'a, BarretenbergSolver> {
-    VM::new(
-        registers, // Registers { inner: vec![] },
-        memory,    // registers.inner,
-        program.to_vec(),
-        vec![],
-        solver,
-    )
+    VM::new(registers, memory, program.to_vec(), vec![], solver)
 }
 
 #[allow(deprecated)]
@@ -26,6 +20,16 @@ pub(crate) enum VMType {
     Brillig(VM<'static, BarretenbergSolver>),
     #[allow(dead_code)]
     Acvm(VM<'static, BarretenbergSolver>),
+}
+
+impl std::fmt::Debug for VMType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VMType::Brillig(_) => f.write_str("Brillig").unwrap(),
+            VMType::Acvm(_) => f.write_str("Acvm").unwrap(),
+        }
+        Ok(())
+    }
 }
 
 impl VMType {

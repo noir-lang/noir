@@ -31,6 +31,7 @@ impl Breakpoint {
 }
 
 /// App state.
+#[derive(Debug)]
 pub enum State {
     /// The startup state. The state handle only launch command.
     Uninitialized(UninitializedState),
@@ -115,6 +116,7 @@ impl UninitializedState {
 }
 
 /// Implements main debugging functionality.
+#[derive(Debug)]
 pub struct RunningState {
     /// Breakpoints to interrupt execution.
     breakpoints: Vec<Breakpoint>,
@@ -367,7 +369,7 @@ impl RunningState {
 /// Application struct. Handles server operations and reports its state.
 pub struct App<T: Server> {
     pub state: State,
-    pub(crate) server: T,
+    pub server: T,
 }
 
 impl<T: Server> App<T> {
