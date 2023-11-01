@@ -1280,17 +1280,10 @@ impl Context {
         let element_type_sizes =
             self.init_element_type_sizes_array(array_typ, array_id, None, dfg)?;
 
-        let true_pred =
+        let predicate_index =
             self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?;
-        let one = self.acir_context.add_constant(FieldElement::one());
-        let not_pred = self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
-
-        let zero = self.acir_context.add_constant(FieldElement::zero());
-        let false_pred = self.acir_context.mul_var(not_pred, zero)?;
-        let var_index = self.acir_context.add_var(true_pred, false_pred)?;
-
         let flat_element_size_var =
-            self.acir_context.read_from_memory(element_type_sizes, &var_index)?;
+            self.acir_context.read_from_memory(element_type_sizes, &predicate_index)?;
 
         Ok(flat_element_size_var)
     }
