@@ -9,7 +9,7 @@ arbitrary-sized integer types.
 
 When an integer is defined in Noir without a specific type, it will default to `Field`. The one exception is for loop indices which default to `u64` since comparisons on `Field`s are not possible.
 
-An integer type is specified first with the letter `u`, indicating its unsigned nature, followed by
+An unsigned integer type is specified first with the letter `u`, indicating its unsigned nature, followed by
 its length in bits (e.g. `8`). For example, a `u8` variable can store a value in the range of
 $\\([0,2^{8}-1]\\)$.
 
@@ -34,12 +34,19 @@ For example, attempting to prove the above code with the following inputs:
 
 ```toml
 x = "1"
-y = "256"
+y = "255"
 ```
 
 Would result in:
 
 ```
 $ nargo prove
-The parameter y is expected to be a Integer { sign: Unsigned, width: 8 } but found incompatible value Field(2⁸)
+error: Assertion failed: 'attempt to add with overflow'
+  ┌─ ~/src/main.nr:2:13
+  │
+2 │     let z = x as u8 + y;
+  │             -----------
+  │
+  = Call stack:
+    ...
 ```
