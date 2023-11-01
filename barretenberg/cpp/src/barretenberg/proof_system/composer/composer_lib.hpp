@@ -39,7 +39,7 @@ void construct_selector_polynomials(const typename Flavor::CircuitBuilder& circu
 
     // TODO(#398): Loose coupling here! Would rather build up pk from arithmetization
     size_t selector_idx = 0; // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
-    for (auto& selector_values : circuit_constructor.selectors) {
+    for (auto& selector_values : circuit_constructor.selectors.get()) {
         ASSERT(proving_key->circuit_size >= selector_values.size());
 
         // Copy the selector values for all gates, keeping the rows at which we store public inputs as 0.
@@ -53,7 +53,7 @@ void construct_selector_polynomials(const typename Flavor::CircuitBuilder& circu
             proving_key->_precomputed_polynomials[selector_idx] = selector_poly_lagrange;
         } else if constexpr (IsPlonkFlavor<Flavor>) {
             // TODO(Cody): Loose coupling here of selector_names and selector_properties.
-            proving_key->polynomial_store.put(circuit_constructor.selector_names_[selector_idx] + "_lagrange",
+            proving_key->polynomial_store.put(circuit_constructor.selector_names[selector_idx] + "_lagrange",
                                               std::move(selector_poly_lagrange));
         }
         ++selector_idx;

@@ -8,31 +8,36 @@
 #include <array>
 
 namespace proof_system {
-inline std::vector<std::string> standard_selector_names()
-{
-    std::vector<std::string> result{ "q_m", "q_1", "q_2", "q_3", "q_c" };
-    return result;
-}
 
-template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase<arithmetization::Standard<FF>> {
+template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase<FF> {
   public:
+    using Arithmetization = arithmetization::Standard<FF>;
+    static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
+    // Keeping NUM_WIRES, at least temporarily, for backward compatibility
+    static constexpr size_t program_width = Arithmetization::NUM_WIRES;
+    static constexpr size_t num_selectors = Arithmetization::num_selectors;
+    std::vector<std::string> selector_names = Arithmetization::selector_names;
+
     static constexpr std::string_view NAME_STRING = "StandardArithmetization";
     static constexpr CircuitType CIRCUIT_TYPE = CircuitType::STANDARD;
     static constexpr merkle::HashType merkle_hash_type = merkle::HashType::FIXED_BASE_PEDERSEN;
     static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;
 
+    std::array<std::vector<uint32_t, barretenberg::ContainerSlabAllocator<uint32_t>>, NUM_WIRES> wires;
+    Arithmetization selectors;
+
     using WireVector = std::vector<uint32_t, barretenberg::ContainerSlabAllocator<uint32_t>>;
     using SelectorVector = std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>;
 
-    WireVector& w_l = std::get<0>(this->wires);
-    WireVector& w_r = std::get<1>(this->wires);
-    WireVector& w_o = std::get<2>(this->wires);
+    WireVector& w_l = std::get<0>(wires);
+    WireVector& w_r = std::get<1>(wires);
+    WireVector& w_o = std::get<2>(wires);
 
-    SelectorVector& q_m = this->selectors.q_m;
-    SelectorVector& q_1 = this->selectors.q_1;
-    SelectorVector& q_2 = this->selectors.q_2;
-    SelectorVector& q_3 = this->selectors.q_3;
-    SelectorVector& q_c = this->selectors.q_c;
+    SelectorVector& q_m = this->selectors.q_m();
+    SelectorVector& q_1 = this->selectors.q_1();
+    SelectorVector& q_2 = this->selectors.q_2();
+    SelectorVector& q_3 = this->selectors.q_3();
+    SelectorVector& q_c = this->selectors.q_c();
 
     static constexpr size_t UINT_LOG2_BASE = 2;
 
@@ -42,8 +47,9 @@ template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase
     std::map<FF, uint32_t> constant_variable_indices;
 
     StandardCircuitBuilder_(const size_t size_hint = 0)
-        : CircuitBuilderBase<arithmetization::Standard<FF>>(standard_selector_names(), size_hint)
+        : CircuitBuilderBase<FF>(size_hint)
     {
+        selectors.reserve(size_hint);
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
         w_o.reserve(size_hint);
@@ -63,8 +69,10 @@ template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase
     StandardCircuitBuilder_& operator=(const StandardCircuitBuilder_& other) = delete;
     StandardCircuitBuilder_& operator=(StandardCircuitBuilder_&& other)
     {
-        CircuitBuilderBase<arithmetization::Standard<FF>>::operator=(std::move(other));
+        CircuitBuilderBase<FF>::operator=(std::move(other));
         constant_variable_indices = other.constant_variable_indices;
+        wires = other.wires;
+        selectors = other.selectors;
         return *this;
     };
     ~StandardCircuitBuilder_() override = default;

@@ -9,7 +9,7 @@ namespace proof_system {
 
 template <typename FF> void GoblinUltraCircuitBuilder_<FF>::finalize_circuit()
 {
-    UltraCircuitBuilder_<FF>::finalize_circuit();
+    UltraCircuitBuilder_<arithmetization::Ultra<FF>>::finalize_circuit();
 }
 
 /**
@@ -22,7 +22,7 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::finalize_circuit()
 // polynomials is zero, which is required for them to be shiftable.
 template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_all_polys_are_non_zero()
 {
-    UltraCircuitBuilder_<FF>::add_gates_to_ensure_all_polys_are_non_zero();
+    UltraCircuitBuilder_<arithmetization::Ultra<FF>>::add_gates_to_ensure_all_polys_are_non_zero();
 }
 
 /**

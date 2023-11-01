@@ -14,7 +14,7 @@ using namespace barretenberg;
 
 namespace proof_system {
 
-template <typename FF> void UltraCircuitBuilder_<FF>::finalize_circuit()
+template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::finalize_circuit()
 {
     /**
      * First of all, add the gates related to ROM arrays and range lists.
@@ -58,7 +58,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::finalize_circuit()
 // TODO(#423): This function adds valid (but arbitrary) gates to ensure that the circuit which includes
 // them will not result in any zero-polynomials. It also ensures that the first coefficient of the wire
 // polynomials is zero, which is required for them to be shiftable.
-template <typename FF> void UltraCircuitBuilder_<FF>::add_gates_to_ensure_all_polys_are_non_zero()
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::add_gates_to_ensure_all_polys_are_non_zero()
 {
     // First add a gate to simultaneously ensure first entries of all wires is zero and to add a non
     // zero value to all selectors aside from q_c and q_lookup
@@ -117,7 +118,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::add_gates_to_ensure_all_po
  *
  * @param in A structure with variable indexes and selector values for the gate.
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_add_gate(const add_triple_<FF>& in)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_add_gate(const add_triple_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
@@ -147,8 +149,9 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_add_gate(const add_
  * @param in Structure with variable indexes and wire selector values
  * @param include_next_gate_w_4 Switches on/off the addition of w_4 at the next index
  */
-template <typename FF>
-void UltraCircuitBuilder_<FF>::create_big_add_gate(const add_quad_<FF>& in, const bool include_next_gate_w_4)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_big_add_gate(const add_quad_<FF>& in,
+                                                                const bool include_next_gate_w_4)
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
     w_l.emplace_back(in.a);
@@ -175,7 +178,8 @@ void UltraCircuitBuilder_<FF>::create_big_add_gate(const add_quad_<FF>& in, cons
  *
  * @param in Structure with variables and witness selector values
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_big_add_gate_with_bit_extraction(const add_quad_<FF>& in)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_big_add_gate_with_bit_extraction(const add_quad_<FF>& in)
 {
     // This method is an artifact of a turbo plonk feature that implicitly extracts
     // a high or low bit from a base-4 quad and adds it into the arithmetic gate relationship.
@@ -238,7 +242,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_big_add_gate_with_b
  *
  * @param in Structure containing variables and witness selectors
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_big_mul_gate(const mul_quad_<FF>& in)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_big_mul_gate(const mul_quad_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
@@ -262,7 +267,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_big_mul_gate(const 
 
 // Creates a width-4 addition gate, where the fourth witness must be a boolean.
 // Can be used to normalize a 32-bit addition
-template <typename FF> void UltraCircuitBuilder_<FF>::create_balanced_add_gate(const add_quad_<FF>& in)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_balanced_add_gate(const add_quad_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
@@ -302,7 +308,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_balanced_add_gate(c
  *
  * @param in Structure containing variables and witness selectors
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_mul_gate(const mul_triple_<FF>& in)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_mul_gate(const mul_triple_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
@@ -328,7 +335,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_mul_gate(const mul_
  *
  * @param variable_index the variable which needs to be constrained
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_bool_gate(const uint32_t variable_index)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_bool_gate(const uint32_t variable_index)
 {
     this->assert_valid_variables({ variable_index });
 
@@ -357,7 +365,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_bool_gate(const uin
  *
  * @param in Structure containing variables and witness selectors
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_poly_gate(const poly_triple_<FF>& in)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_poly_gate(const poly_triple_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
@@ -388,7 +397,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_poly_gate(const pol
  * @param in Elliptic curve point addition gate parameters, including the the affine coordinates of the two points being
  * added, the resulting point coordinates and the selector values that describe whether the second point is negated.
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_ecc_add_gate(const ecc_add_gate_<FF>& in)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_ecc_add_gate(const ecc_add_gate_<FF>& in)
 {
     /**
      * gate structure:
@@ -454,7 +464,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_ecc_add_gate(const 
  *
  * @param in Elliptic curve point doubling gate parameters
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_ecc_dbl_gate(const ecc_dbl_gate_<FF>& in)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_ecc_dbl_gate(const ecc_dbl_gate_<FF>& in)
 {
     /**
      * gate structure:
@@ -517,7 +528,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_ecc_dbl_gate(const 
  * @param witness_index The index of the witness we are fixing
  * @param witness_value The value we are fixing it to
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::fix_witness(const uint32_t witness_index, const FF& witness_value)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::fix_witness(const uint32_t witness_index, const FF& witness_value)
 {
     this->assert_valid_variables({ witness_index });
 
@@ -539,7 +551,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::fix_witness(const uint32_t
     ++this->num_gates;
 }
 
-template <typename FF> uint32_t UltraCircuitBuilder_<FF>::put_constant_variable(const FF& variable)
+template <typename Arithmetization>
+uint32_t UltraCircuitBuilder_<Arithmetization>::put_constant_variable(const FF& variable)
 {
     if (constant_variable_indices.contains(variable)) {
         return constant_variable_indices.at(variable);
@@ -551,7 +564,8 @@ template <typename FF> uint32_t UltraCircuitBuilder_<FF>::put_constant_variable(
     }
 }
 
-template <typename FF> plookup::BasicTable& UltraCircuitBuilder_<FF>::get_table(const plookup::BasicTableId id)
+template <typename Arithmetization>
+plookup::BasicTable& UltraCircuitBuilder_<Arithmetization>::get_table(const plookup::BasicTableId id)
 {
     for (plookup::BasicTable& table : lookup_tables) {
         if (table.id == id) {
@@ -567,8 +581,8 @@ template <typename FF> plookup::BasicTable& UltraCircuitBuilder_<FF>::get_table(
  * @brief Perform a series of lookups, one for each 'row' in read_values.
  */
 
-template <typename FF>
-plookup::ReadData<uint32_t> UltraCircuitBuilder_<FF>::create_gates_from_plookup_accumulators(
+template <typename Arithmetization>
+plookup::ReadData<uint32_t> UltraCircuitBuilder_<Arithmetization>::create_gates_from_plookup_accumulators(
     const plookup::MultiTableId& id,
     const plookup::ReadData<FF>& read_values,
     const uint32_t key_a_index,
@@ -616,8 +630,9 @@ plookup::ReadData<uint32_t> UltraCircuitBuilder_<FF>::create_gates_from_plookup_
 /**
  * Generalized Permutation Methods
  **/
-template <typename FF>
-typename UltraCircuitBuilder_<FF>::RangeList UltraCircuitBuilder_<FF>::create_range_list(const uint64_t target_range)
+template <typename Arithmetization>
+typename UltraCircuitBuilder_<Arithmetization>::RangeList UltraCircuitBuilder_<Arithmetization>::create_range_list(
+    const uint64_t target_range)
 {
     RangeList result;
     const auto range_tag = get_new_tag(); // current_tag + 1;
@@ -649,11 +664,9 @@ typename UltraCircuitBuilder_<FF>::RangeList UltraCircuitBuilder_<FF>::create_ra
 
 // range constraint a value by decomposing it into limbs whose size should be the default range constraint size
 
-template <typename FF>
-std::vector<uint32_t> UltraCircuitBuilder_<FF>::decompose_into_default_range(const uint32_t variable_index,
-                                                                             const uint64_t num_bits,
-                                                                             const uint64_t target_range_bitnum,
-                                                                             std::string const& msg)
+template <typename Arithmetization>
+std::vector<uint32_t> UltraCircuitBuilder_<Arithmetization>::decompose_into_default_range(
+    const uint32_t variable_index, const uint64_t num_bits, const uint64_t target_range_bitnum, std::string const& msg)
 {
     this->assert_valid_variables({ variable_index });
 
@@ -764,10 +777,10 @@ std::vector<uint32_t> UltraCircuitBuilder_<FF>::decompose_into_default_range(con
  * @param variable_index
  * @param target_range
  */
-template <typename FF>
-void UltraCircuitBuilder_<FF>::create_new_range_constraint(const uint32_t variable_index,
-                                                           const uint64_t target_range,
-                                                           std::string const msg)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_new_range_constraint(const uint32_t variable_index,
+                                                                        const uint64_t target_range,
+                                                                        std::string const msg)
 {
     if (uint256_t(this->get_variable(variable_index)).data[0] > target_range) {
         if (!this->failed()) {
@@ -818,7 +831,7 @@ void UltraCircuitBuilder_<FF>::create_new_range_constraint(const uint32_t variab
     }
 }
 
-template <typename FF> void UltraCircuitBuilder_<FF>::process_range_list(RangeList& list)
+template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::process_range_list(RangeList& list)
 {
     this->assert_valid_variables(list.variable_indices);
 
@@ -872,7 +885,7 @@ template <typename FF> void UltraCircuitBuilder_<FF>::process_range_list(RangeLi
     create_sort_constraint_with_edges(indices, 0, list.target_range);
 }
 
-template <typename FF> void UltraCircuitBuilder_<FF>::process_range_lists()
+template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::process_range_lists()
 {
     for (auto& i : range_lists) {
         process_range_list(i.second);
@@ -892,8 +905,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::process_range_lists()
   * std::map<uint64_t, RangeList> range_lists;
 */
 // Check for a sequence of variables that neighboring differences are at most 3 (used for batched range checkj)
-template <typename FF>
-void UltraCircuitBuilder_<FF>::create_sort_constraint(const std::vector<uint32_t>& variable_index)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint(const std::vector<uint32_t>& variable_index)
 {
     constexpr size_t gate_width = plonk::ultra_settings::program_width;
     ASSERT(variable_index.size() % gate_width == 0);
@@ -939,8 +952,8 @@ void UltraCircuitBuilder_<FF>::create_sort_constraint(const std::vector<uint32_t
 
 // useful to put variables in the witness that aren't already used - e.g. the dummy variables of the range constraint in
 // multiples of three
-template <typename FF>
-void UltraCircuitBuilder_<FF>::create_dummy_constraints(const std::vector<uint32_t>& variable_index)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_dummy_constraints(const std::vector<uint32_t>& variable_index)
 {
     std::vector<uint32_t> padded_list = variable_index;
     constexpr size_t gate_width = plonk::ultra_settings::program_width;
@@ -972,10 +985,9 @@ void UltraCircuitBuilder_<FF>::create_dummy_constraints(const std::vector<uint32
 }
 
 // Check for a sequence of variables that neighboring differences are at most 3 (used for batched range checks)
-template <typename FF>
-void UltraCircuitBuilder_<FF>::create_sort_constraint_with_edges(const std::vector<uint32_t>& variable_index,
-                                                                 const FF& start,
-                                                                 const FF& end)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
+    const std::vector<uint32_t>& variable_index, const FF& start, const FF& end)
 {
     // Convenient to assume size is at least 8 (gate_width = 4) for separate gates for start and end conditions
     constexpr size_t gate_width = plonk::ultra_settings::program_width;
@@ -1061,8 +1073,8 @@ void UltraCircuitBuilder_<FF>::create_sort_constraint_with_edges(const std::vect
 
 // range constraint a value by decomposing it into limbs whose size should be the default range constraint size
 
-template <typename FF>
-std::vector<uint32_t> UltraCircuitBuilder_<FF>::decompose_into_default_range_better_for_oddlimbnum(
+template <typename Arithmetization>
+std::vector<uint32_t> UltraCircuitBuilder_<Arithmetization>::decompose_into_default_range_better_for_oddlimbnum(
     const uint32_t variable_index, const size_t num_bits, std::string const& msg)
 {
     std::vector<uint32_t> sums;
@@ -1156,7 +1168,8 @@ std::vector<uint32_t> UltraCircuitBuilder_<FF>::decompose_into_default_range_bet
  *
  * @param type
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::apply_aux_selectors(const AUX_SELECTORS type)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECTORS type)
 {
     q_aux.emplace_back(type == AUX_SELECTORS::NONE ? 0 : 1);
     q_sort.emplace_back(0);
@@ -1316,11 +1329,11 @@ template <typename FF> void UltraCircuitBuilder_<FF>::apply_aux_selectors(const 
  * Applies range constraints to two 70-bit limbs, splititng each into 5 14-bit sublimbs.
  * We can efficiently chain together two 70-bit limb checks in 3 gates, using auxiliary gates
  **/
-template <typename FF>
-void UltraCircuitBuilder_<FF>::range_constrain_two_limbs(const uint32_t lo_idx,
-                                                         const uint32_t hi_idx,
-                                                         const size_t lo_limb_bits,
-                                                         const size_t hi_limb_bits)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::range_constrain_two_limbs(const uint32_t lo_idx,
+                                                                      const uint32_t hi_idx,
+                                                                      const size_t lo_limb_bits,
+                                                                      const size_t hi_limb_bits)
 {
     // Validate limbs are <= 70 bits. If limbs are larger we require more witnesses and cannot use our limb accumulation
     // custom gate
@@ -1407,8 +1420,8 @@ void UltraCircuitBuilder_<FF>::range_constrain_two_limbs(const uint32_t lo_idx,
  * @return std::array<uint32_t, 2> The indices of new limbs.
  */
 
-template <typename FF>
-std::array<uint32_t, 2> UltraCircuitBuilder_<FF>::decompose_non_native_field_double_width_limb(
+template <typename Arithmetization>
+std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::decompose_non_native_field_double_width_limb(
     const uint32_t limb_idx, const size_t num_limb_bits)
 {
     ASSERT(uint256_t(this->get_variable_reference(limb_idx)) < (uint256_t(1) << num_limb_bits));
@@ -1446,8 +1459,8 @@ std::array<uint32_t, 2> UltraCircuitBuilder_<FF>::decompose_non_native_field_dou
  * N.B.: This method does NOT evaluate the prime field component of non-native field multiplications.
  **/
 
-template <typename FF>
-std::array<uint32_t, 2> UltraCircuitBuilder_<FF>::evaluate_non_native_field_multiplication(
+template <typename Arithmetization>
+std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::evaluate_non_native_field_multiplication(
     const non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder)
 {
 
@@ -1609,7 +1622,8 @@ std::array<uint32_t, 2> UltraCircuitBuilder_<FF>::evaluate_non_native_field_mult
  * Iterates over the cached_non_native_field_multiplication objects,
  * removes duplicates, and instantiates the remainder as constraints`
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::process_non_native_field_multiplications()
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::process_non_native_field_multiplications()
 {
     for (size_t i = 0; i < cached_partial_non_native_field_multiplications.size(); ++i) {
         auto& c = cached_partial_non_native_field_multiplications[i];
@@ -1666,8 +1680,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::process_non_native_field_m
  *
  **/
 
-template <typename FF>
-std::array<uint32_t, 2> UltraCircuitBuilder_<FF>::queue_partial_non_native_field_multiplication(
+template <typename Arithmetization>
+std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::queue_partial_non_native_field_multiplication(
     const non_native_field_witnesses& input)
 {
 
@@ -1713,8 +1727,8 @@ std::array<uint32_t, 2> UltraCircuitBuilder_<FF>::queue_partial_non_native_field
  * field elements in 4 gates (would normally take 5)
  **/
 
-template <typename FF>
-std::array<uint32_t, 5> UltraCircuitBuilder_<FF>::evaluate_non_native_field_addition(
+template <typename Arithmetization>
+std::array<uint32_t, 5> UltraCircuitBuilder_<Arithmetization>::evaluate_non_native_field_addition(
     add_simple limb0, add_simple limb1, add_simple limb2, add_simple limb3, std::tuple<uint32_t, uint32_t, FF> limbp)
 {
     const auto& x_0 = std::get<0>(limb0).first;
@@ -1836,8 +1850,8 @@ std::array<uint32_t, 5> UltraCircuitBuilder_<FF>::evaluate_non_native_field_addi
     };
 }
 
-template <typename FF>
-std::array<uint32_t, 5> UltraCircuitBuilder_<FF>::evaluate_non_native_field_subtraction(
+template <typename Arithmetization>
+std::array<uint32_t, 5> UltraCircuitBuilder_<Arithmetization>::evaluate_non_native_field_subtraction(
     add_simple limb0, add_simple limb1, add_simple limb2, add_simple limb3, std::tuple<uint32_t, uint32_t, FF> limbp)
 {
     const auto& x_0 = std::get<0>(limb0).first;
@@ -1964,7 +1978,7 @@ std::array<uint32_t, 5> UltraCircuitBuilder_<FF>::evaluate_non_native_field_subt
  *
  * @param record Stores details of this read operation. Mutated by this fn!
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_ROM_gate(RomRecord& record)
+template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::create_ROM_gate(RomRecord& record)
 {
     // Record wire value can't yet be computed
     record.record_witness = this->add_variable(0);
@@ -1984,7 +1998,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_ROM_gate(RomRecord&
  *
  * @param record Stores details of this read operation. Mutated by this fn!
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_sorted_ROM_gate(RomRecord& record)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_sorted_ROM_gate(RomRecord& record)
 {
     record.record_witness = this->add_variable(0);
     apply_aux_selectors(AUX_SELECTORS::ROM_CONSISTENCY_CHECK);
@@ -2007,7 +2022,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_sorted_ROM_gate(Rom
  * @return size_t The index of the element
  */
 
-template <typename FF> size_t UltraCircuitBuilder_<FF>::create_ROM_array(const size_t array_size)
+template <typename Arithmetization>
+size_t UltraCircuitBuilder_<Arithmetization>::create_ROM_array(const size_t array_size)
 {
     RomTranscript new_transcript;
     for (size_t i = 0; i < array_size; ++i) {
@@ -2024,7 +2040,7 @@ template <typename FF> size_t UltraCircuitBuilder_<FF>::create_ROM_array(const s
  *
  * @param record Stores details of this read operation. Mutated by this fn!
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_RAM_gate(RamRecord& record)
+template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::create_RAM_gate(RamRecord& record)
 {
     // Record wire value can't yet be computed (uses randomnes generated during proof construction).
     // However it needs a distinct witness index,
@@ -2049,7 +2065,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_RAM_gate(RamRecord&
  *
  * @param record Stores details of this read operation. Mutated by this fn!
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_sorted_RAM_gate(RamRecord& record)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_sorted_RAM_gate(RamRecord& record)
 {
     record.record_witness = this->add_variable(0);
     apply_aux_selectors(AUX_SELECTORS::RAM_CONSISTENCY_CHECK);
@@ -2067,8 +2084,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_sorted_RAM_gate(Ram
  *
  * @param record Stores details of this read operation. Mutated by this fn!
  */
-template <typename FF>
-void UltraCircuitBuilder_<FF>::create_final_sorted_RAM_gate(RamRecord& record, const size_t ram_array_size)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::create_final_sorted_RAM_gate(RamRecord& record, const size_t ram_array_size)
 {
     record.record_witness = this->add_variable(0);
     record.gate_index = this->num_gates;
@@ -2096,7 +2113,8 @@ void UltraCircuitBuilder_<FF>::create_final_sorted_RAM_gate(RamRecord& record, c
  * @param array_size The size of region in elements
  * @return size_t The index of the element
  */
-template <typename FF> size_t UltraCircuitBuilder_<FF>::create_RAM_array(const size_t array_size)
+template <typename Arithmetization>
+size_t UltraCircuitBuilder_<Arithmetization>::create_RAM_array(const size_t array_size)
 {
     RamTranscript new_transcript;
     for (size_t i = 0; i < array_size; ++i) {
@@ -2113,10 +2131,10 @@ template <typename FF> size_t UltraCircuitBuilder_<FF>::create_RAM_array(const s
  * @param index_value The index of the cell within the array (an actual index, not a witness index)
  * @param value_witness The index of the witness with the value that should be in the
  */
-template <typename FF>
-void UltraCircuitBuilder_<FF>::init_RAM_element(const size_t ram_id,
-                                                const size_t index_value,
-                                                const uint32_t value_witness)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::init_RAM_element(const size_t ram_id,
+                                                             const size_t index_value,
+                                                             const uint32_t value_witness)
 {
     ASSERT(ram_arrays.size() > ram_id);
     RamTranscript& ram_array = ram_arrays[ram_id];
@@ -2137,8 +2155,8 @@ void UltraCircuitBuilder_<FF>::init_RAM_element(const size_t ram_id,
     ram_array.records.emplace_back(new_record);
 }
 
-template <typename FF>
-uint32_t UltraCircuitBuilder_<FF>::read_RAM_array(const size_t ram_id, const uint32_t index_witness)
+template <typename Arithmetization>
+uint32_t UltraCircuitBuilder_<Arithmetization>::read_RAM_array(const size_t ram_id, const uint32_t index_witness)
 {
     ASSERT(ram_arrays.size() > ram_id);
     RamTranscript& ram_array = ram_arrays[ram_id];
@@ -2166,10 +2184,10 @@ uint32_t UltraCircuitBuilder_<FF>::read_RAM_array(const size_t ram_id, const uin
     return value_witness;
 }
 
-template <typename FF>
-void UltraCircuitBuilder_<FF>::write_RAM_array(const size_t ram_id,
-                                               const uint32_t index_witness,
-                                               const uint32_t value_witness)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::write_RAM_array(const size_t ram_id,
+                                                            const uint32_t index_witness,
+                                                            const uint32_t value_witness)
 {
     ASSERT(ram_arrays.size() > ram_id);
     RamTranscript& ram_array = ram_arrays[ram_id];
@@ -2209,10 +2227,10 @@ void UltraCircuitBuilder_<FF>::write_RAM_array(const size_t ram_id,
  * @param index_value The index of the cell within the array (an actual index, not a witness index)
  * @param value_witness The index of the witness with the value that should be in the
  */
-template <typename FF>
-void UltraCircuitBuilder_<FF>::set_ROM_element(const size_t rom_id,
-                                               const size_t index_value,
-                                               const uint32_t value_witness)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::set_ROM_element(const size_t rom_id,
+                                                            const size_t index_value,
+                                                            const uint32_t value_witness)
 {
     ASSERT(rom_arrays.size() > rom_id);
     RomTranscript& rom_array = rom_arrays[rom_id];
@@ -2252,10 +2270,10 @@ void UltraCircuitBuilder_<FF>::set_ROM_element(const size_t rom_id,
  * @param index_value Index in the array
  * @param value_witnesses The witnesses to put in the slot
  */
-template <typename FF>
-void UltraCircuitBuilder_<FF>::set_ROM_element_pair(const size_t rom_id,
-                                                    const size_t index_value,
-                                                    const std::array<uint32_t, 2>& value_witnesses)
+template <typename Arithmetization>
+void UltraCircuitBuilder_<Arithmetization>::set_ROM_element_pair(const size_t rom_id,
+                                                                 const size_t index_value,
+                                                                 const std::array<uint32_t, 2>& value_witnesses)
 {
     ASSERT(rom_arrays.size() > rom_id);
     RomTranscript& rom_array = rom_arrays[rom_id];
@@ -2283,8 +2301,8 @@ void UltraCircuitBuilder_<FF>::set_ROM_element_pair(const size_t rom_id,
  * @param index_witness The witness with the index inside the array
  * @return uint32_t Cell value witness index
  */
-template <typename FF>
-uint32_t UltraCircuitBuilder_<FF>::read_ROM_array(const size_t rom_id, const uint32_t index_witness)
+template <typename Arithmetization>
+uint32_t UltraCircuitBuilder_<Arithmetization>::read_ROM_array(const size_t rom_id, const uint32_t index_witness)
 {
     ASSERT(rom_arrays.size() > rom_id);
     RomTranscript& rom_array = rom_arrays[rom_id];
@@ -2316,8 +2334,9 @@ uint32_t UltraCircuitBuilder_<FF>::read_ROM_array(const size_t rom_id, const uin
  * @return std::array<uint32_t, 2> A pair of indexes of witness variables of cell values
  */
 
-template <typename FF>
-std::array<uint32_t, 2> UltraCircuitBuilder_<FF>::read_ROM_array_pair(const size_t rom_id, const uint32_t index_witness)
+template <typename Arithmetization>
+std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::read_ROM_array_pair(const size_t rom_id,
+                                                                                   const uint32_t index_witness)
 {
     std::array<uint32_t, 2> value_witnesses;
 
@@ -2352,7 +2371,7 @@ std::array<uint32_t, 2> UltraCircuitBuilder_<FF>::read_ROM_array_pair(const size
  * @param rom_id The id of the ROM table
  * @param gate_offset_from_public_inputs Required to track the gate position of where we're adding extra gates
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::process_ROM_array(const size_t rom_id)
+template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::process_ROM_array(const size_t rom_id)
 {
 
     auto& rom_array = rom_arrays[rom_id];
@@ -2438,7 +2457,7 @@ template <typename FF> void UltraCircuitBuilder_<FF>::process_ROM_array(const si
  * @param ram_id The id of the RAM table
  * @param gate_offset_from_public_inputs Required to track the gate position of where we're adding extra gates
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::process_RAM_array(const size_t ram_id)
+template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::process_RAM_array(const size_t ram_id)
 {
     RamTranscript& ram_array = ram_arrays[ram_id];
     const auto access_tag = get_new_tag();      // current_tag + 1;
@@ -2578,13 +2597,13 @@ template <typename FF> void UltraCircuitBuilder_<FF>::process_RAM_array(const si
     }
 }
 
-template <typename FF> void UltraCircuitBuilder_<FF>::process_ROM_arrays()
+template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::process_ROM_arrays()
 {
     for (size_t i = 0; i < rom_arrays.size(); ++i) {
         process_ROM_array(i);
     }
 }
-template <typename FF> void UltraCircuitBuilder_<FF>::process_RAM_arrays()
+template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::process_RAM_arrays()
 {
     for (size_t i = 0; i < ram_arrays.size(); ++i) {
         process_RAM_array(i);
@@ -2658,22 +2677,23 @@ template <typename FF> void UltraCircuitBuilder_<FF>::process_RAM_arrays()
  * @param alpha
  * @return fr
  */
-template <typename FF>
-inline FF UltraCircuitBuilder_<FF>::compute_arithmetic_identity(FF q_arith_value,
-                                                                FF q_1_value,
-                                                                FF q_2_value,
-                                                                FF q_3_value,
-                                                                FF q_4_value,
-                                                                FF q_m_value,
-                                                                FF q_c_value,
-                                                                FF w_1_value,
-                                                                FF w_2_value,
-                                                                FF w_3_value,
-                                                                FF w_4_value,
-                                                                FF w_1_shifted_value,
-                                                                FF w_4_shifted_value,
-                                                                FF alpha_base,
-                                                                FF alpha) const
+template <typename Arithmetization>
+inline typename Arithmetization::FF UltraCircuitBuilder_<Arithmetization>::compute_arithmetic_identity(
+    FF q_arith_value,
+    FF q_1_value,
+    FF q_2_value,
+    FF q_3_value,
+    FF q_4_value,
+    FF q_m_value,
+    FF q_c_value,
+    FF w_1_value,
+    FF w_2_value,
+    FF w_3_value,
+    FF w_4_value,
+    FF w_1_shifted_value,
+    FF w_4_shifted_value,
+    FF alpha_base,
+    FF alpha) const
 {
     constexpr FF neg_half = FF(-2).invert();
     // The main arithmetic identity that gets activated for q_arith_value == 1
@@ -2723,15 +2743,16 @@ inline FF UltraCircuitBuilder_<FF>::compute_arithmetic_identity(FF q_arith_value
  * @param alpha
  * @return fr
  */
-template <typename FF>
-inline FF UltraCircuitBuilder_<FF>::compute_genperm_sort_identity(FF q_sort_value,
-                                                                  FF w_1_value,
-                                                                  FF w_2_value,
-                                                                  FF w_3_value,
-                                                                  FF w_4_value,
-                                                                  FF w_1_shifted_value,
-                                                                  FF alpha_base,
-                                                                  FF alpha) const
+template <typename Arithmetization>
+inline typename Arithmetization::FF UltraCircuitBuilder_<Arithmetization>::compute_genperm_sort_identity(
+    FF q_sort_value,
+    FF w_1_value,
+    FF w_2_value,
+    FF w_3_value,
+    FF w_4_value,
+    FF w_1_shifted_value,
+    FF alpha_base,
+    FF alpha) const
 {
     // Power of alpha to separate individual delta relations
     // TODO(kesha): This is a repeated computation which can be efficiently optimized
@@ -2782,18 +2803,19 @@ inline FF UltraCircuitBuilder_<FF>::compute_genperm_sort_identity(FF q_sort_valu
  * @param w_4_shifted_value y₃
  * @return fr
  */
-template <typename FF>
-inline FF UltraCircuitBuilder_<FF>::compute_elliptic_identity(FF q_elliptic_value,
-                                                              FF q_1_value,
-                                                              FF q_m_value,
-                                                              FF w_2_value,
-                                                              FF w_3_value,
-                                                              FF w_1_shifted_value,
-                                                              FF w_2_shifted_value,
-                                                              FF w_3_shifted_value,
-                                                              FF w_4_shifted_value,
-                                                              FF alpha_base,
-                                                              FF alpha) const
+template <typename Arithmetization>
+inline typename Arithmetization::FF UltraCircuitBuilder_<Arithmetization>::compute_elliptic_identity(
+    FF q_elliptic_value,
+    FF q_1_value,
+    FF q_m_value,
+    FF w_2_value,
+    FF w_3_value,
+    FF w_1_shifted_value,
+    FF w_2_shifted_value,
+    FF w_3_shifted_value,
+    FF w_4_shifted_value,
+    FF alpha_base,
+    FF alpha) const
 {
     const FF x_1 = w_2_value;
     const FF y_1 = w_3_value;
@@ -2865,26 +2887,27 @@ inline FF UltraCircuitBuilder_<FF>::compute_elliptic_identity(FF q_elliptic_valu
  *
  */
 
-template <typename FF>
-inline FF UltraCircuitBuilder_<FF>::compute_auxilary_identity(FF q_aux_value,
-                                                              FF q_arith_value,
-                                                              FF q_1_value,
-                                                              FF q_2_value,
-                                                              FF q_3_value,
-                                                              FF q_4_value,
-                                                              FF q_m_value,
-                                                              FF q_c_value,
-                                                              FF w_1_value,
-                                                              FF w_2_value,
-                                                              FF w_3_value,
-                                                              FF w_4_value,
-                                                              FF w_1_shifted_value,
-                                                              FF w_2_shifted_value,
-                                                              FF w_3_shifted_value,
-                                                              FF w_4_shifted_value,
-                                                              FF alpha_base,
-                                                              FF alpha,
-                                                              FF eta) const
+template <typename Arithmetization>
+inline typename Arithmetization::FF UltraCircuitBuilder_<Arithmetization>::compute_auxilary_identity(
+    FF q_aux_value,
+    FF q_arith_value,
+    FF q_1_value,
+    FF q_2_value,
+    FF q_3_value,
+    FF q_4_value,
+    FF q_m_value,
+    FF q_c_value,
+    FF w_1_value,
+    FF w_2_value,
+    FF w_3_value,
+    FF w_4_value,
+    FF w_1_shifted_value,
+    FF w_2_shifted_value,
+    FF w_3_shifted_value,
+    FF w_4_shifted_value,
+    FF alpha_base,
+    FF alpha,
+    FF eta) const
 {
     constexpr FF LIMB_SIZE(uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
     // TODO(kesha): Replace with a constant defined in header
@@ -3139,7 +3162,7 @@ inline FF UltraCircuitBuilder_<FF>::compute_auxilary_identity(FF q_aux_value,
  * @return true
  * @return false
  */
-template <typename FF> bool UltraCircuitBuilder_<FF>::check_circuit()
+template <typename Arithmetization> bool UltraCircuitBuilder_<Arithmetization>::check_circuit()
 {
     bool result = true;
     CircuitDataBackup circuit_backup = CircuitDataBackup::store_prefinilized_state(this);
@@ -3399,7 +3422,7 @@ template <typename FF> bool UltraCircuitBuilder_<FF>::check_circuit()
     circuit_backup.restore_prefinilized_state(this);
     return result;
 }
-template class UltraCircuitBuilder_<barretenberg::fr>;
+template class UltraCircuitBuilder_<arithmetization::Ultra<barretenberg::fr>>;
 // To enable this we need to template plookup
 // template class UltraCircuitBuilder_<grumpkin::fr>;
 

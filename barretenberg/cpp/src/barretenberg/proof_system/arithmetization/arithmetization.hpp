@@ -17,167 +17,96 @@ namespace arithmetization {
  * @remark It may make sense to say this is only partial arithmetization data, with the full data being
  * contained in the circuit constructor. We could change the name of this class if it conflicts with common usage.
  *
- * @tparam _NUM_WIRES
- * @tparam _num_selectors
+ * @note For even greater modularity, in each instantiation we could specify a list of components here, where a
+ * component is a meaningful collection of functions for creating gates, as in:
+ *
+ * struct Component {
+ *     using Arithmetic = component::Arithmetic3Wires;
+ *     using RangeConstraints = component::Base4Accumulators or component::GenPerm or...
+ *     using LookupTables = component::Plookup4Wire or component::CQ8Wire or...
+ *     ...
+ * };
+ *
+ * We should only do this if it becomes necessary or convenient.
  */
-template <size_t _NUM_WIRES, size_t _num_selectors> struct Arithmetization {
-    static constexpr size_t NUM_WIRES = _NUM_WIRES;
-    static constexpr size_t num_selectors = _num_selectors;
-
-    // Note: For even greater modularity, in each instantiation we could specify a list of components here, where a
-    // component is a meaningful collection of functions for creating gates, as in:
-    //
-    // struct Component {
-    //     using Arithmetic = component::Arithmetic3Wires;
-    //     using RangeConstraints = component::Base4Accumulators or component::GenPerm or...
-    //     using LookupTables = component::Plookup4Wire or component::CQ8Wire or...
-    //     ...
-    // };
-    //
-    // We should only do this if it becomes necessary or convenient.
-};
-
-template <typename FF, size_t num_selectors> struct SelectorsBase {
-    using DataType = std::array<std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>, num_selectors>;
-    DataType _data;
-    size_t size() { return _data.size(); };
-    typename DataType::const_iterator begin() const { return _data.begin(); };
-    typename DataType::iterator begin() { return _data.begin(); };
-    typename DataType::const_iterator end() const { return _data.end(); };
-    typename DataType::iterator end() { return _data.end(); };
-};
 
 // These are not magic numbers and they should not be written with global constants. These parameters are not accessible
 // through clearly named static class members.
-template <typename _FF> class Standard : public Arithmetization</*NUM_WIRES =*/3, /*num_selectors =*/5> {
+template <typename FF_> class Standard {
   public:
-    using FF = _FF;
-    struct Selectors : SelectorsBase<FF, num_selectors> {
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_m = std::get<0>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_1 = std::get<1>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_2 = std::get<2>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_3 = std::get<3>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_c = std::get<4>(this->_data);
-        Selectors()
-            : SelectorsBase<FF, num_selectors>(){};
-        Selectors(const Selectors& other)
-            : SelectorsBase<FF, num_selectors>(other)
-        {}
-        Selectors(Selectors&& other)
-        {
-            this->_data = std::move(other._data);
-            this->q_m = std::get<0>(this->_data);
-            this->q_1 = std::get<1>(this->_data);
-            this->q_2 = std::get<2>(this->_data);
-            this->q_3 = std::get<3>(this->_data);
-            this->q_c = std::get<4>(this->_data);
-        };
-        Selectors& operator=(Selectors&& other)
-        {
-            SelectorsBase<FF, num_selectors>::operator=(other);
-            return *this;
+    static constexpr size_t NUM_WIRES = 3;
+    static constexpr size_t num_selectors = 5;
+    using FF = FF_;
+    using SelectorType = std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>;
+
+    std::vector<SelectorType> selectors;
+
+    SelectorType& q_m() { return selectors[0]; };
+    SelectorType& q_1() { return selectors[1]; };
+    SelectorType& q_2() { return selectors[2]; };
+    SelectorType& q_3() { return selectors[3]; };
+    SelectorType& q_c() { return selectors[4]; };
+
+    Standard()
+        : selectors(num_selectors)
+    {}
+
+    const auto& get() const { return selectors; };
+
+    void reserve(size_t size_hint)
+    {
+        for (auto& p : selectors) {
+            p.reserve(size_hint);
         }
-        ~Selectors() = default;
-    };
+    }
+
+    // Note: These are needed for Plonk only (for poly storage in a std::map). Must be in same order as above struct.
+    inline static const std::vector<std::string> selector_names = { "q_m", "q_1", "q_2", "q_3", "q_c" };
 };
 
-template <typename _FF> class Turbo : public Arithmetization</*NUM_WIRES =*/4, /*num_selectors =*/11> {
+template <typename FF_> class Ultra {
   public:
-    using FF = _FF;
-    struct Selectors : SelectorsBase<FF, num_selectors> {
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_m = std::get<0>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_c = std::get<1>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_1 = std::get<2>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_2 = std::get<3>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_3 = std::get<4>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_4 = std::get<5>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_5 = std::get<6>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_arith = std::get<7>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_fixed_base = std::get<8>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_range = std::get<9>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_logic = std::get<10>(this->_data);
-        Selectors()
-            : SelectorsBase<FF, num_selectors>(){};
-        Selectors(const Selectors& other)
-            : SelectorsBase<FF, num_selectors>(other)
-        {}
-        Selectors(Selectors&& other)
-        {
-            this->_data = std::move(other._data);
-            this->q_m = std::get<0>(this->_data);
-            this->q_c = std::get<1>(this->_data);
-            this->q_1 = std::get<2>(this->_data);
-            this->q_2 = std::get<3>(this->_data);
-            this->q_3 = std::get<4>(this->_data);
-            this->q_4 = std::get<5>(this->_data);
-            this->q_5 = std::get<6>(this->_data);
-            this->q_arith = std::get<7>(this->_data);
-            this->q_fixed_base = std::get<8>(this->_data);
-            this->q_range = std::get<9>(this->_data);
-            this->q_logic = std::get<10>(this->_data);
-        };
-        Selectors& operator=(Selectors&& other)
-        {
-            SelectorsBase<FF, num_selectors>::operator=(other);
-            return *this;
+    static constexpr size_t NUM_WIRES = 4;
+    static constexpr size_t num_selectors = 11;
+    using FF = FF_;
+    using SelectorType = std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>;
+
+    std::vector<SelectorType> selectors;
+
+    SelectorType& q_m() { return selectors[0]; };
+    SelectorType& q_c() { return selectors[1]; };
+    SelectorType& q_1() { return selectors[2]; };
+    SelectorType& q_2() { return selectors[3]; };
+    SelectorType& q_3() { return selectors[4]; };
+    SelectorType& q_4() { return selectors[5]; };
+    SelectorType& q_arith() { return selectors[6]; };
+    SelectorType& q_sort() { return selectors[7]; };
+    SelectorType& q_elliptic() { return selectors[8]; };
+    SelectorType& q_aux() { return selectors[9]; };
+    SelectorType& q_lookup_type() { return selectors[10]; };
+
+    Ultra()
+        : selectors(num_selectors)
+    {}
+
+    const auto& get() const { return selectors; };
+
+    void reserve(size_t size_hint)
+    {
+        for (auto& p : selectors) {
+            p.reserve(size_hint);
         }
-        ~Selectors() = default;
-    };
+    }
+
+    // Note: These are needed for Plonk only (for poly storage in a std::map). Must be in same order as above struct.
+    inline static const std::vector<std::string> selector_names = { "q_m",        "q_c",   "q_1",       "q_2",
+                                                                    "q_3",        "q_4",   "q_arith",   "q_sort",
+                                                                    "q_elliptic", "q_aux", "table_type" };
 };
 
-template <typename _FF> class Ultra : public Arithmetization</*NUM_WIRES =*/4, /*num_selectors =*/11> {
+class GoblinTranslator {
   public:
-    using FF = _FF;
-    struct Selectors : SelectorsBase<FF, num_selectors> {
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_m = std::get<0>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_c = std::get<1>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_1 = std::get<2>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_2 = std::get<3>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_3 = std::get<4>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_4 = std::get<5>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_arith = std::get<6>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_sort = std::get<7>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_elliptic = std::get<8>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_aux = std::get<9>(this->_data);
-        std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>& q_lookup_type = std::get<10>(this->_data);
-        Selectors()
-            : SelectorsBase<FF, num_selectors>(){};
-        Selectors(const Selectors& other)
-            : SelectorsBase<FF, num_selectors>(other)
-        {}
-        Selectors(Selectors&& other)
-        {
-            this->_data = std::move(other._data);
-            this->q_m = std::get<0>(this->_data);
-            this->q_c = std::get<1>(this->_data);
-            this->q_1 = std::get<2>(this->_data);
-            this->q_2 = std::get<3>(this->_data);
-            this->q_3 = std::get<4>(this->_data);
-            this->q_4 = std::get<5>(this->_data);
-            this->q_arith = std::get<6>(this->_data);
-            this->q_sort = std::get<7>(this->_data);
-            this->q_elliptic = std::get<8>(this->_data);
-            this->q_aux = std::get<9>(this->_data);
-            this->q_lookup_type = std::get<10>(this->_data);
-        };
-        Selectors& operator=(Selectors&& other)
-        {
-            SelectorsBase<FF, num_selectors>::operator=(other);
-            return *this;
-        }
-        ~Selectors() = default;
-        // Selectors() = default;
-        // Selectors(const Selectors& other) = default;
-        // Selectors(Selectors&& other) = default;
-        // Selectors& operator=(Selectors const& other) = default;
-        // Selectors& operator=(Selectors&& other) = default;
-        // ~Selectors() = default;
-    };
-};
-class GoblinTranslator : public Arithmetization</*NUM_WIRES =*/81, /*num_selectors =*/0> {
-  public:
-    // Dirty hack
-    using Selectors = bool;
-    using FF = curve::BN254::ScalarField;
+    static constexpr size_t NUM_WIRES = 81;
+    static constexpr size_t num_selectors = 0;
 };
 } // namespace arithmetization

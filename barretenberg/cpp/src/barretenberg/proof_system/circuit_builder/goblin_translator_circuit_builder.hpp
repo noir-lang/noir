@@ -73,12 +73,15 @@ namespace proof_system {
  * microlimb.
  *
  */
-class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<arithmetization::GoblinTranslator> {
+class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<barretenberg::fr> {
     // We don't need templating for Goblin
     using Fr = barretenberg::fr;
     using Fq = barretenberg::fq;
+    using Arithmetization = arithmetization::GoblinTranslator;
 
   public:
+    static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
+
     /**
      * We won't need these standard gates that are defined as virtual in circuit builder base
      *
@@ -324,6 +327,8 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<arithmetization
     // The input we evaluate polynomials on
     Fq evaluation_input_x;
 
+    std::array<std::vector<uint32_t, barretenberg::ContainerSlabAllocator<uint32_t>>, NUM_WIRES> wires;
+
     /**
      * @brief Construct a new Goblin Translator Circuit Builder object
      *
@@ -334,11 +339,11 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<arithmetization
      * @param evaluation_input_x_
      */
     GoblinTranslatorCircuitBuilder(Fq batching_challenge_v_, Fq evaluation_input_x_)
-        : CircuitBuilderBase({}, DEFAULT_TRANSLATOR_VM_LENGTH)
+        : CircuitBuilderBase(DEFAULT_TRANSLATOR_VM_LENGTH)
         , batching_challenge_v(batching_challenge_v_)
         , evaluation_input_x(evaluation_input_x_)
     {
-        add_variable(FF::zero());
+        add_variable(Fr::zero());
         for (auto& wire : wires) {
             wire.emplace_back(0);
         }

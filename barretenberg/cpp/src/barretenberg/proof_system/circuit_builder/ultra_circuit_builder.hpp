@@ -3,7 +3,6 @@
 #include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
 #include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
 #include "barretenberg/proof_system/op_queue/ecc_op_queue.hpp"
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/proof_system/plookup_tables/types.hpp"
@@ -16,8 +15,16 @@ namespace proof_system {
 
 using namespace barretenberg;
 
-template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<arithmetization::Ultra<FF>> {
+template <typename Arithmetization>
+class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization::FF> {
   public:
+    using FF = typename Arithmetization::FF;
+    static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
+    // Keeping NUM_WIRES, at least temporarily, for backward compatibility
+    static constexpr size_t program_width = Arithmetization::NUM_WIRES;
+    static constexpr size_t num_selectors = Arithmetization::num_selectors;
+    std::vector<std::string> selector_names = Arithmetization::selector_names;
+
     static constexpr std::string_view NAME_STRING = "UltraArithmetization";
     static constexpr CircuitType CIRCUIT_TYPE = CircuitType::ULTRA;
     static constexpr merkle::HashType merkle_hash_type = merkle::HashType::LOOKUP_PEDERSEN;
@@ -212,12 +219,6 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
         }
     };
 
-    inline std::vector<std::string> ultra_selector_names()
-    {
-        std::vector<std::string> result{ "q_m",     "q_c",    "q_1",        "q_2",   "q_3",       "q_4",
-                                         "q_arith", "q_sort", "q_elliptic", "q_aux", "table_type" };
-        return result;
-    }
     struct non_native_field_multiplication_cross_terms {
         uint32_t lo_0_idx;
         uint32_t lo_1_idx;
@@ -526,25 +527,28 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
         }
     };
 
+    std::array<std::vector<uint32_t, barretenberg::ContainerSlabAllocator<uint32_t>>, NUM_WIRES> wires;
+    Arithmetization selectors;
+
     using WireVector = std::vector<uint32_t, ContainerSlabAllocator<uint32_t>>;
     using SelectorVector = std::vector<FF, ContainerSlabAllocator<FF>>;
 
-    WireVector& w_l = std::get<0>(this->wires);
-    WireVector& w_r = std::get<1>(this->wires);
-    WireVector& w_o = std::get<2>(this->wires);
-    WireVector& w_4 = std::get<3>(this->wires);
+    WireVector& w_l = std::get<0>(wires);
+    WireVector& w_r = std::get<1>(wires);
+    WireVector& w_o = std::get<2>(wires);
+    WireVector& w_4 = std::get<3>(wires);
 
-    SelectorVector& q_m = this->selectors.q_m;
-    SelectorVector& q_c = this->selectors.q_c;
-    SelectorVector& q_1 = this->selectors.q_1;
-    SelectorVector& q_2 = this->selectors.q_2;
-    SelectorVector& q_3 = this->selectors.q_3;
-    SelectorVector& q_4 = this->selectors.q_4;
-    SelectorVector& q_arith = this->selectors.q_arith;
-    SelectorVector& q_sort = this->selectors.q_sort;
-    SelectorVector& q_elliptic = this->selectors.q_elliptic;
-    SelectorVector& q_aux = this->selectors.q_aux;
-    SelectorVector& q_lookup_type = this->selectors.q_lookup_type;
+    SelectorVector& q_m = selectors.q_m();
+    SelectorVector& q_c = selectors.q_c();
+    SelectorVector& q_1 = selectors.q_1();
+    SelectorVector& q_2 = selectors.q_2();
+    SelectorVector& q_3 = selectors.q_3();
+    SelectorVector& q_4 = selectors.q_4();
+    SelectorVector& q_arith = selectors.q_arith();
+    SelectorVector& q_sort = selectors.q_sort();
+    SelectorVector& q_elliptic = selectors.q_elliptic();
+    SelectorVector& q_aux = selectors.q_aux();
+    SelectorVector& q_lookup_type = selectors.q_lookup_type();
 
     // These are variables that we have used a gate on, to enforce that they are
     // equal to a defined value.
@@ -583,8 +587,9 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
 
     void process_non_native_field_multiplications();
     UltraCircuitBuilder_(const size_t size_hint = 0)
-        : CircuitBuilderBase<arithmetization::Ultra<FF>>(ultra_selector_names(), size_hint)
+        : CircuitBuilderBase<FF>(size_hint)
     {
+        selectors.reserve(size_hint);
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
         w_o.reserve(size_hint);
@@ -594,8 +599,10 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
     };
     UltraCircuitBuilder_(const UltraCircuitBuilder_& other) = delete;
     UltraCircuitBuilder_(UltraCircuitBuilder_&& other)
-        : CircuitBuilderBase<arithmetization::Ultra<FF>>(std::move(other))
+        : CircuitBuilderBase<FF>(std::move(other))
     {
+        wires = other.wires;
+        selectors = other.selectors;
         constant_variable_indices = other.constant_variable_indices;
 
         lookup_tables = other.lookup_tables;
@@ -611,7 +618,9 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
     UltraCircuitBuilder_& operator=(const UltraCircuitBuilder_& other) = delete;
     UltraCircuitBuilder_& operator=(UltraCircuitBuilder_&& other)
     {
-        CircuitBuilderBase<arithmetization::Ultra<FF>>::operator=(std::move(other));
+        CircuitBuilderBase<FF>::operator=(std::move(other));
+        wires = other.wires;
+        selectors = other.selectors;
         constant_variable_indices = other.constant_variable_indices;
 
         lookup_tables = other.lookup_tables;
@@ -723,7 +732,6 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
             romcount += 1; // we add an addition gate after procesing a rom array
         }
 
-        constexpr size_t gate_width = CircuitBuilderBase<arithmetization::Ultra<FF>>::program_width;
         // each RAM gate adds +2 extra gates due to the ram reads being copied to a sorted list set,
         // as well as an extra gate to validate timestamps
         std::vector<size_t> ram_timestamps;
@@ -744,12 +752,12 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
             // if a range check of length `max_timestamp` already exists, we are double counting.
             // We record `ram_timestamps` to detect and correct for this error when we process range lists.
             ram_timestamps.push_back(max_timestamp);
-            size_t padding = (gate_width - (max_timestamp % gate_width)) % gate_width;
-            if (max_timestamp == gate_width)
-                padding += gate_width;
+            size_t padding = (NUM_WIRES - (max_timestamp % NUM_WIRES)) % NUM_WIRES;
+            if (max_timestamp == NUM_WIRES)
+                padding += NUM_WIRES;
             const size_t ram_range_check_list_size = max_timestamp + padding;
 
-            size_t ram_range_check_gate_count = (ram_range_check_list_size / gate_width);
+            size_t ram_range_check_gate_count = (ram_range_check_list_size / NUM_WIRES);
             ram_range_check_gate_count += 1; // we need to add 1 extra addition gates for every distinct range list
 
             ram_range_sizes.push_back(ram_range_check_gate_count);
@@ -757,9 +765,9 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
         }
         for (const auto& list : range_lists) {
             auto list_size = list.second.variable_indices.size();
-            size_t padding = (gate_width - (list.second.variable_indices.size() % gate_width)) % gate_width;
-            if (list.second.variable_indices.size() == gate_width)
-                padding += gate_width;
+            size_t padding = (NUM_WIRES - (list.second.variable_indices.size() % NUM_WIRES)) % NUM_WIRES;
+            if (list.second.variable_indices.size() == NUM_WIRES)
+                padding += NUM_WIRES;
             list_size += padding;
 
             for (size_t i = 0; i < ram_timestamps.size(); ++i) {
@@ -767,7 +775,7 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
                     ram_range_exists[i] = true;
                 }
             }
-            rangecount += (list_size / gate_width);
+            rangecount += (list_size / NUM_WIRES);
             rangecount += 1; // we need to add 1 extra addition gates for every distinct range list
         }
         // update rangecount to include the ram range checks the composer will eventually be creating
@@ -1039,6 +1047,6 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
 
     bool check_circuit();
 };
-extern template class UltraCircuitBuilder_<barretenberg::fr>;
-using UltraCircuitBuilder = UltraCircuitBuilder_<barretenberg::fr>;
+extern template class UltraCircuitBuilder_<arithmetization::Ultra<barretenberg::fr>>;
+using UltraCircuitBuilder = UltraCircuitBuilder_<arithmetization::Ultra<barretenberg::fr>>;
 } // namespace proof_system

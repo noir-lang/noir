@@ -1,5 +1,4 @@
 #pragma once
-#include "barretenberg/common/slab_allocator.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
@@ -12,24 +11,13 @@
 namespace proof_system {
 static constexpr uint32_t DUMMY_TAG = 0;
 
-template <typename Arithmetization> class CircuitBuilderBase {
+template <typename FF_> class CircuitBuilderBase {
   public:
-    using FF = typename Arithmetization::FF;
+    using FF = FF_;
     using EmbeddedCurve =
         std::conditional_t<std::same_as<FF, barretenberg::g1::coordinate_field>, curve::BN254, curve::Grumpkin>;
 
-    static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
-    // Keeping NUM_WIRES, at least temporarily, for backward compatibility
-    static constexpr size_t program_width = Arithmetization::NUM_WIRES;
-    static constexpr size_t num_selectors = Arithmetization::num_selectors;
-
-    // TODO(Cody): These are plonk-specific and could be specified in the plonk flavors.
-    // Also, there is loose coupling with the vectors of SelectorProperties
-    std::vector<std::string> selector_names_;
     size_t num_gates = 0;
-
-    std::array<std::vector<uint32_t, barretenberg::ContainerSlabAllocator<uint32_t>>, NUM_WIRES> wires;
-    typename Arithmetization::Selectors selectors;
 
     std::vector<uint32_t> public_inputs;
     std::vector<FF> variables;
@@ -57,13 +45,7 @@ template <typename Arithmetization> class CircuitBuilderBase {
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX - 1;
     static constexpr uint32_t FIRST_VARIABLE_IN_CLASS = UINT32_MAX - 2;
 
-    // Enum values spaced in increments of 30-bits (multiples of 2 ** 30).
-    // TODO(#216)(Adrian): This is unused, and this type of hard coded data should be avoided
-    // Cody: This is used by compute_wire_copy_cycles in Plonk.
-    // enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000 };
-
-    CircuitBuilderBase(std::vector<std::string> selector_names, size_t size_hint = 0)
-        : selector_names_(std::move(selector_names))
+    CircuitBuilderBase(size_t size_hint = 0)
     {
         variables.reserve(size_hint * 3);
         variable_names.reserve(size_hint * 3);
@@ -71,12 +53,6 @@ template <typename Arithmetization> class CircuitBuilderBase {
         prev_var_index.reserve(size_hint * 3);
         real_variable_index.reserve(size_hint * 3);
         real_variable_tags.reserve(size_hint * 3);
-        // We set selectors type to bool, when we don't actually use them
-        if constexpr (!std::is_same<typename Arithmetization::Selectors, bool>::value) {
-            for (auto& p : selectors) {
-                p.reserve(size_hint);
-            }
-        }
     }
 
     CircuitBuilderBase(const CircuitBuilderBase& other) = default;

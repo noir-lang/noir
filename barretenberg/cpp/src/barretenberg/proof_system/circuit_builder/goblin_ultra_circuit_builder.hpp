@@ -16,12 +16,12 @@ namespace proof_system {
 
 using namespace barretenberg;
 
-template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBuilder_<FF> {
+template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBuilder_<arithmetization::Ultra<FF>> {
   public:
     static constexpr std::string_view NAME_STRING = "GoblinUltraArithmetization";
     static constexpr CircuitType CIRCUIT_TYPE = CircuitType::ULTRA;
     static constexpr size_t DEFAULT_NON_NATIVE_FIELD_LIMB_BITS =
-        UltraCircuitBuilder_<FF>::DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
+        UltraCircuitBuilder_<arithmetization::Ultra<FF>>::DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
 
     size_t num_ecc_op_gates = 0; // number of ecc op "gates" (rows); these are placed at the start of the circuit
 
@@ -56,7 +56,7 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
   public:
     GoblinUltraCircuitBuilder_(const size_t size_hint = 0,
                                std::shared_ptr<ECCOpQueue> op_queue_in = std::make_shared<ECCOpQueue>())
-        : UltraCircuitBuilder_<FF>(size_hint)
+        : UltraCircuitBuilder_<arithmetization::Ultra<FF>>(size_hint)
         , op_queue(op_queue_in)
     {
         // Set indices to constants corresponding to Goblin ECC op codes
@@ -86,7 +86,7 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
      */
     size_t get_num_gates() const override
     {
-        auto num_ultra_gates = UltraCircuitBuilder_<FF>::get_num_gates();
+        auto num_ultra_gates = UltraCircuitBuilder_<arithmetization::Ultra<FF>>::get_num_gates();
         return num_ultra_gates + num_ecc_op_gates;
     }
 
@@ -101,7 +101,8 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
         size_t romcount = 0;
         size_t ramcount = 0;
         size_t nnfcount = 0;
-        UltraCircuitBuilder_<FF>::get_num_gates_split_into_components(count, rangecount, romcount, ramcount, nnfcount);
+        UltraCircuitBuilder_<arithmetization::Ultra<FF>>::get_num_gates_split_into_components(
+            count, rangecount, romcount, ramcount, nnfcount);
 
         size_t total = count + romcount + ramcount + rangecount + num_ecc_op_gates;
         std::cout << "gates = " << total << " (arith " << count << ", rom " << romcount << ", ram " << ramcount

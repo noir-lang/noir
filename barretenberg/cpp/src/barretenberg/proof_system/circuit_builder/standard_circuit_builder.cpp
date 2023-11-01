@@ -518,7 +518,7 @@ template <typename FF> bool StandardCircuitBuilder_<FF>::check_circuit()
  */
 template <typename FF> msgpack::sbuffer StandardCircuitBuilder_<FF>::export_circuit()
 {
-    using base = CircuitBuilderBase<arithmetization::Standard<FF>>;
+    using base = CircuitBuilderBase<FF>;
     CircuitSchema cir;
 
     uint64_t modulus[4] = {
