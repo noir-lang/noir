@@ -18,7 +18,7 @@ use noirc_frontend::{graph::CrateGraph, hir::Context};
 use std::path::Path;
 
 /// Compile program from file using path.
-pub(crate) fn compile(
+pub(crate) fn compile_brillig(
     entry_point: &str,
 ) -> Result<(GeneratedBrillig, CompiledProgram), Vec<FileDiagnostic>> {
     let options = CompileOptions::default();
@@ -37,6 +37,8 @@ pub(crate) fn compile(
     Ok((compiled_brillig.0, compiled_acvm.0))
 }
 
+/// Get inputs for a program. Dynamic data will be stored in memory, the simple variables will be
+/// stored in registers.
 pub(crate) fn get_input_registers_and_memory(
     package: &Package,
     program: &CompiledProgram,
@@ -56,6 +58,7 @@ pub(crate) fn get_input_registers_and_memory(
     (Registers { inner }, memory)
 }
 
+/// Helper for reading inputs and converting in into brillig compatible values.
 // Copy of function, the visibility problems.
 fn read_inputs_from_file<P: AsRef<Path>>(
     path: P,
@@ -79,6 +82,7 @@ fn read_inputs_from_file<P: AsRef<Path>>(
     Ok((input_map, return_value))
 }
 
+/// Transform map of inputs into vectors of field elements that represents registers and memory.
 fn map_inputs_to_registers_and_memory(
     input_map: &BTreeMap<String, InputValue>,
     abi: &Abi,
@@ -116,6 +120,7 @@ fn map_inputs_to_registers_and_memory(
     Ok((registers, memory))
 }
 
+/// Compile input value and decide the value storage (memory or registers).
 fn encode_value(
     value: InputValue,
     abi_type: &AbiType,

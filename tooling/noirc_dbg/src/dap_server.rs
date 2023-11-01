@@ -15,7 +15,6 @@ use std::sync::Mutex;
 #[cfg(feature = "dap")]
 use std::thread::spawn;
 
-use dap::{requests::Request, base_message::Sendable};
 #[cfg(not(feature = "dap"))]
 use dap::requests::{
     Command, ContinueArguments, DisassembleArguments, DisconnectArguments, LaunchRequestArguments,
@@ -23,6 +22,11 @@ use dap::requests::{
 };
 #[cfg(not(feature = "dap"))]
 use dap::responses::ResponseBody;
+use dap::{
+    base_message::Sendable,
+    events::{Event, StoppedEventBody},
+    requests::Request,
+};
 
 #[cfg(feature = "dap")]
 use dap::server::*;
@@ -106,23 +110,24 @@ impl Dap {
     fn get_request_from_stdin(&self) -> Result<Request, TryRecvError> {
         let command = stdin_get("Enter command> ");
         let req = match command.trim() {
-            "c" => {
+            "c" | "continue" => {
                 Request { seq: self.seq, command: Command::Continue(ContinueArguments::default()) }
             }
-            "d" => Request {
+            "d" | "disassemble" => Request {
                 seq: self.seq,
                 command: Command::Disassemble(DisassembleArguments::default()),
             },
-            "l" => {
-                let path = stdin_get("Enter path to file> ");
-                let vm = stdin_get("Select vm: 'a' for acvm and 'b' for brillig> ");
+            "l" | "launch" => {
+                let path = stdin_get("Enter path to Noir binary module> ");
+                // TODO: skipped for now
+                // let vm = stdin_get("Select vm: 'a' for acvm and 'b' for brillig> ");
                 let data = format!(
                     "
                     {{
                         \"src_path\": \"{}\",
-                        \"vm\": \"{}\"
+                        \"vm\": \"b\"
                     }}",
-                    path, vm
+                    path /* , vm */
                 );
                 let additional_data: Option<Value> = serde_json::from_str(&data).ok();
 
@@ -134,20 +139,26 @@ impl Dap {
                     }),
                 }
             }
-            "m" => Request {
+            "m" | "memory" => Request {
                 seq: self.seq,
                 command: Command::ReadMemory(ReadMemoryArguments::default()),
             },
-            "q" => Request {
+            "q" | "quit" => Request {
                 seq: self.seq,
                 command: Command::Disconnect(DisconnectArguments::default()),
             },
-            "r" => Request {
+            "r" | "registers" => Request {
                 seq: self.seq,
                 command: Command::Variables(VariablesArguments::default()),
             },
-            "s" => Request { seq: self.seq, command: Command::Next(NextArguments::default()) },
-            _ => unimplemented!(),
+            "s" | "step" => {
+                Request { seq: self.seq, command: Command::Next(NextArguments::default()) }
+            }
+            command => {
+                println!("Unknown command \"{}\"", command);
+                println!("Please type any of valid commands");
+                self.get_request_from_stdin()?
+            }
         };
         Ok(req)
     }
@@ -174,11 +185,25 @@ impl Server for Dap {
                             println!("    {} => {}", v.name, v.value);
                         });
                     }
+                    Some(ResponseBody::Disassemble(v)) => {
+                        println!("Program:");
+                        v.instructions
+                            .iter()
+                            .for_each(|v| println!("{}  {}", v.address, v.instruction));
+                    }
                     Some(any) => println!("{:#?}", any),
                     None => println!("{:#?}", r),
                 };
             }
-            Sendable::Event(e) => println!("{:#?}", e),
+            Sendable::Event(e) => match e {
+                Event::Stopped(StoppedEventBody { reason, description, .. }) => {
+                    println!(
+                        "Stopped.\n    Reason: {:?}\n    Description: {:?}",
+                        reason, description
+                    );
+                }
+                _ => println!("{:#?}", e),
+            },
             Sendable::ReverseRequest(r) => println!("{:#?}", r),
         }
     }

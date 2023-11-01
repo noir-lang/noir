@@ -4,8 +4,8 @@ use dap::events::*;
 use dap::requests::*;
 use dap::responses::*;
 use dap::types::{
-    Capabilities, Scope, ScopePresentationhint, SourceBreakpoint, StoppedEventReason, Thread,
-    Variable,
+    Capabilities, DisassembledInstruction, Scope, ScopePresentationhint, SourceBreakpoint,
+    StoppedEventReason, Thread, Variable,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_evaluator::brillig::brillig_ir::artifact::GeneratedBrillig;
@@ -145,7 +145,7 @@ impl RunningState {
         let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
             return Err(DebuggingError::CustomError("No matching binary packages found in workspace. Only binary packages can be debugged.".into()));
         };
-        let program = compile::compile(package.entry_path.to_str().unwrap()).unwrap();
+        let program = compile::compile_brillig(package.entry_path.to_str().unwrap()).unwrap();
 
         let (registers, memory) = compile::get_input_registers_and_memory(
             package,
@@ -156,7 +156,7 @@ impl RunningState {
         #[allow(deprecated)]
         let solver = Box::leak(Box::new(BarretenbergSolver::new()));
         let bytecode = Box::leak(Box::new(program.0.byte_code.clone()));
-        let vm = vm::new(bytecode, registers, memory, solver);
+        let vm = vm::brillig_new(bytecode, registers, memory, solver);
         Ok(RunningState {
             breakpoints: Vec::new(),
             running: false,
@@ -254,14 +254,34 @@ impl RunningState {
                 }
             }
             Command::Disassemble(_) => {
-                // TODO: write proper realization
-                println!("Current position: {}", self.vm.program_counter());
-                println!("Program:");
-                self.program
+                let pos = self.vm.program_counter();
+                let instructions = self
+                    .program
                     .byte_code
                     .iter()
                     .enumerate()
-                    .for_each(|(i, opcode)| println!("{}  {:#?}", i, opcode));
+                    .map(|(i, opcode)| {
+                        let instruction = if pos == i {
+                            // special formatting for current opcode
+                            format!("==>\n<<<<<\n{:#?}\n>>>>>", opcode)
+                        } else {
+                            format!("{:#?}", opcode)
+                        };
+                        DisassembledInstruction {
+                            address: i.to_string(),
+                            instruction,
+                            ..Default::default()
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                server.write(Sendable::Response(Response {
+                    request_seq: request.seq,
+                    body: Some(ResponseBody::Disassemble(DisassembleResponse { instructions })),
+                    success: true,
+                    message: None,
+                    error: None,
+                }));
             }
             Command::Pause(_) => {
                 self.running = false;

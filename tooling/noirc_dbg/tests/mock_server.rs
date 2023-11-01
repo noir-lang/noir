@@ -3,10 +3,10 @@ use dap::requests::{
     Command,
     ContinueArguments,
     DisassembleArguments,
-    // DisconnectArguments,
+    DisconnectArguments,
     LaunchRequestArguments,
     NextArguments,
-    // ReadMemoryArguments,
+    ReadMemoryArguments,
     VariablesArguments,
 };
 use dap::responses::ResponseBody;
@@ -63,6 +63,14 @@ impl MockDap {
                     }),
                 })
             }
+            "memory" => Ok(Request {
+                seq: self.seq,
+                command: Command::ReadMemory(ReadMemoryArguments::default()),
+            }),
+            "quit" => Ok(Request {
+                seq: self.seq,
+                command: Command::Disconnect(DisconnectArguments::default()),
+            }),
             "registers" => Ok(Request {
                 seq: self.seq,
                 command: Command::Variables(VariablesArguments::default()),
@@ -100,6 +108,15 @@ impl Server for MockDap {
                             .collect::<Vec<_>>()
                             .join(",");
                         *self.response.borrow_mut() = (seq, regs);
+                    }
+                    Some(ResponseBody::Disassemble(v)) => {
+                        let program = v
+                            .instructions
+                            .iter()
+                            .map(|v| { format!("{}  {}", v.address, v.instruction) })
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        *self.response.borrow_mut() = (seq, program);
                     }
                     Some(any) => {
                         *self.response.borrow_mut() = (seq, format!("{:?}", any));
