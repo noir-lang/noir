@@ -3,25 +3,10 @@ use acir::{
     native_types::{Witness, WitnessMap},
     BlackBoxFunc, FieldElement,
 };
-use acvm_blackbox_solver::{hash_to_field_128_security, BlackBoxResolutionError};
+use acvm_blackbox_solver::BlackBoxResolutionError;
 
 use crate::pwg::{insert_value, witness_to_value};
 use crate::OpcodeResolutionError;
-
-/// Attempts to solve a `HashToField128Security` opcode
-/// If successful, `initial_witness` will be mutated to contain the new witness assignment.
-pub(super) fn solve_hash_to_field(
-    initial_witness: &mut WitnessMap,
-    inputs: &[FunctionInput],
-    output: &Witness,
-) -> Result<(), OpcodeResolutionError> {
-    let message_input = get_hash_input(initial_witness, inputs, None)?;
-    let field = hash_to_field_128_security(&message_input)?;
-
-    insert_value(output, field, initial_witness)?;
-
-    Ok(())
-}
 
 /// Attempts to solve a 256 bit hash function opcode.
 /// If successful, `initial_witness` will be mutated to contain the new witness assignment.

@@ -58,19 +58,6 @@ pub(crate) fn convert_black_box_call(
                 unreachable!("ICE: Keccak256 expects message, message size and result array")
             }
         }
-        BlackBoxFunc::HashToField128Security => {
-            if let ([message], [RegisterOrMemory::RegisterIndex(result_register)]) =
-                (function_arguments, function_results)
-            {
-                let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
-                brillig_context.black_box_op_instruction(BlackBoxOp::HashToField128Security {
-                    message: message_vector,
-                    output: *result_register,
-                });
-            } else {
-                unreachable!("ICE: HashToField128Security expects one array argument and one register result")
-            }
-        }
         BlackBoxFunc::EcdsaSecp256k1 => {
             if let (
                 [RegisterOrMemory::HeapArray(public_key_x), RegisterOrMemory::HeapArray(public_key_y), RegisterOrMemory::HeapArray(signature), message],

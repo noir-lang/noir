@@ -33,12 +33,6 @@ pub enum BlackBoxFunc {
     PedersenCommitment,
     /// Calculates a Pedersen hash to the inputs.
     PedersenHash,
-    /// Hashes a set of inputs and applies the field modulus to the result
-    /// to return a value which can be represented as a [`FieldElement`][acir_field::FieldElement]
-    ///
-    /// This is implemented using the `Blake2s` hash function.
-    /// The "128" in the name specifies that this function should have 128 bits of security.
-    HashToField128Security,
     /// Verifies a ECDSA signature over the secp256k1 curve.
     EcdsaSecp256k1,
     /// Verifies a ECDSA signature over the secp256r1 curve.
@@ -66,7 +60,6 @@ impl BlackBoxFunc {
             BlackBoxFunc::Blake2s => "blake2s",
             BlackBoxFunc::PedersenCommitment => "pedersen",
             BlackBoxFunc::PedersenHash => "pedersen_hash",
-            BlackBoxFunc::HashToField128Security => "hash_to_field_128_security",
             BlackBoxFunc::EcdsaSecp256k1 => "ecdsa_secp256k1",
             BlackBoxFunc::FixedBaseScalarMul => "fixed_base_scalar_mul",
             BlackBoxFunc::AND => "and",
@@ -84,7 +77,6 @@ impl BlackBoxFunc {
             "blake2s" => Some(BlackBoxFunc::Blake2s),
             "pedersen" => Some(BlackBoxFunc::PedersenCommitment),
             "pedersen_hash" => Some(BlackBoxFunc::PedersenHash),
-            "hash_to_field_128_security" => Some(BlackBoxFunc::HashToField128Security),
             "ecdsa_secp256k1" => Some(BlackBoxFunc::EcdsaSecp256k1),
             "ecdsa_secp256r1" => Some(BlackBoxFunc::EcdsaSecp256r1),
             "fixed_base_scalar_mul" => Some(BlackBoxFunc::FixedBaseScalarMul),

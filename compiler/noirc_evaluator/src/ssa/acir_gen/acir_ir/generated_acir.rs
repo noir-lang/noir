@@ -155,10 +155,6 @@ impl GeneratedAcir {
             BlackBoxFunc::Blake2s => {
                 BlackBoxFuncCall::Blake2s { inputs: inputs[0].clone(), outputs }
             }
-            BlackBoxFunc::HashToField128Security => BlackBoxFuncCall::HashToField128Security {
-                inputs: inputs[0].clone(),
-                output: outputs[0],
-            },
             BlackBoxFunc::SchnorrVerify => {
                 BlackBoxFuncCall::SchnorrVerify {
                     public_key_x: inputs[0][0],
@@ -574,8 +570,7 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
         | BlackBoxFunc::PedersenCommitment
-        | BlackBoxFunc::PedersenHash
-        | BlackBoxFunc::HashToField128Security => None,
+        | BlackBoxFunc::PedersenHash => None,
 
         // Can only apply a range constraint to one
         // witness at a time.
@@ -603,8 +598,6 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(1),
         // 32 byte hash algorithms
         BlackBoxFunc::Keccak256 | BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => Some(32),
-        // Hash to field returns a field element
-        BlackBoxFunc::HashToField128Security => Some(1),
         // Pedersen commitment returns a point
         BlackBoxFunc::PedersenCommitment => Some(2),
         // Pedersen hash returns a field

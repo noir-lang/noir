@@ -129,16 +129,6 @@ impl FallbackTransformer {
                 )
             }
             #[cfg(feature = "unstable-fallbacks")]
-            BlackBoxFuncCall::HashToField128Security { inputs, output } => {
-                let hash_to_field_inputs =
-                    inputs.iter().map(|input| (input.witness.into(), input.num_bits)).collect();
-                stdlib::blackbox_fallbacks::hash_to_field(
-                    hash_to_field_inputs,
-                    *output,
-                    current_witness_idx,
-                )
-            }
-            #[cfg(feature = "unstable-fallbacks")]
             BlackBoxFuncCall::Keccak256 { inputs, outputs } => {
                 let keccak_inputs =
                     inputs.iter().map(|input| (input.witness.into(), input.num_bits)).collect();

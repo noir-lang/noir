@@ -137,11 +137,8 @@ pub(super) fn transform_internal(
                         transformer.mark_solvable(outputs.0);
                         transformer.mark_solvable(outputs.1);
                     }
-                    acir::circuit::opcodes::BlackBoxFuncCall::HashToField128Security {
-                        output,
-                        ..
-                    }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
+
+                    acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1 { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::SchnorrVerify { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::PedersenHash { output, .. } => {

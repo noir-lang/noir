@@ -14,7 +14,7 @@ use acvm::{
     pwg::{ACVMStatus, ACVM},
     Language,
 };
-use acvm_blackbox_solver::{blake2s, hash_to_field_128_security, keccak256, sha256};
+use acvm_blackbox_solver::{blake2s, keccak256, sha256};
 use paste::paste;
 use proptest::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
@@ -297,58 +297,4 @@ macro_rules! test_hashes {
             }
         }
     };
-}
-
-fn does_not_support_hash_to_field(opcode: &Opcode) -> bool {
-    !matches!(opcode, Opcode::BlackBoxFuncCall(BlackBoxFuncCall::HashToField128Security { .. }))
-}
-
-proptest! {
-    #![proptest_config(ProptestConfig::with_cases(3))]
-    #[test]
-    fn test_hash_to_field(input_values in proptest::collection::vec(0..u8::MAX, 1..50)) {
-        let mut opcodes = Vec::new();
-        let mut witness_assignments = BTreeMap::new();
-        let mut input_witnesses: Vec<FunctionInput> = Vec::new();
-
-        // prepare test data
-        let mut counter = 0;
-        let output = hash_to_field_128_security(&input_values).unwrap();
-        for inp_v in input_values {
-            counter += 1;
-            let function_input = FunctionInput { witness: Witness(counter), num_bits: 8 };
-            input_witnesses.push(function_input);
-            witness_assignments.insert(Witness(counter), FieldElement::from(inp_v as u128));
-        }
-
-        counter += 1;
-        let correct_result_witnesses: Witness = Witness(counter);
-        witness_assignments.insert(Witness(counter), output);
-
-        counter += 1;
-        let output_witness: Witness = Witness(counter);
-
-        let blackbox = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::HashToField128Security { inputs: input_witnesses, output: output_witness });
-        opcodes.push(blackbox);
-
-        // constrain the output to be the same as the hasher
-        let mut output_constraint = Expression::from(correct_result_witnesses);
-        output_constraint.push_addition_term(-FieldElement::one(), output_witness);
-        opcodes.push(Opcode::Arithmetic(output_constraint));
-
-        // compile circuit
-        let circuit = Circuit {
-            current_witness_index: witness_assignments.len() as u32 + 1,
-            opcodes,
-            private_parameters: BTreeSet::new(), // This is not correct but is unused in this test.
-            ..Circuit::default()
-        };
-        let circuit = compile(circuit, Language::PLONKCSat{ width: 3 }, does_not_support_hash_to_field).unwrap().0;
-
-        // solve witnesses
-        let mut acvm = ACVM::new(&StubbedBackend, &circuit.opcodes, witness_assignments.into());
-        let solver_status = acvm.solve();
-
-        prop_assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
-    }
 }
