@@ -18,7 +18,7 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext& exec_c
                                                 NT::fr const& _fee)
 {
     /****************************************************************
-     * Initialisation
+     * Initialization
      ****************************************************************/
 
     // Make the exec_ctx aware of the contract's layout.

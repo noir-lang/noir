@@ -126,7 +126,7 @@ template <typename Curve> class generator_data {
     mutable bool initialized_precomputed_generators = false;
 
     // We wrap the std::map in a `std::optional` so that we can construct `generator_data` at compile time.
-    // This allows us to mark `default_data` as `constinit`, which prevents static initialisation ordering fiasco
+    // This allows us to mark `default_data` as `constinit`, which prevents static initialization ordering fiasco
     mutable std::optional<std::map<std::string, GeneratorList>> generator_map = {};
 };
 

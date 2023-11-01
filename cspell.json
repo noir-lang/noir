@@ -28,12 +28,11 @@
     "camelcase",
     "cbind",
     "cbinds",
-    "cimg",
-    "cpus",
     "chainsafe",
     "cheatcode",
     "cheatcodes",
     "checksummed",
+    "cimg",
     "clonedeep",
     "clonedeepwith",
     "codegen",
@@ -41,6 +40,7 @@
     "composability",
     "concat",
     "cond",
+    "cpus",
     "customizability",
     "danlee",
     "Daos",
@@ -82,6 +82,7 @@
     "leveldown",
     "leveljs",
     "libp",
+    "linkability",
     "memdown",
     "Merkle",
     "messagebox",
@@ -162,7 +163,9 @@
     "webassembly",
     "workdir",
     "yamux",
-    "yarnrc"
+    "yarnrc",
+    "zerocash",
+    "zexe"
   ],
   "ignorePaths": [
     "node_modules/",
@@ -184,5 +187,7 @@
     "*.snap",
     "package.json"
   ],
-  "flagWords": ["anonymous"]
+  "flagWords": [
+    "anonymous"
+  ]
 }

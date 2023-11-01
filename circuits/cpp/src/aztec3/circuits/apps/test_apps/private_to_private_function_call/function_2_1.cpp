@@ -11,7 +11,7 @@ namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 void function_2_1(FunctionExecutionContext& exec_ctx, std::vector<NT::fr> const& _args)
 {
     /****************************************************************
-     * Initialisation
+     * Initialization
      ****************************************************************/
 
     // Make the exec_ctx aware of the contract's layout.

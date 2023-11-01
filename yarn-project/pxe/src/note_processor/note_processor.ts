@@ -178,13 +178,13 @@ export class NoteProcessor {
   /**
    * Find the index of the note in the note hash tree by computing the note hash with different nonce and see which
    * commitment for the current tx matches this value.
-   * Compute the nullifier for a given transaction auxiliary data.
+   * Compute a nullifier for a given l1NotePayload.
    * The nullifier is calculated using the private key of the account,
    * contract address, and the note associated with the l1NotePayload.
    * This method assists in identifying spent commitments in the private state.
    * @param commitments - Commitments in the tx. One of them should be the note's commitment.
    * @param firstNullifier - First nullifier in the tx.
-   * @param l1NotePayload - An instance of l1NotePayload containing transaction details.
+   * @param l1NotePayload - An instance of l1NotePayload.
    * @param excludedIndices - Indices that have been assigned a note in the same tx. Notes in a tx can have the same
    * l1NotePayload. We need to find a different index for each replicate.
    * @returns Information for a decrypted note, including the index of its commitment, nonce, inner note

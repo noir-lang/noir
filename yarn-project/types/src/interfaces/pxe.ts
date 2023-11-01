@@ -183,7 +183,7 @@ export interface PXE {
   getNoteNonces(note: ExtendedNote): Promise<Fr[]>;
 
   /**
-   * Get the a given block.
+   * Get the given block.
    * @param number - The block number being requested.
    * @returns The blocks requested.
    */

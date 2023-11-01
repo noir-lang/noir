@@ -6,20 +6,29 @@ import Image from "@theme/IdealImage";
 
 ## Overview
 
-Data trees are how we keep track of all the data in the network. Each type of data is stored in it's own data tree. Different tree structures are used for different kinds of data, as the requirements for each are different.
+Data trees are how we keep track of all the data in the network.
+ Different tree structures are used for different kinds of data, as the requirements for each are different.
 
 Data includes:
 
-- Private state
+- Private state (passed around either completely off-chain or via encrypted logs which are submitted on L1 in calldata)
 - Nullifiers to invalidate old private state
 - Public state
 - Contracts
 
-## Private State Tree
+## Note Hash Tree
 
-The private state tree is an append-only tree, primarily designed for storing private state variables.
+The note hash tree is an append-only tree, primarily designed for storing hashes of private state variables (called notes in Aztec Protocol).
 
-Each leaf value in the tree is a 254-bit altBN-254 scalar field element. Since this tree is primarily intended to keep data private, this leaf value will often be a cryptographic commitment to some larger blob of data. In Aztec, we call any such blob of data a "Note".
+Each leaf value in the tree is a 254-bit altBN-254 scalar field element.
+This tree is used to verify validity of notes.
+
+The leaves of this tree are hashes of notes.
+
+:::info
+These hashes are usually a cryptographic commitment.
+This is not always true because the note is not is not enforced by the protocol to contain randomness and therefore  not have the hiding property if the note does not contain any randomness, see [preimage attack](https://en.wikipedia.org/wiki/Preimage_attack) for context).
+:::
 
 Any function of any Aztec contract may insert new leaves into the this tree.
 
@@ -27,9 +36,14 @@ Once inserted into this tree, a leaf's value can never be modified. We enforce t
 
 So, if an app needs to edit a private state variable (which will be represented by one or more leaves in the tree), it may do so in a manner inspired by [zerocash](http://zerocash-project.org/media/pdf/zerocash-extended-20140518.pdf). (See [Nullifier Tree](#nullifier-tree)). This allows the leaf to be 'nullified' and a new leaf value inserted into the next empty position in the tree, in a way which prevents observers from linking the old and new leaves.
 
-<Image img={require("/img/private-data-tree.png")} />
+<Image img={require("/img/note-hash-tree.png")} />
 
 <!-- TODO: consider separating Note and Nullifier examples into their own doc, because it's actually a very large topic in itself, and can be expanded upon in much more detail than shown here. -->
+
+:::info
+**Siloing** refers to a process of hashing a hash with some other domain specific information (e.g. contract address).
+This siloing ensures that all hashes are appropriately domain-separated.
+:::
 
 ### Example Note
 
@@ -60,11 +74,14 @@ note_hash: Field = pedersen::compress(
 The Private Kernel circuit will modify this `note_hash` further, before it is inserted into the tree. It will:
 
 - Silo the commitment, to prevent cross-contamination of this contract's state variables with other contracts' state variables:
-  `siloed_note_hash: Field = hash(note_hash, contract_address);`
+  `siloed_note_hash: Field = hash(contract_address, note_hash);`
 - Ensure uniqueness of the commitment, by hashing it with a nonce
-  `unique_siloed_note_hash: Field = hash(siloed_note_hash, nonce);`, where `nonce: Field = hash(new_nullifiers[0], index)`, where `index` is the position of the new note hash in all new note hashes.
+  `unique_siloed_note_hash: Field = hash(nonce, siloed_note_hash);`, where `nonce: Field = hash(new_nullifiers[0], index)`, where `new_nullifiers[0]` is a the first nullifier emitted in a transaction and index` is the position of the new note hash in all new note hashes inserted by the transaction to the note hash tree.
 
-> Note, all hashes will be appropriately domain-separated.
+  :::info
+  First nullifier of a transaction is always ensured to be non-zero because it is always set by the protocol and it represents a transaction hash.
+  For this reason hashing the transaction hash with the index of the note hash in the transaction is sufficient to ensure uniqueness of the note hash.
+  :::
 
 The tree is append-only for a few of reasons:
 
@@ -72,10 +89,14 @@ The tree is append-only for a few of reasons:
 - It allows us to insert leaves in batches with fewer hashes than a sparse tree.
 - It allows syncing to be performed much quicker than a sparse tree, as a node can sync from left to right, and can adopt some efficient syncing algorithms.
 
+:::note
 Cryptographic commitments have the nice property that they can _hide_ the contents of the underlying blob of data, whilst ensuring the
-'preimage' of that data cannot be modified (the latter property is called 'binding'). A simple commitment can be achieved by choosing your favourite hash function, and including a large random number in with the data you wish to commit to. (The randomness must be newly-generated for each commitment).
+'preimage' of that data cannot be modified (the latter property is called 'binding'). A simple commitment can be achieved by choosing your favorite hash function, and including a large random number in with the data you wish to commit to. (The randomness must be newly-generated for each commitment).
+:::
 
+:::note
 Instead of the term 'Note', other protocols might refer to a blob of data representing private state as a 'record'. This is terminology used by zexe-like protocols.
+:::
 
 ## Nullifier Tree
 
@@ -104,11 +125,11 @@ If a function of a smart contract generates this Nullifier and submits it to the
 > Note: a Note cannot actually be "deleted" from the Note Hash Tree, because it is an append-only tree. This is why we produce nullifiers; as a way of emulating deletion in a way where observers won't know which Note has been deleted.
 > Note: this nullifier derivation example is an oversimplification for the purposes of illustration.
 
-#### Initialising Singleton Notes
+#### Initializing Singleton Notes
 
 'Singleton Note' is a term we've been using to mean: "A single Note which contains the whole of a private state's current value, and must be deleted and replaced with another single Note, if one ever wishes to edit that state". It's in contrast to a Note which only contains a small fragment of a Private State's current value. <!-- TODO: write about fragmented private state, somewhere. -->
 
-We've found that such notes require an 'Initialisation Nullifier'; a nullifier which, when emitted, signals the initialization of this state variable. I.e. the very first time the state variable has been written-to.
+We've found that such notes require an 'Initialization Nullifier'; a nullifier which, when emitted, signals the initialization of this state variable. I.e. the very first time the state variable has been written-to.
 
 > There's more on this topic in [the Aztec forum](https://discourse.aztec.network/t/utxo-syntax-2-initialising-singleton-utxos/47).
 
