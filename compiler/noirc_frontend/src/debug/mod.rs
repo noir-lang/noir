@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::parser::ParsedModule;
+use crate::parser::{ParsedModule,parse_program};
 use crate::{ast, parser::{Item,ItemKind}, ast::{Path,PathKind,UseTreeKind}};
 use noirc_errors::{Span, Spanned};
 use std::collections::VecDeque;
@@ -48,21 +48,8 @@ impl DebugState {
 
     pub fn insert_symbols(&mut self, module: &mut ParsedModule) {
         if !self.enabled { return }
-        /*
-        let empty = Span::single_char(0);
-        let prefix = Path {
-            segments: vec![ ast::Ident(Spanned::from(empty.clone(), "std".to_string())) ],
-            kind: PathKind::Dep,
-        };
-        let kind = UseTreeKind::Path(
-            ast::Ident(Spanned::from(empty.clone(), "__debug_state_set".to_string())),
-            Some(ast::Ident(Spanned::from(empty.clone(), "__debug_state_set".to_string()))),
-        );
-        module.items.push(Item {
-            kind: ItemKind::Import(ast::UseTree { prefix, kind }),
-            span: empty.clone(),
-        });
-        */
+        self.insert_state_set_oracle(module);
+
         module.items.iter_mut().for_each(|item| {
             match item {
                 Item { kind: ItemKind::Function(f), .. } => {
@@ -162,6 +149,20 @@ impl DebugState {
             },
             _ => {},
         }
+    }
+
+    fn insert_state_set_oracle(&self, module: &mut ParsedModule) {
+        let (program, errors) = parse_program(r#"
+            #[oracle(__debug_state_set)]
+            unconstrained fn __debug_state_set_oracle<T>(_var_id: u32, _input: T) {}
+
+            unconstrained pub fn __debug_state_set<T>(var_id: u32, value: T) -> T {
+                __debug_state_set_oracle(var_id, value);
+                value
+            }
+        "#);
+        if !errors.is_empty() { panic!("errors parsing internal oracle definitions: {errors:?}") }
+        module.items.extend(program.items);
     }
 }
 
