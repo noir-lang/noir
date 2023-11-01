@@ -2,7 +2,8 @@ name: Build with aztec feature flag
 
 on:
   pull_request:
-  merge_group:
+    types:
+      - synchronize
   push:
     branches:
       - master
@@ -17,6 +18,7 @@ jobs:
     name: Test on ${{ matrix.os }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
+    if: contains(github.event.pull_request.head.ref, 'aztec')
 
     strategy:
       fail-fast: false
