@@ -4,38 +4,38 @@ description: Explore the Integer data type in Noir. Learn about its methods, see
 keywords: [noir, integer types, methods, examples, arithmetic]
 ---
 
-An integer type is a range constrained field type. The Noir frontend currently supports arbitrary-sized, both unsigned and signed integer types.
+An integer type is a range constrained field type. The Noir frontend supports arbitrarily-sized, both unsigned and signed integer types.
 
-When an integer is defined in Noir without a specific type, it will default to `Field`. The one exception is for loop indices which default to `u64` since comparisons on `Field`s are not possible.
+> **Note:** When an integer is defined in Noir without a specific type, it will default to `Field`. The one exception is for loop indices which default to `u64` since comparisons on `Field`s are not possible.
 
 ## Unsigned Integers
 
-An unsigned integer type is specified first with the letter `u`, indicating its unsigned nature, followed by
-its length in bits (e.g. `8`). For example, a `u8` variable can store a value in the range of
-$\\([0,2^{8}-1]\\)$.
-
-> **Note:** The default proving backend supports both even (e.g. _u2_, _u32_) and odd (e.g. _u3_, _u127_) sized integer types.
-
-Taking a look of how the type is used:
+An unsigned integer type is specified first with the letter `u`, indicating its unsigned nature, followed by its length in bits (e.g. `8`):
 
 ```rust
-fn main(x : Field, y : u8) {
-    let z = x as u8 + y;
-    assert (z > 0);
+fn main() {
+    let x : u8 = 1;
+    let y : u8 = 1;
+    let z = x + y;
+    assert (z == 2);
 }
 ```
 
-Note that _x_, _y_ and _z_ are all private values in this example, where _x_ is a field while _y_ and _z_
-are unsigned 8-bit integers.
+The length in bits determines the boundaries the integer type can store. For example, a `u8` variable can store a value in the range of 0 to 255 (i.e. $\\2^{8}-1\\$).
 
-If _y_ or _z_ exceeds the range $\\([0,2^{8}-1]\\)$, proofs created
-will be rejected by the verifier.
+Computations that exceed the type boundaries would result in overflow errors. For example, attempting to prove:
 
-For example, attempting to prove the above code with the following inputs:
+```rust
+fn main(x : u8, y : u8) {
+    let z = x + y;
+}
+```
+
+With:
 
 ```toml
-x = "1"
-y = "255"
+x = "255"
+y = "1"
 ```
 
 Would result in:
@@ -43,22 +43,20 @@ Would result in:
 ```
 $ nargo prove
 error: Assertion failed: 'attempt to add with overflow'
-┌─ ~/src/main.nr:2:13
+┌─ ~/src/main.nr:9:13
 │
-│     let z = x as u8 + y;
-│             -----------
+│     let z = x + y;
+│             -----
 │
 = Call stack:
   ...
 ```
 
+> **Note:** The default proving backend supports both even (e.g. _u2_) and odd (e.g. _u3_) arbitrarily-sized integer types up to _u127_.
+
 ## Signed Integers
 
-A signed integer type is specified first with the letter `i`, followed by
-its length in bits (e.g. `8`). For example, a `i8` variable can store a value in the range of
-$\\([-2^{7}+1,2^{7}-1]\\)$.
-
-An example of how the type is used:
+A signed integer type is specified first with the letter `i`, stands for integer, followed by its length in bits (e.g. `8`):
 
 ```rust
 fn main() {
@@ -69,14 +67,14 @@ fn main() {
 }
 ```
 
-Similar to unsigned integers, signed integers are also range constrained.
+The length in bits determines the boundaries the integer type can store. For example, a `i8` variable can store a value in the range of -128 to 127 (i.e. $\\-2^{7}\\$ to $\\2^{7}-1\\$).
 
-For example, attempting to prove:
+Computations that exceed the type boundaries would result in overflow errors. For example, attempting to prove:
 
 ```rust
 fn main() {
-    let x : i8 = -127;
-    let y : i8 = -10;
+    let x : i8 = -118;
+    let y : i8 = -11;
     let z = x + y;
 }
 ```
@@ -94,3 +92,5 @@ error: Assertion failed: 'attempt to add with overflow'
 = Call stack:
   ...
 ```
+
+> **Note:** The default proving backend supports both even (e.g. _i2_) and odd (e.g. _i3_) arbitrarily-sized integer types up to _i127_.
