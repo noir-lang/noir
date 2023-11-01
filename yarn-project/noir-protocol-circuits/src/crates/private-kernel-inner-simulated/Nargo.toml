@@ -2,7 +2,7 @@
 name = "private_kernel_inner_simulated"
 type = "bin"
 authors = [""]
-compiler_version = "0.16.0"
+compiler_version = ">=0.18.0"
 
 [dependencies]
 private_kernel_lib = { path = "../private-kernel-lib" }

@@ -7,4 +7,8 @@ members = [
     "crates/private-kernel-inner-simulated",
     "crates/private-kernel-ordering",
     "crates/private-kernel-ordering-simulated",
+    "crates/rollup-lib",
+    "crates/rollup-merge",
+    "crates/rollup-base",
+    "crates/rollup-root",
 ]
