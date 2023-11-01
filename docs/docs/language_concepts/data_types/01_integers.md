@@ -13,7 +13,7 @@ An integer type is specified first with the letter `u`, indicating its unsigned 
 its length in bits (e.g. `32`). For example, a `u32` variable can store a value in the range of
 $\\([0,2^{32}-1]\\)$.
 
-> **Note:** The default proving backend supports both even (e.g. `u16`, `u48`) and odd (e.g. `u5`, `u3`) sized integer types.
+> **Note:** The default proving backend supports both even (e.g. _u8_, _u48_) and odd (e.g. _u3_, _u61_) sized integer types.
 
 Taking a look of how the type is used:
 
