@@ -8,10 +8,11 @@ use crate::{
             self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral, HirMethodCallExpression,
             HirMethodReference, HirPrefixExpression,
         },
+        traits::TraitConstraint,
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
-    BinaryOpKind, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
+    BinaryOpKind, Signedness, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -160,11 +161,14 @@ impl<'interner> TypeChecker<'interner> {
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
 
-                        if let HirMethodReference::FuncId(func_id) = method_ref {
+                        let mut func_id = None;
+                        if let HirMethodReference::FuncId(id) = method_ref {
+                            func_id = Some(id);
+
                             // Automatically add `&mut` if the method expects a mutable reference and
                             // the object is not already one.
-                            if func_id != FuncId::dummy_id() {
-                                let func_meta = self.interner.function_meta(&func_id);
+                            if id != FuncId::dummy_id() {
+                                let func_meta = self.interner.function_meta(&id);
                                 self.try_add_mutable_reference_to_object(
                                     &mut method_call,
                                     &func_meta.typ,
@@ -181,6 +185,21 @@ impl<'interner> TypeChecker<'interner> {
 
                         let span = self.interner.expr_span(expr_id);
                         let ret = self.check_method_call(&function_id, method_ref, args, span);
+
+                        if let Some(func_id) = func_id {
+                            let meta = self.interner.function_meta(&func_id);
+
+                            if let Some(impl_id) = meta.trait_impl {
+                                let trait_impl = self.interner.get_trait_implementation(impl_id);
+                                let bindings =
+                                    self.interner.get_instantiation_bindings(function_id);
+
+                                self.validate_where_clause(
+                                    &trait_impl.borrow().where_clause,
+                                    bindings,
+                                );
+                            }
+                        }
 
                         self.interner.replace_expr(expr_id, function_call);
                         ret
@@ -1130,6 +1149,27 @@ impl<'interner> TypeChecker<'interner> {
                 let element_type = self.interner.next_type_variable();
                 unify(Type::MutableReference(Box::new(element_type.clone())));
                 element_type
+            }
+        }
+    }
+
+    /// Verifies that each constraint in the given where clause is valid and
+    /// issues an error if not.
+    fn validate_where_clause(
+        &self,
+        where_clause: &[TraitConstraint],
+        type_bindings: &TypeBindings,
+    ) {
+        for constraint in where_clause {
+            let constraint_type = constraint.typ.substitute(type_bindings);
+
+            let trait_impl =
+                self.interner.lookup_trait_implementation(&constraint_type, constraint.trait_id);
+
+            if trait_impl.is_none() {
+                println!("Error! No impl for {}: {:?}", constraint_type, constraint.trait_id);
+            } else {
+                println!("Found an impl for {}: {:?}", constraint_type, constraint.trait_id);
             }
         }
     }
