@@ -24,10 +24,10 @@ fn main(x : Field, y : u8) {
 }
 ```
 
-Note that `x`, `y` and `z` are all private values in this example, where `x` is a field while `y` and `z`
-are unsigned 32-bit integers.
+Note that _x_, _y_ and _z_ are all private values in this example, where _x_ is a field while _y_ and _z_
+are unsigned 8-bit integers.
 
-If `y` or `z` exceeds the range $\\([0,2^{8}-1]\\)$, proofs created
+If _y_ or _z_ exceeds the range $\\([0,2^{8}-1]\\)$, proofs created
 will be rejected by the verifier.
 
 For example, attempting to prove the above code with the following inputs:
