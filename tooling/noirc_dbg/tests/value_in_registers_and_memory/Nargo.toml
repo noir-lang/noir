@@ -1,0 +1,5 @@
+[package]
+name = "value_in_registers_and_memory"
+type = "bin"
+authors = [""]
+[dependencies]

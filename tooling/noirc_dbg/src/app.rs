@@ -107,8 +107,15 @@ impl UninitializedState {
                     return Ok(Some(State::Running(running_state)));
                 }
             }
-
-            _ => panic!("Invalid request"),
+            Command::Disconnect(_) => {
+                server.write(Sendable::Response(request.ack()?));
+                return Ok(Some(State::Exit));
+            }
+            _ => {
+                return Err(DebuggingError::CustomError(
+                    "Invalid request. You need to initialize and launch program.".to_string(),
+                ))
+            }
         }
 
         Ok(None)
@@ -360,13 +367,19 @@ impl RunningState {
             }
 
             Command::SetExceptionBreakpoints(_) => {}
-            _ => panic!("not supported"),
+            _ => {
+                return Err(DebuggingError::CustomError(
+                    "Unsupported command. Please, use the other commands to continue process."
+                        .to_string(),
+                ))
+            }
         }
         Ok(None)
     }
 }
 
 /// Application struct. Handles server operations and reports its state.
+#[derive(Debug)]
 pub struct App<T: Server> {
     pub state: State,
     pub server: T,
