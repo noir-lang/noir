@@ -1220,28 +1220,30 @@ impl Context {
         parent_array: Option<ValueId>,
         dfg: &DataFlowGraph,
     ) {
-        if let Value::Array { array, typ } = &dfg[current_array_id] {
-            if let Type::Slice(_) = typ {
-                let element_size = typ.element_size();
-                let true_len = array.len() / element_size;
-                if let Some(parent_array) = parent_array {
-                    let sizes_list =
-                        self.slice_sizes.get_mut(&parent_array).expect("ICE: expected size list");
-                    sizes_list.push(true_len);
-                } else {
-                    // This means the current_array_id is the parent array
-                    self.slice_sizes.insert(current_array_id, vec![true_len]);
-                }
-                for value in array {
-                    let typ = dfg.type_of_value(*value);
-                    if let Type::Slice(_) = typ {
-                        if parent_array.is_some() {
-                            self.compute_slice_sizes(*value, parent_array, dfg);
-                        } else {
-                            self.compute_slice_sizes(*value, Some(current_array_id), dfg);
-                        }
-                    }
-                }
+        let (array, typ) = match &dfg[current_array_id] {
+            Value::Array { array, typ } => (array, typ.clone()),
+            _ => return,
+        };
+
+        if !matches!(typ, Type::Slice(_)) {
+            return;
+        }
+
+        let element_size = typ.element_size();
+        let true_len = array.len() / element_size;
+        if let Some(parent_array) = parent_array {
+            let sizes_list =
+                self.slice_sizes.get_mut(&parent_array).expect("ICE: expected size list");
+            sizes_list.push(true_len);
+        } else {
+            // This means the current_array_id is the parent array
+            self.slice_sizes.insert(current_array_id, vec![true_len]);
+        }
+        for value in array {
+            if parent_array.is_some() {
+                self.compute_slice_sizes(*value, parent_array, dfg);
+            } else {
+                self.compute_slice_sizes(*value, Some(current_array_id), dfg);
             }
         }
     }
