@@ -38,6 +38,8 @@ fn main() {
 
 The bit size determines the maximum and minimum range of value the integer type can store. For example, an `i8` variable can store a value in the range of -128 to 127 (i.e. $\\-2^{7}\\$ to $\\2^{7}-1\\$).
 
+> **Note:** If you are using the default proving backend with Noir, both even (e.g. _u2_, _i2_) and odd (e.g. _u3_, _i3_) arbitrarily-sized integer types up to 127 bits (i.e. _u127_ and _i127_) are supported.
+
 ## Overflows
 
 Computations that exceed the type boundaries will result in overflow errors. This happens with both signed and unsigned integers. For example, attempting to prove:
@@ -78,8 +80,6 @@ fn main() {
     let z = x + y;
 }
 ```
-
-> **Note:** The default proving backend supports both even (e.g. _u2_) and odd (e.g. _u3_) arbitrarily-sized integer types up to _u127_.
 
 ### Wrapping methods
 
