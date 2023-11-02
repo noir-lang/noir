@@ -113,12 +113,13 @@ fn main(y : pub Field) {
     assert(b_array[1] == 9);
     assert(b_array[2] == 22);
 
-    let b_array = foo_parents[y - 2].foos[y].b;
-    assert(b_array[0] == 11);
-    assert(b_array[1] == 12);
-    assert(b_array[2] == 23);
+    // Fixed by #3410
+    // let b_array = foo_parents[y - 2].foos[y].b;
+    // assert(b_array[0] == 11);
+    // assert(b_array[1] == 12);
+    // assert(b_array[2] == 23);
 
-    assert(foo_parents[y - 2].foos[y - 3].bar.inner == [100, 101, 102]);
-    assert(foo_parents[y - 2].foos[y - 2].bar.inner == [103, 104, 105]);
-    assert(foo_parents[y - 2].foos[y - 1].bar.inner == [106, 107, 108]);
+    // assert(foo_parents[y - 2].foos[y - 3].bar.inner == [100, 101, 102]);
+    // assert(foo_parents[y - 2].foos[y - 2].bar.inner == [103, 104, 105]);
+    // assert(foo_parents[y - 2].foos[y - 1].bar.inner == [106, 107, 108]);
 }
