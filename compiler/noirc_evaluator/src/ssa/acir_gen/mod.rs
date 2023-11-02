@@ -745,7 +745,7 @@ impl Context {
 
                 let mut dummy_predicate_index = predicate_index;
                 // We must setup the dummy value to match the type of the value we wish to store
-                let mut slice_sizes = if store_type.contains_slice_element() {
+                let slice_sizes = if store_type.contains_slice_element() {
                     self.compute_slice_sizes(store, None, dfg);
                     self.slice_sizes.get(&store).cloned().ok_or_else(|| {
                         InternalError::UnExpected {
@@ -761,7 +761,7 @@ impl Context {
                     &store_type,
                     block_id,
                     &mut dummy_predicate_index,
-                    &mut slice_sizes,
+                    &slice_sizes,
                 )?;
 
                 Some(self.convert_array_set_store_value(&store_value, &dummy)?)
@@ -864,23 +864,20 @@ impl Context {
         let res_typ = dfg.type_of_value(results[0]);
 
         let value = if !res_typ.contains_slice_element() {
-            let mut slice_sizes = vec![];
-            self.array_get_value(&res_typ, block_id, &mut var_index, &mut slice_sizes)?
+            self.array_get_value(&res_typ, block_id, &mut var_index, &[])?
         } else {
             let mut slice_sizes = self
                 .slice_sizes
                 .get(&array_id)
                 .expect("ICE: Array with slices should have associated slice sizes")
                 .clone();
-            slice_sizes.drain(0..1);
 
-            let result_slice_sizes = slice_sizes.clone();
+            slice_sizes.remove(0);
 
-            let value =
-                self.array_get_value(&res_typ, block_id, &mut var_index, &mut slice_sizes)?;
+            let value = self.array_get_value(&res_typ, block_id, &mut var_index, &slice_sizes)?;
 
             // Insert the resulting slice sizes
-            self.slice_sizes.insert(results[0], result_slice_sizes);
+            self.slice_sizes.insert(results[0], slice_sizes);
 
             value
         };
@@ -895,7 +892,7 @@ impl Context {
         ssa_type: &Type,
         block_id: BlockId,
         var_index: &mut AcirVar,
-        slice_sizes: &mut Vec<usize>,
+        slice_sizes: &[usize],
     ) -> Result<AcirValue, RuntimeError> {
         let one = self.acir_context.add_constant(FieldElement::one());
         match ssa_type.clone() {
@@ -927,16 +924,14 @@ impl Context {
                 // It is not enough to execute this loop and simply pass the size from the parent definition.
                 // We need the internal sizes of each type in case of a nested slice.
                 let mut values = Vector::new();
-                let current_size = slice_sizes[0];
-                slice_sizes.drain(0..1);
-                for _ in 0..current_size {
+
+                let (current_size, new_sizes) =
+                    slice_sizes.split_first().expect("should be able to split");
+
+                for _ in 0..*current_size {
                     for typ in element_types.as_ref() {
-                        values.push_back(self.array_get_value(
-                            typ,
-                            block_id,
-                            var_index,
-                            slice_sizes,
-                        )?);
+                        values
+                            .push_back(self.array_get_value(typ, block_id, var_index, new_sizes)?);
                     }
                 }
                 Ok(AcirValue::Array(values))
