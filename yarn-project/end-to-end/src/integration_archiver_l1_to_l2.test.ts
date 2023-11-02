@@ -1,10 +1,15 @@
 import { Archiver } from '@aztec/archiver';
 import { AztecNodeConfig } from '@aztec/aztec-node';
-import { AztecAddress, CompleteAddress, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
-import { DeployL1Contracts } from '@aztec/ethereum';
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
-import { DebugLogger } from '@aztec/foundation/log';
+import {
+  AztecAddress,
+  CompleteAddress,
+  DebugLogger,
+  DeployL1Contracts,
+  EthAddress,
+  Fr,
+  Wallet,
+  computeMessageSecretHash,
+} from '@aztec/aztec.js';
 import { TokenContract } from '@aztec/noir-contracts/types';
 
 import { Chain, HttpTransport, PublicClient } from 'viem';

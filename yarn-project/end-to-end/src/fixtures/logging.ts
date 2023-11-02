@@ -1,4 +1,4 @@
-import { onLog } from '@aztec/foundation/log';
+import { onLog } from '@aztec/aztec.js';
 
 import { mkdirpSync } from 'fs-extra';
 import { dirname } from 'path';

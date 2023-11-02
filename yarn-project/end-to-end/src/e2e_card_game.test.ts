@@ -1,13 +1,13 @@
 import {
   AccountWallet,
   AztecAddress,
+  DebugLogger,
+  PXE,
   Wallet,
   deployInitialSandboxAccounts,
   getSandboxAccountsWallets,
 } from '@aztec/aztec.js';
-import { DebugLogger } from '@aztec/foundation/log';
 import { CardGameContract } from '@aztec/noir-contracts/types';
-import { PXE } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 

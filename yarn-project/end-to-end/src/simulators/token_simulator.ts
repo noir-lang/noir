@@ -1,6 +1,5 @@
 /* eslint-disable jsdoc/require-jsdoc */
-import { DebugLogger } from '@aztec/aztec.js';
-import { AztecAddress } from '@aztec/circuits.js';
+import { AztecAddress, DebugLogger } from '@aztec/aztec.js';
 import { TokenContract } from '@aztec/noir-contracts/types';
 
 export class TokenSimulator {

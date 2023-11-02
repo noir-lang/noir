@@ -1,8 +1,5 @@
-import { AztecAddress, BatchCall, Fr, Wallet } from '@aztec/aztec.js';
-import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
-import { DebugLogger } from '@aztec/foundation/log';
+import { AztecAddress, BatchCall, DebugLogger, Fr, PXE, Wallet, toBigIntBE } from '@aztec/aztec.js';
 import { ChildContract, ImportTestContract, ParentContract, TestContract } from '@aztec/noir-contracts/types';
-import { PXE } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 

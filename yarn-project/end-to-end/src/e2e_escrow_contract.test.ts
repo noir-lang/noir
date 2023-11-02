@@ -2,15 +2,22 @@ import {
   AccountWallet,
   AztecAddress,
   BatchCall,
+  CompleteAddress,
+  DebugLogger,
+  ExtendedNote,
+  Fr,
+  GrumpkinPrivateKey,
+  GrumpkinScalar,
   Note,
+  PXE,
+  PublicKey,
+  TxStatus,
   computeMessageSecretHash,
   generatePublicKey,
+  getContractDeploymentInfo,
 } from '@aztec/aztec.js';
-import { CompleteAddress, Fr, GrumpkinPrivateKey, GrumpkinScalar, getContractDeploymentInfo } from '@aztec/circuits.js';
-import { DebugLogger } from '@aztec/foundation/log';
 import { EscrowContractArtifact } from '@aztec/noir-contracts/artifacts';
 import { EscrowContract, TokenContract } from '@aztec/noir-contracts/types';
-import { ExtendedNote, PXE, PublicKey, TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 

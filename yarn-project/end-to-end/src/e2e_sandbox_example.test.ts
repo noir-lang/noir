@@ -1,6 +1,8 @@
 // docs:start:imports
 import {
+  ExtendedNote,
   Fr,
+  GrumpkinScalar,
   Note,
   PXE,
   computeMessageSecretHash,
@@ -10,9 +12,7 @@ import {
   getSchnorrAccount,
   waitForSandbox,
 } from '@aztec/aztec.js';
-import { GrumpkinScalar } from '@aztec/circuits.js';
 import { TokenContract } from '@aztec/noir-contracts/types';
-import { ExtendedNote } from '@aztec/types';
 
 import { format } from 'util';
 

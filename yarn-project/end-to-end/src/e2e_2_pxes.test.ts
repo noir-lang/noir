@@ -1,9 +1,19 @@
-import { AztecAddress, Note, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
-import { DebugLogger } from '@aztec/foundation/log';
-import { retryUntil } from '@aztec/foundation/retry';
+import {
+  AztecAddress,
+  AztecNode,
+  CompleteAddress,
+  DebugLogger,
+  EthAddress,
+  ExtendedNote,
+  Fr,
+  Note,
+  PXE,
+  TxStatus,
+  Wallet,
+  computeMessageSecretHash,
+  retryUntil,
+} from '@aztec/aztec.js';
 import { ChildContract, TokenContract } from '@aztec/noir-contracts/types';
-import { EthAddress, Fr, PXEService } from '@aztec/pxe';
-import { AztecNode, CompleteAddress, ExtendedNote, PXE, TxStatus } from '@aztec/types';
 
 import { jest } from '@jest/globals';
 
@@ -46,7 +56,7 @@ describe('e2e_2_pxes', () => {
 
   afterEach(async () => {
     await teardownA();
-    if (pxeB instanceof PXEService) await pxeB.stop();
+    if ((pxeB as any).stop) await (pxeB as any).stop();
   });
 
   const awaitUserSynchronized = async (wallet: Wallet, owner: AztecAddress) => {

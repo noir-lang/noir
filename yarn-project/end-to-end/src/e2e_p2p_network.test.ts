@@ -1,12 +1,21 @@
 import { AztecNodeConfig, AztecNodeService } from '@aztec/aztec-node';
-import { ContractDeployer, DeploySentTx, Wallet, isContractDeployed } from '@aztec/aztec.js';
-import { AztecAddress, CompleteAddress, Fr, PublicKey, getContractDeploymentInfo } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { DebugLogger } from '@aztec/foundation/log';
+import {
+  AztecAddress,
+  CompleteAddress,
+  ContractDeployer,
+  DebugLogger,
+  DeploySentTx,
+  Fr,
+  Grumpkin,
+  PublicKey,
+  TxStatus,
+  Wallet,
+  getContractDeploymentInfo,
+  isContractDeployed,
+} from '@aztec/aztec.js';
 import { TestContractArtifact } from '@aztec/noir-contracts/artifacts';
 import { BootstrapNode, P2PConfig, createLibP2PPeerId } from '@aztec/p2p';
 import { ConstantKeyPair, PXEService, createPXEService, getPXEServiceConfig as getRpcConfig } from '@aztec/pxe';
-import { TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 

@@ -1,10 +1,6 @@
 // Test suite for testing proper ordering of side effects
-import { Wallet } from '@aztec/aztec.js';
-import { FunctionSelector } from '@aztec/circuits.js';
-import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, FunctionSelector, PXE, TxStatus, Wallet, toBigIntBE } from '@aztec/aztec.js';
 import { ChildContract, ParentContract } from '@aztec/noir-contracts/types';
-import { PXE, TxStatus } from '@aztec/types';
 
 import { jest } from '@jest/globals';
 

@@ -1,11 +1,16 @@
-import { AccountWallet, AztecAddress, computeAuthWitMessageHash } from '@aztec/aztec.js';
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
-import { DebugLogger } from '@aztec/foundation/log';
+import {
+  AccountWallet,
+  AztecAddress,
+  DebugLogger,
+  EthAddress,
+  Fr,
+  TxStatus,
+  computeAuthWitMessageHash,
+  sleep,
+} from '@aztec/aztec.js';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
-import { TxStatus } from '@aztec/types';
 
-import { delay, setup } from './fixtures/utils.js';
+import { setup } from './fixtures/utils.js';
 import { CrossChainTestHarness } from './shared/cross_chain_test_harness.js';
 
 describe('e2e_public_cross_chain_messaging', () => {
@@ -64,7 +69,7 @@ describe('e2e_public_cross_chain_messaging', () => {
     expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount);
 
     // Wait for the archiver to process the message
-    await delay(5000); /// waiting 5 seconds.
+    await sleep(5000); /// waiting 5 seconds.
 
     // Perform an unrelated transaction on L2 to progress the rollup. Here we mint public tokens.
     const unrelatedMintAmount = 99n;
@@ -117,7 +122,7 @@ describe('e2e_public_cross_chain_messaging', () => {
     expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount);
 
     // Wait for the archiver to process the message
-    await delay(5000); /// waiting 5 seconds.
+    await sleep(5000); /// waiting 5 seconds.
 
     // Perform an unrelated transaction on L2 to progress the rollup. Here we mint public tokens.
     const unrelatedMintAmount = 99n;
@@ -169,7 +174,7 @@ describe('e2e_public_cross_chain_messaging', () => {
     expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(0n);
 
     // Wait for the archiver to process the message
-    await delay(5000); /// waiting 5 seconds.
+    await sleep(5000); /// waiting 5 seconds.
 
     // Perform an unrelated transaction on L2 to progress the rollup. Here we mint public tokens.
     await crossChainTestHarness.mintTokensPublicOnL2(0n);

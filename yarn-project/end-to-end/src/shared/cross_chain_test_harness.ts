@@ -3,6 +3,7 @@ import {
   AztecAddress,
   DebugLogger,
   EthAddress,
+  ExtendedNote,
   Fr,
   Note,
   PXE,
@@ -21,7 +22,6 @@ import {
   TokenPortalBytecode,
 } from '@aztec/l1-artifacts';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
-import { ExtendedNote } from '@aztec/types';
 
 import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract, getFunctionSelector } from 'viem';
 

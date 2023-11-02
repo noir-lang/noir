@@ -1,6 +1,5 @@
-import { AztecAddress, createDebugLogger, sleep } from '@aztec/aztec.js';
+import { AztecAddress, TxHash, createDebugLogger, sleep } from '@aztec/aztec.js';
 import { getProgram } from '@aztec/cli';
-import { TxHash } from '@aztec/types';
 
 import stringArgv from 'string-argv';
 

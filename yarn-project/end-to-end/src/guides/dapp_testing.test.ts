@@ -2,6 +2,7 @@ import { createSandbox } from '@aztec/aztec-sandbox';
 import {
   AccountWallet,
   CheatCodes,
+  ExtendedNote,
   Fr,
   Note,
   PXE,
@@ -9,10 +10,10 @@ import {
   createAccount,
   createPXEClient,
   getSandboxAccountsWallets,
+  toBigIntBE,
   waitForSandbox,
 } from '@aztec/aztec.js';
 import { TestContract, TokenContract } from '@aztec/noir-contracts/types';
-import { ExtendedNote } from '@aztec/types';
 
 const { PXE_URL = 'http://localhost:8080', ETHEREUM_HOST = 'http://localhost:8545' } = process.env;
 

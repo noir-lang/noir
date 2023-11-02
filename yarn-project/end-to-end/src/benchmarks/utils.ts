@@ -1,11 +1,17 @@
 import { AztecNodeConfig, AztecNodeService } from '@aztec/aztec-node';
-import { BatchCall, SentTx } from '@aztec/aztec.js';
-import { GrumpkinScalar } from '@aztec/circuits.js';
-import { retryUntil } from '@aztec/foundation/retry';
-import { sleep } from '@aztec/foundation/sleep';
+import {
+  AztecNode,
+  BatchCall,
+  GrumpkinScalar,
+  INITIAL_L2_BLOCK_NUM,
+  PXE,
+  PartialAddress,
+  SentTx,
+  retryUntil,
+  sleep,
+} from '@aztec/aztec.js';
 import { BenchmarkingContract } from '@aztec/noir-contracts/types';
 import { PXEService, createPXEService } from '@aztec/pxe';
-import { AztecNode, INITIAL_L2_BLOCK_NUM, PXE, PartialAddress } from '@aztec/types';
 
 import { mkdirpSync } from 'fs-extra';
 import { globSync } from 'glob';

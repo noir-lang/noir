@@ -1,15 +1,17 @@
 import {
   AccountWallet,
   CheatCodes,
+  CompleteAddress,
+  DebugLogger,
+  ExtendedNote,
   Fr,
+  Note,
   SentTx,
+  TxStatus,
   computeAuthWitMessageHash,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
-import { CompleteAddress } from '@aztec/circuits.js';
-import { DebugLogger } from '@aztec/foundation/log';
 import { LendingContract, PriceFeedContract, TokenContract } from '@aztec/noir-contracts/types';
-import { ExtendedNote, Note, TxStatus } from '@aztec/types';
 
 import { jest } from '@jest/globals';
 

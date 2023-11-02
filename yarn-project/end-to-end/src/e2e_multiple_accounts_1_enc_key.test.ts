@@ -1,16 +1,21 @@
 import {
   AztecAddress,
+  AztecNode,
+  CompleteAddress,
+  DebugLogger,
+  ExtendedNote,
+  Fr,
+  GrumpkinScalar,
   Note,
+  PXE,
+  TxStatus,
   Wallet,
   computeMessageSecretHash,
   generatePublicKey,
   getSandboxAccountsWallets,
   getSchnorrAccount,
 } from '@aztec/aztec.js';
-import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
-import { DebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts/types';
-import { AztecNode, CompleteAddress, ExtendedNote, PXE, TxStatus } from '@aztec/types';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
 

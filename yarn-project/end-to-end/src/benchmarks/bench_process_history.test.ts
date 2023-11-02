@@ -1,10 +1,7 @@
 import { AztecNodeConfig, AztecNodeService } from '@aztec/aztec-node';
-import { Fr, GrumpkinScalar } from '@aztec/circuits.js';
-import { sleep } from '@aztec/foundation/sleep';
-import { elapsed } from '@aztec/foundation/timer';
+import { Fr, GrumpkinScalar, INITIAL_L2_BLOCK_NUM, elapsed, sleep } from '@aztec/aztec.js';
 import { BenchmarkingContract } from '@aztec/noir-contracts/types';
 import { SequencerClient } from '@aztec/sequencer-client';
-import { INITIAL_L2_BLOCK_NUM } from '@aztec/types';
 import {
   BENCHMARK_HISTORY_BLOCK_SIZE,
   BENCHMARK_HISTORY_CHAIN_LENGTHS,

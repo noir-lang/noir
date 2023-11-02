@@ -1,17 +1,18 @@
 import {
   BatchCall,
+  CircuitsWasm,
   ContractDeployer,
   ContractFunctionInteraction,
+  DebugLogger,
   Fr,
+  PXE,
+  TxStatus,
   Wallet,
   isContractDeployed,
 } from '@aztec/aztec.js';
-import { CircuitsWasm } from '@aztec/circuits.js';
 import { pedersenHashInputs } from '@aztec/circuits.js/barretenberg';
-import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractArtifact } from '@aztec/noir-contracts/artifacts';
 import { TestContract, TokenContract } from '@aztec/noir-contracts/types';
-import { PXE, TxStatus } from '@aztec/types';
 
 import times from 'lodash.times';
 

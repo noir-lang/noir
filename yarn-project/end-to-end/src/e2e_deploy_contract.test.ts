@@ -1,9 +1,19 @@
-import { AztecAddress, Contract, ContractDeployer, EthAddress, Fr, Wallet, isContractDeployed } from '@aztec/aztec.js';
-import { CompleteAddress, getContractDeploymentInfo } from '@aztec/circuits.js';
-import { DebugLogger } from '@aztec/foundation/log';
+import {
+  AztecAddress,
+  CompleteAddress,
+  Contract,
+  ContractDeployer,
+  DebugLogger,
+  EthAddress,
+  Fr,
+  PXE,
+  TxStatus,
+  Wallet,
+  getContractDeploymentInfo,
+  isContractDeployed,
+} from '@aztec/aztec.js';
 import { TestContractArtifact, TokenContractArtifact } from '@aztec/noir-contracts/artifacts';
 import { SequencerClient } from '@aztec/sequencer-client';
-import { PXE, TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 

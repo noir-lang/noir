@@ -1,7 +1,15 @@
 import { getConfigEnvVars } from '@aztec/aztec-node';
 import {
   AztecAddress,
+  Fr,
   GlobalVariables,
+  L2Actor,
+  L2Block,
+  createDebugLogger,
+  mockTx,
+  to2Fields,
+} from '@aztec/aztec.js';
+import {
   KernelCircuitPublicInputs,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
@@ -14,9 +22,6 @@ import {
 } from '@aztec/circuits.js';
 import { fr, makeNewContractData, makeProof } from '@aztec/circuits.js/factories';
 import { createEthereumChain } from '@aztec/ethereum';
-import { Fr } from '@aztec/foundation/fields';
-import { createDebugLogger } from '@aztec/foundation/log';
-import { to2Fields } from '@aztec/foundation/serialize';
 import { DecoderHelperAbi, InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import {
   EmptyRollupProver,
@@ -29,7 +34,6 @@ import {
   makeEmptyProcessedTx as makeEmptyProcessedTxFromHistoricTreeRoots,
   makeProcessedTx,
 } from '@aztec/sequencer-client';
-import { L2Actor, L2Block, mockTx } from '@aztec/types';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';

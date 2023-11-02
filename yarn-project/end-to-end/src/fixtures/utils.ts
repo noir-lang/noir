@@ -1,18 +1,25 @@
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import {
   AccountWalletWithPrivateKey,
+  AztecNode,
   CheatCodes,
   CompleteAddress,
   DebugLogger,
+  DeployL1Contracts,
   EthCheatCodes,
+  L1ContractArtifactsForDeployment,
+  L2BlockL2Logs,
+  LogType,
+  PXE,
   SentTx,
   createAccounts,
+  createAztecNodeClient,
   createDebugLogger,
   createPXEClient,
+  deployL1Contracts,
   getSandboxAccountsWallets,
+  retryUntil,
 } from '@aztec/aztec.js';
-import { DeployL1Contracts, L1ContractArtifactsForDeployment, deployL1Contracts } from '@aztec/ethereum';
-import { retryUntil } from '@aztec/foundation/retry';
 import {
   ContractDeploymentEmitterAbi,
   ContractDeploymentEmitterBytecode,
@@ -29,7 +36,6 @@ import {
 } from '@aztec/l1-artifacts';
 import { PXEService, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 import { SequencerClient } from '@aztec/sequencer-client';
-import { AztecNode, L2BlockL2Logs, LogType, PXE, createAztecNodeClient } from '@aztec/types';
 
 import * as path from 'path';
 import {

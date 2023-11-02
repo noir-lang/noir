@@ -1,7 +1,5 @@
-import { AztecAddress, Fr, Wallet } from '@aztec/aztec.js';
-import { DebugLogger } from '@aztec/foundation/log';
+import { AztecAddress, AztecNode, CompleteAddress, DebugLogger, Fr, TxStatus, Wallet } from '@aztec/aztec.js';
 import { PendingCommitmentsContract } from '@aztec/noir-contracts/types';
-import { AztecNode, CompleteAddress, TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 

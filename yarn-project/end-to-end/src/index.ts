@@ -1,5 +1,2 @@
-// Should only export tests from the canary directory
-
-export { cliTestSuite } from './shared/cli.js';
-export { browserTestSuite } from './shared/browser.js';
-export { uniswapL1L2TestSuite, UniswapSetupContext } from './shared/uniswap_l1_l2.js';
+// Should only export tests from the shared directory
+export * from './shared/index.js';

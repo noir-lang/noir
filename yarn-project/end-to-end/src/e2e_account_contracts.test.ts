@@ -1,14 +1,16 @@
 import {
   AccountContract,
   AccountManager,
+  CompleteAddress,
   EcdsaAccountContract,
   Fr,
+  GrumpkinPrivateKey,
+  GrumpkinScalar,
   PXE,
   SchnorrAccountContract,
   SingleKeyAccountContract,
   Wallet,
 } from '@aztec/aztec.js';
-import { CompleteAddress, GrumpkinPrivateKey, GrumpkinScalar } from '@aztec/circuits.js';
 import { ChildContract } from '@aztec/noir-contracts/types';
 
 import { randomBytes } from 'crypto';

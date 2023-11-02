@@ -1,8 +1,6 @@
-import { CheatCodes, Wallet } from '@aztec/aztec.js';
+import { CheatCodes, EthAddress, TxStatus, Wallet } from '@aztec/aztec.js';
 import { RollupAbi } from '@aztec/l1-artifacts';
 import { TestContract } from '@aztec/noir-contracts/types';
-import { EthAddress } from '@aztec/pxe';
-import { TxStatus } from '@aztec/types';
 
 import { Account, Chain, HttpTransport, PublicClient, WalletClient, getAddress, getContract, parseEther } from 'viem';
 
