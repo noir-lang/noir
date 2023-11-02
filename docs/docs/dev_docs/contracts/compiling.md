@@ -123,13 +123,13 @@ export class TokenContract extends ContractBase {
       nonce: FieldLike,
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
-    
+
     ...
   };
 }
 ```
 
-Read more about interacting with contracts using `aztec.js` [here](../getting_started/sandbox.md).
+Read more about interacting with contracts using `aztec.js` [here](../getting_started/aztecjs-getting-started.md).
 
 ### Aztec.nr interfaces
 
@@ -158,7 +158,7 @@ impl TokenPrivateContextInterface {
           address,
       }
   }
-  
+
   pub fn burn(
     self,
     context: &mut PrivateContext,
@@ -173,7 +173,7 @@ impl TokenPrivateContextInterface {
 
     context.call_private_function(self.address, 0xd4fcc96e, serialized_args)
   }
-  
+
 
   pub fn burn_public(
     self,
@@ -190,7 +190,7 @@ impl TokenPrivateContextInterface {
     context.call_public_function(self.address, 0xb0e964d5, serialized_args)
   }
   ...
-  
+
 }
 
 impl TokenPublicContextInterface {
@@ -199,7 +199,7 @@ impl TokenPublicContextInterface {
           address,
       }
   }
-  
+
   pub fn burn_public(
     self,
     context: PublicContext,
@@ -214,7 +214,7 @@ impl TokenPublicContextInterface {
 
     context.call_public_function(self.address, 0xb0e964d5, serialized_args)
   }
-  
+
 
   pub fn mint_private(
     self,
@@ -229,7 +229,7 @@ impl TokenPublicContextInterface {
     context.call_public_function(self.address, 0x10763932, serialized_args)
   }
 
-  
+
 }
 ```
 

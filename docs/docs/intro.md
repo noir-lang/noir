@@ -41,9 +41,9 @@ Plus:
 
 ## Play
 
-[Write a private smart contract today](./dev_docs/getting_started/quickstart).
+Visit the [getting started](./dev_docs/getting_started/main) section for an introduction.
 
-[Deploy to the Aztec Sandbox today](./dev_docs/getting_started/sandbox)
+Go to the [Tutorials](./dev_docs/tutorials/main.md) section to dive into some more advanced walkthroughs.
 
 ---
 

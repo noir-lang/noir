@@ -2,92 +2,41 @@
 title: Quickstart
 ---
 
-Get started with the Aztec Sandbox.
+In this guide, you will
 
-## Introduction
+1. Set up the Aztec sandbox locally
+2. Install the Aztec CLI
+3. Use the CLI to deploy an example contract that comes with the sandbox
+4. Use the CLI to interact with the contract you just deployed
 
-The Aztec Sandbox is an environment for local development on the Aztec Network. It's easy to get setup with just a single, simple command, and contains all the components needed to develop and test Aztec contracts and applications.
+... in less than 10 minutes.
 
-This is a 1 page introduction to getting started with running the sandbox, and interacting with it via the CLI. We will go over how to deploy a token contract to the sandbox, mint tokens and transfer them between accounts. You will find more in depth information on the following pages in this Getting Started section.
-
-### Background
-
-Aztec's Layer 2 network is a fully programmable combined private/public ZK rollup. To achieve this, the network contains the following primary components:
-
-- Aztec Node - Aggregates all of the 'backend' services necessary for the building and publishing of rollups. This packages is currently in development and much of the functionality is mocked.
-- [Private Execution Environment (PXE)](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/pxe) - Normally residing with the end client, this decrypts and stores a client's private state, executes simulations and submits transactions to the Aztec Node.
-- [Aztec.js](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/aztec.js) - Aztec's client library for interacting with the PXE (think Ethers.js). See the getting started guide [here](./sandbox.md).
-
-All of this is included in the Sandbox, with the exception of Aztec.js which you can use to interact with it.
-
-With the help of Aztec.js you will be able to:
-
-- Create an account
-- Deploy a contract
-- Call view methods on contracts
-- Simulate the calling of contract functions
-- Send transactions to the network
-- Be notified when transactions settle
-- Query chain state such as chain id, block number etc.
-
-This quickstart walks you through installing the Sandbox, deploying your first Noir contract, and verifying its execution!
-
-## Sandbox Contents
-
-The sandbox contains a local ethereum instance running [Anvil](https://book.getfoundry.sh/anvil/), a local instance of the Aztec rollup, an aztec private execution client for handling user transactions and state, and, if using Docker, an [Otterscan](https://github.com/otterscan/otterscan) block explorer for the local ethereum network.
-
-These provide a self contained environment which deploys Aztec on a local (empty) ethereum network, creates 3 smart contract wallet accounts on the rollup, and allows transactions to be processed on the local Aztec sequencer.
-
-The current sandbox does not generate or verify proofs, but provides a working end to end developer flow for writing and interacting with Aztec.nr smart contracts.
-
-## Requirements
+## Prerequisites
 
 - Node.js >= v18 (recommend installing with [nvm](https://github.com/nvm-sh/nvm))
 - Docker and Docker Compose (Docker Desktop under WSL2 on windows)
 
-## Sandbox Installation
+## Install the Sandbox
 
-You can run the Sandbox using either Docker or npm.
+You can run the Sandbox using either Docker or npm. In this guide we will use Docker, but you can learn more about alternative installation methods [here](../cli/sandbox-reference.md).
 
-### With Docker
-
-To install and start the Sandbox paste the line below in a macOS Terminal or Linux shell prompt. You will need to have Docker installed and running on your machine.
+To install the latest Sandbox version, run:
 
 ```bash
 /bin/bash -c "$(curl -fsSL 'https://sandbox.aztec.network')"
 ```
 
-This will attempt to run the Sandbox on localhost:8080, so you will have to make sure nothing else is running on that port or change the port defined in `./.aztec/docker-compose.yml`. Running the command again will overwrite any changes made to the docker-compose.yml.
+This will attempt to run the Sandbox on ` localhost:8080`, so you will have to make sure nothing else is running on that port or change the port defined in `./.aztec/docker-compose.yml`. Running the command again will overwrite any changes made to the `docker-compose.yml`.
 
-To install a specific version of the sandbox, you can set the environment variable `SANDBOX_VERSION`
+## Install the CLI
 
-```bash
-SANDBOX_VERSION=<version> /bin/bash -c "$(curl -fsSL 'https://sandbox.aztec.network')"
-```
-
-NOTE: If `SANDBOX_VERSION` is not defined, the script will pull the latest release of the sandbox. The sandbox version should be the same as your `@aztec/cli` package to ensure compatibility.
-
-Once docker is up, you can see ethereum layer 1 activity through the local [otterscan](http://localhost:5100). This is especially useful for dapps that use L1-L2 messaging through [portal contracts](../contracts/portals/main.md).
-
-### With npm
-
-You can download and run the Sandbox package directly if you have nodejs 18 or higher installed.
-
-You will also need an Ethereum node like Anvil or Hardhat running locally on port 8545.
-
-```bash
-npx @aztec/aztec-sandbox
-```
-
-## CLI Installation
-
-To interact with the sandbox now that it's running locally, install the [Aztec CLI](https://www.npmjs.com/package/@aztec/cli):
+To interact with the Sandbox now that it's running locally, install the [Aztec CLI](https://www.npmjs.com/package/@aztec/cli):
 
 ```bash
 npm install -g @aztec/cli
 ```
 
-## Deploying a contract
+## Deploy a contract using the CLI
 
 The sandbox is preloaded with multiple accounts. Let's assign them to shell variables. Run the following in your terminal, so we can refer to the accounts as $ALICE and $BOB from now on:
 
@@ -97,17 +46,17 @@ The default accounts that come with sandbox will likely change over time. Save t
 
 #include_code declare-accounts yarn-project/end-to-end/src/guides/up_quick_start.sh bash
 
-Start by deploying a token contract. After it is deployed, we check that the deployment succeeded, export the deployment address to use in future commands and then call the `_initialize` function. For more detail on how the token contract works, see the [token contract tutorial](../tutorials/writing_token_contract.md).
+Start by deploying a token contract. After it is deployed, we check that the deployment succeeded, and export the deployment address to use in future commands. For more detail on how the token contract works, see the [token contract tutorial](../tutorials/writing_token_contract.md).
 
 #include_code deploy yarn-project/end-to-end/src/guides/up_quick_start.sh bash
 
 Note that the deployed contract address is exported, so we can use it as `$CONTRACT` later on.
 
-## Calling a contract
+## Call a contract with the CLI
 
 Alice is set up as the contract admin and token minter in the `_initialize` function. Let's get Alice some private tokens.
 
-We need to export the `SECRET` and `SECRET_HASH` values in order to privately mint tokens. Private tokens are claimable by anyone with the pre-image to a provided hash, see more about how the token contract works in the [token contract tutorial](../tutorials/writing_token_contract.md). After the tokens have been minted, the notes will have to added to the PXE to be consumed by private functions. Once added, Alice can claim them with the `redeem_shield` function. After this, Alice should have 1000 tokens in their private balance.
+We need to export the `SECRET` and `SECRET_HASH` values in order to privately mint tokens. Private tokens are claimable by anyone with the pre-image to a provided hash, see more about how the token contract works in the [token contract tutorial](../tutorials/writing_token_contract.md). After the tokens have been minted, the notes will have to added to the [Private Execution Environment](../../apis/pxe/interfaces/PXE) (PXE) to be consumed by private functions. Once added, Alice can claim them with the `redeem_shield` function. After this, Alice should have 1000 tokens in their private balance.
 
 #include_code mint-private yarn-project/end-to-end/src/guides/up_quick_start.sh bash
 
@@ -119,11 +68,8 @@ Alice and Bob should have 500 tokens.
 
 Congratulations! You are all set up with the Aztec sandbox!
 
-## Great, but what can I do with it?
+## What's next?
 
-Aztec's Layer 2 network is a fully programmable combined private/public ZK rollup. To achieve this, the network contains the following primary components:
+To start writing your first Aztec.nr smart contract, go to the [next page](aztecnr-getting-started.md).
 
-- Aztec Node - Aggregates all of the 'backend' services necessary for the building and publishing of rollups.
-- Private Execution Environment (PXE) - Normally residing with the end client, this decrypts and stores a client's private state, executes simulations and submits transactions to the Aztec Node.
-- [Aztec.js](./sandbox) - Aztec's client library for interacting with the PXE (think Ethers.js).
-- [Aztec.nr](../contracts/main.md) - Aztec's smart contract framework
+You can also dig more into the sandbox and CLI [here](../cli/main.md).

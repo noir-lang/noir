@@ -1,8 +1,9 @@
 [workspace]
 members = [
-    "src/contracts/benchmarking_contract",
-    "src/contracts/card_game_contract",
-    "src/contracts/child_contract",
+    "src/contracts/benchmarking_contract", 
+    "src/contracts/card_game_contract", 
+    "src/contracts/child_contract", 
+    "src/contracts/counter_contract",
     "src/contracts/docs_example_contract",
     "src/contracts/easy_private_token_contract",
     "src/contracts/ecdsa_account_contract",

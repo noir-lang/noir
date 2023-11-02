@@ -16,7 +16,7 @@ There are also boxes that include a basic React interface (`blank-react`) and an
 
 ## Setup
 
-See the Quickstart page for [requirements](./quickstart.md#requirements), starting the local [Sandbox environment](./quickstart.md#sandbox-installation) and [installing the CLI](./quickstart#cli-installation).
+See the Quickstart page for [requirements](../getting_started/quickstart.md#requirements), starting the local [Sandbox environment](../getting_started/quickstart.md#sandbox-installation) and [installing the CLI](../getting_started/quickstart#cli-installation).
 
 Aztec Boxes use [yarn](https://classic.yarnpkg.com/) for package management, so if you want to follow along exactly, make sure you have it [installed](https://classic.yarnpkg.com/en/docs/install).
 
@@ -68,7 +68,7 @@ yarn
 
 ### Start the Sandbox
 
-See the Quickstart for [installing and starting the Sandbox](./quickstart.md#sandbox-installation).
+See the Quickstart for [installing and starting the Sandbox](../getting_started/quickstart.md#sandbox-installation).
 
 ### Start the frontend
 

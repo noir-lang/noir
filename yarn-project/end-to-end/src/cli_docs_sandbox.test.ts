@@ -96,6 +96,7 @@ Rollup Address: 0x0dcd1bf9a1b36ce34237eeafef220932846bcd82
 BenchmarkingContractArtifact
 CardGameContractArtifact
 ChildContractArtifact
+CounterContractArtifact
 DocsExampleContractArtifact
 EasyPrivateTokenContractArtifact
 EcdsaAccountContractArtifact

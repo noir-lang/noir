@@ -166,6 +166,17 @@
     from = "/dev_docs/contracts/syntax/state_variables"
     to = "/dev_docs/contracts/syntax/storage"
 
+[[redirects]]
+    from = "/dev_docs/getting_started/sandbox"
+    to = "/dev_docs/getting_started/quickstart"
+
+[[redirects]]
+    from = "/dev_docs/getting_started/blank_box"
+    to = "/dev_docs/cli/blank_box"
+
+[[redirects]]
+    from = "/dev_docs/getting_started/updating"
+    to = "/dev_docs/cli/updating"
 
 [[redirects]]
     from = "/misc/aztec-connect-sunset"

@@ -22,13 +22,13 @@ Nargo is Noir's build tool. On your terminal, run:
 
 #### Aztec Sandbox
 
-You need to setup the [Aztec sandbox](../getting_started/sandbox.md).
+You need to setup the [Aztec sandbox](../getting_started/quickstart.md).
 
 <!-- TODO([#1056](https://github.com/AztecProtocol/aztec-packages/issues/1056)): Add a step for the starter kit -->
 
 ## Set up for aztec.nr contracts
 
-1. Inside the yarn project you created from the [Sandbox page](../getting_started/sandbox.md), create a sub-folder where the contracts will reside.
+1. Inside the yarn project you created from the [Sanbox page](../getting_started/quickstart.md), create a sub-folder where the contracts will reside.
 
 ```bash
 mkdir contracts
