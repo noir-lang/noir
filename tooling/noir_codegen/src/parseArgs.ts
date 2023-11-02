@@ -1,11 +1,11 @@
-import { parse as commandLineArgs } from 'ts-command-line-args'
+import { parse as commandLineArgs } from 'ts-command-line-args';
 
-const DEFAULT_GLOB_PATTERN = './target/**/*.json'
+const DEFAULT_GLOB_PATTERN = './target/**/*.json';
 
 export interface ParsedArgs {
-  files: string[]
-  outDir?: string | undefined
-  inputDir?: string | undefined
+  files: string[];
+  outDir?: string | undefined;
+  inputDir?: string | undefined;
 }
 
 export function parseArgs(): ParsedArgs {
@@ -23,7 +23,8 @@ export function parseArgs(): ParsedArgs {
       'input-dir': {
         type: String,
         optional: true,
-        description: 'Directory containing program artifact files. Inferred as lowest common path of all files if not specified.',
+        description:
+          'Directory containing program artifact files. Inferred as lowest common path of all files if not specified.',
       },
       help: { type: Boolean, defaultValue: false, alias: 'h', description: 'Prints this message.' },
     },
@@ -46,18 +47,18 @@ export function parseArgs(): ParsedArgs {
         },
       ],
     },
-  )
+  );
 
   return {
     files: rawOptions.glob,
     outDir: rawOptions['out-dir'],
     inputDir: rawOptions['input-dir'],
-  }
+  };
 }
 
 interface CommandLineArgs {
-  glob: string[]
-  'out-dir'?: string
-  'input-dir'?: string
-  help: boolean
+  glob: string[];
+  'out-dir'?: string;
+  'input-dir'?: string;
+  help: boolean;
 }
