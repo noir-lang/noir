@@ -9,7 +9,7 @@ const codegenFunction = (
 ) => `export async function ${name}(args: InputMap): Promise<InputValue> {
   const program = new Noir(${JSON.stringify(compiled_program)});
   const { returnValue } = await program.execute(args);
-  return returnValue
+  return returnValue;
 }`;
 
 export const codegen = (programs: [string, CompiledCircuit][]): string => {
