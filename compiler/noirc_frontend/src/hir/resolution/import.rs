@@ -35,11 +35,13 @@ pub struct ResolvedImport {
 impl From<PathResolutionError> for CustomDiagnostic {
     fn from(error: PathResolutionError) -> Self {
         match error {
-            PathResolutionError::Unresolved(ident) => CustomDiagnostic::simple_error(
-                format!("Could not resolve '{ident}' in path"),
-                String::new(),
-                ident.span(),
-            ),
+            PathResolutionError::Unresolved(ident) => {
+                CustomDiagnostic::simple_error(
+                    format!("Could not resolve '{ident}' in path"),
+                    String::new(),
+                    ident.span(),
+                )
+            }
             PathResolutionError::ExternalContractUsed(ident) => CustomDiagnostic::simple_error(
                 format!("Contract variable '{ident}' referenced from outside the contract"),
                 "Contracts may only be referenced from within a contract".to_string(),

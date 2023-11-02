@@ -6,3 +6,4 @@
 pub mod contract;
 pub mod debug;
 pub mod program;
+mod debug_vars;

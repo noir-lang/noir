@@ -9,6 +9,7 @@ use nargo::NargoError;
 
 use easy_repl::{command, CommandStatus, Repl};
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 use codespan_reporting::files::Files;
 use noirc_errors::Location;
@@ -546,6 +547,20 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "update a Brillig memory cell with the given value",
                 (index: usize, value: String) => |index, value| {
                     ref_context.borrow_mut().write_brillig_memory(index, value);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "vars",
+            command! {
+                "show variable values available at this point in execution",
+                () => || {
+                    let mut ctx = ref_context.borrow_mut();
+                    let vars = ctx.context.debug_vars.get_values();
+                    println!("{:?}", vars.iter().map(|(var_name,value)| {
+                        (var_name, value.to_field())
+                    }).collect::<HashMap<_,_>>());
                     Ok(CommandStatus::Done)
                 }
             },

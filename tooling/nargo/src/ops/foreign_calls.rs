@@ -4,6 +4,7 @@ use acvm::{
 };
 use iter_extended::vecmap;
 use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
+use crate::artifacts::debug::DebugVars;
 
 pub trait ForeignCallExecutor {
     fn execute(
@@ -16,6 +17,7 @@ pub trait ForeignCallExecutor {
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
 pub(crate) enum ForeignCall {
     Println,
+    DebugStateSet,
     Sequence,
     ReverseSequence,
     CreateMock,
@@ -35,6 +37,7 @@ impl ForeignCall {
     pub(crate) fn name(&self) -> &'static str {
         match self {
             ForeignCall::Println => "println",
+            ForeignCall::DebugStateSet => "__debug_state_set",
             ForeignCall::Sequence => "get_number_sequence",
             ForeignCall::ReverseSequence => "get_reverse_number_sequence",
             ForeignCall::CreateMock => "create_mock",
@@ -48,6 +51,7 @@ impl ForeignCall {
     pub(crate) fn lookup(op_name: &str) -> Option<ForeignCall> {
         match op_name {
             "println" => Some(ForeignCall::Println),
+            "__debug_state_set" => Some(ForeignCall::DebugStateSet),
             "get_number_sequence" => Some(ForeignCall::Sequence),
             "get_reverse_number_sequence" => Some(ForeignCall::ReverseSequence),
             "create_mock" => Some(ForeignCall::CreateMock),
@@ -139,12 +143,42 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
         &mut self,
         foreign_call: &ForeignCallWaitInfo,
     ) -> Result<ForeignCallResult, ForeignCallError> {
+        self.execute_optional_debug_vars(foreign_call, None)
+    }
+
+    pub fn execute_with_debug_vars(
+        &mut self,
+        foreign_call: &ForeignCallWaitInfo,
+        debug_vars: &mut DebugVars,
+    ) -> Result<ForeignCallResult, ForeignCallError> {
+        self.execute_optional_debug_vars(foreign_call, Some(debug_vars))
+    }
+
+    fn execute_optional_debug_vars(
+        &mut self,
+        foreign_call: &ForeignCallWaitInfo,
+        debug_vars: Option<&mut DebugVars>,
+    ) -> Result<ForeignCallResult, ForeignCallError> {
         let foreign_call_name = foreign_call.function.as_str();
         match ForeignCall::lookup(foreign_call_name) {
             Some(ForeignCall::Println) => {
                 if self.show_output {
                     Self::execute_println(&foreign_call.inputs)?;
                 }
+                Ok(ForeignCallResult { values: vec![] })
+            }
+            Some(ForeignCall::DebugStateSet) => {
+                let fcp_var_id = &foreign_call.inputs[0];
+                let fcp_value = &foreign_call.inputs[1];
+                if let (
+                    Some(ds),
+                    ForeignCallParam::Single(var_id_value),
+                    ForeignCallParam::Single(value),
+                ) = (debug_vars, fcp_var_id, fcp_value) {
+                    let var_id = var_id_value.to_u128() as u32;
+                    ds.set_by_id(var_id, value.clone());
+                }
+                // pass-through return value is handled by the oracle wrapper, returning nothing here
                 Ok(ForeignCallResult { values: vec![] })
             }
             Some(ForeignCall::Sequence) => {

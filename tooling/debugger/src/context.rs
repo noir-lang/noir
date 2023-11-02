@@ -6,7 +6,7 @@ use acvm::pwg::{
 };
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
-use nargo::artifacts::debug::DebugArtifact;
+use nargo::artifacts::debug::{DebugArtifact, DebugVars};
 use nargo::errors::{ExecutionError, Location};
 use nargo::ops::{DefaultForeignCallExecutor, ForeignCallExecutor};
 use nargo::NargoError;
@@ -26,6 +26,7 @@ pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     brillig_solver: Option<BrilligSolver<'a, B>>,
     foreign_call_executor: DefaultForeignCallExecutor,
     debug_artifact: &'a DebugArtifact,
+    pub debug_vars: DebugVars,
     breakpoints: HashSet<OpcodeLocation>,
 }
 
@@ -36,11 +37,17 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
     ) -> Self {
+        // TODO: move this into the other context constructor
+        let mut debug_vars = DebugVars::default();
+        debug_artifact.debug_symbols.iter().for_each(|info| {
+            debug_vars.insert_variables(&info.variables);
+        });
         Self {
             acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
             brillig_solver: None,
             foreign_call_executor: DefaultForeignCallExecutor::new(true),
             debug_artifact,
+            debug_vars,
             breakpoints: HashSet::new(),
         }
     }
@@ -117,7 +124,10 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
     }
 
     fn handle_foreign_call(&mut self, foreign_call: ForeignCallWaitInfo) -> DebugCommandResult {
-        let foreign_call_result = self.foreign_call_executor.execute(&foreign_call);
+        let foreign_call_result = self.foreign_call_executor.execute_with_debug_vars(
+            &foreign_call,
+            &mut self.debug_vars,
+        );
         match foreign_call_result {
             Ok(foreign_call_result) => {
                 self.acvm.resolve_pending_foreign_call(foreign_call_result);

@@ -1,10 +1,10 @@
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::compiler::AcirTransformationMap;
+use fm::FileId;
 
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
-use std::collections::BTreeMap;
-use std::collections::HashMap;
+use std::collections::{BTreeMap,HashMap};
 use std::mem;
 
 use crate::Location;
@@ -18,6 +18,7 @@ pub struct DebugInfo {
     /// that they should be serialized to/from strings.
     #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
+    pub variables: HashMap<String, u32>,
 }
 
 /// Holds OpCodes Counts for Acir and Brillig Opcodes
@@ -29,8 +30,11 @@ pub struct OpCodesCount {
 }
 
 impl DebugInfo {
-    pub fn new(locations: BTreeMap<OpcodeLocation, Vec<Location>>) -> Self {
-        DebugInfo { locations }
+    pub fn new(
+        locations: BTreeMap<OpcodeLocation, Vec<Location>>,
+        variables: HashMap<String, u32>,
+    ) -> Self {
+        Self { locations, variables }
     }
 
     /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.
@@ -84,5 +88,15 @@ impl DebugInfo {
             .collect();
 
         counted_opcodes
+    }
+
+    pub fn get_file_ids(&self) -> Vec<FileId> {
+        self
+            .locations
+            .values()
+            .filter_map(|call_stack| {
+                call_stack.last().map(|location| location.file)
+            })
+            .collect()
     }
 }

@@ -258,6 +258,7 @@ fn compile_contract(
 }
 
 fn save_program(program: CompiledProgram, package: &Package, circuit_dir: &Path) {
+    let debug_artifact = DebugArtifact::from_program(&program);
     let preprocessed_program = PreprocessedProgram {
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
@@ -265,15 +266,9 @@ fn save_program(program: CompiledProgram, package: &Package, circuit_dir: &Path)
         noir_version: program.noir_version,
         bytecode: program.circuit,
     };
+    let circuit_name: String = (&package.name).into();
 
     save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
-
-    let debug_artifact = DebugArtifact {
-        debug_symbols: vec![program.debug],
-        file_map: program.file_map,
-        warnings: program.warnings,
-    };
-    let circuit_name: String = (&package.name).into();
     save_debug_artifact_to_file(&debug_artifact, &circuit_name, circuit_dir);
 }
 
