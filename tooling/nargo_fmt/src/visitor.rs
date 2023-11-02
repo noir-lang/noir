@@ -180,7 +180,7 @@ impl<'me> FmtVisitor<'me> {
             if let Token::LineComment(_, _) | Token::BlockComment(_, _) = spanned.token() {
                 let comment = &slice[span.start() as usize..span.end() as usize];
 
-                result.push_str(&&self.indent.to_string_with_newline());
+                result.push_str(&self.indent.to_string_with_newline());
                 result.push_str(comment);
             }
         }
