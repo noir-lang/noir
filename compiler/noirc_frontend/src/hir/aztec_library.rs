@@ -572,7 +572,6 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
                 let expression = match unresolved_type {
                     // `hasher.add_multiple({ident}.serialize())`
                     UnresolvedTypeData::Named(..) => add_struct_to_hasher(identifier),
-                    // TODO: if this is an array of structs, we should call serialize on each of them (no methods currently do this yet)
                     UnresolvedTypeData::Array(_, arr_type) => {
                         add_array_to_hasher(identifier, &arr_type)
                     }
