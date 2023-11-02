@@ -132,7 +132,10 @@ impl Context {
     }
 
     /// Recursively walks down the crate dependency graph from crate_id until we reach requested crate
-    /// returns the path from crate_id to target_crate_id
+    /// This is needed in case a library (lib1) re-export a structure defined in another library (lib2)
+    /// In that case, we will get [lib1,lib2] when looking for a struct defined in lib2, 
+    /// re-exported by lib1 and used by the main crate.
+    /// Returns the path from crate_id to target_crate_id
     fn find_dependencies(&self, crate_id: &CrateId, target_crate_id: &CrateId) -> Vec<CrateName> {
         for dep in &self.crate_graph[crate_id].dependencies {
             if &dep.crate_id == target_crate_id {
