@@ -8,7 +8,7 @@ export const abi: Abi = {
       visibility: 'private',
     },
   ],
-  param_witnesses: { foo: [1, 2] },
+  param_witnesses: { foo: [{start:1, end: 3}] },
   return_type: null,
   return_witnesses: [],
 };
