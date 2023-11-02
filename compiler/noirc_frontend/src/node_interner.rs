@@ -25,6 +25,10 @@ use crate::{
     TypeBinding, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
+/// An arbitrary number to limit the recursion depth when searching for trait impls.
+/// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
+const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
+
 type StructAttributes = Vec<SecondaryAttribute>;
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
@@ -957,7 +961,21 @@ impl NodeInterner {
         object_type: &Type,
         trait_id: TraitId,
     ) -> Result<Shared<TraitImpl>, Vec<TraitConstraint>> {
+        self.lookup_trait_implementation_helper(object_type, trait_id, IMPL_SEARCH_RECURSION_LIMIT)
+    }
+
+    fn lookup_trait_implementation_helper(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+        recursion_limit: u32,
+    ) -> Result<Shared<TraitImpl>, Vec<TraitConstraint>> {
         let make_constraint = || TraitConstraint::new(object_type.clone(), trait_id);
+
+        // Prevent infinite recursion when looking for impls
+        if recursion_limit == 0 {
+            return Err(vec![make_constraint()]);
+        }
 
         let impls =
             self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
@@ -969,9 +987,11 @@ impl NodeInterner {
             if object_type.try_unify(&existing_object_type).is_ok() {
                 let trait_impl = self.get_trait_implementation(*impl_id);
 
-                if let Err(mut errors) =
-                    self.validate_where_clause(&trait_impl.borrow().where_clause, &type_bindings)
-                {
+                if let Err(mut errors) = self.validate_where_clause(
+                    &trait_impl.borrow().where_clause,
+                    &type_bindings,
+                    recursion_limit,
+                ) {
                     errors.push(make_constraint());
                     return Err(errors);
                 }
@@ -985,14 +1005,19 @@ impl NodeInterner {
 
     /// Verifies that each constraint in the given where clause is valid.
     /// If an impl cannot be found for any constraint, the erroring constraint is returned.
-    pub fn validate_where_clause(
+    fn validate_where_clause(
         &self,
         where_clause: &[TraitConstraint],
         type_bindings: &TypeBindings,
+        recursion_limit: u32,
     ) -> Result<(), Vec<TraitConstraint>> {
         for constraint in where_clause {
             let constraint_type = constraint.typ.substitute(type_bindings);
-            self.lookup_trait_implementation(&constraint_type, constraint.trait_id)?;
+            self.lookup_trait_implementation_helper(
+                &constraint_type,
+                constraint.trait_id,
+                recursion_limit - 1,
+            )?;
         }
         Ok(())
     }

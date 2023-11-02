@@ -146,7 +146,7 @@ impl<'interner> TypeChecker<'interner> {
                 match self.lookup_method(&object_type, method_name, expr_id) {
                     Some(method_ref) => {
                         let mut args = vec![(
-                            object_type,
+                            object_type.clone(),
                             method_call.object,
                             self.interner.expr_span(&method_call.object),
                         )];
@@ -190,12 +190,10 @@ impl<'interner> TypeChecker<'interner> {
 
                             if let Some(impl_id) = meta.trait_impl {
                                 let trait_impl = self.interner.get_trait_implementation(impl_id);
-                                let bindings =
-                                    self.interner.get_instantiation_bindings(function_id);
 
-                                let result = self.interner.validate_where_clause(
-                                    &trait_impl.borrow().where_clause,
-                                    bindings,
+                                let result = self.interner.lookup_trait_implementation(
+                                    &object_type,
+                                    trait_impl.borrow().trait_id,
                                 );
 
                                 if let Err(erroring_constraints) = result {
