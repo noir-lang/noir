@@ -1,4 +1,4 @@
-#include "barretenberg/honk/flavor/ultra.hpp"
+#include "barretenberg/flavor/ultra.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
 #include <cstddef>

@@ -1,6 +1,6 @@
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
 #include "barretenberg/common/slab_allocator.hpp"
-#include "barretenberg/honk/flavor/ultra.hpp"
+#include "barretenberg/flavor/ultra.hpp"
 #include "barretenberg/proof_system/types/circuit_type.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
 #include <array>

@@ -1,5 +1,5 @@
 #pragma once
-#include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/proof_system/relations/relation_parameters.hpp"
 namespace proof_system::honk {
 template <class Flavor> class VerifierInstance_ {

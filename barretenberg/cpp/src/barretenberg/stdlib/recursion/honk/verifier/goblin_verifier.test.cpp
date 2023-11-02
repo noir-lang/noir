@@ -1,6 +1,6 @@
 #include "barretenberg/common/test.hpp"
+#include "barretenberg/flavor/ultra_recursive.hpp"
 #include "barretenberg/honk/composer/ultra_composer.hpp"
-#include "barretenberg/honk/flavor/ultra_recursive.hpp"
 #include "barretenberg/honk/proof_system/ultra_verifier.hpp"
 #include "barretenberg/stdlib/hash/blake3s/blake3s.hpp"
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"

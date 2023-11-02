@@ -1,0 +1,1 @@
+barretenberg_module(flavor commitment_schemes ecc polynomials proof_system)

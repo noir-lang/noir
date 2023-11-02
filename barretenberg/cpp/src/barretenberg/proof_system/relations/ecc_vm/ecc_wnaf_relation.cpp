@@ -1,6 +1,6 @@
 #include "ecc_wnaf_relation.hpp"
-#include "barretenberg/honk/flavor/ecc_vm.hpp"
-#include "barretenberg/honk/sumcheck/relation_definitions_fwd.hpp"
+#include "barretenberg/flavor/ecc_vm.hpp"
+#include "barretenberg/flavor/relation_definitions_fwd.hpp"
 
 namespace proof_system::honk::sumcheck {
 

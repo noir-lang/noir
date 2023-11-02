@@ -1,4 +1,4 @@
-#include "barretenberg/honk/flavor/ultra.hpp"
+#include "barretenberg/flavor/ultra.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include <gtest/gtest.h>
 

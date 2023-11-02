@@ -1,5 +1,5 @@
 #include "testing.hpp"
-#include "barretenberg/honk/flavor/ultra.hpp"
+#include "barretenberg/flavor/ultra.hpp"
 #include <gtest/gtest.h>
 
 namespace barretenberg::test_testing_utils {

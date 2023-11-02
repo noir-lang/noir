@@ -1,5 +1,5 @@
+#include "barretenberg/flavor/goblin_translator.hpp"
 #include "barretenberg/honk/composer/ultra_composer.hpp"
-#include "barretenberg/honk/flavor/goblin_translator.hpp"
 #include "barretenberg/honk/proof_system/grand_product_library.hpp"
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
 #include "barretenberg/proof_system/relations/auxiliary_relation.hpp"

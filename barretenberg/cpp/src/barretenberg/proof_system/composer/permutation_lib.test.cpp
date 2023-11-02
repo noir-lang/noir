@@ -1,5 +1,5 @@
 #include "barretenberg/proof_system/composer/permutation_lib.hpp"
-#include "barretenberg/honk/flavor/ultra.hpp"
+#include "barretenberg/flavor/ultra.hpp"
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
 #include "barretenberg/proof_system/types/circuit_type.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"

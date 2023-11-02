@@ -7,7 +7,7 @@
 #include "./msm_builder.hpp"
 #include "./precomputed_tables_builder.hpp"
 #include "./transcript_builder.hpp"
-#include "barretenberg/honk/flavor/ecc_vm.hpp"
+#include "barretenberg/flavor/ecc_vm.hpp"
 #include "barretenberg/honk/proof_system/lookup_library.hpp"
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
 #include "barretenberg/proof_system/relations/relation_parameters.hpp"

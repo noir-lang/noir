@@ -21,6 +21,7 @@ TESTS=(
   crypto_pedersen_commitment_tests
   crypto_pedersen_hash_tests
   ecc_tests
+  flavor_tests
   numeric_tests
   plonk_tests
   polynomials_tests

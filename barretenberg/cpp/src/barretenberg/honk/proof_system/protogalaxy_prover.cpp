@@ -1,5 +1,5 @@
 #include "protogalaxy_prover.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/flavor/flavor.hpp"
 namespace proof_system::honk {
 
 template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::prepare_for_folding()

@@ -1,5 +1,5 @@
 #pragma once
-#include "barretenberg/honk/flavor/ecc_vm.hpp"
+#include "barretenberg/flavor/ecc_vm.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 
