@@ -14,8 +14,8 @@ An unsigned integer type is specified first with the letter `u` (indicating its 
 
 ```rust
 fn main() {
-    let x : u8 = 1;
-    let y : u8 = 1;
+    let x: u8 = 1;
+    let y: u8 = 1;
     let z = x + y;
     assert (z == 2);
 }
