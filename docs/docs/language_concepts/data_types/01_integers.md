@@ -91,7 +91,7 @@ fn wrapping_sub<T>(x: T, y: T) -> T;
 fn wrapping_mul<T>(x: T, y: T) -> T;
 ```
 
-example usage:
+Example of how it is used:
 
 ```rust
 use dep::std;
