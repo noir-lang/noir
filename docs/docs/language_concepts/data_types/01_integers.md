@@ -69,7 +69,7 @@ error: Assertion failed: 'attempt to add with overflow'
   ...
 ```
 
-A similar error would happen with signed integers, for example while trying to prove:
+A similar error would happen with signed integers:
 
 ```rust
 fn main() {
