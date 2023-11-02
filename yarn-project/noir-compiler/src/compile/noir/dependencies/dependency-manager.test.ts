@@ -1,4 +1,5 @@
-import { NoirDependencyConfig } from '../package-config.js';
+import { NoirDependencyConfig } from '@aztec/foundation/noir';
+
 import { NoirPackage } from '../package.js';
 import { NoirDependencyManager } from './dependency-manager.js';
 import { DependencyResolver } from './dependency-resolver.js';

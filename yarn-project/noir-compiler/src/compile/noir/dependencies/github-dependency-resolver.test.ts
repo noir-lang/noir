@@ -1,3 +1,4 @@
+import { NoirGitDependencyConfig } from '@aztec/foundation/noir';
 import { fileURLToPath } from '@aztec/foundation/url';
 
 import { jest } from '@jest/globals';
@@ -7,7 +8,6 @@ import { dirname, join } from 'node:path';
 
 import { FileManager } from '../file-manager/file-manager.js';
 import { createMemFSFileManager } from '../file-manager/memfs-file-manager.js';
-import { NoirGitDependencyConfig } from '../package-config.js';
 import { NoirPackage } from '../package.js';
 import { DependencyResolver } from './dependency-resolver.js';
 import { GithubDependencyResolver, resolveGithubCodeArchive, safeFilename } from './github-dependency-resolver.js';
@@ -87,6 +87,7 @@ describe('GithubDependencyResolver', () => {
     [
       {
         git: 'https://github.com/example/lib.nr',
+        tag: 'HEAD',
       },
       'zip',
       'https://github.com/example/lib.nr/archive/HEAD.zip',
@@ -94,6 +95,7 @@ describe('GithubDependencyResolver', () => {
     [
       {
         git: 'https://github.com/example/lib.nr',
+        tag: 'HEAD',
       },
       'tar',
       'https://github.com/example/lib.nr/archive/HEAD.tar.gz',
@@ -103,12 +105,13 @@ describe('GithubDependencyResolver', () => {
     expect(archiveUrl.href).toEqual(href);
   });
 
-  it.each([{ git: 'https://github.com/' }, { git: 'https://github.com/foo' }, { git: 'https://example.com' }])(
-    'throws if the Github URL is invalid',
-    dep => {
-      expect(() => resolveGithubCodeArchive(dep, 'zip')).toThrow();
-    },
-  );
+  it.each([
+    { git: 'https://github.com/', tag: 'v1' },
+    { git: 'https://github.com/foo', tag: 'v1' },
+    { git: 'https://example.com', tag: 'v1' },
+  ])('throws if the Github URL is invalid', dep => {
+    expect(() => resolveGithubCodeArchive(dep, 'zip')).toThrow();
+  });
 
   it.each([
     ['main', 'main'],

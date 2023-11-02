@@ -16,7 +16,7 @@ import {
 } from '@aztec/l1-artifacts';
 import { LogId } from '@aztec/types';
 
-import { InvalidArgumentError } from 'commander';
+import { CommanderError, InvalidArgumentError } from 'commander';
 import fs from 'fs';
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 
@@ -402,4 +402,32 @@ export function parseField(field: string): Fr {
  */
 export function parseFields(fields: string[]): Fr[] {
   return fields.map(parseField);
+}
+
+/**
+ * Updates a file in place atomically.
+ * @param filePath - Path to file
+ * @param contents - New contents to write
+ */
+export async function atomicUpdateFile(filePath: string, contents: string) {
+  const tmpFilepath = filePath + '.tmp';
+  try {
+    await fs.promises.writeFile(tmpFilepath, contents, {
+      // let's crash if the tmp file already exists
+      flag: 'wx',
+    });
+    await fs.promises.rename(tmpFilepath, filePath);
+  } catch (e) {
+    if (e instanceof Error && 'code' in e && e.code === 'EEXIST') {
+      const commanderError = new CommanderError(
+        1,
+        e.code,
+        `Temporary file already exists: ${tmpFilepath}. Delete this file and try again.`,
+      );
+      commanderError.nestedError = e.message;
+      throw commanderError;
+    } else {
+      throw e;
+    }
+  }
 }

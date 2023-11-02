@@ -42,6 +42,7 @@
     "@aztec/noir-contracts": "workspace:^",
     "@aztec/types": "workspace:^",
     "@libp2p/peer-id-factory": "^3.0.4",
+    "@ltd/j-toml": "^1.38.0",
     "commander": "^9.0.0",
     "jszip": "^3.10.1",
     "lodash.startcase": "^4.4.0",

@@ -33,6 +33,7 @@ import { mnemonicToAccount } from 'viem/accounts';
 import { createCompatibleClient } from './client.js';
 import { encodeArgs, parseStructString } from './encoding.js';
 import { unboxContract } from './unbox.js';
+import { update } from './update/update.js';
 import {
   deployAztecContracts,
   getContractArtifact,
@@ -70,9 +71,9 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
   const program = new Command();
 
   const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), '../package.json');
-  const version: string = JSON.parse(readFileSync(packageJsonPath).toString()).version;
+  const cliVersion: string = JSON.parse(readFileSync(packageJsonPath).toString()).version;
 
-  program.name('aztec-cli').description('CLI for interacting with Aztec.').version(version);
+  program.name('aztec-cli').description('CLI for interacting with Aztec.').version(cliVersion);
 
   const pxeOption = new Option('-u, --rpc-url <string>', 'URL of the PXE')
     .env('PXE_URL')
@@ -649,7 +650,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     )
     .action(async (contractName, localDirectory) => {
       const unboxTo: string = localDirectory ? localDirectory : contractName;
-      await unboxContract(contractName, unboxTo, version, log);
+      await unboxContract(contractName, unboxTo, cliVersion, log);
     });
 
   program
@@ -699,6 +700,18 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .action((functionSignature: string) => {
       const selector = FunctionSelector.fromSignature(functionSignature);
       log(`${selector}`);
+    });
+
+  program
+    .command('update')
+    .description('Updates Nodejs and Noir dependencies')
+    .argument('[projectPath]', 'Path to the project directory', process.cwd())
+    .option('--contract [paths...]', 'Paths to contracts to update dependencies', [])
+    .option('--sandbox-version <semver>', 'The sandbox version to update to. Defaults to latest', 'latest')
+    .addOption(pxeOption)
+    .action(async (projectPath: string, options) => {
+      const { contract } = options;
+      await update(projectPath, contract, options.rpcUrl, options.sandboxVersion, log, debugLogger);
     });
 
   compileContract(program, 'compile', log);

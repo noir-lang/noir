@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@aztec/foundation": "workspace:^",
+    "@ltd/j-toml": "^1.38.0",
     "@noir-lang/noir_wasm": "0.18.0-3919619.aztec",
     "@noir-lang/source-resolver": "0.18.0-3919619.aztec",
     "base64-js": "^1.5.1",
@@ -58,10 +59,8 @@
     "lodash.upperfirst": "^4.3.1",
     "memfs": "^4.6.0",
     "pako": "^2.1.0",
-    "toml": "^3.0.0",
     "tslib": "^2.4.0",
-    "unzipit": "^1.4.3",
-    "zod": "^3.22.4"
+    "unzipit": "^1.4.3"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",

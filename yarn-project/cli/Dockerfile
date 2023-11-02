@@ -23,6 +23,8 @@ ENV XDG_CACHE_HOME /cache
 RUN mkdir /cache && chmod 777 /cache
 VOLUME [ "/cache" ]
 
+RUN corepack enable
+
 # run as non-root user
 RUN addgroup -S aztec && adduser -S aztec -G aztec
 USER aztec

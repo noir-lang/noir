@@ -77,7 +77,6 @@ __metadata:
     jest-mock-extended: ^3.0.4
     levelup: ^5.1.1
     memdown: ^6.1.1
-    toml: ^3.0.0
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
     tslib: ^2.4.0
@@ -366,6 +365,7 @@ __metadata:
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@libp2p/peer-id-factory": ^3.0.4
+    "@ltd/j-toml": ^1.38.0
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
     "@types/lodash.startcase": ^4.4.7
@@ -522,6 +522,7 @@ __metadata:
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
     typescript: ^5.0.4
+    zod: ^3.22.4
   languageName: unknown
   linkType: soft
 
@@ -586,6 +587,7 @@ __metadata:
   dependencies:
     "@aztec/foundation": "workspace:^"
     "@jest/globals": ^29.5.0
+    "@ltd/j-toml": ^1.38.0
     "@noir-lang/noir_wasm": 0.18.0-3919619.aztec
     "@noir-lang/source-resolver": 0.18.0-3919619.aztec
     "@rushstack/eslint-patch": ^1.1.4
@@ -609,13 +611,11 @@ __metadata:
     lodash.upperfirst: ^4.3.1
     memfs: ^4.6.0
     pako: ^2.1.0
-    toml: ^3.0.0
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
     tslib: ^2.4.0
     typescript: ^5.0.4
     unzipit: ^1.4.3
-    zod: ^3.22.4
   bin:
     aztec-compile: dest/cli.js
   languageName: unknown
@@ -3234,6 +3234,13 @@ __metadata:
   dependencies:
     "@lit-labs/ssr-dom-shim": ^1.0.0
   checksum: 79b58631c38effeabad090070324431da8a22cf0ff665f5e4de35e4d791f984742b3d340c9c7fce996d1124a8da95febc582471b4c237236c770b1300b56ef6e
+  languageName: node
+  linkType: hard
+
+"@ltd/j-toml@npm:^1.38.0":
+  version: 1.38.0
+  resolution: "@ltd/j-toml@npm:1.38.0"
+  checksum: 34f5d0ec652e790a7a733f0d3a8d9957d63997bd0efc13a61beb9d772bae75519453884fbc3fd6a2d5fe15674834bdd57ca1824bb1de8f829e5ce195fc5fa3ea
   languageName: node
   linkType: hard
 
@@ -18112,13 +18119,6 @@ __metadata:
     yup: ^1.2.0
   languageName: unknown
   linkType: soft
-
-"toml@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "toml@npm:3.0.0"
-  checksum: 5d7f1d8413ad7780e9bdecce8ea4c3f5130dd53b0a4f2e90b93340979a137739879d7b9ce2ce05c938b8cc828897fe9e95085197342a1377dd8850bf5125f15f
-  languageName: node
-  linkType: hard
 
 "toposort@npm:^2.0.2":
   version: 2.0.2

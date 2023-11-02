@@ -115,6 +115,11 @@ if [[ "$AZTEC_CLI_COMMAND" == "unbox" ]]; then
   add_mount "$DIR"
 fi
 
+if [[ "$AZTEC_CLI_COMMAND" == "update" ]]; then
+  # update command defaults to current directory
+  add_mount "$PWD"
+fi
+
 # process flags
 if [[ "$AZTEC_CLI_COMMAND" == "compile" || "$AZTEC_CLI_COMMAND" == "call" || "$AZTEC_CLI_COMMAND" == "send" ]]; then
 

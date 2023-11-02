@@ -1,8 +1,8 @@
 import { LogFn, createDebugOnlyLogger } from '@aztec/foundation/log';
+import { NoirDependencyConfig } from '@aztec/foundation/noir';
 
 import { join } from 'node:path';
 
-import { NoirDependencyConfig } from '../package-config.js';
 import { NoirPackage } from '../package.js';
 import { DependencyResolver } from './dependency-resolver.js';
 

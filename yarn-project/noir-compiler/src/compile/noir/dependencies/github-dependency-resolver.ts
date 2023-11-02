@@ -1,10 +1,10 @@
 import { createDebugOnlyLogger } from '@aztec/foundation/log';
+import { NoirDependencyConfig, NoirGitDependencyConfig } from '@aztec/foundation/noir';
 
 import { delimiter, join, sep } from 'node:path';
 import { unzip } from 'unzipit';
 
 import { FileManager } from '../file-manager/file-manager.js';
-import { NoirDependencyConfig, NoirGitDependencyConfig } from '../package-config.js';
 import { NoirPackage } from '../package.js';
 import { DependencyResolver } from './dependency-resolver.js';
 

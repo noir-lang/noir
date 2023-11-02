@@ -1,13 +1,9 @@
+import { NoirDependencyConfig, NoirPackageConfig, parseNoirPackageConfig } from '@aztec/foundation/noir';
+
+import { parse } from '@ltd/j-toml';
 import { join } from 'node:path';
-import { parse as parseToml } from 'toml';
 
 import { FileManager } from './file-manager/file-manager.js';
-import {
-  NoirGitDependencyConfig,
-  NoirLocalDependencyConfig,
-  NoirPackageConfig,
-  parsePackageConfig,
-} from './package-config.js';
 
 const CONFIG_FILE_NAME = 'Nargo.toml';
 
@@ -71,7 +67,7 @@ export class NoirPackage {
   /**
    * Gets this package's dependencies.
    */
-  public getDependencies(): Record<string, NoirGitDependencyConfig | NoirLocalDependencyConfig> {
+  public getDependencies(): Record<string, NoirDependencyConfig> {
     return this.#config.dependencies;
   }
 
@@ -83,7 +79,7 @@ export class NoirPackage {
    */
   public static open(path: string, fm: FileManager): NoirPackage {
     const fileContents = fm.readFileSync(join(path, CONFIG_FILE_NAME), 'utf-8');
-    const config = parsePackageConfig(parseToml(fileContents));
+    const config = parseNoirPackageConfig(parse(fileContents));
 
     return new NoirPackage(path, join(path, 'src'), config);
   }

@@ -14,9 +14,8 @@ import JSZip from 'jszip';
 import fetch from 'node-fetch';
 import * as path from 'path';
 
-const GITHUB_OWNER = 'AztecProtocol';
-const GITHUB_REPO = 'aztec-packages';
-const GITHUB_TAG_PREFIX = 'aztec-packages';
+import { GITHUB_OWNER, GITHUB_REPO, GITHUB_TAG_PREFIX } from './github.js';
+
 const BOXES_PATH = 'yarn-project/boxes';
 
 /**

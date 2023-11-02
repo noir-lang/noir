@@ -33,7 +33,8 @@
     "./bigint-buffer": "./dest/bigint-buffer/index.js",
     "./types": "./dest/types/index.js",
     "./url": "./dest/url/index.js",
-    "./committable": "./dest/committable/index.js"
+    "./committable": "./dest/committable/index.js",
+    "./noir": "./dest/noir/index.js"
   },
   "scripts": {
     "build": "yarn clean && tsc -b",
@@ -69,7 +70,8 @@
     "lodash.clonedeepwith": "^4.5.0",
     "memdown": "^6.1.1",
     "pako": "^2.1.0",
-    "sha3": "^2.1.4"
+    "sha3": "^2.1.4",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",
