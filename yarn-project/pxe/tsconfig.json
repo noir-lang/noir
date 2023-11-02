@@ -25,6 +25,9 @@
       "path": "../noir-compiler"
     },
     {
+      "path": "../noir-protocol-circuits"
+    },
+    {
       "path": "../types"
     }
   ],

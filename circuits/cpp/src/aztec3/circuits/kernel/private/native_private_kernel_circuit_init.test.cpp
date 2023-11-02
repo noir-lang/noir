@@ -250,21 +250,22 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_call_stack_item_has
               CircuitErrorCode::PRIVATE_KERNEL__PRIVATE_CALL_STACK_ITEM_HASH_MISMATCH);
 }
 
-TEST_F(native_private_kernel_init_tests, contract_deployment_incorrect_constructor_vk_hash_fails)
-{
-    auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, standard_test_args());
+// TODO(#3062) VKs are mocked out for now
+// TEST_F(native_private_kernel_init_tests, contract_deployment_incorrect_constructor_vk_hash_fails)
+// {
+//     auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, standard_test_args());
 
-    // Pollute the constructor vk hash in the tx_request.
-    private_inputs.tx_request.tx_context.contract_deployment_data.constructor_vk_hash = NT::fr::random_element();
+//     // Pollute the constructor vk hash in the tx_request.
+//     private_inputs.tx_request.tx_context.contract_deployment_data.constructor_vk_hash = NT::fr::random_element();
 
-    DummyBuilder builder =
-        DummyBuilder("private_kernel_tests__contract_deployment_incorrect_constructor_vk_hash_fails");
-    native_private_kernel_circuit_initial(builder, private_inputs);
+//     DummyBuilder builder =
+//         DummyBuilder("private_kernel_tests__contract_deployment_incorrect_constructor_vk_hash_fails");
+//     native_private_kernel_circuit_initial(builder, private_inputs);
 
-    EXPECT_EQ(builder.failed(), true);
-    EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONSTRUCTOR_VK_HASH);
-    EXPECT_EQ(builder.get_first_failure().message, "constructor_vk_hash doesn't match private_call_vk_hash");
-}
+//     EXPECT_EQ(builder.failed(), true);
+//     EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONSTRUCTOR_VK_HASH);
+//     EXPECT_EQ(builder.get_first_failure().message, "constructor_vk_hash doesn't match private_call_vk_hash");
+// }
 
 TEST_F(native_private_kernel_init_tests, contract_deployment_incorrect_contract_address_fails)
 {

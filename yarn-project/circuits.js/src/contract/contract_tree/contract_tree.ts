@@ -73,7 +73,9 @@ export function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: C
     const isInternal = f.isInternal;
     const isPrivate = f.functionType === FunctionType.SECRET;
     // All non-unconstrained functions have vks
-    const vkHash = hashVKStr(f.verificationKey!, wasm);
+    // TODO we'd need to have a defined length of the VK for this to be computed in noir
+    // const vkHash = hashVKStr(f.verificationKey!, wasm);
+    const vkHash = Buffer.alloc(32, 0);
     // TODO
     // FIXME: https://github.com/AztecProtocol/aztec3-packages/issues/262
     // const acirHash = keccak(Buffer.from(f.bytecode, 'hex'));

@@ -648,7 +648,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/noir-protocol-circuits@workspace:noir-protocol-circuits":
+"@aztec/noir-protocol-circuits@workspace:^, @aztec/noir-protocol-circuits@workspace:noir-protocol-circuits":
   version: 0.0.0-use.local
   resolution: "@aztec/noir-protocol-circuits@workspace:noir-protocol-circuits"
   dependencies:
@@ -757,6 +757,7 @@ __metadata:
     "@aztec/foundation": "workspace:^"
     "@aztec/key-store": "workspace:^"
     "@aztec/noir-compiler": "workspace:^"
+    "@aztec/noir-protocol-circuits": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@rushstack/eslint-patch": ^1.1.4
