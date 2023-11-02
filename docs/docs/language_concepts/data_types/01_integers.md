@@ -43,7 +43,7 @@ The bit count of the integer determines the maximum and minimum integers the typ
 Computations that exceed the type boundaries will result in overflow errors. This happens with both signed and unsigned integers. For example, attempting to prove:
 
 ```rust
-fn main(x : u8, y : u8) {
+fn main(x: u8, y: u8) {
     let z = x + y;
 }
 ```
