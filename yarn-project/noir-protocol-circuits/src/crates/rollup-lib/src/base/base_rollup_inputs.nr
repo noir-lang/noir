@@ -12,25 +12,9 @@ use dep::aztec::constants_gen::{
     PUBLIC_DATA_TREE_HEIGHT,
     KERNELS_PER_BASE_ROLLUP,
 };
-
-// Reexport bug (3384)
-// use dep::private_kernel_lib::abis::previous_kernel_data::PreviousKernelData;
-// Note: I have not implemented the fields for this, it would be a mess to do so.
-struct PreviousKernelData;
-
-// Reexport bug (3384)
-// use dep::private_kernel_lib::abis::membership_witness::NullifierMembershipWitness;
-struct NullifierMembershipWitness{
-    leaf_index : Field,
-    sibling_path : [Field; MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP]
-}
-
-// Reexport bug (3384)
-// use dep::private_kernel_lib::abis::membership_witness::HistoricBlocksTreeRootMembershipWitness;
-struct HistoricBlocksTreeRootMembershipWitness{
-    leaf_index : Field,
-    sibling_path : [Field; KERNELS_PER_BASE_ROLLUP]
-}
+use dep::types::abis::previous_kernel_data::PreviousKernelData;
+use dep::types::abis::membership_witness::NullifierMembershipWitness;
+use dep::types::abis::membership_witness::HistoricBlocksTreeRootMembershipWitness;
 
 struct BaseRollupInputs {
     kernel_data: [PreviousKernelData; KERNELS_PER_BASE_ROLLUP],

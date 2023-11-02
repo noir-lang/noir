@@ -1,14 +1,14 @@
 use dep::aztec::constants_gen::{MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX};
 use crate::common;
-use crate::mocked::{Proof, AggregationObject, verify_previous_kernel_state};
-use crate::transaction::request::TxRequest;
-use crate::abis::{
+use dep::types::mocked::{Proof, AggregationObject, verify_previous_kernel_state};
+use dep::types::transaction::request::TxRequest;
+use dep::types::abis::{
     previous_kernel_data::PreviousKernelData,
     private_kernel::private_call_data::PrivateCallData,
     new_contract_data::NewContractData,
     kernel_circuit_public_inputs::{KernelCircuitPublicInputs, KernelCircuitPublicInputsBuilder}
 };
-use crate::utils::{
+use dep::types::utils::{
     arrays,
     bounded_vec::BoundedVec,
 };
@@ -95,11 +95,11 @@ impl PrivateKernelInputsInner {
 
 mod tests {
     use crate::private_kernel_inner::PrivateKernelInputsInner;
-    use crate::abis::{
+    use dep::types::abis::{
         private_circuit_public_inputs::PrivateCircuitPublicInputs,
         read_request_membership_witness::ReadRequestMembershipWitness,
     };
-    use crate::tests::{
+    use dep::types::tests::{
         testing_harness::{
             create_previous_kernel_data,
             create_private_call_data,
@@ -112,8 +112,8 @@ mod tests {
             deposit::deposit_app,
         },
     };
-    use crate::address::Address;
-    use crate::hash::compute_logs_hash;
+    use dep::types::address::Address;
+    use dep::types::hash::compute_logs_hash;
     use dep::aztec::constants_gen::{
         MAX_READ_REQUESTS_PER_CALL,
         MAX_READ_REQUESTS_PER_TX,

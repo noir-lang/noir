@@ -6,3 +6,4 @@ compiler_version = ">=0.18.0"
 
 [dependencies]
 rollup_lib = { path = "../rollup-lib" }
+types = { path = "../types" }

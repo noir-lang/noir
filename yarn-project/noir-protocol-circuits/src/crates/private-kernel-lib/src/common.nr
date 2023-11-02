@@ -1,18 +1,18 @@
-use crate::abis::private_circuit_public_inputs::PrivateCircuitPublicInputs;
-use crate::abis::kernel_circuit_public_inputs::KernelCircuitPublicInputsBuilder;
-use crate::utils::arrays;
-use crate::abis::previous_kernel_data::PreviousKernelData;
-use crate::abis::private_kernel::private_call_data::PrivateCallData;
-use crate::abis::combined_accumulated_data::{CombinedAccumulatedData, CombinedAccumulatedDataBuilder};
-use crate::abis::private_kernel::private_call_data::ReadRequestMembershipWitnessPrivateData;
-use crate::hash::{read_request_root_from_siblings, function_tree_root_from_siblings, contract_tree_root_from_siblings, silo_commitment, silo_nullifier,stdlib_recursion_verification_key_compress_native_vk, compute_new_contract_address_hash, compute_l2_to_l1_hash,compute_constructor_hash, compute_logs_hash};
-use crate::address::{EthAddress, Address};
-use crate::abis::function_data::FunctionData;
-use crate::contrakt::deployment_data::ContractDeploymentData;
-use crate::point::Point;
-use crate::abis::new_contract_data::NewContractData;
-use crate::abis::complete_address::CompleteAddress;
-use crate::utils::bounded_vec::BoundedVec;
+use dep::types::abis::private_circuit_public_inputs::PrivateCircuitPublicInputs;
+use dep::types::abis::kernel_circuit_public_inputs::KernelCircuitPublicInputsBuilder;
+use dep::types::utils::arrays;
+use dep::types::abis::previous_kernel_data::PreviousKernelData;
+use dep::types::abis::private_kernel::private_call_data::PrivateCallData;
+use dep::types::abis::combined_accumulated_data::{CombinedAccumulatedData, CombinedAccumulatedDataBuilder};
+use dep::types::abis::private_kernel::private_call_data::ReadRequestMembershipWitnessPrivateData;
+use dep::types::hash::{read_request_root_from_siblings, function_tree_root_from_siblings, contract_tree_root_from_siblings, silo_commitment, silo_nullifier,stdlib_recursion_verification_key_compress_native_vk, compute_new_contract_address_hash, compute_l2_to_l1_hash,compute_constructor_hash, compute_logs_hash};
+use dep::types::address::{EthAddress, Address};
+use dep::types::abis::function_data::FunctionData;
+use dep::types::contrakt::deployment_data::ContractDeploymentData;
+use dep::types::point::Point;
+use dep::types::abis::new_contract_data::NewContractData;
+use dep::types::abis::complete_address::CompleteAddress;
+use dep::types::utils::bounded_vec::BoundedVec;
 
 use dep::aztec::constants_gen::{
     MAX_READ_REQUESTS_PER_CALL,

@@ -1,13 +1,13 @@
 use dep::aztec::constants_gen;
 use crate::common;
-use crate::mocked::{Proof, AggregationObject,verify_previous_kernel_state};
-use crate::transaction::request::TxRequest;
-use crate::abis::{
+use dep::types::mocked::{Proof, AggregationObject,verify_previous_kernel_state};
+use dep::types::transaction::request::TxRequest;
+use dep::types::abis::{
     combined_constant_data::CombinedConstantData,
     private_kernel::private_call_data::PrivateCallData,
     kernel_circuit_public_inputs::{KernelCircuitPublicInputs, KernelCircuitPublicInputsBuilder}
 };
-use crate::utils::arrays;
+use dep::types::utils::arrays;
 use dep::std::unsafe;
 
 // Initialization struct for private inputs to the private kernel
@@ -152,12 +152,12 @@ impl PrivateKernelInputsInit {
 
 mod tests {
     use crate::private_kernel_init::PrivateKernelInputsInit;
-    use crate::abis::{
+    use dep::types::abis::{
         kernel_circuit_public_inputs::{KernelCircuitPublicInputs, KernelCircuitPublicInputsBuilder},
         private_circuit_public_inputs::PrivateCircuitPublicInputs,
         read_request_membership_witness::ReadRequestMembershipWitness,
     };
-    use crate::tests::{
+    use dep::types::tests::{
         testing_harness::{
             create_private_call_data,
             generate_read_requests,
@@ -176,9 +176,9 @@ mod tests {
             ConstructorParams,
         }
     };
-    use crate::address::Address;
-    use crate::hash::{accumulate_sha256};
-    use crate::utils::uint128::U128;
+    use dep::types::address::Address;
+    use dep::types::hash::{accumulate_sha256};
+    use dep::types::utils::uint128::U128;
     use dep::aztec::constants_gen::{
         MAX_READ_REQUESTS_PER_CALL,
         MAX_NEW_COMMITMENTS_PER_CALL,

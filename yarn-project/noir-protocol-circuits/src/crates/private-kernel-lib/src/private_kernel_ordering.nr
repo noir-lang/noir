@@ -6,9 +6,9 @@ use dep::aztec::constants_gen::{
     MAX_READ_REQUESTS_PER_TX,
 };
 use crate::common;
-use crate::mocked::{Proof, AggregationObject, verify_previous_kernel_state};
-use crate::transaction::request::TxRequest;
-use crate::abis::{
+use dep::types::mocked::{Proof, AggregationObject, verify_previous_kernel_state};
+use dep::types::transaction::request::TxRequest;
+use dep::types::abis::{
     combined_constant_data::CombinedConstantData,
     previous_kernel_data::PreviousKernelData,
     private_kernel::private_call_data::PrivateCallData,
@@ -18,11 +18,11 @@ use crate::abis::{
         KernelCircuitPublicInputsFinal,
     },
 };
-use crate::utils::{
+use dep::types::utils::{
     arrays,
     bounded_vec::BoundedVec,
 };
-use crate::hash::{
+use dep::types::hash::{
     compute_commitment_nonce,
     compute_unique_commitment,
 };
@@ -156,17 +156,17 @@ impl PrivateKernelInputsOrdering {
 }
 
 mod tests {
-    use crate::abis::{
+    use dep::types::abis::{
         private_circuit_public_inputs::PrivateCircuitPublicInputs,
         read_request_membership_witness::ReadRequestMembershipWitness,
     };
-    use crate::address::Address;
-    use crate::hash::{
+    use dep::types::address::Address;
+    use dep::types::hash::{
         compute_commitment_nonce,
         compute_unique_commitment,
     };
     use crate::private_kernel_ordering::PrivateKernelInputsOrdering;
-    use crate::tests::{
+    use dep::types::tests::{
         apps::constructor::constructor_app,
         testing_harness::{
             create_previous_kernel_data,
@@ -183,7 +183,7 @@ mod tests {
         MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
         MAX_NEW_L2_TO_L1_MSGS_PER_TX,
     };
-    use crate::utils::{
+    use dep::types::utils::{
         bounded_vec::BoundedVec,
     };
 

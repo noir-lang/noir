@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/types",
     "crates/private-kernel-lib",
     "crates/private-kernel-init",
     "crates/private-kernel-init-simulated",

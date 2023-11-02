@@ -5,10 +5,7 @@ use crate::abis::global_variables::GlobalVariables;
 use dep::aztec::constants_gen::{
     NUM_FIELDS_PER_SHA256
 };
-
-// Re-export bug 3384
-// use dep::private_kernel_lib::mocked::AggregationObject;
-struct AggregationObject;
+use dep::types::mocked::AggregationObject;
 
 
 struct RootRollupPublicInputs {
