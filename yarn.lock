@@ -3466,6 +3466,8 @@ __metadata:
     ts-command-line-args: ^2.5.1
     ts-node: ^10.9.1
     typescript: ^5.2.2
+  bin:
+    noir-codegen: lib/main.js
   languageName: unknown
   linkType: soft
 

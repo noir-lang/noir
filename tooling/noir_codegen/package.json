@@ -20,6 +20,9 @@
   "source": "src/index.ts",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
+  "bin": {
+    "noir-codegen": "lib/main.js"
+  },
   "scripts": {
     "dev": "tsc-multi --watch",
     "build": "tsc",
