@@ -1085,10 +1085,13 @@ impl Type {
     }
 
     /// Replace each NamedGeneric (and TypeVariable) in this type with a fresh type variable
-    pub(crate) fn instantiate_named_generics(&self, interner: &NodeInterner) -> Type {
+    pub(crate) fn instantiate_named_generics(
+        &self,
+        interner: &NodeInterner,
+    ) -> (Type, TypeBindings) {
         let mut substitutions = HashMap::new();
         self.find_all_unbound_type_variables(interner, &mut substitutions);
-        self.substitute(&substitutions)
+        (self.substitute(&substitutions), substitutions)
     }
 
     /// For each unbound type variable in the current type, add a type binding to the given list

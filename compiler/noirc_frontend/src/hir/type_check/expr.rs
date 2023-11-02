@@ -8,11 +8,10 @@ use crate::{
             self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral, HirMethodCallExpression,
             HirMethodReference, HirPrefixExpression,
         },
-        traits::TraitConstraint,
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
-    BinaryOpKind, Signedness, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
+    BinaryOpKind, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -194,10 +193,22 @@ impl<'interner> TypeChecker<'interner> {
                                 let bindings =
                                     self.interner.get_instantiation_bindings(function_id);
 
-                                self.validate_where_clause(
+                                let result = self.interner.validate_where_clause(
                                     &trait_impl.borrow().where_clause,
                                     bindings,
                                 );
+
+                                if let Err(erroring_constraints) = result {
+                                    let constraints = vecmap(erroring_constraints, |constraint| {
+                                        let r#trait = self.interner.get_trait(constraint.trait_id);
+                                        (constraint.typ, r#trait.name.to_string())
+                                    });
+
+                                    self.errors.push(TypeCheckError::NoMatchingImplFound {
+                                        constraints,
+                                        span,
+                                    });
+                                }
                             }
                         }
 
@@ -1149,27 +1160,6 @@ impl<'interner> TypeChecker<'interner> {
                 let element_type = self.interner.next_type_variable();
                 unify(Type::MutableReference(Box::new(element_type.clone())));
                 element_type
-            }
-        }
-    }
-
-    /// Verifies that each constraint in the given where clause is valid and
-    /// issues an error if not.
-    fn validate_where_clause(
-        &self,
-        where_clause: &[TraitConstraint],
-        type_bindings: &TypeBindings,
-    ) {
-        for constraint in where_clause {
-            let constraint_type = constraint.typ.substitute(type_bindings);
-
-            let trait_impl =
-                self.interner.lookup_trait_implementation(&constraint_type, constraint.trait_id);
-
-            if trait_impl.is_none() {
-                println!("Error! No impl for {}: {:?}", constraint_type, constraint.trait_id);
-            } else {
-                println!("Found an impl for {}: {:?}", constraint_type, constraint.trait_id);
             }
         }
     }

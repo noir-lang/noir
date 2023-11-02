@@ -82,6 +82,12 @@ pub struct TraitConstraint {
     // pub trait_generics: Generics, TODO
 }
 
+impl TraitConstraint {
+    pub fn new(typ: Type, trait_id: TraitId) -> Self {
+        Self { typ, trait_id }
+    }
+}
+
 impl std::hash::Hash for Trait {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);

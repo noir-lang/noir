@@ -65,7 +65,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         let (expr_span, empty_function) = function_info(interner, function_body_id);
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         if let Type::TraitAsType(t) = &declared_return_type {
-            if interner.lookup_trait_implementation(&function_last_type, t.id).is_none() {
+            if interner.lookup_trait_implementation(&function_last_type, t.id).is_err() {
                 let error = TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: function_last_type,

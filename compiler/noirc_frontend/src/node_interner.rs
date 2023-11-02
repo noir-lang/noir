@@ -11,8 +11,8 @@ use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, Unr
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
-use crate::hir_def::traits::Trait;
 use crate::hir_def::traits::TraitImpl;
+use crate::hir_def::traits::{Trait, TraitConstraint};
 use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
@@ -947,21 +947,54 @@ impl NodeInterner {
     }
 
     /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
-    /// constraint.
+    /// constraint. If an impl cannot be found, this will return a vector of each constraint
+    /// in the path to get to the failing constraint. Usually this is just the single failing
+    /// constraint, but when where clauses are involved, the failing constraint may be several
+    /// constraints deep. In this case, all of the constraints are returned, starting with the
+    /// failing one.
     pub fn lookup_trait_implementation(
         &self,
         object_type: &Type,
         trait_id: TraitId,
-    ) -> Option<Shared<TraitImpl>> {
-        let impls = self.trait_implementation_map.get(&trait_id)?;
+    ) -> Result<Shared<TraitImpl>, Vec<TraitConstraint>> {
+        let make_constraint = || TraitConstraint::new(object_type.clone(), trait_id);
+
+        let impls =
+            self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
+
         for (existing_object_type, impl_id) in impls {
-            let existing_object_type = existing_object_type.instantiate_named_generics(self);
+            let (existing_object_type, type_bindings) =
+                existing_object_type.instantiate_named_generics(self);
 
             if object_type.try_unify(&existing_object_type).is_ok() {
-                return Some(self.get_trait_implementation(*impl_id));
+                let trait_impl = self.get_trait_implementation(*impl_id);
+
+                if let Err(mut errors) =
+                    self.validate_where_clause(&trait_impl.borrow().where_clause, &type_bindings)
+                {
+                    errors.push(make_constraint());
+                    return Err(errors);
+                }
+
+                return Ok(trait_impl);
             }
         }
-        None
+
+        Err(vec![make_constraint()])
+    }
+
+    /// Verifies that each constraint in the given where clause is valid.
+    /// If an impl cannot be found for any constraint, the erroring constraint is returned.
+    pub fn validate_where_clause(
+        &self,
+        where_clause: &[TraitConstraint],
+        type_bindings: &TypeBindings,
+    ) -> Result<(), Vec<TraitConstraint>> {
+        for constraint in where_clause {
+            let constraint_type = constraint.typ.substitute(type_bindings);
+            self.lookup_trait_implementation(&constraint_type, constraint.trait_id)?;
+        }
+        Ok(())
     }
 
     pub fn add_trait_implementation(
@@ -975,8 +1008,8 @@ impl NodeInterner {
 
         self.trait_implementations.push(trait_impl.clone());
 
-        let instantiated_object_type = object_type.instantiate_named_generics(self);
-        if let Some(existing_impl) =
+        let (instantiated_object_type, _) = object_type.instantiate_named_generics(self);
+        if let Ok(existing_impl) =
             self.lookup_trait_implementation(&instantiated_object_type, trait_id)
         {
             let existing_impl = existing_impl.borrow();
