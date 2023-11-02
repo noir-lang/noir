@@ -28,6 +28,7 @@ TESTS=(
   join_split_example_proofs_inner_proof_data_tests
   join_split_example_proofs_notes_tests
   srs_tests
+  sumcheck_tests
   transcript_tests
   dsl_tests
 )

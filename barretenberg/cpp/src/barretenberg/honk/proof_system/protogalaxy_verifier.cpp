@@ -1,5 +1,5 @@
 #include "protogalaxy_verifier.hpp"
-#include "barretenberg/honk/utils/grand_product_delta.hpp"
+#include "barretenberg/proof_system/library/grand_product_delta.hpp"
 namespace proof_system::honk {
 template <class VerifierInstances>
 VerifierFoldingResult<typename VerifierInstances::Flavor> ProtoGalaxyVerifier_<

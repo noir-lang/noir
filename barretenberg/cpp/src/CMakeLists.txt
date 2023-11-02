@@ -68,6 +68,7 @@ add_subdirectory(barretenberg/serialize)
 add_subdirectory(barretenberg/solidity_helpers)
 add_subdirectory(barretenberg/srs)
 add_subdirectory(barretenberg/stdlib)
+add_subdirectory(barretenberg/sumcheck)
 add_subdirectory(barretenberg/transcript)
 add_subdirectory(barretenberg/wasi)
 

@@ -1,8 +1,9 @@
 #pragma once
 #include "barretenberg/common/constexpr_utils.hpp"
-#include "barretenberg/honk/sumcheck/sumcheck.hpp"
+#include "barretenberg/common/thread.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 #include <typeinfo>
 
 namespace proof_system::honk::grand_product_library {

@@ -1,5 +1,5 @@
 #pragma once
-#include "barretenberg/honk/sumcheck/sumcheck.hpp"
+#include "barretenberg/sumcheck/sumcheck.hpp"
 #include <typeinfo>
 
 namespace proof_system::honk::lookup_library {

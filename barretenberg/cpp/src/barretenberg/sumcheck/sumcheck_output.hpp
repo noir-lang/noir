@@ -3,6 +3,7 @@
 #include <array>
 #include <optional>
 #include <vector>
+
 namespace proof_system::honk::sumcheck {
 
 /**

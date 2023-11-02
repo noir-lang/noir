@@ -1,8 +1,8 @@
 #pragma once
 #include "barretenberg/flavor/goblin_ultra.hpp"
 #include "barretenberg/flavor/ultra.hpp"
-#include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
+#include "barretenberg/sumcheck/sumcheck.hpp"
 
 namespace proof_system::honk {
 template <typename Flavor> class UltraVerifier_ {

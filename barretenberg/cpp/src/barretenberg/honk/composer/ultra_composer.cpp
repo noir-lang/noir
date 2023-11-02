@@ -1,8 +1,8 @@
 #include "barretenberg/honk/composer/ultra_composer.hpp"
-#include "barretenberg/honk/proof_system/grand_product_library.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
 #include "barretenberg/proof_system/composer/permutation_lib.hpp"
+#include "barretenberg/proof_system/library/grand_product_library.hpp"
 
 namespace proof_system::honk {
 

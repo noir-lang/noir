@@ -1,5 +1,6 @@
 #include "barretenberg/flavor/ultra.hpp"
-#include "barretenberg/honk/sumcheck/sumcheck.hpp"
+#include "barretenberg/sumcheck/sumcheck.hpp"
+
 #include <gtest/gtest.h>
 
 using namespace proof_system::honk::sumcheck;

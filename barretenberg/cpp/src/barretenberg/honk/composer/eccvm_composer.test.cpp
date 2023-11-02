@@ -4,13 +4,13 @@
 #include <vector>
 
 #include "barretenberg/honk/composer/eccvm_composer.hpp"
-#include "barretenberg/honk/sumcheck/sumcheck_round.hpp"
-#include "barretenberg/honk/utils/grand_product_delta.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/proof_system/circuit_builder/eccvm/eccvm_circuit_builder.hpp"
+#include "barretenberg/proof_system/library/grand_product_delta.hpp"
 #include "barretenberg/proof_system/relations/permutation_relation.hpp"
 #include "barretenberg/proof_system/relations/relation_parameters.hpp"
+#include "barretenberg/sumcheck/sumcheck_round.hpp"
 
 using namespace proof_system::honk;
 

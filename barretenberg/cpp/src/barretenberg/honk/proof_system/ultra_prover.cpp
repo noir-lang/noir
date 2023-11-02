@@ -1,6 +1,6 @@
 #include "ultra_prover.hpp"
-#include "barretenberg/honk/sumcheck/sumcheck.hpp"
-#include "barretenberg/honk/utils/power_polynomial.hpp"
+#include "barretenberg/honk/proof_system/power_polynomial.hpp"
+#include "barretenberg/sumcheck/sumcheck.hpp"
 
 namespace proof_system::honk {
 

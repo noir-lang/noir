@@ -1,6 +1,7 @@
 #pragma once
-#include "barretenberg/honk/instance/prover_instance.hpp"
-#include "barretenberg/honk/instance/verifier_instance.hpp"
+#include "barretenberg/sumcheck/instance/prover_instance.hpp"
+#include "barretenberg/sumcheck/instance/verifier_instance.hpp"
+
 namespace proof_system::honk {
 
 template <typename Flavor_, size_t NUM_> struct ProverInstances_ {

@@ -1,11 +1,3 @@
-// Note these tests are a bit hacky
-
-// #include "instances.hpp"
-// #include "barretenberg/ecc/curves/bn254/bn254.hpp"
-// #include "barretenberg/honk/proof_system/grand_product_library.hpp"
-// #include "barretenberg/polynomials/polynomial.hpp"
-// #include "barretenberg/srs/factories/file_crs_factory.hpp"
-// #include <gtest/gtest.h>
 #include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "protogalaxy_prover.hpp"
 #include <gtest/gtest.h>

@@ -1,0 +1,1 @@
+barretenberg_module(sumcheck flavor srs transcript)
