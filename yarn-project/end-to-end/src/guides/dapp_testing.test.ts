@@ -10,7 +10,6 @@ import {
   createAccount,
   createPXEClient,
   getSandboxAccountsWallets,
-  toBigIntBE,
   waitForSandbox,
 } from '@aztec/aztec.js';
 import { TestContract, TokenContract } from '@aztec/noir-contracts/types';
