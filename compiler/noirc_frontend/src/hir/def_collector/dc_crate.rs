@@ -1174,6 +1174,7 @@ fn resolve_free_functions(
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn resolve_function_set(
     interner: &mut NodeInterner,
     crate_id: CrateId,
