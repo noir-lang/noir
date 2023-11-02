@@ -10,7 +10,7 @@ An integer type is a range constrained field type. The Noir frontend supports ar
 
 ## Unsigned Integers
 
-An unsigned integer type is specified first with the letter `u` (indicating its unsigned nature) followed by its length in bits (e.g. `8`):
+An unsigned integer type is specified first with the letter `u` (indicating its unsigned nature) followed by its bit size (e.g. `8`):
 
 ```rust
 fn main() {
@@ -21,11 +21,11 @@ fn main() {
 }
 ```
 
-The length in bits determines the boundaries the integer type can store. For example, a `u8` variable can store a value in the range of 0 to 255 (i.e. $\\2^{8}-1\\$).
+The bit size determines the maximum value the integer type can store. For example, a `u8` variable can store a value in the range of 0 to 255 (i.e. $\\2^{8}-1\\$).
 
 ## Signed Integers
 
-A signed integer type is specified first with the letter `i` (which stands for integer) followed by its length in bits (e.g. `8`):
+A signed integer type is specified first with the letter `i` (which stands for integer) followed by its bit size (e.g. `8`):
 
 ```rust
 fn main() {
@@ -36,7 +36,7 @@ fn main() {
 }
 ```
 
-The bit count of the integer determines the maximum and minimum integers the type can store. For example, an `i8` variable can store a value in the range of -128 to 127 (i.e. $\\-2^{7}\\$ to $\\2^{7}-1\\$).
+The bit size determines the maximum and minimum range of value the integer type can store. For example, an `i8` variable can store a value in the range of -128 to 127 (i.e. $\\-2^{7}\\$ to $\\2^{7}-1\\$).
 
 ## Overflows
 
