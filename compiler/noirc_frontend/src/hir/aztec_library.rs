@@ -573,7 +573,9 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
                     // `hasher.add_multiple({ident}.serialize())`
                     UnresolvedTypeData::Named(..) => add_struct_to_hasher(identifier),
                     // TODO: if this is an array of structs, we should call serialize on each of them (no methods currently do this yet)
-                    UnresolvedTypeData::Array(..) => add_array_to_hasher(identifier),
+                    UnresolvedTypeData::Array(_, arr_type) => {
+                        add_array_to_hasher(identifier, &arr_type)
+                    }
                     // `hasher.add({ident})`
                     UnresolvedTypeData::FieldElement => add_field_to_hasher(identifier),
                     // Add the integer to the hasher, casted to a field
@@ -900,20 +902,39 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     }))
 }
 
-fn add_array_to_hasher(identifier: &Ident) -> Statement {
+fn add_array_to_hasher(identifier: &Ident, arr_type: &UnresolvedType) -> Statement {
     // If this is an array of primitive types (integers / fields) we can add them each to the hasher
     // casted to a field
 
     // Wrap in the semi thing - does that mean ended with semi colon?
     // `hasher.add({ident}[i] as Field)`
-    let cast_expression = cast(
-        index_array(identifier.clone(), "i"), // lhs - `ident[i]`
-        UnresolvedTypeData::FieldElement,     // cast to - `as Field`
-    );
+
+    let arr_index = index_array(identifier.clone(), "i");
+    let (add_expression, hasher_method_name) = match arr_type.typ {
+        UnresolvedTypeData::Named(..) => {
+            let hasher_method_name = "add_multiple".to_owned();
+            let call = method_call(
+                // All serialise on each element
+                arr_index,   // variable
+                "serialize", // method name
+                vec![],      // args
+            );
+            (call, hasher_method_name)
+        }
+        _ => {
+            let hasher_method_name = "add".to_owned();
+            let call = cast(
+                arr_index,                        // lhs - `ident[i]`
+                UnresolvedTypeData::FieldElement, // cast to - `as Field`
+            );
+            (call, hasher_method_name)
+        }
+    };
+
     let block_statement = make_statement(StatementKind::Semi(method_call(
-        variable("hasher"), // variable
-        "add",              // method name
-        vec![cast_expression],
+        variable("hasher"),  // variable
+        &hasher_method_name, // method name
+        vec![add_expression],
     )));
 
     create_loop_over(variable_ident(identifier.clone()), vec![block_statement])
