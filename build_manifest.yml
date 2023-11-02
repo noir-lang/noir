@@ -91,6 +91,7 @@ noir-contracts-build:
   projectDir: yarn-project/noir-contracts
   rebuildPatterns:
     - ^yarn-project/noir-contracts/
+    - ^yarn-project/noir-compiler/src/noir-version.json
     - ^yarn-project/aztec-nr/
 
 yarn-project-base:
