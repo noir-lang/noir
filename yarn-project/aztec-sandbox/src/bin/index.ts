@@ -45,7 +45,7 @@ async function createAndInitialiseSandbox() {
 }
 
 /**
- * Create and start a new Aztec RCP HTTP Server
+ * Create and start a new Aztec RPC HTTP Server
  */
 async function main() {
   const logPath = setupFileDebugLog();
