@@ -4,7 +4,7 @@ use noirc_errors::{debug_info::DebugInfo, Location};
 use noirc_evaluator::errors::SsaReport;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap,BTreeSet},
     ops::Range,
 };
 
@@ -24,7 +24,7 @@ impl DebugArtifact {
     pub fn new(debug_symbols: Vec<DebugInfo>, file_manager: &FileManager) -> Self {
         let mut file_map = BTreeMap::new();
 
-        let file_ids: Vec<FileId> = debug_symbols
+        let file_ids: BTreeSet<FileId> = debug_symbols
             .iter()
             .flat_map(|debug_info| debug_info.get_file_ids())
             .collect();
