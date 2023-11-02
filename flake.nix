@@ -5,7 +5,7 @@
   # use so they use the `inputs.*.follows` syntax to reference our inputs
   inputs = {
     nixpkgs = {
-      url = "github:NixOS/nixpkgs/nixos-22.11";
+      url = "github:NixOS/nixpkgs/nixos-23.05";
     };
 
     flake-utils = {
