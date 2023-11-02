@@ -86,18 +86,16 @@ fn main() {
 Although integer overflow is expected to error, some use-cases rely on wrapping. For these use-cases, the standard library provides `wrapping` variants of certain common operations:
 
 ````rust
-wrapping_add<T>(x : T, y: T) -> T
-fn wrapping_add<T>(x : T, y: T) -> T;
-fn wrapping_sub<T>(x : T, y: T) -> T;
-fn wrapping_mul<T>(x : T, y: T) -> T;
+fn wrapping_add<T>(x: T, y: T) -> T;
+fn wrapping_sub<T>(x: T, y: T) -> T;
+fn wrapping_mul<T>(x: T, y: T) -> T;
 
 example usage:
 
 ```rust
 use dep::std;
 
-fn main(x : u8, y : u8) {
-fn main(x : u8, y : u8) -> pub u8 {
+fn main(x: u8, y: u8) -> pub u8 {
     std::wrapping_add(x + y)
 }
 ````
