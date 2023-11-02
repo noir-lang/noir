@@ -3450,6 +3450,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_codegen@workspace:tooling/noir_codegen"
   dependencies:
+    "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/types": "workspace:*"
     "@types/chai": ^4
     "@types/lodash": ^4
