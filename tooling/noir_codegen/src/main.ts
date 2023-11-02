@@ -1,3 +1,5 @@
+#! /usr/bin/env node
+
 import { CompiledCircuit } from '@noir-lang/types';
 import fs from 'fs';
 import path from 'path';
