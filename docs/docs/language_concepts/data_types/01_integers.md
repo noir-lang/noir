@@ -10,7 +10,7 @@ An integer type is a range constrained field type. The Noir frontend supports ar
 
 ## Unsigned Integers
 
-An unsigned integer type is specified first with the letter `u`, indicating its unsigned nature, followed by its length in bits (e.g. `8`):
+An unsigned integer type is specified first with the letter `u` (indicating its unsigned nature) followed by its length in bits (e.g. `8`):
 
 ```rust
 fn main() {
@@ -25,22 +25,22 @@ The length in bits determines the boundaries the integer type can store. For exa
 
 ## Signed Integers
 
-A signed integer type is specified first with the letter `i`, stands for integer, followed by its length in bits (e.g. `8`):
+A signed integer type is specified first with the letter `i` (which stands for integer) followed by its length in bits (e.g. `8`):
 
 ```rust
 fn main() {
-    let x : i8 = -1;
-    let y : i8 = -1;
+    let x: i8 = -1;
+    let y: i8 = -1;
     let z = x + y;
     assert (z == -2);
 }
 ```
 
-The length in bits determines the boundaries the integer type can store. For example, a `i8` variable can store a value in the range of -128 to 127 (i.e. $\\-2^{7}\\$ to $\\2^{7}-1\\$).
+The bit count of the integer determines the maximum and minimum integers the type can store. For example, an `i8` variable can store a value in the range of -128 to 127 (i.e. $\\-2^{7}\\$ to $\\2^{7}-1\\$).
 
 ## Overflows
 
-Computations that exceed the type boundaries would result in overflow errors. This happens with both signed and unsigned integers. For example, attempting to prove:
+Computations that exceed the type boundaries will result in overflow errors. This happens with both signed and unsigned integers. For example, attempting to prove:
 
 ```rust
 fn main(x : u8, y : u8) {
@@ -69,12 +69,12 @@ error: Assertion failed: 'attempt to add with overflow'
   ...
 ```
 
-A similar error would happen with unsigned integers, for example while trying to prove:
+A similar error would happen with signed integers, for example while trying to prove:
 
 ```rust
 fn main() {
-    let x : i8 = -118;
-    let y : i8 = -11;
+    let x: i8 = -118;
+    let y: i8 = -11;
     let z = x + y;
 }
 ```
@@ -83,15 +83,13 @@ fn main() {
 
 ### Wrapping methods
 
-Although integer overflow is expected to error, it is understood that some use-cases may actually want to rely on wrapping.
+Although integer overflow is expected to error, some use-cases rely on wrapping. For these use-cases, the standard library provides `wrapping` variants of certain common operations:
 
-For that, you can import and use these `wrapping` functions from the standard library, which are defined as:
-
-```rust
+````rust
 wrapping_add<T>(x : T, y: T) -> T
-wrapping_sub<T>(x : T, y: T) -> T
-wrapping_mul<T>(x : T, y: T) -> T
-```
+fn wrapping_add<T>(x : T, y: T) -> T;
+fn wrapping_sub<T>(x : T, y: T) -> T;
+fn wrapping_mul<T>(x : T, y: T) -> T;
 
 example usage:
 
@@ -99,6 +97,7 @@ example usage:
 use dep::std;
 
 fn main(x : u8, y : u8) {
-    let z = std::wrapping_add(x + y);
+fn main(x : u8, y : u8) -> pub u8 {
+    std::wrapping_add(x + y)
 }
-```
+````
