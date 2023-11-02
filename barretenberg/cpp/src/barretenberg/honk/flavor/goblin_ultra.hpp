@@ -1,5 +1,5 @@
 #pragma once
-#include "barretenberg/honk/pcs/kzg/kzg.hpp"
+#include "barretenberg/commitment_schemes/kzg/kzg.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"

@@ -1,6 +1,6 @@
 #include "eccvm_prover.hpp"
-#include "barretenberg/honk/pcs/claim.hpp"
-#include "barretenberg/honk/pcs/commitment_key.hpp"
+#include "barretenberg/commitment_schemes/claim.hpp"
+#include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/honk/proof_system/lookup_library.hpp"
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"

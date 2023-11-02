@@ -1,8 +1,8 @@
 #pragma once
+#include "barretenberg/commitment_schemes/claim.hpp"
+#include "barretenberg/commitment_schemes/verification_key.hpp"
 #include "barretenberg/common/assert.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
-#include "barretenberg/honk/pcs/claim.hpp"
-#include "barretenberg/honk/pcs/verification_key.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 #include <cstddef>
 #include <numeric>

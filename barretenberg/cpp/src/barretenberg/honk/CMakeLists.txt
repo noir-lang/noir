@@ -1,4 +1,4 @@
-barretenberg_module(honk numeric ecc srs proof_system transcript)
+barretenberg_module(honk numeric ecc srs proof_system transcript commitment_schemes)
 
 if(TESTING)
     # TODO: Re-enable all these warnings once PoC is finished

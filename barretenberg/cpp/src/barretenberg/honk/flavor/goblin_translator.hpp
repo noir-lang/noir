@@ -1,8 +1,8 @@
 #pragma once
 #include "../sumcheck/relation_definitions_fwd.hpp"
+#include "barretenberg/commitment_schemes/commitment_key.hpp"
+#include "barretenberg/commitment_schemes/kzg/kzg.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
-#include "barretenberg/honk/pcs/commitment_key.hpp"
-#include "barretenberg/honk/pcs/kzg/kzg.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_translator_circuit_builder.hpp"

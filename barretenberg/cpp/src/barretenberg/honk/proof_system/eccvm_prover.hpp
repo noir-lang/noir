@@ -1,7 +1,7 @@
 #pragma once
+#include "barretenberg/commitment_schemes/gemini/gemini.hpp"
+#include "barretenberg/commitment_schemes/shplonk/shplonk.hpp"
 #include "barretenberg/honk/flavor/ecc_vm.hpp"
-#include "barretenberg/honk/pcs/gemini/gemini.hpp"
-#include "barretenberg/honk/pcs/shplonk/shplonk.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/proof_system/relations/relation_parameters.hpp"

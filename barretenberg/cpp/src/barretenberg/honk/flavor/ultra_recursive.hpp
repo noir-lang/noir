@@ -1,7 +1,7 @@
 #pragma once
+#include "barretenberg/commitment_schemes/commitment_key.hpp"
+#include "barretenberg/commitment_schemes/kzg/kzg.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
-#include "barretenberg/honk/pcs/commitment_key.hpp"
-#include "barretenberg/honk/pcs/kzg/kzg.hpp"
 #include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 

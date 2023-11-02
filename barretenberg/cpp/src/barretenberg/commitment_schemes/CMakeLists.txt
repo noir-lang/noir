@@ -1,0 +1,1 @@
+barretenberg_module(commitment_schemes common transcript polynomials ecc numeric srs)

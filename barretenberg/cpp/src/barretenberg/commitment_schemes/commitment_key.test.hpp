@@ -1,8 +1,8 @@
 #pragma once
 
+#include "barretenberg/commitment_schemes/commitment_key.hpp"
+#include "barretenberg/commitment_schemes/verification_key.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
-#include "barretenberg/honk/pcs/commitment_key.hpp"
-#include "barretenberg/honk/pcs/verification_key.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "claim.hpp"

@@ -3,7 +3,7 @@
  * @brief Contains some functions that are shared between the various Plonk composers.
  */
 #include "composer_lib.hpp"
-#include "barretenberg/honk/pcs/commitment_key.hpp"
+#include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
 
 namespace proof_system::plonk {

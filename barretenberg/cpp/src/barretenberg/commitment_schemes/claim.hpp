@@ -1,6 +1,6 @@
 #pragma once
 
-#include "barretenberg/honk/pcs/commitment_key.hpp"
+#include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 
 namespace proof_system::honk::pcs {

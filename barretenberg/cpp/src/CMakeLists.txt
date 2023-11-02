@@ -49,6 +49,7 @@ else()
 endif()
 
 add_subdirectory(barretenberg/bb)
+add_subdirectory(barretenberg/commitment_schemes)
 add_subdirectory(barretenberg/common)
 add_subdirectory(barretenberg/crypto)
 add_subdirectory(barretenberg/dsl)

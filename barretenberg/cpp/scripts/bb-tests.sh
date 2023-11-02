@@ -11,6 +11,7 @@ IMAGE_URI=$(calculate_image_uri $REPOSITORY)
 retry docker pull $IMAGE_URI
 
 TESTS=(
+  commitment_schemes_tests
   crypto_aes128_tests
   crypto_blake2s_tests
   crypto_blake3s_tests
