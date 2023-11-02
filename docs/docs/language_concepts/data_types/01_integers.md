@@ -6,7 +6,13 @@ keywords: [noir, integer types, methods, examples, arithmetic]
 
 An integer type is a range constrained field type. The Noir frontend supports arbitrarily-sized, both unsigned and signed integer types.
 
-> **Note:** When an integer is defined in Noir without a specific type, it will default to `Field`. The one exception is for loop indices which default to `u64` since comparisons on `Field`s are not possible.
+:::info
+
+When an integer is defined in Noir without a specific type, it will default to `Field`.
+
+The one exception is for loop indices which default to `u64` since comparisons on `Field`s are not possible.
+
+:::
 
 ## Unsigned Integers
 
@@ -38,7 +44,11 @@ fn main() {
 
 The bit size determines the maximum and minimum range of value the integer type can store. For example, an `i8` variable can store a value in the range of -128 to 127 (i.e. $\\-2^{7}\\$ to $\\2^{7}-1\\$).
 
-> **Note:** If you are using the default proving backend with Noir, both even (e.g. _u2_, _i2_) and odd (e.g. _u3_, _i3_) arbitrarily-sized integer types up to 127 bits (i.e. _u127_ and _i127_) are supported.
+:::tip
+
+If you are using the default proving backend with Noir, both even (e.g. _u2_, _i2_) and odd (e.g. _u3_, _i3_) arbitrarily-sized integer types up to 127 bits (i.e. _u127_ and _i127_) are supported.
+
+:::
 
 ## Overflows
 
