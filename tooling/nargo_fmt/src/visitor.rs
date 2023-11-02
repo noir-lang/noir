@@ -72,13 +72,6 @@ impl<'me> FmtVisitor<'me> {
         self.buffer
     }
 
-    fn with_indent<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.indent.block_indent(self.config);
-        let ret = f(self);
-        self.indent.block_unindent(self.config);
-        ret
-    }
-
     fn at_start(&self) -> bool {
         self.buffer.is_empty()
     }
@@ -144,20 +137,12 @@ impl<'me> FmtVisitor<'me> {
             self.push_vertical_spaces(slice);
             process_last_slice(self, "", slice);
         } else {
-            if !self.at_start() {
-                if self.buffer.ends_with('{') {
-                    self.push_str("\n");
-                } else {
-                    self.push_vertical_spaces(slice);
-                }
-            }
-
             let (result, last_end) = self.format_comment_in_block(slice);
 
             if result.is_empty() {
                 process_last_slice(self, slice, slice);
             } else {
-                self.push_str(result.trim_end());
+                self.push_str(&result);
                 let subslice = &slice[last_end as usize..];
                 process_last_slice(self, subslice, subslice);
             }
@@ -168,14 +153,35 @@ impl<'me> FmtVisitor<'me> {
         let mut result = String::new();
         let mut last_end = 0;
 
-        for spanned in Lexer::new(slice).skip_comments(false).flatten() {
+        let mut comments = Lexer::new(slice).skip_comments(false).flatten();
+
+        if let Some(comment) = comments.next() {
+            let span = comment.to_span();
+            if let Token::LineComment(_, _) | Token::BlockComment(_, _) = comment.into_token() {
+                let starts_with_newline = slice.starts_with('\n');
+                let comment = &slice[span.start() as usize..span.end() as usize];
+                match (starts_with_newline, self.at_start()) {
+                    (false, false) => {
+                        result.push(' ');
+                    }
+                    (true, _) => {
+                        result.push_str(&self.indent.to_string_with_newline());
+                    }
+                    _ => {}
+                };
+                result.push_str(comment);
+            }
+        }
+
+        for spanned in comments {
             let span = spanned.to_span();
             last_end = span.end();
 
             if let Token::LineComment(_, _) | Token::BlockComment(_, _) = spanned.token() {
-                result.push_str(&self.indent.to_string());
-                result.push_str(&slice[span.start() as usize..span.end() as usize]);
-                result.push('\n');
+                let comment = &slice[span.start() as usize..span.end() as usize];
+
+                result.push_str(&&self.indent.to_string_with_newline());
+                result.push_str(comment);
             }
         }
 
@@ -186,7 +192,7 @@ impl<'me> FmtVisitor<'me> {
         let newline_upper_bound = 2;
         let newline_lower_bound = 1;
 
-        let mut newline_count = bytecount::count(slice.as_bytes(), b'\n');
+        let mut newline_count = utils::count_newlines(slice);
         let offset = self.buffer.chars().rev().take_while(|c| *c == '\n').count();
 
         if newline_count + offset > newline_upper_bound {
