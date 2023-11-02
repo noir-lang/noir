@@ -1,6 +1,5 @@
 #pragma once
 #include "barretenberg/honk/pcs/kzg/kzg.hpp"
-#include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
@@ -11,6 +10,7 @@
 #include "barretenberg/proof_system/relations/lookup_relation.hpp"
 #include "barretenberg/proof_system/relations/permutation_relation.hpp"
 #include "barretenberg/proof_system/relations/ultra_arithmetic_relation.hpp"
+#include "barretenberg/transcript/transcript.hpp"
 
 namespace proof_system::honk::flavor {
 

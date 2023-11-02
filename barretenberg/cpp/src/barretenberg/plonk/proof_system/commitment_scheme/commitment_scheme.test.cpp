@@ -2,9 +2,9 @@
 #include "commitment_scheme.hpp"
 #include "kate_commitment_scheme.hpp"
 
-#include "../../../proof_system/work_queue/work_queue.hpp"
 #include "../types/program_settings.hpp"
 #include "barretenberg/common/mem.hpp"
+#include "barretenberg/plonk/work_queue/work_queue.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"

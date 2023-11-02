@@ -1,14 +1,12 @@
 #pragma once
-#include "../../../../proof_system/work_queue/work_queue.hpp"
-#include "../../../../transcript/transcript.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
+#include "barretenberg/plonk/transcript/transcript.hpp"
+#include "barretenberg/plonk/work_queue/work_queue.hpp"
 
 #include <map>
 namespace transcript {
 class Transcript;
 }
-
-// TODO(Cody) Fix this namespace.
 namespace proof_system::plonk {
 
 struct proving_key;

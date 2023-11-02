@@ -8,8 +8,8 @@
 
 #include "../../types/prover_settings.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
+#include "barretenberg/plonk/work_queue/work_queue.hpp"
 #include "barretenberg/polynomials/iterate_over_domain.hpp"
-#include "barretenberg/proof_system/work_queue/work_queue.hpp"
 
 using namespace proof_system;
 namespace proof_system::plonk {

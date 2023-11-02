@@ -865,7 +865,7 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
     std::sort(std::execution::par_unseq, sorted_list.begin(), sorted_list.end());
 #endif
     // list must be padded to a multipe of 4 and larger than 4 (gate_width)
-    constexpr size_t gate_width = plonk::ultra_settings::program_width;
+    constexpr size_t gate_width = NUM_WIRES;
     size_t padding = (gate_width - (list.variable_indices.size() % gate_width)) % gate_width;
 
     std::vector<uint32_t> indices;
@@ -908,7 +908,7 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
 template <typename Arithmetization>
 void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint(const std::vector<uint32_t>& variable_index)
 {
-    constexpr size_t gate_width = plonk::ultra_settings::program_width;
+    constexpr size_t gate_width = NUM_WIRES;
     ASSERT(variable_index.size() % gate_width == 0);
     this->assert_valid_variables(variable_index);
 
@@ -956,7 +956,7 @@ template <typename Arithmetization>
 void UltraCircuitBuilder_<Arithmetization>::create_dummy_constraints(const std::vector<uint32_t>& variable_index)
 {
     std::vector<uint32_t> padded_list = variable_index;
-    constexpr size_t gate_width = plonk::ultra_settings::program_width;
+    constexpr size_t gate_width = NUM_WIRES;
     const uint64_t padding = (gate_width - (padded_list.size() % gate_width)) % gate_width;
     for (uint64_t i = 0; i < padding; ++i) {
         padded_list.emplace_back(this->zero_idx);
@@ -990,7 +990,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
     const std::vector<uint32_t>& variable_index, const FF& start, const FF& end)
 {
     // Convenient to assume size is at least 8 (gate_width = 4) for separate gates for start and end conditions
-    constexpr size_t gate_width = plonk::ultra_settings::program_width;
+    constexpr size_t gate_width = NUM_WIRES;
     ASSERT(variable_index.size() % gate_width == 0 && variable_index.size() > gate_width);
     this->assert_valid_variables(variable_index);
 

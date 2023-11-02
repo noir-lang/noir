@@ -1,9 +1,9 @@
 #include "barretenberg/stdlib/recursion/honk/verifier/ultra_recursive_verifier.hpp"
 #include "barretenberg/honk/pcs/zeromorph/zeromorph.hpp"
-#include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/utils/grand_product_delta.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
+#include "barretenberg/transcript/transcript.hpp"
 
 namespace proof_system::plonk::stdlib::recursion::honk {
 

@@ -3,8 +3,8 @@
 #include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/honk/instance/instances.hpp"
 #include "barretenberg/honk/proof_system/folding_result.hpp"
-#include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/transcript/transcript.hpp"
 
 namespace proof_system::honk {
 template <class VerifierInstances> class ProtoGalaxyVerifier_ {

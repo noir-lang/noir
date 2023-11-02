@@ -3,7 +3,7 @@
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/honk/pcs/claim.hpp"
 #include "barretenberg/honk/pcs/verification_key.hpp"
-#include "barretenberg/honk/transcript/transcript.hpp"
+#include "barretenberg/transcript/transcript.hpp"
 #include <cstddef>
 #include <numeric>
 #include <string>

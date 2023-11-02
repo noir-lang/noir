@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../transcript/transcript_wrappers.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
+#include "barretenberg/plonk/transcript/transcript_wrappers.hpp"
 
 namespace proof_system::plonk {
 

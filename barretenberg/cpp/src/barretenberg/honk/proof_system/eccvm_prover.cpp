@@ -9,7 +9,6 @@
 #include "barretenberg/polynomials/univariate.hpp" // will go away
 #include "barretenberg/proof_system/relations/lookup_relation.hpp"
 #include "barretenberg/proof_system/relations/permutation_relation.hpp"
-#include "barretenberg/transcript/transcript_wrappers.hpp"
 #include <algorithm>
 #include <array>
 #include <cstddef>

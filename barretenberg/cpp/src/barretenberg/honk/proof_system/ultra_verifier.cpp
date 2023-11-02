@@ -1,8 +1,8 @@
 #include "./ultra_verifier.hpp"
 #include "barretenberg/honk/pcs/zeromorph/zeromorph.hpp"
-#include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
+#include "barretenberg/transcript/transcript.hpp"
 
 using namespace barretenberg;
 using namespace proof_system::honk::sumcheck;

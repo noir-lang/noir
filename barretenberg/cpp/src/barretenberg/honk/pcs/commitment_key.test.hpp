@@ -1,22 +1,17 @@
 #pragma once
 
-#include <cstddef>
-#include <gtest/gtest.h>
-
-#include <algorithm>
-#include <concepts>
-#include <memory>
-#include <string_view>
-
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/pcs/verification_key.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
-
-#include "../../transcript/transcript_wrappers.hpp"
-
 #include "claim.hpp"
+#include <algorithm>
+#include <concepts>
+#include <memory>
+#include <string_view>
+
+#include <gtest/gtest.h>
 
 namespace proof_system::honk::pcs {
 

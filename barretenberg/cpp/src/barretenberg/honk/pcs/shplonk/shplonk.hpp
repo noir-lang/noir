@@ -2,7 +2,7 @@
 #include "barretenberg/honk/pcs/claim.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/pcs/verification_key.hpp"
-#include "barretenberg/honk/transcript/transcript.hpp"
+#include "barretenberg/transcript/transcript.hpp"
 
 /**
  * @brief Reduces multiple claims about commitments, each opened at a single point

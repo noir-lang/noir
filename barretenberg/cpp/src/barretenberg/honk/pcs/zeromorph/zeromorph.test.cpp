@@ -1,6 +1,6 @@
 #include "zeromorph.hpp"
 #include "../commitment_key.test.hpp"
-#include "barretenberg/honk/transcript/transcript.hpp"
+#include "barretenberg/transcript/transcript.hpp"
 
 #include <gtest/gtest.h>
 

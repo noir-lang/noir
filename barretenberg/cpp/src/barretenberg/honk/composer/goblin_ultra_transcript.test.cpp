@@ -3,14 +3,14 @@
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
-#include "transcript.hpp"
+#include "barretenberg/transcript/transcript.hpp"
 #include <gtest/gtest.h>
 
 using namespace proof_system::honk;
 
 class GoblinUltraTranscriptTests : public ::testing::Test {
   public:
-    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+    // static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
 
     using Flavor = proof_system::honk::flavor::GoblinUltra;
     using FF = Flavor::FF;

@@ -3,7 +3,7 @@
 #include "../types/proof.hpp"
 #include "../widgets/random_widgets/random_widget.hpp"
 #include "barretenberg/plonk/proof_system/commitment_scheme/commitment_scheme.hpp"
-#include "barretenberg/transcript/manifest.hpp"
+#include "barretenberg/plonk/transcript/manifest.hpp"
 
 namespace proof_system::plonk {
 template <typename program_settings> class VerifierBase {

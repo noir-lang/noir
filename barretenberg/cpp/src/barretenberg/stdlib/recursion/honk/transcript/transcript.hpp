@@ -5,7 +5,7 @@
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 
-#include "barretenberg/honk/transcript/transcript.hpp"
+#include "barretenberg/transcript/transcript.hpp"
 
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 #include "barretenberg/stdlib/primitives/biggroup/biggroup.hpp"

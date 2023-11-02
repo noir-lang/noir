@@ -47,6 +47,7 @@
 #include "stdlib/merkle_tree/merkle_tree.hpp"
 // TODO(https://github.com/AztecProtocol/aztec-packages/issues/728):
 //     Consider moving nullifier tree logic out of barretenberg into aztec repo
+#include "barretenberg/plonk/transcript/manifest.hpp"
 #include "stdlib/merkle_tree/nullifier_tree/nullifier_leaf.hpp"
 #include "stdlib/merkle_tree/nullifier_tree/nullifier_memory_tree.hpp"
 #include "stdlib/merkle_tree/nullifier_tree/nullifier_tree.hpp"
@@ -68,4 +69,3 @@
 #include "stdlib/recursion/verification_key/verification_key.hpp"
 #include "stdlib/recursion/verifier/program_settings.hpp"
 #include "stdlib/recursion/verifier/verifier.hpp"
-#include "transcript/manifest.hpp"

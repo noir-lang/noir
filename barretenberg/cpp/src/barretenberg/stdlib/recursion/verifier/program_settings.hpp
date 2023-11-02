@@ -1,8 +1,7 @@
 #pragma once
 
 #include "barretenberg/plonk/proof_system/types/program_settings.hpp"
-
-#include "../transcript/transcript.hpp"
+#include "barretenberg/stdlib/recursion/transcript/transcript.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

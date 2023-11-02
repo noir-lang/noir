@@ -2,7 +2,6 @@
 
 #include <cstdint>
 
-#include "../../../transcript/transcript.hpp"
 #include "../widgets/random_widgets/permutation_widget.hpp"
 #include "../widgets/random_widgets/plookup_widget.hpp"
 #include "../widgets/random_widgets/random_widget.hpp"
@@ -14,6 +13,7 @@
 #include "../widgets/transition_widgets/plookup_arithmetic_widget.hpp"
 #include "../widgets/transition_widgets/plookup_auxiliary_widget.hpp"
 #include "./prover_settings.hpp"
+#include "barretenberg/plonk/transcript/transcript.hpp"
 
 namespace proof_system::plonk {
 

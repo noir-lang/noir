@@ -1,22 +1,19 @@
 #pragma once
-#include "barretenberg/polynomials/evaluation_domain.hpp"
-#include "barretenberg/srs/factories/crs_factory.hpp"
-#include <map>
-
-#include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
-
-#include "barretenberg/plonk/proof_system/public_inputs/public_inputs.hpp"
-
-#include "barretenberg/polynomials/polynomial_arithmetic.hpp"
-
-#include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
-#include "barretenberg/ecc/curves/bn254/fq12.hpp"
-#include "barretenberg/ecc/curves/bn254/pairing.hpp"
 
 #include "../../primitives/curves/bn254.hpp"
 #include "../../primitives/memory/rom_table.hpp"
 #include "../../primitives/uint/uint.hpp"
+#include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
+#include "barretenberg/ecc/curves/bn254/fq12.hpp"
+#include "barretenberg/ecc/curves/bn254/pairing.hpp"
+#include "barretenberg/plonk/proof_system/public_inputs/public_inputs.hpp"
+#include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
+#include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
+#include "barretenberg/polynomials/evaluation_domain.hpp"
+#include "barretenberg/polynomials/polynomial_arithmetic.hpp"
+#include "barretenberg/srs/factories/crs_factory.hpp"
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
+#include <map>
 
 namespace proof_system::plonk::stdlib::recursion {
 

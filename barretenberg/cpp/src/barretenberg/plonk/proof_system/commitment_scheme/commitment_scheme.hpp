@@ -1,9 +1,9 @@
 #pragma once
 #include "../../../polynomials/polynomial.hpp"
 #include "../../../polynomials/polynomial_arithmetic.hpp"
-#include "../../../proof_system/work_queue/work_queue.hpp"
 #include "../types/commitment_open_proof.hpp"
 #include "../types/program_settings.hpp"
+#include "barretenberg/plonk/work_queue/work_queue.hpp"
 
 namespace proof_system::plonk {
 
