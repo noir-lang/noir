@@ -178,14 +178,6 @@ export interface PXE {
   addNote(note: ExtendedNote): Promise<void>;
 
   /**
-   * Finds the nonce(s) for a given note.
-   * @param note - The note to find the nonces for.
-   * @returns The nonces of the note.
-   * @remarks More than a single nonce may be returned since there might be more than one nonce for a given note.
-   */
-  getNoteNonces(note: ExtendedNote): Promise<Fr[]>;
-
-  /**
    * Get the given block.
    * @param number - The block number being requested.
    * @returns The blocks requested.

@@ -80,9 +80,6 @@ export abstract class BaseWallet implements Wallet {
   addNote(note: ExtendedNote): Promise<void> {
     return this.pxe.addNote(note);
   }
-  getNoteNonces(note: ExtendedNote): Promise<Fr[]> {
-    return this.pxe.getNoteNonces(note);
-  }
   getBlock(number: number): Promise<L2Block | undefined> {
     return this.pxe.getBlock(number);
   }
