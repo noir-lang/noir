@@ -61,7 +61,7 @@ impl DebugState {
         });
     }
 
-    fn wrap_var_expr(&mut self, var_name: &str, expr: ast::Expression) -> ast::Expression {
+    fn wrap_var(&mut self, var_name: &str, expr: ast::Expression) -> ast::Expression {
         let var_id = self.insert_var(var_name);
         let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
             func: Box::new(ast::Expression {
@@ -114,7 +114,7 @@ impl DebugState {
         block_stmts.extend(vars.iter().map(|id| {
             let var_name = &id.0.contents;
             ast::Statement {
-                kind: ast::StatementKind::Semi(self.wrap_var_expr(var_name, id_expr(id))),
+                kind: ast::StatementKind::Semi(self.wrap_var(var_name, id_expr(id))),
                 span: Span::single_char(0),
             }
         }));
@@ -153,9 +153,12 @@ impl DebugState {
             #[oracle(__debug_state_set)]
             unconstrained fn __debug_state_set_oracle<T>(_var_id: u32, _input: T) {}
 
-            unconstrained pub fn __debug_state_set<T>(var_id: u32, value: T) -> T {
+            unconstrained fn __debug_state_set_inner<T>(var_id: u32, value: T) {
                 __debug_state_set_oracle(var_id, value);
-                value
+            }
+
+            pub fn __debug_state_set<T>(var_id: u32, value: T) {
+                __debug_state_set_inner(var_id, value);
             }
         "#);
         if !errors.is_empty() { panic!("errors parsing internal oracle definitions: {errors:?}") }
