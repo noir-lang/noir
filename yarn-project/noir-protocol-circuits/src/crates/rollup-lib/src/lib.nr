@@ -8,3 +8,5 @@ mod merge;
 
 // Root rollup
 mod root;
+
+mod components;

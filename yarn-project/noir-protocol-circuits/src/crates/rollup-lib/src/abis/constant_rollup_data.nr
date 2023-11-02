@@ -13,3 +13,14 @@ struct ConstantRollupData {
 
     global_variables : GlobalVariables,
 }
+
+impl ConstantRollupData {
+    pub fn eq(self, other : ConstantRollupData) -> bool {
+        self.start_historic_blocks_tree_roots_snapshot.eq(other.start_historic_blocks_tree_roots_snapshot) &
+        self.global_variables.eq(other.global_variables) &
+        (self.private_kernel_vk_tree_root == other.private_kernel_vk_tree_root) &
+        (self.public_kernel_vk_tree_root == other.public_kernel_vk_tree_root) &
+        (self.base_rollup_vk_hash == other.base_rollup_vk_hash) &
+        (self.merge_rollup_vk_hash == other.merge_rollup_vk_hash)
+    }
+}

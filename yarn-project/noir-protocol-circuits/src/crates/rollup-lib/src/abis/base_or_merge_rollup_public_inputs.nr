@@ -31,6 +31,10 @@ struct BaseOrMergeRollupPublicInputs {
 
     start_public_data_tree_root : Field,
     end_public_data_tree_root : Field,
-//     // We hash public inputs to make them constant-sized (to then be unpacked on-chain)
+    
+    // We hash public inputs to make them constant-sized (to then be unpacked on-chain)
+    // TODO(Kev): Want to make this a U128, but Re-export bug 3384
+
+    // We hash public inputs to make them constant-sized (to then be unpacked on-chain)
     calldata_hash : [Field; 2],
 }

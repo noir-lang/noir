@@ -20,4 +20,10 @@ impl GlobalVariables {
             )
     }
 
+    pub fn eq(self, other : GlobalVariables) -> bool {
+        (self.chain_id == other.chain_id) &
+        (self.version == other.version) &
+        (self.block_number == other.block_number) &
+        (self.timestamp == other.timestamp)
+    }
 }
