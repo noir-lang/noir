@@ -127,12 +127,16 @@ export interface AztecNode extends StateInfoProvider {
   getPendingTxByHash(txHash: TxHash): Promise<Tx | undefined>;
 
   /**
-   * Gets the storage value at the given contract slot. Our version of eth_getStorageAt.
+   * Gets the storage value at the given contract storage slot.
+   *
+   * @remarks The storage slot here refers to the slot as it is defined in Noir not the index in the merkle tree.
+   * Aztec's version of `eth_getStorageAt`.
+   *
    * @param contract - Address of the contract to query.
    * @param slot - Slot to query.
    * @returns Storage value at the given contract slot (or undefined if not found).
    */
-  getPublicStorageAt(contract: AztecAddress, slot: bigint): Promise<Fr | undefined>;
+  getPublicStorageAt(contract: AztecAddress, slot: Fr): Promise<Fr | undefined>;
 
   /**
    * Returns the current committed roots for the data trees.

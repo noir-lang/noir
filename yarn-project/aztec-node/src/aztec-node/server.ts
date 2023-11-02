@@ -340,15 +340,18 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
-   * Gets the storage value at the given contract slot.
+   * Gets the storage value at the given contract storage slot.
+   *
+   * @remarks The storage slot here refers to the slot as it is defined in Noir not the index in the merkle tree.
+   * Aztec's version of `eth_getStorageAt`.
+   *
    * @param contract - Address of the contract to query.
    * @param slot - Slot to query.
    * @returns Storage value at the given contract slot (or undefined if not found).
-   * Note: Aztec's version of `eth_getStorageAt`.
    */
-  public async getPublicStorageAt(contract: AztecAddress, slot: bigint): Promise<Fr | undefined> {
+  public async getPublicStorageAt(contract: AztecAddress, slot: Fr): Promise<Fr | undefined> {
     const committedDb = await this.#getWorldState();
-    const leafIndex = computePublicDataTreeIndex(await CircuitsWasm.get(), contract, new Fr(slot));
+    const leafIndex = computePublicDataTreeIndex(await CircuitsWasm.get(), contract, slot);
     const value = await committedDb.getLeafValue(MerkleTreeId.PUBLIC_DATA_TREE, leafIndex.value);
     return value ? Fr.fromBuffer(value) : undefined;
   }
