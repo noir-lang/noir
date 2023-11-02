@@ -1,6 +1,6 @@
 
 fn main() {
-    // Test is temporarily disabled
+    // Test is temporarily disabled, see #3409
     // let array: [Field; 3] = [1, 2, 3];
     // assert(array.eq(array));
 
