@@ -23,7 +23,24 @@ fn main() {
 
 The length in bits determines the boundaries the integer type can store. For example, a `u8` variable can store a value in the range of 0 to 255 (i.e. $\\2^{8}-1\\$).
 
-Computations that exceed the type boundaries would result in overflow errors. For example, attempting to prove:
+## Signed Integers
+
+A signed integer type is specified first with the letter `i`, stands for integer, followed by its length in bits (e.g. `8`):
+
+```rust
+fn main() {
+    let x : i8 = -1;
+    let y : i8 = -1;
+    let z = x + y;
+    assert (z == -2);
+}
+```
+
+The length in bits determines the boundaries the integer type can store. For example, a `i8` variable can store a value in the range of -128 to 127 (i.e. $\\-2^{7}\\$ to $\\2^{7}-1\\$).
+
+## Overflows
+
+Computations that exceed the type boundaries would result in overflow errors. This happens with both signed and unsigned integers. For example, attempting to prove:
 
 ```rust
 fn main(x : u8, y : u8) {
@@ -52,24 +69,7 @@ error: Assertion failed: 'attempt to add with overflow'
   ...
 ```
 
-> **Note:** The default proving backend supports both even (e.g. _u2_) and odd (e.g. _u3_) arbitrarily-sized integer types up to _u127_.
-
-## Signed Integers
-
-A signed integer type is specified first with the letter `i`, stands for integer, followed by its length in bits (e.g. `8`):
-
-```rust
-fn main() {
-    let x : i8 = -1;
-    let y : i8 = -1;
-    let z = x + y;
-    assert (z == -2);
-}
-```
-
-The length in bits determines the boundaries the integer type can store. For example, a `i8` variable can store a value in the range of -128 to 127 (i.e. $\\-2^{7}\\$ to $\\2^{7}-1\\$).
-
-Computations that exceed the type boundaries would result in overflow errors. For example, attempting to prove:
+A similar error would happen with unsigned integers, for example while trying to prove:
 
 ```rust
 fn main() {
@@ -79,18 +79,26 @@ fn main() {
 }
 ```
 
-Would result in:
+> **Note:** The default proving backend supports both even (e.g. _u2_) and odd (e.g. _u3_) arbitrarily-sized integer types up to _u127_.
 
-```
-$ nargo prove
-error: Assertion failed: 'attempt to add with overflow'
-┌─ ~/src/main.nr:4:13
-│
-│     let z = x + y;
-│             -----
-│
-= Call stack:
-  ...
+### Wrapping methods
+
+Although integer overflow is expected to error, it is understood that some use-cases may actually want to rely on wrapping.
+
+For that, you can import and use these `wrapping` functions from the standard library, which are defined as:
+
+```rust
+wrapping_add<T>(x : T, y: T) -> T
+wrapping_sub<T>(x : T, y: T) -> T
+wrapping_mul<T>(x : T, y: T) -> T
 ```
 
-> **Note:** The default proving backend supports both even (e.g. _i2_) and odd (e.g. _i3_) arbitrarily-sized integer types up to _i127_.
+example usage:
+
+```rust
+use dep::std;
+
+fn main(x : u8, y : u8) {
+    let z = std::wrapping_add(x + y);
+}
+```
