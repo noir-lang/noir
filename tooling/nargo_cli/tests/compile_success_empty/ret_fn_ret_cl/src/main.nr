@@ -17,7 +17,6 @@ fn ret_fn() -> fn(Field) -> Field {
 //     };
 //     inner_closure
 // }
-
 fn ret_lambda() -> fn(Field) -> Field {
     let cl = |z: Field| -> Field {
         z + 1
@@ -31,7 +30,6 @@ fn main(x : Field) {
 
     // let result_closure = ret_closure();
     // assert(result_closure(x) == x + 1);
-
     let result_lambda = ret_lambda();
     assert(result_lambda(x) == x + 1);
 }

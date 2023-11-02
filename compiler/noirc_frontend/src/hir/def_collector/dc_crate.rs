@@ -13,9 +13,7 @@ use crate::hir::resolution::{
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
 use crate::hir_def::traits::{Trait, TraitConstant, TraitFunction, TraitImpl, TraitType};
-use crate::node_interner::{
-    FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplKey, TypeAliasId,
-};
+use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
 
 use crate::parser::{ParserError, SortedModule};
 use crate::{
@@ -331,7 +329,6 @@ impl DefCollector {
             def_collector.collected_impls,
             &mut errors,
         );
-        // resolve_trait_impls can fill different type of errors, therefore we pass errors by mut ref
         let file_trait_impls_ids = resolve_trait_impls(
             context,
             def_collector.collected_traits_impls,
@@ -760,7 +757,7 @@ fn resolve_trait_methods(
     for item in &unresolved_trait.trait_def.items {
         if let TraitItem::Function {
             name,
-            generics: _,
+            generics,
             parameters,
             return_type,
             where_clause: _,
@@ -772,14 +769,14 @@ fn resolve_trait_methods(
                 Type::TypeVariable(the_trait.self_type_typevar.clone(), TypeVariableKind::Normal);
 
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            resolver.add_generics(generics);
             resolver.set_self_type(Some(self_type));
 
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
             let resolved_return_type = resolver.resolve_type(return_type.get_type().into_owned());
+            let generics = resolver.get_generics().to_vec();
 
             let name = name.clone();
-            // TODO
-            let generics: Generics = vec![];
             let span: Span = name.span();
             let default_impl_list: Vec<_> = unresolved_trait
                 .fns_with_default_impl
@@ -930,7 +927,7 @@ fn resolve_impls(
                     let method_name = interner.function_name(method_id).to_owned();
 
                     if let Some(first_fn) =
-                        interner.add_method(&self_type, method_name.clone(), *method_id)
+                        interner.add_method(&self_type, method_name.clone(), *method_id, false)
                     {
                         let error = ResolverError::DuplicateDefinition {
                             name: method_name,
@@ -962,7 +959,6 @@ fn resolve_trait_impls(
         let local_mod_id = trait_impl.module_id;
         let module_id = ModuleId { krate: crate_id, local_id: local_mod_id };
         let path_resolver = StandardPathResolver::new(module_id);
-        let trait_definition_ident = trait_impl.trait_path.last_segment();
 
         let self_type_span = unresolved_type.span;
 
@@ -989,35 +985,46 @@ fn resolve_trait_impls(
             }
         }
 
+        if matches!(self_type, Type::MutableReference(_)) {
+            let span = self_type_span.unwrap_or_else(|| trait_impl.trait_path.span());
+            let error = DefCollectorErrorKind::MutableReferenceInTraitImpl { span };
+            errors.push((error.into(), trait_impl.file_id));
+        }
+
         let mut new_resolver =
             Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
         new_resolver.set_self_type(Some(self_type.clone()));
 
         if let Some(trait_id) = maybe_trait_id {
-            check_methods_signatures(&mut new_resolver, &impl_methods, trait_id, errors);
+            check_methods_signatures(
+                &mut new_resolver,
+                &impl_methods,
+                trait_id,
+                trait_impl.generics.len(),
+                errors,
+            );
 
-            let key = TraitImplKey { typ: self_type.clone(), trait_id };
-            if let Some(prev_trait_impl_ident) = interner.get_trait_implementation(&key) {
-                let err = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::TraitImplementation,
-                    first_def: prev_trait_impl_ident.borrow().ident.clone(),
-                    second_def: trait_definition_ident.clone(),
-                };
-                errors.push((err.into(), trait_impl.methods.file_id));
-            } else {
-                let resolved_trait_impl = Shared::new(TraitImpl {
-                    ident: trait_impl.trait_path.last_segment().clone(),
+            let resolved_trait_impl = Shared::new(TraitImpl {
+                ident: trait_impl.trait_path.last_segment().clone(),
+                typ: self_type.clone(),
+                trait_id,
+                file: trait_impl.file_id,
+                methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
+            });
+
+            if let Some((prev_span, prev_file)) =
+                interner.add_trait_implementation(self_type.clone(), trait_id, resolved_trait_impl)
+            {
+                let error = DefCollectorErrorKind::OverlappingImpl {
                     typ: self_type.clone(),
-                    trait_id,
-                    methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
-                });
-                if !interner.add_trait_implementation(&key, resolved_trait_impl.clone()) {
-                    let error = DefCollectorErrorKind::TraitImplNotAllowedFor {
-                        trait_path: trait_impl.trait_path.clone(),
-                        span: self_type_span.unwrap_or_else(|| trait_impl.trait_path.span()),
-                    };
-                    errors.push((error.into(), trait_impl.file_id));
-                }
+                    span: self_type_span.unwrap_or_else(|| trait_impl.trait_path.span()),
+                };
+                errors.push((error.into(), trait_impl.file_id));
+
+                // The 'previous impl defined here' note must be a separate error currently
+                // since it may be in a different file and all errors have the same file id.
+                let error = DefCollectorErrorKind::OverlappingImplNote { span: prev_span };
+                errors.push((error.into(), prev_file));
             }
 
             methods.append(&mut impl_methods);
@@ -1032,6 +1039,7 @@ fn check_methods_signatures(
     resolver: &mut Resolver,
     impl_methods: &Vec<(FileId, FuncId)>,
     trait_id: TraitId,
+    trait_impl_generic_count: usize,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) {
     let the_trait = resolver.interner.get_trait(trait_id);
@@ -1042,24 +1050,42 @@ fn check_methods_signatures(
     let _ = the_trait.self_type_typevar.borrow_mut().bind_to(self_type.clone(), the_trait.span);
 
     for (file_id, func_id) in impl_methods {
-        let meta = resolver.interner.function_meta(func_id);
+        let impl_method = resolver.interner.function_meta(func_id);
         let func_name = resolver.interner.function_name(func_id).to_owned();
 
         let mut typecheck_errors = Vec::new();
 
-        // `method` is None in the case where the impl block has a method that's not part of the trait.
+        // This is None in the case where the impl block has a method that's not part of the trait.
         // If that's the case, a `MethodNotInTrait` error has already been thrown, and we can ignore
         // the impl method, since there's nothing in the trait to match its signature against.
-        if let Some(method) =
+        if let Some(trait_method) =
             the_trait.methods.iter().find(|method| method.name.0.contents == func_name)
         {
-            let function_typ = meta.typ.instantiate(resolver.interner);
+            let impl_function_type = impl_method.typ.instantiate(resolver.interner);
 
-            if let Type::Function(params, _, _) = function_typ.0 {
-                if method.arguments.len() == params.len() {
+            let impl_method_generic_count =
+                impl_method.typ.generic_count() - trait_impl_generic_count;
+            let trait_method_generic_count = trait_method.generics.len();
+
+            if impl_method_generic_count != trait_method_generic_count {
+                let error = DefCollectorErrorKind::MismatchTraitImplementationNumGenerics {
+                    impl_method_generic_count,
+                    trait_method_generic_count,
+                    trait_name: the_trait.name.to_string(),
+                    method_name: func_name.to_string(),
+                    span: impl_method.location.span,
+                };
+                errors.push((error.into(), *file_id));
+            }
+
+            if let Type::Function(impl_params, _, _) = impl_function_type.0 {
+                if trait_method.arguments.len() == impl_params.len() {
                     // Check the parameters of the impl method against the parameters of the trait method
+                    let args = trait_method.arguments.iter();
+                    let args_and_params = args.zip(&impl_params).zip(&impl_method.parameters.0);
+
                     for (parameter_index, ((expected, actual), (hir_pattern, _, _))) in
-                        method.arguments.iter().zip(&params).zip(&meta.parameters.0).enumerate()
+                        args_and_params.enumerate()
                     {
                         expected.unify(actual, &mut typecheck_errors, || {
                             TypeCheckError::TraitMethodParameterTypeMismatch {
@@ -1072,33 +1098,28 @@ fn check_methods_signatures(
                         });
                     }
                 } else {
-                    errors.push((
-                        DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
-                            actual_num_parameters: meta.parameters.0.len(),
-                            expected_num_parameters: method.arguments.len(),
-                            trait_name: the_trait.name.to_string(),
-                            method_name: func_name.to_string(),
-                            span: meta.location.span,
-                        }
-                        .into(),
-                        *file_id,
-                    ));
+                    let error = DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
+                        actual_num_parameters: impl_method.parameters.0.len(),
+                        expected_num_parameters: trait_method.arguments.len(),
+                        trait_name: the_trait.name.to_string(),
+                        method_name: func_name.to_string(),
+                        span: impl_method.location.span,
+                    };
+                    errors.push((error.into(), *file_id));
                 }
             }
 
             // Check that impl method return type matches trait return type:
             let resolved_return_type =
-                resolver.resolve_type(meta.return_type.get_type().into_owned());
+                resolver.resolve_type(impl_method.return_type.get_type().into_owned());
 
-            method.return_type.unify(&resolved_return_type, &mut typecheck_errors, || {
-                let ret_type_span =
-                    meta.return_type.get_type().span.expect("return type must always have a span");
+            trait_method.return_type.unify(&resolved_return_type, &mut typecheck_errors, || {
+                let ret_type_span = impl_method.return_type.get_type().span;
+                let expr_span = ret_type_span.expect("return type must always have a span");
 
-                TypeCheckError::TypeMismatch {
-                    expected_typ: method.return_type.to_string(),
-                    expr_typ: meta.return_type().to_string(),
-                    expr_span: ret_type_span,
-                }
+                let expected_typ = trait_method.return_type.to_string();
+                let expr_typ = impl_method.return_type().to_string();
+                TypeCheckError::TypeMismatch { expr_typ, expected_typ, expr_span }
             });
 
             errors.extend(typecheck_errors.iter().cloned().map(|e| (e.into(), *file_id)));

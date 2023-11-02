@@ -23,13 +23,21 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: '18'
+      
+      - name: Install Yarn
+        run: npm install -g yarn
 
       - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
+        run: yarn
     
       - name: Cut a new version
         working-directory: ./docs
         run: yarn docusaurus docs:version ${{ inputs.tag }}
+      
+      - name: Remove pre-releases
+        id: get_version
+        run: |
+            cd docs && yarn setStable
 
       - name: Build docs
         run: yarn workspace docs build
@@ -39,7 +47,7 @@ jobs:
         with:
           publish-dir: './docs/build'
           production-branch: master
-          production-deploy: false # TODO change to true
+          production-deploy: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
           enable-github-deployment: false
           deploy-message: "Deploy from GitHub Actions for tag ${{ inputs.tag }}"
