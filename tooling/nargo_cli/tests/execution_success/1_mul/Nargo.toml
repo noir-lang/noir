@@ -3,4 +3,6 @@ name = "1_mul"
 type = "bin"
 authors = [""]
 
+package_version = "0.1.0"
+
 [dependencies]
