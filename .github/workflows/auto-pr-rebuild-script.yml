@@ -22,12 +22,15 @@ jobs:
           script: |
             const { REF_NAME } = process.env;
             if (REF_NAME == "master") {
-              return true;
+              console.log(`publish = ${publish}`)
+              return publish;
             }
 
             const labels = context.payload.pull_request.labels.map(label => label.name);
-            console.log(labels)
-            return labels.includes('publish-acir');
+            const publish = labels.includes('publish-acir');
+
+            console.log(`publish = ${publish}`)
+            return publish;
           result-encoding: string
         env:
           REF_NAME: ${{ github.ref_name }}
@@ -102,7 +105,7 @@ jobs:
 
       - name: Upload ACIR artifacts
         uses: actions/upload-artifact@v3
-        if:  ${{ needs.check-artifacts-requested.outputs.publish == true }}
+        if:  ${{ needs.check-artifacts-requested.outputs.publish == 'true' }}
         with:
           name: acir-artifacts
           path: ./tooling/nargo_cli/tests/acir_artifacts
