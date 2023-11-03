@@ -25,83 +25,66 @@ pub enum DuplicateType {
 
 #[derive(Error, Debug, Clone)]
 pub enum DefCollectorErrorKind {
-    #[error("duplicate {typ} found in namespace")] Duplicate {
-        typ: DuplicateType,
-        first_def: Ident,
-        second_def: Ident,
-    },
-    #[error("unresolved import")] UnresolvedModuleDecl {
-        mod_name: Ident,
-        expected_path: String,
-    },
-    #[error("path resolution error")] PathResolutionError(PathResolutionError),
-    #[error("Non-struct type used in impl")] NonStructTypeInImpl {
-        span: Span,
-    },
-    #[error("Cannot implement trait on a mutable reference type")] MutableReferenceInTraitImpl {
-        span: Span,
-    },
-    #[error("Impl for type `{typ}` overlaps with existing impl")] OverlappingImpl {
-        span: Span,
-        typ: crate::Type,
-    },
-    #[error("Previous impl defined here")] OverlappingImplNote {
-        span: Span,
-    },
-    #[error("Cannot `impl` a type defined outside the current crate")] ForeignImpl {
-        span: Span,
-        type_name: String,
-    },
-    #[error("Mismatched number of parameters in trait implementation")] MismatchTraitImplementationNumParameters {
+    #[error("duplicate {typ} found in namespace")]
+    Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
+    #[error("unresolved import")]
+    UnresolvedModuleDecl { mod_name: Ident, expected_path: String },
+    #[error("path resolution error")]
+    PathResolutionError(PathResolutionError),
+    #[error("Non-struct type used in impl")]
+    NonStructTypeInImpl { span: Span },
+    #[error("Cannot implement trait on a mutable reference type")]
+    MutableReferenceInTraitImpl { span: Span },
+    #[error("Impl for type `{typ}` overlaps with existing impl")]
+    OverlappingImpl { span: Span, typ: crate::Type },
+    #[error("Previous impl defined here")]
+    OverlappingImplNote { span: Span },
+    #[error("Cannot `impl` a type defined outside the current crate")]
+    ForeignImpl { span: Span, type_name: String },
+    #[error("Mismatched number of parameters in trait implementation")]
+    MismatchTraitImplementationNumParameters {
         actual_num_parameters: usize,
         expected_num_parameters: usize,
         trait_name: String,
         method_name: String,
         span: Span,
     },
-    #[error("Mismatched number of generics in impl method")] MismatchTraitImplementationNumGenerics {
+    #[error("Mismatched number of generics in impl method")]
+    MismatchTraitImplementationNumGenerics {
         impl_method_generic_count: usize,
         trait_method_generic_count: usize,
         trait_name: String,
         method_name: String,
         span: Span,
     },
-    #[error("Method is not defined in trait")] MethodNotInTrait {
-        trait_name: Ident,
-        impl_method: Ident,
-    },
-    #[error("Only traits can be implemented")] NotATrait {
-        not_a_trait_name: Path,
-    },
-    #[error("Trait not found")] TraitNotFound {
-        trait_path: Path,
-    },
-    #[error("Missing Trait method implementation")] TraitMissingMethod {
-        trait_name: Ident,
-        method_name: Ident,
-        trait_impl_span: Span,
-    },
-    #[error("Module is already part of the crate")] ModuleAlreadyPartOfCrate {
-        mod_name: Ident,
-        span: Span,
-    },
-    #[error("Module was originally declared here")] ModuleOriginallyDefined {
-        mod_name: Ident,
-        span: Span,
-    },
-    #[error("Either the type or the trait must be from the same crate as the trait implementation")] TraitImplOrphaned {
-        span: Span,
-    },
+    #[error("Method is not defined in trait")]
+    MethodNotInTrait { trait_name: Ident, impl_method: Ident },
+    #[error("Only traits can be implemented")]
+    NotATrait { not_a_trait_name: Path },
+    #[error("Trait not found")]
+    TraitNotFound { trait_path: Path },
+    #[error("Missing Trait method implementation")]
+    TraitMissingMethod { trait_name: Ident, method_name: Ident, trait_impl_span: Span },
+    #[error("Module is already part of the crate")]
+    ModuleAlreadyPartOfCrate { mod_name: Ident, span: Span },
+    #[error("Module was originally declared here")]
+    ModuleOriginallyDefined { mod_name: Ident, span: Span },
+    #[error(
+        "Either the type or the trait must be from the same crate as the trait implementation"
+    )]
+    TraitImplOrphaned { span: Span },
 
     // Aztec feature flag errors
-    #[cfg(feature = "aztec")] #[error(
+    #[cfg(feature = "aztec")]
+    #[error(
         "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml. For more information go to https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#aztec-dependency-not-found-please-add-aztec-as-a-dependency-in-your-nargotoml"
-    )] AztecNotFound {},
-    #[cfg(feature = "aztec")] #[error(
+    )]
+    AztecNotFound {},
+    #[cfg(feature = "aztec")]
+    #[error(
         "compute_note_hash_and_nullifier function not found. Define it in your contract.  For more information go to https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#compute_note_hash_and_nullifier-function-not-found-define-it-in-your-contract"
-    )] AztecComputeNoteHashAndNullifierNotFound {
-        span: Span,
-    },
+    )]
+    AztecComputeNoteHashAndNullifierNotFound { span: Span },
 }
 
 impl DefCollectorErrorKind {
