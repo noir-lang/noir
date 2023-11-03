@@ -57,18 +57,25 @@ jobs:
       - name: Push changes to new branch
         run: git push origin new-docs-version-${{ github.event.inputs.tag }}
 
-      # - name: Create Pull Request
-      #   uses: peter-evans/create-pull-request@v4
-      #   with:
-      #     title: 'New Docs Version for ${{ github.event.inputs.tag }}'
-      #     commit-message: "chore(docs): cut new docs version for tag ${{ github.event.inputs.tag }}"
-      #     branch: new-docs-version-${{ github.event.inputs.tag }}
-      #     body: |
-      #       Updates documentation to new version for tag ${{ github.event.inputs.tag }}.
-      #     base: master  # or main or whichever branch you want to merge to
-      #     labels: documentation
-      #     token: ${{ secrets.GITHUB_TOKEN }}
-          
+      - name: Install GitHub CLI
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update
+          sudo apt install gh
+
+      # This step creates a pull request using GitHub CLI
+      - name: Create Pull Request
+        run: |
+          gh pr create \
+            --title "New Docs Version for ${{ github.event.inputs.tag }}" \
+            --body "Updates documentation to new version for tag ${{ github.event.inputs.tag }}." \
+            --base master \
+            --head new-docs-version-${{ github.event.inputs.tag }} \
+            --label documentation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Remove pre-releases
         id: get_version
