@@ -1234,14 +1234,13 @@ impl Context {
             let sizes_list =
                 self.slice_sizes.get_mut(&parent_array).expect("ICE: expected size list");
             sizes_list.push(true_len);
+            for value in array {
+                self.compute_slice_sizes(*value, parent_array, dfg);
+            }
         } else {
             // This means the current_array_id is the parent array
             self.slice_sizes.insert(current_array_id, vec![true_len]);
-        }
-        for value in array {
-            if parent_array.is_some() {
-                self.compute_slice_sizes(*value, parent_array, dfg);
-            } else {
+            for value in array {
                 self.compute_slice_sizes(*value, Some(current_array_id), dfg);
             }
         }
