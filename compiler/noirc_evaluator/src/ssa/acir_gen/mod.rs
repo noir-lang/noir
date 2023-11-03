@@ -866,13 +866,12 @@ impl Context {
         let value = if !res_typ.contains_slice_element() {
             self.array_get_value(&res_typ, block_id, &mut var_index, &[])?
         } else {
-            let mut slice_sizes = self
+            let slice_sizes = self
                 .slice_sizes
                 .get(&array_id)
-                .expect("ICE: Array with slices should have associated slice sizes")
-                .clone();
+                .expect("ICE: Array with slices should have associated slice sizes");
 
-            slice_sizes.remove(0);
+            let slice_sizes = slice_sizes[1..].to_vec();
 
             let value = self.array_get_value(&res_typ, block_id, &mut var_index, &slice_sizes)?;
 
