@@ -54,6 +54,8 @@ jobs:
           git add .
           git commit -m "chore(docs): cut new docs version for tag ${{ github.event.inputs.tag }}"
       
+      - name: Push changes to new branch
+        run: git push origin new-docs-version-${{ github.event.inputs.tag }}
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v4
@@ -67,9 +69,6 @@ jobs:
           labels: documentation
           token: ${{ secrets.GITHUB_TOKEN }}
           
-      - name: Push changes to new branch
-        run: git push origin new-docs-version-${{ github.event.inputs.tag }}
-
 
       - name: Remove pre-releases
         id: get_version
