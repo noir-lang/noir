@@ -56,6 +56,12 @@ jobs:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         timeout-minutes: 1
 
+
+      - name: Checkout branch PR to commit changes
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || inputs.tag }}
+
       - name: Commit new version
         run: |
           git config --local user.name signorecello
