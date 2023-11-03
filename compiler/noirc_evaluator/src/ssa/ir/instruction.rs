@@ -847,16 +847,12 @@ fn eval_constant_binary_op(
             if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == 0 {
                 return None;
             }
-            let result = function(lhs, rhs);
-            if let Some(result) = result {
-                // Check for overflow
-                if result >= 2u128.pow(*bit_size) {
-                    return None;
-                }
-                result.into()
-            } else {
+            let result = function(lhs, rhs)?;
+            // Check for overflow
+            if result >= 2u128.pow(*bit_size) {
                 return None;
             }
+            result.into()
         }
         Type::Numeric(NumericType::Signed { bit_size }) => {
             let function = operator.get_i128_function();
@@ -876,21 +872,14 @@ fn eval_constant_binary_op(
                 return None;
             }
 
-            let result = function(lhs, rhs);
-            if let Some(result) = result {
-                // Check for overflow
-                if result >= 2i128.pow(*bit_size - 1) || result < -(2i128.pow(*bit_size - 1)) {
-                    return None;
-                }
-                let result = if result >= 0 {
-                    result as u128
-                } else {
-                    (2i128.pow(*bit_size) + result) as u128
-                };
-                result.into()
-            } else {
+            let result = function(lhs, rhs)?;
+            // Check for overflow
+            if result >= 2i128.pow(*bit_size - 1) || result < -(2i128.pow(*bit_size - 1)) {
                 return None;
             }
+            let result =
+                if result >= 0 { result as u128 } else { (2i128.pow(*bit_size) + result) as u128 };
+            result.into()
         }
         _ => return None,
     };
