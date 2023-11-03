@@ -11,7 +11,7 @@ jobs:
     name: Check if artifacts should be published
     runs-on: ubuntu-22.04
     outputs:
-      publish: ${{ steps.check.outputs.publish }}
+      publish: ${{ steps.check.outputs.result }}
     
     steps:
       - name: Check if artifacts should be published
