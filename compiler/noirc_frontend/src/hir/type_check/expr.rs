@@ -146,7 +146,7 @@ impl<'interner> TypeChecker<'interner> {
                 match self.lookup_method(&object_type, method_name, expr_id) {
                     Some(method_ref) => {
                         let mut args = vec![(
-                            object_type,
+                            object_type.clone(),
                             method_call.object,
                             self.interner.expr_span(&method_call.object),
                         )];
@@ -160,11 +160,14 @@ impl<'interner> TypeChecker<'interner> {
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
 
-                        if let HirMethodReference::FuncId(func_id) = method_ref {
+                        let mut func_id = None;
+                        if let HirMethodReference::FuncId(id) = method_ref {
+                            func_id = Some(id);
+
                             // Automatically add `&mut` if the method expects a mutable reference and
                             // the object is not already one.
-                            if func_id != FuncId::dummy_id() {
-                                let func_meta = self.interner.function_meta(&func_id);
+                            if id != FuncId::dummy_id() {
+                                let func_meta = self.interner.function_meta(&id);
                                 self.try_add_mutable_reference_to_object(
                                     &mut method_call,
                                     &func_meta.typ,
@@ -181,6 +184,31 @@ impl<'interner> TypeChecker<'interner> {
 
                         let span = self.interner.expr_span(expr_id);
                         let ret = self.check_method_call(&function_id, method_ref, args, span);
+
+                        if let Some(func_id) = func_id {
+                            let meta = self.interner.function_meta(&func_id);
+
+                            if let Some(impl_id) = meta.trait_impl {
+                                let trait_impl = self.interner.get_trait_implementation(impl_id);
+
+                                let result = self.interner.lookup_trait_implementation(
+                                    &object_type,
+                                    trait_impl.borrow().trait_id,
+                                );
+
+                                if let Err(erroring_constraints) = result {
+                                    let constraints = vecmap(erroring_constraints, |constraint| {
+                                        let r#trait = self.interner.get_trait(constraint.trait_id);
+                                        (constraint.typ, r#trait.name.to_string())
+                                    });
+
+                                    self.errors.push(TypeCheckError::NoMatchingImplFound {
+                                        constraints,
+                                        span,
+                                    });
+                                }
+                            }
+                        }
 
                         self.interner.replace_expr(expr_id, function_call);
                         ret
