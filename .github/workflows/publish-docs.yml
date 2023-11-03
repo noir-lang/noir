@@ -24,7 +24,6 @@ jobs:
         run: |
           git checkout -b new-docs-version-${{ github.event.inputs.tag }}
     
-
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
@@ -40,6 +39,22 @@ jobs:
         working-directory: ./docs
         run: yarn docusaurus docs:version ${{ inputs.tag }}
 
+      - name: Debug
+        run: |
+          ls -la
+          ls -la docs
+          ls -la docs/versioned_docs
+          cat docs/versions.json
+
+
+      - name: Commit new documentation version
+        run: |
+          git config --local user.name 'signorecello'
+          git config --local user.email 'github@zepedro.me'
+          git add .
+          git commit -m "chore(docs): cut new docs version for tag ${{ github.event.inputs.tag }}"
+      
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v4
         with:
@@ -51,13 +66,10 @@ jobs:
           base: master  # or main or whichever branch you want to merge to
           labels: documentation
           token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Debug
-        run: |
-          ls -la
-          ls -la docs
-          ls -la docs/versioned_docs
-          cat docs/versions.json
+          
+      - name: Push changes to new branch
+        run: git push origin new-docs-version-${{ github.event.inputs.tag }}
+
 
       - name: Remove pre-releases
         id: get_version
@@ -81,12 +93,3 @@ jobs:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         timeout-minutes: 1
 
-      - name: Commit new documentation version
-        run: |
-          git config --local user.name 'signorecello'
-          git config --local user.email 'github@zepedro.me'
-          git add .
-          git commit -m "chore(docs): cut new docs version for tag ${{ github.event.inputs.tag }}"
-      
-      - name: Push changes to new branch
-        run: git push origin new-docs-version-${{ github.event.inputs.tag }}
