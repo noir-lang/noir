@@ -111,6 +111,8 @@ pub enum TypeCheckError {
         parameter_span: Span,
         parameter_index: usize,
     },
+    #[error("No matching impl found")]
+    NoMatchingImplFound { constraints: Vec<(Type, String)>, span: Span },
 }
 
 impl TypeCheckError {
@@ -250,11 +252,22 @@ impl From<TypeCheckError> for Diagnostic {
                 Diagnostic::simple_warning(primary_message, secondary_message, span)
             }
             TypeCheckError::UnusedResultError { expr_type, expr_span } => {
-                Diagnostic::simple_warning(
-                    format!("Unused expression result of type {expr_type}"),
-                    String::new(),
-                    expr_span,
-                )
+                let msg = format!("Unused expression result of type {expr_type}");
+                Diagnostic::simple_warning(msg, String::new(), expr_span)
+            }
+            TypeCheckError::NoMatchingImplFound { constraints, span } => {
+                assert!(!constraints.is_empty());
+                let msg = format!("No matching impl found for `{}: {}`", constraints[0].0, constraints[0].1);
+                let mut diagnostic = Diagnostic::from_message(&msg);
+
+                diagnostic.add_secondary(format!("No impl for `{}: {}`", constraints[0].0, constraints[0].1), span);
+
+                // These must be notes since secondaries are unordered
+                for (typ, trait_name) in &constraints[1..] {
+                    diagnostic.add_note(format!("Required by `{typ}: {trait_name}`"));
+                }
+
+                diagnostic
             }
         }
     }

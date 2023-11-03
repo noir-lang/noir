@@ -462,6 +462,7 @@ impl Attribute {
                         || ch == '='
                         || ch == '"'
                         || ch == ' '
+                        || ch == '\''
                 })
                 .then_some(());
 
