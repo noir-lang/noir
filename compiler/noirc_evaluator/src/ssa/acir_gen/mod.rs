@@ -871,6 +871,9 @@ impl Context {
                 .get(&array_id)
                 .expect("ICE: Array with slices should have associated slice sizes");
 
+            // The first max size is going to be the length of the parent slice
+            // As we are fetching from the parent slice we just want its internal
+            // slize sizes.
             let slice_sizes = slice_sizes[1..].to_vec();
 
             let value = self.array_get_value(&res_typ, block_id, &mut var_index, &slice_sizes)?;
@@ -1238,6 +1241,8 @@ impl Context {
             }
         } else {
             // This means the current_array_id is the parent array
+            // The slice sizes should follow the parent array's type structure
+            // thus we start our sizes list with the parent array size.
             self.slice_sizes.insert(current_array_id, vec![true_len]);
             for value in array {
                 self.compute_slice_sizes(*value, Some(current_array_id), dfg);
