@@ -162,6 +162,7 @@ impl<'a> ModCollector<'a> {
                 methods: unresolved_functions,
                 object_type: trait_impl.object_type,
                 generics: trait_impl.impl_generics,
+                where_clause: trait_impl.where_clause,
                 trait_id: None, // will be filled later
             };
 

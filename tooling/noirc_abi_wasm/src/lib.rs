@@ -57,7 +57,7 @@ export type AbiType =
     { kind: "array", length: number, type: AbiType } |
     { kind: "tuple", fields: AbiType[] } |
     { kind: "struct", path: string, fields: [string, AbiType][] };
-    
+
 export type AbiParameter = {
     name: string,
     type: AbiType,
@@ -66,7 +66,7 @@ export type AbiParameter = {
     
 export type Abi = {
     parameters: AbiParameter[],
-    param_witnesses: Record<string, number[]>,
+    param_witnesses: Record<string, {start: number, end: number}[]>,
     return_type: AbiType | null,
     return_witnesses: number[],
 }

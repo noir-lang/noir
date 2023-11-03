@@ -25,6 +25,7 @@ use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
+
 use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
@@ -219,7 +220,7 @@ impl Context {
 
         let warnings = self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
-        Ok(self.acir_context.finish(input_witness.collect(), warnings))
+        Ok(self.acir_context.finish(vec![input_witness], warnings))
     }
 
     fn convert_brillig_main(
@@ -255,8 +256,8 @@ impl Context {
         for acir_var in output_vars {
             self.acir_context.return_var(acir_var)?;
         }
-
-        Ok(self.acir_context.finish(witness_inputs, Vec::new()))
+        let witnesses = vecmap(witness_inputs, |input| RangeInclusive::new(input, input));
+        Ok(self.acir_context.finish(witnesses, Vec::new()))
     }
 
     /// Adds and binds `AcirVar`s for each numeric block parameter or block parameter array element.

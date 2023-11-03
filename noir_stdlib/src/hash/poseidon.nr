@@ -20,7 +20,8 @@ pub fn config<M,N>(
     mds: [Field; N])
     -> PoseidonConfig<M,N> {
     // Input checks
-    assert(t as u8 * (rf + rp) == ark.len() as u8);
+    let mul = crate::wrapping_mul(t as u8, (rf + rp));
+    assert(mul == ark.len() as u8);
     assert(t * t == mds.len());
     assert(alpha != 0);
     

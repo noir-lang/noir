@@ -29,6 +29,7 @@ use crate::hir::def_map::{LocalModuleId, ModuleDefId, TryFromModuleDefId, MAIN_F
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId,
+    TraitImplId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -88,6 +89,10 @@ pub struct Resolver<'a> {
     /// Set to the current type if we're resolving an impl
     self_type: Option<Type>,
 
+    /// If we're currently resolving methods within a trait impl, this will be set
+    /// to the corresponding trait impl ID.
+    current_trait_impl: Option<TraitImplId>,
+
     /// True if the current module is a contract.
     /// This is usually determined by self.path_resolver.module_id(), but it can
     /// be overriden for impls. Impls are an odd case since the methods within resolve
@@ -142,6 +147,7 @@ impl<'a> Resolver<'a> {
             generics: Vec::new(),
             errors: Vec::new(),
             lambda_stack: Vec::new(),
+            current_trait_impl: None,
             file,
             in_contract,
         }
@@ -153,6 +159,10 @@ impl<'a> Resolver<'a> {
 
     pub fn set_trait_id(&mut self, trait_id: Option<TraitId>) {
         self.trait_id = trait_id;
+    }
+
+    pub fn set_trait_impl_id(&mut self, impl_id: Option<TraitImplId>) {
+        self.current_trait_impl = impl_id;
     }
 
     pub fn get_self_type(&mut self) -> Option<&Type> {
@@ -355,6 +365,15 @@ impl<'a> Resolver<'a> {
         };
 
         (hir_func, func_meta)
+    }
+
+    pub fn resolve_trait_constraint(
+        &mut self,
+        constraint: UnresolvedTraitConstraint,
+    ) -> Option<TraitConstraint> {
+        let typ = self.resolve_type(constraint.typ);
+        let trait_id = self.lookup_trait_or_error(constraint.trait_bound.trait_path)?.id;
+        Some(TraitConstraint { typ, trait_id })
     }
 
     /// Translates an UnresolvedType into a Type and appends any
@@ -809,6 +828,7 @@ impl<'a> Resolver<'a> {
             kind: func.kind,
             location,
             typ,
+            trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
