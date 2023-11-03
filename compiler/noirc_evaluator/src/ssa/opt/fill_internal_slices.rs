@@ -122,6 +122,8 @@ impl<'f> Context<'f> {
             self.collect_slice_information(*instruction, &mut slice_values, &mut slice_sizes);
         }
 
+        dbg!(slice_values.clone());
+
         // Add back every instruction with the updated nested slices.
         for instruction in instructions {
             self.push_updated_instruction(instruction, &slice_values, &slice_sizes, block);
@@ -186,6 +188,9 @@ impl<'f> Context<'f> {
                     self.compute_slice_sizes(*array, slice_sizes);
                 }
 
+                // TODO: We might need to replace the value in an array set as well
+                // in case the value is a nested slice to match the structure of the nested slice
+                // we are setting into
                 let value_typ = self.inserter.function.dfg.type_of_value(*value);
                 if value_typ.contains_slice_element() {
                     self.compute_slice_sizes(*value, slice_sizes);
@@ -198,6 +203,7 @@ impl<'f> Context<'f> {
                         // Map the value parent to the current array in case nested slices
                         // from the current array are set to larger values later in the program
                         self.mapped_slice_values.insert(value_parent, *array);
+                        // self.slice_parents.insert(*array, value_parent);
                     }
                 }
 
@@ -221,13 +227,26 @@ impl<'f> Context<'f> {
                         Intrinsic::SlicePopFront => (1, 2),
                         _ => return,
                     };
+                    let slice_contents = arguments[argument_index];
                     match intrinsic {
                         Intrinsic::SlicePushBack
                         | Intrinsic::SlicePushFront
                         | Intrinsic::SliceInsert => {
-                            let slice_contents = arguments[argument_index];
+                            // let slice_contents = arguments[argument_index];
+                            // TODO: this range start index needs to be updated for insert
+                            for arg in &arguments[(argument_index + 1)..] {
+                                // elements.push()
+                                let element_typ = self.inserter.function.dfg.type_of_value(*arg);
+                                dbg!(element_typ.contains_slice_element());
+                                dbg!(arg);
+                                if element_typ.contains_slice_element() {
+                                    slice_values.push(*arg);
+                                    self.compute_slice_sizes(*arg, slice_sizes);
+                                }
+                            }
                             if let Some(inner_sizes) = slice_sizes.get_mut(&slice_contents) {
                                 inner_sizes.0 += 1;
+                                dbg!(inner_sizes.clone());
 
                                 let inner_sizes = inner_sizes.clone();
                                 slice_sizes.insert(results[result_index], inner_sizes);
@@ -239,7 +258,7 @@ impl<'f> Context<'f> {
                         Intrinsic::SlicePopBack
                         | Intrinsic::SlicePopFront
                         | Intrinsic::SliceRemove => {
-                            let slice_contents = arguments[argument_index];
+                            // let slice_contents = arguments[argument_index];
                             // We do not decrement the size on intrinsics that could remove values from a slice.
                             // This is because we could potentially go back to the smaller slice and not fill in dummies.
                             // This pass should be tracking the potential max that a slice ***could be***
@@ -282,6 +301,94 @@ impl<'f> Context<'f> {
                     self.inserter.push_instruction(instruction, block);
                 }
             }
+            Instruction::Call { func, arguments } => {
+                let func = &self.inserter.function.dfg[*func];
+                let mut index = None;
+                for (i, arg) in arguments.iter().enumerate() {
+                    // elements.push()
+                    let element_typ = self.inserter.function.dfg.type_of_value(*arg);
+                    // dbg!(element_typ.contains_slice_element());
+                    // dbg!(slice_values.contains(arg));
+                    if slice_values.contains(arg) && element_typ.contains_slice_element() {
+                        let elem_depth = Self::compute_nested_slice_depth(&element_typ);
+                        dbg!(element_typ.clone());
+                        dbg!(elem_depth);
+                        // let slice_depth = Self::compute_nested_slice_depth(&slice_typ);
+                        // dbg!(slice_typ.clone());
+                        // dbg!(slice_depth);
+                        // let mut max_sizes = Vec::new();
+                        // max_sizes.resize(elem_depth, 0);
+                        // self.compute_slice_max_sizes(*arg, slice_sizes, &mut max_sizes, 0);
+                        // dbg!(max_sizes.clone());
+                        index = Some(i);
+                    }
+                }
+                if let Some(index) = index {
+                    dbg!(index);
+                    let element_typ = self.inserter.function.dfg.type_of_value(arguments[index]);
+                    let elem_depth = Self::compute_nested_slice_depth(&element_typ);
+
+                    let mut max_sizes = Vec::new();
+                    max_sizes.resize(elem_depth, 0);
+                    // We want the max for the parent of the argument
+                    self.compute_slice_max_sizes(arguments[1], slice_sizes, &mut max_sizes, 0);
+                    dbg!(max_sizes.clone());
+                    let new_array = self.attach_slice_dummies(&element_typ, Some(arguments[index]), false, &max_sizes);
+
+                }
+
+                // if let Value::Intrinsic(intrinsic) = func {
+                //     let (argument_index, result_index) = match intrinsic {
+                //         Intrinsic::SlicePushBack
+                //         | Intrinsic::SlicePushFront
+                //         | Intrinsic::SlicePopBack
+                //         | Intrinsic::SliceInsert
+                //         | Intrinsic::SliceRemove => (1, 1),
+                //         Intrinsic::SlicePopFront => (1, 2),
+                //         _ => return,
+                //     };
+                //     // let slice_contents = arguments[argument_index];
+                //     // We only need to update the slice size for those which are adding 
+                //     // a value to a slice so that we can maintain the appropriate nested structure.
+                //     let slice_contents = arguments[argument_index];
+                //     match intrinsic {
+                //         Intrinsic::SlicePushBack
+                //         | Intrinsic::SlicePushFront
+                //         | Intrinsic::SliceInsert => {
+                //             let slice_typ = self.inserter.function.dfg.type_of_value(slice_contents);
+                //             for arg in &arguments[(argument_index+ 1)..] {
+                //                 // elements.push()
+                //                 let element_typ = self.inserter.function.dfg.type_of_value(*arg);
+                //                 dbg!(element_typ.contains_slice_element());
+                //                 dbg!(slice_values.contains(arg));
+                //                 if slice_values.contains(arg) && element_typ.contains_slice_element() {
+                //                     let elem_depth = Self::compute_nested_slice_depth(&element_typ);
+                //                     dbg!(element_typ.clone());
+                //                     dbg!(elem_depth);
+                //                     let slice_depth = Self::compute_nested_slice_depth(&slice_typ);
+                //                     dbg!(slice_typ.clone());
+                //                     dbg!(slice_depth);
+                //                     let mut max_sizes = Vec::new();
+                //                     max_sizes.resize(elem_depth, 0);
+                //                     self.compute_slice_max_sizes(*arg, slice_sizes, &mut max_sizes, 0);
+                //                     dbg!(max_sizes.clone());
+
+                //                     // let new_array = self.attach_slice_dummies(&element_typ, Some(*arg), false, &max_sizes);
+                //                 }
+                //             }
+
+                //             self.inserter.push_instruction(instruction, block);
+                //         }
+                //         _ => {
+                //             self.inserter.push_instruction(instruction, block);
+                //         }
+                //     }
+                // } else {
+                //     self.inserter.push_instruction(instruction, block);
+                // }
+                self.inserter.push_instruction(instruction, block);
+
+            }
             _ => {
                 self.inserter.push_instruction(instruction, block);
             }
@@ -304,12 +411,23 @@ impl<'f> Context<'f> {
             .unwrap_or_else(|| panic!("should have slice sizes: {mapped_slice_value}"));
 
         let mut max_sizes = Vec::new();
-
+        
         let typ = self.inserter.function.dfg.type_of_value(array_id);
         let depth = Self::compute_nested_slice_depth(&typ);
         max_sizes.resize(depth, 0);
         max_sizes[0] = *current_size;
         self.compute_slice_max_sizes(array_id, slice_sizes, &mut max_sizes, 1);
+
+        dbg!(array_id);
+        dbg!(max_sizes.clone());
+        // Just for debugging to manually set the max_sizes list
+        // if array_id.to_usize() == 2726 {
+        //     max_sizes[2] = 8;
+        // }
+        // if max_sizes[2] == 7 {
+        //     max_sizes[2] = 8;
+        // }
+        // dbg!(max_sizes.clone());
 
         let new_array = self.attach_slice_dummies(&typ, Some(array_id), true, &max_sizes);
 
@@ -324,7 +442,7 @@ impl<'f> Context<'f> {
             }
             _ => panic!("Expected array set"),
         };
-
+        dbg!(new_array_op_instr.clone());
         (new_array_op_instr, call_stack)
     }
 

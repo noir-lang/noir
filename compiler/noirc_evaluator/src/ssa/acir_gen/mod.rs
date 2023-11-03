@@ -862,7 +862,16 @@ impl Context {
         dfg: &DataFlowGraph,
     ) -> Result<AcirValue, RuntimeError> {
         let (array_id, _, block_id) = self.check_array_is_initialized(array, dfg)?;
-
+        // dbg!(array_id);
+        if array_id.to_usize() == 3410 {
+            dbg!("got 3410");
+        }
+        if array_id.to_usize() == 3460 {
+            dbg!("got 3460");
+        }
+        if array_id.to_usize() == 3514 {
+            dbg!("got 3514");
+        }
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
 
@@ -968,7 +977,10 @@ impl Context {
         };
 
         let (array_id, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
-
+        // dbg!(array_id);
+        if array_id.to_usize() == 3583 {
+            dbg!("array_set got 3583");
+        }
         // Every array has a length in its type, so we fetch that from
         // the SSA IR.
         //
@@ -1216,6 +1228,9 @@ impl Context {
         }
         // dbg!(array_id);
         // dbg!(flat_elem_type_sizes.clone());
+        if array_id.to_usize() == 2316 {
+            dbg!(flat_elem_type_sizes.clone());
+        }
         // The final array should will the flattened index at each outer array index
         let init_values = vecmap(flat_elem_type_sizes, |type_size| {
             let var = self.acir_context.add_constant(FieldElement::from(type_size as u128));
@@ -1774,7 +1789,7 @@ impl Context {
                         new_slice.push_back(element);
                     }
                 }
-
+                dbg!(new_elem_size);
                 // NOTE: This works for a primitive type
                 // let element = self.convert_value(arguments[2], dfg);
                 let one = self.acir_context.add_constant(FieldElement::one());
@@ -1795,11 +1810,22 @@ impl Context {
                     Some(new_slice_val.clone()),
                 )?;
                 let mut var_index = slice_length;
-                let mut var_index = self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
+                if slice_typ.is_nested_slice() {
+                    dbg!(arguments[1]);
+                    // dbg!(&dfg[array_id]);
+                    // dbg!(slice.clone());
+                    let element_size = slice_typ.element_size();
+                    dbg!(element_size);
+                    // Multiple the element size against the var index before fetching the flattened index
+                    let element_size_var = self.acir_context.add_constant(FieldElement::from(element_size as u128));
+                    var_index = self.acir_context.mul_var(slice_length, element_size_var)?;
+                    var_index = self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
+                }
+                // let mut var_index = self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
                 // This is just for testing
                 // let zero = self.acir_context.add_constant(FieldElement::zero());
                 // let mut var_index = zero;
-
+                dbg!(result_block_id.0);
                 for elem in &arguments[2..] {
                     let element = self.convert_value(*elem, dfg);
                     self.array_set_value(element, result_block_id, &mut var_index)?;
