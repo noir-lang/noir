@@ -81,7 +81,16 @@ pub(crate) fn run(
         for compiled_program in &compiled_programs {
             let span_opcodes = compiled_program.debug.count_span_opcodes();
             let debug_artifact: DebugArtifact = compiled_program.clone().into();
-            print_span_opcodes(&span_opcodes, debug_artifact);
+            print_span_opcodes(&span_opcodes, &debug_artifact);
+        }
+
+        for compiled_contract in &compiled_contracts {
+            let debug_artifact: DebugArtifact = compiled_contract.clone().into();
+            let functions = &compiled_contract.functions;
+            for contract_function in functions {
+                let span_opcodes = contract_function.debug.count_span_opcodes();
+                print_span_opcodes(&span_opcodes, &debug_artifact);
+            }
         }
     }
 
@@ -135,7 +144,10 @@ pub(crate) fn run(
     Ok(())
 }
 
-fn print_span_opcodes(span_opcodes_map: &HashMap<&Location, usize>, debug_artifact: DebugArtifact) {
+fn print_span_opcodes(
+    span_opcodes_map: &HashMap<&Location, usize>,
+    debug_artifact: &DebugArtifact,
+) {
     let mut pairs: Vec<(&&Location, &usize)> = span_opcodes_map.iter().collect();
 
     pairs.sort_by(|a, b| a.1.cmp(b.1));
@@ -148,8 +160,13 @@ fn print_span_opcodes(span_opcodes_map: &HashMap<&Location, usize>, debug_artifa
         let range = start_byte..end_byte;
         let span_content = &debug_file.source[range];
         let line = debug_artifact.location_line_index(**location).unwrap();
-        println!("File: {}", debug_file.path.to_str().unwrap());
-        println!("Ln. {}: {} ({} opcode|s)", line, span_content, opcodes_len);
+        println!(
+            "Ln. {}: {} ({} opcode|s) in file: {}",
+            line,
+            span_content,
+            opcodes_len,
+            debug_file.path.to_str().unwrap()
+        );
     }
 }
 fn byte_index(string: &str, index: u32) -> usize {

@@ -1,5 +1,5 @@
 use codespan_reporting::files::{Error, Files, SimpleFile};
-use noirc_driver::{CompiledProgram, DebugFile};
+use noirc_driver::{CompiledContract, CompiledProgram, DebugFile};
 use noirc_errors::{debug_info::DebugInfo, Location};
 use noirc_evaluator::errors::SsaReport;
 use serde::{Deserialize, Serialize};
@@ -102,6 +102,22 @@ impl From<CompiledProgram> for DebugArtifact {
             debug_symbols: vec![compiled_program.debug],
             file_map: compiled_program.file_map,
             warnings: compiled_program.warnings,
+        }
+    }
+}
+
+impl From<&CompiledContract> for DebugArtifact {
+    fn from(compiled_artifact: &CompiledContract) -> Self {
+        let all_functions_debug: Vec<DebugInfo> = compiled_artifact
+            .functions
+            .iter()
+            .map(|contract_function| contract_function.debug.clone())
+            .collect();
+
+        DebugArtifact {
+            debug_symbols: all_functions_debug,
+            file_map: compiled_artifact.file_map.clone(),
+            warnings: Vec::new(),
         }
     }
 }
