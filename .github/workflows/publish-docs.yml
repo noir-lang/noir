@@ -19,6 +19,11 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
 
+      - name: Create new branch
+        run: |
+          git checkout -b new-docs-version-${{ github.event.inputs.tag }}
+    
+
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
@@ -56,15 +61,24 @@ jobs:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         timeout-minutes: 1
 
-
-      - name: Checkout branch PR to commit changes
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || inputs.tag }}
-
-      - name: Commit new version
+      - name: Commit new documentation version
         run: |
-          git config --local user.name signorecello
-          git config --local user.email github@zepedro.me
+          git config --local user.name 'signorecello'
+          git config --local user.email 'github@zepedro.me'
           git add .
-          git commit -m "chore: cutting docs version for tag ${{ inputs.tag }}"
+          git commit -m "chore(docs): cut new docs version for tag ${{ github.event.inputs.tag }}"
+      
+      - name: Push changes to new branch
+        run: git push origin new-docs-version-${{ github.event.inputs.tag }}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          title: 'New Docs Version for ${{ github.event.inputs.tag }}'
+          commit-message: "chore(docs): cut new docs version for tag ${{ github.event.inputs.tag }}"
+          branch: new-docs-version-${{ github.event.inputs.tag }}
+          body: |
+            Updates documentation to new version for tag ${{ github.event.inputs.tag }}.
+          base: master  # or main or whichever branch you want to merge to
+          labels: documentation
+          token: ${{ secrets.GITHUB_TOKEN }}
