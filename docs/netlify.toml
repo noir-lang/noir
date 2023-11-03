@@ -67,6 +67,10 @@
     to = "/dev_docs/tutorials/writing_token_contract"
 
 [[redirects]]
+    from = "/dev_docs/getting_started/updating"
+    to = "/dev_docs/updating"
+
+[[redirects]]
     from = "/dev_docs/sandbox/main"
     to = "/dev_docs/getting_started/sandbox"
 

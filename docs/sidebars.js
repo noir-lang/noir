@@ -368,7 +368,7 @@ const sidebars = {
     {
       label: "Updating",
       type: "doc",
-      id: "dev_docs/cli/updating",
+      id: "dev_docs/updating",
     },
 
     {

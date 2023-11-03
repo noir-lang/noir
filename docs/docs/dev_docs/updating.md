@@ -18,9 +18,7 @@ npm install -g @aztec/cli
 
 - nargo
 
-```shell
-noirup
-```
+<InstallNargoInstructions />
 
 - Aztec.nr
 
