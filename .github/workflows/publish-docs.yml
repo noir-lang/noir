@@ -39,7 +39,26 @@ jobs:
       - name: Cut a new version
         working-directory: ./docs
         run: yarn docusaurus docs:version ${{ inputs.tag }}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          title: 'New Docs Version for ${{ github.event.inputs.tag }}'
+          commit-message: "chore(docs): cut new docs version for tag ${{ github.event.inputs.tag }}"
+          branch: new-docs-version-${{ github.event.inputs.tag }}
+          body: |
+            Updates documentation to new version for tag ${{ github.event.inputs.tag }}.
+          base: master  # or main or whichever branch you want to merge to
+          labels: documentation
+          token: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Debug
+        run: |
+          ls -la
+          ls -la docs
+          ls -la docs/versioned_docs
+          cat docs/versions.json
+
       - name: Remove pre-releases
         id: get_version
         run: |
@@ -71,15 +90,3 @@ jobs:
       
       - name: Push changes to new branch
         run: git push origin new-docs-version-${{ github.event.inputs.tag }}
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v4
-        with:
-          title: 'New Docs Version for ${{ github.event.inputs.tag }}'
-          commit-message: "chore(docs): cut new docs version for tag ${{ github.event.inputs.tag }}"
-          branch: new-docs-version-${{ github.event.inputs.tag }}
-          body: |
-            Updates documentation to new version for tag ${{ github.event.inputs.tag }}.
-          base: master  # or main or whichever branch you want to merge to
-          labels: documentation
-          token: ${{ secrets.GITHUB_TOKEN }}
