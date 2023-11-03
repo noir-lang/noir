@@ -81,4 +81,6 @@ pub enum SemverError {
     },
     #[error("Could not parse the required compiler version for package {package_name} in Nargo.toml. Error: {error}")]
     CouldNotParseRequiredVersion { package_name: String, error: String },
+    #[error("Could not parse the package version for package {package_name} in Nargo.toml. Error: {error}")]
+    CouldNotParsePackageVersion { package_name: String, error: String },
 }
