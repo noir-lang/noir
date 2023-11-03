@@ -378,9 +378,9 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr),
 
-            HirExpression::TraitMethodReference(typ, method) => {
+            HirExpression::TraitMethodReference(_typ, method) => {
                 if let Type::Function(_, _, _) = self.interner.id_type(expr) {
-                    self.resolve_trait_method_reference(typ, expr, method)
+                    self.resolve_trait_method_reference(expr, method)
                 } else {
                     unreachable!(
                         "Calling a non-function, this should've been caught in typechecking"
@@ -812,7 +812,6 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn resolve_trait_method_reference(
         &mut self,
-        self_type: HirType,
         expr_id: node_interner::ExprId,
         method: TraitMethodId,
     ) -> ast::Expression {
@@ -820,10 +819,16 @@ impl<'interner> Monomorphizer<'interner> {
 
         let trait_impl = self
             .interner
-            .lookup_trait_implementation(&self_type, method.trait_id)
+            .get_selected_impl_for_ident(expr_id)
             .expect("ICE: missing trait impl - should be caught during type checking");
 
-        let hir_func_id = trait_impl.borrow().methods[method.method_index];
+        let hir_func_id = match trait_impl {
+            node_interner::TraitImplKind::Normal(impl_id) => {
+                self.interner.get_trait_implementation(impl_id).borrow().methods
+                    [method.method_index]
+            }
+            node_interner::TraitImplKind::Assumed => todo!("Find Assumed impl for {function_type}"),
+        };
 
         let func_def = self.lookup_function(hir_func_id, expr_id, &function_type);
         let func_id = match func_def {
