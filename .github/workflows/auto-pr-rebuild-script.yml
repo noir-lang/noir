@@ -26,6 +26,7 @@ jobs:
             }
 
             const labels = context.payload.pull_request.labels.map(label => label.name);
+            console.log(labels)
             return labels.includes('publish-acir');
           result-encoding: string
         env:
