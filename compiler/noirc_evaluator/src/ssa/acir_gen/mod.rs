@@ -240,11 +240,8 @@ impl Context {
         for acir_var in output_vars {
             self.acir_context.return_var(acir_var)?;
         }
-        let mut wit = Vec::new();
-        for input in witness_inputs {
-            wit.push(RangeInclusive::new(input, input));
-        }
-        Ok(self.acir_context.finish(wit, Vec::new()))
+        let witnesses = vecmap(witness_inputs, |input| RangeInclusive::new(input, input));
+        Ok(self.acir_context.finish(witnesses, Vec::new()))
     }
 
     /// Adds and binds `AcirVar`s for each numeric block parameter or block parameter array element.

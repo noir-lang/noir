@@ -530,13 +530,11 @@ impl ContractEvent {
     }
 }
 
-fn range_to_vec(ranges: &Vec<Range<Witness>>) -> Vec<Witness> {
+fn range_to_vec(ranges: &[Range<Witness>]) -> Vec<Witness> {
     let mut result = Vec::new();
     for range in ranges {
-        let mut w = range.start.witness_index();
-        while w != range.end.witness_index() {
-            result.push(w.into());
-            w += 1;
+        for witness in range.start.witness_index()..range.end.witness_index() {
+            result.push(witness.into());
         }
     }
     result
