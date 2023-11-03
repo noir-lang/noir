@@ -62,6 +62,18 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Setup Nix
+        uses: ./.github/actions/nix
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          nix-cache-name: "noir"
+          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+
+      - name: Build wasm packages
+        run: |
+          nix build -L .#noirc_abi_wasm
+          nix build -L .#acvm_js
+
       - name: Install dependencies
         run: yarn
         
