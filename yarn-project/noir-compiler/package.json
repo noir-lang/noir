@@ -47,8 +47,8 @@
   "dependencies": {
     "@aztec/foundation": "workspace:^",
     "@ltd/j-toml": "^1.38.0",
-    "@noir-lang/noir_wasm": "0.18.0-3919619.aztec",
-    "@noir-lang/source-resolver": "0.18.0-3919619.aztec",
+    "@noir-lang/noir_wasm": "0.18.0-6ca33a2.aztec",
+    "@noir-lang/source-resolver": "0.18.0-6ca33a2.aztec",
     "base64-js": "^1.5.1",
     "commander": "^9.0.0",
     "fs-extra": "^11.1.1",
@@ -59,6 +59,7 @@
     "lodash.upperfirst": "^4.3.1",
     "memfs": "^4.6.0",
     "pako": "^2.1.0",
+    "semver": "^7.5.4",
     "tslib": "^2.4.0",
     "unzipit": "^1.4.3"
   },
@@ -74,6 +75,7 @@
     "@types/lodash.upperfirst": "^4.3.7",
     "@types/node": "^18.7.23",
     "@types/pako": "^2.0.0",
+    "@types/semver": "^7.5.4",
     "jest": "^29.5.0",
     "ts-jest": "^29.1.0",
     "ts-node": "^10.9.1",

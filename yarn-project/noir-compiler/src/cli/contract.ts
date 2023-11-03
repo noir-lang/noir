@@ -25,7 +25,7 @@ export function compileContract(program: Command, name = 'contract', log: LogFn 
     .option('-o, --outdir <path>', 'Output folder for the binary artifacts, relative to the project path', 'target')
     .option('-ts, --typescript <path>', 'Optional output folder for generating typescript wrappers', undefined)
     .option('-i, --interface <path>', 'Optional output folder for generating an Aztec.nr contract interface', undefined)
-    .option('-c --compiler <string>', 'Which compiler to use. Either nargo or wasm. Defaults to nargo', 'nargo')
+    .option('-c --compiler <string>', 'Which compiler to use. Either nargo or wasm. Defaults to nargo', 'wasm')
     .description('Compiles the contracts in the target project')
 
     .action(
@@ -40,7 +40,7 @@ export function compileContract(program: Command, name = 'contract', log: LogFn 
         },
         /* eslint-enable jsdoc/require-jsdoc */
       ) => {
-        const { outdir, typescript, interface: noirInterface, compiler = 'nargo' } = options;
+        const { outdir, typescript, interface: noirInterface, compiler } = options;
         if (typeof projectPath !== 'string') throw new Error(`Missing project path argument`);
         if (compiler !== 'nargo' && compiler !== 'wasm') throw new Error(`Invalid compiler: ${compiler}`);
         const currentDir = process.cwd();

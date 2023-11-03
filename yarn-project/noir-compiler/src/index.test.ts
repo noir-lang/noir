@@ -33,6 +33,7 @@ describe('noir-compiler', () => {
   const nargoAvailable = isNargoAvailable();
   const conditionalDescribe = nargoAvailable ? describe : describe.skip;
   const conditionalIt = nargoAvailable ? it : it.skip;
+  const withoutDebug = ({ debug: _debug, ...rest }: ContractArtifact): Omit<ContractArtifact, 'debug'> => rest;
 
   function compilerTest(compileFn: (path: string, opts: { log: LogFn }) => Promise<ContractArtifact[]>) {
     let compiled: ContractArtifact[];
@@ -41,7 +42,7 @@ describe('noir-compiler', () => {
     });
 
     it('compiles the test contract', () => {
-      expect(compiled).toMatchSnapshot();
+      expect(compiled.map(withoutDebug)).toMatchSnapshot();
     });
 
     it('generates typescript interface', () => {
@@ -68,8 +69,6 @@ describe('noir-compiler', () => {
       compileUsingNoirWasm(projectPath, { log }),
       compileUsingNargo(projectPath, { log }),
     ]);
-
-    const withoutDebug = ({ debug: _debug, ...rest }: ContractArtifact): Omit<ContractArtifact, 'debug'> => rest;
 
     expect(nargoArtifact.map(withoutDebug)).toEqual(noirWasmArtifact.map(withoutDebug));
   });

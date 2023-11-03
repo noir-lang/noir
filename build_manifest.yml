@@ -83,17 +83,6 @@ circuits-x86_64-linux-clang-assert:
 l1-contracts:
   buildDir: l1-contracts
 
-# We should move the noir source code to the top of the repo.
-# It's currently under yarn-project which looks very circular, but it isn't.
-# We're specific with our rebuild patterns as we depend on aztec.nr, but it doesn't have its own build.
-noir-contracts-build:
-  buildDir: yarn-project
-  projectDir: yarn-project/noir-contracts
-  rebuildPatterns:
-    - ^yarn-project/noir-contracts/
-    - ^yarn-project/noir-compiler/src/noir-version.json
-    - ^yarn-project/aztec-nr/
-
 yarn-project-base:
   buildDir: yarn-project
   projectDir: yarn-project/yarn-project-base
@@ -107,11 +96,10 @@ yarn-project-base:
 yarn-project:
   buildDir: yarn-project
   rebuildPatterns:
-    - ^yarn-project/.*\.(ts|tsx|js|cjs|mjs|json|html|md|sh)$
+    - ^yarn-project/.*\.(ts|tsx|js|cjs|mjs|json|html|md|sh|nr|toml)$
     - ^yarn-project/Dockerfile
   dependencies:
     - yarn-project-base
-    - noir-contracts-build
 
 aztec-sandbox:
   buildDir: yarn-project
