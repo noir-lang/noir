@@ -7,7 +7,10 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
-use std::collections::BTreeSet;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    ops::Range,
+};
 
 use crate::{
     brillig::Brillig,
@@ -98,14 +101,12 @@ pub fn create_circuit(
         ..
     } = generated_acir;
 
-    let abi = gen_abi(context, func_sig, &input_witnesses, return_witnesses.clone());
+    let abi = gen_abi(context, func_sig, input_witnesses, return_witnesses.clone());
     let public_abi = abi.clone().public_abi();
 
-    let public_parameters =
-        PublicInputs(public_abi.param_witnesses.values().flatten().copied().collect());
+    let public_parameters = PublicInputs(tree_to_set(&public_abi.param_witnesses));
 
-    let all_parameters: BTreeSet<Witness> =
-        abi.param_witnesses.values().flatten().copied().collect();
+    let all_parameters: BTreeSet<Witness> = tree_to_set(&abi.param_witnesses);
     let private_parameters = all_parameters.difference(&public_parameters.0).copied().collect();
 
     let return_values = PublicInputs(return_witnesses.into_iter().collect());
@@ -176,4 +177,16 @@ impl SsaBuilder {
         }
         self
     }
+}
+
+// Flatten the witnesses in the map into a BTreeSet
+fn tree_to_set(input: &BTreeMap<String, Vec<Range<Witness>>>) -> BTreeSet<Witness> {
+    let mut result = BTreeSet::new();
+    for range in input.values().flatten() {
+        for i in range.start.witness_index()..range.end.witness_index() {
+            result.insert(Witness(i));
+        }
+    }
+
+    result
 }

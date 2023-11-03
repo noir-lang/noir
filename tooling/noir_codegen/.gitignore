@@ -1,0 +1,4 @@
+crs
+lib
+
+!test/*/target

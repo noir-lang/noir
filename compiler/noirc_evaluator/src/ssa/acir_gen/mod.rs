@@ -25,6 +25,7 @@ use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
+
 use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
@@ -219,7 +220,7 @@ impl Context {
 
         let warnings = self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
-        Ok(self.acir_context.finish(input_witness.collect(), warnings))
+        Ok(self.acir_context.finish(vec![input_witness], warnings))
     }
 
     fn convert_brillig_main(
@@ -255,8 +256,8 @@ impl Context {
         for acir_var in output_vars {
             self.acir_context.return_var(acir_var)?;
         }
-
-        Ok(self.acir_context.finish(witness_inputs, Vec::new()))
+        let witnesses = vecmap(witness_inputs, |input| RangeInclusive::new(input, input));
+        Ok(self.acir_context.finish(witnesses, Vec::new()))
     }
 
     /// Adds and binds `AcirVar`s for each numeric block parameter or block parameter array element.
@@ -869,13 +870,15 @@ impl Context {
         let value = if !res_typ.contains_slice_element() {
             self.array_get_value(&res_typ, block_id, &mut var_index, &[])?
         } else {
-            let mut slice_sizes = self
+            let slice_sizes = self
                 .slice_sizes
                 .get(&array_id)
-                .expect("ICE: Array with slices should have associated slice sizes")
-                .clone();
+                .expect("ICE: Array with slices should have associated slice sizes");
 
-            slice_sizes.remove(0);
+            // The first max size is going to be the length of the parent slice
+            // As we are fetching from the parent slice we just want its internal
+            // slize sizes.
+            let slice_sizes = slice_sizes[1..].to_vec();
 
             let value = self.array_get_value(&res_typ, block_id, &mut var_index, &slice_sizes)?;
 
@@ -1243,14 +1246,15 @@ impl Context {
             let sizes_list =
                 self.slice_sizes.get_mut(&parent_array).expect("ICE: expected size list");
             sizes_list.push(true_len);
+            for value in array {
+                self.compute_slice_sizes(*value, Some(parent_array), dfg);
+            }
         } else {
             // This means the current_array_id is the parent array
+            // The slice sizes should follow the parent array's type structure
+            // thus we start our sizes list with the parent array size.
             self.slice_sizes.insert(current_array_id, vec![true_len]);
-        }
-        for value in array {
-            if parent_array.is_some() {
-                self.compute_slice_sizes(*value, parent_array, dfg);
-            } else {
+            for value in array {
                 self.compute_slice_sizes(*value, Some(current_array_id), dfg);
             }
         }
