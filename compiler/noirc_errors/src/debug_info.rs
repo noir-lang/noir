@@ -4,6 +4,8 @@ use acvm::compiler::AcirTransformationMap;
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::mem;
 
 use crate::Location;
@@ -41,5 +43,21 @@ impl DebugInfo {
 
     pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<Vec<Location>> {
         self.locations.get(loc).cloned()
+    }
+
+    pub fn count_span_opcodes(&self) -> HashMap<&Location, usize> {
+        let mut accumulator: HashMap<&Location, HashSet<&OpcodeLocation>> = HashMap::new();
+
+        for (opcode_location, locations) in self.locations.iter() {
+            for location in locations.iter() {
+                let what = accumulator.entry(location).or_insert(HashSet::new());
+                what.insert(opcode_location);
+            }
+        }
+
+        let counted_opcodes: HashMap<&Location, usize> =
+            accumulator.iter().map(|(location, opcodes)| (*location, opcodes.len())).collect();
+
+        counted_opcodes
     }
 }

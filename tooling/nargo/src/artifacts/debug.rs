@@ -1,5 +1,5 @@
 use codespan_reporting::files::{Error, Files, SimpleFile};
-use noirc_driver::DebugFile;
+use noirc_driver::{CompiledProgram, DebugFile};
 use noirc_errors::{debug_info::DebugInfo, Location};
 use noirc_evaluator::errors::SsaReport;
 use serde::{Deserialize, Serialize};
@@ -93,6 +93,16 @@ impl DebugArtifact {
     pub fn last_line_index(&self, location: Location) -> Result<usize, Error> {
         let source = self.source(location.file)?;
         self.line_index(location.file, source.len())
+    }
+}
+
+impl From<CompiledProgram> for DebugArtifact {
+    fn from(compiled_program: CompiledProgram) -> Self {
+        DebugArtifact {
+            debug_symbols: vec![compiled_program.debug],
+            file_map: compiled_program.file_map,
+            warnings: compiled_program.warnings,
+        }
     }
 }
 
