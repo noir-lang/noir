@@ -894,7 +894,9 @@ impl AcirContext {
                         return Ok(variable);
                     }
                 }
-                let witness = self.var_to_witness(variable)?;
+
+                let witness_var = self.get_or_create_witness_var(variable)?;
+                let witness = self.var_to_witness(witness_var)?;
                 self.acir_ir.range_constraint(witness, *bit_size)?;
                 if let Some(message) = message {
                     self.acir_ir
@@ -1083,7 +1085,8 @@ impl AcirContext {
                 // Intrinsics only accept Witnesses. This is not a limitation of the
                 // intrinsics, its just how we have defined things. Ideally, we allow
                 // constants too.
-                let witness = self.var_to_witness(input)?;
+                let witness_var = self.get_or_create_witness_var(input)?;
+                let witness = self.var_to_witness(witness_var)?;
                 let num_bits = typ.bit_size();
                 single_val_witnesses.push(FunctionInput { witness, num_bits });
             }
