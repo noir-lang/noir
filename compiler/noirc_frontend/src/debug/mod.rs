@@ -61,30 +61,30 @@ impl DebugState {
         });
     }
 
-    fn wrap_var(&mut self, var_name: &str, expr: ast::Expression) -> ast::Expression {
+    fn wrap_var(&mut self, var_name: &str, expr: ast::Expression, span: &Span) -> ast::Expression {
         let var_id = self.insert_var(var_name);
         let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
             func: Box::new(ast::Expression {
                 kind: ast::ExpressionKind::Variable(ast::Path {
-                    segments: vec![ident("__debug_state_set")],
+                    segments: vec![ident("__debug_state_set", span)],
                     kind: PathKind::Plain
                 }),
-                span: Span::single_char(0),
+                span: none_span(),
             }),
             arguments: vec![
                 ast::Expression {
                     kind: ast::ExpressionKind::Literal(ast::Literal::Integer(
                         (var_id as u128).into()
                     )),
-                    span: Span::single_char(0),
+                    span: none_span(),
                 },
                 expr
             ],
         }));
-        ast::Expression { kind, span: Span::single_char(0) }
+        ast::Expression { kind, span: none_span() }
     }
 
-    fn wrap_let_statement(&mut self, let_stmt: &ast::LetStatement) -> ast::Statement {
+    fn wrap_let_statement(&mut self, let_stmt: &ast::LetStatement, span: &Span) -> ast::Statement {
         // rewrites let statements written like this:
         //   let (((a,b,c),D { d }),e,f) = x;
         //
@@ -103,46 +103,46 @@ impl DebugState {
         let vars_pattern: Vec<ast::Pattern> = vars.iter().map(|id| {
             ast::Pattern::Identifier(id.clone())
         }).collect();
-        let vars_exprs: Vec<ast::Expression> = vars.iter().map(|id| id_expr(id)).collect();
+        let vars_exprs: Vec<ast::Expression> = vars.iter().map(|id| id_expr(id, span)).collect();
 
         let mut block_stmts = vec![
             ast::Statement {
                 kind: ast::StatementKind::Let(let_stmt.clone()),
-                span: Span::single_char(0),
+                span: none_span(),
             },
         ];
         block_stmts.extend(vars.iter().map(|id| {
             let var_name = &id.0.contents;
             ast::Statement {
-                kind: ast::StatementKind::Semi(self.wrap_var(var_name, id_expr(id))),
-                span: Span::single_char(0),
+                kind: ast::StatementKind::Semi(self.wrap_var(var_name, id_expr(id, span), span)),
+                span: none_span(),
             }
         }));
         block_stmts.push(ast::Statement {
             kind: ast::StatementKind::Expression(ast::Expression {
                 kind: ast::ExpressionKind::Tuple(vars_exprs),
-                span: Span::single_char(0),
+                span: none_span(),
             }),
-            span: Span::single_char(0),
+            span: none_span(),
         });
 
         ast::Statement {
             kind: ast::StatementKind::Let(ast::LetStatement {
-                pattern: ast::Pattern::Tuple(vars_pattern, Span::single_char(0)),
+                pattern: ast::Pattern::Tuple(vars_pattern, none_span()),
                 r#type: ast::UnresolvedType::unspecified(),
                 expression: ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression(block_stmts)),
-                    span: Span::single_char(0),
+                    span: none_span(),
                 },
             }),
-            span: Span::single_char(0),
+            span: span.clone(),
         }
     }
 
     fn walk_statement(&mut self, stmt: &mut ast::Statement) {
         match &mut stmt.kind {
             ast::StatementKind::Let(let_stmt) => {
-                *stmt = self.wrap_let_statement(&let_stmt);
+                *stmt = self.wrap_let_statement(&let_stmt, &stmt.span);
             },
             _ => {},
         }
@@ -190,16 +190,18 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<ast::Ident> {
     vars
 }
 
-fn ident(s: &str) -> ast::Ident {
-    ast::Ident(Spanned::from(Span::single_char(0), s.to_string()))
+fn ident(s: &str, span: &Span) -> ast::Ident {
+    ast::Ident(Spanned::from(none_span(), s.to_string()))
 }
 
-fn id_expr(id: &ast::Ident) -> ast::Expression {
+fn id_expr(id: &ast::Ident, span: &Span) -> ast::Expression {
     ast::Expression {
         kind: ast::ExpressionKind::Variable(Path {
             segments: vec![id.clone()],
             kind: PathKind::Plain,
         }),
-        span: Span::single_char(0),
+        span: none_span(),
     }
 }
+
+fn none_span() -> Span { Span::from_str("") }
