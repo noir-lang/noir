@@ -55,3 +55,10 @@ jobs:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         timeout-minutes: 1
+
+      - name: Commit new version
+        run: |
+          git config --local user.name signorecello
+          git config --local user.email github@zepedro.me
+          git add .
+          git commit -m "chore: cutting docs version for tag ${{ inputs.tag }}"
