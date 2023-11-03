@@ -36,7 +36,9 @@ contract DocsExample {
         legendary_card: Singleton<CardNote, CARD_NOTE_LEN>,
         // docs:end:storage-singleton-declaration
         cards: Set<CardNote, CARD_NOTE_LEN>,
+        // docs:start:storage-map-singleton-declaration
         profiles: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>,
+        // docs:end:storage-map-singleton-declaration
     }
     // docs:end:storage-struct-declaration
 

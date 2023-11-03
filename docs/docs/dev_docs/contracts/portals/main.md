@@ -49,18 +49,18 @@ Computing the `content` must be done manually in its current form, as we are sti
 #include_code claim_public /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr rust
 
 :::info
-The `content_hash` is a sha256 truncated to a field element (~ 254 bits). In Aztec-nr, you can use our `sha256_to_field()` to do a sha256 hash which fits in one field element:
+The `content_hash` is a sha256 truncated to a field element (~ 254 bits). In Aztec-nr, you can use our `sha256_to_field()` to do a sha256 hash which fits in one field element
+:::
 
 #include_code mint_public_content_hash_nr /yarn-project/noir-contracts/src/contracts/token_portal_content_hash_lib/src/lib.nr rust
 
-In solidity, you can use our `Hash.sha256ToField()` method:
+In Solidity, you can use our `Hash.sha256ToField()` method:
 
 #include_code content_hash_sol_import l1-contracts/test/portals/TokenPortal.sol solidity
 
 #include_code deposit_public l1-contracts/test/portals/TokenPortal.sol solidity
 
 The `secret_hash` uses the pederson hash which fits in a field element. You can use the utility method `computeMessageSecretHash()`in `@aztec/aztec.js` npm package to generate a secret and its corresponding hash.
-:::
 
 After the transaction has been mined, the message is consumed, a nullifier is emitted and the tokens have been minted on Aztec and are ready for claiming.
 

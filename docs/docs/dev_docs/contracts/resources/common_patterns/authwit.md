@@ -2,7 +2,9 @@
 title: Authentication Witness
 description: Developer Documentation to use Authentication Witness for authentication actions on Aztec.
 ---
+
 ## Prerequisite reading
+
 - [Authwit from Foundational Concepts](./../../../../concepts/foundation/accounts/authwit.md)
 
 ## Introduction
@@ -86,17 +88,13 @@ For our purposes here (not building a wallet), the most important part of the li
 
 ### General utilities
 
-The primary general utility is the `compute_authwit_message_hash` function which computes the action hash from its components. This is useful for when you need to generate a hash that is not for the current call, such as when you want to update a public approval state value that is later used for [authentication in public](#updating-approval-state-in-noir).
-
-#include_code compute_authwit_message_hash /yarn-project/aztec-nr/authwit/src/auth.nr rust
+The primary general utility is the `compute_authwit_message_hash` function which computes the action hash from its components. This is useful for when you need to generate a hash that is not for the current call, such as when you want to update a public approval state value that is later used for [authentication in public](#updating-approval-state-in-noir). You can view the implementation of this function [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/authwit/src/auth.nr).
 
 #### TypeScript utilities
 
-To make it convenient to compute the message hashes in TypeScript, the `aztec.js` package includes a `computeAuthWitMessageHash` function that you can use.
+To make it convenient to compute the message hashes in TypeScript, the `aztec.js` package includes a `computeAuthWitMessageHash` function that you can use. Implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec.js/src/utils/authwit.ts).
 
-#include_code authwit_computeAuthWitMessageHash /yarn-project/aztec.js/src/utils/authwit.ts typescript
-
-As you can see above, this function takes a `caller` and a `request`. So let's quickly see how we can get those. Luckily for us, the `request` can be easily prepared similarly to how we are making contract calls from TypeScript.
+As you can see above, this function takes a `caller` and a `request`. The `request` can be easily prepared similarly to how we are making contract calls from TypeScript.
 
 #include_code authwit_computeAuthWitMessageHash /yarn-project/end-to-end/src/e2e_token_contract.test.ts typescript
 
@@ -104,23 +102,23 @@ As you can see above, this function takes a `caller` and a `request`. So let's q
 
 For private calls where we allow execution on behalf of others, we generally want to check if the current call is authenticated by `on_behalf_of`. To easily do so, we can use the `assert_current_call_valid_authwit` which fetches information from the current context without us needing to provide much beyond the `on_behalf_of`.
 
-#include_code assert_current_call_valid_authwit /yarn-project/aztec-nr/authwit/src/auth.nr rust
-
-As seen above, we mainly compute the message hash, and then forward the call to the more generic `assert_valid_authwit`. This validating function will then:
+This function computes the message hash, and then forwards the call to the more generic `assert_valid_authwit`. This validating function will then:
 
 - make a call to `on_behalf_of` to validate that the call is authenticated
 - emit a nullifier for the action to prevent replay attacks
 - throw if the action is not authenticated by `on_behalf_of`
 
-#include_code assert_valid_authwit /yarn-project/aztec-nr/authwit/src/auth.nr rust
+#### Example
+
+#include_code assert_current_call_valid_authwit /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 ### Utilities for public calls
 
 Very similar to above, we have variations that work in the public domain. These functions are wrapped to give a similar flow for both cases, but behind the scenes the logic of the account contracts is slightly different since they cannot use the oracle as they are not in the private domain.
 
-#include_code assert_current_call_valid_authwit_public /yarn-project/aztec-nr/authwit/src/auth.nr rust
+#### Example
 
-#include_code assert_valid_authwit_public /yarn-project/aztec-nr/authwit/src/auth.nr rust
+#include_code assert_current_call_valid_authwit_public /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 ## Usage
 
