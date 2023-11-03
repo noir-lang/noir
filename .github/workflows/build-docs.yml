@@ -62,24 +62,37 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Setup Nix
-        uses: ./.github/actions/nix
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          nix-cache-name: "noir"
-          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+          tool: wasm-bindgen-cli@0.2.86
 
-      - name: Build wasm packages
+      - name: Install wasm-opt
         run: |
-          nix build -L .#noirc_abi_wasm
-          nix build -L .#acvm_js
+          npm i wasm-opt -g
 
       - name: Install dependencies
         run: yarn
-        
-      - name: Build
+
+      - name: Build acvm_js
+        run: yarn workspace @noir-lang/acvm_js build
+
+      - name: Build noirc_abi
+        run: yarn workspace @noir-lang/noirc_abi build
+
+      - name: Build noir_js_types
+        run: yarn workspace @noir-lang/types build
+
+      - name: Build barretenberg wrapper
+        run: yarn workspace @noir-lang/backend_barretenberg build
+
+      - name: Run noir_js
         run: |
-          yarn build
+          yarn workspace @noir-lang/noir_js build
+
+      - name: Build docs
+        run: 
+          yarn workspace docs build
 
       - name: Remove pre-releases
         working-directory: docs
