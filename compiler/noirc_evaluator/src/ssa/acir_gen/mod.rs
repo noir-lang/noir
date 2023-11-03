@@ -760,7 +760,6 @@ impl Context {
                 } else {
                     vec![]
                 };
-
                 let dummy = self.array_get_value(
                     &store_type,
                     block_id,

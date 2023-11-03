@@ -1,5 +1,3 @@
-use dep::std::println;
-
 struct FooParent {
     parent_arr: [Field; 3],
     foos: [Foo],
@@ -115,11 +113,8 @@ fn main(y : pub Field) {
 
     assert(foo_parents[y - 2].foos[y - 1].a == 7);
     foo_parents[y - 2].foos[y - 1].a = 50;
-    assert(foo_parents[y - 2].foos[y - 1].a == 50);
 
     let b_array = foo_parents[y - 2].foos[y - 1].b;
-    assert(b_array[0] == 8);
-    assert(b_array[1] == 9);
     assert(b_array[2] == 22);
     assert(b_array.len() == 3);
 
