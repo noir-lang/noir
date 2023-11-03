@@ -35,7 +35,6 @@ jobs:
     name: Build nargo binary
     runs-on: ubuntu-22.04
     needs: [check-artifacts-requested]
-    if:  ${{ needs.check-artifacts-requested.outputs.publish == true }}
     strategy:
       matrix:
         target: [x86_64-unknown-linux-gnu]
@@ -71,7 +70,7 @@ jobs:
 
   auto-pr-rebuild-script:
     name: Rebuild ACIR artifacts
-    needs: [build-nargo]
+    needs: [check-artifacts-requested, build-nargo]
     runs-on: ubuntu-latest
 
     steps:
@@ -102,6 +101,7 @@ jobs:
 
       - name: Upload ACIR artifacts
         uses: actions/upload-artifact@v3
+        if:  ${{ needs.check-artifacts-requested.outputs.publish == true }}
         with:
           name: acir-artifacts
           path: ./tooling/nargo_cli/tests/acir_artifacts
