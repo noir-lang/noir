@@ -1235,7 +1235,7 @@ impl Context {
                 self.slice_sizes.get_mut(&parent_array).expect("ICE: expected size list");
             sizes_list.push(true_len);
             for value in array {
-                self.compute_slice_sizes(*value, parent_array, dfg);
+                self.compute_slice_sizes(*value, Some(parent_array), dfg);
             }
         } else {
             // This means the current_array_id is the parent array
