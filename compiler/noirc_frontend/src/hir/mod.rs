@@ -7,7 +7,7 @@ pub mod type_check;
 #[cfg(feature = "aztec")]
 pub(crate) mod aztec_library;
 
-use crate::graph::{CrateGraph, CrateId, CrateName};
+use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use def_map::{Contract, CrateDefMap};
@@ -119,15 +119,9 @@ impl Context {
         if &module_id.krate == crate_id {
             module_path
         } else {
-            let crates = self.find_dependencies(crate_id, &module_id.krate);
-            assert!(!crates.is_empty(), "The Struct was supposed to be defined in a dependency");
-            let mut fqn = String::new();
-            for name in crates {
-                fqn += &name.to_string();
-                fqn += "::";
-            }
-            fqn += &module_path;
-            fqn
+            let crates = self.find_dependencies(crate_id, &module_id.krate)
+            .expect("The Struct was supposed to be defined in a dependency");
+            crates.join("::") + "::" + &module_path
         }
     }
 
@@ -136,18 +130,17 @@ impl Context {
     /// In that case, we will get [lib1,lib2] when looking for a struct defined in lib2, 
     /// re-exported by lib1 and used by the main crate.
     /// Returns the path from crate_id to target_crate_id
-    fn find_dependencies(&self, crate_id: &CrateId, target_crate_id: &CrateId) -> Vec<CrateName> {
+    fn find_dependencies(&self, crate_id: &CrateId, target_crate_id: &CrateId) -> Option<Vec<String>> {
         for dep in &self.crate_graph[crate_id].dependencies {
             if &dep.crate_id == target_crate_id {
-                return vec![dep.name.clone()];
+                return Some(vec![dep.name.to_string()]);
             }
-            let mut fqn = self.find_dependencies(&dep.crate_id, target_crate_id);
-            if !fqn.is_empty() {
-                fqn.insert(0, dep.name.clone());
-                return fqn;
+            if let Some(mut path) = self.find_dependencies(&dep.crate_id, target_crate_id) {
+                path.insert(0, dep.name.to_string());
+                return Some(path);
             }
         }
-        Vec::new()
+        None
     }
 
     pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
