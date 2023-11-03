@@ -575,6 +575,26 @@ impl Type {
             _ => 0,
         }
     }
+
+    /// If this is a function type, return the first parameter or None otherwise.
+    pub(crate) fn get_first_function_parameter(&self) -> Option<Type> {
+        match self {
+            Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.get_first_function_parameter(),
+                    TypeBinding::Unbound(_) => None,
+                }
+            }
+            Type::Function(parameters, _, _) => parameters.get(0).cloned(),
+            _ => None,
+        }
+    }
+
+    /// Takes a monomorphic type and generalizes it over each of the given type bindings.
+    pub(crate) fn generalize(self, substitutions: TypeBindings) -> Type {
+        let polymorphic_type_vars = vecmap(substitutions, |(id, (type_var, _))| (id, type_var));
+        Type::Forall(polymorphic_type_vars, Box::new(self))
+    }
 }
 
 impl std::fmt::Display for Type {
@@ -923,6 +943,22 @@ impl Type {
                     Ok(())
                 } else {
                     Err(UnificationError)
+                }
+            }
+
+            (NamedGeneric(binding, _), other) if !binding.borrow().is_unbound() => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    link.try_unify(other)
+                } else {
+                    unreachable!("If guard ensures binding is bound")
+                }
+            }
+
+            (other, NamedGeneric(binding, _)) if !binding.borrow().is_unbound() => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    other.try_unify(link)
+                } else {
+                    unreachable!("If guard ensures binding is bound")
                 }
             }
 

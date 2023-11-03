@@ -24,7 +24,7 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
-    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitMethodId},
+    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
     ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind,
     Visibility,
@@ -380,6 +380,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::TraitMethodReference(_typ, method) => {
                 if let Type::Function(_, _, _) = self.interner.id_type(expr) {
+                    println!("Trait method reference typ is {}", _typ);
                     self.resolve_trait_method_reference(expr, method)
                 } else {
                     unreachable!(
@@ -827,7 +828,26 @@ impl<'interner> Monomorphizer<'interner> {
                 self.interner.get_trait_implementation(impl_id).borrow().methods
                     [method.method_index]
             }
-            node_interner::TraitImplKind::Assumed => todo!("Find Assumed impl for {function_type}"),
+            node_interner::TraitImplKind::Assumed => {
+                let object_type = function_type
+                    .get_first_function_parameter()
+                    .expect("Expected trait method to have at least one parameter");
+
+                println!("Monomorphizing assumed impl for {} - first param {}", function_type, object_type);
+
+                match self.interner.lookup_trait_implementation(&object_type, method.trait_id) {
+                    Ok(TraitImplKind::Normal(impl_id)) => {
+                        self.interner.get_trait_implementation(impl_id).borrow().methods
+                            [method.method_index]
+                    }
+                    Ok(TraitImplKind::Assumed) => unreachable!(
+                        "There should be no remaining Assumed impls during monomorphization"
+                    ),
+                    Err(constraints) => {
+                        unreachable!("Failed to find trait impl during monomorphization. The failed constraint(s) are:\n  {constraints:?}")
+                    }
+                }
+            }
         };
 
         let func_def = self.lookup_function(hir_func_id, expr_id, &function_type);

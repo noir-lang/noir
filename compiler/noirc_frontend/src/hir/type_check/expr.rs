@@ -160,11 +160,11 @@ impl<'interner> TypeChecker<'interner> {
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
 
-                        let trait_id = match method_ref {
+                        let trait_id = match &method_ref {
                             HirMethodReference::FuncId(func_id) => {
                                 // Automatically add `&mut` if the method expects a mutable reference and
                                 // the object is not already one.
-                                if func_id != FuncId::dummy_id() {
+                                if *func_id != FuncId::dummy_id() {
                                     let func_meta = self.interner.function_meta(&func_id);
                                     self.try_add_mutable_reference_to_object(
                                         &mut method_call,
@@ -194,6 +194,7 @@ impl<'interner> TypeChecker<'interner> {
                         let ret = self.check_method_call(&function_id, method_ref, args, span);
 
                         if let Some(trait_id) = trait_id {
+                            println!("Method object type = {}", object_type);
                             self.verify_trait_constraint(&object_type, trait_id, function_id, span);
                         }
 
@@ -543,6 +544,8 @@ impl<'interner> TypeChecker<'interner> {
         let (function_type, instantiation_bindings) = fn_typ.instantiate(self.interner);
 
         self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
+
+        println!("Type of method is {}", function_type);
         self.interner.push_expr_type(function_ident_id, function_type.clone());
 
         self.bind_function_type(function_type, arguments, span)

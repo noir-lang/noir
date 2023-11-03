@@ -978,6 +978,7 @@ impl NodeInterner {
         object_type: &Type,
         trait_id: TraitId,
     ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
+        println!("Finding impl for {}", object_type);
         self.lookup_trait_implementation_helper(object_type, trait_id, IMPL_SEARCH_RECURSION_LIMIT)
     }
 
@@ -998,19 +999,13 @@ impl NodeInterner {
             self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
 
         for (existing_object_type, impl_kind) in impls {
-            let (existing_object_type, type_bindings) =
-                existing_object_type.instantiate_named_generics(self);
+            let (existing_object_type, type_bindings) = existing_object_type.instantiate(self);
 
-            println!("Unifying {} & {}", object_type, existing_object_type);
+            println!(" Unifying {} & {}", object_type, existing_object_type);
             if object_type.try_unify(&existing_object_type).is_ok() {
-                println!("Success!");
                 if let TraitImplKind::Normal(impl_id) = impl_kind {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();
-
-                    if !trait_impl.where_clause.is_empty() {
-                        println!("Now checking where clause...");
-                    }
 
                     if let Err(mut errors) = self.validate_where_clause(
                         &trait_impl.where_clause,
@@ -1022,7 +1017,6 @@ impl NodeInterner {
                     }
                 }
 
-                println!("Ok, impl is good");
                 return Ok(*impl_kind);
             }
         }
@@ -1060,10 +1054,8 @@ impl NodeInterner {
         object_type: Type,
         trait_id: TraitId,
     ) -> Result<(), ()> {
-        let (instantiated_object_type, _) = object_type.instantiate_named_generics(self);
-
         // Make sure there are no overlapping impls
-        if self.lookup_trait_implementation(&instantiated_object_type, trait_id).is_ok() {
+        if self.lookup_trait_implementation(&object_type, trait_id).is_ok() {
             return Err(());
         }
 
@@ -1088,7 +1080,8 @@ impl NodeInterner {
         // It should never happen since impls are defined at global scope, but even
         // if they were, we should never prevent defining a new impl because a where
         // clause already assumes it exists.
-        let (instantiated_object_type, _) = object_type.instantiate_named_generics(self);
+        let (instantiated_object_type, substitutions) =
+            object_type.instantiate_named_generics(self);
         if let Ok(TraitImplKind::Normal(existing)) =
             self.lookup_trait_implementation(&instantiated_object_type, trait_id)
         {
@@ -1103,7 +1096,7 @@ impl NodeInterner {
         }
 
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.push((object_type, TraitImplKind::Normal(impl_id)));
+        entries.push((object_type.generalize(substitutions), TraitImplKind::Normal(impl_id)));
         Ok(())
     }
 
