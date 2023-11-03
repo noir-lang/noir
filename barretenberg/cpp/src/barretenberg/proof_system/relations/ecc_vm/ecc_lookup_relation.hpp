@@ -30,6 +30,16 @@ template <typename FF_> class ECCVMLookupRelationBase {
         return (row.msm_add == 1) || (row.msm_skew == 1) || (row.precompute_select == 1);
     }
 
+    template <typename Accumulator, typename AllEntities>
+    static Accumulator compute_inverse_exists(const AllEntities& in)
+    {
+        using View = typename Accumulator::View;
+
+        const auto row_has_write = View(in.precompute_select);
+        const auto row_has_read = View(in.msm_add) + View(in.msm_skew);
+        return row_has_write + row_has_read - (row_has_write * row_has_read);
+    }
+
     template <typename Accumulator, size_t read_index, typename AllEntities>
     static Accumulator compute_read_term_predicate(const AllEntities& in)
 
@@ -209,7 +219,7 @@ template <typename FF_> class ECCVMLookupRelationBase {
     static void accumulate(ContainerOverSubrelations& accumulator,
                            const AllEntities& in,
                            const Parameters& params,
-                           const FF& /*unused*/);
+                           const FF& scaling_factor);
 };
 
 template <typename FF> using ECCVMLookupRelation = Relation<ECCVMLookupRelationBase<FF>>;

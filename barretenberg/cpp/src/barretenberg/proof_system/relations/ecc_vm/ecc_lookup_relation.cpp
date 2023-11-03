@@ -1,5 +1,6 @@
 #include "barretenberg/flavor/ecc_vm.hpp"
 #include "barretenberg/flavor/relation_definitions_fwd.hpp"
+#include "barretenberg/honk/proof_system/lookup_library.hpp"
 #include "ecc_msm_relation.hpp"
 
 namespace proof_system::honk::sumcheck {
@@ -24,62 +25,8 @@ void ECCVMLookupRelationBase<FF>::accumulate(ContainerOverSubrelations& accumula
                                              const Parameters& params,
                                              [[maybe_unused]] const FF& scaling_factor)
 {
-    using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
-    using View = typename Accumulator::View;
-
-    auto lookup_inverses = View(in.lookup_inverses);
-
-    constexpr size_t NUM_TOTAL_TERMS = READ_TERMS + WRITE_TERMS;
-    std::array<Accumulator, NUM_TOTAL_TERMS> lookup_terms;
-    std::array<Accumulator, NUM_TOTAL_TERMS> denominator_accumulator;
-
-    // The lookup relation = \sum_j (1 / read_term[j]) - \sum_k (read_counts[k] / write_term[k])
-    // To get the inverses (1 / read_term[i]), (1 / write_term[i]), we have a commitment to the product of all inverses
-    // i.e. lookup_inverse = \prod_j (1 / read_term[j]) * \prod_k (1 / write_term[k])
-    // The purpose of this next section is to derive individual inverse terms using `lookup_inverses`
-    // i.e. (1 / read_term[i]) = lookup_inverse * \prod_{j /ne i} (read_term[j]) * \prod_k (write_term[k])
-    //      (1 / write_term[i]) = lookup_inverse * \prod_j (read_term[j]) * \prod_{k ne i} (write_term[k])
-    barretenberg::constexpr_for<0, READ_TERMS, 1>(
-        [&]<size_t i>() { lookup_terms[i] = compute_read_term<Accumulator, i>(in, params); });
-    barretenberg::constexpr_for<0, WRITE_TERMS, 1>(
-        [&]<size_t i>() { lookup_terms[i + READ_TERMS] = compute_write_term<Accumulator, i>(in, params); });
-
-    barretenberg::constexpr_for<0, NUM_TOTAL_TERMS, 1>(
-        [&]<size_t i>() { denominator_accumulator[i] = lookup_terms[i]; });
-
-    barretenberg::constexpr_for<0, NUM_TOTAL_TERMS - 1, 1>(
-        [&]<size_t i>() { denominator_accumulator[i + 1] *= denominator_accumulator[i]; });
-
-    auto inverse_accumulator = Accumulator(lookup_inverses); // denominator_accumulator[NUM_TOTAL_TERMS - 1];
-
-    const auto row_has_write = View(in.precompute_select);
-    const auto row_has_read = View(in.msm_add) + View(in.msm_skew);
-    const auto inverse_exists = row_has_write + row_has_read - (row_has_write * row_has_read);
-
-    std::get<0>(accumulator) +=
-        (denominator_accumulator[NUM_TOTAL_TERMS - 1] * lookup_inverses - inverse_exists) * scaling_factor;
-
-    // After this algo, total degree of denominator_accumulator = NUM_TOTAL_TERMA
-    for (size_t i = 0; i < NUM_TOTAL_TERMS - 1; ++i) {
-        denominator_accumulator[NUM_TOTAL_TERMS - 1 - i] =
-            denominator_accumulator[NUM_TOTAL_TERMS - 2 - i] * inverse_accumulator;
-        inverse_accumulator = inverse_accumulator * lookup_terms[NUM_TOTAL_TERMS - 1 - i];
-    }
-    denominator_accumulator[0] = inverse_accumulator;
-
-    // each predicate is degree-1
-    // degree of relation at this point = NUM_TOTAL_TERMS + 1
-    barretenberg::constexpr_for<0, READ_TERMS, 1>([&]<size_t i>() {
-        std::get<1>(accumulator) += compute_read_term_predicate<Accumulator, i>(in) * denominator_accumulator[i];
-    });
-
-    // each predicate is degree-1, `lookup_read_counts` is degree-1
-    // degree of relation = NUM_TOTAL_TERMS + 2 = 6 + 2
-    barretenberg::constexpr_for<0, WRITE_TERMS, 1>([&]<size_t i>() {
-        const auto p = compute_write_term_predicate<Accumulator, i>(in);
-        const auto lookup_read_count = View(in.template lookup_read_counts<i>());
-        std::get<1>(accumulator) -= p * (denominator_accumulator[i + READ_TERMS] * lookup_read_count);
-    });
+    lookup_library::accumulate_logderivative_lookup_subrelation_contributions<FF, ECCVMLookupRelationBase<FF>>(
+        accumulator, in, params, scaling_factor);
 }
 
 template class ECCVMLookupRelationBase<barretenberg::fr>;
