@@ -6,17 +6,13 @@ use super::{
 };
 use acvm::FieldElement;
 use noirc_errors::{Position, Span};
-use std::str::Chars;
-use std::{
-    iter::{Peekable, Zip},
-    ops::RangeFrom,
-};
+use std::str::CharIndices;
 
 /// The job of the lexer is to transform an iterator of characters (`char_iter`)
 /// into an iterator of `SpannedToken`. Each `Token` corresponds roughly to 1 word or operator.
 /// Tokens are tagged with their location in the source file (a `Span`) for use in error reporting.
 pub struct Lexer<'a> {
-    char_iter: Peekable<Zip<Chars<'a>, RangeFrom<u32>>>,
+    chars: CharIndices<'a>,
     position: Position,
     done: bool,
     skip_comments: bool,
@@ -41,13 +37,7 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn new(source: &'a str) -> Self {
-        Lexer {
-            // We zip with the character index here to ensure the first char has index 0
-            char_iter: source.chars().zip(0..).peekable(),
-            position: 0,
-            done: false,
-            skip_comments: true,
-        }
+        Lexer { chars: source.char_indices(), position: 0, done: false, skip_comments: true }
     }
 
     pub fn skip_comments(mut self, flag: bool) -> Self {
@@ -57,21 +47,21 @@ impl<'a> Lexer<'a> {
 
     /// Iterates the cursor and returns the char at the new cursor position
     fn next_char(&mut self) -> Option<char> {
-        let (c, index) = self.char_iter.next()?;
-        self.position = index;
-        Some(c)
+        let (position, ch) = self.chars.next()?;
+        self.position = position as u32;
+        Some(ch)
     }
 
     /// Peeks at the next char. Does not iterate the cursor
     fn peek_char(&mut self) -> Option<char> {
-        self.char_iter.peek().map(|(c, _)| *c)
+        self.chars.clone().next().map(|(_, ch)| ch)
     }
 
     /// Peeks at the character two positions ahead. Does not iterate the cursor
     fn peek2_char(&mut self) -> Option<char> {
-        let mut chars = self.char_iter.clone();
+        let mut chars = self.chars.clone();
         chars.next();
-        chars.next().map(|(c, _)| c)
+        chars.next().map(|(_, ch)| ch)
     }
 
     /// Peeks at the next char and returns true if it is equal to the char argument
@@ -548,6 +538,20 @@ mod tests {
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Deprecated(None)))
+        );
+    }
+
+    #[test]
+    fn test_attribute_with_apostrophe() {
+        let input = r#"#[test(should_fail_with = "the eagle's feathers")]"#;
+        let mut lexer = Lexer::new(input);
+
+        let token = lexer.next_token().unwrap().token().clone();
+        assert_eq!(
+            token,
+            Token::Attribute(Attribute::Function(FunctionAttribute::Test(
+                TestScope::ShouldFailWith { reason: "the eagle's feathers".to_owned().into() }
+            )))
         );
     }
 

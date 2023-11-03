@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "docusaurus start",
-    "build": "docusaurus build"
+    "build": "docusaurus build",
+    "setStable": "node ./scripts/setStable.js"
   },
   "dependencies": {
     "@docusaurus/core": "^2.4.0",

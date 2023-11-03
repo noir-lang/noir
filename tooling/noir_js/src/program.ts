@@ -2,7 +2,7 @@
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { generateWitness } from './witness_generation.js';
 import initAbi, { abiDecode, InputMap, InputValue } from '@noir-lang/noirc_abi';
-import initACVM, { compressWitness } from '@noir-lang/acvm_js';
+import initACVM, { compressWitness, ForeignCallHandler } from '@noir-lang/acvm_js';
 
 export class Noir {
   constructor(
@@ -40,6 +40,7 @@ export class Noir {
     return this.backend;
   }
 
+  // Initial inputs to your program
   /**
    * @description
    * Allows to execute a circuit to get its witness and return value.
@@ -49,9 +50,12 @@ export class Noir {
    * async execute(inputs)
    * ```
    */
-  async execute(inputs: InputMap): Promise<{ witness: Uint8Array; returnValue: InputValue }> {
+  async execute(
+    inputs: InputMap,
+    foreignCallHandler?: ForeignCallHandler,
+  ): Promise<{ witness: Uint8Array; returnValue: InputValue }> {
     await this.init();
-    const witness = await generateWitness(this.circuit, inputs);
+    const witness = await generateWitness(this.circuit, inputs, foreignCallHandler);
     const { return_value: returnValue } = abiDecode(this.circuit.abi, witness);
     return { witness: compressWitness(witness), returnValue };
   }

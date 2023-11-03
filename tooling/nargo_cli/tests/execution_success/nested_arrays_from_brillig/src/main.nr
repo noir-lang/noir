@@ -13,9 +13,9 @@ fn access_nested(notes: [MyNote; 2]) -> Field {
 }
 
 unconstrained fn create_inside_brillig(values: [Field; 6]) -> [MyNote; 2] {
-    let header = Header { params: [values[0], values[1], values[2]]};
-    let note0 = MyNote { array: [values[0], values[1]], plain : values[2], header };
-    let note1 = MyNote { array: [values[3], values[4]], plain : values[5], header };
+    let header = Header { params: [values[0], values[1], values[2]] };
+    let note0 = MyNote { array: [values[0], values[1]], plain: values[2], header };
+    let note1 = MyNote { array: [values[3], values[4]], plain: values[5], header };
     [note0, note1]
 }
 
