@@ -63,16 +63,20 @@ impl From<SsaReport> for FileDiagnostic {
     fn from(error: SsaReport) -> FileDiagnostic {
         match error {
             SsaReport::Warning(warning) => {
-                let InternalWarning::ReturnConstant { ref call_stack } = warning;
-                let call_stack = vecmap(call_stack, |location| *location);
-                let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
                 let message = warning.to_string();
+                let (secondary_message, call_stack) = match warning {
+                    InternalWarning::ReturnConstant { call_stack } => {
+                        ("constant value".to_string(), call_stack)
+                    },
+                    InternalWarning::VerifyProof { call_stack } => {
+                        ("verify_proof(...) aggregates data for the verifier, the actual verification will be done when the full proof is verified using nargo verify. nargo prove may generate an invalidid proof if bad data is used as input to verify_proof".to_string(), call_stack)
+                    },
+                };
+                let call_stack = vecmap(call_stack, |location| location);
+                let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
                 let location = call_stack.last().expect("Expected RuntimeError to have a location");
-                let diagnostic = Diagnostic::simple_warning(
-                    message,
-                    "constant value".to_string(),
-                    location.span,
-                );
+                let diagnostic =
+                    Diagnostic::simple_warning(message, secondary_message, location.span);
                 diagnostic.in_file(file_id).with_call_stack(call_stack)
             }
         }
@@ -83,6 +87,8 @@ impl From<SsaReport> for FileDiagnostic {
 pub enum InternalWarning {
     #[error("Returning a constant value is not allowed")]
     ReturnConstant { call_stack: CallStack },
+    #[error("Calling std::verify_proof(...) does not verify a proof")]
+    VerifyProof { call_stack: CallStack },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
