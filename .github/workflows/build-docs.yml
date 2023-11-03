@@ -77,10 +77,9 @@ jobs:
       - name: Install dependencies
         run: yarn
         
-      - name: Build docs
+      - name: Build
         run: |
-          yarn workspaces foreach -pt --from '{@noir-lang/types, @noir-lang/backend_barretenberg, @noir-lang/noir_js}' run build
-          yarn workspace docs build
+          yarn build
 
       - name: Remove pre-releases
         working-directory: docs
