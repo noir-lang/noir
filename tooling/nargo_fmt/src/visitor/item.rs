@@ -33,21 +33,14 @@ impl super::FmtVisitor<'_> {
                 ItemKind::Submodules(module) => {
                     let name = module.name;
 
-                    self.format_missing(span.start());
+                    self.format_missing_indent(span.start(), true);
 
                     let after_brace = self.span_after(span, Token::LeftBrace).start();
                     self.last_position = after_brace;
 
                     let keyword = if module.is_contract { "contract" } else { "mod" };
 
-                    let indent = if self.at_start()
-                        || self.buffer.ends_with(|ch: char| ch.is_whitespace())
-                    {
-                        self.indent.to_string()
-                    } else {
-                        self.indent.to_string_with_newline()
-                    };
-                    self.push_str(&format!("{indent}{keyword} {name} "));
+                    self.push_str(&format!("{keyword} {name} "));
 
                     if module.contents.items.is_empty() {
                         self.visit_empty_block((after_brace - 1..span.end()).into());

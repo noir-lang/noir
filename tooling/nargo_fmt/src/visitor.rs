@@ -95,16 +95,12 @@ impl<'me> FmtVisitor<'me> {
         self.push_str(&rewrite);
     }
 
-    fn format_missing(&mut self, end: u32) {
-        self.format_missing_inner(end, |this, slice, _| this.push_str(slice));
-    }
-
     #[track_caller]
     fn format_missing_indent(&mut self, end: u32, should_indent: bool) {
         self.format_missing_inner(end, |this, last_slice, slice| {
             this.push_str(last_slice.trim_end());
 
-            if last_slice == slice && !this.at_start() {
+            if (last_slice == slice && !this.at_start()) || this.buffer.ends_with("*/") {
                 this.push_str("\n");
             }
 
@@ -137,19 +133,19 @@ impl<'me> FmtVisitor<'me> {
             self.push_vertical_spaces(slice);
             process_last_slice(self, "", slice);
         } else {
-            let (result, last_end) = self.format_comment_in_block(slice);
+            let (result, last_end) = self.format_comment_in_block(slice, start);
 
             if result.is_empty() {
                 process_last_slice(self, slice, slice);
             } else {
+                let last_snippet = &slice[last_end as usize..];
                 self.push_str(&result);
-                let subslice = &slice[last_end as usize..];
-                process_last_slice(self, subslice, subslice);
+                process_last_slice(self, last_snippet, &result);
             }
         }
     }
 
-    fn format_comment_in_block(&mut self, slice: &str) -> (String, u32) {
+    fn format_comment_in_block(&mut self, slice: &str, start: u32) -> (String, u32) {
         let mut result = String::new();
         let mut last_end = 0;
 
@@ -157,18 +153,38 @@ impl<'me> FmtVisitor<'me> {
 
         if let Some(comment) = comments.next() {
             let span = comment.to_span();
+            let diff = start;
+            let big_snippet = &self.source[..(span.start() + diff) as usize];
+            let last_char = big_snippet.chars().rev().find(|rev_c| ![' ', '\t'].contains(rev_c));
+            let fix_indent = last_char.map_or(true, |rev_c| ['{', '\n'].contains(&rev_c));
+
             if let Token::LineComment(_, _) | Token::BlockComment(_, _) = comment.into_token() {
                 let starts_with_newline = slice.starts_with('\n');
                 let comment = &slice[span.start() as usize..span.end() as usize];
-                match (starts_with_newline, self.at_start()) {
-                    (false, false) => {
-                        result.push(' ');
+
+                if fix_indent {
+                    if let Some('{') = last_char {
+                        result.push('\n');
                     }
-                    (true, _) => {
-                        result.push_str(&self.indent.to_string_with_newline());
+
+                    if let Some('\n') = last_char {
+                        self.push_str("\n");
                     }
-                    _ => {}
-                };
+
+                    let indent_str = self.indent.to_string();
+                    self.push_str(&indent_str);
+                } else {
+                    match (starts_with_newline, self.at_start()) {
+                        (false, false) => {
+                            result.push(' ');
+                        }
+                        (true, _) => {
+                            result.push_str(&self.indent.to_string_with_newline());
+                        }
+                        _ => {}
+                    };
+                }
+
                 result.push_str(comment);
             }
         }
@@ -183,6 +199,10 @@ impl<'me> FmtVisitor<'me> {
                 result.push_str(&self.indent.to_string_with_newline());
                 result.push_str(comment);
             }
+        }
+
+        if slice.trim_end_matches([' ', '\t']).ends_with(['\n', '\r']) {
+            result.push('\n');
         }
 
         (result, last_end)

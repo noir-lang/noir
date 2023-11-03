@@ -2,8 +2,7 @@
 fn qux() {
     {}
 
-    {
-        /* a block with a comment */
+    { /* a block with a comment */
     }
     {}
     {
@@ -70,6 +69,22 @@ fn test() {
 fn test() {
     // 324
     34
+}
+
+fn line() {
+    42; // 42
+}
+
+fn line() {
+    42; // 42
+    42;
+    // hello
+}
+
+fn line() {
+    42; // 42
+    // 42
+    // hello
 }
 
 fn parenthesized() {

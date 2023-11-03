@@ -311,19 +311,16 @@ impl FmtVisitor<'_> {
     pub(crate) fn visit_empty_block(&mut self, block_span: Span) {
         let slice = self.slice(block_span);
         let comment_str = slice[1..slice.len() - 1].trim();
-        let block_str = if comment_str.is_empty() {
-            "{}".to_string()
+
+        if comment_str.is_empty() {
+            self.push_str("{}");
         } else {
+            self.push_str("{");
             self.indent.block_indent(self.config);
-            let (comment_str, _) = self.format_comment_in_block(comment_str);
-            let comment_str = comment_str.trim_matches('\n');
-            self.indent.block_unindent(self.config);
-            let close_indent = self.indent.to_string();
-            format!("{{\n{comment_str}\n{close_indent}}}")
+            self.close_block(block_span);
         };
 
         self.last_position = block_span.end();
-        self.push_str(&block_str);
     }
 
     pub(crate) fn close_block(&mut self, span: Span) {
