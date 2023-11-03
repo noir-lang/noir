@@ -22,8 +22,8 @@ jobs:
           script: |
             const { REF_NAME } = process.env;
             if (REF_NAME == "master") {
-              console.log(`publish = ${publish}`)
-              return publish;
+              console.log(`publish = true`)
+              return true;
             }
 
             const labels = context.payload.pull_request.labels.map(label => label.name);
