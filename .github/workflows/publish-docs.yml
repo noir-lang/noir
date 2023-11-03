@@ -39,13 +39,10 @@ jobs:
         working-directory: ./docs
         run: yarn docusaurus docs:version ${{ inputs.tag }}
 
-      - name: Debug
+      - name: Remove pre-releases
+        id: get_version
         run: |
-          ls -la
-          ls -la docs
-          ls -la docs/versioned_docs
-          cat docs/versions.json
-
+            cd docs && yarn setStable
 
       - name: Commit new documentation version
         run: |
@@ -57,15 +54,6 @@ jobs:
       - name: Push changes to new branch
         run: git push origin new-docs-version-${{ github.event.inputs.tag }}
 
-      - name: Install GitHub CLI
-        run: |
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-          sudo apt update
-          sudo apt install gh
-
-      # This step creates a pull request using GitHub CLI
       - name: Create Pull Request
         run: |
           gh pr create \
@@ -76,11 +64,6 @@ jobs:
             --label documentation
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Remove pre-releases
-        id: get_version
-        run: |
-            cd docs && yarn setStable
 
       - name: Build docs
         run: yarn workspace docs build
