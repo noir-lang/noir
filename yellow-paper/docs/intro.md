@@ -2,7 +2,7 @@
 sidebar_position: 1
 ---
 
-# About
+# Editorial guidelines
 
 This "yellow paper" is a first attempt to describe the Aztec protocol in its entirety.
 
@@ -98,6 +98,8 @@ The draft subsections are mere suggestions (and serve as a helpful reminder of t
       - Block hashes tree
       - Tree Epochs
   - L1 State [Lasse]
+  - Contract State
+- Transactions
 - Bytecode [Alvaro]
   - ACIR
     - Encodings

@@ -10,9 +10,9 @@ let macros = {};
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: "Aztec Yellow Paper",
-  tagline: "Aztec Network Specification",
-  favicon: "img/favicon.ico",
+  title: "Aztec Protocol Description",
+  tagline: "The Aztec Protocol, described.",
+  // favicon: "img/favicon.ico",
 
   // Set the production url of your site here
   url: "https://your-docusaurus-test-site.com",
@@ -22,8 +22,8 @@ const config = {
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: "Aztec Labs", // Usually your GitHub org/user name.
-  projectName: "Aztec Yellow Paper", // Usually your repo name.
+  organizationName: "AztecProtocol", // Usually your GitHub org/user name.
+  projectName: "aztec-packages", // Usually your repo name.
 
   onBrokenLinks: "throw",
   onBrokenMarkdownLinks: "warn",
@@ -80,22 +80,22 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       // Replace with your project's social card
-      image: "img/docusaurus-social-card.jpg",
+      // image: "img/docusaurus-social-card.jpg",
       navbar: {
-        title: "My Site",
-        logo: {
-          alt: "My Site Logo",
-          src: "img/logo.svg",
-        },
+        title: "Home",
+        // logo: {
+        //   alt: "My Site Logo",
+        //   src: "img/logo.svg",
+        // },
         items: [
           {
             type: "docSidebar",
             sidebarId: "tutorialSidebar",
             position: "left",
-            label: "Tutorial",
+            label: "Protocol Description",
           },
           {
-            href: "https://github.com/facebook/docusaurus",
+            href: "https://github.com/AztecProtocol/aztec-packages",
             label: "GitHub",
             position: "right",
           },
@@ -106,18 +106,28 @@ const config = {
         links: [
           {
             title: "Docs",
-            items: [],
+            items: [
+              {
+                label: "Docs",
+                href: "https://docs.aztec.network",
+              },
+            ],
           },
           {
-            title: "Community",
-            items: [],
+            title: "Forum",
+            items: [
+              {
+                label: "Forum",
+                href: "https://forum.aztec.network",
+              },
+            ],
           },
           {
             title: "More",
             items: [
               {
                 label: "GitHub",
-                href: "https://github.com/facebook/docusaurus",
+                href: "https://github.com/AztecProtocol/aztec-packages",
               },
             ],
           },
