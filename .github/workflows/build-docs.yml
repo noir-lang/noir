@@ -79,7 +79,7 @@ jobs:
         
       - name: Build docs
         run: |
-          yarn workspaces foreach -pt --from '{@noir-lang/types, @noir-lang/backend_barretenberg, @noir-lang/noir_js, @noir-lang/acvm_js, @noir-lang/noirc_abi}' run build
+          yarn workspaces foreach -pt --from '{@noir-lang/types, @noir-lang/backend_barretenberg, @noir-lang/noir_js}' run build
           yarn workspace docs build
 
       - name: Remove pre-releases
