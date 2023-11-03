@@ -94,7 +94,6 @@ pub enum DefCollectorErrorKind {
     },
 
     // Aztec feature flag errors
-    // TODO(benesjan): https://github.com/AztecProtocol/aztec-packages/issues/2905
     #[cfg(feature = "aztec")] #[error(
         "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml. For more information go to https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#aztec-dependency-not-found-please-add-aztec-as-a-dependency-in-your-nargotoml"
     )] AztecNotFound {},
