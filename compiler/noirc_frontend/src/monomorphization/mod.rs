@@ -820,7 +820,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let trait_impl = self
             .interner
-            .lookup_trait_implementation(self_type.follow_bindings(), method.trait_id)
+            .lookup_trait_implementation(&self_type, method.trait_id)
             .expect("ICE: missing trait impl - should be caught during type checking");
 
         let hir_func_id = trait_impl.borrow().methods[method.method_index];

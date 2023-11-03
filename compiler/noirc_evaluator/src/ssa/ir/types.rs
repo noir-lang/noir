@@ -79,6 +79,18 @@ impl Type {
         }
     }
 
+    pub(crate) fn contains_slice_element(&self) -> bool {
+        match self {
+            Type::Array(elements, _) => {
+                elements.iter().any(|element| element.contains_slice_element())
+            }
+            Type::Slice(_) => true,
+            Type::Numeric(_) => false,
+            Type::Reference => false,
+            Type::Function => false,
+        }
+    }
+
     /// Returns the flattened size of a Type
     pub(crate) fn flattened_size(&self) -> usize {
         let mut size = 0;
@@ -92,20 +104,6 @@ impl Type {
             _ => size += 1,
         }
         size
-    }
-
-    pub(crate) fn contains_slice_element(&self) -> bool {
-        match self {
-            Type::Array(elements, _) => {
-                elements.iter().any(|element| element.contains_slice_element())
-            }
-            Type::Slice(_) => true,
-            Type::Numeric(_) => false,
-            // TODO: Look at if we need special handling for references
-            _ => {
-                unreachable!("ICE: expected array, slice, or numeric type but got {self:?}");
-            }
-        }
     }
 
     pub(crate) fn is_nested_slice(&self) -> bool {

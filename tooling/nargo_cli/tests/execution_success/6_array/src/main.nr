@@ -25,7 +25,7 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
     for i in 0..5 {
        z  = z + x[i]*y[i];
         for _i in 0..3 {
-            c = i as u32 - 2 as u32;
+            c = std::wrapping_sub(i as u32,2 as u32);
             z = std::wrapping_mul(z,c);
         }
     }
