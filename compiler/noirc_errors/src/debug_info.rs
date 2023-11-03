@@ -5,7 +5,6 @@ use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::mem;
 
 use crate::Location;
@@ -46,12 +45,12 @@ impl DebugInfo {
     }
 
     pub fn count_span_opcodes(&self) -> HashMap<&Location, usize> {
-        let mut accumulator: HashMap<&Location, HashSet<&OpcodeLocation>> = HashMap::new();
+        let mut accumulator: HashMap<&Location, Vec<&OpcodeLocation>> = HashMap::new();
 
         for (opcode_location, locations) in self.locations.iter() {
             for location in locations.iter() {
-                let what = accumulator.entry(location).or_insert(HashSet::new());
-                what.insert(opcode_location);
+                let opcodes = accumulator.entry(location).or_insert(Vec::new());
+                opcodes.push(opcode_location);
             }
         }
 
