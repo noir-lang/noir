@@ -25,63 +25,84 @@ pub enum DuplicateType {
 
 #[derive(Error, Debug, Clone)]
 pub enum DefCollectorErrorKind {
-    #[error("duplicate {typ} found in namespace")]
-    Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
-    #[error("unresolved import")]
-    UnresolvedModuleDecl { mod_name: Ident, expected_path: String },
-    #[error("path resolution error")]
-    PathResolutionError(PathResolutionError),
-    #[error("Non-struct type used in impl")]
-    NonStructTypeInImpl { span: Span },
-    #[error("Cannot implement trait on a mutable reference type")]
-    MutableReferenceInTraitImpl { span: Span },
-    #[error("Impl for type `{typ}` overlaps with existing impl")]
-    OverlappingImpl { span: Span, typ: crate::Type },
-    #[error("Previous impl defined here")]
-    OverlappingImplNote { span: Span },
-    #[error("Cannot `impl` a type defined outside the current crate")]
-    ForeignImpl { span: Span, type_name: String },
-    #[error("Mismatched number of parameters in trait implementation")]
-    MismatchTraitImplementationNumParameters {
+    #[error("duplicate {typ} found in namespace")] Duplicate {
+        typ: DuplicateType,
+        first_def: Ident,
+        second_def: Ident,
+    },
+    #[error("unresolved import")] UnresolvedModuleDecl {
+        mod_name: Ident,
+        expected_path: String,
+    },
+    #[error("path resolution error")] PathResolutionError(PathResolutionError),
+    #[error("Non-struct type used in impl")] NonStructTypeInImpl {
+        span: Span,
+    },
+    #[error("Cannot implement trait on a mutable reference type")] MutableReferenceInTraitImpl {
+        span: Span,
+    },
+    #[error("Impl for type `{typ}` overlaps with existing impl")] OverlappingImpl {
+        span: Span,
+        typ: crate::Type,
+    },
+    #[error("Previous impl defined here")] OverlappingImplNote {
+        span: Span,
+    },
+    #[error("Cannot `impl` a type defined outside the current crate")] ForeignImpl {
+        span: Span,
+        type_name: String,
+    },
+    #[error("Mismatched number of parameters in trait implementation")] MismatchTraitImplementationNumParameters {
         actual_num_parameters: usize,
         expected_num_parameters: usize,
         trait_name: String,
         method_name: String,
         span: Span,
     },
-    #[error("Mismatched number of generics in impl method")]
-    MismatchTraitImplementationNumGenerics {
+    #[error("Mismatched number of generics in impl method")] MismatchTraitImplementationNumGenerics {
         impl_method_generic_count: usize,
         trait_method_generic_count: usize,
         trait_name: String,
         method_name: String,
         span: Span,
     },
-    #[error("Method is not defined in trait")]
-    MethodNotInTrait { trait_name: Ident, impl_method: Ident },
-    #[error("Only traits can be implemented")]
-    NotATrait { not_a_trait_name: Path },
-    #[error("Trait not found")]
-    TraitNotFound { trait_path: Path },
-    #[error("Missing Trait method implementation")]
-    TraitMissingMethod { trait_name: Ident, method_name: Ident, trait_impl_span: Span },
-    #[error("Module is already part of the crate")]
-    ModuleAlreadyPartOfCrate { mod_name: Ident, span: Span },
-    #[error("Module was originally declared here")]
-    ModuleOriginallyDefined { mod_name: Ident, span: Span },
-    #[error(
-        "Either the type or the trait must be from the same crate as the trait implementation"
-    )]
-    TraitImplOrphaned { span: Span },
+    #[error("Method is not defined in trait")] MethodNotInTrait {
+        trait_name: Ident,
+        impl_method: Ident,
+    },
+    #[error("Only traits can be implemented")] NotATrait {
+        not_a_trait_name: Path,
+    },
+    #[error("Trait not found")] TraitNotFound {
+        trait_path: Path,
+    },
+    #[error("Missing Trait method implementation")] TraitMissingMethod {
+        trait_name: Ident,
+        method_name: Ident,
+        trait_impl_span: Span,
+    },
+    #[error("Module is already part of the crate")] ModuleAlreadyPartOfCrate {
+        mod_name: Ident,
+        span: Span,
+    },
+    #[error("Module was originally declared here")] ModuleOriginallyDefined {
+        mod_name: Ident,
+        span: Span,
+    },
+    #[error("Either the type or the trait must be from the same crate as the trait implementation")] TraitImplOrphaned {
+        span: Span,
+    },
 
     // Aztec feature flag errors
     // TODO(benesjan): https://github.com/AztecProtocol/aztec-packages/issues/2905
-    #[cfg(feature = "aztec")]
-    #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
-    AztecNotFound {},
-    #[cfg(feature = "aztec")]
-    #[error("compute_note_hash_and_nullifier function not found. Define it in your contract.")]
-    AztecComputeNoteHashAndNullifierNotFound { span: Span },
+    #[cfg(feature = "aztec")] #[error(
+        "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml. For more information go to https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#aztec-dependency-not-found-please-add-aztec-as-a-dependency-in-your-nargotoml"
+    )] AztecNotFound {},
+    #[cfg(feature = "aztec")] #[error(
+        "compute_note_hash_and_nullifier function not found. Define it in your contract.  For more information go to https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#compute_note_hash_and_nullifier-function-not-found-define-it-in-your-contract"
+    )] AztecComputeNoteHashAndNullifierNotFound {
+        span: Span,
+    },
 }
 
 impl DefCollectorErrorKind {
@@ -113,7 +134,8 @@ impl From<DefCollectorErrorKind> for Diagnostic {
             DefCollectorErrorKind::Duplicate { typ, first_def, second_def } => {
                 let primary_message = format!(
                     "Duplicate definitions of {} with name {} found",
-                    &typ, &first_def.0.contents
+                    &typ,
+                    &first_def.0.contents
                 );
                 {
                     let first_span = first_def.0.span();
@@ -121,7 +143,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                     let mut diag = Diagnostic::simple_error(
                         primary_message,
                         format!("First {} found here", &typ),
-                        first_span,
+                        first_span
                     );
                     diag.add_secondary(format!("Second {} found here", &typ), second_span);
                     diag
@@ -134,47 +156,43 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("No module `{mod_name}` at path `{expected_path}`"),
                     String::new(),
-                    span,
+                    span
                 )
             }
             DefCollectorErrorKind::PathResolutionError(error) => error.into(),
-            DefCollectorErrorKind::NonStructTypeInImpl { span } => Diagnostic::simple_error(
-                "Non-struct type used in impl".into(),
-                "Only struct types may have implementation methods".into(),
-                span,
-            ),
-            DefCollectorErrorKind::MutableReferenceInTraitImpl { span } => Diagnostic::simple_error(
-                "Trait impls are not allowed on mutable reference types".into(),
-                "Try using a struct type here instead".into(),
-                span,
-            ),
+            DefCollectorErrorKind::NonStructTypeInImpl { span } =>
+                Diagnostic::simple_error(
+                    "Non-struct type used in impl".into(),
+                    "Only struct types may have implementation methods".into(),
+                    span
+                ),
+            DefCollectorErrorKind::MutableReferenceInTraitImpl { span } =>
+                Diagnostic::simple_error(
+                    "Trait impls are not allowed on mutable reference types".into(),
+                    "Try using a struct type here instead".into(),
+                    span
+                ),
             DefCollectorErrorKind::OverlappingImpl { span, typ } => {
                 Diagnostic::simple_error(
                     format!("Impl for type `{typ}` overlaps with existing impl"),
                     "Overlapping impl".into(),
-                    span,
+                    span
                 )
             }
             DefCollectorErrorKind::OverlappingImplNote { span } => {
                 // This should be a note or part of the previous error eventually.
                 // This must be an error to appear next to the previous OverlappingImpl
                 // error since we sort warnings first.
-                Diagnostic::simple_error(
-                    "Previous impl defined here".into(),
-                    "Previous impl defined here".into(),
-                    span,
-                )
+                Diagnostic::simple_error("Previous impl defined here".into(), "Previous impl defined here".into(), span)
             }
-            DefCollectorErrorKind::ForeignImpl { span, type_name } => Diagnostic::simple_error(
-                "Cannot `impl` a type that was defined outside the current crate".into(),
-                format!("{type_name} was defined outside the current crate"),
-                span,
-            ),
-            DefCollectorErrorKind::TraitNotFound { trait_path } => Diagnostic::simple_error(
-                format!("Trait {trait_path} not found"),
-                "".to_string(),
-                trait_path.span(),
-            ),
+            DefCollectorErrorKind::ForeignImpl { span, type_name } =>
+                Diagnostic::simple_error(
+                    "Cannot `impl` a type that was defined outside the current crate".into(),
+                    format!("{type_name} was defined outside the current crate"),
+                    span
+                ),
+            DefCollectorErrorKind::TraitNotFound { trait_path } =>
+                Diagnostic::simple_error(format!("Trait {trait_path} not found"), "".to_string(), trait_path.span()),
             DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
                 expected_num_parameters,
                 actual_num_parameters,
@@ -184,7 +202,8 @@ impl From<DefCollectorErrorKind> for Diagnostic {
             } => {
                 let plural = if expected_num_parameters == 1 { "" } else { "s" };
                 let primary_message = format!(
-                    "`{trait_name}::{method_name}` expects {expected_num_parameters} parameter{plural}, but this method has {actual_num_parameters}");
+                    "`{trait_name}::{method_name}` expects {expected_num_parameters} parameter{plural}, but this method has {actual_num_parameters}"
+                );
                 Diagnostic::simple_error(primary_message, "".to_string(), span)
             }
             DefCollectorErrorKind::MismatchTraitImplementationNumGenerics {
@@ -196,21 +215,20 @@ impl From<DefCollectorErrorKind> for Diagnostic {
             } => {
                 let plural = if trait_method_generic_count == 1 { "" } else { "s" };
                 let primary_message = format!(
-                    "`{trait_name}::{method_name}` expects {trait_method_generic_count} generic{plural}, but this method has {impl_method_generic_count}");
+                    "`{trait_name}::{method_name}` expects {trait_method_generic_count} generic{plural}, but this method has {impl_method_generic_count}"
+                );
                 Diagnostic::simple_error(primary_message, "".to_string(), span)
             }
             DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method } => {
                 let trait_name = trait_name.0.contents;
                 let impl_method_span = impl_method.span();
                 let impl_method_name = impl_method.0.contents;
-                let primary_message = format!("Method with name `{impl_method_name}` is not part of trait `{trait_name}`, therefore it can't be implemented");
+                let primary_message = format!(
+                    "Method with name `{impl_method_name}` is not part of trait `{trait_name}`, therefore it can't be implemented"
+                );
                 Diagnostic::simple_error(primary_message, "".to_owned(), impl_method_span)
             }
-            DefCollectorErrorKind::TraitMissingMethod {
-                trait_name,
-                method_name,
-                trait_impl_span,
-            } => {
+            DefCollectorErrorKind::TraitMissingMethod { trait_name, method_name, trait_impl_span } => {
                 let trait_name = trait_name.0.contents;
                 let impl_method_name = method_name.0.contents;
                 let primary_message = format!(
@@ -219,7 +237,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 Diagnostic::simple_error(
                     primary_message,
                     format!("Please implement {impl_method_name} here"),
-                    trait_impl_span,
+                    trait_impl_span
                 )
             }
             DefCollectorErrorKind::NotATrait { not_a_trait_name } => {
@@ -227,7 +245,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("{not_a_trait_name} is not a trait, therefore it can't be implemented"),
                     String::new(),
-                    span,
+                    span
                 )
             }
             DefCollectorErrorKind::ModuleAlreadyPartOfCrate { mod_name, span } => {
@@ -240,21 +258,24 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 let secondary = String::new();
                 Diagnostic::simple_error(message, secondary, span)
             }
-            DefCollectorErrorKind::TraitImplOrphaned { span } => Diagnostic::simple_error(
-                "Orphaned trait implementation".into(),
-                "Either the type or the trait must be from the same crate as the trait implementation".into(),
-                span,
-            ),
+            DefCollectorErrorKind::TraitImplOrphaned { span } =>
+                Diagnostic::simple_error(
+                    "Orphaned trait implementation".into(),
+                    "Either the type or the trait must be from the same crate as the trait implementation".into(),
+                    span
+                ),
             #[cfg(feature = "aztec")]
-            DefCollectorErrorKind::AztecNotFound {} => Diagnostic::from_message(
-                "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml",
-            ),
+            DefCollectorErrorKind::AztecNotFound {} =>
+                Diagnostic::from_message(
+                    "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml"
+                ),
             #[cfg(feature = "aztec")]
-            DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound  {span} => Diagnostic::simple_error(
-                "compute_note_hash_and_nullifier function not found. Define it in your contract.".into(),
-                "".into(),
-                span
-            ),
+            DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound { span } =>
+                Diagnostic::simple_error(
+                    "compute_note_hash_and_nullifier function not found. Define it in your contract.".into(),
+                    "".into(),
+                    span
+                ),
         }
     }
 }
