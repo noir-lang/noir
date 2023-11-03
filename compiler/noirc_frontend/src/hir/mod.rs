@@ -119,18 +119,23 @@ impl Context {
         if &module_id.krate == crate_id {
             module_path
         } else {
-            let crates = self.find_dependencies(crate_id, &module_id.krate)
-            .expect("The Struct was supposed to be defined in a dependency");
+            let crates = self
+                .find_dependencies(crate_id, &module_id.krate)
+                .expect("The Struct was supposed to be defined in a dependency");
             crates.join("::") + "::" + &module_path
         }
     }
 
     /// Recursively walks down the crate dependency graph from crate_id until we reach requested crate
     /// This is needed in case a library (lib1) re-export a structure defined in another library (lib2)
-    /// In that case, we will get [lib1,lib2] when looking for a struct defined in lib2, 
+    /// In that case, we will get [lib1,lib2] when looking for a struct defined in lib2,
     /// re-exported by lib1 and used by the main crate.
     /// Returns the path from crate_id to target_crate_id
-    fn find_dependencies(&self, crate_id: &CrateId, target_crate_id: &CrateId) -> Option<Vec<String>> {
+    fn find_dependencies(
+        &self,
+        crate_id: &CrateId,
+        target_crate_id: &CrateId,
+    ) -> Option<Vec<String>> {
         for dep in &self.crate_graph[crate_id].dependencies {
             if &dep.crate_id == target_crate_id {
                 return Some(vec![dep.name.to_string()]);
