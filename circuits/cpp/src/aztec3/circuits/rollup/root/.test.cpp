@@ -307,4 +307,33 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     // run_cbind(rootRollupInputs, outputs, true);
 }
 
+TEST_F(root_rollup_tests, noir_interop_test)
+{
+    // This is an annoying hack to convert the field into a hex string
+    // We should add a to_hex and from_hex method to field class
+    auto to_hex = [](const NT::fr& value) -> std::string {
+        std::stringstream field_as_hex_stream;
+        field_as_hex_stream << value;
+        return field_as_hex_stream.str();
+    };
+
+    MemoryStore merkle_tree_store;
+    MerkleTree merkle_tree(merkle_tree_store, L1_TO_L2_MSG_SUBTREE_HEIGHT);
+
+    std::array<fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> leaves = { 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4 };
+    for (size_t i = 0; i < NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP; i++) {
+        merkle_tree.update_element(i, leaves[i]);
+    }
+    auto root = merkle_tree.root();
+    auto expected = "0x17e8bb70a11d0c946345950879484d2f4f9fef397ff6adbfdec3baab2d41faab";
+    ASSERT_EQ(to_hex(root), expected);
+
+    // Empty subtree is the same as zeroes
+    MemoryStore empty_tree_store;
+    MerkleTree const empty_tree = MerkleTree(empty_tree_store, L1_TO_L2_MSG_SUBTREE_HEIGHT);
+    auto empty_root = empty_tree.root();
+    auto expected_empty_root = "0x06e62084ee7b602fe9abc15632dda3269f56fb0c6e12519a2eb2ec897091919d";
+    ASSERT_EQ(to_hex(empty_root), expected_empty_root);
+}
+
 }  // namespace aztec3::circuits::rollup::root::native_root_rollup_circuit

@@ -15,6 +15,13 @@ use dep::aztec::{
     hash::sha256_to_field,
 };
 
+// Checks that `value` is a member of a merkle tree with root `root` at position `index`
+// The witness being the `sibling_path`
+pub fn assert_check_membership<N>(value : Field, index : Field, sibling_path : [Field; N], root : Field) {
+    let calculated_root = root_from_sibling_path(value, index, sibling_path);
+    assert(calculated_root == root, "membership check failed");
+}
+
 // Calculate the Merkle tree root from the sibling path and leaf.
 //
 // The leaf is hashed with its sibling, and then the result is hashed
@@ -25,7 +32,7 @@ use dep::aztec::{
 // TODO: I'd generally like to avoid u256 for algorithms like 
 // this because it means we never even need to consider cases where 
 // the index is greater than p.
-fn root_from_sibling_path<N>(leaf : Field, leaf_index : Field, sibling_path : [Field; N]) -> Field {
+pub fn root_from_sibling_path<N>(leaf : Field, leaf_index : Field, sibling_path : [Field; N]) -> Field {
     let mut node = leaf;
     let indices = leaf_index.to_le_bits(N);
 
