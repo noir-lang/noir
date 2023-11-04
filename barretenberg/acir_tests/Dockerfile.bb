@@ -6,6 +6,6 @@ COPY --from=0 /usr/src/barretenberg/cpp/build /usr/src/barretenberg/cpp/build
 WORKDIR /usr/src/barretenberg/acir_tests
 COPY . .
 # Run every acir test through native bb build "prove_and_verify".
-RUN ./run_acir_tests.sh
+RUN FLOW=all_cmds ./run_acir_tests.sh
 # Run 1_mul through native bb build, all_cmds flow, to test all cli args.
 RUN VERBOSE=1 FLOW=all_cmds ./run_acir_tests.sh 1_mul
