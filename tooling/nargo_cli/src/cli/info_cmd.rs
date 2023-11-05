@@ -9,7 +9,7 @@ use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelec
 use noirc_driver::{
     CompileOptions, CompiledContract, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
-use noirc_errors::Location;
+use noirc_errors::{debug_info::OpCodesCount, Location};
 use noirc_frontend::graph::CrateName;
 use prettytable::{row, table, Row};
 use rayon::prelude::*;
@@ -145,14 +145,16 @@ pub(crate) fn run(
 }
 
 fn print_span_opcodes(
-    span_opcodes_map: &HashMap<&Location, usize>,
+    span_opcodes_map: &HashMap<&Location, OpCodesCount>,
     debug_artifact: &DebugArtifact,
 ) {
-    let mut pairs: Vec<(&&Location, &usize)> = span_opcodes_map.iter().collect();
+    let mut pairs: Vec<(&&Location, &OpCodesCount)> = span_opcodes_map.iter().collect();
 
-    pairs.sort_by(|a, b| a.1.cmp(b.1));
+    pairs.sort_by(|a, b| {
+        a.1.acir_size.cmp(&b.1.acir_size).then_with(|| a.1.brillig_size.cmp(&b.1.brillig_size))
+    });
 
-    for (location, opcodes_len) in pairs {
+    for (location, opcodes_count) in pairs {
         let debug_file = debug_artifact.file_map.get(&location.file).unwrap();
 
         let start_byte = byte_index(&debug_file.source, location.span.start() + 1);
@@ -161,10 +163,11 @@ fn print_span_opcodes(
         let span_content = &debug_file.source[range];
         let line = debug_artifact.location_line_index(**location).unwrap();
         println!(
-            "Ln. {}: {} ({} opcode|s) in file: {}",
+            "Ln. {}: {} (ACIR:{}, Brillig:{} opcode|s) in file: {}",
             line,
             span_content,
-            opcodes_len,
+            opcodes_count.acir_size,
+            opcodes_count.brillig_size,
             debug_file.path.to_str().unwrap()
         );
     }

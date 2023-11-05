@@ -20,6 +20,11 @@ pub struct DebugInfo {
     pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
 }
 
+pub struct OpCodesCount {
+    pub acir_size: usize,
+    pub brillig_size: usize,
+}
+
 impl DebugInfo {
     pub fn new(locations: BTreeMap<OpcodeLocation, Vec<Location>>) -> Self {
         DebugInfo { locations }
@@ -44,7 +49,7 @@ impl DebugInfo {
         self.locations.get(loc).cloned()
     }
 
-    pub fn count_span_opcodes(&self) -> HashMap<&Location, usize> {
+    pub fn count_span_opcodes(&self) -> HashMap<&Location, OpCodesCount> {
         let mut accumulator: HashMap<&Location, Vec<&OpcodeLocation>> = HashMap::new();
 
         for (opcode_location, locations) in self.locations.iter() {
@@ -54,8 +59,27 @@ impl DebugInfo {
             }
         }
 
-        let counted_opcodes: HashMap<&Location, usize> =
-            accumulator.iter().map(|(location, opcodes)| (*location, opcodes.len())).collect();
+        let counted_opcodes = accumulator
+            .iter()
+            .map(|(location, opcodes)| {
+                let acir_opcodes: Vec<_> = opcodes
+                    .into_iter()
+                    .filter(|opcode_location| matches!(opcode_location, OpcodeLocation::Acir(_)))
+                    .collect();
+                let brillig_opcodes: Vec<_> = opcodes
+                    .into_iter()
+                    .filter(|opcode_location| {
+                        matches!(opcode_location, OpcodeLocation::Brillig { .. })
+                    })
+                    .collect();
+                // let (acir_opcodes, brillig_opcodes): (Vec<OpcodeLocation>, Vec<OpcodeLocation>) = opcodes.iter().partition(|opc| matches!(opc, OpcodeLocation::Acir(_)));
+                let opcodes_count = OpCodesCount {
+                    acir_size: acir_opcodes.len(),
+                    brillig_size: brillig_opcodes.len(),
+                };
+                (*location, opcodes_count)
+            })
+            .collect();
 
         counted_opcodes
     }
