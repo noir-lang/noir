@@ -7,7 +7,7 @@ pub(crate) use lsp_types::{
     DidChangeConfigurationParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, InitializeParams, InitializedParams,
     LogMessageParams, MessageType, Position, PublishDiagnosticsParams, Range, ServerInfo,
-    TextDocumentSyncCapability, TextDocumentSyncOptions, Url,
+    TextDocumentSyncCapability, Url,
 };
 
 pub(crate) mod request {
@@ -19,7 +19,7 @@ pub(crate) mod request {
     };
 
     // Re-providing lsp_types that we don't need to override
-    pub(crate) use lsp_types::request::{CodeLensRequest as CodeLens, Shutdown};
+    pub(crate) use lsp_types::request::{CodeLensRequest as CodeLens, Formatting, Shutdown};
 
     #[derive(Debug)]
     pub(crate) struct Initialize;
@@ -98,6 +98,9 @@ pub(crate) struct ServerCapabilities {
     /// The server provides code lens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) code_lens_provider: Option<CodeLensOptions>,
+
+    /// The server provides document formatting.
+    pub(crate) document_formatting_provider: bool,
 
     /// The server handles and provides custom nargo messages.
     #[serde(skip_serializing_if = "Option::is_none")]
