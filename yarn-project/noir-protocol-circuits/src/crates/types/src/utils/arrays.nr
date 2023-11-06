@@ -78,6 +78,14 @@ pub fn array_length<N>(array : [Field; N]) -> Field {
     length
 }
 
+pub fn expect_array_fields<N, S>(array: [Field; N], expected: [Field; S]) -> bool {
+    let mut eq = array_length(array) == S;
+    for i in 0..S {
+        eq = eq & (array[i] == expected[i]);
+    }
+    eq
+}
+
 #[test]
 fn smoke_validate_array() {
     let valid_array = [];

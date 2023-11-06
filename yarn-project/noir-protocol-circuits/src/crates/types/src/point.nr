@@ -1,10 +1,17 @@
 // TODO: change this to be called Grumpkin Point
 struct Point {
-    x : Field,
-    y : Field,
+    x: Field,
+    y: Field,
 }
 
 impl Point {
+    pub fn ZERO() -> Self {
+        Point {
+            x: 0,
+            y: 0,
+        }
+    }
+
     // TODO(David): Would be quite careful here as (0,0) is not a point
     // on the curve. A boolean flag may be the better approach here,
     // would also cost less constraints. It seems like we don't need to 

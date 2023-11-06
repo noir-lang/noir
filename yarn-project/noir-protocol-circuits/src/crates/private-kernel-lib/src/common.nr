@@ -1,19 +1,3 @@
-use dep::types::abis::private_circuit_public_inputs::PrivateCircuitPublicInputs;
-use dep::types::abis::kernel_circuit_public_inputs::KernelCircuitPublicInputsBuilder;
-use dep::types::utils::arrays;
-use dep::types::abis::previous_kernel_data::PreviousKernelData;
-use dep::types::abis::private_kernel::private_call_data::PrivateCallData;
-use dep::types::abis::combined_accumulated_data::{CombinedAccumulatedData, CombinedAccumulatedDataBuilder};
-use dep::types::abis::private_kernel::private_call_data::ReadRequestMembershipWitnessPrivateData;
-use dep::types::hash::{read_request_root_from_siblings, function_tree_root_from_siblings, contract_tree_root_from_siblings, silo_commitment, silo_nullifier,stdlib_recursion_verification_key_compress_native_vk, compute_new_contract_address_hash, compute_l2_to_l1_hash,compute_constructor_hash, compute_logs_hash};
-use dep::types::address::{EthAddress, Address};
-use dep::types::abis::function_data::FunctionData;
-use dep::types::contrakt::deployment_data::ContractDeploymentData;
-use dep::types::point::Point;
-use dep::types::abis::new_contract_data::NewContractData;
-use dep::types::abis::complete_address::CompleteAddress;
-use dep::types::utils::bounded_vec::BoundedVec;
-
 use dep::aztec::constants_gen::{
     MAX_READ_REQUESTS_PER_CALL,
     MAX_NEW_NULLIFIERS_PER_CALL,
@@ -21,21 +5,52 @@ use dep::aztec::constants_gen::{
     MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
     MAX_NEW_COMMITMENTS_PER_CALL,
 };
+use dep::types::{
+    abis::{
+        combined_accumulated_data::CombinedAccumulatedData,
+        complete_address::CompleteAddress,
+        function_data::FunctionData,
+        kernel_circuit_public_inputs::KernelCircuitPublicInputsBuilder,
+        new_contract_data::NewContractData,
+        private_circuit_public_inputs::PrivateCircuitPublicInputs,
+        private_kernel::private_call_data::{PrivateCallData, ReadRequestMembershipWitnessPrivateData},
+        previous_kernel_data::PreviousKernelData,
+    },
+    address::{Address, EthAddress},
+    contrakt::deployment_data::ContractDeploymentData,
+    hash::{
+        compute_constructor_hash,
+        compute_l2_to_l1_hash,
+        compute_logs_hash,
+        compute_new_contract_address_hash,
+        contract_tree_root_from_siblings,
+        function_tree_root_from_siblings,
+        read_request_root_from_siblings,
+        silo_commitment,
+        silo_nullifier,
+        stdlib_recursion_verification_key_compress_native_vk,
+    },
+    point::Point,
+    utils::{
+        arrays::{array_to_bounded_vec, is_empty, is_empty_array, validate_array},
+        bounded_vec::BoundedVec,
+    },
+};
 
 pub fn validate_arrays(app_public_inputs : PrivateCircuitPublicInputs) {
     // Each of the following arrays is expected to be zero-padded.
     // In addition, some of the following arrays (new_commitments, etc...) are passed
     // to push_array_to_array() routines which rely on the passed arrays to be well-formed.
     
-    arrays::validate_array(app_public_inputs.return_values);
-    arrays::validate_array(app_public_inputs.read_requests);
-    arrays::validate_array(app_public_inputs.pending_read_requests);
-    arrays::validate_array(app_public_inputs.new_commitments);
-    arrays::validate_array(app_public_inputs.new_nullifiers);
-    arrays::validate_array(app_public_inputs.nullified_commitments);
-    arrays::validate_array(app_public_inputs.private_call_stack);
-    arrays::validate_array(app_public_inputs.public_call_stack);
-    arrays::validate_array(app_public_inputs.new_l2_to_l1_msgs);
+    validate_array(app_public_inputs.return_values);
+    validate_array(app_public_inputs.read_requests);
+    validate_array(app_public_inputs.pending_read_requests);
+    validate_array(app_public_inputs.new_commitments);
+    validate_array(app_public_inputs.new_nullifiers);
+    validate_array(app_public_inputs.nullified_commitments);
+    validate_array(app_public_inputs.private_call_stack);
+    validate_array(app_public_inputs.public_call_stack);
+    validate_array(app_public_inputs.new_l2_to_l1_msgs);
     
     // encrypted_logs_hash and unencrypted_logs_hash have their own integrity checks.
 }
@@ -61,7 +76,7 @@ pub fn validate_call_stack(private_call : PrivateCallData) {
         } else {
             preimage.hash()
         };
-        assert(hash == calculated_hash, "call stack item hash doesn't match preimage hash");
+        assert(hash == calculated_hash, "call stack item hash does not match preimage hash");
     }
 }
 
@@ -106,14 +121,14 @@ pub fn initialize_end_values(previous_kernel : PreviousKernelData, public_inputs
     // functions within this circuit:
     let start = previous_kernel.public_inputs.end;
 
-    public_inputs.end.read_requests = arrays::array_to_bounded_vec(start.read_requests, arrays::is_empty, 0);
-    public_inputs.end.new_commitments = arrays::array_to_bounded_vec(start.new_commitments, arrays::is_empty, 0);
-    public_inputs.end.new_nullifiers = arrays::array_to_bounded_vec(start.new_nullifiers, arrays::is_empty, 0);
-    public_inputs.end.nullified_commitments = arrays::array_to_bounded_vec(start.nullified_commitments, arrays::is_empty, 0);
+    public_inputs.end.read_requests = array_to_bounded_vec(start.read_requests, is_empty, 0);
+    public_inputs.end.new_commitments = array_to_bounded_vec(start.new_commitments, is_empty, 0);
+    public_inputs.end.new_nullifiers = array_to_bounded_vec(start.new_nullifiers, is_empty, 0);
+    public_inputs.end.nullified_commitments = array_to_bounded_vec(start.nullified_commitments, is_empty, 0);
 
-    public_inputs.end.private_call_stack = arrays::array_to_bounded_vec(start.private_call_stack, arrays::is_empty, 0);
-    public_inputs.end.public_call_stack = arrays::array_to_bounded_vec(start.public_call_stack, arrays::is_empty, 0);
-    public_inputs.end.new_l2_to_l1_msgs = arrays::array_to_bounded_vec(start.new_l2_to_l1_msgs, arrays::is_empty, 0);
+    public_inputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack, is_empty, 0);
+    public_inputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack, is_empty, 0);
+    public_inputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(start.new_l2_to_l1_msgs, is_empty, 0);
 
     public_inputs.end.encrypted_logs_hash = start.encrypted_logs_hash;
     public_inputs.end.unencrypted_logs_hash = start.unencrypted_logs_hash;
@@ -122,7 +137,7 @@ pub fn initialize_end_values(previous_kernel : PreviousKernelData, public_inputs
     public_inputs.end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
 
     public_inputs.end.optionally_revealed_data = start.optionally_revealed_data;
-    public_inputs.end.new_contracts = arrays::array_to_bounded_vec(previous_kernel.public_inputs.end.new_contracts, |ncd: NewContractData| ncd.is_empty(), NewContractData::default());
+    public_inputs.end.new_contracts = array_to_bounded_vec(previous_kernel.public_inputs.end.new_contracts, |ncd: NewContractData| ncd.is_empty(), NewContractData::default());
 }
 
 pub fn update_end_values(private_call : PrivateCallData, public_inputs : &mut KernelCircuitPublicInputsBuilder) {
@@ -141,8 +156,8 @@ pub fn update_end_values(private_call : PrivateCallData, public_inputs : &mut Ke
 
     if is_static_call {
         // No state changes are allowed for static calls:
-        assert(arrays::is_empty_array(new_commitments), "new_commitments must be empty for static calls");
-        assert(arrays::is_empty_array(new_nullifiers), "new_nullifiers must be empty for static calls");
+        assert(is_empty_array(new_commitments), "new_commitments must be empty for static calls");
+        assert(is_empty_array(new_nullifiers), "new_nullifiers must be empty for static calls");
     }
 
     let storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
@@ -217,10 +232,10 @@ pub fn update_end_values(private_call : PrivateCallData, public_inputs : &mut Ke
     public_inputs.end.nullified_commitments.push_vec(siloed_nullified_commitments);
 
     // Call stacks
-    let private_call_stack = arrays::array_to_bounded_vec(private_call_public_inputs.private_call_stack, arrays::is_empty, 0);
+    let private_call_stack = array_to_bounded_vec(private_call_public_inputs.private_call_stack, is_empty, 0);
     public_inputs.end.private_call_stack.push_vec(private_call_stack);
 
-    let public_call_stack = arrays::array_to_bounded_vec(private_call_public_inputs.public_call_stack, arrays::is_empty, 0);
+    let public_call_stack = array_to_bounded_vec(private_call_public_inputs.public_call_stack, is_empty, 0);
     public_inputs.end.public_call_stack.push_vec(public_call_stack);
 
     // new l2 to l1 messages
@@ -282,7 +297,7 @@ pub fn contract_logic(private_call : PrivateCallData, public_inputs : &mut Kerne
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3062) VKs are mocked out for now
         // assert(contract_dep_data.constructor_vk_hash == private_call_vk_hash, "constructor_vk_hash doesn't match private_call_vk_hash");
         
-        assert(storage_contract_address.eq(new_contract_address), "contract address supplied doesn't match derived address");
+        assert(storage_contract_address.eq(new_contract_address), "contract address supplied does not match derived address");
 
         let new_contract_address_nullifier = compute_new_contract_address_hash(new_contract_address);
 
@@ -339,14 +354,14 @@ pub fn validate_previous_kernel_values(end : CombinedAccumulatedData) {
 // We validate that relevant arrays assumed to be zero-padded on the right comply to this format.
 fn validate_previous_kernel_arrays(end : CombinedAccumulatedData) {
     // Each of the following arrays is expected to be zero-padded.
-    arrays::validate_array(end.read_requests);
-    arrays::validate_array(end.pending_read_requests);
-    arrays::validate_array(end.new_commitments);
-    arrays::validate_array(end.new_nullifiers);
-    arrays::validate_array(end.nullified_commitments);
-    arrays::validate_array(end.private_call_stack);
-    arrays::validate_array(end.public_call_stack);
-    arrays::validate_array(end.new_l2_to_l1_msgs);
+    validate_array(end.read_requests);
+    validate_array(end.pending_read_requests);
+    validate_array(end.new_commitments);
+    validate_array(end.new_nullifiers);
+    validate_array(end.nullified_commitments);
+    validate_array(end.private_call_stack);
+    validate_array(end.public_call_stack);
+    validate_array(end.new_l2_to_l1_msgs);
 }
 
 fn validate_previous_kernel_0th_nullifier(end : CombinedAccumulatedData)

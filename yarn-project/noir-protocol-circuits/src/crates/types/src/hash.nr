@@ -213,16 +213,28 @@ pub fn compute_contract_address_from_partial(point : Point, partial_address : Fi
     Address::from_field(field)
 }
 
-pub fn compute_unique_commitment(nonce : Field, siloed_commitment : Field) -> Field {
+pub fn compute_commitment_nonce(first_nullifier : Field, commitment_index : Field) -> Field {
+    dep::std::hash::pedersen_hash_with_separator([
+        first_nullifier,
+        commitment_index
+    ], constants_gen::GENERATOR_INDEX__COMMITMENT_NONCE)
+}
+
+pub fn compute_unique_siloed_commitment(nonce: Field, siloed_commitment: Field) -> Field {
     dep::std::hash::pedersen_hash_with_separator([
         nonce,
         siloed_commitment
     ], constants_gen::GENERATOR_INDEX__UNIQUE_COMMITMENT)
 }
 
-pub fn compute_commitment_nonce(first_nullifier : Field, commitment_index : Field) -> Field {
-    dep::std::hash::pedersen_hash_with_separator([
-        first_nullifier,
-        commitment_index
-    ], constants_gen::GENERATOR_INDEX__COMMITMENT_NONCE)
+pub fn compute_unique_siloed_commitments<N>(first_nullifier: Field, siloed_commitments: [Field; N]) -> [Field; N] {
+    let mut unique_siloed_commitments = [0; N];
+    for i in 0..N {
+        let siloed_commitment = siloed_commitments[i];
+        if siloed_commitment != 0 {
+            let nonce = compute_commitment_nonce(first_nullifier, i);
+            unique_siloed_commitments[i] = compute_unique_siloed_commitment(nonce, siloed_commitment);
+        }
+    }
+    unique_siloed_commitments
 }

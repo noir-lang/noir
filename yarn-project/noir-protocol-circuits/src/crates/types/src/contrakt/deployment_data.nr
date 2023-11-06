@@ -11,13 +11,12 @@ struct ContractDeploymentData {
 }
 
 impl ContractDeploymentData {
-    
     fn assert_is_zero(self) {
+        self.deployer_public_key.assert_is_zero();
         assert(self.constructor_vk_hash == 0);
         assert(self.function_tree_root == 0);
         assert(self.contract_address_salt == 0);
-        assert(self.portal_contract_address.to_field() == 0);
-        self.deployer_public_key.assert_is_zero();
+        self.portal_contract_address.assert_is_zero();
     }
 
     fn hash(self) -> Field {

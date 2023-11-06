@@ -1,32 +1,27 @@
+use crate::common;
 use dep::aztec::constants_gen::{
     EMPTY_NULLIFIED_COMMITMENT,
     MAX_NEW_COMMITMENTS_PER_TX,
     MAX_NEW_NULLIFIERS_PER_TX,
-    MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
     MAX_READ_REQUESTS_PER_TX,
 };
-use crate::common;
-use dep::types::mocked::{Proof, AggregationObject, verify_previous_kernel_state};
-use dep::types::transaction::request::TxRequest;
-use dep::types::abis::{
-    combined_constant_data::CombinedConstantData,
-    previous_kernel_data::PreviousKernelData,
-    private_kernel::private_call_data::PrivateCallData,
-    kernel_circuit_public_inputs::{
-        KernelCircuitPublicInputs, 
-        KernelCircuitPublicInputsBuilder, 
-        KernelCircuitPublicInputsFinal,
+use dep::std::unsafe;
+use dep::types::{
+    abis::{
+        previous_kernel_data::PreviousKernelData,
+        kernel_circuit_public_inputs::{
+            KernelCircuitPublicInputsBuilder, 
+            KernelCircuitPublicInputsFinal,
+        },
+    },
+    hash::{
+        compute_commitment_nonce,
+        compute_unique_siloed_commitment,
+    },
+    utils::{
+        bounded_vec::BoundedVec,
     },
 };
-use dep::types::utils::{
-    arrays,
-    bounded_vec::BoundedVec,
-};
-use dep::types::hash::{
-    compute_commitment_nonce,
-    compute_unique_commitment,
-};
-use dep::std::unsafe;
 
 struct PrivateKernelInputsOrdering {
     previous_kernel : PreviousKernelData,
@@ -125,7 +120,7 @@ impl PrivateKernelInputsOrdering {
             let nonce = compute_commitment_nonce(first_nullifier, c_idx);
             let commitment = unique_commitments[c_idx];
             if commitment != 0 {
-                let unique_commitment = compute_unique_commitment(nonce, commitment);
+                let unique_commitment = compute_unique_siloed_commitment(nonce, commitment);
                 unique_commitments[c_idx] = unique_commitment;
             }
         }
@@ -156,149 +151,118 @@ impl PrivateKernelInputsOrdering {
 }
 
 mod tests {
-    use dep::types::abis::{
-        private_circuit_public_inputs::PrivateCircuitPublicInputs,
-        read_request_membership_witness::ReadRequestMembershipWitness,
-    };
-    use dep::types::address::Address;
-    use dep::types::hash::{
-        compute_commitment_nonce,
-        compute_unique_commitment,
-    };
     use crate::private_kernel_ordering::PrivateKernelInputsOrdering;
-    use dep::types::tests::{
-        apps::constructor::constructor_app,
-        testing_harness::{
-            create_previous_kernel_data,
-            non_zero_items,
-            PrivateAppInputs,
-        },
-    };
     use dep::aztec::constants_gen::{
         MAX_READ_REQUESTS_PER_TX,
         MAX_NEW_COMMITMENTS_PER_TX,
         MAX_NEW_NULLIFIERS_PER_TX,
         EMPTY_NULLIFIED_COMMITMENT,
-        MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
-        MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-        MAX_NEW_L2_TO_L1_MSGS_PER_TX,
     };
-    use dep::types::utils::{
-        bounded_vec::BoundedVec,
+    use dep::types::{
+        abis::kernel_circuit_public_inputs::KernelCircuitPublicInputsFinal,
+        hash::compute_unique_siloed_commitments,
+        tests::testing_harness::PreviousKernelDataBuilder,
+        utils::{
+            arrays::{array_length, is_empty_array, expect_array_fields},
+            bounded_vec::BoundedVec,
+        },
     };
 
-    fn build_inputs<T>(
-        function: fn (PrivateAppInputs, T) -> PrivateCircuitPublicInputs,
-        app_params: T,
-    ) -> PrivateKernelInputsOrdering {
-        let msg_sender = Address::from_field(27);
-        let previous_kernel = create_previous_kernel_data(
-            false,
-            function,
-            app_params,
-            msg_sender,
-        );
-
-        let read_commitment_hints = [0; MAX_READ_REQUESTS_PER_TX];
-        let nullifier_commitment_hints = [0; MAX_NEW_NULLIFIERS_PER_TX];
-
-        PrivateKernelInputsOrdering {
-            previous_kernel,
-            read_commitment_hints,
-            nullifier_commitment_hints,
-        }
+    struct PrivateKernelOrderingInputsBuilder {
+        previous_kernel: PreviousKernelDataBuilder,
+        read_commitment_hints: [Field; MAX_READ_REQUESTS_PER_TX],
+        nullifier_commitment_hints: [Field; MAX_NEW_NULLIFIERS_PER_TX],
     }
 
-    fn generate_unique_siloed_commitments<N>(
-        private_inputs: PrivateKernelInputsOrdering,
-        siloed_commitments: [Field; MAX_NEW_COMMITMENTS_PER_TX],
-        squashed_indices: [Field; N],
-    ) -> [Field; MAX_NEW_COMMITMENTS_PER_TX] {
-        let mut valid_indices = [true; MAX_NEW_COMMITMENTS_PER_TX];
-        for i in 0..N {
-            valid_indices[squashed_indices[i]] = false;
-        }
-
-        let mut unique_siloed_commitments = BoundedVec::new(0);
-        let first_nullifier = private_inputs.previous_kernel.public_inputs.end.new_nullifiers[0];
-        for i in 0..MAX_NEW_COMMITMENTS_PER_TX {
-            let siloed_commitment = siloed_commitments[i];
-            if (siloed_commitment != 0) & valid_indices[i] {
-                let idx = unique_siloed_commitments.len();
-                let nonce = compute_commitment_nonce(first_nullifier, idx);
-                let unique_siloed_commitment = compute_unique_commitment(nonce, siloed_commitment);
-                unique_siloed_commitments.push(unique_siloed_commitment);
+    impl PrivateKernelOrderingInputsBuilder {
+        pub fn new() -> Self {
+            PrivateKernelOrderingInputsBuilder {
+                previous_kernel: PreviousKernelDataBuilder::new(false),
+                read_commitment_hints: [0; MAX_READ_REQUESTS_PER_TX],
+                nullifier_commitment_hints: [0; MAX_NEW_NULLIFIERS_PER_TX],
             }
         }
 
-        unique_siloed_commitments.storage
-    }
-
-    fn mock_new_commitments(private_inputs: &mut PrivateKernelInputsOrdering, num_new_commitments: Field) -> (
-        [Field; MAX_NEW_COMMITMENTS_PER_TX],
-        [Field; MAX_NEW_COMMITMENTS_PER_TX],
-    ) {
-        let mut new_commitments = [0; MAX_NEW_COMMITMENTS_PER_TX];
-        for i in 0..MAX_NEW_COMMITMENTS_PER_TX {
-            if i as u64 < num_new_commitments as u64 {
-                let siloed_commitment = i + 623;
-                new_commitments[i] = siloed_commitment;
-            }
+        pub fn get_new_commitments(self) -> [Field; MAX_NEW_COMMITMENTS_PER_TX] {
+            self.previous_kernel.end.new_commitments.storage
+        }
+        
+        pub fn get_new_nullifiers(self) -> [Field; MAX_NEW_NULLIFIERS_PER_TX] {
+            self.previous_kernel.end.new_nullifiers.storage
         }
 
-        private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
-
-        let unique_siloed_commitments = generate_unique_siloed_commitments(*private_inputs, new_commitments, []);
-
-        (new_commitments, unique_siloed_commitments)
-    }
-
-    fn mock_new_nullifiers(private_inputs: &mut PrivateKernelInputsOrdering, num_extra_nullifier: Field) -> [Field; MAX_NEW_NULLIFIERS_PER_TX] {
-        let mut new_nullifiers = [0; MAX_NEW_NULLIFIERS_PER_TX];
-        let first_nullifier = private_inputs.previous_kernel.public_inputs.end.new_nullifiers[0];
-        new_nullifiers[0] = first_nullifier;
-
-        for i in 1..MAX_NEW_NULLIFIERS_PER_TX {
-            if i as u64 <= num_extra_nullifier as u64 {
-                // Set a random value that's different to the first nullifier.
-                new_nullifiers[i] = first_nullifier + i;
-            }
+        pub fn get_unique_siloed_commitments(self) -> [Field; MAX_NEW_COMMITMENTS_PER_TX] {
+            self.compute_unique_siloed_commitments(self.previous_kernel.end.new_commitments.storage)
         }
 
-        private_inputs.previous_kernel.public_inputs.end.new_nullifiers = new_nullifiers;
+        // A helper function that uses the first nullifer in the previous kernel to compute the unique siloed 
+        // commitments for the given commitments.
+        pub fn compute_unique_siloed_commitments<N>(self, commitments: [Field; N]) -> [Field; N] {
+            let first_nullifier = self.previous_kernel.end.new_nullifiers.get_unchecked(0);
+            compute_unique_siloed_commitments(first_nullifier, commitments)
+        }
 
-        new_nullifiers
+        pub fn append_transient_commitments(&mut self, num_commitments: Field) {
+            // All new commitments aggregated in the previous kernel are transient commitments.
+            self.previous_kernel.append_new_commitments(num_commitments);
+        }
+
+        pub fn add_transient_read(&mut self, commitment_index: Field) {
+            let read_request_index = self.previous_kernel.add_read_request_for_transient_commitment(commitment_index);
+            self.read_commitment_hints[read_request_index] = commitment_index;
+        }
+
+        pub fn append_nullifiers(&mut self, num_nullifiers: Field) {
+            self.previous_kernel.append_new_nullifiers(num_nullifiers);
+        }
+        
+        pub fn nullify_transient_commitment(&mut self, nullifier_index: Field, commitment_index: Field) {
+            self.previous_kernel.end.nullified_commitments.storage[nullifier_index] = self.previous_kernel.end.new_commitments.get(commitment_index); // TODO: util to update vec
+            self.nullifier_commitment_hints[nullifier_index] = commitment_index;
+        }
+
+        pub fn execute(self) -> KernelCircuitPublicInputsFinal {
+            let kernel = PrivateKernelInputsOrdering {
+                previous_kernel: self.previous_kernel.finish(),
+                read_commitment_hints: self.read_commitment_hints,
+                nullifier_commitment_hints: self.nullifier_commitment_hints,
+            };
+            kernel.native_private_kernel_circuit_ordering()
+        }
+
+        pub fn failed(&mut self) {
+            let _ = self.execute();
+        }
     }
 
     #[test]
     fn native_matching_one_read_request_to_commitment_works() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        let (new_commitments, unique_siloed_commitments) = mock_new_commitments(&mut private_inputs, 1);
-        private_inputs.read_commitment_hints[0] = 0;
-        private_inputs.previous_kernel.public_inputs.end.read_requests[0] = new_commitments[0];
+        builder.append_transient_commitments(1);
+        builder.add_transient_read(0);
 
-        let public_inputs = private_inputs.native_private_kernel_circuit_ordering();
-        assert(non_zero_items(public_inputs.end.new_commitments) == 1);
+        let unique_siloed_commitments = builder.get_unique_siloed_commitments();
+
+        let public_inputs = builder.execute();
+        assert(array_length(public_inputs.end.new_commitments) == 1);
         assert(public_inputs.end.new_commitments[0] == unique_siloed_commitments[0]);
     }
 
     #[test]
     fn native_matching_some_read_requests_to_commitments_works() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        let (new_commitments, unique_siloed_commitments) = mock_new_commitments(&mut private_inputs, MAX_NEW_COMMITMENTS_PER_TX);
+        builder.append_transient_commitments(MAX_NEW_COMMITMENTS_PER_TX);
         // Read the commitment at index 1;
-        private_inputs.read_commitment_hints[0] = 1;
-        private_inputs.previous_kernel.public_inputs.end.read_requests[0] = new_commitments[1];
+        builder.add_transient_read(1);
         // Read the commitment at index 3;
-        private_inputs.read_commitment_hints[1] = 3;
-        private_inputs.previous_kernel.public_inputs.end.read_requests[1] = new_commitments[3];
+        builder.add_transient_read(3);
 
-        let public_inputs = private_inputs.native_private_kernel_circuit_ordering();
-        assert(non_zero_items(public_inputs.end.new_commitments) == MAX_NEW_COMMITMENTS_PER_TX as u64);
+        let unique_siloed_commitments = builder.get_unique_siloed_commitments();
+
+        let public_inputs = builder.execute();
+        assert_eq(array_length(public_inputs.end.new_commitments), MAX_NEW_COMMITMENTS_PER_TX);
         for i in 0..MAX_NEW_COMMITMENTS_PER_TX {
             assert(public_inputs.end.new_commitments[i] == unique_siloed_commitments[i]);
         }
@@ -306,200 +270,169 @@ mod tests {
 
     #[test(should_fail_with="read request is transient but does not match any commitment")]
     fn native_read_request_unknown_fails() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        let (new_commitments, _) = mock_new_commitments(&mut private_inputs, 1);
-        private_inputs.read_commitment_hints[0] = 0;
-        // The read request does not match the commitment at index 0;
-        private_inputs.previous_kernel.public_inputs.end.read_requests[0] = new_commitments[0] + 1;
+        builder.append_transient_commitments(1);
+        builder.add_transient_read(0);
+        // Tweak the read request so that it does not match the commitment at index 0;
+        let read_request = builder.previous_kernel.end.read_requests.pop();
+        builder.previous_kernel.end.read_requests.push(read_request + 1);
 
-        private_inputs.native_private_kernel_circuit_ordering();
+        builder.failed();
     }
 
     #[test]
     fn native_squash_one_of_one_transient_matches_works() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        let (new_commitments, _) = mock_new_commitments(&mut private_inputs, 1);
-        let new_nullifiers = mock_new_nullifiers(&mut private_inputs, 2);
+        builder.append_transient_commitments(1);
+        builder.append_nullifiers(2);
         // The nullifier at index 1 is nullifying the commitment at index 0;
-        let transient_nullifier_index = 1;
-        let nullified_commitment_index = 0;
-        private_inputs.previous_kernel.public_inputs.end.nullified_commitments[transient_nullifier_index] = new_commitments[nullified_commitment_index];
-        private_inputs.nullifier_commitment_hints[transient_nullifier_index] = nullified_commitment_index;
+        builder.nullify_transient_commitment(1, 0);
+        let new_nullifiers = builder.get_new_nullifiers();
 
-        let public_inputs = private_inputs.native_private_kernel_circuit_ordering();
-        assert(non_zero_items(public_inputs.end.new_commitments) == 0);
-        assert(non_zero_items(public_inputs.end.new_nullifiers) == 2);
-        assert(public_inputs.end.new_nullifiers[0] == new_nullifiers[0]);
-        assert(public_inputs.end.new_nullifiers[1] == new_nullifiers[2]);
+        let public_inputs = builder.execute();
+        assert(is_empty_array(public_inputs.end.new_commitments));
+
+        // The nullifier at index 1 is chopped.
+        let expected_new_nullifiers = [new_nullifiers[0], new_nullifiers[2]];
+        assert(expect_array_fields(public_inputs.end.new_nullifiers, expected_new_nullifiers));
     }
 
     #[test]
     fn native_squash_one_of_two_transient_matches_works() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        let (new_commitments, _) = mock_new_commitments(&mut private_inputs, 2);
-        let new_nullifiers = mock_new_nullifiers(&mut private_inputs, 2);
+        builder.append_transient_commitments(2);
+        builder.append_nullifiers(2);
         // The nullifier at index 1 is nullifying the commitment at index 0;
-        let transient_nullifier_index = 1;
-        let nullified_commitment_index = 0;
-        private_inputs.previous_kernel.public_inputs.end.nullified_commitments[transient_nullifier_index] = new_commitments[nullified_commitment_index];
-        private_inputs.nullifier_commitment_hints[transient_nullifier_index] = nullified_commitment_index;
+        builder.nullify_transient_commitment(1, 0);
 
-        // The 0th commitment is chopped.
-        let unique_siloed_commitments = generate_unique_siloed_commitments(private_inputs, new_commitments, [0]);
+        let new_commitments = builder.get_new_commitments();
+        // The 0th commitment will be chopped.
+        let unique_siloed_commitments = builder.compute_unique_siloed_commitments([new_commitments[1]]);
+        let new_nullifiers = builder.get_new_nullifiers();
 
-        let public_inputs = private_inputs.native_private_kernel_circuit_ordering();
-        assert(non_zero_items(public_inputs.end.new_commitments) == 1);
-        assert(public_inputs.end.new_commitments[0] == unique_siloed_commitments[0]);
-        assert(non_zero_items(public_inputs.end.new_nullifiers) == 2);
-        assert(public_inputs.end.new_nullifiers[0] == new_nullifiers[0]);
-        assert(public_inputs.end.new_nullifiers[1] == new_nullifiers[2]);
+        let public_inputs = builder.execute();
+        assert(expect_array_fields(public_inputs.end.new_commitments, unique_siloed_commitments));
+
+        // The nullifier at index 1 is chopped.
+        let expected_new_nullifiers = [new_nullifiers[0], new_nullifiers[2]];
+        assert(expect_array_fields(public_inputs.end.new_nullifiers, expected_new_nullifiers));
     }
 
     #[test]
     fn native_squash_two_of_two_transient_matches_works() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        let (new_commitments, _) = mock_new_commitments(&mut private_inputs, 2);
-        let new_nullifiers = mock_new_nullifiers(&mut private_inputs, 2);
+        builder.append_transient_commitments(2);
+        builder.append_nullifiers(2);
         // The nullifier at index 1 is nullifying the commitment at index 1;
-        private_inputs.previous_kernel.public_inputs.end.nullified_commitments[1] = new_commitments[1];
-        private_inputs.nullifier_commitment_hints[1] = 1;
+        builder.nullify_transient_commitment(1, 1);
         // The nullifier at index 2 is nullifying the commitment at index 0;
-        private_inputs.previous_kernel.public_inputs.end.nullified_commitments[2] = new_commitments[0];
-        private_inputs.nullifier_commitment_hints[2] = 0;
+        builder.nullify_transient_commitment(2, 0);
 
-        let public_inputs = private_inputs.native_private_kernel_circuit_ordering();
-        assert(non_zero_items(public_inputs.end.new_commitments) == 0);
-        assert(non_zero_items(public_inputs.end.new_nullifiers) == 1);
-        assert(public_inputs.end.new_nullifiers[0] == new_nullifiers[0]);
+        let new_nullifiers = builder.get_new_nullifiers();
+
+        let public_inputs = builder.execute();
+        assert(is_empty_array(public_inputs.end.new_commitments));
+        assert(expect_array_fields(public_inputs.end.new_nullifiers, [new_nullifiers[0]]));
     }
 
     #[test]
     fn native_empty_nullified_commitment_means_persistent_nullifier_0() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        mock_new_commitments(&mut private_inputs, 2);
-        mock_new_nullifiers(&mut private_inputs, 2);
+        builder.append_transient_commitments(2);
+        builder.append_nullifiers(2);
 
-        let public_inputs = private_inputs.native_private_kernel_circuit_ordering();
-        assert(non_zero_items(public_inputs.end.new_commitments) == 2);
-        assert(non_zero_items(public_inputs.end.new_nullifiers) == 3);
+        let public_inputs = builder.execute();
+        assert(array_length(public_inputs.end.new_commitments) == 2);
+        assert(array_length(public_inputs.end.new_nullifiers) == 3);
     }
 
     // same as previous test, but this time there are 0 commitments!
     // (Do we really need this test?)
     #[test]
     fn native_empty_nullified_commitment_means_persistent_nullifier_1() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        mock_new_nullifiers(&mut private_inputs, 2);
+        builder.append_nullifiers(2);
 
-        let public_inputs = private_inputs.native_private_kernel_circuit_ordering();
-        assert(non_zero_items(public_inputs.end.new_commitments) == 0);
-        assert(non_zero_items(public_inputs.end.new_nullifiers) == 3);
+        let public_inputs = builder.execute();
+        assert(array_length(public_inputs.end.new_commitments) == 0);
+        assert(array_length(public_inputs.end.new_nullifiers) == 3);
     }
 
     #[test(should_fail_with="The 0th nullifier in the accumulated nullifier array is zero")]
     fn zero_0th_nullifier_fails() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        private_inputs.previous_kernel.public_inputs.end.new_nullifiers[0] = 0;
+        builder.previous_kernel.end.new_nullifiers = BoundedVec::new(0);
 
-        private_inputs.native_private_kernel_circuit_ordering();
+        builder.failed();
     }
 
     #[test(should_fail_with="invalid array")]
     fn input_validation_malformed_end_arrays_read_requests() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        let mut malformed_read_requests = [0; MAX_READ_REQUESTS_PER_TX];
-        malformed_read_requests[1] = 9123;
-        malformed_read_requests[3] = 12;
-        private_inputs.previous_kernel.public_inputs.end.read_requests = malformed_read_requests;
+        builder.previous_kernel.end.read_requests.push_array([0, 9123]);
 
-        private_inputs.native_private_kernel_circuit_ordering();
+        builder.failed();
     }
 
     #[test(should_fail_with="invalid array")]
     fn input_validation_malformed_end_arrays_commitments() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        let mut malformed_commitments = [0; MAX_NEW_COMMITMENTS_PER_TX];
-        malformed_commitments[1] = 9123;
-        private_inputs.previous_kernel.public_inputs.end.new_commitments = malformed_commitments;
+        builder.previous_kernel.end.new_commitments.push_array([0, 9123]);
 
-        private_inputs.native_private_kernel_circuit_ordering();
+        builder.failed();
     }
 
     #[test(should_fail_with="invalid array")]
     fn input_validation_malformed_end_arrays_nullifiers() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        let mut malformed_nullifiers = [0; MAX_NEW_NULLIFIERS_PER_TX];
-        malformed_nullifiers[MAX_NEW_NULLIFIERS_PER_TX - 1] = 12;
-        private_inputs.previous_kernel.public_inputs.end.new_nullifiers = malformed_nullifiers;
+        builder.previous_kernel.end.new_nullifiers.push_array([0, 9123]);
 
-        private_inputs.native_private_kernel_circuit_ordering();
+        builder.failed();
     }
 
     #[test(should_fail_with="invalid array")]
     fn input_validation_malformed_end_arrays_nullified_commitments() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        let mut malformed_nullified_commitments = [0; MAX_NEW_NULLIFIERS_PER_TX];
-        malformed_nullified_commitments[2] = EMPTY_NULLIFIED_COMMITMENT;
-        private_inputs.previous_kernel.public_inputs.end.nullified_commitments = malformed_nullified_commitments;
+        builder.previous_kernel.end.nullified_commitments.push_array([0, EMPTY_NULLIFIED_COMMITMENT]);
 
-        private_inputs.native_private_kernel_circuit_ordering();
+        builder.failed();
     }
 
     #[test(should_fail_with="invalid array")]
     fn input_validation_malformed_end_arrays_private_call_stack() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        let mut malformed_private_call_stack = [0; MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX];
-        malformed_private_call_stack[1] = 888;
-        private_inputs.previous_kernel.public_inputs.end.private_call_stack = malformed_private_call_stack;
+        builder.previous_kernel.end.private_call_stack.push_array([0, 9123]);
 
-        private_inputs.native_private_kernel_circuit_ordering();
+        builder.failed();
     }
 
     #[test(should_fail_with="invalid array")]
     fn input_validation_malformed_end_arrays_public_call_stack() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        let mut malformed_public_call_stack = [0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX];
-        malformed_public_call_stack[1] = 888;
-        private_inputs.previous_kernel.public_inputs.end.public_call_stack = malformed_public_call_stack;
+        builder.previous_kernel.end.public_call_stack.push_array([0, 9123]);
 
-        private_inputs.native_private_kernel_circuit_ordering();
+        builder.failed();
     }
 
     #[test(should_fail_with="invalid array")]
     fn input_validation_malformed_end_arrays_l2_to_l1_msgs() {
-        let params = dep::std::unsafe::zeroed();
-        let mut private_inputs = build_inputs(constructor_app, params);
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
 
-        let mut malformed_l2_to_l1_msgs = [0; MAX_NEW_L2_TO_L1_MSGS_PER_TX];
-        malformed_l2_to_l1_msgs[MAX_NEW_L2_TO_L1_MSGS_PER_TX - 1] = 1;
-        private_inputs.previous_kernel.public_inputs.end.new_l2_to_l1_msgs = malformed_l2_to_l1_msgs;
+        builder.previous_kernel.end.new_l2_to_l1_msgs.push_array([0, 9123]);
 
-        private_inputs.native_private_kernel_circuit_ordering();
+        builder.failed();
     }
 }

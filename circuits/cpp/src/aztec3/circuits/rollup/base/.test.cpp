@@ -258,7 +258,7 @@ TEST_F(base_rollup_tests, native_new_commitments_tree)
     // Then get sibling path so we can verify insert them into the tree.
 
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
-    std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_TX * 2> new_commitments = { 0, 1, 2, 3, 4, 5, 6, 7 };
+    std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_TX* 2> new_commitments = { 0, 1, 2, 3, 4, 5, 6, 7 };
     for (uint8_t i = 0; i < 2; i++) {
         std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> kernel_commitments;
         for (uint8_t j = 0; j < MAX_NEW_COMMITMENTS_PER_TX; j++) {
@@ -481,7 +481,7 @@ TEST_F(base_rollup_tests, native_nullifier_tree_regression)
     initial_values[7] = uint256_t("2bb9aa4a22a6ae7204f2c67abaab59cead6558cde4ee25ce3464704cb2e38136");
     initial_values[8] = uint256_t("16a732095298ccca828c4d747813f8bd46e188079ed17904e2c9de50760833c8");
 
-    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX * 2> new_nullifiers = { 0 };
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX* 2> new_nullifiers = { 0 };
     new_nullifiers[0] = uint256_t("16da4f27fb78de7e0db4c5a04b569bc46382c5f471da2f7d670beff1614e0118"),
     new_nullifiers[1] = uint256_t("26ab07ce103a55e29f11478eaa36cebd10c4834b143a7debcc7ef53bfdb547dd");
 
@@ -519,7 +519,7 @@ TEST_F(base_rollup_tests, native_nullifier_tree_regression)
 TEST_F(base_rollup_tests, nullifier_tree_regression_2)
 {
     // Regression test caught when testing the typescript nullifier tree implementation
-    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX * 2> new_nullifiers = { 0 };
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX* 2> new_nullifiers = { 0 };
     new_nullifiers[0] = uint256_t("2a7d956c1365d259646d2d85babe1abb793bb8789e98df7e2336a29a0c91fd01");
     new_nullifiers[1] = uint256_t("236bf2d113f9ffee89df1a7a04890c9ad3583c6773eb9cdec484184f66abd4c6");
     new_nullifiers[4] = uint256_t("2f5c8a1ee33c7104b244e22a3e481637cd501c9eae868cfab6b16e3b4ef3d635");
@@ -530,7 +530,7 @@ TEST_F(base_rollup_tests, nullifier_tree_regression_2)
 
 TEST_F(base_rollup_tests, nullifier_tree_regression_3)
 {
-    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX * 2> new_nullifiers = { 0 };
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX* 2> new_nullifiers = { 0 };
     new_nullifiers[0] = uint256_t("0740a17aa6437e71836d2adcdcb3f52879bb869cdd9c8fb8dc39a12846cd17f2");
     new_nullifiers[1] = uint256_t("282e0e2f38310a7c7c98b636830b66f3276294560e26ef2499da10892f00af8f");
     new_nullifiers[4] = uint256_t("0f117936e888bd3befb4435f4d65300d25609e95a3d1563f62ef7e58c294f578");
