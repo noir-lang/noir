@@ -69,7 +69,7 @@ impl From<SsaReport> for FileDiagnostic {
                         ("constant value".to_string(), call_stack)
                     },
                     InternalWarning::VerifyProof { call_stack } => {
-                        ("verify_proof(...) aggregates data for the verifier, the actual verification will be done when the full proof is verified using nargo verify. nargo prove may generate an invalidid proof if bad data is used as input to verify_proof".to_string(), call_stack)
+                        ("verify_proof(...) aggregates data for the verifier, the actual verification will be done when the full proof is verified using nargo verify. nargo prove may generate an invalid proof if bad data is used as input to verify_proof".to_string(), call_stack)
                     },
                 };
                 let call_stack = vecmap(call_stack, |location| location);
