@@ -167,7 +167,7 @@ impl<'me> FmtVisitor<'me> {
                     }
 
                     if let Some('\n') = last_char {
-                        result.push_str("\n");
+                        result.push('\n');
                     }
 
                     let indent_str = self.indent.to_string();
