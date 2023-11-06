@@ -2,7 +2,7 @@ use std::future::{self, Future};
 
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use lsp_types::{LogMessageParams, MessageType};
-use nargo::prepare_package;
+use nargo::prepare_package_with_reader;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
 
@@ -53,7 +53,8 @@ fn on_tests_request_inner(
     let package_tests: Vec<_> = workspace
         .into_iter()
         .filter_map(|package| {
-            let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
+            let (mut context, crate_id) =
+                prepare_package_with_reader(package, Box::new(get_non_stdlib_asset));
             // We ignore the warnings and errors produced by compilation for producing tests
             // because we can still get the test functions even if compilation fails
             let _ = check_crate(&mut context, crate_id, false);

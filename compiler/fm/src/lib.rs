@@ -37,7 +37,11 @@ impl std::fmt::Debug for FileManager {
 }
 
 impl FileManager {
-    pub fn new(root: &Path, file_reader: Box<FileReader>) -> Self {
+    pub fn new(root: &Path) -> Self {
+        Self::with_reader(root, Box::new(|path| std::fs::read_to_string(path)))
+    }
+
+    pub fn with_reader(root: &Path, file_reader: Box<FileReader>) -> Self {
         Self {
             root: root.normalize(),
             file_map: Default::default(),
@@ -224,7 +228,7 @@ mod tests {
         let entry_file_name = Path::new("my_dummy_file.nr");
         create_dummy_file(&dir, entry_file_name);
 
-        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
+        let mut fm = FileManager::new(dir.path());
 
         let file_id = fm.add_file(entry_file_name).unwrap();
 
@@ -239,7 +243,7 @@ mod tests {
         let file_name = Path::new("foo.nr");
         create_dummy_file(&dir, file_name);
 
-        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
+        let mut fm = FileManager::new(dir.path());
 
         let file_id = fm.add_file(file_name).unwrap();
 
@@ -249,7 +253,7 @@ mod tests {
     #[test]
     fn path_resolve_sub_module() {
         let dir = tempdir().unwrap();
-        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
+        let mut fm = FileManager::new(dir.path());
 
         // Create a lib.nr file at the root.
         // we now have dir/lib.nr
@@ -295,7 +299,7 @@ mod tests {
         let sub_dir = TempDir::new_in(&dir).unwrap();
         let sub_sub_dir = TempDir::new_in(&sub_dir).unwrap();
 
-        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
+        let mut fm = FileManager::new(dir.path());
 
         // Create a lib.nr file at the root.
         let file_name = Path::new("lib.nr");

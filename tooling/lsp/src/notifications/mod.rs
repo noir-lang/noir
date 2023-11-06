@@ -1,7 +1,7 @@
 use std::ops::ControlFlow;
 
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use nargo::prepare_package;
+use nargo::prepare_package_with_reader;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
@@ -107,7 +107,8 @@ pub(super) fn on_did_save_text_document(
     let diagnostics: Vec<_> = workspace
         .into_iter()
         .flat_map(|package| -> Vec<Diagnostic> {
-            let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
+            let (mut context, crate_id) =
+                prepare_package_with_reader(package, Box::new(get_non_stdlib_asset));
 
             let file_diagnostics = match check_crate(&mut context, crate_id, false) {
                 Ok(((), warnings)) => warnings,

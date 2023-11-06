@@ -147,7 +147,7 @@ pub fn compile(
     };
 
     let root = Path::new("/");
-    let fm = FileManager::new(root, Box::new(get_non_stdlib_asset));
+    let fm = FileManager::with_reader(root, Box::new(get_non_stdlib_asset));
     let graph = CrateGraph::default();
     let mut context = Context::new(fm, graph);
 
@@ -320,7 +320,7 @@ mod test {
     }
 
     fn setup_test_context() -> Context {
-        let fm = FileManager::new(Path::new("/"), Box::new(mock_get_non_stdlib_asset));
+        let fm = FileManager::with_reader(Path::new("/"), Box::new(mock_get_non_stdlib_asset));
         let graph = CrateGraph::default();
         let mut context = Context::new(fm, graph);
 

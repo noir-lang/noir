@@ -3,7 +3,7 @@ use std::future::{self, Future};
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
     ops::{run_test, TestStatus},
-    prepare_package,
+    prepare_package_with_reader,
 };
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
@@ -51,7 +51,8 @@ fn on_test_run_request_inner(
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
         Some(package) => {
-            let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
+            let (mut context, crate_id) =
+                prepare_package_with_reader(package, Box::new(get_non_stdlib_asset));
             if check_crate(&mut context, crate_id, false).is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),

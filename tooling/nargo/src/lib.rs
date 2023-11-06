@@ -42,9 +42,12 @@ pub fn prepare_dependencies(
     }
 }
 
-pub fn prepare_package(package: &Package, file_reader: Box<FileReader>) -> (Context, CrateId) {
+pub fn prepare_package_with_reader(
+    package: &Package,
+    file_reader: Box<FileReader>,
+) -> (Context, CrateId) {
     // TODO: FileManager continues to leak into various crates
-    let fm = FileManager::new(&package.root_dir, file_reader);
+    let fm = FileManager::with_reader(&package.root_dir, file_reader);
     let graph = CrateGraph::default();
     let mut context = Context::new(fm, graph);
 
@@ -53,4 +56,8 @@ pub fn prepare_package(package: &Package, file_reader: Box<FileReader>) -> (Cont
     prepare_dependencies(&mut context, crate_id, &package.dependencies);
 
     (context, crate_id)
+}
+
+pub fn prepare_package(package: &Package) -> (Context, CrateId) {
+    prepare_package_with_reader(package, Box::new(|path| std::fs::read_to_string(path)))
 }

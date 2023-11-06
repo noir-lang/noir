@@ -58,7 +58,7 @@ mod test {
         src: &str,
     ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
         let root = std::path::Path::new("/");
-        let fm = FileManager::new(root, Box::new(|path| std::fs::read_to_string(path)));
+        let fm = FileManager::new(root);
         //let fm = FileManager::new(root,  Box::new(get_non_stdlib_asset));
         let graph = CrateGraph::default();
         let mut context = Context::new(fm, graph);
