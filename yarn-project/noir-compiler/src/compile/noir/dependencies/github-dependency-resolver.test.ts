@@ -9,13 +9,13 @@ import { dirname, join } from 'node:path';
 import { FileManager } from '../file-manager/file-manager.js';
 import { createMemFSFileManager } from '../file-manager/memfs-file-manager.js';
 import { NoirPackage } from '../package.js';
-import { DependencyResolver } from './dependency-resolver.js';
+import { NoirDependencyResolver } from './dependency-resolver.js';
 import { GithubDependencyResolver, resolveGithubCodeArchive, safeFilename } from './github-dependency-resolver.js';
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), '../../../fixtures');
 
 describe('GithubDependencyResolver', () => {
-  let resolver: DependencyResolver;
+  let resolver: NoirDependencyResolver;
   let fm: FileManager;
   let pkg: NoirPackage;
   let libDependency: NoirGitDependencyConfig;
@@ -62,9 +62,10 @@ describe('GithubDependencyResolver', () => {
 
   it('resolves Github dependency', async () => {
     fetchMock.mockResolvedValueOnce(new Response(await readFile(join(fixtures, 'test_lib.zip')), { status: 200 }));
-    const libPkg = await resolver.resolveDependency(pkg, libDependency);
-    expect(libPkg).toBeDefined();
-    expect(fm.hasFileSync(libPkg!.getEntryPointPath())).toBe(true);
+    const lib = await resolver.resolveDependency(pkg, libDependency);
+    expect(lib).toBeDefined();
+    expect(lib!.version).toEqual(libDependency.tag);
+    expect(fm.hasFileSync(lib!.package.getEntryPointPath())).toBe(true);
   });
 
   it.each<[NoirGitDependencyConfig, 'zip' | 'tar', string]>([

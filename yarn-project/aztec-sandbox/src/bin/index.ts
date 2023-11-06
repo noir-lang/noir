@@ -3,7 +3,7 @@ import { createAztecNodeRpcServer } from '@aztec/aztec-node';
 import { deployInitialSandboxAccounts } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
-import { NoirWasmVersion } from '@aztec/noir-compiler/noir-version';
+import { NoirWasmVersion } from '@aztec/noir-compiler/versions';
 import { createPXERpcServer } from '@aztec/pxe';
 
 import { readFileSync } from 'fs';

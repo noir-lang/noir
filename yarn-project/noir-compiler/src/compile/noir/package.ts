@@ -14,6 +14,7 @@ export class NoirPackage {
   #packagePath: string;
   #srcPath: string;
   #config: NoirPackageConfig;
+  #version: string | null = null;
 
   public constructor(path: string, srcDir: string, config: NoirPackageConfig) {
     this.#packagePath = path;

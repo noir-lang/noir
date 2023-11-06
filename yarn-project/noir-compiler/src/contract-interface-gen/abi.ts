@@ -37,7 +37,10 @@ function generateFunctionArtifact(fn: NoirFunctionEntry): FunctionArtifact {
  * @param compiled - Noir build output.
  * @returns Aztec contract build artifact.
  */
-export function generateContractArtifact({ contract, debug }: NoirCompilationArtifacts): ContractArtifact {
+export function generateContractArtifact(
+  { contract, debug }: NoirCompilationArtifacts,
+  aztecNrVersion?: string,
+): ContractArtifact {
   const originalFunctions = contract.functions;
   // TODO why sort? we should have idempotent compilation so this should not be needed.
   const sortedFunctions = [...contract.functions].sort((fnA, fnB) => fnA.name.localeCompare(fnB.name));
@@ -58,5 +61,6 @@ export function generateContractArtifact({ contract, debug }: NoirCompilationArt
     functions: sortedFunctions.map(generateFunctionArtifact),
     events: contract.events,
     debug: parsedDebug,
+    aztecNrVersion,
   };
 }

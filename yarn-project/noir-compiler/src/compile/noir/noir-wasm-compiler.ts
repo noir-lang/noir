@@ -71,6 +71,15 @@ export class NoirWasmContractCompiler {
   }
 
   /**
+   * Gets the version of Aztec.nr that was used compiling this contract.
+   */
+  public getResolvedAztecNrVersion() {
+    // TODO eliminate this hardcoded library name!
+    // see docs/docs/dev_docs/contracts/setup.md
+    return this.#dependencyManager.getVersionOf('aztec');
+  }
+
+  /**
    * Compiles the project.
    */
   public async compile(): Promise<NoirCompilationArtifacts[]> {

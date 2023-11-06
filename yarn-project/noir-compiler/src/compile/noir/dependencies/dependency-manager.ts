@@ -4,24 +4,24 @@ import { NoirDependencyConfig } from '@aztec/foundation/noir';
 import { join } from 'node:path';
 
 import { NoirPackage } from '../package.js';
-import { DependencyResolver } from './dependency-resolver.js';
+import { NoirDependency, NoirDependencyResolver } from './dependency-resolver.js';
 
 /**
  * Noir Dependency Resolver
  */
 export class NoirDependencyManager {
   #entryPoint: NoirPackage;
-  #libraries = new Map<string, NoirPackage>();
+  #libraries = new Map<string, NoirDependency>();
   #dependencies = new Map<string, string[]>();
   #log: LogFn;
-  #resolvers: readonly DependencyResolver[];
+  #resolvers: readonly NoirDependencyResolver[];
 
   /**
    * Creates a new dependency resolver
    * @param resolvers - A list of dependency resolvers to use
    * @param entryPoint - The entry point of the project
    */
-  constructor(resolvers: readonly DependencyResolver[] = [], entryPoint: NoirPackage) {
+  constructor(resolvers: readonly NoirDependencyResolver[] = [], entryPoint: NoirPackage) {
     this.#log = createDebugOnlyLogger('noir:dependency-resolver');
     this.#resolvers = resolvers;
     this.#entryPoint = entryPoint;
@@ -49,6 +49,16 @@ export class NoirDependencyManager {
     await this.#recursivelyResolveDependencies('', this.#entryPoint);
   }
 
+  /**
+   * Gets the version of a dependency in the dependency tree
+   * @param name - Dependency name
+   * @returns The dependency's version
+   */
+  public getVersionOf(name: string): string | undefined {
+    const dep = this.#libraries.get(name);
+    return dep?.version;
+  }
+
   async #recursivelyResolveDependencies(packageName: string, noirPackage: NoirPackage): Promise<void> {
     for (const [name, config] of Object.entries(noirPackage.getDependencies())) {
       // TODO what happens if more than one package has the same name but different versions?
@@ -60,7 +70,7 @@ export class NoirDependencyManager {
       }
 
       const dependency = await this.#resolveDependency(noirPackage, config);
-      if (dependency.getType() !== 'lib') {
+      if (dependency.package.getType() !== 'lib') {
         this.#log(`Non-library package ${name}`, config);
         throw new Error(`Dependency ${name} is not a library`);
       }
@@ -68,12 +78,12 @@ export class NoirDependencyManager {
       this.#libraries.set(name, dependency);
       this.#dependencies.set(packageName, [...(this.#dependencies.get(packageName) ?? []), name]);
 
-      await this.#recursivelyResolveDependencies(name, dependency);
+      await this.#recursivelyResolveDependencies(name, dependency.package);
     }
   }
 
-  async #resolveDependency(pkg: NoirPackage, config: NoirDependencyConfig) {
-    let dependency: NoirPackage | null = null;
+  async #resolveDependency(pkg: NoirPackage, config: NoirDependencyConfig): Promise<NoirDependency> {
+    let dependency: NoirDependency | null = null;
     for (const resolver of this.#resolvers) {
       dependency = await resolver.resolveDependency(pkg, config);
       if (dependency) {
@@ -102,9 +112,9 @@ export class NoirDependencyManager {
    */
   public findFile(sourceId: string): string | null {
     const [lib, ...path] = sourceId.split('/').filter(x => x);
-    const pkg = this.#libraries.get(lib);
-    if (pkg) {
-      return join(pkg.getSrcPath(), ...path);
+    const dep = this.#libraries.get(lib);
+    if (dep) {
+      return join(dep.package.getSrcPath(), ...path);
     } else {
       return null;
     }

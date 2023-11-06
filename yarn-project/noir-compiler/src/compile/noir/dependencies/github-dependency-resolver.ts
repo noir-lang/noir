@@ -6,12 +6,12 @@ import { unzip } from 'unzipit';
 
 import { FileManager } from '../file-manager/file-manager.js';
 import { NoirPackage } from '../package.js';
-import { DependencyResolver } from './dependency-resolver.js';
+import { NoirDependency, NoirDependencyResolver } from './dependency-resolver.js';
 
 /**
  * Downloads dependencies from github
  */
-export class GithubDependencyResolver implements DependencyResolver {
+export class GithubDependencyResolver implements NoirDependencyResolver {
   #fm: FileManager;
   #log = createDebugOnlyLogger('aztec:compile:github-dependency-resolver');
 
@@ -25,7 +25,7 @@ export class GithubDependencyResolver implements DependencyResolver {
    * @param dependency - The dependency configuration
    * @returns asd
    */
-  async resolveDependency(_pkg: NoirPackage, dependency: NoirDependencyConfig): Promise<NoirPackage | null> {
+  async resolveDependency(_pkg: NoirPackage, dependency: NoirDependencyConfig): Promise<NoirDependency | null> {
     // TODO accept ssh urls?
     // TODO github authentication?
     if (!('git' in dependency) || !dependency.git.startsWith('https://github.com')) {
@@ -34,7 +34,10 @@ export class GithubDependencyResolver implements DependencyResolver {
 
     const archivePath = await this.#fetchZipFromGithub(dependency);
     const libPath = await this.#extractZip(dependency, archivePath);
-    return NoirPackage.open(libPath, this.#fm);
+    return {
+      version: dependency.tag,
+      package: NoirPackage.open(libPath, this.#fm),
+    };
   }
 
   async #fetchZipFromGithub(dependency: Pick<NoirGitDependencyConfig, 'git' | 'tag'>): Promise<string> {

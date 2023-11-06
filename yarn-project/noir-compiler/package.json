@@ -5,7 +5,7 @@
   "exports": {
     ".": "./dest/index.js",
     "./cli": "./dest/cli/index.js",
-    "./noir-version": "./dest/noir-version.js"
+    "./versions": "./dest/versions.js"
   },
   "typedocOptions": {
     "entryPoints": [
