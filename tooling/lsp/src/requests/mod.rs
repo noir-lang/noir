@@ -106,7 +106,7 @@ pub(crate) fn on_shutdown(
 mod initialization {
     use async_lsp::ClientSocket;
     use lsp_types::{
-        CodeLensOptions, InitializeParams, TextDocumentSyncCapability, TextDocumentSyncOptions,
+        CodeLensOptions, InitializeParams, TextDocumentSyncCapability, TextDocumentSyncKind,
     };
     use tokio::test;
 
@@ -124,10 +124,11 @@ mod initialization {
         assert!(matches!(
             response.capabilities,
             ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Options(
-                    TextDocumentSyncOptions { save: Some(_), .. }
+                text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                    TextDocumentSyncKind::FULL
                 )),
                 code_lens_provider: Some(CodeLensOptions { resolve_provider: Some(false) }),
+                document_formatting_provider: true,
                 ..
             }
         ));
