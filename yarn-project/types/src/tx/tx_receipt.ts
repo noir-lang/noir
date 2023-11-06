@@ -1,5 +1,6 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { ExtendedNote, TxHash } from '@aztec/types';
+import { Fr } from '@aztec/foundation/fields';
+import { ContractData, ExtendedNote, PublicDataWrite, TxHash } from '@aztec/types';
 
 /**
  * Possible status of a transaction.
@@ -41,11 +42,9 @@ export class TxReceipt {
      */
     public contractAddress?: AztecAddress,
     /**
-     * Notes created in this tx which belong to accounts which are registered in the PXE which was used to submit the
-     * tx. You will not receive notes of accounts which are not registered in the PXE here even though they were
-     * created in this tx.
+     * Information useful for testing/debugging, set when test flag is set to true in `waitOpts`.
      */
-    public visibleNotes?: ExtendedNote[],
+    public debugInfo?: DebugInfo,
   ) {}
 
   /**
@@ -77,4 +76,41 @@ export class TxReceipt {
     const contractAddress = obj.contractAddress ? AztecAddress.fromString(obj.contractAddress) : undefined;
     return new TxReceipt(txHash, status, error, blockHash, blockNumber, contractAddress);
   }
+}
+
+/**
+ * Information useful for debugging/testing purposes included in the receipt when the debug flag is set to true
+ * in `WaitOpts`.
+ */
+interface DebugInfo {
+  /**
+   * New commitments created by the transaction.
+   */
+  newCommitments: Fr[];
+  /**
+   * New nullifiers created by the transaction.
+   */
+  newNullifiers: Fr[];
+  /**
+   * New public data writes created by the transaction.
+   */
+  newPublicDataWrites: PublicDataWrite[];
+  /**
+   * New L2 to L1 messages created by the transaction.
+   */
+  newL2ToL1Msgs: Fr[];
+  /**
+   * New contracts leafs created by the transaction to be inserted into the contract tree.
+   */
+  newContracts: Fr[];
+  /**
+   * New contract data created by the transaction.
+   */
+  newContractData: ContractData[];
+  /**
+   * Notes created in this tx which belong to accounts which are registered in the PXE which was used to submit the
+   * tx. You will not receive notes of accounts which are not registered in the PXE here even though they were
+   * created in this tx.
+   */
+  visibleNotes: ExtendedNote[];
 }
