@@ -34,6 +34,9 @@ function getUpdatedValue(source, target, key) {
   } else if (key === 'files') {
     const res = [...target[key], ...value];
     return Array.from(new Set(res));
+  } else if (key === 'types') {
+    // there should be a "types" key in package.json, but allow packages to overwrite it
+    return target[key] ?? value;
   } else {
     return value;
   }
