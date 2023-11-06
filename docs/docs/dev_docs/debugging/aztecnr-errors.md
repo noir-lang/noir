@@ -26,7 +26,7 @@ This error may also show if the `compute_note_hash_and_nullifier` function is no
 
 #### `backend has encountered an error`
 
-This is likely due to a version mismatch or bad install of barretenberg. Try [reinstalling nargo](../cli/updating.md) or uninstalling barretenberg:
+This is likely due to a version mismatch or bad install of barretenberg. Try [reinstalling nargo](../updating.md) or uninstalling barretenberg:
 
 ```bash
 nargo backend uninstall acvm-backend-barretenberg

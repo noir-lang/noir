@@ -431,7 +431,6 @@ const sidebars = {
       type: "category",
       items: [],
     },*/
-    "dev_docs/sandbox_errors/main",
     "dev_docs/privacy/main",
     "dev_docs/limitations/main",
 
