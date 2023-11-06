@@ -391,8 +391,8 @@ impl<'a> FunctionContext<'a> {
     /// lhs and rhs are signed integers of bit size bit_size
     /// result is the result of the operation, casted into an unsigned integer and not reduced
     ///
-    /// overflow check for signed integer is less straigthforward than for unsigned integers
-    /// we first compute the sign of the operands, and then we use the following rules:
+    /// overflow check for signed integer is less straigthforward than for unsigned integers.
+    /// We first compute the sign of the operands, and then we use the following rules:
     /// addtion:    positive operands => result must be positive (i.e less than half the bit size)
     ///             negative operands => result must be negative (i.e not positive)
     ///             different sign => no overflow
