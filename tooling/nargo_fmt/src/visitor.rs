@@ -134,8 +134,7 @@ impl<'me> FmtVisitor<'me> {
             process_last_slice(self, "", slice);
         } else {
             let (result, last_end) = self.format_comment_in_block(slice, start);
-
-            if result.is_empty() {
+            if result.trim().is_empty() {
                 process_last_slice(self, slice, slice);
             } else {
                 let last_snippet = &slice[last_end as usize..];
