@@ -17,3 +17,4 @@ thiserror.workspace = true
 codespan-reporting.workspace = true
 easy-repl = "0.2.1"
 owo-colors = "3"
+dap = "0.4.1-alpha1"
