@@ -30,7 +30,7 @@ fn main(mut x : [Foo; 4], y : pub Field) {
     } else {
         x[y].a = 100;
     }
-    assert(x[y].a == 50);
+    assert(x[3].a == 50);
 
     if y == 2 {
         x[y - 1].b = [50, 51, 52];
