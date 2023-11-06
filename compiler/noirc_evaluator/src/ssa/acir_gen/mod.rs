@@ -1230,7 +1230,7 @@ impl Context {
         }
         // dbg!(array_id);
         // dbg!(flat_elem_type_sizes.clone());
-        if array_id.to_usize() == 2316 {
+        if array_id.to_usize() == 2732 {
             dbg!(flat_elem_type_sizes.clone());
         }
         // The final array should will the flattened index at each outer array index

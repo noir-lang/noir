@@ -133,13 +133,15 @@ fn main(y : pub Field) {
     let x = [5, 6, 5000, 21, 100, 101].as_slice();
     foo_parents[y - 2].foos[y - 1].b = x;
 
-    println(foo_parents[y - 2].foos[y - 1].b.len());
+    println(foo_parents[y - 2].foos[y - 1].b[4]);
     assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
     assert(foo_parents[y - 2].foos[y - 1].b[4] == 100);
     assert(foo_parents[y - 2].foos[y - 1].b[5] == 101);
 
     // Need to account for that foo_parents is not modified outside of this function
-    // test_basic_intrinsics_nested_slices(foo_parents, y);
+    test_basic_intrinsics_nested_slices(foo_parents, y);
+    test_complex_intrinsic_nested_slices(foo_parents, y);
+
     // TODO(#3364): still have to enable slice intrinsics on dynamic nested slices
     // We need to accurately fill the element input to the slice intrinsic
     // TODO: For some reason the nested slice push back mixed with the basic slice push back
@@ -158,19 +160,35 @@ fn main(y : pub Field) {
     // assert(foo_parents[y - 2].foos[y - 1].b.len() == 7);
     // assert(foo_parents[y - 2].foos[y - 1].b[0] == 11);
 
-    // Missing array set after final push back
-    assert(foo_parents[y - 2].foos.len() == 5);
-    foo_four.a = 420;
-    foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo_four);
-    println(foo_parents[y - 2].foos.len());
-    assert(foo_parents[y - 2].foos.len() == 6);
-    println(foo_parents[y - 2].foos[y + 2].a);
-    // TODO: need to fill in the intrinsic to match its parent in fill_internal_slices
-    println(foo_parents[y - 2].foos[y + 2].bar.inner);
+    // let mut foo = Foo { a: 13, b: [14, 15, 16], bar: Bar { inner: [109, 110, 111] } };
+    // assert(foo_parents[y - 2].foos.len() == 5);
+    // foo.a = 40;
+    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo);
+    // assert(foo_parents[y - 2].foos.len() == 6);
+    // assert(foo_parents[y - 2].foos[5].a == 40);
+    // println(foo_parents[y - 2].foos[5].bar.inner);
+    // assert(foo_parents[y - 2].foos[5].bar.inner == [109, 110, 111]);
 
-    // println(foo_parents[y - 2].foos[y - 3].b[3]);
-    // println(foo_parents[y - 2].foos[y - 2].a);
-    assert(foo_parents[y - 2].foos[y + 1].b[0] == 11);
+    // Missing array set after final push back
+    // assert(foo_parents[y - 2].foos.len() == 5);
+    // foo_four.a = 420;
+    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo_four);
+    // println(foo_parents[y - 2].foos.len());
+    // assert(foo_parents[y - 2].foos.len() == 6);
+    // println(foo_parents[y - 2].foos[y + 2].a);
+    // // Need to test that we filled in the intrinsic to match its parent in fill_internal_slices
+    // assert(foo_parents[y - 2].foos[y + 2].bar.inner == [109, 110, 111]);
+
+    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo_four);
+    // println(foo_parents[y - 2].foos.len());
+    // assert(foo_parents[y - 2].foos.len() == 7);
+    // assert(foo_parents[y - 2].foos[6].a == 420);
+    // assert(foo_parents[y - 2].foos[5].bar.inner == [109, 110, 111]);
+    // assert(foo_parents[y - 2].foos[6].bar.inner == [109, 110, 111]);
+
+    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo_four);
+    // println(foo_parents[y - 2].foos.len());
+    // assert(foo_parents[y - 2].foos.len() == 8);
 
     // println(foo_parents[y - 2].foos[y].a);
     // println(foo_parents[y - 2].foos[y + 1].a);
@@ -216,14 +234,14 @@ fn test_basic_intrinsics_nested_slices(mut foo_parents: [FooParent], y: Field) {
     // println(foo_parents[y - 2].foos[y - 1].b[6]);
     assert(foo_parents[y - 2].foos[y - 1].b[6] == 500);
 
-    let (popped_slice, last_elem) = foo_parents[y - 2].foos[y - 1].b.pop_back();
-    foo_parents[y - 2].foos[y - 1].b = popped_slice;
-    assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
-    assert(last_elem == 500);
+    // let (popped_slice, last_elem) = foo_parents[y - 2].foos[y - 1].b.pop_back();
+    // foo_parents[y - 2].foos[y - 1].b = popped_slice;
+    // assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
+    // assert(last_elem == 500);
 
-    foo_parents[y - 2].foos[y - 1].b = foo_parents[y - 2].foos[y - 1].b.push_front(11);
-    assert(foo_parents[y - 2].foos[y - 1].b.len() == 7);
-    assert(foo_parents[y - 2].foos[y - 1].b[0] == 11);
+    // foo_parents[y - 2].foos[y - 1].b = foo_parents[y - 2].foos[y - 1].b.push_front(11);
+    // assert(foo_parents[y - 2].foos[y - 1].b.len() == 7);
+    // assert(foo_parents[y - 2].foos[y - 1].b[0] == 11);
 
     // let (first_elem, rest_of_slice) = foo_parents[y - 2].foos[y - 1].b.pop_front();
     // foo_parents[y - 2].foos[y - 1].b = rest_of_slice;
@@ -242,4 +260,17 @@ fn test_basic_intrinsics_nested_slices(mut foo_parents: [FooParent], y: Field) {
     // assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
     // assert(foo_parents[y - 2].foos[y - 1].b[2] == 20);
     // assert(foo_parents[y - 2].foos[y - 1].b[3] == 21);
+}
+
+// This method test intrinsics on nested slices with complex inputs such as
+// pushing a `Foo` struct onto a slice in `FooParents`. 
+fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) {
+    let mut foo = Foo { a: 13, b: [14, 15, 16], bar: Bar { inner: [109, 110, 111] } };
+    assert(foo_parents[y - 2].foos.len() == 5);
+    foo.a = 40;
+    foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo);
+    assert(foo_parents[y - 2].foos.len() == 6);
+    assert(foo_parents[y - 2].foos[5].a == 40);
+    println(foo_parents[y - 2].foos[5].bar.inner);
+    assert(foo_parents[y - 2].foos[5].bar.inner == [109, 110, 111]);
 }
