@@ -8,6 +8,7 @@ mod assert_constant;
 mod constant_folding;
 mod defunctionalize;
 mod die;
+mod fill_internal_slices;
 pub(crate) mod flatten_cfg;
 mod inlining;
 mod mem2reg;
