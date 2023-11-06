@@ -151,7 +151,14 @@ export class L2Block {
       this.attachLogs(newUnencryptedLogs, LogType.UNENCRYPTED);
     }
 
-    this.numberOfTxs = Math.floor(this.newCommitments.length / MAX_NEW_COMMITMENTS_PER_TX);
+    // Since the block is padded to always contain a fixed number of nullifiers we get number of txs by counting number
+    // of non-zero tx hashes --> tx hash is set to be the first nullifier in the tx.
+    this.numberOfTxs = 0;
+    for (let i = 0; i < this.newNullifiers.length; i += MAX_NEW_NULLIFIERS_PER_TX) {
+      if (!this.newNullifiers[i].equals(Fr.zero())) {
+        this.numberOfTxs++;
+      }
+    }
   }
 
   /**
@@ -705,30 +712,24 @@ export class L2Block {
       );
     }
 
-    const newCommitments = this.newCommitments.slice(
-      MAX_NEW_COMMITMENTS_PER_TX * txIndex,
-      MAX_NEW_COMMITMENTS_PER_TX * (txIndex + 1),
-    );
-    const newNullifiers = this.newNullifiers.slice(
-      MAX_NEW_NULLIFIERS_PER_TX * txIndex,
-      MAX_NEW_NULLIFIERS_PER_TX * (txIndex + 1),
-    );
-    const newPublicDataWrites = this.newPublicDataWrites.slice(
-      MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * txIndex,
-      MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * (txIndex + 1),
-    );
-    const newL2ToL1Msgs = this.newL2ToL1Msgs.slice(
-      MAX_NEW_L2_TO_L1_MSGS_PER_TX * txIndex,
-      MAX_NEW_L2_TO_L1_MSGS_PER_TX * (txIndex + 1),
-    );
-    const newContracts = this.newContracts.slice(
-      MAX_NEW_CONTRACTS_PER_TX * txIndex,
-      MAX_NEW_CONTRACTS_PER_TX * (txIndex + 1),
-    );
-    const newContractData = this.newContractData.slice(
-      MAX_NEW_CONTRACTS_PER_TX * txIndex,
-      MAX_NEW_CONTRACTS_PER_TX * (txIndex + 1),
-    );
+    const newCommitments = this.newCommitments
+      .slice(MAX_NEW_COMMITMENTS_PER_TX * txIndex, MAX_NEW_COMMITMENTS_PER_TX * (txIndex + 1))
+      .filter(x => !x.isZero());
+    const newNullifiers = this.newNullifiers
+      .slice(MAX_NEW_NULLIFIERS_PER_TX * txIndex, MAX_NEW_NULLIFIERS_PER_TX * (txIndex + 1))
+      .filter(x => !x.isZero());
+    const newPublicDataWrites = this.newPublicDataWrites
+      .slice(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * txIndex, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * (txIndex + 1))
+      .filter(x => !x.isEmpty());
+    const newL2ToL1Msgs = this.newL2ToL1Msgs
+      .slice(MAX_NEW_L2_TO_L1_MSGS_PER_TX * txIndex, MAX_NEW_L2_TO_L1_MSGS_PER_TX * (txIndex + 1))
+      .filter(x => !x.isZero());
+    const newContracts = this.newContracts
+      .slice(MAX_NEW_CONTRACTS_PER_TX * txIndex, MAX_NEW_CONTRACTS_PER_TX * (txIndex + 1))
+      .filter(x => !x.isZero());
+    const newContractData = this.newContractData
+      .slice(MAX_NEW_CONTRACTS_PER_TX * txIndex, MAX_NEW_CONTRACTS_PER_TX * (txIndex + 1))
+      .filter(x => !x.isEmpty());
 
     return new L2Tx(
       newCommitments,
@@ -744,7 +745,7 @@ export class L2Block {
 
   /**
    * Get all the transaction in an L2 block.
-   * @returns The txx.
+   * @returns The tx.
    */
   getTxs() {
     return Array(this.numberOfTxs)

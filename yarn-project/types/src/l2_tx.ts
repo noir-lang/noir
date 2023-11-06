@@ -4,8 +4,8 @@ import {
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  Vector,
 } from '@aztec/circuits.js';
-import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, numToUInt32BE } from '@aztec/foundation/serialize';
 
@@ -48,7 +48,7 @@ export class L2Tx {
      */
     public newL2ToL1Msgs: Fr[],
     /**
-     * New contracts leafs created by the transaction to be inserted into the contract tree.
+     * New contracts leaves created by the transaction to be inserted into the contract tree.
      */
     public newContracts: Fr[],
     /**
@@ -75,13 +75,13 @@ export class L2Tx {
   static fromBuffer(buffer: Buffer | BufferReader): L2Tx {
     const reader = BufferReader.asReader(buffer);
     return new L2Tx(
-      reader.readArray(MAX_NEW_COMMITMENTS_PER_TX, Fr),
-      reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
-      reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataWrite),
-      reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr),
-      reader.readArray(MAX_NEW_CONTRACTS_PER_TX, Fr),
-      reader.readArray(MAX_NEW_CONTRACTS_PER_TX, ContractData),
-      reader.readBytes(32),
+      reader.readVector(Fr),
+      reader.readVector(Fr),
+      reader.readVector(PublicDataWrite),
+      reader.readVector(Fr),
+      reader.readVector(Fr),
+      reader.readVector(ContractData),
+      reader.readBytes(Fr.SIZE_IN_BYTES),
       reader.readNumber(),
     );
   }
@@ -100,33 +100,34 @@ export class L2Tx {
    * @returns Buffer representation of the Tx object.
    */
   toBuffer() {
-    return serializeToBuffer([
-      this.newCommitments,
-      this.newNullifiers,
-      this.newPublicDataWrites,
-      this.newL2ToL1Msgs,
-      this.newContracts,
-      this.newContractData,
+    return Buffer.concat([
+      new Vector(this.newCommitments).toBuffer(),
+      new Vector(this.newNullifiers).toBuffer(),
+      new Vector(this.newPublicDataWrites).toBuffer(),
+      new Vector(this.newL2ToL1Msgs).toBuffer(),
+      new Vector(this.newContracts).toBuffer(),
+      new Vector(this.newContractData).toBuffer(),
       this.blockHash,
       numToUInt32BE(this.blockNumber),
     ]);
   }
 
   /**
-   * Returns a string representation of the Tx object.
+   * Returns a string representation of the L2Tx object.
    */
   toString(): string {
     return this.toBuffer().toString(STRING_ENCODING);
   }
 
   static random() {
+    const rand = (min: number, max: number) => Math.floor(Math.random() * max) + min;
     return new L2Tx(
-      times(MAX_NEW_COMMITMENTS_PER_TX, Fr.random),
-      times(MAX_NEW_NULLIFIERS_PER_TX, Fr.random),
-      times(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataWrite.random),
-      times(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.random),
-      times(MAX_NEW_CONTRACTS_PER_TX, Fr.random),
-      times(MAX_NEW_CONTRACTS_PER_TX, ContractData.random),
+      times(rand(0, MAX_NEW_COMMITMENTS_PER_TX), Fr.random),
+      times(rand(1, MAX_NEW_NULLIFIERS_PER_TX), Fr.random),
+      times(rand(0, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX), PublicDataWrite.random),
+      times(rand(0, MAX_NEW_L2_TO_L1_MSGS_PER_TX), Fr.random),
+      times(rand(0, MAX_NEW_CONTRACTS_PER_TX), Fr.random),
+      times(rand(0, MAX_NEW_CONTRACTS_PER_TX), ContractData.random),
       Fr.random().toBuffer(),
       123,
     );
