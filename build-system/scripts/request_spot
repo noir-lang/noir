@@ -110,11 +110,11 @@ done
 
 # Wait till ssh port is open.
 >&2 echo "Waiting for SSH at $IP..."
-for I in {1..60}; do
-  if nc -z $IP 22; then
-    echo $IP
-    exit 0
+SECONDS=0
+while ! nc -z -w1 $IP 22; do
+  if (( SECONDS >= 60 )); then
+    >&2 echo "Timeout: SSH port 22 at $IP did not become available after 60 seconds."
+    exit 1
   fi
-  sleep 1
 done
-exit 1
+echo $IP
