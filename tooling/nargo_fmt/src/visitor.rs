@@ -167,11 +167,11 @@ impl<'me> FmtVisitor<'me> {
                     }
 
                     if let Some('\n') = last_char {
-                        self.push_str("\n");
+                        result.push_str("\n");
                     }
 
                     let indent_str = self.indent.to_string();
-                    self.push_str(&indent_str);
+                    result.push_str(&indent_str);
                 } else {
                     match (starts_with_newline, self.at_start()) {
                         (false, false) => {
