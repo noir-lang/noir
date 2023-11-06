@@ -13,12 +13,17 @@ jobs:
     if: ${{ inputs.tag != '' }}
     permissions:
       pull-requests: write
+      contents: write
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag }}
 
+      - name: Create new branch
+        run: |
+          git checkout -b new-docs-version-${{ github.event.inputs.tag }}
+    
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
@@ -33,11 +38,32 @@ jobs:
       - name: Cut a new version
         working-directory: ./docs
         run: yarn docusaurus docs:version ${{ inputs.tag }}
-      
+
       - name: Remove pre-releases
         id: get_version
         run: |
             cd docs && yarn setStable
+
+      - name: Commit new documentation version
+        run: |
+          git config --local user.name 'signorecello'
+          git config --local user.email 'github@zepedro.me'
+          git add .
+          git commit -m "chore(docs): cut new docs version for tag ${{ github.event.inputs.tag }}"
+      
+      - name: Push changes to new branch
+        run: git push origin new-docs-version-${{ github.event.inputs.tag }}
+
+      - name: Create Pull Request
+        run: |
+          gh pr create \
+            --title "chore(docs): docs for ${{ github.event.inputs.tag }}" \
+            --body "Updates documentation to new version for tag ${{ github.event.inputs.tag }}." \
+            --base master \
+            --head new-docs-version-${{ github.event.inputs.tag }} \
+            --label documentation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build docs
         run: yarn workspace docs build
@@ -55,3 +81,4 @@ jobs:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         timeout-minutes: 1
+
