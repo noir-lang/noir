@@ -133,21 +133,14 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Call(call_expr) => {
                 self.check_if_deprecated(&call_expr.func);
 
-                let (function, trait_id) = self.capture_trait_and_check_expression(&call_expr.func);
+                let function = self.check_expression(&call_expr.func);
 
                 let args = vecmap(&call_expr.arguments, |arg| {
                     let typ = self.check_expression(arg);
                     (typ, *arg, self.interner.expr_span(arg))
                 });
                 let span = self.interner.expr_span(expr_id);
-                let object_type = args.first().map(|(typ, ..)| typ.clone()).unwrap_or(Type::Error);
-                let ret = self.bind_function_type(function, args, span);
-
-                if let Some(trait_id) = trait_id {
-                    self.verify_trait_constraint(&object_type, trait_id, call_expr.func, span);
-                }
-
-                ret
+                self.bind_function_type(function, args, span)
             }
             HirExpression::MethodCall(mut method_call) => {
                 let object_type = self.check_expression(&method_call.object).follow_bindings();
@@ -299,13 +292,6 @@ impl<'interner> TypeChecker<'interner> {
 
         self.interner.push_expr_type(expr_id, typ.clone());
         typ
-    }
-
-    fn capture_trait_and_check_expression(&mut self, expr_id: &ExprId) -> (Type, Option<TraitId>) {
-        let old_trait = self.found_trait.take();
-        let typ = self.check_expression(expr_id);
-        let found_trait = std::mem::replace(&mut self.found_trait, old_trait);
-        (typ, found_trait)
     }
 
     fn verify_trait_constraint(

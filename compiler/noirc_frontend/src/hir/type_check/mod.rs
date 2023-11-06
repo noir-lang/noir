@@ -15,7 +15,7 @@ pub use errors::TypeCheckError;
 
 use crate::{
     hir_def::{expr::HirExpression, stmt::HirStatement},
-    node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId},
+    node_interner::{ExprId, FuncId, NodeInterner, StmtId},
     Type,
 };
 
@@ -28,10 +28,6 @@ pub struct TypeChecker<'interner> {
     interner: &'interner mut NodeInterner,
     errors: Vec<TypeCheckError>,
     current_function: Option<FuncId>,
-
-    /// When a trait is found on an identifier, we store it
-    /// to remember to check it later during a function call
-    found_trait: Option<TraitId>,
 }
 
 /// Type checks a function and assigns the
@@ -150,13 +146,7 @@ fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_e
 
 impl<'interner> TypeChecker<'interner> {
     fn new(interner: &'interner mut NodeInterner) -> Self {
-        Self {
-            delayed_type_checks: Vec::new(),
-            interner,
-            errors: vec![],
-            current_function: None,
-            found_trait: None,
-        }
+        Self { delayed_type_checks: Vec::new(), interner, errors: vec![], current_function: None }
     }
 
     pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
@@ -177,7 +167,6 @@ impl<'interner> TypeChecker<'interner> {
             interner,
             errors: vec![],
             current_function: None,
-            found_trait: None,
         };
         this.check_statement(id);
         this.errors

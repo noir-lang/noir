@@ -969,7 +969,7 @@ impl Type {
             }
 
             (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
-                // Ensure NamedGenerics are never bound during type checking
+                // Unbound NamedGenerics are caught by the checks above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
 
