@@ -132,13 +132,22 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Index(index_expr) => self.check_index_expression(expr_id, index_expr),
             HirExpression::Call(call_expr) => {
                 self.check_if_deprecated(&call_expr.func);
-                let function = self.check_expression(&call_expr.func);
+
+                let (function, trait_id) = self.capture_trait_and_check_expression(&call_expr.func);
+
                 let args = vecmap(&call_expr.arguments, |arg| {
                     let typ = self.check_expression(arg);
                     (typ, *arg, self.interner.expr_span(arg))
                 });
                 let span = self.interner.expr_span(expr_id);
-                self.bind_function_type(function, args, span)
+                let object_type = args.first().map(|(typ, ..)| typ.clone()).unwrap_or(Type::Error);
+                let ret = self.bind_function_type(function, args, span);
+
+                if let Some(trait_id) = trait_id {
+                    self.verify_trait_constraint(&object_type, trait_id, call_expr.func, span);
+                }
+
+                ret
             }
             HirExpression::MethodCall(mut method_call) => {
                 let object_type = self.check_expression(&method_call.object).follow_bindings();
@@ -165,7 +174,7 @@ impl<'interner> TypeChecker<'interner> {
                                 // Automatically add `&mut` if the method expects a mutable reference and
                                 // the object is not already one.
                                 if *func_id != FuncId::dummy_id() {
-                                    let func_meta = self.interner.function_meta(&func_id);
+                                    let func_meta = self.interner.function_meta(func_id);
                                     self.try_add_mutable_reference_to_object(
                                         &mut method_call,
                                         &func_meta.typ,
@@ -173,7 +182,7 @@ impl<'interner> TypeChecker<'interner> {
                                     );
                                 }
 
-                                let meta = self.interner.function_meta(&func_id);
+                                let meta = self.interner.function_meta(func_id);
                                 meta.trait_impl.map(|impl_id| {
                                     self.interner
                                         .get_trait_implementation(impl_id)
@@ -194,7 +203,6 @@ impl<'interner> TypeChecker<'interner> {
                         let ret = self.check_method_call(&function_id, method_ref, args, span);
 
                         if let Some(trait_id) = trait_id {
-                            println!("Method object type = {}", object_type);
                             self.verify_trait_constraint(&object_type, trait_id, function_id, span);
                         }
 
@@ -293,6 +301,13 @@ impl<'interner> TypeChecker<'interner> {
         typ
     }
 
+    fn capture_trait_and_check_expression(&mut self, expr_id: &ExprId) -> (Type, Option<TraitId>) {
+        let old_trait = self.found_trait.take();
+        let typ = self.check_expression(expr_id);
+        let found_trait = std::mem::replace(&mut self.found_trait, old_trait);
+        (typ, found_trait)
+    }
+
     fn verify_trait_constraint(
         &mut self,
         object_type: &Type,
@@ -300,7 +315,7 @@ impl<'interner> TypeChecker<'interner> {
         function_ident_id: ExprId,
         span: Span,
     ) {
-        match self.interner.lookup_trait_implementation(&object_type, trait_id) {
+        match self.interner.lookup_trait_implementation(object_type, trait_id) {
             Ok(impl_kind) => self.interner.select_impl_for_ident(function_ident_id, impl_kind),
             Err(erroring_constraints) => {
                 let constraints = vecmap(erroring_constraints, |constraint| {
@@ -520,13 +535,11 @@ impl<'interner> TypeChecker<'interner> {
 
                 let func_meta = self.interner.function_meta(&func_id);
                 let param_len = func_meta.parameters.len();
-
                 (func_meta.typ, param_len)
             }
             HirMethodReference::TraitMethodId(_, method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
-
                 (method.get_type(), method.arguments.len())
             }
         };
@@ -544,10 +557,7 @@ impl<'interner> TypeChecker<'interner> {
         let (function_type, instantiation_bindings) = fn_typ.instantiate(self.interner);
 
         self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
-
-        println!("Type of method is {}", function_type);
         self.interner.push_expr_type(function_ident_id, function_type.clone());
-
         self.bind_function_type(function_type, arguments, span)
     }
 
