@@ -190,7 +190,7 @@ impl<'interner> TypeChecker<'interner> {
                                         .trait_id
                                 })
                             }
-                            HirMethodReference::TraitMethodId(_, method) => Some(method.trait_id),
+                            HirMethodReference::TraitMethodId(method) => Some(method.trait_id),
                         };
 
                         let (function_id, function_call) = method_call.into_function_call(
@@ -281,7 +281,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
-            HirExpression::TraitMethodReference(_, method) => {
+            HirExpression::TraitMethodReference(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
 
@@ -537,7 +537,7 @@ impl<'interner> TypeChecker<'interner> {
                 let param_len = func_meta.parameters.len();
                 (func_meta.typ, param_len)
             }
-            HirMethodReference::TraitMethodId(_, method) => {
+            HirMethodReference::TraitMethodId(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
                 (method.get_type(), method.arguments.len())
@@ -909,10 +909,7 @@ impl<'interner> TypeChecker<'interner> {
                             if method.name.0.contents == method_name {
                                 let trait_method =
                                     TraitMethodId { trait_id: constraint.trait_id, method_index };
-                                return Some(HirMethodReference::TraitMethodId(
-                                    object_type.clone(),
-                                    trait_method,
-                                ));
+                                return Some(HirMethodReference::TraitMethodId(trait_method));
                             }
                         }
                     }

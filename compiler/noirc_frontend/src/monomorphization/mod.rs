@@ -378,7 +378,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr),
 
-            HirExpression::TraitMethodReference(_typ, method) => {
+            HirExpression::TraitMethodReference(method) => {
                 if let Type::Function(_, _, _) = self.interner.id_type(expr) {
                     self.resolve_trait_method_reference(expr, method)
                 } else {

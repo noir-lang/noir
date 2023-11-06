@@ -1599,10 +1599,7 @@ impl<'a> Resolver<'a> {
                             the_trait.self_type_typevar,
                             crate::TypeVariableKind::Normal,
                         );
-                        return Some((
-                            HirExpression::TraitMethodReference(self_type.clone(), method),
-                            self_type,
-                        ));
+                        return Some((HirExpression::TraitMethodReference(method), self_type));
                     }
                 }
             }
@@ -1636,10 +1633,7 @@ impl<'a> Resolver<'a> {
                         the_trait.find_method(path.segments.last().unwrap().clone())
                     {
                         let self_type = self.resolve_type(typ.clone());
-                        return Some((
-                            HirExpression::TraitMethodReference(self_type.clone(), method),
-                            self_type,
-                        ));
+                        return Some((HirExpression::TraitMethodReference(method), self_type));
                     }
                 }
             }
