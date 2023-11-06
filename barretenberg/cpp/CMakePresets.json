@@ -148,6 +148,18 @@
       }
     },
     {
+      "name": "gperftools",
+      "displayName": "Debugging build with gperftools on Clang-16",
+      "description": "Build with gperf",
+      "inherits": "clang16",
+      "binaryDir": "build-gperftools",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_EXE_LINKER_FLAGS": "-ltcmalloc",
+        "CXXFLAGS": "-fno-omit-frame-pointer"
+      }
+    },
+    {
       "name": "wasm",
       "displayName": "Build for WASM",
       "description": "Build with wasi-sdk to create wasm",
@@ -284,6 +296,11 @@
       "configurePreset": "fuzzing"
     },
     {
+      "name": "gperftools",
+      "inherits": "clang16",
+      "configurePreset": "gperftools"
+    },
+    {
       "name": "smt-verification",
       "inherits": "clang16",
       "configurePreset": "smt-verification"
@@ -334,11 +351,6 @@
     {
       "name": "xray-1thread",
       "configurePreset": "xray-1thread",
-      "inherits": "default"
-    },
-    {
-      "name": "xray",
-      "configurePreset": "xray",
       "inherits": "default"
     }
   ],
