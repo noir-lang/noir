@@ -63,11 +63,11 @@ impl DebugInfo {
             .iter()
             .map(|(location, opcodes)| {
                 let acir_opcodes: Vec<_> = opcodes
-                    .into_iter()
+                    .iter()
                     .filter(|opcode_location| matches!(opcode_location, OpcodeLocation::Acir(_)))
                     .collect();
                 let brillig_opcodes: Vec<_> = opcodes
-                    .into_iter()
+                    .iter()
                     .filter(|opcode_location| {
                         matches!(opcode_location, OpcodeLocation::Brillig { .. })
                     })
