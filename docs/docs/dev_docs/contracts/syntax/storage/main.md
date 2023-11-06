@@ -23,7 +23,7 @@ On this page, you’ll learn:
 
 Public state variables can be read by anyone, while private state variables can only be read by their owner (or people whom the owner has shared the decrypted data or note viewing key with).
 
-Public state follows the Ethereum style account model, where each contract has its own key-value datastore. Private state follows a UTXO model, where note contents (pre-images) are only known by the sender and those able to decrypt them - see ([state model](./../../../concepts/foundation/state_model.md) and [private/public execution](./../../../concepts/foundation/communication/public_private_calls.md)) for more background.
+Public state follows the Ethereum style account model, where each contract has its own key-value datastore. Private state follows a UTXO model, where note contents (pre-images) are only known by the sender and those able to decrypt them - see ([state model](../../../../concepts/foundation/state_model/main.md) and [private/public execution](../../../../concepts/foundation/communication/public_private_calls.md)) for more background.
 
 ## Storage struct
 
@@ -39,7 +39,7 @@ struct Storage {
 ```
 
 :::danger
-If your contract works with storage (has Storage struct defined), you **MUST** include a `compute_note_hash_and_nullifier` function to allow PXE to process encrypted events. See [encrypted events](./events.md#processing-encrypted-events) for more.
+If your contract works with storage (has Storage struct defined), you **MUST** include a `compute_note_hash_and_nullifier` function to allow PXE to process encrypted events. See [encrypted events](../events.md#processing-encrypted-events) for more.
 
 If you don't yet have any private state variables defined put there a placeholder function:
 
@@ -65,27 +65,6 @@ If you have defined a `Storage` struct following this naming scheme, then it wil
 No storage values should be initialized at slot `0` - storage slots begin at `1`. This is a known issue that will be fixed in the future.
 :::
 
-## Storage Slots
-
-Public state in Aztec is implemented as a single global merkle tree of depth 254, with each contract's internal storage slot combined with its contract address to generate its position in the global tree as `global_storage_slot = pedersen_hash(contract_storage_slot, contract_address)`.
-
-A contract's state is represented by mapping its own storage slots to each variable. For now, storage slot positions for each variable must be explicitly assigned inside the `Storage impl`. Although variables can be arrays or structs that are stored internally as contiguous blocks, each variable in the storage definition takes just 1 block, so you can increment the storage slot by 1 each time you add another variable, whether it is public or private.
-
-When assigning contract storage slots, `Map`s are also treated as occupying only 1 storage slot (its "base_slot"), because the actual values in the global state tree are stored in derived slots calculated as `map_value_storage_slot = pedersen_hash(base_slot, key)`.
-
-Private state is stored in a separate UTXO tree, but each private variable is still assigned a storage slot to track the meaning of the note. Each private variable's storage slot is contained in a contract's bytecode, but they do not appear at all in the global storage tree. Each contract private variable can be associated with 0, 1, or multiple notes in the UTXO tree (and some of those may have already been spent, if their nullifier is already present in the nullifier tree).
-The position of each note in the UTXO tree does not matter - the relationship to contract state is contained entirely in its note header.
-
-:::info
-Private variables only require one single slot, because all notes are linked their contract variable through the `storage slot` attribute in their note header (which also contains the contract address and nonce).
-:::
-
-We currently do not support any "bit packing" type optimizations as in most EVM languages.
-
-:::note
-The choice of hash function for global slot position is subject to change in later versions.
-:::
-
 ## Map
 
 A `map` is a state variable that "maps" a key to a value. It can be used with private or public storage variables.
@@ -94,13 +73,13 @@ A `map` is a state variable that "maps" a key to a value. It can be used with pr
 In Aztec.nr, keys are always `Field`s (or types that can be serialized as Fields) and values can be any type - even other maps. `Field`s are finite field elements, but you can think of them as integers for now.
 :::
 
-It includes a [`Context`](./context.mdx) to specify the private or public domain, a `storage_slot` to specify where in storage the map is stored, and a `start_var_constructor` which tells the map how it should operate on the underlying type. This includes how to serialize and deserialize the type, as well as how commitments and nullifiers are computed for the type if it's private.
+It includes a [`Context`](../context.mdx) to specify the private or public domain, a `storage_slot` to specify where in storage the map is stored, and a `start_var_constructor` which tells the map how it should operate on the underlying type. This includes how to serialize and deserialize the type, as well as how commitments and nullifiers are computed for the type if it's private.
 
 You can view the implementation in the Aztec.nr library [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/state_vars/map.nr).
 
 ### `new`
 
-When declaring the storage for a map, we use the `Map::new()` constructor. As seen below, this takes the `storage_slot` and the `start_var_constructor` along with the [`Context`](./context.mdx).
+When declaring the storage for a map, we use the `Map::new()` constructor. As seen below, this takes the `storage_slot` and the `start_var_constructor` along with the [`Context`](../context.mdx).
 
 We will see examples of map constructors for public and private variables in later sections.
 
@@ -151,7 +130,7 @@ The `PublicState` struct is generic over the variable type `T` and its serialize
 Currently, the length of the types must be specified when declaring the storage struct but the intention is that this will be inferred in the future.
 :::
 
-The struct contains a `storage_slot` which, similar to Ethereum, is used to figure out _where_ in storage the variable is located. Notice that while we don't have the exact same [state model](./../../../concepts/foundation/state_model.md) as EVM chains it will look similar from the contract developers point of view.
+The struct contains a `storage_slot` which, similar to Ethereum, is used to figure out _where_ in storage the variable is located. Notice that while we don't have the exact same [state model](../../../../concepts/foundation/state_model/main.md) as EVM chains it will look similar from the contract developers point of view.
 
 Beyond the struct, the `PublicState` also contains `serialization_methods`, which is a struct with methods that instruct the `PublicState` how to serialize and deserialize the variable. You can find the details of `PublicState` in the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/state_vars/public_state.nr).
 
@@ -167,7 +146,9 @@ An example using a larger struct can be found in the [lending example](https://g
 
 ### `new`
 
-When declaring the storage for `T` as a persistent public storage variable, we use the `PublicState::new()` constructor. This takes the `storage_slot` and the `serialization_methods` as arguments along with the [`Context`](./context.mdx), which in this case is used to share interface with other structures.
+When declaring the storage for `T` as a persistent public storage variable, we use the `PublicState::new()` constructor. As seen below, this takes the `storage_slot` and the `serialization_methods` as arguments along with the [`Context`](../context.mdx), which in this case is used to share interface with other structures.
+
+#include_code public_state_struct_new /yarn-project/aztec-nr/aztec/src/state_vars/public_state.nr rust
 
 #### Single value example
 
@@ -191,7 +172,7 @@ We know its verbose, and are working on making it less so.
 
 #### Mapping example
 
-Say we want to have a group of `minters` that are able to mint assets in our contract, and we want them in public storage, because [access control in private is quite cumbersome](./../../../concepts/foundation/communication/public_private_calls.md#a-note-on-l2-access-control). In the `Storage` struct we can add it as follows:
+Say we want to have a group of `minters` that are able to mint assets in our contract, and we want them in public storage, because [access control in private is quite cumbersome](../../../../concepts/foundation/communication/public_private_calls.md#a-note-on-l2-access-control). In the `Storage` struct we can add it as follows:
 
 #include_code storage_minters /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
@@ -239,9 +220,9 @@ We have a `write` method on the `PublicState` struct that takes the value to wri
 
 In contrast to public state, private state is persistent state that is **not** visible to the whole world. Depending on the logic of the smart contract, a private state variable's current value will only be known to one entity, or a closed group of entities.
 
-The value of a private state variable can either be shared via an [encrypted log](./events.md#encrypted-events), or offchain via web2, or completely offline: it's up to the app developer.
+The value of a private state variable can either be shared via an [encrypted log](../events.md#encrypted-events), or offchain via web2, or completely offline: it's up to the app developer.
 
-Aztec private state follows a utxo-based model. That is, a private state's current value is represented as one or many [notes](#notes). Each note is stored as an individual leaf in a utxo-based merkle tree: the [private state tree](./../../../concepts/foundation/state_model.md).
+Aztec private state follows a utxo-based model. That is, a private state's current value is represented as one or many [notes](#notes). Each note is stored as an individual leaf in a utxo-based merkle tree: the [private state tree](../../../../concepts/foundation/state_model/main.md).
 
 To greatly simplify the experience of writing private state, Aztec.nr provides three different types of private state variable:
 
@@ -391,7 +372,7 @@ Set is used for managing a collection of notes. All notes in a set are of the sa
 
 #include_code struct /yarn-project/aztec-nr/aztec/src/state_vars/set.nr rust
 
-And can be added to the `Storage` struct as follows. Here adding a set for a custom note, the TransparentNote (useful for [public -> private communication](./functions.md#public---private)).
+And can be added to the `Storage` struct as follows. Here adding a set for a custom note, the TransparentNote (useful for [public -> private communication](../functions.md#public---private)).
 
 #include_code storage_pending_shields /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
@@ -409,7 +390,7 @@ Allows us to modify the storage by inserting a note into the set.
 
 A commitment from the note will be generated, and inserted into data-tree, allowing us to later use in contract interactions.
 
-The content of the note should be shared with the owner to allow them to use it. This can be done via an [encrypted log](./events.md#encrypted-events), or offchain via web2, or completely offline.
+A commitment from the note will be generated, and inserted into data-tree, allowing us to later use in contract interactions. Recall that the content of the note should be shared with the owner to allow them to use it, as mentioned this can be done via an [encrypted log](../events.md#encrypted-events), or offchain via web2, or completely offline.
 
 #include_code insert /yarn-project/aztec-nr/easy-private-state/src/easy_private_state.nr rust
 
@@ -457,7 +438,7 @@ This function requires a `NoteViewerOptions`. The `NoteViewerOptions` is essenti
 
 ### NoteGetterOptions
 
-`NoteGetterOptions` encapsulates a set of configurable options for filtering and retrieving a selection of notes from a [data oracle](./functions.md#oracle-functions). Developers can design instances of `NoteGetterOptions`, to determine how notes should be filtered and returned to the functions of their smart contracts.
+`NoteGetterOptions` encapsulates a set of configurable options for filtering and retrieving a selection of notes from a [data oracle](../functions.md#oracle-functions). Developers can design instances of `NoteGetterOptions`, to determine how notes should be filtered and returned to the functions of their smart contracts.
 
 #include_code NoteGetterOptions /yarn-project/aztec-nr/aztec/src/note/note_getter_options.nr rust
 

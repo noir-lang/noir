@@ -248,7 +248,7 @@ We are also importing types from a `types.nr` file. The main thing to note from 
 
 ### Note on private state
 
-Private state in Aztec is all [UTXOs](https://en.wikipedia.org/wiki/Unspent_transaction_output) under the hood. Handling UTXOs is largely abstracted away from developers, but there are some unique things for developers to be aware of when creating and managing private state in an Aztec contract. See [State Variables](../contracts/syntax/storage.md) to learn more about public and private state in Aztec.
+Private state in Aztec is all [UTXOs](https://en.wikipedia.org/wiki/Unspent_transaction_output) under the hood. Handling UTXOs is largely abstracted away from developers, but there are some unique things for developers to be aware of when creating and managing private state in an Aztec contract. See [State Variables](../contracts/syntax/storage/main.md) to learn more about public and private state in Aztec.
 
 ## Contract Storage
 
@@ -267,7 +267,7 @@ Reading through the storage variables:
 - `pending_shields` is a `Set` of `TransparentNote`s stored in private state. What is stored publicly is a set of commitments to `TransparentNote`s.
 - `public_balances` is a mapping field elements in public state and represents the publicly viewable balances of accounts.
 
-You can read more about it [here](../contracts/syntax/storage.md).
+You can read more about it [here](../contracts/syntax/storage/main.md).
 
 ### Initializing Storage
 

@@ -144,13 +144,13 @@ In the near future, transactions where a public function call fails will get min
 
 We can check private or public state directly rather than going through view-only methods, as we did in the initial example by calling `token.methods.balance().view()`. Bear in mind that directly accessing contract storage will break any kind of encapsulation.
 
-To query storage directly, you'll need to know the slot you want to access. This can be checked in the [contract's `Storage` definition](../contracts/syntax/storage.md) directly for most data types. However, when it comes to mapping types, as in most EVM languages, we'll need to calculate the slot for a given key. To do this, we'll use the [`CheatCodes`](./../testing/cheat_codes.md) utility class:
+To query storage directly, you'll need to know the slot you want to access. This can be checked in the [contract's `Storage` definition](../contracts/syntax/storage/main.md) directly for most data types. However, when it comes to mapping types, as in most EVM languages, we'll need to calculate the slot for a given key. To do this, we'll use the [`CheatCodes`](./../testing/cheat_codes.md) utility class:
 
 #include_code calc-slot /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 
 #### Querying private state
 
-Private state in the Aztec Network is represented via sets of [private notes](../../concepts/foundation/state_model.md#private-state). In our token contract example, the balance of a user is represented as a set of unspent value notes, each with their own corresponding numeric value.
+Private state in the Aztec Network is represented via sets of [private notes](../../concepts/foundation/state_model/main.md#private-state). In our token contract example, the balance of a user is represented as a set of unspent value notes, each with their own corresponding numeric value.
 
 #include_code value-note-def yarn-project/aztec-nr/value-note/src/value_note.nr rust
 
@@ -160,7 +160,7 @@ We can query the Private eXecution Environment (PXE) for all notes encrypted for
 
 #### Querying public state
 
-[Public state](../../concepts/foundation/state_model.md#public-state) behaves as a key-value store, much like in the EVM. This scenario is much more straightforward, in that we can directly query the target slot and get the result back as a buffer. Note that we use the [`TokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr) in this example, which defines a mapping of public balances on slot 6.
+[Public state](../../concepts/foundation/state_model/main.md#public-state) behaves as a key-value store, much like in the EVM. This scenario is much more straightforward, in that we can directly query the target slot and get the result back as a buffer. Note that we use the [`TokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr) in this example, which defines a mapping of public balances on slot 6.
 
 #include_code public-storage /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 

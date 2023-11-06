@@ -74,7 +74,17 @@ const sidebars = {
         id: "concepts/foundation/main",
       },
       items: [
-        "concepts/foundation/state_model",
+        {
+          label: "State Model",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "concepts/foundation/state_model/main",
+          },
+          items: [
+            "concepts/foundation/state_model/storage_slots"
+          ]
+        },
         {
           label: "Accounts",
           type: "category",
@@ -294,7 +304,17 @@ const sidebars = {
             id: "dev_docs/contracts/syntax/main",
           },
           items: [
-            "dev_docs/contracts/syntax/storage",
+            {
+              label: "Storage",
+              type: "category",
+              link: {
+                type: "doc",
+                id: "dev_docs/contracts/syntax/storage/main",
+              },
+              items: [
+                "dev_docs/contracts/syntax/storage/storage_slots",
+              ]
+            },
             "dev_docs/contracts/syntax/events",
             "dev_docs/contracts/syntax/functions",
             "dev_docs/contracts/syntax/context",

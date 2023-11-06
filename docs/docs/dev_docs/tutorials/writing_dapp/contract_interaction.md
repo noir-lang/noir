@@ -93,7 +93,7 @@ At the time of this writing, there are no events emitted when new private notes 
 
 ## Working with public state
 
-While they are [fundamentally differently](../../../concepts/foundation/state_model.md), the API for working with private and public functions and state from `aztec.js` is equivalent. To query the balance in public tokens for our user accounts, we can just call the `balance_of_public` view function in the contract:
+While [private and public state](../../../concepts/foundation/state_model/main.md) are fundamentally different, the API for working with private and public functions and state from `aztec.js` is equivalent. To query the balance in public tokens for our user accounts, we can just call the `balance_of_public` view function in the contract:
 
 #include_code showPublicBalances yarn-project/end-to-end/src/sample-dapp/index.mjs javascript
 

@@ -314,7 +314,7 @@ We achieve this by pushing return values to the execution context, which we then
 **Making the contract's storage available**
 #include_code storage-example-context /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
-When a [`Storage` struct](./storage.md) is declared within a contract, the `storage` keyword is made available. As shown in the macro expansion above, this calls the init function on the storage struct with the current function's context.
+When a [`Storage` struct](./storage/main.md) is declared within a contract, the `storage` keyword is made available. As shown in the macro expansion above, this calls the init function on the storage struct with the current function's context.
 
 Any state variables declared in the `Storage` struct can now be accessed as normal struct members.
 
