@@ -33,4 +33,4 @@ To install its JavaScript library, run this in your project:
 npm i @noir-lang/backend_barretenberg
 ```
 
-For more details on how to instantiate and use the libraries, refer to the [Full Noir App Guide](./getting_started/01_tiny_noir_app.md) and [Reference](./reference/01_noirjs.md) sections.
+For more details on how to instantiate and use the libraries, refer to the [Full Noir App Guide](./getting_started/01_tiny_noir_app.md) and [Reference](./reference/noir_js/classes/Noir.md) sections.
