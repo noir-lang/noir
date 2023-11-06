@@ -183,5 +183,14 @@
     to = "/dev_docs/cli/updating"
 
 [[redirects]]
+    from = "/dev_docs/sandbox_errors/main"
+    to = "dev_docs/debugging/sandbox-errors"
+
+[[redirects]]
+    from = "/dev_docs/contracts/common_errors"
+    to = "dev_docs/debugging/aztecnr-errors"
+
+
+[[redirects]]
     from = "/misc/aztec-connect-sunset"
     to = "misc/aztec_connect_sunset"
