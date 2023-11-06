@@ -26,6 +26,7 @@ use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunction
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 
+use acvm::acir::BlackBoxFunc;
 use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
@@ -213,13 +214,18 @@ impl Context {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
         let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
-
+        let mut warnings = Vec::new();
         for instruction_id in entry_block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, last_array_uses)?;
+            warnings.extend(self.convert_ssa_instruction(
+                *instruction_id,
+                dfg,
+                ssa,
+                &brillig,
+                last_array_uses,
+            )?);
         }
 
-        let warnings = self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
-
+        warnings.extend(self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?);
         Ok(self.acir_context.finish(vec![input_witness], warnings))
     }
 
@@ -377,9 +383,10 @@ impl Context {
         ssa: &Ssa,
         brillig: &Brillig,
         last_array_uses: &HashMap<ValueId, InstructionId>,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<Vec<SsaReport>, RuntimeError> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
+        let mut warnings = Vec::new();
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
@@ -482,6 +489,14 @@ impl Context {
                         }
                     }
                     Value::Intrinsic(intrinsic) => {
+                        if matches!(
+                            intrinsic,
+                            Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation)
+                        ) {
+                            warnings.push(SsaReport::Warning(InternalWarning::VerifyProof {
+                                call_stack: self.acir_context.get_call_stack(),
+                            }));
+                        }
                         let outputs = self
                             .convert_ssa_intrinsic_call(*intrinsic, arguments, dfg, result_ids)?;
 
@@ -558,7 +573,7 @@ impl Context {
             }
         }
         self.acir_context.set_call_stack(CallStack::new());
-        Ok(())
+        Ok(warnings)
     }
 
     fn gen_brillig_for(
