@@ -13,7 +13,6 @@ impl<N> MerkleTree<N> {
         
         // hash base layer
         for i in 0..half_size {
-            dep::std::println(i);
             nodes[i] = dep::std::hash::pedersen_hash([leaves[2*i], leaves[2*i+1]]);
         }
 
