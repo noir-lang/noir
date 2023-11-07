@@ -72,7 +72,6 @@ impl DebugInfo {
                         matches!(opcode_location, OpcodeLocation::Brillig { .. })
                     })
                     .collect();
-                // let (acir_opcodes, brillig_opcodes): (Vec<OpcodeLocation>, Vec<OpcodeLocation>) = opcodes.iter().partition(|opc| matches!(opc, OpcodeLocation::Acir(_)));
                 let opcodes_count = OpCodesCount {
                     acir_size: acir_opcodes.len(),
                     brillig_size: brillig_opcodes.len(),
