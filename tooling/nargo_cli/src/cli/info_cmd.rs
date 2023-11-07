@@ -144,8 +144,8 @@ pub(crate) fn run(
     Ok(())
 }
 
-/// Provides profiling information on 
-/// 
+/// Provides profiling information on
+///
 /// Number of OpCodes in relation to Noir source file
 /// and line number information
 fn print_span_opcodes(
