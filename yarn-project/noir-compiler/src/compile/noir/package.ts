@@ -47,7 +47,7 @@ export class NoirPackage {
         entrypoint = 'lib.nr';
         break;
       case 'contract':
-      case 'binary':
+      case 'bin':
         entrypoint = 'main.nr';
         break;
       default:

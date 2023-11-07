@@ -13,7 +13,7 @@ const noirLocalDependencySchema = z.object({
 const noirPackageConfigSchema = z.object({
   package: z.object({
     name: z.string().default(''),
-    type: z.enum(['lib', 'contract', 'binary']).default('binary'),
+    type: z.enum(['lib', 'contract', 'bin']).default('bin'),
     entry: z.string().optional(),
     description: z.string().optional(),
     authors: z.array(z.string()).optional(),
