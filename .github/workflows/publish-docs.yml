@@ -28,7 +28,16 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: '18'
-      
+
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.86
+
+      - name: Install wasm-opt
+        run: |
+          npm i wasm-opt -g
+
       - name: Install Yarn
         run: npm install -g yarn
 
