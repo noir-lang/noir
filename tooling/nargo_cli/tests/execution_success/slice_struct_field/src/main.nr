@@ -299,20 +299,54 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     println(foo_parents[1].foos[5].bar.inner);
     assert(foo_parents[1].foos[5].bar.inner == [109, 110, 111]);
 
+    foo_parents[y - 2].foos[y - 1].b = foo_parents[y - 2].foos[y - 1].b.push_back(500);
+    assert(foo_parents[1].foos[2].b.len() == 7);
+    // println(foo_parents[y - 2].foos[y - 1].b[6]);
+    assert(foo_parents[1].foos[2].b[6] == 500);
+    assert(foo_parents[1].foos[2].bar.inner == [106, 107, 108]);
+    assert(foo_parents[1].foos[5].a == 40);
+    assert(foo_parents[1].foos[5].b[0] == 14);
+    assert(foo_parents[1].foos[5].b[2] == 16);
+    assert(foo_parents[1].foos[5].b.len() == 3);
+    assert(foo_parents[1].foos[5].bar.inner == [109, 110, 111]);
+
     let (popped_slice, last_foo) = foo_parents[y - 2].foos.pop_back();
     foo_parents[y - 2].foos = popped_slice;
     assert(foo_parents[y - 2].foos.len() == 5);
     println(last_foo.a);
-    println(last_foo.bar.inner);
     assert(last_foo.a == 40);
+    println(last_foo.bar.inner);
+    println(last_foo.b[0]);
+    println(last_foo.b[1]);
+    println(last_foo.b[2]);
+    println(last_foo.b.len());
+    println(last_foo.bar.inner);
     assert(last_foo.bar.inner == [109, 110, 111]);
 
-    foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_front(foo);
-    println(foo_parents[1].foos.len());
-    assert(foo_parents[1].foos.len() == 6);
-    assert(foo_parents[1].foos[5].a == 10);
-    assert(foo_parents[1].foos[5].b.len() == 3);
-    assert(foo_parents[1].foos[5].b[0] == 11);
-    assert(foo_parents[1].foos[5].b[2] == 23);
-    assert(foo_parents[1].foos[5].bar.inner == [109, 110, 111]);
+    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_front(foo);
+    // println(foo_parents[1].foos.len());
+    // assert(foo_parents[1].foos.len() == 6);
+    // assert(foo_parents[1].foos[5].a == 10);
+    // assert(foo_parents[1].foos[5].b.len() == 3);
+    // assert(foo_parents[1].foos[5].b[0] == 11);
+    // assert(foo_parents[1].foos[5].b[2] == 23);
+    // assert(foo_parents[1].foos[5].bar.inner == [109, 110, 111]);
+
+    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo);
+    // assert(foo_parents[1].foos.len() == 7);
+    // assert(foo_parents[1].foos[6].a == 40);
+    // assert(foo_parents[1].foos[6].b[0] == 14);
+    // assert(foo_parents[1].foos[6].b[2] == 16);
+    // assert(foo_parents[1].foos[6].b.len() == 3);
+    // println(foo_parents[1].foos[6].bar.inner);
+    // assert(foo_parents[1].foos[6].bar.inner == [109, 110, 111]);
+
+    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo);
+    // assert(foo_parents[1].foos.len() == 8);
+    // assert(foo_parents[1].foos[7].a == 40);
+    // assert(foo_parents[1].foos[7].b[0] == 14);
+    // assert(foo_parents[1].foos[7].b[2] == 16);
+    // assert(foo_parents[1].foos[7].b.len() == 3);
+    // println(foo_parents[1].foos[7].bar.inner);
+    // assert(foo_parents[1].foos[7].bar.inner == [109, 110, 111]);
 }

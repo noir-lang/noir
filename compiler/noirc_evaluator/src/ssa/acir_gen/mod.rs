@@ -513,7 +513,7 @@ impl Context {
                                     // Do nothing
                                 }
                             }
-                            dbg!(result);
+                            // dbg!(result);
                             self.ssa_values.insert(*result, output);
                         }
                     }
@@ -1234,8 +1234,9 @@ impl Context {
         }
         // dbg!(array_id);
         // dbg!(flat_elem_type_sizes.clone());
-        if array_id.to_usize() == 2732 {
+        if array_id.to_usize() == 3311 {
             dbg!(flat_elem_type_sizes.clone());
+            dbg!(flat_elem_type_sizes.len());
         }
         // The final array should will the flattened index at each outer array index
         let init_values = vecmap(flat_elem_type_sizes, |type_size| {
@@ -1777,6 +1778,7 @@ impl Context {
                 self.slice_intrinsic_input(&mut new_slice, slice.clone())?;
 
                 let mut new_elem_size = Self::flattened_value_size(&slice);
+                dbg!(new_elem_size);
                 // TODO: just adding like this for a complex type that is at the end of the slice
                 // will cause OOB when we later do an array set as the dynamic array is larger than expected
                 // perhaps if we have a nested slice we just write and other we do the normal version
@@ -1791,7 +1793,7 @@ impl Context {
                         new_slice.push_back(element);
                     }
                 }
-                // dbg!(new_elem_size);
+                dbg!(new_elem_size);
                 // NOTE: This works for a primitive type
                 // let element = self.convert_value(arguments[2], dfg);
                 let one = self.acir_context.add_constant(FieldElement::one());
@@ -1940,9 +1942,9 @@ impl Context {
                 //     &mut var_index,
                 //     &[],
                 // )?;
-                dbg!(dfg.type_of_value(result_ids[2]));
+                // dbg!(dfg.type_of_value(result_ids[2]));
                 let slice_typ = dfg.type_of_value(arguments[1]);
-                dbg!(slice_typ.clone());
+                // dbg!(slice_typ.clone());
                 // if !slice_typ.is_nested_slice() {
                 //     // for elem in 
                 // } else {
@@ -1961,13 +1963,19 @@ impl Context {
                         popped_elems.push(elem);
                     }
                 } else {
-                    let slice_sizes = slice_sizes.expect("ICE: should have slice sizes").clone();
+                    dbg!(slice_typ.clone());
+                    let mut slice_sizes = slice_sizes.expect("ICE: should have slice sizes").clone();
+                    dbg!(slice_sizes.clone());
+                    // We want to remove the parent size as we are fetching the child
+                    slice_sizes.remove(0);
+
                     let element_size = slice_typ.element_size();
-                    dbg!(element_size);
+                    // dbg!(element_size);
                     // Multiple the element size against the var index before fetching the flattened index
                     let element_size_var = self.acir_context.add_constant(FieldElement::from(element_size as u128));
                     // We want to use an index one less than the slice length
                     var_index = self.acir_context.mul_var(new_slice_length, element_size_var)?;
+                    // dbg!(arguments[1]);
                     var_index = self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
 
                     // for i in 0..element_size {
