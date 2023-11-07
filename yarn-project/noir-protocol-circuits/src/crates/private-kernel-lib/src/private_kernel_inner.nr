@@ -26,7 +26,7 @@ impl PrivateKernelInputsInner {
     }
 
     fn validate_contract_tree_root(self) {
-        let purported_contract_tree_root = self.private_call.call_stack_item.public_inputs().historical_block_data.contract_tree_root();
+        let purported_contract_tree_root = self.private_call.call_stack_item.public_inputs.historical_block_data.contract_tree_root();
         let previous_kernel_contract_tree_root = self.previous_kernel.public_inputs.constants.block_data.contract_tree_root();
 
         assert(purported_contract_tree_root == previous_kernel_contract_tree_root, "purported_contract_tree_root does not match previous_kernel_contract_tree_root");
@@ -34,14 +34,10 @@ impl PrivateKernelInputsInner {
 
     fn validate_inputs(self) {
         let this_call_stack_item = self.private_call.call_stack_item;
-        assert(this_call_stack_item.function_data().is_private, "Cannot execute a non-private function with the private kernel circuit");
-
-        let start = self.previous_kernel.public_inputs.end;
-        let start_private_call_stack_length = array_length(start.private_call_stack);
-
-        assert(self.previous_kernel.public_inputs.is_private, "Cannot verify a non-private kernel snark in the private kernel circuit");
-        assert(this_call_stack_item.function_data().is_constructor == false, "A constructor must be executed as the first tx in the recursion");
-        assert(start_private_call_stack_length != 0, "Cannot execute private kernel circuit with an empty private call stack");
+        let function_data = this_call_stack_item.function_data;
+        assert(function_data.is_private, "Private kernel circuit can only execute a private function");
+        assert(function_data.is_constructor == false, "A constructor must be executed as the first tx in the recursion");
+        assert(self.previous_kernel.public_inputs.is_private, "Can only verify a private kernel snark in the private kernel circuit");
     }
 
     pub fn native_private_kernel_circuit_inner(self) -> KernelCircuitPublicInputs {
@@ -55,7 +51,7 @@ impl PrivateKernelInputsInner {
 
         self.validate_inputs();
 
-        common::validate_arrays(self.private_call.call_stack_item.public_inputs());
+        common::validate_arrays(self.private_call.call_stack_item.public_inputs);
 
         self.pop_and_validate_this_private_call_hash(&mut public_inputs);
 
@@ -63,7 +59,7 @@ impl PrivateKernelInputsInner {
 
         common::validate_read_requests(
             public_inputs.constants.block_data.note_hash_tree_root(),
-            self.private_call.call_stack_item.public_inputs().read_requests,  // read requests from private call
+            self.private_call.call_stack_item.public_inputs.read_requests,  // read requests from private call
             self.private_call.read_request_membership_witnesses);
 
         //TODO(David): feels like update_end_values should happen later
@@ -76,8 +72,8 @@ impl PrivateKernelInputsInner {
 
         common::contract_logic(self.private_call,
                           &mut public_inputs,
-                          private_call_stack_item.public_inputs().contract_deployment_data,
-                          private_call_stack_item.function_data());
+                          private_call_stack_item.public_inputs.contract_deployment_data,
+                          private_call_stack_item.function_data);
 
         let (is_previous_state_valid, updated_aggregation_object) = verify_previous_kernel_state(public_inputs.end.aggregation_object,self.private_call.proof);
         assert(is_previous_state_valid);
@@ -388,6 +384,42 @@ mod tests {
             full_new_commitments[i] = i + 1;
         }
         builder.previous_kernel.end.new_commitments.push_array(full_new_commitments);
+        
+        builder.failed();
+    }
+
+    #[test(should_fail_with="Private kernel circuit can only execute a private function")]
+    fn private_function_is_private_false_fails() {
+        let mut builder = PrivateKernelInnerInputsBuilder::new();
+
+        builder.private_call.function_data.is_private = false;
+
+        builder.failed();
+    }
+
+    #[test(should_fail_with="A constructor must be executed as the first tx in the recursion")]
+    fn private_function_is_constructor_fails() {
+        let mut builder = PrivateKernelInnerInputsBuilder::new();
+
+        builder.private_call.function_data.is_constructor = true;
+
+        builder.failed();
+    }
+
+    #[test(should_fail_with="Can only verify a private kernel snark in the private kernel circuit")]
+    fn previous_kernel_is_private_false_fails() {
+        let mut builder = PrivateKernelInnerInputsBuilder::new();
+
+        builder.previous_kernel.is_private = false;
+
+        builder.failed();
+    }
+
+    #[test(should_fail_with="call stack item hash does not match preimage hash")]
+    fn contract_deployment_call_stack_item_hash_mismatch_fails() {
+        let mut builder = PrivateKernelInnerInputsBuilder::new();
+
+        builder.private_call.public_inputs.private_call_stack.push(27);
         
         builder.failed();
     }

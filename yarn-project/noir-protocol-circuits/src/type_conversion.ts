@@ -394,12 +394,10 @@ export function mapPrivateCircuitPublicInputsToNoir(
  */
 export function mapPrivateCallStackItemToNoir(privateCallStackItem: PrivateCallStackItem): PrivateCallStackItemNoir {
   return {
-    inner: {
-      contract_address: mapAztecAddressToNoir(privateCallStackItem.contractAddress),
-      public_inputs: mapPrivateCircuitPublicInputsToNoir(privateCallStackItem.publicInputs),
-      is_execution_request: privateCallStackItem.isExecutionRequest,
-      function_data: mapFunctionDataToNoir(privateCallStackItem.functionData),
-    },
+    contract_address: mapAztecAddressToNoir(privateCallStackItem.contractAddress),
+    public_inputs: mapPrivateCircuitPublicInputsToNoir(privateCallStackItem.publicInputs),
+    is_execution_request: privateCallStackItem.isExecutionRequest,
+    function_data: mapFunctionDataToNoir(privateCallStackItem.functionData),
   };
 }
 

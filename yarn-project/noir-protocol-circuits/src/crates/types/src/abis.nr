@@ -3,7 +3,6 @@ mod function_data;
 mod function_leaf_preimage;
 
 mod membership_witness;
-mod read_request_membership_witness;
 
 mod new_contract_data;
 mod contract_leaf_preimage;

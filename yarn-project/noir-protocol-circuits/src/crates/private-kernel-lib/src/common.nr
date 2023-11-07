@@ -11,9 +11,10 @@ use dep::types::{
         complete_address::CompleteAddress,
         function_data::FunctionData,
         kernel_circuit_public_inputs::KernelCircuitPublicInputsBuilder,
+        membership_witness::ReadRequestMembershipWitness,
         new_contract_data::NewContractData,
         private_circuit_public_inputs::PrivateCircuitPublicInputs,
-        private_kernel::private_call_data::{PrivateCallData, ReadRequestMembershipWitnessPrivateData},
+        private_kernel::private_call_data::PrivateCallData,
         previous_kernel_data::PreviousKernelData,
     },
     address::{Address, EthAddress},
@@ -60,7 +61,7 @@ pub fn validate_arrays(app_public_inputs : PrivateCircuitPublicInputs) {
 // ie hash(preimages) == private_call_stack for each preimage
 // If the stack is empty, then we avoid doing a hash and set the output to be 0
 pub fn validate_call_stack(private_call : PrivateCallData) {
-    let stack = private_call.call_stack_item.public_inputs().private_call_stack;
+    let stack = private_call.call_stack_item.public_inputs.private_call_stack;
     let preimages = private_call.private_call_stack_preimages;
     
     assert(stack.len() == preimages.len()); // This is not in the cpp code.
@@ -88,7 +89,11 @@ pub fn validate_call_stack(private_call : PrivateCallData) {
 // More info here:
 // - https://discourse.aztec.network/t/to-read-or-not-to-read/178
 // - https://discourse.aztec.network/t/spending-notes-which-havent-yet-been-inserted/180
-pub fn validate_read_requests(historic_note_hash_tree_root : Field, read_requests : [Field; MAX_READ_REQUESTS_PER_CALL], read_request_membership_witnesses : [ReadRequestMembershipWitnessPrivateData; MAX_READ_REQUESTS_PER_CALL]) {
+pub fn validate_read_requests(
+    historic_note_hash_tree_root: Field,
+    read_requests: [Field; MAX_READ_REQUESTS_PER_CALL],
+    read_request_membership_witnesses: [ReadRequestMembershipWitness; MAX_READ_REQUESTS_PER_CALL],
+) {
     // membership witnesses must resolve to the same private data root
     // for every request in all kernel iterations
     for rr_idx in 0..MAX_READ_REQUESTS_PER_CALL {
@@ -137,11 +142,11 @@ pub fn initialize_end_values(previous_kernel : PreviousKernelData, public_inputs
     public_inputs.end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
 
     public_inputs.end.optionally_revealed_data = start.optionally_revealed_data;
-    public_inputs.end.new_contracts = array_to_bounded_vec(previous_kernel.public_inputs.end.new_contracts, |ncd: NewContractData| ncd.is_empty(), NewContractData::default());
+    public_inputs.end.new_contracts = array_to_bounded_vec(start.new_contracts, |ncd: NewContractData| ncd.is_empty(), NewContractData::default());
 }
 
 pub fn update_end_values(private_call : PrivateCallData, public_inputs : &mut KernelCircuitPublicInputsBuilder) {
-    let private_call_public_inputs = private_call.call_stack_item.public_inputs();
+    let private_call_public_inputs = private_call.call_stack_item.public_inputs;
 
     let read_requests = private_call_public_inputs.read_requests;
     let read_request_membership_witnesses = private_call.read_request_membership_witnesses;
@@ -188,7 +193,6 @@ pub fn update_end_values(private_call : PrivateCallData, public_inputs : &mut Ke
             siloed_new_nullifiers.push(silo_nullifier(storage_contract_address, new_nullifier));
         }
     }
-
     public_inputs.end.new_nullifiers.push_vec(siloed_new_nullifiers);
 
     // commitments
@@ -272,7 +276,7 @@ pub fn update_end_values(private_call : PrivateCallData, public_inputs : &mut Ke
 }
 
 pub fn contract_logic(private_call : PrivateCallData, public_inputs : &mut KernelCircuitPublicInputsBuilder, contract_dep_data : ContractDeploymentData, function_data : FunctionData) {
-    let private_call_public_inputs = private_call.call_stack_item.public_inputs();
+    let private_call_public_inputs = private_call.call_stack_item.public_inputs;
     let storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
     let portal_contract_address = private_call.portal_contract_address;
 
@@ -283,16 +287,22 @@ pub fn contract_logic(private_call : PrivateCallData, public_inputs : &mut Kerne
     let is_contract_deployment = public_inputs.constants.tx_context.is_contract_deployment_tx;
 
     // input storage contract address must be 0 if its a constructor call and non-zero otherwise
-    if (is_contract_deployment) {
+    if is_contract_deployment {
         //TODO(https://github.com/AztecProtocol/aztec-packages/issues/3062) use locally computed private_call_vk_hash here
         let constructor_hash = compute_constructor_hash(function_data, private_call_public_inputs.args_hash, contract_dep_data.constructor_vk_hash);
-        let new_contract_address = CompleteAddress::compute(contract_dep_data.deployer_public_key,
-                                                                       contract_dep_data.contract_address_salt,
-                                                                       contract_dep_data.function_tree_root,
-                                                                       constructor_hash).address;
+        let new_contract_address = CompleteAddress::compute(
+            contract_dep_data.deployer_public_key,
+            contract_dep_data.contract_address_salt,
+            contract_dep_data.function_tree_root,
+            constructor_hash,
+        ).address;
         
-        let native_new_contract_data = NewContractData {contract_address : new_contract_address, portal_contract_address : portal_contract_address, function_tree_root : contract_dep_data.function_tree_root};
-        public_inputs.end.new_contracts.push(native_new_contract_data);
+        let new_contract_data = NewContractData {
+            contract_address: new_contract_address,
+            portal_contract_address,
+            function_tree_root: contract_dep_data.function_tree_root,
+        };
+        public_inputs.end.new_contracts.push(new_contract_data);
         
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3062) VKs are mocked out for now
         // assert(contract_dep_data.constructor_vk_hash == private_call_vk_hash, "constructor_vk_hash doesn't match private_call_vk_hash");
@@ -317,16 +327,16 @@ pub fn contract_logic(private_call : PrivateCallData, public_inputs : &mut Kerne
          */
         
         // Ensures that if the function is internal, only the contract itself can call it
-        if (private_call.call_stack_item.function_data().is_internal) {
-            let msg_sender = private_call.call_stack_item.public_inputs().call_context.msg_sender;
+        if private_call.call_stack_item.function_data.is_internal {
+            let msg_sender = private_call_public_inputs.call_context.msg_sender;
             // TODO - Allow special characters in error message.
             // assert(storage_contract_address.eq(msg_sender), "call is internal, but msg_sender is not self");
             assert(storage_contract_address.eq(msg_sender), "call is internal but msg_sender is not self");
         }
 
         // The logic below ensures that the contract exists in the contracts tree
-        let computed_function_tree_root = function_tree_root_from_siblings(private_call.call_stack_item.function_data().selector,
-                                                 private_call.call_stack_item.function_data().is_internal,
+        let computed_function_tree_root = function_tree_root_from_siblings(private_call.call_stack_item.function_data.selector,
+                                                 private_call.call_stack_item.function_data.is_internal,
                                                  true,  // is_private
                                                  private_call_vk_hash,
                                                  private_call.acir_hash,
@@ -339,7 +349,7 @@ pub fn contract_logic(private_call : PrivateCallData, public_inputs : &mut Kerne
                                                  private_call.contract_leaf_membership_witness.leaf_index,
                                                  private_call.contract_leaf_membership_witness.sibling_path);
 
-        let purported_contract_tree_root = private_call.call_stack_item.public_inputs().historical_block_data.contract_tree_root();
+        let purported_contract_tree_root = private_call.call_stack_item.public_inputs.historical_block_data.contract_tree_root();
         // TODO - Allow special characters in error message.
         // assert_eq(computed_contract_tree_root, purported_contract_tree_root, "computed_contract_tree_root doesn't match purported_contract_tree_root");
         assert_eq(computed_contract_tree_root, purported_contract_tree_root, "computed_contract_tree_root does not match purported_contract_tree_root");

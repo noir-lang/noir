@@ -9,24 +9,21 @@ use dep::types::{
     },
     mocked::{Proof, verify_previous_kernel_state},
     transaction::request::TxRequest,
-    utils::arrays::{is_empty_array, log_hashes_empty},
+    utils::arrays::is_empty_array,
 };
 
 // Initialization struct for private inputs to the private kernel
 struct PrivateKernelInputsInit {
-    tx_request : TxRequest,
-    private_call : PrivateCallData,
+    tx_request: TxRequest,
+    private_call: PrivateCallData,
 }
 
 impl PrivateKernelInputsInit {
-    fn initialize_end_values(self, public_inputs : &mut KernelCircuitPublicInputsBuilder) {
-        let private_call_public_inputs = self.private_call.call_stack_item.public_inputs();
-        let constants = CombinedConstantData{
-            block_data : private_call_public_inputs.historical_block_data,
-            tx_context : self.tx_request.tx_context,
+    fn initialize_end_values(self, public_inputs: &mut KernelCircuitPublicInputsBuilder) {
+        public_inputs.constants = CombinedConstantData {
+            block_data: self.private_call.call_stack_item.public_inputs.historical_block_data,
+            tx_context: self.tx_request.tx_context,
         };
-
-        public_inputs.constants = constants;
     }
 
     // Confirm that the TxRequest (user's intent) 
@@ -41,25 +38,25 @@ impl PrivateKernelInputsInit {
         // We use the word correct to denote whether it matches the user intent.
         //
         // Ensure we are calling the correct initial contract
-        let origin_address_matches = tx_request.origin.eq(call_stack_item.contract_address());
+        let origin_address_matches = tx_request.origin.eq(call_stack_item.contract_address);
         assert(origin_address_matches, "origin address does not match call stack items contract address");
         //
         // Ensure we are calling the correct initial function in the contract
-        let entry_point_function_matches = tx_request.function_data.hash() == call_stack_item.function_data().hash();
+        let entry_point_function_matches = tx_request.function_data.hash() == call_stack_item.function_data.hash();
         // TODO - Allow special characters in error message.
         // assert(entry_point_function_matches, "tx_request.function_data must match call_stack_item.function_data");
         assert(entry_point_function_matches, "tx_request function_data must match call_stack_item function_data");
         //
         // Ensure we are passing the correct arguments to the function.
-        let args_match = tx_request.args_hash == call_stack_item.public_inputs().args_hash;
+        let args_match = tx_request.args_hash == call_stack_item.public_inputs.args_hash;
         assert(args_match, "noir function args passed to tx_request must match args in the call_stack_item");
     }
 
     fn validate_inputs(self) {
         let call_stack_item = self.private_call.call_stack_item;
-        let function_data = call_stack_item.function_data();
+        let function_data = call_stack_item.function_data;
 
-        let public_inputs = call_stack_item.public_inputs();
+        let public_inputs = call_stack_item.public_inputs;
 
         /* TODO(Mike/David): If we are going to have 3 initial calls on the private call stack,
         * then do we still need the `private_call_stack`
@@ -67,41 +64,15 @@ impl PrivateKernelInputsInit {
         */
 
         assert(function_data.is_private, "Private kernel circuit can only execute a private function");
+        assert(function_data.is_internal == false, "Cannot call an internal function directly");
         assert(public_inputs.call_context.is_delegate_call == false, "Users cannot make a delegatecall");
         assert(public_inputs.call_context.is_static_call == false, "Users cannot make a static call");
         
         // The below also prevents delegatecall/staticcall in the base case
-        assert(public_inputs.call_context.storage_contract_address.eq(call_stack_item.contract_address()), "Storage contract address must be that of the called contract");
+        assert(public_inputs.call_context.storage_contract_address.eq(call_stack_item.contract_address), "Storage contract address must be that of the called contract");
     }
 
-    fn update_end_values(self, public_inputs : &mut KernelCircuitPublicInputsBuilder) {
-        // We only initialized constants member of public_inputs so far. Therefore, there must not be any
-        // new nullifiers or logs as part of public_inputs.
-        
-        let new_commitments_empty = is_empty_array(public_inputs.end.new_commitments.storage);
-        assert(new_commitments_empty, "public_inputs.end.new_commitments must start as empty in initial kernel iteration");
-
-        let new_nullifiers_empty = is_empty_array(public_inputs.end.new_nullifiers.storage);
-        assert(new_nullifiers_empty, "public_inputs.end.new_nullifiers must start as empty in initial kernel iteration");
-
-        let end_nullified_commitments_empty = is_empty_array(public_inputs.end.nullified_commitments.storage);
-        assert(end_nullified_commitments_empty, "public_inputs.end.nullified_commitments must start as empty in initial kernel iteration");
-
-        let encrypted_logs_hash_empty = log_hashes_empty(public_inputs.end.encrypted_logs_hash);
-        assert(encrypted_logs_hash_empty, "public_inputs.end.encrypted_logs_hash must start as empty in initial kernel iteration");
-
-        let unencrypted_logs_hash_empty = log_hashes_empty(public_inputs.end.unencrypted_logs_hash);
-        assert(unencrypted_logs_hash_empty, "public_inputs.end.unencrypted_logs_hash must start as empty in initial kernel iteration");
-
-        let read_requests_empty = is_empty_array(public_inputs.end.read_requests.storage);
-        assert(read_requests_empty, "public_inputs.end.read_requests must start as empty in initial kernel iteration");
-
-        let pending_read_requests_empty = is_empty_array(public_inputs.end.pending_read_requests.storage);
-        assert(pending_read_requests_empty, "public_inputs.end.pending_read_requests_empty must start as empty in initial kernel iteration");
-
-        assert(public_inputs.end.encrypted_log_preimages_length == 0,"public_inputs.end.encrypted_log_preimages_length must start as 0 in initial kernel iteration");
-        assert(public_inputs.end.unencrypted_log_preimages_length == 0,"public_inputs.end.unencrypted_log_preimages_length must start as 0 in initial kernel iteration");
-
+    fn update_end_values(self, public_inputs: &mut KernelCircuitPublicInputsBuilder) {
         // Since it's the first iteration, we need to push the the tx hash nullifier into the `new_nullifiers` array
         public_inputs.end.new_nullifiers.push(self.tx_request.hash());
         
@@ -123,7 +94,7 @@ impl PrivateKernelInputsInit {
 
         self.validate_inputs();
 
-        common::validate_arrays(self.private_call.call_stack_item.public_inputs());
+        common::validate_arrays(self.private_call.call_stack_item.public_inputs);
 
         self.validate_this_private_call_against_tx_request();
 
@@ -131,7 +102,7 @@ impl PrivateKernelInputsInit {
 
         common::validate_read_requests(
             public_inputs.constants.block_data.note_hash_tree_root(),
-            self.private_call.call_stack_item.public_inputs().read_requests,
+            self.private_call.call_stack_item.public_inputs.read_requests,
             self.private_call.read_request_membership_witnesses
         );
 
@@ -417,6 +388,15 @@ mod tests {
 
         builder.failed();
     }
+    
+    #[test(should_fail_with="Cannot call an internal function directly")]
+    fn private_function_is_internal_fails() {
+        let mut builder = PrivateKernelInitInputsBuilder::new_constructor();
+
+        builder.private_call.function_data.is_internal = true;
+
+        builder.failed();
+    }
 
     #[test(should_fail_with="Users cannot make a static call")]
     fn private_function_static_call_fails() {
@@ -444,6 +424,50 @@ mod tests {
 
         // Set the storage_contract_address to a random scalar.
         builder.private_call.public_inputs.call_context.storage_contract_address = Address::from_field(356);
+
+        builder.failed();
+    }
+
+    #[test(should_fail_with="computed_contract_tree_root does not match purported_contract_tree_root")]
+    fn private_function_incorrect_contract_leaf_index_fails() {
+        let mut builder = PrivateKernelInitInputsBuilder::new();
+
+        // Set the leaf index of the contract leaf to a wrong value (the correct value + 1).
+        let leaf_index = builder.private_call.contract_leaf_membership_witness.leaf_index;
+        builder.private_call.contract_leaf_membership_witness.leaf_index = leaf_index + 1;
+
+        builder.failed();
+    }
+
+     #[test(should_fail_with="computed_contract_tree_root does not match purported_contract_tree_root")]
+    fn private_function_incorrect_contract_leaf_sibling_path_fails() {
+        let mut builder = PrivateKernelInitInputsBuilder::new();
+
+        // Set the first value of the sibling path to a wrong value (the correct value + 1).
+        let sibling_path_0 = builder.private_call.contract_leaf_membership_witness.sibling_path[0];
+        builder.private_call.contract_leaf_membership_witness.sibling_path[0] = sibling_path_0 + 1;
+
+        builder.failed();
+    }
+
+    #[test(should_fail_with="computed_contract_tree_root does not match purported_contract_tree_root")]
+    fn private_function_incorrect_function_leaf_index_fails() {
+        let mut builder = PrivateKernelInitInputsBuilder::new();
+
+        // Set the leaf index of the function leaf to a wrong value (the correct value + 1).
+        let leaf_index = builder.private_call.function_leaf_membership_witness.leaf_index;
+        builder.private_call.function_leaf_membership_witness.leaf_index = leaf_index + 1;
+
+        builder.failed();
+    }
+
+    #[test(should_fail_with="computed_contract_tree_root does not match purported_contract_tree_root")]
+    fn private_function_incorrect_function_leaf_sibling_path_fails() {
+        let mut builder = PrivateKernelInitInputsBuilder::new();
+
+        // Set the first value of the sibling path to a wrong value (the correct value + 1).
+        let sibling_path_0 = builder.private_call.function_leaf_membership_witness.sibling_path[0];
+        builder.private_call.function_leaf_membership_witness.sibling_path[0] = sibling_path_0 + 1;
 
         builder.failed();
     }
