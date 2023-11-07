@@ -396,6 +396,9 @@ public async warp(to: number): Promise<void>
 // Loads the value stored at the given slot in the public storage of the given contract.
 public async loadPublic(who: AztecAddress, slot: Fr | bigint): Promise<Fr>
 
+// Loads the value stored at the given slot in the private storage of the given contract.
+public async loadPrivate(owner: AztecAddress, contract: AztecAddress, slot: Fr | bigint): Promise<Note[]>
+
 // Computes the slot value for a given map and key.
 public computeSlotInMap(baseSlot: Fr | bigint, key: Fr | bigint): Fr
 ```
@@ -518,6 +521,43 @@ const address = AztecAddress.fromString("0x123...");
 const slot = cc.aztec.computeSlotInMap(1n, key);
 const value = await cc.aztec.loadPublic(address, slot);
 ```
+
+### loadPrivate
+
+#### Function Signature
+
+```ts
+public async loadPrivate(owner: AztecAddress, contract: AztecAddress, slot: Fr | bigint): Promise<Note[]>
+```
+
+#### Description
+
+Loads the value stored at the given slot in the private storage of the given contract.
+
+Note: One Field element occupies a storage slot. Hence, structs with multiple field elements will be spread over multiple sequential slots. Using loadPublic will only load a single field of the struct (depending on the size of the attributes within it).
+
+#### Example
+```rust
+struct Storage {
+    ...
+    pending_shields: Set<TransparentNote, TRANSPARENT_NOTE_LEN>,
+}
+
+impl Storage {
+    fn init() -> Self {
+        Storage {
+            ...
+            pending_shields: Set::new(context, 5, TransparentNoteMethods),
+        }
+    }
+}
+
+contract Token {
+    ...
+}
+```
+
+#include_code load_private_cheatcode yarn-project/end-to-end/src/e2e_cheat_codes.test.ts typescript
 
 ## Participate
 
