@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.2](https://github.com/noir-lang/noir/compare/v0.19.1...v0.19.2) (2023-11-07)
+
+
+### Features
+
+* Add profile info print out ([#3425](https://github.com/noir-lang/noir/issues/3425)) ([a8b5fa8](https://github.com/noir-lang/noir/commit/a8b5fa8e30dc27e64666381b7451569f350967d1))
+
 ## [0.19.1](https://github.com/noir-lang/noir/compare/v0.19.0...v0.19.1) (2023-11-07)
 
 
