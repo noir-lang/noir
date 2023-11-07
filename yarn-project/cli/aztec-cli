@@ -97,15 +97,12 @@ function add_mount() {
 AZTEC_CLI_COMMAND="$1"
 AZTEC_CLI_EXTRA_ARGS=""
 
-# first process commands with positional arguments
-# assumes positional arguments are the first thing
-if [[ "$AZTEC_CLI_COMMAND" == "compile" || "$AZTEC_CLI_COMMAND" == "deploy" || "$AZTEC_CLI_COMMAND" == "inspect-contract" ]]; then
-  add_mount "$2"
-fi
-
 # aztec-cli unbox Token my_token_contract
 # if my_token_contract is missing then pass current folder
 if [[ "$AZTEC_CLI_COMMAND" == "unbox" ]]; then
+  # 2nd parameter is the contract name
+  # 3rd is the directory to unbox in
+  # this directory might not exist
   DIR="${3:-$PWD}"
 
   if [[ ! -d "$DIR" ]]; then
@@ -120,39 +117,19 @@ if [[ "$AZTEC_CLI_COMMAND" == "update" ]]; then
   add_mount "$PWD"
 fi
 
-# process flags
-if [[ "$AZTEC_CLI_COMMAND" == "compile" || "$AZTEC_CLI_COMMAND" == "call" || "$AZTEC_CLI_COMMAND" == "send" ]]; then
-
-  # bash's builtin getops only works with single characeter flags
-  # GNU getopt doesn't exist on macOS
-  # process the flags manually
-  # NOTE: this won't work with assignement-style flags, e.g. --outdir=/foo
-  for (( i=2; i <= "$#"; i++ )); do
-      arg_value=${!i}
-      next_index=$((i+1))
-      # edge case: odd number of flags
-      if [[ "$next_index" -gt "$#" ]]; then
-          continue
-      fi
-      next_arg=${!next_index}
-      case $arg_value in
-          -o | --outdir)
-              add_mount "$next_arg"
-              ;;
-          -ts | --typescript)
-              add_mount "$next_arg"
-              ;;
-          -i | --interface)
-              add_mount "$next_arg"
-              ;;
-          -c | --contract-artifact)
-              add_mount "$next_arg"
-              ;;
-          *)
-              ;;
-      esac
-  done
-fi
+# bash's builtin getops only works with single characeter flags
+# GNU getopt doesn't exist on macOS
+# process the flags manually
+#
+# go through each parameter (execpt the first one, which is the command)
+# and check if it's either a filename or a directory. If it is then mount inside the container
+# NOTE: this won't work with assignement-style flags, e.g. --outdir=/foo
+for (( i=2; i <= "$#"; i++ )); do
+    arg_value=${!i}
+    if [[ -f "$arg_value" || -d "$arg_value" ]]; then
+      add_mount "$arg_value"
+    fi
+done
 
 if [[ "$AZTEC_CLI_COMMAND" == "compile" ]]; then
   # can't use Nargo inside the container
@@ -166,15 +143,18 @@ if [[ ! -z "${PRIVATE_KEY:-}" ]]; then
   DOCKER_ENV="$DOCKER_ENV -e PRIVATE_KEY=$PRIVATE_KEY"
 fi
 
+# pass along the debug variable in case the dev wants to see what's happening inside the CLI
+if [[ ! -z "${DEBUG:-}" ]]; then
+  DOCKER_ENV="$DOCKER_ENV -e DEBUG=$DEBUG"
+fi
+
 DOCKER_VOLUME="$DOCKER_VOLUME -v cache:/cache"
 
-DOCKER_CMD="$DOCKER_PATH run \
+$DOCKER_PATH run \
   --rm \
   --user $(id -u):$(id -g) \
-  --workdir \"$PWD\" \
+  --workdir "$PWD" \
   $DOCKER_HOST \
   $DOCKER_ENV \
   $DOCKER_VOLUME \
-  $CLI_IMAGE:$CLI_VERSION $@ $AZTEC_CLI_EXTRA_ARGS"
-
-eval "$DOCKER_CMD"
+  $CLI_IMAGE:$CLI_VERSION $@ $AZTEC_CLI_EXTRA_ARGS
