@@ -7,7 +7,6 @@ import { CompileOpts, NargoContractCompiler } from './compile/nargo.js';
 import { FileManager } from './compile/noir/file-manager/file-manager.js';
 import { NoirWasmCompileOptions, NoirWasmContractCompiler } from './compile/noir/noir-wasm-compiler.js';
 import { generateContractArtifact } from './contract-interface-gen/abi.js';
-import { AztecNrVersion } from './versions.js';
 
 export * from './versions.js';
 
@@ -44,10 +43,6 @@ export async function compileUsingNoirWasm(
   const compiler = NoirWasmContractCompiler.new(fileManager, resolve(projectPath), opts);
   const artifacts = await compiler.compile();
   const resolvedAztecNrVersion = compiler.getResolvedAztecNrVersion();
-
-  if (resolvedAztecNrVersion && AztecNrVersion !== resolvedAztecNrVersion) {
-    opts.log(`WARNING: Aztec.nr version mismatch: expected "${AztecNrVersion}", got "${resolvedAztecNrVersion}"`);
-  }
 
   return artifacts.map(artifact => generateContractArtifact(artifact, resolvedAztecNrVersion));
 }
