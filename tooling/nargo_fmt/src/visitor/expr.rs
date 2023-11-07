@@ -56,30 +56,6 @@ impl FmtVisitor<'_> {
             kind @ ExpressionKind::Infix(_) => {
                 let shape = self.shape();
                 rewrite::infix(self.fork(), Expression { kind, span }, shape)
-
-                // let mut visitor = self.fork();
-                // visitor.indent.block_indent(self.config);
-
-                // let indent_str = visitor.indent.to_string_with_newline();
-
-                // let node = Expression { kind, span };
-
-                // if let Some((exprs, separators)) = flattern::flatten(self.fork(), &node) {
-                //     todo!()
-                // } else {
-                //     let infix = if let ExpressionKind::Infix(infix) = node.kind {
-                //         infix
-                //     } else {
-                //         unreachable!()
-                //     };
-
-                //     format!(
-                //         "{} {} {}",
-                //         self.format_sub_expr(infix.lhs),
-                //         infix.operator.contents.as_string(),
-                //         self.format_sub_expr(infix.rhs)
-                //     )
-                // }
             }
             ExpressionKind::Call(call_expr) => {
                 let args_span =
