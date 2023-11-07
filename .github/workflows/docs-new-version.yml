@@ -1,4 +1,4 @@
-name: Publish Docs
+name: Cut a new version of the docs
 
 on:
   workflow_dispatch:
@@ -90,7 +90,6 @@ jobs:
             --body "Updates documentation to new version for tag ${{ github.event.inputs.tag }}." \
             --base master \
             --head new-docs-version-${{ github.event.inputs.tag }} \
-            --label documentation
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
