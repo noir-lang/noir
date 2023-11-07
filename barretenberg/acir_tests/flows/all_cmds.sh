@@ -1,12 +1,7 @@
 #!/bin/sh
 set -eu
 
-if [ -n "${VERBOSE:-}" ]; then
-  VFLAG="-v"
-else
-  VFLAG=""
-fi
-
+VFLAG=${VERBOSE:+-v}
 BFLAG="-b ./target/acir.gz"
 FLAGS="-c $CRS_PATH $VFLAG"
 

@@ -16,6 +16,8 @@ CRS_PATH=~/.bb-crs
 BRANCH=master
 VERBOSE=${VERBOSE:-}
 TEST_NAMES=("$@")
+# We get little performance benefit over 16 cores (in fact it can be worse).
+HARDWARE_CONCURRENCY=${HARDWARE_CONCURRENCY:-16}
 
 FLOW_SCRIPT=$(realpath ./flows/${FLOW}.sh)
 

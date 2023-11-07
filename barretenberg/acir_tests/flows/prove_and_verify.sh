@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-if [ -n "$VERBOSE" ]; then
-  $BIN prove_and_verify -v -c $CRS_PATH -b ./target/acir.gz
-else
-  $BIN prove_and_verify -c $CRS_PATH -b ./target/acir.gz
-fi
+VFLAG=${VERBOSE:+-v}
+
+# This is the fastest flow, because it only generates pk/vk once, gate count once, etc.
+# It may not catch all class of bugs.
+$BIN prove_and_verify $VFLAG -c $CRS_PATH -b ./target/acir.gz

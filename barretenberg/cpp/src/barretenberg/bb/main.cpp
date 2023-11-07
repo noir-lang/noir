@@ -117,7 +117,6 @@ void prove(const std::string& bytecodePath,
     auto constraint_system = get_constraint_system(bytecodePath);
     auto witness = get_witness(witnessPath);
     auto acir_composer = init(constraint_system);
-    acir_composer.init_proving_key(constraint_system);
     auto proof = acir_composer.create_proof(constraint_system, witness, recursive);
 
     if (outputPath == "-") {
