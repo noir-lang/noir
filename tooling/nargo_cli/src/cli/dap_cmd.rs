@@ -13,5 +13,5 @@ pub(crate) fn run(
     _args: DapCommand,
     _config: NargoConfig,
 ) -> Result<(), CliError> {
-    Ok(())
+    noir_debugger::start_dap_server().map_err(CliError::DapError)
 }
