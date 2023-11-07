@@ -95,10 +95,10 @@ describe('Contract Class', () => {
     events: [],
   };
 
-  beforeEach(async () => {
+  beforeEach(() => {
     resolvedExtendedContractData = ExtendedContractData.random();
     contractAddress = resolvedExtendedContractData.contractData.contractAddress;
-    account = await CompleteAddress.random();
+    account = CompleteAddress.random();
 
     wallet = mock<Wallet>();
     wallet.createTxExecutionRequest.mockResolvedValue(mockTxRequest);

@@ -1,5 +1,35 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`abis wasm bindings compute globals hash 1`] = `
+Fr {
+  "value": 19996198784166720428914107076917074510032365849254400404611644441094528984289n,
+}
+`;
+
+exports[`abis wasm bindings compute private call stack item hash 1`] = `
+Fr {
+  "value": 3230879723118793997125108252427471059552102155544558929105689542823769599571n,
+}
+`;
+
+exports[`abis wasm bindings compute public call stack item hash 1`] = `
+Fr {
+  "value": 1369626479296628599511967895314683808250163038382688147156251959177959447826n,
+}
+`;
+
+exports[`abis wasm bindings compute secret message hash 1`] = `
+Fr {
+  "value": 6220068662483113241527007349428551778669520744131373768997518428761948042030n,
+}
+`;
+
+exports[`abis wasm bindings compute tx hash 1`] = `
+Fr {
+  "value": 11028384086470399424960241201065432836500251313078792361310973684322431200173n,
+}
+`;
+
 exports[`abis wasm bindings computes a complete address 1`] = `
 CompleteAddress {
   "address": AztecAddress {
@@ -56,6 +86,48 @@ CompleteAddress {
 }
 `;
 
+exports[`abis wasm bindings computes a contract address from partial 1`] = `
+AztecAddress {
+  "buffer": {
+    "data": [
+      34,
+      41,
+      121,
+      74,
+      138,
+      50,
+      100,
+      6,
+      122,
+      50,
+      114,
+      42,
+      84,
+      48,
+      151,
+      243,
+      88,
+      162,
+      160,
+      249,
+      55,
+      16,
+      237,
+      195,
+      114,
+      27,
+      106,
+      66,
+      228,
+      123,
+      33,
+      231,
+    ],
+    "type": "Buffer",
+  },
+}
+`;
+
 exports[`abis wasm bindings computes a function leaf 1`] = `
 Fr {
   "value": 8957681167943973616438847631514238173699549883609341685749385526208761312950n,
@@ -71,6 +143,12 @@ exports[`abis wasm bindings computes a function selector 1`] = `
     187,
   ],
   "type": "Buffer",
+}
+`;
+
+exports[`abis wasm bindings computes block hash with globals 1`] = `
+Fr {
+  "value": 7177915431153102916601456081755280584460785548870192083974540199919775120827n,
 }
 `;
 
@@ -92,6 +170,18 @@ Fr {
 }
 `;
 
+exports[`abis wasm bindings computes public data tree index 1`] = `
+Fr {
+  "value": 9076808949980998475110411569159266589807853958487763065147292518713994520820n,
+}
+`;
+
+exports[`abis wasm bindings computes public data tree value 1`] = `
+Fr {
+  "value": 3n,
+}
+`;
+
 exports[`abis wasm bindings computes siloed commitment 1`] = `
 Fr {
   "value": 7262347077404413274044670947879391583109741657896097604752287127491776887739n,
@@ -107,6 +197,12 @@ Fr {
 exports[`abis wasm bindings computes unique commitment 1`] = `
 Fr {
   "value": 13000121189816960667906065043973697710794195579570622293955220571859166513128n,
+}
+`;
+
+exports[`abis wasm bindings computes zero contract leaf 1`] = `
+Fr {
+  "value": 0n,
 }
 `;
 

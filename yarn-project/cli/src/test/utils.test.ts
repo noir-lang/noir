@@ -33,7 +33,7 @@ describe('CLI Utils', () => {
     expect(result).toEqual(aztecAddress);
 
     // returns an address found in the aztec client
-    const completeAddress = await CompleteAddress.random();
+    const completeAddress = CompleteAddress.random();
     client.getRegisteredAccounts.mockResolvedValueOnce([completeAddress]);
     const resultWithoutString = await getTxSender(client);
     expect(client.getRegisteredAccounts).toHaveBeenCalled();

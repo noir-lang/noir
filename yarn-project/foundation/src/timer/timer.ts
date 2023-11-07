@@ -14,7 +14,14 @@ export class Timer {
   private start: number;
 
   constructor() {
-    this.start = new Date().getTime();
+    this.start = performance.now();
+  }
+
+  /**
+   * Return microseconds.
+   */
+  public us() {
+    return this.ms() * 1000;
   }
 
   /**
@@ -25,7 +32,7 @@ export class Timer {
    * @returns The elapsed time in milliseconds.
    */
   public ms() {
-    return new Date().getTime() - this.start;
+    return performance.now() - this.start;
   }
 
   /**
@@ -36,6 +43,6 @@ export class Timer {
    * @returns The elapsed time in seconds.
    */
   public s() {
-    return (new Date().getTime() - this.start) / 1000;
+    return this.ms() / 1000;
   }
 }

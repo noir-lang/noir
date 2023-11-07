@@ -37,7 +37,7 @@ describe('Data generation for noir tests', () => {
   it('Computes function leaf', () => {
     const functionLeafPreimage = new FunctionLeafPreimage(selector, false, true, vkHash, acirHash);
 
-    functionLeaf = computeFunctionLeaf(wasm, functionLeafPreimage);
+    functionLeaf = computeFunctionLeaf(functionLeafPreimage);
 
     expect(functionLeaf.toString()).toMatchSnapshot();
   });
@@ -57,14 +57,13 @@ describe('Data generation for noir tests', () => {
 
   it('Computes the contract tree root', async () => {
     const contractLeaf = computeContractLeaf(
-      wasm,
       new NewContractData(contractAddress, portalContractAddress, functionTreeRoot),
     );
     const db = levelup((memdown as any)());
 
     const tree = new StandardTree(
       db,
-      new Pedersen(wasm),
+      new Pedersen(),
       `${MerkleTreeId[MerkleTreeId.CONTRACT_TREE]}`,
       CONTRACT_TREE_HEIGHT,
     );
@@ -86,7 +85,7 @@ describe('Data generation for noir tests', () => {
 
     const noteHashTree = new StandardTree(
       db,
-      new Pedersen(wasm),
+      new Pedersen(),
       `${MerkleTreeId[MerkleTreeId.NOTE_HASH_TREE]}`,
       NOTE_HASH_TREE_HEIGHT,
     );

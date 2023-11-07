@@ -1,6 +1,5 @@
 import {
   AppendOnlyTreeSnapshot,
-  CircuitsWasm,
   Fr,
   GlobalVariables,
   MAX_NEW_COMMITMENTS_PER_TX,
@@ -125,10 +124,9 @@ describe('server_world_state_synchronizer', () => {
     getTreeInfo: jest.fn(() =>
       Promise.resolve({ depth: 8, treeId: MerkleTreeId.CONTRACT_TREE, root: Buffer.alloc(32, 0), size: 0n }),
     ),
-    getSiblingPath: jest.fn(async () => {
-      const wasm = await CircuitsWasm.get();
-      const pedersen: Pedersen = new Pedersen(wasm);
-      return SiblingPath.ZERO(32, INITIAL_LEAF, pedersen) as SiblingPath<number>;
+    getSiblingPath: jest.fn(() => {
+      const pedersen: Pedersen = new Pedersen();
+      return Promise.resolve(SiblingPath.ZERO(32, INITIAL_LEAF, pedersen) as SiblingPath<number>);
     }),
     handleL2Block: jest.fn(() => Promise.resolve({ isBlockOurs: false })),
   });

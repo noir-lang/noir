@@ -1,4 +1,6 @@
-import { AccountInterface, PXE } from '../index.js';
+import { PXE } from '@aztec/types';
+
+import { AccountInterface } from '../account/index.js';
 
 export * from './base_wallet.js';
 export * from './account_wallet.js';

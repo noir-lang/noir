@@ -68,7 +68,7 @@ describe('e2e_escrow_contract', () => {
 
     const mintAmount = 100n;
     const secret = Fr.random();
-    const secretHash = await computeMessageSecretHash(secret);
+    const secretHash = computeMessageSecretHash(secret);
 
     const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
     expect(receipt.status).toEqual(TxStatus.MINED);
@@ -115,7 +115,7 @@ describe('e2e_escrow_contract', () => {
     logger(`Minting funds in token contract to ${owner}`);
     const mintAmount = 50n;
     const secret = Fr.random();
-    const secretHash = await computeMessageSecretHash(secret);
+    const secretHash = computeMessageSecretHash(secret);
 
     const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
     expect(receipt.status).toEqual(TxStatus.MINED);

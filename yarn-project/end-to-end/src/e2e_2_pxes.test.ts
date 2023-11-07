@@ -102,7 +102,7 @@ describe('e2e_2_pxes', () => {
 
   const mintTokens = async (contract: TokenContract, recipient: AztecAddress, balance: bigint, pxe: PXE) => {
     const secret = Fr.random();
-    const secretHash = await computeMessageSecretHash(secret);
+    const secretHash = computeMessageSecretHash(secret);
 
     const receipt = await contract.methods.mint_private(balance, secretHash).send().wait();
     expect(receipt.status).toEqual(TxStatus.MINED);

@@ -101,8 +101,10 @@ export function uint8ArrayToNum(array: Uint8Array): number {
  * @param value - Value to serialize.
  * @returns The serialized boolean.
  */
-export function boolToBuffer(value: boolean): Buffer {
-  return Buffer.from([value ? 1 : 0]);
+export function boolToBuffer(value: boolean, bufferSize = 1): Buffer {
+  const buf = Buffer.alloc(bufferSize);
+  buf.writeUInt8(value ? 1 : 0, bufferSize - 1);
+  return buf;
 }
 
 /**

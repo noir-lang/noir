@@ -93,7 +93,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     const args = encodeArguments(this.constructorArtifact, this.args);
     const functionData = FunctionData.fromAbi(this.constructorArtifact);
     const execution = { args, functionData, to: completeAddress.address };
-    const packedArguments = await PackedArguments.fromArgs(execution.args);
+    const packedArguments = PackedArguments.fromArgs(execution.args);
 
     const txRequest = TxExecutionRequest.from({
       origin: execution.to,

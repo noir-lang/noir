@@ -45,11 +45,11 @@ export class PackedArgsCache {
    * @param args - The arguments to pack.
    * @returns The hash of the packed arguments.
    */
-  public async pack(args: Fr[]): Promise<Fr> {
+  public pack(args: Fr[]) {
     if (args.length === 0) {
       return Fr.zero();
     }
-    const packedArguments = await PackedArguments.fromArgs(args, this.wasm);
+    const packedArguments = PackedArguments.fromArgs(args);
     this.cache.set(packedArguments.hash.value, packedArguments.args);
     return packedArguments.hash;
   }

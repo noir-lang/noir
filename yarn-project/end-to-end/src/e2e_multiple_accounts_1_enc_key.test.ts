@@ -74,7 +74,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     logger(`Token deployed at ${tokenAddress}`);
 
     const secret = Fr.random();
-    const secretHash = await computeMessageSecretHash(secret);
+    const secretHash = computeMessageSecretHash(secret);
 
     const receipt = await token.methods.mint_private(initialBalance, secretHash).send().wait();
     expect(receipt.status).toEqual(TxStatus.MINED);

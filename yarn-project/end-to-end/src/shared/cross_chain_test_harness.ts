@@ -202,10 +202,10 @@ export class CrossChainTestHarness {
     public ownerAddress: AztecAddress,
   ) {}
 
-  async generateClaimSecret(): Promise<[Fr, Fr]> {
+  generateClaimSecret(): [Fr, Fr] {
     this.logger("Generating a claim secret using pedersen's hash function");
     const secret = Fr.random();
-    const secretHash = await computeMessageSecretHash(secret);
+    const secretHash = computeMessageSecretHash(secret);
     this.logger('Generated claim secret: ' + secretHash.toString(true));
     return [secret, secretHash];
   }

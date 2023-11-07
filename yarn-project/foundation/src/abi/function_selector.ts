@@ -29,10 +29,11 @@ export class FunctionSelector {
 
   /**
    * Serialize as a buffer.
+   * @param bufferSize - The buffer size.
    * @returns The buffer.
    */
-  toBuffer(): Buffer {
-    return toBufferBE(BigInt(this.value), FunctionSelector.SIZE);
+  toBuffer(bufferSize = FunctionSelector.SIZE): Buffer {
+    return toBufferBE(BigInt(this.value), bufferSize);
   }
 
   /**

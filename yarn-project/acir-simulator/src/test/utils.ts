@@ -1,4 +1,4 @@
-import { AztecAddress, CircuitsWasm, EthAddress, Fr } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
 import { ContractArtifact, FunctionSelector, getFunctionDebugMetadata } from '@aztec/foundation/abi';
 import { sha256ToField } from '@aztec/foundation/crypto';
@@ -14,21 +14,19 @@ import { FunctionArtifactWithDebugMetadata } from '../index.js';
  * @param secret - The secret to unlock the message.
  * @returns The L1 to L2 message.
  */
-export const buildL1ToL2Message = async (
+export const buildL1ToL2Message = (
   selector: string,
   contentPreimage: Fr[],
   targetContract: AztecAddress,
   secret: Fr,
-): Promise<L1ToL2Message> => {
-  const wasm = await CircuitsWasm.get();
-
+) => {
   // Write the selector into a buffer.
   const selectorBuf = Buffer.from(selector, 'hex');
 
   const contentBuf = Buffer.concat([selectorBuf, ...contentPreimage.map(field => field.toBuffer())]);
   const content = sha256ToField(contentBuf);
 
-  const secretHash = computeSecretMessageHash(wasm, secret);
+  const secretHash = computeSecretMessageHash(secret);
 
   // Eventually the kernel will need to prove the kernel portal pair exists within the contract tree,
   // EthAddress.random() will need to be replaced when this happens

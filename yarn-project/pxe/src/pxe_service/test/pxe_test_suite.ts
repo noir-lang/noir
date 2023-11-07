@@ -34,7 +34,7 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
     });
 
     it('registers a recipient and returns it as a recipient only and not as an account', async () => {
-      const completeAddress = await CompleteAddress.random();
+      const completeAddress = CompleteAddress.random();
 
       await pxe.registerRecipient(completeAddress);
 
@@ -63,7 +63,7 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
     });
 
     it('cannot register a recipient with the same aztec address but different pub key or partial address', async () => {
-      const recipient1 = await CompleteAddress.random();
+      const recipient1 = CompleteAddress.random();
       const recipient2 = new CompleteAddress(recipient1.address, Point.random(), Fr.random());
 
       await pxe.registerRecipient(recipient1);
@@ -73,14 +73,14 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
     });
 
     it('does not throw when registering the same recipient twice (just ignores the second attempt)', async () => {
-      const completeAddress = await CompleteAddress.random();
+      const completeAddress = CompleteAddress.random();
 
       await pxe.registerRecipient(completeAddress);
       await pxe.registerRecipient(completeAddress);
     });
 
     it('successfully adds a contract', async () => {
-      const contracts: DeployedContract[] = [await randomDeployedContract(), await randomDeployedContract()];
+      const contracts: DeployedContract[] = [randomDeployedContract(), randomDeployedContract()];
       await pxe.addContracts(contracts);
 
       const expectedContractAddresses = contracts.map(contract => contract.completeAddress.address);

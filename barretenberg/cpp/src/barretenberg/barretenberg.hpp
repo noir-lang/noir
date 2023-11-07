@@ -1,6 +1,7 @@
 #pragma once
 
 // External Barretenberg C++ API
+#include "common/bbmalloc.hpp"
 #include "common/container.hpp"
 #include "common/map.hpp"
 #include "common/mem.hpp"

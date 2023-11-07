@@ -1,6 +1,4 @@
-import { CircuitsWasm } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { IWasmModule } from '@aztec/foundation/wasm';
 import { Hasher, SiblingPath } from '@aztec/types';
 
 import { randomBytes } from 'crypto';
@@ -36,12 +34,10 @@ treeTestSuite('SparseTree', createDb, createFromName);
 standardBasedTreeTestSuite('SparseTree', createDb);
 
 describe('SparseTreeSpecific', () => {
-  let wasm: IWasmModule;
   let pedersen: Pedersen;
 
-  beforeEach(async () => {
-    wasm = await CircuitsWasm.get();
-    pedersen = new Pedersen(wasm);
+  beforeEach(() => {
+    pedersen = new Pedersen();
   });
 
   it('throws when index is bigger than (2^DEPTH - 1) ', async () => {

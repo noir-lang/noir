@@ -76,6 +76,3 @@ inline void aligned_free(void* mem)
 //     info("Total free space (fordblks): ", minfo.fordblks);
 //     info("Top-most, releasable space (keepcost): ", minfo.keepcost);
 // }
-
-WASM_EXPORT void* bbmalloc(size_t size);
-WASM_EXPORT void bbfree(void* ptr);

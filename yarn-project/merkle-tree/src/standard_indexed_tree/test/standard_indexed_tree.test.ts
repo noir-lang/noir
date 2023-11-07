@@ -1,6 +1,4 @@
-import { CircuitsWasm } from '@aztec/circuits.js';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { IWasmModule } from '@aztec/foundation/wasm';
 import { Hasher, SiblingPath } from '@aztec/types';
 
 import { default as levelup } from 'levelup';
@@ -38,12 +36,10 @@ const TEST_TREE_DEPTH = 3;
 treeTestSuite('StandardIndexedTree', createDb, createFromName);
 
 describe('StandardIndexedTreeSpecific', () => {
-  let wasm: IWasmModule;
   let pedersen: Pedersen;
 
-  beforeEach(async () => {
-    wasm = await CircuitsWasm.get();
-    pedersen = new Pedersen(wasm);
+  beforeEach(() => {
+    pedersen = new Pedersen();
   });
 
   it('produces the correct roots and sibling paths', async () => {

@@ -443,7 +443,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .addOption(pxeOption)
     .action(async ({ address, publicKey, partialAddress, rpcUrl }) => {
       const client = await createCompatibleClient(rpcUrl, debugLogger);
-      await client.registerRecipient(await CompleteAddress.create(address, publicKey, partialAddress));
+      await client.registerRecipient(CompleteAddress.create(address, publicKey, partialAddress));
       log(`\nRegistered details for account with address: ${address}\n`);
     });
 

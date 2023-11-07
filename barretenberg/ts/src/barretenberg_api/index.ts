@@ -18,12 +18,12 @@ export class BarretenbergApi {
   }
 
   async pedersenCommit(inputsBuffer: Fr[]): Promise<Point> {
-    const result = await this.binder.callWasmExport('pedersen___commit', [inputsBuffer], [Point]);
+    const result = await this.binder.callWasmExport('pedersen_commit', [inputsBuffer], [Point]);
     return result[0];
   }
 
-  async pedersenHashWithHashIndex(inputsBuffer: Fr[], hashIndex: number): Promise<Fr> {
-    const result = await this.binder.callWasmExport('pedersen_hash_with_hash_index', [inputsBuffer, hashIndex], [Fr]);
+  async pedersenHash(inputsBuffer: Fr[], hashIndex: number): Promise<Fr> {
+    const result = await this.binder.callWasmExport('pedersen_hash', [inputsBuffer, hashIndex], [Fr]);
     return result[0];
   }
 
@@ -111,7 +111,7 @@ export class BarretenbergApi {
     message: Uint8Array,
     signerPubkeysBuf: Buffer128[],
     roundOneBuf: Buffer128[],
-    roundTwoBuf: Fr[],
+    roundTwoBuf: Fq[],
   ): Promise<[Buffer32, Buffer32, boolean]> {
     const result = await this.binder.callWasmExport(
       'schnorr_multisig_combine_signatures',

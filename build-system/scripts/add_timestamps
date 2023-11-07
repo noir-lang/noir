@@ -1,4 +1,4 @@
 #!/bin/bash
 while IFS= read -r line; do
-  echo "$(date '+%Y-%m-%d %H:%M:%S') $line"
+  printf '%(%Y-%m-%d %H:%M:%S)T %s\n' -1 "$line"
 done

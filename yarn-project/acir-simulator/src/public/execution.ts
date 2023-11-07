@@ -9,7 +9,6 @@ import {
   PublicDataUpdateRequest,
 } from '@aztec/circuits.js';
 import { computePublicDataTreeIndex, computePublicDataTreeValue } from '@aztec/circuits.js/abis';
-import { IWasmModule } from '@aztec/foundation/wasm';
 import { FunctionL2Logs } from '@aztec/types';
 
 /**
@@ -71,16 +70,16 @@ export function isPublicExecutionResult(
  * @param execResult - The topmost execution result.
  * @returns All public data reads (in execution order).
  */
-export function collectPublicDataReads(wasm: IWasmModule, execResult: PublicExecutionResult): PublicDataRead[] {
+export function collectPublicDataReads(execResult: PublicExecutionResult): PublicDataRead[] {
   // HACK(#1622): part of temporary hack - may be able to remove this function after public state ordering is fixed
   const contractAddress = execResult.execution.contractAddress;
 
   const thisExecPublicDataReads = execResult.contractStorageReads.map(read =>
-    contractStorageReadToPublicDataRead(wasm, read, contractAddress),
+    contractStorageReadToPublicDataRead(read, contractAddress),
   );
   const unsorted = [
     ...thisExecPublicDataReads,
-    ...[...execResult.nestedExecutions].flatMap(result => collectPublicDataReads(wasm, result)),
+    ...[...execResult.nestedExecutions].flatMap(result => collectPublicDataReads(result)),
   ];
   return unsorted.sort((a, b) => a.sideEffectCounter! - b.sideEffectCounter!);
 }
@@ -88,62 +87,51 @@ export function collectPublicDataReads(wasm: IWasmModule, execResult: PublicExec
 /**
  * Collect all public storage update requests across all nested executions
  * and convert them to PublicDataUpdateRequests (to match kernel output).
- * @param wasm - A module providing low-level wasm access.
  * @param execResult - The topmost execution result.
  * @returns All public data reads (in execution order).
  */
-export function collectPublicDataUpdateRequests(
-  wasm: IWasmModule,
-  execResult: PublicExecutionResult,
-): PublicDataUpdateRequest[] {
+export function collectPublicDataUpdateRequests(execResult: PublicExecutionResult): PublicDataUpdateRequest[] {
   // HACK(#1622): part of temporary hack - may be able to remove this function after public state ordering is fixed
   const contractAddress = execResult.execution.contractAddress;
 
   const thisExecPublicDataUpdateRequests = execResult.contractStorageUpdateRequests.map(update =>
-    contractStorageUpdateRequestToPublicDataUpdateRequest(wasm, update, contractAddress),
+    contractStorageUpdateRequestToPublicDataUpdateRequest(update, contractAddress),
   );
   const unsorted = [
     ...thisExecPublicDataUpdateRequests,
-    ...[...execResult.nestedExecutions].flatMap(result => collectPublicDataUpdateRequests(wasm, result)),
+    ...[...execResult.nestedExecutions].flatMap(result => collectPublicDataUpdateRequests(result)),
   ];
   return unsorted.sort((a, b) => a.sideEffectCounter! - b.sideEffectCounter!);
 }
 
 /**
  * Convert a Contract Storage Read to a Public Data Read.
- * @param wasm - A module providing low-level wasm access.
  * @param read - the contract storage read to convert
  * @param contractAddress - the contract address of the read
  * @returns The public data read.
  */
-function contractStorageReadToPublicDataRead(
-  wasm: IWasmModule,
-  read: ContractStorageRead,
-  contractAddress: AztecAddress,
-): PublicDataRead {
+function contractStorageReadToPublicDataRead(read: ContractStorageRead, contractAddress: AztecAddress): PublicDataRead {
   return new PublicDataRead(
-    computePublicDataTreeIndex(wasm, contractAddress, read.storageSlot),
-    computePublicDataTreeValue(wasm, read.currentValue),
+    computePublicDataTreeIndex(contractAddress, read.storageSlot),
+    computePublicDataTreeValue(read.currentValue),
     read.sideEffectCounter!,
   );
 }
 
 /**
  * Convert a Contract Storage Update Request to a Public Data Update Request.
- * @param wasm - A module providing low-level wasm access.
  * @param update - the contract storage update request to convert
  * @param contractAddress - the contract address of the data update request.
  * @returns The public data update request.
  */
 function contractStorageUpdateRequestToPublicDataUpdateRequest(
-  wasm: IWasmModule,
   update: ContractStorageUpdateRequest,
   contractAddress: AztecAddress,
 ): PublicDataUpdateRequest {
   return new PublicDataUpdateRequest(
-    computePublicDataTreeIndex(wasm, contractAddress, update.storageSlot),
-    computePublicDataTreeValue(wasm, update.oldValue),
-    computePublicDataTreeValue(wasm, update.newValue),
+    computePublicDataTreeIndex(contractAddress, update.storageSlot),
+    computePublicDataTreeValue(update.oldValue),
+    computePublicDataTreeValue(update.newValue),
     update.sideEffectCounter!,
   );
 }

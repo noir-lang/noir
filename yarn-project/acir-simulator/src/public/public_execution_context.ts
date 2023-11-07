@@ -93,7 +93,7 @@ export class PublicExecutionContext extends TypedOracle {
    * @param args - Arguments to pack
    */
   public packArguments(args: Fr[]): Promise<Fr> {
-    return this.packedArgsCache.pack(args);
+    return Promise.resolve(this.packedArgsCache.pack(args));
   }
 
   /**

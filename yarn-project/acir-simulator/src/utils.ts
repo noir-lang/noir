@@ -1,5 +1,6 @@
-import { CircuitsWasm, GrumpkinPrivateKey } from '@aztec/circuits.js';
-import { Grumpkin, pedersenHashInputs } from '@aztec/circuits.js/barretenberg';
+import { GrumpkinPrivateKey } from '@aztec/circuits.js';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 
 /**
@@ -19,16 +20,11 @@ export type NoirPoint = {
  * @param bbWasm - Wasm module for computing.
  * @returns The slot in the contract storage where the value is stored.
  */
-export function computeSlotForMapping(mappingSlot: Fr, owner: NoirPoint | Fr, bbWasm: CircuitsWasm) {
+export function computeSlotForMapping(mappingSlot: Fr, owner: NoirPoint | Fr) {
   const isFr = (owner: NoirPoint | Fr): owner is Fr => typeof (owner as Fr).value === 'bigint';
   const ownerField = isFr(owner) ? owner : new Fr(owner.x);
 
-  return Fr.fromBuffer(
-    pedersenHashInputs(
-      bbWasm,
-      [mappingSlot, ownerField].map(f => f.toBuffer()),
-    ),
-  );
+  return Fr.fromBuffer(pedersenHash([mappingSlot, ownerField].map(f => f.toBuffer())));
 }
 
 /**

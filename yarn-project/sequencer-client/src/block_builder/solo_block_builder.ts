@@ -4,7 +4,6 @@ import {
   BaseRollupInputs,
   CONTRACT_SUBTREE_HEIGHT,
   CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
-  CircuitsWasm,
   ConstantRollupData,
   GlobalVariables,
   HISTORIC_BLOCKS_TREE_HEIGHT,
@@ -132,10 +131,9 @@ export class SoloBlockBuilder implements BlockBuilder {
     } = circuitsOutput;
 
     // Collect all new nullifiers, commitments, and contracts from all txs in this block
-    const wasm = await CircuitsWasm.get();
     const newNullifiers = flatMap(txs, tx => tx.data.end.newNullifiers);
     const newCommitments = flatMap(txs, tx => tx.data.end.newCommitments);
-    const newContracts = flatMap(txs, tx => tx.data.end.newContracts).map(cd => computeContractLeaf(wasm, cd));
+    const newContracts = flatMap(txs, tx => tx.data.end.newContracts).map(cd => computeContractLeaf(cd));
     const newContractData = flatMap(txs, tx => tx.data.end.newContracts).map(
       n => new ContractData(n.contractAddress, n.portalContractAddress),
     );
@@ -313,7 +311,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     // Update the root trees with the latest data and contract tree roots,
     // and validate them against the output of the root circuit simulation
     this.debug(`Updating and validating root trees`);
-    const globalVariablesHash = computeGlobalsHash(await CircuitsWasm.get(), left[0].constants.globalVariables);
+    const globalVariablesHash = computeGlobalsHash(left[0].constants.globalVariables);
     await this.db.updateLatestGlobalVariablesHash(globalVariablesHash);
     await this.db.updateHistoricBlocksTree(globalVariablesHash);
 
@@ -341,9 +339,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       )
     ).map(r => r.root);
 
-    const wasm = await CircuitsWasm.get();
     const blockHash = computeBlockHashWithGlobals(
-      wasm,
       globals,
       noteHashTreeRoot,
       nullifierTreeRoot,
@@ -541,14 +537,11 @@ export class SoloBlockBuilder implements BlockBuilder {
     return new MembershipWitness(height, index, assertLength(path.toFieldArray(), height));
   }
 
-  protected async getHistoricTreesMembershipWitnessFor(tx: ProcessedTx) {
-    const wasm = await CircuitsWasm.get();
-
+  protected getHistoricTreesMembershipWitnessFor(tx: ProcessedTx) {
     const blockData = tx.data.constants.blockData;
     const { noteHashTreeRoot, nullifierTreeRoot, contractTreeRoot, l1ToL2MessagesTreeRoot, publicDataTreeRoot } =
       blockData;
     const blockHash = computeBlockHash(
-      wasm,
       blockData.globalVariablesHash,
       noteHashTreeRoot,
       nullifierTreeRoot,
@@ -648,8 +641,6 @@ export class SoloBlockBuilder implements BlockBuilder {
 
   // Builds the base rollup inputs, updating the contract, nullifier, and data trees in the process
   protected async buildBaseRollupInput(left: ProcessedTx, right: ProcessedTx, globalVariables: GlobalVariables) {
-    const wasm = await CircuitsWasm.get();
-
     // Get trees info before any changes hit
     const constants = await this.getConstantRollupData(globalVariables);
     const startNullifierTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
@@ -679,9 +670,7 @@ export class SoloBlockBuilder implements BlockBuilder {
 
     // Update the contract and note hash trees with the new items being inserted to get the new roots
     // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
-    const newContracts = flatMap([left, right], tx =>
-      tx.data.end.newContracts.map(cd => computeContractLeaf(wasm, cd)),
-    );
+    const newContracts = flatMap([left, right], tx => tx.data.end.newContracts.map(cd => computeContractLeaf(cd)));
     const newCommitments = flatMap([left, right], tx => tx.data.end.newCommitments.map(x => x.toBuffer()));
     await this.db.appendLeaves(
       MerkleTreeId.CONTRACT_TREE,

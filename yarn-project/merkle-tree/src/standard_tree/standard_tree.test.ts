@@ -1,6 +1,4 @@
-import { CircuitsWasm } from '@aztec/circuits.js';
 import { randomBytes } from '@aztec/foundation/crypto';
-import { IWasmModule } from '@aztec/foundation/wasm';
 import { Hasher } from '@aztec/types';
 
 import { default as levelup } from 'levelup';
@@ -26,12 +24,10 @@ treeTestSuite('StandardTree', createDb, createFromName);
 standardBasedTreeTestSuite('StandardTree', createDb);
 
 describe('StandardTree_batchAppend', () => {
-  let wasm: IWasmModule;
   let pedersen: PedersenWithCounter;
 
-  beforeAll(async () => {
-    wasm = await CircuitsWasm.get();
-    pedersen = new PedersenWithCounter(wasm);
+  beforeAll(() => {
+    pedersen = new PedersenWithCounter();
   });
 
   afterEach(() => {

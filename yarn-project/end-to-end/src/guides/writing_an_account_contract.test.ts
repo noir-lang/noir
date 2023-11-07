@@ -67,7 +67,7 @@ describe('guides/writing_an_account_contract', () => {
     logger(`Deployed token contract at ${token.address}`);
 
     const secret = Fr.random();
-    const secretHash = await computeMessageSecretHash(secret);
+    const secretHash = computeMessageSecretHash(secret);
 
     const mintAmount = 50n;
     const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();

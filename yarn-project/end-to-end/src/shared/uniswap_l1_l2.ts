@@ -156,8 +156,8 @@ export const uniswapL1L2TestSuite = (
       const wethL1BeforeBalance = await wethCrossChainHarness.getL1BalanceOf(ownerEthAddress);
 
       // 1. Approve and deposit weth to the portal and move to L2
-      const [secretForMintingWeth, secretHashForMintingWeth] = await wethCrossChainHarness.generateClaimSecret();
-      const [secretForRedeemingWeth, secretHashForRedeemingWeth] = await wethCrossChainHarness.generateClaimSecret();
+      const [secretForMintingWeth, secretHashForMintingWeth] = wethCrossChainHarness.generateClaimSecret();
+      const [secretForRedeemingWeth, secretHashForRedeemingWeth] = wethCrossChainHarness.generateClaimSecret();
 
       const messageKey = await wethCrossChainHarness.sendTokensToPortalPrivate(
         secretHashForRedeemingWeth,
@@ -200,7 +200,7 @@ export const uniswapL1L2TestSuite = (
       // 3. Owner gives uniswap approval to unshield funds to self on its behalf
       logger('Approving uniswap to unshield funds to self on my behalf');
       const nonceForWETHUnshieldApproval = new Fr(1n);
-      const unshieldToUniswapMessageHash = await computeAuthWitMessageHash(
+      const unshieldToUniswapMessageHash = computeAuthWitMessageHash(
         uniswapL2Contract.address,
         wethCrossChainHarness.l2Token.methods
           .unshield(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHUnshieldApproval)
@@ -211,8 +211,8 @@ export const uniswapL1L2TestSuite = (
       // 4. Swap on L1 - sends L2 to L1 message to withdraw WETH to L1 and another message to swap assets.
       logger('Withdrawing weth to L1 and sending message to swap to dai');
       const [secretForDepositingSwappedDai, secretHashForDepositingSwappedDai] =
-        await daiCrossChainHarness.generateClaimSecret();
-      const [secretForRedeemingDai, secretHashForRedeemingDai] = await daiCrossChainHarness.generateClaimSecret();
+        daiCrossChainHarness.generateClaimSecret();
+      const [secretForRedeemingDai, secretHashForRedeemingDai] = daiCrossChainHarness.generateClaimSecret();
 
       const withdrawReceipt = await uniswapL2Contract.methods
         .swap_private(
@@ -304,7 +304,7 @@ export const uniswapL1L2TestSuite = (
       const wethL1BeforeBalance = await wethCrossChainHarness.getL1BalanceOf(ownerEthAddress);
 
       // 1. Approve and deposit weth to the portal and move to L2
-      const [secretForMintingWeth, secretHashForMintingWeth] = await wethCrossChainHarness.generateClaimSecret();
+      const [secretForMintingWeth, secretHashForMintingWeth] = wethCrossChainHarness.generateClaimSecret();
 
       const messageKey = await wethCrossChainHarness.sendTokensToPortalPublic(
         wethAmountToBridge,
@@ -339,7 +339,7 @@ export const uniswapL1L2TestSuite = (
 
       // 3. Owner gives uniswap approval to transfer funds on its behalf
       const nonceForWETHTransferApproval = new Fr(1n);
-      const transferMessageHash = await computeAuthWitMessageHash(
+      const transferMessageHash = computeAuthWitMessageHash(
         uniswapL2Contract.address,
         wethCrossChainHarness.l2Token.methods
           .transfer_public(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHTransferApproval)
@@ -353,7 +353,7 @@ export const uniswapL1L2TestSuite = (
 
       // 4. Swap on L1 - sends L2 to L1 message to withdraw WETH to L1 and another message to swap assets.
       const [secretForDepositingSwappedDai, secretHashForDepositingSwappedDai] =
-        await daiCrossChainHarness.generateClaimSecret();
+        daiCrossChainHarness.generateClaimSecret();
 
       // 4.1 Owner approves user to swap on their behalf:
       const nonceForSwap = new Fr(3n);
@@ -374,7 +374,7 @@ export const uniswapL1L2TestSuite = (
           ownerEthAddress,
           nonceForSwap,
         );
-      const swapMessageHash = await computeAuthWitMessageHash(sponsorAddress, action.request());
+      const swapMessageHash = computeAuthWitMessageHash(sponsorAddress, action.request());
       await ownerWallet.setPublicAuth(swapMessageHash, true).send().wait();
 
       // 4.2 Call swap_public from user2 on behalf of owner
@@ -451,7 +451,7 @@ export const uniswapL1L2TestSuite = (
       // swap should fail since no withdraw approval to uniswap:
       const nonceForWETHUnshieldApproval = new Fr(2n);
 
-      const expectedMessageHash = await computeAuthWitMessageHash(
+      const expectedMessageHash = computeAuthWitMessageHash(
         uniswapL2Contract.address,
         wethCrossChainHarness.l2Token.methods
           .unshield(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHUnshieldApproval)
@@ -480,7 +480,7 @@ export const uniswapL1L2TestSuite = (
 
     it("can't swap if user passes a token different to what the bridge tracks", async () => {
       // 1. give user private funds on L2:
-      const [secretForRedeemingWeth, secretHashForRedeemingWeth] = await wethCrossChainHarness.generateClaimSecret();
+      const [secretForRedeemingWeth, secretHashForRedeemingWeth] = wethCrossChainHarness.generateClaimSecret();
       await wethCrossChainHarness.mintTokensPrivateOnL2(wethAmountToBridge, secretHashForRedeemingWeth);
       await wethCrossChainHarness.redeemShieldPrivatelyOnL2(wethAmountToBridge, secretForRedeemingWeth);
       await wethCrossChainHarness.expectPrivateBalanceOnL2(ownerAddress, wethAmountToBridge);
@@ -488,7 +488,7 @@ export const uniswapL1L2TestSuite = (
       // 2. owner gives uniswap approval to unshield funds:
       logger('Approving uniswap to unshield funds to self on my behalf');
       const nonceForWETHUnshieldApproval = new Fr(3n);
-      const unshieldToUniswapMessageHash = await computeAuthWitMessageHash(
+      const unshieldToUniswapMessageHash = computeAuthWitMessageHash(
         uniswapL2Contract.address,
         wethCrossChainHarness.l2Token.methods
           .unshield(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHUnshieldApproval)
@@ -526,7 +526,7 @@ export const uniswapL1L2TestSuite = (
 
       // 2. Give approval to uniswap to transfer funds to itself
       const nonceForWETHTransferApproval = new Fr(2n);
-      const transferMessageHash = await computeAuthWitMessageHash(
+      const transferMessageHash = computeAuthWitMessageHash(
         uniswapL2Contract.address,
         wethCrossChainHarness.l2Token.methods
           .transfer_public(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHTransferApproval)
@@ -535,7 +535,7 @@ export const uniswapL1L2TestSuite = (
       await ownerWallet.setPublicAuth(transferMessageHash, true).send().wait();
 
       // No approval to call `swap` but should work even without it:
-      const [_, secretHashForDepositingSwappedDai] = await daiCrossChainHarness.generateClaimSecret();
+      const [_, secretHashForDepositingSwappedDai] = daiCrossChainHarness.generateClaimSecret();
 
       const withdrawReceipt = await uniswapL2Contract.methods
         .swap_public(
@@ -584,7 +584,7 @@ export const uniswapL1L2TestSuite = (
           ownerEthAddress,
           nonceForSwap,
         );
-      const swapMessageHash = await computeAuthWitMessageHash(approvedUser, action.request());
+      const swapMessageHash = computeAuthWitMessageHash(approvedUser, action.request());
       await ownerWallet.setPublicAuth(swapMessageHash, true).send().wait();
 
       // Swap!
@@ -597,7 +597,7 @@ export const uniswapL1L2TestSuite = (
       // swap should fail since no transfer approval to uniswap:
       const nonceForWETHTransferApproval = new Fr(4n);
 
-      const transferMessageHash = await computeAuthWitMessageHash(
+      const transferMessageHash = computeAuthWitMessageHash(
         uniswapL2Contract.address,
         wethCrossChainHarness.l2Token.methods
           .transfer_public(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHTransferApproval)
@@ -629,7 +629,7 @@ export const uniswapL1L2TestSuite = (
     // tests when trying to mix private and public flows:
     it("can't call swap_public on L1 if called swap_private on L2", async () => {
       // get tokens on L2:
-      const [secretForRedeemingWeth, secretHashForRedeemingWeth] = await wethCrossChainHarness.generateClaimSecret();
+      const [secretForRedeemingWeth, secretHashForRedeemingWeth] = wethCrossChainHarness.generateClaimSecret();
       logger('minting weth on L2');
       await wethCrossChainHarness.mintTokensPrivateOnL2(wethAmountToBridge, secretHashForRedeemingWeth);
       await wethCrossChainHarness.redeemShieldPrivatelyOnL2(wethAmountToBridge, secretForRedeemingWeth);
@@ -638,7 +638,7 @@ export const uniswapL1L2TestSuite = (
       logger('Approving uniswap to unshield funds to self on my behalf');
       const nonceForWETHUnshieldApproval = new Fr(4n);
 
-      const unshieldToUniswapMessageHash = await computeAuthWitMessageHash(
+      const unshieldToUniswapMessageHash = computeAuthWitMessageHash(
         uniswapL2Contract.address,
         wethCrossChainHarness.l2Token.methods
           .unshield(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHUnshieldApproval)
@@ -699,7 +699,7 @@ export const uniswapL1L2TestSuite = (
 
       // Owner gives uniswap approval to transfer funds on its behalf
       const nonceForWETHTransferApproval = new Fr(5n);
-      const transferMessageHash = await computeAuthWitMessageHash(
+      const transferMessageHash = computeAuthWitMessageHash(
         uniswapL2Contract.address,
         wethCrossChainHarness.l2Token.methods
           .transfer_public(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHTransferApproval)

@@ -9,6 +9,11 @@ import { BarretenbergWasmBase } from '../barretenberg_wasm_base/index.js';
 
 const debug = createDebug('bb.js:wasm');
 
+/**
+ * This is the "main thread" implementation of BarretenbergWasm.
+ * It spawns a bunch of "child thread" implementations.
+ * In a browser context, this still runs on a worker, as it will block waiting on child threads.
+ */
 export class BarretenbergWasmMain extends BarretenbergWasmBase {
   static MAX_THREADS = 32;
   private workers: Worker[] = [];
@@ -102,4 +107,7 @@ export class BarretenbergWasmMain extends BarretenbergWasmBase {
   }
 }
 
+/**
+ * The comlink type that asyncifies the BarretenbergWasmMain api.
+ */
 export type BarretenbergWasmMainWorker = Remote<BarretenbergWasmMain>;

@@ -44,7 +44,7 @@ describe('e2e_public_to_private_messaging', () => {
     const bridgeAmount = 100n;
     const shieldAmount = 50n;
 
-    const [secret, secretHash] = await crossChainTestHarness.generateClaimSecret();
+    const [secret, secretHash] = crossChainTestHarness.generateClaimSecret();
 
     await crossChainTestHarness.mintTokensOnL1(l1TokenBalance);
     const messageKey = await crossChainTestHarness.sendTokensToPortalPublic(bridgeAmount, secretHash);

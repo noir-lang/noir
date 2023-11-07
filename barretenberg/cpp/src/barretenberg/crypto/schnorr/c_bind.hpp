@@ -39,7 +39,7 @@ WASM_EXPORT void schnorr_multisig_construct_signature_round_2(
 WASM_EXPORT void schnorr_multisig_combine_signatures(uint8_t const* message,
                                                      multisig::MultiSigPublicKey::vec_in_buf signer_pubkeys_buf,
                                                      multisig::RoundOnePublicOutput::vec_in_buf round_one_buf,
-                                                     fr::vec_in_buf round_two_buf,
+                                                     fq::vec_in_buf round_two_buf,
                                                      out_buf32 s,
                                                      out_buf32 e,
                                                      bool* success);

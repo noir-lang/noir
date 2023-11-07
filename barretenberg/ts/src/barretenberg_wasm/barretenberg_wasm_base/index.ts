@@ -4,6 +4,10 @@ import { killSelf } from '../helpers/index.js';
 
 const debug = createDebug('bb.js:wasm');
 
+/**
+ * Base implementation of BarretenbergWasm.
+ * Contains code that is common to the "main thread" implementation and the "child thread" implementation.
+ */
 export class BarretenbergWasmBase {
   protected memStore: { [key: string]: Uint8Array } = {};
   protected memory!: WebAssembly.Memory;

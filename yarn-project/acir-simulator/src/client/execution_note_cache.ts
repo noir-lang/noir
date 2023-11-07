@@ -1,4 +1,4 @@
-import { CircuitsWasm, EMPTY_NULLIFIED_COMMITMENT } from '@aztec/circuits.js';
+import { EMPTY_NULLIFIED_COMMITMENT } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/abis';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -41,9 +41,8 @@ export class ExecutionNoteCache {
    * @param innerNoteHash - Inner note hash of the note. If this value equals EMPTY_NULLIFIED_COMMITMENT, it means the
    * note being nullified is from a previous transaction (and thus not a new note).
    */
-  public async nullifyNote(contractAddress: AztecAddress, innerNullifier: Fr, innerNoteHash: Fr) {
-    const wasm = await CircuitsWasm.get();
-    const siloedNullifier = siloNullifier(wasm, contractAddress, innerNullifier);
+  public nullifyNote(contractAddress: AztecAddress, innerNullifier: Fr, innerNoteHash: Fr) {
+    const siloedNullifier = siloNullifier(contractAddress, innerNullifier);
     const nullifiers = this.getNullifiers(contractAddress);
     nullifiers.add(siloedNullifier.value);
     this.nullifiers.set(contractAddress.toBigInt(), nullifiers);

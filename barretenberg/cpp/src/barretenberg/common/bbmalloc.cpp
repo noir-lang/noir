@@ -1,6 +1,5 @@
-#include "./mem.hpp"
+#include "./bbmalloc.hpp"
 #include "./slab_allocator.hpp"
-#include "./wasm_export.hpp"
 
 WASM_EXPORT void* bbmalloc(size_t size)
 {

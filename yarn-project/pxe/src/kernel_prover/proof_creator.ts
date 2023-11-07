@@ -1,5 +1,4 @@
 import {
-  CircuitsWasm,
   KernelCircuitPublicInputs,
   KernelCircuitPublicInputsFinal,
   PrivateCircuitPublicInputs,
@@ -98,11 +97,10 @@ export interface ProofCreator {
 export class KernelProofCreator implements ProofCreator {
   constructor(private log = createDebugLogger('aztec:kernel_proof_creator')) {}
 
-  public async getSiloedCommitments(publicInputs: PrivateCircuitPublicInputs) {
-    const wasm = await CircuitsWasm.get();
+  public getSiloedCommitments(publicInputs: PrivateCircuitPublicInputs) {
     const contractAddress = publicInputs.callContext.storageContractAddress;
 
-    return publicInputs.newCommitments.map(commitment => siloCommitment(wasm, contractAddress, commitment));
+    return Promise.resolve(publicInputs.newCommitments.map(commitment => siloCommitment(contractAddress, commitment)));
   }
 
   public async createProofInit(privateInputs: PrivateKernelInputsInit): Promise<ProofOutput> {

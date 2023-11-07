@@ -19,7 +19,7 @@ export function createAccount(pxe: PXE): Promise<AccountWalletWithPrivateKey> {
  * @returns Complete address of the registered recipient.
  */
 export async function createRecipient(pxe: PXE): Promise<CompleteAddress> {
-  const completeAddress = await CompleteAddress.random();
+  const completeAddress = CompleteAddress.random();
   await pxe.registerRecipient(completeAddress);
   return completeAddress;
 }

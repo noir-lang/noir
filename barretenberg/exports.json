@@ -1,6 +1,6 @@
 [
   {
-    "functionName": "pedersen___commit",
+    "functionName": "pedersen_commit",
     "inArgs": [
       {
         "name": "inputs_buffer",
@@ -16,7 +16,7 @@
     "isAsync": false
   },
   {
-    "functionName": "pedersen_hash_with_hash_index",
+    "functionName": "pedersen_hash",
     "inArgs": [
       {
         "name": "inputs_buffer",
@@ -255,7 +255,7 @@
       },
       {
         "name": "round_two_buf",
-        "type": "fr::vec_in_buf"
+        "type": "fq::vec_in_buf"
       }
     ],
     "outArgs": [

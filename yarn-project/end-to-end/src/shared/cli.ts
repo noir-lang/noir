@@ -131,7 +131,7 @@ export const cliTestSuite = (
       expect(checkResult).toEqual(deployedContract?.contractAddress.toString());
 
       const secret = Fr.random();
-      const secretHash = await computeMessageSecretHash(secret);
+      const secretHash = computeMessageSecretHash(secret);
 
       debug('Mint initial tokens.');
       await run(

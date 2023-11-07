@@ -1,6 +1,6 @@
 // Convenience struct to hold an account's address and secret that can easily be passed around.
-import { AztecAddress, CheatCodes, CircuitsWasm, Fr } from '@aztec/aztec.js';
-import { pedersenHashInputs } from '@aztec/circuits.js/barretenberg';
+import { AztecAddress, CheatCodes, Fr } from '@aztec/aztec.js';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { LendingContract } from '@aztec/noir-contracts/types';
 
 import { TokenSimulator } from './token_simulator.js';
@@ -23,13 +23,8 @@ export class LendingAccount {
    * Computes the key for the private holdings of this account.
    * @returns Key in public space
    */
-  public async key(): Promise<Fr> {
-    return Fr.fromBuffer(
-      pedersenHashInputs(
-        await CircuitsWasm.get(),
-        [this.address, this.secret].map(f => f.toBuffer()),
-      ),
-    );
+  public key() {
+    return Fr.fromBuffer(pedersenHash([this.address, this.secret].map(f => f.toBuffer())));
   }
 }
 
@@ -174,7 +169,7 @@ export class LendingSimulator {
     expect(asset['interest_accumulator']).toEqual(this.accumulator);
     expect(asset['last_updated_ts']).toEqual(BigInt(this.time));
 
-    for (const key of [this.account.address, await this.account.key()]) {
+    for (const key of [this.account.address, this.account.key()]) {
       const privatePos = await this.lendingContract.methods.get_position(key).view();
       expect(new Fr(privatePos['collateral'])).toEqual(this.collateral[key.toString()] ?? Fr.ZERO);
       expect(new Fr(privatePos['static_debt'])).toEqual(this.staticDebt[key.toString()] ?? Fr.ZERO);

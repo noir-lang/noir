@@ -1,4 +1,4 @@
-import { CircuitsWasm, MAX_NEW_COMMITMENTS_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, PublicKey } from '@aztec/circuits.js';
+import { MAX_NEW_COMMITMENTS_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, PublicKey } from '@aztec/circuits.js';
 import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/foundation/fields';
@@ -196,7 +196,6 @@ export class NoteProcessor {
     { contractAddress, storageSlot, note }: L1NotePayload,
     excludedIndices: Set<number>,
   ) {
-    const wasm = await CircuitsWasm.get();
     let commitmentIndex = 0;
     let nonce: Fr | undefined;
     let innerNoteHash: Fr | undefined;
@@ -209,7 +208,7 @@ export class NoteProcessor {
       const commitment = commitments[commitmentIndex];
       if (commitment.equals(Fr.ZERO)) break;
 
-      const expectedNonce = computeCommitmentNonce(wasm, firstNullifier, commitmentIndex);
+      const expectedNonce = computeCommitmentNonce(firstNullifier, commitmentIndex);
       ({ innerNoteHash, siloedNoteHash, uniqueSiloedNoteHash, innerNullifier } =
         await this.simulator.computeNoteHashAndNullifier(contractAddress, expectedNonce, storageSlot, note));
       if (commitment.equals(uniqueSiloedNoteHash)) {
@@ -244,7 +243,7 @@ https://github.com/AztecProtocol/aztec-packages/issues/1641`;
       commitmentIndex,
       nonce,
       innerNoteHash: innerNoteHash!,
-      siloedNullifier: siloNullifier(wasm, contractAddress, innerNullifier!),
+      siloedNullifier: siloNullifier(contractAddress, innerNullifier!),
     };
   }
 

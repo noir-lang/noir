@@ -1,5 +1,3 @@
-import { CircuitsWasm } from '@aztec/circuits.js';
-import { IWasmModule } from '@aztec/foundation/wasm';
 import { Hasher, SiblingPath } from '@aztec/types';
 
 import { randomBytes } from 'crypto';
@@ -23,13 +21,11 @@ export const standardBasedTreeTestSuite = (
   ) => Promise<AppendOnlyTree | UpdateOnlyTree>,
 ) => {
   describe(testName, () => {
-    let wasm: IWasmModule;
     let pedersen: Pedersen;
     const values: Buffer[] = [];
 
-    beforeAll(async () => {
-      wasm = await CircuitsWasm.get();
-      pedersen = new Pedersen(wasm);
+    beforeAll(() => {
+      pedersen = new Pedersen();
 
       for (let i = 0; i < 4; ++i) {
         const v = Buffer.alloc(32, i + 1);

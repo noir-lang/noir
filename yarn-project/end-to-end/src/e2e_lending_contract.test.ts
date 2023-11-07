@@ -115,7 +115,7 @@ describe('e2e_lending_contract', () => {
       const mintAmount = 10000n;
       for (const asset of assets) {
         const secret = Fr.random();
-        const secretHash = await computeMessageSecretHash(secret);
+        const secretHash = computeMessageSecretHash(secret);
 
         const a = asset.methods.mint_public(lendingAccount.address, mintAmount).send();
         const b = asset.methods.mint_private(mintAmount, secretHash).send();
@@ -152,7 +152,7 @@ describe('e2e_lending_contract', () => {
     it('Depositing 🥸 : 💰 -> 🏦', async () => {
       const depositAmount = 420n;
       const nonce = Fr.random();
-      const messageHash = await computeAuthWitMessageHash(
+      const messageHash = computeAuthWitMessageHash(
         lendingContract.address,
         collateralAsset.methods
           .unshield(lendingAccount.address, lendingContract.address, depositAmount, nonce)
@@ -161,7 +161,7 @@ describe('e2e_lending_contract', () => {
 
       await wallet.createAuthWitness(Fr.fromBuffer(messageHash));
       await lendingSim.progressTime(TIME_JUMP);
-      lendingSim.depositPrivate(lendingAccount.address, await lendingAccount.key(), depositAmount);
+      lendingSim.depositPrivate(lendingAccount.address, lendingAccount.key(), depositAmount);
 
       // Make a private deposit of funds into own account.
       // This should:
@@ -186,7 +186,7 @@ describe('e2e_lending_contract', () => {
     it('Depositing 🥸 on behalf of recipient: 💰 -> 🏦', async () => {
       const depositAmount = 421n;
       const nonce = Fr.random();
-      const messageHash = await computeAuthWitMessageHash(
+      const messageHash = computeAuthWitMessageHash(
         lendingContract.address,
         collateralAsset.methods
           .unshield(lendingAccount.address, lendingContract.address, depositAmount, nonce)
@@ -220,7 +220,7 @@ describe('e2e_lending_contract', () => {
       const depositAmount = 211n;
 
       const nonce = Fr.random();
-      const messageHash = await computeAuthWitMessageHash(
+      const messageHash = computeAuthWitMessageHash(
         lendingContract.address,
         collateralAsset.methods
           .transfer_public(lendingAccount.address, lendingContract.address, depositAmount, nonce)
@@ -264,7 +264,7 @@ describe('e2e_lending_contract', () => {
     it('Borrow 🥸 : 🏦 -> 🍌', async () => {
       const borrowAmount = 69n;
       await lendingSim.progressTime(TIME_JUMP);
-      lendingSim.borrow(await lendingAccount.key(), lendingAccount.address, borrowAmount);
+      lendingSim.borrow(lendingAccount.key(), lendingAccount.address, borrowAmount);
 
       // Make a private borrow using the private account
       // This should:
@@ -298,14 +298,14 @@ describe('e2e_lending_contract', () => {
     it('Repay 🥸 : 🍌 -> 🏦', async () => {
       const repayAmount = 20n;
       const nonce = Fr.random();
-      const messageHash = await computeAuthWitMessageHash(
+      const messageHash = computeAuthWitMessageHash(
         lendingContract.address,
         stableCoin.methods.burn(lendingAccount.address, repayAmount, nonce).request(),
       );
       await wallet.createAuthWitness(Fr.fromBuffer(messageHash));
 
       await lendingSim.progressTime(TIME_JUMP);
-      lendingSim.repayPrivate(lendingAccount.address, await lendingAccount.key(), repayAmount);
+      lendingSim.repayPrivate(lendingAccount.address, lendingAccount.key(), repayAmount);
 
       // Make a private repay of the debt in the private account
       // This should:
@@ -324,7 +324,7 @@ describe('e2e_lending_contract', () => {
     it('Repay 🥸  on behalf of public: 🍌 -> 🏦', async () => {
       const repayAmount = 21n;
       const nonce = Fr.random();
-      const messageHash = await computeAuthWitMessageHash(
+      const messageHash = computeAuthWitMessageHash(
         lendingContract.address,
         stableCoin.methods.burn(lendingAccount.address, repayAmount, nonce).request(),
       );
@@ -351,7 +351,7 @@ describe('e2e_lending_contract', () => {
       const repayAmount = 20n;
 
       const nonce = Fr.random();
-      const messageHash = await computeAuthWitMessageHash(
+      const messageHash = computeAuthWitMessageHash(
         lendingContract.address,
         stableCoin.methods.burn_public(lendingAccount.address, repayAmount, nonce).request(),
       );
@@ -394,7 +394,7 @@ describe('e2e_lending_contract', () => {
     it('Withdraw 🥸 : 🏦 -> 💰', async () => {
       const withdrawAmount = 42n;
       await lendingSim.progressTime(TIME_JUMP);
-      lendingSim.withdraw(await lendingAccount.key(), lendingAccount.address, withdrawAmount);
+      lendingSim.withdraw(lendingAccount.key(), lendingAccount.address, withdrawAmount);
 
       // Withdraw funds from the private account
       // This should:

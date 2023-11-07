@@ -7,4 +7,4 @@ CPUS=$2
 shift 2
 
 export TAG_POSTFIX=$JOB_NAME
-cond_spot_run_script $REPOSITORY $CPUS cond_run_compose $REPOSITORY $@
+cond_spot_run_script $REPOSITORY $CPUS cond_run_compose $REPOSITORY $@ 2>&1 | add_timestamps

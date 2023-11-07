@@ -13,6 +13,7 @@ services:
     command: 'start'
     environment:
       DEBUG: 'aztec:*'
+      DEBUG_COLORS: 1
       P2P_TCP_LISTEN_PORT: 40400
       P2P_TCP_LISTEN_IP: '0.0.0.0'
       P2P_ANNOUNCE_HOSTNAME: 'p2p-bootstrap'
@@ -23,6 +24,7 @@ services:
     environment:
       BENCHMARK: true
       DEBUG: ${DEBUG:-'aztec:*'}
+      DEBUG_COLORS: 1
       ETHEREUM_HOST: http://fork:8545
       CHAIN_ID: 31337
       ARCHIVER_POLLING_INTERVAL: 500

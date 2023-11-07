@@ -1,8 +1,9 @@
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Point } from '@aztec/foundation/fields';
 import { PublicKey } from '@aztec/types';
 
-import { DeployMethod, Point } from '../index.js';
+import { DeployMethod } from '../contract_deployer/deploy_method.js';
 import { Wallet } from '../wallet/index.js';
 import { ContractBase } from './contract_base.js';
 

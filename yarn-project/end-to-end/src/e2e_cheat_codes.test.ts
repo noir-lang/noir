@@ -207,7 +207,7 @@ describe('e2e_cheat_codes', () => {
       // docs:start:load_private_cheatcode
       const mintAmount = 100n;
       const secret = Fr.random();
-      const secretHash = await computeMessageSecretHash(secret);
+      const secretHash = computeMessageSecretHash(secret);
       const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
 
       const note = new Note([new Fr(mintAmount), secretHash]);

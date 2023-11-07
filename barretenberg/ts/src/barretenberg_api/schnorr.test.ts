@@ -1,5 +1,5 @@
 import { TextEncoder } from 'util';
-import { Buffer128, Buffer32, Fr, Point } from '../types/index.js';
+import { Buffer128, Buffer32, Fq, Fr, Point } from '../types/index.js';
 import { Barretenberg } from '../barretenberg/index.js';
 import { asyncMap } from '../async_map/index.js';
 
@@ -48,7 +48,7 @@ describe('schnorr', () => {
   it('should create + verify multi signature', async () => {
     // set up multisig accounts
     const numSigners = 7;
-    const pks = [...Array(numSigners)].map(() => Fr.random());
+    const pks = [...Array(numSigners)].map(() => Fq.random());
     const pubKeys = await asyncMap(pks, pk => api.schnorrMultisigCreateMultisigPublicKey(pk));
 
     // round one
@@ -84,7 +84,7 @@ describe('schnorr', () => {
   });
 
   it('should identify invalid multi signature', async () => {
-    const pks = [...Array(3)].map(() => Fr.random());
+    const pks = [...Array(3)].map(() => Fq.random());
     const pubKeys = await asyncMap(pks, pk => api.schnorrMultisigCreateMultisigPublicKey(pk));
     const [combinedKey] = await api.schnorrMultisigValidateAndCombineSignerPubkeys(pubKeys);
 
@@ -95,7 +95,7 @@ describe('schnorr', () => {
   it('should not construct invalid multi signature', async () => {
     // set up multisig accounts
     const numSigners = 7;
-    const pks = [...Array(numSigners)].map(() => Fr.random());
+    const pks = [...Array(numSigners)].map(() => Fq.random());
     const pubKeys = await asyncMap(pks, pk => api.schnorrMultisigCreateMultisigPublicKey(pk));
 
     // round one
@@ -164,7 +164,7 @@ describe('schnorr', () => {
   });
 
   it('should not create combined key from public keys containing invalid key', async () => {
-    const pks = [...Array(5)].map(() => Fr.random());
+    const pks = [...Array(5)].map(() => Fq.random());
     const pubKeys = await asyncMap(pks, pk => api.schnorrMultisigCreateMultisigPublicKey(pk));
 
     // not a valid point

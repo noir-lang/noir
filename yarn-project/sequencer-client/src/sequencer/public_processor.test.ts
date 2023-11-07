@@ -175,7 +175,7 @@ describe('public_processor', () => {
 
     it('runs a tx with an enqueued public call with nested execution', async function () {
       const callRequest: PublicCallRequest = makePublicCallRequest(0x100);
-      const callStackItem = await callRequest.toPublicCallStackItem();
+      const callStackItem = callRequest.toPublicCallStackItem();
       const callStackHash = computeCallStackItemHash(wasm, callStackItem);
 
       const kernelOutput = makePrivateKernelPublicInputsFinal(0x10);

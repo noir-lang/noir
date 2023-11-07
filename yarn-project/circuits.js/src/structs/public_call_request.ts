@@ -1,7 +1,7 @@
 import { BufferReader } from '@aztec/foundation/serialize';
 
 import { computeVarArgsHash } from '../abis/abis.js';
-import { CircuitsWasm, FieldsOf } from '../index.js';
+import { FieldsOf } from '../index.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import {
   AztecAddress,
@@ -92,10 +92,10 @@ export class PublicCallRequest {
    * Creates a new PublicCallStackItem by populating with zeroes all fields related to result in the public circuit output.
    * @returns A PublicCallStackItem instance with the same contract address, function data, call context, and args.
    */
-  async toPublicCallStackItem(): Promise<PublicCallStackItem> {
+  toPublicCallStackItem() {
     const publicInputs = PublicCircuitPublicInputs.empty();
     publicInputs.callContext = this.callContext;
-    publicInputs.argsHash = await this.getArgsHash();
+    publicInputs.argsHash = this.getArgsHash();
     return new PublicCallStackItem(this.contractAddress, this.functionData, publicInputs, true);
   }
 
@@ -103,7 +103,7 @@ export class PublicCallRequest {
    * Returns the hash of the arguments for this request.
    * @returns Hash of the arguments for this request.
    */
-  async getArgsHash() {
-    return computeVarArgsHash(await CircuitsWasm.get(), this.args);
+  getArgsHash() {
+    return computeVarArgsHash(this.args);
   }
 }

@@ -72,6 +72,10 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
         pageLogger.error(err.toString());
       });
       await page.goto(`http://localhost:${PORT}/index.html`);
+      while (!(await page.evaluate(() => !!window.AztecJs))) {
+        pageLogger('Waiting for window.AztecJs...');
+        await AztecJs.sleep(1000);
+      }
     }, 120_000);
 
     afterAll(async () => {
@@ -199,7 +203,7 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
 
           const token = await Contract.at(receipt.contractAddress!, TokenContractArtifact, owner);
           const secret = Fr.random();
-          const secretHash = await computeMessageSecretHash(secret);
+          const secretHash = computeMessageSecretHash(secret);
           const mintPrivateReceipt = await token.methods.mint_private(initialBalance, secretHash).send().wait();
 
           const storageSlot = new Fr(5);

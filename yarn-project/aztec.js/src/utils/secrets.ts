@@ -1,4 +1,4 @@
-import { CircuitsWasm, Fr } from '@aztec/circuits.js';
+import { Fr } from '@aztec/circuits.js';
 import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
 
 /**
@@ -6,7 +6,6 @@ import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
  * @param secret - the secret to hash - secret could be generated however you want e.g. `Fr.random()`
  * @returns the hash
  */
-export async function computeMessageSecretHash(secret: Fr): Promise<Fr> {
-  const wasm = await CircuitsWasm.get();
-  return computeSecretMessageHash(wasm, secret);
+export function computeMessageSecretHash(secret: Fr) {
+  return computeSecretMessageHash(secret);
 }

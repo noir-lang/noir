@@ -78,6 +78,7 @@ yarn-project-base:
   dependencies:
     - circuits-wasm-linux-clang
     - l1-contracts
+    - bb.js
 
 yarn-project:
   buildDir: yarn-project

@@ -1,6 +1,5 @@
 import {
   AztecNode,
-  CircuitsWasm,
   DebugLogger,
   ExtendedNote,
   Fr,
@@ -47,7 +46,7 @@ describe('e2e_non_contract_account', () => {
     expect(receipt.status).toBe(TxStatus.MINED);
 
     const tx = await aztecNode!.getTx(receipt.txHash);
-    const expectedSiloedNullifier = siloNullifier(await CircuitsWasm.get(), contract.address, nullifier);
+    const expectedSiloedNullifier = siloNullifier(contract.address, nullifier);
     const siloedNullifier = tx!.newNullifiers[1];
 
     expect(siloedNullifier.equals(expectedSiloedNullifier)).toBeTruthy();

@@ -1,6 +1,6 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/common/test.hpp"
-#include "barretenberg/crypto/pedersen_commitment/c_bind_new.hpp"
+#include "barretenberg/crypto/pedersen_commitment/c_bind.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"

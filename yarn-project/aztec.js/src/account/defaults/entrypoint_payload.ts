@@ -1,6 +1,6 @@
-import { CircuitsWasm, Fr, GeneratorIndex } from '@aztec/circuits.js';
-import { pedersenHashWithHashIndex } from '@aztec/circuits.js/barretenberg';
+import { Fr, GeneratorIndex } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { FunctionCall, PackedArguments, emptyFunctionCall } from '@aztec/types';
 
 // These must match the values defined in yarn-project/aztec-nr/aztec/src/entrypoint.nr
@@ -32,18 +32,18 @@ export type EntrypointPayload = {
 };
 
 /** Assembles an entrypoint payload from a set of private and public function calls */
-export async function buildPayload(calls: FunctionCall[]): Promise<{
+export function buildPayload(calls: FunctionCall[]): {
   /** The payload for the entrypoint function */
   payload: EntrypointPayload;
   /** The packed arguments of functions called */
   packedArguments: PackedArguments[];
-}> {
+} {
   const nonce = Fr.random();
 
   const paddedCalls = padArrayEnd(calls, emptyFunctionCall(), ACCOUNT_MAX_CALLS);
   const packedArguments: PackedArguments[] = [];
   for (const call of paddedCalls) {
-    packedArguments.push(await PackedArguments.fromArgs(call.args));
+    packedArguments.push(PackedArguments.fromArgs(call.args));
   }
 
   const formattedCalls: EntrypointFunctionCall[] = paddedCalls.map((call, index) => ({
@@ -68,9 +68,8 @@ export async function buildPayload(calls: FunctionCall[]): Promise<{
 }
 
 /** Hashes an entrypoint payload to a 32-byte buffer (useful for signing) */
-export async function hashPayload(payload: EntrypointPayload) {
-  return pedersenHashWithHashIndex(
-    await CircuitsWasm.get(),
+export function hashPayload(payload: EntrypointPayload) {
+  return pedersenHash(
     flattenPayload(payload).map(fr => fr.toBuffer()),
     GeneratorIndex.SIGNATURE_PAYLOAD,
   );

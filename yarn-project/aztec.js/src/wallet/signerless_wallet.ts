@@ -1,4 +1,4 @@
-import { CircuitsWasm, Fr, TxContext } from '@aztec/circuits.js';
+import { Fr, TxContext } from '@aztec/circuits.js';
 import { AuthWitness, FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/types';
 
 import { CompleteAddress } from '../index.js';
@@ -13,8 +13,7 @@ export class SignerlessWallet extends BaseWallet {
       throw new Error(`Unexpected number of executions. Expected 1 but received ${executions.length}).`);
     }
     const [execution] = executions;
-    const wasm = await CircuitsWasm.get();
-    const packedArguments = await PackedArguments.fromArgs(execution.args, wasm);
+    const packedArguments = PackedArguments.fromArgs(execution.args);
     const { chainId, protocolVersion } = await this.pxe.getNodeInfo();
     const txContext = TxContext.empty(chainId, protocolVersion);
     return Promise.resolve(

@@ -201,7 +201,7 @@ export class PublicProcessor {
       }
       // HACK(#1622): Manually patches the ordering of public state actions
       // TODO(#757): Enforce proper ordering of public state actions
-      await this.patchPublicStorageActionOrdering(kernelOutput, enqueuedExecutionResult!);
+      this.patchPublicStorageActionOrdering(kernelOutput, enqueuedExecutionResult!);
     }
 
     return [kernelOutput, kernelProof, newUnencryptedFunctionLogs];
@@ -262,7 +262,7 @@ export class PublicProcessor {
     return PublicCircuitPublicInputs.from({
       callContext: result.execution.callContext,
       proverAddress: AztecAddress.ZERO,
-      argsHash: await computeVarArgsHash(wasm, result.execution.args),
+      argsHash: computeVarArgsHash(result.execution.args),
       newCommitments: padArrayEnd(result.newCommitments, Fr.ZERO, MAX_NEW_COMMITMENTS_PER_CALL),
       newNullifiers: padArrayEnd(result.newNullifiers, Fr.ZERO, MAX_NEW_NULLIFIERS_PER_CALL),
       newL2ToL1Msgs: padArrayEnd(result.newL2ToL1Messages, Fr.ZERO, MAX_NEW_L2_TO_L1_MSGS_PER_CALL),
@@ -345,14 +345,10 @@ export class PublicProcessor {
    * @param publicInputs - to be patched here: public inputs to the kernel iteration up to this point
    * @param execResult - result of the top/first execution for this enqueued public call
    */
-  private async patchPublicStorageActionOrdering(
-    publicInputs: KernelCircuitPublicInputs,
-    execResult: PublicExecutionResult,
-  ) {
+  private patchPublicStorageActionOrdering(publicInputs: KernelCircuitPublicInputs, execResult: PublicExecutionResult) {
     // Convert ContractStorage* objects to PublicData* objects and sort them in execution order
-    const wasm = await CircuitsWasm.get();
-    const simPublicDataReads = collectPublicDataReads(wasm, execResult);
-    const simPublicDataUpdateRequests = collectPublicDataUpdateRequests(wasm, execResult);
+    const simPublicDataReads = collectPublicDataReads(execResult);
+    const simPublicDataUpdateRequests = collectPublicDataUpdateRequests(execResult);
 
     const { publicDataReads, publicDataUpdateRequests } = publicInputs.end; // from kernel
 

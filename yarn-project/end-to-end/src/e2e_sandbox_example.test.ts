@@ -69,7 +69,7 @@ describe('e2e_sandbox_example', () => {
 
     // Create a secret and a corresponding hash that will be used to mint funds privately
     const aliceSecret = Fr.random();
-    const aliceSecretHash = await computeMessageSecretHash(aliceSecret);
+    const aliceSecretHash = computeMessageSecretHash(aliceSecret);
 
     logger(`Minting tokens to Alice...`);
     // Mint the initial supply privately "to secret hash"
@@ -136,7 +136,7 @@ describe('e2e_sandbox_example', () => {
     await tokenContractAlice.methods.set_minter(bob, true).send().wait();
 
     const bobSecret = Fr.random();
-    const bobSecretHash = await computeMessageSecretHash(bobSecret);
+    const bobSecretHash = computeMessageSecretHash(bobSecret);
     // Bob now has a secret 🥷
 
     const mintQuantity = 10_000n;

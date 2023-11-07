@@ -1,7 +1,6 @@
 import {
   AppendOnlyTreeSnapshot,
   BaseOrMergeRollupPublicInputs,
-  CircuitsWasm,
   Fr,
   GlobalVariables,
   KernelCircuitPublicInputs,
@@ -80,18 +79,12 @@ describe('sequencer/solo_block_builder', () => {
   let rootRollupOutput: RootRollupPublicInputs;
   let mockL1ToL2Messages: Fr[];
 
-  let wasm: CircuitsWasm;
-
   let globalVariables: GlobalVariables;
 
   const emptyProof = new Proof(Buffer.alloc(32, 0));
 
   const chainId = Fr.ZERO;
   const version = Fr.ZERO;
-
-  beforeAll(async () => {
-    wasm = await CircuitsWasm.get();
-  });
 
   beforeEach(async () => {
     blockNumber = 3;
@@ -128,7 +121,7 @@ describe('sequencer/solo_block_builder', () => {
 
   // Updates the expectedDb trees based on the new commitments, contracts, and nullifiers from these txs
   const updateExpectedTreesFromTxs = async (txs: ProcessedTx[]) => {
-    const newContracts = flatMap(txs, tx => tx.data.end.newContracts.map(n => computeContractLeaf(wasm, n)));
+    const newContracts = flatMap(txs, tx => tx.data.end.newContracts.map(n => computeContractLeaf(n)));
     for (const [tree, leaves] of [
       [MerkleTreeId.NOTE_HASH_TREE, flatMap(txs, tx => tx.data.end.newCommitments.map(l => l.toBuffer()))],
       [MerkleTreeId.CONTRACT_TREE, newContracts.map(x => x.toBuffer())],
@@ -152,7 +145,6 @@ describe('sequencer/solo_block_builder', () => {
 
   const updateHistoricBlocksTree = async () => {
     const blockHash = computeBlockHashWithGlobals(
-      wasm,
       globalVariables,
       rootRollupOutput.endNoteHashTreeSnapshot.root,
       rootRollupOutput.endNullifierTreeSnapshot.root,
@@ -219,7 +211,7 @@ describe('sequencer/solo_block_builder', () => {
 
     const newNullifiers = flatMap(txs, tx => tx.data.end.newNullifiers);
     const newCommitments = flatMap(txs, tx => tx.data.end.newCommitments);
-    const newContracts = flatMap(txs, tx => tx.data.end.newContracts).map(cd => computeContractLeaf(wasm, cd));
+    const newContracts = flatMap(txs, tx => tx.data.end.newContracts).map(cd => computeContractLeaf(cd));
     const newContractData = flatMap(txs, tx => tx.data.end.newContracts).map(
       n => new ContractData(n.contractAddress, n.portalContractAddress),
     );

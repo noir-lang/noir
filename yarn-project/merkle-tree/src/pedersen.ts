@@ -1,5 +1,4 @@
-import { pedersenHash, pedersenHashInputs } from '@aztec/circuits.js/barretenberg';
-import { IWasmModule } from '@aztec/foundation/wasm';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { Hasher } from '@aztec/types';
 
 /**
@@ -8,14 +7,12 @@ import { Hasher } from '@aztec/types';
  * purposes.
  */
 export class Pedersen implements Hasher {
-  constructor(private wasm: IWasmModule) {}
-
   /*
    * @deprecated Don't call pedersen directly in production code. Instead, create suitably-named functions for specific
    * purposes.
    */
   public hash(lhs: Uint8Array, rhs: Uint8Array): Buffer {
-    return pedersenHash(this.wasm, lhs, rhs);
+    return pedersenHash([Buffer.from(lhs), Buffer.from(rhs)]);
   }
 
   /*
@@ -23,6 +20,6 @@ export class Pedersen implements Hasher {
    * purposes.
    */
   public hashInputs(inputs: Buffer[]): Buffer {
-    return pedersenHashInputs(this.wasm, inputs);
+    return pedersenHash(inputs);
   }
 }

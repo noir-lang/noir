@@ -1,5 +1,3 @@
-import { CircuitsWasm } from '@aztec/circuits.js';
-import { IWasmModule } from '@aztec/foundation/wasm';
 import { Hasher, SiblingPath } from '@aztec/types';
 
 import { default as levelup } from 'levelup';
@@ -38,7 +36,6 @@ export const treeTestSuite = (
 ) => {
   describe(testName, () => {
     const values: Buffer[] = [];
-    let wasm: IWasmModule;
     let pedersen: Pedersen;
 
     beforeAll(() => {
@@ -49,9 +46,8 @@ export const treeTestSuite = (
       }
     });
 
-    beforeEach(async () => {
-      wasm = await CircuitsWasm.get();
-      pedersen = new Pedersen(wasm);
+    beforeEach(() => {
+      pedersen = new Pedersen();
     });
 
     it('should revert changes on rollback', async () => {

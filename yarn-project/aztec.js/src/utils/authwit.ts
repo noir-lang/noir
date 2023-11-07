@@ -1,5 +1,5 @@
-import { AztecAddress, CircuitsWasm, GeneratorIndex } from '@aztec/circuits.js';
-import { pedersenHashWithHashIndex } from '@aztec/circuits.js/barretenberg';
+import { AztecAddress, GeneratorIndex } from '@aztec/circuits.js';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { FunctionCall, PackedArguments } from '@aztec/types';
 
 // docs:start:authwit_computeAuthWitMessageHash
@@ -10,15 +10,13 @@ import { FunctionCall, PackedArguments } from '@aztec/types';
  * @param request - The request to be made (function call)
  * @returns The message hash for the witness
  */
-export const computeAuthWitMessageHash = async (caller: AztecAddress, request: FunctionCall) => {
-  const wasm = await CircuitsWasm.get();
-  return pedersenHashWithHashIndex(
-    wasm,
+export const computeAuthWitMessageHash = (caller: AztecAddress, request: FunctionCall) => {
+  return pedersenHash(
     [
       caller.toField(),
       request.to.toField(),
       request.functionData.selector.toField(),
-      (await PackedArguments.fromArgs(request.args, wasm)).hash,
+      PackedArguments.fromArgs(request.args).hash,
     ].map(fr => fr.toBuffer()),
     GeneratorIndex.SIGNATURE_PAYLOAD,
   );

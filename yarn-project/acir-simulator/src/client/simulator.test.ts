@@ -1,8 +1,8 @@
-import { CircuitsWasm, CompleteAddress } from '@aztec/circuits.js';
+import { CompleteAddress } from '@aztec/circuits.js';
 import { computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/abis';
-import { pedersenHashInputs } from '@aztec/circuits.js/barretenberg';
 import { ABIParameterVisibility } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { TokenContractArtifact } from '@aztec/noir-contracts/artifacts';
 import { Note } from '@aztec/types';
@@ -16,22 +16,13 @@ import { AcirSimulator } from './simulator.js';
 describe('Simulator', () => {
   let oracle: MockProxy<DBOracle>;
   let simulator: AcirSimulator;
-  let circuitsWasm: CircuitsWasm;
   let ownerCompleteAddress: CompleteAddress;
   let owner: AztecAddress;
   const ownerPk = GrumpkinScalar.fromString('2dcc5485a58316776299be08c78fa3788a1a7961ae30dc747fb1be17692a8d32');
 
-  const hashFields = (data: Fr[]) =>
-    Fr.fromBuffer(
-      pedersenHashInputs(
-        circuitsWasm,
-        data.map(f => f.toBuffer()),
-      ),
-    );
+  const hashFields = (data: Fr[]) => Fr.fromBuffer(pedersenHash(data.map(f => f.toBuffer())));
 
   beforeAll(async () => {
-    circuitsWasm = await CircuitsWasm.get();
-
     ownerCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
     owner = ownerCompleteAddress.address;
   });
@@ -58,8 +49,8 @@ describe('Simulator', () => {
       const note = createNote();
       const valueNoteHash = hashFields(note.items);
       const innerNoteHash = hashFields([storageSlot, valueNoteHash]);
-      const siloedNoteHash = siloCommitment(circuitsWasm, contractAddress, innerNoteHash);
-      const uniqueSiloedNoteHash = computeUniqueCommitment(circuitsWasm, nonce, siloedNoteHash);
+      const siloedNoteHash = siloCommitment(contractAddress, innerNoteHash);
+      const uniqueSiloedNoteHash = computeUniqueCommitment(nonce, siloedNoteHash);
       const innerNullifier = hashFields([uniqueSiloedNoteHash, ownerPk.low, ownerPk.high]);
 
       const result = await simulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, note);

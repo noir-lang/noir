@@ -1,6 +1,5 @@
 import {
   CallContext,
-  CircuitsWasm,
   ContractDeploymentData,
   FunctionData,
   FunctionSelector,
@@ -172,7 +171,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param args - Arguments to pack
    */
   public packArguments(args: Fr[]): Promise<Fr> {
-    return this.packedArgsCache.pack(args);
+    return Promise.resolve(this.packedArgsCache.pack(args));
   }
 
   /**
@@ -223,11 +222,10 @@ export class ClientExecutionContext extends ViewDataOracle {
         .join(', ')}`,
     );
 
-    const wasm = await CircuitsWasm.get();
     notes.forEach(n => {
       if (n.index !== undefined) {
-        const siloedNoteHash = siloCommitment(wasm, n.contractAddress, n.innerNoteHash);
-        const uniqueSiloedNoteHash = computeUniqueCommitment(wasm, n.nonce, siloedNoteHash);
+        const siloedNoteHash = siloCommitment(n.contractAddress, n.innerNoteHash);
+        const uniqueSiloedNoteHash = computeUniqueCommitment(n.nonce, siloedNoteHash);
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
         // Should always be uniqueSiloedNoteHash when publicly created notes include nonces.
         const noteHashForReadRequest = n.nonce.isZero() ? siloedNoteHash : uniqueSiloedNoteHash;
@@ -269,8 +267,9 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param innerNullifier - The pending nullifier to add in the list (not yet siloed by contract address).
    * @param innerNoteHash - The inner note hash of the new note.
    */
-  public async notifyNullifiedNote(innerNullifier: Fr, innerNoteHash: Fr) {
-    await this.noteCache.nullifyNote(this.contractAddress, innerNullifier, innerNoteHash);
+  public notifyNullifiedNote(innerNullifier: Fr, innerNoteHash: Fr) {
+    this.noteCache.nullifyNote(this.contractAddress, innerNullifier, innerNoteHash);
+    return Promise.resolve();
   }
 
   /**

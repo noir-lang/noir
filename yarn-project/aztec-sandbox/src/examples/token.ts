@@ -52,7 +52,7 @@ async function main() {
 
   // Create a secret and a corresponding hash that will be used to mint funds privately
   const aliceSecret = Fr.random();
-  const aliceSecretHash = await computeMessageSecretHash(aliceSecret);
+  const aliceSecretHash = computeMessageSecretHash(aliceSecret);
   const receipt = await tokenAlice.methods.mint_private(ALICE_MINT_BALANCE, aliceSecretHash).send().wait();
 
   // Add the newly created "pending shield" note to PXE

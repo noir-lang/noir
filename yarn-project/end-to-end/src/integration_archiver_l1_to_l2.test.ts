@@ -78,7 +78,7 @@ describe('archiver integration with l1 to l2 messages', () => {
     // Generate a claim secret using pedersen
     logger("Generating a claim secret using pedersen's hash function");
     const secret = Fr.random();
-    const secretHash = await computeMessageSecretHash(secret);
+    const secretHash = computeMessageSecretHash(secret);
     const secretString = `0x${secretHash.toBuffer().toString('hex')}` as `0x${string}`;
     logger('Generated claim secret: ' + secretString);
 

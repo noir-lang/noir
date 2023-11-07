@@ -33,13 +33,6 @@ def process_files(files: List[str]) -> List[dict]:
     idx = clang.cindex.Index.create()
     for path in files:
         tu = idx.parse(path, args=[
-            '-isystem', '/usr/include/c++/10',
-            '-isystem', '/usr/include/x86_64-linux-gnu/c++/10',
-            '-isystem', '/usr/include/c++/10/backward',
-            '-isystem', '/usr/lib/llvm-15/lib/clang/15.0.7/include',
-            '-isystem', '/usr/local/include',
-            '-isystem', '/usr/include/x86_64-linux-gnu',
-            '-isystem', '/usr/include',
             "-I./cpp/src",
             '-std=gnu++20', '-Wall', '-Wextra'])
         for diag in tu.diagnostics:

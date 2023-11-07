@@ -47,9 +47,9 @@ export const randomContractArtifact = (): ContractArtifact => ({
   events: [],
 });
 
-export const randomDeployedContract = async (): Promise<DeployedContract> => ({
+export const randomDeployedContract = (): DeployedContract => ({
   artifact: randomContractArtifact(),
-  completeAddress: await CompleteAddress.random(),
+  completeAddress: CompleteAddress.random(),
   portalContract: EthAddress.random(),
 });
 

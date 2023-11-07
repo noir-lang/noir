@@ -11,6 +11,7 @@ set -eu
 CONTENT_HASH=$1
 CPUS=$2
 shift 2
+IP=
 
 # On any sort of exit (error or not).
 function on_exit {
@@ -38,5 +39,5 @@ if [ -z "$IP" ]; then
     exit 1
 fi
 
-# Run script remotely on spot instance, capturing success or failure.
+# Run script remotely on spot instance, returning success or failure.
 remote_run_script $IP $@

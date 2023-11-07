@@ -1,4 +1,4 @@
-import { CircuitsWasm, HistoricBlockData, PublicKey } from '@aztec/circuits.js';
+import { HistoricBlockData, PublicKey } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/abis';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -99,8 +99,7 @@ export class ViewDataOracle extends TypedOracle {
    * @returns A boolean indicating whether the nullifier exists in the tree or not.
    */
   public async checkNullifierExists(innerNullifier: Fr) {
-    const wasm = await CircuitsWasm.get();
-    const nullifier = siloNullifier(wasm, this.contractAddress, innerNullifier!);
+    const nullifier = siloNullifier(this.contractAddress, innerNullifier!);
     const index = await this.db.getNullifierIndex(nullifier);
     return index !== undefined;
   }

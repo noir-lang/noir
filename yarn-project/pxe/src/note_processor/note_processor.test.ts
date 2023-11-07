@@ -1,6 +1,7 @@
 import { AcirSimulator } from '@aztec/acir-simulator';
 import { CircuitsWasm, Fr, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
-import { Grumpkin, pedersenHashInputs } from '@aztec/circuits.js/barretenberg';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
 import { ConstantKeyPair } from '@aztec/key-store';
 import {
@@ -40,13 +41,7 @@ describe('Note Processor', () => {
   const numCommitmentsPerBlock = TXS_PER_BLOCK * MAX_NEW_COMMITMENTS_PER_TX;
   const firstBlockDataStartIndex = (firstBlockNum - 1) * numCommitmentsPerBlock;
 
-  const computeMockNoteHash = (note: Note) =>
-    Fr.fromBuffer(
-      pedersenHashInputs(
-        wasm,
-        note.items.map(i => i.toBuffer()),
-      ),
-    );
+  const computeMockNoteHash = (note: Note) => Fr.fromBuffer(pedersenHash(note.items.map(i => i.toBuffer())));
 
   // ownedData: [tx1, tx2, ...], the numbers in each tx represents the indices of the note hashes the account owns.
   const createEncryptedLogsAndOwnedL1NotePayloads = (ownedData: number[][], ownedNotes: L1NotePayload[]) => {

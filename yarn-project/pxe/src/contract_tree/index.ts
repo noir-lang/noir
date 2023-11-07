@@ -87,14 +87,14 @@ export class ContractTree {
       ...f,
       selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
     }));
-    const leaves = generateFunctionLeaves(functions, wasm);
+    const leaves = generateFunctionLeaves(functions);
     const root = computeFunctionTreeRoot(wasm, leaves);
     const functionData = FunctionData.fromAbi(constructorArtifact);
     const vkHash = hashVKStr(constructorArtifact.verificationKey, wasm);
-    const argsHash = await computeVarArgsHash(wasm, args);
-    const constructorHash = hashConstructor(wasm, functionData, argsHash, vkHash);
+    const argsHash = computeVarArgsHash(args);
+    const constructorHash = hashConstructor(functionData, argsHash, vkHash);
 
-    const completeAddress = computeCompleteAddress(wasm, from, contractAddressSalt, root, constructorHash);
+    const completeAddress = computeCompleteAddress(from, contractAddressSalt, root, constructorHash);
 
     const contractDao: ContractDao = {
       ...artifact,
@@ -218,7 +218,7 @@ export class ContractTree {
    */
   private getFunctionLeaves() {
     if (!this.functionLeaves) {
-      this.functionLeaves = generateFunctionLeaves(this.contract.functions, this.wasm);
+      this.functionLeaves = generateFunctionLeaves(this.contract.functions);
     }
     return this.functionLeaves;
   }
@@ -228,7 +228,7 @@ export class ContractTree {
       const { completeAddress, portalContract } = this.contract;
       const root = await this.getFunctionTreeRoot();
       const newContractData = new NewContractData(completeAddress.address, portalContract, root);
-      const commitment = computeContractLeaf(this.wasm, newContractData);
+      const commitment = computeContractLeaf(newContractData);
       this.contractIndex = await this.stateInfoProvider.findLeafIndex(MerkleTreeId.CONTRACT_TREE, commitment);
       if (this.contractIndex === undefined) {
         throw new Error(

@@ -42,12 +42,21 @@
 #
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/circuits-wasm-linux-clang as circuits
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/l1-contracts as contracts
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/bb.js as bb.js
 
 FROM node:18-alpine
 RUN apk update && apk add --no-cache bash jq curl
 
-WORKDIR /usr/src/yarn-project
+# Bring in circuits wasms.
+COPY --from=circuits /usr/src/circuits/cpp/build-wasm/bin /usr/src/circuits/cpp/build-wasm/bin
+# Copy ignition download script.
+COPY --from=circuits /usr/src/barretenberg/cpp/srs_db/download_ignition.sh /usr/src/barretenberg/cpp/srs_db/download_ignition.sh
+# Copy L1 contracts.
+COPY --from=contracts /usr/src/l1-contracts /usr/src/l1-contracts
+# Copy in bb.js
+COPY --from=bb.js /usr/src/barretenberg/ts /usr/src/barretenberg/ts
 
+WORKDIR /usr/src/yarn-project
 # The dockerignore file ensures the context only contains package.json and tsconfig.json files.
 COPY . .
 
@@ -67,13 +76,5 @@ RUN echo "enableNetwork: false" >> .yarnrc.yml
 # Check package.json inheritance and tsconfig project references.
 RUN yarn prepare:check
 
-# Bring in circuits wasms.
-COPY --from=circuits /usr/src/circuits/cpp/build-wasm/bin /usr/src/circuits/cpp/build-wasm/bin
-
-# Copy ignition download script.
-COPY --from=circuits /usr/src/barretenberg/cpp/srs_db/download_ignition.sh /usr/src/barretenberg/cpp/srs_db/download_ignition.sh
-
-# Copy L1 contracts.
-COPY --from=contracts /usr/src/l1-contracts /usr/src/l1-contracts
 # Generate L1 contract TypeScript artifacts.
 RUN cd l1-artifacts && ./scripts/generate-artifacts.sh
