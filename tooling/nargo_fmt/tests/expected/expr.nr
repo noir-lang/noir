@@ -100,10 +100,11 @@ fn parenthesized() {
 }
 
 fn parenthesized() {
-    value + (
-        // line
-        x as Field
-    )
+    value
+        + (
+            // line
+            x as Field
+        )
 }
 
 fn constructor() {

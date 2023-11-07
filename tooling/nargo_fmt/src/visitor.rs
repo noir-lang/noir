@@ -10,10 +10,10 @@ use crate::{
 };
 
 pub(crate) struct FmtVisitor<'me> {
-    config: &'me Config,
+    pub(crate) config: &'me Config,
     buffer: String,
     pub(crate) source: &'me str,
-    indent: Indent,
+    pub(crate) indent: Indent,
     last_position: u32,
 }
 
@@ -245,37 +245,37 @@ impl<'me> FmtVisitor<'me> {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-struct Indent {
+pub(crate) struct Indent {
     block_indent: usize,
 }
 
 impl Indent {
-    fn width(&self) -> usize {
+    pub(crate) fn width(&self) -> usize {
         self.block_indent
     }
 
-    fn block_indent(&mut self, config: &Config) {
+    pub(crate) fn block_indent(&mut self, config: &Config) {
         self.block_indent += config.tab_spaces;
     }
 
-    fn block_unindent(&mut self, config: &Config) {
+    pub(crate) fn block_unindent(&mut self, config: &Config) {
         self.block_indent -= config.tab_spaces;
     }
 
-    fn to_string_with_newline(self) -> String {
+    pub(crate) fn to_string_with_newline(self) -> String {
         "\n".to_string() + &self.to_string()
     }
 
     #[allow(clippy::inherent_to_string)]
-    fn to_string(self) -> String {
+    pub(crate) fn to_string(self) -> String {
         " ".repeat(self.block_indent)
     }
 }
 
 #[derive(Clone, Copy, Debug)]
-struct Shape {
-    width: usize,
-    indent: Indent,
+pub(crate) struct Shape {
+    pub(crate) width: usize,
+    pub(crate) indent: Indent,
 }
 
 #[derive(PartialEq, Eq, Debug)]

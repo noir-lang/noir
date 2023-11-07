@@ -236,3 +236,11 @@ impl Item for (Ident, Expression) {
         }
     }
 }
+
+pub(crate) fn first_line_width(exprs: &String) -> usize {
+    exprs.lines().next().map_or(0, |line: &str| line.chars().count())
+}
+
+pub(crate) fn is_single_line(s: &str) -> bool {
+    !s.chars().any(|c| c == '\n')
+}

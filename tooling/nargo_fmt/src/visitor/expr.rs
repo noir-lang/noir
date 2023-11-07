@@ -6,7 +6,8 @@ use noirc_frontend::{
 
 use super::{ExpressionType, FmtVisitor, Indent, Shape};
 use crate::{
-    utils::{self, Expr, FindToken, Item},
+    rewrite,
+    utils::{self, first_line_width, Expr, FindToken, Item},
     Config,
 };
 
@@ -52,13 +53,33 @@ impl FmtVisitor<'_> {
             ExpressionKind::Cast(cast) => {
                 format!("{} as {}", self.format_sub_expr(cast.lhs), cast.r#type)
             }
-            ExpressionKind::Infix(infix) => {
-                format!(
-                    "{} {} {}",
-                    self.format_sub_expr(infix.lhs),
-                    infix.operator.contents.as_string(),
-                    self.format_sub_expr(infix.rhs)
-                )
+            kind @ ExpressionKind::Infix(_) => {
+                let shape = self.shape();
+                rewrite::infix(self.fork(), Expression { kind, span }, shape)
+
+                // let mut visitor = self.fork();
+                // visitor.indent.block_indent(self.config);
+
+                // let indent_str = visitor.indent.to_string_with_newline();
+
+                // let node = Expression { kind, span };
+
+                // if let Some((exprs, separators)) = flattern::flatten(self.fork(), &node) {
+                //     todo!()
+                // } else {
+                //     let infix = if let ExpressionKind::Infix(infix) = node.kind {
+                //         infix
+                //     } else {
+                //         unreachable!()
+                //     };
+
+                //     format!(
+                //         "{} {} {}",
+                //         self.format_sub_expr(infix.lhs),
+                //         infix.operator.contents.as_string(),
+                //         self.format_sub_expr(infix.rhs)
+                //     )
+                // }
             }
             ExpressionKind::Call(call_expr) => {
                 let args_span =
@@ -493,7 +514,7 @@ fn wrap_exprs(
     nested_shape: Shape,
     shape: Shape,
 ) -> String {
-    let first_line_width = exprs.lines().next().map_or(0, |line| line.chars().count());
+    let first_line_width = first_line_width(&exprs);
 
     if first_line_width <= shape.width {
         let allow_trailing_newline = exprs
