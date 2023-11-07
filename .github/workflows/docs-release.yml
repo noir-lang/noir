@@ -2,6 +2,7 @@ name: Rebuild docs with the latest release
 
 on:
   release:
+    types: [released]
 
 jobs:
   build_and_deploy:
