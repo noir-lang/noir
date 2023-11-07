@@ -6,11 +6,13 @@ import {
   EthAddress,
   ExtendedNote,
   Fr,
+  GrumpkinScalar,
   Note,
   PXE,
   TxStatus,
   Wallet,
   computeMessageSecretHash,
+  getUnsafeSchnorrAccount,
   retryUntil,
 } from '@aztec/aztec.js';
 import { ChildContract, TokenContract } from '@aztec/noir-contracts/types';
@@ -247,5 +249,23 @@ describe('e2e_2_pxes', () => {
     await expectTokenBalance(walletB, completeTokenAddress.address, userA.address, 0n, checkIfSynchronized);
     // Check that user B balance is 0 on server A
     await expectTokenBalance(walletA, completeTokenAddress.address, userB.address, 0n, checkIfSynchronized);
+  });
+
+  it('permits migrating an account from one PXE to another', async () => {
+    const privateKey = GrumpkinScalar.random();
+    const account = getUnsafeSchnorrAccount(pxeA, privateKey, Fr.random());
+    const completeAddress = await account.getCompleteAddress();
+    const wallet = await account.waitDeploy();
+
+    await expect(wallet.isAccountStateSynchronized(completeAddress.address)).resolves.toBe(true);
+    const accountOnB = getUnsafeSchnorrAccount(pxeB, privateKey, completeAddress);
+    const walletOnB = await accountOnB.getWallet();
+
+    // need to register first otherwise the new PXE won't know about the account
+    await expect(walletOnB.isAccountStateSynchronized(completeAddress.address)).rejects.toThrow();
+
+    await accountOnB.register();
+    // registering should wait for the account to be synchronized
+    await expect(walletOnB.isAccountStateSynchronized(completeAddress.address)).resolves.toBe(true);
   });
 });

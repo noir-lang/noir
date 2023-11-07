@@ -240,7 +240,8 @@ export class Synchronizer {
    * @returns A promise that resolves once the account is added to the Synchronizer.
    */
   public addAccount(publicKey: PublicKey, keyStore: KeyStore, startingBlock: number) {
-    const processor = this.noteProcessors.find(x => x.publicKey.equals(publicKey));
+    const predicate = (x: NoteProcessor) => x.publicKey.equals(publicKey);
+    const processor = this.noteProcessors.find(predicate) ?? this.noteProcessorsToCatchUp.find(predicate);
     if (processor) return;
 
     this.noteProcessorsToCatchUp.push(new NoteProcessor(publicKey, keyStore, this.db, this.node, startingBlock));
@@ -259,7 +260,8 @@ export class Synchronizer {
     if (!completeAddress) {
       throw new Error(`Checking if account is synched is not possible for ${account} because it is not registered.`);
     }
-    const processor = this.noteProcessors.find(x => x.publicKey.equals(completeAddress.publicKey));
+    const findByPublicKey = (x: NoteProcessor) => x.publicKey.equals(completeAddress.publicKey);
+    const processor = this.noteProcessors.find(findByPublicKey) ?? this.noteProcessorsToCatchUp.find(findByPublicKey);
     if (!processor) {
       throw new Error(
         `Checking if account is synched is not possible for ${account} because it is only registered as a recipient.`,

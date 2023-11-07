@@ -1,7 +1,9 @@
 import { FieldsOf } from '@aztec/circuits.js';
 import { TxHash, TxReceipt } from '@aztec/types';
 
-import { SentTx, WaitOpts, Wallet } from '../../index.js';
+import { DefaultWaitOpts, SentTx, WaitOpts } from '../../contract/sent_tx.js';
+import { Wallet } from '../../wallet/index.js';
+import { waitForAccountSynch } from './util.js';
 
 /** Extends a transaction receipt with a wallet instance for the newly deployed contract. */
 export type DeployAccountTxReceipt = FieldsOf<TxReceipt> & {
@@ -32,8 +34,9 @@ export class DeployAccountSentTx extends SentTx {
    * @param opts - Options for configuring the waiting for the tx to be mined.
    * @returns The transaction receipt with the wallet for the deployed account contract.
    */
-  public async wait(opts?: WaitOpts): Promise<DeployAccountTxReceipt> {
+  public async wait(opts: WaitOpts = DefaultWaitOpts): Promise<DeployAccountTxReceipt> {
     const receipt = await super.wait(opts);
+    await waitForAccountSynch(this.pxe, this.wallet.getCompleteAddress(), opts);
     return { ...receipt, wallet: this.wallet };
   }
 }

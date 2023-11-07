@@ -19,7 +19,7 @@ export type WaitOpts = {
   debug?: boolean;
 };
 
-const DefaultWaitOpts: WaitOpts = {
+export const DefaultWaitOpts: WaitOpts = {
   timeout: 60,
   interval: 1,
   waitForNotesSync: true,
