@@ -288,6 +288,7 @@ abstract contract BaseUltraVerifier {
     // y^2 = x^3 + ax + b
     // for Grumpkin, a = 0 and b = -17. We use b in a custom gate relation that evaluates elliptic curve arithmetic
     uint256 internal constant GRUMPKIN_CURVE_B_PARAMETER_NEGATED = 17;
+
     error PUBLIC_INPUT_COUNT_INVALID(uint256 expected, uint256 actual);
     error PUBLIC_INPUT_INVALID_BN128_G1_POINT();
     error PUBLIC_INPUT_GE_P();
@@ -1173,37 +1174,14 @@ abstract contract BaseUltraVerifier {
                             mulmod(x_diff, x_diff, p),
                             p
                         ),
-                        addmod(
-                            sub(
-                                p,
-                                addmod(y2_sqr, y1_sqr, p)
-                            ),
-                            addmod(y1y2, y1y2, p),
-                            p
-                        ),
+                        addmod(sub(p, addmod(y2_sqr, y1_sqr, p)), addmod(y1y2, y1y2, p), p),
                         p
                     )
                 x_add_identity :=
-                    mulmod(
-                        mulmod(
-                            x_add_identity,
-                            addmod(
-                                1,
-                                sub(p, mload(QM_EVAL_LOC)),
-                                p
-                            ),
-                            p
-                        ),
-                        mload(C_ALPHA_BASE_LOC),
-                        p
-                    )
+                    mulmod(mulmod(x_add_identity, addmod(1, sub(p, mload(QM_EVAL_LOC)), p), p), mload(C_ALPHA_BASE_LOC), p)
 
                 // q_elliptic * (x3 + x2 + x1)(x2 - x1)(x2 - x1) - y2^2 - y1^2 + 2(y2y1)*q_sign = 0
-                let y1_plus_y3 := addmod(
-                    mload(Y1_EVAL_LOC),
-                    mload(Y3_EVAL_LOC),
-                    p
-                )
+                let y1_plus_y3 := addmod(mload(Y1_EVAL_LOC), mload(Y3_EVAL_LOC), p)
                 let y_diff := addmod(mulmod(mload(Y2_EVAL_LOC), mload(QSIGN_LOC), p), sub(p, mload(Y1_EVAL_LOC)), p)
                 let y_add_identity :=
                     addmod(

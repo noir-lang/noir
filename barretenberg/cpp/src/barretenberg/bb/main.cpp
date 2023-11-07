@@ -74,6 +74,7 @@ bool proveAndVerify(const std::string& bytecodePath, const std::string& witnessP
 {
     auto constraint_system = get_constraint_system(bytecodePath);
     auto witness = get_witness(witnessPath);
+
     auto acir_composer = init(constraint_system);
 
     Timer pk_timer;
@@ -170,7 +171,6 @@ bool verify(const std::string& proof_path, bool recursive, const std::string& vk
     auto verified = acir_composer.verify_proof(read_file(proof_path), recursive);
 
     vinfo("verified: ", verified);
-
     return verified;
 }
 

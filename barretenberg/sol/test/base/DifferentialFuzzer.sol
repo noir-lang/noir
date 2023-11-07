@@ -17,6 +17,7 @@ contract DifferentialFuzzer is TestBase {
         Invalid,
         Blake,
         Add2,
+        Ecdsa,
         Recursive
     }
 
@@ -63,6 +64,8 @@ contract DifferentialFuzzer is TestBase {
             return "add2";
         } else if (circuitFlavour == CircuitFlavour.Recursive) {
             return "recursive";
+        } else if (circuitFlavour == CircuitFlavour.Ecdsa) {
+            return "ecdsa";
         } else {
             revert("Invalid circuit flavour");
         }

@@ -124,6 +124,7 @@ export async function prove(
     debug(`creating proof...`);
     const bytecode = getBytecode(bytecodePath);
     const witness = getWitness(witnessPath);
+    await api.acirInitProvingKey(acirComposer, bytecode);
     const proof = await api.acirCreateProof(acirComposer, bytecode, witness, isRecursive);
     debug(`done.`);
 

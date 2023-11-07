@@ -4,6 +4,12 @@
 #   VERBOSE: to enable logging for each test.
 set -eu
 
+# Catch when running in parallel
+error_file="/tmp/error.$$"
+pids=()
+source ./bash_helpers/catch.sh
+trap handle_sigchild SIGCHLD
+
 BIN=${BIN:-../cpp/build/bin/bb}
 FLOW=${FLOW:-prove_and_verify}
 CRS_PATH=~/.bb-crs
@@ -43,6 +49,7 @@ function test() {
     echo -e "\033[32mPASSED\033[0m ($duration ms)"
   else
     echo -e "\033[31mFAILED\033[0m"
+    touch "$error_file"
     exit 1
   fi
 
@@ -68,6 +75,16 @@ else
       continue
     fi
 
-    test $TEST_NAME
+    # If parallel flag is set, run in parallel
+    if [ -n "${PARALLEL:-}" ]; then
+      test $TEST_NAME &
+    else 
+      test $TEST_NAME 
+    fi
   done
 fi
+
+wait
+
+# Check for parallel errors
+check_error_file

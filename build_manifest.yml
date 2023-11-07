@@ -39,6 +39,13 @@ barretenberg-acir-tests-bb:
   dependencies:
     - barretenberg-x86_64-linux-clang-assert
 
+barretenberg-acir-tests-bb-sol:
+  buildDir: barretenberg/acir_tests
+  dockerfile: Dockerfile.bb.sol
+  dependencies:
+    - barretenberg-x86_64-linux-clang-assert
+    - barretenberg-x86_64-linux-clang-sol
+
 barretenberg-acir-tests-bb.js:
   buildDir: barretenberg/acir_tests
   dockerfile: Dockerfile.bb.js

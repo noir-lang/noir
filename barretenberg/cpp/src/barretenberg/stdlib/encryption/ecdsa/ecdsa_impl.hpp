@@ -1,7 +1,8 @@
 #pragma once
 
-#include "../../hash/sha256/sha256.hpp"
-#include "../../primitives/bit_array/bit_array.hpp"
+#include "barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp"
+#include "barretenberg/stdlib/hash/sha256/sha256.hpp"
+#include "barretenberg/stdlib/primitives//bit_array/bit_array.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {
