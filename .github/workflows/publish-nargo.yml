@@ -1,6 +1,9 @@
 name: Publish Nargo
 
 on:
+  push:
+    tags:
+      - '*.*.*-aztec.*'
   workflow_dispatch:
     # Allow pushing a manual nightly release
     inputs:
@@ -20,6 +23,10 @@ on:
 permissions:
   # Necessary to upload new release artifacts
   contents: write
+
+env:
+  FEATURES: ${{ contains(github.ref, 'aztec') && 'noirc_frontend/aztec' }}
+  PUBLISH: ${{ contains(github.ref, 'aztec') && 'true' }}
 
 jobs:
   build-apple-darwin:
@@ -57,7 +64,7 @@ jobs:
 
       - name: Build environment and Compile
         run: |
-          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features "${{ env.FEATURES }}"
 
       - name: Package artifacts
         run: |
@@ -84,7 +91,7 @@ jobs:
 
       - name: Upload binaries to release tag
         uses: svenstaro/upload-release-action@v2
-        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        if: ${{ env.PUBLISH || github.event_name == 'schedule' }}
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -95,12 +102,12 @@ jobs:
 
       - name: Get formatted date
         id: date
-        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        if: ${{ inputs.tag == '' && env.PUBLISH || github.event_name == 'schedule' }}
         run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Upload binaries to release with date tag
         uses: svenstaro/upload-release-action@v2
-        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        if: ${{ inputs.tag == '' && env.PUBLISH || github.event_name == 'schedule' }}
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -144,7 +151,7 @@ jobs:
           tool: cross@0.2.5
 
       - name: Build Nargo
-        run: cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+        run: cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ env.FEATURES }}"
 
       - name: Package artifacts
         run: |
@@ -171,7 +178,7 @@ jobs:
 
       - name: Upload binaries to release tag
         uses: svenstaro/upload-release-action@v2
-        if: ${{ inputs.publish }}
+        if: ${{ env.PUBLISH }}
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -183,12 +190,12 @@ jobs:
 
       - name: Get formatted date
         id: date
-        if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
+        if: ${{ env.NIGHTLY_RELEASE && env.PUBLISH }}
         run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Upload binaries to release with date tag
         uses: svenstaro/upload-release-action@v2
-        if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
+        if: ${{ env.NIGHTLY_RELEASE && env.PUBLISH }}
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.GITHUB_TOKEN }}
