@@ -304,22 +304,15 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(foo_parents[y - 2].foos.len() == 5);
     println(last_foo.a);
     println(last_foo.bar.inner);
-    // assert(last_foo.a == 40);
-    // println(foo_parents[1].foos[4].bar.inner);
+    assert(last_foo.a == 40);
+    assert(last_foo.bar.inner == [109, 110, 111]);
 
-    // assert(foo_parents[1].foos[4].bar.inner == [109, 110, 111]);
-
-    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_front(foo);
-    // assert(foo_parents[1].foos.len() == 7);
-    // assert(foo_parents[1].foos[0].a == 40);
-    // assert(foo_parents[1].foos[0].bar.inner == [109, 110, 111]);
-
-    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_front(foo);
-    // assert(foo_parents[1].foos.len() == 7);
-    // // println(foo_parents[1].foos[0].a);
-    // assert(foo_parents[1].foos[6].a == 40);
-    // assert(foo_parents[1].foos[6].b.len() == 3);
-    // assert(foo_parents[1].foos[6].b[0] == 14);
-    // assert(foo_parents[1].foos[6].b[2] == 16);
-    // assert(foo_parents[1].foos[6].bar.inner == [109, 110, 111]);
+    foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_front(foo);
+    println(foo_parents[1].foos.len());
+    assert(foo_parents[1].foos.len() == 6);
+    assert(foo_parents[1].foos[5].a == 10);
+    assert(foo_parents[1].foos[5].b.len() == 3);
+    assert(foo_parents[1].foos[5].b[0] == 11);
+    assert(foo_parents[1].foos[5].b[2] == 23);
+    assert(foo_parents[1].foos[5].bar.inner == [109, 110, 111]);
 }
