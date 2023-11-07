@@ -237,7 +237,7 @@ impl Item for (Ident, Expression) {
     }
 }
 
-pub(crate) fn first_line_width(exprs: &String) -> usize {
+pub(crate) fn first_line_width(exprs: &str) -> usize {
     exprs.lines().next().map_or(0, |line: &str| line.chars().count())
 }
 

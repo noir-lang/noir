@@ -73,9 +73,9 @@ fn rewrite_multiline(visitor: FmtVisitor, exprs: &[String], separators: &[String
 
     for (rewrite, separator) in exprs[1..].iter().zip(separators.iter()) {
         result.push_str(&indent_str);
-        result.push_str(&separator);
+        result.push_str(separator);
         result.push(' ');
-        result.push_str(&rewrite);
+        result.push_str(rewrite);
     }
 
     result
