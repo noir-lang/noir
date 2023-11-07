@@ -8,7 +8,7 @@ use std::collections::VecDeque;
 pub struct DebugState {
     var_id_to_name: HashMap<u32,String>,
     next_var_id: u32,
-    active_vars: HashSet<u32>,
+    scope: Vec<HashSet<u32>>,
     pub enabled: bool,
 }
 
@@ -16,7 +16,7 @@ impl Default for DebugState {
     fn default() -> Self {
         Self {
             var_id_to_name: HashMap::default(),
-            active_vars: HashSet::default(),
+            scope: vec![],
             next_var_id: 0,
             enabled: true, // TODO
         }
@@ -41,10 +41,13 @@ impl DebugState {
         let var_id = self.next_var_id;
         self.next_var_id += 1;
         self.var_id_to_name.insert(var_id, var_name.to_string());
+        self.scope.last_mut().unwrap().insert(var_id);
         var_id
     }
 
     fn walk_fn(&mut self, f: &mut ast::FunctionDefinition) {
+        self.scope.push(HashSet::new());
+
         let pvars: Vec<(u32,ast::Ident)> = f.parameters.iter()
             .flat_map(|(pattern, _utype, _vis)| {
                 pattern_vars(pattern).iter().map(|id| {
@@ -54,8 +57,23 @@ impl DebugState {
             .collect();
 
         f.body.0.iter_mut().for_each(|stmt| self.walk_statement(stmt));
+        f.body.0 = vec![
+            // prapend fn params:
+            pvars.iter().map(|(var_id, id)| {
+                self.wrap_set_var(*var_id, id_expr(id))
+            }).collect(),
 
-        let (ret_stmt, fn_body) = f.body.0.split_last()
+            f.body.0.clone(),
+        ].concat();
+        self.walk_scope(&mut f.body.0);
+    }
+
+    // Modify a vector of statements in-place, adding instrumentation for sets and drops.
+    // This function will consume a scope level.
+    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>) {
+        statements.iter_mut().for_each(|stmt| self.walk_statement(stmt));
+
+        let (ret_stmt, fn_body) = statements.split_last()
             .map(|(e,b)| (e.clone(), b.to_vec()))
             .unwrap_or((
                 ast::Statement {
@@ -68,12 +86,7 @@ impl DebugState {
                 vec![]
             ));
 
-        f.body.0 = vec![
-            // set fn params:
-            pvars.iter().map(|(var_id, id)| {
-                self.wrap_set_var(*var_id, id_expr(id))
-            }).collect(),
-
+        *statements = vec![
             // copy body minus the return expr:
             fn_body,
 
@@ -93,7 +106,7 @@ impl DebugState {
             }],
 
             // drop fn params:
-            pvars.iter().map(|(var_id, _id)| {
+            self.scope.pop().unwrap_or(HashSet::default()).iter().map(|var_id| {
                 self.wrap_drop_var(*var_id)
             }).collect(),
 
@@ -239,9 +252,10 @@ impl DebugState {
     }
 
     fn walk_expr(&mut self, expr: &mut ast::Expression) {
-        match &expr.kind {
-            ast::ExpressionKind::Block(_block_expr) => {
-                // TODO: set then drop vars in this scope
+        match &mut expr.kind {
+            ast::ExpressionKind::Block(ast::BlockExpression(ref mut statements)) => {
+                self.scope.push(HashSet::new());
+                self.walk_scope(statements);
             },
             _ => {},
         }
