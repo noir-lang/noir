@@ -2,8 +2,6 @@
 #include <benchmark/benchmark.h>
 #include <cstddef>
 
-#include "barretenberg/honk/composer/ultra_composer.hpp"
-#include "barretenberg/honk/proof_system/ultra_prover.hpp"
 #include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/proof_system/types/circuit_type.hpp"
@@ -19,6 +17,8 @@
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
+#include "barretenberg/ultra_honk/ultra_composer.hpp"
+#include "barretenberg/ultra_honk/ultra_prover.hpp"
 
 using namespace benchmark;
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "barretenberg/proof_system/relations/relation_types.hpp"
+#include "barretenberg/relations/relation_types.hpp"
 
 #define ExtendedEdge(Flavor) Flavor::ExtendedEdges
 #define EvaluationEdge(Flavor) Flavor::AllValues

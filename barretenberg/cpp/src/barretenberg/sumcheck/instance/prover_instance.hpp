@@ -2,9 +2,9 @@
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/flavor/goblin_ultra.hpp"
 #include "barretenberg/flavor/ultra.hpp"
-#include "barretenberg/honk/proof_system/folding_result.hpp"
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
-#include "barretenberg/proof_system/relations/relation_parameters.hpp"
+#include "barretenberg/protogalaxy/folding_result.hpp"
+#include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 
 namespace proof_system::honk {

@@ -9,6 +9,7 @@ set(BENCHMARK_SOURCES
 
 # Required libraries for benchmark suites
 set(LINKED_LIBRARIES
+  ultra_honk
   stdlib_sha256
   stdlib_keccak
   stdlib_merkle_tree

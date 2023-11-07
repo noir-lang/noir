@@ -9,7 +9,7 @@
 #include "barretenberg/flavor/ecc_vm.hpp"
 #include "barretenberg/honk/proof_system/lookup_library.hpp"
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
-#include "barretenberg/proof_system/relations/relation_parameters.hpp"
+#include "barretenberg/relations/relation_parameters.hpp"
 
 namespace proof_system {
 

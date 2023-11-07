@@ -1,9 +1,9 @@
 #include <benchmark/benchmark.h>
 
 #include "barretenberg/benchmark/honk_bench/benchmark_utilities.hpp"
-#include "barretenberg/honk/composer/ultra_composer.hpp"
-#include "barretenberg/honk/proof_system/ultra_prover.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "barretenberg/ultra_honk/ultra_composer.hpp"
+#include "barretenberg/ultra_honk/ultra_prover.hpp"
 
 using namespace benchmark;
 using namespace proof_system;

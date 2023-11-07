@@ -6,11 +6,11 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_translator_circuit_builder.hpp"
-#include "barretenberg/proof_system/relations/translator_vm/translator_decomposition_relation.hpp"
-#include "barretenberg/proof_system/relations/translator_vm/translator_extra_relations.hpp"
-#include "barretenberg/proof_system/relations/translator_vm/translator_gen_perm_sort_relation.hpp"
-#include "barretenberg/proof_system/relations/translator_vm/translator_non_native_field_relation.hpp"
-#include "barretenberg/proof_system/relations/translator_vm/translator_permutation_relation.hpp"
+#include "barretenberg/relations/translator_vm/translator_decomposition_relation.hpp"
+#include "barretenberg/relations/translator_vm/translator_extra_relations.hpp"
+#include "barretenberg/relations/translator_vm/translator_gen_perm_sort_relation.hpp"
+#include "barretenberg/relations/translator_vm/translator_non_native_field_relation.hpp"
+#include "barretenberg/relations/translator_vm/translator_permutation_relation.hpp"
 #include "relation_definitions_fwd.hpp"
 #include <array>
 #include <concepts>

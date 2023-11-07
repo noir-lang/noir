@@ -1,11 +1,11 @@
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/flavor/ultra_recursive.hpp"
-#include "barretenberg/honk/composer/ultra_composer.hpp"
-#include "barretenberg/honk/proof_system/ultra_verifier.hpp"
 #include "barretenberg/stdlib/hash/blake3s/blake3s.hpp"
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/recursion/honk/verifier/ultra_recursive_verifier.hpp"
+#include "barretenberg/ultra_honk/ultra_composer.hpp"
+#include "barretenberg/ultra_honk/ultra_verifier.hpp"
 
 namespace proof_system::plonk::stdlib::recursion::honk {
 

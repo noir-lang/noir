@@ -1,8 +1,8 @@
 #pragma once
 
-#include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/ultra_honk/ultra_composer.hpp"
 
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"

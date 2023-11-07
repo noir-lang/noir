@@ -5,9 +5,9 @@
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/polynomials/pow.hpp"
-#include "barretenberg/proof_system/relations/relation_parameters.hpp"
-#include "barretenberg/proof_system/relations/relation_types.hpp"
-#include "barretenberg/proof_system/relations/utils.hpp"
+#include "barretenberg/relations/relation_parameters.hpp"
+#include "barretenberg/relations/relation_types.hpp"
+#include "barretenberg/relations/utils.hpp"
 
 namespace proof_system::honk::sumcheck {
 
