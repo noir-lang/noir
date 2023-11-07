@@ -2,44 +2,42 @@
 title: Updating
 ---
 
-## Quick Reference
+## TL;DR
+1. **Updating the sandbox:** 
+- If you installed sandbox via docker, run:
+```shell
+/bin/bash -c "$(curl -fsSL 'https://sandbox.aztec.network')"
+```
+- If you have installed via an npm package then step 3 handles the update.
 
-- Aztec Sandbox
+2. **Updating Aztec-CLI:**
+- The above command also downloads the aztec-cli if a node package version of the CLI isn't found locally.
+- If you have globally installed the CLI previously, then run:
+```shell
+npm install -g @aztec/aztec-cli
+```
+(replace with `yarn` or your node package version manager tool).
+- If you have aztec-cli listed as a local dependency in your project's `package.json`, then step 3 handles the update.
+
+3. **Updating aztec-nr and individual @aztec dependencies:**
+Inside your project run:
 
 ```shell
-  /bin/bash -c "$(curl -fsSL 'https://sandbox.aztec.network')"
+cd your/aztec/project
+npx @aztec/cli@latest update . --contract src/contract1 --contract src/contract2
 ```
 
-- Aztec CLI
+The sandbox must be running for the update command to work unless there the project defines `@aztec/aztec-sandbox` as a dependency, in which case the command will compare against the version listed in `package.json`.
 
-```shell
-npm install -g @aztec/cli
-```
+---
 
-- nargo
-
-<InstallNargoInstructions />
-
-- Aztec.nr
-
-```toml
-#nargo.toml
-[dependencies]
-aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
-value_note = { git="https://github.com/AztecProtocol/aztec-packages", tag="#include_aztec_version", directory="yarn-project/aztec-nr/value-note" }
-```
-
-Read on to learn about versioning and other commands.
-
-There are 4 components whose versions need to be kept compatible:
+There are three components whose versions need to be kept compatible:
 
 1. Aztec Sandbox,
 2. Aztec CLI,
-3. Noir compiler `nargo`,
-4. Noir framework for Aztec contracts `aztec.nr`.
+3. Noir framework for Aztec contracts `aztec.nr`.
 
-Aztec Sandbox, Aztec CLI and `aztec.nr` are using the same versioning scheme and their versions must match.
-The Noir compiler `nargo` has its own versioning scheme and its version must match the compatible nargo version specified in Sandbox.
+All three are using the same versioning scheme and their versions must match.
 
 ## Updating Aztec Sandbox
 
@@ -49,36 +47,11 @@ To update the sandbox to the latest version, simply run the curl command we used
 /bin/bash -c "$(curl -fsSL 'https://sandbox.aztec.network')"
 ```
 
-It will download and start the latest version of sandbox.
-
-If you would like to use a fixed version of the sandbox, you can export the `SANDBOX_VERSION` environmental variable.
-If you are unsure what version to use go to [aztec-packages repository](https://github.com/AztecProtocol/aztec-packages/releases) and choose the `aztec-packages` release based on the changelog.
-
-Then set the `SANDBOX_VERSION` environmental variable to the version you want to use. E.g.:
-
-```shell
-export SANDBOX_VERSION=#include_aztec_short_version
-```
-
-Now when you run the curl command it will use the version you specified.
-To verify that it's the case check the console output of the curl command.
-You should see the following line:
-
-```
-Setting up Aztec Sandbox v#include_aztec_short_version (nargo #include_noir_version), please stand by...
-```
-
-Alternatively you can open a new terminal and use aztec-cli to get the version.
-
-#include_code node-info yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
-
-This will return something like this:
-
-#include_code node-info yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
-
-The sandbox version should be the same as the one we chose by setting the `SANDBOX_VERSION` environmental variable.
+This will also update the CLI if a node package version of the CLI isn't found locally.
 
 ## Updating Aztec CLI
+
+### npm
 
 If the latest version was used when updating the sandbox then we can simply run the following command to update the CLI:
 
@@ -98,19 +71,25 @@ E.g.:
 npm install -g @aztec/cli@#include_aztec_short_version
 ```
 
-## Updating Noir compiler
+### Docker
 
-Now we need to update the Noir compiler `nargo` to the version compatible with the sandbox.
-Use `aztec-cli` to get it:
-#include_code node-info yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
-
-Then we install the `Compatible Nargo Version` with (replace `COMPATIBLE_NARGO_VERSION` with the version from the previous command):
+If you don't have the CLI installed globally via package manager or locally in your npm project, then you can update it by running the sandbox installation command again:
 
 ```shell
-noirup -v COMPATIBLE_NARGO_VERSION
+/bin/bash -c "$(curl -fsSL 'https://sandbox.aztec.network')"
 ```
 
 ## Updating Aztec.nr packages
+
+### Automatic update
+
+`aztec-cli` will update your Aztec.nr packages to the appropriate version with the `aztec-cli update` command. Run this command from the root of your project and pass the paths to the folders containing the Nargo.toml files for your projects like so:
+
+```shell
+aztec-cli update . --contract src/contract1 --contract src/contract2
+```
+
+### Manual update
 
 Finally we need to update the Noir framework for Aztec contracts.
 We need to install a version compatible with our `nargo` and Sandbox.
@@ -135,3 +114,9 @@ aztec-cli compile ./
 ```
 
 If the dependencies fail to resolve ensure that the tag matches a tag in the [aztec-packages repository](https://github.com/AztecProtocol/aztec-packages/tags).
+
+## Updating `nargo`
+
+Nargo is not strictly required, but you may want to use it for the LSP or testing. More info [here](./getting_started/aztecnr-getting-started.md#install-nargo-recommended).
+
+<InstallNargoInstructions />

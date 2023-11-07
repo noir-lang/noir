@@ -28,6 +28,8 @@ To install the latest Sandbox version, run:
 
 This will attempt to run the Sandbox on ` localhost:8080`, so you will have to make sure nothing else is running on that port or change the port defined in `./.aztec/docker-compose.yml`. Running the command again will overwrite any changes made to the `docker-compose.yml`.
 
+Alternatively, you can [run the sandbox as an npm package](../cli/sandbox-reference.md#with-npm).
+
 ## Install the CLI
 
 To interact with the Sandbox now that it's running locally, install the [Aztec CLI](https://www.npmjs.com/package/@aztec/cli):

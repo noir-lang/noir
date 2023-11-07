@@ -16,6 +16,8 @@ You can run the Sandbox using either Docker or npm.
 
 This will attempt to run the Sandbox on ` localhost:8080`. You can change the port defined in `./.aztec/docker-compose.yml`. Running the command again will overwrite any changes made to the `docker-compose.yml`.
 
+If you don't have the CLI installed via a node package manager, this command will also install or update the CLI.
+
 To install a specific version of the sandbox, you can set the environment variable `SANDBOX_VERSION`
 
 ```bash
@@ -31,8 +33,10 @@ You can download and run the Sandbox package directly if you have nodejs 18 or h
 You will also need an Ethereum node like Anvil or Hardhat running locally on port 8545.
 
 ```bash
-npx @aztec/aztec-sandbox
+npx @aztec/aztec-sandbox @aztec/aztec-cli
 ```
+
+You can read [this tutorial on how to use the npm package](../tutorials/testing.md#running-sandbox-in-the-nodejs-process)
 
 ## Running
 

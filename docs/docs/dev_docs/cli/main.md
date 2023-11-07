@@ -36,4 +36,4 @@ The current sandbox does not generate or verify proofs, but provides a working e
 
 The Aztec CLI is a command-line tool allowing the user to interact directly with the Aztec network and sandbox.
 
-It aims to provide all of the functionality required to deploy and invoke contracts and query system state such as contract data, transactions and emitted logs.
+It aims to provide all of the functionality required to deploy, compile, and invoke contracts and query system state such as contract data, transactions and emitted logs.

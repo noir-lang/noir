@@ -22,9 +22,9 @@ Inside `ISwapRouter.sol` paste this:
 
 This is an interface for the Uniswap V3 Router, providing token swapping functionality. The contract defines methods for token swaps, both between two tokens or via a multi-hop path. Our portal will interact with the Uniswap V3 Router via this interface to perform token swaps on L1. We’ll see more about this in the next step.
 
-# Create another nargo project
+# Create another Noir project
 
-In `aztec-contracts` create a new nargo project.
+In `aztec-contracts` create a new Noir project.
 
 ```bash
 cd aztec-contracts && nargo new --contract uniswap

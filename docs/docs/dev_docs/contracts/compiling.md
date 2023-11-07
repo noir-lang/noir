@@ -6,21 +6,9 @@ In this guide we will cover how to do so, both using the CLI and programmaticall
 
 We'll also cover how to generate a helper [TypeScript interface](#typescript-interfaces) and an [Aztec.nr interface](#noir-interfaces) for easily interacting with your contract from your typescript app and from other Aztec.nr contracts, respectively.
 
-## Prerequisites
-
-You will need the Noir build tool `nargo`, which you can install via [`noirup`](https://github.com/noir-lang/noirup). Make sure you install the correct version of nargo:
-
-<InstallNargoInstructions />
-
-:::info
-You can run `aztec-cli get-node-info` to query the version of nargo that corresponds to your current installation.
-:::
-
 ## Compile using the CLI
 
-To compile a contract using the Aztec CLI, first install it:
-
-`npm install -g @aztec/cli`
+To compile a contract using the Aztec CLI, first [install it](../cli/cli-commands#installation).
 
 Then run the `compile` command with the path to your [contract project folder](./layout.md#directory-structure), which is the one that contains the `Nargo.toml` file:
 
@@ -29,6 +17,14 @@ aztec-cli compile ./path/to/my_aztec_contract_project
 ```
 
 This will output a JSON [artifact](./artifacts.md) for each contract in the project to a `target` folder containing their artifact, which you can use for deploying or interacting with your contracts.
+
+`aztec-cli` uses `noir_wasm` by default for compiling contracts. This helps reduce the developer overhead of installation and maintaining the noir compiler, `nargo`. However, if you prefer, you can use `nargo` to compile contracts with `aztec-cli` as so:
+
+```bash
+aztec-cli compile my-contract --compiler nargo # switches compiler to nargo
+```
+
+When you specify `nargo` as your compiler, you need to make sure that you are using the correct version. You can find the [latest version information here](../updating.md#updating-nargo).
 
 ### Typescript Interfaces
 
@@ -247,7 +243,8 @@ You can also programmatically access the compiler via the `@aztec/noir-compiler`
 
 The compiler exposes the following functions:
 
-- `compileUsingNargo`: Compiles an Aztec.nr project in the target folder using the `nargo` binary available on the shell `PATH` and returns the generated ABIs.
+- `compileUsingNoirWasm`: Compiles an Aztec.nr project in the target folder using a WASM build of the compiler and returns the generated ABIs.
+- `compileUsingNargo`: Does the same as `compileUsingNargo` but instead of WASM it uses the `nargo` binary available on the shell `PATH`
 - `generateTypescriptContractInterface`: Generates a typescript class for the given contract artifact.
 - `generateNoirContractInterface`: Generates a Aztec.nr interface struct for the given contract artifact.
 

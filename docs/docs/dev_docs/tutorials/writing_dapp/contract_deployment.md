@@ -6,7 +6,7 @@ To add contracts to your application, we'll start by creating a new `nargo` proj
 Follow the instructions [here](../../contracts/setup.md) to install `nargo` if you haven't done so already.
 :::
 
-## initialize nargo project
+## Initialize Noir project
 
 Create a new `contracts` folder, and from there, initialize a new project called `token`:
 

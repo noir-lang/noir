@@ -11,32 +11,6 @@ If you already have some experience with Noir and want to build a cooler contrac
 - You have followed the [quickstart](./quickstart.md)
 - Running Aztec Sandbox
 
-## Install nargo
-
-`Aztec.nr` is a framework built on top of [Noir](https://noir-lang.org), a zero-knowledge DSL. Nargo is the build tool for Noir, similar to cargo for Rust. We need it for compiling our smart contracts.
-
-<InstallNargoInstructions />
-
-You can check it has been installed correctly by running:
-
-```bash
-aztec-cli get-node-info
-```
-
-It should print something similar to:
-
-```bash
-➜  ~ aztec-cli get-node-info
-
-Node Info:
-
-Version: 1
-Chain Id: 31337
-Rollup Address: 0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
-Client: pxe@0.7.5
-Compatible Nargo Version: 0.16.0-aztec.0
-```
-
 ## Set up a project
 
 Create a new directory called `aztec-private-counter`
@@ -52,43 +26,30 @@ cd aztec-private-counter
 mkdir contracts
 ```
 
-Inside `contracts`, create a new Noir project using nargo:
+Inside contracts create the following file structure:
 
-```bash
-cd contracts
-nargo new counter --contract
-```
-
-The `contract` flag will create a contract nargo project rather than using vanilla Noir.
-
-Your file structure should look like this:
-
-```bash
-aztec-private-counter
-|-contracts
-| |--counter
-| |  |--src
-| |  |  |--main.nr
-| |  |Nargo.toml
+```tree
+.
+|-aztec-private-counter
+| |-contracts
+| | |--counter
+| | |  |--src
+| | |  |  |--main.nr
+| | |  |--Nargo.toml
 ```
 
 The file `main.nr` will soon turn into our smart contract!
 
-Your `Nargo.toml` file should look something like this:
+Add the following content to `Nargo.toml`:
 
 ```toml
 [package]
 name = "counter"
 type = "contract"
 authors = [""]
-compiler_version = "0.16.0"
+compiler_version = ">=0.18.0"
 
 [dependencies]
-```
-
-Add the following dependencies under `[dependencies]`:
-
-```toml
 aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
 value_note = { git="https://github.com/AztecProtocol/aztec-packages", tag="#include_aztec_version", directory="yarn-project/aztec-nr/value-note"}
 easy_private_state = { git="https://github.com/AztecProtocol/aztec-packages", tag="#include_aztec_version", directory="yarn-project/aztec-nr/easy-private-state"}
@@ -96,7 +57,7 @@ easy_private_state = { git="https://github.com/AztecProtocol/aztec-packages", ta
 
 ## Define the functions
 
-Go to `main.nr` and replace the code with this contract initialization:
+Go to `main.nr` and start with this contract initialization:
 
 ```rust
 contract Counter {
@@ -157,7 +118,7 @@ We have annotated this and other functions with `#[aztec(private)]` which are AB
 
 ## Incrementing our counter
 
-Now let’s implement the `increment` functio we defined in the first step.
+Now let’s implement the `increment` function we defined in the first step.
 
 #include_code increment /yarn-project/noir-contracts/src/contracts/counter_contract/src/main.nr rust
 
@@ -228,7 +189,7 @@ Partial Address: 0x211edeb823ef3e042e91f338d0d83d0c90606dba16f678c701d8bb64e64e2
 
 Use one of these `address`es as the `owner`. You can either copy it or export.
 
-To deploy the counter contract, [ensure the sandbox is running](../cli/sandbox-reference.md) and run this in the root of your nargo project:
+To deploy the counter contract, [ensure the sandbox is running](../cli/sandbox-reference.md) and run this in the root of your Noir project:
 
 ```bash
 aztec-cli deploy target/Counter.json --args 100 0x25048e8c1b7dea68053d597ac2d920637c99523651edfb123d0632da785970d0
@@ -237,6 +198,16 @@ aztec-cli deploy target/Counter.json --args 100 0x25048e8c1b7dea68053d597ac2d920
 You can also test the functions by applying what you learned in the [quickstart](./quickstart.md).
 
 Congratulations, you have now written, compiled, and deployed your first Aztec.nr smart contract!
+
+## Install `nargo` (recommended)
+
+The CLI comes with the Noir compiler, so installing `nargo` is not required, however it is recommended as it provides a better developer experience for writing contracts. You will need nargo installed to take advantage of the [Noir Language Server](https://noir-lang.org/nargo/language_server), which provides syntax highlighting and formatting for your Aztec contracts.
+
+You will also need `nargo` if you want to run unit tests in Noir.
+
+You can install `nargo` with the following commands:
+
+<InstallNargoInstructions />
 
 ## What's next?
 

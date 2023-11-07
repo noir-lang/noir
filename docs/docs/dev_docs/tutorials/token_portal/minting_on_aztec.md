@@ -6,7 +6,7 @@ In this step we will start writing our Aztec.nr bridge smart contract and write 
 
 ## Initial contract setup
 
-In our `token-bridge` nargo project in `aztec-contracts`, under `src` there is an example `main.nr` file. Delete all the code in here and paste this to define imports and initialize the constructor:
+In our `token-bridge` Noir project in `aztec-contracts`, under `src` there is an example `main.nr` file. Delete all the code in here and paste this to define imports and initialize the constructor:
 
 ```rust
 mod util;

@@ -29,13 +29,15 @@ Pre-requisite - Generate type-safe typescript classes for your contract when com
 
 ```ts
 import { readFileSync, writeFileSync } from "fs";
+import { createConsoleLogger } from "@aztec/foundation/log";
 import {
-  compileUsingNargo,
+  compileUsingNoirWasm,
   generateTypescriptContractInterface,
 } from "@aztec/noir-compiler";
 
-const compiled: ContractArtifact[] = await compileUsingNargo(
-  projectPathToContractFolder
+const compiled: ContractArtifact[] = await compileUsingNoirWasm(
+  projectPathToContractFolder,
+  { log: createConsoleLogger() }
 );
 const abiImportPath = "../target/Example.json";
 writeFileSync(
