@@ -117,7 +117,7 @@ impl From<&CompiledContract> for DebugArtifact {
         DebugArtifact {
             debug_symbols: all_functions_debug,
             file_map: compiled_artifact.file_map.clone(),
-            warnings: Vec::new(),
+            warnings: compiled_artifact.warnings.clone(),
         }
     }
 }
