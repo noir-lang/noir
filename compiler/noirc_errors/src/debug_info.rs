@@ -18,7 +18,7 @@ pub struct DebugInfo {
     /// that they should be serialized to/from strings.
     #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
-    pub variables: HashMap<String, u32>,
+    pub variables: HashMap<u32, String>,
 }
 
 /// Holds OpCodes Counts for Acir and Brillig Opcodes
@@ -32,7 +32,7 @@ pub struct OpCodesCount {
 impl DebugInfo {
     pub fn new(
         locations: BTreeMap<OpcodeLocation, Vec<Location>>,
-        variables: HashMap<String, u32>,
+        variables: HashMap<u32, String>,
     ) -> Self {
         Self { locations, variables }
     }

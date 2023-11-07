@@ -18,6 +18,7 @@ pub trait ForeignCallExecutor {
 pub(crate) enum ForeignCall {
     Println,
     DebugStateSet,
+    DebugStateDrop,
     Sequence,
     ReverseSequence,
     CreateMock,
@@ -38,6 +39,7 @@ impl ForeignCall {
         match self {
             ForeignCall::Println => "println",
             ForeignCall::DebugStateSet => "__debug_state_set",
+            ForeignCall::DebugStateDrop => "__debug_state_drop",
             ForeignCall::Sequence => "get_number_sequence",
             ForeignCall::ReverseSequence => "get_reverse_number_sequence",
             ForeignCall::CreateMock => "create_mock",
@@ -52,6 +54,7 @@ impl ForeignCall {
         match op_name {
             "println" => Some(ForeignCall::Println),
             "__debug_state_set" => Some(ForeignCall::DebugStateSet),
+            "__debug_state_drop" => Some(ForeignCall::DebugStateDrop),
             "get_number_sequence" => Some(ForeignCall::Sequence),
             "get_reverse_number_sequence" => Some(ForeignCall::ReverseSequence),
             "create_mock" => Some(ForeignCall::CreateMock),
@@ -176,9 +179,19 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     ForeignCallParam::Single(value),
                 ) = (debug_vars, fcp_var_id, fcp_value) {
                     let var_id = var_id_value.to_u128() as u32;
-                    ds.set_by_id(var_id, value.clone());
+                    ds.set(var_id, value.clone());
                 }
-                // pass-through return value is handled by the oracle wrapper, returning nothing here
+                Ok(ForeignCallResult { values: vec![] })
+            }
+            Some(ForeignCall::DebugStateDrop) => {
+                let fcp_var_id = &foreign_call.inputs[0];
+                if let (
+                    Some(ds),
+                    ForeignCallParam::Single(var_id_value),
+                ) = (debug_vars, fcp_var_id) {
+                    let var_id = var_id_value.to_u128() as u32;
+                    ds.drop(var_id);
+                }
                 Ok(ForeignCallResult { values: vec![] })
             }
             Some(ForeignCall::Sequence) => {
