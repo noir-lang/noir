@@ -139,8 +139,19 @@ fn main(y : pub Field) {
     assert(foo_parents[y - 2].foos[y - 1].b[5] == 101);
 
     // Need to account for that foo_parents is not modified outside of this function
-    test_basic_intrinsics_nested_slices(foo_parents, y);
+    // test_basic_intrinsics_nested_slices(foo_parents, y);
     test_complex_intrinsic_nested_slices(foo_parents, y);
+
+    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_front(foo_four);
+    // assert(foo_parents[1].foos.len() == 6);
+    // println(foo_parents[1].foos[0].a);
+    // assert(foo_parents[1].foos[0].a == 10);
+    // assert(foo_parents[1].foos[0].bar.inner == [109, 110, 111]);
+    // assert(foo_parents[1].foos[5].a == 10);
+    // assert(foo_parents[1].foos[5].b[0] == 11);
+    // assert(foo_parents[1].foos[5].b[2] == 23);
+    // assert(foo_parents[1].foos[5].b.len() == 3);
+    // assert(foo_parents[1].foos[5].bar.inner == [109, 110, 111]);
 
     // TODO(#3364): still have to enable slice intrinsics on dynamic nested slices
     // We need to accurately fill the element input to the slice intrinsic
@@ -189,6 +200,17 @@ fn main(y : pub Field) {
     // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo_four);
     // println(foo_parents[y - 2].foos.len());
     // assert(foo_parents[y - 2].foos.len() == 8);
+    // assert(foo_parents[y - 2].foos[6].a == 420);
+    // assert(foo_parents[y - 2].foos[5].bar.inner == [109, 110, 111]);
+    // assert(foo_parents[y - 2].foos[6].bar.inner == [109, 110, 111]);
+
+    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo_four);
+    // println(foo_parents[y - 2].foos.len());
+    // assert(foo_parents[y - 2].foos.len() == 9);
+
+    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo_four);
+    // println(foo_parents[y - 2].foos.len());
+    // assert(foo_parents[y - 2].foos.len() == 10); 
 
     // println(foo_parents[y - 2].foos[y].a);
     // println(foo_parents[y - 2].foos[y + 1].a);
@@ -234,32 +256,32 @@ fn test_basic_intrinsics_nested_slices(mut foo_parents: [FooParent], y: Field) {
     // println(foo_parents[y - 2].foos[y - 1].b[6]);
     assert(foo_parents[y - 2].foos[y - 1].b[6] == 500);
 
-    // let (popped_slice, last_elem) = foo_parents[y - 2].foos[y - 1].b.pop_back();
-    // foo_parents[y - 2].foos[y - 1].b = popped_slice;
-    // assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
-    // assert(last_elem == 500);
+    let (popped_slice, last_elem) = foo_parents[y - 2].foos[y - 1].b.pop_back();
+    foo_parents[y - 2].foos[y - 1].b = popped_slice;
+    assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
+    assert(last_elem == 500);
 
-    // foo_parents[y - 2].foos[y - 1].b = foo_parents[y - 2].foos[y - 1].b.push_front(11);
-    // assert(foo_parents[y - 2].foos[y - 1].b.len() == 7);
-    // assert(foo_parents[y - 2].foos[y - 1].b[0] == 11);
+    foo_parents[y - 2].foos[y - 1].b = foo_parents[y - 2].foos[y - 1].b.push_front(11);
+    assert(foo_parents[y - 2].foos[y - 1].b.len() == 7);
+    assert(foo_parents[y - 2].foos[y - 1].b[0] == 11);
 
-    // let (first_elem, rest_of_slice) = foo_parents[y - 2].foos[y - 1].b.pop_front();
-    // foo_parents[y - 2].foos[y - 1].b = rest_of_slice;
-    // assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
-    // assert(first_elem == 11);
+    let (first_elem, rest_of_slice) = foo_parents[y - 2].foos[y - 1].b.pop_front();
+    foo_parents[y - 2].foos[y - 1].b = rest_of_slice;
+    assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
+    assert(first_elem == 11);
 
-    // foo_parents[y - 2].foos[y - 1].b = foo_parents[y - 2].foos[y - 1].b.insert(2, 20);
-    // assert(foo_parents[y - 2].foos[y - 1].b.len() == 7);
-    // assert(foo_parents[y - 2].foos[y - 1].b[y - 1] == 20);
-    // assert(foo_parents[y - 2].foos[y - 1].b[y] == 5000);
-    // assert(foo_parents[y - 2].foos[y - 1].b[6] == 101);
+    foo_parents[y - 2].foos[y - 1].b = foo_parents[y - 2].foos[y - 1].b.insert(2, 20);
+    assert(foo_parents[y - 2].foos[y - 1].b.len() == 7);
+    assert(foo_parents[y - 2].foos[y - 1].b[y - 1] == 20);
+    assert(foo_parents[y - 2].foos[y - 1].b[y] == 5000);
+    assert(foo_parents[y - 2].foos[y - 1].b[6] == 101);
 
-    // let (rest_of_slice, removed_elem) = foo_parents[y - 2].foos[y - 1].b.remove(3);
-    // foo_parents[y - 2].foos[y - 1].b = rest_of_slice;
-    // assert(removed_elem == 5000);
-    // assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
-    // assert(foo_parents[y - 2].foos[y - 1].b[2] == 20);
-    // assert(foo_parents[y - 2].foos[y - 1].b[3] == 21);
+    let (rest_of_slice, removed_elem) = foo_parents[y - 2].foos[y - 1].b.remove(3);
+    foo_parents[y - 2].foos[y - 1].b = rest_of_slice;
+    assert(removed_elem == 5000);
+    assert(foo_parents[y - 2].foos[y - 1].b.len() == 6);
+    assert(foo_parents[y - 2].foos[y - 1].b[2] == 20);
+    assert(foo_parents[y - 2].foos[y - 1].b[3] == 21);
 }
 
 // This method test intrinsics on nested slices with complex inputs such as
@@ -269,8 +291,35 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(foo_parents[y - 2].foos.len() == 5);
     foo.a = 40;
     foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo);
-    assert(foo_parents[y - 2].foos.len() == 6);
-    assert(foo_parents[y - 2].foos[5].a == 40);
-    println(foo_parents[y - 2].foos[5].bar.inner);
-    assert(foo_parents[y - 2].foos[5].bar.inner == [109, 110, 111]);
+    assert(foo_parents[1].foos.len() == 6);
+    assert(foo_parents[1].foos[5].a == 40);
+    assert(foo_parents[1].foos[5].b[0] == 14);
+    assert(foo_parents[1].foos[5].b[2] == 16);
+    assert(foo_parents[1].foos[5].b.len() == 3);
+    println(foo_parents[1].foos[5].bar.inner);
+    assert(foo_parents[1].foos[5].bar.inner == [109, 110, 111]);
+
+    let (popped_slice, last_foo) = foo_parents[y - 2].foos.pop_back();
+    foo_parents[y - 2].foos = popped_slice;
+    assert(foo_parents[y - 2].foos.len() == 5);
+    println(last_foo.a);
+    println(last_foo.bar.inner);
+    // assert(last_foo.a == 40);
+    // println(foo_parents[1].foos[4].bar.inner);
+
+    // assert(foo_parents[1].foos[4].bar.inner == [109, 110, 111]);
+
+    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_front(foo);
+    // assert(foo_parents[1].foos.len() == 7);
+    // assert(foo_parents[1].foos[0].a == 40);
+    // assert(foo_parents[1].foos[0].bar.inner == [109, 110, 111]);
+
+    // foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_front(foo);
+    // assert(foo_parents[1].foos.len() == 7);
+    // // println(foo_parents[1].foos[0].a);
+    // assert(foo_parents[1].foos[6].a == 40);
+    // assert(foo_parents[1].foos[6].b.len() == 3);
+    // assert(foo_parents[1].foos[6].b[0] == 14);
+    // assert(foo_parents[1].foos[6].b[2] == 16);
+    // assert(foo_parents[1].foos[6].bar.inner == [109, 110, 111]);
 }

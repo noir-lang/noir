@@ -69,6 +69,11 @@ impl Ssa {
     }
 }
 
+struct Slice {
+    capacity: usize,
+    nested_slice: Box<Option<Slice>>,
+}
+
 struct Context<'f> {
     post_order: PostOrder,
     inserter: FunctionInserter<'f>,
@@ -83,6 +88,8 @@ struct Context<'f> {
     /// values being used in array operations.
     /// Maps result -> original value
     slice_parents: HashMap<ValueId, ValueId>,
+
+    new_slices: HashMap<ValueId, Slice>,
 }
 
 impl<'f> Context<'f> {
@@ -95,6 +102,7 @@ impl<'f> Context<'f> {
             inserter,
             mapped_slice_values: HashMap::default(),
             slice_parents: HashMap::default(),
+            new_slices: HashMap::default(),
         }
     }
 
@@ -122,7 +130,7 @@ impl<'f> Context<'f> {
             self.collect_slice_information(*instruction, &mut slice_values, &mut slice_sizes);
         }
 
-        dbg!(slice_values.clone());
+        // dbg!(slice_values.clone());
 
         // Add back every instruction with the updated nested slices.
         for instruction in instructions {
@@ -153,6 +161,18 @@ impl<'f> Context<'f> {
                     // Any other insertions should only occur if the value is already
                     // a part of the map.
                     self.compute_slice_sizes(*array, slice_sizes);
+                    let typ = self.inserter.function.dfg.type_of_value(*array);
+                    let depth = Self::compute_nested_slice_depth(&typ);
+                    dbg!(depth);
+                    let mut max_sizes = Vec::new();
+                    max_sizes.resize(depth, 0);
+                    // dbg!(depth);
+                    // dbg!(array_id);
+                    // dbg!(mapped_slice_value);
+                    // max_sizes[0] = *current_size;
+                    // println!("about to call compute_slice_max_sizes");
+                    self.compute_slice_max_sizes(*array, &slice_sizes, &mut max_sizes, 0);
+                    dbg!(max_sizes.clone());
                 }
 
                 let res_typ = self.inserter.function.dfg.type_of_value(results[0]);
@@ -170,8 +190,28 @@ impl<'f> Context<'f> {
                                 panic!("ICE: should have inner slice set for {slice_value}")
                             });
                             slice_sizes.insert(results[0], inner_slice.clone());
+                            if slice_value != results[0] {
+                                self.mapped_slice_values.insert(slice_value, results[0]);
+                            }
                         }
                     }
+                    // if let Some(inner_sizes) = slice_sizes.get(array) {
+                    //     let inner_sizes_iter = inner_sizes.1.iter();
+                    //     let mut max = 0;
+                    //     let mut possible_children = Vec::new();
+                    //     for slice_value in inner_sizes_iter {
+                    //         if let Some(inner_slice) = slice_sizes.get(&slice_value) {
+                    //             if inner_slice.0 > max {
+                    //                 max = inner_slice.0;
+                    //             }
+                    //             let mut inner_children = inner_slice.1.clone();
+                    //             possible_children.append(&mut inner_children);
+                    //         }
+                    //     }
+                    //     dbg!(max);
+                    //     dbg!(possible_children.len());
+                    //     slice_sizes.insert(results[0], (max, possible_children));
+                    // }
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
@@ -186,6 +226,19 @@ impl<'f> Context<'f> {
                     // Any other insertions should only occur if the value is already
                     // a part of the map.
                     self.compute_slice_sizes(*array, slice_sizes);
+
+                    let typ = self.inserter.function.dfg.type_of_value(*array);
+                    let depth = Self::compute_nested_slice_depth(&typ);
+                    dbg!(depth);
+                    let mut max_sizes = Vec::new();
+                    max_sizes.resize(depth, 0);
+                    // dbg!(depth);
+                    // dbg!(array_id);
+                    // dbg!(mapped_slice_value);
+                    // max_sizes[0] = *current_size;
+                    // println!("about to call compute_slice_max_sizes");
+                    self.compute_slice_max_sizes(*array, &slice_sizes, &mut max_sizes, 0);
+                    dbg!(max_sizes.clone());
                 }
 
                 // TODO: We might need to replace the value in an array set as well
@@ -194,61 +247,78 @@ impl<'f> Context<'f> {
                 let value_typ = self.inserter.function.dfg.type_of_value(*value);
                 if value_typ.contains_slice_element() {
                     self.compute_slice_sizes(*value, slice_sizes);
-                    let value_parent = self.resolve_slice_parent(*value);
-                    dbg!(value);
-                    let had_value_parent_before = self.mapped_slice_values.get(&value_parent);
-                    dbg!(had_value_parent_before);
-                    if let Some(new_value_parent) = had_value_parent_before {
-                        let inner_sizes = slice_sizes.get(new_value_parent).unwrap_or_else(|| {
-                            panic!("ICE: should have inner slice set for {new_value_parent}")
-                        });
-                        let inner_sizes_iter = inner_sizes.1.clone();
-                        for slice_value in inner_sizes_iter {
-                            let inner_slice = slice_sizes.get(&slice_value).unwrap_or_else(|| {
-                                panic!("ICE: should have inner slice set for {slice_value}")
-                            });
-                            slice_sizes.insert(value_parent, inner_slice.clone());
-                        }
-                    }
 
                     let inner_sizes = slice_sizes.get_mut(array).expect("ICE expected slice sizes");
                     inner_sizes.1.push(*value);
 
-                    
-                    if slice_values.contains(&value_parent) {
+                    // let value_parent = self.resolve_slice_parent(*value);
+                    // if slice_values.contains(&value_parent) {
+                    //     // dbg!(array);
+                    //     let array_parent = self.resolve_slice_parent(*array);
+                    //     // dbg!(array_parent);
+                    //     // dbg!(value);
+                    //     // dbg!(value_parent);
+                    //     if value_parent == array_parent {
+                    //         dbg!("got same value and array");
+                    //     } else {
+                    //         self.mapped_slice_values.insert(value_parent, array_parent);  
+                    //         // self.mapped_slice_values.insert(value_parent, *array);  
+                    //         // self.slice_parents.insert(results[0], *array);
+                    //     }
+                    //     // dbg!(self.mapped_slice_values.get(&value_parent));
+                    //     // if let Some(mapped_value) = self.mapped_slice_values.get(&value_parent) {
+                    //     //     dbg!("GOT MAPPED VAL PARENT");
+                    //     //     dbg!(value_parent);
+                    //     //     dbg!(mapped_value);
+                    //     //     dbg!(value);
+                    //     //     dbg!(array);
+                    //     //     self.mapped_slice_values.insert(value_parent, *array);  
+                    //     // } else {
+                    //     //     self.mapped_slice_values.insert(value_parent, *array);  
+                    //     // }
+                    //     // Map the value parent to the current array in case nested slices
+                    //     // from the current array are sest to larger values later in the program
+                    //     // self.mapped_slice_values.insert(*value, *array);
+                    //     // If I map the parents like this I risk a loop if I also set the result of an array get's 
+                    //     // parent to the array
+                    //     // self.mapped_slice_values.insert(value_parent, array_parent);
+                    //     // self.mapped_slice_values.insert(*value, array_parent);
                         
-                        // dbg!(array);
-                        let array_parent = self.resolve_slice_parent(*array);
-                        // dbg!(array_parent);
-                        // dbg!(value);
-                        // dbg!(value_parent);
-                        if value_parent == array_parent {
-                            dbg!("got same value and array parent");
-                        } else {
-                            self.mapped_slice_values.insert(value_parent, array_parent);  
-                            // self.slice_parents.insert(results[0], *array);
-                        }
-                        // Map the value parent to the current array in case nested slices
-                        // from the current array are sest to larger values later in the program
-                        // self.mapped_slice_values.insert(*value, *array);
-
-                        // If I map the parents like this I risk a loop if I also set the result of an array get's 
-                        // parent to the array
-                        // self.mapped_slice_values.insert(value_parent, array_parent);
-                        // self.mapped_slice_values.insert(*value, array_parent);
-                        // self.slice_parents.insert(array_parent, value_parent);
-                        // self.mapped_slice_values.insert(value_parent, *array);
-                        // self.slice_parents.insert(*array, value_parent);
-                    }
+                    // }
                 }
 
                 if let Some(inner_sizes) = slice_sizes.get_mut(array) {
                     let inner_sizes = inner_sizes.clone();
+
+                    // let inner_sizes_iter = inner_sizes.1.iter();
+                    // for slice_value in inner_sizes_iter {
+                    //     let inner_slice = slice_sizes.get(&slice_value).unwrap_or_else(|| {
+                    //         panic!("ICE: should have inner slice set for {slice_value}")
+                    //     });
+                    //     slice_sizes.insert(*value, inner_slice.clone());
+                    // }
                     slice_sizes.insert(results[0], inner_sizes);
 
                     self.mapped_slice_values.insert(*array, results[0]);
                     self.slice_parents.insert(results[0], *array);
                 }
+
+                // if let Some(inner_sizes) = slice_sizes.get(array) {
+                //     let inner_sizes_iter = inner_sizes.1.iter();
+                //     let mut max = 0;
+                //     let mut possible_children = Vec::new();
+                //     for slice_value in inner_sizes_iter {
+                //         if let Some(inner_slice) = slice_sizes.get(&slice_value) {
+                //             if inner_slice.0 > max {
+                //                 max = inner_slice.0;
+                //             }
+                //             let mut inner_children = inner_slice.1.clone();
+                //             possible_children.append(&mut inner_children);
+                //         }
+                //     }
+                //     dbg!(possible_children.len());
+                //     slice_sizes.insert(*value, (max, vec![]));
+                // }
             }
             Instruction::Call { func, arguments } => {
                 let func = &self.inserter.function.dfg[*func];
@@ -342,33 +412,31 @@ impl<'f> Context<'f> {
             }
             Instruction::Call { func, arguments } => {
                 // let func = &self.inserter.function.dfg[*func];
-                println!("got a call");
+                // println!("got a call");
                 let mut index = None;
                 
                 for (i, arg) in arguments.iter().enumerate() {
                     // elements.push()
                     let element_typ = self.inserter.function.dfg.type_of_value(*arg);
                     // dbg!(element_typ.contains_slice_element());
-                    dbg!(slice_values.contains(arg));
+                    // dbg!(slice_values.contains(arg));
                     if slice_values.contains(arg) && element_typ.contains_slice_element() {
                         // Try and see if we can handle it per call arg
-                        let element_typ = self.inserter.function.dfg.type_of_value(*arg);
-                        let elem_depth = Self::compute_nested_slice_depth(&element_typ);
-                        dbg!(elem_depth);
-                        let mut new_max_sizes = Vec::new();
-                        new_max_sizes.resize(elem_depth, 0);
-                        self.compute_slice_max_sizes(*arg, slice_sizes, &mut new_max_sizes, 0);
-                        dbg!(new_max_sizes.clone());
-
-                        dbg!(new_max_sizes.clone());
+                        // let element_typ = self.inserter.function.dfg.type_of_value(*arg);
+                        // let elem_depth = Self::compute_nested_slice_depth(&element_typ);
+                        // dbg!(elem_depth);
+                        // let mut new_max_sizes = Vec::new();
+                        // new_max_sizes.resize(elem_depth, 0);
+                        // self.compute_slice_max_sizes(*arg, slice_sizes, &mut new_max_sizes, 0);
+                        // dbg!(new_max_sizes.clone());
                         index = Some(i);
                     }
                 }
-                dbg!(index.is_some());
+                // dbg!(index.is_some());
                 if let Some(index) = index {
                     let slice_contents = arguments[1];
                     dbg!(slice_contents);
-                    dbg!(index);
+                    // dbg!(index);
                     let element_typ = self.inserter.function.dfg.type_of_value(arguments[1]);
                     let elem_depth = Self::compute_nested_slice_depth(&element_typ);
                     dbg!(elem_depth);
@@ -378,6 +446,8 @@ impl<'f> Context<'f> {
                     dbg!(slice_contents);
                     let parent = self.resolve_slice_parent(slice_contents);
                     dbg!(parent);
+                    let resolved_contents = self.resolve_slice_value(slice_contents);
+                    dbg!(resolved_contents);
                     self.compute_slice_max_sizes(parent, slice_sizes, &mut max_sizes, 0);
                     dbg!(max_sizes.clone());
                     // dbg!(self.inserter.function.dfg[arguments[index]].clone());
@@ -388,7 +458,6 @@ impl<'f> Context<'f> {
                     // dbg!(elem_depth);
                     // let mut new_max_sizes = Vec::new();
                     // new_max_sizes.resize(elem_depth, 0);
-
 
                     let element_typ = self.inserter.function.dfg.type_of_value(arguments[index]);
                     max_sizes.remove(0);
@@ -494,9 +563,9 @@ impl<'f> Context<'f> {
         // dbg!(array_id);
         // dbg!(mapped_slice_value);
         max_sizes[0] = *current_size;
-        println!("about to call compute_slice_max_sizes");
+        // println!("about to call compute_slice_max_sizes");
         self.compute_slice_max_sizes(array_id, slice_sizes, &mut max_sizes, 1);
-        println!("finished compute_slice_max_sizes");
+        // println!("finished compute_slice_max_sizes");
 
         // dbg!(array_id);
         dbg!(max_sizes.clone());
@@ -683,8 +752,10 @@ impl<'f> Context<'f> {
             }
             self.compute_slice_max_sizes(*inner_slice, slice_sizes, max_sizes, depth + 1);
         }
-
-        max_sizes[depth] = max;
+        // dbg!(depth);
+        // dbg!(max);
+        // dbg!(max_sizes[depth]);
+        // max_sizes[depth] = max;
         if max > max_sizes[depth] {
             max_sizes[depth] = max;
         }
