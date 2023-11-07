@@ -60,6 +60,10 @@ jobs:
         run: |
           yarn workspace @noir-lang/noir_js build
 
+      - name: Build docs
+        run: 
+          yarn workspace docs build
+
       - name: Cut a new version
         working-directory: ./docs
         run: yarn docusaurus docs:version ${{ inputs.tag }}
