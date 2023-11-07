@@ -161,7 +161,7 @@ fn print_span_opcodes(
         let end_byte = byte_index(&debug_file.source, location.span.end() + 1);
         let range = start_byte..end_byte;
         let span_content = &debug_file.source[range];
-        let line = debug_artifact.location_line_index(**location).unwrap();
+        let line = debug_artifact.location_line_index(**location).unwrap() + 1;
         println!(
             "Ln. {}: {} (ACIR:{}, Brillig:{} opcode|s) in file: {}",
             line,
