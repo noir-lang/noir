@@ -20,6 +20,8 @@ pub struct DebugInfo {
     pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
 }
 
+/// Holds OpCodes Counts for Acir and Brillig Opcodes
+/// To be printed with `nargo info --profile-info`
 pub struct OpCodesCount {
     pub acir_size: usize,
     pub brillig_size: usize,
