@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.2](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.14.1...barretenberg.js-v0.14.2) (2023-11-07)
+
+
+### Features
+
+* Run solidity tests for all acir artifacts ([#3161](https://github.com/AztecProtocol/aztec-packages/issues/3161)) ([d09f667](https://github.com/AztecProtocol/aztec-packages/commit/d09f66748fcbb7739b17940a36806abb72091ee1))
+
 ## [0.14.1](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.14.0...barretenberg.js-v0.14.1) (2023-11-07)
 
 
