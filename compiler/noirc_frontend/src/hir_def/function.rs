@@ -4,7 +4,7 @@ use noirc_errors::{Location, Span};
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
-use crate::node_interner::{ExprId, NodeInterner};
+use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
 use crate::FunctionKind;
 use crate::{Distinctness, FunctionReturnType, Type, Visibility};
 
@@ -114,6 +114,9 @@ pub struct FuncMeta {
     pub has_body: bool,
 
     pub trait_constraints: Vec<TraitConstraint>,
+
+    /// The trait impl this function belongs to, if any
+    pub trait_impl: Option<TraitImplId>,
 }
 
 impl FuncMeta {

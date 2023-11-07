@@ -13,13 +13,15 @@ use crate::hir::resolution::{
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
 use crate::hir_def::traits::{Trait, TraitConstant, TraitFunction, TraitImpl, TraitType};
-use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{
+    FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplId, TypeAliasId,
+};
 
 use crate::parser::{ParserError, SortedModule};
 use crate::{
     ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
     NoirTypeAlias, Path, Shared, StructType, TraitItem, Type, TypeBinding, TypeVariableKind,
-    UnresolvedGenerics, UnresolvedType,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -91,6 +93,7 @@ pub struct UnresolvedTraitImpl {
     pub object_type: UnresolvedType,
     pub methods: UnresolvedFunctions,
     pub generics: UnresolvedGenerics,
+    pub where_clause: Vec<UnresolvedTraitConstraint>,
 }
 
 #[derive(Clone)]
@@ -919,6 +922,7 @@ fn resolve_impls(
                 def_maps,
                 functions,
                 Some(self_type.clone()),
+                None,
                 generics,
                 errors,
             );
@@ -968,13 +972,16 @@ fn resolve_trait_impls(
         let self_type = resolver.resolve_type(unresolved_type.clone());
         let generics = resolver.get_generics().to_vec();
 
+        let impl_id = interner.next_trait_impl_id();
+
         let mut impl_methods = resolve_function_set(
             interner,
             crate_id,
             &context.def_maps,
             trait_impl.methods.clone(),
             Some(self_type.clone()),
-            generics,
+            Some(impl_id),
+            generics.clone(),
             errors,
         );
 
@@ -993,22 +1000,40 @@ fn resolve_trait_impls(
 
         let mut new_resolver =
             Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
+
+        new_resolver.set_generics(generics);
         new_resolver.set_self_type(Some(self_type.clone()));
 
         if let Some(trait_id) = maybe_trait_id {
-            check_methods_signatures(&mut new_resolver, &impl_methods, trait_id, errors);
+            check_methods_signatures(
+                &mut new_resolver,
+                &impl_methods,
+                trait_id,
+                trait_impl.generics.len(),
+                errors,
+            );
+
+            let where_clause = trait_impl
+                .where_clause
+                .into_iter()
+                .flat_map(|item| new_resolver.resolve_trait_constraint(item))
+                .collect();
 
             let resolved_trait_impl = Shared::new(TraitImpl {
                 ident: trait_impl.trait_path.last_segment().clone(),
                 typ: self_type.clone(),
                 trait_id,
                 file: trait_impl.file_id,
+                where_clause,
                 methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
             });
 
-            if let Some((prev_span, prev_file)) =
-                interner.add_trait_implementation(self_type.clone(), trait_id, resolved_trait_impl)
-            {
+            if let Err((prev_span, prev_file)) = interner.add_trait_implementation(
+                self_type.clone(),
+                trait_id,
+                impl_id,
+                resolved_trait_impl,
+            ) {
                 let error = DefCollectorErrorKind::OverlappingImpl {
                     typ: self_type.clone(),
                     span: self_type_span.unwrap_or_else(|| trait_impl.trait_path.span()),
@@ -1033,6 +1058,7 @@ fn check_methods_signatures(
     resolver: &mut Resolver,
     impl_methods: &Vec<(FileId, FuncId)>,
     trait_id: TraitId,
+    trait_impl_generic_count: usize,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) {
     let the_trait = resolver.interner.get_trait(trait_id);
@@ -1043,24 +1069,42 @@ fn check_methods_signatures(
     let _ = the_trait.self_type_typevar.borrow_mut().bind_to(self_type.clone(), the_trait.span);
 
     for (file_id, func_id) in impl_methods {
-        let meta = resolver.interner.function_meta(func_id);
+        let impl_method = resolver.interner.function_meta(func_id);
         let func_name = resolver.interner.function_name(func_id).to_owned();
 
         let mut typecheck_errors = Vec::new();
 
-        // `method` is None in the case where the impl block has a method that's not part of the trait.
+        // This is None in the case where the impl block has a method that's not part of the trait.
         // If that's the case, a `MethodNotInTrait` error has already been thrown, and we can ignore
         // the impl method, since there's nothing in the trait to match its signature against.
-        if let Some(method) =
+        if let Some(trait_method) =
             the_trait.methods.iter().find(|method| method.name.0.contents == func_name)
         {
-            let function_typ = meta.typ.instantiate(resolver.interner);
+            let impl_function_type = impl_method.typ.instantiate(resolver.interner);
 
-            if let Type::Function(params, _, _) = function_typ.0 {
-                if method.arguments.len() == params.len() {
+            let impl_method_generic_count =
+                impl_method.typ.generic_count() - trait_impl_generic_count;
+            let trait_method_generic_count = trait_method.generics.len();
+
+            if impl_method_generic_count != trait_method_generic_count {
+                let error = DefCollectorErrorKind::MismatchTraitImplementationNumGenerics {
+                    impl_method_generic_count,
+                    trait_method_generic_count,
+                    trait_name: the_trait.name.to_string(),
+                    method_name: func_name.to_string(),
+                    span: impl_method.location.span,
+                };
+                errors.push((error.into(), *file_id));
+            }
+
+            if let Type::Function(impl_params, _, _) = impl_function_type.0 {
+                if trait_method.arguments.len() == impl_params.len() {
                     // Check the parameters of the impl method against the parameters of the trait method
+                    let args = trait_method.arguments.iter();
+                    let args_and_params = args.zip(&impl_params).zip(&impl_method.parameters.0);
+
                     for (parameter_index, ((expected, actual), (hir_pattern, _, _))) in
-                        method.arguments.iter().zip(&params).zip(&meta.parameters.0).enumerate()
+                        args_and_params.enumerate()
                     {
                         expected.unify(actual, &mut typecheck_errors, || {
                             TypeCheckError::TraitMethodParameterTypeMismatch {
@@ -1073,33 +1117,28 @@ fn check_methods_signatures(
                         });
                     }
                 } else {
-                    errors.push((
-                        DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
-                            actual_num_parameters: meta.parameters.0.len(),
-                            expected_num_parameters: method.arguments.len(),
-                            trait_name: the_trait.name.to_string(),
-                            method_name: func_name.to_string(),
-                            span: meta.location.span,
-                        }
-                        .into(),
-                        *file_id,
-                    ));
+                    let error = DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
+                        actual_num_parameters: impl_method.parameters.0.len(),
+                        expected_num_parameters: trait_method.arguments.len(),
+                        trait_name: the_trait.name.to_string(),
+                        method_name: func_name.to_string(),
+                        span: impl_method.location.span,
+                    };
+                    errors.push((error.into(), *file_id));
                 }
             }
 
             // Check that impl method return type matches trait return type:
             let resolved_return_type =
-                resolver.resolve_type(meta.return_type.get_type().into_owned());
+                resolver.resolve_type(impl_method.return_type.get_type().into_owned());
 
-            method.return_type.unify(&resolved_return_type, &mut typecheck_errors, || {
-                let ret_type_span =
-                    meta.return_type.get_type().span.expect("return type must always have a span");
+            trait_method.return_type.unify(&resolved_return_type, &mut typecheck_errors, || {
+                let ret_type_span = impl_method.return_type.get_type().span;
+                let expr_span = ret_type_span.expect("return type must always have a span");
 
-                TypeCheckError::TypeMismatch {
-                    expected_typ: method.return_type.to_string(),
-                    expr_typ: meta.return_type().to_string(),
-                    expr_span: ret_type_span,
-                }
+                let expected_typ = trait_method.return_type.to_string();
+                let expr_typ = impl_method.return_type().to_string();
+                TypeCheckError::TypeMismatch { expr_typ, expected_typ, expr_span }
             });
 
             errors.extend(typecheck_errors.iter().cloned().map(|e| (e.into(), *file_id)));
@@ -1127,6 +1166,7 @@ fn resolve_free_functions(
                 def_maps,
                 unresolved_functions,
                 self_type.clone(),
+                None,
                 vec![], // no impl generics
                 errors,
             )
@@ -1134,12 +1174,14 @@ fn resolve_free_functions(
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn resolve_function_set(
     interner: &mut NodeInterner,
     crate_id: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     mut unresolved_functions: UnresolvedFunctions,
     self_type: Option<Type>,
+    trait_impl_id: Option<TraitImplId>,
     impl_generics: Vec<(Rc<String>, Shared<TypeBinding>, Span)>,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
@@ -1160,6 +1202,7 @@ fn resolve_function_set(
         resolver.set_generics(impl_generics.clone());
         resolver.set_self_type(self_type.clone());
         resolver.set_trait_id(unresolved_functions.trait_id);
+        resolver.set_trait_impl_id(trait_impl_id);
 
         // Without this, impl methods can accidentally be placed in contracts. See #3254
         if self_type.is_some() {

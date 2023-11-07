@@ -2,12 +2,14 @@ use dep::std;
 
 fn main(x: Field, y: Field, salt: Field, out_x: Field, out_y: Field, out_hash: Field) {
     let res = std::hash::pedersen_commitment([x, y]);
-    assert(res[0] == out_x);
-    assert(res[1] == out_y);
+    assert(res.x == out_x);
+    assert(res.y == out_y);
+
     let res_hash = std::hash::pedersen_hash_with_separator([x, y], 0);
     assert_eq(res_hash, out_hash);
 
-    assert(res_hash != res[0]);
+    assert(res_hash != res.x);
+
 
     let raw_data = [x, y];
     let mut state = 0;
@@ -16,6 +18,6 @@ fn main(x: Field, y: Field, salt: Field, out_x: Field, out_y: Field, out_hash: F
     }
     state += salt;
     let hash = std::hash::pedersen_commitment([state]);
-    assert(std::hash::pedersen_commitment([43])[0] == hash[0]);
+    assert(std::hash::pedersen_commitment([43]).x == hash.x);
 }
 

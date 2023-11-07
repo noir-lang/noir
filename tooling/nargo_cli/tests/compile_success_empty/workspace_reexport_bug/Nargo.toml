@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "library", 
+    "library2",
+    "binary"
+]
+default-member = "binary"

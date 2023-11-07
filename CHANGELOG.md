@@ -1,5 +1,77 @@
 # Changelog
 
+## [0.19.1](https://github.com/noir-lang/noir/compare/v0.19.0...v0.19.1) (2023-11-07)
+
+
+### Features
+
+* **acir:** Handle dynamic array operations for nested slices ([#3187](https://github.com/noir-lang/noir/issues/3187)) ([e026319](https://github.com/noir-lang/noir/commit/e026319fc25763d30781b90e6a4454ddb5d3bc7b))
+* Properly track equivalence of witnesses generated for black box functions ([#3428](https://github.com/noir-lang/noir/issues/3428)) ([20b70c2](https://github.com/noir-lang/noir/commit/20b70c29b4bd323d67ef56ab1933341a7747d3cb))
+* Use ranges instead of a vector for input witness ([#3314](https://github.com/noir-lang/noir/issues/3314)) ([b12b7ec](https://github.com/noir-lang/noir/commit/b12b7ecb995988c731be5f1f2f67fda952f1a228))
+
+
+### Bug Fixes
+
+* Follow dependencies when looking for a struct ([#3405](https://github.com/noir-lang/noir/issues/3405)) ([561b1b8](https://github.com/noir-lang/noir/commit/561b1b8f0b22d8b1800cb3552942a442a27c2a2c))
+* Overflow checks for constant folding ([#3420](https://github.com/noir-lang/noir/issues/3420)) ([b7a6383](https://github.com/noir-lang/noir/commit/b7a6383cf9dc3bc4a71b9644352340c1e9339c81))
+
+## [0.19.0](https://github.com/noir-lang/noir/compare/v0.18.0...v0.19.0) (2023-11-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* avoid integer overflows ([#2713](https://github.com/noir-lang/noir/issues/2713))
+* return Pedersen structure in stdlib ([#3190](https://github.com/noir-lang/noir/issues/3190))
+* noir-wasm outputs debug symbols ([#3317](https://github.com/noir-lang/noir/issues/3317))
+* move mimc to hash submodule ([#3361](https://github.com/noir-lang/noir/issues/3361))
+* bump MSRV to 1.71.1 ([#3353](https://github.com/noir-lang/noir/issues/3353))
+* Add semver checks for the compiler version in Nargo.toml ([#3336](https://github.com/noir-lang/noir/issues/3336))
+* Move circuit serialization circuit into acir ([#3345](https://github.com/noir-lang/noir/issues/3345))
+* change stdlib function `pedersen` to `pedersen_commitment` ([#3341](https://github.com/noir-lang/noir/issues/3341))
+
+### Features
+
+* `compute_note_hash_and_nullifier` check ([#3216](https://github.com/noir-lang/noir/issues/3216)) ([4963c6c](https://github.com/noir-lang/noir/commit/4963c6c024bba710dd8907147f631f5c26094f0a))
+* Add `noir_codegen` package ([#3392](https://github.com/noir-lang/noir/issues/3392)) ([6c4cd4d](https://github.com/noir-lang/noir/commit/6c4cd4d37e4af38dccf899bcbd3950d1e236b35d))
+* Add check for overlapping generic traits ([#3307](https://github.com/noir-lang/noir/issues/3307)) ([8cf81b6](https://github.com/noir-lang/noir/commit/8cf81b659bed9522aede29c1ebb4a4ed2bfa1205))
+* Add exports of JS black box solvers to noirJS ([#3295](https://github.com/noir-lang/noir/issues/3295)) ([8369871](https://github.com/noir-lang/noir/commit/836987150f82354d3dfc01cfaad69f70240ca80c))
+* Add generic count check for trait methods ([#3382](https://github.com/noir-lang/noir/issues/3382)) ([a9f9717](https://github.com/noir-lang/noir/commit/a9f9717ba69c0dd8e4fc7045fe6aea2077b84c95))
+* Add semver checks for the compiler version in Nargo.toml ([#3336](https://github.com/noir-lang/noir/issues/3336)) ([0e530cf](https://github.com/noir-lang/noir/commit/0e530cfe86f87a532be30a02f4353d010e47e458))
+* Allow a trait to be implemented multiple times for the same struct ([#3292](https://github.com/noir-lang/noir/issues/3292)) ([51831df](https://github.com/noir-lang/noir/commit/51831df68bc20460c6d05d55469002db06113925))
+* Allow traits to have generic functions ([#3365](https://github.com/noir-lang/noir/issues/3365)) ([0f9af65](https://github.com/noir-lang/noir/commit/0f9af652efc6b7628784a397a9df674eaa30de61))
+* Avoid integer overflows ([#2713](https://github.com/noir-lang/noir/issues/2713)) ([7d7d632](https://github.com/noir-lang/noir/commit/7d7d63291d712137f97e6d44a774acdf2bd20512))
+* Check where clauses when searching for trait impls ([#3407](https://github.com/noir-lang/noir/issues/3407)) ([84c6604](https://github.com/noir-lang/noir/commit/84c6604397f262c09ba4bac157fead38b8280313))
+* Expand trait impl overlap check to cover generic types ([#3320](https://github.com/noir-lang/noir/issues/3320)) ([a01549b](https://github.com/noir-lang/noir/commit/a01549b78a2c5de3e64ce5d3e5c4bb73a8c8b4fb))
+* Extract Brillig VM to allow step debugging ([#3259](https://github.com/noir-lang/noir/issues/3259)) ([f6431f9](https://github.com/noir-lang/noir/commit/f6431f99711f15a96a4f7fed2f413daece94b5e1))
+* Handle warnings in evaluator ([#3205](https://github.com/noir-lang/noir/issues/3205)) ([5cfd156](https://github.com/noir-lang/noir/commit/5cfd156ca2035038a226bdd81a51636d3de3c34e))
+* Implement where clauses on impls ([#3324](https://github.com/noir-lang/noir/issues/3324)) ([4c3d1de](https://github.com/noir-lang/noir/commit/4c3d1dea27726133335538443df3dbbd2c8f2d58))
+* Make generic impls callable ([#3297](https://github.com/noir-lang/noir/issues/3297)) ([8d9b738](https://github.com/noir-lang/noir/commit/8d9b738ea958320a16946ebe6fcfb6bbf2dda42e))
+* Manage breakpoints and allow restarting a debugging session ([#3325](https://github.com/noir-lang/noir/issues/3325)) ([f502108](https://github.com/noir-lang/noir/commit/f502108a59e2141f4898b0a25e84d7ed7d2bff58))
+* **noir_js:** Allow providing foreign call handlers in noirJS ([#3294](https://github.com/noir-lang/noir/issues/3294)) ([c76b0f8](https://github.com/noir-lang/noir/commit/c76b0f81b89ae02c39c13c3bd400b5d13f083759))
+* Noir-wasm outputs debug symbols ([#3317](https://github.com/noir-lang/noir/issues/3317)) ([f9933fa](https://github.com/noir-lang/noir/commit/f9933fa50c42aade8ddc13d29deef7645ddcf586))
+* Perform compile-time euclidean division on constants ([#3231](https://github.com/noir-lang/noir/issues/3231)) ([3866d7e](https://github.com/noir-lang/noir/commit/3866d7ea32dcdabbdb5ba85478d97fd51a6850f3))
+* Refactor debugger and separate core from UI ([#3308](https://github.com/noir-lang/noir/issues/3308)) ([8466810](https://github.com/noir-lang/noir/commit/846681079ab7295b201480a5c8baebc45e858c6f))
+* Return Pedersen structure in stdlib ([#3190](https://github.com/noir-lang/noir/issues/3190)) ([be30d59](https://github.com/noir-lang/noir/commit/be30d59e61a9dff6ab94ffb97365c1282c331643))
+
+
+### Bug Fixes
+
+* `compute_note_hash_and_nullifier` compiler check ([#3351](https://github.com/noir-lang/noir/issues/3351)) ([4e2d35f](https://github.com/noir-lang/noir/commit/4e2d35f256bea2fee3a6cbd7af0c0c15a37c0a2e))
+* **3275:** Activate brillig modulo test with negative integers ([#3318](https://github.com/noir-lang/noir/issues/3318)) ([31c493c](https://github.com/noir-lang/noir/commit/31c493ce2082a571d147f707837beb4f3ed2ca64))
+* **3300:** Cache warnings into debug artefacts ([#3313](https://github.com/noir-lang/noir/issues/3313)) ([cb5a15b](https://github.com/noir-lang/noir/commit/cb5a15b9dbcfdaac5d656a122c73dca23855307d))
+* **aztec_nr:** Serialise arrays of structs ([#3401](https://github.com/noir-lang/noir/issues/3401)) ([e979a58](https://github.com/noir-lang/noir/commit/e979a587e755d4b715ebacba715d778938026ac0))
+* Fixing versioning workflow ([#3296](https://github.com/noir-lang/noir/issues/3296)) ([3d5e43a](https://github.com/noir-lang/noir/commit/3d5e43a4b8cd9d2bb67d44a2eff93374c3603e42))
+* Move mimc to hash submodule ([#3361](https://github.com/noir-lang/noir/issues/3361)) ([3ec29f1](https://github.com/noir-lang/noir/commit/3ec29f17464703716978daacfa9f00c4f5013551))
+* Remove sha2_block test ([#3360](https://github.com/noir-lang/noir/issues/3360)) ([a48c03b](https://github.com/noir-lang/noir/commit/a48c03bec786d1fb85eef46eeddeccf29e81fe76))
+* Use pedersen_hash for merkle tree ([#3357](https://github.com/noir-lang/noir/issues/3357)) ([6b74d31](https://github.com/noir-lang/noir/commit/6b74d316fec3b379dd7b51064f1acb1a0e6a15cc))
+
+
+### Miscellaneous Chores
+
+* Bump MSRV to 1.71.1 ([#3353](https://github.com/noir-lang/noir/issues/3353)) ([78f2127](https://github.com/noir-lang/noir/commit/78f2127dd12e36e831e63fd670d9f9d870818af7))
+* Change stdlib function `pedersen` to `pedersen_commitment` ([#3341](https://github.com/noir-lang/noir/issues/3341)) ([964b777](https://github.com/noir-lang/noir/commit/964b7771506bdf8408d8917ab32bf51db8ce09d2))
+* Move circuit serialization circuit into acir ([#3345](https://github.com/noir-lang/noir/issues/3345)) ([122119b](https://github.com/noir-lang/noir/commit/122119b7377cec1b7c42c586c64b69b3bdf4d539))
+
 ## [0.18.0](https://github.com/noir-lang/noir/compare/v0.17.0...v0.18.0) (2023-10-25)
 
 
