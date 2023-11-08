@@ -7,7 +7,7 @@ use askama::Template;
 use noirc_frontend::{
     hir::resolution::errors::Span,
     lexer::Lexer,
-    token::{Keyword, SpannedToken, Token, DocStyle},
+    token::{DocStyle, Keyword, SpannedToken, Token},
 };
 
 use crate::{Function, Output};
@@ -305,15 +305,15 @@ pub(crate) fn additional_doc(tokens: &[Token], index: usize) -> String {
         return "".to_string();
     }
     let res = match &tokens[index - 1] {
-        Token::LineComment(dc, Some(DocStyle::Inner)) 
-        | Token::BlockComment(dc, Some(DocStyle::Inner))=> {
+        Token::LineComment(dc, Some(DocStyle::Inner))
+        | Token::BlockComment(dc, Some(DocStyle::Inner)) => {
             let mut res = dc.to_string();
             let mut doc_end = true;
             let mut iter = 2;
             while doc_end && ((index as i32) - (iter as i32)) >= 0 {
                 match &tokens[index - iter] {
-                    Token::LineComment(doc, Some(DocStyle::Inner)) 
-                    | Token::BlockComment(doc, Some(DocStyle::Inner))=> {
+                    Token::LineComment(doc, Some(DocStyle::Inner))
+                    | Token::BlockComment(doc, Some(DocStyle::Inner)) => {
                         res.insert_str(0, &doc.to_string());
                         iter += 1;
                     }
@@ -388,7 +388,8 @@ pub(crate) fn doc(tokens: &[Token], index: usize) -> String {
             let mut iter = 2;
             while doc_find && ((index as i32) - (iter as i32)) >= 0 {
                 match &tokens[index - iter] {
-                    Token::LineComment(doc, Some(DocStyle::Outer)) | Token::BlockComment(doc, Some(DocStyle::Outer)) => {
+                    Token::LineComment(doc, Some(DocStyle::Outer))
+                    | Token::BlockComment(doc, Some(DocStyle::Outer)) => {
                         res.insert_str(0, &doc.to_string());
                         iter += 1;
                     }
@@ -423,7 +424,8 @@ pub(crate) fn outer_doc(tokens: &[Token], index: usize) -> (String, usize) {
     let mut doc_find = true;
     while doc_find {
         match &tokens[i + 1] {
-            Token::LineComment(doc, Some(DocStyle::Inner)) | Token::BlockComment(doc, Some(DocStyle::Inner)) => {
+            Token::LineComment(doc, Some(DocStyle::Inner))
+            | Token::BlockComment(doc, Some(DocStyle::Inner)) => {
                 res.push_str(doc);
                 i += 1;
             }

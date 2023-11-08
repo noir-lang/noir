@@ -1,6 +1,6 @@
 use std::fmt;
 
-use noirc_frontend::token::{Keyword, SpannedToken, Token, DocStyle};
+use noirc_frontend::token::{DocStyle, Keyword, SpannedToken, Token};
 
 use crate::{
     additional_doc, doc, fn_signature, get_module_content, outer_doc, skip_impl_block,
@@ -221,7 +221,8 @@ impl Output {
 
                     Output { r#type, name, doc, information: Info::Module { content } }
                 }
-                Token::LineComment(_, Some(DocStyle::Inner)) | Token::BlockComment(_, Some(DocStyle::Inner)) => {
+                Token::LineComment(_, Some(DocStyle::Inner))
+                | Token::BlockComment(_, Some(DocStyle::Inner)) => {
                     let r#type = Type::OuterComment;
                     let name = "".to_string();
 

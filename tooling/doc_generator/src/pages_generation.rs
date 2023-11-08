@@ -130,7 +130,7 @@ impl Implementation {
                                             let name = match &tokens[i + 1] {
                                                 Token::Ident(idn) => idn.clone(),
                                                 _ => {
-                                                    i+=1;
+                                                    i += 1;
                                                     continue;
                                                 }
                                             };
