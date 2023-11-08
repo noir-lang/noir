@@ -3,11 +3,11 @@ mod output;
 mod pages_generation;
 mod tests;
 
+use clap::{Parser, Subcommand};
 use getters::*;
 use output::*;
 use pages_generation::*;
 use std::collections::HashMap;
-use clap::{Parser, Subcommand};
 
 /// Generates documentation from the source code in the specified input file.
 
@@ -78,7 +78,7 @@ enum Commands {
     GetMap {
         #[clap(value_parser)]
         filename: String,
-    }
+    },
 }
 
 fn main() {
@@ -87,9 +87,9 @@ fn main() {
     match &cli.command {
         Commands::GenerateDoc { filename } => {
             generate_doc(filename).unwrap();
-        },
+        }
         Commands::GetMap { filename } => {
             println!("{:#?}", get_map(filename));
-        },
+        }
     }
 }
