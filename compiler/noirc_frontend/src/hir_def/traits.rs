@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
@@ -9,7 +11,7 @@ use noirc_errors::Span;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitFunction {
     pub name: Ident,
-    pub generics: Generics,
+    pub generics: Vec<(Rc<String>, TypeVariable, Span)>,
     pub arguments: Vec<Type>,
     pub return_type: Type,
     pub span: Span,
@@ -65,6 +67,12 @@ pub struct TraitImpl {
     pub trait_id: TraitId,
     pub file: FileId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
+
+    /// The where clause, if present, contains each trait requirement which must
+    /// be satisfied for this impl to be selected. E.g. in `impl Eq for [T] where T: Eq`,
+    /// `where_clause` would contain the one `T: Eq` constraint. If there is no where clause,
+    /// this Vec is empty.
+    pub where_clause: Vec<TraitConstraint>,
 }
 
 #[derive(Debug, Clone)]
@@ -72,6 +80,12 @@ pub struct TraitConstraint {
     pub typ: Type,
     pub trait_id: TraitId,
     // pub trait_generics: Generics, TODO
+}
+
+impl TraitConstraint {
+    pub fn new(typ: Type, trait_id: TraitId) -> Self {
+        Self { typ, trait_id }
+    }
 }
 
 impl std::hash::Hash for Trait {

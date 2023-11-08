@@ -1,6 +1,8 @@
 use std::iter::zip;
 
-use noirc_frontend::{ConstrainKind, ConstrainStatement, ExpressionKind, Statement, StatementKind};
+use noirc_frontend::{
+    ConstrainKind, ConstrainStatement, ExpressionKind, ForRange, Statement, StatementKind,
+};
 
 use super::ExpressionType;
 
@@ -55,7 +57,22 @@ impl super::FmtVisitor<'_> {
 
                     self.push_rewrite(constrain, span);
                 }
-                StatementKind::For(_) | StatementKind::Assign(_) => {
+                StatementKind::For(for_stmt) => {
+                    let identifier = self.slice(for_stmt.identifier.span());
+                    let range = match for_stmt.range {
+                        ForRange::Range(start, end) => format!(
+                            "{}..{}",
+                            self.format_sub_expr(start),
+                            self.format_sub_expr(end)
+                        ),
+                        ForRange::Array(array) => self.format_sub_expr(array),
+                    };
+                    let block = self.format_sub_expr(for_stmt.block);
+
+                    let result = format!("for {identifier} in {range} {block}");
+                    self.push_rewrite(result, span);
+                }
+                StatementKind::Assign(_) => {
                     self.push_rewrite(self.slice(span).to_string(), span);
                 }
                 StatementKind::Error => unreachable!(),

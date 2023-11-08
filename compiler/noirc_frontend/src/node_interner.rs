@@ -11,8 +11,8 @@ use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, Unr
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
-use crate::hir_def::traits::Trait;
 use crate::hir_def::traits::TraitImpl;
+use crate::hir_def::traits::{Trait, TraitConstraint};
 use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
@@ -24,6 +24,10 @@ use crate::{
     ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared, TypeAliasType,
     TypeBinding, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
+
+/// An arbitrary number to limit the recursion depth when searching for trait impls.
+/// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
+const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 
 type StructAttributes = Vec<SecondaryAttribute>;
 
@@ -946,44 +950,95 @@ impl NodeInterner {
         self.trait_implementations[id.0].clone()
     }
 
+    /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
+    /// constraint. If an impl cannot be found, this will return a vector of each constraint
+    /// in the path to get to the failing constraint. Usually this is just the single failing
+    /// constraint, but when where clauses are involved, the failing constraint may be several
+    /// constraints deep. In this case, all of the constraints are returned, starting with the
+    /// failing one.
     pub fn lookup_trait_implementation(
         &self,
-        object_type: Type,
+        object_type: &Type,
         trait_id: TraitId,
-    ) -> Option<Shared<TraitImpl>> {
-        let impls = self.trait_implementation_map.get(&trait_id)?;
+    ) -> Result<Shared<TraitImpl>, Vec<TraitConstraint>> {
+        self.lookup_trait_implementation_helper(object_type, trait_id, IMPL_SEARCH_RECURSION_LIMIT)
+    }
+
+    fn lookup_trait_implementation_helper(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+        recursion_limit: u32,
+    ) -> Result<Shared<TraitImpl>, Vec<TraitConstraint>> {
+        let make_constraint = || TraitConstraint::new(object_type.clone(), trait_id);
+
+        // Prevent infinite recursion when looking for impls
+        if recursion_limit == 0 {
+            return Err(vec![make_constraint()]);
+        }
+
+        let impls =
+            self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
+
         for (existing_object_type, impl_id) in impls {
-            if object_type.try_unify(existing_object_type).is_ok() {
-                return Some(self.get_trait_implementation(*impl_id));
+            let (existing_object_type, type_bindings) =
+                existing_object_type.instantiate_named_generics(self);
+
+            if object_type.try_unify(&existing_object_type).is_ok() {
+                let trait_impl = self.get_trait_implementation(*impl_id);
+
+                if let Err(mut errors) = self.validate_where_clause(
+                    &trait_impl.borrow().where_clause,
+                    &type_bindings,
+                    recursion_limit,
+                ) {
+                    errors.push(make_constraint());
+                    return Err(errors);
+                }
+
+                return Ok(trait_impl);
             }
         }
-        None
+
+        Err(vec![make_constraint()])
+    }
+
+    /// Verifies that each constraint in the given where clause is valid.
+    /// If an impl cannot be found for any constraint, the erroring constraint is returned.
+    fn validate_where_clause(
+        &self,
+        where_clause: &[TraitConstraint],
+        type_bindings: &TypeBindings,
+        recursion_limit: u32,
+    ) -> Result<(), Vec<TraitConstraint>> {
+        for constraint in where_clause {
+            let constraint_type = constraint.typ.substitute(type_bindings);
+            self.lookup_trait_implementation_helper(
+                &constraint_type,
+                constraint.trait_id,
+                recursion_limit - 1,
+            )?;
+        }
+        Ok(())
     }
 
     pub fn add_trait_implementation(
         &mut self,
         object_type: Type,
         trait_id: TraitId,
+        impl_id: TraitImplId,
         trait_impl: Shared<TraitImpl>,
-    ) -> Option<(Span, FileId)> {
-        let id = TraitImplId(self.trait_implementations.len());
+    ) -> Result<(), (Span, FileId)> {
+        assert_eq!(impl_id.0, self.trait_implementations.len(), "trait impl defined out of order");
 
         self.trait_implementations.push(trait_impl.clone());
 
-        if let Some(entries) = self.trait_implementation_map.get(&trait_id) {
-            // Check that this new impl does not overlap with any existing impls first
-            for (existing_object_type, existing_impl_id) in entries {
-                // Instantiate named generics so that S<T> overlaps with S<u32>
-                let object_type = object_type.instantiate_named_generics(self);
-                let existing_object_type = existing_object_type.instantiate_named_generics(self);
-
-                if object_type.try_unify(&existing_object_type).is_ok() {
-                    // Overlapping impl
-                    let existing_impl = &self.trait_implementations[existing_impl_id.0];
-                    let existing_impl = existing_impl.borrow();
-                    return Some((existing_impl.ident.span(), existing_impl.file));
-                }
-            }
+        let (instantiated_object_type, _) = object_type.instantiate_named_generics(self);
+        if let Ok(existing_impl) =
+            self.lookup_trait_implementation(&instantiated_object_type, trait_id)
+        {
+            let existing_impl = existing_impl.borrow();
+            return Err((existing_impl.ident.span(), existing_impl.file));
         }
 
         for method in &trait_impl.borrow().methods {
@@ -992,8 +1047,8 @@ impl NodeInterner {
         }
 
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.push((object_type, id));
-        None
+        entries.push((object_type, impl_id));
+        Ok(())
     }
 
     /// Search by name for a method on the given struct.
@@ -1059,6 +1114,13 @@ impl NodeInterner {
     ) -> Option<FuncId> {
         let typ = Type::MutableReference(Box::new(typ.clone()));
         self.lookup_primitive_method(&typ, method_name)
+    }
+
+    /// Returns what the next trait impl id is expected to be.
+    /// Note that this does not actually reserve the slot so care should
+    /// be taken that the next trait impl added matches this ID.
+    pub(crate) fn next_trait_impl_id(&self) -> TraitImplId {
+        TraitImplId(self.trait_implementations.len())
     }
 }
 

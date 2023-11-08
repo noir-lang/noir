@@ -25,6 +25,7 @@ export class BarretenbergBackend implements Backend {
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
   }
 
+  /** @ignore */
   async instantiate(): Promise<void> {
     if (!this.api) {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -63,11 +64,20 @@ export class BarretenbergBackend implements Backend {
   // We set `makeEasyToVerifyInCircuit` to true, which will tell the backend to
   // generate the proof using components that will make the proof
   // easier to verify in a circuit.
+
+  /**
+   *
+   * @example
+   * ```typescript
+   * const intermediateProof = await backend.generateIntermediateProof(witness);
+   * ```
+   */
   async generateIntermediateProof(witness: Uint8Array): Promise<ProofData> {
     const makeEasyToVerifyInCircuit = true;
     return this.generateProof(witness, makeEasyToVerifyInCircuit);
   }
 
+  /** @ignore */
   async generateProof(compressedWitness: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<ProofData> {
     await this.instantiate();
     const proofWithPublicInputs = await this.api.acirCreateProof(
@@ -103,6 +113,14 @@ export class BarretenbergBackend implements Backend {
   // method.
   //
   // The number of public inputs denotes how many public inputs are in the inner proof.
+
+  /**
+   *
+   * @example
+   * ```typescript
+   * const artifacts = await backend.generateIntermediateProofArtifacts(proof, numOfPublicInputs);
+   * ```
+   */
   async generateIntermediateProofArtifacts(
     proofData: ProofData,
     numOfPublicInputs = 0,
@@ -136,12 +154,20 @@ export class BarretenbergBackend implements Backend {
     return verified;
   }
 
+  /**
+   *
+   * @example
+   * ```typescript
+   * const isValidIntermediate = await backend.verifyIntermediateProof(proof);
+   * ```
+   */
   async verifyIntermediateProof(proofData: ProofData): Promise<boolean> {
     const proof = reconstructProofWithPublicInputs(proofData);
     const makeEasyToVerifyInCircuit = true;
     return this.verifyProof(proof, makeEasyToVerifyInCircuit);
   }
 
+  /** @ignore */
   async verifyProof(proof: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<boolean> {
     await this.instantiate();
     await this.api.acirInitVerificationKey(this.acirComposer);
@@ -178,3 +204,6 @@ function flattenUint8Arrays(arrays: Uint8Array[]): Uint8Array {
 
   return result;
 }
+
+// typedoc exports
+export { Backend, BackendOptions, CompiledCircuit, ProofData };

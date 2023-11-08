@@ -33,36 +33,25 @@ impl super::FmtVisitor<'_> {
                 ItemKind::Submodules(module) => {
                     let name = module.name;
 
-                    self.format_missing(span.start());
+                    self.format_missing_indent(span.start(), true);
 
                     let after_brace = self.span_after(span, Token::LeftBrace).start();
                     self.last_position = after_brace;
 
                     let keyword = if module.is_contract { "contract" } else { "mod" };
 
-                    let indent = if self.at_start()
-                        || self.buffer.ends_with(|ch: char| ch.is_whitespace())
-                    {
-                        self.indent.to_string()
-                    } else {
-                        self.indent.to_string_with_newline()
-                    };
-                    self.push_str(&format!("{indent}{keyword} {name} "));
+                    self.push_str(&format!("{keyword} {name} "));
 
                     if module.contents.items.is_empty() {
                         self.visit_empty_block((after_brace - 1..span.end()).into());
+                        continue;
                     } else {
                         self.push_str("{");
-                        let indent = self.with_indent(|this| {
-                            this.visit_module(module.contents);
-
-                            let mut indent = this.indent;
-                            indent.block_unindent(self.config);
-                            indent.to_string_with_newline()
-                        });
-                        self.push_str(&format!("{indent}}}"));
+                        self.indent.block_indent(self.config);
+                        self.visit_module(module.contents);
                     }
 
+                    self.close_block((self.last_position..span.end() - 1).into());
                     self.last_position = span.end();
                 }
                 ItemKind::Import(_)

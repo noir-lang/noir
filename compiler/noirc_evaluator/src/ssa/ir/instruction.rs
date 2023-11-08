@@ -154,6 +154,9 @@ pub(crate) enum Instruction {
     /// Constrains two values to be equal to one another.
     Constrain(ValueId, ValueId, Option<String>),
 
+    /// Range constrain `value` to `max_bit_size`
+    RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
+
     /// Performs a function call with a list of its arguments.
     Call { func: ValueId, arguments: Vec<ValueId> },
 
@@ -203,7 +206,8 @@ impl Instruction {
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(..)
             | Instruction::Store { .. }
-            | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
+            | Instruction::EnableSideEffects { .. }
+            | Instruction::RangeCheck { .. } => InstructionResultType::None,
             Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
                 InstructionResultType::Unknown
             }
@@ -230,9 +234,12 @@ impl Instruction {
             Truncate { .. } => false,
 
             // These either have side-effects or interact with memory
-            Constrain(..) | EnableSideEffects { .. } | Allocate | Load { .. } | Store { .. } => {
-                false
-            }
+            Constrain(..)
+            | EnableSideEffects { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | RangeCheck { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
@@ -263,7 +270,7 @@ impl Instruction {
             | ArrayGet { .. }
             | ArraySet { .. } => false,
 
-            Constrain(..) | Store { .. } | EnableSideEffects { .. } => true,
+            Constrain(..) | Store { .. } | EnableSideEffects { .. } | RangeCheck { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
@@ -320,6 +327,13 @@ impl Instruction {
             Instruction::ArraySet { array, index, value } => {
                 Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
             }
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+                Instruction::RangeCheck {
+                    value: f(*value),
+                    max_bit_size: *max_bit_size,
+                    assert_message: assert_message.clone(),
+                }
+            }
         }
     }
 
@@ -363,6 +377,9 @@ impl Instruction {
             }
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);
+            }
+            Instruction::RangeCheck { value, .. } => {
+                f(*value);
             }
         }
     }
@@ -461,6 +478,14 @@ impl Instruction {
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
+            Instruction::RangeCheck { value, max_bit_size, .. } => {
+                if let Some(numeric_constant) = dfg.get_numeric_constant(*value) {
+                    if numeric_constant.num_bits() < *max_bit_size {
+                        return Remove;
+                    }
+                }
+                None
+            }
         }
     }
 }
@@ -484,7 +509,11 @@ fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> Sim
                 SimplifiedTo(dfg.make_constant(constant, dst_typ.clone()))
             }
             (
-                Type::Numeric(NumericType::NativeField | NumericType::Unsigned { .. }),
+                Type::Numeric(
+                    NumericType::NativeField
+                    | NumericType::Unsigned { .. }
+                    | NumericType::Signed { .. },
+                ),
                 Type::Numeric(NumericType::Unsigned { bit_size }),
             ) => {
                 // Field/Unsigned -> unsigned: truncate
@@ -818,9 +847,39 @@ fn eval_constant_binary_op(
             if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == 0 {
                 return None;
             }
+            let result = function(lhs, rhs)?;
+            // Check for overflow
+            if result >= 2u128.pow(*bit_size) {
+                return None;
+            }
+            result.into()
+        }
+        Type::Numeric(NumericType::Signed { bit_size }) => {
+            let function = operator.get_i128_function();
 
-            let result = function(lhs, rhs);
-            truncate(result, *bit_size).into()
+            let lhs = truncate(lhs.try_into_u128()?, *bit_size);
+            let rhs = truncate(rhs.try_into_u128()?, *bit_size);
+            let l_pos = lhs < 2u128.pow(bit_size - 1);
+            let r_pos = rhs < 2u128.pow(bit_size - 1);
+            let lhs = if l_pos { lhs as i128 } else { -((2u128.pow(*bit_size) - lhs) as i128) };
+            let rhs = if r_pos { rhs as i128 } else { -((2u128.pow(*bit_size) - rhs) as i128) };
+            // The divisor is being truncated into the type of the operand, which can potentially
+            // lead to the rhs being zero.
+            // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
+            // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+            // and the operation should be handled by ACIR generation.
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == 0 {
+                return None;
+            }
+
+            let result = function(lhs, rhs)?;
+            // Check for overflow
+            if result >= 2i128.pow(*bit_size - 1) || result < -(2i128.pow(*bit_size - 1)) {
+                return None;
+            }
+            let result =
+                if result >= 0 { result as u128 } else { (2i128.pow(*bit_size) + result) as u128 };
+            result.into()
         }
         _ => return None,
     };
@@ -854,18 +913,33 @@ impl BinaryOp {
         }
     }
 
-    fn get_u128_function(self) -> fn(u128, u128) -> u128 {
+    fn get_u128_function(self) -> fn(u128, u128) -> Option<u128> {
         match self {
-            BinaryOp::Add => u128::wrapping_add,
-            BinaryOp::Sub => u128::wrapping_sub,
-            BinaryOp::Mul => u128::wrapping_mul,
-            BinaryOp::Div => u128::wrapping_div,
-            BinaryOp::Mod => u128::wrapping_rem,
-            BinaryOp::And => |x, y| x & y,
-            BinaryOp::Or => |x, y| x | y,
-            BinaryOp::Xor => |x, y| x ^ y,
-            BinaryOp::Eq => |x, y| (x == y) as u128,
-            BinaryOp::Lt => |x, y| (x < y) as u128,
+            BinaryOp::Add => u128::checked_add,
+            BinaryOp::Sub => u128::checked_sub,
+            BinaryOp::Mul => u128::checked_mul,
+            BinaryOp::Div => u128::checked_div,
+            BinaryOp::Mod => u128::checked_rem,
+            BinaryOp::And => |x, y| Some(x & y),
+            BinaryOp::Or => |x, y| Some(x | y),
+            BinaryOp::Xor => |x, y| Some(x ^ y),
+            BinaryOp::Eq => |x, y| Some((x == y) as u128),
+            BinaryOp::Lt => |x, y| Some((x < y) as u128),
+        }
+    }
+
+    fn get_i128_function(self) -> fn(i128, i128) -> Option<i128> {
+        match self {
+            BinaryOp::Add => i128::checked_add,
+            BinaryOp::Sub => i128::checked_sub,
+            BinaryOp::Mul => i128::checked_mul,
+            BinaryOp::Div => i128::checked_div,
+            BinaryOp::Mod => i128::checked_rem,
+            BinaryOp::And => |x, y| Some(x & y),
+            BinaryOp::Or => |x, y| Some(x | y),
+            BinaryOp::Xor => |x, y| Some(x ^ y),
+            BinaryOp::Eq => |x, y| Some((x == y) as i128),
+            BinaryOp::Lt => |x, y| Some((x < y) as i128),
         }
     }
 }

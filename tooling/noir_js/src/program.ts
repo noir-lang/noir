@@ -2,7 +2,7 @@
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { generateWitness } from './witness_generation.js';
 import initAbi, { abiDecode, InputMap, InputValue } from '@noir-lang/noirc_abi';
-import initACVM, { compressWitness } from '@noir-lang/acvm_js';
+import initACVM, { compressWitness, ForeignCallHandler } from '@noir-lang/acvm_js';
 
 export class Noir {
   constructor(
@@ -10,6 +10,7 @@ export class Noir {
     private backend?: Backend,
   ) {}
 
+  /** @ignore */
   async init(): Promise<void> {
     // If these are available, then we are in the
     // web environment. For the node environment, this
@@ -19,6 +20,17 @@ export class Noir {
     }
   }
 
+  /**
+   *
+   * @description
+   * Destroys the underlying backend instance.
+   *
+   * @example
+   * ```typescript
+   * await noir.destroy();
+   * ```
+   *
+   */
   async destroy(): Promise<void> {
     await this.backend?.destroy();
   }
@@ -29,19 +41,53 @@ export class Noir {
   }
 
   // Initial inputs to your program
-  async execute(inputs: InputMap): Promise<{ witness: Uint8Array; returnValue: InputValue }> {
+  /**
+   * @description
+   * Allows to execute a circuit to get its witness and return value.
+   *
+   * @example
+   * ```typescript
+   * async execute(inputs)
+   * ```
+   */
+  async execute(
+    inputs: InputMap,
+    foreignCallHandler?: ForeignCallHandler,
+  ): Promise<{ witness: Uint8Array; returnValue: InputValue }> {
     await this.init();
-    const witness = await generateWitness(this.circuit, inputs);
+    const witness = await generateWitness(this.circuit, inputs, foreignCallHandler);
     const { return_value: returnValue } = abiDecode(this.circuit.abi, witness);
     return { witness: compressWitness(witness), returnValue };
   }
 
-  // Initial inputs to your program
+  /**
+   *
+   * @description
+   * Generates a witness and a proof given an object as input.
+   *
+   * @example
+   * ```typescript
+   * async generateFinalproof(input)
+   * ```
+   *
+   */
   async generateFinalProof(inputs: InputMap): Promise<ProofData> {
     const { witness } = await this.execute(inputs);
     return this.getBackend().generateFinalProof(witness);
   }
 
+  /**
+   *
+   * @description
+   * Instantiates the verification key and verifies a proof.
+   *
+   *
+   * @example
+   * ```typescript
+   * async verifyFinalProof(proof)
+   * ```
+   *
+   */
   async verifyFinalProof(proofData: ProofData): Promise<boolean> {
     return this.getBackend().verifyFinalProof(proofData);
   }

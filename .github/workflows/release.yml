@@ -78,3 +78,19 @@ jobs:
           ref: master
           token: ${{ secrets.NOIR_REPO_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}", "npm-tag": "latest" }'
+  
+
+  publish-docs:
+    name: Publish docs
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to publish workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: docs-new-version.yml
+          repo: noir-lang/noir
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
+          inputs: '{ "tag": "${{ needs.release-please.outputs.tag-name }}"}'

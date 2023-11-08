@@ -16,8 +16,8 @@ use crate::{
     UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::{
-    ForLoopStatement, FunctionDefinition, FunctionVisibility, ImportStatement, NoirStruct,
-    PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
+    ForLoopStatement, ForRange, FunctionDefinition, FunctionVisibility, ImportStatement,
+    NoirStruct, PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
 };
 use fm::FileId;
 
@@ -572,8 +572,9 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
                 let expression = match unresolved_type {
                     // `hasher.add_multiple({ident}.serialize())`
                     UnresolvedTypeData::Named(..) => add_struct_to_hasher(identifier),
-                    // TODO: if this is an array of structs, we should call serialize on each of them (no methods currently do this yet)
-                    UnresolvedTypeData::Array(..) => add_array_to_hasher(identifier),
+                    UnresolvedTypeData::Array(_, arr_type) => {
+                        add_array_to_hasher(identifier, &arr_type)
+                    }
                     // `hasher.add({ident})`
                     UnresolvedTypeData::FieldElement => add_field_to_hasher(identifier),
                     // Add the integer to the hasher, casted to a field
@@ -873,6 +874,7 @@ fn add_struct_to_hasher(identifier: &Ident) -> Statement {
 fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     // If this is an array of primitive types (integers / fields) we can add them each to the hasher
     // casted to a field
+    let span = var.span.clone();
 
     // `array.len()`
     let end_range_expression = method_call(
@@ -887,29 +889,51 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
 
     // `for i in 0..{ident}.len()`
     make_statement(StatementKind::For(ForLoopStatement {
+        range: ForRange::Range(
+            expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(i128::from(
+                0,
+            ))))),
+            end_range_expression,
+        ),
         identifier: ident("i"),
-        start_range: expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(
-            i128::from(0),
-        )))),
-        end_range: end_range_expression,
         block: for_loop_block,
+        span,
     }))
 }
 
-fn add_array_to_hasher(identifier: &Ident) -> Statement {
+fn add_array_to_hasher(identifier: &Ident, arr_type: &UnresolvedType) -> Statement {
     // If this is an array of primitive types (integers / fields) we can add them each to the hasher
     // casted to a field
 
     // Wrap in the semi thing - does that mean ended with semi colon?
     // `hasher.add({ident}[i] as Field)`
-    let cast_expression = cast(
-        index_array(identifier.clone(), "i"), // lhs - `ident[i]`
-        UnresolvedTypeData::FieldElement,     // cast to - `as Field`
-    );
+
+    let arr_index = index_array(identifier.clone(), "i");
+    let (add_expression, hasher_method_name) = match arr_type.typ {
+        UnresolvedTypeData::Named(..) => {
+            let hasher_method_name = "add_multiple".to_owned();
+            let call = method_call(
+                // All serialise on each element
+                arr_index,   // variable
+                "serialize", // method name
+                vec![],      // args
+            );
+            (call, hasher_method_name)
+        }
+        _ => {
+            let hasher_method_name = "add".to_owned();
+            let call = cast(
+                arr_index,                        // lhs - `ident[i]`
+                UnresolvedTypeData::FieldElement, // cast to - `as Field`
+            );
+            (call, hasher_method_name)
+        }
+    };
+
     let block_statement = make_statement(StatementKind::Semi(method_call(
-        variable("hasher"), // variable
-        "add",              // method name
-        vec![cast_expression],
+        variable("hasher"),  // variable
+        &hasher_method_name, // method name
+        vec![add_expression],
     )));
 
     create_loop_over(variable_ident(identifier.clone()), vec![block_statement])

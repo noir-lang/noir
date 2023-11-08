@@ -1,0 +1,6 @@
+[package]
+name = "binary"
+type = "bin"
+authors = [""]
+[dependencies]
+library = { path = "../library" }

@@ -33,7 +33,12 @@ test_cases.forEach((testInfo) => {
 
     const noir_source_path = resolve(`${base_relative_path}/${test_case}/src/main.nr`);
 
-    const noir_program = compile(noir_source_path);
+    const compileResult = compile(noir_source_path);
+    if (!('program' in compileResult)) {
+      throw new Error('Compilation failed');
+    }
+
+    const noir_program = compileResult.program;
 
     const backend = new BarretenbergBackend(noir_program);
     const program = new Noir(noir_program, backend);
