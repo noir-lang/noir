@@ -847,9 +847,12 @@ fn eval_constant_binary_op(
             if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == 0 {
                 return None;
             }
-
-            let result = function(lhs, rhs);
-            truncate(result, *bit_size).into()
+            let result = function(lhs, rhs)?;
+            // Check for overflow
+            if result >= 2u128.pow(*bit_size) {
+                return None;
+            }
+            result.into()
         }
         Type::Numeric(NumericType::Signed { bit_size }) => {
             let function = operator.get_i128_function();
@@ -869,10 +872,14 @@ fn eval_constant_binary_op(
                 return None;
             }
 
-            let result = function(lhs, rhs);
+            let result = function(lhs, rhs)?;
+            // Check for overflow
+            if result >= 2i128.pow(*bit_size - 1) || result < -(2i128.pow(*bit_size - 1)) {
+                return None;
+            }
             let result =
                 if result >= 0 { result as u128 } else { (2i128.pow(*bit_size) + result) as u128 };
-            truncate(result, *bit_size).into()
+            result.into()
         }
         _ => return None,
     };
@@ -906,33 +913,33 @@ impl BinaryOp {
         }
     }
 
-    fn get_u128_function(self) -> fn(u128, u128) -> u128 {
+    fn get_u128_function(self) -> fn(u128, u128) -> Option<u128> {
         match self {
-            BinaryOp::Add => u128::wrapping_add,
-            BinaryOp::Sub => u128::wrapping_sub,
-            BinaryOp::Mul => u128::wrapping_mul,
-            BinaryOp::Div => u128::wrapping_div,
-            BinaryOp::Mod => u128::wrapping_rem,
-            BinaryOp::And => |x, y| x & y,
-            BinaryOp::Or => |x, y| x | y,
-            BinaryOp::Xor => |x, y| x ^ y,
-            BinaryOp::Eq => |x, y| (x == y) as u128,
-            BinaryOp::Lt => |x, y| (x < y) as u128,
+            BinaryOp::Add => u128::checked_add,
+            BinaryOp::Sub => u128::checked_sub,
+            BinaryOp::Mul => u128::checked_mul,
+            BinaryOp::Div => u128::checked_div,
+            BinaryOp::Mod => u128::checked_rem,
+            BinaryOp::And => |x, y| Some(x & y),
+            BinaryOp::Or => |x, y| Some(x | y),
+            BinaryOp::Xor => |x, y| Some(x ^ y),
+            BinaryOp::Eq => |x, y| Some((x == y) as u128),
+            BinaryOp::Lt => |x, y| Some((x < y) as u128),
         }
     }
 
-    fn get_i128_function(self) -> fn(i128, i128) -> i128 {
+    fn get_i128_function(self) -> fn(i128, i128) -> Option<i128> {
         match self {
-            BinaryOp::Add => i128::wrapping_add,
-            BinaryOp::Sub => i128::wrapping_sub,
-            BinaryOp::Mul => i128::wrapping_mul,
-            BinaryOp::Div => i128::wrapping_div,
-            BinaryOp::Mod => i128::wrapping_rem,
-            BinaryOp::And => |x, y| x & y,
-            BinaryOp::Or => |x, y| x | y,
-            BinaryOp::Xor => |x, y| x ^ y,
-            BinaryOp::Eq => |x, y| (x == y) as i128,
-            BinaryOp::Lt => |x, y| (x < y) as i128,
+            BinaryOp::Add => i128::checked_add,
+            BinaryOp::Sub => i128::checked_sub,
+            BinaryOp::Mul => i128::checked_mul,
+            BinaryOp::Div => i128::checked_div,
+            BinaryOp::Mod => i128::checked_rem,
+            BinaryOp::And => |x, y| Some(x & y),
+            BinaryOp::Or => |x, y| Some(x | y),
+            BinaryOp::Xor => |x, y| Some(x ^ y),
+            BinaryOp::Eq => |x, y| Some((x == y) as i128),
+            BinaryOp::Lt => |x, y| Some((x < y) as i128),
         }
     }
 }
