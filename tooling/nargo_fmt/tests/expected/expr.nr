@@ -100,8 +100,7 @@ fn parenthesized() {
 }
 
 fn parenthesized() {
-    value
-        + (
+    value + (
             // line
             x as Field
         )

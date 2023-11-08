@@ -5,15 +5,12 @@ use noirc_frontend::{Expression, ExpressionKind};
 use crate::{
     utils::{first_line_width, is_single_line},
     visitor::{ExpressionType, FmtVisitor, Shape},
-    Config,
 };
 
 pub(crate) fn rewrite(visitor: FmtVisitor, expr: Expression, shape: Shape) -> String {
     match flatten(visitor.fork(), &expr) {
-        Some((exprs, separators)) => {
-            rewrite_single_line(visitor.config, shape, &exprs, &separators)
-                .unwrap_or_else(|| rewrite_multiline(visitor, &exprs, &separators))
-        }
+        Some((exprs, separators)) => rewrite_single_line(shape, &exprs, &separators)
+            .unwrap_or_else(|| rewrite_multiline(visitor, &exprs, &separators)),
         None => {
             let ExpressionKind::Infix(infix) = expr.kind else { unreachable!() };
 
@@ -27,12 +24,7 @@ pub(crate) fn rewrite(visitor: FmtVisitor, expr: Expression, shape: Shape) -> St
     }
 }
 
-fn rewrite_single_line(
-    config: &Config,
-    shape: Shape,
-    exprs: &[String],
-    separators: &[String],
-) -> Option<String> {
+fn rewrite_single_line(shape: Shape, exprs: &[String], separators: &[String]) -> Option<String> {
     let mut result = String::new();
 
     for (rewrite, separator) in zip(exprs, separators) {
@@ -46,18 +38,10 @@ fn rewrite_single_line(
         result.push(' ');
     }
 
-    let prefix_len = result.len();
-
     let last = exprs.last().unwrap();
     result.push_str(last);
 
     if first_line_width(&result) > shape.width {
-        return None;
-    }
-
-    if !(is_single_line(&result) || last.starts_with('{'))
-        && (last.starts_with('(') || prefix_len > config.tab_spaces)
-    {
         return None;
     }
 
