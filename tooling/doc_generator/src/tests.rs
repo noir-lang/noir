@@ -15,6 +15,21 @@ mod tests {
     }
 
     #[test]
+    fn impl_example() {
+        assert!(generate_doc("input_files/impl_example.nr").is_ok());
+    }
+
+    #[test]
+    fn trait_example() {
+        assert!(generate_doc("input_files/trait_example.nr").is_ok());
+    }
+
+    #[test]
+    fn struct_example() {
+        assert!(generate_doc("input_files/struct_example.nr").is_ok());
+    }
+
+    #[test]
     fn function_output() {
         let mut map = HashMap::new();
         map.insert(
@@ -32,11 +47,11 @@ mod tests {
         let mut map = HashMap::new();
         map.insert(
             Info::Struct {
-                signature: "struct MyStruct {\n/* private fields */\n}".to_string(),
+                signature: "struct GrumpkinScalar {\n/* private fields */\n}".to_string(),
                 additional_doc: "".to_string(),
                 implementations: vec![],
             },
-            "struct".to_string(),
+            "".to_string(),
         );
 
         let result = Map { map };
