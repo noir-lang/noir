@@ -7,7 +7,7 @@ use askama::Template;
 use noirc_frontend::{
     hir::resolution::errors::Span,
     lexer::Lexer,
-    token::{DocComments, Keyword, SpannedToken, Token},
+    token::{Keyword, SpannedToken, Token, DocStyle},
 };
 
 use crate::{Function, Output};
@@ -139,12 +139,12 @@ pub(crate) fn struct_signature(tokens: &[Token], index: usize) -> String {
     let mut is_private = true;
 
     loop {
-        match &tokens[i + 1] {
+        match &tokens[i] {
             Token::LeftBrace => {
                 res.push_str("{");
                 res.push_str("\n");
                 loop {
-                    match tokens[i + 1] {
+                    match tokens[i] {
                         Token::RightBrace => {
                             if is_private {
                                 res.push_str("/* private fields */");
@@ -156,9 +156,9 @@ pub(crate) fn struct_signature(tokens: &[Token], index: usize) -> String {
                         Token::Keyword(Keyword::Pub) => {
                             is_private = false;
                             loop {
-                                match tokens[i + 1] {
+                                match tokens[i] {
                                     Token::Comma => {
-                                        if tokens[i + 2] == Token::RightBrace {
+                                        if tokens[i + 1] == Token::RightBrace {
                                             res.push_str(",");
                                         } else {
                                             res.push_str(",\n");
@@ -170,7 +170,7 @@ pub(crate) fn struct_signature(tokens: &[Token], index: usize) -> String {
                                         break;
                                     }
                                     _ => {
-                                        res.push_str(&tokens[i + 1].to_string());
+                                        res.push_str(&tokens[i].to_string());
                                         res.push_str(" ");
                                         i += 1;
                                     }
@@ -185,7 +185,7 @@ pub(crate) fn struct_signature(tokens: &[Token], index: usize) -> String {
                 break;
             }
             _ => {
-                res.push_str(&tokens[i + 1].to_string());
+                res.push_str(&tokens[i].to_string());
                 res.push_str(" ");
                 i += 1;
             }
@@ -301,14 +301,19 @@ pub(crate) fn trait_info(tokens: &[Token], index: usize) -> (String, Vec<Functio
 /// index and searches for any documentation comments that precede the code element, and then returns
 /// the combined documentation as a string.
 pub(crate) fn additional_doc(tokens: &[Token], index: usize) -> String {
+    if index == 0 {
+        return "".to_string();
+    }
     let res = match &tokens[index - 1] {
-        Token::DocComment(DocComments::Outer(dc)) => {
+        Token::LineComment(dc, Some(DocStyle::Inner)) 
+        | Token::BlockComment(dc, Some(DocStyle::Inner))=> {
             let mut res = dc.to_string();
             let mut doc_end = true;
             let mut iter = 2;
             while doc_end && ((index as i32) - (iter as i32)) >= 0 {
                 match &tokens[index - iter] {
-                    Token::DocComment(DocComments::Outer(doc)) => {
+                    Token::LineComment(doc, Some(DocStyle::Inner)) 
+                    | Token::BlockComment(doc, Some(DocStyle::Inner))=> {
                         res.insert_str(0, &doc.to_string());
                         iter += 1;
                     }
@@ -326,7 +331,7 @@ pub(crate) fn additional_doc(tokens: &[Token], index: usize) -> String {
             let mut iter = 2;
             while doc_find && ((index as i32) - (iter as i32)) >= 0 {
                 match &tokens[index - iter] {
-                    Token::DocComment(DocComments::Outer(doc)) => {
+                    Token::LineComment(doc, Some(DocStyle::Inner)) => {
                         res.insert_str(0, &doc.to_string());
                         iter += 1;
                     }
@@ -359,14 +364,13 @@ pub(crate) fn doc(tokens: &[Token], index: usize) -> String {
         return String::new();
     }
     let res = match &tokens[index - 1] {
-        Token::DocComment(DocComments::Single(dc)) | Token::DocComment(DocComments::Block(dc)) => {
+        Token::LineComment(dc, _) | Token::BlockComment(dc, _) => {
             let mut res = dc.to_string();
             let mut doc_end = true;
             let mut iter = 2;
             while doc_end && ((index as i32) - (iter as i32)) >= 0 {
                 match &tokens[index - iter] {
-                    Token::DocComment(DocComments::Single(doc))
-                    | Token::DocComment(DocComments::Block(doc)) => {
+                    Token::LineComment(doc, None) | Token::BlockComment(doc, None) => {
                         res.insert_str(0, &doc.to_string());
                         iter += 1;
                     }
@@ -384,8 +388,7 @@ pub(crate) fn doc(tokens: &[Token], index: usize) -> String {
             let mut iter = 2;
             while doc_find && ((index as i32) - (iter as i32)) >= 0 {
                 match &tokens[index - iter] {
-                    Token::DocComment(DocComments::Single(doc))
-                    | Token::DocComment(DocComments::Block(doc)) => {
+                    Token::LineComment(doc, Some(DocStyle::Outer)) | Token::BlockComment(doc, Some(DocStyle::Outer)) => {
                         res.insert_str(0, &doc.to_string());
                         iter += 1;
                     }
@@ -420,7 +423,7 @@ pub(crate) fn outer_doc(tokens: &[Token], index: usize) -> (String, usize) {
     let mut doc_find = true;
     while doc_find {
         match &tokens[i + 1] {
-            Token::DocComment(DocComments::Outer(doc)) => {
+            Token::LineComment(doc, Some(DocStyle::Inner)) | Token::BlockComment(doc, Some(DocStyle::Inner)) => {
                 res.push_str(doc);
                 i += 1;
             }

@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 askama = "0.12"
-noirc_frontend = {git = "https://github.com/Sakapoi/noir_fork.git", branch = "doc_comments"}
+noirc_frontend = { path = "../../compiler/noirc_frontend" }

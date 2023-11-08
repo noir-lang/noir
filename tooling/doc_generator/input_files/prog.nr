@@ -45,6 +45,8 @@ comments
 */
 fn another_fn(){}
 
+/// com 1
+/// com 2
 pub struct AnotherStruct {
   pub name: String,
   pub number: i32,
@@ -242,3 +244,23 @@ mod MyModule {
 mod another_module;
 
 fn yes () {}
+
+struct GrumpkinScalar {
+  low: Field,
+  high: Field,
+}
+
+struct B<T_C> {}
+
+
+fn sss(new_concrete_t_c_constructor: fn () -> T_C) -> B<T_C> {
+    B { new_concrete_t_c_constructor }
+}
+
+impl<T_C> B<T_C> {
+    fn new(new_concrete_t_c_constructor: fn () -> T_C) -> B<T_C> {
+        B { new_concrete_t_c_constructor }
+    }
+}
+
+fn abc(){}
