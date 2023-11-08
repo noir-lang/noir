@@ -1045,7 +1045,7 @@ impl NodeInterner {
 
     /// Adds an "assumed" trait implementation to the currently known trait implementations.
     /// Unlike normal trait implementations, these are only assumed to exist. They often correspond
-    /// to `where` clauses in functions were we assume there is some `T: Eq` even though we do
+    /// to `where` clauses in functions where we assume there is some `T: Eq` even though we do
     /// not yet know T. For these cases, we store an impl here so that we assume they exist and
     /// can resolve them. They are then later verified when the function is called, and linked
     /// properly after being monomorphized to the correct variant.
