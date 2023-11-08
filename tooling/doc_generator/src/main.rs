@@ -7,6 +7,7 @@ use getters::*;
 use output::*;
 use pages_generation::*;
 use std::collections::HashMap;
+use clap::{Parser, Subcommand};
 
 /// Generates documentation from the source code in the specified input file.
 
@@ -57,8 +58,38 @@ pub fn get_map(input_file: &str) -> Map {
     Map { map }
 }
 
-fn main() {
-    generate_doc("input_files/prog.nr").unwrap();
+/// Generates documentation pages based on `Noir` code
+#[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
+#[clap(propagate_version = true)]
+struct Klee {
+    #[clap(subcommand)]
+    command: Commands,
+}
 
-    dbg!(get_map("input_files/struct_example.nr"));
+#[derive(Subcommand)]
+enum Commands {
+    /// Generates documentation from the source code in the specified input file.
+    GenerateDoc {
+        #[clap(value_parser)]
+        filename: String,
+    },
+    /// Retrieves and maps necessary information to documentation from a `Noir` code file.
+    GetMap {
+        #[clap(value_parser)]
+        filename: String,
+    }
+}
+
+fn main() {
+    let cli = Klee::parse();
+
+    match &cli.command {
+        Commands::GenerateDoc { filename } => {
+            generate_doc(filename).unwrap();
+        },
+        Commands::GetMap { filename } => {
+            println!("{:#?}", get_map(filename));
+        },
+    }
 }
