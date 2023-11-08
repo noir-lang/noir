@@ -189,6 +189,10 @@ fn comment_len(comment: &str) -> usize {
     }
 }
 
+pub(crate) fn count_newlines(slice: &str) -> usize {
+    bytecount::count(slice.as_bytes(), b'\n')
+}
+
 pub(crate) trait Item {
     fn span(&self) -> Span;
 
