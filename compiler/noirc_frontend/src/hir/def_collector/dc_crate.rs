@@ -13,13 +13,15 @@ use crate::hir::resolution::{
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
 use crate::hir_def::traits::{Trait, TraitConstant, TraitFunction, TraitImpl, TraitType};
-use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{
+    FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplId, TypeAliasId,
+};
 
 use crate::parser::{ParserError, SortedModule};
 use crate::{
     ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
     NoirTypeAlias, Path, Shared, StructType, TraitItem, Type, TypeBinding, TypeVariableKind,
-    UnresolvedGenerics, UnresolvedType,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -91,6 +93,7 @@ pub struct UnresolvedTraitImpl {
     pub object_type: UnresolvedType,
     pub methods: UnresolvedFunctions,
     pub generics: UnresolvedGenerics,
+    pub where_clause: Vec<UnresolvedTraitConstraint>,
 }
 
 #[derive(Clone)]
@@ -919,6 +922,7 @@ fn resolve_impls(
                 def_maps,
                 functions,
                 Some(self_type.clone()),
+                None,
                 generics,
                 errors,
             );
@@ -968,13 +972,16 @@ fn resolve_trait_impls(
         let self_type = resolver.resolve_type(unresolved_type.clone());
         let generics = resolver.get_generics().to_vec();
 
+        let impl_id = interner.next_trait_impl_id();
+
         let mut impl_methods = resolve_function_set(
             interner,
             crate_id,
             &context.def_maps,
             trait_impl.methods.clone(),
             Some(self_type.clone()),
-            generics,
+            Some(impl_id),
+            generics.clone(),
             errors,
         );
 
@@ -993,6 +1000,8 @@ fn resolve_trait_impls(
 
         let mut new_resolver =
             Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
+
+        new_resolver.set_generics(generics);
         new_resolver.set_self_type(Some(self_type.clone()));
 
         if let Some(trait_id) = maybe_trait_id {
@@ -1004,17 +1013,27 @@ fn resolve_trait_impls(
                 errors,
             );
 
+            let where_clause = trait_impl
+                .where_clause
+                .into_iter()
+                .flat_map(|item| new_resolver.resolve_trait_constraint(item))
+                .collect();
+
             let resolved_trait_impl = Shared::new(TraitImpl {
                 ident: trait_impl.trait_path.last_segment().clone(),
                 typ: self_type.clone(),
                 trait_id,
                 file: trait_impl.file_id,
+                where_clause,
                 methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
             });
 
-            if let Some((prev_span, prev_file)) =
-                interner.add_trait_implementation(self_type.clone(), trait_id, resolved_trait_impl)
-            {
+            if let Err((prev_span, prev_file)) = interner.add_trait_implementation(
+                self_type.clone(),
+                trait_id,
+                impl_id,
+                resolved_trait_impl,
+            ) {
                 let error = DefCollectorErrorKind::OverlappingImpl {
                     typ: self_type.clone(),
                     span: self_type_span.unwrap_or_else(|| trait_impl.trait_path.span()),
@@ -1147,6 +1166,7 @@ fn resolve_free_functions(
                 def_maps,
                 unresolved_functions,
                 self_type.clone(),
+                None,
                 vec![], // no impl generics
                 errors,
             )
@@ -1154,12 +1174,14 @@ fn resolve_free_functions(
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn resolve_function_set(
     interner: &mut NodeInterner,
     crate_id: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     mut unresolved_functions: UnresolvedFunctions,
     self_type: Option<Type>,
+    trait_impl_id: Option<TraitImplId>,
     impl_generics: Vec<(Rc<String>, Shared<TypeBinding>, Span)>,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
@@ -1180,6 +1202,7 @@ fn resolve_function_set(
         resolver.set_generics(impl_generics.clone());
         resolver.set_self_type(self_type.clone());
         resolver.set_trait_id(unresolved_functions.trait_id);
+        resolver.set_trait_impl_id(trait_impl_id);
 
         // Without this, impl methods can accidentally be placed in contracts. See #3254
         if self_type.is_some() {
