@@ -2147,10 +2147,7 @@ mod test {
 
         parse_all_failing(
             trait_definition(),
-            vec![
-                "trait MissingBody",
-                "trait WrongDelimiter { fn foo() -> u8, fn bar() -> u8 }",
-            ],
+            vec!["trait MissingBody", "trait WrongDelimiter { fn foo() -> u8, fn bar() -> u8 }"],
         );
     }
 
