@@ -1186,7 +1186,7 @@ impl NodeInterner {
 
     /// Tags the given identifier with the selected trait_impl so that monomorphization
     /// can later recover which impl was selected, or alternatively see if it needs to
-    /// decide which (because the impl was Assumed).
+    /// decide which impl to select (because the impl was Assumed).
     pub fn select_impl_for_ident(&mut self, ident_id: ExprId, trait_impl: TraitImplKind) {
         self.selected_trait_implementations.insert(ident_id, trait_impl);
     }
