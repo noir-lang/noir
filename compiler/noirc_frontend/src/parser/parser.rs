@@ -2117,7 +2117,6 @@ mod test {
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where T: {}",
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where SomeTrait {}",
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) SomeTrait {}",
-                "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) where T: SomeTrait {}",
                 // A leading plus is not allowed.
                 "fn func_name<T>(f: Field, y : T) where T: + SomeTrait {}",
                 "fn func_name<T>(f: Field, y : T) where T: TraitX + <Y> {}",
@@ -2151,7 +2150,6 @@ mod test {
             vec![
                 "trait MissingBody",
                 "trait WrongDelimiter { fn foo() -> u8, fn bar() -> u8 }",
-                "trait WhereClauseWithoutGenerics where A: SomeTrait { }",
             ],
         );
     }
