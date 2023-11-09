@@ -20,10 +20,16 @@ impl super::FmtVisitor<'_> {
         for Item { kind, span } in module.items {
             match kind {
                 ItemKind::Function(func) => {
+                    self.format_missing_indent(span.start(), true);
+
+                    if std::mem::take(&mut self.ignore_next_node) {
+                        self.push_str(self.slice(span));
+                        self.last_position = span.end();
+                        continue;
+                    }
+
                     let (fn_before_block, force_brace_newline) =
                         self.format_fn_before_block(func.clone(), span.start());
-
-                    self.format_missing_indent(span.start(), true);
 
                     self.push_str(&fn_before_block);
                     self.push_str(if force_brace_newline { "\n" } else { " " });
@@ -31,10 +37,15 @@ impl super::FmtVisitor<'_> {
                     self.visit_block(func.def.body, func.def.span);
                 }
                 ItemKind::Submodules(module) => {
-                    let name = module.name;
-
                     self.format_missing_indent(span.start(), true);
 
+                    if std::mem::take(&mut self.ignore_next_node) {
+                        self.push_str(self.slice(span));
+                        self.last_position = span.end();
+                        continue;
+                    }
+
+                    let name = module.name;
                     let after_brace = self.span_after(span, Token::LeftBrace).start();
                     self.last_position = after_brace;
 
