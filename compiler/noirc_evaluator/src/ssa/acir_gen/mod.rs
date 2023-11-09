@@ -101,14 +101,16 @@ pub(crate) struct AcirDynamicArray {
     len: usize,
     /// Identification for the ACIR dynamic array
     /// inner element type sizes array
-    element_type_sizes: BlockId,
+    element_type_sizes: Option<BlockId>,
 }
 impl Debug for AcirDynamicArray {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "id: {}, len: {}, element_type_sizes: {:?}",
-            self.block_id.0, self.len, self.element_type_sizes.0
+            self.block_id.0,
+            self.len,
+            self.element_type_sizes.map(|block_id| block_id.0)
         )
     }
 }
@@ -1035,8 +1037,11 @@ impl Context {
             }
         }
 
-        let element_type_sizes =
-            self.init_element_type_sizes_array(&array_typ, array_id, None, dfg)?;
+        let element_type_sizes = if array_typ.contains_slice_element() {
+            Some(self.init_element_type_sizes_array(&array_typ, array_id, None, dfg)?)
+        } else {
+            None
+        };
         let result_value = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
             len: array_len,
@@ -1161,27 +1166,29 @@ impl Context {
                                 element_type_sizes: inner_elem_type_sizes,
                                 ..
                             }) => {
-                                if self.initialized_arrays.contains(&inner_elem_type_sizes) {
-                                    let type_sizes_array_len = self.internal_mem_block_lengths.get(&inner_elem_type_sizes).copied().ok_or_else(||
-                                        InternalError::General {
-                                            message: format!("Array {array_id}'s inner element type sizes array does not have a tracked length"),
+                                if let Some(inner_elem_type_sizes) = inner_elem_type_sizes {
+                                    if self.initialized_arrays.contains(&inner_elem_type_sizes) {
+                                        let type_sizes_array_len = self.internal_mem_block_lengths.get(&inner_elem_type_sizes).copied().ok_or_else(||
+                                            InternalError::General {
+                                                message: format!("Array {array_id}'s inner element type sizes array does not have a tracked length"),
+                                                call_stack: self.acir_context.get_call_stack(),
+                                            }
+                                        )?;
+                                        self.copy_dynamic_array(
+                                            inner_elem_type_sizes,
+                                            element_type_sizes,
+                                            type_sizes_array_len,
+                                        )?;
+                                        self.internal_mem_block_lengths
+                                            .insert(element_type_sizes, type_sizes_array_len);
+                                        return Ok(element_type_sizes);
+                                    } else {
+                                        return Err(InternalError::General {
+                                            message: format!("Array {array_id}'s inner element type sizes array should be initialized"),
                                             call_stack: self.acir_context.get_call_stack(),
                                         }
-                                    )?;
-                                    self.copy_dynamic_array(
-                                        inner_elem_type_sizes,
-                                        element_type_sizes,
-                                        type_sizes_array_len,
-                                    )?;
-                                    self.internal_mem_block_lengths
-                                        .insert(element_type_sizes, type_sizes_array_len);
-                                    return Ok(element_type_sizes);
-                                } else {
-                                    return Err(InternalError::General {
-                                        message: format!("Array {array_id}'s inner element type sizes array should be initialized"),
-                                        call_stack: self.acir_context.get_call_stack(),
+                                        .into());
                                     }
-                                    .into());
                                 }
                             }
                             AcirValue::Array(values) => {
@@ -1297,15 +1304,19 @@ impl Context {
         var_index: AcirVar,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
-        let element_type_sizes =
-            self.init_element_type_sizes_array(array_typ, array_id, None, dfg)?;
+        if array_typ.contains_slice_element() {
+            let element_type_sizes =
+                self.init_element_type_sizes_array(array_typ, array_id, None, dfg)?;
 
-        let predicate_index =
-            self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?;
-        let flat_element_size_var =
-            self.acir_context.read_from_memory(element_type_sizes, &predicate_index)?;
+            let predicate_index =
+                self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?;
 
-        Ok(flat_element_size_var)
+            self.acir_context
+                .read_from_memory(element_type_sizes, &predicate_index)
+                .map_err(RuntimeError::from)
+        } else {
+            Ok(var_index)
+        }
     }
 
     fn flattened_slice_size(&mut self, array_id: ValueId, dfg: &DataFlowGraph) -> usize {
@@ -1780,15 +1791,20 @@ impl Context {
                 let mut var_index = slice_length;
                 self.array_set_value(element, result_block_id, &mut var_index)?;
 
-                let result = AcirValue::DynamicArray(AcirDynamicArray {
-                    block_id: result_block_id,
-                    len: len + new_elem_size,
-                    element_type_sizes: self.init_element_type_sizes_array(
+                let element_type_sizes = if array_typ.contains_slice_element() {
+                    Some(self.init_element_type_sizes_array(
                         &array_typ,
                         array_id,
                         Some(new_slice_val),
                         dfg,
-                    )?,
+                    )?)
+                } else {
+                    None
+                };
+                let result = AcirValue::DynamicArray(AcirDynamicArray {
+                    block_id: result_block_id,
+                    len: len + new_elem_size,
+                    element_type_sizes,
                 });
                 Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), result])
             }
