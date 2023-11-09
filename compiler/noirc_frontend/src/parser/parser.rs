@@ -177,12 +177,11 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
             let ((((attributes, modifiers), name), generics), parameters) = args;
 
             // Validate collected attributes, filtering them into function and secondary variants
-            let attrs = validate_attributes(attributes, span, emit);
-            validate_where_clause(&generics, &where_clause, span, emit);
+            let attributes = validate_attributes(attributes, span, emit);
             FunctionDefinition {
                 span: body_span,
                 name,
-                attributes: attrs,
+                attributes,
                 is_unconstrained: modifiers.0,
                 is_open: modifiers.2,
                 is_internal: modifiers.3,
@@ -412,7 +411,6 @@ fn trait_definition() -> impl NoirParser<TopLevelStatement> {
         .then(trait_body())
         .then_ignore(just(Token::RightBrace))
         .validate(|(((name, generics), where_clause), items), span, emit| {
-            validate_where_clause(&generics, &where_clause, span, emit);
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
             TopLevelStatement::Trait(NoirTrait { name, generics, where_clause, span, items })
         })
@@ -451,12 +449,9 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
         .then(function_return_type().map(|(_, typ)| typ))
         .then(where_clause())
         .then(trait_function_body_or_semicolon)
-        .validate(
-            |(((((name, generics), parameters), return_type), where_clause), body), span, emit| {
-                validate_where_clause(&generics, &where_clause, span, emit);
-                TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
-            },
-        )
+        .map(|(((((name, generics), parameters), return_type), where_clause), body)| {
+            TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
+        })
 }
 
 fn validate_attributes(
@@ -512,17 +507,6 @@ fn validate_struct_attributes(
     }
 
     struct_attributes
-}
-
-fn validate_where_clause(
-    generics: &Vec<Ident>,
-    where_clause: &Vec<UnresolvedTraitConstraint>,
-    span: Span,
-    emit: &mut dyn FnMut(ParserError),
-) {
-    if !where_clause.is_empty() && generics.is_empty() {
-        emit(ParserError::with_reason(ParserErrorReason::WhereClauseOnNonGenericFunction, span));
-    }
 }
 
 /// Function declaration parameters differ from other parameters in that parameter
