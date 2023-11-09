@@ -666,7 +666,7 @@ impl Context {
 
         // TODO(#3188): Need to be able to handle constant index for slices to seriously reduce
         // constraint sizes of nested slices
-        // This can only be done if we accurately flatten nested slices as other we will reach
+        // This can only be done if we accurately flatten nested slices as otherwise we will reach
         // index out of bounds errors. If the slice is already flat then we can treat them similarly to arrays.
         if matches!(value_type, Type::Slice(_))
             && element_types.iter().any(|element| element.contains_slice_element())
