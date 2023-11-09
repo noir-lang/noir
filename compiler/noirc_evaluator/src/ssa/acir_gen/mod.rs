@@ -658,7 +658,8 @@ impl Context {
         store_value: Option<ValueId>,
     ) -> Result<bool, RuntimeError> {
         let index_const = dfg.get_numeric_constant(index);
-        let (Type::Array(element_types, _) | Type::Slice(element_types)) = dfg.type_of_value(array) else {
+        let value_type = dfg.type_of_value(array);
+        let (Type::Array(element_types, _) | Type::Slice(element_types)) = &value_type else {
             unreachable!("ICE: expected array or slice type");
 
         };
@@ -667,9 +668,9 @@ impl Context {
         // constraint sizes of nested slices
         // This can only be done if we accurately flatten nested slices as other we will reach
         // index out of bounds errors. If the slice is already flat then we can treat them similarly to arrays.
-        //
-        // This check does not affect `Type::Array`s as they do not contain slices.
-        if element_types.iter().any(|element| element.contains_slice_element()) {
+        if matches!(value_type, Type::Slice(_))
+            && element_types.iter().any(|element| element.contains_slice_element())
+        {
             return Ok(false);
         }
 
