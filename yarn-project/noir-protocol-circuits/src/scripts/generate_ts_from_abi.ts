@@ -191,7 +191,14 @@ function generateTsInterface(abiObj: NoirFunctionAbi): string {
   );
 }
 
-const circuits = ['private_kernel_init', 'private_kernel_inner', 'private_kernel_ordering'];
+const circuits = [
+  'private_kernel_init',
+  'private_kernel_inner',
+  'private_kernel_ordering',
+  'rollup_base',
+  'rollup_merge',
+  'rollup_root',
+];
 
 const main = async () => {
   for (const circuit of circuits) {

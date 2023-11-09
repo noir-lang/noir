@@ -160,7 +160,7 @@ global NUM_FIELDS_PER_SHA256 : Field = 2;
 // Returning a Field would be desirable because then this can be replaced with 
 // poseidon without changing the rest of the code
 //
-fn accumulate_sha256(input : [U128; 4]) -> [Field; NUM_FIELDS_PER_SHA256] {
+pub fn accumulate_sha256(input : [U128; 4]) -> [Field; NUM_FIELDS_PER_SHA256] {
     // This is a note about the cpp code, since it takes an array of Fields
     // instead of a U128.
     // 4 Field elements when converted to bytes will usually 

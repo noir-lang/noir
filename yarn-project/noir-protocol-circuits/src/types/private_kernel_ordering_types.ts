@@ -2,24 +2,20 @@
 
 /* eslint-disable */
 
-export type FixedLengthArray<T, L extends number> = L extends 0 ? never[]: T[] & { length: L }
+export type FixedLengthArray<T, L extends number> = L extends 0 ? never[] : T[] & { length: L };
 
 export type Field = string;
 export type u32 = string;
 
-export interface AggregationObject {
-}
-
+export interface AggregationObject {}
 
 export interface Address {
   inner: Field;
 }
 
-
 export interface EthAddress {
   inner: Field;
 }
-
 
 export interface NewContractData {
   contract_address: Address;
@@ -27,11 +23,9 @@ export interface NewContractData {
   function_tree_root: Field;
 }
 
-
 export interface FunctionSelector {
   inner: u32;
 }
-
 
 export interface FunctionData {
   selector: FunctionSelector;
@@ -39,8 +33,6 @@ export interface FunctionData {
   is_private: boolean;
   is_constructor: boolean;
 }
-
-
 
 export interface OptionallyRevealedData {
   call_stack_item_hash: Field;
@@ -53,19 +45,16 @@ export interface OptionallyRevealedData {
   called_from_public_l2: boolean;
 }
 
-
 export interface PublicDataUpdateRequest {
   leaf_index: Field;
   old_value: Field;
   new_value: Field;
 }
 
-
 export interface PublicDataRead {
   leaf_index: Field;
   value: Field;
 }
-
 
 export interface CombinedAccumulatedData {
   aggregation_object: AggregationObject;
@@ -87,7 +76,6 @@ export interface CombinedAccumulatedData {
   public_data_reads: FixedLengthArray<PublicDataRead, 16>;
 }
 
-
 export interface Block {
   note_hash_tree_root: Field;
   nullifier_tree_root: Field;
@@ -97,20 +85,16 @@ export interface Block {
   global_variables_hash: Field;
 }
 
-
 export interface HistoricalBlockData {
   blocks_tree_root: Field;
   block: Block;
   private_kernel_vk_tree_root: Field;
 }
 
-
 export interface Point {
   x: Field;
   y: Field;
 }
-
-
 
 export interface ContractDeploymentData {
   deployer_public_key: Point;
@@ -119,7 +103,6 @@ export interface ContractDeploymentData {
   contract_address_salt: Field;
   portal_contract_address: EthAddress;
 }
-
 
 export interface TxContext {
   is_fee_payment_tx: boolean;
@@ -130,12 +113,10 @@ export interface TxContext {
   version: Field;
 }
 
-
 export interface CombinedConstantData {
   block_data: HistoricalBlockData;
   tx_context: TxContext;
 }
-
 
 export interface KernelCircuitPublicInputs {
   end: CombinedAccumulatedData;
@@ -143,14 +124,9 @@ export interface KernelCircuitPublicInputs {
   is_private: boolean;
 }
 
+export interface Proof {}
 
-export interface Proof {
-}
-
-
-export interface VerificationKey {
-}
-
+export interface VerificationKey {}
 
 export interface PreviousKernelData {
   public_inputs: KernelCircuitPublicInputs;
@@ -160,14 +136,11 @@ export interface PreviousKernelData {
   vk_path: FixedLengthArray<Field, 3>;
 }
 
-
 export interface PrivateKernelInputsOrdering {
   previous_kernel: PreviousKernelData;
   read_commitment_hints: FixedLengthArray<Field, 128>;
   nullifier_commitment_hints: FixedLengthArray<Field, 64>;
 }
-
-
 
 export interface FinalAccumulatedData {
   aggregation_object: AggregationObject;
@@ -184,8 +157,6 @@ export interface FinalAccumulatedData {
   new_contracts: FixedLengthArray<NewContractData, 1>;
   optionally_revealed_data: FixedLengthArray<OptionallyRevealedData, 4>;
 }
-
-
 
 export interface KernelCircuitPublicInputsFinal {
   end: FinalAccumulatedData;

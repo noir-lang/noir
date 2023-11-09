@@ -135,3 +135,73 @@ fn test_message_input_flattened_length() {
     // which uses the NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP_NUM_BYTES global.
     assert(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP * 32 == NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP_NUM_BYTES);
 }
+
+
+mod tests {
+    use crate::{
+        root::{
+            root_rollup_inputs::RootRollupInputs,
+            NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP_NUM_BYTES,
+        },
+        fixtures::root_rollup_inputs::default_root_rollup_inputs,
+    };
+    use dep::types::utils::uint128::U128;
+    use dep::types::utils::uint256::U256;
+    use dep::types::hash::accumulate_sha256;
+
+
+    #[test]
+    fn check_block_hashes_empty_blocks(){
+        let expected_messages_hash = U256::from_bytes32(dep::std::hash::sha256([0; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP_NUM_BYTES])).to_u128_limbs();
+
+        let expected_calldata_hash = accumulate_sha256([
+            U128::from_field(0),
+            U128::from_field(1),
+            U128::from_field(2),
+            U128::from_field(3)
+        ]);
+
+        let inputs = default_root_rollup_inputs();
+        let outputs = inputs.root_rollup_circuit();
+    
+        // check calldata hash
+        assert_eq(outputs.calldata_hash, expected_calldata_hash);
+        // Check messages hash
+        assert_eq(outputs.l1_to_l2_messages_hash, expected_messages_hash);
+    }
+
+    #[test]
+    fn start_and_end_snapshots(){
+        let inputs = default_root_rollup_inputs();
+        let outputs = inputs.root_rollup_circuit();
+        
+        assert(
+            outputs.start_note_hash_tree_snapshot.eq(inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_note_hash_tree_snapshot)
+        );
+        assert(
+            outputs.end_note_hash_tree_snapshot.eq(inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_note_hash_tree_snapshot)
+        );
+
+        assert(
+            outputs.start_nullifier_tree_snapshot.eq(inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_nullifier_tree_snapshot)
+        );
+        assert(
+            outputs.end_nullifier_tree_snapshot.eq(inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_nullifier_tree_snapshot)
+        );
+
+        assert(
+            outputs.start_contract_tree_snapshot.eq(inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_contract_tree_snapshot)
+        );
+        assert(
+            outputs.end_contract_tree_snapshot.eq(inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_contract_tree_snapshot)
+        );
+
+        assert_eq(
+            outputs.start_public_data_tree_root, inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_public_data_tree_root
+        );
+        assert_eq(
+            outputs.end_public_data_tree_root, inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_public_data_tree_root
+        );
+    }
+
+}

@@ -136,81 +136,79 @@ export interface PreviousKernelData {
   vk_path: FixedLengthArray<Field, 3>;
 }
 
-export interface CallContext {
-  msg_sender: Address;
-  storage_contract_address: Address;
-  portal_contract_address: EthAddress;
-  function_selector: FunctionSelector;
-  is_delegate_call: boolean;
-  is_static_call: boolean;
-  is_contract_deployment: boolean;
+export interface AppendOnlyTreeSnapshot {
+  root: Field;
+  next_available_leaf_index: u32;
 }
 
-export interface PrivateCircuitPublicInputs {
-  call_context: CallContext;
-  args_hash: Field;
-  return_values: FixedLengthArray<Field, 4>;
-  read_requests: FixedLengthArray<Field, 32>;
-  pending_read_requests: FixedLengthArray<Field, 32>;
-  new_commitments: FixedLengthArray<Field, 16>;
-  new_nullifiers: FixedLengthArray<Field, 16>;
-  nullified_commitments: FixedLengthArray<Field, 16>;
-  private_call_stack: FixedLengthArray<Field, 4>;
-  public_call_stack: FixedLengthArray<Field, 4>;
-  new_l2_to_l1_msgs: FixedLengthArray<Field, 2>;
-  encrypted_logs_hash: FixedLengthArray<Field, 2>;
-  unencrypted_logs_hash: FixedLengthArray<Field, 2>;
-  encrypted_log_preimages_length: Field;
-  unencrypted_log_preimages_length: Field;
-  historical_block_data: HistoricalBlockData;
-  contract_deployment_data: ContractDeploymentData;
+export interface NullifierLeafPreimage {
+  leaf_value: Field;
+  next_value: Field;
+  next_index: u32;
+}
+
+export interface NullifierMembershipWitness {
+  leaf_index: Field;
+  sibling_path: FixedLengthArray<Field, 128>;
+}
+
+export interface HistoricBlocksTreeRootMembershipWitness {
+  leaf_index: Field;
+  sibling_path: FixedLengthArray<Field, 2>;
+}
+
+export interface GlobalVariables {
   chain_id: Field;
   version: Field;
+  block_number: Field;
+  timestamp: Field;
 }
 
-export interface PrivateCallStackItem {
-  contract_address: Address;
-  public_inputs: PrivateCircuitPublicInputs;
-  function_data: FunctionData;
-  is_execution_request: boolean;
+export interface ConstantRollupData {
+  start_historic_blocks_tree_roots_snapshot: AppendOnlyTreeSnapshot;
+  private_kernel_vk_tree_root: Field;
+  public_kernel_vk_tree_root: Field;
+  base_rollup_vk_hash: Field;
+  merge_rollup_vk_hash: Field;
+  global_variables: GlobalVariables;
 }
 
-export interface FunctionLeafMembershipWitness {
-  leaf_index: Field;
-  sibling_path: FixedLengthArray<Field, 4>;
+export interface BaseRollupInputs {
+  kernel_data: FixedLengthArray<PreviousKernelData, 2>;
+  start_note_hash_tree_snapshot: AppendOnlyTreeSnapshot;
+  start_nullifier_tree_snapshot: AppendOnlyTreeSnapshot;
+  start_contract_tree_snapshot: AppendOnlyTreeSnapshot;
+  start_public_data_tree_root: Field;
+  start_historic_blocks_tree_snapshot: AppendOnlyTreeSnapshot;
+  low_nullifier_leaf_preimages: FixedLengthArray<NullifierLeafPreimage, 128>;
+  low_nullifier_membership_witness: FixedLengthArray<NullifierMembershipWitness, 128>;
+  new_commitments_subtree_sibling_path: FixedLengthArray<Field, 25>;
+  new_nullifiers_subtree_sibling_path: FixedLengthArray<Field, 13>;
+  new_contracts_subtree_sibling_path: FixedLengthArray<Field, 15>;
+  new_public_data_update_requests_sibling_paths: FixedLengthArray<FixedLengthArray<Field, 254>, 32>;
+  new_public_data_reads_sibling_paths: FixedLengthArray<FixedLengthArray<Field, 254>, 32>;
+  historic_blocks_tree_root_membership_witnesses: FixedLengthArray<HistoricBlocksTreeRootMembershipWitness, 2>;
+  constants: ConstantRollupData;
 }
 
-export interface ContractLeafMembershipWitness {
-  leaf_index: Field;
-  sibling_path: FixedLengthArray<Field, 16>;
+export interface BaseOrMergeRollupPublicInputs {
+  rollup_type: u32;
+  rollup_subtree_height: Field;
+  end_aggregation_object: AggregationObject;
+  constants: ConstantRollupData;
+  start_note_hash_tree_snapshot: AppendOnlyTreeSnapshot;
+  end_note_hash_tree_snapshot: AppendOnlyTreeSnapshot;
+  start_nullifier_tree_snapshot: AppendOnlyTreeSnapshot;
+  end_nullifier_tree_snapshot: AppendOnlyTreeSnapshot;
+  start_contract_tree_snapshot: AppendOnlyTreeSnapshot;
+  end_contract_tree_snapshot: AppendOnlyTreeSnapshot;
+  start_public_data_tree_root: Field;
+  end_public_data_tree_root: Field;
+  calldata_hash: FixedLengthArray<Field, 2>;
 }
 
-export interface ReadRequestMembershipWitness {
-  leaf_index: Field;
-  sibling_path: FixedLengthArray<Field, 32>;
-  is_transient: boolean;
-  hint_to_commitment: Field;
-}
-
-export interface PrivateCallData {
-  call_stack_item: PrivateCallStackItem;
-  private_call_stack_preimages: FixedLengthArray<PrivateCallStackItem, 4>;
-  proof: Proof;
-  vk: VerificationKey;
-  function_leaf_membership_witness: FunctionLeafMembershipWitness;
-  contract_leaf_membership_witness: ContractLeafMembershipWitness;
-  read_request_membership_witnesses: FixedLengthArray<ReadRequestMembershipWitness, 32>;
-  portal_contract_address: EthAddress;
-  acir_hash: Field;
-}
-
-export interface PrivateKernelInputsInner {
-  previous_kernel: PreviousKernelData;
-  private_call: PrivateCallData;
-}
-
-export type ReturnType = KernelCircuitPublicInputs;
+export type ReturnType = BaseOrMergeRollupPublicInputs;
 
 export interface InputType {
-  input: PrivateKernelInputsInner;
+  inputs: BaseRollupInputs;
 }

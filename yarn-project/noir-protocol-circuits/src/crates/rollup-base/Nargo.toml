@@ -1,5 +1,5 @@
 [package]
-name = "rollup_merge"
+name = "rollup_base"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.18.0"

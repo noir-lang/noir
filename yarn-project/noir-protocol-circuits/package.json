@@ -13,7 +13,7 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
     "noir:build": "cd src && nargo compile --no-backend && rm -rf ./target/debug_*",
-    "noir:types": "yarn ts-node --esm src/scripts/generate_ts_from_abi.ts",
+    "noir:types": "yarn ts-node --esm src/scripts/generate_ts_from_abi.ts && yarn formatting:fix",
     "noir:test": "cd src && nargo test",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
   },

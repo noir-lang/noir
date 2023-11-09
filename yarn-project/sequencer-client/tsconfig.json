@@ -25,6 +25,9 @@
       "path": "../merkle-tree"
     },
     {
+      "path": "../noir-protocol-circuits"
+    },
+    {
       "path": "../p2p"
     },
     {
