@@ -125,7 +125,6 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                     let Range { start: loc_start, end: mut loc_end } =
                         self.debug_artifact.location_in_line(loc).unwrap();
                     loc_end = loc_end.min(line.len());
-                    println!["loc_start={loc_start}, loc_end={loc_end}, loc={loc:?}"];
                     println!(
                         "{:>3} {:2} {}{}{}",
                         current_line_number,
@@ -560,10 +559,11 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "show variable values available at this point in execution",
                 () => || {
                     let mut ctx = ref_context.borrow_mut();
-                    let vars = ctx.context.debug_vars.get_values();
-                    println!("{:?}", vars.iter().map(|(var_name,value)| {
-                        (var_name, value.to_field())
-                    }).collect::<HashMap<_,_>>());
+                    let vars = ctx.context.debug_vars.get_variables();
+                    println!["{}", vars.iter().map(|(var_name, value)| {
+                        let field = value.to_field();
+                        format!("{var_name}={field}")
+                    }).collect::<Vec<String>>().join(", ")];
                     Ok(CommandStatus::Done)
                 }
             },

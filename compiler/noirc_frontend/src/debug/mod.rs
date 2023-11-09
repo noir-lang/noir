@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 
 #[derive(Debug,Clone)]
 pub struct DebugState {
-    var_id_to_name: HashMap<u32,String>,
+    pub variables: HashMap<u32,String>, // id => name
     next_var_id: u32,
     scope: Vec<HashSet<u32>>,
     pub enabled: bool,
@@ -15,7 +15,7 @@ pub struct DebugState {
 impl Default for DebugState {
     fn default() -> Self {
         Self {
-            var_id_to_name: HashMap::default(),
+            variables: HashMap::default(),
             scope: vec![],
             next_var_id: 0,
             enabled: true, // TODO
@@ -24,23 +24,10 @@ impl Default for DebugState {
 }
 
 impl DebugState {
-    pub fn new(vars: HashMap<String,u32>) -> Self {
-        let mut debug_state = Self::default();
-        for (var_name, var_id) in vars.iter() {
-            debug_state.var_id_to_name.insert(*var_id, var_name.clone());
-            debug_state.next_var_id = debug_state.next_var_id.max(var_id+1);
-        }
-        debug_state
-    }
-
-    pub fn get_variables(&self) -> HashMap<u32,String> {
-        self.var_id_to_name.clone()
-    }
-
     fn insert_var(&mut self, var_name: &str) -> u32 {
         let var_id = self.next_var_id;
         self.next_var_id += 1;
-        self.var_id_to_name.insert(var_id, var_name.to_string());
+        self.variables.insert(var_id, var_name.to_string());
         self.scope.last_mut().unwrap().insert(var_id);
         var_id
     }
@@ -48,24 +35,22 @@ impl DebugState {
     fn walk_fn(&mut self, f: &mut ast::FunctionDefinition) {
         self.scope.push(HashSet::new());
 
-        let pvars: Vec<(u32,ast::Ident)> = f.parameters.iter()
+        let pvars: Vec<(u32,ast::Ident,bool)> = f.parameters.iter()
             .flat_map(|(pattern, _utype, _vis)| {
-                pattern_vars(pattern).iter().map(|id| {
-                    (self.insert_var(&id.0.contents), id.clone())
-                }).collect::<Vec<(u32,ast::Ident)>>()
+                pattern_vars(pattern).iter().map(|(id,is_mut)| {
+                    (self.insert_var(&id.0.contents), id.clone(), *is_mut)
+                }).collect::<Vec<(u32,ast::Ident,bool)>>()
             })
             .collect();
 
-        f.body.0.iter_mut().for_each(|stmt| self.walk_statement(stmt));
-        f.body.0 = vec![
-            // prapend fn params:
-            pvars.iter().map(|(var_id, id)| {
-                self.wrap_set_var(*var_id, id_expr(id))
-            }).collect(),
+        let set_fn_params = pvars.iter().map(|(var_id, id, _is_mut)| {
+            self.wrap_assign_var(*var_id, id_expr(id))
+        }).collect();
 
-            f.body.0.clone(),
-        ].concat();
         self.walk_scope(&mut f.body.0);
+
+        // prapend fn params:
+        f.body.0 = vec![ set_fn_params, f.body.0.clone() ].concat();
     }
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
@@ -90,12 +75,12 @@ impl DebugState {
             // copy body minus the return expr:
             fn_body,
 
-            // assign return expr to __debug_state_return:
+            // assign return expr to __debug_expr:
             vec![match &ret_stmt.kind {
                 ast::StatementKind::Expression(ret_expr) => {
                     ast::Statement {
                         kind: ast::StatementKind::Let(ast::LetStatement {
-                            pattern: ast::Pattern::Identifier(ident("__debug_state_return")),
+                            pattern: ast::Pattern::Identifier(ident("__debug_expr")),
                             r#type: ast::UnresolvedType::unspecified(),
                             expression: ret_expr.clone(),
                         }),
@@ -110,13 +95,13 @@ impl DebugState {
                 self.wrap_drop_var(*var_id)
             }).collect(),
 
-            // return the __debug_state_return value:
+            // return the __debug_expr value:
             vec![match &ret_stmt.kind {
-                ast::StatementKind::Expression(ret_expr) => {
+                ast::StatementKind::Expression(_ret_expr) => {
                     ast::Statement {
                         kind: ast::StatementKind::Expression(ast::Expression {
                             kind: ast::ExpressionKind::Variable(ast::Path {
-                                segments: vec![ident("__debug_state_return")],
+                                segments: vec![ident("__debug_expr")],
                                 kind: PathKind::Plain,
                             }),
                             span: none_span(),
@@ -150,11 +135,11 @@ impl DebugState {
         self.insert_state_set_oracle(module);
     }
 
-    fn wrap_set_var(&mut self, var_id: u32, expr: ast::Expression) -> ast::Statement {
+    fn wrap_assign_var(&mut self, var_id: u32, expr: ast::Expression) -> ast::Statement {
         let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
             func: Box::new(ast::Expression {
                 kind: ast::ExpressionKind::Variable(ast::Path {
-                    segments: vec![ident("__debug_state_set")],
+                    segments: vec![ident("__debug_var_assign")],
                     kind: PathKind::Plain
                 }),
                 span: none_span(),
@@ -179,7 +164,7 @@ impl DebugState {
         let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
             func: Box::new(ast::Expression {
                 kind: ast::ExpressionKind::Variable(ast::Path {
-                    segments: vec![ident("__debug_state_drop")],
+                    segments: vec![ident("__debug_var_drop")],
                     kind: PathKind::Plain
                 }),
                 span: none_span(),
@@ -215,10 +200,17 @@ impl DebugState {
         //   };
 
         let vars = pattern_vars(&let_stmt.pattern);
-        let vars_pattern: Vec<ast::Pattern> = vars.iter().map(|id| {
-            ast::Pattern::Identifier(id.clone())
+        let vars_pattern: Vec<ast::Pattern> = vars.iter().map(|(id,is_mut)| {
+            if *is_mut {
+                ast::Pattern::Mutable(
+                    Box::new(ast::Pattern::Identifier(id.clone())),
+                    none_span()
+                )
+            } else {
+                ast::Pattern::Identifier(id.clone())
+            }
         }).collect();
-        let vars_exprs: Vec<ast::Expression> = vars.iter().map(|id| id_expr(id)).collect();
+        let vars_exprs: Vec<ast::Expression> = vars.iter().map(|(id,_)| id_expr(id)).collect();
 
         let mut block_stmts = vec![
             ast::Statement {
@@ -226,9 +218,9 @@ impl DebugState {
                 span: none_span(),
             },
         ];
-        block_stmts.extend(vars.iter().map(|id| {
+        block_stmts.extend(vars.iter().map(|(id,_)| {
             let var_id = self.insert_var(&id.0.contents);
-            self.wrap_set_var(var_id, id_expr(id))
+            self.wrap_assign_var(var_id, id_expr(id))
         }));
         block_stmts.push(ast::Statement {
             kind: ast::StatementKind::Expression(ast::Expression {
@@ -251,6 +243,55 @@ impl DebugState {
         }
     }
 
+    fn wrap_assign_statement(&mut self, assign_stmt: &ast::AssignStatement, span: &Span) -> ast::Statement {
+        // X = Y becomes:
+        // X = {
+        //   let __debug_expr = Y;
+        //   wrap(1, __debug_expr);
+        //   __debug_expr
+        // };
+
+        let let_kind = ast::StatementKind::Let(ast::LetStatement {
+            pattern: ast::Pattern::Identifier(ident("__debug_expr")),
+            r#type: ast::UnresolvedType::unspecified(),
+            expression: assign_stmt.expression.clone(),
+        });
+        let new_assign_stmt = match &assign_stmt.lvalue {
+            ast::LValue::Ident(id) => {
+                let var_id = self.insert_var(&id.0.contents);
+                self.wrap_assign_var(var_id, id_expr(&ident("__debug_expr")))
+            },
+            ast::LValue::MemberAccess { object: _object, field_name: _field_name } => {
+                // TODO
+                unimplemented![]
+            },
+            ast::LValue::Index { array: _array, index: _index } => {
+                // TODO
+                unimplemented![]
+            },
+            ast::LValue::Dereference(_lv) => {
+                // TODO
+                unimplemented![]
+            },
+        };
+        let ret_kind = ast::StatementKind::Expression(id_expr(&ident("__debug_expr")));
+
+        ast::Statement {
+            kind: ast::StatementKind::Assign(ast::AssignStatement {
+                lvalue: assign_stmt.lvalue.clone(),
+                expression: ast::Expression {
+                    kind: ast::ExpressionKind::Block(ast::BlockExpression(vec![
+                        ast::Statement { kind: let_kind, span: none_span() },
+                        new_assign_stmt,
+                        ast::Statement { kind: ret_kind, span: none_span() },
+                    ])),
+                    span: none_span(),
+                },
+            }),
+            span: span.clone(),
+        }
+    }
+
     fn walk_expr(&mut self, expr: &mut ast::Expression) {
         match &mut expr.kind {
             ast::ExpressionKind::Block(ast::BlockExpression(ref mut statements)) => {
@@ -265,7 +306,7 @@ impl DebugState {
         let var_name = &for_stmt.identifier.0.contents;
         let var_id = self.insert_var(var_name);
 
-        let set_stmt = self.wrap_set_var(var_id, id_expr(&for_stmt.identifier));
+        let set_stmt = self.wrap_assign_var(var_id, id_expr(&for_stmt.identifier));
         let drop_stmt = self.wrap_drop_var(var_id);
 
         for_stmt.block = ast::Expression {
@@ -286,6 +327,9 @@ impl DebugState {
             ast::StatementKind::Let(let_stmt) => {
                 *stmt = self.wrap_let_statement(&let_stmt, &stmt.span);
             },
+            ast::StatementKind::Assign(assign_stmt) => {
+                *stmt = self.wrap_assign_statement(&assign_stmt, &stmt.span);
+            },
             ast::StatementKind::Expression(expr) => {
                 self.walk_expr(expr);
             },
@@ -295,35 +339,55 @@ impl DebugState {
             ast::StatementKind::For(ref mut for_stmt) => {
                 self.walk_for(for_stmt);
             },
-            ast::StatementKind::Assign(_assign_stmt) => {
-                // TODO
-            },
             _ => {}, // Constrain, Error
         }
     }
 
     fn insert_state_set_oracle(&self, module: &mut ParsedModule) {
         let (program, errors) = parse_program(r#"
-            #[oracle(__debug_state_set)]
-            unconstrained fn __debug_state_set_oracle<T>(_var_id: u32, _input: T) {}
-
-            #[oracle(__debug_state_drop)]
-            unconstrained fn __debug_state_drop_oracle<T>(_var_id: u32) {}
-
-            unconstrained fn __debug_state_set_inner<T>(var_id: u32, value: T) {
-                __debug_state_set_oracle(var_id, value);
+            #[oracle(__debug_var_assign)]
+            unconstrained fn __debug_var_assign_oracle<T>(_var_id: u32, _input: T) {}
+            unconstrained fn __debug_var_assign_inner<T>(var_id: u32, value: T) {
+                __debug_var_assign_oracle(var_id, value);
+            }
+            pub fn __debug_var_assign<T>(var_id: u32, value: T) {
+                __debug_var_assign_inner(var_id, value);
             }
 
-            unconstrained fn __debug_state_drop_inner<T>(var_id: u32) {
-                __debug_state_drop_oracle(var_id);
+            #[oracle(__debug_var_drop)]
+            unconstrained fn __debug_var_drop_oracle<T>(_var_id: u32) {}
+            unconstrained fn __debug_var_drop_inner<T>(var_id: u32) {
+                __debug_var_drop_oracle(var_id);
+            }
+            pub fn __debug_var_drop<T>(var_id: u32) {
+                __debug_var_drop_inner(var_id);
             }
 
-            pub fn __debug_state_set<T>(var_id: u32, value: T) {
-                __debug_state_set_inner(var_id, value);
+            #[oracle(__debug_member_assign)]
+            unconstrained fn __debug_member_assign_oracle<T>(_var_id: u32, _member_id: u32, _input: T) {}
+            unconstrained fn __debug_member_assign_inner<T>(var_id: u32, member_id: u32,value: T) {
+                __debug_member_assign_oracle(var_id, member_id, value);
+            }
+            pub fn __debug_member_assign<T>(var_id: u32, member_id: u32, value: T) {
+                __debug_member_assign_inner(var_id, member_id, value);
             }
 
-            pub fn __debug_state_drop<T>(var_id: u32) {
-                __debug_state_drop_inner(var_id);
+            #[oracle(__debug_index_assign)]
+            unconstrained fn __debug_index_assign_oracle<T>(_var_id: u32, _index: Field, _input: T) {}
+            unconstrained fn __debug_index_assign_inner<T>(var_id: u32, index: Field, value: T) {
+                __debug_index_assign_oracle(var_id, index, value);
+            }
+            pub fn __debug_index_assign<T>(var_id: u32, index: Field, value: T) {
+                __debug_index_assign_inner(var_id, index, value);
+            }
+
+            #[oracle(__debug_dereference_assign)]
+            unconstrained fn __debug_dereference_assign_oracle<T>(_var_id: u32, _input: T) {}
+            unconstrained fn __debug_dereference_assign_inner<T>(var_id: u32, value: T) {
+                __debug_dereference_assign_oracle(var_id, value);
+            }
+            pub fn __debug_dereference_assign<T>(var_id: u32, value: T) {
+                __debug_dereference_assign_inner(var_id, value);
             }
         "#);
         if !errors.is_empty() { panic!("errors parsing internal oracle definitions: {errors:?}") }
@@ -331,24 +395,24 @@ impl DebugState {
     }
 }
 
-fn pattern_vars(pattern: &ast::Pattern) -> Vec<ast::Ident> {
+fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident,bool)> {
     let mut vars = vec![];
-    let mut stack = VecDeque::from([ pattern ]);
+    let mut stack = VecDeque::from([ (pattern,false) ]);
     while stack.front().is_some() {
-        let pattern = stack.pop_front().unwrap();
+        let (pattern,is_mut) = stack.pop_front().unwrap();
         match pattern {
             ast::Pattern::Identifier(id) => {
-                vars.push(id.clone());
+                vars.push((id.clone(),is_mut));
             },
             ast::Pattern::Mutable(pattern, _) => {
-                stack.push_back(pattern);
+                stack.push_back((pattern,true));
             },
             ast::Pattern::Tuple(patterns, _) => {
-                stack.extend(patterns.iter());
+                stack.extend(patterns.iter().map(|pattern| (pattern, false)));
             },
             ast::Pattern::Struct(_, pids, _) => {
-                stack.extend(pids.iter().map(|(_, pattern)| pattern));
-                vars.extend(pids.iter().map(|(id, _)| id.clone()));
+                stack.extend(pids.iter().map(|(_, pattern)| (pattern,is_mut)));
+                vars.extend(pids.iter().map(|(id, _)| (id.clone(), false)));
             },
         }
     }

@@ -15,7 +15,7 @@ impl DebugVars {
         debug_vars
     }
 
-    pub fn get_values<'a>(&'a self) -> HashMap<&'a str, &'a Value> {
+    pub fn get_variables<'a>(&'a self) -> Vec<(&'a str, &'a Value)> {
         self.active.iter().filter_map(|var_id| {
             self.id_to_name.get(var_id).and_then(|name| {
                 self.id_to_value.get(var_id).map(|value| (name.as_str(), value))
@@ -29,11 +29,22 @@ impl DebugVars {
         });
     }
 
-    pub fn set(&mut self, var_id: u32, value: Value) {
+    pub fn assign(&mut self, var_id: u32, value: Value) {
         let name = self.id_to_name.get(&var_id).unwrap();
-        println!["\n\n######## SET {name}[{var_id}] = {value:?}\n"];
         self.active.insert(var_id);
         self.id_to_value.insert(var_id, value);
+    }
+
+    pub fn assign_member(&mut self, _var_id: u32, _member_id: u32, _value: Value) {
+        // TODO
+    }
+
+    pub fn assign_index(&mut self, _var_id: u32, _index: u64, _value: Value) {
+        // TODO
+    }
+
+    pub fn assign_deref(&mut self, _var_id: u32, _value: Value) {
+        // TODO
     }
 
     pub fn get<'a>(&'a mut self, var_id: u32) -> Option<&'a Value> {
@@ -42,7 +53,6 @@ impl DebugVars {
 
     pub fn drop(&mut self, var_id: u32) {
         let name = self.id_to_name.get(&var_id).unwrap();
-        println!["\n\n######## DROP {name}[{var_id}]\n"];
         self.active.remove(&var_id);
     }
 }

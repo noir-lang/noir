@@ -17,8 +17,11 @@ pub trait ForeignCallExecutor {
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
 pub(crate) enum ForeignCall {
     Println,
-    DebugStateSet,
-    DebugStateDrop,
+    DebugVarAssign,
+    DebugVarDrop,
+    DebugMemberAssign,
+    DebugIndexAssign,
+    DebugDerefAssign,
     Sequence,
     ReverseSequence,
     CreateMock,
@@ -38,8 +41,11 @@ impl ForeignCall {
     pub(crate) fn name(&self) -> &'static str {
         match self {
             ForeignCall::Println => "println",
-            ForeignCall::DebugStateSet => "__debug_state_set",
-            ForeignCall::DebugStateDrop => "__debug_state_drop",
+            ForeignCall::DebugVarAssign => "__debug_var_assign",
+            ForeignCall::DebugVarDrop => "__debug_var_drop",
+            ForeignCall::DebugMemberAssign => "__debug_member_assign",
+            ForeignCall::DebugIndexAssign => "__debug_index_assign",
+            ForeignCall::DebugDerefAssign => "__debug_deref_assign",
             ForeignCall::Sequence => "get_number_sequence",
             ForeignCall::ReverseSequence => "get_reverse_number_sequence",
             ForeignCall::CreateMock => "create_mock",
@@ -53,8 +59,11 @@ impl ForeignCall {
     pub(crate) fn lookup(op_name: &str) -> Option<ForeignCall> {
         match op_name {
             "println" => Some(ForeignCall::Println),
-            "__debug_state_set" => Some(ForeignCall::DebugStateSet),
-            "__debug_state_drop" => Some(ForeignCall::DebugStateDrop),
+            "__debug_var_assign" => Some(ForeignCall::DebugVarAssign),
+            "__debug_var_drop" => Some(ForeignCall::DebugVarDrop),
+            "__debug_member_assign" => Some(ForeignCall::DebugMemberAssign),
+            "__debug_index_assign" => Some(ForeignCall::DebugIndexAssign),
+            "__debug_deref_assign" => Some(ForeignCall::DebugDerefAssign),
             "get_number_sequence" => Some(ForeignCall::Sequence),
             "get_reverse_number_sequence" => Some(ForeignCall::ReverseSequence),
             "create_mock" => Some(ForeignCall::CreateMock),
@@ -170,7 +179,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 }
                 Ok(ForeignCallResult { values: vec![] })
             }
-            Some(ForeignCall::DebugStateSet) => {
+            Some(ForeignCall::DebugVarAssign) => {
                 let fcp_var_id = &foreign_call.inputs[0];
                 let fcp_value = &foreign_call.inputs[1];
                 if let (
@@ -179,11 +188,11 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     ForeignCallParam::Single(value),
                 ) = (debug_vars, fcp_var_id, fcp_value) {
                     let var_id = var_id_value.to_u128() as u32;
-                    ds.set(var_id, value.clone());
+                    ds.assign(var_id, value.clone());
                 }
                 Ok(ForeignCallResult { values: vec![] })
             }
-            Some(ForeignCall::DebugStateDrop) => {
+            Some(ForeignCall::DebugVarDrop) => {
                 let fcp_var_id = &foreign_call.inputs[0];
                 if let (
                     Some(ds),
@@ -191,6 +200,51 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 ) = (debug_vars, fcp_var_id) {
                     let var_id = var_id_value.to_u128() as u32;
                     ds.drop(var_id);
+                }
+                Ok(ForeignCallResult { values: vec![] })
+            }
+            Some(ForeignCall::DebugMemberAssign) => {
+                let fcp_var_id = &foreign_call.inputs[0];
+                let fcp_member_id = &foreign_call.inputs[1];
+                let fcp_value = &foreign_call.inputs[2];
+                if let (
+                    Some(ds),
+                    ForeignCallParam::Single(var_id_value),
+                    ForeignCallParam::Single(member_id_value),
+                    ForeignCallParam::Single(value),
+                ) = (debug_vars, fcp_var_id, fcp_member_id, fcp_value) {
+                    let var_id = var_id_value.to_u128() as u32;
+                    let member_id = member_id_value.to_u128() as u32;
+                    ds.assign_member(var_id, member_id, value.clone());
+                }
+                Ok(ForeignCallResult { values: vec![] })
+            }
+            Some(ForeignCall::DebugIndexAssign) => {
+                let fcp_var_id = &foreign_call.inputs[0];
+                let fcp_index = &foreign_call.inputs[1];
+                let fcp_value = &foreign_call.inputs[2];
+                if let (
+                    Some(ds),
+                    ForeignCallParam::Single(var_id_value),
+                    ForeignCallParam::Single(index_value),
+                    ForeignCallParam::Single(value),
+                ) = (debug_vars, fcp_var_id, fcp_index, fcp_value) {
+                    let var_id = var_id_value.to_u128() as u32;
+                    let index = index_value.to_u128() as u64;
+                    ds.assign_index(var_id, index, value.clone());
+                }
+                Ok(ForeignCallResult { values: vec![] })
+            }
+            Some(ForeignCall::DebugDerefAssign) => {
+                let fcp_var_id = &foreign_call.inputs[0];
+                let fcp_value = &foreign_call.inputs[1];
+                if let (
+                    Some(ds),
+                    ForeignCallParam::Single(var_id_value),
+                    ForeignCallParam::Single(value),
+                ) = (debug_vars, fcp_var_id, fcp_value) {
+                    let var_id = var_id_value.to_u128() as u32;
+                    ds.assign_deref(var_id, value.clone());
                 }
                 Ok(ForeignCallResult { values: vec![] })
             }
