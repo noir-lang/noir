@@ -10,7 +10,7 @@ use crate::{
         },
         types::Type,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
+    node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitMethodId},
     BinaryOpKind, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
@@ -132,7 +132,9 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Index(index_expr) => self.check_index_expression(expr_id, index_expr),
             HirExpression::Call(call_expr) => {
                 self.check_if_deprecated(&call_expr.func);
+
                 let function = self.check_expression(&call_expr.func);
+
                 let args = vecmap(&call_expr.arguments, |arg| {
                     let typ = self.check_expression(arg);
                     (typ, *arg, self.interner.expr_span(arg))
@@ -160,21 +162,29 @@ impl<'interner> TypeChecker<'interner> {
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
 
-                        let mut func_id = None;
-                        if let HirMethodReference::FuncId(id) = method_ref {
-                            func_id = Some(id);
+                        let trait_id = match &method_ref {
+                            HirMethodReference::FuncId(func_id) => {
+                                // Automatically add `&mut` if the method expects a mutable reference and
+                                // the object is not already one.
+                                if *func_id != FuncId::dummy_id() {
+                                    let func_meta = self.interner.function_meta(func_id);
+                                    self.try_add_mutable_reference_to_object(
+                                        &mut method_call,
+                                        &func_meta.typ,
+                                        &mut args,
+                                    );
+                                }
 
-                            // Automatically add `&mut` if the method expects a mutable reference and
-                            // the object is not already one.
-                            if id != FuncId::dummy_id() {
-                                let func_meta = self.interner.function_meta(&id);
-                                self.try_add_mutable_reference_to_object(
-                                    &mut method_call,
-                                    &func_meta.typ,
-                                    &mut args,
-                                );
+                                let meta = self.interner.function_meta(func_id);
+                                meta.trait_impl.map(|impl_id| {
+                                    self.interner
+                                        .get_trait_implementation(impl_id)
+                                        .borrow()
+                                        .trait_id
+                                })
                             }
-                        }
+                            HirMethodReference::TraitMethodId(method) => Some(method.trait_id),
+                        };
 
                         let (function_id, function_call) = method_call.into_function_call(
                             method_ref.clone(),
@@ -185,29 +195,8 @@ impl<'interner> TypeChecker<'interner> {
                         let span = self.interner.expr_span(expr_id);
                         let ret = self.check_method_call(&function_id, method_ref, args, span);
 
-                        if let Some(func_id) = func_id {
-                            let meta = self.interner.function_meta(&func_id);
-
-                            if let Some(impl_id) = meta.trait_impl {
-                                let trait_impl = self.interner.get_trait_implementation(impl_id);
-
-                                let result = self.interner.lookup_trait_implementation(
-                                    &object_type,
-                                    trait_impl.borrow().trait_id,
-                                );
-
-                                if let Err(erroring_constraints) = result {
-                                    let constraints = vecmap(erroring_constraints, |constraint| {
-                                        let r#trait = self.interner.get_trait(constraint.trait_id);
-                                        (constraint.typ, r#trait.name.to_string())
-                                    });
-
-                                    self.errors.push(TypeCheckError::NoMatchingImplFound {
-                                        constraints,
-                                        span,
-                                    });
-                                }
-                            }
+                        if let Some(trait_id) = trait_id {
+                            self.verify_trait_constraint(&object_type, trait_id, function_id, span);
                         }
 
                         self.interner.replace_expr(expr_id, function_call);
@@ -285,7 +274,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
-            HirExpression::TraitMethodReference(_, method) => {
+            HirExpression::TraitMethodReference(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
 
@@ -303,6 +292,26 @@ impl<'interner> TypeChecker<'interner> {
 
         self.interner.push_expr_type(expr_id, typ.clone());
         typ
+    }
+
+    fn verify_trait_constraint(
+        &mut self,
+        object_type: &Type,
+        trait_id: TraitId,
+        function_ident_id: ExprId,
+        span: Span,
+    ) {
+        match self.interner.lookup_trait_implementation(object_type, trait_id) {
+            Ok(impl_kind) => self.interner.select_impl_for_ident(function_ident_id, impl_kind),
+            Err(erroring_constraints) => {
+                let constraints = vecmap(erroring_constraints, |constraint| {
+                    let r#trait = self.interner.get_trait(constraint.trait_id);
+                    (constraint.typ, r#trait.name.to_string())
+                });
+
+                self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+            }
+        }
     }
 
     /// Check if the given method type requires a mutable reference to the object type, and check
@@ -512,13 +521,11 @@ impl<'interner> TypeChecker<'interner> {
 
                 let func_meta = self.interner.function_meta(&func_id);
                 let param_len = func_meta.parameters.len();
-
                 (func_meta.typ, param_len)
             }
-            HirMethodReference::TraitMethodId(_, method) => {
+            HirMethodReference::TraitMethodId(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
-
                 (method.get_type(), method.arguments.len())
             }
         };
@@ -537,7 +544,6 @@ impl<'interner> TypeChecker<'interner> {
 
         self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
         self.interner.push_expr_type(function_ident_id, function_type.clone());
-
         self.bind_function_type(function_type, arguments, span)
     }
 
@@ -889,10 +895,7 @@ impl<'interner> TypeChecker<'interner> {
                             if method.name.0.contents == method_name {
                                 let trait_method =
                                     TraitMethodId { trait_id: constraint.trait_id, method_index };
-                                return Some(HirMethodReference::TraitMethodId(
-                                    object_type.clone(),
-                                    trait_method,
-                                ));
+                                return Some(HirMethodReference::TraitMethodId(trait_method));
                             }
                         }
                     }

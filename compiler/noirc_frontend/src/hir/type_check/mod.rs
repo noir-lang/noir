@@ -43,6 +43,22 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let mut type_checker = TypeChecker::new(interner);
     type_checker.current_function = Some(func_id);
 
+    let meta = type_checker.interner.function_meta(&func_id);
+    let mut errors = Vec::new();
+
+    // Temporarily add any impls in this function's `where` clause to scope
+    for constraint in &meta.trait_constraints {
+        let object = constraint.typ.clone();
+        let trait_id = constraint.trait_id;
+
+        if !type_checker.interner.add_assumed_trait_implementation(object, trait_id) {
+            let trait_name = type_checker.interner.get_trait(trait_id).name.to_string();
+            let typ = constraint.typ.clone();
+            let span = meta.name.location.span;
+            errors.push(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
+        }
+    }
+
     // Bind each parameter to its annotated type.
     // This is locally obvious, but it must be bound here so that the
     // Definition object of the parameter in the NodeInterner is given the correct type.
@@ -50,14 +66,21 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         type_checker.bind_pattern(&param.0, param.1);
     }
 
-    let (function_last_type, delayed_type_check_functions, mut errors) =
+    let (function_last_type, delayed_type_check_functions, mut body_errors) =
         type_checker.check_function_body(function_body_id);
+
+    errors.append(&mut body_errors);
 
     // Go through any delayed type checking errors to see if they are resolved, or error otherwise.
     for type_check_fn in delayed_type_check_functions {
         if let Err(error) = type_check_fn() {
             errors.push(error);
         }
+    }
+
+    // Now remove all the `where` clause constraints we added
+    for constraint in &meta.trait_constraints {
+        interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
     }
 
     // Check declared return type and actual return type
