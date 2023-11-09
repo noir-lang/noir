@@ -10,6 +10,7 @@ use crate::{
 };
 
 pub(crate) struct FmtVisitor<'me> {
+    ignore_next_node: bool,
     pub(crate) config: &'me Config,
     buffer: String,
     pub(crate) source: &'me str,
@@ -20,6 +21,7 @@ pub(crate) struct FmtVisitor<'me> {
 impl<'me> FmtVisitor<'me> {
     pub(crate) fn new(source: &'me str, config: &'me Config) -> Self {
         Self {
+            ignore_next_node: false,
             buffer: String::new(),
             config,
             source,
@@ -61,6 +63,7 @@ impl<'me> FmtVisitor<'me> {
     pub(crate) fn fork(&self) -> Self {
         Self {
             buffer: String::new(),
+            ignore_next_node: self.ignore_next_node,
             config: self.config,
             source: self.source,
             last_position: self.last_position,
@@ -77,6 +80,24 @@ impl<'me> FmtVisitor<'me> {
     }
 
     fn push_str(&mut self, s: &str) {
+        let comments = Lexer::new(s).skip_comments(false).flatten().flat_map(|token| {
+            if let Token::LineComment(content, _) | Token::BlockComment(content, _) =
+                token.into_token()
+            {
+                let content = content.trim();
+                content.strip_prefix("noir-fmt:").map(ToOwned::to_owned)
+            } else {
+                None
+            }
+        });
+
+        for comment in comments {
+            match comment.as_str() {
+                "ignore" => self.ignore_next_node = true,
+                this => unreachable!("unknown settings {this}"),
+            }
+        }
+
         self.buffer.push_str(s);
     }
 
@@ -89,10 +110,19 @@ impl<'me> FmtVisitor<'me> {
             panic!("not formatted because a comment would be lost: {rewrite:?}");
         }
 
-        let rewrite = if changed_comment_content { original.to_string() } else { rewrite };
-
         self.format_missing_indent(span.start(), true);
+
+        let rewrite = if changed_comment_content || std::mem::take(&mut self.ignore_next_node) {
+            original.to_string()
+        } else {
+            rewrite
+        };
+
         self.push_str(&rewrite);
+
+        if rewrite.starts_with('{') && rewrite.ends_with('}') {
+            self.ignore_next_node = false;
+        }
     }
 
     #[track_caller]
