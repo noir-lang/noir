@@ -70,7 +70,7 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
     commitments.w_r = transcript.template receive_from_prover<Commitment>(commitment_labels.w_r);
     commitments.w_o = transcript.template receive_from_prover<Commitment>(commitment_labels.w_o);
 
-    // If Goblin, get commitments to ECC op wire polynomials
+    // If Goblin, get commitments to ECC op wire polynomials and DataBus columns
     if constexpr (IsGoblinFlavor<Flavor>) {
         commitments.ecc_op_wire_1 =
             transcript.template receive_from_prover<Commitment>(commitment_labels.ecc_op_wire_1);
@@ -80,6 +80,9 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
             transcript.template receive_from_prover<Commitment>(commitment_labels.ecc_op_wire_3);
         commitments.ecc_op_wire_4 =
             transcript.template receive_from_prover<Commitment>(commitment_labels.ecc_op_wire_4);
+        commitments.calldata = transcript.template receive_from_prover<Commitment>(commitment_labels.calldata);
+        commitments.calldata_read_counts =
+            transcript.template receive_from_prover<Commitment>(commitment_labels.calldata_read_counts);
     }
 
     // Get challenge for sorted list batching and wire four memory records

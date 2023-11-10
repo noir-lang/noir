@@ -14,6 +14,17 @@
 
 namespace proof_system {
 
+template <typename FF> struct non_native_field_witnesses {
+    // first 4 array elements = limbs
+    // 5th element = prime basis limb
+    std::array<uint32_t, 5> a;
+    std::array<uint32_t, 5> b;
+    std::array<uint32_t, 5> q;
+    std::array<uint32_t, 5> r;
+    std::array<FF, 5> neg_modulus;
+    FF modulus;
+};
+
 using namespace barretenberg;
 
 template <typename Arithmetization>
@@ -23,7 +34,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
     static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
     // Keeping NUM_WIRES, at least temporarily, for backward compatibility
     static constexpr size_t program_width = Arithmetization::NUM_WIRES;
-    static constexpr size_t num_selectors = Arithmetization::num_selectors;
+    static constexpr size_t num_selectors = Arithmetization::NUM_SELECTORS;
     std::vector<std::string> selector_names = Arithmetization::selector_names;
 
     static constexpr std::string_view NAME_STRING = "UltraArithmetization";
@@ -44,17 +55,6 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
     static constexpr size_t NUM_RESERVED_GATES = 4;
     // number of gates created per non-native field operation in process_non_native_field_multiplications
     static constexpr size_t GATES_PER_NON_NATIVE_FIELD_MULTIPLICATION_ARITHMETIC = 7;
-
-    struct non_native_field_witnesses {
-        // first 4 array elements = limbs
-        // 5th element = prime basis limb
-        std::array<uint32_t, 5> a;
-        std::array<uint32_t, 5> b;
-        std::array<uint32_t, 5> q;
-        std::array<uint32_t, 5> r;
-        std::array<FF, 5> neg_modulus;
-        FF modulus;
-    };
 
     enum AUX_SELECTORS {
         NONE,
@@ -946,8 +946,8 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
     std::array<uint32_t, 2> decompose_non_native_field_double_width_limb(
         const uint32_t limb_idx, const size_t num_limb_bits = (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
     std::array<uint32_t, 2> evaluate_non_native_field_multiplication(
-        const non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder = true);
-    std::array<uint32_t, 2> queue_partial_non_native_field_multiplication(const non_native_field_witnesses& input);
+        const non_native_field_witnesses<FF>& input, const bool range_constrain_quotient_and_remainder = true);
+    std::array<uint32_t, 2> queue_partial_non_native_field_multiplication(const non_native_field_witnesses<FF>& input);
     typedef std::pair<uint32_t, FF> scaled_witness;
     typedef std::tuple<scaled_witness, scaled_witness, FF> add_simple;
     std::array<uint32_t, 5> evaluate_non_native_field_subtraction(add_simple limb0,
@@ -1049,5 +1049,6 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
     bool check_circuit();
 };
 extern template class UltraCircuitBuilder_<arithmetization::Ultra<barretenberg::fr>>;
+extern template class UltraCircuitBuilder_<arithmetization::UltraHonk<barretenberg::fr>>;
 using UltraCircuitBuilder = UltraCircuitBuilder_<arithmetization::Ultra<barretenberg::fr>>;
 } // namespace proof_system

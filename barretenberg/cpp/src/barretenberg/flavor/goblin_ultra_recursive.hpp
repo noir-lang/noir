@@ -61,12 +61,13 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
     // need containers of this size to hold related data, so we choose a name more agnostic than `NUM_POLYNOMIALS`.
     // Note: this number does not include the individual sorted list polynomials.
-    static constexpr size_t NUM_ALL_ENTITIES = 48; // 43 (UH) + 4 op wires + 1 op wire "selector"
+    // NUM = 43 (UH) + 4 op wires + 1 op wire "selector" + 3 (calldata + calldata_read_counts + q_busread)
+    static constexpr size_t NUM_ALL_ENTITIES = 51;
     // The number of polynomials precomputed to describe a circuit and to aid a prover in constructing a satisfying
     // assignment of witnesses. We again choose a neutral name.
-    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 26; // 25 (UH) + 1 op wire "selector"
+    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 27; // 25 (UH) + 1 op wire "selector" + q_busread
     // The total number of witness entities not including shifts.
-    static constexpr size_t NUM_WITNESS_ENTITIES = 15; // 11 (UH) + 4 op wires
+    static constexpr size_t NUM_WITNESS_ENTITIES = 17; // 11 (UH) + 4 op wires + (calldata + calldata_read_counts)
 
     // define the tuple of Relations that comprise the Sumcheck relation
     using Relations = std::tuple<proof_system::UltraArithmeticRelation<FF>,
@@ -108,27 +109,28 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
         DataType& q_elliptic = std::get<8>(this->_data);
         DataType& q_aux = std::get<9>(this->_data);
         DataType& q_lookup = std::get<10>(this->_data);
-        DataType& sigma_1 = std::get<11>(this->_data);
-        DataType& sigma_2 = std::get<12>(this->_data);
-        DataType& sigma_3 = std::get<13>(this->_data);
-        DataType& sigma_4 = std::get<14>(this->_data);
-        DataType& id_1 = std::get<15>(this->_data);
-        DataType& id_2 = std::get<16>(this->_data);
-        DataType& id_3 = std::get<17>(this->_data);
-        DataType& id_4 = std::get<18>(this->_data);
-        DataType& table_1 = std::get<19>(this->_data);
-        DataType& table_2 = std::get<20>(this->_data);
-        DataType& table_3 = std::get<21>(this->_data);
-        DataType& table_4 = std::get<22>(this->_data);
-        DataType& lagrange_first = std::get<23>(this->_data);
-        DataType& lagrange_last = std::get<24>(this->_data);
-        DataType& lagrange_ecc_op = std::get<25>(this->_data); // indicator poly for ecc op gates
+        DataType& q_busread = std::get<11>(this->_data);
+        DataType& sigma_1 = std::get<12>(this->_data);
+        DataType& sigma_2 = std::get<13>(this->_data);
+        DataType& sigma_3 = std::get<14>(this->_data);
+        DataType& sigma_4 = std::get<15>(this->_data);
+        DataType& id_1 = std::get<16>(this->_data);
+        DataType& id_2 = std::get<17>(this->_data);
+        DataType& id_3 = std::get<18>(this->_data);
+        DataType& id_4 = std::get<19>(this->_data);
+        DataType& table_1 = std::get<20>(this->_data);
+        DataType& table_2 = std::get<21>(this->_data);
+        DataType& table_3 = std::get<22>(this->_data);
+        DataType& table_4 = std::get<23>(this->_data);
+        DataType& lagrange_first = std::get<24>(this->_data);
+        DataType& lagrange_last = std::get<25>(this->_data);
+        DataType& lagrange_ecc_op = std::get<26>(this->_data); // indicator poly for ecc op gates
 
         static constexpr CircuitType CIRCUIT_TYPE = CircuitBuilder::CIRCUIT_TYPE;
 
         std::vector<HandleType> get_selectors() override
         {
-            return { q_m, q_c, q_l, q_r, q_o, q_4, q_arith, q_sort, q_elliptic, q_aux, q_lookup };
+            return { q_m, q_c, q_l, q_r, q_o, q_4, q_arith, q_sort, q_elliptic, q_aux, q_lookup, q_busread };
         };
         std::vector<HandleType> get_sigma_polynomials() override { return { sigma_1, sigma_2, sigma_3, sigma_4 }; };
         std::vector<HandleType> get_id_polynomials() override { return { id_1, id_2, id_3, id_4 }; };
@@ -158,6 +160,8 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
         DataType& ecc_op_wire_2 = std::get<12>(this->_data);
         DataType& ecc_op_wire_3 = std::get<13>(this->_data);
         DataType& ecc_op_wire_4 = std::get<14>(this->_data);
+        DataType& calldata = std::get<15>(this->_data);
+        DataType& calldata_read_counts = std::get<16>(this->_data);
 
         std::vector<HandleType> get_wires() override { return { w_l, w_r, w_o, w_4 }; };
         std::vector<HandleType> get_ecc_op_wires()
@@ -191,43 +195,46 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
         DataType& q_elliptic = std::get<8>(this->_data);
         DataType& q_aux = std::get<9>(this->_data);
         DataType& q_lookup = std::get<10>(this->_data);
-        DataType& sigma_1 = std::get<11>(this->_data);
-        DataType& sigma_2 = std::get<12>(this->_data);
-        DataType& sigma_3 = std::get<13>(this->_data);
-        DataType& sigma_4 = std::get<14>(this->_data);
-        DataType& id_1 = std::get<15>(this->_data);
-        DataType& id_2 = std::get<16>(this->_data);
-        DataType& id_3 = std::get<17>(this->_data);
-        DataType& id_4 = std::get<18>(this->_data);
-        DataType& table_1 = std::get<19>(this->_data);
-        DataType& table_2 = std::get<20>(this->_data);
-        DataType& table_3 = std::get<21>(this->_data);
-        DataType& table_4 = std::get<22>(this->_data);
-        DataType& lagrange_first = std::get<23>(this->_data);
-        DataType& lagrange_last = std::get<24>(this->_data);
-        DataType& lagrange_ecc_op = std::get<25>(this->_data);
-        DataType& w_l = std::get<26>(this->_data);
-        DataType& w_r = std::get<27>(this->_data);
-        DataType& w_o = std::get<28>(this->_data);
-        DataType& w_4 = std::get<29>(this->_data);
-        DataType& sorted_accum = std::get<30>(this->_data);
-        DataType& z_perm = std::get<31>(this->_data);
-        DataType& z_lookup = std::get<32>(this->_data);
-        DataType& ecc_op_wire_1 = std::get<33>(this->_data);
-        DataType& ecc_op_wire_2 = std::get<34>(this->_data);
-        DataType& ecc_op_wire_3 = std::get<35>(this->_data);
-        DataType& ecc_op_wire_4 = std::get<36>(this->_data);
-        DataType& table_1_shift = std::get<37>(this->_data);
-        DataType& table_2_shift = std::get<38>(this->_data);
-        DataType& table_3_shift = std::get<39>(this->_data);
-        DataType& table_4_shift = std::get<40>(this->_data);
-        DataType& w_l_shift = std::get<41>(this->_data);
-        DataType& w_r_shift = std::get<42>(this->_data);
-        DataType& w_o_shift = std::get<43>(this->_data);
-        DataType& w_4_shift = std::get<44>(this->_data);
-        DataType& sorted_accum_shift = std::get<45>(this->_data);
-        DataType& z_perm_shift = std::get<46>(this->_data);
-        DataType& z_lookup_shift = std::get<47>(this->_data);
+        DataType& q_busread = std::get<11>(this->_data);
+        DataType& sigma_1 = std::get<12>(this->_data);
+        DataType& sigma_2 = std::get<13>(this->_data);
+        DataType& sigma_3 = std::get<14>(this->_data);
+        DataType& sigma_4 = std::get<15>(this->_data);
+        DataType& id_1 = std::get<16>(this->_data);
+        DataType& id_2 = std::get<17>(this->_data);
+        DataType& id_3 = std::get<18>(this->_data);
+        DataType& id_4 = std::get<19>(this->_data);
+        DataType& table_1 = std::get<20>(this->_data);
+        DataType& table_2 = std::get<21>(this->_data);
+        DataType& table_3 = std::get<22>(this->_data);
+        DataType& table_4 = std::get<23>(this->_data);
+        DataType& lagrange_first = std::get<24>(this->_data);
+        DataType& lagrange_last = std::get<25>(this->_data);
+        DataType& lagrange_ecc_op = std::get<26>(this->_data);
+        DataType& w_l = std::get<27>(this->_data);
+        DataType& w_r = std::get<28>(this->_data);
+        DataType& w_o = std::get<29>(this->_data);
+        DataType& w_4 = std::get<30>(this->_data);
+        DataType& sorted_accum = std::get<31>(this->_data);
+        DataType& z_perm = std::get<32>(this->_data);
+        DataType& z_lookup = std::get<33>(this->_data);
+        DataType& ecc_op_wire_1 = std::get<34>(this->_data);
+        DataType& ecc_op_wire_2 = std::get<35>(this->_data);
+        DataType& ecc_op_wire_3 = std::get<36>(this->_data);
+        DataType& ecc_op_wire_4 = std::get<37>(this->_data);
+        DataType& calldata = std::get<38>(this->_data);
+        DataType& calldata_read_counts = std::get<39>(this->_data);
+        DataType& table_1_shift = std::get<40>(this->_data);
+        DataType& table_2_shift = std::get<41>(this->_data);
+        DataType& table_3_shift = std::get<42>(this->_data);
+        DataType& table_4_shift = std::get<43>(this->_data);
+        DataType& w_l_shift = std::get<44>(this->_data);
+        DataType& w_r_shift = std::get<45>(this->_data);
+        DataType& w_o_shift = std::get<46>(this->_data);
+        DataType& w_4_shift = std::get<47>(this->_data);
+        DataType& sorted_accum_shift = std::get<48>(this->_data);
+        DataType& z_perm_shift = std::get<49>(this->_data);
+        DataType& z_lookup_shift = std::get<50>(this->_data);
 
         std::vector<HandleType> get_wires() override { return { w_l, w_r, w_o, w_4 }; };
         std::vector<HandleType> get_ecc_op_wires()
@@ -237,25 +244,46 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
         // Gemini-specific getters.
         std::vector<HandleType> get_unshifted() override
         {
-            return { q_c,           q_l,
-                     q_r,           q_o,
-                     q_4,           q_m,
-                     q_arith,       q_sort,
-                     q_elliptic,    q_aux,
-                     q_lookup,      sigma_1,
-                     sigma_2,       sigma_3,
-                     sigma_4,       id_1,
-                     id_2,          id_3,
-                     id_4,          table_1,
-                     table_2,       table_3,
-                     table_4,       lagrange_first,
-                     lagrange_last, lagrange_ecc_op,
-                     w_l,           w_r,
-                     w_o,           w_4,
-                     sorted_accum,  z_perm,
-                     z_lookup,      ecc_op_wire_1,
-                     ecc_op_wire_2, ecc_op_wire_3,
-                     ecc_op_wire_4 };
+            return { q_c,
+                     q_l,
+                     q_r,
+                     q_o,
+                     q_4,
+                     q_m,
+                     q_arith,
+                     q_sort,
+                     q_elliptic,
+                     q_aux,
+                     q_lookup,
+                     q_busread,
+                     sigma_1,
+                     sigma_2,
+                     sigma_3,
+                     sigma_4,
+                     id_1,
+                     id_2,
+                     id_3,
+                     id_4,
+                     table_1,
+                     table_2,
+                     table_3,
+                     table_4,
+                     lagrange_first,
+                     lagrange_last,
+                     lagrange_ecc_op,
+                     w_l,
+                     w_r,
+                     w_o,
+                     w_4,
+                     sorted_accum,
+                     z_perm,
+                     z_lookup,
+                     ecc_op_wire_1,
+                     ecc_op_wire_2,
+                     ecc_op_wire_3,
+                     ecc_op_wire_4,
+                     calldata,
+                     calldata_read_counts };
         };
         std::vector<HandleType> get_to_be_shifted() override
         {
@@ -325,6 +353,7 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
             this->q_elliptic = Commitment::from_witness(builder, native_key->q_elliptic);
             this->q_aux = Commitment::from_witness(builder, native_key->q_aux);
             this->q_lookup = Commitment::from_witness(builder, native_key->q_lookup);
+            this->q_busread = Commitment::from_witness(builder, native_key->q_busread);
             this->sigma_1 = Commitment::from_witness(builder, native_key->sigma_1);
             this->sigma_2 = Commitment::from_witness(builder, native_key->sigma_2);
             this->sigma_3 = Commitment::from_witness(builder, native_key->sigma_3);
@@ -375,6 +404,8 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
             this->ecc_op_wire_2 = "ECC_OP_WIRE_2";
             this->ecc_op_wire_3 = "ECC_OP_WIRE_3";
             this->ecc_op_wire_4 = "ECC_OP_WIRE_4";
+            this->calldata = "CALLDATA";
+            this->calldata_read_counts = "CALLDATA_READ_COUNTS";
 
             // The ones beginning with "__" are only used for debugging
             this->q_c = "__Q_C";
@@ -388,6 +419,7 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
             this->q_elliptic = "__Q_ELLIPTIC";
             this->q_aux = "__Q_AUX";
             this->q_lookup = "__Q_LOOKUP";
+            this->q_busread = "__Q_BUSREAD";
             this->sigma_1 = "__SIGMA_1";
             this->sigma_2 = "__SIGMA_2";
             this->sigma_3 = "__SIGMA_3";
@@ -421,6 +453,7 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
             this->q_elliptic = verification_key->q_elliptic;
             this->q_aux = verification_key->q_aux;
             this->q_lookup = verification_key->q_lookup;
+            this->q_busread = verification_key->q_busread;
             this->sigma_1 = verification_key->sigma_1;
             this->sigma_2 = verification_key->sigma_2;
             this->sigma_3 = verification_key->sigma_3;
@@ -446,7 +479,6 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
      */
     class Transcript : public BaseTranscript<FF> {
       public:
-        // Transcript objects defined as public member variables for easy access and modification
         uint32_t circuit_size;
         uint32_t public_input_size;
         uint32_t pub_inputs_offset;
@@ -458,6 +490,8 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
         Commitment ecc_op_wire_2_comm;
         Commitment ecc_op_wire_3_comm;
         Commitment ecc_op_wire_4_comm;
+        Commitment calldata_comm;
+        Commitment calldata_read_counts_comm;
         Commitment sorted_accum_comm;
         Commitment w_4_comm;
         Commitment z_perm_comm;
@@ -470,26 +504,9 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
 
         Transcript() = default;
 
-        // Used by verifier to initialize the transcript
         Transcript(const std::vector<uint8_t>& proof)
             : BaseTranscript<FF>(proof)
         {}
-
-        static Transcript prover_init_empty()
-        {
-            Transcript transcript;
-            constexpr uint32_t init{ 42 }; // arbitrary
-            transcript.send_to_verifier("Init", init);
-            return transcript;
-        };
-
-        static Transcript verifier_init_empty(const Transcript& transcript)
-        {
-            Transcript verifier_transcript{ transcript.proof_data };
-            [[maybe_unused]] auto _ = verifier_transcript.template receive_from_prover<uint32_t>("Init");
-            return verifier_transcript;
-        };
-
         /**
          * @brief Takes a FULL GoblinUltraRecursive proof and deserializes it into the public member variables that
          * compose the structure. Must be called in order to access the structure of the proof.
@@ -514,6 +531,9 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
             ecc_op_wire_2_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
             ecc_op_wire_3_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
             ecc_op_wire_4_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
+            calldata_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
+            calldata_read_counts_comm =
+                deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
             sorted_accum_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
             w_4_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
             z_perm_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
@@ -532,6 +552,7 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
             zm_cq_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
             zm_pi_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
         }
+
         /**
          * @brief Serializes the structure variables into a FULL GoblinUltraRecursive proof. Should be called only if
          * deserialize_full_transcript() was called and some transcript variable was modified.
@@ -540,7 +561,7 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
         void serialize_full_transcript() override
         {
             size_t old_proof_length = BaseTranscript<FF>::proof_data.size();
-            BaseTranscript<FF>::proof_data.clear(); // clear proof_data so the rest of the function can replace it
+            BaseTranscript<FF>::proof_data.clear();
             size_t log_n = numeric::get_msb(circuit_size);
             serialize_to_buffer(circuit_size, BaseTranscript<FF>::proof_data);
             serialize_to_buffer(public_input_size, BaseTranscript<FF>::proof_data);
@@ -555,6 +576,8 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
             serialize_to_buffer(ecc_op_wire_2_comm, BaseTranscript<FF>::proof_data);
             serialize_to_buffer(ecc_op_wire_3_comm, BaseTranscript<FF>::proof_data);
             serialize_to_buffer(ecc_op_wire_4_comm, BaseTranscript<FF>::proof_data);
+            serialize_to_buffer(calldata_comm, BaseTranscript<FF>::proof_data);
+            serialize_to_buffer(calldata_read_counts_comm, BaseTranscript<FF>::proof_data);
             serialize_to_buffer(sorted_accum_comm, BaseTranscript<FF>::proof_data);
             serialize_to_buffer(w_4_comm, BaseTranscript<FF>::proof_data);
             serialize_to_buffer(z_perm_comm, BaseTranscript<FF>::proof_data);

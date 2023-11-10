@@ -716,7 +716,7 @@ TEST_F(UltraHonkComposerTests, non_native_field_multiplication)
     const auto q_indices = get_limb_witness_indices(split_into_limbs(uint256_t(q)));
     const auto r_indices = get_limb_witness_indices(split_into_limbs(uint256_t(r)));
 
-    proof_system::UltraCircuitBuilder::non_native_field_witnesses inputs{
+    proof_system::non_native_field_witnesses<fr> inputs{
         a_indices, b_indices, q_indices, r_indices, modulus_limbs, fr(uint256_t(modulus)),
     };
     const auto [lo_1_idx, hi_1_idx] = circuit_builder.evaluate_non_native_field_multiplication(inputs);

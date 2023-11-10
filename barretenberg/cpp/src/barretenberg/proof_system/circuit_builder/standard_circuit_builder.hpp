@@ -15,7 +15,7 @@ template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase
     static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
     // Keeping NUM_WIRES, at least temporarily, for backward compatibility
     static constexpr size_t program_width = Arithmetization::NUM_WIRES;
-    static constexpr size_t num_selectors = Arithmetization::num_selectors;
+    static constexpr size_t num_selectors = Arithmetization::NUM_SELECTORS;
     std::vector<std::string> selector_names = Arithmetization::selector_names;
 
     static constexpr std::string_view NAME_STRING = "StandardArithmetization";

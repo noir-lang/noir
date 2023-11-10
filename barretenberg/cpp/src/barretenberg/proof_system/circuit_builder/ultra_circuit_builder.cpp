@@ -79,6 +79,7 @@ void UltraCircuitBuilder_<Arithmetization>::add_gates_to_ensure_all_polys_are_no
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(1);
     q_aux.emplace_back(1);
+    selectors.pad_additional();
     ++this->num_gates;
 
     // Some relations depend on wire shifts so we add another gate with
@@ -138,6 +139,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_add_gate(const add_triple_<FF
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
+    selectors.pad_additional();
     ++this->num_gates;
 }
 
@@ -169,6 +171,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_big_add_gate(const add_quad_<
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
+    selectors.pad_additional();
     ++this->num_gates;
 }
 
@@ -262,6 +265,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_big_mul_gate(const mul_quad_<
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
+    selectors.pad_additional();
     ++this->num_gates;
 }
 
@@ -287,6 +291,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_balanced_add_gate(const add_q
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
+    selectors.pad_additional();
     ++this->num_gates;
     // Why 3? TODO: return to this
     // The purpose of this gate is to do enable lazy 32-bit addition.
@@ -328,6 +333,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_mul_gate(const mul_triple_<FF
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
+    selectors.pad_additional();
     ++this->num_gates;
 }
 /**
@@ -356,6 +362,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_bool_gate(const uint32_t vari
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
+    selectors.pad_additional();
     ++this->num_gates;
 }
 
@@ -386,6 +393,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_poly_gate(const poly_triple_<
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
+    selectors.pad_additional();
     ++this->num_gates;
 }
 
@@ -439,6 +447,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_ecc_add_gate(const ecc_add_ga
         q_lookup_type.emplace_back(0);
         q_elliptic.emplace_back(1);
         q_aux.emplace_back(0);
+        selectors.pad_additional();
         ++this->num_gates;
     }
     w_l.emplace_back(in.x2);
@@ -456,6 +465,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_ecc_add_gate(const ecc_add_ga
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
+    selectors.pad_additional();
     ++this->num_gates;
 }
 
@@ -501,6 +511,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_ecc_dbl_gate(const ecc_dbl_ga
         q_sort.emplace_back(0);
         q_lookup_type.emplace_back(0);
         q_aux.emplace_back(0);
+        selectors.pad_additional();
         ++this->num_gates;
     }
 
@@ -519,6 +530,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_ecc_dbl_gate(const ecc_dbl_ga
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
+    selectors.pad_additional();
     ++this->num_gates;
 }
 
@@ -548,6 +560,7 @@ void UltraCircuitBuilder_<Arithmetization>::fix_witness(const uint32_t witness_i
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
+    selectors.pad_additional();
     ++this->num_gates;
 }
 
@@ -622,6 +635,7 @@ plookup::ReadData<uint32_t> UltraCircuitBuilder_<Arithmetization>::create_gates_
         q_sort.emplace_back(0);
         q_elliptic.emplace_back(0);
         q_aux.emplace_back(0);
+        selectors.pad_additional();
         ++this->num_gates;
     }
     return read_data;
@@ -930,6 +944,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint(const std::ve
         q_elliptic.emplace_back(0);
         q_lookup_type.emplace_back(0);
         q_aux.emplace_back(0);
+        selectors.pad_additional();
     }
     // dummy gate needed because of sort widget's check of next row
     w_l.emplace_back(variable_index[variable_index.size() - 1]);
@@ -948,6 +963,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint(const std::ve
     q_elliptic.emplace_back(0);
     q_lookup_type.emplace_back(0);
     q_aux.emplace_back(0);
+    selectors.pad_additional();
 }
 
 // useful to put variables in the witness that aren't already used - e.g. the dummy variables of the range constraint in
@@ -981,6 +997,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_dummy_constraints(const std::
         q_elliptic.emplace_back(0);
         q_lookup_type.emplace_back(0);
         q_aux.emplace_back(0);
+        selectors.pad_additional();
     }
 }
 
@@ -1011,6 +1028,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
     q_elliptic.emplace_back(0);
     q_lookup_type.emplace_back(0);
     q_aux.emplace_back(0);
+    selectors.pad_additional();
     // enforce range check for middle rows
     for (size_t i = gate_width; i < variable_index.size() - gate_width; i += gate_width) {
 
@@ -1030,6 +1048,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
         q_elliptic.emplace_back(0);
         q_lookup_type.emplace_back(0);
         q_aux.emplace_back(0);
+        selectors.pad_additional();
     }
     // enforce range checks of last row and ending at end
     if (variable_index.size() > gate_width) {
@@ -1049,6 +1068,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
         q_elliptic.emplace_back(0);
         q_lookup_type.emplace_back(0);
         q_aux.emplace_back(0);
+        selectors.pad_additional();
     }
 
     // dummy gate needed because of sort widget's check of next row
@@ -1069,6 +1089,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
     q_elliptic.emplace_back(0);
     q_lookup_type.emplace_back(0);
     q_aux.emplace_back(0);
+    selectors.pad_additional();
 }
 
 // range constraint a value by decomposing it into limbs whose size should be the default range constraint size
@@ -1184,6 +1205,7 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         q_m.emplace_back(0);
         q_c.emplace_back(0);
         q_arith.emplace_back(0);
+        selectors.pad_additional();
         break;
     }
     case AUX_SELECTORS::LIMB_ACCUMULATE_2: {
@@ -1194,6 +1216,7 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         q_m.emplace_back(1);
         q_c.emplace_back(0);
         q_arith.emplace_back(0);
+        selectors.pad_additional();
         break;
     }
     case AUX_SELECTORS::NON_NATIVE_FIELD_1: {
@@ -1204,6 +1227,7 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         q_m.emplace_back(0);
         q_c.emplace_back(0);
         q_arith.emplace_back(0);
+        selectors.pad_additional();
         break;
     }
     case AUX_SELECTORS::NON_NATIVE_FIELD_2: {
@@ -1214,6 +1238,7 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         q_m.emplace_back(0);
         q_c.emplace_back(0);
         q_arith.emplace_back(0);
+        selectors.pad_additional();
         break;
     }
     case AUX_SELECTORS::NON_NATIVE_FIELD_3: {
@@ -1224,6 +1249,7 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         q_m.emplace_back(1);
         q_c.emplace_back(0);
         q_arith.emplace_back(0);
+        selectors.pad_additional();
         break;
     }
     case AUX_SELECTORS::ROM_CONSISTENCY_CHECK: {
@@ -1238,6 +1264,7 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         q_m.emplace_back(0);
         q_c.emplace_back(0);
         q_arith.emplace_back(0);
+        selectors.pad_additional();
         break;
     }
     case AUX_SELECTORS::RAM_CONSISTENCY_CHECK: {
@@ -1253,6 +1280,7 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         q_m.emplace_back(0);
         q_c.emplace_back(0);
         q_arith.emplace_back(1);
+        selectors.pad_additional();
         break;
     }
     case AUX_SELECTORS::RAM_TIMESTAMP_CHECK: {
@@ -1265,6 +1293,7 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         q_m.emplace_back(0);
         q_c.emplace_back(0);
         q_arith.emplace_back(0);
+        selectors.pad_additional();
         break;
     }
     case AUX_SELECTORS::ROM_READ: {
@@ -1278,6 +1307,7 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         q_m.emplace_back(1); // validate record witness is correctly computed
         q_c.emplace_back(0); // read/write flag stored in q_c
         q_arith.emplace_back(0);
+        selectors.pad_additional();
         break;
     }
     case AUX_SELECTORS::RAM_READ: {
@@ -1291,6 +1321,7 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         q_m.emplace_back(1); // validate record witness is correctly computed
         q_c.emplace_back(0); // read/write flag stored in q_c
         q_arith.emplace_back(0);
+        selectors.pad_additional();
         break;
     }
     case AUX_SELECTORS::RAM_WRITE: {
@@ -1304,6 +1335,7 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         q_m.emplace_back(1); // validate record witness is correctly computed
         q_c.emplace_back(1); // read/write flag stored in q_c
         q_arith.emplace_back(0);
+        selectors.pad_additional();
         break;
     }
     default: {
@@ -1314,6 +1346,7 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         q_m.emplace_back(0);
         q_c.emplace_back(0);
         q_arith.emplace_back(0);
+        selectors.pad_additional();
         break;
     }
     }
@@ -1461,7 +1494,7 @@ std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::decompose_non_nat
 
 template <typename Arithmetization>
 std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::evaluate_non_native_field_multiplication(
-    const non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder)
+    const non_native_field_witnesses<FF>& input, const bool range_constrain_quotient_and_remainder)
 {
 
     std::array<fr, 4> a{
@@ -1682,7 +1715,7 @@ void UltraCircuitBuilder_<Arithmetization>::process_non_native_field_multiplicat
 
 template <typename Arithmetization>
 std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::queue_partial_non_native_field_multiplication(
-    const non_native_field_witnesses& input)
+    const non_native_field_witnesses<FF>& input)
 {
 
     std::array<fr, 4> a{
@@ -1842,6 +1875,7 @@ std::array<uint32_t, 5> UltraCircuitBuilder_<Arithmetization>::evaluate_non_nati
         q_lookup_type.emplace_back(0);
         q_elliptic.emplace_back(0);
         q_aux.emplace_back(0);
+        selectors.pad_additional();
     }
 
     this->num_gates += 4;
@@ -1963,6 +1997,7 @@ std::array<uint32_t, 5> UltraCircuitBuilder_<Arithmetization>::evaluate_non_nati
         q_lookup_type.emplace_back(0);
         q_elliptic.emplace_back(0);
         q_aux.emplace_back(0);
+        selectors.pad_additional();
     }
 
     this->num_gates += 4;
@@ -3423,6 +3458,7 @@ template <typename Arithmetization> bool UltraCircuitBuilder_<Arithmetization>::
     return result;
 }
 template class UltraCircuitBuilder_<arithmetization::Ultra<barretenberg::fr>>;
+template class UltraCircuitBuilder_<arithmetization::UltraHonk<barretenberg::fr>>;
 // To enable this we need to template plookup
 // template class UltraCircuitBuilder_<grumpkin::fr>;
 

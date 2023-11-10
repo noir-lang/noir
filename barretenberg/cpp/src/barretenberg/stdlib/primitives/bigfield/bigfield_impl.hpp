@@ -2026,7 +2026,7 @@ void bigfield<Builder, T>::unsafe_evaluate_multiply_add(const bigfield& input_le
         };
         field_t<Builder> remainder_prime_limb = field_t<Builder>::accumulate(prime_limb_accumulator);
 
-        proof_system::UltraCircuitBuilder::non_native_field_witnesses witnesses{
+        proof_system::non_native_field_witnesses<barretenberg::fr> witnesses{
             {
                 left.binary_basis_limbs[0].element.normalize().witness_index,
                 left.binary_basis_limbs[1].element.normalize().witness_index,
@@ -2366,7 +2366,7 @@ void bigfield<Builder, T>::unsafe_evaluate_multiple_multiply_add(const std::vect
             }
 
             if (i > 0) {
-                proof_system::UltraCircuitBuilder::non_native_field_witnesses mul_witnesses = {
+                proof_system::non_native_field_witnesses<barretenberg::fr> mul_witnesses = {
                     {
                         left[i].binary_basis_limbs[0].element.normalize().witness_index,
                         left[i].binary_basis_limbs[1].element.normalize().witness_index,
@@ -2462,7 +2462,7 @@ void bigfield<Builder, T>::unsafe_evaluate_multiple_multiply_add(const std::vect
         };
         field_t<Builder> remainder_prime_limb = field_t<Builder>::accumulate(prime_limb_accumulator);
 
-        proof_system::UltraCircuitBuilder::non_native_field_witnesses witnesses{
+        proof_system::non_native_field_witnesses<barretenberg::fr> witnesses{
             {
                 left[0].binary_basis_limbs[0].element.normalize().witness_index,
                 left[0].binary_basis_limbs[1].element.normalize().witness_index,

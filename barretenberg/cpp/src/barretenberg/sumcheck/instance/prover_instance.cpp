@@ -59,9 +59,10 @@ template <class Flavor> void ProverInstance_<Flavor>::compute_witness(Circuit& c
     proving_key->w_o = wire_polynomials[2];
     proving_key->w_4 = wire_polynomials[3];
 
-    // If Goblin, construct the ECC op queue wire polynomials
+    // If Goblin, construct the ECC op queue wire and databus polynomials
     if constexpr (IsGoblinFlavor<Flavor>) {
         construct_ecc_op_wire_polynomials(wire_polynomials);
+        construct_databus_polynomials(circuit);
     }
 
     // Construct the sorted concatenated list polynomials for the lookup argument
@@ -184,6 +185,30 @@ template <class Flavor> void ProverInstance_<Flavor>::construct_ecc_op_wire_poly
     proving_key->ecc_op_wire_4 = op_wire_polynomials[3];
 }
 
+/**
+ * @brief
+ * @details
+ *
+ * @tparam Flavor
+ * @param circuit
+ */
+template <class Flavor>
+void ProverInstance_<Flavor>::construct_databus_polynomials(Circuit& circuit)
+    requires IsGoblinFlavor<Flavor>
+{
+    polynomial public_calldata(dyadic_circuit_size);
+    polynomial calldata_read_counts(dyadic_circuit_size);
+
+    const size_t offset = Flavor::has_zero_row ? 1 : 0;
+    for (size_t idx = 0; idx < circuit.public_calldata.size(); ++idx) {
+        public_calldata[idx + offset] = circuit.get_variable(circuit.public_calldata[idx]);
+        calldata_read_counts[idx + offset] = circuit.get_variable(circuit.calldata_read_counts[idx]);
+    }
+
+    proving_key->calldata = public_calldata;
+    proving_key->calldata_read_counts = calldata_read_counts;
+}
+
 template <class Flavor>
 std::shared_ptr<typename Flavor::ProvingKey> ProverInstance_<Flavor>::compute_proving_key(Circuit& circuit)
 {
@@ -300,6 +325,10 @@ template <class Flavor> void ProverInstance_<Flavor>::initialise_prover_polynomi
         prover_polynomials.ecc_op_wire_3 = proving_key->ecc_op_wire_3;
         prover_polynomials.ecc_op_wire_4 = proving_key->ecc_op_wire_4;
         prover_polynomials.lagrange_ecc_op = proving_key->lagrange_ecc_op;
+        // DataBus polynomials
+        prover_polynomials.calldata = proving_key->calldata;
+        prover_polynomials.calldata_read_counts = proving_key->calldata_read_counts;
+        prover_polynomials.q_busread = proving_key->q_busread;
     }
 
     std::span<FF> public_wires_source = prover_polynomials.w_r;
@@ -464,6 +493,7 @@ std::shared_ptr<typename Flavor::VerificationKey> ProverInstance_<Flavor>::compu
     // due to its simple structure. Handling it in the same way as the lagrange polys for now for simplicity.
     if constexpr (IsGoblinFlavor<Flavor>) {
         verification_key->lagrange_ecc_op = commitment_key->commit(proving_key->lagrange_ecc_op);
+        verification_key->q_busread = commitment_key->commit(proving_key->q_busread);
     }
 
     // // See `add_recusrive_proof()` for how this recursive data is assigned.

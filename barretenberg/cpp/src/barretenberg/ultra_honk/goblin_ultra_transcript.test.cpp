@@ -51,6 +51,8 @@ class GoblinUltraTranscriptTests : public ::testing::Test {
         manifest_expected.add_entry(round, "ECC_OP_WIRE_2", size_G);
         manifest_expected.add_entry(round, "ECC_OP_WIRE_3", size_G);
         manifest_expected.add_entry(round, "ECC_OP_WIRE_4", size_G);
+        manifest_expected.add_entry(round, "CALLDATA", size_G);
+        manifest_expected.add_entry(round, "CALLDATA_READ_COUNTS", size_G);
         manifest_expected.add_challenge(round, "eta");
 
         round++;
