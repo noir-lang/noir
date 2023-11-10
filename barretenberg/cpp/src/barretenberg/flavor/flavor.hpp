@@ -64,6 +64,7 @@
  */
 
 #pragma once
+#include "barretenberg/common/zip_view.hpp"
 #include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
@@ -73,6 +74,23 @@
 #include <vector>
 
 namespace proof_system::honk::flavor {
+
+template <std::size_t ExpectedSize, typename T, std::size_t N> static auto _assert_array_size(std::array<T, N>&& array)
+{
+    static_assert(N == ExpectedSize,
+                  "Expected array size to match given size (first parameter) in DEFINE_POINTER_VIEW");
+    return array;
+}
+
+#define DEFINE_POINTER_VIEW(ExpectedSize, ...)                                                                         \
+    [[nodiscard]] auto pointer_view()                                                                                  \
+    {                                                                                                                  \
+        return _assert_array_size<ExpectedSize>(std::array{ __VA_ARGS__ });                                            \
+    }                                                                                                                  \
+    [[nodiscard]] auto pointer_view() const                                                                            \
+    {                                                                                                                  \
+        return _assert_array_size<ExpectedSize>(std::array{ __VA_ARGS__ });                                            \
+    }
 
 /**
  * @brief Base data class template, a wrapper for std::array, from which every flavor class ultimately derives.
@@ -87,8 +105,7 @@ template <typename DataType, typename HandleType, size_t NUM_ENTITIES> class Ent
     ArrayType _data;
 
     virtual ~Entities_() = default;
-
-    DataType& operator[](size_t idx) { return _data[idx]; };
+    // TODO(AD): remove these with the backing array
     typename ArrayType::iterator begin() { return _data.begin(); };
     typename ArrayType::iterator end() { return _data.end(); };
 

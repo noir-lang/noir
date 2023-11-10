@@ -190,9 +190,11 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
                             const ProverInstances& instances,
                             const size_t row_idx)
     {
-        for (size_t poly_idx = 0; poly_idx < Flavor::NUM_ALL_ENTITIES; poly_idx++) {
+        size_t poly_idx = 0;
+        for (auto* extended_univariate : extended_univariates.pointer_view()) {
             auto base_univariate = instances.row_to_univariate(poly_idx, row_idx);
-            extended_univariates[poly_idx] = base_univariate.template extend_to<ExtendedUnivariate::LENGTH>();
+            *extended_univariate = base_univariate.template extend_to<ExtendedUnivariate::LENGTH>();
+            poly_idx++;
         }
     }
 

@@ -111,11 +111,9 @@ template <typename Flavor> class SumcheckProver {
 
         // Final round: Extract multivariate evaluations from partially_evaluated_polynomials and add to transcript
         ClaimedEvaluations multivariate_evaluations;
-        size_t evaluation_idx = 0;
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
-        for (auto& polynomial : partially_evaluated_polynomials) {
-            multivariate_evaluations[evaluation_idx] = polynomial[0];
-            ++evaluation_idx;
+        for (auto [eval, poly] :
+             zip_view(multivariate_evaluations.pointer_view(), partially_evaluated_polynomials.pointer_view())) {
+            *eval = (*poly)[0];
         }
         transcript.send_to_verifier("Sumcheck:evaluations", multivariate_evaluations._data);
 
@@ -145,15 +143,31 @@ template <typename Flavor> class SumcheckProver {
      *        \- v5   X0  (1-X1)  X2   --/                                  /
      *     g3 -- v6 (1-X0)  X1    X2   --- (v6(1-X0) + v7 X0)   X1    X2  -/
      *        \- v7   X0    X1    X2   --/
-     *
-     * @param challenge
      */
     void partially_evaluate(auto& polynomials, size_t round_size, FF round_challenge)
     {
+        auto pep_view = partially_evaluated_polynomials.pointer_view();
+        auto poly_view = polynomials.pointer_view();
         // after the first round, operate in place on partially_evaluated_polynomials
         parallel_for(polynomials.size(), [&](size_t j) {
             for (size_t i = 0; i < round_size; i += 2) {
-                partially_evaluated_polynomials[j][i >> 1] =
+                (*pep_view[j])[i >> 1] =
+                    (*poly_view[j])[i] + round_challenge * ((*poly_view[j])[i + 1] - (*poly_view[j])[i]);
+            }
+        });
+    };
+    /**
+     * @brief Evaluate at the round challenge and prepare class for next round.
+     * Specialization for array, see generic version above.
+     */
+    template <typename PolynomialT, std::size_t N>
+    void partially_evaluate(std::array<PolynomialT, N>& polynomials, size_t round_size, FF round_challenge)
+    {
+        auto pep_view = partially_evaluated_polynomials.pointer_view();
+        // after the first round, operate in place on partially_evaluated_polynomials
+        parallel_for(polynomials.size(), [&](size_t j) {
+            for (size_t i = 0; i < round_size; i += 2) {
+                (*pep_view[j])[i >> 1] =
                     polynomials[j][i] + round_challenge * (polynomials[j][i + 1] - polynomials[j][i]);
             }
         });

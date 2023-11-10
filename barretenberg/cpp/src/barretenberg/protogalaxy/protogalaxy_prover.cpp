@@ -44,7 +44,7 @@ ProverFoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverI
     // first time and accumulator is 0
     auto [alpha, delta] = transcript.get_challenges("alpha", "delta");
     auto accumulator = get_accumulator();
-    auto instance_size = accumulator->prover_polynomials[0].size();
+    auto instance_size = accumulator->prover_polynomials.get_polynomial_size();
     auto log_instance_size = static_cast<size_t>(numeric::get_msb(instance_size));
     auto deltas = compute_round_challenge_pows(log_instance_size, delta);
     auto perturbator = compute_perturbator(accumulator, deltas, alpha);

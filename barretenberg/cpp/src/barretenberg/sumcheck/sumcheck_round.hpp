@@ -87,14 +87,13 @@ template <typename Flavor> class SumcheckProverRound {
      */
     template <typename ProverPolynomialsOrPartiallyEvaluatedMultivariates>
     void extend_edges(ExtendedEdges& extended_edges,
-                      /* const */ ProverPolynomialsOrPartiallyEvaluatedMultivariates& multivariates,
+                      const ProverPolynomialsOrPartiallyEvaluatedMultivariates& multivariates,
                       size_t edge_idx)
     {
-        size_t univariate_idx = 0; // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
-        for (auto& poly : multivariates) {
-            auto edge = barretenberg::Univariate<FF, 2>({ poly[edge_idx], poly[edge_idx + 1] });
-            extended_edges[univariate_idx] = edge.template extend_to<MAX_PARTIAL_RELATION_LENGTH>();
-            ++univariate_idx;
+        for (auto [extended_edge, multivariate] :
+             zip_view(extended_edges.pointer_view(), multivariates.pointer_view())) {
+            auto edge = barretenberg::Univariate<FF, 2>({ (*multivariate)[edge_idx], (*multivariate)[edge_idx + 1] });
+            *extended_edge = edge.template extend_to<MAX_PARTIAL_RELATION_LENGTH>();
         }
     }
 

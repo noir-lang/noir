@@ -394,6 +394,113 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
         }
         // clang-format on
 
+        // defines a method pointer_view that returns the following, with const and non-const variants
+        DEFINE_POINTER_VIEW(NUM_ALL_ENTITIES,
+                            &lagrange_first,
+                            &lagrange_second,
+                            &lagrange_last,
+                            &transcript_add,
+                            &transcript_mul,
+                            &transcript_eq,
+                            &transcript_collision_check,
+                            &transcript_msm_transition,
+                            &transcript_pc,
+                            &transcript_msm_count,
+                            &transcript_x,
+                            &transcript_y,
+                            &transcript_z1,
+                            &transcript_z2,
+                            &transcript_z1zero,
+                            &transcript_z2zero,
+                            &transcript_op,
+                            &transcript_accumulator_x,
+                            &transcript_accumulator_y,
+                            &transcript_msm_x,
+                            &transcript_msm_y,
+                            &precompute_pc,
+                            &precompute_point_transition,
+                            &precompute_round,
+                            &precompute_scalar_sum,
+                            &precompute_s1hi,
+                            &precompute_s1lo,
+                            &precompute_s2hi,
+                            &precompute_s2lo,
+                            &precompute_s3hi,
+                            &precompute_s3lo,
+                            &precompute_s4hi,
+                            &precompute_s4lo,
+                            &precompute_skew,
+                            &precompute_dx,
+                            &precompute_dy,
+                            &precompute_tx,
+                            &precompute_ty,
+                            &msm_transition,
+                            &msm_add,
+                            &msm_double,
+                            &msm_skew,
+                            &msm_accumulator_x,
+                            &msm_accumulator_y,
+                            &msm_pc,
+                            &msm_size_of_msm,
+                            &msm_count,
+                            &msm_round,
+                            &msm_add1,
+                            &msm_add2,
+                            &msm_add3,
+                            &msm_add4,
+                            &msm_x1,
+                            &msm_y1,
+                            &msm_x2,
+                            &msm_y2,
+                            &msm_x3,
+                            &msm_y3,
+                            &msm_x4,
+                            &msm_y4,
+                            &msm_collision_x1,
+                            &msm_collision_x2,
+                            &msm_collision_x3,
+                            &msm_collision_x4,
+                            &msm_lambda1,
+                            &msm_lambda2,
+                            &msm_lambda3,
+                            &msm_lambda4,
+                            &msm_slice1,
+                            &msm_slice2,
+                            &msm_slice3,
+                            &msm_slice4,
+                            &transcript_accumulator_empty,
+                            &transcript_reset_accumulator,
+                            &precompute_select,
+                            &lookup_read_counts_0,
+                            &lookup_read_counts_1,
+                            &z_perm,
+                            &lookup_inverses,
+                            &transcript_mul_shift,
+                            &transcript_msm_count_shift,
+                            &transcript_accumulator_x_shift,
+                            &transcript_accumulator_y_shift,
+                            &precompute_scalar_sum_shift,
+                            &precompute_s1hi_shift,
+                            &precompute_dx_shift,
+                            &precompute_dy_shift,
+                            &precompute_tx_shift,
+                            &precompute_ty_shift,
+                            &msm_transition_shift,
+                            &msm_add_shift,
+                            &msm_double_shift,
+                            &msm_skew_shift,
+                            &msm_accumulator_x_shift,
+                            &msm_accumulator_y_shift,
+                            &msm_count_shift,
+                            &msm_round_shift,
+                            &msm_add1_shift,
+                            &msm_pc_shift,
+                            &precompute_pc_shift,
+                            &transcript_pc_shift,
+                            &precompute_round_shift,
+                            &transcript_accumulator_empty_shift,
+                            &precompute_select_shift,
+                            &z_perm_shift)
         std::vector<HandleType> get_wires() override
         {
             return {
@@ -680,13 +787,12 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
      */
     class AllPolynomials : public AllEntities<Polynomial, PolynomialHandle> {
       public:
+        [[nodiscard]] size_t get_polynomial_size() const { return this->lagrange_first.size(); }
         AllValues get_row(const size_t row_idx) const
         {
             AllValues result;
-            size_t column_idx = 0; // // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
-            for (auto& column : this->_data) {
-                result[column_idx] = column[row_idx];
-                column_idx++;
+            for (auto [result_field, polynomial] : zip_view(result.pointer_view(), this->pointer_view())) {
+                *result_field = (*polynomial)[row_idx];
             }
             return result;
         }
@@ -736,10 +842,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
         AllValues get_row(const size_t row_idx)
         {
             AllValues result;
-            size_t column_idx = 0; // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
-            for (auto& column : this->_data) {
-                result[column_idx] = column[row_idx];
-                column_idx++;
+            for (auto [result_field, polynomial] : zip_view(result.pointer_view(), this->pointer_view())) {
+                *result_field = (*polynomial)[row_idx];
             }
             return result;
         }
