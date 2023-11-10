@@ -1284,28 +1284,28 @@ class ECCVMGrumpkin : public ECCVMBase<barretenberg::g1, curve::Grumpkin, pcs::i
 } // namespace flavor
 namespace sumcheck {
 
-extern template class ECCVMTranscriptRelationBase<barretenberg::fr>;
-extern template class ECCVMWnafRelationBase<barretenberg::fr>;
-extern template class ECCVMPointTableRelationBase<barretenberg::fr>;
-extern template class ECCVMMSMRelationBase<barretenberg::fr>;
-extern template class ECCVMSetRelationBase<barretenberg::fr>;
-extern template class ECCVMLookupRelationBase<barretenberg::fr>;
+extern template class ECCVMTranscriptRelationImpl<barretenberg::fr>;
+extern template class ECCVMWnafRelationImpl<barretenberg::fr>;
+extern template class ECCVMPointTableRelationImpl<barretenberg::fr>;
+extern template class ECCVMMSMRelationImpl<barretenberg::fr>;
+extern template class ECCVMSetRelationImpl<barretenberg::fr>;
+extern template class ECCVMLookupRelationImpl<barretenberg::fr>;
 
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMTranscriptRelationBase, flavor::ECCVM);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMWnafRelationBase, flavor::ECCVM);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMPointTableRelationBase, flavor::ECCVM);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationBase, flavor::ECCVM);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMSetRelationBase, flavor::ECCVM);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMLookupRelationBase, flavor::ECCVM);
+DECLARE_SUMCHECK_RELATION_CLASS(ECCVMTranscriptRelationImpl, flavor::ECCVM);
+DECLARE_SUMCHECK_RELATION_CLASS(ECCVMWnafRelationImpl, flavor::ECCVM);
+DECLARE_SUMCHECK_RELATION_CLASS(ECCVMPointTableRelationImpl, flavor::ECCVM);
+DECLARE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationImpl, flavor::ECCVM);
+DECLARE_SUMCHECK_RELATION_CLASS(ECCVMSetRelationImpl, flavor::ECCVM);
+DECLARE_SUMCHECK_RELATION_CLASS(ECCVMLookupRelationImpl, flavor::ECCVM);
 
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMTranscriptRelationBase, flavor::ECCVMGrumpkin);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMWnafRelationBase, flavor::ECCVMGrumpkin);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMPointTableRelationBase, flavor::ECCVMGrumpkin);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationBase, flavor::ECCVMGrumpkin);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMSetRelationBase, flavor::ECCVMGrumpkin);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMLookupRelationBase, flavor::ECCVMGrumpkin);
+DECLARE_SUMCHECK_RELATION_CLASS(ECCVMTranscriptRelationImpl, flavor::ECCVMGrumpkin);
+DECLARE_SUMCHECK_RELATION_CLASS(ECCVMWnafRelationImpl, flavor::ECCVMGrumpkin);
+DECLARE_SUMCHECK_RELATION_CLASS(ECCVMPointTableRelationImpl, flavor::ECCVMGrumpkin);
+DECLARE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationImpl, flavor::ECCVMGrumpkin);
+DECLARE_SUMCHECK_RELATION_CLASS(ECCVMSetRelationImpl, flavor::ECCVMGrumpkin);
+DECLARE_SUMCHECK_RELATION_CLASS(ECCVMLookupRelationImpl, flavor::ECCVMGrumpkin);
 
-DECLARE_SUMCHECK_PERMUTATION_CLASS(ECCVMSetRelationBase, flavor::ECCVM);
-DECLARE_SUMCHECK_PERMUTATION_CLASS(ECCVMSetRelationBase, flavor::ECCVMGrumpkin);
+DECLARE_SUMCHECK_PERMUTATION_CLASS(ECCVMSetRelationImpl, flavor::ECCVM);
+DECLARE_SUMCHECK_PERMUTATION_CLASS(ECCVMSetRelationImpl, flavor::ECCVMGrumpkin);
 } // namespace sumcheck
 } // namespace proof_system::honk

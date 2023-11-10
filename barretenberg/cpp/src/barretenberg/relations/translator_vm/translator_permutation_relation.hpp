@@ -74,38 +74,10 @@ template <typename FF_> class GoblinTranslatorPermutationRelationImpl {
      */
 
     template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
-    inline static void accumulate(ContainerOverSubrelations& accumulators,
-                                  const AllEntities& in,
-                                  const Parameters& params,
-                                  const FF& scaling_factor)
-    {
-        [&]() {
-            using Accumulator = std::tuple_element_t<0, ContainerOverSubrelations>;
-            using View = typename Accumulator::View;
-
-            auto z_perm = View(in.z_perm);
-            auto z_perm_shift = View(in.z_perm_shift);
-            auto lagrange_first = View(in.lagrange_first);
-            auto lagrange_last = View(in.lagrange_last);
-
-            // Contribution (1)
-            std::get<0>(accumulators) +=
-                (((z_perm + lagrange_first) * compute_grand_product_numerator<Accumulator>(in, params)) -
-                 ((z_perm_shift + lagrange_last) * compute_grand_product_denominator<Accumulator>(in, params))) *
-                scaling_factor;
-        }();
-
-        [&]() {
-            using Accumulator = std::tuple_element_t<1, ContainerOverSubrelations>;
-            using View = typename Accumulator::View;
-
-            auto z_perm_shift = View(in.z_perm_shift);
-            auto lagrange_last = View(in.lagrange_last);
-
-            // Contribution (2)
-            std::get<1>(accumulators) += (lagrange_last * z_perm_shift) * scaling_factor;
-        }();
-    };
+    static void accumulate(ContainerOverSubrelations& accumulators,
+                           const AllEntities& in,
+                           const Parameters& params,
+                           const FF& scaling_factor);
 };
 
 template <typename FF>

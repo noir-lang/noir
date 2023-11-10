@@ -7,7 +7,7 @@
 namespace proof_system::honk::sumcheck {
 
 /**
- * @brief ECCVMTranscriptRelationBase evaluates the correctness of the ECCVM transcript columns
+ * @brief ECCVMTranscriptRelationImpl evaluates the correctness of the ECCVM transcript columns
  *
  * @details The transcript relations directly evaluate the correctness of `add, eq, reset` operations.
  * `mul` operations are lazily evaluated. The output of multiscalar multiplications is present in
@@ -26,7 +26,7 @@ namespace proof_system::honk::sumcheck {
  * prevents us doing redundant computation.
  * @tparam FF
  */
-template <typename FF_> class ECCVMTranscriptRelationBase {
+template <typename FF_> class ECCVMTranscriptRelationImpl {
   public:
     using FF = FF_;
 
@@ -53,6 +53,6 @@ template <typename FF_> class ECCVMTranscriptRelationBase {
     }
 };
 
-template <typename FF> using ECCVMTranscriptRelation = Relation<ECCVMTranscriptRelationBase<FF>>;
+template <typename FF> using ECCVMTranscriptRelation = Relation<ECCVMTranscriptRelationImpl<FF>>;
 
 } // namespace proof_system::honk::sumcheck

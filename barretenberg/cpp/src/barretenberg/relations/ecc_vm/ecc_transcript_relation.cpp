@@ -8,7 +8,7 @@
 namespace proof_system::honk::sumcheck {
 
 /**
- * @brief ECCVMTranscriptRelationBase evaluates the correctness of the ECCVM transcript columns
+ * @brief ECCVMTranscriptRelationImpl evaluates the correctness of the ECCVM transcript columns
  *
  * @details The transcript relations directly evaluate the correctness of `add, eq, reset` operations.
  * `mul` operations are lazily evaluated. The output of multiscalar multiplications is present in
@@ -31,7 +31,7 @@ namespace proof_system::honk::sumcheck {
  */
 template <typename FF>
 template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
-void ECCVMTranscriptRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulator,
+void ECCVMTranscriptRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulator,
                                                  const AllEntities& in,
                                                  const Parameters& /*unused*/,
                                                  const FF& scaling_factor)
@@ -255,8 +255,8 @@ void ECCVMTranscriptRelationBase<FF>::accumulate(ContainerOverSubrelations& accu
     std::get<34>(accumulator) += x_coordinate_collision_check * scaling_factor;
 }
 
-template class ECCVMTranscriptRelationBase<barretenberg::fr>;
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMTranscriptRelationBase, flavor::ECCVM);
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMTranscriptRelationBase, flavor::ECCVMGrumpkin);
+template class ECCVMTranscriptRelationImpl<barretenberg::fr>;
+DEFINE_SUMCHECK_RELATION_CLASS(ECCVMTranscriptRelationImpl, flavor::ECCVM);
+DEFINE_SUMCHECK_RELATION_CLASS(ECCVMTranscriptRelationImpl, flavor::ECCVMGrumpkin);
 
 } // namespace proof_system::honk::sumcheck

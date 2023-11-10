@@ -5,7 +5,7 @@
 namespace proof_system::honk::sumcheck {
 
 /**
- * @brief ECCVMWnafRelationBase evaluates relations that convert scalar multipliers into 4-bit WNAF slices
+ * @brief ECCVMWnafRelationImpl evaluates relations that convert scalar multipliers into 4-bit WNAF slices
  * @details Each WNAF slice is a 4-bit slice representing one of 16 integers { -15, -13, ..., 15 }
  * Each WNAF slice is represented via two 2-bit columns (precompute_s1hi, ..., precompute_s4lo)
  * One 128-bit scalar multiplier is processed across 8 rows, indexed by a round variable.
@@ -36,7 +36,7 @@ namespace proof_system::honk::sumcheck {
  */
 template <typename FF>
 template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
-void ECCVMWnafRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulator,
+void ECCVMWnafRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulator,
                                            const AllEntities& in,
                                            const Parameters& /*unused*/,
                                            const FF& scaling_factor)
@@ -216,8 +216,8 @@ void ECCVMWnafRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulato
     // the set equivalence relation
 }
 
-template class ECCVMWnafRelationBase<barretenberg::fr>;
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMWnafRelationBase, flavor::ECCVM);
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMWnafRelationBase, flavor::ECCVMGrumpkin);
+template class ECCVMWnafRelationImpl<barretenberg::fr>;
+DEFINE_SUMCHECK_RELATION_CLASS(ECCVMWnafRelationImpl, flavor::ECCVM);
+DEFINE_SUMCHECK_RELATION_CLASS(ECCVMWnafRelationImpl, flavor::ECCVMGrumpkin);
 
 } // namespace proof_system::honk::sumcheck

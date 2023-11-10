@@ -5,11 +5,11 @@
 namespace proof_system::honk::sumcheck {
 
 /**
- * @brief ECCVMPointTableRelationBase
+ * @brief ECCVMPointTableRelationImpl
  * @details These relations define the set of point lookup tables we will use in `ecc_msm_relation.hpp`, to evaluate
  * multiscalar multiplication. For every point [P] = (Px, Py) involved in an MSM, we need to do define a lookup
  * table out of the following points: { -15[P], -13[P], -11[P], -9[P], -7[P], -5[P], -3[P], -[P] }
- * ECCVMPointTableRelationBase defines relations that define the lookup table.
+ * ECCVMPointTableRelationImpl defines relations that define the lookup table.
  *
  * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
  * @param in an std::array containing the fully extended Accumulator edges.
@@ -18,7 +18,7 @@ namespace proof_system::honk::sumcheck {
  */
 template <typename FF>
 template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
-void ECCVMPointTableRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulator,
+void ECCVMPointTableRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulator,
                                                  const AllEntities& in,
                                                  const Parameters& /*unused*/,
                                                  const FF& scaling_factor)
@@ -172,8 +172,8 @@ void ECCVMPointTableRelationBase<FF>::accumulate(ContainerOverSubrelations& accu
         (-lagrange_first + 1) * (-precompute_point_transition + 1) * y_add_check * scaling_factor;
 }
 
-template class ECCVMPointTableRelationBase<barretenberg::fr>;
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMPointTableRelationBase, flavor::ECCVM);
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMPointTableRelationBase, flavor::ECCVMGrumpkin);
+template class ECCVMPointTableRelationImpl<barretenberg::fr>;
+DEFINE_SUMCHECK_RELATION_CLASS(ECCVMPointTableRelationImpl, flavor::ECCVM);
+DEFINE_SUMCHECK_RELATION_CLASS(ECCVMPointTableRelationImpl, flavor::ECCVMGrumpkin);
 
 } // namespace proof_system::honk::sumcheck

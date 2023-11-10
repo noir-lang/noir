@@ -3,7 +3,7 @@
 
 namespace proof_system::honk::sumcheck {
 /**
- * @brief ECCVMWnafRelationBase evaluates relations that convert scalar multipliers into 4-bit WNAF slices
+ * @brief ECCVMWnafRelationImpl evaluates relations that convert scalar multipliers into 4-bit WNAF slices
  * @details Each WNAF slice is a 4-bit slice representing one of 16 integers { -15, -13, ..., 15 }
  * Each WNAF slice is represented via two 2-bit columns (precompute_s1hi, ..., precompute_s4lo)
  * One 128-bit scalar multiplier is processed across 8 rows, indexed by a round variable.
@@ -31,7 +31,7 @@ namespace proof_system::honk::sumcheck {
  *
  * @tparam FF
  */
-template <typename FF_> class ECCVMWnafRelationBase {
+template <typename FF_> class ECCVMWnafRelationImpl {
   public:
     using FF = FF_;
 
@@ -46,6 +46,6 @@ template <typename FF_> class ECCVMWnafRelationBase {
                            const FF& scaling_factor);
 };
 
-template <typename FF> using ECCVMWnafRelation = Relation<ECCVMWnafRelationBase<FF>>;
+template <typename FF> using ECCVMWnafRelation = Relation<ECCVMWnafRelationImpl<FF>>;
 
 } // namespace proof_system::honk::sumcheck

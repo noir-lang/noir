@@ -29,7 +29,7 @@ namespace proof_system::honk::sumcheck {
  * SKEW round:
  * If skew_i == 1, [Acc] = [Acc] - [P_i] for all i in [0, ..., k - 1]
  *
- * The relations in ECCVMMSMRelationBase constrain the ADDITION, DOUBLE and SKEW rounds
+ * The relations in ECCVMMSMRelationImpl constrain the ADDITION, DOUBLE and SKEW rounds
  * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
  * @param in an std::array containing the fully extended Accumulator edges.
  * @param parameters contains beta, gamma, and public_input_delta, ....
@@ -37,7 +37,7 @@ namespace proof_system::honk::sumcheck {
  */
 template <typename FF>
 template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
-void ECCVMMSMRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulator,
+void ECCVMMSMRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulator,
                                           const AllEntities& in,
                                           const Parameters& /*unused*/,
                                           const FF& scaling_factor)
@@ -159,7 +159,7 @@ void ECCVMMSMRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulator
     /**
      * @brief Addition relation
      *
-     * All addition operations in ECCVMMSMRelationBase are conditional additions!
+     * All addition operations in ECCVMMSMRelationImpl are conditional additions!
      * This method returns two Accumulators that represent x/y coord of output.
      * Output is either an addition of inputs, or xa/ya dpeending on value of `selector`.
      * Additionally, we require `lambda = 0` if `selector = 0`.
@@ -391,8 +391,8 @@ void ECCVMMSMRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulator
     // perform lookups on (pc / slice_i / x / y)
 }
 
-template class ECCVMMSMRelationBase<barretenberg::fr>;
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationBase, flavor::ECCVM);
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationBase, flavor::ECCVMGrumpkin);
+template class ECCVMMSMRelationImpl<barretenberg::fr>;
+DEFINE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationImpl, flavor::ECCVM);
+DEFINE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationImpl, flavor::ECCVMGrumpkin);
 
 } // namespace proof_system::honk::sumcheck

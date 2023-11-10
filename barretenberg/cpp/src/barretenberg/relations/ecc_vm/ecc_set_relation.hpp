@@ -9,7 +9,7 @@
 
 namespace proof_system::honk::sumcheck {
 
-template <typename FF_> class ECCVMSetRelationBase {
+template <typename FF_> class ECCVMSetRelationImpl {
   public:
     using FF = FF_;
 
@@ -44,6 +44,6 @@ template <typename FF_> class ECCVMSetRelationBase {
                            const FF& scaling_factor);
 };
 
-template <typename FF> using ECCVMSetRelation = Relation<ECCVMSetRelationBase<FF>>;
+template <typename FF> using ECCVMSetRelation = Relation<ECCVMSetRelationImpl<FF>>;
 
 } // namespace proof_system::honk::sumcheck

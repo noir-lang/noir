@@ -28,13 +28,13 @@ namespace proof_system::honk::sumcheck {
  * SKEW round:
  * If skew_i == 1, [Acc] = [Acc] - [P_i] for all i in [0, ..., k - 1]
  *
- * The relations in ECCVMMSMRelationBase constrain the ADDITION, DOUBLE and SKEW rounds
+ * The relations in ECCVMMSMRelationImpl constrain the ADDITION, DOUBLE and SKEW rounds
  * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
  * @param in an std::array containing the fully extended Accumulator edges.
  * @param parameters contains beta, gamma, and public_input_delta, ....
  * @param scaling_factor optional term to scale the evaluation before adding to evals.
  */
-template <typename FF_> class ECCVMMSMRelationBase {
+template <typename FF_> class ECCVMMSMRelationImpl {
   public:
     using FF = FF_;
 
@@ -49,6 +49,6 @@ template <typename FF_> class ECCVMMSMRelationBase {
                            const FF& scaling_factor);
 };
 
-template <typename FF> using ECCVMMSMRelation = Relation<ECCVMMSMRelationBase<FF>>;
+template <typename FF> using ECCVMMSMRelation = Relation<ECCVMMSMRelationImpl<FF>>;
 
 } // namespace proof_system::honk::sumcheck

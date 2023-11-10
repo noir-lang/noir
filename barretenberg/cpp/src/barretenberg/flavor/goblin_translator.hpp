@@ -6,6 +6,7 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_translator_circuit_builder.hpp"
+#include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/relations/translator_vm/translator_decomposition_relation.hpp"
 #include "barretenberg/relations/translator_vm/translator_extra_relations.hpp"
 #include "barretenberg/relations/translator_vm/translator_gen_perm_sort_relation.hpp"
@@ -1634,5 +1635,24 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
     };
 };
 
-using GoblinTranslatorBasic = GoblinTranslator_<2048>;
+using GoblinTranslator = GoblinTranslator_<2048>;
+
 } // namespace proof_system::honk::flavor
+
+namespace proof_system {
+
+extern template class GoblinTranslatorPermutationRelationImpl<barretenberg::fr>;
+extern template class GoblinTranslatorGenPermSortRelationImpl<barretenberg::fr>;
+extern template class GoblinTranslatorOpcodeConstraintRelationImpl<barretenberg::fr>;
+extern template class GoblinTranslatorAccumulatorTransferRelationImpl<barretenberg::fr>;
+extern template class GoblinTranslatorDecompositionRelationImpl<barretenberg::fr>;
+extern template class GoblinTranslatorNonNativeFieldRelationImpl<barretenberg::fr>;
+
+DECLARE_SUMCHECK_RELATION_CLASS(GoblinTranslatorPermutationRelationImpl, honk::flavor::GoblinTranslator);
+DECLARE_SUMCHECK_RELATION_CLASS(GoblinTranslatorGenPermSortRelationImpl, honk::flavor::GoblinTranslator);
+DECLARE_SUMCHECK_RELATION_CLASS(GoblinTranslatorOpcodeConstraintRelationImpl, honk::flavor::GoblinTranslator);
+DECLARE_SUMCHECK_RELATION_CLASS(GoblinTranslatorAccumulatorTransferRelationImpl, honk::flavor::GoblinTranslator);
+DECLARE_SUMCHECK_RELATION_CLASS(GoblinTranslatorDecompositionRelationImpl, honk::flavor::GoblinTranslator);
+DECLARE_SUMCHECK_RELATION_CLASS(GoblinTranslatorNonNativeFieldRelationImpl, honk::flavor::GoblinTranslator);
+
+} // namespace proof_system

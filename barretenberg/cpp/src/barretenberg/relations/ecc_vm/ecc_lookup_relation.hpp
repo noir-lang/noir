@@ -9,7 +9,7 @@
 
 namespace proof_system::honk::sumcheck {
 
-template <typename FF_> class ECCVMLookupRelationBase {
+template <typename FF_> class ECCVMLookupRelationImpl {
   public:
     using FF = FF_;
     static constexpr size_t READ_TERMS = 4;
@@ -222,6 +222,6 @@ template <typename FF_> class ECCVMLookupRelationBase {
                            const FF& scaling_factor);
 };
 
-template <typename FF> using ECCVMLookupRelation = Relation<ECCVMLookupRelationBase<FF>>;
+template <typename FF> using ECCVMLookupRelation = Relation<ECCVMLookupRelationImpl<FF>>;
 
 } // namespace proof_system::honk::sumcheck

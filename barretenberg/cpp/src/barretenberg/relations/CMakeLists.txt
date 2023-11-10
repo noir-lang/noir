@@ -1,1 +1,1 @@
-barretenberg_module(relations proof_system)
+barretenberg_module(relations polynomials)
