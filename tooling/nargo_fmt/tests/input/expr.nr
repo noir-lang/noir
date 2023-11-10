@@ -81,6 +81,24 @@ fn test() {
     34
 }
 
+fn line() {
+    42; // 42
+}
+
+
+fn line() {
+    42;// 42
+    42;
+// hello
+}
+
+
+fn line() {
+    42;// 42
+    // 42
+// hello
+}
+
 fn parenthesized() {
     value + ( x as Field )
 }

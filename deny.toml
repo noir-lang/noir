@@ -52,8 +52,6 @@ allow = [
     "Zlib",
     # https://github.com/briansmith/ring/issues/902
     "LicenseRef-ring",
-    # https://github.com/briansmith/webpki/issues/148
-    "LicenseRef-webpki",
     # https://github.com/rustls/webpki/blob/main/LICENSE ISC Style
     "LicenseRef-rustls-webpki",
     # bitmaps 2.1.0, generational-arena 0.2.9,im 15.1.0
@@ -78,11 +76,6 @@ exceptions = [
 name = "ring"
 expression = "LicenseRef-ring"
 license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
-
-[[licenses.clarify]]
-name = "webpki"
-expression = "LicenseRef-webpki"
-license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
 
 [[licenses.clarify]]
 name = "rustls-webpki"
