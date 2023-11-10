@@ -422,7 +422,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "backend-interface"
+name = "backend_interface"
 version = "0.11.0"
 dependencies = [
  "acvm",
@@ -2425,7 +2425,7 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "async-lsp",
- "backend-interface",
+ "backend_interface",
  "barretenberg_blackbox_solver",
  "bb_abstraction_leaks",
  "build-data",
@@ -2533,13 +2533,17 @@ name = "noir_debugger"
 version = "0.19.4"
 dependencies = [
  "acvm",
+ "backend_interface",
  "codespan-reporting",
  "dap",
  "easy-repl",
  "nargo",
+ "nargo_toml",
+ "noirc_driver",
  "noirc_errors",
  "noirc_printable_type",
  "owo-colors",
+ "serde_json",
  "thiserror",
 ]
 
