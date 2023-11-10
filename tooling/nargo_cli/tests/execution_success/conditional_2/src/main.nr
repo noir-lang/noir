@@ -29,7 +29,6 @@ fn main(a: u32, mut c: [u32; 4]) {
     assert(c[1] == 2);
 
     test5(4);
-    
     // Test case for function synchronisation
     let mut c_sync = 0;
     if a == 42 {

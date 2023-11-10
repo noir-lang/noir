@@ -1,7 +1,6 @@
 // This test aims to check that we have consistent behavior 
 // between a `to_be_bytes` call (which is radix decomposition under the hood) 
 // with constant inputs or with witness inputs.
-
 // x = 2040124
 fn main(x : Field) {
     let byte_array = x.to_be_bytes(31);

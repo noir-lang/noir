@@ -6,5 +6,9 @@ fn main(x: u32) {
 }
 
 unconstrained fn fibonacci(x : u32) -> u32 {
-    if x <= 1 { x } else { fibonacci(x - 1) + fibonacci(x - 2) }
+    if x <= 1 {
+        x
+    } else {
+        fibonacci(x - 1) + fibonacci(x - 2)
+    }
 }
