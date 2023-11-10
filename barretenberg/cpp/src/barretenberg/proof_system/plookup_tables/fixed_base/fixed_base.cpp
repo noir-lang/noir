@@ -272,4 +272,19 @@ template MultiTable table::get_fixed_base_table<1, table::BITS_PER_HI_SCALAR>(Mu
 template MultiTable table::get_fixed_base_table<2, table::BITS_PER_LO_SCALAR>(MultiTableId);
 template MultiTable table::get_fixed_base_table<3, table::BITS_PER_HI_SCALAR>(MultiTableId);
 
+const table::all_multi_tables table::fixed_base_tables = {
+    table::generate_tables<BITS_PER_LO_SCALAR>(lhs_base_point_lo),
+    table::generate_tables<BITS_PER_HI_SCALAR>(lhs_base_point_hi),
+    table::generate_tables<BITS_PER_LO_SCALAR>(rhs_base_point_lo),
+    table::generate_tables<BITS_PER_HI_SCALAR>(rhs_base_point_hi),
+};
+
+const std::array<table::affine_element, table::NUM_FIXED_BASE_MULTI_TABLES>
+    table::fixed_base_table_offset_generators = {
+        table::generate_generator_offset<BITS_PER_LO_SCALAR>(lhs_base_point_lo),
+        table::generate_generator_offset<BITS_PER_HI_SCALAR>(lhs_base_point_hi),
+        table::generate_generator_offset<BITS_PER_LO_SCALAR>(rhs_base_point_lo),
+        table::generate_generator_offset<BITS_PER_HI_SCALAR>(rhs_base_point_hi),
+    };
+
 } // namespace plookup::fixed_base
