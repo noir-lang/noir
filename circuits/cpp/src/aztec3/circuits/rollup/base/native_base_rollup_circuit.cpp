@@ -199,7 +199,6 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
     // 4. Calculate a new root with the sibling path
     // 5. Use that for the next nullifier check.
     // 6. Iterate for all of em
-    // 7. le bosh (profit)
 
     // BOYS AND GIRLS THE P L A N ( once the first plan is complete )
     // GENERATE OUR NEW NULLIFIER SUBTREE

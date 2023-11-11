@@ -18,7 +18,8 @@ An essential tool for managing noir versions is noirup.
   ```
 
 ### Happy Path
-Currently we all work from a single `aztec` tagged noir release. This release updates independently from noir's regular cadence to allow us to rapidly prototype new features. 
+
+Currently we all work from a single `aztec` tagged noir release. This release updates independently from noir's regular cadence to allow us to rapidly prototype new features.
 It has prebuilt binaries and is super easy to install using `noirup`
 
 - Install [noirup](https://github.com/noir-lang/noirup)
@@ -32,9 +33,11 @@ It has prebuilt binaries and is super easy to install using `noirup`
 
 > Pinning Aztec flavoured noir releases  
 > Aztec noir is released with semver alongside noir. If you would like to pin to a specific version you can run:
+>
 > ```bash
 > noirup -v <noir-version>-aztec.<patch version>
 > ```
+>
 > e.g `noirup -v 0.11.1-aztec.0`
 
 ### Building from source (If working with custom features)
@@ -139,5 +142,3 @@ It has prebuilt binaries and is super easy to install using `noirup`
    import ExampleContractJson from './example_contract.json' assert { type: 'json' };
    export const ExampleContractArtifact = ExampleContractJson as ContractArtifact;
    ```
-7. ???
-8. Profit.
