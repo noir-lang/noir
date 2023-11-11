@@ -141,6 +141,23 @@
       }
     },
     {
+      "name": "msan",
+      "displayName": "Debugging build with memory sanitizer on Clang-16",
+      "description": "Build with thread sanitizer on clang16 with debugging information",
+      "inherits": "clang16-dbg",
+      "binaryDir": "build-msan",
+      "generator": "Unix Makefiles",
+      "environment": {
+        "CFLAGS": "-fsanitize=memory",
+        "CXXFLAGS": "-fsanitize=memory",
+        "LDFLAGS": "-fsanitize=memory"
+      },
+      "cacheVariables": {
+        "BENCHMARK": "OFF",
+        "TESTING": "OFF"
+      }
+    },
+    {
       "name": "coverage",
       "displayName": "Build with coverage",
       "description": "Build default preset but with coverage enabled",
@@ -308,6 +325,11 @@
       "name": "smt-verification",
       "inherits": "clang16",
       "configurePreset": "smt-verification"
+    },
+    {
+      "name": "msan",
+      "inherits": "default",
+      "configurePreset": "msan"
     },
     {
       "name": "tsan",
