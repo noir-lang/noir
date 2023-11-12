@@ -1,6 +1,6 @@
 # Structure
 
-Below we briefly describe the purpose of each crate in this repository.
+Below we briefly describe the purpose of each crate related to the compiler in this repository.
 
 ## fm - File Manager
 
