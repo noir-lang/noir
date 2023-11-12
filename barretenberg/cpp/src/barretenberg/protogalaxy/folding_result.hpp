@@ -17,7 +17,7 @@ template <class Flavor> struct VerifierFoldingResult {
     using VerificationKey = typename Flavor::VerificationKey;
     using FoldingParameters = typename Flavor::FoldingParameters;
     std::vector<FF> folded_public_inputs;
-    VerificationKey folded_verification_key;
+    std::shared_ptr<VerificationKey> folded_verification_key;
     FoldingParameters parameters;
 };
 

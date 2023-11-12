@@ -11,7 +11,9 @@ using Instances = ProverInstances_<Flavor, 2>;
 using ProtoGalaxyProver = ProtoGalaxyProver_<Instances>;
 using FF = Flavor::FF;
 using Builder = Flavor::CircuitBuilder;
+using Polynomial = typename Flavor::Polynomial;
 using ProverPolynomials = Flavor::ProverPolynomials;
+using RelationParameters = proof_system::RelationParameters<FF>;
 const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
 
 namespace protogalaxy_tests {
@@ -128,7 +130,7 @@ TEST_F(ProtoGalaxyTests, PerturbatorCoefficients)
     }
 }
 
-TEST_F(ProtoGalaxyTests, PowPerturbatorPolynomial)
+TEST_F(ProtoGalaxyTests, PerturbatorPolynomial)
 {
     const size_t log_instance_size(3);
     const size_t instance_size(1 << log_instance_size);
@@ -148,17 +150,8 @@ TEST_F(ProtoGalaxyTests, PowPerturbatorPolynomial)
         betas[idx] = FF::random_element();
     }
 
-    // Construct pow(\vec{betas}) manually as in the paper
-    std::vector<FF> pow_beta(instance_size);
-    for (size_t i = 0; i < instance_size; i++) {
-        auto res = FF(1);
-        for (size_t j = i, beta_idx = 0; j > 0; j >>= 1, beta_idx++) {
-            if ((j & 1) == 1) {
-                res *= betas[beta_idx];
-            }
-        }
-        pow_beta[i] = res;
-    }
+    // Construct pow(\vec{betas}) as in the paper
+    auto pow_beta = ProtoGalaxyProver::compute_pow_polynomial_at_values(betas, instance_size);
 
     // Compute the corresponding target sum and create a dummy accumulator
     auto target_sum = FF(0);
@@ -178,6 +171,42 @@ TEST_F(ProtoGalaxyTests, PowPerturbatorPolynomial)
 
     // Ensure the constant coefficient of the perturbator is equal to the target sum as indicated by the paper
     EXPECT_EQ(perturbator[0], target_sum);
+}
+
+TEST_F(ProtoGalaxyTests, PowPolynomialsOnPowers)
+{
+    auto betas = std::vector<FF>{ 2, 4, 16 };
+    auto pow_betas = ProtoGalaxyProver::compute_pow_polynomial_at_values(betas, 8);
+    auto expected_values = std::vector<FF>{ 1, 2, 4, 8, 16, 32, 64, 128 };
+    EXPECT_EQ(expected_values, pow_betas);
+}
+
+TEST_F(ProtoGalaxyTests, CombinerQuotient)
+{
+    auto compressed_perturbator = FF(2); // F(\alpha) in the paper
+    auto combiner =
+        barretenberg::Univariate<FF, 13>(std::array<FF, 13>{ 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32 });
+    auto combiner_quotient = ProtoGalaxyProver::compute_combiner_quotient(compressed_perturbator, combiner);
+
+    // K(i) = (G(i) - ( L_0(i) * F(\alpha)) / Z(i), i = {2,.., 13} for ProverInstances::NUM = 2
+    // K(i) = (G(i) - (1 - i) * F(\alpha)) / i * (i - 1)
+    auto expected_evals = barretenberg::Univariate<FF, 13, 2>(std::array<FF, 11>{
+        (FF(22) - (FF(1) - FF(2)) * compressed_perturbator) / (FF(2) * FF(2 - 1)),
+        (FF(23) - (FF(1) - FF(3)) * compressed_perturbator) / (FF(3) * FF(3 - 1)),
+        (FF(24) - (FF(1) - FF(4)) * compressed_perturbator) / (FF(4) * FF(4 - 1)),
+        (FF(25) - (FF(1) - FF(5)) * compressed_perturbator) / (FF(5) * FF(5 - 1)),
+        (FF(26) - (FF(1) - FF(6)) * compressed_perturbator) / (FF(6) * FF(6 - 1)),
+        (FF(27) - (FF(1) - FF(7)) * compressed_perturbator) / (FF(7) * FF(7 - 1)),
+        (FF(28) - (FF(1) - FF(8)) * compressed_perturbator) / (FF(8) * FF(8 - 1)),
+        (FF(29) - (FF(1) - FF(9)) * compressed_perturbator) / (FF(9) * FF(9 - 1)),
+        (FF(30) - (FF(1) - FF(10)) * compressed_perturbator) / (FF(10) * FF(10 - 1)),
+        (FF(31) - (FF(1) - FF(11)) * compressed_perturbator) / (FF(11) * FF(11 - 1)),
+        (FF(32) - (FF(1) - FF(12)) * compressed_perturbator) / (FF(12) * FF(12 - 1)),
+    });
+
+    for (size_t idx = 2; idx < 7; idx++) {
+        EXPECT_EQ(combiner_quotient.value_at(idx), expected_evals.value_at(idx));
+    }
 }
 
 TEST_F(ProtoGalaxyTests, FoldChallenges)
@@ -201,26 +230,4 @@ TEST_F(ProtoGalaxyTests, FoldChallenges)
     EXPECT_EQ(instances.relation_parameters.eta, expected_eta);
 }
 
-// namespace proof_system::honk::instance_tests {
-
-// template <class Flavor> class InstancesTests : public testing::Test {
-//     using FF = typename Flavor::FF;
-//     using Builder = typename Flavor::CircuitBuilder;
-
-//   public:
-//     static void test_parameters_to_univariates()
-//     {
-
-//     };
-// };
-
-// using FlavorTypes = testing::Types<flavor::Ultra>;
-// TYPED_TEST_SUITE(InstancesTests, FlavorTypes);
-
-// TYPED_TEST(InstancesTests, ParametersToUnivariates)
-// {
-//     TestFixture::test_parameters_to_univariates();
-// }
-
-// } // namespace proof_system::honk::instance_tests
 } // namespace protogalaxy_tests

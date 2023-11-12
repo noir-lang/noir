@@ -52,6 +52,24 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     void prepare_for_folding();
 
     /**
+     * @brief Given a vector \vec{\beta} of values, compute the pow polynomial on these values as defined in the paper.
+     */
+    static std::vector<FF> compute_pow_polynomial_at_values(const std::vector<FF>& betas, const size_t instance_size)
+    {
+        std::vector<FF> pow_betas(instance_size);
+        for (size_t i = 0; i < instance_size; i++) {
+            auto res = FF(1);
+            for (size_t j = i, beta_idx = 0; j > 0; j >>= 1, beta_idx++) {
+                if ((j & 1) == 1) {
+                    res *= betas[beta_idx];
+                }
+            }
+            pow_betas[i] = res;
+        }
+        return pow_betas;
+    }
+
+    /**
      * @brief For a new round challenge δ at each iteration of the ProtoGalaxy protocol, compute the vector
      * [δ, δ^2,..., δ^t] where t = logn and n is the size of the instance.
      */
@@ -218,21 +236,12 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     /**
      * @brief Compute the combiner polynomial $G$ in the Protogalaxy paper.
      *
-     * @todo TODO(https://github.com/AztecProtocol/barretenberg/issues/754) Provide the right challenge to here
      */
     ExtendedUnivariateWithRandomization compute_combiner(const ProverInstances& instances,
-                                                         const PowUnivariate<typename Flavor::FF>& pow_univariate,
-                                                         const typename Flavor::FF alpha)
+                                                         const std::vector<FF>& pow_betas_star,
+                                                         const FF& alpha)
     {
         size_t common_circuit_size = instances[0]->prover_polynomials._data[0].size();
-        // Precompute the vector of required powers of zeta
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/751): Parallelize this.
-        // NB: there is a similar TODO in the sumcheck function `compute_univariate`.
-        std::vector<FF> pow_challenges(common_circuit_size);
-        pow_challenges[0] = pow_univariate.partial_evaluation_constant;
-        for (size_t i = 1; i < common_circuit_size; ++i) {
-            pow_challenges[i] = pow_challenges[i - 1] * pow_univariate.zeta_pow;
-        }
 
         // Determine number of threads for multithreading.
         // Note: Multithreading is "on" for every round but we reduce the number of threads from the max available based
@@ -263,7 +272,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
             for (size_t idx = start; idx < end; idx++) {
                 extend_univariates(extended_univariates[thread_idx], instances, idx);
 
-                FF pow_challenge = pow_challenges[idx];
+                FF pow_challenge = pow_betas_star[idx];
 
                 // Accumulate the i-th row's univariate contribution. Note that the relation parameters passed to this
                 // function have already been folded
@@ -280,8 +289,41 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
             Utils::add_nested_tuples(univariate_accumulators, accumulators);
         }
         // Batch the univariate contributions from each sub-relation to obtain the round univariate
-        return Utils::template batch_over_relations<ExtendedUnivariateWithRandomization>(
-            univariate_accumulators, alpha, pow_univariate);
+        return Utils::template batch_over_relations<ExtendedUnivariateWithRandomization>(univariate_accumulators,
+                                                                                         alpha);
+    }
+
+    /**
+     * @brief Compute the combiner quotient defined as $K$ polynomial in the paper.
+     *
+     * TODO(https://github.com/AztecProtocol/barretenberg/issues/764): generalise the computation of vanishing
+     * polynomials and Lagrange basis and use batch_invert.
+     *
+     */
+    static Univariate<FF,
+                      (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 1) * (ProverInstances::NUM - 1) + 1,
+                      ProverInstances::NUM>
+    compute_combiner_quotient(FF compressed_perturbator, ExtendedUnivariateWithRandomization combiner)
+    {
+        std::array<FF, (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 2) * (ProverInstances::NUM - 1)>
+            combiner_quotient_evals = {};
+
+        // Compute the combiner quotient polynomial as evaluations on points that are not in the vanishing set.
+        //
+        for (size_t point = ProverInstances::NUM; point < combiner.size(); point++) {
+            auto idx = point - ProverInstances::NUM;
+            auto lagrange_0 = FF(1) - FF(point);
+            auto vanishing_polynomial = FF(point) * (FF(point) - 1);
+
+            combiner_quotient_evals[idx] =
+                (combiner.value_at(point) - compressed_perturbator * lagrange_0) * vanishing_polynomial.invert();
+        }
+
+        Univariate<FF,
+                   (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 1) * (ProverInstances::NUM - 1) + 1,
+                   ProverInstances::NUM>
+            combiner_quotient(combiner_quotient_evals);
+        return combiner_quotient;
     }
 
     /**

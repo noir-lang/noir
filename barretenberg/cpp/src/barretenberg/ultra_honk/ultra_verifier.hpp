@@ -14,7 +14,7 @@ template <typename Flavor> class UltraVerifier_ {
   public:
     explicit UltraVerifier_(std::shared_ptr<VerificationKey> verifier_key = nullptr);
     UltraVerifier_(UltraVerifier_&& other);
-    UltraVerifier_(const UltraVerifier_& other) = delete;
+
     UltraVerifier_& operator=(const UltraVerifier_& other) = delete;
     UltraVerifier_& operator=(UltraVerifier_&& other);
 

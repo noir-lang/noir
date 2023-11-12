@@ -16,7 +16,6 @@ template <class VerifierInstances> class ProtoGalaxyVerifier_ {
     VerifierInstances verifier_instances;
     BaseTranscript<FF> transcript;
 
-    // should the PG verifier be given the VerifierInstances, nah this makes sense yo me
     ProtoGalaxyVerifier_(VerifierInstances insts)
         : verifier_instances(insts){};
     ~ProtoGalaxyVerifier_() = default;
@@ -33,8 +32,21 @@ template <class VerifierInstances> class ProtoGalaxyVerifier_ {
         }
         return pows;
     }
+
     std::shared_ptr<Instance> get_accumulator() { return verifier_instances[0]; }
 
+    /**
+     * @brief Instatiate the VerifierInstances and the VerifierTranscript.
+     *
+     * @param fold_data The data transmitted via the transcript by the prover.
+     */
+    void prepare_for_folding(std::vector<uint8_t> fold_data);
+
+    /**
+     * @brief Run the folding protocol on the verifier side.
+     *
+     * TODO(https://github.com/AztecProtocol/barretenberg/issues/690): finalise the implementation of this function
+     */
     VerifierFoldingResult<Flavor> fold_public_parameters(std::vector<uint8_t> fold_data);
 };
 

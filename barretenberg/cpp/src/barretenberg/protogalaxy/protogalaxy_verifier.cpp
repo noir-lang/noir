@@ -1,9 +1,9 @@
 #include "protogalaxy_verifier.hpp"
 #include "barretenberg/proof_system/library/grand_product_delta.hpp"
 namespace proof_system::honk {
+
 template <class VerifierInstances>
-VerifierFoldingResult<typename VerifierInstances::Flavor> ProtoGalaxyVerifier_<
-    VerifierInstances>::fold_public_parameters(std::vector<uint8_t> fold_data)
+void ProtoGalaxyVerifier_<VerifierInstances>::prepare_for_folding(std::vector<uint8_t> fold_data)
 {
     transcript = BaseTranscript<FF>{ fold_data };
     auto index = 0;
@@ -29,19 +29,49 @@ VerifierFoldingResult<typename VerifierInstances::Flavor> ProtoGalaxyVerifier_<
         inst->relation_parameters =
             RelationParameters<FF>{ eta, beta, gamma, public_input_delta, lookup_grand_product_delta };
     }
+}
 
-    auto [alpha, delta] =
-        transcript.get_challenges("alpha", "delta"); // what does verifier do with this alpha which is from plonk paper?
+template <class VerifierInstances>
+VerifierFoldingResult<typename VerifierInstances::Flavor> ProtoGalaxyVerifier_<
+    VerifierInstances>::fold_public_parameters(std::vector<uint8_t> fold_data)
+{
+    using Flavor = typename VerifierInstances::Flavor;
+
+    prepare_for_folding(fold_data);
+    auto [alpha, delta] = transcript.get_challenges("alpha", "delta");
     auto accumulator = get_accumulator();
     auto log_instance_size = static_cast<size_t>(numeric::get_msb(accumulator->instance_size));
     auto deltas = compute_round_challenge_pows(log_instance_size, delta);
-    std::vector<FF> perturbator(log_instance_size + 1);
+    std::vector<FF> perturbator_coeffs(log_instance_size + 1);
     for (size_t idx = 0; idx <= log_instance_size; idx++) {
-        perturbator[idx] = transcript.template receive_from_prover<FF>("perturbator_" + std::to_string(idx));
+        perturbator_coeffs[idx] = transcript.template receive_from_prover<FF>("perturbator_" + std::to_string(idx));
     }
+    auto perturbator = Polynomial<FF>(perturbator_coeffs);
+    auto perturbator_challenge = transcript.get_challenge("perturbator_challenge");
+    auto perturbator_at_challenge = perturbator.evaluate(perturbator_challenge);
 
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/690): finalise the  Protogalaxy verifier logic
+    // Thed degree of K(X) is dk - k - 1 = k(d - 1) - 1. Hence we need  k(d - 1) evaluations to represent it.
+    std::array<FF, (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 2) * (VerifierInstances::NUM - 1)>
+        combiner_quotient_evals = {};
+    for (size_t idx = 0; idx < (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 2) * (VerifierInstances::NUM - 1); idx++) {
+        combiner_quotient_evals[idx] = transcript.template receive_from_prover<FF>(
+            "combiner_quotient_" + std::to_string(idx + VerifierInstances::NUM));
+    }
+    Univariate<FF,
+               (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 1) * (VerifierInstances::NUM - 1) + 1,
+               VerifierInstances::NUM>
+        combiner_quotient(combiner_quotient_evals);
+    auto combiner_challenge = transcript.get_challenge("combiner_quotient_challenge");
+    auto combiner_quotient_at_challenge = combiner_quotient.evaluate(combiner_challenge);
+
+    auto vanishing_polynomial_at_challenge = combiner_challenge * (combiner_challenge - FF(1));
+    auto lagrange_0_at_challenge = FF(1) - combiner_challenge;
+
+    auto new_target_sum = perturbator_at_challenge * lagrange_0_at_challenge +
+                          vanishing_polynomial_at_challenge * combiner_quotient_at_challenge;
+
     VerifierFoldingResult<Flavor> res;
+    res.parameters.target_sum = new_target_sum;
     return res;
 }
 

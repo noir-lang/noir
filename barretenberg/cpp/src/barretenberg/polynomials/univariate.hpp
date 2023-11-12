@@ -13,22 +13,24 @@ namespace barretenberg {
  * of the data in those univariates. We do that by taking a view of those elements and then, as needed, using this to
  * populate new containers.
  */
-template <class Fr, size_t view_length> class UnivariateView;
+template <class Fr, size_t view_domain_end, size_t view_domain_start> class UnivariateView;
 
 /**
- * @brief A univariate polynomial represented by its values on {0,1,..., _length-1}
+ * @brief A univariate polynomial represented by its values on {domain_start, domain_start + 1,..., domain_end - 1}. For
+ * memory efficiency purposes, we store the evaluations in an array starting from 0 and make the mapping to the right
+ * domain under the hood.
  */
-template <class Fr, size_t _length> class Univariate {
+template <class Fr, size_t domain_end, size_t domain_start = 0> class Univariate {
   public:
-    static constexpr size_t LENGTH = _length;
-    using View = UnivariateView<Fr, LENGTH>;
+    static constexpr size_t LENGTH = domain_end - domain_start;
+    using View = UnivariateView<Fr, domain_end, domain_start>;
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/714) Try out std::valarray?
-    std::array<Fr, _length> evaluations;
+    std::array<Fr, LENGTH> evaluations;
 
     Univariate() = default;
 
-    explicit Univariate(std::array<Fr, _length> evaluations)
+    explicit Univariate(std::array<Fr, LENGTH> evaluations)
         : evaluations(evaluations)
     {}
     ~Univariate() = default;
@@ -40,12 +42,12 @@ template <class Fr, size_t _length> class Univariate {
     explicit Univariate(Fr value)
         : evaluations{}
     {
-        for (size_t i = 0; i < _length; ++i) {
+        for (size_t i = 0; i < LENGTH; ++i) {
             evaluations[i] = value;
         }
     }
     // Construct Univariate from UnivariateView
-    explicit Univariate(UnivariateView<Fr, _length> in)
+    explicit Univariate(UnivariateView<Fr, domain_end, domain_start> in)
         : evaluations{}
     {
         for (size_t i = 0; i < in.evaluations.size(); ++i) {
@@ -53,8 +55,9 @@ template <class Fr, size_t _length> class Univariate {
         }
     }
 
-    Fr& value_at(size_t i) { return evaluations[i]; };
-    const Fr& value_at(size_t i) const { return evaluations[i]; };
+    Fr& value_at(size_t i) { return evaluations[i - domain_start]; };
+    const Fr& value_at(size_t i) const { return evaluations[i - domain_start]; };
+    size_t size() { return evaluations.size(); };
 
     // Write the Univariate evaluations to a buffer
     std::vector<uint8_t> to_buffer() const { return ::to_buffer(evaluations); }
@@ -71,8 +74,8 @@ template <class Fr, size_t _length> class Univariate {
 
     static Univariate get_random()
     {
-        auto output = Univariate<Fr, _length>();
-        for (size_t i = 0; i != _length; ++i) {
+        auto output = Univariate<Fr, domain_end, domain_start>();
+        for (size_t i = 0; i != LENGTH; ++i) {
             output.value_at(i) = Fr::random_element();
         }
         return output;
@@ -85,21 +88,21 @@ template <class Fr, size_t _length> class Univariate {
 
     Univariate& operator+=(const Univariate& other)
     {
-        for (size_t i = 0; i < _length; ++i) {
+        for (size_t i = 0; i < LENGTH; ++i) {
             evaluations[i] += other.evaluations[i];
         }
         return *this;
     }
     Univariate& operator-=(const Univariate& other)
     {
-        for (size_t i = 0; i < _length; ++i) {
+        for (size_t i = 0; i < LENGTH; ++i) {
             evaluations[i] -= other.evaluations[i];
         }
         return *this;
     }
     Univariate& operator*=(const Univariate& other)
     {
-        for (size_t i = 0; i < _length; ++i) {
+        for (size_t i = 0; i < LENGTH; ++i) {
             evaluations[i] *= other.evaluations[i];
         }
         return *this;
@@ -179,45 +182,45 @@ template <class Fr, size_t _length> class Univariate {
     }
 
     // Operations between Univariate and UnivariateView
-    Univariate& operator+=(const UnivariateView<Fr, _length>& view)
+    Univariate& operator+=(const UnivariateView<Fr, domain_end, domain_start>& view)
     {
-        for (size_t i = 0; i < _length; ++i) {
+        for (size_t i = 0; i < LENGTH; ++i) {
             evaluations[i] += view.evaluations[i];
         }
         return *this;
     }
 
-    Univariate& operator-=(const UnivariateView<Fr, _length>& view)
+    Univariate& operator-=(const UnivariateView<Fr, domain_end, domain_start>& view)
     {
-        for (size_t i = 0; i < _length; ++i) {
+        for (size_t i = 0; i < LENGTH; ++i) {
             evaluations[i] -= view.evaluations[i];
         }
         return *this;
     }
 
-    Univariate& operator*=(const UnivariateView<Fr, _length>& view)
+    Univariate& operator*=(const UnivariateView<Fr, domain_end, domain_start>& view)
     {
-        for (size_t i = 0; i < _length; ++i) {
+        for (size_t i = 0; i < LENGTH; ++i) {
             evaluations[i] *= view.evaluations[i];
         }
         return *this;
     }
 
-    Univariate operator+(const UnivariateView<Fr, _length>& view) const
+    Univariate operator+(const UnivariateView<Fr, domain_end, domain_start>& view) const
     {
         Univariate res(*this);
         res += view;
         return res;
     }
 
-    Univariate operator-(const UnivariateView<Fr, _length>& view) const
+    Univariate operator-(const UnivariateView<Fr, domain_end, domain_start>& view) const
     {
         Univariate res(*this);
         res -= view;
         return res;
     }
 
-    Univariate operator*(const UnivariateView<Fr, _length>& view) const
+    Univariate operator*(const UnivariateView<Fr, domain_end, domain_start>& view) const
     {
         Univariate res(*this);
         res *= view;
@@ -241,22 +244,24 @@ template <class Fr, size_t _length> class Univariate {
     }
 
     /**
-     * @brief Given a univariate f represented by {f(0), ..., f(t-1)}, compute {f(t), ..., f(u-1)}
-     * and return the Univariate represented by {f(0), ..., f(u-1)}.
+     * @brief Given a univariate f represented by {f(domain_start), ..., f(domain_end - 1)}, compute the evaluations
+     * {f(domain_end),..., f(extended_domain_end -1)} and return the Univariate represented by  {f(domain_start),...,
+     * f(extended_domain_end -1)}
      *
-     * @details Write v_i = f(x_i) on a the domain {x_0, ..., x_{t-1}}. To efficiently compute the needed values of f,
-     * we use the barycentric formula
-     *      - f(x) = B(x) Σ_{i=0}^{t-1} v_i / (d_i*(x-x_i))
+     * @details Write v_i = f(x_i) on a the domain {x_{domain_start}, ..., x_{domain_end-1}}. To efficiently compute the
+     * needed values of f, we use the barycentric formula
+     *      - f(x) = B(x) Σ_{i=domain_start}^{domain_end-1} v_i / (d_i*(x-x_i))
      * where
-     *      - B(x) = Π_{i=0}^{t-1} (x-x_i)
-     *      - d_i  = Π_{j ∈ {0, ..., t-1}, j≠i} (x_i-x_j) for i ∈ {0, ..., t-1}
+     *      - B(x) = Π_{i=domain_start}^{domain_end-1} (x-x_i)
+     *      - d_i  = Π_{j ∈ {domain_start, ..., domain_end-1}, j≠i} (x_i-x_j) for i ∈ {domain_start, ..., domain_end-1}
      *
      * When the domain size is two, extending f = v0(1-X) + v1X to a new value involves just one addition and a
      * subtraction: setting Δ = v1-v0, the values of f(X) are f(0)=v0, f(1)= v0 + Δ, v2 = f(1) + Δ, v3 = f(2) + Δ...
      *
      */
-    template <size_t EXTENDED_LENGTH> Univariate<Fr, EXTENDED_LENGTH> extend_to() const
+    template <size_t EXTENDED_DOMAIN_END> Univariate<Fr, EXTENDED_DOMAIN_END> extend_to() const
     {
+        const size_t EXTENDED_LENGTH = EXTENDED_DOMAIN_END - domain_start;
         using Data = BarycentricData<Fr, LENGTH, EXTENDED_LENGTH>;
         static_assert(EXTENDED_LENGTH >= LENGTH);
 
@@ -267,15 +272,15 @@ template <class Fr, size_t _length> class Univariate {
         if constexpr (LENGTH == 2) {
             Fr delta = value_at(1) - value_at(0);
             static_assert(EXTENDED_LENGTH != 0);
-            for (size_t idx = 1; idx < EXTENDED_LENGTH - 1; idx++) {
+            for (size_t idx = domain_start; idx < EXTENDED_DOMAIN_END - 1; idx++) {
                 result.value_at(idx + 1) = result.value_at(idx) + delta;
             }
             return result;
         } else {
-            for (size_t k = LENGTH; k != EXTENDED_LENGTH; ++k) {
+            for (size_t k = domain_end; k != EXTENDED_DOMAIN_END; ++k) {
                 result.value_at(k) = 0;
                 // compute each term v_j / (d_j*(x-x_j)) of the sum
-                for (size_t j = 0; j != LENGTH; ++j) {
+                for (size_t j = domain_start; j != domain_end; ++j) {
                     Fr term = value_at(j);
                     term *= Data::precomputed_denominator_inverses[LENGTH * k + j];
                     result.value_at(k) += term;
@@ -295,9 +300,9 @@ template <class Fr, size_t _length> class Univariate {
      */
     Fr evaluate(const Fr& u)
     {
-        using Data = BarycentricData<Fr, LENGTH, LENGTH>;
+        using Data = BarycentricData<Fr, domain_end, LENGTH, domain_start>;
         Fr full_numerator_value = 1;
-        for (size_t i = 0; i != LENGTH; ++i) {
+        for (size_t i = domain_start; i != domain_end; ++i) {
             full_numerator_value *= u - i;
         }
 
@@ -313,9 +318,9 @@ template <class Fr, size_t _length> class Univariate {
 
         Fr result = 0;
         // compute each term v_j / (d_j*(x-x_j)) of the sum
-        for (size_t i = 0; i != LENGTH; ++i) {
+        for (size_t i = domain_start; i != domain_end; ++i) {
             Fr term = value_at(i);
-            term *= denominator_inverses[i];
+            term *= denominator_inverses[i - domain_start];
             result += term;
         }
         // scale the sum by the the value of of B(x)
@@ -324,98 +329,101 @@ template <class Fr, size_t _length> class Univariate {
     };
 };
 
-template <typename B, class Fr, size_t _length> inline void read(B& it, Univariate<Fr, _length>& univariate)
+template <typename B, class Fr, size_t domain_end, size_t domain_start = 0>
+inline void read(B& it, Univariate<Fr, domain_end, domain_start>& univariate)
 {
     using serialize::read;
     read(it, univariate.evaluations);
 }
 
-template <typename B, class Fr, size_t _length> inline void write(B& it, Univariate<Fr, _length> const& univariate)
+template <typename B, class Fr, size_t domain_end, size_t domain_start = 0>
+inline void write(B& it, Univariate<Fr, domain_end, domain_start> const& univariate)
 {
     using serialize::write;
     write(it, univariate.evaluations);
 }
 
-template <class Fr, size_t view_length> class UnivariateView {
+template <class Fr, size_t domain_end, size_t domain_start = 0> class UnivariateView {
   public:
-    std::span<const Fr, view_length> evaluations;
+    static constexpr size_t LENGTH = domain_end - domain_start;
+    std::span<const Fr, LENGTH> evaluations;
 
     UnivariateView() = default;
 
     const Fr& value_at(size_t i) const { return evaluations[i]; };
 
-    template <size_t full_length>
-    explicit UnivariateView(const Univariate<Fr, full_length>& univariate_in)
-        : evaluations(std::span<const Fr>(univariate_in.evaluations.data(), view_length)){};
+    template <size_t full_domain_end, size_t full_domain_start = 0>
+    explicit UnivariateView(const Univariate<Fr, full_domain_end, full_domain_start>& univariate_in)
+        : evaluations(std::span<const Fr>(univariate_in.evaluations.data(), LENGTH)){};
 
-    Univariate<Fr, view_length> operator+(const UnivariateView& other) const
+    Univariate<Fr, domain_end, domain_start> operator+(const UnivariateView& other) const
     {
-        Univariate<Fr, view_length> res(*this);
+        Univariate<Fr, domain_end, domain_start> res(*this);
         res += other;
         return res;
     }
 
-    Univariate<Fr, view_length> operator-(const UnivariateView& other) const
+    Univariate<Fr, domain_end, domain_start> operator-(const UnivariateView& other) const
     {
-        Univariate<Fr, view_length> res(*this);
+        Univariate<Fr, domain_end, domain_start> res(*this);
         res -= other;
         return res;
     }
 
-    Univariate<Fr, view_length> operator-() const
+    Univariate<Fr, domain_end, domain_start> operator-() const
     {
-        Univariate res(*this);
+        Univariate<Fr, domain_end, domain_start> res(*this);
         for (auto& eval : res.evaluations) {
             eval = -eval;
         }
         return res;
     }
 
-    Univariate<Fr, view_length> operator*(const UnivariateView& other) const
+    Univariate<Fr, domain_end, domain_start> operator*(const UnivariateView& other) const
     {
-        Univariate<Fr, view_length> res(*this);
+        Univariate<Fr, domain_end, domain_start> res(*this);
         res *= other;
         return res;
     }
 
-    Univariate<Fr, view_length> operator*(const Univariate<Fr, view_length>& other) const
+    Univariate<Fr, domain_end, domain_start> operator*(const Univariate<Fr, domain_end, domain_start>& other) const
     {
-        Univariate<Fr, view_length> res(*this);
+        Univariate<Fr, domain_end, domain_start> res(*this);
         res *= other;
         return res;
     }
 
-    Univariate<Fr, view_length> operator+(const Univariate<Fr, view_length>& other) const
+    Univariate<Fr, domain_end, domain_start> operator+(const Univariate<Fr, domain_end, domain_start>& other) const
     {
-        Univariate<Fr, view_length> res(*this);
+        Univariate<Fr, domain_end, domain_start> res(*this);
         res += other;
         return res;
     }
 
-    Univariate<Fr, view_length> operator+(const Fr& other) const
+    Univariate<Fr, domain_end, domain_start> operator+(const Fr& other) const
     {
-        Univariate<Fr, view_length> res(*this);
+        Univariate<Fr, domain_end, domain_start> res(*this);
         res += other;
         return res;
     }
 
-    Univariate<Fr, view_length> operator-(const Fr& other) const
+    Univariate<Fr, domain_end, domain_start> operator-(const Fr& other) const
     {
-        Univariate<Fr, view_length> res(*this);
+        Univariate<Fr, domain_end, domain_start> res(*this);
         res -= other;
         return res;
     }
 
-    Univariate<Fr, view_length> operator*(const Fr& other) const
+    Univariate<Fr, domain_end, domain_start> operator*(const Fr& other) const
     {
-        Univariate<Fr, view_length> res(*this);
+        Univariate<Fr, domain_end, domain_start> res(*this);
         res *= other;
         return res;
     }
 
-    Univariate<Fr, view_length> operator-(const Univariate<Fr, view_length>& other) const
+    Univariate<Fr, domain_end, domain_start> operator-(const Univariate<Fr, domain_end, domain_start>& other) const
     {
-        Univariate<Fr, view_length> res(*this);
+        Univariate<Fr, domain_end, domain_start> res(*this);
         res -= other;
         return res;
     }
