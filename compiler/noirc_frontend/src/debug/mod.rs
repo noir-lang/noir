@@ -298,6 +298,60 @@ impl DebugState {
                 self.scope.push(HashSet::new());
                 self.walk_scope(statements);
             },
+            ast::ExpressionKind::Prefix(prefix_expr) => {
+                self.walk_expr(&mut prefix_expr.rhs);
+            },
+            ast::ExpressionKind::Index(index_expr) => {
+                self.walk_expr(&mut index_expr.collection);
+                self.walk_expr(&mut index_expr.index);
+            },
+            ast::ExpressionKind::Call(call_expr) => {
+                // TODO: push a stack frame or something here?
+                self.walk_expr(&mut call_expr.func);
+                call_expr.arguments.iter_mut().for_each(|ref mut expr| {
+                    self.walk_expr(expr);
+                });
+            },
+            ast::ExpressionKind::MethodCall(mc_expr) => {
+                // TODO: also push a stack frame here
+                self.walk_expr(&mut mc_expr.object);
+                mc_expr.arguments.iter_mut().for_each(|ref mut expr| {
+                    self.walk_expr(expr);
+                });
+            },
+            ast::ExpressionKind::Constructor(c_expr) => {
+                c_expr.fields.iter_mut().for_each(|(_id, ref mut expr)| {
+                    self.walk_expr(expr);
+                });
+            },
+            ast::ExpressionKind::MemberAccess(ma_expr) => {
+                self.walk_expr(&mut ma_expr.lhs);
+            },
+            ast::ExpressionKind::Cast(cast_expr) => {
+                self.walk_expr(&mut cast_expr.lhs);
+            },
+            ast::ExpressionKind::Infix(infix_expr) => {
+                self.walk_expr(&mut infix_expr.lhs);
+                self.walk_expr(&mut infix_expr.rhs);
+            },
+            ast::ExpressionKind::If(if_expr) => {
+                self.walk_expr(&mut if_expr.condition);
+                self.walk_expr(&mut if_expr.consequence);
+                if let Some(ref mut alt) = if_expr.alternative {
+                    self.walk_expr(alt);
+                }
+            },
+            ast::ExpressionKind::Tuple(exprs) => {
+                exprs.iter_mut().for_each(|ref mut expr| {
+                    self.walk_expr(expr);
+                });
+            },
+            ast::ExpressionKind::Lambda(lambda) => {
+                self.walk_expr(&mut lambda.body);
+            },
+            ast::ExpressionKind::Parenthesized(expr) => {
+                self.walk_expr(expr);
+            },
             _ => {},
         }
     }
@@ -309,6 +363,7 @@ impl DebugState {
         let set_stmt = self.wrap_assign_var(var_id, id_expr(&for_stmt.identifier));
         let drop_stmt = self.wrap_drop_var(var_id);
 
+        self.walk_expr(&mut for_stmt.block);
         for_stmt.block = ast::Expression {
             kind: ast::ExpressionKind::Block(ast::BlockExpression(vec![
                 set_stmt,
