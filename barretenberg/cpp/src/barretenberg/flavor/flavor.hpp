@@ -75,21 +75,20 @@
 
 namespace proof_system::honk::flavor {
 
-template <std::size_t ExpectedSize, typename T, std::size_t N> static auto _assert_array_size(std::array<T, N>&& array)
-{
-    static_assert(N == ExpectedSize,
-                  "Expected array size to match given size (first parameter) in DEFINE_POINTER_VIEW");
-    return array;
-}
-
 #define DEFINE_POINTER_VIEW(ExpectedSize, ...)                                                                         \
     [[nodiscard]] auto pointer_view()                                                                                  \
     {                                                                                                                  \
-        return _assert_array_size<ExpectedSize>(std::array{ __VA_ARGS__ });                                            \
+        std::array view{ __VA_ARGS__ };                                                                                \
+        static_assert(view.size() == ExpectedSize,                                                                     \
+                      "Expected array size to match given size (first parameter) in DEFINE_POINTER_VIEW");             \
+        return view;                                                                                                   \
     }                                                                                                                  \
     [[nodiscard]] auto pointer_view() const                                                                            \
     {                                                                                                                  \
-        return _assert_array_size<ExpectedSize>(std::array{ __VA_ARGS__ });                                            \
+        std::array view{ __VA_ARGS__ };                                                                                \
+        static_assert(view.size() == ExpectedSize,                                                                     \
+                      "Expected array size to match given size (first parameter) in DEFINE_POINTER_VIEW");             \
+        return view;                                                                                                   \
     }
 
 /**
@@ -101,13 +100,7 @@ template <std::size_t ExpectedSize, typename T, std::size_t N> static auto _asse
  */
 template <typename DataType, typename HandleType, size_t NUM_ENTITIES> class Entities_ {
   public:
-    using ArrayType = std::array<DataType, NUM_ENTITIES>;
-    ArrayType _data;
-
     virtual ~Entities_() = default;
-    // TODO(AD): remove these with the backing array
-    typename ArrayType::iterator begin() { return _data.begin(); };
-    typename ArrayType::iterator end() { return _data.end(); };
 
     constexpr size_t size() { return NUM_ENTITIES; };
 };
@@ -154,13 +147,11 @@ class ProvingKey_ : public PrecomputedPolynomials, public WitnessPolynomials {
     using Polynomial = typename PrecomputedPolynomials::DataType;
     using FF = typename Polynomial::FF;
 
-    typename PrecomputedPolynomials::ArrayType& _precomputed_polynomials = PrecomputedPolynomials::_data;
-    typename WitnessPolynomials::ArrayType& _witness_polynomials = WitnessPolynomials::_data;
-
     bool contains_recursive_proof;
     std::vector<uint32_t> recursive_proof_public_input_indices;
     barretenberg::EvaluationDomain<FF> evaluation_domain;
 
+    auto precomputed_polynomials_pointer_view() { return PrecomputedPolynomials::pointer_view(); }
     ProvingKey_() = default;
     ProvingKey_(const size_t circuit_size, const size_t num_public_inputs)
     {
@@ -169,12 +160,12 @@ class ProvingKey_ : public PrecomputedPolynomials, public WitnessPolynomials {
         this->log_circuit_size = numeric::get_msb(circuit_size);
         this->num_public_inputs = num_public_inputs;
         // Allocate memory for precomputed polynomials
-        for (auto& poly : _precomputed_polynomials) {
-            poly = Polynomial(circuit_size);
+        for (auto* poly : PrecomputedPolynomials::pointer_view()) {
+            *poly = Polynomial(circuit_size);
         }
         // Allocate memory for witness polynomials
-        for (auto& poly : _witness_polynomials) {
-            poly = Polynomial(circuit_size);
+        for (auto* poly : WitnessPolynomials::pointer_view()) {
+            *poly = Polynomial(circuit_size);
         }
     };
 };

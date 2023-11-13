@@ -60,7 +60,7 @@ template <class Fr, size_t domain_end, size_t domain_start = 0> class Univariate
     size_t size() { return evaluations.size(); };
 
     // Write the Univariate evaluations to a buffer
-    std::vector<uint8_t> to_buffer() const { return ::to_buffer(evaluations); }
+    [[nodiscard]] std::vector<uint8_t> to_buffer() const { return ::to_buffer(evaluations); }
 
     // Static method for creating a Univariate from a buffer
     // IMPROVEMENT: Could be made to identically match equivalent methods in e.g. field.hpp. Currently bypasses

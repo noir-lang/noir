@@ -140,9 +140,8 @@ TEST(Flavor, GetRow)
     });
     Flavor::ProverPolynomials prover_polynomials;
     size_t poly_idx = 0;
-    for (auto& poly : prover_polynomials) {
-        poly = data[poly_idx];
-        poly_idx++;
+    for (auto [poly, entry] : zip_view(prover_polynomials.pointer_view(), data)) {
+        *poly = entry;
     }
     auto row0 = prover_polynomials.get_row(0);
     auto row1 = prover_polynomials.get_row(1);

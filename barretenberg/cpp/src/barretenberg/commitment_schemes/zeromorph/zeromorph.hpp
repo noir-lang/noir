@@ -325,7 +325,7 @@ template <typename Curve> class ZeroMorphProver_ {
 
         // Extract multilinear challenge u and claimed multilinear evaluations from Sumcheck output
         std::span<FF> u_challenge = multilinear_challenge;
-        std::span<FF> claimed_evaluations = evaluations;
+        auto claimed_evaluations = evaluations.pointer_view();
         size_t log_N = u_challenge.size();
         size_t N = 1 << log_N;
 
@@ -340,14 +340,14 @@ template <typename Curve> class ZeroMorphProver_ {
         size_t poly_idx = 0;     // TODO(#391) zip
         for (auto& f_poly : f_polynomials) {
             f_batched.add_scaled(f_poly, rhos[poly_idx]);
-            batched_evaluation += rhos[poly_idx] * claimed_evaluations[poly_idx];
+            batched_evaluation += rhos[poly_idx] * (*claimed_evaluations[poly_idx]);
             ++poly_idx;
         }
 
         Polynomial g_batched(N); // batched to-be-shifted polynomials
         for (auto& g_poly : g_polynomials) {
             g_batched.add_scaled(g_poly, rhos[poly_idx]);
-            batched_evaluation += rhos[poly_idx] * claimed_evaluations[poly_idx];
+            batched_evaluation += rhos[poly_idx] * (*claimed_evaluations[poly_idx]);
             ++poly_idx;
         };
 

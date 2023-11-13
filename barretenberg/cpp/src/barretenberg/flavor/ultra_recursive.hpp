@@ -96,31 +96,31 @@ template <typename BuilderType> class UltraRecursive_ {
      */
     class PrecomputedEntities : public PrecomputedEntities_<DataType, HandleType, NUM_PRECOMPUTED_ENTITIES> {
       public:
-        DataType& q_m = std::get<0>(this->_data);
-        DataType& q_c = std::get<1>(this->_data);
-        DataType& q_l = std::get<2>(this->_data);
-        DataType& q_r = std::get<3>(this->_data);
-        DataType& q_o = std::get<4>(this->_data);
-        DataType& q_4 = std::get<5>(this->_data);
-        DataType& q_arith = std::get<6>(this->_data);
-        DataType& q_sort = std::get<7>(this->_data);
-        DataType& q_elliptic = std::get<8>(this->_data);
-        DataType& q_aux = std::get<9>(this->_data);
-        DataType& q_lookup = std::get<10>(this->_data);
-        DataType& sigma_1 = std::get<11>(this->_data);
-        DataType& sigma_2 = std::get<12>(this->_data);
-        DataType& sigma_3 = std::get<13>(this->_data);
-        DataType& sigma_4 = std::get<14>(this->_data);
-        DataType& id_1 = std::get<15>(this->_data);
-        DataType& id_2 = std::get<16>(this->_data);
-        DataType& id_3 = std::get<17>(this->_data);
-        DataType& id_4 = std::get<18>(this->_data);
-        DataType& table_1 = std::get<19>(this->_data);
-        DataType& table_2 = std::get<20>(this->_data);
-        DataType& table_3 = std::get<21>(this->_data);
-        DataType& table_4 = std::get<22>(this->_data);
-        DataType& lagrange_first = std::get<23>(this->_data);
-        DataType& lagrange_last = std::get<24>(this->_data);
+        DataType q_m;            // column 0
+        DataType q_c;            // column 1
+        DataType q_l;            // column 2
+        DataType q_r;            // column 3
+        DataType q_o;            // column 4
+        DataType q_4;            // column 5
+        DataType q_arith;        // column 6
+        DataType q_sort;         // column 7
+        DataType q_elliptic;     // column 8
+        DataType q_aux;          // column 9
+        DataType q_lookup;       // column 10
+        DataType sigma_1;        // column 11
+        DataType sigma_2;        // column 12
+        DataType sigma_3;        // column 13
+        DataType sigma_4;        // column 14
+        DataType id_1;           // column 15
+        DataType id_2;           // column 16
+        DataType id_3;           // column 17
+        DataType id_4;           // column 18
+        DataType table_1;        // column 19
+        DataType table_2;        // column 20
+        DataType table_3;        // column 21
+        DataType table_4;        // column 22
+        DataType lagrange_first; // column 23
+        DataType lagrange_last;  // column 24
 
         std::vector<HandleType> get_selectors() override
         {
@@ -139,17 +139,30 @@ template <typename BuilderType> class UltraRecursive_ {
     template <typename DataType, typename HandleType>
     class WitnessEntities : public WitnessEntities_<DataType, HandleType, NUM_WITNESS_ENTITIES> {
       public:
-        DataType& w_l = std::get<0>(this->_data);
-        DataType& w_r = std::get<1>(this->_data);
-        DataType& w_o = std::get<2>(this->_data);
-        DataType& w_4 = std::get<3>(this->_data);
-        DataType& sorted_1 = std::get<4>(this->_data);
-        DataType& sorted_2 = std::get<5>(this->_data);
-        DataType& sorted_3 = std::get<6>(this->_data);
-        DataType& sorted_4 = std::get<7>(this->_data);
-        DataType& sorted_accum = std::get<8>(this->_data);
-        DataType& z_perm = std::get<9>(this->_data);
-        DataType& z_lookup = std::get<10>(this->_data);
+        DataType w_l;          // column 0
+        DataType w_r;          // column 1
+        DataType w_o;          // column 2
+        DataType w_4;          // column 3
+        DataType sorted_1;     // column 4
+        DataType sorted_2;     // column 5
+        DataType sorted_3;     // column 6
+        DataType sorted_4;     // column 7
+        DataType sorted_accum; // column 8
+        DataType z_perm;       // column 9
+        DataType z_lookup;     // column 10
+
+        DEFINE_POINTER_VIEW(NUM_WITNESS_ENTITIES,
+                            &w_l,
+                            &w_r,
+                            &w_o,
+                            &w_4,
+                            &sorted_1,
+                            &sorted_2,
+                            &sorted_3,
+                            &sorted_4,
+                            &sorted_accum,
+                            &z_perm,
+                            &z_lookup, )
 
         std::vector<HandleType> get_wires() override { return { w_l, w_r, w_o, w_4 }; };
         // The sorted concatenations of table and witness data needed for plookup.
@@ -168,49 +181,94 @@ template <typename BuilderType> class UltraRecursive_ {
     template <typename DataType, typename HandleType>
     class AllEntities : public AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES> {
       public:
-        DataType& q_c = std::get<0>(this->_data);
-        DataType& q_l = std::get<1>(this->_data);
-        DataType& q_r = std::get<2>(this->_data);
-        DataType& q_o = std::get<3>(this->_data);
-        DataType& q_4 = std::get<4>(this->_data);
-        DataType& q_m = std::get<5>(this->_data);
-        DataType& q_arith = std::get<6>(this->_data);
-        DataType& q_sort = std::get<7>(this->_data);
-        DataType& q_elliptic = std::get<8>(this->_data);
-        DataType& q_aux = std::get<9>(this->_data);
-        DataType& q_lookup = std::get<10>(this->_data);
-        DataType& sigma_1 = std::get<11>(this->_data);
-        DataType& sigma_2 = std::get<12>(this->_data);
-        DataType& sigma_3 = std::get<13>(this->_data);
-        DataType& sigma_4 = std::get<14>(this->_data);
-        DataType& id_1 = std::get<15>(this->_data);
-        DataType& id_2 = std::get<16>(this->_data);
-        DataType& id_3 = std::get<17>(this->_data);
-        DataType& id_4 = std::get<18>(this->_data);
-        DataType& table_1 = std::get<19>(this->_data);
-        DataType& table_2 = std::get<20>(this->_data);
-        DataType& table_3 = std::get<21>(this->_data);
-        DataType& table_4 = std::get<22>(this->_data);
-        DataType& lagrange_first = std::get<23>(this->_data);
-        DataType& lagrange_last = std::get<24>(this->_data);
-        DataType& w_l = std::get<25>(this->_data);
-        DataType& w_r = std::get<26>(this->_data);
-        DataType& w_o = std::get<27>(this->_data);
-        DataType& w_4 = std::get<28>(this->_data);
-        DataType& sorted_accum = std::get<29>(this->_data);
-        DataType& z_perm = std::get<30>(this->_data);
-        DataType& z_lookup = std::get<31>(this->_data);
-        DataType& table_1_shift = std::get<32>(this->_data);
-        DataType& table_2_shift = std::get<33>(this->_data);
-        DataType& table_3_shift = std::get<34>(this->_data);
-        DataType& table_4_shift = std::get<35>(this->_data);
-        DataType& w_l_shift = std::get<36>(this->_data);
-        DataType& w_r_shift = std::get<37>(this->_data);
-        DataType& w_o_shift = std::get<38>(this->_data);
-        DataType& w_4_shift = std::get<39>(this->_data);
-        DataType& sorted_accum_shift = std::get<40>(this->_data);
-        DataType& z_perm_shift = std::get<41>(this->_data);
-        DataType& z_lookup_shift = std::get<42>(this->_data);
+        DataType q_c;                // column 0
+        DataType q_l;                // column 1
+        DataType q_r;                // column 2
+        DataType q_o;                // column 3
+        DataType q_4;                // column 4
+        DataType q_m;                // column 5
+        DataType q_arith;            // column 6
+        DataType q_sort;             // column 7
+        DataType q_elliptic;         // column 8
+        DataType q_aux;              // column 9
+        DataType q_lookup;           // column 10
+        DataType sigma_1;            // column 11
+        DataType sigma_2;            // column 12
+        DataType sigma_3;            // column 13
+        DataType sigma_4;            // column 14
+        DataType id_1;               // column 15
+        DataType id_2;               // column 16
+        DataType id_3;               // column 17
+        DataType id_4;               // column 18
+        DataType table_1;            // column 19
+        DataType table_2;            // column 20
+        DataType table_3;            // column 21
+        DataType table_4;            // column 22
+        DataType lagrange_first;     // column 23
+        DataType lagrange_last;      // column 24
+        DataType w_l;                // column 25
+        DataType w_r;                // column 26
+        DataType w_o;                // column 27
+        DataType w_4;                // column 28
+        DataType sorted_accum;       // column 29
+        DataType z_perm;             // column 30
+        DataType z_lookup;           // column 31
+        DataType table_1_shift;      // column 32
+        DataType table_2_shift;      // column 33
+        DataType table_3_shift;      // column 34
+        DataType table_4_shift;      // column 35
+        DataType w_l_shift;          // column 36
+        DataType w_r_shift;          // column 37
+        DataType w_o_shift;          // column 38
+        DataType w_4_shift;          // column 39
+        DataType sorted_accum_shift; // column 40
+        DataType z_perm_shift;       // column 41
+        DataType z_lookup_shift;     // column 42
+
+        DEFINE_POINTER_VIEW(NUM_ALL_ENTITIES,
+                            &q_c,
+                            &q_l,
+                            &q_r,
+                            &q_o,
+                            &q_4,
+                            &q_m,
+                            &q_arith,
+                            &q_sort,
+                            &q_elliptic,
+                            &q_aux,
+                            &q_lookup,
+                            &sigma_1,
+                            &sigma_2,
+                            &sigma_3,
+                            &sigma_4,
+                            &id_1,
+                            &id_2,
+                            &id_3,
+                            &id_4,
+                            &table_1,
+                            &table_2,
+                            &table_3,
+                            &table_4,
+                            &lagrange_first,
+                            &lagrange_last,
+                            &w_l,
+                            &w_r,
+                            &w_o,
+                            &w_4,
+                            &sorted_accum,
+                            &z_perm,
+                            &z_lookup,
+                            &table_1_shift,
+                            &table_2_shift,
+                            &table_3_shift,
+                            &table_4_shift,
+                            &w_l_shift,
+                            &w_r_shift,
+                            &w_o_shift,
+                            &w_4_shift,
+                            &sorted_accum_shift,
+                            &z_perm_shift,
+                            &z_lookup_shift)
 
         std::vector<HandleType> get_wires() override { return { w_l, w_r, w_o, w_4 }; };
         // Gemini-specific getters.
@@ -232,31 +290,6 @@ template <typename BuilderType> class UltraRecursive_ {
             return { table_1_shift, table_2_shift, table_3_shift,      table_4_shift, w_l_shift,     w_r_shift,
                      w_o_shift,     w_4_shift,     sorted_accum_shift, z_perm_shift,  z_lookup_shift };
         };
-
-        AllEntities() = default;
-
-        AllEntities(const AllEntities& other)
-            : AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES>(other){};
-
-        AllEntities(AllEntities&& other)
-            : AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES>(other){};
-
-        AllEntities& operator=(const AllEntities& other)
-        {
-            if (this == &other) {
-                return *this;
-            }
-            AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES>::operator=(other);
-            return *this;
-        }
-
-        AllEntities& operator=(AllEntities&& other)
-        {
-            AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES>::operator=(other);
-            return *this;
-        }
-
-        ~AllEntities() = default;
     };
 
   public:

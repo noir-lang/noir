@@ -88,9 +88,11 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     template <typename DataType, typename HandleType>
     class PrecomputedEntities : public PrecomputedEntities_<DataType, HandleType, NUM_PRECOMPUTED_ENTITIES> {
       public:
-        DataType& lagrange_first = std::get<0>(this->_data);
-        DataType& lagrange_second = std::get<1>(this->_data);
-        DataType& lagrange_last = std::get<2>(this->_data);
+        DataType lagrange_first;  // column 0
+        DataType lagrange_second; // column 1
+        DataType lagrange_last;   // column 2
+
+        DEFINE_POINTER_VIEW(NUM_PRECOMPUTED_ENTITIES, &lagrange_first, &lagrange_second, &lagrange_last)
 
         std::vector<HandleType> get_selectors() override { return { lagrange_first, lagrange_second, lagrange_last }; };
         std::vector<HandleType> get_sigma_polynomials() override { return {}; };
@@ -105,85 +107,160 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     template <typename DataType, typename HandleType>
     class WitnessEntities : public WitnessEntities_<DataType, HandleType, NUM_WITNESS_ENTITIES> {
       public:
-        // clang-format off
-        DataType& transcript_add               = std::get<0>(this->_data);
-        DataType& transcript_mul               = std::get<1>(this->_data);
-        DataType& transcript_eq                = std::get<2>(this->_data);
-        DataType& transcript_collision_check   = std::get<3>(this->_data);
-        DataType& transcript_msm_transition    = std::get<4>(this->_data);
-        DataType& transcript_pc                = std::get<5>(this->_data);
-        DataType& transcript_msm_count         = std::get<6>(this->_data);
-        DataType& transcript_x                 = std::get<7>(this->_data);
-        DataType& transcript_y                 = std::get<8>(this->_data);
-        DataType& transcript_z1                = std::get<9>(this->_data);
-        DataType& transcript_z2                = std::get<10>(this->_data);
-        DataType& transcript_z1zero            = std::get<11>(this->_data); 
-        DataType& transcript_z2zero            = std::get<12>(this->_data);
-        DataType& transcript_op                = std::get<13>(this->_data);
-        DataType& transcript_accumulator_x     = std::get<14>(this->_data);
-        DataType& transcript_accumulator_y     = std::get<15>(this->_data);
-        DataType& transcript_msm_x             = std::get<16>(this->_data);
-        DataType& transcript_msm_y             = std::get<17>(this->_data);
-        DataType& precompute_pc                = std::get<18>(this->_data);
-        DataType& precompute_point_transition  = std::get<19>(this->_data);
-        DataType& precompute_round             = std::get<20>(this->_data);
-        DataType& precompute_scalar_sum        = std::get<21>(this->_data);
-        DataType& precompute_s1hi              = std::get<22>(this->_data);
-        DataType& precompute_s1lo              = std::get<23>(this->_data);
-        DataType& precompute_s2hi              = std::get<24>(this->_data);
-        DataType& precompute_s2lo              = std::get<25>(this->_data);
-        DataType& precompute_s3hi              = std::get<26>(this->_data);
-        DataType& precompute_s3lo              = std::get<27>(this->_data);
-        DataType& precompute_s4hi              = std::get<28>(this->_data);
-        DataType& precompute_s4lo              = std::get<29>(this->_data);
-        DataType& precompute_skew              = std::get<30>(this->_data);
-        DataType& precompute_dx                = std::get<31>(this->_data);
-        DataType& precompute_dy                = std::get<32>(this->_data);
-        DataType& precompute_tx                = std::get<33>(this->_data);
-        DataType& precompute_ty                = std::get<34>(this->_data);
-        DataType& msm_transition               = std::get<35>(this->_data);
-        DataType& msm_add                      = std::get<36>(this->_data);
-        DataType& msm_double                   = std::get<37>(this->_data);
-        DataType& msm_skew                     = std::get<38>(this->_data);
-        DataType& msm_accumulator_x            = std::get<39>(this->_data);
-        DataType& msm_accumulator_y            = std::get<40>(this->_data);
-        DataType& msm_pc                       = std::get<41>(this->_data);
-        DataType& msm_size_of_msm              = std::get<42>(this->_data);
-        DataType& msm_count                    = std::get<43>(this->_data);
-        DataType& msm_round                    = std::get<44>(this->_data);
-        DataType& msm_add1                     = std::get<45>(this->_data);
-        DataType& msm_add2                     = std::get<46>(this->_data);
-        DataType& msm_add3                     = std::get<47>(this->_data);
-        DataType& msm_add4                     = std::get<48>(this->_data);
-        DataType& msm_x1                       = std::get<49>(this->_data);
-        DataType& msm_y1                       = std::get<50>(this->_data);
-        DataType& msm_x2                       = std::get<51>(this->_data);
-        DataType& msm_y2                       = std::get<52>(this->_data);
-        DataType& msm_x3                       = std::get<53>(this->_data);
-        DataType& msm_y3                       = std::get<54>(this->_data);
-        DataType& msm_x4                       = std::get<55>(this->_data);
-        DataType& msm_y4                       = std::get<56>(this->_data);
-        DataType& msm_collision_x1             = std::get<57>(this->_data);
-        DataType& msm_collision_x2             = std::get<58>(this->_data);
-        DataType& msm_collision_x3             = std::get<59>(this->_data);
-        DataType& msm_collision_x4             = std::get<60>(this->_data);
-        DataType& msm_lambda1                  = std::get<61>(this->_data);
-        DataType& msm_lambda2                  = std::get<62>(this->_data);
-        DataType& msm_lambda3                  = std::get<63>(this->_data);
-        DataType& msm_lambda4                  = std::get<64>(this->_data);
-        DataType& msm_slice1                   = std::get<65>(this->_data);
-        DataType& msm_slice2                   = std::get<66>(this->_data);
-        DataType& msm_slice3                   = std::get<67>(this->_data);
-        DataType& msm_slice4                   = std::get<68>(this->_data);
-        DataType& transcript_accumulator_empty = std::get<69>(this->_data);
-        DataType& transcript_reset_accumulator = std::get<70>(this->_data);
-        DataType& precompute_select            = std::get<71>(this->_data);
-        DataType& lookup_read_counts_0         = std::get<72>(this->_data);
-        DataType& lookup_read_counts_1         = std::get<73>(this->_data);
-        DataType& z_perm                       = std::get<74>(this->_data);
-        DataType& lookup_inverses              = std::get<75>(this->_data);
+        DataType transcript_add;               // column 0
+        DataType transcript_mul;               // column 1
+        DataType transcript_eq;                // column 2
+        DataType transcript_collision_check;   // column 3
+        DataType transcript_msm_transition;    // column 4
+        DataType transcript_pc;                // column 5
+        DataType transcript_msm_count;         // column 6
+        DataType transcript_x;                 // column 7
+        DataType transcript_y;                 // column 8
+        DataType transcript_z1;                // column 9
+        DataType transcript_z2;                // column 10
+        DataType transcript_z1zero;            // column 11
+        DataType transcript_z2zero;            // column 12
+        DataType transcript_op;                // column 13
+        DataType transcript_accumulator_x;     // column 14
+        DataType transcript_accumulator_y;     // column 15
+        DataType transcript_msm_x;             // column 16
+        DataType transcript_msm_y;             // column 17
+        DataType precompute_pc;                // column 18
+        DataType precompute_point_transition;  // column 19
+        DataType precompute_round;             // column 20
+        DataType precompute_scalar_sum;        // column 21
+        DataType precompute_s1hi;              // column 22
+        DataType precompute_s1lo;              // column 23
+        DataType precompute_s2hi;              // column 24
+        DataType precompute_s2lo;              // column 25
+        DataType precompute_s3hi;              // column 26
+        DataType precompute_s3lo;              // column 27
+        DataType precompute_s4hi;              // column 28
+        DataType precompute_s4lo;              // column 29
+        DataType precompute_skew;              // column 30
+        DataType precompute_dx;                // column 31
+        DataType precompute_dy;                // column 32
+        DataType precompute_tx;                // column 33
+        DataType precompute_ty;                // column 34
+        DataType msm_transition;               // column 35
+        DataType msm_add;                      // column 36
+        DataType msm_double;                   // column 37
+        DataType msm_skew;                     // column 38
+        DataType msm_accumulator_x;            // column 39
+        DataType msm_accumulator_y;            // column 40
+        DataType msm_pc;                       // column 41
+        DataType msm_size_of_msm;              // column 42
+        DataType msm_count;                    // column 43
+        DataType msm_round;                    // column 44
+        DataType msm_add1;                     // column 45
+        DataType msm_add2;                     // column 46
+        DataType msm_add3;                     // column 47
+        DataType msm_add4;                     // column 48
+        DataType msm_x1;                       // column 49
+        DataType msm_y1;                       // column 50
+        DataType msm_x2;                       // column 51
+        DataType msm_y2;                       // column 52
+        DataType msm_x3;                       // column 53
+        DataType msm_y3;                       // column 54
+        DataType msm_x4;                       // column 55
+        DataType msm_y4;                       // column 56
+        DataType msm_collision_x1;             // column 57
+        DataType msm_collision_x2;             // column 58
+        DataType msm_collision_x3;             // column 59
+        DataType msm_collision_x4;             // column 60
+        DataType msm_lambda1;                  // column 61
+        DataType msm_lambda2;                  // column 62
+        DataType msm_lambda3;                  // column 63
+        DataType msm_lambda4;                  // column 64
+        DataType msm_slice1;                   // column 65
+        DataType msm_slice2;                   // column 66
+        DataType msm_slice3;                   // column 67
+        DataType msm_slice4;                   // column 68
+        DataType transcript_accumulator_empty; // column 69
+        DataType transcript_reset_accumulator; // column 70
+        DataType precompute_select;            // column 71
+        DataType lookup_read_counts_0;         // column 72
+        DataType lookup_read_counts_1;         // column 73
+        DataType z_perm;                       // column 74
+        DataType lookup_inverses;              // column 75
 
-        // clang-format on
+        DEFINE_POINTER_VIEW(NUM_WITNESS_ENTITIES,
+                            &transcript_add,
+                            &transcript_mul,
+                            &transcript_eq,
+                            &transcript_collision_check,
+                            &transcript_msm_transition,
+                            &transcript_pc,
+                            &transcript_msm_count,
+                            &transcript_x,
+                            &transcript_y,
+                            &transcript_z1,
+                            &transcript_z2,
+                            &transcript_z1zero,
+                            &transcript_z2zero,
+                            &transcript_op,
+                            &transcript_accumulator_x,
+                            &transcript_accumulator_y,
+                            &transcript_msm_x,
+                            &transcript_msm_y,
+                            &precompute_pc,
+                            &precompute_point_transition,
+                            &precompute_round,
+                            &precompute_scalar_sum,
+                            &precompute_s1hi,
+                            &precompute_s1lo,
+                            &precompute_s2hi,
+                            &precompute_s2lo,
+                            &precompute_s3hi,
+                            &precompute_s3lo,
+                            &precompute_s4hi,
+                            &precompute_s4lo,
+                            &precompute_skew,
+                            &precompute_dx,
+                            &precompute_dy,
+                            &precompute_tx,
+                            &precompute_ty,
+                            &msm_transition,
+                            &msm_add,
+                            &msm_double,
+                            &msm_skew,
+                            &msm_accumulator_x,
+                            &msm_accumulator_y,
+                            &msm_pc,
+                            &msm_size_of_msm,
+                            &msm_count,
+                            &msm_round,
+                            &msm_add1,
+                            &msm_add2,
+                            &msm_add3,
+                            &msm_add4,
+                            &msm_x1,
+                            &msm_y1,
+                            &msm_x2,
+                            &msm_y2,
+                            &msm_x3,
+                            &msm_y3,
+                            &msm_x4,
+                            &msm_y4,
+                            &msm_collision_x1,
+                            &msm_collision_x2,
+                            &msm_collision_x3,
+                            &msm_collision_x4,
+                            &msm_lambda1,
+                            &msm_lambda2,
+                            &msm_lambda3,
+                            &msm_lambda4,
+                            &msm_slice1,
+                            &msm_slice2,
+                            &msm_slice3,
+                            &msm_slice4,
+                            &transcript_accumulator_empty,
+                            &transcript_reset_accumulator,
+                            &precompute_select,
+                            &lookup_read_counts_0,
+                            &lookup_read_counts_1,
+                            &z_perm,
+                            &lookup_inverses)
         std::vector<HandleType> get_wires() override
         {
             return {
@@ -279,120 +356,121 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     template <typename DataType, typename HandleType>
     class AllEntities : public AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES> {
       public:
-        // clang-format off
-        DataType& lagrange_first                     = std::get<0>(this->_data);
-        DataType& lagrange_second                    = std::get<1>(this->_data);
-        DataType& lagrange_last                      = std::get<2>(this->_data);
-        DataType& transcript_add                     = std::get<3>(this->_data);
-        DataType& transcript_mul                     = std::get<4>(this->_data);
-        DataType& transcript_eq                      = std::get<5>(this->_data);
-        DataType& transcript_collision_check         = std::get<6>(this->_data);
-        DataType& transcript_msm_transition          = std::get<7>(this->_data);
-        DataType& transcript_pc                      = std::get<8>(this->_data);
-        DataType& transcript_msm_count               = std::get<9>(this->_data);
-        DataType& transcript_x                       = std::get<10>(this->_data);
-        DataType& transcript_y                       = std::get<11>(this->_data);
-        DataType& transcript_z1                      = std::get<12>(this->_data);
-        DataType& transcript_z2                      = std::get<13>(this->_data);
-        DataType& transcript_z1zero                  = std::get<14>(this->_data); 
-        DataType& transcript_z2zero                  = std::get<15>(this->_data);
-        DataType& transcript_op                      = std::get<16>(this->_data);
-        DataType& transcript_accumulator_x           = std::get<17>(this->_data);
-        DataType& transcript_accumulator_y           = std::get<18>(this->_data);
-        DataType& transcript_msm_x                   = std::get<19>(this->_data);
-        DataType& transcript_msm_y                   = std::get<20>(this->_data);
-        DataType& precompute_pc                      = std::get<21>(this->_data);
-        DataType& precompute_point_transition        = std::get<22>(this->_data);
-        DataType& precompute_round                   = std::get<23>(this->_data);
-        DataType& precompute_scalar_sum              = std::get<24>(this->_data);
-        DataType& precompute_s1hi                    = std::get<25>(this->_data);
-        DataType& precompute_s1lo                    = std::get<26>(this->_data);
-        DataType& precompute_s2hi                    = std::get<27>(this->_data);
-        DataType& precompute_s2lo                    = std::get<28>(this->_data);
-        DataType& precompute_s3hi                    = std::get<29>(this->_data);
-        DataType& precompute_s3lo                    = std::get<30>(this->_data);
-        DataType& precompute_s4hi                    = std::get<31>(this->_data);
-        DataType& precompute_s4lo                    = std::get<32>(this->_data);
-        DataType& precompute_skew                    = std::get<33>(this->_data);
-        DataType& precompute_dx                      = std::get<34>(this->_data);
-        DataType& precompute_dy                      = std::get<35>(this->_data);
-        DataType& precompute_tx                      = std::get<36>(this->_data);
-        DataType& precompute_ty                      = std::get<37>(this->_data);
-        DataType& msm_transition                     = std::get<38>(this->_data);
-        DataType& msm_add                            = std::get<39>(this->_data);
-        DataType& msm_double                         = std::get<40>(this->_data);
-        DataType& msm_skew                           = std::get<41>(this->_data);
-        DataType& msm_accumulator_x                  = std::get<42>(this->_data);
-        DataType& msm_accumulator_y                  = std::get<43>(this->_data);
-        DataType& msm_pc                             = std::get<44>(this->_data);
-        DataType& msm_size_of_msm                    = std::get<45>(this->_data);
-        DataType& msm_count                          = std::get<46>(this->_data);
-        DataType& msm_round                          = std::get<47>(this->_data);
-        DataType& msm_add1                           = std::get<48>(this->_data);
-        DataType& msm_add2                           = std::get<49>(this->_data);
-        DataType& msm_add3                           = std::get<50>(this->_data);
-        DataType& msm_add4                           = std::get<51>(this->_data);
-        DataType& msm_x1                             = std::get<52>(this->_data);
-        DataType& msm_y1                             = std::get<53>(this->_data);
-        DataType& msm_x2                             = std::get<54>(this->_data);
-        DataType& msm_y2                             = std::get<55>(this->_data);
-        DataType& msm_x3                             = std::get<56>(this->_data);
-        DataType& msm_y3                             = std::get<57>(this->_data);
-        DataType& msm_x4                             = std::get<58>(this->_data);
-        DataType& msm_y4                             = std::get<59>(this->_data);
-        DataType& msm_collision_x1                   = std::get<60>(this->_data);
-        DataType& msm_collision_x2                   = std::get<61>(this->_data);
-        DataType& msm_collision_x3                   = std::get<62>(this->_data);
-        DataType& msm_collision_x4                   = std::get<63>(this->_data);
-        DataType& msm_lambda1                        = std::get<64>(this->_data);
-        DataType& msm_lambda2                        = std::get<65>(this->_data);
-        DataType& msm_lambda3                        = std::get<66>(this->_data);
-        DataType& msm_lambda4                        = std::get<67>(this->_data);
-        DataType& msm_slice1                         = std::get<68>(this->_data);
-        DataType& msm_slice2                         = std::get<69>(this->_data);
-        DataType& msm_slice3                         = std::get<70>(this->_data);
-        DataType& msm_slice4                         = std::get<71>(this->_data);
-        DataType& transcript_accumulator_empty       = std::get<72>(this->_data);
-        DataType& transcript_reset_accumulator       = std::get<73>(this->_data);
-        DataType& precompute_select                  = std::get<74>(this->_data);
-        DataType& lookup_read_counts_0               = std::get<75>(this->_data);
-        DataType& lookup_read_counts_1               = std::get<76>(this->_data);
-        DataType& z_perm                             = std::get<77>(this->_data);
-        DataType& lookup_inverses                    = std::get<78>(this->_data);
-        DataType& transcript_mul_shift               = std::get<79>(this->_data);
-        DataType& transcript_msm_count_shift         = std::get<80>(this->_data);
-        DataType& transcript_accumulator_x_shift     = std::get<81>(this->_data);
-        DataType& transcript_accumulator_y_shift     = std::get<82>(this->_data);
-        DataType& precompute_scalar_sum_shift        = std::get<83>(this->_data);
-        DataType& precompute_s1hi_shift              = std::get<84>(this->_data);
-        DataType& precompute_dx_shift                = std::get<85>(this->_data);
-        DataType& precompute_dy_shift                = std::get<86>(this->_data);
-        DataType& precompute_tx_shift                = std::get<87>(this->_data);
-        DataType& precompute_ty_shift                = std::get<88>(this->_data);
-        DataType& msm_transition_shift               = std::get<89>(this->_data);
-        DataType& msm_add_shift                      = std::get<90>(this->_data);
-        DataType& msm_double_shift                   = std::get<91>(this->_data);
-        DataType& msm_skew_shift                     = std::get<92>(this->_data);
-        DataType& msm_accumulator_x_shift            = std::get<93>(this->_data);
-        DataType& msm_accumulator_y_shift            = std::get<94>(this->_data);
-        DataType& msm_count_shift                    = std::get<95>(this->_data);
-        DataType& msm_round_shift                    = std::get<96>(this->_data);
-        DataType& msm_add1_shift                     = std::get<97>(this->_data);
-        DataType& msm_pc_shift                       = std::get<98>(this->_data);
-        DataType& precompute_pc_shift                = std::get<99>(this->_data);
-        DataType& transcript_pc_shift                = std::get<100>(this->_data);
-        DataType& precompute_round_shift             = std::get<101>(this->_data);
-        DataType& transcript_accumulator_empty_shift = std::get<102>(this->_data);
-        DataType& precompute_select_shift            = std::get<103>(this->_data);
-        DataType& z_perm_shift                       = std::get<104>(this->_data);
+        DataType lagrange_first;                     // column 0
+        DataType lagrange_second;                    // column 1
+        DataType lagrange_last;                      // column 2
+        DataType transcript_add;                     // column 3
+        DataType transcript_mul;                     // column 4
+        DataType transcript_eq;                      // column 5
+        DataType transcript_collision_check;         // column 6
+        DataType transcript_msm_transition;          // column 7
+        DataType transcript_pc;                      // column 8
+        DataType transcript_msm_count;               // column 9
+        DataType transcript_x;                       // column 10
+        DataType transcript_y;                       // column 11
+        DataType transcript_z1;                      // column 12
+        DataType transcript_z2;                      // column 13
+        DataType transcript_z1zero;                  // column 14
+        DataType transcript_z2zero;                  // column 15
+        DataType transcript_op;                      // column 16
+        DataType transcript_accumulator_x;           // column 17
+        DataType transcript_accumulator_y;           // column 18
+        DataType transcript_msm_x;                   // column 19
+        DataType transcript_msm_y;                   // column 20
+        DataType precompute_pc;                      // column 21
+        DataType precompute_point_transition;        // column 22
+        DataType precompute_round;                   // column 23
+        DataType precompute_scalar_sum;              // column 24
+        DataType precompute_s1hi;                    // column 25
+        DataType precompute_s1lo;                    // column 26
+        DataType precompute_s2hi;                    // column 27
+        DataType precompute_s2lo;                    // column 28
+        DataType precompute_s3hi;                    // column 29
+        DataType precompute_s3lo;                    // column 30
+        DataType precompute_s4hi;                    // column 31
+        DataType precompute_s4lo;                    // column 32
+        DataType precompute_skew;                    // column 33
+        DataType precompute_dx;                      // column 34
+        DataType precompute_dy;                      // column 35
+        DataType precompute_tx;                      // column 36
+        DataType precompute_ty;                      // column 37
+        DataType msm_transition;                     // column 38
+        DataType msm_add;                            // column 39
+        DataType msm_double;                         // column 40
+        DataType msm_skew;                           // column 41
+        DataType msm_accumulator_x;                  // column 42
+        DataType msm_accumulator_y;                  // column 43
+        DataType msm_pc;                             // column 44
+        DataType msm_size_of_msm;                    // column 45
+        DataType msm_count;                          // column 46
+        DataType msm_round;                          // column 47
+        DataType msm_add1;                           // column 48
+        DataType msm_add2;                           // column 49
+        DataType msm_add3;                           // column 50
+        DataType msm_add4;                           // column 51
+        DataType msm_x1;                             // column 52
+        DataType msm_y1;                             // column 53
+        DataType msm_x2;                             // column 54
+        DataType msm_y2;                             // column 55
+        DataType msm_x3;                             // column 56
+        DataType msm_y3;                             // column 57
+        DataType msm_x4;                             // column 58
+        DataType msm_y4;                             // column 59
+        DataType msm_collision_x1;                   // column 60
+        DataType msm_collision_x2;                   // column 61
+        DataType msm_collision_x3;                   // column 62
+        DataType msm_collision_x4;                   // column 63
+        DataType msm_lambda1;                        // column 64
+        DataType msm_lambda2;                        // column 65
+        DataType msm_lambda3;                        // column 66
+        DataType msm_lambda4;                        // column 67
+        DataType msm_slice1;                         // column 68
+        DataType msm_slice2;                         // column 69
+        DataType msm_slice3;                         // column 70
+        DataType msm_slice4;                         // column 71
+        DataType transcript_accumulator_empty;       // column 72
+        DataType transcript_reset_accumulator;       // column 73
+        DataType precompute_select;                  // column 74
+        DataType lookup_read_counts_0;               // column 75
+        DataType lookup_read_counts_1;               // column 76
+        DataType z_perm;                             // column 77
+        DataType lookup_inverses;                    // column 78
+        DataType transcript_mul_shift;               // column 79
+        DataType transcript_msm_count_shift;         // column 80
+        DataType transcript_accumulator_x_shift;     // column 81
+        DataType transcript_accumulator_y_shift;     // column 82
+        DataType precompute_scalar_sum_shift;        // column 83
+        DataType precompute_s1hi_shift;              // column 84
+        DataType precompute_dx_shift;                // column 85
+        DataType precompute_dy_shift;                // column 86
+        DataType precompute_tx_shift;                // column 87
+        DataType precompute_ty_shift;                // column 88
+        DataType msm_transition_shift;               // column 89
+        DataType msm_add_shift;                      // column 90
+        DataType msm_double_shift;                   // column 91
+        DataType msm_skew_shift;                     // column 92
+        DataType msm_accumulator_x_shift;            // column 93
+        DataType msm_accumulator_y_shift;            // column 94
+        DataType msm_count_shift;                    // column 95
+        DataType msm_round_shift;                    // column 96
+        DataType msm_add1_shift;                     // column 97
+        DataType msm_pc_shift;                       // column 98
+        DataType precompute_pc_shift;                // column 99
+        DataType transcript_pc_shift;                // column 100
+        DataType precompute_round_shift;             // column 101
+        DataType transcript_accumulator_empty_shift; // column 102
+        DataType precompute_select_shift;            // column 103
+        DataType z_perm_shift;                       // column 104
 
-        template <size_t index>
-        [[nodiscard]] const DataType& lookup_read_counts() const
+        template <size_t index> [[nodiscard]] const DataType& lookup_read_counts() const
         {
-            static_assert(index == 0 || index == 1);
-            return std::get<75 + index>(this->_data);
+            if constexpr (index == 0) {
+                return lookup_read_counts_0;
+            } else {
+                static_assert(index == 1);
+                return lookup_read_counts_1;
+            }
         }
-        // clang-format on
 
         // defines a method pointer_view that returns the following, with const and non-const variants
         DEFINE_POINTER_VIEW(NUM_ALL_ENTITIES,
@@ -702,31 +780,6 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
                 z_perm_shift,
             };
         };
-
-        AllEntities() = default;
-
-        AllEntities(const AllEntities& other)
-            : AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES>(other){};
-
-        AllEntities(AllEntities&& other) noexcept
-            : AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES>(other){};
-
-        AllEntities& operator=(const AllEntities& other)
-        {
-            if (this == &other) {
-                return *this;
-            }
-            AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES>::operator=(other);
-            return *this;
-        }
-
-        AllEntities& operator=(AllEntities&& other) noexcept
-        {
-            AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES>::operator=(other);
-            return *this;
-        }
-
-        ~AllEntities() override = default;
     };
 
   public:
@@ -813,8 +866,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
         PartiallyEvaluatedMultivariates(const size_t circuit_size)
         {
             // Storage is only needed after the first partial evaluation, hence polynomials of size (n / 2)
-            for (auto& poly : this->_data) {
-                poly = Polynomial(circuit_size / 2);
+            for (auto* poly : this->pointer_view()) {
+                *poly = Polynomial(circuit_size / 2);
             }
         }
     };

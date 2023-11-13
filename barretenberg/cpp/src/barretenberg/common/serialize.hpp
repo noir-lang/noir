@@ -370,6 +370,18 @@ template <typename B, typename T> inline void read(B& it, std::optional<T>& opt_
     opt_value = T(value);
 }
 
+template <typename T>
+concept HasPointerView = requires(T t) { t.pointer_view(); };
+
+// Write out a struct that defines pointer_view()
+template <typename B, HasPointerView T> inline void write(B& buf, T const& value)
+{
+    using serialize::write;
+    for (auto* pointer : value.pointer_view()) {
+        write(buf, *pointer);
+    }
+}
+
 // Write std::optional<T>.
 // Note: It takes up a different amount of space, depending on whether it's std::nullopt or populated with an actual
 // value.

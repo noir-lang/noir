@@ -39,25 +39,35 @@ void construct_selector_polynomials(const typename Flavor::CircuitBuilder& circu
     }
 
     // TODO(#398): Loose coupling here! Would rather build up pk from arithmetization
-    size_t selector_idx = 0; // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
-    for (auto& selector_values : circuit_constructor.selectors.get()) {
-        ASSERT(proving_key->circuit_size >= selector_values.size());
+    if constexpr (IsHonkFlavor<Flavor>) {
+        for (auto [poly_ptr, selector_values] :
+             zip_view(proving_key->precomputed_polynomials_pointer_view(), circuit_constructor.selectors.get())) {
+            ASSERT(proving_key->circuit_size >= selector_values.size());
 
-        // Copy the selector values for all gates, keeping the rows at which we store public inputs as 0.
-        // Initializing the polynomials in this way automatically applies 0-padding to the selectors.
-        typename Flavor::Polynomial selector_poly_lagrange(proving_key->circuit_size);
-        for (size_t i = 0; i < selector_values.size(); ++i) {
-            selector_poly_lagrange[i + gate_offset] = selector_values[i];
+            // Copy the selector values for all gates, keeping the rows at which we store public inputs as 0.
+            // Initializing the polynomials in this way automatically applies 0-padding to the selectors.
+            typename Flavor::Polynomial selector_poly_lagrange(proving_key->circuit_size);
+            for (size_t i = 0; i < selector_values.size(); ++i) {
+                selector_poly_lagrange[i + gate_offset] = selector_values[i];
+            }
+            *poly_ptr = selector_poly_lagrange;
         }
-        if constexpr (IsHonkFlavor<Flavor>) {
-            // TODO(#398): Loose coupling here of arithmetization and flavor.
-            proving_key->_precomputed_polynomials[selector_idx] = selector_poly_lagrange;
-        } else if constexpr (IsPlonkFlavor<Flavor>) {
+    } else if constexpr (IsPlonkFlavor<Flavor>) {
+        size_t selector_idx = 0;
+        for (auto& selector_values : circuit_constructor.selectors.get()) {
+            ASSERT(proving_key->circuit_size >= selector_values.size());
+
+            // Copy the selector values for all gates, keeping the rows at which we store public inputs as 0.
+            // Initializing the polynomials in this way automatically applies 0-padding to the selectors.
+            typename Flavor::Polynomial selector_poly_lagrange(proving_key->circuit_size);
+            for (size_t i = 0; i < selector_values.size(); ++i) {
+                selector_poly_lagrange[i + gate_offset] = selector_values[i];
+            }
             // TODO(Cody): Loose coupling here of selector_names and selector_properties.
             proving_key->polynomial_store.put(circuit_constructor.selector_names[selector_idx] + "_lagrange",
                                               std::move(selector_poly_lagrange));
+            ++selector_idx;
         }
-        ++selector_idx;
     }
 }
 

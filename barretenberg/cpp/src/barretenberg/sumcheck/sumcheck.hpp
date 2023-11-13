@@ -115,7 +115,7 @@ template <typename Flavor> class SumcheckProver {
              zip_view(multivariate_evaluations.pointer_view(), partially_evaluated_polynomials.pointer_view())) {
             *eval = (*poly)[0];
         }
-        transcript.send_to_verifier("Sumcheck:evaluations", multivariate_evaluations._data);
+        transcript.send_to_verifier("Sumcheck:evaluations", multivariate_evaluations);
 
         return { multivariate_challenge, multivariate_evaluations };
     };
@@ -235,11 +235,16 @@ template <typename Flavor> class SumcheckVerifier {
         }
 
         // Final round
-        ClaimedEvaluations purported_evaluations =
+        ClaimedEvaluations purported_evaluations;
+        auto transcript_evaluations =
             transcript.template receive_from_prover<std::array<FF, NUM_POLYNOMIALS>>("Sumcheck:evaluations");
+        for (auto [eval_ptr, transcript_eval] :
+             zip_view(purported_evaluations.pointer_view(), transcript_evaluations)) {
+            *eval_ptr = transcript_eval;
+        }
 
         FF full_honk_relation_purported_value = round.compute_full_honk_relation_purported_value(
-            purported_evaluations._data, relation_parameters, pow_univariate, alpha);
+            purported_evaluations, relation_parameters, pow_univariate, alpha);
 
         bool checked = false;
         if constexpr (IsRecursiveFlavor<Flavor>) {

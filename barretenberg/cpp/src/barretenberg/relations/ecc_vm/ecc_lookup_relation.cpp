@@ -23,7 +23,7 @@ template <typename ContainerOverSubrelations, typename AllEntities, typename Par
 void ECCVMLookupRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulator,
                                              const AllEntities& in,
                                              const Parameters& params,
-                                             [[maybe_unused]] const FF& scaling_factor)
+                                             const FF& scaling_factor)
 {
     lookup_library::accumulate_logderivative_lookup_subrelation_contributions<FF, ECCVMLookupRelationImpl<FF>>(
         accumulator, in, params, scaling_factor);

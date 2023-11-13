@@ -339,14 +339,22 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
      */
     class PrecomputedEntities : public PrecomputedEntities_<DataType, HandleType, NUM_PRECOMPUTED_ENTITIES> {
       public:
-        DataType& lagrange_first = std::get<0>(this->_data);
-        DataType& lagrange_last = std::get<1>(this->_data);
+        DataType lagrange_first; // column 0
+        DataType lagrange_last;  // column 1
         // TODO(#758): Check if one of these can be replaced by shifts
-        DataType& lagrange_odd_in_minicircuit = std::get<2>(this->_data);
-        DataType& lagrange_even_in_minicircuit = std::get<3>(this->_data);
-        DataType& lagrange_second = std::get<4>(this->_data);
-        DataType& lagrange_second_to_last_in_minicircuit = std::get<5>(this->_data);
-        DataType& ordered_extra_range_constraints_numerator = std::get<6>(this->_data);
+        DataType lagrange_odd_in_minicircuit;               // column 2
+        DataType lagrange_even_in_minicircuit;              // column 3
+        DataType lagrange_second;                           // column 4
+        DataType lagrange_second_to_last_in_minicircuit;    // column 5
+        DataType ordered_extra_range_constraints_numerator; // column 6
+        DEFINE_POINTER_VIEW(NUM_PRECOMPUTED_ENTITIES,
+                            &lagrange_first,
+                            &lagrange_last,
+                            &lagrange_odd_in_minicircuit,
+                            &lagrange_even_in_minicircuit,
+                            &lagrange_second,
+                            &lagrange_second_to_last_in_minicircuit,
+                            &ordered_extra_range_constraints_numerator);
         std::vector<HandleType> get_selectors() { return {}; };
         std::vector<HandleType> get_sigma_polynomials() { return {}; };
         std::vector<HandleType> get_id_polynomials() { return {}; };
@@ -359,97 +367,190 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
     template <typename DataType, typename HandleType>
     class WitnessEntities : public WitnessEntities_<DataType, HandleType, NUM_WITNESS_ENTITIES> {
       public:
-        DataType& op = std::get<0>(this->_data);
-        DataType& x_lo_y_hi = std::get<1>(this->_data);
-        DataType& x_hi_z_1 = std::get<2>(this->_data);
-        DataType& y_lo_z_2 = std::get<3>(this->_data);
-        DataType& p_x_low_limbs = std::get<4>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_0 = std::get<5>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_1 = std::get<6>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_2 = std::get<7>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_3 = std::get<8>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_4 = std::get<9>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_tail = std::get<10>(this->_data);
-        DataType& p_x_high_limbs = std::get<11>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_0 = std::get<12>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_1 = std::get<13>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_2 = std::get<14>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_3 = std::get<15>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_4 = std::get<16>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_tail = std::get<17>(this->_data);
-        DataType& p_y_low_limbs = std::get<18>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_0 = std::get<19>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_1 = std::get<20>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_2 = std::get<21>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_3 = std::get<22>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_4 = std::get<23>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_tail = std::get<24>(this->_data);
-        DataType& p_y_high_limbs = std::get<25>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_0 = std::get<26>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_1 = std::get<27>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_2 = std::get<28>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_3 = std::get<29>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_4 = std::get<30>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_tail = std::get<31>(this->_data);
-        DataType& z_low_limbs = std::get<32>(this->_data);
-        DataType& z_low_limbs_range_constraint_0 = std::get<33>(this->_data);
-        DataType& z_low_limbs_range_constraint_1 = std::get<34>(this->_data);
-        DataType& z_low_limbs_range_constraint_2 = std::get<35>(this->_data);
-        DataType& z_low_limbs_range_constraint_3 = std::get<36>(this->_data);
-        DataType& z_low_limbs_range_constraint_4 = std::get<37>(this->_data);
-        DataType& z_low_limbs_range_constraint_tail = std::get<38>(this->_data);
-        DataType& z_high_limbs = std::get<39>(this->_data);
-        DataType& z_high_limbs_range_constraint_0 = std::get<40>(this->_data);
-        DataType& z_high_limbs_range_constraint_1 = std::get<41>(this->_data);
-        DataType& z_high_limbs_range_constraint_2 = std::get<42>(this->_data);
-        DataType& z_high_limbs_range_constraint_3 = std::get<43>(this->_data);
-        DataType& z_high_limbs_range_constraint_4 = std::get<44>(this->_data);
-        DataType& z_high_limbs_range_constraint_tail = std::get<45>(this->_data);
-        DataType& accumulators_binary_limbs_0 = std::get<46>(this->_data);
-        DataType& accumulators_binary_limbs_1 = std::get<47>(this->_data);
-        DataType& accumulators_binary_limbs_2 = std::get<48>(this->_data);
-        DataType& accumulators_binary_limbs_3 = std::get<49>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_0 = std::get<50>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_1 = std::get<51>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_2 = std::get<52>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_3 = std::get<53>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_4 = std::get<54>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_tail = std::get<55>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_0 = std::get<56>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_1 = std::get<57>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_2 = std::get<58>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_3 = std::get<59>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_4 = std::get<60>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_tail = std::get<61>(this->_data);
-        DataType& quotient_low_binary_limbs = std::get<62>(this->_data);
-        DataType& quotient_high_binary_limbs = std::get<63>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_0 = std::get<64>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_1 = std::get<65>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_2 = std::get<66>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_3 = std::get<67>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_4 = std::get<68>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_tail = std::get<69>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_0 = std::get<70>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_1 = std::get<71>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_2 = std::get<72>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_3 = std::get<73>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_4 = std::get<74>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_tail = std::get<75>(this->_data);
-        DataType& relation_wide_limbs = std::get<76>(this->_data);
-        DataType& relation_wide_limbs_range_constraint_0 = std::get<77>(this->_data);
-        DataType& relation_wide_limbs_range_constraint_1 = std::get<78>(this->_data);
-        DataType& relation_wide_limbs_range_constraint_2 = std::get<79>(this->_data);
-        DataType& relation_wide_limbs_range_constraint_3 = std::get<80>(this->_data);
-        DataType& concatenated_range_constraints_0 = std::get<81>(this->_data);
-        DataType& concatenated_range_constraints_1 = std::get<82>(this->_data);
-        DataType& concatenated_range_constraints_2 = std::get<83>(this->_data);
-        DataType& concatenated_range_constraints_3 = std::get<84>(this->_data);
-        DataType& ordered_range_constraints_0 = std::get<85>(this->_data);
-        DataType& ordered_range_constraints_1 = std::get<86>(this->_data);
-        DataType& ordered_range_constraints_2 = std::get<87>(this->_data);
-        DataType& ordered_range_constraints_3 = std::get<88>(this->_data);
-        DataType& ordered_range_constraints_4 = std::get<89>(this->_data);
-        DataType& z_perm = std::get<90>(this->_data);
+        DataType op;                                           // column 0
+        DataType x_lo_y_hi;                                    // column 1
+        DataType x_hi_z_1;                                     // column 2
+        DataType y_lo_z_2;                                     // column 3
+        DataType p_x_low_limbs;                                // column 4
+        DataType p_x_low_limbs_range_constraint_0;             // column 5
+        DataType p_x_low_limbs_range_constraint_1;             // column 6
+        DataType p_x_low_limbs_range_constraint_2;             // column 7
+        DataType p_x_low_limbs_range_constraint_3;             // column 8
+        DataType p_x_low_limbs_range_constraint_4;             // column 9
+        DataType p_x_low_limbs_range_constraint_tail;          // column 10
+        DataType p_x_high_limbs;                               // column 11
+        DataType p_x_high_limbs_range_constraint_0;            // column 12
+        DataType p_x_high_limbs_range_constraint_1;            // column 13
+        DataType p_x_high_limbs_range_constraint_2;            // column 14
+        DataType p_x_high_limbs_range_constraint_3;            // column 15
+        DataType p_x_high_limbs_range_constraint_4;            // column 16
+        DataType p_x_high_limbs_range_constraint_tail;         // column 17
+        DataType p_y_low_limbs;                                // column 18
+        DataType p_y_low_limbs_range_constraint_0;             // column 19
+        DataType p_y_low_limbs_range_constraint_1;             // column 20
+        DataType p_y_low_limbs_range_constraint_2;             // column 21
+        DataType p_y_low_limbs_range_constraint_3;             // column 22
+        DataType p_y_low_limbs_range_constraint_4;             // column 23
+        DataType p_y_low_limbs_range_constraint_tail;          // column 24
+        DataType p_y_high_limbs;                               // column 25
+        DataType p_y_high_limbs_range_constraint_0;            // column 26
+        DataType p_y_high_limbs_range_constraint_1;            // column 27
+        DataType p_y_high_limbs_range_constraint_2;            // column 28
+        DataType p_y_high_limbs_range_constraint_3;            // column 29
+        DataType p_y_high_limbs_range_constraint_4;            // column 30
+        DataType p_y_high_limbs_range_constraint_tail;         // column 31
+        DataType z_low_limbs;                                  // column 32
+        DataType z_low_limbs_range_constraint_0;               // column 33
+        DataType z_low_limbs_range_constraint_1;               // column 34
+        DataType z_low_limbs_range_constraint_2;               // column 35
+        DataType z_low_limbs_range_constraint_3;               // column 36
+        DataType z_low_limbs_range_constraint_4;               // column 37
+        DataType z_low_limbs_range_constraint_tail;            // column 38
+        DataType z_high_limbs;                                 // column 39
+        DataType z_high_limbs_range_constraint_0;              // column 40
+        DataType z_high_limbs_range_constraint_1;              // column 41
+        DataType z_high_limbs_range_constraint_2;              // column 42
+        DataType z_high_limbs_range_constraint_3;              // column 43
+        DataType z_high_limbs_range_constraint_4;              // column 44
+        DataType z_high_limbs_range_constraint_tail;           // column 45
+        DataType accumulators_binary_limbs_0;                  // column 46
+        DataType accumulators_binary_limbs_1;                  // column 47
+        DataType accumulators_binary_limbs_2;                  // column 48
+        DataType accumulators_binary_limbs_3;                  // column 49
+        DataType accumulator_low_limbs_range_constraint_0;     // column 50
+        DataType accumulator_low_limbs_range_constraint_1;     // column 51
+        DataType accumulator_low_limbs_range_constraint_2;     // column 52
+        DataType accumulator_low_limbs_range_constraint_3;     // column 53
+        DataType accumulator_low_limbs_range_constraint_4;     // column 54
+        DataType accumulator_low_limbs_range_constraint_tail;  // column 55
+        DataType accumulator_high_limbs_range_constraint_0;    // column 56
+        DataType accumulator_high_limbs_range_constraint_1;    // column 57
+        DataType accumulator_high_limbs_range_constraint_2;    // column 58
+        DataType accumulator_high_limbs_range_constraint_3;    // column 59
+        DataType accumulator_high_limbs_range_constraint_4;    // column 60
+        DataType accumulator_high_limbs_range_constraint_tail; // column 61
+        DataType quotient_low_binary_limbs;                    // column 62
+        DataType quotient_high_binary_limbs;                   // column 63
+        DataType quotient_low_limbs_range_constraint_0;        // column 64
+        DataType quotient_low_limbs_range_constraint_1;        // column 65
+        DataType quotient_low_limbs_range_constraint_2;        // column 66
+        DataType quotient_low_limbs_range_constraint_3;        // column 67
+        DataType quotient_low_limbs_range_constraint_4;        // column 68
+        DataType quotient_low_limbs_range_constraint_tail;     // column 69
+        DataType quotient_high_limbs_range_constraint_0;       // column 70
+        DataType quotient_high_limbs_range_constraint_1;       // column 71
+        DataType quotient_high_limbs_range_constraint_2;       // column 72
+        DataType quotient_high_limbs_range_constraint_3;       // column 73
+        DataType quotient_high_limbs_range_constraint_4;       // column 74
+        DataType quotient_high_limbs_range_constraint_tail;    // column 75
+        DataType relation_wide_limbs;                          // column 76
+        DataType relation_wide_limbs_range_constraint_0;       // column 77
+        DataType relation_wide_limbs_range_constraint_1;       // column 78
+        DataType relation_wide_limbs_range_constraint_2;       // column 79
+        DataType relation_wide_limbs_range_constraint_3;       // column 80
+        DataType concatenated_range_constraints_0;             // column 81
+        DataType concatenated_range_constraints_1;             // column 82
+        DataType concatenated_range_constraints_2;             // column 83
+        DataType concatenated_range_constraints_3;             // column 84
+        DataType ordered_range_constraints_0;                  // column 85
+        DataType ordered_range_constraints_1;                  // column 86
+        DataType ordered_range_constraints_2;                  // column 87
+        DataType ordered_range_constraints_3;                  // column 88
+        DataType ordered_range_constraints_4;                  // column 89
+        DataType z_perm;                                       // column 90
+
+        DEFINE_POINTER_VIEW(NUM_WITNESS_ENTITIES,
+                            &op,
+                            &x_lo_y_hi,
+                            &x_hi_z_1,
+                            &y_lo_z_2,
+                            &p_x_low_limbs,
+                            &p_x_low_limbs_range_constraint_0,
+                            &p_x_low_limbs_range_constraint_1,
+                            &p_x_low_limbs_range_constraint_2,
+                            &p_x_low_limbs_range_constraint_3,
+                            &p_x_low_limbs_range_constraint_4,
+                            &p_x_low_limbs_range_constraint_tail,
+                            &p_x_high_limbs,
+                            &p_x_high_limbs_range_constraint_0,
+                            &p_x_high_limbs_range_constraint_1,
+                            &p_x_high_limbs_range_constraint_2,
+                            &p_x_high_limbs_range_constraint_3,
+                            &p_x_high_limbs_range_constraint_4,
+                            &p_x_high_limbs_range_constraint_tail,
+                            &p_y_low_limbs,
+                            &p_y_low_limbs_range_constraint_0,
+                            &p_y_low_limbs_range_constraint_1,
+                            &p_y_low_limbs_range_constraint_2,
+                            &p_y_low_limbs_range_constraint_3,
+                            &p_y_low_limbs_range_constraint_4,
+                            &p_y_low_limbs_range_constraint_tail,
+                            &p_y_high_limbs,
+                            &p_y_high_limbs_range_constraint_0,
+                            &p_y_high_limbs_range_constraint_1,
+                            &p_y_high_limbs_range_constraint_2,
+                            &p_y_high_limbs_range_constraint_3,
+                            &p_y_high_limbs_range_constraint_4,
+                            &p_y_high_limbs_range_constraint_tail,
+                            &z_low_limbs,
+                            &z_low_limbs_range_constraint_0,
+                            &z_low_limbs_range_constraint_1,
+                            &z_low_limbs_range_constraint_2,
+                            &z_low_limbs_range_constraint_3,
+                            &z_low_limbs_range_constraint_4,
+                            &z_low_limbs_range_constraint_tail,
+                            &z_high_limbs,
+                            &z_high_limbs_range_constraint_0,
+                            &z_high_limbs_range_constraint_1,
+                            &z_high_limbs_range_constraint_2,
+                            &z_high_limbs_range_constraint_3,
+                            &z_high_limbs_range_constraint_4,
+                            &z_high_limbs_range_constraint_tail,
+                            &accumulators_binary_limbs_0,
+                            &accumulators_binary_limbs_1,
+                            &accumulators_binary_limbs_2,
+                            &accumulators_binary_limbs_3,
+                            &accumulator_low_limbs_range_constraint_0,
+                            &accumulator_low_limbs_range_constraint_1,
+                            &accumulator_low_limbs_range_constraint_2,
+                            &accumulator_low_limbs_range_constraint_3,
+                            &accumulator_low_limbs_range_constraint_4,
+                            &accumulator_low_limbs_range_constraint_tail,
+                            &accumulator_high_limbs_range_constraint_0,
+                            &accumulator_high_limbs_range_constraint_1,
+                            &accumulator_high_limbs_range_constraint_2,
+                            &accumulator_high_limbs_range_constraint_3,
+                            &accumulator_high_limbs_range_constraint_4,
+                            &accumulator_high_limbs_range_constraint_tail,
+                            &quotient_low_binary_limbs,
+                            &quotient_high_binary_limbs,
+                            &quotient_low_limbs_range_constraint_0,
+                            &quotient_low_limbs_range_constraint_1,
+                            &quotient_low_limbs_range_constraint_2,
+                            &quotient_low_limbs_range_constraint_3,
+                            &quotient_low_limbs_range_constraint_4,
+                            &quotient_low_limbs_range_constraint_tail,
+                            &quotient_high_limbs_range_constraint_0,
+                            &quotient_high_limbs_range_constraint_1,
+                            &quotient_high_limbs_range_constraint_2,
+                            &quotient_high_limbs_range_constraint_3,
+                            &quotient_high_limbs_range_constraint_4,
+                            &quotient_high_limbs_range_constraint_tail,
+                            &relation_wide_limbs,
+                            &relation_wide_limbs_range_constraint_0,
+                            &relation_wide_limbs_range_constraint_1,
+                            &relation_wide_limbs_range_constraint_2,
+                            &relation_wide_limbs_range_constraint_3,
+                            &concatenated_range_constraints_0,
+                            &concatenated_range_constraints_1,
+                            &concatenated_range_constraints_2,
+                            &concatenated_range_constraints_3,
+                            &ordered_range_constraints_0,
+                            &ordered_range_constraints_1,
+                            &ordered_range_constraints_2,
+                            &ordered_range_constraints_3,
+                            &ordered_range_constraints_4,
+                            &z_perm, )
 
         std::vector<HandleType> get_wires() override
         {
@@ -650,190 +751,190 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
     template <typename DataType, typename HandleType>
     class AllEntities : public AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES> {
       public:
-        DataType& op = std::get<0>(this->_data);
-        DataType& x_lo_y_hi = std::get<1>(this->_data);
-        DataType& x_hi_z_1 = std::get<2>(this->_data);
-        DataType& y_lo_z_2 = std::get<3>(this->_data);
-        DataType& p_x_low_limbs = std::get<4>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_0 = std::get<5>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_1 = std::get<6>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_2 = std::get<7>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_3 = std::get<8>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_4 = std::get<9>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_tail = std::get<10>(this->_data);
-        DataType& p_x_high_limbs = std::get<11>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_0 = std::get<12>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_1 = std::get<13>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_2 = std::get<14>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_3 = std::get<15>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_4 = std::get<16>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_tail = std::get<17>(this->_data);
-        DataType& p_y_low_limbs = std::get<18>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_0 = std::get<19>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_1 = std::get<20>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_2 = std::get<21>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_3 = std::get<22>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_4 = std::get<23>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_tail = std::get<24>(this->_data);
-        DataType& p_y_high_limbs = std::get<25>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_0 = std::get<26>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_1 = std::get<27>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_2 = std::get<28>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_3 = std::get<29>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_4 = std::get<30>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_tail = std::get<31>(this->_data);
-        DataType& z_low_limbs = std::get<32>(this->_data);
-        DataType& z_low_limbs_range_constraint_0 = std::get<33>(this->_data);
-        DataType& z_low_limbs_range_constraint_1 = std::get<34>(this->_data);
-        DataType& z_low_limbs_range_constraint_2 = std::get<35>(this->_data);
-        DataType& z_low_limbs_range_constraint_3 = std::get<36>(this->_data);
-        DataType& z_low_limbs_range_constraint_4 = std::get<37>(this->_data);
-        DataType& z_low_limbs_range_constraint_tail = std::get<38>(this->_data);
-        DataType& z_high_limbs = std::get<39>(this->_data);
-        DataType& z_high_limbs_range_constraint_0 = std::get<40>(this->_data);
-        DataType& z_high_limbs_range_constraint_1 = std::get<41>(this->_data);
-        DataType& z_high_limbs_range_constraint_2 = std::get<42>(this->_data);
-        DataType& z_high_limbs_range_constraint_3 = std::get<43>(this->_data);
-        DataType& z_high_limbs_range_constraint_4 = std::get<44>(this->_data);
-        DataType& z_high_limbs_range_constraint_tail = std::get<45>(this->_data);
-        DataType& accumulators_binary_limbs_0 = std::get<46>(this->_data);
-        DataType& accumulators_binary_limbs_1 = std::get<47>(this->_data);
-        DataType& accumulators_binary_limbs_2 = std::get<48>(this->_data);
-        DataType& accumulators_binary_limbs_3 = std::get<49>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_0 = std::get<50>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_1 = std::get<51>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_2 = std::get<52>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_3 = std::get<53>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_4 = std::get<54>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_tail = std::get<55>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_0 = std::get<56>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_1 = std::get<57>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_2 = std::get<58>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_3 = std::get<59>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_4 = std::get<60>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_tail = std::get<61>(this->_data);
-        DataType& quotient_low_binary_limbs = std::get<62>(this->_data);
-        DataType& quotient_high_binary_limbs = std::get<63>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_0 = std::get<64>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_1 = std::get<65>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_2 = std::get<66>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_3 = std::get<67>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_4 = std::get<68>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_tail = std::get<69>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_0 = std::get<70>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_1 = std::get<71>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_2 = std::get<72>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_3 = std::get<73>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_4 = std::get<74>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_tail = std::get<75>(this->_data);
-        DataType& relation_wide_limbs = std::get<76>(this->_data);
-        DataType& relation_wide_limbs_range_constraint_0 = std::get<77>(this->_data);
-        DataType& relation_wide_limbs_range_constraint_1 = std::get<78>(this->_data);
-        DataType& relation_wide_limbs_range_constraint_2 = std::get<79>(this->_data);
-        DataType& relation_wide_limbs_range_constraint_3 = std::get<80>(this->_data);
-        DataType& concatenated_range_constraints_0 = std::get<81>(this->_data);
-        DataType& concatenated_range_constraints_1 = std::get<82>(this->_data);
-        DataType& concatenated_range_constraints_2 = std::get<83>(this->_data);
-        DataType& concatenated_range_constraints_3 = std::get<84>(this->_data);
-        DataType& ordered_range_constraints_0 = std::get<85>(this->_data);
-        DataType& ordered_range_constraints_1 = std::get<86>(this->_data);
-        DataType& ordered_range_constraints_2 = std::get<87>(this->_data);
-        DataType& ordered_range_constraints_3 = std::get<88>(this->_data);
-        DataType& ordered_range_constraints_4 = std::get<89>(this->_data);
-        DataType& z_perm = std::get<90>(this->_data);
-        DataType& x_lo_y_hi_shift = std::get<91>(this->_data);
-        DataType& x_hi_z_1_shift = std::get<92>(this->_data);
-        DataType& y_lo_z_2_shift = std::get<93>(this->_data);
-        DataType& p_x_low_limbs_shift = std::get<94>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_0_shift = std::get<95>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_1_shift = std::get<96>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_2_shift = std::get<97>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_3_shift = std::get<98>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_4_shift = std::get<99>(this->_data);
-        DataType& p_x_low_limbs_range_constraint_tail_shift = std::get<100>(this->_data);
-        DataType& p_x_high_limbs_shift = std::get<101>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_0_shift = std::get<102>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_1_shift = std::get<103>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_2_shift = std::get<104>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_3_shift = std::get<105>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_4_shift = std::get<106>(this->_data);
-        DataType& p_x_high_limbs_range_constraint_tail_shift = std::get<107>(this->_data);
-        DataType& p_y_low_limbs_shift = std::get<108>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_0_shift = std::get<109>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_1_shift = std::get<110>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_2_shift = std::get<111>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_3_shift = std::get<112>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_4_shift = std::get<113>(this->_data);
-        DataType& p_y_low_limbs_range_constraint_tail_shift = std::get<114>(this->_data);
-        DataType& p_y_high_limbs_shift = std::get<115>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_0_shift = std::get<116>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_1_shift = std::get<117>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_2_shift = std::get<118>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_3_shift = std::get<119>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_4_shift = std::get<120>(this->_data);
-        DataType& p_y_high_limbs_range_constraint_tail_shift = std::get<121>(this->_data);
-        DataType& z_low_limbs_shift = std::get<122>(this->_data);
-        DataType& z_low_limbs_range_constraint_0_shift = std::get<123>(this->_data);
-        DataType& z_low_limbs_range_constraint_1_shift = std::get<124>(this->_data);
-        DataType& z_low_limbs_range_constraint_2_shift = std::get<125>(this->_data);
-        DataType& z_low_limbs_range_constraint_3_shift = std::get<126>(this->_data);
-        DataType& z_low_limbs_range_constraint_4_shift = std::get<127>(this->_data);
-        DataType& z_low_limbs_range_constraint_tail_shift = std::get<128>(this->_data);
-        DataType& z_high_limbs_shift = std::get<129>(this->_data);
-        DataType& z_high_limbs_range_constraint_0_shift = std::get<130>(this->_data);
-        DataType& z_high_limbs_range_constraint_1_shift = std::get<131>(this->_data);
-        DataType& z_high_limbs_range_constraint_2_shift = std::get<132>(this->_data);
-        DataType& z_high_limbs_range_constraint_3_shift = std::get<133>(this->_data);
-        DataType& z_high_limbs_range_constraint_4_shift = std::get<134>(this->_data);
-        DataType& z_high_limbs_range_constraint_tail_shift = std::get<135>(this->_data);
-        DataType& accumulators_binary_limbs_0_shift = std::get<136>(this->_data);
-        DataType& accumulators_binary_limbs_1_shift = std::get<137>(this->_data);
-        DataType& accumulators_binary_limbs_2_shift = std::get<138>(this->_data);
-        DataType& accumulators_binary_limbs_3_shift = std::get<139>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_0_shift = std::get<140>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_1_shift = std::get<141>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_2_shift = std::get<142>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_3_shift = std::get<143>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_4_shift = std::get<144>(this->_data);
-        DataType& accumulator_low_limbs_range_constraint_tail_shift = std::get<145>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_0_shift = std::get<146>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_1_shift = std::get<147>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_2_shift = std::get<148>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_3_shift = std::get<149>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_4_shift = std::get<150>(this->_data);
-        DataType& accumulator_high_limbs_range_constraint_tail_shift = std::get<151>(this->_data);
-        DataType& quotient_low_binary_limbs_shift = std::get<152>(this->_data);
-        DataType& quotient_high_binary_limbs_shift = std::get<153>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_0_shift = std::get<154>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_1_shift = std::get<155>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_2_shift = std::get<156>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_3_shift = std::get<157>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_4_shift = std::get<158>(this->_data);
-        DataType& quotient_low_limbs_range_constraint_tail_shift = std::get<159>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_0_shift = std::get<160>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_1_shift = std::get<161>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_2_shift = std::get<162>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_3_shift = std::get<163>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_4_shift = std::get<164>(this->_data);
-        DataType& quotient_high_limbs_range_constraint_tail_shift = std::get<165>(this->_data);
-        DataType& relation_wide_limbs_shift = std::get<166>(this->_data);
-        DataType& relation_wide_limbs_range_constraint_0_shift = std::get<167>(this->_data);
-        DataType& relation_wide_limbs_range_constraint_1_shift = std::get<168>(this->_data);
-        DataType& relation_wide_limbs_range_constraint_2_shift = std::get<169>(this->_data);
-        DataType& relation_wide_limbs_range_constraint_3_shift = std::get<170>(this->_data);
-        DataType& ordered_range_constraints_0_shift = std::get<171>(this->_data);
-        DataType& ordered_range_constraints_1_shift = std::get<172>(this->_data);
-        DataType& ordered_range_constraints_2_shift = std::get<173>(this->_data);
-        DataType& ordered_range_constraints_3_shift = std::get<174>(this->_data);
-        DataType& ordered_range_constraints_4_shift = std::get<175>(this->_data);
-        DataType& z_perm_shift = std::get<176>(this->_data);
-        DataType& lagrange_first = std::get<177>(this->_data);
-        DataType& lagrange_last = std::get<178>(this->_data);
-        DataType& lagrange_odd_in_minicircuit = std::get<179>(this->_data);
-        DataType& lagrange_even_in_minicircuit = std::get<180>(this->_data);
-        DataType& lagrange_second = std::get<181>(this->_data);
-        DataType& lagrange_second_to_last_in_minicircuit = std::get<182>(this->_data);
-        DataType& ordered_extra_range_constraints_numerator = std::get<183>(this->_data);
+        DataType op;                                                 // column 0
+        DataType x_lo_y_hi;                                          // column 1
+        DataType x_hi_z_1;                                           // column 2
+        DataType y_lo_z_2;                                           // column 3
+        DataType p_x_low_limbs;                                      // column 4
+        DataType p_x_low_limbs_range_constraint_0;                   // column 5
+        DataType p_x_low_limbs_range_constraint_1;                   // column 6
+        DataType p_x_low_limbs_range_constraint_2;                   // column 7
+        DataType p_x_low_limbs_range_constraint_3;                   // column 8
+        DataType p_x_low_limbs_range_constraint_4;                   // column 9
+        DataType p_x_low_limbs_range_constraint_tail;                // column 10
+        DataType p_x_high_limbs;                                     // column 11
+        DataType p_x_high_limbs_range_constraint_0;                  // column 12
+        DataType p_x_high_limbs_range_constraint_1;                  // column 13
+        DataType p_x_high_limbs_range_constraint_2;                  // column 14
+        DataType p_x_high_limbs_range_constraint_3;                  // column 15
+        DataType p_x_high_limbs_range_constraint_4;                  // column 16
+        DataType p_x_high_limbs_range_constraint_tail;               // column 17
+        DataType p_y_low_limbs;                                      // column 18
+        DataType p_y_low_limbs_range_constraint_0;                   // column 19
+        DataType p_y_low_limbs_range_constraint_1;                   // column 20
+        DataType p_y_low_limbs_range_constraint_2;                   // column 21
+        DataType p_y_low_limbs_range_constraint_3;                   // column 22
+        DataType p_y_low_limbs_range_constraint_4;                   // column 23
+        DataType p_y_low_limbs_range_constraint_tail;                // column 24
+        DataType p_y_high_limbs;                                     // column 25
+        DataType p_y_high_limbs_range_constraint_0;                  // column 26
+        DataType p_y_high_limbs_range_constraint_1;                  // column 27
+        DataType p_y_high_limbs_range_constraint_2;                  // column 28
+        DataType p_y_high_limbs_range_constraint_3;                  // column 29
+        DataType p_y_high_limbs_range_constraint_4;                  // column 30
+        DataType p_y_high_limbs_range_constraint_tail;               // column 31
+        DataType z_low_limbs;                                        // column 32
+        DataType z_low_limbs_range_constraint_0;                     // column 33
+        DataType z_low_limbs_range_constraint_1;                     // column 34
+        DataType z_low_limbs_range_constraint_2;                     // column 35
+        DataType z_low_limbs_range_constraint_3;                     // column 36
+        DataType z_low_limbs_range_constraint_4;                     // column 37
+        DataType z_low_limbs_range_constraint_tail;                  // column 38
+        DataType z_high_limbs;                                       // column 39
+        DataType z_high_limbs_range_constraint_0;                    // column 40
+        DataType z_high_limbs_range_constraint_1;                    // column 41
+        DataType z_high_limbs_range_constraint_2;                    // column 42
+        DataType z_high_limbs_range_constraint_3;                    // column 43
+        DataType z_high_limbs_range_constraint_4;                    // column 44
+        DataType z_high_limbs_range_constraint_tail;                 // column 45
+        DataType accumulators_binary_limbs_0;                        // column 46
+        DataType accumulators_binary_limbs_1;                        // column 47
+        DataType accumulators_binary_limbs_2;                        // column 48
+        DataType accumulators_binary_limbs_3;                        // column 49
+        DataType accumulator_low_limbs_range_constraint_0;           // column 50
+        DataType accumulator_low_limbs_range_constraint_1;           // column 51
+        DataType accumulator_low_limbs_range_constraint_2;           // column 52
+        DataType accumulator_low_limbs_range_constraint_3;           // column 53
+        DataType accumulator_low_limbs_range_constraint_4;           // column 54
+        DataType accumulator_low_limbs_range_constraint_tail;        // column 55
+        DataType accumulator_high_limbs_range_constraint_0;          // column 56
+        DataType accumulator_high_limbs_range_constraint_1;          // column 57
+        DataType accumulator_high_limbs_range_constraint_2;          // column 58
+        DataType accumulator_high_limbs_range_constraint_3;          // column 59
+        DataType accumulator_high_limbs_range_constraint_4;          // column 60
+        DataType accumulator_high_limbs_range_constraint_tail;       // column 61
+        DataType quotient_low_binary_limbs;                          // column 62
+        DataType quotient_high_binary_limbs;                         // column 63
+        DataType quotient_low_limbs_range_constraint_0;              // column 64
+        DataType quotient_low_limbs_range_constraint_1;              // column 65
+        DataType quotient_low_limbs_range_constraint_2;              // column 66
+        DataType quotient_low_limbs_range_constraint_3;              // column 67
+        DataType quotient_low_limbs_range_constraint_4;              // column 68
+        DataType quotient_low_limbs_range_constraint_tail;           // column 69
+        DataType quotient_high_limbs_range_constraint_0;             // column 70
+        DataType quotient_high_limbs_range_constraint_1;             // column 71
+        DataType quotient_high_limbs_range_constraint_2;             // column 72
+        DataType quotient_high_limbs_range_constraint_3;             // column 73
+        DataType quotient_high_limbs_range_constraint_4;             // column 74
+        DataType quotient_high_limbs_range_constraint_tail;          // column 75
+        DataType relation_wide_limbs;                                // column 76
+        DataType relation_wide_limbs_range_constraint_0;             // column 77
+        DataType relation_wide_limbs_range_constraint_1;             // column 78
+        DataType relation_wide_limbs_range_constraint_2;             // column 79
+        DataType relation_wide_limbs_range_constraint_3;             // column 80
+        DataType concatenated_range_constraints_0;                   // column 81
+        DataType concatenated_range_constraints_1;                   // column 82
+        DataType concatenated_range_constraints_2;                   // column 83
+        DataType concatenated_range_constraints_3;                   // column 84
+        DataType ordered_range_constraints_0;                        // column 85
+        DataType ordered_range_constraints_1;                        // column 86
+        DataType ordered_range_constraints_2;                        // column 87
+        DataType ordered_range_constraints_3;                        // column 88
+        DataType ordered_range_constraints_4;                        // column 89
+        DataType z_perm;                                             // column 90
+        DataType x_lo_y_hi_shift;                                    // column 91
+        DataType x_hi_z_1_shift;                                     // column 92
+        DataType y_lo_z_2_shift;                                     // column 93
+        DataType p_x_low_limbs_shift;                                // column 94
+        DataType p_x_low_limbs_range_constraint_0_shift;             // column 95
+        DataType p_x_low_limbs_range_constraint_1_shift;             // column 96
+        DataType p_x_low_limbs_range_constraint_2_shift;             // column 97
+        DataType p_x_low_limbs_range_constraint_3_shift;             // column 98
+        DataType p_x_low_limbs_range_constraint_4_shift;             // column 99
+        DataType p_x_low_limbs_range_constraint_tail_shift;          // column 100
+        DataType p_x_high_limbs_shift;                               // column 101
+        DataType p_x_high_limbs_range_constraint_0_shift;            // column 102
+        DataType p_x_high_limbs_range_constraint_1_shift;            // column 103
+        DataType p_x_high_limbs_range_constraint_2_shift;            // column 104
+        DataType p_x_high_limbs_range_constraint_3_shift;            // column 105
+        DataType p_x_high_limbs_range_constraint_4_shift;            // column 106
+        DataType p_x_high_limbs_range_constraint_tail_shift;         // column 107
+        DataType p_y_low_limbs_shift;                                // column 108
+        DataType p_y_low_limbs_range_constraint_0_shift;             // column 109
+        DataType p_y_low_limbs_range_constraint_1_shift;             // column 110
+        DataType p_y_low_limbs_range_constraint_2_shift;             // column 111
+        DataType p_y_low_limbs_range_constraint_3_shift;             // column 112
+        DataType p_y_low_limbs_range_constraint_4_shift;             // column 113
+        DataType p_y_low_limbs_range_constraint_tail_shift;          // column 114
+        DataType p_y_high_limbs_shift;                               // column 115
+        DataType p_y_high_limbs_range_constraint_0_shift;            // column 116
+        DataType p_y_high_limbs_range_constraint_1_shift;            // column 117
+        DataType p_y_high_limbs_range_constraint_2_shift;            // column 118
+        DataType p_y_high_limbs_range_constraint_3_shift;            // column 119
+        DataType p_y_high_limbs_range_constraint_4_shift;            // column 120
+        DataType p_y_high_limbs_range_constraint_tail_shift;         // column 121
+        DataType z_low_limbs_shift;                                  // column 122
+        DataType z_low_limbs_range_constraint_0_shift;               // column 123
+        DataType z_low_limbs_range_constraint_1_shift;               // column 124
+        DataType z_low_limbs_range_constraint_2_shift;               // column 125
+        DataType z_low_limbs_range_constraint_3_shift;               // column 126
+        DataType z_low_limbs_range_constraint_4_shift;               // column 127
+        DataType z_low_limbs_range_constraint_tail_shift;            // column 128
+        DataType z_high_limbs_shift;                                 // column 129
+        DataType z_high_limbs_range_constraint_0_shift;              // column 130
+        DataType z_high_limbs_range_constraint_1_shift;              // column 131
+        DataType z_high_limbs_range_constraint_2_shift;              // column 132
+        DataType z_high_limbs_range_constraint_3_shift;              // column 133
+        DataType z_high_limbs_range_constraint_4_shift;              // column 134
+        DataType z_high_limbs_range_constraint_tail_shift;           // column 135
+        DataType accumulators_binary_limbs_0_shift;                  // column 136
+        DataType accumulators_binary_limbs_1_shift;                  // column 137
+        DataType accumulators_binary_limbs_2_shift;                  // column 138
+        DataType accumulators_binary_limbs_3_shift;                  // column 139
+        DataType accumulator_low_limbs_range_constraint_0_shift;     // column 140
+        DataType accumulator_low_limbs_range_constraint_1_shift;     // column 141
+        DataType accumulator_low_limbs_range_constraint_2_shift;     // column 142
+        DataType accumulator_low_limbs_range_constraint_3_shift;     // column 143
+        DataType accumulator_low_limbs_range_constraint_4_shift;     // column 144
+        DataType accumulator_low_limbs_range_constraint_tail_shift;  // column 145
+        DataType accumulator_high_limbs_range_constraint_0_shift;    // column 146
+        DataType accumulator_high_limbs_range_constraint_1_shift;    // column 147
+        DataType accumulator_high_limbs_range_constraint_2_shift;    // column 148
+        DataType accumulator_high_limbs_range_constraint_3_shift;    // column 149
+        DataType accumulator_high_limbs_range_constraint_4_shift;    // column 150
+        DataType accumulator_high_limbs_range_constraint_tail_shift; // column 151
+        DataType quotient_low_binary_limbs_shift;                    // column 152
+        DataType quotient_high_binary_limbs_shift;                   // column 153
+        DataType quotient_low_limbs_range_constraint_0_shift;        // column 154
+        DataType quotient_low_limbs_range_constraint_1_shift;        // column 155
+        DataType quotient_low_limbs_range_constraint_2_shift;        // column 156
+        DataType quotient_low_limbs_range_constraint_3_shift;        // column 157
+        DataType quotient_low_limbs_range_constraint_4_shift;        // column 158
+        DataType quotient_low_limbs_range_constraint_tail_shift;     // column 159
+        DataType quotient_high_limbs_range_constraint_0_shift;       // column 160
+        DataType quotient_high_limbs_range_constraint_1_shift;       // column 161
+        DataType quotient_high_limbs_range_constraint_2_shift;       // column 162
+        DataType quotient_high_limbs_range_constraint_3_shift;       // column 163
+        DataType quotient_high_limbs_range_constraint_4_shift;       // column 164
+        DataType quotient_high_limbs_range_constraint_tail_shift;    // column 165
+        DataType relation_wide_limbs_shift;                          // column 166
+        DataType relation_wide_limbs_range_constraint_0_shift;       // column 167
+        DataType relation_wide_limbs_range_constraint_1_shift;       // column 168
+        DataType relation_wide_limbs_range_constraint_2_shift;       // column 169
+        DataType relation_wide_limbs_range_constraint_3_shift;       // column 170
+        DataType ordered_range_constraints_0_shift;                  // column 171
+        DataType ordered_range_constraints_1_shift;                  // column 172
+        DataType ordered_range_constraints_2_shift;                  // column 173
+        DataType ordered_range_constraints_3_shift;                  // column 174
+        DataType ordered_range_constraints_4_shift;                  // column 175
+        DataType z_perm_shift;                                       // column 176
+        DataType lagrange_first;                                     // column 177
+        DataType lagrange_last;                                      // column 178
+        DataType lagrange_odd_in_minicircuit;                        // column 179
+        DataType lagrange_even_in_minicircuit;                       // column 180
+        DataType lagrange_second;                                    // column 181
+        DataType lagrange_second_to_last_in_minicircuit;             // column 182
+        DataType ordered_extra_range_constraints_numerator;          // column 183
 
         // defines a method pointer_view that returns the following, with const and non-const variants
         DEFINE_POINTER_VIEW(NUM_ALL_ENTITIES,
@@ -1526,30 +1627,6 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
             return result;
         }
 
-        AllEntities() = default;
-
-        AllEntities(const AllEntities& other)
-            : AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES>(other){};
-
-        AllEntities(AllEntities&& other) noexcept
-            : AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES>(other){};
-
-        AllEntities& operator=(const AllEntities& other)
-        {
-            if (this == &other) {
-                return *this;
-            }
-            AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES>::operator=(other);
-            return *this;
-        }
-
-        AllEntities& operator=(AllEntities&& other) noexcept
-        {
-            AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES>::operator=(other);
-            return *this;
-        }
-
-        ~AllEntities() = default;
         friend std::ostream& operator<<(std::ostream& os, const AllEntities& a)
         {
             os << "{ ";

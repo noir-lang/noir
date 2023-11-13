@@ -98,7 +98,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
                                                          const FF& alpha,
                                                          const RelationParameters<FF>& relation_parameters)
     {
-        auto instance_size = std::get<0>(instance_polynomials._data).size();
+        auto instance_size = instance_polynomials.get_polynomial_size();
 
         std::vector<FF> full_honk_evaluations(instance_size);
         for (size_t row = 0; row < instance_size; row++) {
@@ -208,11 +208,10 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
                             const ProverInstances& instances,
                             const size_t row_idx)
     {
-        size_t poly_idx = 0;
-        for (auto* extended_univariate : extended_univariates.pointer_view()) {
-            auto base_univariate = instances.row_to_univariate(poly_idx, row_idx);
+        auto base_univariates = instances.row_to_univariates(row_idx);
+        for (auto [extended_univariate, base_univariate] :
+             zip_view(extended_univariates.pointer_view(), base_univariates)) {
             *extended_univariate = base_univariate.template extend_to<ExtendedUnivariate::LENGTH>();
-            poly_idx++;
         }
     }
 
@@ -241,7 +240,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
                                                          const std::vector<FF>& pow_betas_star,
                                                          const FF& alpha)
     {
-        size_t common_circuit_size = instances[0]->prover_polynomials._data[0].size();
+        size_t common_circuit_size = instances[0]->prover_polynomials.get_polynomial_size();
 
         // Determine number of threads for multithreading.
         // Note: Multithreading is "on" for every round but we reduce the number of threads from the max available based

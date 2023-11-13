@@ -180,7 +180,8 @@ TEST_F(SumcheckTests, Prover)
     FF u_0 = output.challenge[0];
     FF u_1 = output.challenge[1];
     std::vector<FF> expected_values;
-    for (auto& polynomial : full_polynomials) {
+    for (auto* polynomial_ptr : full_polynomials.pointer_view()) {
+        auto& polynomial = *polynomial_ptr;
         // using knowledge of inputs here to derive the evaluation
         FF expected_lo = polynomial[0] * (FF(1) - u_0) + polynomial[1] * u_0;
         expected_lo *= (FF(1) - u_1);
