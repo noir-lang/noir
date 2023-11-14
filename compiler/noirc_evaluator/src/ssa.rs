@@ -7,10 +7,7 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    ops::Range,
-};
+use std::collections::BTreeSet;
 
 use crate::{
     brillig::Brillig,
@@ -205,16 +202,4 @@ impl SsaBuilder {
         }
         self
     }
-}
-
-// Flatten the witnesses in the map into a BTreeSet
-fn tree_to_set(input: &BTreeMap<String, Vec<Range<Witness>>>) -> BTreeSet<Witness> {
-    let mut result = BTreeSet::new();
-    for range in input.values().flatten() {
-        for i in range.start.witness_index()..range.end.witness_index() {
-            result.insert(Witness(i));
-        }
-    }
-
-    result
 }
