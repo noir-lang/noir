@@ -2,7 +2,9 @@ mod context;
 mod repl;
 
 use std::io::{Read, Write};
+use std::str::FromStr;
 
+use acvm::acir::circuit::OpcodeLocation;
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
@@ -11,9 +13,13 @@ use dap::errors::ServerError;
 use dap::events::StoppedEventBody;
 use dap::prelude::Event;
 use dap::requests::Command;
-use dap::responses::{ResponseBody, StackTraceResponse, ThreadsResponse};
+use dap::responses::{
+    DisassembleResponse, ResponseBody, ScopesResponse, SetBreakpointsResponse,
+    SetExceptionBreakpointsResponse, SetInstructionBreakpointsResponse, StackTraceResponse,
+    ThreadsResponse,
+};
 use dap::server::Server;
-use dap::types::{Source, StackFrame, StoppedEventReason, Thread};
+use dap::types::{DisassembledInstruction, Source, StackFrame, StoppedEventReason, Thread};
 use nargo::artifacts::debug::DebugArtifact;
 
 use nargo::NargoError;
@@ -80,7 +86,22 @@ pub fn loop_initialized<R: Read, W: Write, B: BlackBoxFunctionSolver>(
             }
             Command::SetBreakpoints(ref args) => {
                 eprintln!("INFO: Received SetBreakpoints {:?}", args);
-                // FIXME: return the breakpoints actually set
+                // FIXME: set and return the breakpoints actually set
+                server.respond(req.success(ResponseBody::SetBreakpoints(
+                    SetBreakpointsResponse { breakpoints: vec![] },
+                )))?;
+            }
+            Command::SetExceptionBreakpoints(_) => {
+                server.respond(req.success(ResponseBody::SetExceptionBreakpoints(
+                    SetExceptionBreakpointsResponse { breakpoints: None },
+                )))?;
+            }
+            Command::SetInstructionBreakpoints(ref args) => {
+                eprintln!("INFO: Received SetInstructionBreakpoints {:?}", args);
+                // FIXME: set and return the breakpoints actually set
+                server.respond(req.success(ResponseBody::SetInstructionBreakpoints(
+                    SetInstructionBreakpointsResponse { breakpoints: vec![] },
+                )))?;
             }
             Command::Threads => {
                 server.respond(req.success(ResponseBody::Threads(ThreadsResponse {
@@ -88,8 +109,8 @@ pub fn loop_initialized<R: Read, W: Write, B: BlackBoxFunctionSolver>(
                 })))?;
             }
             Command::StackTrace(_) => {
+                let opcode_location = context.get_current_opcode_location();
                 let source_location = context.get_current_source_location();
-                eprintln!("{:?}", source_location);
                 let frames = match source_location {
                     None => vec![],
                     Some(locations) => locations
@@ -100,6 +121,7 @@ pub fn loop_initialized<R: Read, W: Write, B: BlackBoxFunctionSolver>(
                                 debug_artifact.location_line_number(*location).unwrap();
                             let column_number =
                                 debug_artifact.location_column_number(*location).unwrap();
+                            let ip_reference = opcode_location.map(|location| location.to_string());
                             StackFrame {
                                 id: index as i64,
                                 name: format!("frame #{index}"),
@@ -121,19 +143,46 @@ pub fn loop_initialized<R: Read, W: Write, B: BlackBoxFunctionSolver>(
                                 end_line: None,
                                 end_column: None,
                                 can_restart: None,
-                                instruction_pointer_reference: None,
+                                instruction_pointer_reference: ip_reference,
                                 module_id: None,
                                 presentation_hint: None,
                             }
                         })
                         .collect(),
                 };
-                eprintln!("{:?}", frames);
                 let total_frames = Some(frames.len() as i64);
                 server.respond(req.success(ResponseBody::StackTrace(StackTraceResponse {
                     stack_frames: frames,
                     total_frames,
                 })))?;
+            }
+            Command::Disassemble(ref args) => {
+                eprintln!("INFO: Received Disassemble {:?}", args);
+                let starting_ip = OpcodeLocation::from_str(args.memory_reference.as_str()).ok();
+                let mut opcode_location = context
+                    .offset_opcode_location(&starting_ip, args.instruction_offset.unwrap_or(0))
+                    .or(Some(OpcodeLocation::Acir(0)));
+                eprintln!("INFO: From IP {opcode_location:?}");
+                let mut count = args.instruction_count;
+                let mut instructions: Vec<DisassembledInstruction> = vec![];
+                while count > 0 {
+                    instructions.push(DisassembledInstruction {
+                        address: format!("{}", opcode_location.unwrap_or(OpcodeLocation::Acir(0))),
+                        instruction_bytes: None,
+                        instruction: context.render_opcode_at_location(&opcode_location),
+                        symbol: None,
+                        location: None,
+                        line: None,
+                        column: None,
+                        end_line: None,
+                        end_column: None,
+                    });
+                    opcode_location = context.offset_opcode_location(&opcode_location, 1);
+                    count -= 1;
+                }
+                server.respond(
+                    req.success(ResponseBody::Disassemble(DisassembleResponse { instructions })),
+                )?;
             }
             Command::Next(_) | Command::StepIn(_) | Command::StepOut(_) => {
                 let result = context.next();
@@ -146,8 +195,28 @@ pub fn loop_initialized<R: Read, W: Write, B: BlackBoxFunctionSolver>(
                     _ => {
                         server.respond(req.ack()?)?;
                         send_stopped_event(&mut server, StoppedEventReason::Step)?
-                    },
+                    }
                 }
+            }
+            Command::Continue(_) => {
+                let result = context.cont();
+                eprintln!("INFO: continue with result {result:?}");
+                match result {
+                    context::DebugCommandResult::Done => {
+                        server.respond(req.success(ResponseBody::Terminate))?;
+                        break;
+                    }
+                    _ => {
+                        server.respond(req.ack()?)?;
+                        send_stopped_event(&mut server, StoppedEventReason::Pause)?
+                    }
+                }
+            }
+            Command::Scopes(_) => {
+                // FIXME
+                server.respond(
+                    req.success(ResponseBody::Scopes(ScopesResponse { scopes: vec![] })),
+                )?;
             }
             _ => {
                 eprintln!("{:?}", req.command);

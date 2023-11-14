@@ -87,6 +87,83 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             .and_then(|location| self.debug_artifact.debug_symbols[0].opcode_location(location))
     }
 
+    pub(super) fn offset_opcode_location(
+        &self,
+        location: &Option<OpcodeLocation>,
+        mut offset: i64,
+    ) -> Option<OpcodeLocation> {
+        if offset == 0 {
+            return location.clone();
+        }
+        let Some(location) = location else {
+            return None;
+        };
+
+        let (mut acir_index, mut brillig_index) = match location {
+            OpcodeLocation::Acir(acir_index) => (*acir_index, 0),
+            OpcodeLocation::Brillig { acir_index, brillig_index } => (*acir_index, *brillig_index),
+        };
+        let opcodes = self.get_opcodes();
+        if offset > 0 {
+            while offset > 0 {
+                if let Opcode::Brillig(ref brillig_block) = opcodes[acir_index] {
+                    let delta = (brillig_block.bytecode.len() - brillig_index) as i64;
+                    if offset > delta {
+                        offset -= delta;
+                        acir_index += 1;
+                        brillig_index = 0;
+                    } else {
+                        brillig_index += offset as usize;
+                        break;
+                    }
+                } else {
+                    offset -= 1;
+                    acir_index += 1;
+                    brillig_index = 0;
+                }
+                if acir_index >= opcodes.len() {
+                    return None;
+                }
+            }
+        } else {
+            while offset < 0 {
+                if matches!(opcodes[acir_index], Opcode::Brillig(_)) {
+                    if -offset > (brillig_index as i64) {
+                        if acir_index == 0 {
+                            return None;
+                        }
+                        offset = 0;
+                        acir_index -= 1;
+                        if let Opcode::Brillig(ref brillig_block) = opcodes[acir_index] {
+                            brillig_index = brillig_block.bytecode.len() - 1;
+                        } else {
+                            brillig_index = 0;
+                        }
+                    } else {
+                        brillig_index -= offset as usize;
+                        break;
+                    }
+                } else {
+                    if acir_index == 0 {
+                        return None;
+                    }
+                    offset += 1;
+                    acir_index -= 1;
+                    brillig_index = 0;
+                }
+            }
+        }
+        if matches!(opcodes[acir_index], Opcode::Brillig(_)) {
+            Some(OpcodeLocation::Brillig { acir_index, brillig_index })
+        } else {
+            Some(OpcodeLocation::Acir(acir_index))
+        }
+    }
+
+    pub(super) fn render_opcode_at_location(&self, location: &Option<OpcodeLocation>) -> String {
+        String::from("invalid")
+    }
+
     fn step_brillig_opcode(&mut self) -> DebugCommandResult {
         let Some(mut solver) = self.brillig_solver.take() else {
             unreachable!("Missing Brillig solver");

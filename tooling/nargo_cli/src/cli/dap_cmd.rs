@@ -52,9 +52,14 @@ fn loop_uninitialized<R: Read, W: Write>(
             None => break,
         };
         match req.command {
-            Command::Initialize(_) => {
-                let rsp =
-                    req.success(ResponseBody::Initialize(Capabilities { ..Default::default() }));
+            Command::Initialize(ref args) => {
+                eprintln!("INIT ARGS: {:?}", args);
+                let rsp = req.success(ResponseBody::Initialize(Capabilities {
+                    supports_disassemble_request: Some(true),
+                    supports_instruction_breakpoints: Some(true),
+                    supports_stepping_granularity: Some(true),
+                    ..Default::default()
+                }));
                 server.respond(rsp)?;
             }
 
