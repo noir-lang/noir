@@ -23,7 +23,6 @@ use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use num_bigint::BigUint;
-use std::ops::RangeInclusive;
 use std::{borrow::Cow, hash::Hash};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -115,7 +114,7 @@ impl AcirContext {
         self.acir_ir.current_witness_index()
     }
 
-    pub(crate) fn extract_witness(&self, inputs: &[AcirValue]) -> Vec<u32> {
+    pub(crate) fn extract_witness(&self, inputs: &[AcirValue]) -> Vec<Witness> {
         inputs
             .iter()
             .flat_map(|value| value.clone().flatten())
@@ -126,7 +125,6 @@ impl AcirContext {
                     .to_expression()
                     .to_witness()
                     .expect("ICE - cannot extract a witness")
-                    .0
             })
             .collect()
     }
@@ -1182,27 +1180,10 @@ impl AcirContext {
     /// Terminates the context and takes the resulting `GeneratedAcir`
     pub(crate) fn finish(
         mut self,
-        inputs: Vec<RangeInclusive<u32>>,
+        inputs: Vec<Witness>,
         warnings: Vec<SsaReport>,
     ) -> GeneratedAcir {
-        let mut current_range = 0..0;
-        for range in inputs {
-            if current_range.end == *range.start() {
-                current_range.end = range.end() + 1;
-            } else {
-                if current_range.end != 0 {
-                    self.acir_ir
-                        .input_witnesses
-                        .push(Witness(current_range.start)..Witness(current_range.end));
-                }
-                current_range = *range.start()..range.end() + 1;
-            }
-        }
-        if current_range.end != 0 {
-            self.acir_ir
-                .input_witnesses
-                .push(Witness(current_range.start)..Witness(current_range.end));
-        }
+        self.acir_ir.input_witnesses = inputs;
         self.acir_ir.warnings = warnings;
         self.acir_ir
     }

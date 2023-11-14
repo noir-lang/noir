@@ -39,7 +39,7 @@ pub(super) fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiP
 pub(super) fn gen_abi(
     context: &Context,
     func_sig: FunctionSignature,
-    input_witnesses: Vec<Range<Witness>>,
+    input_witnesses: Vec<Witness>,
     return_witnesses: Vec<Witness>,
 ) -> Abi {
     let (parameters, return_type) = func_sig;
@@ -53,34 +53,78 @@ pub(super) fn gen_abi(
 // parameter's constituent values live.
 fn param_witnesses_from_abi_param(
     abi_params: &Vec<AbiParameter>,
-    input_witnesses: Vec<Range<Witness>>,
+    input_witnesses: Vec<Witness>,
 ) -> BTreeMap<String, Vec<Range<Witness>>> {
     let mut idx = 0_usize;
     if input_witnesses.is_empty() {
         return BTreeMap::new();
     }
-    let mut processed_range = input_witnesses[idx].start.witness_index();
 
     btree_map(abi_params, |param| {
-        let num_field_elements_needed = param.typ.field_count();
-        let mut wit = Vec::new();
-        let mut processed_fields = 0;
-        while processed_fields < num_field_elements_needed {
-            let end = input_witnesses[idx].end.witness_index();
-            if num_field_elements_needed <= end - processed_range {
-                wit.push(
-                    Witness(processed_range)..Witness(processed_range + num_field_elements_needed),
-                );
-                processed_range += num_field_elements_needed;
-                processed_fields += num_field_elements_needed;
-            } else {
-                // consume the current range
-                wit.push(Witness(processed_range)..input_witnesses[idx].end);
-                processed_fields += end - processed_range;
-                idx += 1;
-                processed_range = input_witnesses[idx].start.witness_index();
-            }
-        }
-        (param.name.clone(), wit)
+        let num_field_elements_needed = param.typ.field_count() as usize;
+        let param_witnesses = &input_witnesses[idx..idx + num_field_elements_needed];
+        let param_witnesses = collapse_ranges(param_witnesses);
+        idx += num_field_elements_needed;
+        (param.name.clone(), param_witnesses)
     })
+}
+
+fn collapse_ranges(witnesses: &[Witness]) -> Vec<Range<Witness>> {
+    if witnesses.is_empty() {
+        return Vec::new();
+    }
+    let mut wit = Vec::new();
+    let mut last_wit: Witness = witnesses[0];
+
+    for (i, witness) in witnesses.into_iter().enumerate() {
+        if i == 0 {
+            continue;
+        };
+        let witness_index = witness.witness_index();
+        let prev_witness_index = witnesses[i - 1].witness_index();
+        if witness_index != prev_witness_index + 1 {
+            wit.push(last_wit..Witness(prev_witness_index + 1));
+            last_wit = *witness;
+        };
+    }
+
+    let last_witness = witnesses.last().unwrap().witness_index();
+    wit.push(last_wit..Witness(last_witness + 1));
+
+    return wit;
+}
+
+#[cfg(test)]
+mod test {
+    use std::ops::Range;
+
+    use acvm::acir::native_types::Witness;
+
+    use super::collapse_ranges;
+
+    #[test]
+    fn collapses_single_range() {
+        let witnesses: Vec<_> = vec![1, 2, 3].into_iter().map(Witness::from).collect();
+
+        let collapsed_witnesses = collapse_ranges(&witnesses);
+
+        assert_eq!(collapsed_witnesses, vec![Range { start: Witness(1), end: Witness(4) },])
+    }
+
+    #[test]
+    fn collapse_ranges_correctly() {
+        let witnesses: Vec<_> =
+            vec![1, 2, 3, 5, 6, 2, 3, 4].into_iter().map(Witness::from).collect();
+
+        let collapsed_witnesses = collapse_ranges(&witnesses);
+
+        assert_eq!(
+            collapsed_witnesses,
+            vec![
+                Range { start: Witness(1), end: Witness(4) },
+                Range { start: Witness(5), end: Witness(7) },
+                Range { start: Witness(2), end: Witness(5) }
+            ]
+        )
+    }
 }

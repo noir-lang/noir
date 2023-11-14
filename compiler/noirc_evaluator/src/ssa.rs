@@ -84,7 +84,7 @@ pub fn create_circuit(
     program: Program,
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
-) -> Result<(Circuit, DebugInfo, Vec<Range<Witness>>, Vec<Witness>, Vec<SsaReport>), RuntimeError> {
+) -> Result<(Circuit, DebugInfo, Vec<Witness>, Vec<Witness>, Vec<SsaReport>), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
     let mut generated_acir =
         optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
@@ -132,51 +132,31 @@ pub fn create_circuit(
 // Takes each function argument and partitions the circuit's inputs witnesses according to its visibility.
 fn split_public_and_private_inputs(
     func_sig: &FunctionSignature,
-    input_witnesses: &[Range<Witness>],
+    input_witnesses: &[Witness],
 ) -> (BTreeSet<Witness>, BTreeSet<Witness>) {
     let mut idx = 0_usize;
     if input_witnesses.is_empty() {
         return (BTreeSet::new(), BTreeSet::new());
     }
-    let mut processed_range = input_witnesses[idx].start.witness_index();
 
     func_sig
         .0
         .iter()
         .map(|(_, typ, visibility)| {
-            let num_field_elements_needed = typ.field_count();
-            let mut witnesses = Vec::new();
-            let mut processed_fields = 0;
-            while processed_fields < num_field_elements_needed {
-                let end = input_witnesses[idx].end.witness_index();
-
-                if num_field_elements_needed <= end - processed_range {
-                    witnesses.append(&mut Vec::from_iter(
-                        processed_range..processed_range + num_field_elements_needed,
-                    ));
-                    processed_range += num_field_elements_needed;
-                    processed_fields += num_field_elements_needed;
-                } else {
-                    // consume the current range
-                    witnesses.append(&mut Vec::from_iter(
-                        processed_range..processed_range + input_witnesses[idx].end.0,
-                    ));
-                    processed_fields += end - processed_range;
-                    idx += 1;
-                    processed_range = input_witnesses[idx].start.witness_index();
-                }
-            }
+            let num_field_elements_needed = typ.field_count() as usize;
+            let witnesses = input_witnesses[idx..idx + num_field_elements_needed].to_vec();
+            idx += num_field_elements_needed;
             (visibility, witnesses)
         })
         .fold((BTreeSet::new(), BTreeSet::new()), |mut acc, (vis, witnesses)| {
             // Split witnesses into sets based on their visiblity.
             if *vis == Visibility::Public {
                 for witness in witnesses {
-                    acc.0.insert(Witness(witness));
+                    acc.0.insert(witness);
                 }
             } else {
                 for witness in witnesses {
-                    acc.1.insert(Witness(witness));
+                    acc.1.insert(witness);
                 }
             }
             (acc.0, acc.1)
