@@ -5,11 +5,8 @@ use iter_extended::{btree_map, vecmap};
 use noirc_abi::{Abi, AbiParameter, AbiType};
 use noirc_frontend::{
     hir::Context,
-    hir_def::{
-        function::{FunctionSignature, Param},
-        stmt::HirPattern,
-    },
-    node_interner::NodeInterner,
+    hir_def::{function::Param, stmt::HirPattern},
+    node_interner::{FuncId, NodeInterner},
 };
 use std::ops::Range;
 
@@ -38,15 +35,25 @@ pub(super) fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiP
 /// `noirc_abi::Abi`.
 pub(super) fn gen_abi(
     context: &Context,
-    func_sig: FunctionSignature,
+    func_id: &FuncId,
     input_witnesses: Vec<Witness>,
     return_witnesses: Vec<Witness>,
 ) -> Abi {
-    let (parameters, return_type) = func_sig;
-    let parameters = into_abi_params(context, parameters);
-    let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
+    let (parameters, return_type) = compute_function_abi(context, func_id);
     let param_witnesses = param_witnesses_from_abi_param(&parameters, input_witnesses);
     Abi { parameters, return_type, param_witnesses, return_witnesses }
+}
+
+pub(super) fn compute_function_abi(
+    context: &Context,
+    func_id: &FuncId,
+) -> (Vec<AbiParameter>, Option<AbiType>) {
+    let func_meta = context.def_interner.function_meta(func_id);
+
+    let (parameters, return_type) = func_meta.into_function_signature();
+    let parameters = into_abi_params(context, parameters);
+    let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
+    (parameters, return_type)
 }
 
 // Takes each abi parameter and shallowly maps to the expected witness range in which the

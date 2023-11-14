@@ -3,7 +3,6 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use abi_gen::{gen_abi, into_abi_params};
 use clap::Args;
 use fm::FileId;
 use iter_extended::vecmap;
@@ -142,12 +141,7 @@ pub fn compute_function_abi(
 ) -> Option<(Vec<AbiParameter>, Option<AbiType>)> {
     let main_function = context.get_main_function(crate_id)?;
 
-    let func_meta = context.def_interner.function_meta(&main_function);
-
-    let (parameters, return_type) = func_meta.into_function_signature();
-    let parameters = into_abi_params(context, parameters);
-    let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
-    Some((parameters, return_type))
+    Some(abi_gen::compute_function_abi(context, &main_function))
 }
 
 /// Run the frontend to check the crate for errors then compile the main function if there were none
@@ -347,12 +341,10 @@ pub fn compile_no_check(
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
 
-    let func_sig = program.main_function_signature.clone();
-
     let (circuit, debug, input_witnesses, return_witnesses, warnings) =
         create_circuit(program, options.show_ssa, options.show_brillig)?;
 
-    let abi = gen_abi(context, func_sig, input_witnesses, return_witnesses);
+    let abi = abi_gen::gen_abi(context, &main_function, input_witnesses, return_witnesses);
     let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
 
     Ok(CompiledProgram {
