@@ -23,6 +23,7 @@ use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use num_bigint::BigUint;
+use std::ops::RangeInclusive;
 use std::{borrow::Cow, hash::Hash};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -893,7 +894,9 @@ impl AcirContext {
                         return Ok(variable);
                     }
                 }
-                let witness = self.var_to_witness(variable)?;
+
+                let witness_var = self.get_or_create_witness_var(variable)?;
+                let witness = self.var_to_witness(witness_var)?;
                 self.acir_ir.range_constraint(witness, *bit_size)?;
                 if let Some(message) = message {
                     self.acir_ir
@@ -1082,7 +1085,8 @@ impl AcirContext {
                 // Intrinsics only accept Witnesses. This is not a limitation of the
                 // intrinsics, its just how we have defined things. Ideally, we allow
                 // constants too.
-                let witness = self.var_to_witness(input)?;
+                let witness_var = self.get_or_create_witness_var(input)?;
+                let witness = self.var_to_witness(witness_var)?;
                 let num_bits = typ.bit_size();
                 single_val_witnesses.push(FunctionInput { witness, num_bits });
             }
@@ -1176,8 +1180,29 @@ impl AcirContext {
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
-    pub(crate) fn finish(mut self, inputs: Vec<u32>, warnings: Vec<SsaReport>) -> GeneratedAcir {
-        self.acir_ir.input_witnesses = vecmap(inputs, Witness);
+    pub(crate) fn finish(
+        mut self,
+        inputs: Vec<RangeInclusive<u32>>,
+        warnings: Vec<SsaReport>,
+    ) -> GeneratedAcir {
+        let mut current_range = 0..0;
+        for range in inputs {
+            if current_range.end == *range.start() {
+                current_range.end = range.end() + 1;
+            } else {
+                if current_range.end != 0 {
+                    self.acir_ir
+                        .input_witnesses
+                        .push(Witness(current_range.start)..Witness(current_range.end));
+                }
+                current_range = *range.start()..range.end() + 1;
+            }
+        }
+        if current_range.end != 0 {
+            self.acir_ir
+                .input_witnesses
+                .push(Witness(current_range.start)..Witness(current_range.end));
+        }
         self.acir_ir.warnings = warnings;
         self.acir_ir
     }

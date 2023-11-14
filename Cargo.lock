@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.30.0"
+version = "0.33.0"
 dependencies = [
  "acir_field",
  "base64",
@@ -23,7 +23,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.30.0"
+version = "0.33.0"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -37,7 +37,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.30.0"
+version = "0.33.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.30.0"
+version = "0.33.0"
 dependencies = [
  "acir",
  "blake2",
@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "0.30.0"
+version = "0.33.0"
 dependencies = [
  "acvm",
  "barretenberg_blackbox_solver",
@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.30.0"
+version = "0.33.0"
 dependencies = [
  "acir",
 ]
@@ -217,7 +217,7 @@ checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
 name = "arena"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "generational-arena",
 ]
@@ -478,7 +478,7 @@ dependencies = [
 
 [[package]]
 name = "barretenberg_blackbox_solver"
-version = "0.30.0"
+version = "0.33.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -602,7 +602,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "0.30.0"
+version = "0.33.0"
 dependencies = [
  "acir_field",
  "serde",
@@ -610,7 +610,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.30.0"
+version = "0.33.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1640,7 +1640,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -2224,7 +2224,7 @@ dependencies = [
 
 [[package]]
 name = "iter-extended"
-version = "0.18.0"
+version = "0.19.2"
 
 [[package]]
 name = "itertools"
@@ -2297,15 +2297,9 @@ checksum = "f7012b1bbb0719e1097c47611d3898568c546d597c2e74d66f6087edd5233ff4"
 
 [[package]]
 name = "linux-raw-sys"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da2479e8c062e40bf0066ffa0bc823de0a9368974af99c9f6df941d2c231e03f"
-
-[[package]]
-name = "linux-raw-sys"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da2479e8c062e40bf0066ffa0bc823de0a9368974af99c9f6df941d2c231e03f"
+checksum = "969488b55f8ac402214f3f5fd243ebb7206cf82de60d3172994707a4bcc2b829"
 
 [[package]]
 name = "lock_api"
@@ -2452,7 +2446,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "acvm",
  "codespan-reporting",
@@ -2471,7 +2465,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -2519,7 +2513,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "bytecount",
  "noirc_frontend",
@@ -2531,7 +2525,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "dirs",
  "fm",
@@ -2580,7 +2574,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "acvm",
  "codespan-reporting",
@@ -2594,7 +2588,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -2616,7 +2610,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp_wasm"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "acvm",
  "async-io",
@@ -2628,7 +2622,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "acvm",
  "build-data",
@@ -2650,7 +2644,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -2667,7 +2661,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "acvm",
  "build-data",
@@ -2684,7 +2678,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "acvm",
  "build-data",
@@ -2701,7 +2695,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "acvm",
  "chumsky",
@@ -2714,7 +2708,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "acvm",
  "fxhash",
@@ -2730,7 +2724,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "acvm",
  "arena",
@@ -2752,7 +2746,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "0.18.0"
+version = "0.19.2"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3538,19 +3532,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
 dependencies = [
  "semver",
-]
-
-[[package]]
-name = "rustix"
-version = "0.38.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7db8590df6dfcd144d22afd1b83b36c21a18d7cbc1dc4bb5295a8712e9eb662"
-dependencies = [
- "bitflags 2.4.1",
- "errno",
- "libc",
- "linux-raw-sys",
- "windows-sys 0.48.0",
 ]
 
 [[package]]
