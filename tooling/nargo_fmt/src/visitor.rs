@@ -211,7 +211,6 @@ impl<'me> FmtVisitor<'me> {
                 } else {
                     match (starts_with_newline, self.at_start()) {
                         (false, false) => {
-                            dbg!(());
                             result.push(' ');
                         }
                         (true, _) => {
