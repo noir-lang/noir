@@ -197,7 +197,6 @@ impl<'me> FmtVisitor<'me> {
                 let starts_with_newline = slice.starts_with('\n');
                 let comment = &slice[span.start() as usize..span.end() as usize];
 
-                dbg!(fix_indent);
                 if fix_indent {
                     if let Some('{') = last_char {
                         result.push('\n');
