@@ -106,7 +106,7 @@ impl<'me> FmtVisitor<'me> {
         let original = self.slice(span);
         let changed_comment_content = utils::changed_comment_content(original, &rewrite);
 
-        if changed_comment_content && false {
+        if changed_comment_content && self.config.error_on_lost_comment {
             panic!("not formatted because a comment would be lost: {rewrite:?}");
         }
 
