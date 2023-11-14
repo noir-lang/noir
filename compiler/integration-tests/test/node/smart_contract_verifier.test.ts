@@ -13,7 +13,7 @@ compilerLogLevel('INFO');
 
 const test_cases = [
   {
-    case: 'tooling/nargo_cli/tests/execution_success/1_mul',
+    case: 'test_programs/execution_success/1_mul',
     compiled: 'contracts/1_mul.sol:UltraVerifier',
     numPublicInputs: 0,
   },
