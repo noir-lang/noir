@@ -575,6 +575,32 @@ impl Type {
             _ => 0,
         }
     }
+
+    /// Takes a monomorphic type and generalizes it over each of the given type variables.
+    pub(crate) fn generalize_from_variables(
+        self,
+        type_vars: HashMap<TypeVariableId, TypeVariable>,
+    ) -> Type {
+        let polymorphic_type_vars = vecmap(type_vars, |type_var| type_var);
+        Type::Forall(polymorphic_type_vars, Box::new(self))
+    }
+
+    /// Takes a monomorphic type and generalizes it over each of the type variables in the
+    /// given type bindings, ignoring what each type variable is bound to in the TypeBindings.
+    pub(crate) fn generalize_from_substitutions(self, type_bindings: TypeBindings) -> Type {
+        let polymorphic_type_vars = vecmap(type_bindings, |(id, (type_var, _))| (id, type_var));
+        Type::Forall(polymorphic_type_vars, Box::new(self))
+    }
+
+    /// Takes a monomorphic type and generalizes it over each type variable found within.
+    ///
+    /// Note that Noir's type system assumes any Type::Forall are only present at top-level,
+    /// and thus all type variable's within a type are free.
+    pub(crate) fn generalize(self) -> Type {
+        let mut type_variables = HashMap::new();
+        self.find_all_unbound_type_variables(&mut type_variables);
+        self.generalize_from_variables(type_variables)
+    }
 }
 
 impl std::fmt::Display for Type {
@@ -926,8 +952,24 @@ impl Type {
                 }
             }
 
+            (NamedGeneric(binding, _), other) if !binding.borrow().is_unbound() => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    link.try_unify(other)
+                } else {
+                    unreachable!("If guard ensures binding is bound")
+                }
+            }
+
+            (other, NamedGeneric(binding, _)) if !binding.borrow().is_unbound() => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    other.try_unify(link)
+                } else {
+                    unreachable!("If guard ensures binding is bound")
+                }
+            }
+
             (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
-                // Ensure NamedGenerics are never bound during type checking
+                // Unbound NamedGenerics are caught by the checks above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
 
@@ -1085,18 +1127,26 @@ impl Type {
     }
 
     /// Replace each NamedGeneric (and TypeVariable) in this type with a fresh type variable
-    pub(crate) fn instantiate_named_generics(&self, interner: &NodeInterner) -> Type {
-        let mut substitutions = HashMap::new();
-        self.find_all_unbound_type_variables(interner, &mut substitutions);
-        self.substitute(&substitutions)
+    pub(crate) fn instantiate_type_variables(
+        &self,
+        interner: &NodeInterner,
+    ) -> (Type, TypeBindings) {
+        let mut type_variables = HashMap::new();
+        self.find_all_unbound_type_variables(&mut type_variables);
+
+        let substitutions = type_variables
+            .into_iter()
+            .map(|(id, type_var)| (id, (type_var, interner.next_type_variable())))
+            .collect();
+
+        (self.substitute(&substitutions), substitutions)
     }
 
     /// For each unbound type variable in the current type, add a type binding to the given list
     /// to bind the unbound type variable to a fresh type variable.
     fn find_all_unbound_type_variables(
         &self,
-        interner: &NodeInterner,
-        bindings: &mut TypeBindings,
+        type_variables: &mut HashMap<TypeVariableId, TypeVariable>,
     ) {
         match self {
             Type::FieldElement
@@ -1108,44 +1158,43 @@ impl Type {
             | Type::NotConstant
             | Type::Error => (),
             Type::Array(length, elem) => {
-                length.find_all_unbound_type_variables(interner, bindings);
-                elem.find_all_unbound_type_variables(interner, bindings);
+                length.find_all_unbound_type_variables(type_variables);
+                elem.find_all_unbound_type_variables(type_variables);
             }
-            Type::String(length) => length.find_all_unbound_type_variables(interner, bindings),
+            Type::String(length) => length.find_all_unbound_type_variables(type_variables),
             Type::FmtString(length, env) => {
-                length.find_all_unbound_type_variables(interner, bindings);
-                env.find_all_unbound_type_variables(interner, bindings);
+                length.find_all_unbound_type_variables(type_variables);
+                env.find_all_unbound_type_variables(type_variables);
             }
             Type::Struct(_, generics) => {
                 for generic in generics {
-                    generic.find_all_unbound_type_variables(interner, bindings);
+                    generic.find_all_unbound_type_variables(type_variables);
                 }
             }
             Type::Tuple(fields) => {
                 for field in fields {
-                    field.find_all_unbound_type_variables(interner, bindings);
+                    field.find_all_unbound_type_variables(type_variables);
                 }
             }
             Type::Function(args, ret, env) => {
                 for arg in args {
-                    arg.find_all_unbound_type_variables(interner, bindings);
+                    arg.find_all_unbound_type_variables(type_variables);
                 }
-                ret.find_all_unbound_type_variables(interner, bindings);
-                env.find_all_unbound_type_variables(interner, bindings);
+                ret.find_all_unbound_type_variables(type_variables);
+                env.find_all_unbound_type_variables(type_variables);
             }
             Type::MutableReference(elem) => {
-                elem.find_all_unbound_type_variables(interner, bindings);
+                elem.find_all_unbound_type_variables(type_variables);
             }
-            Type::Forall(_, typ) => typ.find_all_unbound_type_variables(interner, bindings),
+            Type::Forall(_, typ) => typ.find_all_unbound_type_variables(type_variables),
             Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _) => {
                 match &*type_variable.borrow() {
                     TypeBinding::Bound(binding) => {
-                        binding.find_all_unbound_type_variables(interner, bindings);
+                        binding.find_all_unbound_type_variables(type_variables);
                     }
                     TypeBinding::Unbound(id) => {
-                        if !bindings.contains_key(id) {
-                            let fresh_type_variable = interner.next_type_variable();
-                            bindings.insert(*id, (type_variable.clone(), fresh_type_variable));
+                        if !type_variables.contains_key(id) {
+                            type_variables.insert(*id, type_variable.clone());
                         }
                     }
                 }

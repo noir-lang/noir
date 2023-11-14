@@ -12,7 +12,7 @@ trait Eq {
     fn eq(self, other: Self) -> bool;
 }
 
-impl<T, N> Eq for [T; N] where T: Eq {
+impl<T> Eq for [T; 3] where T: Eq {
     fn eq(self, other: Self) -> bool {
         let mut ret = true;
         for i in 0 .. self.len() {

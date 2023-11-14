@@ -24,7 +24,7 @@ jobs:
         uses: ./.github/actions/nix
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          nix-cache-name: ${{ vars.NIX_CACHE_NAME }}
+          nix-cache-name: "noir"
           cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
 
       - name: Build noirc_abi_wasm
