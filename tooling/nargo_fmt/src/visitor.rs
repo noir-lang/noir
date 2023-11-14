@@ -215,7 +215,6 @@ impl<'me> FmtVisitor<'me> {
                             result.push(' ');
                         }
                         (true, _) => {
-                            dbg!(());
                             result.push_str(&self.indent.to_string_with_newline());
                         }
                         (false, _) => {
