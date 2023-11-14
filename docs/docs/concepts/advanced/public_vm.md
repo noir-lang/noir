@@ -17,7 +17,7 @@ Point 2 requires a Virtual Machine architecture. The older model of having ACIR 
 
 The kernel circuit cannot prevent this by _requiring_ the public function proof to succeed, as it is trivial for a malicious contract writer to create unsatisfiable programs (e.g. `assert(true == false)`).
 
-We cannot require a Prover/Sequencer simulates the transaction to determine whether it is possible to include it in the block proof, as this amounts to unpaid compute that can be used as a DoS attack vector.
+We cannot require that a Prover/Sequencer simulates the transaction to determine whether it is possible to include it in the block proof, as this amounts to unpaid compute that can be used as a DoS attack vector.
 
 ### VM Solution
 
@@ -51,7 +51,7 @@ The following L1 costs also apply:
 
 Under a VM model, the VM simulator can perform opcode-by-opcode gas metering.
 
-(need to define VM arch for more detail)
+(need to define VM architecture for more detail)
 
 ## VM ABI
 
@@ -242,7 +242,7 @@ Additional witness commitments required that are not part of UltraPlonk/Honk:
 
 $PC, I, C_{w1}, C_{w2}, C_{w3}, C_{w4}, E, G, T_{w1}, T_{w2}, T_{w3}, T_{w4}$
 
-In addition, selector context polynomials $C_{q}$ will likely represent least 4 selectors in order to handle ACIR's linear combination instruction
+In addition, selector context polynomials $C_{q}$ will likely represent at least 4 selectors in order to handle ACIR's linear combination instruction
 
 That's 28 additional witness polynomial commitments on top of the usual Honk commitments.
 

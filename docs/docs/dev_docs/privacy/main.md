@@ -65,7 +65,7 @@ Tl;dr: app developers should think about the _timing_ of user transactions, and 
 
 ### Function Fingerprints and Tx Fingerprints
 
-A 'Function Fingerprint' is any data which is exposed by a function to the outside world. A 'Tx Fingerprint' is any data which is exposed by a tx to the outside world. We're interested in minimising leakages of information from private txs. The leakiness of a Tx Fingerprint depends on the leakiness of its consituent functions' Function Fingerprints _and_ on the appearance of the tx's Tx Fingerprint as a whole. For a private function (and by extension, for a private tx), the following information _could_ be leaked (depending on the function, of course):
+A 'Function Fingerprint' is any data which is exposed by a function to the outside world. A 'Tx Fingerprint' is any data which is exposed by a tx to the outside world. We're interested in minimising leakages of information from private txs. The leakiness of a Tx Fingerprint depends on the leakiness of its constituent functions' Function Fingerprints _and_ on the appearance of the tx's Tx Fingerprint as a whole. For a private function (and by extension, for a private tx), the following information _could_ be leaked (depending on the function, of course):
 
 - All calls to public functions.
   - The contract address of the private function (if it calls an internal public function).

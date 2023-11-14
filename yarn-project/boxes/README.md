@@ -1,3 +1,14 @@
-This contains the "boxes" that are meant for quickstarts for Aztec smart contract developers, containing simple Noir smart contracts and frontends.
+# Aztec Boxes
+A minimal framework for building full stack applications for Aztec (using React).
 
-If CI is failing, it may be due to incompatibility with previous build artifacts - running "./bootstrap.sh" inside this boxes folder should regenerate the artifacts.
+## Introduction
+
+This folder contains the "boxes" that are meant for quickstarts for Aztec smart contract developers, including simple Noir smart contracts and frontends.
+
+## Debugging
+
+If CI is failing, it may be due to incompatibility with previous build artifacts - running the following command inside this boxes folder should regenerate the artifacts.
+
+```
+./bootstrap.sh
+```

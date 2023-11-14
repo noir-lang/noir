@@ -6,7 +6,7 @@ Aztec has a hybrid public/private state model. Aztec contract developers can spe
 
 ## Public State
 
-Aztec has public state that will be familiar to developers coming that have worked on other blockchains. Public state is transparent is managed by the associated smart contract logic.
+Aztec has public state that will be familiar to developers coming that have worked on other blockchains. Public state is transparent and is managed by the associated smart contract logic.
 
 Internal to the Aztec network, public state is stored and updated by the sequencer. The sequencer executes state transitions, generates proofs of correct execution (or delegates proof generation to the prover network), and publishes the associated data to Ethereum.
 

@@ -221,7 +221,7 @@ Note that there is no plan to change this in the future.
 
 ### Example
 
-Let us assume that the main function named $f_1$ is calling in order $f_2$, $f_3$ (which calls $f_5$ folllowed by $f_6$), and $f_4$.
+Let us assume that the main function named $f_1$ is calling in order $f_2$, $f_3$ (which calls $f_5$ followed by $f_6$), and $f_4$.
 
 Call Dependency:
 
@@ -239,13 +239,13 @@ Private Kernel Processing Order:
 
 #### What are the consequences?
 
-Transaction output elements such as notes in encrypted logs, note hashes (commitments), nullifiers might be ordered differently than the one exepected by the execution.
+Transaction output elements such as notes in encrypted logs, note hashes (commitments), nullifiers might be ordered differently than the one expected by the execution.
 
 ### Chopped Transient Notes are still Emitted in Logs
 
 A note which is created and nullified during the very same transaction is called transient. Such a note is chopped by the [private kernel circuit](../../concepts/advanced/circuits/kernels/private_kernel.md) and is never stored in any persistent data tree.
 
-For the time being, such chopped notes are still emitted through encrypted logs (which is the communication channel to transmit notes). When a log containing a chopped note is processed, a warning will be logged about a decrypted note which does not exist in data tree. We [improved](https://github.com/AztecProtocol/aztec-packages/issues/1603) error logging to help identify such an occurence. However, this might be a source of confusion.
+For the time being, such chopped notes are still emitted through encrypted logs (which is the communication channel to transmit notes). When a log containing a chopped note is processed, a warning will be logged about a decrypted note which does not exist in data tree. We [improved](https://github.com/AztecProtocol/aztec-packages/issues/1603) error logging to help identify such an occurrence. However, this might be a source of confusion.
 This issue is tracked in ticket [#1641](https://github.com/AztecProtocol/aztec-packages/issues/1641).
 
 ### Note Terminology: Note Commitments and Note Hashes

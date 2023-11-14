@@ -29,7 +29,11 @@ To build the C++ code, follow the [instructions in the circuits subdirectory](./
 To build Typescript code, make sure to have [`nvm`](https://github.com/nvm-sh/nvm) (node version manager) installed.
 
 To build noir code, make sure that you are using the version from `yarn-project/noir-compiler/src/noir-version.json`.
-Install nargo by running `noirup -v TAG_FROM_THE_FILE`.
+
+Install nargo by running 
+```
+noirup -v TAG_FROM_THE_FILE
+```
 
 ## Continuous Integration
 

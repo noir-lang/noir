@@ -215,7 +215,7 @@ See pseudocode in [this diagram](https://miro.com/app/board/uXjVPlafJWM=/) and t
 
 ## Public Kernel Circuit
 
-The public kernel circuit performs many of the functions of the private kernel circuit but for public functions. Public functions differ from public functions in that they they are exeucted by the sequencer and can modify the public state tree. Like private functions, public functions can include calls to other public functions and these calls are validated within the circuit.
+The public kernel circuit performs many of the functions of the private kernel circuit but for public functions. Public functions differ from public functions in that they they are executed by the sequencer and can modify the public state tree. Like private functions, public functions can include calls to other public functions and these calls are validated within the circuit.
 
 The public kernel circuit in Aztec 3 is implemented in [`circuit/kernel/public`](https://github.com/AztecProtocol/aztec3-packages/tree/master/circuits/cpp/src/aztec3/circuits/kernel/publlic) directory. The input and output interface of the private kernel circuit is written in [`circuits/abis/public_kernel`](https://github.com/AztecProtocol/aztec3-packages/tree/master/circuits/cpp/src/aztec3/circuits/abis/public_kernel).
 
