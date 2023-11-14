@@ -70,12 +70,16 @@ fn param_witnesses_from_abi_param(
     btree_map(abi_params, |param| {
         let num_field_elements_needed = param.typ.field_count() as usize;
         let param_witnesses = &input_witnesses[idx..idx + num_field_elements_needed];
+
+        // It's likely that `param_witnesses` will consist of mostly incrementing witness indices.
+        // We then want to collapse these into `Range`s to save space.
         let param_witnesses = collapse_ranges(param_witnesses);
         idx += num_field_elements_needed;
         (param.name.clone(), param_witnesses)
     })
 }
 
+/// Takes a vector of [`Witnesses`][`Witness`] and collapses it into a vector of [`Range`]s of [`Witnesses`][`Witness`].
 fn collapse_ranges(witnesses: &[Witness]) -> Vec<Range<Witness>> {
     if witnesses.is_empty() {
         return Vec::new();
