@@ -23,7 +23,6 @@ enum PolynomialIndex {
     Q_FIXED_BASE,
     Q_RANGE,
     Q_SORT,
-    Q_LOGIC,
     TABLE_1,
     TABLE_2,
     TABLE_3,

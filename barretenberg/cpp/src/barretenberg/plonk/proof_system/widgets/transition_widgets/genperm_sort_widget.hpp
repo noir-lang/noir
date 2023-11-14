@@ -15,7 +15,6 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
 
   private:
     typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
-    typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
     inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
@@ -27,10 +26,10 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
         return required_polynomial_ids;
     }
 
-    inline static void compute_linear_terms(PolyContainer& polynomials,
-                                            const challenge_array& challenges,
-                                            coefficient_array& linear_terms,
-                                            const size_t i = 0)
+    inline static void accumulate_contribution(PolyContainer& polynomials,
+                                               const challenge_array& challenges,
+                                               Field& quotient,
+                                               const size_t i = 0)
     {
         constexpr barretenberg::fr minus_two(-2);
         constexpr barretenberg::fr minus_three(-3);
@@ -47,6 +46,8 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
             Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_4>(polynomials, i);
         const Field& w_1_omega =
             Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_1>(polynomials, i);
+        const Field& q_sort =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_SORT>(polynomials, i);
 
         Field alpha_a = alpha_base;
         Field alpha_b = alpha_a * alpha;
@@ -94,27 +95,7 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
         T0 *= alpha_d;
         range_accumulator += T0;
 
-        linear_terms[0] = range_accumulator;
-    }
-
-    inline static void compute_non_linear_terms(PolyContainer&, const challenge_array&, Field&, const size_t = 0) {}
-
-    inline static Field sum_linear_terms(PolyContainer& polynomials,
-                                         const challenge_array&,
-                                         coefficient_array& linear_terms,
-                                         const size_t i = 0)
-    {
-        const Field& q_sort =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_SORT>(polynomials, i);
-
-        return linear_terms[0] * q_sort;
-    }
-
-    inline static void update_kate_opening_scalars(coefficient_array& linear_terms,
-                                                   std::map<std::string, Field>& scalars,
-                                                   const challenge_array&)
-    {
-        scalars["Q_SORT"] += linear_terms[0];
+        quotient += range_accumulator * q_sort;
     }
 };
 

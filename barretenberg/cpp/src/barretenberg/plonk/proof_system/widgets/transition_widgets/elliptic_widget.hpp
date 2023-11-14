@@ -72,7 +72,6 @@ template <class Field, class Getters, typename PolyContainer> class EllipticKern
 
   private:
     typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
-    typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
     inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
@@ -93,10 +92,10 @@ template <class Field, class Getters, typename PolyContainer> class EllipticKern
      * @param linear_terms Output array
      * @param i Gate index
      */
-    inline static void compute_linear_terms(PolyContainer& polynomials,
-                                            const challenge_array& challenges,
-                                            coefficient_array& linear_terms,
-                                            const size_t i = 0)
+    inline static void accumulate_contribution(PolyContainer& polynomials,
+                                               const challenge_array& challenges,
+                                               Field& quotient,
+                                               const size_t i = 0)
     {
         const Field& x_1 =
             Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_2>(polynomials, i);
@@ -106,6 +105,8 @@ template <class Field, class Getters, typename PolyContainer> class EllipticKern
         const Field& y_2 = Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_4>(polynomials, i);
         const Field& x_3 = Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_2>(polynomials, i);
         const Field& y_3 = Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_3>(polynomials, i);
+        const Field& q_elliptic =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_ELLIPTIC>(polynomials, i);
 
         // sign
         const Field& q_sign =
@@ -139,41 +140,9 @@ template <class Field, class Getters, typename PolyContainer> class EllipticKern
             (q_is_double * (x_identity_double - x_identity_add) + x_identity_add) * challenges.alpha_powers[0];
         auto y_identity =
             (q_is_double * (y_identity_double - y_identity_add) + y_identity_add) * challenges.alpha_powers[1];
-        linear_terms[0] = x_identity + y_identity;
-    }
+        Field identity = x_identity + y_identity;
 
-    /**
-     * @brief Return the linear term multiplied by elliptic curve addition selector value at gate
-     *
-     * @param polynomials Polynomial container or simulator
-     * @param linear_terms Array of linear terms
-     * @param i Gate index
-     * @return Field
-     */
-    inline static Field sum_linear_terms(PolyContainer& polynomials,
-                                         const challenge_array&,
-                                         coefficient_array& linear_terms,
-                                         const size_t i = 0)
-    {
-        const Field& q_elliptic =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_ELLIPTIC>(polynomials, i);
-
-        return linear_terms[0] * q_elliptic;
-    }
-
-    inline static void compute_non_linear_terms(PolyContainer&, const challenge_array&, Field&, const size_t = 0) {}
-
-    /**
-     * @brief Update opening scalars with the linear term from elliptic gate
-     *
-     * @param linear_terms Contains input scalar
-     * @param scalars Output map for updates
-     */
-    inline static void update_kate_opening_scalars(coefficient_array& linear_terms,
-                                                   std::map<std::string, Field>& scalars,
-                                                   const challenge_array&)
-    {
-        scalars["Q_ELLIPTIC"] += linear_terms[0];
+        quotient += identity * q_elliptic;
     }
 };
 

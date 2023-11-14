@@ -28,8 +28,6 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
   private:
     // A structure with various challenges, even though only alpha is used here.
     typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
-    // Type for the linear terms of the transition
-    typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
     inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
@@ -51,10 +49,10 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
      * @param linear_terms Container for results of computation
      * @param i Index at which the wire values are sampled.
      */
-    inline static void compute_linear_terms(PolyContainer& polynomials,
-                                            const challenge_array&,
-                                            coefficient_array& linear_terms,
-                                            const size_t i = 0)
+    inline static void accumulate_contribution(PolyContainer& polynomials,
+                                               const challenge_array& challenges,
+                                               Field& quotient,
+                                               const size_t i = 0)
     {
         const Field& w_1 =
             Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_1>(polynomials, i);
@@ -63,34 +61,6 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
         const Field& w_3 =
             Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_3>(polynomials, i);
 
-        linear_terms[0] = w_1 * w_2;
-        linear_terms[1] = w_1;
-        linear_terms[2] = w_2;
-        linear_terms[3] = w_3;
-    }
-
-    /**
-     * @brief Not being used in arithmetic_widget because there are none
-     *
-     */
-    inline static void compute_non_linear_terms(PolyContainer&, const challenge_array&, Field&, const size_t = 0) {}
-
-    /**
-     * @brief Scale and sum the linear terms for the final equation.
-     *
-     * @details Multiplies the linear terms by selector values and scale the whole sum by alpha before returning
-     *
-     * @param polynomials Container with polynomials or their simulation
-     * @param challenges A structure with various challenges
-     * @param linear_terms Precomuputed linear terms to be scaled and summed
-     * @param i The index at which selector/witness values are sampled
-     * @return Field Scaled sum of values
-     */
-    inline static Field sum_linear_terms(PolyContainer& polynomials,
-                                         const challenge_array& challenges,
-                                         coefficient_array& linear_terms,
-                                         const size_t i = 0)
-    {
         const Field& alpha = challenges.alpha_powers[0];
         const Field& q_1 =
             Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_1>(polynomials, i);
@@ -103,32 +73,13 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
         const Field& q_c =
             Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_C>(polynomials, i);
 
-        Field result = linear_terms[0] * q_m;
-        result += (linear_terms[1] * q_1);
-        result += (linear_terms[2] * q_2);
-        result += (linear_terms[3] * q_3);
+        Field result = (w_1 * w_2) * q_m;
+        result += w_1 * q_1;
+        result += w_2 * q_2;
+        result += w_3 * q_3;
         result += q_c;
         result *= alpha;
-        return result;
-    }
-
-    /**
-     * @brief Compute the scaled values of openings
-     *
-     * @param linear_terms The original computed linear terms of the product and wires
-     * @param scalars A map where we put the values
-     * @param challenges Challenges where we get the alpha
-     */
-    inline static void update_kate_opening_scalars(coefficient_array& linear_terms,
-                                                   std::map<std::string, Field>& scalars,
-                                                   const challenge_array& challenges)
-    {
-        const Field& alpha = challenges.alpha_powers[0];
-        scalars["Q_M"] += linear_terms[0] * alpha;
-        scalars["Q_1"] += linear_terms[1] * alpha;
-        scalars["Q_2"] += linear_terms[2] * alpha;
-        scalars["Q_3"] += linear_terms[3] * alpha;
-        scalars["Q_C"] += alpha;
+        quotient += result;
     }
 };
 

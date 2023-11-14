@@ -20,7 +20,6 @@ template <typename Curve> class recursive_ultra_verifier_settings : public plonk
 
     typedef proof_system::plonk::VerifierPlookupArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings>
         PlookupArithmeticWidget;
-    typedef proof_system::plonk::VerifierLogicWidget<fr_ct, g1, Transcript_pt, base_settings> LogicWidget;
     typedef proof_system::plonk::VerifierGenPermSortWidget<fr_ct, g1, Transcript_pt, base_settings> GenPermSortWidget;
     typedef proof_system::plonk::VerifierEllipticWidget<fr_ct, g1, Transcript_pt, base_settings> EllipticWidget;
     typedef proof_system::plonk::VerifierPlookupAuxiliaryWidget<fr_ct, g1, Transcript_pt, base_settings>
@@ -98,7 +97,6 @@ class recursive_ultra_to_standard_verifier_settings : public recursive_ultra_ver
 
     typedef proof_system::plonk::VerifierPlookupArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings>
         PlookupArithmeticWidget;
-    typedef proof_system::plonk::VerifierLogicWidget<fr_ct, g1, Transcript_pt, base_settings> LogicWidget;
     typedef proof_system::plonk::VerifierGenPermSortWidget<fr_ct, g1, Transcript_pt, base_settings> GenPermSortWidget;
     typedef proof_system::plonk::VerifierEllipticWidget<fr_ct, g1, Transcript_pt, base_settings> EllipticWidget;
     typedef proof_system::plonk::VerifierPlookupAuxiliaryWidget<fr_ct, g1, Transcript_pt, base_settings>

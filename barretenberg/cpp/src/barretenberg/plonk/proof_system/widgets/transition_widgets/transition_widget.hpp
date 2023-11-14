@@ -48,8 +48,6 @@ template <class Field> struct poly_ptr_map {
     size_t index_shift;
 };
 
-template <class Field> using coefficient_array = std::array<Field, PolynomialIndex::MAX_NUM_POLYNOMIALS>;
-
 } // namespace containers
 
 /**
@@ -287,7 +285,6 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
     typedef containers::poly_ptr_map<Field> poly_ptr_map;
     typedef containers::poly_array<Field> poly_array;
     typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
-    typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
     typedef getters::EvaluationGetter<Field, transcript::StandardTranscript, Settings, num_independent_relations>
@@ -330,15 +327,10 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
             FFTGetter::get_challenges(transcript, alpha_base, FFTKernel::quotient_required_challenges);
 
         ITERATE_OVER_DOMAIN_START(key->large_domain);
-        coefficient_array linear_terms;
-        FFTKernel::compute_linear_terms(polynomials, challenges, linear_terms, i);
-        Field sum_of_linear_terms = FFTKernel::sum_linear_terms(polynomials, challenges, linear_terms, i);
-
         // populate split quotient components
         Field& quotient_term =
             key->quotient_polynomial_parts[i >> key->small_domain.log2_size][i & (key->circuit_size - 1)];
-        quotient_term += sum_of_linear_terms;
-        FFTKernel::compute_non_linear_terms(polynomials, challenges, quotient_term, i);
+        FFTKernel::accumulate_contribution(polynomials, challenges, quotient_term, i);
         ITERATE_OVER_DOMAIN_END;
 
         return FFTGetter::update_alpha(challenges, FFTKernel::num_independent_relations);
@@ -352,7 +344,6 @@ class GenericVerifierWidget {
     typedef containers::poly_ptr_map<Field> poly_ptr_map;
     typedef containers::poly_array<Field> poly_array;
     typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
-    typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
     typedef getters::EvaluationGetter<Field, Transcript, Settings, num_independent_relations> EvaluationGetter;
@@ -368,13 +359,8 @@ class GenericVerifierWidget {
         challenge_array challenges =
             EvaluationGetter::get_challenges(transcript, alpha_base, EvaluationKernel::quotient_required_challenges);
 
-        // As in the permutation widget, we have vestiges of the linearization trick: the code first computes what
-        // would be the contribution with linearization, then completes that smaller sum to the full contribution
-        // without linearization.
-        coefficient_array linear_terms;
-        EvaluationKernel::compute_linear_terms(polynomial_evaluations, challenges, linear_terms);
-        quotient_numerator_eval += EvaluationKernel::sum_linear_terms(polynomial_evaluations, challenges, linear_terms);
-        EvaluationKernel::compute_non_linear_terms(polynomial_evaluations, challenges, quotient_numerator_eval);
+        // Accumulate the contribution from the widget into the quotient
+        EvaluationKernel::accumulate_contribution(polynomial_evaluations, challenges, quotient_numerator_eval);
 
         return EvaluationGetter::update_alpha(challenges, num_independent_relations);
     }

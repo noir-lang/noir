@@ -49,7 +49,6 @@ template <class Field, class Getters, typename PolyContainer> class PlookupAuxil
 
   private:
     typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
-    typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
     inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
@@ -62,16 +61,10 @@ template <class Field, class Getters, typename PolyContainer> class PlookupAuxil
         return required_polynomial_ids;
     }
 
-    inline static void compute_linear_terms(PolyContainer&,
-                                            const challenge_array&,
-                                            coefficient_array&,
-                                            const size_t = 0)
-    {}
-
-    inline static void compute_non_linear_terms(PolyContainer& polynomials,
-                                                const challenge_array& challenges,
-                                                Field& quotient,
-                                                const size_t i = 0)
+    inline static void accumulate_contribution(PolyContainer& polynomials,
+                                               const challenge_array& challenges,
+                                               Field& quotient,
+                                               const size_t i = 0)
     {
         constexpr barretenberg::fr LIMB_SIZE(uint256_t(1) << 68);
         constexpr barretenberg::fr SUBLIMB_SHIFT(uint256_t(1) << 14);
@@ -326,16 +319,6 @@ template <class Field, class Getters, typename PolyContainer> class PlookupAuxil
 
         quotient += (auxiliary_identity);
     }
-
-    inline static Field sum_linear_terms(PolyContainer&, const challenge_array&, coefficient_array&, const size_t = 0)
-    {
-        return Field(0);
-    }
-
-    inline static void update_kate_opening_scalars(coefficient_array&,
-                                                   std::map<std::string, Field>&,
-                                                   const challenge_array&)
-    {}
 };
 
 } // namespace widget
