@@ -23,13 +23,12 @@ use acvm::acir::{
 
 use noirc_errors::debug_info::DebugInfo;
 
-use noirc_abi::Abi;
+use noirc_frontend::{
+    hir_def::function::FunctionSignature, monomorphization::ast::Program, Visibility,
+};
 
-use noirc_frontend::{hir::Context, monomorphization::ast::Program};
+use self::{acir_gen::GeneratedAcir, ssa_gen::Ssa};
 
-use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ssa_gen::Ssa};
-
-pub mod abi_gen;
 mod acir_gen;
 pub(super) mod function_builder;
 pub mod ir;
@@ -82,11 +81,10 @@ pub(crate) fn optimize_into_acir(
 ///
 /// The output ACIR is is backend-agnostic and so must go through a transformation pass before usage in proof generation.
 pub fn create_circuit(
-    context: &Context,
     program: Program,
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
-) -> Result<(Circuit, DebugInfo, Abi, Vec<SsaReport>), RuntimeError> {
+) -> Result<(Circuit, DebugInfo, Vec<Range<Witness>>, Vec<Witness>, Vec<SsaReport>), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
     let mut generated_acir =
         optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
@@ -101,15 +99,11 @@ pub fn create_circuit(
         ..
     } = generated_acir;
 
-    let abi = gen_abi(context, func_sig, input_witnesses, return_witnesses.clone());
-    let public_abi = abi.clone().public_abi();
+    let (public_parameter_witnesses, private_parameters) =
+        split_public_and_private_inputs(&func_sig, &input_witnesses);
 
-    let public_parameters = PublicInputs(tree_to_set(&public_abi.param_witnesses));
-
-    let all_parameters: BTreeSet<Witness> = tree_to_set(&abi.param_witnesses);
-    let private_parameters = all_parameters.difference(&public_parameters.0).copied().collect();
-
-    let return_values = PublicInputs(return_witnesses.into_iter().collect());
+    let public_parameters = PublicInputs(public_parameter_witnesses);
+    let return_values = PublicInputs(return_witnesses.iter().copied().collect());
 
     let circuit = Circuit {
         current_witness_index,
@@ -132,7 +126,61 @@ pub fn create_circuit(
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
     debug_info.update_acir(transformation_map);
 
-    Ok((optimized_circuit, debug_info, abi, warnings))
+    Ok((optimized_circuit, debug_info, input_witnesses, return_witnesses, warnings))
+}
+
+// Takes each function argument and partitions the circuit's inputs witnesses according to its visibility.
+fn split_public_and_private_inputs(
+    func_sig: &FunctionSignature,
+    input_witnesses: &[Range<Witness>],
+) -> (BTreeSet<Witness>, BTreeSet<Witness>) {
+    let mut idx = 0_usize;
+    if input_witnesses.is_empty() {
+        return (BTreeSet::new(), BTreeSet::new());
+    }
+    let mut processed_range = input_witnesses[idx].start.witness_index();
+
+    func_sig
+        .0
+        .iter()
+        .map(|(_, typ, visibility)| {
+            let num_field_elements_needed = typ.field_count();
+            let mut witnesses = Vec::new();
+            let mut processed_fields = 0;
+            while processed_fields < num_field_elements_needed {
+                let end = input_witnesses[idx].end.witness_index();
+
+                if num_field_elements_needed <= end - processed_range {
+                    witnesses.append(&mut Vec::from_iter(
+                        processed_range..processed_range + num_field_elements_needed,
+                    ));
+                    processed_range += num_field_elements_needed;
+                    processed_fields += num_field_elements_needed;
+                } else {
+                    // consume the current range
+                    witnesses.append(&mut Vec::from_iter(
+                        processed_range..processed_range + input_witnesses[idx].end.0,
+                    ));
+                    processed_fields += end - processed_range;
+                    idx += 1;
+                    processed_range = input_witnesses[idx].start.witness_index();
+                }
+            }
+            (visibility, witnesses)
+        })
+        .fold((BTreeSet::new(), BTreeSet::new()), |mut acc, (vis, witnesses)| {
+            // Split witnesses into sets based on their visiblity.
+            if *vis == Visibility::Public {
+                for witness in witnesses {
+                    acc.0.insert(Witness(witness));
+                }
+            } else {
+                for witness in witnesses {
+                    acc.1.insert(Witness(witness));
+                }
+            }
+            (acc.0, acc.1)
+        })
 }
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.

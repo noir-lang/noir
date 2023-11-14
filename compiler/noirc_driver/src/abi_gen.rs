@@ -24,7 +24,7 @@ fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Optio
     }
 }
 
-pub fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParameter> {
+pub(super) fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParameter> {
     vecmap(params, |(pattern, typ, vis)| {
         let param_name = get_param_name(&pattern, &context.def_interner)
             .expect("Abi for tuple and struct parameters is unimplemented")
@@ -36,7 +36,7 @@ pub fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParamete
 
 /// Arranges a function signature and a generated circuit's return witnesses into a
 /// `noirc_abi::Abi`.
-pub(crate) fn gen_abi(
+pub(super) fn gen_abi(
     context: &Context,
     func_sig: FunctionSignature,
     input_witnesses: Vec<Range<Witness>>,

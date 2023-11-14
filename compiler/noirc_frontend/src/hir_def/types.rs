@@ -103,6 +103,47 @@ pub enum Type {
     Error,
 }
 
+impl Type {
+    /// Returns the number of field elements required to represent the type once encoded.
+    pub fn field_count(&self) -> u32 {
+        match self {
+            Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
+            Type::Array(size, typ) => {
+                let length = size
+                    .evaluate_to_u64()
+                    .expect("Cannot have variable sized arrays as a parameter to main");
+                let typ = typ.as_ref();
+                (length as u32) * typ.field_count()
+            }
+            Type::Struct(ref def, args) => {
+                let struct_type = def.borrow();
+                let fields = struct_type.get_fields(args);
+                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
+            }
+            Type::Tuple(fields) => {
+                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
+            }
+            Type::String(size) => {
+                let size = size
+                    .evaluate_to_u64()
+                    .expect("Cannot have variable sized strings as a parameter to main");
+                size as u32
+            }
+            Type::FmtString(_, _)
+            | Type::Unit
+            | Type::TypeVariable(_, _)
+            | Type::TraitAsType(_)
+            | Type::NamedGeneric(_, _)
+            | Type::Function(_, _, _)
+            | Type::MutableReference(_)
+            | Type::Forall(_, _)
+            | Type::Constant(_)
+            | Type::NotConstant
+            | Type::Error => todo!(),
+        }
+    }
+}
+
 /// A list of TypeVariableIds to bind to a type. Storing the
 /// TypeVariable in addition to the matching TypeVariableId allows
 /// the binding to later be undone if needed.

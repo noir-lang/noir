@@ -2636,7 +2636,6 @@ dependencies = [
  "fxhash",
  "im",
  "iter-extended",
- "noirc_abi",
  "noirc_errors",
  "noirc_frontend",
  "num-bigint",

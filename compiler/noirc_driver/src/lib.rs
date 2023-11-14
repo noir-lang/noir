@@ -3,13 +3,14 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+use abi_gen::{gen_abi, into_abi_params};
 use clap::Args;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
+use noirc_evaluator::create_circuit;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -18,6 +19,7 @@ use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+mod abi_gen;
 mod contract;
 mod debug;
 mod program;
@@ -345,9 +347,12 @@ pub fn compile_no_check(
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
 
-    let (circuit, debug, abi, warnings) =
-        create_circuit(context, program, options.show_ssa, options.show_brillig)?;
+    let func_sig = program.main_function_signature.clone();
 
+    let (circuit, debug, input_witnesses, return_witnesses, warnings) =
+        create_circuit(program, options.show_ssa, options.show_brillig)?;
+
+    let abi = gen_abi(context, func_sig, input_witnesses, return_witnesses);
     let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
 
     Ok(CompiledProgram {
