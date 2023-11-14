@@ -10,27 +10,6 @@ use noirc_frontend::{
 };
 use std::ops::Range;
 
-/// Attempts to retrieve the name of this parameter. Returns None
-/// if this parameter is a tuple or struct pattern.
-fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Option<&'a str> {
-    match pattern {
-        HirPattern::Identifier(ident) => Some(interner.definition_name(ident.id)),
-        HirPattern::Mutable(pattern, _) => get_param_name(pattern, interner),
-        HirPattern::Tuple(_, _) => None,
-        HirPattern::Struct(_, _, _) => None,
-    }
-}
-
-pub(super) fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParameter> {
-    vecmap(params, |(pattern, typ, vis)| {
-        let param_name = get_param_name(&pattern, &context.def_interner)
-            .expect("Abi for tuple and struct parameters is unimplemented")
-            .to_owned();
-        let as_abi = AbiType::from_type(context, &typ);
-        AbiParameter { name: param_name, typ: as_abi, visibility: vis.into() }
-    })
-}
-
 /// Arranges a function signature and a generated circuit's return witnesses into a
 /// `noirc_abi::Abi`.
 pub(super) fn gen_abi(
@@ -54,6 +33,27 @@ pub(super) fn compute_function_abi(
     let parameters = into_abi_params(context, parameters);
     let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
     (parameters, return_type)
+}
+
+/// Attempts to retrieve the name of this parameter. Returns None
+/// if this parameter is a tuple or struct pattern.
+fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Option<&'a str> {
+    match pattern {
+        HirPattern::Identifier(ident) => Some(interner.definition_name(ident.id)),
+        HirPattern::Mutable(pattern, _) => get_param_name(pattern, interner),
+        HirPattern::Tuple(_, _) => None,
+        HirPattern::Struct(_, _, _) => None,
+    }
+}
+
+fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParameter> {
+    vecmap(params, |(pattern, typ, vis)| {
+        let param_name = get_param_name(&pattern, &context.def_interner)
+            .expect("Abi for tuple and struct parameters is unimplemented")
+            .to_owned();
+        let as_abi = AbiType::from_type(context, &typ);
+        AbiParameter { name: param_name, typ: as_abi, visibility: vis.into() }
+    })
 }
 
 // Takes each abi parameter and shallowly maps to the expected witness range in which the
