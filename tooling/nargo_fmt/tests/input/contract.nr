@@ -71,3 +71,6 @@ contract Benchmarking {
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
     }
 }
+
+// Uses the token bridge contract, which tells which input token we need to talk to and handles the exit funds to L1 
+contract Uniswap {}

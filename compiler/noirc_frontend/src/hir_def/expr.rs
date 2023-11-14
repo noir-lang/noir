@@ -29,7 +29,7 @@ pub enum HirExpression {
     If(HirIfExpression),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
-    TraitMethodReference(Type, TraitMethodId),
+    TraitMethodReference(TraitMethodId),
     Error,
 }
 
@@ -156,7 +156,7 @@ pub enum HirMethodReference {
     /// Or a method can come from a Trait impl block, in which case
     /// the actual function called will depend on the instantiated type,
     /// which can be only known during monomorphization.
-    TraitMethodId(Type, TraitMethodId),
+    TraitMethodId(TraitMethodId),
 }
 
 impl HirMethodCallExpression {
@@ -174,8 +174,8 @@ impl HirMethodCallExpression {
                 let id = interner.function_definition_id(func_id);
                 HirExpression::Ident(HirIdent { location, id })
             }
-            HirMethodReference::TraitMethodId(typ, method_id) => {
-                HirExpression::TraitMethodReference(typ, method_id)
+            HirMethodReference::TraitMethodId(method_id) => {
+                HirExpression::TraitMethodReference(method_id)
             }
         };
         let func = interner.push_expr(expr);

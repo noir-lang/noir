@@ -1,10 +1,8 @@
 fn comment1() {
     //
 }
-
 // random comment
-fn comment2() {
-    // Test
+fn comment2() { // Test
 }
 
 fn comment3() // some comment

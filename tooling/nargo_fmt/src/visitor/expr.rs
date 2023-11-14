@@ -1,12 +1,13 @@
 use noirc_frontend::{
-    hir::resolution::errors::Span, token::Token, ArrayLiteral, BlockExpression,
+    hir::resolution::errors::Span, lexer::Lexer, token::Token, ArrayLiteral, BlockExpression,
     ConstructorExpression, Expression, ExpressionKind, IfExpression, Literal, Statement,
     StatementKind, UnaryOp,
 };
 
 use super::{ExpressionType, FmtVisitor, Indent, Shape};
 use crate::{
-    utils::{self, Expr, FindToken, Item},
+    rewrite,
+    utils::{self, first_line_width, Expr, FindToken, Item},
     Config,
 };
 
@@ -52,13 +53,9 @@ impl FmtVisitor<'_> {
             ExpressionKind::Cast(cast) => {
                 format!("{} as {}", self.format_sub_expr(cast.lhs), cast.r#type)
             }
-            ExpressionKind::Infix(infix) => {
-                format!(
-                    "{} {} {}",
-                    self.format_sub_expr(infix.lhs),
-                    infix.operator.contents.as_string(),
-                    self.format_sub_expr(infix.rhs)
-                )
+            kind @ ExpressionKind::Infix(_) => {
+                let shape = self.shape();
+                rewrite::infix(self.fork(), Expression { kind, span }, shape)
             }
             ExpressionKind::Call(call_expr) => {
                 let args_span =
@@ -290,17 +287,13 @@ impl FmtVisitor<'_> {
 
         self.trim_spaces_after_opening_brace(&block.0);
 
-        self.with_indent(|this| {
-            this.visit_stmts(block.0);
-        });
+        self.indent.block_indent(self.config);
 
-        let slice = self.slice(self.last_position..block_span.end() - 1).trim_end();
-        self.push_str(slice);
+        self.visit_stmts(block.0);
 
+        let span = (self.last_position..block_span.end() - 1).into();
+        self.close_block(span);
         self.last_position = block_span.end();
-
-        self.push_str(&self.indent.to_string_with_newline());
-        self.push_str("}");
     }
 
     fn trim_spaces_after_opening_brace(&mut self, block: &[Statement]) {
@@ -315,18 +308,48 @@ impl FmtVisitor<'_> {
     pub(crate) fn visit_empty_block(&mut self, block_span: Span) {
         let slice = self.slice(block_span);
         let comment_str = slice[1..slice.len() - 1].trim();
-        let block_str = if comment_str.is_empty() {
-            "{}".to_string()
+
+        if comment_str.is_empty() {
+            self.push_str("{}");
         } else {
+            self.push_str("{");
             self.indent.block_indent(self.config);
-            let (comment_str, _) = self.format_comment_in_block(comment_str);
-            let comment_str = comment_str.trim_matches('\n');
-            self.indent.block_unindent(self.config);
-            let close_indent = self.indent.to_string();
-            format!("{{\n{comment_str}\n{close_indent}}}")
+            self.close_block(block_span);
         };
+
         self.last_position = block_span.end();
-        self.push_str(&block_str);
+    }
+
+    pub(crate) fn close_block(&mut self, span: Span) {
+        let slice = self.slice(span);
+
+        for spanned in Lexer::new(slice).skip_comments(false).flatten() {
+            match spanned.token() {
+                Token::LineComment(_, _) | Token::BlockComment(_, _) => {
+                    let token_span = spanned.to_span();
+
+                    let offset = token_span.start();
+                    let sub_slice = &slice[token_span.start() as usize..token_span.end() as usize];
+
+                    let span_in_between = span.start()..span.start() + offset;
+                    let slice_in_between = self.slice(span_in_between);
+                    let comment_on_same_line = !slice_in_between.contains('\n');
+
+                    if comment_on_same_line {
+                        self.push_str(" ");
+                        self.push_str(sub_slice);
+                    } else {
+                        self.push_str(&self.indent.to_string_with_newline());
+                        self.push_str(sub_slice);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        self.indent.block_unindent(self.config);
+        self.push_str(&self.indent.to_string_with_newline());
+        self.push_str("}");
     }
 }
 
@@ -467,7 +490,7 @@ fn wrap_exprs(
     nested_shape: Shape,
     shape: Shape,
 ) -> String {
-    let first_line_width = exprs.lines().next().map_or(0, |line| line.chars().count());
+    let first_line_width = first_line_width(&exprs);
 
     if first_line_width <= shape.width {
         let allow_trailing_newline = exprs

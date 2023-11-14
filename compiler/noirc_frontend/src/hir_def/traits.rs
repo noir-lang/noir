@@ -151,5 +151,6 @@ impl TraitFunction {
             Box::new(self.return_type.clone()),
             Box::new(Type::Unit),
         )
+        .generalize()
     }
 }

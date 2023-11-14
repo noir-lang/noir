@@ -25,7 +25,7 @@ impl Asd for AddXY {
 
 struct Static100 {}
 impl StaticTrait for Static100 {
-    // use default implementatino for static_function, which returns 100
+    // use default implementation for static_function, which returns 100
 }
 
 struct Static200 {}
@@ -47,12 +47,11 @@ fn main() {
     let a  = Add30{ x: 70 };
     let xy = AddXY{ x: 30, y: 70 };
 
-    // Temporarily disabled, see #3409
-    // assert_asd_eq_100(x);
-    // assert_asd_eq_100(z);
-    // assert_asd_eq_100(a);
-    // assert_asd_eq_100(xy);
+    assert_asd_eq_100(x);
+    assert_asd_eq_100(z);
+    assert_asd_eq_100(a);
+    assert_asd_eq_100(xy);
 
-    // assert(add_one_to_static_function(Static100{}) == 101);
-    // assert(add_one_to_static_function(Static200{}) == 201);
+    assert(add_one_to_static_function(Static100{}) == 101);
+    assert(add_one_to_static_function(Static200{}) == 201);
 }
