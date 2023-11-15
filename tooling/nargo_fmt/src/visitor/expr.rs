@@ -117,7 +117,7 @@ impl FmtVisitor<'_> {
                     format!("[{repeated}; {length}]")
                 }
                 Literal::Array(ArrayLiteral::Standard(exprs)) => {
-                    format_brackets(self.fork(), false, exprs, span)
+                    rewrite::array(self.fork(), exprs, span)
                 }
                 Literal::Unit => "()".to_string(),
             },
@@ -382,7 +382,7 @@ fn format_expr_seq<T: Item>(
 
     visitor.indent.block_unindent(visitor.config);
 
-    wrap_exprs(prefix, suffix, exprs, nested_indent, visitor.shape())
+    wrap_exprs(prefix, suffix, exprs, nested_indent, visitor.shape(), false)
 }
 
 fn format_brackets(
@@ -497,16 +497,20 @@ fn format_exprs(
     result
 }
 
-fn wrap_exprs(
+pub(crate) fn wrap_exprs(
     prefix: &str,
     suffix: &str,
     exprs: String,
     nested_shape: Shape,
     shape: Shape,
+    array: bool,
 ) -> String {
     let first_line_width = first_line_width(&exprs);
 
-    if first_line_width <= shape.width {
+    let force_one_line =
+        if array { !exprs.contains('\n') } else { first_line_width <= shape.width };
+
+    if force_one_line {
         let allow_trailing_newline = exprs
             .lines()
             .last()
