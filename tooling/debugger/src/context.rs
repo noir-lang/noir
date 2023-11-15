@@ -173,13 +173,50 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn step_acir_opcode(&mut self) -> DebugCommandResult {
-        let status = if let Some(solver) = self.brillig_solver.take() {
-            self.acvm.finish_brillig_with_solver(solver)
-        } else {
-            self.acvm.solve_opcode()
+    fn currently_executing_brillig(&self) -> bool {
+        if self.brillig_solver.is_some() {
+            return true;
+        }
+
+        match self.get_current_opcode_location() {
+            Some(OpcodeLocation::Brillig { .. }) => true,
+            Some(OpcodeLocation::Acir(acir_index)) => {
+                matches!(self.get_opcodes()[acir_index], Opcode::Brillig(_))
+            }
+            _ => false,
+        }
+    }
+
+    fn get_current_acir_index(&self) -> Option<usize> {
+        self.get_current_opcode_location().map(|opcode_location| match opcode_location {
+            OpcodeLocation::Acir(acir_index) => acir_index,
+            OpcodeLocation::Brillig { acir_index, .. } => acir_index,
+        })
+    }
+
+    fn step_out_of_brillig_opcode(&mut self) -> DebugCommandResult {
+        let Some(start_acir_index) = self.get_current_acir_index() else {
+            return DebugCommandResult::Done;
         };
-        self.handle_acvm_status(status)
+        loop {
+            let result = self.step_into_opcode();
+            if !matches!(result, DebugCommandResult::Ok) {
+                return result;
+            }
+            let new_acir_index = self.get_current_acir_index().unwrap();
+            if new_acir_index != start_acir_index {
+                return DebugCommandResult::Ok;
+            }
+        }
+    }
+
+    pub(super) fn step_acir_opcode(&mut self) -> DebugCommandResult {
+        if self.currently_executing_brillig() {
+            self.step_out_of_brillig_opcode()
+        } else {
+            let status = self.acvm.solve_opcode();
+            self.handle_acvm_status(status)
+        }
     }
 
     pub(super) fn next(&mut self) -> DebugCommandResult {
@@ -397,6 +434,92 @@ fn test_resolve_foreign_calls_stepping_into_brillig() {
 
     // last Brillig opcode
     let result = context.step_into_opcode();
+    assert!(matches!(result, DebugCommandResult::Done));
+    assert_eq!(context.get_current_opcode_location(), None);
+}
+
+#[cfg(test)]
+#[test]
+fn test_break_brillig_block_while_stepping_acir_opcodes() {
+    use std::collections::BTreeMap;
+
+    use acvm::acir::{
+        brillig::{Opcode as BrilligOpcode, RegisterIndex},
+        circuit::brillig::{Brillig, BrilligInputs, BrilligOutputs},
+        native_types::Expression,
+    };
+    use acvm::brillig_vm::brillig::BinaryFieldOp;
+
+    let fe_0 = FieldElement::zero();
+    let fe_1 = FieldElement::one();
+    let w_x = Witness(1);
+    let w_y = Witness(2);
+    let w_z = Witness(3);
+
+    let blackbox_solver = &StubbedSolver;
+
+    // This Brillig block is equivalent to: z = x + y
+    let brillig_opcodes = Brillig {
+        inputs: vec![
+            BrilligInputs::Single(Expression {
+                linear_combinations: vec![(fe_1, w_x)],
+                ..Expression::default()
+            }),
+            BrilligInputs::Single(Expression {
+                linear_combinations: vec![(fe_1, w_y)],
+                ..Expression::default()
+            }),
+        ],
+        outputs: vec![BrilligOutputs::Simple(w_z)],
+        bytecode: vec![
+            BrilligOpcode::BinaryFieldOp {
+                destination: RegisterIndex::from(0),
+                op: BinaryFieldOp::Add,
+                lhs: RegisterIndex::from(0),
+                rhs: RegisterIndex::from(1),
+            },
+            BrilligOpcode::Stop,
+        ],
+        predicate: None,
+    };
+    let opcodes = vec![
+        // z = x + y
+        Opcode::Brillig(brillig_opcodes),
+        // x + y - z = 0
+        Opcode::Arithmetic(Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![(fe_1, w_x), (fe_1, w_y), (-fe_1, w_z)],
+            q_c: fe_0,
+        }),
+    ];
+    let current_witness_index = 3;
+    let circuit = &Circuit { current_witness_index, opcodes, ..Circuit::default() };
+
+    let debug_symbols = vec![];
+    let file_map = BTreeMap::new();
+    let warnings = vec![];
+    let debug_artifact = &DebugArtifact { debug_symbols, file_map, warnings };
+
+    let initial_witness = BTreeMap::from([(Witness(1), fe_1), (Witness(2), fe_1)]).into();
+
+    let mut context = DebugContext::new(blackbox_solver, circuit, debug_artifact, initial_witness);
+
+    // set breakpoint
+    let breakpoint_location = OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 };
+    assert!(context.add_breakpoint(breakpoint_location.clone()));
+
+    // execute the first ACIR opcode (Brillig block) -> should reach the breakpoint instead
+    let result = context.step_acir_opcode();
+    assert!(matches!(result, DebugCommandResult::BreakpointReached(_)));
+    assert_eq!(context.get_current_opcode_location(), Some(breakpoint_location));
+
+    // continue execution to the next ACIR opcode
+    let result = context.step_acir_opcode();
+    assert!(matches!(result, DebugCommandResult::Ok));
+    assert_eq!(context.get_current_opcode_location(), Some(OpcodeLocation::Acir(1)));
+
+    // last ACIR opcode
+    let result = context.step_acir_opcode();
     assert!(matches!(result, DebugCommandResult::Done));
     assert_eq!(context.get_current_opcode_location(), None);
 }
