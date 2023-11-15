@@ -27,7 +27,10 @@ use dap::responses::ResponseBody;
 use dap::{base_message::Sendable, requests::Request};
 
 #[cfg(feature = "dap")]
-use dap::server::Server as DapServer;
+use dap::{
+    events::OutputEventBody, prelude::Event, server::Server as DapServer,
+    types::OutputEventCategory,
+};
 #[cfg(not(feature = "dap"))]
 use serde_json::Value;
 
@@ -80,6 +83,16 @@ impl Dap {
         Dap { output: Mutex::new(server), input: rx }
     }
 }
+
+#[cfg(feature = "dap")]
+pub fn log<T: Server>(server: &T, data: impl std::fmt::Debug) {
+    server.write(Sendable::Event(Event::Output(OutputEventBody {
+        category: Some(OutputEventCategory::Console),
+        output: format!("{:?}\n", data),
+        ..Default::default()
+    })));
+}
+
 #[cfg(feature = "dap")]
 impl Server for Dap {
     /// Read request from receiver.

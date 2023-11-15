@@ -59,6 +59,9 @@ impl UninitializedState {
             None => return Ok(None),
         };
 
+        #[cfg(feature = "dap")]
+        crate::dap_server::log(server, &request);
+
         match request.command {
             Command::Initialize(_) => {
                 let rsp = request.success(ResponseBody::Initialize(Capabilities {
@@ -188,7 +191,7 @@ impl RunningState {
             thread_id: Some(0),
             preserve_focus_hint: Some(false),
             text: None,
-            all_threads_stopped: Some(false),
+            all_threads_stopped: Some(true),
             hit_breakpoint_ids: None,
         });
 
@@ -218,6 +221,9 @@ impl RunningState {
             Some(req) => req,
             None => return Ok(None),
         };
+
+        #[cfg(feature = "dap")]
+        crate::dap_server::log(server, &request);
 
         match request.command {
             Command::Next(_) | Command::StepIn(_) | Command::StepOut(_) => {
@@ -387,12 +393,13 @@ impl RunningState {
             }
 
             Command::SetExceptionBreakpoints(_) => {}
-            _ => {
-                return Err(DebuggingError::CustomError(
-                    "Unsupported command. Please, use the other commands to continue process."
-                        .to_string(),
-                ))
-            }
+            // _ => {
+            //     return Err(DebuggingError::CustomError(
+            //         "Unsupported command. Please, use the other commands to continue process."
+            //             .to_string(),
+            //     ))
+            // }
+            _ => {}
         }
         Ok(None)
     }
