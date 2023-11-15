@@ -486,7 +486,15 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> Values {
         let mut result = match operator {
-            BinaryOpKind::ShiftLeft => self.builder.insert_shift_left(lhs, rhs),
+            BinaryOpKind::ShiftLeft => {
+                let result_type = self.builder.current_function.dfg.type_of_value(lhs);
+                let bit_size = match result_type {
+                    Type::Numeric(NumericType::Signed { bit_size })
+                    | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
+                    _ => unreachable!("ICE: Truncation attempted on non-integer"),
+                };
+                self.builder.insert_wrapping_shift_left(lhs, rhs, bit_size)
+            }
             BinaryOpKind::ShiftRight => self.builder.insert_shift_right(lhs, rhs),
             BinaryOpKind::Equal | BinaryOpKind::NotEqual
                 if matches!(self.builder.type_of_value(lhs), Type::Array(..)) =>

@@ -260,22 +260,6 @@ impl FunctionBuilder {
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
     ) -> Cow<[ValueId]> {
-        if let Value::Intrinsic(intrinsic) = &self.current_function.dfg[func] {
-            if intrinsic == &Intrinsic::WrappingShiftLeft {
-                let result_type = self.current_function.dfg.type_of_value(arguments[0]);
-                let bit_size = match result_type {
-                    Type::Numeric(NumericType::Signed { bit_size })
-                    | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-                    _ => {
-                        unreachable!("ICE: Truncation attempted on non-integer");
-                    }
-                };
-                return self
-                    .insert_wrapping_shift_left(arguments[0], arguments[1], bit_size)
-                    .results();
-            }
-        }
-
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
     }
 
@@ -290,12 +274,12 @@ impl FunctionBuilder {
 
     /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
     /// and truncate the result to bit_size
-    fn insert_wrapping_shift_left(
+    pub(crate) fn insert_wrapping_shift_left(
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
         bit_size: u32,
-    ) -> InsertInstructionResult {
+    ) -> ValueId {
         let base = self.field_constant(FieldElement::from(2_u128));
         let typ = self.current_function.dfg.type_of_value(lhs);
         let (max_bit, pow) = if let Some(rhs_constant) =
@@ -307,7 +291,7 @@ impl FunctionBuilder {
                 2_u32.overflowing_pow(rhs_constant.to_u128() as u32);
             if overflows {
                 let zero = self.numeric_constant(FieldElement::zero(), typ);
-                return InsertInstructionResult::SimplifiedTo(zero);
+                return InsertInstructionResult::SimplifiedTo(zero).first();
             }
             let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2 as u128), typ);
             (bit_size + (rhs_constant.to_u128() as u32), pow)
@@ -327,13 +311,14 @@ impl FunctionBuilder {
 
         let instruction = Instruction::Binary(Binary { lhs, rhs: pow, operator: BinaryOp::Mul });
         if max_bit <= bit_size {
-            self.insert_instruction(instruction, None)
+            self.insert_instruction(instruction, None).first()
         } else {
             let result = self.insert_instruction(instruction, None).first();
             self.insert_instruction(
                 Instruction::Truncate { value: result, bit_size, max_bit_size: max_bit },
                 None,
             )
+            .first()
         }
     }
 

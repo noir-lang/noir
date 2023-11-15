@@ -12,6 +12,9 @@ fn main(x: u64) {
     assert(x >> 2 == 16);
 
     regression_2250();
+
+    //regression for 3481
+    assert(x << 100000 == 0);
 }
 
 fn regression_2250() {
