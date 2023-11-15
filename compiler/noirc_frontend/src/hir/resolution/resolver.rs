@@ -38,7 +38,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionVisibility, Generics,
-    LValue, NoirStruct, NoirTypeAlias, Path, PathKind, Pattern, Shared, StructType, Type,
+    LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern, Shared, StructType, Type,
     TypeAliasType, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
     Visibility, ERROR_IDENT,
@@ -760,7 +760,7 @@ impl<'a> Resolver<'a> {
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 
-        for (pattern, typ, visibility) in func.parameters().iter().cloned() {
+        for Param { visibility, pattern, ty, span: _ } in func.parameters().iter().cloned() {
             if visibility == Visibility::Public && !self.pub_allowed(func) {
                 self.push_err(ResolverError::UnnecessaryPub {
                     ident: func.name_ident().clone(),
@@ -769,11 +769,11 @@ impl<'a> Resolver<'a> {
             }
 
             if self.is_entry_point_function(func) {
-                self.verify_type_valid_for_program_input(&typ);
+                self.verify_type_valid_for_program_input(&ty);
             }
 
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
-            let typ = self.resolve_type_inner(typ, &mut generics);
+            let typ = self.resolve_type_inner(ty, &mut generics);
 
             parameters.push((pattern, typ.clone(), visibility));
             parameter_types.push(typ);

@@ -1,4 +1,4 @@
-mod expr;
+pub(crate) mod expr;
 mod item;
 mod stmt;
 

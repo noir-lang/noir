@@ -40,8 +40,8 @@ use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
     ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident,
     IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTraitImpl, NoirTypeAlias, Path, PathKind, Pattern, Recoverable, Statement, TraitBound,
-    TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint,
+    NoirTraitImpl, NoirTypeAlias, Param, Path, PathKind, Pattern, Recoverable, Statement,
+    TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint,
     UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
@@ -342,9 +342,7 @@ fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
         .labelled(ParsingRuleLabel::Parameter)
 }
 
-fn function_parameters<'a>(
-    allow_self: bool,
-) -> impl NoirParser<Vec<(Pattern, UnresolvedType, Visibility)>> + 'a {
+fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a {
     let typ = parse_type().recover_via(parameter_recovery());
 
     let full_parameter = pattern()
@@ -352,7 +350,7 @@ fn function_parameters<'a>(
         .then_ignore(just(Token::Colon))
         .then(optional_visibility())
         .then(typ)
-        .map(|((name, visibility), typ)| (name, typ, visibility));
+        .map_with_span(|((pattern, visibility), ty), span| Param { visibility, pattern, ty, span });
 
     let self_parameter = if allow_self { self_parameter().boxed() } else { nothing().boxed() };
 
@@ -369,7 +367,7 @@ fn nothing<T>() -> impl NoirParser<T> {
     one_of([]).map(|_| unreachable!())
 }
 
-fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, Visibility)> {
+fn self_parameter() -> impl NoirParser<Param> {
     let mut_ref_pattern = just(Token::Ampersand).then_ignore(keyword(Keyword::Mut));
     let mut_pattern = keyword(Keyword::Mut);
 
@@ -398,7 +396,7 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, Visibility)> {
                 _ => (),
             }
 
-            (pattern, self_type, Visibility::Private)
+            Param { pattern, ty: self_type, visibility: Visibility::Private, span }
         })
 }
 
@@ -517,8 +515,8 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
 
     let full_parameter = ident().recover_via(parameter_name_recovery()).then(typ);
     let self_parameter = self_parameter().validate(|param, span, emit| {
-        match param.0 {
-            Pattern::Identifier(ident) => (ident, param.1),
+        match param.pattern {
+            Pattern::Identifier(ident) => (ident, param.ty),
             other => {
                 emit(ParserError::with_reason(
                     ParserErrorReason::PatternInTraitFunctionParameter,
@@ -526,7 +524,7 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
                 ));
                 // into_ident panics on tuple or struct patterns but should be fine to call here
                 // since the `self` parser can only parse `self`, `mut self` or `&mut self`.
-                (other.into_ident(), param.1)
+                (other.into_ident(), param.ty)
             }
         }
     });

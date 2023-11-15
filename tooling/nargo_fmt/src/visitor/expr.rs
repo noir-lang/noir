@@ -353,7 +353,7 @@ impl FmtVisitor<'_> {
     }
 }
 
-fn format_expr_seq<T: Item>(
+pub(crate) fn format_expr_seq<T: Item>(
     prefix: &str,
     suffix: &str,
     mut visitor: FmtVisitor,
@@ -516,7 +516,7 @@ fn wrap_exprs(
 }
 
 #[derive(PartialEq, Eq)]
-enum Tactic {
+pub(crate) enum Tactic {
     Horizontal,
     HorizontalVertical,
     LimitedHorizontalVertical(usize),

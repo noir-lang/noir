@@ -5,7 +5,7 @@ use fm::FileManager;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_errors::CustomDiagnostic;
-use noirc_frontend::hir::def_map::parse_file;
+use noirc_frontend::{hir::def_map::parse_file, parser::ParserErrorReason};
 
 use crate::errors::CliError;
 
@@ -33,7 +33,11 @@ pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliEr
             let file_id = file_manager.add_file(&entry.path()).expect("file exists");
             let (parsed_module, errors) = parse_file(&file_manager, file_id);
 
-            if !errors.is_empty() {
+            let is_warnings = errors
+                .iter()
+                .all(|err| matches!(err.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
+
+            if !is_warnings && !errors.is_empty() {
                 let errors = errors
                     .into_iter()
                     .map(|error| {
