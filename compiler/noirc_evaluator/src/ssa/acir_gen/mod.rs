@@ -299,7 +299,7 @@ impl Context {
             self.ssa_values.insert(*param_id, value);
         }
         let end_witness = self.acir_context.current_witness_index().0;
-        let witnesses = (start_witness..=end_witness).into_iter().map(Witness::from).collect();
+        let witnesses = (start_witness..=end_witness).map(Witness::from).collect();
         Ok(witnesses)
     }
 
