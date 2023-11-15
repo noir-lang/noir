@@ -1,14 +1,20 @@
-use std::future::{self, Future};
+use std::{
+    collections::{BTreeMap, HashMap},
+    future::{self, Future},
+};
 
 use acvm::{acir::circuit::Opcode, Language};
 use async_lsp::{ErrorCode, ResponseError};
+use nargo::artifacts::debug::DebugArtifact;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_errors::{debug_info::OpCodesCount, Location};
 
 use crate::{
     types::{NargoProfileRunParams, NargoProfileRunResult},
     LspState,
 };
+use fm::FileId;
 
 pub(crate) fn on_profile_run_request(
     state: &mut LspState,
@@ -45,30 +51,49 @@ fn on_profile_run_request_inner(
 
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
-        Some(package) => {
+        Some(_package) => {
             // let (mut _context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
 
-            // let (_binary_packages, _contract_packages): (Vec<_>, Vec<_>) = workspace
-            //     .into_iter()
-            //     .filter(|package| !package.is_library())
-            //     .cloned()
-            //     .partition(|package| package.is_binary());
+            let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
+                .into_iter()
+                .filter(|package| !package.is_library())
+                .cloned()
+                .partition(|package| package.is_binary());
 
             let is_opcode_supported = |_opcode: &Opcode| true;
             let np_language = Language::PLONKCSat { width: 3 };
-            let compilation_result = nargo::ops::compile_program(
+
+            let (compiled_programs, compiled_contracts) = nargo::ops::compile_workspace(
                 &workspace,
-                package,
-                &CompileOptions::default(),
+                &binary_packages,
+                &contract_packages,
                 np_language,
-                &is_opcode_supported,
-            );
+                is_opcode_supported,
+                &CompileOptions::default(),
+            )
+            .map_err(|err| ResponseError::new(ErrorCode::REQUEST_FAILED, err))?;
 
-            let compiled_program = compilation_result.1.unwrap().0;
+            let mut opcodes_counts: HashMap<Location, OpCodesCount> = HashMap::new();
+            let mut file_map: BTreeMap<FileId, DebugFile> = BTreeMap::new();
+            for compiled_program in &compiled_programs {
+                let span_opcodes = compiled_program.debug.count_span_opcodes();
+                let debug_artifact: DebugArtifact = compiled_program.clone().into();
+                opcodes_counts.extend(span_opcodes);
+                file_map.extend(debug_artifact.file_map);
+            }
 
-            let opcodes_counts = compiled_program.debug.count_span_opcodes();
+            for compiled_contract in &compiled_contracts {
+                let functions = &compiled_contract.functions;
+                let debug_artifact: DebugArtifact = compiled_contract.clone().into();
+                file_map.extend(debug_artifact.file_map);
+                for contract_function in functions {
+                    let span_opcodes = contract_function.debug.count_span_opcodes();
+                    opcodes_counts.extend(span_opcodes);
+                }
+            }
 
-            let result = NargoProfileRunResult { compiled_program, opcodes_counts };
+            let result = NargoProfileRunResult { file_map, opcodes_counts };
+
             Ok(result)
         }
         None => Err(ResponseError::new(

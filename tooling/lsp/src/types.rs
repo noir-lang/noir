@@ -1,9 +1,10 @@
-use noirc_driver::CompiledProgram;
+use fm::FileId;
+use noirc_driver::DebugFile;
 use noirc_errors::{debug_info::OpCodesCount, Location};
 use noirc_frontend::graph::CrateName;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 // Re-providing lsp_types that we don't need to override
 pub(crate) use lsp_types::{
@@ -205,7 +206,7 @@ pub(crate) struct NargoProfileRunParams {
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct NargoProfileRunResult {
-    pub(crate) compiled_program: CompiledProgram,
+    pub(crate) file_map: BTreeMap<FileId, DebugFile>,
     #[serde_as(as = "Vec<(_, _)>")]
     pub(crate) opcodes_counts: HashMap<Location, OpCodesCount>,
 }
