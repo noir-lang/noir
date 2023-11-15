@@ -53,6 +53,19 @@ impl<'interner> TypeChecker<'interner> {
                 // variable to handle generic functions.
                 let t = self.interner.id_type_substitute_trait_as_type(ident.id);
                 let (typ, bindings) = t.instantiate(self.interner);
+
+                // Push any trait constraints required by this definition to the context
+                // to be checked later when the type of this variable is further constrained.
+                if let Some(definition) = self.interner.try_definition(ident.id) {
+                    if let DefinitionKind::Function(function) = definition.kind {
+                        let function = self.interner.function_meta(&function);
+                        for mut constraint in function.trait_constraints.clone() {
+                            constraint.typ = constraint.typ.substitute(&bindings);
+                            self.trait_constraints.push((constraint, *expr_id));
+                        }
+                    }
+                }
+
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
                 typ
             }
@@ -294,7 +307,7 @@ impl<'interner> TypeChecker<'interner> {
         typ
     }
 
-    fn verify_trait_constraint(
+    pub fn verify_trait_constraint(
         &mut self,
         object_type: &Type,
         trait_id: TraitId,
