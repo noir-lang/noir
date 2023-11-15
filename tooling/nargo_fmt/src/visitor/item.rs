@@ -4,11 +4,27 @@ use noirc_frontend::{
     NoirFunction, ParsedModule,
 };
 
+use crate::utils::last_line_contains_single_line_comment;
+
 impl super::FmtVisitor<'_> {
     fn format_fn_before_block(&self, func: NoirFunction, start: u32) -> (String, bool) {
         let slice = self.slice(start..func.span().start());
-        let force_brace_newline = slice.contains("//");
-        (slice.trim_end().to_string(), force_brace_newline)
+
+        let params_open = self
+            .span_before(func.name_ident().span().end()..func.span().start(), Token::LeftParen)
+            .start();
+
+        let last_span = if func.parameters().is_empty() {
+            params_open..func.span().start()
+        } else {
+            func.parameters().last().unwrap().1.span.unwrap().end()..func.span().start()
+        };
+
+        let params_end = self.span_after(last_span, Token::RightParen).start();
+
+        let maybe_comment = self.slice(params_end..func.span().start());
+
+        (slice.trim_end().to_string(), last_line_contains_single_line_comment(maybe_comment))
     }
 
     pub(crate) fn visit_file(&mut self, module: ParsedModule) {

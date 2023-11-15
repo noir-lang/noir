@@ -244,3 +244,7 @@ pub(crate) fn first_line_width(exprs: &str) -> usize {
 pub(crate) fn is_single_line(s: &str) -> bool {
     !s.chars().any(|c| c == '\n')
 }
+
+pub(crate) fn last_line_contains_single_line_comment(s: &str) -> bool {
+    s.lines().last().map_or(false, |line| line.contains("//"))
+}
