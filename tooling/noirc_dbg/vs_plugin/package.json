@@ -1,0 +1,117 @@
+{
+  "name": "NoirDbg",
+  "displayName": "Noir debugger",
+  "description": "Debug noir binaries.",
+  "publisher": "Kevin kevaundray",
+  "license": "MIT + APACHE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noir-lang/noir.git"
+  },
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.79.0"
+  },
+  "extensionKind": ["ui"],
+  "categories": [
+    "Debuggers"
+  ],
+  "activationEvents": [
+    "onDebug"
+  ],
+  "main": "./out/main.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "noir",
+        "extensions": [
+          ".nr"
+        ],
+        "aliases": [
+          "noir"
+        ]
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "noir"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "noir",
+        "label": "Noir debugger:",
+        "languages": [
+          "noir"
+        ],
+        "program": "./out/noirc_dbg",
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "src_path"
+            ],
+            "properties": {
+              "src_path": {
+                "type": "string",
+                "description": "Absolute path workspace of noir binary.",
+                "default": "{workspaceFolder}${command:AskForWorkspace}"
+              },
+              "vm": {
+                "type": "string",
+                "description": "Virtual machine type.",
+                "default": "b"
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "noir",
+            "name": "NoirDbg",
+            "request": "launch",
+            "src_path": "${command:AskForWorkspace}",
+            "vm": "b"
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Noir debugger: Launch",
+            "description": "",
+            "body": {
+              "type": "noir",
+              "name": "NoirDbg",
+              "request": "launch",
+              "src_path": "${command:AskForWorkspace}",
+              "vm": "b"
+            }
+          }
+        ],
+        "variables": {
+          "AskForWorkspace": "extension.noirc_dbg.selectDir"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run esbuild-base -- --minify",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
+    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "test-compile": "tsc -p ./",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "20.2.5",
+    "@types/vscode": "^1.79.0",
+    "@typescript-eslint/eslint-plugin": "^5.59.8",
+    "@typescript-eslint/parser": "^5.59.8",
+    "@vscode/test-electron": "^2.3.2",
+    "esbuild": "^0.18.14",
+    "eslint": "^8.41.0",
+    "glob": "^8.1.0",
+    "mocha": "^10.2.0",
+    "typescript": "^5.1.3"
+  }
+}

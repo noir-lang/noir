@@ -16,20 +16,18 @@ use std::sync::Mutex;
 use std::thread::spawn;
 
 #[cfg(not(feature = "dap"))]
+use dap::events::{Event, StoppedEventBody};
+#[cfg(not(feature = "dap"))]
 use dap::requests::{
     Command, ContinueArguments, DisassembleArguments, DisconnectArguments, LaunchRequestArguments,
     NextArguments, ReadMemoryArguments, VariablesArguments,
 };
 #[cfg(not(feature = "dap"))]
 use dap::responses::ResponseBody;
-use dap::{
-    base_message::Sendable,
-    events::{Event, StoppedEventBody},
-    requests::Request,
-};
+use dap::{base_message::Sendable, requests::Request};
 
 #[cfg(feature = "dap")]
-use dap::server::*;
+use dap::server::Server as DapServer;
 #[cfg(not(feature = "dap"))]
 use serde_json::Value;
 
@@ -46,7 +44,7 @@ pub trait Server {
 /// debugging interface.
 pub struct Dap {
     /// Write output to server communicated through stdin and stdout
-    output: Mutex<Server<Stdin, Stdout>>,
+    output: Mutex<DapServer<Stdin, Stdout>>,
     /// Handled input from receiver thread
     input: Receiver<Request>,
 }
@@ -65,7 +63,7 @@ impl Dap {
     pub fn new() -> Self {
         let (tx, rx) = unbounded::<Request>();
         spawn(move || {
-            let mut server = Server::new(BufReader::new(stdin()), BufWriter::new(stdout()));
+            let mut server = DapServer::new(BufReader::new(stdin()), BufWriter::new(stdout()));
             loop {
                 let req = match server.poll_request() {
                     Ok(Some(req)) => req,
@@ -78,7 +76,7 @@ impl Dap {
             }
         });
 
-        let server = Server::new(BufReader::new(stdin()), BufWriter::new(stdout()));
+        let server = DapServer::new(BufReader::new(stdin()), BufWriter::new(stdout()));
         Dap { output: Mutex::new(server), input: rx }
     }
 }
@@ -209,6 +207,7 @@ impl Server for Dap {
     }
 }
 
+#[cfg(not(feature = "dap"))]
 /// Handler for stdin.
 fn stdin_get(msg: &str) -> String {
     let mut response = String::new();
