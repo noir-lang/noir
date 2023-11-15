@@ -23,6 +23,9 @@ const INFO_CODELENS_TITLE: &str = "Info";
 const EXECUTE_COMMAND: &str = "nargo.execute";
 const EXECUTE_CODELENS_TITLE: &str = "Execute";
 
+const PROFILE_COMMAND: &str = "nargo.profile";
+const PROFILE_CODELENS_TITLE: &str = "Profile";
+
 fn with_arrow(title: &str) -> String {
     format!("{ARROW} {title}")
 }
@@ -157,6 +160,16 @@ fn on_code_lens_request_inner(
                 let execute_command = Command {
                     title: EXECUTE_CODELENS_TITLE.to_string(),
                     command: EXECUTE_COMMAND.into(),
+                    arguments: Some(package_selection_args(&workspace, package)),
+                };
+
+                let execute_lens = CodeLens { range, command: Some(execute_command), data: None };
+
+                lenses.push(execute_lens);
+
+                let execute_command = Command {
+                    title: PROFILE_CODELENS_TITLE.to_string(),
+                    command: PROFILE_COMMAND.into(),
                     arguments: Some(package_selection_args(&workspace, package)),
                 };
 
