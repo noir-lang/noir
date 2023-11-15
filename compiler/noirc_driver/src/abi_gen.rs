@@ -87,7 +87,7 @@ fn collapse_ranges(witnesses: &[Witness]) -> Vec<Range<Witness>> {
     let mut wit = Vec::new();
     let mut last_wit: Witness = witnesses[0];
 
-    for (i, witness) in witnesses.into_iter().enumerate() {
+    for (i, witness) in witnesses.iter().enumerate() {
         if i == 0 {
             continue;
         };
@@ -102,7 +102,7 @@ fn collapse_ranges(witnesses: &[Witness]) -> Vec<Range<Witness>> {
     let last_witness = witnesses.last().unwrap().witness_index();
     wit.push(last_wit..Witness(last_witness + 1));
 
-    return wit;
+    wit
 }
 
 #[cfg(test)]
