@@ -120,7 +120,12 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         let foreign_call_result = self.foreign_call_executor.execute(&foreign_call);
         match foreign_call_result {
             Ok(foreign_call_result) => {
-                self.acvm.resolve_pending_foreign_call(foreign_call_result);
+                if let Some(mut solver) = self.brillig_solver.take() {
+                    solver.resolve_pending_foreign_call(foreign_call_result);
+                    self.brillig_solver = Some(solver);
+                } else {
+                    self.acvm.resolve_pending_foreign_call(foreign_call_result);
+                }
                 // TODO: should we retry executing the opcode somehow in this case?
                 DebugCommandResult::Ok
             }
@@ -275,4 +280,123 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
     pub fn finalize(self) -> WitnessMap {
         self.acvm.finalize()
     }
+}
+
+#[cfg(test)]
+struct StubbedSolver;
+
+#[cfg(test)]
+impl BlackBoxFunctionSolver for StubbedSolver {
+    fn schnorr_verify(
+        &self,
+        _public_key_x: &FieldElement,
+        _public_key_y: &FieldElement,
+        _signature: &[u8],
+        _message: &[u8],
+    ) -> Result<bool, acvm::BlackBoxResolutionError> {
+        unimplemented!();
+    }
+
+    fn pedersen_commitment(
+        &self,
+        _inputs: &[FieldElement],
+        _domain_separator: u32,
+    ) -> Result<(FieldElement, FieldElement), acvm::BlackBoxResolutionError> {
+        unimplemented!();
+    }
+
+    fn pedersen_hash(
+        &self,
+        _inputs: &[FieldElement],
+        _domain_separator: u32,
+    ) -> Result<FieldElement, acvm::BlackBoxResolutionError> {
+        unimplemented!();
+    }
+
+    fn fixed_base_scalar_mul(
+        &self,
+        _low: &FieldElement,
+        _high: &FieldElement,
+    ) -> Result<(FieldElement, FieldElement), acvm::BlackBoxResolutionError> {
+        unimplemented!();
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn test_resolve_foreign_calls_stepping_into_brillig() {
+    use std::collections::BTreeMap;
+
+    use acvm::acir::{
+        brillig::{Opcode as BrilligOpcode, RegisterIndex, RegisterOrMemory},
+        circuit::brillig::{Brillig, BrilligInputs},
+        native_types::Expression,
+    };
+
+    let fe_0 = FieldElement::zero();
+    let fe_1 = FieldElement::one();
+    let w_x = Witness(1);
+
+    let blackbox_solver = &StubbedSolver;
+
+    let brillig_opcodes = Brillig {
+        inputs: vec![BrilligInputs::Single(Expression {
+            linear_combinations: vec![(fe_1, w_x)],
+            ..Expression::default()
+        })],
+        outputs: vec![],
+        bytecode: vec![
+            BrilligOpcode::Const { destination: RegisterIndex::from(1), value: Value::from(fe_0) },
+            BrilligOpcode::ForeignCall {
+                function: "clear_mock".into(),
+                destinations: vec![],
+                inputs: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(0))],
+            },
+            BrilligOpcode::Stop,
+        ],
+        predicate: None,
+    };
+    let opcodes = vec![Opcode::Brillig(brillig_opcodes)];
+    let current_witness_index = 2;
+    let circuit = &Circuit { current_witness_index, opcodes, ..Circuit::default() };
+
+    let debug_symbols = vec![];
+    let file_map = BTreeMap::new();
+    let warnings = vec![];
+    let debug_artifact = &DebugArtifact { debug_symbols, file_map, warnings };
+
+    let initial_witness = BTreeMap::from([(Witness(1), fe_1)]).into();
+
+    let mut context = DebugContext::new(blackbox_solver, circuit, debug_artifact, initial_witness);
+
+    assert_eq!(context.get_current_opcode_location(), Some(OpcodeLocation::Acir(0)));
+
+    // execute the first Brillig opcode (const)
+    let result = context.step_into_opcode();
+    assert!(matches!(result, DebugCommandResult::Ok));
+    assert_eq!(
+        context.get_current_opcode_location(),
+        Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 })
+    );
+
+    // try to execute the second Brillig opcode (and resolve the foreign call)
+    let result = context.step_into_opcode();
+    assert!(matches!(result, DebugCommandResult::Ok));
+    assert_eq!(
+        context.get_current_opcode_location(),
+        Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 })
+    );
+
+    // retry the second Brillig opcode (foreign call should be finished)
+    let result = context.step_into_opcode();
+    assert!(matches!(result, DebugCommandResult::Ok));
+    assert_eq!(
+        context.get_current_opcode_location(),
+        Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 })
+    );
+
+    // last Brillig opcode
+    let result = context.step_into_opcode();
+    assert!(matches!(result, DebugCommandResult::Done));
+    assert_eq!(context.get_current_opcode_location(), None);
 }
