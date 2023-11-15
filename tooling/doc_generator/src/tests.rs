@@ -39,7 +39,7 @@ mod tests {
 
         let result = Map { map };
 
-        assert_eq!(get_map("input_files/function_example.nr"), result);
+        assert_eq!(get_map("input_files/function_example.nr").unwrap(), result);
     }
 
     #[test]
@@ -56,6 +56,6 @@ mod tests {
 
         let result = Map { map };
 
-        assert_eq!(get_map("input_files/struct_example.nr"), result);
+        assert_eq!(get_map("input_files/struct_example.nr").unwrap(), result);
     }
 }

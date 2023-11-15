@@ -1,4 +1,5 @@
 use std::{
+    ffi::OsStr,
     fs::{self, File},
     io::Write,
     path::Path,
@@ -14,17 +15,20 @@ use crate::{doc, fn_signature, get_text, Code, Output, Type};
 /// The `generate_code_page` function reads the content of a text file specified by the `input_file` path,
 /// processes the text content as code lines, and generates an HTML page that displays the code lines.
 /// The resulting HTML page can be used for code documentation or rendering purposes.
-fn generate_code_page(input_file: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn generate_code_page(input_file: &str) -> Result<(), crate::DocError> {
     let codelines = get_text(input_file)?;
 
     let code = Code { codelines };
 
-    let rendered_html = code.render().unwrap();
+    let rendered_html = code.render().map_err(|_| crate::DocError::RenderError)?;
 
-    let fname = format!("generated_doc/codepage_{}.html", extract_filename(input_file).unwrap());
+    let fname = format!(
+        "generated_doc/codepage_{}.html",
+        extract_filename(input_file).ok_or(crate::DocError::ExtractFilenameError)?
+    );
 
-    let mut file = File::create(fname)?;
-    file.write_all(rendered_html.as_bytes())?;
+    let mut file = File::create(fname).map_err(|_| crate::DocError::FileCreateError)?;
+    file.write_all(rendered_html.as_bytes()).map_err(|_| crate::DocError::FileEditError)?;
 
     Ok(())
 }
@@ -48,16 +52,16 @@ pub(crate) struct Function {
 /// The `generate_function_pages` function generates an HTML page for a function represented by the `func` parameter.
 /// The HTML page displays the function's name, documentation, and signature. This function is typically used to
 /// generate documentation pages for functions.
-fn generate_function_pages(func: Function) -> Result<(), Box<dyn std::error::Error>> {
+fn generate_function_pages(func: Function) -> Result<(), crate::DocError> {
     if func.is_method {
         return Ok(());
     }
-    let rendered_html = func.render().unwrap();
+    let rendered_html = func.render().map_err(|_| crate::DocError::RenderError)?;
 
     let output_file_name = format!("generated_doc/{}.html", func.name);
 
-    let mut file = File::create(output_file_name)?;
-    file.write_all(rendered_html.as_bytes())?;
+    let mut file = File::create(output_file_name).map_err(|_| crate::DocError::FileCreateError)?;
+    file.write_all(rendered_html.as_bytes()).map_err(|_| crate::DocError::FileEditError)?;
 
     Ok(())
 }
@@ -191,13 +195,13 @@ impl Implementation {
 /// The `generate_structure_pages` function generates an HTML page for a structured code element represented by the `structure` parameter.
 /// The HTML page displays information about the structured code element, including its name, documentation, signature, additional documentation,
 /// and any associated implementations. This function is typically used to generate documentation pages for structured code elements.
-fn generate_structure_pages(structure: Structure) -> Result<(), Box<dyn std::error::Error>> {
-    let rendered_html = structure.render().unwrap();
+fn generate_structure_pages(structure: Structure) -> Result<(), crate::DocError> {
+    let rendered_html = structure.render().map_err(|_| crate::DocError::RenderError)?;
 
     let output_file_name = format!("generated_doc/{}.html", structure.name);
 
-    let mut file = File::create(output_file_name)?;
-    file.write_all(rendered_html.as_bytes())?;
+    let mut file = File::create(output_file_name).map_err(|_| crate::DocError::FileCreateError)?;
+    file.write_all(rendered_html.as_bytes()).map_err(|_| crate::DocError::FileEditError)?;
 
     Ok(())
 }
@@ -225,13 +229,13 @@ pub(crate) struct Trait {
 /// The HTML page displays information about the trait, including its name, documentation, signature, additional documentation,
 /// required methods, provided methods, and any associated implementations. This function is typically used to generate
 /// documentation pages for traits.
-fn generate_trait_pages(r#trait: Trait) -> Result<(), Box<dyn std::error::Error>> {
-    let rendered_html = r#trait.render().unwrap();
+fn generate_trait_pages(r#trait: Trait) -> Result<(), crate::DocError> {
+    let rendered_html = r#trait.render().map_err(|_| crate::DocError::RenderError)?;
 
     let output_file_name = format!("generated_doc/{}.html", r#trait.name);
 
-    let mut file = File::create(output_file_name)?;
-    file.write_all(rendered_html.as_bytes())?;
+    let mut file = File::create(output_file_name).map_err(|_| crate::DocError::FileCreateError)?;
+    file.write_all(rendered_html.as_bytes()).map_err(|_| crate::DocError::FileEditError)?;
 
     Ok(())
 }
@@ -263,16 +267,13 @@ pub(crate) struct SearchResults {
 /// The `generate_search_page` function generates an HTML page to display search results provided in the `res` parameter.
 /// The generated page includes a list of code outputs that match the search criteria. This function is typically used to
 /// create search result pages for users searching for code documentation.
-fn generate_search_page(
-    res: SearchResults,
-    module_name: String,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let rendered_html = res.render().unwrap();
+fn generate_search_page(res: SearchResults, module_name: String) -> Result<(), crate::DocError> {
+    let rendered_html = res.render().map_err(|_| crate::DocError::RenderError)?;
 
     let filename = format!("generated_doc/search_results_{}.html", module_name);
 
-    let mut file = File::create(filename)?;
-    file.write_all(rendered_html.as_bytes())?;
+    let mut file = File::create(filename).map_err(|_| crate::DocError::FileCreateError)?;
+    file.write_all(rendered_html.as_bytes()).map_err(|_| crate::DocError::FileEditError)?;
 
     Ok(())
 }
@@ -283,11 +284,7 @@ fn generate_search_page(
 /// This function is useful when you need to isolate the filename from a file path, which can be particularly helpful when generating documentation
 /// pages or handling file-related operations.
 pub(crate) fn extract_filename(filename_with_path: &str) -> Option<&str> {
-    let path = Path::new(filename_with_path);
-    match path.file_stem() {
-        Some(file_stem) => file_stem.to_str(),
-        None => None,
-    }
+    Path::new(filename_with_path).file_stem().and_then(OsStr::to_str)
 }
 
 /// Generates an HTML documentation page for a module, including associated code elements.
@@ -295,13 +292,13 @@ pub(crate) fn extract_filename(filename_with_path: &str) -> Option<&str> {
 /// The `generate_module_page` function generates an HTML documentation page for a module and its associated code elements.
 /// This page typically includes code outputs, such as functions, structs, traits, and other code constructs. It also provides
 /// links to related code documentation and a search feature for easier navigation.
-pub(crate) fn generate_module_page(module: AllOutput) -> Result<(), Box<dyn std::error::Error>> {
-    let rendered_html = module.render().unwrap();
+pub(crate) fn generate_module_page(module: AllOutput) -> Result<(), crate::DocError> {
+    let rendered_html = module.render().map_err(|_| crate::DocError::RenderError)?;
 
     let fname = format!("generated_doc/{}.html", module.filename);
 
-    let mut file = File::create(fname)?;
-    file.write_all(rendered_html.as_bytes())?;
+    let mut file = File::create(fname).map_err(|_| crate::DocError::FileCreateError)?;
+    file.write_all(rendered_html.as_bytes()).map_err(|_| crate::DocError::FileEditError)?;
 
     let fname = format!("input_files/{}.nr", module.filename);
 
@@ -319,7 +316,10 @@ pub(crate) fn generate_module_page(module: AllOutput) -> Result<(), Box<dyn std:
                 generate_function_pages(Function {
                     name: i.name.clone(),
                     doc: i.doc.clone(),
-                    signature: i.information.get_signature().unwrap(),
+                    signature: i
+                        .information
+                        .get_signature()
+                        .ok_or(crate::DocError::GetInfoError)?,
                     is_method: false,
                 })?;
             }
@@ -327,25 +327,49 @@ pub(crate) fn generate_module_page(module: AllOutput) -> Result<(), Box<dyn std:
                 generate_structure_pages(Structure {
                     name: i.name.clone(),
                     doc: i.doc.clone(),
-                    additional_doc: i.information.get_additional_doc().unwrap(),
-                    signature: i.information.get_signature().unwrap(),
-                    implementations: i.information.get_implementations().unwrap(),
+                    additional_doc: i
+                        .information
+                        .get_additional_doc()
+                        .ok_or(crate::DocError::GetInfoError)?,
+                    signature: i
+                        .information
+                        .get_signature()
+                        .ok_or(crate::DocError::GetInfoError)?,
+                    implementations: i
+                        .information
+                        .get_implementations()
+                        .ok_or(crate::DocError::GetInfoError)?,
                 })?;
             }
             Type::Trait => {
                 generate_trait_pages(Trait {
                     name: i.name.clone(),
                     doc: i.doc.clone(),
-                    signature: i.information.get_signature().unwrap(),
-                    additional_doc: i.information.get_additional_doc().unwrap(),
-                    required_methods: i.information.get_required_methods().unwrap(),
-                    provided_methods: i.information.get_provided_methods().unwrap(),
-                    implementations: i.information.get_implementations().unwrap(),
+                    signature: i
+                        .information
+                        .get_signature()
+                        .ok_or(crate::DocError::GetInfoError)?,
+                    additional_doc: i
+                        .information
+                        .get_additional_doc()
+                        .ok_or(crate::DocError::GetInfoError)?,
+                    required_methods: i
+                        .information
+                        .get_required_methods()
+                        .ok_or(crate::DocError::GetInfoError)?,
+                    provided_methods: i
+                        .information
+                        .get_provided_methods()
+                        .ok_or(crate::DocError::GetInfoError)?,
+                    implementations: i
+                        .information
+                        .get_implementations()
+                        .ok_or(crate::DocError::GetInfoError)?,
                 })?;
             }
             Type::Module => {
                 generate_module_page(AllOutput {
-                    all_output: i.information.get_content().unwrap(),
+                    all_output: i.information.get_content().ok_or(crate::DocError::GetInfoError)?,
                     filename: i.name.clone(),
                 })?;
             }

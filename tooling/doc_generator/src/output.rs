@@ -23,11 +23,11 @@ pub(crate) enum Type {
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Type::Function => write!(f, "Function"),
-            Type::Module => write!(f, "Module"),
-            Type::Struct => write!(f, "Struct"),
-            Type::Trait => write!(f, "Trait"),
-            Type::OuterComment => write!(f, "OuterComment"),
+            Type::Function => writeln!(f, "Function"),
+            Type::Module => writeln!(f, "Module"),
+            Type::Struct => writeln!(f, "Struct"),
+            Type::Trait => writeln!(f, "Trait"),
+            Type::OuterComment => writeln!(f, "OuterComment"),
         }
     }
 }
@@ -127,7 +127,7 @@ impl Output {
     /// The `to_output` function processes a vector of spanned tokens, typically representing source code,
     /// and converts them into a vector of structured output objects. Each output object includes information
     /// about the code element, its type, name, documentation, and additional details as applicable.
-    pub(crate) fn to_output(input: Vec<SpannedToken>) -> Vec<Self> {
+    pub(crate) fn to_output(input: Vec<SpannedToken>) -> Result<Vec<Self>, crate::DocError> {
         let mut res = Vec::new();
         let tokens = input.into_iter().map(|x| x.into_token()).collect::<Vec<_>>();
         let mut is_first = true;
@@ -219,7 +219,7 @@ impl Output {
                     let doc = doc(&tokens, i);
                     let content = get_module_content(&tokens, i);
 
-                    Output { r#type, name, doc, information: Info::Module { content } }
+                    Output { r#type, name, doc, information: Info::Module { content: content? } }
                 }
                 Token::LineComment(_, Some(DocStyle::Inner))
                 | Token::BlockComment(_, Some(DocStyle::Inner)) => {
@@ -252,15 +252,15 @@ impl Output {
             res.push(out);
         }
 
-        res
+        Ok(res)
     }
 }
 
 impl fmt::Display for Output {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Type: {:?}\n", self.r#type)?;
-        write!(f, "Name: {}\n", self.name)?;
-        write!(f, "Doc: {}\n", self.doc)?;
+        writeln!(f, "Type: {:?}\n", self.r#type)?;
+        writeln!(f, "Name: {}\n", self.name)?;
+        writeln!(f, "Doc: {}\n", self.doc)?;
         Ok(())
     }
 }

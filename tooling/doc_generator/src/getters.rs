@@ -19,7 +19,10 @@ use crate::{Function, Output};
 /// begins at the index `index` and may be terminated by either semicolons `;` or curly braces `{}`.
 /// If the module is terminated by semicolons `;`, the function loads the module content from a file
 /// whose name is specified before the semicolon in the list of tokens.
-pub(crate) fn get_module_content(tokens: &[Token], index: usize) -> Vec<Output> {
+pub(crate) fn get_module_content(
+    tokens: &[Token],
+    index: usize,
+) -> Result<Vec<Output>, crate::DocError> {
     let mut content = Vec::new();
     let mut i = index;
     let mut brace_counter = 0;
@@ -28,7 +31,7 @@ pub(crate) fn get_module_content(tokens: &[Token], index: usize) -> Vec<Output> 
         match &tokens[i] {
             Token::Semicolon => {
                 let filename = format!("input_files/{}.nr", tokens[i - 1]);
-                content = get_doc(&filename).unwrap();
+                content = get_doc(&filename).map_err(|_| crate::DocError::GetDocError)?;
                 break;
             }
             Token::LeftBrace => {
@@ -63,9 +66,9 @@ pub(crate) fn get_module_content(tokens: &[Token], index: usize) -> Vec<Output> 
         };
     }
 
-    let res = Output::to_output(content);
+    let res = Output::to_output(content)?;
 
-    res
+    Ok(res)
 }
 
 /// Skips an implementation block within a list of tokens, starting at the given index.
@@ -449,15 +452,15 @@ pub(crate) fn outer_doc(tokens: &[Token], index: usize) -> (String, usize) {
 /// The `get_doc` function reads the content of a source file specified by the `input_file` path,
 /// tokenizes the content, and returns the resulting vector of spanned tokens. This function is
 /// typically used for processing source code and extracting tokens for further analysis or documentation.
-pub(crate) fn get_doc(input_file: &str) -> Result<Vec<SpannedToken>, Box<dyn std::error::Error>> {
-    let mut file = File::open(input_file)?;
+pub(crate) fn get_doc(input_file: &str) -> Result<Vec<SpannedToken>, crate::DocError> {
+    let mut file = File::open(input_file).map_err(|_| crate::DocError::FileEditError)?;
     let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
+    file.read_to_string(&mut contents).map_err(|_| crate::DocError::FileEditError)?;
 
-    let mut lexer = Lexer::new(&contents);
-    lexer = lexer.skip_comments(false);
-
-    let token = lexer.into_iter().map(|a| a.unwrap()).collect::<Vec<_>>();
+    let token = Lexer::new(&contents)
+        .skip_comments(false)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| crate::DocError::GetTokensError)?;
 
     Ok(token)
 }
@@ -488,15 +491,15 @@ pub(crate) struct CodeLine {
 /// The `get_text` function reads the content of a text file specified by the `input_file` path,
 /// and converts each line of text into a `CodeLine` structure. The resulting `CodeLine` structures
 /// are collected in a vector, making it easy to work with text content as a collection of code lines.
-pub(crate) fn get_text(input_file: &str) -> Result<Vec<CodeLine>, Box<dyn std::error::Error>> {
-    let file = File::open(input_file)?;
+pub(crate) fn get_text(input_file: &str) -> Result<Vec<CodeLine>, crate::DocError> {
+    let file = File::open(input_file).map_err(|_| crate::DocError::FileEditError)?;
     let reader = BufReader::new(file);
     let mut code = Vec::new();
     let mut i = 0;
 
     for line in reader.lines() {
         i += 1;
-        code.push(CodeLine { number: i, text: line? });
+        code.push(CodeLine { number: i, text: line.map_err(|_| crate::DocError::FileEditError)? });
     }
 
     Ok(code)

@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 askama = "0.12"
+thiserror = "1.0.21"
 clap = { version = "3.2.0", features = ["derive", "cargo"] }
-noirc_frontend = { path = "../../compiler/noirc_frontend" }
+noirc_frontend.workspace = true
