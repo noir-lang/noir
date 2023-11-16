@@ -46,7 +46,7 @@
       "displayName": "Debugging build with Clang-16",
       "description": "Build with globally installed Clang-16 in debug mode",
       "inherits": "clang16",
-      "binaryDir": "build-debug",
+      "binaryDir": "build",
       "environment": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CFLAGS": "-gdwarf-4",
