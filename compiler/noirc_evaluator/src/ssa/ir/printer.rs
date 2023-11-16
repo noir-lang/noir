@@ -173,7 +173,7 @@ pub(crate) fn display_instruction(
             )
         }
         Instruction::RangeCheck { value, max_bit_size, .. } => {
-            write!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
+            writeln!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
         }
     }
 }
