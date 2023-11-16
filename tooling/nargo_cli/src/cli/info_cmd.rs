@@ -1,12 +1,15 @@
+use std::collections::HashMap;
+
 use acvm::Language;
 use backend_interface::BackendError;
 use clap::Args;
 use iter_extended::vecmap;
-use nargo::package::Package;
+use nargo::{artifacts::debug::DebugArtifact, package::Package};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
     CompileOptions, CompiledContract, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
+use noirc_errors::{debug_info::OpCodesCount, Location};
 use noirc_frontend::graph::CrateName;
 use prettytable::{row, table, Row};
 use rayon::prelude::*;
@@ -35,6 +38,9 @@ pub(crate) struct InfoCommand {
     /// Output a JSON formatted report. Changes to this format are not currently considered breaking.
     #[clap(long, hide = true)]
     json: bool,
+
+    #[clap(long, hide = true)]
+    profile_info: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -70,6 +76,23 @@ pub(crate) fn run(
         &opcode_support,
         &args.compile_options,
     )?;
+
+    if args.profile_info {
+        for compiled_program in &compiled_programs {
+            let span_opcodes = compiled_program.debug.count_span_opcodes();
+            let debug_artifact: DebugArtifact = compiled_program.clone().into();
+            print_span_opcodes(&span_opcodes, &debug_artifact);
+        }
+
+        for compiled_contract in &compiled_contracts {
+            let debug_artifact: DebugArtifact = compiled_contract.clone().into();
+            let functions = &compiled_contract.functions;
+            for contract_function in functions {
+                let span_opcodes = contract_function.debug.count_span_opcodes();
+                print_span_opcodes(&span_opcodes, &debug_artifact);
+            }
+        }
+    }
 
     let program_info = binary_packages
         .into_par_iter()
@@ -119,6 +142,55 @@ pub(crate) fn run(
     }
 
     Ok(())
+}
+
+/// Provides profiling information on
+///
+/// Number of OpCodes in relation to Noir source file
+/// and line number information
+fn print_span_opcodes(
+    span_opcodes_map: &HashMap<&Location, OpCodesCount>,
+    debug_artifact: &DebugArtifact,
+) {
+    let mut pairs: Vec<(&&Location, &OpCodesCount)> = span_opcodes_map.iter().collect();
+
+    pairs.sort_by(|a, b| {
+        a.1.acir_size.cmp(&b.1.acir_size).then_with(|| a.1.brillig_size.cmp(&b.1.brillig_size))
+    });
+
+    for (location, opcodes_count) in pairs {
+        let debug_file = debug_artifact.file_map.get(&location.file).unwrap();
+
+        let start_byte = byte_index(&debug_file.source, location.span.start() + 1);
+        let end_byte = byte_index(&debug_file.source, location.span.end() + 1);
+        let range = start_byte..end_byte;
+        let span_content = &debug_file.source[range];
+        let line = debug_artifact.location_line_index(**location).unwrap() + 1;
+        println!(
+            "Ln. {}: {} (ACIR:{}, Brillig:{} opcode|s) in file: {}",
+            line,
+            span_content,
+            opcodes_count.acir_size,
+            opcodes_count.brillig_size,
+            debug_file.path.to_str().unwrap()
+        );
+    }
+}
+fn byte_index(string: &str, index: u32) -> usize {
+    let mut byte_index = 0;
+    let mut char_index = 0;
+
+    #[allow(clippy::explicit_counter_loop)]
+    for (byte_offset, _) in string.char_indices() {
+        if char_index == index {
+            return byte_index;
+        }
+
+        byte_index = byte_offset;
+        char_index += 1;
+    }
+
+    byte_index
 }
 
 #[derive(Debug, Default, Serialize)]

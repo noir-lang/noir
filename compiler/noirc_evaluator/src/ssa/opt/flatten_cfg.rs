@@ -662,6 +662,22 @@ impl<'f> Context<'f> {
                     self.remember_store(address, value);
                     Instruction::Store { address, value }
                 }
+                Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+                    // Replace value with `value * predicate` to zero out value when predicate is inactive.
+
+                    // Condition needs to be cast to argument type in order to multiply them together.
+                    let argument_type = self.inserter.function.dfg.type_of_value(value);
+                    let casted_condition = self.insert_instruction(
+                        Instruction::Cast(condition, argument_type),
+                        call_stack.clone(),
+                    );
+
+                    let value = self.insert_instruction(
+                        Instruction::binary(BinaryOp::Mul, value, casted_condition),
+                        call_stack.clone(),
+                    );
+                    Instruction::RangeCheck { value, max_bit_size, assert_message }
+                }
                 other => other,
             }
         } else {

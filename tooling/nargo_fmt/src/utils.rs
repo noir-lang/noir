@@ -189,6 +189,10 @@ fn comment_len(comment: &str) -> usize {
     }
 }
 
+pub(crate) fn count_newlines(slice: &str) -> usize {
+    bytecount::count(slice.as_bytes(), b'\n')
+}
+
 pub(crate) trait Item {
     fn span(&self) -> Span;
 
@@ -231,4 +235,16 @@ impl Item for (Ident, Expression) {
             format!("{name}: {expr}")
         }
     }
+}
+
+pub(crate) fn first_line_width(exprs: &str) -> usize {
+    exprs.lines().next().map_or(0, |line: &str| line.chars().count())
+}
+
+pub(crate) fn is_single_line(s: &str) -> bool {
+    !s.chars().any(|c| c == '\n')
+}
+
+pub(crate) fn last_line_contains_single_line_comment(s: &str) -> bool {
+    s.lines().last().map_or(false, |line| line.contains("//"))
 }

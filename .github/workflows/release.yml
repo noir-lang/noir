@@ -89,7 +89,7 @@ jobs:
       - name: Dispatch to publish workflow
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: publish-docs.yml
+          workflow: docs-new-version.yml
           repo: noir-lang/noir
           ref: master
           token: ${{ secrets.GITHUB_TOKEN }}
