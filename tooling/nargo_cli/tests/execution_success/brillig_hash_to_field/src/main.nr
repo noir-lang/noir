@@ -6,6 +6,6 @@ fn main(input: Field) -> pub Field {
     hash_to_field(input)
 }
 
-unconstrained fn hash_to_field(input : Field) -> Field {
+unconstrained fn hash_to_field(input: Field) -> Field {
     std::hash::hash_to_field([input])
 }

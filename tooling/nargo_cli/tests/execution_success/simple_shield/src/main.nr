@@ -1,18 +1,16 @@
 use dep::std;
 
 fn main(
-  // Public key of note
+    // Public key of note
   // all notes have the same denomination
-  priv_key: Field, 
-
-  // Merkle membership proof
-  note_root: pub Field, 
-  index: Field,
-  note_hash_path: [Field; 3],
-
-  // Receiver public key
-  to_pubkey_x: Field, 
-  to_pubkey_y: Field, 
+    priv_key: Field,
+    // Merkle membership proof
+    note_root: pub Field,
+    index: Field,
+    note_hash_path: [Field; 3],
+    // Receiver public key
+    to_pubkey_x: Field,
+    to_pubkey_y: Field
 ) -> pub [Field; 2] {
     // Compute public key from private key to show ownership
     let pubkey = std::scalar_mul::fixed_base_embedded_curve(priv_key, 0);

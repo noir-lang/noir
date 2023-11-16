@@ -1,6 +1,6 @@
 use dep::std;
 
-fn main(bn254_modulus_be_bytes : [u8; 32], bn254_modulus_be_bits : [u1; 254]) {
+fn main(bn254_modulus_be_bytes: [u8; 32], bn254_modulus_be_bits: [u1; 254]) {
     let modulus_size = std::field::modulus_num_bits();
     // NOTE: The constraints used in this circuit will only work when testing nargo with the plonk bn254 backend
     assert(modulus_size == 254);

@@ -10,14 +10,7 @@ struct PoseidonConfig<M,N> {
     mds: [Field; N] // MDS Matrix in row-major order
 }
 
-pub fn config<M,N>(
-    t: Field,
-    rf: u8,
-    rp: u8,
-    alpha: Field,
-    ark: [Field; M],
-    mds: [Field; N])
-    -> PoseidonConfig<M,N> {
+pub fn config<M, N>(t: Field, rf: u8, rp: u8, alpha: Field, ark: [Field; M], mds: [Field; N]) -> PoseidonConfig<M,N> {
     // Input checks
     let mul = crate::wrapping_mul(t as u8, (rf + rp));
     assert(mul == ark.len() as u8);
@@ -27,10 +20,7 @@ pub fn config<M,N>(
     PoseidonConfig { t, rf, rp, alpha, ark, mds }
 }
 // General Poseidon permutation on elements of type Field
-fn permute<M,N,O>(
-    pos_conf: PoseidonConfig<M, N>,
-    mut state: [Field; O])
-    -> [Field; O] {
+fn permute<M, N, O>(pos_conf: PoseidonConfig<M, N>, mut state: [Field; O]) -> [Field; O] {
     let PoseidonConfig {t, rf, rp, alpha, ark, mds} = pos_conf;
 
     assert(t == state.len());
@@ -56,13 +46,13 @@ fn permute<M,N,O>(
     state
 }
 // Absorption. Fully absorbs input message.
-fn absorb<M,N,O,P>(
+fn absorb<M, N, O, P>(
     pos_conf: PoseidonConfig<M, N>,
     mut state: [Field; O], // Initial state; usually [0; O]
     rate: Field, // Rate
     capacity: Field, // Capacity; usually 1
-    msg: [Field; P]) // Arbitrary length message
-    -> [Field; O] {
+    msg: [Field; P]
+) -> [Field; O] {
     assert(pos_conf.t == rate + capacity);
 
     let mut i = 0;

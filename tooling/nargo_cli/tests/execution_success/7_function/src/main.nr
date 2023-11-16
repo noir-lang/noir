@@ -20,7 +20,7 @@ fn test1(mut a: Field) {
     assert(a == 4);
 }
 
-fn test2(z: Field, t: u32 ) {
+fn test2(z: Field, t: u32) {
     let a = z + t as Field;
     assert(a == 64);
     let e = pow(z, t as Field);
@@ -90,7 +90,7 @@ fn bar() -> [Field; 1] {
     foo([0])
 }
 
-fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
+fn main(x: u32, y: u32, a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
     let mut ss: my_struct = my_struct { b: x, a: x + 2 };
     test_multiple4(ss);
     test_multiple5((ss.a, ss.b));

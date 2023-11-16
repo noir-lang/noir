@@ -7,10 +7,7 @@ use crate::hash::poseidon::apply_matrix;
 // Optimised permutation for this particular field; uses hardcoded rf and rp values,
 // which should agree with those in pos_conf.
 #[field(bn254)]
-pub fn permute<M,N,O>(
-    pos_conf: PoseidonConfig<M, N>,
-    mut state: [Field; O])
-    -> [Field; O] {
+pub fn permute<M, N, O>(pos_conf: PoseidonConfig<M, N>, mut state: [Field; O]) -> [Field; O] {
     let PoseidonConfig {t, rf: config_rf, rp: config_rp, alpha, ark, mds} = pos_conf;
     let rf = 8;
     let rp = [56, 57, 56, 60, 60, 63, 64, 63, 60, 66, 60, 65, 70, 60, 64, 68][state.len() - 2];
@@ -59,7 +56,7 @@ pub fn permute<M,N,O>(
 }
 // Corresponding absorption.
 #[field(bn254)]
-fn absorb<M,N,O,P>(
+fn absorb<M, N, O, P>(
     pos_conf: PoseidonConfig<M, N>,
     mut state: [Field; O], // Initial state; usually [0; O]
     rate: Field, // Rate

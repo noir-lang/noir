@@ -10,7 +10,7 @@ struct MyStruct {
     foo: Bar,
 }
 
-fn main(x : [Field; 2]) {
+fn main(x: [Field; 2]) {
     let a: Foo<Field> = [1, 2];
     assert(a[0] != x[0]);
 

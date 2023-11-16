@@ -1,6 +1,6 @@
 use dep::std;
 
-fn main(x : Field, y : pub Field) {
+fn main(x: Field, y: pub Field) {
     let string = "i: {i}, j: {j}";
     std::println(string);
     // A `fmtstr` lets you easily perform string interpolation.

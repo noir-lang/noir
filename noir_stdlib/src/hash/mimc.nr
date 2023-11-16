@@ -3,7 +3,7 @@
 // You must use constants generated for the native field
 // Rounds number should be ~ log(p)/log(exp)
 // For 254 bit primes, exponent 7 and 91 rounds seems to be recommended
-fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field {
+fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp: Field) -> Field {
     //round 0
     let mut t = x + k;
     let mut h = t.pow_32(exp);

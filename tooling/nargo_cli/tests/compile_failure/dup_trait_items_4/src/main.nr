@@ -3,5 +3,4 @@ trait MyTrait {
   fn MyItem();
 }
 
-fn main() {
-}
+fn main() {}

@@ -17,7 +17,12 @@ struct Test {
 global VALS: [Test; 1] = [Test { v: 100 }];
 global NESTED = [VALS, VALS];
 
-fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGIC_NUMBER], d: [Field; foo::bar::N]) {
+fn main(
+    a: [Field; M + N - N],
+    b: [Field; 30 + N / 2],
+    c: pub [Field; foo::MAGIC_NUMBER],
+    d: [Field; foo::bar::N]
+) {
     let test_struct = Dummy { x: d, y: c };
 
     for i in 0..foo::MAGIC_NUMBER {

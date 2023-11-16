@@ -13,7 +13,7 @@ struct Foo {
     bar: Bar,
 }
 
-fn main(y : pub Field) {
+fn main(y: pub Field) {
     let mut b_one = [2, 3, 20];
     b_one = b_one.push_back(20);
     let foo_one = Foo { a: 1, b: b_one, bar: Bar { inner: [100, 101, 102] } };

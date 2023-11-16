@@ -1,4 +1,4 @@
-fn main(x : Field) {
+fn main(x: Field) {
     // The parameters to this function must come directly from witness values (inputs to main).
     regression_dynamic_slice_index(x - 1, x - 4);
 }

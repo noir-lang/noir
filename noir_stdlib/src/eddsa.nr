@@ -27,7 +27,7 @@ pub fn eddsa_poseidon_verify(
     signature_s: Field,
     signature_r8_x: Field,
     signature_r8_y: Field,
-    message: Field,
+    message: Field
 ) -> bool {
     // Verifies by testing:
     // S * B8 = R8 + H(R8, A, m) * A8
