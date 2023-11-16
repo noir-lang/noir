@@ -24,7 +24,7 @@ describe('benchmarks/publish_rollup', () => {
       // Simulate and simultaneously send ROLLUP_SIZE txs. These should not yet be processed since sequencer is stopped.
       context.logger(`Assembling rollup with ${txCount} txs`);
       const sentTxs = await sendTxs(txCount, context, contract);
-
+      context.logger.info(`Sent ${txCount} txs`);
       // Restart sequencer to process all txs together
       sequencer.restart();
 

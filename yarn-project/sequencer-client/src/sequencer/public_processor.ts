@@ -38,7 +38,7 @@ import {
   VK_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { computeCallStackItemHash, computeVarArgsHash } from '@aztec/circuits.js/abis';
-import { arrayNonEmptyLength, isArrayEmpty, padArrayEnd, padArrayStart } from '@aztec/foundation/collection';
+import { arrayNonEmptyLength, isArrayEmpty, padArrayEnd } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Tuple, mapTuple, to2Fields } from '@aztec/foundation/serialize';
 import { ContractDataSource, FunctionL2Logs, L1ToL2MessageSource, MerkleTreeId, Tx } from '@aztec/types';
@@ -302,8 +302,8 @@ export class PublicProcessor {
       );
     }
 
-    // Top of the stack is at the end of the array, so we padStart
-    return padArrayStart(preimages, PublicCallStackItem.empty(), MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
+    // note this was previously padArrayStart in the cpp kernel, logic was updated in noir translation
+    return padArrayEnd(preimages, PublicCallStackItem.empty(), MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
   }
 
   protected getBytecodeHash(_result: PublicExecutionResult) {

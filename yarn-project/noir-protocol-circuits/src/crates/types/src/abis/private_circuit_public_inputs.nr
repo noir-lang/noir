@@ -74,6 +74,8 @@ impl PrivateCircuitPublicInputs{
         fields.push(self.chain_id);
         fields.push(self.version);
 
+        assert_eq(fields.len(), constants_gen::PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH, "Incorrect number of input fields when hashing PrivateCircuitPublicInputs");
+
         dep::std::hash::pedersen_hash_with_separator(fields.storage, constants_gen::GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS)
     }
 }

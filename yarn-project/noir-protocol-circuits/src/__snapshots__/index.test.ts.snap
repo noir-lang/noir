@@ -20,6 +20,10 @@ exports[`Noir compatibility tests (interop_testing.nr) ComputeContractAddressFro
 
 exports[`Noir compatibility tests (interop_testing.nr) Function leaf matches noir 1`] = `"0x1ad8ece7f40e63d011ae47c6ce6cdaf31d632a23f5cf35bbeaaf69c8302afdbc"`;
 
+exports[`Noir compatibility tests (interop_testing.nr) Public call stack item matches noir 1`] = `"0x0a370c67b66e30901470c11a199764a914fc0fcfbc737ed03153079b2765813a"`;
+
+exports[`Noir compatibility tests (interop_testing.nr) Public call stack item request matches noir 1`] = `"0x1d51d7758d792c9cd6edd8e8ec5f1f9fb1f974abc1af6bb4cf9f2328ef306c96"`;
+
 exports[`Noir compatibility tests (interop_testing.nr) TxRequest Hash matches Noir 1`] = `"0x0b487ff2900ae1178e131bfe333fdbc351beef658f7c0d62db2801429b1aab75"`;
 
 exports[`Private kernel Executes private kernel init circuit for a contract deployment 1`] = `

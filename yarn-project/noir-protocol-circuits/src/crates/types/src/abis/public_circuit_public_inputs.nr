@@ -64,6 +64,8 @@ impl PublicCircuitPublicInputs{
         inputs.push_array(self.historical_block_data.to_array());
         inputs.push(self.prover_address.to_field());
 
+        assert_eq(inputs.len(), constants_gen::PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH, "Incorrect number of input fields when hashing PublicCircuitPublicInputs");
+
         dep::std::hash::pedersen_hash_with_separator(inputs.storage, constants_gen::GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS)
     }
 }

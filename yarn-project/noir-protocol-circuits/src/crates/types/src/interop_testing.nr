@@ -8,7 +8,9 @@ use crate::abis::function_leaf_preimage::FunctionLeafPreimage;
 use crate::contrakt::deployment_data::ContractDeploymentData;
 use crate::abis::function_selector::FunctionSelector;
 use crate::hash::compute_l2_to_l1_hash;
+use crate::abis::call_stack_item::PublicCallStackItem;
 use dep::aztec::hash::sha256_to_field;
+use crate::abis::public_circuit_public_inputs::PublicCircuitPublicInputs;
 
 #[test]
 fn compute_complete_address() {
@@ -96,4 +98,50 @@ fn compute_function_leaf() {
     };
 
     assert_eq(leaf.hash(), 0x1ad8ece7f40e63d011ae47c6ce6cdaf31d632a23f5cf35bbeaaf69c8302afdbc);
+}
+
+#[test]
+fn compute_call_stack_item_request() {
+    let contract_address = Address::from_field(1);
+    let function_data = FunctionData {
+        selector: FunctionSelector::from_u32(2),
+        is_internal: false,
+        is_private: false,
+        is_constructor: false,
+    };
+
+    let mut public_inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
+    public_inputs.new_commitments[0] = 1;
+
+    let call_stack_item = PublicCallStackItem {
+        contract_address,
+        public_inputs,
+        is_execution_request: true,
+        function_data,
+    };
+
+    assert_eq(call_stack_item.hash(), 0x1d51d7758d792c9cd6edd8e8ec5f1f9fb1f974abc1af6bb4cf9f2328ef306c96);
+}
+
+#[test]
+fn compute_call_stack_item() {
+    let contract_address = Address::from_field(1);
+    let function_data = FunctionData {
+        selector: FunctionSelector::from_u32(2),
+        is_internal: false,
+        is_private: false,
+        is_constructor: false,
+    };
+
+    let mut public_inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
+    public_inputs.new_commitments[0] = 1;
+
+    let call_stack_item = PublicCallStackItem {
+        contract_address,
+        public_inputs,
+        is_execution_request: false,
+        function_data,
+    };
+
+    assert_eq(call_stack_item.hash(), 0x0a370c67b66e30901470c11a199764a914fc0fcfbc737ed03153079b2765813a);
 }
