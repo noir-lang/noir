@@ -100,6 +100,11 @@ jobs:
         run: 
           yarn workspace docs build
 
+      - name: Check links
+        uses: untitaker/hyperlink@0.1.31
+        with:
+          args: './docs/build'
+
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v2.1
         with:
