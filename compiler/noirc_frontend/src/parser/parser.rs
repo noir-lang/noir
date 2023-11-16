@@ -1745,6 +1745,51 @@ mod test {
             .collect()
     }
 
+    #[derive(Copy, Clone)]
+    struct Case {
+        source: &'static str,
+        errors: usize,
+        expect: &'static str,
+    }
+
+    fn check_cases_with_errors<T, P>(cases: &[Case], parser: P)
+    where
+        P: NoirParser<T> + Clone,
+        T: std::fmt::Display,
+    {
+        let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");
+
+        let results = vecmap(cases, |&case| {
+            let (opt, errors) = parse_recover(parser.clone(), case.source);
+            let actual = opt.map(|ast| ast.to_string());
+            let actual = if let Some(s) = &actual { s.to_string() } else { "(none)".to_string() };
+
+            let result = ((errors.len(), actual.clone()), (case.errors, case.expect.to_string()));
+            if result.0 != result.1 {
+                let num_errors = errors.len();
+                let shown_errors = show_errors(errors);
+                eprintln!(
+                    concat!(
+                        "\nExpected {expected_errors} error(s) and got {num_errors}:",
+                        "\n\n{shown_errors}",
+                        "\n\nFrom input:   {src}",
+                        "\nExpected AST: {expected_result}",
+                        "\nActual AST:   {actual}\n",
+                    ),
+                    expected_errors = case.errors,
+                    num_errors = num_errors,
+                    shown_errors = shown_errors,
+                    src = case.source,
+                    expected_result = case.expect,
+                    actual = actual,
+                );
+            }
+            result
+        });
+
+        assert_eq!(vecmap(&results, |t| t.0.clone()), vecmap(&results, |t| t.1.clone()),);
+    }
+
     #[test]
     fn regression_skip_comment() {
         parse_all(
@@ -2391,116 +2436,117 @@ mod test {
     #[test]
     fn statement_recovery() {
         let cases = vec![
-            ("let a = 4 + 3", 0, "let a: unspecified = (4 + 3)"),
-            ("let a: = 4 + 3", 1, "let a: error = (4 + 3)"),
-            ("let = 4 + 3", 1, "let $error: unspecified = (4 + 3)"),
-            ("let = ", 2, "let $error: unspecified = Error"),
-            ("let", 3, "let $error: unspecified = Error"),
-            ("foo = one two three", 1, "foo = plain::one"),
-            ("constrain", 2, "constrain Error"),
-            ("assert", 1, "constrain Error"),
-            ("constrain x ==", 2, "constrain (plain::x == Error)"),
-            ("assert(x ==)", 1, "constrain (plain::x == Error)"),
-            ("assert(x == x, x)", 1, "constrain (plain::x == plain::x)"),
-            ("assert_eq(x,)", 1, "constrain (Error == Error)"),
-            ("assert_eq(x, x, x, x)", 1, "constrain (Error == Error)"),
-            ("assert_eq(x, x, x)", 1, "constrain (plain::x == plain::x)"),
+            Case { source: "let a = 4 + 3", expect: "let a: unspecified = (4 + 3)", errors: 0 },
+            Case { source: "let a: = 4 + 3", expect: "let a: error = (4 + 3)", errors: 1 },
+            Case { source: "let = 4 + 3", expect: "let $error: unspecified = (4 + 3)", errors: 1 },
+            Case { source: "let = ", expect: "let $error: unspecified = Error", errors: 2 },
+            Case { source: "let", expect: "let $error: unspecified = Error", errors: 3 },
+            Case { source: "foo = one two three", expect: "foo = plain::one", errors: 1 },
+            Case { source: "constrain", expect: "constrain Error", errors: 2 },
+            Case { source: "assert", expect: "constrain Error", errors: 1 },
+            Case { source: "constrain x ==", expect: "constrain (plain::x == Error)", errors: 2 },
+            Case { source: "assert(x ==)", expect: "constrain (plain::x == Error)", errors: 1 },
+            Case {
+                source: "assert(x == x, x)",
+                expect: "constrain (plain::x == plain::x)",
+                errors: 1,
+            },
+            Case { source: "assert_eq(x,)", expect: "constrain (Error == Error)", errors: 1 },
+            Case {
+                source: "assert_eq(x, x, x, x)",
+                expect: "constrain (Error == Error)",
+                errors: 1,
+            },
+            Case {
+                source: "assert_eq(x, x, x)",
+                expect: "constrain (plain::x == plain::x)",
+                errors: 1,
+            },
         ];
 
-        let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
-
-        for (src, expected_errors, expected_result) in cases {
-            let (opt, errors) = parse_recover(fresh_statement(), src);
-            let actual = opt.map(|ast| ast.to_string());
-            let actual = if let Some(s) = &actual { s } else { "(none)" };
-
-            assert_eq!((errors.len(), actual), (expected_errors, expected_result),
-                "\nExpected {} error(s) and got {}:\n\n{}\n\nFrom input:   {}\nExpected AST: {}\nActual AST:   {}\n",
-                expected_errors, errors.len(), show_errors(&errors), src, expected_result, actual
-            );
-        }
+        check_cases_with_errors(&cases[..], fresh_statement());
     }
 
     #[test]
     fn return_validation() {
         let cases = vec![
-            ("{ return 42; }", 1, "{\n    Error\n}"),
-            ("{ return 1; return 2; }", 2, "{\n    Error\n    Error\n}"),
-            (
-                "{ return 123; let foo = 4 + 3; }",
-                1,
-                "{\n    Error\n    let foo: unspecified = (4 + 3)\n}",
-            ),
-            ("{ return 1 + 2 }", 2, "{\n    Error\n}"),
-            ("{ return; }", 1, "{\n    Error\n}"),
+            Case {
+                source: "{ return 42; }",
+                expect: concat!("{\n", "    Error\n", "}",),
+                errors: 1,
+            },
+            Case {
+                source: "{ return 1; return 2; }",
+                expect: concat!("{\n", "    Error\n", "    Error\n", "}"),
+                errors: 2,
+            },
+            Case {
+                source: "{ return 123; let foo = 4 + 3; }",
+                expect: concat!("{\n", "    Error\n", "    let foo: unspecified = (4 + 3)\n", "}"),
+                errors: 1,
+            },
+            Case {
+                source: "{ return 1 + 2 }",
+                expect: concat!("{\n", "    Error\n", "}",),
+                errors: 2,
+            },
+            Case { source: "{ return; }", expect: concat!("{\n", "    Error\n", "}",), errors: 1 },
         ];
 
-        let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");
-
-        let results = vecmap(&cases, |&(src, expected_errors, expected_result)| {
-            let (opt, errors) = parse_recover(block(fresh_statement()), src);
-            let actual = opt.map(|ast| ast.to_string());
-            let actual = if let Some(s) = &actual { s.to_string() } else { "(none)".to_string() };
-
-            let result =
-                ((errors.len(), actual.clone()), (expected_errors, expected_result.to_string()));
-            if result.0 != result.1 {
-                let num_errors = errors.len();
-                let shown_errors = show_errors(errors);
-                eprintln!(
-                    "\nExpected {expected_errors} error(s) and got {num_errors}:\n\n{shown_errors}\n\nFrom input:   {src}\nExpected AST: {expected_result}\nActual AST:   {actual}\n");
-            }
-            result
-        });
-
-        assert_eq!(vecmap(&results, |t| t.0.clone()), vecmap(&results, |t| t.1.clone()),);
+        check_cases_with_errors(&cases[..], block(fresh_statement()));
     }
 
     #[test]
     fn expr_no_constructors() {
         let cases = vec![
-            (
-                "{ if structure { a: 1 } {} }",
-                1,
-                "{\n    if plain::structure {\n        Error\n    }\n    {\n    }\n}",
-            ),
-            (
-                "{ if ( structure { a: 1 } ) {} }",
-                0,
-                "{\n    if ((plain::structure { a: 1 })) {\n    }\n}",
-            ),
-            ("{ if ( structure {} ) {} }", 0, "{\n    if ((plain::structure {  })) {\n    }\n}"),
-            (
-                "{ if (a { x: 1 }, b { y: 2 }) {} }",
-                0,
-                "{\n    if ((plain::a { x: 1 }), (plain::b { y: 2 })) {\n    }\n}",
-            ),
-            (
-                "{ if ({ let foo = bar { baz: 42 }; foo == bar { baz: 42 }}) {} }",
-                0,
-                "{\n    if ({\n        let foo: unspecified = (plain::bar { baz: 42 })\
-                \n        (plain::foo == (plain::bar { baz: 42 }))\n    }) {\n    }\n}",
-            ),
+            Case {
+                source: "{ if structure { a: 1 } {} }",
+                expect: concat!(
+                    "{\n",
+                    "    if plain::structure {\n",
+                    "        Error\n",
+                    "    }\n",
+                    "    {\n",
+                    "    }\n",
+                    "}",
+                ),
+                errors: 1,
+            },
+            Case {
+                source: "{ if ( structure { a: 1 } ) {} }",
+                expect: concat!("{\n", "    if ((plain::structure { a: 1 })) {\n", "    }\n", "}",),
+                errors: 0,
+            },
+            Case {
+                source: "{ if ( structure {} ) {} }",
+                expect: concat!("{\n", "    if ((plain::structure {  })) {\n", "    }\n", "}"),
+                errors: 0,
+            },
+            Case {
+                source: "{ if (a { x: 1 }, b { y: 2 }) {} }",
+                expect: concat!(
+                    "{\n",
+                    "    if ((plain::a { x: 1 }), (plain::b { y: 2 })) {\n",
+                    "    }\n",
+                    "}",
+                ),
+                errors: 0,
+            },
+            Case {
+                source: "{ if ({ let foo = bar { baz: 42 }; foo == bar { baz: 42 }}) {} }",
+                expect: concat!(
+                    "{\n",
+                    "    if ({\n",
+                    "        let foo: unspecified = (plain::bar { baz: 42 })\n",
+                    "        (plain::foo == (plain::bar { baz: 42 }))\n",
+                    "    }) {\n",
+                    "    }\n",
+                    "}",
+                ),
+                errors: 0,
+            },
         ];
 
-        let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");
-
-        let results = vecmap(&cases, |&(src, expected_errors, expected_result)| {
-            let (opt, errors) = parse_recover(block(fresh_statement()), src);
-            let actual = opt.map(|ast| ast.to_string());
-            let actual = if let Some(s) = &actual { s.to_string() } else { "(none)".to_string() };
-
-            let result =
-                ((errors.len(), actual.clone()), (expected_errors, expected_result.to_string()));
-            if result.0 != result.1 {
-                let num_errors = errors.len();
-                let shown_errors = show_errors(errors);
-                eprintln!(
-                    "\nExpected {expected_errors} error(s) and got {num_errors}:\n\n{shown_errors}\n\nFrom input:   {src}\nExpected AST: {expected_result}\nActual AST:   {actual}\n");
-            }
-            result
-        });
-
-        assert_eq!(vecmap(&results, |t| t.0.clone()), vecmap(&results, |t| t.1.clone()),);
+        check_cases_with_errors(&cases[..], block(fresh_statement()));
     }
 }
