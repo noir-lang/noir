@@ -38,7 +38,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionVisibility, Generics,
-    LValue, NoirStruct, NoirTypeAlias, Path, PathKind, Pattern, Shared, StructType, Type,
+    LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern, Shared, StructType, Type,
     TypeAliasType, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
     Visibility, ERROR_IDENT,
@@ -760,7 +760,7 @@ impl<'a> Resolver<'a> {
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 
-        for (pattern, typ, visibility) in func.parameters().iter().cloned() {
+        for Param { visibility, pattern, typ, span: _ } in func.parameters().iter().cloned() {
             if visibility == Visibility::Public && !self.pub_allowed(func) {
                 self.push_err(ResolverError::UnnecessaryPub {
                     ident: func.name_ident().clone(),
