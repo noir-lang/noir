@@ -9,14 +9,6 @@
 #include "barretenberg/relations/lookup_relation.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
-#include <algorithm>
-#include <array>
-#include <cstddef>
-#include <memory>
-#include <span>
-#include <string>
-#include <utility>
-#include <vector>
 
 namespace proof_system::honk {
 
@@ -43,8 +35,8 @@ ECCVMProver_<Flavor>::ECCVMProver_(std::shared_ptr<typename Flavor::ProvingKey> 
     prover_polynomials.transcript_msm_transition = key->transcript_msm_transition;
     prover_polynomials.transcript_pc = key->transcript_pc;
     prover_polynomials.transcript_msm_count = key->transcript_msm_count;
-    prover_polynomials.transcript_x = key->transcript_x;
-    prover_polynomials.transcript_y = key->transcript_y;
+    prover_polynomials.transcript_Px = key->transcript_Px;
+    prover_polynomials.transcript_Py = key->transcript_Py;
     prover_polynomials.transcript_z1 = key->transcript_z1;
     prover_polynomials.transcript_z2 = key->transcript_z2;
     prover_polynomials.transcript_z1zero = key->transcript_z1zero;
@@ -319,47 +311,29 @@ template <ECCVMFlavor Flavor> plonk::proof& ECCVMProver_<Flavor>::export_proof()
 
 template <ECCVMFlavor Flavor> plonk::proof& ECCVMProver_<Flavor>::construct_proof()
 {
-    // Add circuit size public input size and public inputs to transcript.
     execute_preamble_round();
 
-    // Compute first three wire commitments
     execute_wire_commitments_round();
 
-    // Compute sorted list accumulator and commitment
     execute_log_derivative_commitments_round();
 
-    // Fiat-Shamir: beta & gamma
-    // Compute grand product(s) and commitments.
     execute_grand_product_computation_round();
 
-    // Fiat-Shamir: alpha
-    // Run sumcheck subprotocol.
     execute_relation_check_rounds();
 
-    // Fiat-Shamir: rho
-    // Compute Fold polynomials and their commitments.
     execute_univariatization_round();
 
-    // Fiat-Shamir: r
-    // Compute Fold evaluations
     execute_pcs_evaluation_round();
 
-    // Fiat-Shamir: nu
-    // Compute Shplonk batched quotient commitment Q
     execute_shplonk_batched_quotient_round();
 
-    // Fiat-Shamir: z
-    // Compute partial evaluation Q_z
     execute_shplonk_partial_evaluation_round();
 
-    // Fiat-Shamir: z
-    // Compute PCS opening proof (either KZG quotient commitment or IPA opening proof)
     execute_final_pcs_round();
 
     return export_proof();
 }
 
 template class ECCVMProver_<honk::flavor::ECCVM>;
-template class ECCVMProver_<honk::flavor::ECCVMGrumpkin>;
 
 } // namespace proof_system::honk

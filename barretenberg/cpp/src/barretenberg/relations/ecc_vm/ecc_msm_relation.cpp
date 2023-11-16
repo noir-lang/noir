@@ -391,8 +391,7 @@ void ECCVMMSMRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulator
     // perform lookups on (pc / slice_i / x / y)
 }
 
-template class ECCVMMSMRelationImpl<barretenberg::fr>;
+template class ECCVMMSMRelationImpl<grumpkin::fr>;
 DEFINE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationImpl, flavor::ECCVM);
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationImpl, flavor::ECCVMGrumpkin);
 
 } // namespace proof_system::honk::sumcheck

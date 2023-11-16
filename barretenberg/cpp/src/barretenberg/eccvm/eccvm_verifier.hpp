@@ -40,9 +40,6 @@ template <typename Flavor> class ECCVMVerifier_ {
 };
 
 extern template class ECCVMVerifier_<honk::flavor::ECCVM>;
-extern template class ECCVMVerifier_<honk::flavor::ECCVMGrumpkin>;
-
-using ECCVMVerifier = ECCVMVerifier_<honk::flavor::ECCVM>;
-using ECCVMVerifierGrumpkin = ECCVMVerifier_<honk::flavor::ECCVMGrumpkin>;
+using ECCVMVerifierGrumpkin = ECCVMVerifier_<honk::flavor::ECCVM>;
 
 } // namespace proof_system::honk

@@ -30,7 +30,7 @@ class FullGoblinComposerTests : public ::testing::Test {
     using CommitmentKey = proof_system::honk::pcs::CommitmentKey<Curve>;
     using GoblinUltraBuilder = proof_system::GoblinUltraCircuitBuilder;
     using GoblinUltraComposer = proof_system::honk::GoblinUltraComposer;
-    using ECCVMFlavor = proof_system::honk::flavor::ECCVMGrumpkin;
+    using ECCVMFlavor = proof_system::honk::flavor::ECCVM;
     using ECCVMBuilder = proof_system::ECCVMCircuitBuilder<ECCVMFlavor>;
     using ECCVMComposer = proof_system::honk::ECCVMComposer_<ECCVMFlavor>;
     using VMOp = proof_system_eccvm::VMOperation<ECCVMFlavor::CycleGroup>;

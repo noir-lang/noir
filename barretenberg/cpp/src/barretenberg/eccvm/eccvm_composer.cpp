@@ -115,6 +115,5 @@ std::shared_ptr<typename Flavor::VerificationKey> ECCVMComposer_<Flavor>::comput
     return verification_key;
 }
 template class ECCVMComposer_<honk::flavor::ECCVM>;
-template class ECCVMComposer_<honk::flavor::ECCVMGrumpkin>;
 
 } // namespace proof_system::honk

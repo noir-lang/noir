@@ -216,8 +216,7 @@ void ECCVMWnafRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulato
     // the set equivalence relation
 }
 
-template class ECCVMWnafRelationImpl<barretenberg::fr>;
+template class ECCVMWnafRelationImpl<grumpkin::fr>;
 DEFINE_SUMCHECK_RELATION_CLASS(ECCVMWnafRelationImpl, flavor::ECCVM);
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMWnafRelationImpl, flavor::ECCVMGrumpkin);
 
 } // namespace proof_system::honk::sumcheck

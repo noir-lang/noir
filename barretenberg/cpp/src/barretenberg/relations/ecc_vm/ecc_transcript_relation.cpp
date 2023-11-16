@@ -59,8 +59,8 @@ void ECCVMTranscriptRelationImpl<FF>::accumulate(ContainerOverSubrelations& accu
     auto transcript_accumulator_y = View(in.transcript_accumulator_y);
     auto transcript_msm_x = View(in.transcript_msm_x);
     auto transcript_msm_y = View(in.transcript_msm_y);
-    auto transcript_x = View(in.transcript_x);
-    auto transcript_y = View(in.transcript_y);
+    auto transcript_Px = View(in.transcript_Px);
+    auto transcript_Py = View(in.transcript_Py);
     auto is_accumulator_empty = View(in.transcript_accumulator_empty);
     auto lagrange_first = View(in.lagrange_first);
     auto lagrange_last = View(in.lagrange_last);
@@ -169,13 +169,13 @@ void ECCVMTranscriptRelationImpl<FF>::accumulate(ContainerOverSubrelations& accu
     /**
      * @brief Constrain `add` opcode.
      *
-     * add will add the input point in (transcript_x, transcript_y) into the accumulator.
+     * add will add the input point in (transcript_Px, transcript_Py) into the accumulator.
      * Correctly handles case where accumulator is point at infinity.
      * TODO: need to add constraints to rule out point doubling case (x2 != x1)
      * TODO: need to assert input point is on the curve!
      */
-    x2 = transcript_x;
-    y2 = transcript_y;
+    x2 = transcript_Px;
+    y2 = transcript_Py;
     auto add_into_accumulator = q_add * (-is_accumulator_empty + 1);
     tmpx = (x3 + x2 + x1) * (x2 - x1) * (x2 - x1) - (y2 - y1) * (y2 - y1);
     tmpy = (y3 + y1) * (x2 - x1) - (y2 - y1) * (x1 - x3);
@@ -205,12 +205,12 @@ void ECCVMTranscriptRelationImpl<FF>::accumulate(ContainerOverSubrelations& accu
 
     /**
      * @brief `eq` opcode.
-     * If eq = 1, assert transcript_x/y = transcript_accumulator_x/y.
+     * If eq = 1, assert transcript_Px/y = transcript_accumulator_x/y.
      * If eq = 1, assert is_accumulator_empty = 0 (input point cannot be point at infinity)
      */
-    std::get<20>(accumulator) += q_eq * (transcript_accumulator_x - transcript_x) * scaling_factor;
+    std::get<20>(accumulator) += q_eq * (transcript_accumulator_x - transcript_Px) * scaling_factor;
     std::get<21>(accumulator) +=
-        q_eq * (-is_accumulator_empty + 1) * (transcript_accumulator_y - transcript_y) * scaling_factor;
+        q_eq * (-is_accumulator_empty + 1) * (transcript_accumulator_y - transcript_Py) * scaling_factor;
     std::get<22>(accumulator) += q_eq * is_accumulator_empty * scaling_factor;
 
     // validate selectors are boolean (put somewhere else? these are low degree)
@@ -236,12 +236,12 @@ void ECCVMTranscriptRelationImpl<FF>::accumulate(ContainerOverSubrelations& accu
 
     /**
      * @brief On-curve validation checks.
-     * If q_mul = 1 OR q_add = 1 OR q_eq = 1, require (transcript_x, transcript_y) is valid ecc point
+     * If q_mul = 1 OR q_add = 1 OR q_eq = 1, require (transcript_Px, transcript_Py) is valid ecc point
      * q_mul/q_add/q_eq mutually exclusive, can represent as sum of 3
      */
     const auto validate_on_curve = q_mul; // q_add + q_mul + q_eq;
     const auto on_curve_check =
-        transcript_y * transcript_y - transcript_x * transcript_x * transcript_x - get_curve_b();
+        transcript_Py * transcript_Py - transcript_Px * transcript_Px * transcript_Px - get_curve_b();
     std::get<33>(accumulator) += validate_on_curve * on_curve_check * scaling_factor;
 
     /**
@@ -251,12 +251,11 @@ void ECCVMTranscriptRelationImpl<FF>::accumulate(ContainerOverSubrelations& accu
     auto x_coordinate_collision_check =
         add_msm_into_accumulator * ((transcript_msm_x - transcript_accumulator_x) * transcript_collision_check - FF(1));
     x_coordinate_collision_check +=
-        add_into_accumulator * ((transcript_x - transcript_accumulator_x) * transcript_collision_check - FF(1));
+        add_into_accumulator * ((transcript_Px - transcript_accumulator_x) * transcript_collision_check - FF(1));
     std::get<34>(accumulator) += x_coordinate_collision_check * scaling_factor;
 }
 
-template class ECCVMTranscriptRelationImpl<barretenberg::fr>;
+template class ECCVMTranscriptRelationImpl<grumpkin::fr>;
 DEFINE_SUMCHECK_RELATION_CLASS(ECCVMTranscriptRelationImpl, flavor::ECCVM);
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMTranscriptRelationImpl, flavor::ECCVMGrumpkin);
 
 } // namespace proof_system::honk::sumcheck

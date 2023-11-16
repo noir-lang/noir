@@ -114,8 +114,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
         DataType transcript_msm_transition;    // column 4
         DataType transcript_pc;                // column 5
         DataType transcript_msm_count;         // column 6
-        DataType transcript_x;                 // column 7
-        DataType transcript_y;                 // column 8
+        DataType transcript_Px;                // column 7
+        DataType transcript_Py;                // column 8
         DataType transcript_z1;                // column 9
         DataType transcript_z2;                // column 10
         DataType transcript_z1zero;            // column 11
@@ -192,8 +192,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
                             &transcript_msm_transition,
                             &transcript_pc,
                             &transcript_msm_count,
-                            &transcript_x,
-                            &transcript_y,
+                            &transcript_Px,
+                            &transcript_Py,
                             &transcript_z1,
                             &transcript_z2,
                             &transcript_z1zero,
@@ -271,8 +271,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
                 transcript_msm_transition,
                 transcript_pc,
                 transcript_msm_count,
-                transcript_x,
-                transcript_y,
+                transcript_Px,
+                transcript_Py,
                 transcript_z1,
                 transcript_z2,
                 transcript_z1zero,
@@ -366,8 +366,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
         DataType transcript_msm_transition;          // column 7
         DataType transcript_pc;                      // column 8
         DataType transcript_msm_count;               // column 9
-        DataType transcript_x;                       // column 10
-        DataType transcript_y;                       // column 11
+        DataType transcript_Px;                      // column 10
+        DataType transcript_Py;                      // column 11
         DataType transcript_z1;                      // column 12
         DataType transcript_z2;                      // column 13
         DataType transcript_z1zero;                  // column 14
@@ -484,8 +484,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
                             &transcript_msm_transition,
                             &transcript_pc,
                             &transcript_msm_count,
-                            &transcript_x,
-                            &transcript_y,
+                            &transcript_Px,
+                            &transcript_Py,
                             &transcript_z1,
                             &transcript_z2,
                             &transcript_z1zero,
@@ -589,8 +589,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
                 transcript_msm_transition,
                 transcript_pc,
                 transcript_msm_count,
-                transcript_x,
-                transcript_y,
+                transcript_Px,
+                transcript_Py,
                 transcript_z1,
                 transcript_z2,
                 transcript_z1zero,
@@ -669,8 +669,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
                 transcript_eq,
                 transcript_collision_check,
                 transcript_msm_transition,
-                transcript_x,
-                transcript_y,
+                transcript_Px,
+                transcript_Py,
                 transcript_z1,
                 transcript_z2,
                 transcript_z1zero,
@@ -923,8 +923,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
             Base::transcript_msm_transition = "TRANSCRIPT_MSM_TRANSITION";
             Base::transcript_pc = "TRANSCRIPT_PC";
             Base::transcript_msm_count = "TRANSCRIPT_MSM_COUNT";
-            Base::transcript_x = "TRANSCRIPT_X";
-            Base::transcript_y = "TRANSCRIPT_Y";
+            Base::transcript_Px = "TRANSCRIPT_PX";
+            Base::transcript_Py = "TRANSCRIPT_PY";
             Base::transcript_z1 = "TRANSCRIPT_Z1";
             Base::transcript_z2 = "TRANSCRIPT_Z2";
             Base::transcript_z1zero = "TRANSCRIPT_Z1ZERO";
@@ -1028,8 +1028,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
         Commitment transcript_msm_transition_comm;
         Commitment transcript_pc_comm;
         Commitment transcript_msm_count_comm;
-        Commitment transcript_x_comm;
-        Commitment transcript_y_comm;
+        Commitment transcript_Px_comm;
+        Commitment transcript_Py_comm;
         Commitment transcript_z1_comm;
         Commitment transcript_z2_comm;
         Commitment transcript_z1zero_comm;
@@ -1136,9 +1136,9 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
                 BaseTranscript<FF>::proof_data, num_bytes_read);
             transcript_msm_count_comm = BaseTranscript<FF>::template deserialize_from_buffer<Commitment>(
                 BaseTranscript<FF>::proof_data, num_bytes_read);
-            transcript_x_comm = BaseTranscript<FF>::template deserialize_from_buffer<Commitment>(
+            transcript_Px_comm = BaseTranscript<FF>::template deserialize_from_buffer<Commitment>(
                 BaseTranscript<FF>::proof_data, num_bytes_read);
-            transcript_y_comm = BaseTranscript<FF>::template deserialize_from_buffer<Commitment>(
+            transcript_Py_comm = BaseTranscript<FF>::template deserialize_from_buffer<Commitment>(
                 BaseTranscript<FF>::proof_data, num_bytes_read);
             transcript_z1_comm = BaseTranscript<FF>::template deserialize_from_buffer<Commitment>(
                 BaseTranscript<FF>::proof_data, num_bytes_read);
@@ -1328,8 +1328,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
                                                              BaseTranscript<FF>::proof_data);
             BaseTranscript<FF>::template serialize_to_buffer(transcript_pc_comm, BaseTranscript<FF>::proof_data);
             BaseTranscript<FF>::template serialize_to_buffer(transcript_msm_count_comm, BaseTranscript<FF>::proof_data);
-            BaseTranscript<FF>::template serialize_to_buffer(transcript_x_comm, BaseTranscript<FF>::proof_data);
-            BaseTranscript<FF>::template serialize_to_buffer(transcript_y_comm, BaseTranscript<FF>::proof_data);
+            BaseTranscript<FF>::template serialize_to_buffer(transcript_Px_comm, BaseTranscript<FF>::proof_data);
+            BaseTranscript<FF>::template serialize_to_buffer(transcript_Py_comm, BaseTranscript<FF>::proof_data);
             BaseTranscript<FF>::template serialize_to_buffer(transcript_z1_comm, BaseTranscript<FF>::proof_data);
             BaseTranscript<FF>::template serialize_to_buffer(transcript_z2_comm, BaseTranscript<FF>::proof_data);
             BaseTranscript<FF>::template serialize_to_buffer(transcript_z1zero_comm, BaseTranscript<FF>::proof_data);
@@ -1433,20 +1433,19 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     };
 };
 
-class ECCVM : public ECCVMBase<grumpkin::g1, curve::BN254, pcs::kzg::KZG<curve::BN254>> {};
-class ECCVMGrumpkin : public ECCVMBase<barretenberg::g1, curve::Grumpkin, pcs::ipa::IPA<curve::Grumpkin>> {};
+class ECCVM : public ECCVMBase<barretenberg::g1, curve::Grumpkin, pcs::ipa::IPA<curve::Grumpkin>> {};
 
 // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 
 } // namespace flavor
 namespace sumcheck {
 
-extern template class ECCVMTranscriptRelationImpl<barretenberg::fr>;
-extern template class ECCVMWnafRelationImpl<barretenberg::fr>;
-extern template class ECCVMPointTableRelationImpl<barretenberg::fr>;
-extern template class ECCVMMSMRelationImpl<barretenberg::fr>;
-extern template class ECCVMSetRelationImpl<barretenberg::fr>;
-extern template class ECCVMLookupRelationImpl<barretenberg::fr>;
+extern template class ECCVMTranscriptRelationImpl<grumpkin::fr>;
+extern template class ECCVMWnafRelationImpl<grumpkin::fr>;
+extern template class ECCVMPointTableRelationImpl<grumpkin::fr>;
+extern template class ECCVMMSMRelationImpl<grumpkin::fr>;
+extern template class ECCVMSetRelationImpl<grumpkin::fr>;
+extern template class ECCVMLookupRelationImpl<grumpkin::fr>;
 
 DECLARE_SUMCHECK_RELATION_CLASS(ECCVMTranscriptRelationImpl, flavor::ECCVM);
 DECLARE_SUMCHECK_RELATION_CLASS(ECCVMWnafRelationImpl, flavor::ECCVM);
@@ -1455,14 +1454,6 @@ DECLARE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationImpl, flavor::ECCVM);
 DECLARE_SUMCHECK_RELATION_CLASS(ECCVMSetRelationImpl, flavor::ECCVM);
 DECLARE_SUMCHECK_RELATION_CLASS(ECCVMLookupRelationImpl, flavor::ECCVM);
 
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMTranscriptRelationImpl, flavor::ECCVMGrumpkin);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMWnafRelationImpl, flavor::ECCVMGrumpkin);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMPointTableRelationImpl, flavor::ECCVMGrumpkin);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationImpl, flavor::ECCVMGrumpkin);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMSetRelationImpl, flavor::ECCVMGrumpkin);
-DECLARE_SUMCHECK_RELATION_CLASS(ECCVMLookupRelationImpl, flavor::ECCVMGrumpkin);
-
 DECLARE_SUMCHECK_PERMUTATION_CLASS(ECCVMSetRelationImpl, flavor::ECCVM);
-DECLARE_SUMCHECK_PERMUTATION_CLASS(ECCVMSetRelationImpl, flavor::ECCVMGrumpkin);
 } // namespace sumcheck
 } // namespace proof_system::honk

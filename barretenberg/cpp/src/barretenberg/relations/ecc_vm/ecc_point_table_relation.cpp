@@ -172,8 +172,7 @@ void ECCVMPointTableRelationImpl<FF>::accumulate(ContainerOverSubrelations& accu
         (-lagrange_first + 1) * (-precompute_point_transition + 1) * y_add_check * scaling_factor;
 }
 
-template class ECCVMPointTableRelationImpl<barretenberg::fr>;
+template class ECCVMPointTableRelationImpl<grumpkin::fr>;
 DEFINE_SUMCHECK_RELATION_CLASS(ECCVMPointTableRelationImpl, flavor::ECCVM);
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMPointTableRelationImpl, flavor::ECCVMGrumpkin);
 
 } // namespace proof_system::honk::sumcheck

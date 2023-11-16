@@ -21,7 +21,7 @@ template <typename Flavor> class ECCVMComposerTests : public ::testing::Test {
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialized for every test.
     void SetUp() override
     {
-        if constexpr (std::is_same<Flavor, flavor::ECCVMGrumpkin>::value) {
+        if constexpr (std::is_same<Flavor, flavor::ECCVM>::value) {
             barretenberg::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
         } else {
             barretenberg::srs::init_crs_factory("../srs_db/ignition");
@@ -29,7 +29,7 @@ template <typename Flavor> class ECCVMComposerTests : public ::testing::Test {
     };
 };
 
-using FlavorTypes = ::testing::Types<flavor::ECCVM, flavor::ECCVMGrumpkin>;
+using FlavorTypes = ::testing::Types<flavor::ECCVM>;
 TYPED_TEST_SUITE(ECCVMComposerTests, FlavorTypes);
 
 namespace {
@@ -83,6 +83,7 @@ TYPED_TEST(ECCVMComposerTests, BaseCase)
     auto proof = prover.construct_proof();
     auto verifier = composer.create_verifier(circuit_constructor);
     bool verified = verifier.verify_proof(proof);
+
     ASSERT_TRUE(verified);
 }
 

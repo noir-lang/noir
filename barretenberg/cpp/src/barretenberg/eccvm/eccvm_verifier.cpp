@@ -70,8 +70,8 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const plonk
     commitments.transcript_pc = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_pc);
     commitments.transcript_msm_count =
         transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_msm_count);
-    commitments.transcript_x = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_x);
-    commitments.transcript_y = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_y);
+    commitments.transcript_Px = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_Px);
+    commitments.transcript_Py = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_Py);
     commitments.transcript_z1 = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_z1);
     commitments.transcript_z2 = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_z2);
     commitments.transcript_z1zero =
@@ -261,6 +261,5 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const plonk
 }
 
 template class ECCVMVerifier_<honk::flavor::ECCVM>;
-template class ECCVMVerifier_<honk::flavor::ECCVMGrumpkin>;
 
 } // namespace proof_system::honk

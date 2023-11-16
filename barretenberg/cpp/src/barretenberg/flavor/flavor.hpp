@@ -301,7 +301,6 @@ template <typename Tuple, std::size_t Index = 0> static constexpr auto create_tu
 namespace proof_system::honk::flavor {
 class Ultra;
 class ECCVM;
-class ECCVMGrumpkin;
 class GoblinUltra;
 template <typename BuilderType> class UltraRecursive_;
 template <typename BuilderType> class GoblinUltraRecursive_;
@@ -343,11 +342,11 @@ concept IsRecursiveFlavor = IsAnyOf<T, honk::flavor::UltraRecursive_<UltraCircui
                                        honk::flavor::GoblinUltraRecursive_<UltraCircuitBuilder>, 
                                        honk::flavor::GoblinUltraRecursive_<GoblinUltraCircuitBuilder>>;
 
-template <typename T> concept IsGrumpkinFlavor = IsAnyOf<T, honk::flavor::ECCVMGrumpkin>;
+template <typename T> concept IsGrumpkinFlavor = IsAnyOf<T, honk::flavor::ECCVM>;
 
 template <typename T> concept UltraFlavor = IsAnyOf<T, honk::flavor::Ultra, honk::flavor::GoblinUltra>;
 
-template <typename T> concept ECCVMFlavor = IsAnyOf<T, honk::flavor::ECCVM, honk::flavor::ECCVMGrumpkin>;
+template <typename T> concept ECCVMFlavor = IsAnyOf<T, honk::flavor::ECCVM>;
 
 // clang-format on
 } // namespace proof_system

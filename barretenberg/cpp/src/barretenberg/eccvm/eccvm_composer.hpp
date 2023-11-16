@@ -33,14 +33,9 @@ template <ECCVMFlavor Flavor> class ECCVMComposer_ {
     bool contains_recursive_proof = false;
     bool computed_witness = false;
     ECCVMComposer_()
-        requires(std::same_as<Flavor, honk::flavor::ECCVMGrumpkin>)
-    {
-        crs_factory_ = barretenberg::srs::get_grumpkin_crs_factory();
-    };
-    ECCVMComposer_()
         requires(std::same_as<Flavor, honk::flavor::ECCVM>)
     {
-        crs_factory_ = barretenberg::srs::get_crs_factory();
+        crs_factory_ = barretenberg::srs::get_grumpkin_crs_factory();
     };
 
     explicit ECCVMComposer_(
@@ -75,10 +70,8 @@ template <ECCVMFlavor Flavor> class ECCVMComposer_ {
     };
 };
 extern template class ECCVMComposer_<honk::flavor::ECCVM>;
-extern template class ECCVMComposer_<honk::flavor::ECCVMGrumpkin>;
 
 // TODO(#532): this pattern is weird; is this not instantiating the templates?
 using ECCVMComposer = ECCVMComposer_<honk::flavor::ECCVM>;
-using ECCVMGrumpkinComposer = ECCVMComposer_<honk::flavor::ECCVMGrumpkin>;
 
 } // namespace proof_system::honk

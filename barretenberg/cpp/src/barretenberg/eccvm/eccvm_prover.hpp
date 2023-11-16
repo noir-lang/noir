@@ -74,8 +74,5 @@ template <ECCVMFlavor Flavor> class ECCVMProver_ {
 };
 
 extern template class ECCVMProver_<honk::flavor::ECCVM>;
-extern template class ECCVMProver_<honk::flavor::ECCVMGrumpkin>;
-
-using ECCVMProver = ECCVMProver_<honk::flavor::ECCVM>;
 
 } // namespace proof_system::honk
