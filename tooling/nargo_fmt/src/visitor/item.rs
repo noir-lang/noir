@@ -1,7 +1,7 @@
 use noirc_frontend::{
     parser::{Item, ItemKind},
     token::Token,
-    NoirFunction, ParsedModule, Visibility,
+    Distinctness, NoirFunction, ParsedModule, Visibility,
 };
 
 use crate::utils::last_line_contains_single_line_comment;
@@ -19,7 +19,7 @@ impl super::FmtVisitor<'_> {
         let last_span = if func.parameters().is_empty() {
             params_open..func_span.start()
         } else {
-            func.parameters().last().unwrap().ty.span.unwrap().end()..func_span.start()
+            func.parameters().last().unwrap().span.end()..func_span.start()
         };
 
         let params_end = self.span_after(last_span, Token::RightParen).start();
@@ -64,6 +64,10 @@ impl super::FmtVisitor<'_> {
 
         if let Some(span) = return_type_span {
             result.push_str(" -> ");
+
+            if let Distinctness::Distinct = func.def.return_distinctness {
+                result.push_str("distinct ");
+            }
 
             if let Visibility::Public = func.def.return_visibility {
                 result.push_str("pub ");

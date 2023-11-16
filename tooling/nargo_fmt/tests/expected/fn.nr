@@ -25,3 +25,5 @@ fn main(tape: [Field; TAPE_LEN],
     initial_call_stack_pointer: u64) -> pub ExecutionResult {}
 
 fn apply_binary_field_op<N>(lhs: RegisterIndex, rhs: RegisterIndex, result: RegisterIndex, op: u8, registers: &mut Registers<N>) -> bool {}
+
+fn main() -> distinct pub [Field;2] {}
