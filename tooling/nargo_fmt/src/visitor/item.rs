@@ -4,7 +4,7 @@ use noirc_frontend::{
     Distinctness, NoirFunction, ParsedModule, Visibility,
 };
 
-use crate::{utils::last_line_contains_single_line_comment, visitor::expr::format_expr_seq};
+use crate::{utils::last_line_contains_single_line_comment, visitor::expr::format_seq};
 
 use super::expr::Tactic::LimitedHorizontalVertical;
 
@@ -39,7 +39,7 @@ impl super::FmtVisitor<'_> {
 
             let generics = func.def.generics;
             let span = (start..end).into();
-            let generics = format_expr_seq("<", ">", self.fork(), false, generics, span, tactic);
+            let generics = format_seq("<", ">", self.fork(), false, generics, span, tactic, false);
 
             result.push_str(&generics);
         }
@@ -47,7 +47,7 @@ impl super::FmtVisitor<'_> {
         let parameters = if parameters.is_empty() {
             self.slice(params_span).into()
         } else {
-            format_expr_seq("(", ")", self.fork(), false, parameters, params_span.into(), tactic)
+            format_seq("(", ")", self.fork(), false, parameters, params_span.into(), tactic, true)
         };
 
         result.push_str(&parameters);

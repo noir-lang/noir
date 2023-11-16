@@ -12,17 +12,21 @@ fn main(
     // hello
 ) {}
 
-fn main(// hello
-    unit: ()) {}
+fn main(
+    // hello
+    unit: ()
+) {}
 
 fn main<T>() where T: Eq {}
 
-fn main(tape: [Field; TAPE_LEN],
+fn main(
+    tape: [Field; TAPE_LEN],
     initial_registers: [Field; REGISTER_COUNT],
     initial_memory: [Field; MEM_COUNT],
     initial_program_counter: Field,
     initial_call_stack: [Field; MAX_CALL_STACK],
-    initial_call_stack_pointer: u64) -> pub ExecutionResult {}
+    initial_call_stack_pointer: u64
+) -> pub ExecutionResult {}
 
 fn apply_binary_field_op<N>(lhs: RegisterIndex, rhs: RegisterIndex, result: RegisterIndex, op: u8, registers: &mut Registers<N>) -> bool {}
 
