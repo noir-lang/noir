@@ -65,8 +65,7 @@ fn absorb<M,N,O,P>(
     rate: Field, // Rate
     capacity: Field, // Capacity; usually 1
     msg: [Field; P] // Arbitrary length message
-) -> [Field; O]
-{
+) -> [Field; O] {
     assert(pos_conf.t == rate + capacity);
 
     let mut i = 0;

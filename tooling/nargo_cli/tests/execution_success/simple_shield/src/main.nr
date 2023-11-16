@@ -13,8 +13,7 @@ fn main(
   // Receiver public key
   to_pubkey_x: Field, 
   to_pubkey_y: Field, 
-) -> pub [Field; 2]
-{
+) -> pub [Field; 2] {
     // Compute public key from private key to show ownership
     let pubkey = std::scalar_mul::fixed_base_embedded_curve(priv_key, 0);
     let pubkey_x = pubkey[0];
