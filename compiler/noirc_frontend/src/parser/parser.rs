@@ -350,7 +350,7 @@ fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a
         .then_ignore(just(Token::Colon))
         .then(optional_visibility())
         .then(typ)
-        .map_with_span(|((pattern, visibility), ty), span| Param { visibility, pattern, ty, span });
+        .map_with_span(|((pattern, visibility), typ), span| Param { visibility, pattern, typ, span });
 
     let self_parameter = if allow_self { self_parameter().boxed() } else { nothing().boxed() };
 
@@ -396,7 +396,7 @@ fn self_parameter() -> impl NoirParser<Param> {
                 _ => (),
             }
 
-            Param { pattern, ty: self_type, visibility: Visibility::Private, span }
+            Param { pattern, typ: self_type, visibility: Visibility::Private, span }
         })
 }
 
@@ -516,7 +516,7 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
     let full_parameter = ident().recover_via(parameter_name_recovery()).then(typ);
     let self_parameter = self_parameter().validate(|param, span, emit| {
         match param.pattern {
-            Pattern::Identifier(ident) => (ident, param.ty),
+            Pattern::Identifier(ident) => (ident, param.typ),
             other => {
                 emit(ParserError::with_reason(
                     ParserErrorReason::PatternInTraitFunctionParameter,
@@ -524,7 +524,7 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
                 ));
                 // into_ident panics on tuple or struct patterns but should be fine to call here
                 // since the `self` parser can only parse `self`, `mut self` or `&mut self`.
-                (other.into_ident(), param.ty)
+                (other.into_ident(), param.typ)
             }
         }
     });

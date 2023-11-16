@@ -248,7 +248,7 @@ impl Item for Param {
             Visibility::Private => "",
         };
         let pattern = visitor.slice(self.pattern.span());
-        let ty = visitor.slice(self.ty.span.unwrap());
+        let ty = visitor.slice(self.typ.span.unwrap());
 
         format!("{pattern}: {visibility}{ty}")
     }
