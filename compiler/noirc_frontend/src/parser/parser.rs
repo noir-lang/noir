@@ -350,7 +350,12 @@ fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a
         .then_ignore(just(Token::Colon))
         .then(optional_visibility())
         .then(typ)
-        .map_with_span(|((pattern, visibility), typ), span| Param { visibility, pattern, typ, span });
+        .map_with_span(|((pattern, visibility), typ), span| Param {
+            visibility,
+            pattern,
+            typ,
+            span,
+        });
 
     let self_parameter = if allow_self { self_parameter().boxed() } else { nothing().boxed() };
 
