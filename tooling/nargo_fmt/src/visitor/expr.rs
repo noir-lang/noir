@@ -365,6 +365,7 @@ impl FmtVisitor<'_> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn format_seq<T: Item>(
     prefix: &str,
     suffix: &str,
