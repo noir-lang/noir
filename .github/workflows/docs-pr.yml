@@ -31,28 +31,28 @@ jobs:
           const docsChanged = files.some(file => file.filename.startsWith('docs/'));
           return docsChanged;
     
-    - name: Add label if not present
-      if: steps.check-labels.outputs.result == 'true'
-      uses: actions/github-script@v3
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          const labels = context.payload.pull_request.labels.map(label => label.name);
-          if (!labels.includes('documentation')) {
-            github.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['documentation']
-            })
-          }
+    # - name: Add label if not present
+    #   if: steps.check-labels.outputs.result == 'true'
+    #   uses: actions/github-script@v3
+    #   with:
+    #     github-token: ${{ secrets.GITHUB_TOKEN }}
+    #     script: |
+    #       const labels = context.payload.pull_request.labels.map(label => label.name);
+    #       if (!labels.includes('documentation')) {
+    #         github.issues.addLabels({
+    #           owner: context.repo.owner,
+    #           repo: context.repo.repo,
+    #           issue_number: context.issue.number,
+    #           labels: ['documentation']
+    #         })
+    #       }
 
   build_and_deploy_preview:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     needs: add_label
-    if: needs.add_label.outputs.has_label == 'true'
+    # if: needs.add_label.outputs.has_label == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -105,14 +105,14 @@ jobs:
         with:
           args: './docs/build'
 
-      - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v2.1
-        with:
-          publish-dir: './docs/build'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          enable-github-deployment: false
-          deploy-message: "Deploy from GitHub Actions for PR ${{ github.event.number }}"
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        timeout-minutes: 1
+      # - name: Deploy to Netlify
+      #   uses: nwtgck/actions-netlify@v2.1
+      #   with:
+      #     publish-dir: './docs/build'
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #     enable-github-deployment: false
+      #     deploy-message: "Deploy from GitHub Actions for PR ${{ github.event.number }}"
+      #   env:
+      #     NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      #     NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      #   timeout-minutes: 1
