@@ -533,7 +533,7 @@ pub(crate) fn wrap_exprs(
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub(crate) enum Tactic {
     Horizontal,
     HorizontalVertical,

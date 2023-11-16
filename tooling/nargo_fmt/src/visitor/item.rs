@@ -6,8 +6,12 @@ use noirc_frontend::{
 
 use crate::utils::last_line_contains_single_line_comment;
 
+use super::expr::Tactic::LimitedHorizontalVertical;
+
 impl super::FmtVisitor<'_> {
     fn format_fn_before_block(&self, func: NoirFunction, start: u32) -> (String, bool) {
+        let tactic = LimitedHorizontalVertical(self.config.max_width);
+
         let name_span = func.name_ident().span();
         let func_span = func.span();
 
@@ -33,14 +37,16 @@ impl super::FmtVisitor<'_> {
             let start = name_span.end();
             let end = self.span_after(full_span, Token::Greater).start();
 
+            let generics = func.def.generics;
+            let span = (start..end).into();
             let generics = crate::visitor::expr::format_expr_seq(
                 "<",
                 ">",
                 self.fork(),
                 false,
-                func.def.generics,
-                (start..end).into(),
-                super::expr::Tactic::LimitedHorizontalVertical(self.config.max_width),
+                generics,
+                span,
+                tactic,
             );
 
             result.push_str(&generics);
@@ -56,7 +62,7 @@ impl super::FmtVisitor<'_> {
                 false,
                 parameters,
                 params_span.into(),
-                super::expr::Tactic::LimitedHorizontalVertical(self.config.max_width),
+                tactic,
             )
         };
 
