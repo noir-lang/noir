@@ -227,12 +227,12 @@ fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -
     module.functions.iter().any(|func| {
         func.def.name.0.contents == "compute_note_hash_and_nullifier"
                 && func.def.parameters.len() == 4
-                && func.def.parameters[0].ty.typ == UnresolvedTypeData::FieldElement
-                && func.def.parameters[1].ty.typ == UnresolvedTypeData::FieldElement
-                && func.def.parameters[2].ty.typ == UnresolvedTypeData::FieldElement
+                && func.def.parameters[0].typ.typ == UnresolvedTypeData::FieldElement
+                && func.def.parameters[1].typ.typ == UnresolvedTypeData::FieldElement
+                && func.def.parameters[2].typ.typ == UnresolvedTypeData::FieldElement
                 // checks if the 4th parameter is an array and the Box<UnresolvedType> in
                 // Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>) contains only fields
-                && match &func.def.parameters[3].ty.typ {
+                && match &func.def.parameters[3].typ.typ {
                     UnresolvedTypeData::Array(_, inner_type) => {
                         match inner_type.typ {
                             UnresolvedTypeData::FieldElement => true,
@@ -521,7 +521,7 @@ pub(crate) fn create_inputs(ty: &str) -> Param {
     let context_type = make_type(UnresolvedTypeData::Named(type_path, vec![]));
     let visibility = Visibility::Private;
 
-    Param { pattern: context_pattern, ty: context_type, visibility, span: Span::default() }
+    Param { pattern: context_pattern, typ: context_type, visibility, span: Span::default() }
 }
 
 /// Creates the private context object to be accessed within the function, the parameters need to be extracted to be
@@ -565,11 +565,11 @@ fn create_context(ty: &str, params: &[Param]) -> Vec<Statement> {
     injected_expressions.push(let_hasher);
 
     // Iterate over each of the function parameters, adding to them to the hasher
-    params.iter().for_each(|Param { pattern, ty, span: _, visibility: _ }| {
+    params.iter().for_each(|Param { pattern, typ, span: _, visibility: _ }| {
         match pattern {
             Pattern::Identifier(identifier) => {
                 // Match the type to determine the padding to do
-                let unresolved_type = &ty.typ;
+                let unresolved_type = &typ.typ;
                 let expression = match unresolved_type {
                     // `hasher.add_multiple({ident}.serialize())`
                     UnresolvedTypeData::Named(..) => add_struct_to_hasher(identifier),
