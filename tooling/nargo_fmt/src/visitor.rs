@@ -53,7 +53,7 @@ impl<'me> FmtVisitor<'me> {
         (span.start() + offset..span.end()).into()
     }
 
-    fn shape(&self) -> Shape {
+    pub(crate) fn shape(&self) -> Shape {
         Shape {
             width: self.config.max_width.saturating_sub(self.indent.width()),
             indent: self.indent,
@@ -163,7 +163,7 @@ impl<'me> FmtVisitor<'me> {
             self.push_vertical_spaces(slice);
             process_last_slice(self, "", slice);
         } else {
-            let (result, last_end) = self.format_comment_in_block(slice, start);
+            let (result, last_end) = self.format_comment_in_block(slice, start, true);
             if result.trim().is_empty() {
                 process_last_slice(self, slice, slice);
             } else {
@@ -174,7 +174,12 @@ impl<'me> FmtVisitor<'me> {
         }
     }
 
-    fn format_comment_in_block(&mut self, slice: &str, start: u32) -> (String, u32) {
+    pub(crate) fn format_comment_in_block(
+        &mut self,
+        slice: &str,
+        start: u32,
+        fix_indent: bool,
+    ) -> (String, u32) {
         let mut result = String::new();
         let mut last_end = 0;
 
@@ -185,7 +190,8 @@ impl<'me> FmtVisitor<'me> {
             let diff = start;
             let big_snippet = &self.source[..(span.start() + diff) as usize];
             let last_char = big_snippet.chars().rev().find(|rev_c| ![' ', '\t'].contains(rev_c));
-            let fix_indent = last_char.map_or(true, |rev_c| ['{', '\n'].contains(&rev_c));
+            let fix_indent =
+                fix_indent && last_char.map_or(true, |rev_c| ['{', '\n'].contains(&rev_c));
 
             if let Token::LineComment(_, _) | Token::BlockComment(_, _) = comment.into_token() {
                 let starts_with_newline = slice.starts_with('\n');
@@ -210,7 +216,9 @@ impl<'me> FmtVisitor<'me> {
                         (true, _) => {
                             result.push_str(&self.indent.to_string_with_newline());
                         }
-                        _ => {}
+                        (false, _) => {
+                            result.push(' ');
+                        }
                     };
                 }
 

@@ -54,7 +54,9 @@ contract Benchmarking {
     fn increment_balance(owner: Field, value: Field) {
         let current = storage.balances.at(owner).read();
         storage.balances.at(owner).write(current + value);
-        let _callStackItem1 = context.call_public_function(context.this_address(), compute_selector("broadcast(Field)"), [owner]);
+        let _callStackItem1 = context.call_public_function(context.this_address(),
+            compute_selector("broadcast(Field)"),
+            [owner]);
     }
     // Est ultricies integer quis auctor elit sed. In nibh mauris cursus mattis molestie a iaculis.
     #[aztec(public)]
