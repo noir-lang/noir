@@ -1,7 +1,7 @@
 use dep::std::slice;
 use dep::std;
 
-fn main(x : Field, y : pub Field) {
+fn main(x: Field, y: pub Field) {
     let mut slice = [0; 2];
     assert(slice[0] == 0);
     assert(slice[0] != 1);
@@ -51,7 +51,6 @@ fn main(x : Field, y : pub Field) {
     regression_merge_slices(x, y);
     regression_2370();
 }
-
 // Ensure that slices of struct/tuple values work.
 fn regression_2083() {
     let y = [(1, 2)];
@@ -83,7 +82,6 @@ fn regression_2083() {
     assert(x.0 == 5);
     assert(x.1 == 6);
 }
-
 // The parameters to this function must come from witness values (inputs to main)
 fn regression_merge_slices(x: Field, y: Field) {
     merge_slices_if(x, y);
@@ -144,13 +142,15 @@ fn merge_slices_else(x: Field) {
     assert(slice[2] == 5);
     assert(slice.len() == 3);
 }
-
 // Test returning a merged slice without a mutation
 fn merge_slices_return(x: Field, y: Field) -> [Field] {
     let slice = [0; 2];
-    if x != y { if x != 20 { slice.push_back(y) } else { slice } } else { slice }
+    if x != y {
+        if x != 20 { slice.push_back(y) } else { slice }
+    } else {
+        slice
+    }
 }
-
 // Test mutating a slice inside of an if statement
 fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
     let mut slice = [0; 2];
@@ -162,7 +162,6 @@ fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
     }
     slice
 }
-
 // Test mutating a slice inside of a loop in an if statement
 fn merge_slices_mutate_in_loop(x: Field, y: Field) -> [Field] {
     let mut slice = [0; 2];
@@ -187,7 +186,7 @@ fn merge_slices_mutate_two_ifs(x: Field, y: Field) -> [Field] {
 
     if x == 20 {
         slice = slice.push_back(20);
-    } 
+    }
 
     slice = slice.push_back(15);
     slice = slice.push_back(30);
@@ -262,7 +261,6 @@ fn merge_slices_push_then_insert(x: Field, y: Field) -> [Field] {
     }
 
     slice = slice.insert(1, 50);
-
     // Test that we can use slice insert the same as slice push back
     slice = slice.insert(6, 100);
 
@@ -293,7 +291,6 @@ fn merge_slices_remove_between_ifs(x: Field, y: Field) -> [Field] {
 
     slice
 }
-
 // Previously, we'd get a type error when trying to assign an array of a different size to
 // an existing array variable. Now, we infer the variable must be a slice.
 fn regression_2370() {

@@ -6,7 +6,6 @@ fn main(x: Field, y: Field) {
 
     regression_3057();
 }
-
 // Ensure parsing parenthesized lvalues works
 fn regression_3057() {
     let mut array = [[0, 1], [2, 3]];

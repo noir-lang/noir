@@ -1,5 +1,5 @@
 // Tests arithmetic operations on integers
-fn main()  {
+fn main() {
     let x: u32 = 6;
     let y: u32 = 2;
 
@@ -10,7 +10,6 @@ fn main()  {
     assert((x * y) == mul(x, y));
 
     assert((x / y) == div(x, y));
-
     // TODO SSA => ACIR has some issues with i32 ops
     assert(check_signed_div(6, 2, 3));
 
@@ -22,27 +21,25 @@ fn main()  {
 
     assert((x & y) == and(x, y));
     assert((x | y) == or(x, y));
-
     // TODO SSA => ACIR has some issues with xor ops
-
     assert(check_xor(x, y, 4));
     assert((x >> y) == shr(x, y));
     assert((x << y) == shl(x, y));
 }
 
-unconstrained fn add(x : u32, y : u32) -> u32 {
+unconstrained fn add(x: u32, y: u32) -> u32 {
     x + y
 }
 
-unconstrained fn sub(x : u32, y : u32) -> u32 {
+unconstrained fn sub(x: u32, y: u32) -> u32 {
     x - y
 }
 
-unconstrained fn mul(x : u32, y : u32) -> u32 {
+unconstrained fn mul(x: u32, y: u32) -> u32 {
     x * y
 }
 
-unconstrained fn div(x : u32, y : u32) -> u32 {
+unconstrained fn div(x: u32, y: u32) -> u32 {
     x / y
 }
 
@@ -50,31 +47,31 @@ unconstrained fn check_signed_div(x: i32, y: i32, result: i32) -> bool {
     (x / y) == result
 }
 
-unconstrained fn eq(x : u32, y : u32) -> bool {
+unconstrained fn eq(x: u32, y: u32) -> bool {
     x == y
 }
 
-unconstrained fn lt(x : u32, y : u32) -> bool {
+unconstrained fn lt(x: u32, y: u32) -> bool {
     x < y
 }
 
-unconstrained fn and(x : u32, y : u32) -> u32 {
+unconstrained fn and(x: u32, y: u32) -> u32 {
     x & y
 }
 
-unconstrained fn or(x : u32, y : u32) -> u32 {
+unconstrained fn or(x: u32, y: u32) -> u32 {
     x | y
 }
 
-unconstrained fn check_xor(x : u32, y : u32, result: u32) -> bool {
+unconstrained fn check_xor(x: u32, y: u32, result: u32) -> bool {
     (x ^ y) == result
 }
 
-unconstrained fn shr(x : u32, y : u32) -> u32 {
+unconstrained fn shr(x: u32, y: u32) -> u32 {
     x >> y
 }
 
-unconstrained fn shl(x : u32, y : u32) -> u32 {
+unconstrained fn shl(x: u32, y: u32) -> u32 {
     x << y
 }
 

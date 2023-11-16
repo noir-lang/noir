@@ -2,7 +2,6 @@
 // There's a bunch of other places where they can pop up:
 //      - trait methods (trait Foo<T> where T: ... { )
 //      - structs (struct Foo<T> where T: ...)
-
 // import the traits from another module to ensure the where clauses are ok with that
 mod the_trait;
 use crate::the_trait::Asd;
@@ -42,16 +41,16 @@ fn add_one_to_static_function<T>(t: T) -> Field where T: StaticTrait {
 }
 
 fn main() {
-    let x  = Add10{ x: 90 };
-    let z  = Add20{ x: 80 };
-    let a  = Add30{ x: 70 };
-    let xy = AddXY{ x: 30, y: 70 };
+    let x  = Add10 { x: 90 };
+    let z  = Add20 { x: 80 };
+    let a  = Add30 { x: 70 };
+    let xy = AddXY { x: 30, y: 70 };
 
     assert_asd_eq_100(x);
     assert_asd_eq_100(z);
     assert_asd_eq_100(a);
     assert_asd_eq_100(xy);
 
-    assert(add_one_to_static_function(Static100{}) == 101);
-    assert(add_one_to_static_function(Static200{}) == 201);
+    assert(add_one_to_static_function(Static100 {}) == 101);
+    assert(add_one_to_static_function(Static200 {}) == 201);
 }
