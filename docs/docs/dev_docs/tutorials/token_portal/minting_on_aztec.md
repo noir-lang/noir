@@ -20,7 +20,7 @@ This imports Aztec-related dependencies and our two helper files `token_interfac
 (The code above will give errors right now - this is because we haven't implemented util and token_interface yet.)
 
 In `token_interface.nr`, add this:
-#include_code token_brodge_token_interface /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/token_interface.nr rust
+#include_code token_bridge_token_interface /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/token_interface.nr rust
 
 We will write `util.nr` as needed.
 

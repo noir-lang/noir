@@ -268,7 +268,7 @@ template <typename Builder> class FunctionExecutionContext {
      * nullifiers created within the function. Now, at that point, we _could_ generate a dummy nullifier and use that as
      * a nonce. But that uses up a precious slot in the circuit's nullifiers array (part of the circuit's public inputs
      * abi). And it might be the case that later in the function, a load of non-dummy nullifiers get created. So as an
-     * optimization, it would be better if we could use _those_ nullifiers, so as to minimise dummy values in the
+     * optimization, it would be better if we could use _those_ nullifiers, so as to minimize dummy values in the
      * circuit's public inputs.
      *
      * And so, we provide the option here of deferring the injection of nonces into note_preimages (and hence deferring

@@ -7,7 +7,7 @@
 namespace proof_system {
 
 /**
- * @brief Construct selector polynomials from ciruit selector information and put into polynomial cache
+ * @brief Construct selector polynomials from circuit selector information and put into polynomial cache
  *
  * @tparam Flavor
  * @param circuit_constructor The object holding the circuit

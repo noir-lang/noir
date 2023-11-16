@@ -1,4 +1,4 @@
-# Implement cahe-optimised, parallelisable pippenger implementation 
+# Implement cache-optimized, parallelizable pippenger implementation 
 
 ## The problem 
 
@@ -6,7 +6,7 @@ Pippenger's algorithm for batched scalar multiplications is the fastest known al
 
 We currently have pippenger implemented in barretenberg, which can process a scalar multiplication in ~4 micro-seconds (for large batches).
 
-However, the algorithm, as it stands, is not parallelisable, due to the highly non-sequential memory access patterns.
+However, the algorithm, as it stands, is not parallelizable, due to the highly non-sequential memory access patterns.
 
 ## The algorithm 
 

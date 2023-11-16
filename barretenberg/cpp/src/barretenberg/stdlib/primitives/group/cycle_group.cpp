@@ -440,7 +440,7 @@ template <typename Composer> cycle_group<Composer> cycle_group<Composer>::operat
     // is result point at infinity?
     // yes = infinity_predicate && !lhs_infinity && !rhs_infinity
     // yes = lhs_infinity && rhs_infinity
-    // n.b. can likely optimise this
+    // n.b. can likely optimize this
     bool_t result_is_infinity = infinity_predicate && (!lhs_infinity && !rhs_infinity);
     result_is_infinity = result_is_infinity || (lhs_infinity && rhs_infinity);
     result.set_point_at_infinity(result_is_infinity);
@@ -496,7 +496,7 @@ template <typename Composer> cycle_group<Composer> cycle_group<Composer>::operat
     // is result point at infinity?
     // yes = infinity_predicate && !lhs_infinity && !rhs_infinity
     // yes = lhs_infinity && rhs_infinity
-    // n.b. can likely optimise this
+    // n.b. can likely optimize this
     bool_t result_is_infinity = infinity_predicate && (!lhs_infinity && !rhs_infinity);
     result_is_infinity = result_is_infinity || (lhs_infinity && rhs_infinity);
     result.set_point_at_infinity(result_is_infinity);
@@ -884,7 +884,7 @@ cycle_group<Composer> cycle_group<Composer>::straus_lookup_table::read(const fie
  *
  * @note ULTRA Composer will call `_variable_base_batch_mul_internal` to evaluate fixed-base MSMs over points that do
  *       not exist in our precomputed plookup tables. This is a comprimise between maximising circuit efficiency and
- *       minimising the blowup size of our precomputed table polynomials. variable-base mul uses small ROM lookup tables
+ *       minimizing the blowup size of our precomputed table polynomials. variable-base mul uses small ROM lookup tables
  *       which are witness-defined and not part of the plookup protocol.
  * @tparam Composer
  * @param scalars
@@ -1304,7 +1304,7 @@ cycle_group<Composer> cycle_group<Composer>::batch_mul(const std::vector<cycle_s
     } else {
         // For case 2, we must use a full subtraction operation that handles all possible edge cases, as the output
         // point may be the point at infinity.
-        // TODO(@zac-williamson) We can probably optimise this a bit actually. We might hit the point at infinity,
+        // TODO(@zac-williamson) We can probably optimize this a bit actually. We might hit the point at infinity,
         // but an honest prover won't trigger the doubling edge case.
         // (doubling edge case implies input points are also the offset generator points,
         // which we can assume an honest Prover will not do if we make this case produce unsatisfiable constraints)

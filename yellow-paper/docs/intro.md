@@ -69,7 +69,7 @@ The draft subsections are mere suggestions (and serve as a helpful reminder of t
     -->
   - Keys
     - Master keys
-      - Authorisation key abstraction
+      - Authorization key abstraction
       - Nullifier keys
       - Incoming viewing keys
       - Outgoing viewing keys
@@ -131,7 +131,7 @@ The draft subsections are mere suggestions (and serve as a helpful reminder of t
 - Logs [Jan?]
   - Unencrypted
   - Encrypted
-  - Optimisation considerations
+  - Optimization considerations
     <!-- Logs submitted on-chain need to be sha256-hashed/blob-committed somewhere. In which circuit should this happen? Should each circuit enable n log fields, instead of 1, and forward those log fields via the Bus? -->
 - Private Message Delivery [Phil]
   - To constrain or not to constrain?
@@ -159,7 +159,7 @@ The draft subsections are mere suggestions (and serve as a helpful reminder of t
     - Paying fees, and receiving rebates
     - Paying fees privately
     - Etc.
-- Decentralisation [Cooper]
+- Decentralization [Cooper]
   - P2P network [Phil]
     - Data that is sent between parties
       - Users to the tx pool
@@ -175,7 +175,7 @@ The draft subsections are mere suggestions (and serve as a helpful reminder of t
 - Protocol Statements [Mike]
   - Describe the logic of the protocol.
   - Describe the assertions that must be in place.
-    - The constraints (assertions) of the system are spread across many circuits and L1 contracts, but they should be described as a whole, in one place. _Where_ the assertions are located (i.e. in which circuit/contract) is a matter of optimisation, which might change over time. This can then serve as a checklist, to ensure those assertions are included in at least one of the circuits/contracts.
+    - The constraints (assertions) of the system are spread across many circuits and L1 contracts, but they should be described as a whole, in one place. _Where_ the assertions are located (i.e. in which circuit/contract) is a matter of optimization, which might change over time. This can then serve as a checklist, to ensure those assertions are included in at least one of the circuits/contracts.
     - In particular, exhaustively explain what _shouldn't_ be possible.
   - Sub-protocols
     <!--It might help to describe certain sub-protocols, which need to be sound in their own right.
@@ -190,7 +190,7 @@ The draft subsections are mere suggestions (and serve as a helpful reminder of t
     - Enqueueing many public function calls
     - Private -> Internal Public function calls
     - Side-effect ordering
-    - Note/Nullifier squashing optimisations
+    - Note/Nullifier squashing optimizations
     - Upgrading contract bytecode
     - Upgrading keys
     - Gas metering
@@ -214,7 +214,7 @@ The draft subsections are mere suggestions (and serve as a helpful reminder of t
         - Initial Public Kernel Circuit
         - Inner Public Kernel Circuit
         - (Ordering Public Kernel Circuit???)
-      - Future Kernel Optimisations
+      - Future Kernel Optimizations
         - Delegating chunks of compute to 'gadget' circuits
         - A Merkle Tree of Private Kernel iterations
     - Rollup Circuits [Lasse/Leila?]

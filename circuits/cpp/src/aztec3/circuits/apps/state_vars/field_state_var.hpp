@@ -10,7 +10,7 @@ namespace aztec3::circuits::apps::state_vars {
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
-// TODO: we can probably generalise this to be a PrimitiveStateVar for any stdlib primitive.
+// TODO: we can probably generalize this to be a PrimitiveStateVar for any stdlib primitive.
 template <typename Builder> class FieldStateVar : public StateVar<Builder> {
   public:
     using CT = CircuitTypes<Builder>;

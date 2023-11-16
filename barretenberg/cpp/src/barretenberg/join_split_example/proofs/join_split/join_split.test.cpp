@@ -65,7 +65,7 @@ class join_split_tests : public ::testing::Test {
                                .creator_pubkey = 0,
                                .input_nullifier = fr::random_element() };
 
-        // Initialise value_notes array as default:
+        // Initialize value_notes array as default:
         for (auto& value_note : value_notes) {
             value_note = default_value_note;
             value_note.input_nullifier = fr::random_element(); // to ensure uniqueness

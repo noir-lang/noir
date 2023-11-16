@@ -114,7 +114,7 @@ class DebugEngine : public Engine {
 };
 
 /**
- * Used by tests to ensure consistent behaviour.
+ * Used by tests to ensure consistent behavior.
  */
 Engine& get_debug_engine(bool reset)
 {

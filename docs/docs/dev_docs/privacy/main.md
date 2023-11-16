@@ -65,7 +65,7 @@ Tl;dr: app developers should think about the _timing_ of user transactions, and 
 
 ### Function Fingerprints and Tx Fingerprints
 
-A 'Function Fingerprint' is any data which is exposed by a function to the outside world. A 'Tx Fingerprint' is any data which is exposed by a tx to the outside world. We're interested in minimising leakages of information from private txs. The leakiness of a Tx Fingerprint depends on the leakiness of its constituent functions' Function Fingerprints _and_ on the appearance of the tx's Tx Fingerprint as a whole. For a private function (and by extension, for a private tx), the following information _could_ be leaked (depending on the function, of course):
+A 'Function Fingerprint' is any data which is exposed by a function to the outside world. A 'Tx Fingerprint' is any data which is exposed by a tx to the outside world. We're interested in minimizing leakages of information from private txs. The leakiness of a Tx Fingerprint depends on the leakiness of its constituent functions' Function Fingerprints _and_ on the appearance of the tx's Tx Fingerprint as a whole. For a private function (and by extension, for a private tx), the following information _could_ be leaked (depending on the function, of course):
 
 - All calls to public functions.
   - The contract address of the private function (if it calls an internal public function).
@@ -87,7 +87,7 @@ A 'Function Fingerprint' is any data which is exposed by a function to the outsi
 
 > Note: the calldata submitted to L1 is [encoded](https://github.com/AztecProtocol/aztec-packages/blob/master/l1-contracts/src/core/libraries/Decoder.sol) in such a way that all categories of data are packed together, when submitted. E.g. all commitments from all txs in a block are arranged as contiguous bytes of calldata. But that _doesn't_ mean the data from a particular tx is garbled in with all other txs' calldata: the distinct Tx Fingerprint of each tx can is publicly visible when a tx is submitted to the L2 tx pool.
 
-#### Standardising Fingerprints
+#### Standardizing Fingerprints
 
 If each private function were to have a unique Fingerprint, then all private functions would be distinguishable from each-other, and all of the efforts of the Aztec protocol to enable 'private function execution' would have been pointless. Standards need to be developed, to encourage smart contract developers to adhere to a restricted set of Tx Fingerprints. For example, a standard might propose that the number of new commitments, nullifiers, logs, etc. must always be equal, and must always equal a power of two. Such a standard would effectively group private functions/txs into 'privacy sets', where all functions/txs in a particular 'privacy set' would look indistinguishable from each-other, when executed.
 

@@ -49,7 +49,7 @@ exec_ctx->new_nullifiers.push_back(nullifier)
 
 
 
-utxo_state_var.initialise(note_preimage)
+utxo_state_var.initialize(note_preimage)
         ↓
 Opcodes.UTXO_SSTORE (this=state_var*, note_preimage)
         ↓

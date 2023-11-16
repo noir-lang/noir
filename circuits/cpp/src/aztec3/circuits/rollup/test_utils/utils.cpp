@@ -464,7 +464,7 @@ nullifier_tree_testing_values generate_nullifier_tree_testing_values(BaseRollupI
         nullifiers[i] = fr(insertion_val);
     }
 
-    // Generate initial values lin spaved
+    // Generate initial values lin spaced
     std::vector<fr> initial_values;
     for (size_t i = 1; i < NUMBER_OF_NULLIFIERS; ++i) {
         initial_values.emplace_back(i * spacing);

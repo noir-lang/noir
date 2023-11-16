@@ -102,7 +102,7 @@ void common_validate_call_stack(DummyBuilder& builder, KernelInput const& public
                                  preimage_portal_address,
                                  " expected ",
                                  expected_portal_address,
-                                 "; does not reconcile for a delagate call"),
+                                 "; does not reconcile for a delegate call"),
                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_INVALID_PORTAL_ADDRESS);
 
         const auto num_contract_storage_update_requests =
@@ -247,7 +247,7 @@ void propagate_valid_public_data_update_requests(Builder& builder,
 }
 
 /**
- * @brief Proagates valid (i.e. non-empty) public data reads from this iteration to the circuit output
+ * @brief Propagates valid (i.e. non-empty) public data reads from this iteration to the circuit output
  * @tparam The type of kernel input
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be populated
@@ -440,11 +440,11 @@ void common_update_public_end_values(Builder& builder,
 }
 
 /**
- * @brief Initialises the circuit output end state from provided inputs
+ * @brief Initializes the circuit output end state from provided inputs
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be initialized
  */
-void common_initialise_end_values(PublicKernelInputs<NT> const& public_kernel_inputs,
+void common_initialize_end_values(PublicKernelInputs<NT> const& public_kernel_inputs,
                                   KernelCircuitPublicInputs<NT>& circuit_outputs);
 
 /**

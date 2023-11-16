@@ -28,7 +28,7 @@ YP_IMAGE_URI=$(calculate_image_uri $YARN_PROJECT)
 # Each box is suffixed with the box name, such that rebuilding of each box is independent, if one fails we don't rebuild the others
 ensure_repo $SANDBOX $ECR_REGION refresh_lifecycle
 CONTENT_HASH=$(calculate_content_hash $SANDBOX)
-BASE_TAG=cache-$CONTENT_HASH-$BOX_NAME # Append the box name to seperate the tag
+BASE_TAG=cache-$CONTENT_HASH-$BOX_NAME # Append the box name to separate the tag
 SUCCESS_TAG=$BASE_TAG
 
 echo "Content hash: $CONTENT_HASH"
@@ -40,7 +40,7 @@ fi
 
 ################### PREAMBLE ################### 
 
-# Pull images from ecr and retag for the docker compsoe
+# Pull images from ecr and retag for the docker compose
 SANDBOX_IMAGE=$SANDBOX_IMAGE_URI-x86_64
 echo "pulling docker image for $SANDBOX $SANDBOX_IMAGE"
 retry docker pull $SANDBOX_IMAGE

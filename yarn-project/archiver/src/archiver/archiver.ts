@@ -206,7 +206,7 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
       currentL1BlockNumber,
     );
 
-    // TODO (#717): optimise this - there could be messages in confirmed that are also in pending.
+    // TODO (#717): optimize this - there could be messages in confirmed that are also in pending.
     // Or messages in pending that are also cancelled in the same block. No need to modify storage for them.
     // Store l1 to l2 messages
     this.log('Adding pending l1 to l2 messages to store');

@@ -238,7 +238,7 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_call_stack_item_has
 {
     auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, standard_test_args());
 
-    // Randomise the first item in the private call stack (i.e. hash of the private call item).
+    // Randomize the first item in the private call stack (i.e. hash of the private call item).
     private_inputs.private_call.call_stack_item.public_inputs.private_call_stack[0] = NT::fr::random_element();
 
     DummyBuilder builder =

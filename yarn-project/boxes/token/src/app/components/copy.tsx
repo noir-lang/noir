@@ -17,7 +17,7 @@ export function Copy({ value }: { value: string }) {
           })
           .catch(() => {
             // eslint-disable-next-line no-console
-            console.error('Couldnt copy address');
+            console.error('Could not copy address');
           });
       }}
       src={copied ? 'check.svg' : 'copy.svg'}

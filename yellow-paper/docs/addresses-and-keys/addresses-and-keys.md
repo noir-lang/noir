@@ -120,9 +120,9 @@ Much of this is heavily inspired by ZCash sapling & orchard keys.
 
 > Note: there is nothing to stop an app and wallet from implementing its own key derivation scheme. Nevertheless, we're designing a 'canonical' scheme that most developers and wallets can use.
 
-### Authorisation keys
+### Authorization keys
 
-Aztec has native account abstraction, so tx authentication is done via an account contract, meaning tx authentication can be implemented however the user sees fit. That is, authorisation keys aren't specified at the protocol level.
+Aztec has native account abstraction, so tx authentication is done via an account contract, meaning tx authentication can be implemented however the user sees fit. That is, authorization keys aren't specified at the protocol level.
 
 A tx authentication secret key is arguably the most important key to keep private, because knowledge of such a key could potentially enable an attacker to impersonate the user and execute a variety of functions on the network.
 
@@ -155,7 +155,7 @@ A tx authentication secret key is arguably the most important key to keep privat
 
 #### Some security assumptions
 
-- The Aztec private execution client (PXE) and the kernel circuit (a core protocol circuit) can be trusted with master secret keys (_except for_ the tx authorisation secret key, whose security assumptions are abstracted-away to wallet designers).
+- The Aztec private execution client (PXE) and the kernel circuit (a core protocol circuit) can be trusted with master secret keys (_except for_ the tx authorization secret key, whose security assumptions are abstracted-away to wallet designers).
 
 ### Encryption and decryption
 
@@ -268,7 +268,7 @@ Nice to haves:
 **Requirements:**
 
 - [Nice to have]: A "tagging" keypair that enables faster brute-force identification of owned notes.
-  - Note: this is useful for rapid handshake discovery, but it is an optimisation, and has trade-offs (such as more data to send).
+  - Note: this is useful for rapid handshake discovery, but it is an optimization, and has trade-offs (such as more data to send).
 - [Nice to have]: The ability to generate a sequence of tags between Alice and Bob, in line with our latest "Tag Hopping" ideas.
 
 Considerations:
@@ -343,7 +343,7 @@ There are some more involved complications and considerations, which haven't all
 
 No.
 
-The 'topology' of the key derivations (i.e. the way the derivations of the keys interrelate, if you were to draw a dependency graph) is not constraint-optimised. There might be a better 'layout'.
+The 'topology' of the key derivations (i.e. the way the derivations of the keys interrelate, if you were to draw a dependency graph) is not constraint-optimized. There might be a better 'layout'.
 
 Domain separation hasn't been considered in-depth.
 
@@ -398,7 +398,7 @@ The red boxes are uncertainties, which are explained later in this doc.
 |---|---|---|---|---|
 $\sk$ | $\stackrel{\$}{\leftarrow} \mathbb{F}$ | secret key | TEE/ PXE | A seed secret from which all these other keys may be derived. For future reference (in case we modify the schemes), this $\sk$ doesn't need to enter a circuit if all keys can be provably linked/tethered to some fixed public key/address. |
 $\nskm$ | h(0x01, $\sk$) | nullifier secret key | PXE, K | Gives developers the option of using a secret key to derive their apps' nullifiers. (Not all nullifiers require a secret key, e.g. plume nullifiers). |
-$\tskm$ | h(0x02, $\sk$) | tagging secret key | PXE* | The "tagging" key pair can be used to flag "this ciphertext is for you", without requiring decryption. This key exists merely as an optimisation. We might choose to do away with it, in favour of using $\ivskm$. | 
+$\tskm$ | h(0x02, $\sk$) | tagging secret key | PXE* | The "tagging" key pair can be used to flag "this ciphertext is for you", without requiring decryption. This key exists merely as an optimization. We might choose to do away with it, in favour of using $\ivskm$. | 
 $\ivskm$ | h(0x03, $\sk$) | incoming viewing secret key | PXE* | The owner of this secret key can derive ephemeral symmetric encryption keys, to decrypt ciphertexts which _have been sent to them_ (i.e. "incoming" data from the pov of the recipient). |  
 $\ovskm$ | h(0x04, $\sk$) | outgoing viewing secret key | PXE* | The owner of this secret key can derive ephemeral symmetric encryption keys, to decrypt ciphertexts which _they have sent_ (i.e. "outgoing" data from the pov of the sender (and of the recipient, since they're the same person in this case)). This is useful if the user's DB is wiped, and they need to sync from scratch (starting with only $\sk$). |
 ||||||
@@ -416,7 +416,7 @@ $\Ovpkm$ | $\ovskm \cdot G$ | outgoing viewing public key | | Only included so t
 |---|---|---|---|
 $\constructorhash$ | h(constructor\_args, salt) | constructor hash | A commitment to the constructor arguments used when deploying the user's account contract. |
 $\codehash$ | h(bytecode, $\constructorhash$) | code hash | Binds the bytecode and constructor arguments together.
-$\address$ | h($\Npkm$, $\Tpkm$, $\Ivpkm$, $\Ovpkm$, $\codehash$) | address | This isn't an optimised derivation. It's just one that works. |
+$\address$ | h($\Npkm$, $\Tpkm$, $\Ivpkm$, $\Ovpkm$, $\codehash$) | address | This isn't an optimized derivation. It's just one that works. |
 
 :::warning
 
@@ -485,7 +485,7 @@ An app-siloed outgoing viewing keypair is derived as a hardened child keypair of
 <!-- prettier-ignore -->
 | Key | Derivation | Name | Where? | Comments |
 |---|---|---|---|---|
-$\nskapp$ | $h(\nskm, \text{app\_address})$ | app-siloed nullifier secret key | PXE, K, App | Hardened, so only derivable by the owner of the master nullifier secret key. Hardened so as to enable the $\nskapp$ to be passed into an app circuit (without the threat of $\nskm$ being reverse-derivable). Only when a public key needs to be derivable by the general public is a normal (non-hardened) key used.<br />Deviates from 'conventional' hardened BIP-32-style derivation significantly, to reduce complexity and as an optimisation. Such a deviation would need to be validated as secure. |
+$\nskapp$ | $h(\nskm, \text{app\_address})$ | app-siloed nullifier secret key | PXE, K, App | Hardened, so only derivable by the owner of the master nullifier secret key. Hardened so as to enable the $\nskapp$ to be passed into an app circuit (without the threat of $\nskm$ being reverse-derivable). Only when a public key needs to be derivable by the general public is a normal (non-hardened) key used.<br />Deviates from 'conventional' hardened BIP-32-style derivation significantly, to reduce complexity and as an optimization. Such a deviation would need to be validated as secure. |
 $\Nkapp$ | $h(\nskapp)$ | Shareable nullifier key | PXE, K, T3P, App| If an app developer thinks some of their users might wish to have the option to enable some _trusted_ 3rd party to see when a particular user's notes are nullified, then this nullifier key might be of use. This $\Nkapp$ can be used in a nullifier's preimage, rather than $\nskapp$ in such cases, to enable said 3rd party to brute-force identify nullifications.<br />Note: this would not enable a 3rd party to view the contents of any notes; knowledge of the $\ivskapp$ / $\ovskapp$ would be needed for that.<br />Note: this is not a "public" key, since it must not be shared with the public. |
 
 See the appendix for an alternative derivation suggestion.
@@ -531,7 +531,7 @@ Having derived a Shared Secret, Bob can now share it with Alice as follows:
 <!-- prettier-ignore -->
 | Thing | Derivation | Name | Comments |
 |---|---|---|---|
-$\Taghs$ | $\esk_{hs} \cdot \Tpkm$ | Handshake message identification tag | Note: the tagging public key $\Tpkm$ exists as an optimisation, seeking to make brute-force message identification as fast as possible. In many cases, handshakes can be performed offchain via traditional web2 means, but in the case of on-chain handshakes, we have no preferred alternative over simply brute-force attempting to reconcile every 'Handshake message identification tag'. Note: this optimisation reduces the recipient's work by 1 cpu-friendly hash per message (at the cost of 255-bits to broadcast a compressed encoding of $\Taghs$). We'll need to decide whether this is the right speed/communication trade-off. | 
+$\Taghs$ | $\esk_{hs} \cdot \Tpkm$ | Handshake message identification tag | Note: the tagging public key $\Tpkm$ exists as an optimization, seeking to make brute-force message identification as fast as possible. In many cases, handshakes can be performed offchain via traditional web2 means, but in the case of on-chain handshakes, we have no preferred alternative over simply brute-force attempting to reconcile every 'Handshake message identification tag'. Note: this optimization reduces the recipient's work by 1 cpu-friendly hash per message (at the cost of 255-bits to broadcast a compressed encoding of $\Taghs$). We'll need to decide whether this is the right speed/communication trade-off. | 
 $\payload$ | [$\Taghs$, $\Epk_{hs}$] | Payload | This can be broadcast via L1.<br />Curve points can be compressed in the payload. |
 
 Alice can identify she is the indended the handshake recipient as follows:
@@ -539,7 +539,7 @@ Alice can identify she is the indended the handshake recipient as follows:
 <!-- prettier-ignore -->
 | Thing | Derivation | Name | Comments |
 |---|---|---|---|
-$\Taghs$ | $\tskm \cdot \Epk_{hs}$ | Handshake message identification tag | Alice can extract $\Taghs$ and $\Epk_{hs}$ from the $\payload$ and perform this scalar multiplication on _every_ handshake message. If the computed $\Taghs$ value matches that of the $\payload$, then the message is indented for Alice.<br />Clearly, handshake transactions will need to be identifiable as such (to save Alice time), e.g. by revealing the contract address of some canonical handshaking contract alongside the $\payload$.<br />Recall: this step is merely an optimisation, to enable Alice to do a single scalar multiplication before moving on (in cases where she is not the intended recipient). |
+$\Taghs$ | $\tskm \cdot \Epk_{hs}$ | Handshake message identification tag | Alice can extract $\Taghs$ and $\Epk_{hs}$ from the $\payload$ and perform this scalar multiplication on _every_ handshake message. If the computed $\Taghs$ value matches that of the $\payload$, then the message is indented for Alice.<br />Clearly, handshake transactions will need to be identifiable as such (to save Alice time), e.g. by revealing the contract address of some canonical handshaking contract alongside the $\payload$.<br />Recall: this step is merely an optimization, to enable Alice to do a single scalar multiplication before moving on (in cases where she is not the intended recipient). |
 
 If Alice successfully identifies that she is the indended the handshake recipient, she can proceed with deriving the shared secret (for tagging) as follows:
 
@@ -579,7 +579,7 @@ Having derived a Shared Secret, Bob can now share it with Alice as follows:
 <!-- prettier-ignore -->
 | Thing | Derivation | Name | Comments |
 |---|---|---|---|
-$\Taghs$ | $\esk_{hs} \cdot \Tpkm$ | Handshake message identification tag | Note: the tagging public key $\Tpkm$ exists as an optimisation, seeking to make brute-force message identification as fast as possible. In many cases, handshakes can be performed offchain via traditional web2 means, but in the case of on-chain handshakes, we have no preferred alternative over simply brute-force attempting to reconcile every 'Handshake message identification tag'. Note: this optimisation reduces the recipient's work by 1 cpu-friendly hash per message (at the cost of 255-bits to broadcast a compressed encoding of $\Taghs$). We'll need to decide whether this is the right speed/communication trade-off.<br />Note also: the _master_ tagging key $\Tpkm$ is being used in this illustration, rather than some app-specific tagging key, to make this message identification process most efficient (otherwise the user would have to re-scan all handshakes for every app they use). |
+$\Taghs$ | $\esk_{hs} \cdot \Tpkm$ | Handshake message identification tag | Note: the tagging public key $\Tpkm$ exists as an optimization, seeking to make brute-force message identification as fast as possible. In many cases, handshakes can be performed offchain via traditional web2 means, but in the case of on-chain handshakes, we have no preferred alternative over simply brute-force attempting to reconcile every 'Handshake message identification tag'. Note: this optimization reduces the recipient's work by 1 cpu-friendly hash per message (at the cost of 255-bits to broadcast a compressed encoding of $\Taghs$). We'll need to decide whether this is the right speed/communication trade-off.<br />Note also: the _master_ tagging key $\Tpkm$ is being used in this illustration, rather than some app-specific tagging key, to make this message identification process most efficient (otherwise the user would have to re-scan all handshakes for every app they use). |
 $\esk$ | $\stackrel{rand}{\leftarrow} \mathbb{F}$ | ephemeral secret key, for encryption | TODO: perhaps just one ephemeral keypair could be used? |
 $\Epk$ | $\esk \cdot G$ | Ephemeral public key, for encryption |
 $\sharedsecret_{m,header}$ | $\esk \cdot \Ivpkm$ | Shared secret, for encrypting the ciphertext header. | The _master_ incoming viewing key is used here, to enable Alice to more-easily discover which contract address to use, and hence which app-specific $\ivskapp$ to use to ultimately derive the app-specific tag. |
@@ -592,7 +592,7 @@ Alice can identify she is the indended the handshake recipient as follows:
 <!-- prettier-ignore -->
 | Thing | Derivation | Name | Comments |
 |---|---|---|---|
-$\Taghs$ | $\tskm \cdot \Epk_{hs}$ | Handshake message identification tag | Alice can extract $\Taghs$ and $\Epk_{hs}$ from the $\payload$ and perform this scalar multiplication on _every_ handshake message. If the computed $\Taghs$ value matches that of the $\payload$, then the message is indented for Alice.<br />Clearly, handshake transactions will need to be identifiable as such (to save Alice time), e.g. by revealing the contract address of some canonical handshaking contract alongside the $\payload$.<br />Recall: this step is merely an optimisation, to enable Alice to do a single scalar multiplication before moving on (in cases where she is not the intended recipient). |
+$\Taghs$ | $\tskm \cdot \Epk_{hs}$ | Handshake message identification tag | Alice can extract $\Taghs$ and $\Epk_{hs}$ from the $\payload$ and perform this scalar multiplication on _every_ handshake message. If the computed $\Taghs$ value matches that of the $\payload$, then the message is indented for Alice.<br />Clearly, handshake transactions will need to be identifiable as such (to save Alice time), e.g. by revealing the contract address of some canonical handshaking contract alongside the $\payload$.<br />Recall: this step is merely an optimization, to enable Alice to do a single scalar multiplication before moving on (in cases where she is not the intended recipient). |
 
 If Alice successfully identifies that she is the indended the handshake recipient, she can proceed with deriving the shared secret (for tagging) as follows:
 
@@ -709,7 +709,7 @@ Here's how an app circuit could constrain the nullifier key to be correct:
 |---|---|---|---|
 $\Nkapp$ | h($\nskapp$) | App-siloed nullifier key | Recall an important point: the app circuit MUST NOT be given $\nskm$. Indeed, $\nskapp$ is derived (see earlier) as a _hardened_ child of $\nskm$, to prevent $\nskm$ from being reverse-derived by a malicious circuit. The linking of $\nskapp$ to $\nskm$ is deferred to the kernel circuit (which can be trusted moreso than an app).<br />Recall also: $\Nkapp$ is used (instead of $\nskapp$) solely as a way of giving the user the option of sharing $\Nkapp$ with a trusted 3rd party, to give them the ability to view when a note has been nullified (although I'm not sure how useful this is, given that it would require brute-force effort from that party to determine which note hash has been nullified, with very little additional information).<br /> |
 `nullifier` | h(note_hash, $\Nkapp$) |
-$\address$ | h($\Npkm$, $\Tpkm$, $\Ivpkm$, $\Ovpkm$, $\codehash$) | address | Proof that the $\Npkm$ belongs to the note owner's $\address$.<br />This isn't an optimised derivation. It's just one that works. |
+$\address$ | h($\Npkm$, $\Tpkm$, $\Ivpkm$, $\Ovpkm$, $\codehash$) | address | Proof that the $\Npkm$ belongs to the note owner's $\address$.<br />This isn't an optimized derivation. It's just one that works. |
 
 The app circuit exposes, as public inputs, a "nullifier key validation request":
 
@@ -895,7 +895,7 @@ $\happn$ | h(0x01, $\happL$) | normal siloing key for an app-specific nullifier 
 $\Npkapp$ | $\happn \cdot G + \Npkm$ | normal (non-hardened) app-siloed nullifier public key |
 ||||
 `nullifier` | h(note_hash, $\Nkapp$) | | $\Nkapp$ is exposed as a public input, and linked to the $\Npkapp$ via the kernel circuit. |
-$\address$ | h($\Npkm$, $\Tpkm$, $\Ivpkm$, $\Ovpkm$, $\codehash$) | address | Proof that the $\Npkm$ belongs to the note owner's $\address$.<br />This isn't an optimised derivation. It's just one that works. |
+$\address$ | h($\Npkm$, $\Tpkm$, $\Ivpkm$, $\Ovpkm$, $\codehash$) | address | Proof that the $\Npkm$ belongs to the note owner's $\address$.<br />This isn't an optimized derivation. It's just one that works. |
 
 > Recall an important point: the app circuit MUST NOT be given $\nskm$ nor $\nskapp$ in this option. Since $\nskapp$ is a normal (non-hardened) child, $\nskm$ could be reverse-derived by a malicious circuit. The linking of $\nskapp$ to $\Npkm$ is therefore deferred to the kernel circuit (which can be trusted moreso than an app).<br />Recall also: $\Nkapp$ is used (instead of $\nskapp$) solely as a way of giving the user the option of sharing $\Nkapp$ with a trusted 3rd party, to give them the ability to view when a note has been nullified.
 

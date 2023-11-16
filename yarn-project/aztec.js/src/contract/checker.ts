@@ -68,7 +68,7 @@ function abiParameterTypeChecker(type: ABIType): boolean {
     case 'struct':
       return checkAttributes(type, { fields: 'object', path: 'string' }) && checkStruct(type);
     default:
-      throw new Error('ABI function parameter has an unrecognised type');
+      throw new Error('ABI function parameter has an unrecognized type');
   }
 }
 
@@ -93,7 +93,7 @@ function checkStruct(type: StructType) {
  * Check if a provided ABI type has the correct attributes and their associated types.
  * This function compares the given 'type' object's keys with the expected attribute types
  * specified in 'incompleteAttributes', as well as the required 'kind' property.
- * Throws an error if there are any unrecognised attributes or incorrect attribute types.
+ * Throws an error if there are any unrecognized attributes or incorrect attribute types.
  *
  * @param type - The ABI type object to be checked for correct attributes.
  * @param incompleteAttributes - An object representing the expected attribute types without the 'kind' property.
@@ -104,7 +104,7 @@ function checkAttributes<T extends BasicType<string>>(type: T, incompleteAttribu
   const attributes = { ...incompleteAttributes, kind: 'string' };
 
   if (typeKeys.length !== Object.keys(attributes).length) {
-    throw new Error(`Unrecognised attribute on type ${type.kind}`);
+    throw new Error(`Unrecognized attribute on type ${type.kind}`);
   }
 
   typeKeys.forEach(element => {

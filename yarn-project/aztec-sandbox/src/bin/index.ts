@@ -21,7 +21,7 @@ const logger = createDebugLogger('aztec:sandbox');
 /**
  * Creates the sandbox from provided config and deploys any initial L1 and L2 contracts
  */
-async function createAndInitialiseSandbox() {
+async function createAndInitializeSandbox() {
   const { aztecNodeConfig, node, pxe, stop } = await createSandbox();
   if (aztecNodeConfig.p2pEnabled) {
     logger.info(`Not setting up test accounts as we are connecting to a network`);
@@ -54,7 +54,7 @@ async function main() {
 
   logger.info(`Setting up Aztec Sandbox v${version} (noir v${NoirWasmVersion}), please stand by...`);
 
-  const { pxe, node, stop, accounts } = await createAndInitialiseSandbox();
+  const { pxe, node, stop, accounts } = await createAndInitializeSandbox();
 
   const shutdown = async () => {
     logger.info('Shutting down...');

@@ -5,7 +5,7 @@
 using namespace barretenberg;
 
 // Used to ensure variables are evaluated at runtime and not compile time.
-// If EXPECT_EQ macro params are evaluated at compile-time, compiler can optimise them away.
+// If EXPECT_EQ macro params are evaluated at compile-time, compiler can optimize them away.
 // This triggers compiler errors due to the gtest suite expecting at least one test statement in a TEST macro
 void shallow_copy(const fq& in, fq& out)
 {

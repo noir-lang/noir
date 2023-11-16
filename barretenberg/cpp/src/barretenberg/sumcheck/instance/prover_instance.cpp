@@ -280,7 +280,7 @@ std::shared_ptr<typename Flavor::ProvingKey> ProverInstance_<Flavor>::compute_pr
     return proving_key;
 }
 
-template <class Flavor> void ProverInstance_<Flavor>::initialise_prover_polynomials()
+template <class Flavor> void ProverInstance_<Flavor>::initialize_prover_polynomials()
 {
     prover_polynomials.q_c = proving_key->q_c;
     prover_polynomials.q_l = proving_key->q_l;

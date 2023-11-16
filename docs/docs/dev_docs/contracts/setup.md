@@ -28,7 +28,7 @@ You need to setup the [Aztec sandbox](../getting_started/quickstart.md).
 
 ## Set up for aztec.nr contracts
 
-1. Inside the yarn project you created from the [Sanbox page](../getting_started/quickstart.md), create a sub-folder where the contracts will reside.
+1. Inside the yarn project you created from the [Sandbox page](../getting_started/quickstart.md), create a sub-folder where the contracts will reside.
 
 ```bash
 mkdir contracts

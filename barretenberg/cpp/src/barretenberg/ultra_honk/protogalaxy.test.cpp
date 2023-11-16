@@ -100,7 +100,7 @@ TEST_F(ProtoGalaxyTests, FullHonkEvaluationsValidCircuit)
 
     auto composer = UltraComposer();
     auto instance = composer.create_instance(builder);
-    instance->initialise_prover_polynomials();
+    instance->initialize_prover_polynomials();
 
     auto eta = FF::random_element();
     auto beta = FF::random_element();

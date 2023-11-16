@@ -69,12 +69,12 @@ export interface TypeInfo {
    */
   isTuple?: boolean;
   /**
-   * Indicates if the schama represents an array.
+   * Indicates if the schema represents an array.
    * If so, stores the array's subtype elements.
    */
   arraySubtype?: TypeInfo;
   /**
-   * Indicates if the schama represents a variant.
+   * Indicates if the schema represents a variant.
    * If so, stores the variant's subtype elements.
    */
   variantSubtypes?: TypeInfo[];

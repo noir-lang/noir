@@ -2,7 +2,7 @@ pragma solidity >=0.8.18;
 
 import "forge-std/Test.sol";
 
-// Rollup Proccessor
+// Rollup Processor
 import {Rollup} from "../../src/core/Rollup.sol";
 import {Inbox} from "../../src/core/messagebridge/Inbox.sol";
 import {Registry} from "../../src/core/messagebridge/Registry.sol";

@@ -3,7 +3,7 @@
 # Wrapper script around @aztec/cli using Docker. This is intended to be used by devs that don't have
 # a NodeJS environment setup locally. The script starts a Docker container passing any commands and
 # arguments to the CLI running inside the container.
-# If this wrapper script detecs a global install of @aztec/cli it falls back on that instead of Docker.
+# If this wrapper script detects a global install of @aztec/cli it falls back on that instead of Docker.
 
 set -euo pipefail
 
@@ -117,11 +117,11 @@ if [[ "$AZTEC_CLI_COMMAND" == "update" ]]; then
   add_mount "$PWD"
 fi
 
-# bash's builtin getops only works with single characeter flags
+# bash's builtin getops only works with single character flags
 # GNU getopt doesn't exist on macOS
 # process the flags manually
 #
-# go through each parameter (execpt the first one, which is the command)
+# go through each parameter (except the first one, which is the command)
 # and check if it's either a filename or a directory. If it is then mount inside the container
 # NOTE: this won't work with assignement-style flags, e.g. --outdir=/foo
 for (( i=2; i <= "$#"; i++ )); do

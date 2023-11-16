@@ -38,7 +38,7 @@ template <> class VerifierCrs<curve::BN254> {
     virtual Curve::G2AffineElement get_g2x() const = 0;
     /**
      * @brief As the G_2 element of the CRS is fixed, we can precompute the operations performed on it during the
-     * pairing algorithm to optimise pairing computations.
+     * pairing algorithm to optimize pairing computations.
      */
     virtual barretenberg::pairing::miller_lines const* get_precomputed_g2_lines() const = 0;
     /**

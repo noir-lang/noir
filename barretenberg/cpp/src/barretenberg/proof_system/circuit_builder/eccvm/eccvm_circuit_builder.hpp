@@ -568,7 +568,7 @@ template <typename Flavor> class ECCVMCircuitBuilder {
 
     [[nodiscard]] size_t get_num_gates() const
     {
-        // TODO(@zac-williamson) once we have a stable base to work off of, optimise this method!
+        // TODO(@zac-williamson) once we have a stable base to work off of, optimize this method!
         // (issue #2218)
         const auto msms = get_msms();
         const auto flattened_muls = get_flattened_scalar_muls(msms);

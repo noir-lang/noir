@@ -12,11 +12,11 @@ _A protocol for random sequencer selection for the Aztec Network. Prior versions
 
 ## Introduction
 
-_Fair Election Randomized Natively on Ethereum Trustlessly_ (**Fernet**) is a protocol for random _sequencer_ selection. In each iteration, it relies on a VRF to assign a random score to each sequencer in order to rank them. The sequencer with the highest score can propose an ordering for transactions and the block they build upon, and then reveal its contents for the chain to advance under soft finality. _Provers_ must then assemble a proof for this block and submit it to L1 for the block to be finalised.
+_Fair Election Randomized Natively on Ethereum Trustlessly_ (**Fernet**) is a protocol for random _sequencer_ selection. In each iteration, it relies on a VRF to assign a random score to each sequencer in order to rank them. The sequencer with the highest score can propose an ordering for transactions and the block they build upon, and then reveal its contents for the chain to advance under soft finality. _Provers_ must then assemble a proof for this block and submit it to L1 for the block to be finalized.
 
 ## Staking
 
-Sequencers are required to stake on L1 in order to participate in the protocol. Each sequencer registers a public key when they stake, which will be used to verify their VRF submission. After staking, a sequencer needs to wait for an activation period of N L1 blocks until they can start proposing new blocks. Unstaking also requires a delay to allow for slashing of dishonest behaviour.
+Sequencers are required to stake on L1 in order to participate in the protocol. Each sequencer registers a public key when they stake, which will be used to verify their VRF submission. After staking, a sequencer needs to wait for an activation period of N L1 blocks until they can start proposing new blocks. Unstaking also requires a delay to allow for slashing of dishonest behavior.
 
 ## Randomness
 

@@ -346,7 +346,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
     barretenberg::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
     barretenberg::fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
-    // Initialise the (n + 1)th coefficients of quotient parts so that reuse of proving
+    // Initialize the (n + 1)th coefficients of quotient parts so that reuse of proving
     // keys does not use some residual data from another proof.
     key->quotient_polynomial_parts[0][key->circuit_size] = 0;
     key->quotient_polynomial_parts[1][key->circuit_size] = 0;
@@ -486,10 +486,10 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
             // TODO: With the reduction from 2 z polynomials to a single z(X), the above no longer applies
             // TODO: Fix this to remove the (z(X.ω) - 1).L_{n-1}(X) check
 
-            // To summarise, we can't verify claims about z(X) when evaluated at `ω_n`.
+            // To summarize, we can't verify claims about z(X) when evaluated at `ω_n`.
             // But we can verify claims about z(X.ω) when evaluated at `ω_{n-1}`, which is the same thing
 
-            // To summarise the summary: If z(ω_n) = 1, then (z(X.ω) - 1).L_{n-1}(X) will be divisible by Z_H*(X)
+            // To summarize the summary: If z(ω_n) = 1, then (z(X.ω) - 1).L_{n-1}(X) will be divisible by Z_H*(X)
             // => add linearly independent term (z(X.ω) - 1).(α^3).L{n-1}(X) into the quotient polynomial to check
             // this
 

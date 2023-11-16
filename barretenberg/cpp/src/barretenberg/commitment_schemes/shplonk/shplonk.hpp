@@ -205,7 +205,7 @@ template <typename Curve> class ShplonkVerifier_ {
             std::vector<Fr> inverse_vanishing_evals;
             inverse_vanishing_evals.reserve(num_claims);
             for (const auto& claim : claims) {
-                // Note: no need for batch inversion; emulated inverison is cheap. (just show known inverse is valid)
+                // Note: no need for batch inversion; emulated inversion is cheap. (just show known inverse is valid)
                 inverse_vanishing_evals.emplace_back((z_challenge - claim.opening_pair.challenge).invert());
             }
 

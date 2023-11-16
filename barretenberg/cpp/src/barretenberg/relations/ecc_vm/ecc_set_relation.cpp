@@ -232,7 +232,7 @@ Accumulator ECCVMSetRelationImpl<FF>::compute_permutation_denominator(const AllE
     using View = typename Accumulator::View;
 
     // TODO(@zac-williamson). The degree of this contribution is 17! makes overall relation degree 19.
-    // Can optimise by refining the algebra, once we have a stable base to iterate off of.
+    // Can optimize by refining the algebra, once we have a stable base to iterate off of.
     const auto& gamma = params.gamma;
     const auto& beta = params.beta;
     const auto& beta_sqr = params.beta_sqr;

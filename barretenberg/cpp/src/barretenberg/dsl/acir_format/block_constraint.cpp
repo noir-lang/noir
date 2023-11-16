@@ -34,7 +34,7 @@ void create_block_constraints(Builder& builder, const BlockConstraint constraint
             ASSERT(op.access_type == 0);
             field_ct value = poly_to_field_ct(op.value, builder);
             field_ct index = poly_to_field_ct(op.index, builder);
-            // For a ROM table, constant read should be optimised out:
+            // For a ROM table, constant read should be optimized out:
             // The rom_table won't work with a constant read because the table may not be initialized
             ASSERT(op.index.q_l != 0);
             // We create a new witness w to avoid issues with non-valid witness assignements:

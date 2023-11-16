@@ -8,7 +8,7 @@ namespace numeric {
 /**
  * Returns the number of leading 0 bits for a given integer type.
  * Implemented in terms of intrinsics which will use instructions such as `bsr` or `lzcnt` for best performance.
- * Undefined behaviour when input is 0.
+ * Undefined behavior when input is 0.
  */
 template <typename T> constexpr inline size_t count_leading_zeros(T const& u);
 

@@ -283,7 +283,7 @@ TEST_F(state_var_tests, circuit_utxo_set_of_default_private_notes_fr)
     // info("new_nullifiers: ", new_nullifiers);
 }
 
-TEST_F(state_var_tests, circuit_initialise_utxo_of_default_singleton_private_note_fr)
+TEST_F(state_var_tests, circuit_initialize_utxo_of_default_singleton_private_note_fr)
 {
     C builder = C();
     DB db;
@@ -304,19 +304,19 @@ TEST_F(state_var_tests, circuit_initialise_utxo_of_default_singleton_private_not
 
     UTXO<Note> my_utxo(&exec_ctx, "my_utxo");
 
-    // We hard-code the address of the person who may initialise the state in the 'contract's bytecode' (i.e. as a
+    // We hard-code the address of the person who may initialize the state in the 'contract's bytecode' (i.e. as a
     // selector value). (Number chosen to match msg_sender of tests).
-    const CT::address unique_person_who_may_initialise =
+    const CT::address unique_person_who_may_initialize =
         NT::uint256(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL);
 
-    unique_person_who_may_initialise.assert_equal(oracle_wrapper.get_msg_sender());
+    unique_person_who_may_initialize.assert_equal(oracle_wrapper.get_msg_sender());
 
-    // The person who may initialise the note might be different from the person who's actually given the note to own.
-    // (E.g. the caller of this function might be the deployer of the contract, who is initialising notes on behalf of
+    // The person who may initialize the note might be different from the person who's actually given the note to own.
+    // (E.g. the caller of this function might be the deployer of the contract, who is initializing notes on behalf of
     // other users)
     CT::address owner_of_initialized_note = 888888;
 
-    my_utxo.initialise({ .value = 100, .owner = owner_of_initialized_note });
+    my_utxo.initialize({ .value = 100, .owner = owner_of_initialized_note });
 
     exec_ctx.finalize();
 

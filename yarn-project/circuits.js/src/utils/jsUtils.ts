@@ -77,10 +77,10 @@ export function assertItemsLength<
     }[];
   },
 >(obj: T, member: F, length: number) {
-  const arrs = obj[member];
-  for (let i = 0; i < arrs.length; i++) {
-    if (arrs[i].length !== length) {
-      throw new Error(`Expected ${member}[${i}] to have length ${length} but was ${arrs[i].length}`);
+  const arrays = obj[member];
+  for (let i = 0; i < arrays.length; i++) {
+    if (arrays[i].length !== length) {
+      throw new Error(`Expected ${member}[${i}] to have length ${length} but was ${arrays[i].length}`);
     }
   }
 }

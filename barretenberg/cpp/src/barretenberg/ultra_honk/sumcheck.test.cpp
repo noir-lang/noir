@@ -155,7 +155,7 @@ TEST_F(SumcheckTestsRealCircuit, Ultra)
     FF beta = FF::random_element();
     FF gamma = FF::random_element();
 
-    instance->initialise_prover_polynomials();
+    instance->initialize_prover_polynomials();
     instance->compute_sorted_accumulator_polynomials(eta);
     instance->compute_grand_product_polynomials(beta, gamma);
 

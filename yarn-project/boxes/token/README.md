@@ -49,11 +49,11 @@ This folder should have the following directory structure:
               |— private_token_contract.json
               |— private_token.ts
        |— tests
-              | A simple end2end test deploying and testing the PrivateToken on a local sandbox
+              | A simple end2end test deploying and testing the Token on a local sandbox
               | using the front end helper methods in app/scripts/
               | The test requires the sandbox and anvil to be running (yarn start:sandbox).
               | You can run it via `yarn test:integration`.
-              |- privatetoken.test.ts
+              |- token.test.ts
 ```
 
 Most relevant to you is likely `src/contracts/main.nr` (and the build config `src/contracts/Nargo.toml`). This contains the example PrivateToken logic that the frontend interacts with and is a good place to start writing Noir.

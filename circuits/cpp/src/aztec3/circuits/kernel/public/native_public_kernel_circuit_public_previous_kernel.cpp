@@ -47,8 +47,8 @@ KernelCircuitPublicInputs<NT> native_public_kernel_circuit_public_previous_kerne
     // construct the circuit outputs
     KernelCircuitPublicInputs<NT> public_inputs{};
 
-    // initialise the end state with our provided previous kernel state
-    common_initialise_end_values(public_kernel_inputs, public_inputs);
+    // initialize the end state with our provided previous kernel state
+    common_initialize_end_values(public_kernel_inputs, public_inputs);
 
     // validate the inputs common to all invocation circumstances
     common_validate_inputs(builder, public_kernel_inputs);

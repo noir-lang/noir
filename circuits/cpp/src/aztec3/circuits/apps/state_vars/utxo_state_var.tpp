@@ -18,7 +18,7 @@ Note UTXOStateVar<Builder, Note>::get(typename Note::NotePreimage const& advice)
 };
 
 template <typename Builder, typename Note>
-void UTXOStateVar<Builder, Note>::initialise(typename Note::NotePreimage new_note_preimage)
+void UTXOStateVar<Builder, Note>::initialize(typename Note::NotePreimage new_note_preimage)
 {
     Note new_note{ this, new_note_preimage };
     Opcodes<Builder>::template UTXO_INIT<Note>(this, new_note);

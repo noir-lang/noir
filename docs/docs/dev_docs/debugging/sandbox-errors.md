@@ -74,7 +74,7 @@ This error happens when you try to read a pending commitment that doesn't exist.
 #### 2021 - PRIVATE_KERNEL\_\_UNRESOLVED_NON_TRANSIENT_READ_REQUEST
 
 For a transient read request we skip merkle membership checks since pending commitments aren't inserted into the note hash tree yet.
-But for non transient reads, we do a merkle membership check. Redas are done at the kernel circuit. So this checks that there are no already unresolved reads from a previous kernel iteration (other than non transient ones).
+But for non transient reads, we do a merkle membership check. Reads are done at the kernel circuit. So this checks that there are no already unresolved reads from a previous kernel iteration (other than non transient ones).
 
 #### 3001 - PUBLIC_KERNEL\_\_UNSUPPORTED_OP
 
@@ -177,7 +177,7 @@ Users may create a proof against a historic state in Aztec. The rollup circuits 
 
 ## Archiver Errors
 
-- "L1 to L2 Message with key ${messageKey.toString()} not found in the confirmed messages store" - happens when the L1 to L2 message doesn't exist or is "pending", when the user has sent a message on L1 via the Inbox contract but it has yet to be included in an L2 block by the sequencer - user has to wait for sequencer to pick it up and the archiver to sync the respective L2 block. You can get the sequencer to pick it up by doing an arbitary transaction on L2 (eg send DAI to yourself). This would give the sequencer a transaction to process and as a side effect it would look for any pending messages it should include.
+- "L1 to L2 Message with key ${messageKey.toString()} not found in the confirmed messages store" - happens when the L1 to L2 message doesn't exist or is "pending", when the user has sent a message on L1 via the Inbox contract but it has yet to be included in an L2 block by the sequencer - user has to wait for sequencer to pick it up and the archiver to sync the respective L2 block. You can get the sequencer to pick it up by doing an arbitrary transaction on L2 (eg send DAI to yourself). This would give the sequencer a transaction to process and as a side effect it would look for any pending messages it should include.
 
 - "Unable to remove message: L1 to L2 Message with key ${messageKeyBigInt} not found in store" - happens when trying to confirm a non-existent pending message or cancelling such a message. Perhaps the sequencer has already confirmed the message?
 
@@ -189,7 +189,7 @@ Users may create a proof against a historic state in Aztec. The rollup circuits 
 
 - "${treeName} tree root mismatch" - like with calldata mismatch, it validates that the root of the tree matches the output of the circuit simulation. The tree name could be Public data tree, Note Hash Tree, Contract tree, Nullifier tree or the L1ToL2Message tree,
 
-- "${treeName} tree next available leaf index mismatch" - validating a tree's root is not enough. It also checks that the `next_avaliable_leaf_index` is as expected. This is the next index we can insert new values into. Note that for the public data tree, this test is skipped since as it is a sparse tree unlike the others.
+- "${treeName} tree next available leaf index mismatch" - validating a tree's root is not enough. It also checks that the `next_available_leaf_index` is as expected. This is the next index we can insert new values into. Note that for the public data tree, this test is skipped since as it is a sparse tree unlike the others.
 
 - "Public call stack size exceeded" - In Aztec, the sequencer executes all enqueued public functions in a transaction (to prevent race conditions - see [private-public execution](../../concepts/foundation/communication/public_private_calls.md)). This error says there are too many public functions requested.
 

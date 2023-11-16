@@ -312,7 +312,7 @@ template <typename Builder> bool_t<Builder> byte_array<Builder>::get_bit(size_t 
  * For example, if we have a 64-byte array filled with zeroes, `set_bit(0, true)` will set `values[63]` to 1,
  *              and set_bit(511, true) will set `values[0]` to 128
  *
- * Previously we did not reverse the bit index, but we have modified the behaviour to be consistent with `get_bit`
+ * Previously we did not reverse the bit index, but we have modified the behavior to be consistent with `get_bit`
  *
  * The rationale behind reversing the bit index is so that we can more naturally contain integers inside byte arrays
  *and perform bit manipulation

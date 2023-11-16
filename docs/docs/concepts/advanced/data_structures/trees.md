@@ -158,7 +158,7 @@ The contract tree contains information about every function of every contract de
 
 <Image img={require("/img/contract-tree.png")} />
 
-> Note: Aztec supports the ability to keep the logic of private functions of a smart contract private. In such cases, no information about the logic of that private function will be broadcast; only a randomised merkle root of that contract's data.
+> Note: Aztec supports the ability to keep the logic of private functions of a smart contract private. In such cases, no information about the logic of that private function will be broadcast; only a randomized merkle root of that contract's data.
 
 ## Trees of historic trees' roots
 

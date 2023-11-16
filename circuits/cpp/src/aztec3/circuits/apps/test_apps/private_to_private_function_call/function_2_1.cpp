@@ -41,16 +41,16 @@ void function_2_1(FunctionExecutionContext& exec_ctx, std::vector<NT::fr> const&
 
     auto product = a * b * c;
 
-    CT::address const unique_person_who_may_initialise = 999999;
+    CT::address const unique_person_who_may_initialize = 999999;
 
-    unique_person_who_may_initialise.assert_equal(msg_sender);
+    unique_person_who_may_initialize.assert_equal(msg_sender);
 
-    y.initialise({
+    y.initialize({
         .value = product,
         .owner = msg_sender,
     });
-    // TODO: how to initialise a UTXO if it's part of a nested function call, because the msg_sender will be a contract
-    // address (currently the unique_initialiser_address is asserted to be the msg_sender).
+    // TODO: how to initialize a UTXO if it's part of a nested function call, because the msg_sender will be a contract
+    // address (currently the unique_initializer_address is asserted to be the msg_sender).
 
     /****************************************************************
      * CLEANUP

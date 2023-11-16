@@ -10,7 +10,7 @@ It's able to simulate three different types of functions:
 
 ### Private Functions
 
-Private functions are simulated and proved clientside, and verified clientside in the private kernel circuit.
+Private functions are simulated and proved client-side, and verified client-side in the private kernel circuit.
 
 The public inputs of private functions is defined [here](../circuits.js/src/structs/private_circuit_public_inputs.ts).
 
@@ -30,7 +30,7 @@ Public functions can call other public function, but no private functions.
 
 ### Unconstrained (view) Functions
 
-Unconstrained functions are used to extract useful data for users, such as the user balance. They are not proved, and are simulated clientside.
+Unconstrained functions are used to extract useful data for users, such as the user balance. They are not proved, and are simulated client-side.
 
 They are run with the assistance of a DB oracle that provides any private data requested by the function.
 

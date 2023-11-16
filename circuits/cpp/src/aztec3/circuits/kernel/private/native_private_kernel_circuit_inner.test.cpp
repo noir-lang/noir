@@ -980,7 +980,7 @@ TEST_F(native_private_kernel_inner_tests, 0th_nullifier_zero_fails)
 
     // Assertion checks
     EXPECT_TRUE(builder.failed());
-    EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__0TH_NULLLIFIER_IS_ZERO);
+    EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__0TH_NULLIFIER_IS_ZERO);
 }
 
 }  // namespace aztec3::circuits::kernel::private_kernel

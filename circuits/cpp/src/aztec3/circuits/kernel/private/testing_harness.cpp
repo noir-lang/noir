@@ -477,7 +477,7 @@ PrivateKernelInputsInner<NT> do_private_call_get_kernel_inputs_inner(
     };
 
     //***************************************************************************
-    // We mock a kernel circuit proof to initialize ipnut required by an inner call
+    // We mock a kernel circuit proof to initialize input required by an inner call
     //***************************************************************************
 
     std::array<NT::fr, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX> initial_kernel_private_call_stack{};

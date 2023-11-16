@@ -91,7 +91,7 @@ export const cliTestSuite = (
       const newCompleteAddress = accountsAfter[accountsAfter.length - 1];
 
       // Test get-accounts
-      debug('Check that account was added to the list of accs in RPC');
+      debug('Check that account was added to the list of accounts in RPC');
       await run('get-accounts');
       const fetchedAddresses = findMultipleInLogs(/Address:\s+(?<address>0x[a-fA-F0-9]+)/);
       const foundFetchedAddress = fetchedAddresses.find(match => match.groups?.address === newAddress.toString());

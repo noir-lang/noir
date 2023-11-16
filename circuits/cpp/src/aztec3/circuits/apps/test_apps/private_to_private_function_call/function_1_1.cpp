@@ -40,10 +40,10 @@ void function_1_1(FunctionExecutionContext& exec_ctx, std::vector<NT::fr> const&
      ****************************************************************/
 
     // Hard-coded to match tests.
-    const CT::address unique_person_who_may_initialise =
+    const CT::address unique_person_who_may_initialize =
         NT::uint256(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL);
 
-    unique_person_who_may_initialise.assert_equal(msg_sender);
+    unique_person_who_may_initialize.assert_equal(msg_sender);
 
     /**
      * Now we want to call an external function of another smart contract.
@@ -67,7 +67,7 @@ void function_1_1(FunctionExecutionContext& exec_ctx, std::vector<NT::fr> const&
                       { a, b, c, 0, 0, 0, 0, 0 });
 
     // Use the return value in some way, just for fun:
-    x.initialise({
+    x.initialize({
         .value = return_values[0],
         .owner = msg_sender,
     });

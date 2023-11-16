@@ -49,7 +49,7 @@ CT::AggregationObject verify_proofs(Builder& builder, PrivateKernelInputsInner<C
  * as well as signed TX request and the private call information
  * @param public_inputs should be empty here since it is being initialized in this call
  */
-void initialise_end_values(PrivateKernelInputsInner<CT> const& private_inputs,
+void initialize_end_values(PrivateKernelInputsInner<CT> const& private_inputs,
                            KernelCircuitPublicInputs<CT>& public_inputs)
 {
     // TODO: Ensure public inputs is empty here
@@ -317,7 +317,7 @@ KernelCircuitPublicInputs<NT> private_kernel_circuit(Builder& builder,
     KernelCircuitPublicInputs<CT> public_inputs = KernelCircuitPublicInputs<NT>{}.to_circuit_type(builder);
 
     // Do this before any functions can modify the inputs.
-    initialise_end_values(private_inputs, public_inputs);
+    initialize_end_values(private_inputs, public_inputs);
 
     validate_inputs(private_inputs, first_iteration);
 

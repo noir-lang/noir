@@ -158,7 +158,7 @@ This will compile the smart contract and create a `target` folder with a `.json`
 
 ### Deploy
 
-You can use the previously generated artificat to deploy the smart contract. Our constructor takes two arguments - `initial_counter` and `owner` so let's make sure to pass those in.
+You can use the previously generated artifact to deploy the smart contract. Our constructor takes two arguments - `initial_counter` and `owner` so let's make sure to pass those in.
 
 `initial_counter` can be any uint. In this guide we'll pick 100, but you can pick anything.
 

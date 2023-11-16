@@ -286,7 +286,7 @@ Composer will track an 'instruction counter'. If the opcode makes a standard lib
 
 ### Computing VM circuits + proofs using the stdlib
 
-In this context, the Composer already posesses $T_Q$.
+In this context, the Composer already possesses $T_Q$.
 
 Consider the execution of an ACIR opcode stream. If the opcode makes a standard library call, the stdlib function is executed as normal, but the Composer will do the following when a constraint is added:
 

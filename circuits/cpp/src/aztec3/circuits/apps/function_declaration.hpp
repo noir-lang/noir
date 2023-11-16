@@ -11,7 +11,7 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
 
-// This exists just so that designated initialisers can be used when passing this info to a function, for readability.
+// This exists just so that designated initializers can be used when passing this info to a function, for readability.
 template <typename NCT> struct FunctionDeclaration {
     using boolean = typename NCT::boolean;
 

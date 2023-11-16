@@ -16,7 +16,7 @@ You can learn more about dependencies and their paths [here](../contracts/resour
 
 #### `compute_note_hash_and_nullifier function not found. Define it in your contract`
 
-Any smart contract that utilizes private varibles must include a [`compute_note_hash_and_nullifier`](https://github.com/AztecProtocol/aztec-packages/blob/6c20b45993ee9cbd319ab8351e2722e0c912f427/yarn-project/aztec-nr/aztec/src/note/utils.nr#L69) function to allow the PXE to process encrypted events.
+Any smart contract that works with storage must include a [`compute_note_hash_and_nullifier`](https://github.com/AztecProtocol/aztec-packages/blob/6c20b45993ee9cbd319ab8351e2722e0c912f427/yarn-project/aztec-nr/aztec/src/note/utils.nr#L69) function to allow the PXE to process encrypted events.
 
 This is an example of this function in the token contract:
 

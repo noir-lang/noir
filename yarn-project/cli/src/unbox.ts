@@ -100,7 +100,7 @@ async function downloadContractAndBoxFromGithub(
   log: LogFn,
 ): Promise<void> {
   // small string conversion, in the ABI the contract name looks like PrivateToken
-  // but in the repostory it looks like private_token
+  // but in the repository it looks like private_token
 
   log(`Downloading @aztec/boxes/${contractName}/ to ${outputPath}...`);
   // Step 1: Fetch the monorepo ZIP from GitHub, matching the CLI version
@@ -256,7 +256,7 @@ async function updatePackageJsonVersions(packageVersion: string, outputPath: str
 
   // modify the version of the sandbox to pull - it's set to "latest" version in the monorepo,
   // but we need to replace with the same tagVersion as the cli and the other aztec npm packages
-  // similarly, make sure we spinup the sandbox with the same version.
+  // similarly, make sure we spin up the sandbox with the same version.
   packageData.scripts['install:sandbox'] = packageData.scripts['install:sandbox'].replace(
     'latest',
     `${packageVersion}`,

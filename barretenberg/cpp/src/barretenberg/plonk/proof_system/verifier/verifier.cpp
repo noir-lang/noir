@@ -49,7 +49,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
     key->program_width = program_settings::program_width;
 
-    // Add the proof data to the transcript, according to the manifest. Also initialise the transcript's hash type and
+    // Add the proof data to the transcript, according to the manifest. Also initialize the transcript's hash type and
     // challenge bytes.
     transcript::StandardTranscript transcript = transcript::StandardTranscript(
         proof.proof_data, manifest, program_settings::hash_type, program_settings::num_challenge_bytes);

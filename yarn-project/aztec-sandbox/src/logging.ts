@@ -9,7 +9,7 @@ const { format } = winston;
 const CURRENT_LOG_FILE_NAME = 'aztec-sandbox.debug.log';
 const LOG_DIR = 'log';
 
-/** Creates a winston logger that logs everyting to a local rotating file */
+/** Creates a winston logger that logs everything to a local rotating file */
 function createWinstonLogger() {
   // See https://www.npmjs.com/package/winston-daily-rotate-file#user-content-options
   const transport: DailyRotateFile = new DailyRotateFile({

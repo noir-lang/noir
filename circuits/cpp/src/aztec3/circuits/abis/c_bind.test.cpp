@@ -173,7 +173,7 @@ TEST(abi_tests, compute_function_tree_root)
     for (size_t l = 0; l < num_nonzero_leaves; l++) {
         leaves_frs.push_back(NT::fr::random_element());
     }
-    // serilalize the leaves to a buffer to pass to cbind
+    // serialize the leaves to a buffer to pass to cbind
     std::vector<uint8_t> leaves_bytes_vec;
     write(leaves_bytes_vec, leaves_frs);
 
@@ -203,7 +203,7 @@ TEST(abi_tests, compute_function_tree)
     for (size_t l = 0; l < num_nonzero_leaves; l++) {
         leaves_frs.push_back(NT::fr::random_element());
     }
-    // serilalize the leaves to a buffer to pass to cbind
+    // serialize the leaves to a buffer to pass to cbind
     std::vector<uint8_t> leaves_bytes_vec;
     write(leaves_bytes_vec, leaves_frs);
 

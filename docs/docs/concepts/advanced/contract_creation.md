@@ -22,7 +22,7 @@ A contract is a collection of functions that operate on shared state.
 
 Functions can either be public (executed/proved by rollup providers with no hidden state) or private (executed/proved locally by transaction sender, can have hidden state).
 
-Functions that write to the updateable state tree must be public; the rollup provider must perform these updates as only they know the current value of the state tree (otherwise you get race conditions).
+Functions that write to the updatable state tree must be public; the rollup provider must perform these updates as only they know the current value of the state tree (otherwise you get race conditions).
 
 ### What defines a function?
 
@@ -157,7 +157,7 @@ The contract address is calculated by the contract deployer, deterministically, 
 - :question: Why does CREATE2 include a deployerAddress?
 - :exclamation: So that contracts can deploy contracts to deterministic addresses. Original goal was to enable pre-funding contracts before they were deployed. Not v. relevant for us though
 - `salt` gives the deployer some 'choice' over the eventual contract address; they can loop through salts until they find an address they like.
-- `funtionTreeRoot` is like the bytecode without constructors or constructor arguments. This allows people to validate the functions of the contract.
+- `functionTreeRoot` is like the bytecode without constructors or constructor arguments. This allows people to validate the functions of the contract.
 - `constructorHash = hash(privateConstructorPublicInputsHash, publicConstructorPublicInputsHash, privateConstructorVKHash, publicConstructorVKHash)` - this allows people to validate the initial states of the contract. (Note: this is similar to how the `bytecode` in create2 includes an encoding of the constructor arguments).
 
 To prevent duplicate contract addresses existing, a 'nullifier' is submitted when each new contract is deployed. `newContractAddressNullifier = hash(newContractAddress)`.
@@ -213,7 +213,7 @@ Excluding these steps, constructor function call is executed identically to a re
 **A:** When the sequencer receives a private kernel proof, they must be able to determine:
 
 1. How many contracts are being deployed
-2. Whether each deployment comes with a valid deployment validation proof (see [RollupCiruitLogic](#Rollup-Circuit-Logic))
+2. Whether each deployment comes with a valid deployment validation proof (see [RollupCircuitLogic](#Rollup-Circuit-Logic))
 
 **Q: why not have deployments use a separate 'deployment stack'?**
 
@@ -261,13 +261,13 @@ For each new contract, the `portalId` is mapped to the L1 portal contract addres
 
 ## Distributing L2 contract data
 
-ACIR opcodes for public functions must be avaidable on a data availability solution, as their knowledge is required by rollup providers to create valid public function proofs.
+ACIR opcodes for public functions must be avoidable on a data availability solution, as their knowledge is required by rollup providers to create valid public function proofs.
 
 This is not required for private functions, it is left to developers to ensure their contract data is distributed and disseminated (e.g. github).
 
 Under the current spec it is not possible to create contracts with fully hidden bytecode, unless these contracts have no public functions.
 
-(a future update could enable completely hidden contracts by having a distinct contract public state tree (vs the current monolthic updateable state tree). The contract's state tree root would be part of the append-only data tree. This way its "public" function proofs could be executed by 3rd parties instead of the rollup provers, without creating race conditions)
+(a future update could enable completely hidden contracts by having a distinct contract public state tree (vs the current monolithic updatable state tree). The contract's state tree root would be part of the append-only data tree. This way its "public" function proofs could be executed by 3rd parties instead of the rollup provers, without creating race conditions)
 
 (following pasted from github)
 

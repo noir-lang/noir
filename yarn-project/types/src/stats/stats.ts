@@ -130,11 +130,11 @@ export type TxStats = {
   encryptedLogCount: number;
   /** Number of unencrypted logs. */
   unencryptedLogCount: number;
-  /** Serialised size of encrypted logs. */
+  /** Serialized size of encrypted logs. */
   encryptedLogSize: number;
-  /** Serialised size of unencrypted logs. */
+  /** Serialized size of unencrypted logs. */
   unencryptedLogSize: number;
-  /** Serialised size of new contract data. */
+  /** Serialized size of new contract data. */
   newContractDataSize: number;
   /** Number of new contracts deployed in this tx. */
   newContractCount: number;

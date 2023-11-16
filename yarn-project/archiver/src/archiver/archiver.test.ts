@@ -18,7 +18,7 @@ describe('Archiver', () => {
   const inboxAddress = EthAddress.ZERO.toString();
   const registryAddress = EthAddress.ZERO.toString();
   const contractDeploymentEmitterAddress = '0x0000000000000000000000000000000000000001';
-  const blockNums = [1, 2, 3];
+  const blockNumbers = [1, 2, 3];
   let publicClient: MockProxy<PublicClient<HttpTransport, Chain>>;
   let archiverStore: ArchiverDataStore;
 
@@ -42,7 +42,7 @@ describe('Archiver', () => {
     let latestBlockNum = await archiver.getBlockNumber();
     expect(latestBlockNum).toEqual(0);
 
-    const blocks = blockNums.map(x => L2Block.random(x, 4, x, x + 1, x * 2, x * 3));
+    const blocks = blockNumbers.map(x => L2Block.random(x, 4, x, x + 1, x * 2, x * 3));
     const rollupTxs = blocks.map(makeRollupTx);
     // `L2Block.random(x)` creates some l1 to l2 messages. We add those,
     // since it is expected by the test that these would be consumed.
@@ -110,18 +110,18 @@ describe('Archiver', () => {
 
     // Expect logs to correspond to what is set by L2Block.random(...)
     const encryptedLogs = await archiver.getLogs(1, 100, LogType.ENCRYPTED);
-    expect(encryptedLogs.length).toEqual(blockNums.length);
+    expect(encryptedLogs.length).toEqual(blockNumbers.length);
 
-    for (const [index, x] of blockNums.entries()) {
+    for (const [index, x] of blockNumbers.entries()) {
       const expectedTotalNumEncryptedLogs = 4 * x * (x * 2);
       const totalNumEncryptedLogs = L2BlockL2Logs.unrollLogs([encryptedLogs[index]]).length;
       expect(totalNumEncryptedLogs).toEqual(expectedTotalNumEncryptedLogs);
     }
 
     const unencryptedLogs = await archiver.getLogs(1, 100, LogType.UNENCRYPTED);
-    expect(unencryptedLogs.length).toEqual(blockNums.length);
+    expect(unencryptedLogs.length).toEqual(blockNumbers.length);
 
-    blockNums.forEach((x, index) => {
+    blockNumbers.forEach((x, index) => {
       const expectedTotalNumUnencryptedLogs = 4 * (x + 1) * (x * 3);
       const totalNumUnencryptedLogs = L2BlockL2Logs.unrollLogs([unencryptedLogs[index]]).length;
       expect(totalNumUnencryptedLogs).toEqual(expectedTotalNumUnencryptedLogs);
@@ -150,7 +150,7 @@ describe('Archiver', () => {
       return [Fr.random().toString(true), Fr.random().toString(true)];
     };
 
-    const blocks = blockNums.map(x => L2Block.random(x, 4, x, x + 1, x * 2, x * 3));
+    const blocks = blockNumbers.map(x => L2Block.random(x, 4, x, x + 1, x * 2, x * 3));
     const rollupTxs = blocks.map(makeRollupTx);
     // `L2Block.random(x)` creates some l1 to l2 messages. We add those,
     // since it is expected by the test that these would be consumed.

@@ -239,7 +239,7 @@ Implements:
 
 Implementation notes for this milestone:
 
-Closest analogous component in AC is the `WorldStateDb` in bb.js. We can configure the backing store (probably leveldb) to be an in-memory only store. We don't need persistence, we will rebuild the tree at startup. This will ensure we have appropriate sync-from-zero behaviour.
+Closest analogous component in AC is the `WorldStateDb` in bb.js. We can configure the backing store (probably leveldb) to be an in-memory only store. We don't need persistence, we will rebuild the tree at startup. This will ensure we have appropriate sync-from-zero behavior.
 
 Responsibilities:
 
@@ -279,7 +279,7 @@ Implements:
 Responsibilities:
 
 - Pulls data in from whatever sources are needed, to fully describe a rollup e.g.
-  - L1 calldata (`provessRollup` and `offchainData` for this milestone.)
+  - L1 calldata (`provesRollup` and `offchainData` for this milestone.)
   - ETH blobs (not before they are released).
   - Other sources that have archived historical ETH blobs (not before they are released).
 - Combines these sources of data to describe a `Rollup`.

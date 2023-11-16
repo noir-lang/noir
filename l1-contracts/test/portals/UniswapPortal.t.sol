@@ -2,7 +2,7 @@ pragma solidity >=0.8.18;
 
 import "forge-std/Test.sol";
 
-// Rollup Proccessor
+// Rollup Processor
 import {Rollup} from "../../src/core/Rollup.sol";
 import {Inbox} from "../../src/core/messagebridge/Inbox.sol";
 import {Registry} from "../../src/core/messagebridge/Registry.sol";
@@ -269,7 +269,7 @@ contract UniswapPortalTest is Test {
     assertFalse(outbox.contains(swapMsgKey));
   }
 
-  function testSwapCalledbyAnyoneIfDesignatedCallerNotSet(address _caller) public {
+  function testSwapCalledByAnyoneIfDesignatedCallerNotSet(address _caller) public {
     vm.assume(_caller != address(uniswapPortal));
     bytes32 daiWithdrawMsgKey =
       _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));

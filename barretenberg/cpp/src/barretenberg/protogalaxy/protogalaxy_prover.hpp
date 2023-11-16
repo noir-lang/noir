@@ -295,7 +295,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     /**
      * @brief Compute the combiner quotient defined as $K$ polynomial in the paper.
      *
-     * TODO(https://github.com/AztecProtocol/barretenberg/issues/764): generalise the computation of vanishing
+     * TODO(https://github.com/AztecProtocol/barretenberg/issues/764): generalize the computation of vanishing
      * polynomials and Lagrange basis and use batch_invert.
      *
      */

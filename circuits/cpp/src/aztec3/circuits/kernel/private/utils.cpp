@@ -65,8 +65,8 @@ NT::Proof get_proof_from_file()
 }
 
 /**
- * @brief Utility for constructing a verification key from vrification_key_data stored in file
- * @details This verification key cooresponds to the UP proof stored in ultra_plonk_proof.dat
+ * @brief Utility for constructing a verification key from verification_key_data stored in file
+ * @details This verification key corresponds to the UP proof stored in ultra_plonk_proof.dat
  * @return std::shared_ptr<NT::VK>
  */
 std::shared_ptr<NT::VK> get_verification_key_from_file()
@@ -127,7 +127,7 @@ PreviousKernelData<NT> dummy_previous_kernel(bool real_vk_proof = false)
         .vk = mock_kernel_vk,
     };
 
-    // TODO(rahul) assertions don't work in wasm and it isn't worth updating barratenberg to handle our error code
+    // TODO(rahul) assertions don't work in wasm and it isn't worth updating barretenberg to handle our error code
     // mechanism. Apparently we are getting rid of this function (dummy_previous_kernel()) soon anyway.
     assert(!mock_kernel_builder.failed());
 

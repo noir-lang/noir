@@ -152,7 +152,7 @@ void ECCVMWnafRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulato
      * If q_transition = 1, round value at current row = 7
      * If q_transition = 1, round value at next row = 0
      * Question: is this sufficient? We don't actually range constrain `round` (expensive if we don't need to!).
-     * Let us analyse...
+     * Let us analyze...
      * 1. When `q_transition = 1`, we use a set membership check to map the tuple of (pc, scalar_sum) into a set.
      * We compare this set with an equivalent set generated from the transcript columns. The sets must match.
      * 2. Only case where, at row `i`, a Prover can set `round` to value > 7 is if `q_transition = 0` for all j > i.

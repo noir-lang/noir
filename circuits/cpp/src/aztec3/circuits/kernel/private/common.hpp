@@ -52,7 +52,7 @@ void common_contract_logic(DummyBuilder& builder,
                            FunctionData<NT> const& function_data);
 
 template <typename KernelPublicInputs>
-void common_initialise_end_values(PreviousKernelData<NT> const& previous_kernel, KernelPublicInputs& public_inputs)
+void common_initialize_end_values(PreviousKernelData<NT> const& previous_kernel, KernelPublicInputs& public_inputs)
 {
     public_inputs.constants = previous_kernel.public_inputs.constants;
 

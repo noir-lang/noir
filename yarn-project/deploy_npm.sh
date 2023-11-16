@@ -58,7 +58,7 @@ function deploy_package() {
       # Tag the existing version
       npm dist-tag add $PACKAGE_NAME@$VERSION $DIST_TAG
     else
-      # Publish new verison
+      # Publish new version
       npm publish $TAG_ARG --access public
     fi
   else

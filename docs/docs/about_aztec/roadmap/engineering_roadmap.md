@@ -16,7 +16,7 @@ The engineering roadmap is long. There are no timings assigned here. In a loose 
 
 - Gather metrics about everything, to guide future decisions.
 
-## Standardisation efforts
+## Standardization efforts
 
 - Recommended Aztec smart contract coding patterns
 - Access Control (whitelists/blacklists) - probably needs the Slow Updates tree (or something similar).
@@ -230,7 +230,7 @@ An investigation into how formal verification techniques might improve the secur
 
 ## Hashes
 
-- An improved, standardised Pedersen hash in barretenberg.
+- An improved, standardized Pedersen hash in barretenberg.
 - Poseidon hashing in barretenberg.
 
 ## Tree epochs

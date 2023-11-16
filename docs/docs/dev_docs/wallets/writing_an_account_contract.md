@@ -51,7 +51,7 @@ The important part of this contract is the `entrypoint` function, which will be 
 Using the `AccountActions` module and the `EntrypointPayload` struct is not mandatory. You can package the instructions to be carried out by your account contract however you want. However, using these modules can save you a lot of time when writing a new account contract, both in Noir and in Typescript.
 :::
 
-The `AccountActions` module provides default implementations for most of the account contract methods needed, but it requires a function for validating an auth witness. In this function you will customise how your account validates an action: whether it is using a specific signature scheme, a multi-party approval, a password, etc.
+The `AccountActions` module provides default implementations for most of the account contract methods needed, but it requires a function for validating an auth witness. In this function you will customize how your account validates an action: whether it is using a specific signature scheme, a multi-party approval, a password, etc.
 
 #include_code is-valid yarn-project/noir-contracts/src/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
 
@@ -87,7 +87,7 @@ To create and deploy the account, we will use the `AccountManager` class, which 
 
 #include_code account-contract-deploy yarn-project/end-to-end/src/guides/writing_an_account_contract.test.ts typescript
 
-Note that we get a [`Wallet` instance](./main.md) out of the account, which we can use for initialising the token contract class after deployment, so any transactions sent to it are sent from our wallet. We can then send a transaction to it and check its effects:
+Note that we get a [`Wallet` instance](./main.md) out of the account, which we can use for initializing the token contract class after deployment, so any transactions sent to it are sent from our wallet. We can then send a transaction to it and check its effects:
 
 #include_code account-contract-works yarn-project/end-to-end/src/guides/writing_an_account_contract.test.ts typescript
 

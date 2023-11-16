@@ -137,7 +137,7 @@ template <typename FF_> class ECCVMLookupRelationImpl {
         const auto positive_slice_value = -(precompute_round) + 15;
         const auto positive_term = precompute_pc + gamma + positive_slice_value * beta + tx * beta_sqr + ty * beta_cube;
 
-        // todo optimise this?
+        // todo optimize this?
         if constexpr (write_index == 0) {
             return positive_term; // degree 1
         }

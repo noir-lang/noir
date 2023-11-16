@@ -90,7 +90,7 @@ void validate_array(Builder& builder, std::array<T, SIZE> const& arr, std::strin
         last_non_zero_pos <= first_zero_pos,  // Only case when equality holds is for a full zeros array.
         format(
             error_message,
-            " - array is not well-formed. A non-zero value occured after a zero. Last position of a non-zero value: ",
+            " - array is not well-formed. A non-zero value occurred after a zero. Last position of a non-zero value: ",
             last_non_zero_pos,
             "; First position of a zero-value: ",
             first_zero_pos),

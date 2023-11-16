@@ -280,7 +280,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
             cached_partial_non_native_field_multiplications;
 
         size_t num_gates;
-        bool circuit_finalised = false;
+        bool circuit_finalized = false;
         /**
          * @brief Stores the state of everything logic-related in the builder.
          *
@@ -327,7 +327,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
             stored_state.memory_read_records = builder.memory_read_records;
             stored_state.memory_write_records = builder.memory_write_records;
             stored_state.range_lists = builder.range_lists;
-            stored_state.circuit_finalised = builder.circuit_finalised;
+            stored_state.circuit_finalized = builder.circuit_finalized;
             stored_state.num_gates = builder.num_gates;
             stored_state.cached_partial_non_native_field_multiplications =
                 builder.cached_partial_non_native_field_multiplications;
@@ -364,7 +364,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
             stored_state.memory_read_records = builder->memory_read_records;
             stored_state.memory_write_records = builder->memory_write_records;
             stored_state.range_lists = builder->range_lists;
-            stored_state.circuit_finalised = builder->circuit_finalised;
+            stored_state.circuit_finalized = builder->circuit_finalized;
             stored_state.num_gates = builder->num_gates;
             stored_state.cached_partial_non_native_field_multiplications =
                 builder->cached_partial_non_native_field_multiplications;
@@ -399,7 +399,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
             builder->memory_read_records = memory_read_records;
             builder->memory_write_records = memory_write_records;
             builder->range_lists = range_lists;
-            builder->circuit_finalised = circuit_finalised;
+            builder->circuit_finalized = circuit_finalized;
             builder->num_gates = num_gates;
             builder->cached_partial_non_native_field_multiplications = cached_partial_non_native_field_multiplications;
             builder->w_l.resize(num_gates);
@@ -521,7 +521,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
             if (!(num_gates == builder.num_gates)) {
                 return false;
             }
-            if (!(circuit_finalised == builder.circuit_finalised)) {
+            if (!(circuit_finalized == builder.circuit_finalized)) {
                 return false;
             }
             return true;
@@ -584,7 +584,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
 
     std::vector<cached_partial_non_native_field_multiplication> cached_partial_non_native_field_multiplications;
 
-    bool circuit_finalised = false;
+    bool circuit_finalized = false;
 
     void process_non_native_field_multiplications();
     UltraCircuitBuilder_(const size_t size_hint = 0)
@@ -614,7 +614,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
         memory_read_records = other.memory_read_records;
         memory_write_records = other.memory_write_records;
         cached_partial_non_native_field_multiplications = other.cached_partial_non_native_field_multiplications;
-        circuit_finalised = other.circuit_finalised;
+        circuit_finalized = other.circuit_finalized;
     };
     UltraCircuitBuilder_& operator=(const UltraCircuitBuilder_& other) = delete;
     UltraCircuitBuilder_& operator=(UltraCircuitBuilder_&& other)
@@ -632,7 +632,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
         memory_read_records = other.memory_read_records;
         memory_write_records = other.memory_write_records;
         cached_partial_non_native_field_multiplications = other.cached_partial_non_native_field_multiplications;
-        circuit_finalised = other.circuit_finalised;
+        circuit_finalized = other.circuit_finalized;
         return *this;
     };
     ~UltraCircuitBuilder_() override = default;
@@ -807,8 +807,8 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
      */
     size_t get_num_gates() const override
     {
-        // if circuit finalised already added extra gates
-        if (circuit_finalised) {
+        // if circuit finalized already added extra gates
+        if (circuit_finalized) {
             return this->num_gates;
         }
         size_t count = 0;

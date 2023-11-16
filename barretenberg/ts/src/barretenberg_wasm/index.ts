@@ -8,7 +8,7 @@ const debug = createDebug('bb.js:wasm');
 
 export class BarretenbergWasm extends BarretenbergWasmMain {
   /**
-   * Construct and initialise BarretenbergWasm within a Worker. Return both the worker and the wasm proxy.
+   * Construct and initialize BarretenbergWasm within a Worker. Return both the worker and the wasm proxy.
    * Used when running in the browser, because we can't block the main thread.
    */
   public static async new(threads?: number) {

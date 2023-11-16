@@ -7,7 +7,7 @@ template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::prepa
     auto idx = 0;
     for (auto it = instances.begin(); it != instances.end(); it++, idx++) {
         auto instance = *it;
-        instance->initialise_prover_polynomials();
+        instance->initialize_prover_polynomials();
 
         auto domain_separator = std::to_string(idx);
         const auto circuit_size = static_cast<uint32_t>(instance->proving_key->circuit_size);
@@ -70,7 +70,7 @@ ProverFoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverI
     auto combiner_challenge = transcript.get_challenge("combiner_quotient_challenge");
     auto combiner_quotient_at_challenge = combiner_quotient.evaluate(combiner_challenge);
 
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/764): Generalise these formulas as well as computation
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/764): Generalize these formulas as well as computation
     // of Lagrange basis
     auto vanishing_polynomial_at_challenge = combiner_challenge * (combiner_challenge - FF(1));
     auto lagrange_0_at_challenge = FF(1) - combiner_challenge;

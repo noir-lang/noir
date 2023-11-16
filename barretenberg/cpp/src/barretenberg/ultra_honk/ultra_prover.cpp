@@ -16,7 +16,7 @@ UltraProver_<Flavor>::UltraProver_(std::shared_ptr<Instance> inst)
     : instance(std::move(inst))
     , commitment_key(instance->commitment_key)
 {
-    instance->initialise_prover_polynomials();
+    instance->initialize_prover_polynomials();
 }
 
 /**
@@ -78,7 +78,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_acc
 
     instance->compute_sorted_accumulator_polynomials(eta);
 
-    // Commit to the sorted withness-table accumulator and the finalised (i.e. with memory records) fourth wire
+    // Commit to the sorted withness-table accumulator and the finalized (i.e. with memory records) fourth wire
     // polynomial
     auto sorted_accum_commitment = commitment_key->commit(instance->proving_key->sorted_accum);
     auto w_4_commitment = commitment_key->commit(instance->proving_key->w_4);

@@ -28,7 +28,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 endif()
 
 # We enable -O1 level optimsations, even when compiling debug wasm, otherwise we get "local count too large" at runtime.
-# We prioritise reducing size of final artifacts in release with -Oz.
+# We prioritize reducing size of final artifacts in release with -Oz.
 if(WASM)
     set(CMAKE_CXX_FLAGS_DEBUG "-O1 -g")
     set(CMAKE_C_FLAGS_DEBUG "-O1 -g")
@@ -130,8 +130,8 @@ add_library(
 )
 
 if(WASM)
-    # With binaryen installed, it seems its wasm backend optimiser gets invoked automatically.
-    # Due to either a bug in the optimiser, or non-standards compliant c++ in crypto/aes, tests start failing with
+    # With binaryen installed, it seems its wasm backend optimizer gets invoked automatically.
+    # Due to either a bug in the optimizer, or non-standards compliant c++ in crypto/aes, tests start failing with
     # -O3 level optimizations. We force down to -O2 for current workaround.
     # TODO: Time has passed, check if this is still needed.
     # UPDATE: Uninstall binaryen and any need downstream.

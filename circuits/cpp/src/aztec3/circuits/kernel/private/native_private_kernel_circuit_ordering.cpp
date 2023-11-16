@@ -18,15 +18,15 @@ using NT = aztec3::utils::types::NativeTypes;
 using aztec3::circuits::abis::KernelCircuitPublicInputsFinal;
 using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsOrdering;
-using aztec3::circuits::kernel::private_kernel::common_initialise_end_values;
+using aztec3::circuits::kernel::private_kernel::common_initialize_end_values;
 using aztec3::utils::array_rearrange;
 using aztec3::utils::CircuitErrorCode;
 using aztec3::utils::DummyCircuitBuilder;
 
-void initialise_end_values(PreviousKernelData<NT> const& previous_kernel,
+void initialize_end_values(PreviousKernelData<NT> const& previous_kernel,
                            KernelCircuitPublicInputsFinal<NT>& public_inputs)
 {
-    common_initialise_end_values(previous_kernel, public_inputs);
+    common_initialize_end_values(previous_kernel, public_inputs);
     public_inputs.end.new_contracts = previous_kernel.public_inputs.end.new_contracts;
 }
 }  // namespace
@@ -72,7 +72,7 @@ void match_reads_to_commitments(DummyCircuitBuilder& builder,
  * @brief This function matches transient nullifiers to commitments and squashes (deletes) them both.
  *
  * @details A non-zero entry in nullified_commitments at position i implies that
- * 1) new_commitments array contains at least an occurence of nullified_commitments[i]
+ * 1) new_commitments array contains at least an occurrence of nullified_commitments[i]
  * 2) this commitment is nullified by new_nullifiers[i] (according to app circuit, the kernel cannot check this on its
  * own.)
  * Remark: We do not check that new_nullifiers[i] is non-empty. (app circuit responsibility)
@@ -157,7 +157,7 @@ KernelCircuitPublicInputsFinal<NT> native_private_kernel_circuit_ordering(
     common_validate_previous_kernel_values(builder, private_inputs.previous_kernel.public_inputs.end);
 
     // Do this before any functions can modify the inputs.
-    initialise_end_values(private_inputs.previous_kernel, public_inputs);
+    initialize_end_values(private_inputs.previous_kernel, public_inputs);
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1486): validate that `len(new_nullifiers) ==
     // len(nullified_commitments)`
@@ -174,7 +174,7 @@ KernelCircuitPublicInputsFinal<NT> native_private_kernel_circuit_ordering(
     // Matching nullifiers to pending commitments requires the full list of new commitments accumulated over
     // all iterations of the private kernel. Therefore, we match nullifiers (their nullified_commitments)
     // against new_commitments in public_inputs.end which has been initialized to
-    // previous_kernel.public_inputs.end in common_initialise_*() above.
+    // previous_kernel.public_inputs.end in common_initialize_*() above.
     // Remark: The commitments in public_inputs.end have already been siloed by contract address!
     match_nullifiers_to_commitments_and_squash(builder,
                                                public_inputs.end.new_nullifiers,

@@ -120,17 +120,17 @@ void Opcodes<Builder>::UTXO_NULL(StateVar<Builder>* state_var, Note& note_to_nul
 };
 
 template <typename Builder> template <typename Note>
-void Opcodes<Builder>::UTXO_INIT(StateVar<Builder>* state_var, Note& note_to_initialise)
+void Opcodes<Builder>::UTXO_INIT(StateVar<Builder>* state_var, Note& note_to_initialize)
 {
-    typename CT::fr const init_nullifier = note_to_initialise.get_initialization_nullifier();
-    typename CT::fr const init_commitment = note_to_initialise.get_initialization_commitment();
+    typename CT::fr const init_nullifier = note_to_initialize.get_initialization_nullifier();
+    typename CT::fr const init_commitment = note_to_initialize.get_initialization_commitment();
 
     auto& exec_ctx = state_var->exec_ctx;
 
     exec_ctx->new_nullifiers.push_back(init_nullifier);
     exec_ctx->nullified_commitments.push_back(init_commitment);
 
-    std::shared_ptr<Note> const init_note_ptr = std::make_shared<Note>(note_to_initialise);
+    std::shared_ptr<Note> const init_note_ptr = std::make_shared<Note>(note_to_initialize);
 
     // TODO: consider whether this should actually be pushed-to...
     exec_ctx->nullified_notes.push_back(init_note_ptr);

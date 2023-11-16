@@ -38,15 +38,15 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
      * circuit size would not be correct (resulting in the code crashing while performing FFT
      * operations).
      *
-     * Therefore, we introduce a boolean flag `circuit_finalised` here. Once we add the rom and range gates,
-     * our circuit is finalised, and we must not to execute these functions again.
+     * Therefore, we introduce a boolean flag `circuit_finalized` here. Once we add the rom and range gates,
+     * our circuit is finalized, and we must not to execute these functions again.
      */
-    if (!circuit_finalised) {
+    if (!circuit_finalized) {
         process_non_native_field_multiplications();
         process_ROM_arrays();
         process_RAM_arrays();
         process_range_lists();
-        circuit_finalised = true;
+        circuit_finalized = true;
     }
 }
 
@@ -912,7 +912,7 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
   * data structures: vector of lists, each list contains:
   *    - the range size
   *    - the list of variables in the range
-  *    - a generalised permutation tag
+  *    - a generalized permutation tag
   *
   * create range constraint parameters: variable index && range size
   *
@@ -2139,7 +2139,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_final_sorted_RAM_gate(RamReco
 }
 
 /**
- * @brief Create a new updateable memory region
+ * @brief Create a new updatable memory region
  *
  * @details Creates a transcript object, where the inside memory state array is filled with "uninitialized memory"
  and

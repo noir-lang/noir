@@ -15,15 +15,15 @@ using aztec3::circuits::abis::ContractLeafPreimage;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInner;
-using aztec3::circuits::kernel::private_kernel::common_initialise_end_values;
+using aztec3::circuits::kernel::private_kernel::common_initialize_end_values;
 using aztec3::utils::array_length;
 using aztec3::utils::array_pop;
 using aztec3::utils::CircuitErrorCode;
 using aztec3::utils::DummyCircuitBuilder;
 
-void initialise_end_values(PreviousKernelData<NT> const& previous_kernel, KernelCircuitPublicInputs<NT>& public_inputs)
+void initialize_end_values(PreviousKernelData<NT> const& previous_kernel, KernelCircuitPublicInputs<NT>& public_inputs)
 {
-    common_initialise_end_values(previous_kernel, public_inputs);
+    common_initialize_end_values(previous_kernel, public_inputs);
 
     // Ensure the arrays are the same as previously, before we start pushing more data onto them in other
     // functions within this circuit:
@@ -102,7 +102,7 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyCircuitBu
     common_validate_previous_kernel_values(builder, private_inputs.previous_kernel.public_inputs.end);
 
     // Do this before any functions can modify the inputs.
-    initialise_end_values(private_inputs.previous_kernel, public_inputs);
+    initialize_end_values(private_inputs.previous_kernel, public_inputs);
 
     validate_inputs(builder, private_inputs);
 

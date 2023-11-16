@@ -120,7 +120,7 @@ void UltraComposer::compute_witness(CircuitBuilder& circuit_constructor)
         }
     }
 
-    // Initialise the `s_randomness` positions in the s polynomials with 0.
+    // Initialize the `s_randomness` positions in the s polynomials with 0.
     // These will be the positions where we will be adding random scalars to add zero knowledge
     // to plookup (search for `Blinding` in plonk/proof_system/widgets/random_widgets/plookup_widget_impl.hpp
     // ProverPlookupWidget::compute_sorted_list_polynomial())
@@ -414,7 +414,7 @@ std::shared_ptr<proving_key> UltraComposer::compute_proving_key(CircuitBuilder& 
         }
     }
 
-    // Initialise the last `s_randomness` positions in table polynomials with 0. We don't need to actually randomise
+    // Initialize the last `s_randomness` positions in table polynomials with 0. We don't need to actually randomize
     // the table polynomials.
     for (size_t i = 0; i < s_randomness; ++i) {
         poly_q_table_column_1[offset] = 0;

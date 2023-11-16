@@ -35,8 +35,8 @@ template <typename Builder> class OracleWrapperInterface {
     Builder& builder;
     NativeOracle& native_oracle;
 
-    // Initialise from Native.
-    // Used when initialising for a user's first call.
+    // Initialize from Native.
+    // Used when initializing for a user's first call.
     OracleWrapperInterface(Builder& builder, NativeOracle& native_oracle)
         : builder(builder), native_oracle(native_oracle){};
 

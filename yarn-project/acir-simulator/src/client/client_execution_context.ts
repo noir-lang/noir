@@ -38,7 +38,7 @@ import { ViewDataOracle } from './view_data_oracle.js';
 export class ClientExecutionContext extends ViewDataOracle {
   /**
    * New notes created during this execution.
-   * It's possible that a note in this list has been nullified (in the same or other executions) and doen't exist in the ExecutionNoteCache and the final proof data.
+   * It's possible that a note in this list has been nullified (in the same or other executions) and doesn't exist in the ExecutionNoteCache and the final proof data.
    * But we still include those notes in the execution result because their commitments are still in the public inputs of this execution.
    * This information is only for references (currently used for tests), and is not used for any sort of constrains.
    * Users can also use this to get a clearer idea of what's happened during a simulation.

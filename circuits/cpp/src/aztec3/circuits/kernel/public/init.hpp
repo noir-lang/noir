@@ -23,7 +23,7 @@ using DB = oracle::FakeDB;
 using oracle::NativeOracle;
 using OracleWrapper = aztec3::circuits::apps::OracleWrapperInterface<Builder>;
 
-// Used when calling library functions like `psuh_array` which have their own generic error code.
+// Used when calling library functions like `push_array` which have their own generic error code.
 // So we pad this in front of the error message to identify where the error originally came from.
 const std::string PUBLIC_KERNEL_CIRCUIT_ERROR_MESSAGE_BEGINNING = "public_kernel_circuit: ";
 

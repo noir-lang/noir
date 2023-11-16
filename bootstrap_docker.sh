@@ -1,9 +1,9 @@
 #!/bin/bash
-# This script builds the projects listed in build_mainifest.sh, terminating when it reaches PROJECT_NAME.
+# This script builds the projects listed in build_manifest.sh, terminating when it reaches PROJECT_NAME.
 # If run from within a project, it will build only that project, unless env var ONLY_TARGET=false.
 #
 # Usage:
-#   boostrap_docker.sh [PROJECT_NAME]
+#   bootstrap_docker.sh [PROJECT_NAME]
 #
 # To build everything in build_manifest.sh:
 #   bootstrap_docker.sh

@@ -42,10 +42,10 @@
  * iterates untill the first iterator hits end.
  * extends ownership to the end of the for loop, or untill zip goes out of scope.
  *
- * possibly risky behaviour on clang, gcc for fun(const zip& z) when called as fun(zip(a,b))
+ * possibly risky behavior on clang, gcc for fun(const zip& z) when called as fun(zip(a,b))
  *
  *
- * Depends on the following behaviour for for loops:
+ * Depends on the following behavior for for loops:
  *
  *   // in for(x:zip)
  *   // equiv:

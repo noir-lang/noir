@@ -34,11 +34,11 @@ struct nullifier_leaf {
 class WrappedNullifierLeaf {
 
   public:
-    // Initialise with a nullifier leaf
+    // Initialize with a nullifier leaf
     WrappedNullifierLeaf(nullifier_leaf value)
         : data(value)
     {}
-    // Initialise an empty leaf
+    // Initialize an empty leaf
     WrappedNullifierLeaf()
         : data(std::nullopt)
     {}

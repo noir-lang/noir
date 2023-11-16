@@ -222,12 +222,12 @@ contract DocsExample {
         context.return_values.push(total_points as Field);
     }
 
-    // docs:start:functions-UncontrainedFunction
+    // docs:start:functions-UnconstrainedFunction
     unconstrained fn get_total_points(account: Field) -> u8 {
         
         actions::get_total_points(storage.cards, account, 0)
     }
-    // docs:end:functions-UncontrainedFunction
+    // docs:end:functions-UnconstrainedFunction
 
 
     /// Macro equivalence section

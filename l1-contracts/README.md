@@ -33,7 +33,7 @@ We use `forge fmt` to format. But follow a few general guidelines beyond the sta
 
 ## Contracts:
 
-The contracts are in a very early stage, and don't worry about gas costs right now. Instead they prioritise development velocity.
+The contracts are in a very early stage, and don't worry about gas costs right now. Instead they prioritize development velocity.
 
 ### Decoder
 

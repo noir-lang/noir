@@ -29,7 +29,7 @@ Sequencers are generally responsible for:
 - Computing state updates for messages between L2 & L1
 - Broadcasting the ROLLUP_BLOCK_REQUEST_DATA to the prover network via the proof pool for parallelizable computation.
 - Building a rollup proof from completed proofs in the proof pool
-- Taging the pending block with an upgrade signal to facilitate forks
+- Tagging the pending block with an upgrade signal to facilitate forks
 - Publishing completed block with proofs to Ethereum as an ETH transaction
 
 Previously in [Aztec Connect](https://medium.com/aztec-protocol/sunsetting-aztec-connect-a786edce5cae) there was a single sequencer, and you can find the Typescript reference implementation called Falafel [here](https://github.com/AztecProtocol/aztec-connect/tree/master/falafel).

@@ -13,7 +13,7 @@ namespace barretenberg {
 
 /**
  * Allocates a bunch of memory slabs sized to serve an UltraPLONK proof construction.
- * If you want normal memory allocator behaviour, just don't call this init function.
+ * If you want normal memory allocator behavior, just don't call this init function.
  *
  * WARNING: If client code is still holding onto slabs from previous use, when those slabs
  * are released they'll end up back in the allocator. That's probably not desired as presumably

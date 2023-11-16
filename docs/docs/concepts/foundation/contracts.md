@@ -2,7 +2,7 @@
 title: Smart Contracts
 ---
 
-Smart contracts in Aztec are privacy-first, and can include both public and private elements. They are written in Noir framework called Aztec.nr, and allow high-level programs to be convered into ZK circuits.
+Smart contracts in Aztec are privacy-first, and can include both public and private elements. They are written in Noir framework called Aztec.nr, and allow high-level programs to be converted into ZK circuits.
 
 On this page, you’ll learn how Aztec executes smart contracts for privacy and efficiency:
 

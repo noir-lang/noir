@@ -71,7 +71,7 @@ contract DifferentialFuzzer is TestBase {
         }
     }
 
-    // Encode inputs as a comma seperated string for the ffi call
+    // Encode inputs as a comma separated string for the ffi call
     function get_inputs() internal view returns (string memory input_params) {
         input_params = "";
         if (inputs.length > 0) {

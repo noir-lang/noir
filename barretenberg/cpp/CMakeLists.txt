@@ -95,7 +95,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         message(WARNING "GCC <10 is not supported")
     endif()
 else()
-    message(WARNING "Unsuported compiler, use Clang >14 or GCC >10")
+    message(WARNING "Unsupported compiler, use Clang >14 or GCC >10")
 endif()
 
 if(COVERAGE)

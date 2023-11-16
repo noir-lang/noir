@@ -34,7 +34,7 @@ As time passes, a sequencer will see your tx, the juicy fee provided and include
 To consume the message, we can use the `consume_l1_to_l2_message` function within the `context` struct.
 
 - The `msg_key` is the hash of the message returned by the `sendL2Message` call and is used to help the RPC find the correct message.
-- The `content` is the content of the message, limited to one Field element. For content larger than one Field, we suggest using the `sha256` hash function truncated to a single Field element. `sha256` is suggested as it is cheap on L1 while still being managable on L2.
+- The `content` is the content of the message, limited to one Field element. For content larger than one Field, we suggest using the `sha256` hash function truncated to a single Field element. `sha256` is suggested as it is cheap on L1 while still being manageable on L2.
 - The `secret` is the pre-image hashed using Pedersen to compute the `secretHash`.
 - If the `content` or `secret` does not match the entry at `msg_key` the message will not be consumed, and the transaction will revert.
 

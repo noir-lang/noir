@@ -26,7 +26,7 @@ Deeper PROTOCOL discussion (under the hood explanations / justifying your protoc
 
 ## Introduction
 
-1-3 sentences explaning WHAT this guide is for.
+1-3 sentences explaining WHAT this guide is for.
 
 :::info Prerequisites
 If you haven't read [thing], we recommend going there first.
@@ -52,7 +52,7 @@ At the end of the guide, you should be able to \< sentence explaining high level
 
 ### Why is this useful?
 
-<!-- Contextualise why a dapp developer needs this. What use cases / products / features does this unlock? Any real world examples? -->
+<!-- Contextualize why a dapp developer needs this. What use cases / products / features does this unlock? Any real world examples? -->
 
 ### Dependencies
 

@@ -3,7 +3,7 @@
 As for now it's required to build cvc5 library manually.
 
 <!-- 
-- navigate yourself into barratenberg/cpp/src/cvc5 directory
+- navigate yourself into barretenberg/cpp/src/cvc5 directory
 - run `./configure.sh production --auto-download --cocoa --cryptominisat -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ --prefix="./tmp-lib"`
 - `cd build && make -j4`
 - `make install` 

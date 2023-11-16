@@ -115,7 +115,7 @@
   },
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "[cpp]": {
-    // doesn't conflict with barratenberg.code-workspace settings.
+    // doesn't conflict with barretenberg.code-workspace settings.
     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
   },
   "[terraform]": {

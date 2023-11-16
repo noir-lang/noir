@@ -59,7 +59,7 @@ var input = {
       content: base
     }
   },
-  settings: { // we require the optimiser
+  settings: { // we require the optimizer
     optimizer: {
       enabled: true,
       runs: 200

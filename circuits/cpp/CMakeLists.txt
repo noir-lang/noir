@@ -12,7 +12,7 @@ get_filename_component(BBERG_DIR ../barretenberg/cpp
 
 project(
     Aztec3Circuits
-    DESCRIPTION "Project containing Aztec3 Circuits Infrastucture in C++."
+    DESCRIPTION "Project containing Aztec3 Circuits Infrastructure in C++."
     VERSION 0.1.0
     LANGUAGES CXX C
 )
@@ -95,7 +95,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         message(WARNING "GCC <10 is not supported")
     endif()
 else()
-    message(WARNING "Unsuported compiler, use Clang >10 or GCC >10")
+    message(WARNING "Unsupported compiler, use Clang >10 or GCC >10")
 endif()
 
 if(COVERAGE)

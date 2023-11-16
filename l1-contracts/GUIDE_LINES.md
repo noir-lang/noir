@@ -39,7 +39,7 @@ The spec should outline the dependencies of the contract (other protocols and to
 
 ## 2. Writing a reference implementation
 A reference implementation is a practical instantiation of the spec that should strive to maximize readability. 
-It should make it very clear what the purpose is, and how it acheives its goal, meaning that no heavy optimizations should be made. The reference is simply to be used as a good way to understand the code, and to build tests for. To make assessing the coverage of the code easier, ternary operators should be avoid, e.g., instead of `a > b ? a : b` please use explicit `if-else` branching.
+It should make it very clear what the purpose is, and how it achieves its goal, meaning that no heavy optimizations should be made. The reference is simply to be used as a good way to understand the code, and to build tests for. To make assessing the coverage of the code easier, ternary operators should be avoid, e.g., instead of `a > b ? a : b` please use explicit `if-else` branching.
 Having a reference implementation, that can later be optimized, should also make it easier for auditors and external parties to give a first look at the protocol, e.g., if there is a flaw in the business logic, it should be possible to catch at this point.
 
 ## 3. Writing tests
@@ -80,7 +80,7 @@ Before writing the optimized implementation, the tests should be extended to the
 - Unchecked math for increment in values where it is known that it will never overflow. 
 
 ### 7.2 Gas-comparison for reference / optimized
-For each of the changes that are made, please add an estimate on the gas savings. If gas is saved and it don't significantly increase the code-size or heavily denegate the readability 
+For each of the changes that are made, please add an estimate on the gas savings. If gas is saved and it doesn't significantly increase the code-size or heavily degrades the readability 
 
 ## Reviews
 There is a couple of different angles when reviewing smart contracts:

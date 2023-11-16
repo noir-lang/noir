@@ -68,7 +68,7 @@ if [ ${#non_empty_profiles[@]} -gt 1 ]; then
     done
     object_string=${additional_objects#"-object"}
     
-    # Output the coverage report into `all_tests_coverage_report` folde
+    # Output the coverage report into `all_tests_coverage_report` folder
     rm -rf "$WORKING_DIRECTORY/all_tests_coverage_report"
     mkdir "$WORKING_DIRECTORY/all_tests_coverage_report"
     $llvm_cov_command show -output-dir="$WORKING_DIRECTORY/all_tests_coverage_report" -format=html $object_string -instr-profile="$WORKING_DIRECTORY/merged_profdata/default.profdata" -ignore-filename-regex=".*_deps.*"

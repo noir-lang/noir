@@ -22,7 +22,7 @@ template <typename Builder> class field_t {
         multiplicative_constant = barretenberg::fr(0);
     }
 
-    // NOLINTNEXTLINE(google-runtime-int) intended behaviour
+    // NOLINTNEXTLINE(google-runtime-int) intended behavior
     field_t(const unsigned long long value)
         : context(nullptr)
         , witness_index(IS_CONSTANT)
@@ -39,7 +39,7 @@ template <typename Builder> class field_t {
         multiplicative_constant = barretenberg::fr(0);
     }
 
-    // NOLINTNEXTLINE(google-runtime-int) intended behaviour
+    // NOLINTNEXTLINE(google-runtime-int) intended behavior
     field_t(const unsigned long value)
         : context(nullptr)
         , witness_index(IS_CONSTANT)

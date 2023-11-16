@@ -56,7 +56,7 @@ Allows the `Rollup` to consume multiple messages in a single transaction.
 
 | Name           | Type        | Description |
 | -------------- | -------     | ----------- |
-| `_entryKeys`   | `bytes32[]` | The entry keys (message hashs) to consume |
+| `_entryKeys`   | `bytes32[]` | The entry keys (message hashes) to consume |
 | ReturnValue    | `Entry`     | The entry for the given key | 
 
 #### Edge cases

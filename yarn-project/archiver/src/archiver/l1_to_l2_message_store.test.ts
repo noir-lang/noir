@@ -91,8 +91,8 @@ describe('pending_l1_to_l2_message_store', () => {
       );
       store.addMessage(entryKey, msg);
     });
-    const expectedMessgeFees = [4n, 3n, 3n, 3n]; // the top 4.
+    const expectedMessageFees = [4n, 3n, 3n, 3n]; // the top 4.
     const receivedMessageFees = store.getMessageKeys(4).map(key => key.value);
-    expect(receivedMessageFees).toEqual(expectedMessgeFees);
+    expect(receivedMessageFees).toEqual(expectedMessageFees);
   });
 });

@@ -98,7 +98,7 @@ contract PendingCommitments {
         0
     }
 
-    // Dumy nested/inner function (to pass a function which does nothing)
+    // Dummy nested/inner function (to pass a function which does nothing)
     #[aztec(private)]
     fn dummy(
         amount: Field,

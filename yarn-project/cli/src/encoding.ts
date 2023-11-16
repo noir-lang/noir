@@ -8,7 +8,7 @@ import { Fr } from '@aztec/foundation/fields';
  * @returns An object in the ABI struct type's format.
  */
 export function parseStructString(str: string, abiType: StructType) {
-  // Assing string bytes to struct fields.
+  // Assign string bytes to struct fields.
   const buf = Buffer.from(str.replace(/^0x/i, ''), 'hex');
   const struct: any = {};
   let byteIndex = 0;

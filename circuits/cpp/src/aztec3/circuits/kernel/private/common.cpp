@@ -165,7 +165,7 @@ void common_validate_previous_kernel_0th_nullifier(DummyBuilder& builder, Combin
 {
     builder.do_assert(end.new_nullifiers[0] != 0,
                       "The 0th nullifier in the accumulated nullifier array is zero",
-                      CircuitErrorCode::PRIVATE_KERNEL__0TH_NULLLIFIER_IS_ZERO);
+                      CircuitErrorCode::PRIVATE_KERNEL__0TH_NULLIFIER_IS_ZERO);
 }
 
 void common_validate_previous_kernel_values(DummyBuilder& builder, CombinedAccumulatedData<NT> const& end)

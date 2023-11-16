@@ -16,7 +16,7 @@ template <typename Curve> struct aggregation_state {
     typename Curve::Group P0;
     typename Curve::Group P1;
 
-    // The public inputs of the inner ciruit are now private inputs of the outer circuit!
+    // The public inputs of the inner circuit are now private inputs of the outer circuit!
     std::vector<typename Curve::ScalarField> public_inputs;
     std::vector<uint32_t> proof_witness_indices;
     bool has_data = false;

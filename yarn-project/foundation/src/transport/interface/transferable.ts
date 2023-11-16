@@ -77,7 +77,7 @@ export function Transfer<T>(transferable: Transferable): TransferDescriptor<T>;
  * Mark transferable objects within an arbitrary object or array as
  * being a transferable object. They will then not be serialized
  * and deserialized on messaging with the main thread, but ownership
- * of them will be tranferred to the receiving thread.
+ * of them will be transferred to the receiving thread.
  *
  * Only array buffers, message ports and few more special types of
  * objects can be transferred, but it's much faster than serializing and
