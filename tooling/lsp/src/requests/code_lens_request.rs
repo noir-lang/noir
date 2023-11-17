@@ -211,7 +211,7 @@ fn on_code_lens_request_inner(
                 };
 
                 let info_lens = CodeLens { range, command: Some(info_command), data: None };
-                
+
                 lenses.push(info_lens);
 
                 let profile_command = Command {
