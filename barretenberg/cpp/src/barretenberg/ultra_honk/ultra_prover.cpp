@@ -142,7 +142,8 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_zeromorph_round
 {
     ZeroMorph::prove(instance->prover_polynomials.get_unshifted(),
                      instance->prover_polynomials.get_to_be_shifted(),
-                     sumcheck_output.claimed_evaluations,
+                     sumcheck_output.claimed_evaluations.get_unshifted(),
+                     sumcheck_output.claimed_evaluations.get_shifted(),
                      sumcheck_output.challenge,
                      commitment_key,
                      transcript);
