@@ -24,3 +24,4 @@ iter-extended.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 codespan-reporting.workspace = true
+rayon = "1.8.0"

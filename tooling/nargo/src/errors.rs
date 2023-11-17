@@ -2,12 +2,35 @@ use acvm::{
     acir::circuit::OpcodeLocation,
     pwg::{ErrorLocation, OpcodeResolutionError},
 };
-use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic, FileDiagnostic};
+use noirc_errors::{
+    debug_info::DebugInfo, reporter::ReportedErrors, CustomDiagnostic, FileDiagnostic,
+};
 
 pub use noirc_errors::Location;
 
+use noirc_frontend::graph::CrateName;
 use noirc_printable_type::ForeignCallError;
 use thiserror::Error;
+
+/// Errors covering situations where a package cannot be compiled.
+#[derive(Debug, Error)]
+pub enum CompileError {
+    #[error("Package `{0}` has type `lib` but only `bin` types can be compiled")]
+    LibraryCrate(CrateName),
+
+    #[error("Package `{0}` is expected to have a `main` function but it does not")]
+    MissingMainFunction(CrateName),
+
+    /// Errors encountered while compiling the Noir program.
+    /// These errors are already written to stderr.
+    #[error("Aborting due to {} previous error{}", .0.error_count, if .0.error_count == 1 { "" } else { "s" })]
+    ReportedErrors(ReportedErrors),
+}
+impl From<ReportedErrors> for CompileError {
+    fn from(errors: ReportedErrors) -> Self {
+        Self::ReportedErrors(errors)
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum NargoError {
