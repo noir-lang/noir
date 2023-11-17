@@ -1,4 +1,3 @@
-
 struct Empty<T> {}
 
 trait Foo {
@@ -20,7 +19,6 @@ fn main() {
 
     assert(x.foo() == 32);
     assert(y.foo() == 64);
-
     // Types matching multiple impls will currently choose 
     // the first matching one instead of erroring
     assert(z.foo() == 32);
@@ -28,7 +26,6 @@ fn main() {
     call_impl_with_generic_struct();
     call_impl_with_generic_function();
 }
-
 // Ensure we can call a generic impl
 fn call_impl_with_generic_struct() {
     let x: u8 = 7;

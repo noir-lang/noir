@@ -80,8 +80,8 @@ noirc_abi = { path = "tooling/noirc_abi" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
 
 # LSP
-async-lsp = { version = "0.0.5", default-features = false }
-lsp-types = "0.94"
+async-lsp = { version = "0.1.0", default-features = false }
+lsp-types = "0.94.1"
 tower = "0.4"
 
 # Wasm

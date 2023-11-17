@@ -1,9 +1,9 @@
 use crate::backends::Backend;
-use crate::errors::{CliError, CompileError};
+use crate::errors::CliError;
 
 use clap::Args;
 use iter_extended::btree_map;
-use nargo::{package::Package, prepare_package};
+use nargo::{errors::CompileError, package::Package, prepare_package};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{

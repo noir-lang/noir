@@ -1,5 +1,5 @@
 use dep::bad_impl;
 
-fn main(x : Field) {
+fn main(x: Field) {
     x.something();
 }

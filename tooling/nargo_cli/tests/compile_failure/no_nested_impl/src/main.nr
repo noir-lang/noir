@@ -13,7 +13,6 @@ impl<T> Eq for [T; 2] where T: Eq {
           & self[0].eq(other[0])
     }
 }
-
 // Impl for u32 but not Field
 impl Eq for u32 {
     fn eq(self, other: Self) -> bool {

@@ -22,5 +22,4 @@ trait Trait4 {
   type Tralala;
 }
 
-fn main() {
-}
+fn main() {}
