@@ -95,7 +95,7 @@ fn loop_uninitialized<R: Read, W: Write>(
                             package,
                             &CompileOptions::default(),
                             np_language,
-                            &|opcode| opcode_support.is_opcode_supported(opcode),
+                            &opcode_support,
                         ) else {
                             server.respond(req.error("Failed to compile project"))?;
                             continue;

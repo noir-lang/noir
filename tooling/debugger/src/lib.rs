@@ -22,6 +22,7 @@ use dap::server::Server;
 use dap::types::{DisassembledInstruction, Source, StackFrame, StoppedEventReason, Thread};
 use nargo::artifacts::debug::DebugArtifact;
 
+use nargo::ops::DefaultForeignCallExecutor;
 use nargo::NargoError;
 use noirc_driver::CompiledProgram;
 
@@ -62,8 +63,13 @@ pub fn loop_initialized<R: Read, W: Write, B: BlackBoxFunctionSolver>(
         file_map: program.file_map.clone(),
         warnings: program.warnings.clone(),
     };
-    let mut context =
-        DebugContext::new(solver, &program.circuit, &debug_artifact, initial_witness.clone());
+    let mut context = DebugContext::new(
+        solver,
+        &program.circuit,
+        &debug_artifact,
+        initial_witness.clone(),
+        Box::new(DefaultForeignCallExecutor::new(true)),
+    );
 
     if matches!(context.get_current_source_location(), None) {
         // FIXME: remove this?
@@ -159,9 +165,9 @@ pub fn loop_initialized<R: Read, W: Write, B: BlackBoxFunctionSolver>(
             Command::Disassemble(ref args) => {
                 eprintln!("INFO: Received Disassemble {:?}", args);
                 let starting_ip = OpcodeLocation::from_str(args.memory_reference.as_str()).ok();
-                let mut opcode_location = context
-                    .offset_opcode_location(&starting_ip, args.instruction_offset.unwrap_or(0))
-                    .or(Some(OpcodeLocation::Acir(0)));
+                let (opcode_location, _) = context
+                    .offset_opcode_location(&starting_ip, args.instruction_offset.unwrap_or(0));
+                let mut opcode_location = opcode_location.or(Some(OpcodeLocation::Acir(0)));
                 eprintln!("INFO: From IP {opcode_location:?}");
                 let mut count = args.instruction_count;
                 let mut instructions: Vec<DisassembledInstruction> = vec![];
@@ -177,7 +183,7 @@ pub fn loop_initialized<R: Read, W: Write, B: BlackBoxFunctionSolver>(
                         end_line: None,
                         end_column: None,
                     });
-                    opcode_location = context.offset_opcode_location(&opcode_location, 1);
+                    (opcode_location, _) = context.offset_opcode_location(&opcode_location, 1);
                     count -= 1;
                 }
                 server.respond(
