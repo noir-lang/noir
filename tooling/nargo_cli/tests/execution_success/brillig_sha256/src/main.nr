@@ -1,5 +1,4 @@
 use dep::std;
-
 // Tests a very simple program.
 // 
 // The features being tested is sha256 in brillig

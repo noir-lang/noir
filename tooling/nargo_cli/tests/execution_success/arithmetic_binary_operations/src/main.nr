@@ -3,7 +3,7 @@
 // The features being tested are:
 // Binary addition, multiplication, division, constant modulo
 // x = 3, y = 4, z = 5
-fn main(x : Field, y : Field, z : Field) -> pub Field {
+fn main(x: Field, y: Field, z: Field) -> pub Field {
     //cast
     assert(y as u1 == 0);
 

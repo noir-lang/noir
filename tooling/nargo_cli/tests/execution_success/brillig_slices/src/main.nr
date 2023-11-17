@@ -8,7 +8,6 @@ unconstrained fn main(x: Field, y: Field) {
     assert(slice[0] == y);
     assert(slice[1] == x);
     assert(slice[2] == 7);
-
     // Array set on slice target
     slice[0] = x;
     slice[1] = y;
@@ -69,12 +68,10 @@ unconstrained fn main(x: Field, y: Field) {
 
     regression_merge_slices(x, y);
 }
-
 // Tests slice passing to/from functions
 unconstrained fn push_front_to_slice<T>(slice: [T], item: T) -> [T] {
     slice.push_front(item)
 }
-
 // The parameters to this function must come from witness values (inputs to main)
 unconstrained fn regression_merge_slices(x: Field, y: Field) {
     merge_slices_if(x, y);
@@ -109,21 +106,15 @@ unconstrained fn merge_slices_else(x: Field) {
     assert(slice[2] == 5);
     assert(slice.len() == 3);
 }
-
 // Test returning a merged slice without a mutation
 unconstrained fn merge_slices_return(x: Field, y: Field) -> [Field] {
     let slice = [0; 2];
     if x != y {
-        if x != 20 {
-            slice.push_back(y)
-        } else {
-            slice
-        }
+        if x != 20 { slice.push_back(y) } else { slice }
     } else {
         slice
     }
 }
-
 // Test mutating a slice inside of an if statement
 unconstrained fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
     let mut slice = [0; 2];
@@ -135,7 +126,6 @@ unconstrained fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
     }
     slice
 }
-
 // Test mutating a slice inside of a loop in an if statement
 unconstrained fn merge_slices_mutate_in_loop(x: Field, y: Field) -> [Field] {
     let mut slice = [0; 2];

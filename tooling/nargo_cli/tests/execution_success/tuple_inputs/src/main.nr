@@ -8,7 +8,7 @@ struct Foo {
     bar: Bar,
 }
 
-fn main(pair : (Field, Field), x: [(u8, u8, u8); 2], struct_pair: (Foo, Bar)) -> pub (Field, u8) {
+fn main(pair: (Field, Field), x: [(u8, u8, u8); 2], struct_pair: (Foo, Bar)) -> pub (Field, u8) {
     let mut start_val = 0;
     for i in 0..2 {
         assert(x[i].0 == start_val);

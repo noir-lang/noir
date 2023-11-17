@@ -11,13 +11,13 @@ fn main() {
         c1 = c1 + as_bits[0] as Field;
 
         if i == 0 {
-            assert(arr[i] == 1);// 1
+            assert(arr[i] == 1); // 1
             for k in 0..2 {
                 assert(as_bits_hardcode_1[k] == as_bits[k]);
             }
         }
         if i == 1 {
-            assert(arr[i] == 2);//2
+            assert(arr[i] == 2); //2
             for k in 0..2 {
                 assert(as_bits_hardcode_1[k] != as_bits[k]);
             }

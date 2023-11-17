@@ -12,7 +12,6 @@ mod affine {
     use crate::ec::safe_inverse;
     use crate::ec::sqrt;
     use crate::ec::ZETA;
-
     // Curve specification
     struct Curve { // Montgomery Curve configuration (ky^2 = x^3 + j*x^2 + x)
         j: Field,
@@ -20,7 +19,6 @@ mod affine {
         // Generator as point in Cartesian coordinates
         gen: Point
     }
-
     // Point in Cartesian coordinates
     struct Point {
         x: Field,
@@ -228,7 +226,6 @@ mod curvegroup {
         // Generator as point in projective coordinates
         gen: Point
     }
-
     // Point in projective coordinates
     struct Point {
         x: Field,
