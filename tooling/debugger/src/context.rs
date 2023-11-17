@@ -7,7 +7,7 @@ use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::errors::{ExecutionError, Location};
-use nargo::ops::ForeignCallExecutor;
+use nargo::ops::{DefaultForeignCallExecutor, ForeignCallExecutor};
 use nargo::NargoError;
 
 use std::collections::{hash_set::Iter, HashSet};
@@ -23,9 +23,8 @@ pub(super) enum DebugCommandResult {
 pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     acvm: ACVM<'a, B>,
     brillig_solver: Option<BrilligSolver<'a, B>>,
-    foreign_call_executor: ForeignCallExecutor,
+    foreign_call_executor: DefaultForeignCallExecutor,
     debug_artifact: &'a DebugArtifact,
-    show_output: bool,
     breakpoints: HashSet<OpcodeLocation>,
 }
 
@@ -39,9 +38,8 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         Self {
             acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
             brillig_solver: None,
-            foreign_call_executor: ForeignCallExecutor::default(),
+            foreign_call_executor: DefaultForeignCallExecutor::new(true),
             debug_artifact,
-            show_output: true,
             breakpoints: HashSet::new(),
         }
     }
@@ -106,15 +104,14 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
     }
 
     fn handle_foreign_call(&mut self, foreign_call: ForeignCallWaitInfo) -> DebugCommandResult {
-        let foreign_call_result =
-            self.foreign_call_executor.execute(&foreign_call, self.show_output);
+        let foreign_call_result = self.foreign_call_executor.execute(&foreign_call);
         match foreign_call_result {
             Ok(foreign_call_result) => {
                 self.acvm.resolve_pending_foreign_call(foreign_call_result);
                 // TODO: should we retry executing the opcode somehow in this case?
                 DebugCommandResult::Ok
             }
-            Err(error) => DebugCommandResult::Error(error),
+            Err(error) => DebugCommandResult::Error(error.into()),
         }
     }
 
