@@ -37,7 +37,6 @@ fn on_profile_run_request_inner(
     })?;
 
     let crate_name = params.package;
-    // let function_name = params.id.function_name();
 
     let workspace = resolve_workspace_from_toml(
         &toml_path,
@@ -52,8 +51,6 @@ fn on_profile_run_request_inner(
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
         Some(_package) => {
-            // let (mut _context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
-
             let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
                 .into_iter()
                 .filter(|package| !package.is_library())
