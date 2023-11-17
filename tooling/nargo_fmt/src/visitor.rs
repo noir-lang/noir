@@ -196,7 +196,7 @@ impl<'me> FmtVisitor<'me> {
                 Token::Whitespace(whitespaces) => {
                     let mut visitor = self.fork();
                     if whitespaces.contains('\n') {
-                        visitor.push_vertical_spaces(&whitespaces.trim_matches(' '));
+                        visitor.push_vertical_spaces(whitespaces.trim_matches(' '));
                         result.push_str(&visitor.finish());
                     }
                 }
