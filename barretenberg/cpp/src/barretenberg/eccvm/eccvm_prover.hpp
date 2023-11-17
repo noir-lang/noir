@@ -36,6 +36,7 @@ template <ECCVMFlavor Flavor> class ECCVMProver_ {
     void execute_shplonk_batched_quotient_round();
     void execute_shplonk_partial_evaluation_round();
     void execute_final_pcs_round();
+    void execute_transcript_consistency_univariate_opening_round();
 
     plonk::proof& export_proof();
     plonk::proof& construct_proof();

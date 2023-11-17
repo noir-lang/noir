@@ -45,6 +45,7 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const plonk
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using Transcript = typename Flavor::Transcript;
+    using OpeningClaim = typename pcs::OpeningClaim<Curve>;
 
     RelationParameters<FF> relation_parameters;
 
@@ -59,114 +60,86 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const plonk
         return false;
     }
 
+    // Utility for extracting commitments from transcript
+    const auto receive_commitment = [&](const std::string& label) {
+        return transcript.template receive_from_prover<Commitment>(label);
+    };
+
     // Get commitments to VM wires
-    commitments.transcript_add = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_add);
-    commitments.transcript_mul = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_mul);
-    commitments.transcript_eq = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_eq);
-    commitments.transcript_collision_check =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_collision_check);
-    commitments.transcript_msm_transition =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_msm_transition);
-    commitments.transcript_pc = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_pc);
-    commitments.transcript_msm_count =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_msm_count);
-    commitments.transcript_Px = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_Px);
-    commitments.transcript_Py = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_Py);
-    commitments.transcript_z1 = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_z1);
-    commitments.transcript_z2 = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_z2);
-    commitments.transcript_z1zero =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_z1zero);
-    commitments.transcript_z2zero =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_z2zero);
-    commitments.transcript_op = transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_op);
-    commitments.transcript_accumulator_x =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_accumulator_x);
-    commitments.transcript_accumulator_y =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_accumulator_y);
-    commitments.transcript_msm_x =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_msm_x);
-    commitments.transcript_msm_y =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_msm_y);
-    commitments.precompute_pc = transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_pc);
-    commitments.precompute_point_transition =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_point_transition);
-    commitments.precompute_round =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_round);
-    commitments.precompute_scalar_sum =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_scalar_sum);
-    commitments.precompute_s1hi =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_s1hi);
-    commitments.precompute_s1lo =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_s1lo);
-    commitments.precompute_s2hi =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_s2hi);
-    commitments.precompute_s2lo =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_s2lo);
-    commitments.precompute_s3hi =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_s3hi);
-    commitments.precompute_s3lo =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_s3lo);
-    commitments.precompute_s4hi =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_s4hi);
-    commitments.precompute_s4lo =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_s4lo);
-    commitments.precompute_skew =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_skew);
-    commitments.precompute_dx = transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_dx);
-    commitments.precompute_dy = transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_dy);
-    commitments.precompute_tx = transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_tx);
-    commitments.precompute_ty = transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_ty);
-    commitments.msm_transition = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_transition);
-    commitments.msm_add = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_add);
-    commitments.msm_double = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_double);
-    commitments.msm_skew = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_skew);
-    commitments.msm_accumulator_x =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.msm_accumulator_x);
-    commitments.msm_accumulator_y =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.msm_accumulator_y);
-    commitments.msm_pc = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_pc);
-    commitments.msm_size_of_msm =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.msm_size_of_msm);
-    commitments.msm_count = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_count);
-    commitments.msm_round = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_round);
-    commitments.msm_add1 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_add1);
-    commitments.msm_add2 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_add2);
-    commitments.msm_add3 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_add3);
-    commitments.msm_add4 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_add4);
-    commitments.msm_x1 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_x1);
-    commitments.msm_y1 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_y1);
-    commitments.msm_x2 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_x2);
-    commitments.msm_y2 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_y2);
-    commitments.msm_x3 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_x3);
-    commitments.msm_y3 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_y3);
-    commitments.msm_x4 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_x4);
-    commitments.msm_y4 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_y4);
-    commitments.msm_collision_x1 =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.msm_collision_x1);
-    commitments.msm_collision_x2 =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.msm_collision_x2);
-    commitments.msm_collision_x3 =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.msm_collision_x3);
-    commitments.msm_collision_x4 =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.msm_collision_x4);
-    commitments.msm_lambda1 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_lambda1);
-    commitments.msm_lambda2 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_lambda2);
-    commitments.msm_lambda3 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_lambda3);
-    commitments.msm_lambda4 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_lambda4);
-    commitments.msm_slice1 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_slice1);
-    commitments.msm_slice2 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_slice2);
-    commitments.msm_slice3 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_slice3);
-    commitments.msm_slice4 = transcript.template receive_from_prover<Commitment>(commitment_labels.msm_slice4);
-    commitments.transcript_accumulator_empty =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_accumulator_empty);
-    commitments.transcript_reset_accumulator =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.transcript_reset_accumulator);
-    commitments.precompute_select =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.precompute_select);
-    commitments.lookup_read_counts_0 =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.lookup_read_counts_0);
-    commitments.lookup_read_counts_1 =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.lookup_read_counts_1);
+    commitments.transcript_add = receive_commitment(commitment_labels.transcript_add);
+    commitments.transcript_mul = receive_commitment(commitment_labels.transcript_mul);
+    commitments.transcript_eq = receive_commitment(commitment_labels.transcript_eq);
+    commitments.transcript_collision_check = receive_commitment(commitment_labels.transcript_collision_check);
+    commitments.transcript_msm_transition = receive_commitment(commitment_labels.transcript_msm_transition);
+    commitments.transcript_pc = receive_commitment(commitment_labels.transcript_pc);
+    commitments.transcript_msm_count = receive_commitment(commitment_labels.transcript_msm_count);
+    commitments.transcript_Px = receive_commitment(commitment_labels.transcript_Px);
+    commitments.transcript_Py = receive_commitment(commitment_labels.transcript_Py);
+    commitments.transcript_z1 = receive_commitment(commitment_labels.transcript_z1);
+    commitments.transcript_z2 = receive_commitment(commitment_labels.transcript_z2);
+    commitments.transcript_z1zero = receive_commitment(commitment_labels.transcript_z1zero);
+    commitments.transcript_z2zero = receive_commitment(commitment_labels.transcript_z2zero);
+    commitments.transcript_op = receive_commitment(commitment_labels.transcript_op);
+    commitments.transcript_accumulator_x = receive_commitment(commitment_labels.transcript_accumulator_x);
+    commitments.transcript_accumulator_y = receive_commitment(commitment_labels.transcript_accumulator_y);
+    commitments.transcript_msm_x = receive_commitment(commitment_labels.transcript_msm_x);
+    commitments.transcript_msm_y = receive_commitment(commitment_labels.transcript_msm_y);
+    commitments.precompute_pc = receive_commitment(commitment_labels.precompute_pc);
+    commitments.precompute_point_transition = receive_commitment(commitment_labels.precompute_point_transition);
+    commitments.precompute_round = receive_commitment(commitment_labels.precompute_round);
+    commitments.precompute_scalar_sum = receive_commitment(commitment_labels.precompute_scalar_sum);
+    commitments.precompute_s1hi = receive_commitment(commitment_labels.precompute_s1hi);
+    commitments.precompute_s1lo = receive_commitment(commitment_labels.precompute_s1lo);
+    commitments.precompute_s2hi = receive_commitment(commitment_labels.precompute_s2hi);
+    commitments.precompute_s2lo = receive_commitment(commitment_labels.precompute_s2lo);
+    commitments.precompute_s3hi = receive_commitment(commitment_labels.precompute_s3hi);
+    commitments.precompute_s3lo = receive_commitment(commitment_labels.precompute_s3lo);
+    commitments.precompute_s4hi = receive_commitment(commitment_labels.precompute_s4hi);
+    commitments.precompute_s4lo = receive_commitment(commitment_labels.precompute_s4lo);
+    commitments.precompute_skew = receive_commitment(commitment_labels.precompute_skew);
+    commitments.precompute_dx = receive_commitment(commitment_labels.precompute_dx);
+    commitments.precompute_dy = receive_commitment(commitment_labels.precompute_dy);
+    commitments.precompute_tx = receive_commitment(commitment_labels.precompute_tx);
+    commitments.precompute_ty = receive_commitment(commitment_labels.precompute_ty);
+    commitments.msm_transition = receive_commitment(commitment_labels.msm_transition);
+    commitments.msm_add = receive_commitment(commitment_labels.msm_add);
+    commitments.msm_double = receive_commitment(commitment_labels.msm_double);
+    commitments.msm_skew = receive_commitment(commitment_labels.msm_skew);
+    commitments.msm_accumulator_x = receive_commitment(commitment_labels.msm_accumulator_x);
+    commitments.msm_accumulator_y = receive_commitment(commitment_labels.msm_accumulator_y);
+    commitments.msm_pc = receive_commitment(commitment_labels.msm_pc);
+    commitments.msm_size_of_msm = receive_commitment(commitment_labels.msm_size_of_msm);
+    commitments.msm_count = receive_commitment(commitment_labels.msm_count);
+    commitments.msm_round = receive_commitment(commitment_labels.msm_round);
+    commitments.msm_add1 = receive_commitment(commitment_labels.msm_add1);
+    commitments.msm_add2 = receive_commitment(commitment_labels.msm_add2);
+    commitments.msm_add3 = receive_commitment(commitment_labels.msm_add3);
+    commitments.msm_add4 = receive_commitment(commitment_labels.msm_add4);
+    commitments.msm_x1 = receive_commitment(commitment_labels.msm_x1);
+    commitments.msm_y1 = receive_commitment(commitment_labels.msm_y1);
+    commitments.msm_x2 = receive_commitment(commitment_labels.msm_x2);
+    commitments.msm_y2 = receive_commitment(commitment_labels.msm_y2);
+    commitments.msm_x3 = receive_commitment(commitment_labels.msm_x3);
+    commitments.msm_y3 = receive_commitment(commitment_labels.msm_y3);
+    commitments.msm_x4 = receive_commitment(commitment_labels.msm_x4);
+    commitments.msm_y4 = receive_commitment(commitment_labels.msm_y4);
+    commitments.msm_collision_x1 = receive_commitment(commitment_labels.msm_collision_x1);
+    commitments.msm_collision_x2 = receive_commitment(commitment_labels.msm_collision_x2);
+    commitments.msm_collision_x3 = receive_commitment(commitment_labels.msm_collision_x3);
+    commitments.msm_collision_x4 = receive_commitment(commitment_labels.msm_collision_x4);
+    commitments.msm_lambda1 = receive_commitment(commitment_labels.msm_lambda1);
+    commitments.msm_lambda2 = receive_commitment(commitment_labels.msm_lambda2);
+    commitments.msm_lambda3 = receive_commitment(commitment_labels.msm_lambda3);
+    commitments.msm_lambda4 = receive_commitment(commitment_labels.msm_lambda4);
+    commitments.msm_slice1 = receive_commitment(commitment_labels.msm_slice1);
+    commitments.msm_slice2 = receive_commitment(commitment_labels.msm_slice2);
+    commitments.msm_slice3 = receive_commitment(commitment_labels.msm_slice3);
+    commitments.msm_slice4 = receive_commitment(commitment_labels.msm_slice4);
+    commitments.transcript_accumulator_empty = receive_commitment(commitment_labels.transcript_accumulator_empty);
+    commitments.transcript_reset_accumulator = receive_commitment(commitment_labels.transcript_reset_accumulator);
+    commitments.precompute_select = receive_commitment(commitment_labels.precompute_select);
+    commitments.lookup_read_counts_0 = receive_commitment(commitment_labels.lookup_read_counts_0);
+    commitments.lookup_read_counts_1 = receive_commitment(commitment_labels.lookup_read_counts_1);
 
     // Get challenge for sorted list batching and wire four memory records
     auto [beta, gamma] = transcript.get_challenges("beta", "gamma");
@@ -180,9 +153,8 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const plonk
     relation_parameters.eccvm_set_permutation_delta = relation_parameters.eccvm_set_permutation_delta.invert();
 
     // Get commitment to permutation and lookup grand products
-    commitments.lookup_inverses =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.lookup_inverses);
-    commitments.z_perm = transcript.template receive_from_prover<Commitment>(commitment_labels.z_perm);
+    commitments.lookup_inverses = receive_commitment(commitment_labels.lookup_inverses);
+    commitments.z_perm = receive_commitment(commitment_labels.z_perm);
 
     // Execute Sumcheck Verifier
     auto sumcheck = SumcheckVerifier<Flavor>(circuit_size);
@@ -255,9 +227,50 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const plonk
     auto shplonk_claim = Shplonk::reduce_verification(pcs_verification_key, gemini_claim, transcript);
 
     // Verify the Shplonk claim with KZG or IPA
-    auto verified = PCS::verify(pcs_verification_key, shplonk_claim, transcript);
+    auto multivariate_opening_verified = PCS::verify(pcs_verification_key, shplonk_claim, transcript);
 
-    return sumcheck_verified.value() && verified;
+    // Execute transcript consistency univariate opening round
+    // TODO(#768): Find a better way to do this. See issue for details.
+    bool univariate_opening_verified = false;
+    {
+        auto hack_commitment = receive_commitment("Translation:hack_commitment");
+
+        FF evaluation_challenge_x = transcript.get_challenge("Translation:evaluation_challenge_x");
+
+        // Construct arrays of commitments and evaluations to be batched
+        const size_t NUM_UNIVARIATES = 6;
+        std::array<Commitment, NUM_UNIVARIATES> transcript_commitments = {
+            commitments.transcript_op, commitments.transcript_Px, commitments.transcript_Py,
+            commitments.transcript_z1, commitments.transcript_z2, hack_commitment
+        };
+        std::array<FF, NUM_UNIVARIATES> transcript_evaluations = {
+            transcript.template receive_from_prover<FF>("Translation:op"),
+            transcript.template receive_from_prover<FF>("Translation:Px"),
+            transcript.template receive_from_prover<FF>("Translation:Py"),
+            transcript.template receive_from_prover<FF>("Translation:z1"),
+            transcript.template receive_from_prover<FF>("Translation:z2"),
+            transcript.template receive_from_prover<FF>("Translation:hack_evaluation")
+        };
+
+        FF batching_challenge = transcript.get_challenge("Translation:batching_challenge");
+
+        // Constuct batched commitment and batched evaluation
+        auto batched_commitment = transcript_commitments[0];
+        auto batched_transcript_eval = transcript_evaluations[0];
+        auto batching_scalar = batching_challenge;
+        for (size_t idx = 1; idx < transcript_commitments.size(); ++idx) {
+            batched_commitment = batched_commitment + transcript_commitments[idx] * batching_scalar;
+            batched_transcript_eval += batching_scalar * transcript_evaluations[idx];
+            batching_scalar *= batching_challenge;
+        }
+
+        // Construct and verify batched opening claim
+        OpeningClaim batched_univariate_claim = { { evaluation_challenge_x, batched_transcript_eval },
+                                                  batched_commitment };
+        univariate_opening_verified = PCS::verify(pcs_verification_key, batched_univariate_claim, transcript);
+    }
+
+    return multivariate_opening_verified && univariate_opening_verified;
 }
 
 template class ECCVMVerifier_<honk::flavor::ECCVM>;
