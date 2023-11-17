@@ -17,7 +17,8 @@ use crate::{
 };
 use crate::{
     ForLoopStatement, ForRange, FunctionDefinition, FunctionVisibility, ImportStatement,
-    NoirStruct, PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
+    NoirStruct, Param, PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl,
+    UnaryOp,
 };
 use fm::FileId;
 
@@ -226,12 +227,12 @@ fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -
     module.functions.iter().any(|func| {
         func.def.name.0.contents == "compute_note_hash_and_nullifier"
                 && func.def.parameters.len() == 4
-                && func.def.parameters[0].1.typ == UnresolvedTypeData::FieldElement
-                && func.def.parameters[1].1.typ == UnresolvedTypeData::FieldElement
-                && func.def.parameters[2].1.typ == UnresolvedTypeData::FieldElement
+                && func.def.parameters[0].typ.typ == UnresolvedTypeData::FieldElement
+                && func.def.parameters[1].typ.typ == UnresolvedTypeData::FieldElement
+                && func.def.parameters[2].typ.typ == UnresolvedTypeData::FieldElement
                 // checks if the 4th parameter is an array and the Box<UnresolvedType> in
                 // Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>) contains only fields
-                && match &func.def.parameters[3].1.typ {
+                && match &func.def.parameters[3].typ.typ {
                     UnresolvedTypeData::Array(_, inner_type) => {
                         match inner_type.typ {
                             UnresolvedTypeData::FieldElement => true,
@@ -513,14 +514,14 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
 /// fn foo() {
 ///   // ...
 /// }
-pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
+pub(crate) fn create_inputs(ty: &str) -> Param {
     let context_ident = ident("inputs");
     let context_pattern = Pattern::Identifier(context_ident);
     let type_path = chained_path!("aztec", "abi", ty);
     let context_type = make_type(UnresolvedTypeData::Named(type_path, vec![]));
     let visibility = Visibility::Private;
 
-    (context_pattern, context_type, visibility)
+    Param { pattern: context_pattern, typ: context_type, visibility, span: Span::default() }
 }
 
 /// Creates the private context object to be accessed within the function, the parameters need to be extracted to be
@@ -548,7 +549,7 @@ pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
 ///     let mut context = PrivateContext::new(inputs, hasher.hash());
 /// }
 /// ```
-fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) -> Vec<Statement> {
+fn create_context(ty: &str, params: &[Param]) -> Vec<Statement> {
     let mut injected_expressions: Vec<Statement> = vec![];
 
     // `let mut hasher = Hasher::new();`
@@ -564,7 +565,7 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
     injected_expressions.push(let_hasher);
 
     // Iterate over each of the function parameters, adding to them to the hasher
-    params.iter().for_each(|(pattern, typ, _vis)| {
+    params.iter().for_each(|Param { pattern, typ, span: _, visibility: _ }| {
         match pattern {
             Pattern::Identifier(identifier) => {
                 // Match the type to determine the padding to do

@@ -5,7 +5,7 @@ fn main() {
 
     for i in 0..16 {
         let x = be_bits[i];
-        let y = le_bits[15-i];
+        let y = le_bits[15 - i];
         assert(x == y);
     }
 
@@ -15,7 +15,7 @@ fn main() {
 
     for i in 0..4 {
         let be_bit = be_bits_x[i];
-        let le_bit = le_bits_x[3-i];
+        let le_bit = le_bits_x[3 - i];
         assert(be_bit == le_bit);
     }
 }

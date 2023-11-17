@@ -1,7 +1,7 @@
 // Tests a very simple Brillig function.
 // 
 // The features being tested are cast operations on brillig
-fn main()  {
+fn main() {
     bool_casts();
     field_casts();
     uint_casts();
@@ -39,7 +39,6 @@ unconstrained fn int_casts() {
     assert(x as i8 == 100);
     assert(x as i8 == 100);
 }
-
 
 unconstrained fn mixed_casts() {
     assert(100 as u32 as i32 as u32 == 100);

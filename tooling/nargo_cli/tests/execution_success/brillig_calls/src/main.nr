@@ -8,7 +8,7 @@ fn main(x: u32) {
     multiple_values_entry_point(x);
 }
 
-unconstrained fn returns_multiple_values(x : u32) -> (u32, u32, u32, u32) {
+unconstrained fn returns_multiple_values(x: u32) -> (u32, u32, u32, u32) {
     (x + 1, x + 2, x + 3, x + 4)
 }
 
@@ -20,15 +20,15 @@ unconstrained fn multiple_values_entry_point(x: u32) {
     assert(d == x + 4);
 }
 
-unconstrained fn inner(x : u32) -> u32 {
+unconstrained fn inner(x: u32) -> u32 {
     x + 1
 }
 
-unconstrained fn entry_point(x : u32) -> u32 {
+unconstrained fn entry_point(x: u32) -> u32 {
     inner(x + 1)
 }
 
-unconstrained fn swap(x: u32, y:u32) -> (u32, u32) {
+unconstrained fn swap(x: u32, y: u32) -> (u32, u32) {
     (y, x)
 }
 
@@ -41,18 +41,18 @@ unconstrained fn swap_entry_point(x: u32, y: u32) {
     assert(swapped_twice.1 == y);
 }
 
-unconstrained fn level_3(x : u32) -> u32 {
+unconstrained fn level_3(x: u32) -> u32 {
     x + 1
 }
 
-unconstrained fn level_2(x : u32) -> u32 {
+unconstrained fn level_2(x: u32) -> u32 {
     level_3(x + 1)
 }
 
-unconstrained fn level_1(x : u32) -> u32 {
+unconstrained fn level_1(x: u32) -> u32 {
     level_2(x + 1)
 }
 
-unconstrained fn deep_entry_point(x : u32) -> u32 {
+unconstrained fn deep_entry_point(x: u32) -> u32 {
     level_1(x + 1)
 }
