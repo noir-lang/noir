@@ -18,6 +18,9 @@ describe('DependencyManager', () => {
           lib2: {
             path: '/lib2',
           },
+          lib3: {
+            path: '/lib3',
+          },
         },
         package: {
           name: 'test_contract',
@@ -38,7 +41,7 @@ describe('DependencyManager', () => {
 
   it('resolves root dependencies', async () => {
     await manager.resolveDependencies();
-    expect(manager.getEntrypointDependencies()).toEqual(['lib1', 'lib2']);
+    expect(manager.getEntrypointDependencies()).toEqual(['lib1', 'lib2', 'lib3']);
   });
 
   it('resolves library dependencies', async () => {
@@ -75,7 +78,7 @@ class TestDependencyResolver implements NoirDependencyResolver {
           package: new NoirPackage('/lib2', '/lib2/src', {
             dependencies: {
               lib3: {
-                path: '/lib3',
+                path: '../lib3',
               },
             },
             package: {

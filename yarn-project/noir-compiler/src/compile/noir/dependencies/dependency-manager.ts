@@ -46,7 +46,7 @@ export class NoirDependencyManager {
    * Resolves dependencies for a package.
    */
   public async resolveDependencies(): Promise<void> {
-    await this.#recursivelyResolveDependencies('', this.#entryPoint);
+    await this.#breadthFirstResolveDependencies();
   }
 
   /**
@@ -59,26 +59,46 @@ export class NoirDependencyManager {
     return dep?.version;
   }
 
-  async #recursivelyResolveDependencies(packageName: string, noirPackage: NoirPackage): Promise<void> {
-    for (const [name, config] of Object.entries(noirPackage.getDependencies())) {
-      // TODO what happens if more than one package has the same name but different versions?
-      if (this.#libraries.has(name)) {
-        this.#log(`skipping already resolved dependency ${name}`);
+  async #breadthFirstResolveDependencies(): Promise<void> {
+    /** Represents a package to resolve dependencies for */
+    type Job = {
+      /** Package name */
+      packageName: string;
+      /** The package location */
+      noirPackage: NoirPackage;
+    };
+
+    const queue: Job[] = [
+      {
+        packageName: '',
+        noirPackage: this.#entryPoint,
+      },
+    ];
+
+    while (queue.length > 0) {
+      const { packageName, noirPackage } = queue.shift()!;
+      for (const [name, config] of Object.entries(noirPackage.getDependencies())) {
+        // TODO what happens if more than one package has the same name but different versions?
+        if (this.#libraries.has(name)) {
+          this.#log(`skipping already resolved dependency ${name}`);
+          this.#dependencies.set(packageName, [...(this.#dependencies.get(packageName) ?? []), name]);
+
+          continue;
+        }
+        const dependency = await this.#resolveDependency(noirPackage, config);
+        if (dependency.package.getType() !== 'lib') {
+          this.#log(`Non-library package ${name}`, config);
+          throw new Error(`Dependency ${name} is not a library`);
+        }
+
+        this.#libraries.set(name, dependency);
         this.#dependencies.set(packageName, [...(this.#dependencies.get(packageName) ?? []), name]);
 
-        continue;
+        queue.push({
+          noirPackage: dependency.package,
+          packageName: name,
+        });
       }
-
-      const dependency = await this.#resolveDependency(noirPackage, config);
-      if (dependency.package.getType() !== 'lib') {
-        this.#log(`Non-library package ${name}`, config);
-        throw new Error(`Dependency ${name} is not a library`);
-      }
-
-      this.#libraries.set(name, dependency);
-      this.#dependencies.set(packageName, [...(this.#dependencies.get(packageName) ?? []), name]);
-
-      await this.#recursivelyResolveDependencies(name, dependency.package);
     }
   }
 
