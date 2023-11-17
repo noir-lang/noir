@@ -87,15 +87,32 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_acc
 }
 
 /**
+ * @brief Compute log derivative inverse polynomial and its commitment, if required
+ *
+ */
+template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_log_derivative_inverse_round()
+{
+    // Compute and store challenges beta and gamma
+    auto [beta, gamma] = transcript.get_challenges("beta", "gamma");
+    relation_parameters.beta = beta;
+    relation_parameters.gamma = gamma;
+
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        instance->compute_logderivative_inverse(beta, gamma);
+
+        auto lookup_inverses_commitment = commitment_key->commit(instance->proving_key->lookup_inverses);
+        transcript.send_to_verifier(commitment_labels.lookup_inverses, lookup_inverses_commitment);
+    }
+}
+
+/**
  * @brief Compute permutation and lookup grand product polynomials and their commitments
  *
  */
 template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_grand_product_computation_round()
 {
-    // Compute and store parameters required by relations in Sumcheck
-    auto [beta, gamma] = transcript.get_challenges("beta", "gamma");
 
-    instance->compute_grand_product_polynomials(beta, gamma);
+    instance->compute_grand_product_polynomials(relation_parameters.beta, relation_parameters.gamma);
 
     auto z_perm_commitment = commitment_key->commit(instance->proving_key->z_perm);
     auto z_lookup_commitment = commitment_key->commit(instance->proving_key->z_lookup);
@@ -149,6 +166,8 @@ template <UltraFlavor Flavor> plonk::proof& UltraProver_<Flavor>::construct_proo
     execute_sorted_list_accumulator_round();
 
     // Fiat-Shamir: beta & gamma
+    execute_log_derivative_inverse_round();
+
     // Compute grand product(s) and commitments.
     execute_grand_product_computation_round();
 

@@ -4,13 +4,16 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/relations/auxiliary_relation.hpp"
+#include "barretenberg/relations/databus_lookup_relation.hpp"
 #include "barretenberg/relations/ecc_op_queue_relation.hpp"
 #include "barretenberg/relations/elliptic_relation.hpp"
 #include "barretenberg/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/relations/lookup_relation.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
+#include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/transcript/transcript.hpp"
+#include "relation_definitions_fwd.hpp"
 
 namespace proof_system::honk::flavor {
 
@@ -32,13 +35,12 @@ class GoblinUltra {
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
     // need containers of this size to hold related data, so we choose a name more agnostic than `NUM_POLYNOMIALS`.
     // Note: this number does not include the individual sorted list polynomials.
-    // NUM = 43 (UH) + 4 op wires + 1 op wire "selector" + 3 (calldata + calldata_read_counts + q_busread)
-    static constexpr size_t NUM_ALL_ENTITIES = 51;
+    static constexpr size_t NUM_ALL_ENTITIES = 53;
     // The number of polynomials precomputed to describe a circuit and to aid a prover in constructing a satisfying
     // assignment of witnesses. We again choose a neutral name.
-    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 27; // 25 (UH) + 1 op wire "selector" + q_busread
+    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 28;
     // The total number of witness entities not including shifts.
-    static constexpr size_t NUM_WITNESS_ENTITIES = 17; // 11 (UH) + 4 op wires + (calldata + calldata_read_counts)
+    static constexpr size_t NUM_WITNESS_ENTITIES = 18;
 
     using GrandProductRelations =
         std::tuple<proof_system::UltraPermutationRelation<FF>, proof_system::LookupRelation<FF>>;
@@ -50,7 +52,10 @@ class GoblinUltra {
                                  proof_system::GenPermSortRelation<FF>,
                                  proof_system::EllipticRelation<FF>,
                                  proof_system::AuxiliaryRelation<FF>,
-                                 proof_system::EccOpQueueRelation<FF>>;
+                                 proof_system::EccOpQueueRelation<FF>,
+                                 proof_system::DatabusLookupRelation<FF>>;
+
+    using LogDerivLookupRelation = proof_system::DatabusLookupRelation<FF>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
     static constexpr size_t MAX_TOTAL_RELATION_LENGTH = compute_max_total_relation_length<Relations>();
@@ -106,6 +111,7 @@ class GoblinUltra {
         DataType lagrange_first;  // column 24
         DataType lagrange_last;   // column 25
         DataType lagrange_ecc_op; // column 26 // indicator poly for ecc op gates
+        DataType databus_id;      // column 27 // id polynomial, i.e. id_i = i
 
         DEFINE_POINTER_VIEW(NUM_PRECOMPUTED_ENTITIES,
                             &q_m,
@@ -134,7 +140,8 @@ class GoblinUltra {
                             &table_4,
                             &lagrange_first,
                             &lagrange_last,
-                            &lagrange_ecc_op)
+                            &lagrange_ecc_op,
+                            &databus_id)
 
         static constexpr CircuitType CIRCUIT_TYPE = CircuitBuilder::CIRCUIT_TYPE;
 
@@ -172,6 +179,7 @@ class GoblinUltra {
         DataType ecc_op_wire_4;        // column 14
         DataType calldata;             // column 15
         DataType calldata_read_counts; // column 16
+        DataType lookup_inverses;      // column 17
 
         DEFINE_POINTER_VIEW(NUM_WITNESS_ENTITIES,
                             &w_l,
@@ -190,7 +198,8 @@ class GoblinUltra {
                             &ecc_op_wire_3,
                             &ecc_op_wire_4,
                             &calldata,
-                            &calldata_read_counts)
+                            &calldata_read_counts,
+                            &lookup_inverses)
 
         std::vector<HandleType> get_wires() override { return { w_l, w_r, w_o, w_4 }; };
         std::vector<HandleType> get_ecc_op_wires()
@@ -240,30 +249,32 @@ class GoblinUltra {
         DataType lagrange_first;       // column 24
         DataType lagrange_last;        // column 25
         DataType lagrange_ecc_op;      // column 26
-        DataType w_l;                  // column 27
-        DataType w_r;                  // column 28
-        DataType w_o;                  // column 29
-        DataType w_4;                  // column 30
-        DataType sorted_accum;         // column 31
-        DataType z_perm;               // column 32
-        DataType z_lookup;             // column 33
-        DataType ecc_op_wire_1;        // column 34
-        DataType ecc_op_wire_2;        // column 35
-        DataType ecc_op_wire_3;        // column 36
-        DataType ecc_op_wire_4;        // column 37
-        DataType calldata;             // column 38
-        DataType calldata_read_counts; // column 39
-        DataType table_1_shift;        // column 40
-        DataType table_2_shift;        // column 41
-        DataType table_3_shift;        // column 42
-        DataType table_4_shift;        // column 43
-        DataType w_l_shift;            // column 44
-        DataType w_r_shift;            // column 45
-        DataType w_o_shift;            // column 46
-        DataType w_4_shift;            // column 47
-        DataType sorted_accum_shift;   // column 48
-        DataType z_perm_shift;         // column 49
-        DataType z_lookup_shift;       // column 50
+        DataType databus_id;           // column 27
+        DataType w_l;                  // column 28
+        DataType w_r;                  // column 29
+        DataType w_o;                  // column 30
+        DataType w_4;                  // column 31
+        DataType sorted_accum;         // column 32
+        DataType z_perm;               // column 33
+        DataType z_lookup;             // column 34
+        DataType ecc_op_wire_1;        // column 35
+        DataType ecc_op_wire_2;        // column 36
+        DataType ecc_op_wire_3;        // column 37
+        DataType ecc_op_wire_4;        // column 38
+        DataType calldata;             // column 39
+        DataType calldata_read_counts; // column 40
+        DataType lookup_inverses;      // column 41
+        DataType table_1_shift;        // column 42
+        DataType table_2_shift;        // column 43
+        DataType table_3_shift;        // column 44
+        DataType table_4_shift;        // column 45
+        DataType w_l_shift;            // column 46
+        DataType w_r_shift;            // column 47
+        DataType w_o_shift;            // column 48
+        DataType w_4_shift;            // column 49
+        DataType sorted_accum_shift;   // column 50
+        DataType z_perm_shift;         // column 51
+        DataType z_lookup_shift;       // column 52
 
         // defines a method pointer_view that returns the following, with const and non-const variants
         DEFINE_POINTER_VIEW(NUM_ALL_ENTITIES,
@@ -294,6 +305,7 @@ class GoblinUltra {
                             &lagrange_first,
                             &lagrange_last,
                             &lagrange_ecc_op,
+                            &databus_id,
                             &w_l,
                             &w_r,
                             &w_o,
@@ -307,6 +319,7 @@ class GoblinUltra {
                             &ecc_op_wire_4,
                             &calldata,
                             &calldata_read_counts,
+                            &lookup_inverses,
                             &table_1_shift,
                             &table_2_shift,
                             &table_3_shift,
@@ -354,6 +367,7 @@ class GoblinUltra {
                      lagrange_first,
                      lagrange_last,
                      lagrange_ecc_op,
+                     databus_id,
                      w_l,
                      w_r,
                      w_o,
@@ -366,7 +380,8 @@ class GoblinUltra {
                      ecc_op_wire_3,
                      ecc_op_wire_4,
                      calldata,
-                     calldata_read_counts };
+                     calldata_read_counts,
+                     lookup_inverses };
         };
         std::vector<HandleType> get_to_be_shifted() override
         {
@@ -489,6 +504,7 @@ class GoblinUltra {
             ecc_op_wire_4 = "ECC_OP_WIRE_4";
             calldata = "CALLDATA";
             calldata_read_counts = "CALLDATA_READ_COUNTS";
+            lookup_inverses = "LOOKUP_INVERSES";
 
             // The ones beginning with "__" are only used for debugging
             q_c = "__Q_C";
@@ -554,6 +570,7 @@ class GoblinUltra {
             lagrange_first = verification_key->lagrange_first;
             lagrange_last = verification_key->lagrange_last;
             lagrange_ecc_op = verification_key->lagrange_ecc_op;
+            databus_id = verification_key->databus_id;
         }
     };
 
@@ -582,6 +599,7 @@ class GoblinUltra {
         Commitment ecc_op_wire_4_comm;
         Commitment calldata_comm;
         Commitment calldata_read_counts_comm;
+        Commitment lookup_inverses_comm;
         Commitment sorted_accum_comm;
         Commitment w_4_comm;
         Commitment z_perm_comm;
@@ -597,6 +615,7 @@ class GoblinUltra {
         Transcript(const std::vector<uint8_t>& proof)
             : BaseTranscript<FF>(proof)
         {}
+
         void deserialize_full_transcript() override
         {
             // take current proof and put them into the struct
@@ -618,6 +637,7 @@ class GoblinUltra {
             ecc_op_wire_4_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
             calldata_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
             calldata_read_counts_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            lookup_inverses_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
             sorted_accum_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
             w_4_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
             z_perm_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
@@ -656,6 +676,7 @@ class GoblinUltra {
             serialize_to_buffer(ecc_op_wire_4_comm, proof_data);
             serialize_to_buffer(calldata_comm, proof_data);
             serialize_to_buffer(calldata_read_counts_comm, proof_data);
+            serialize_to_buffer(lookup_inverses_comm, proof_data);
             serialize_to_buffer(sorted_accum_comm, proof_data);
             serialize_to_buffer(w_4_comm, proof_data);
             serialize_to_buffer(z_perm_comm, proof_data);

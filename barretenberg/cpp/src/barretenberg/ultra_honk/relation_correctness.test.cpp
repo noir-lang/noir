@@ -57,6 +57,44 @@ template <typename Flavor, typename Relation> void check_relation(auto circuit_s
     }
 }
 
+/**
+ * @brief Check that a given linearly dependent relation is satisfied for a set of polynomials
+ * @details We refer to a relation as linearly dependent if it defines a constraint on the sum across the full execution
+ * trace rather than at each individual row. For example, a subrelation of this type arises in the log derivative lookup
+ * argument.
+ *
+ * @tparam relation_idx Index into a tuple of provided relations
+ * @tparam Flavor
+ */
+template <typename Flavor, typename Relation>
+void check_linearly_dependent_relation(auto circuit_size, auto polynomials, auto params)
+{
+    using AllValues = typename Flavor::AllValues;
+    // Define the appropriate SumcheckArrayOfValuesOverSubrelations type for this relation and initialize to zero
+    using SumcheckArrayOfValuesOverSubrelations = typename Relation::SumcheckArrayOfValuesOverSubrelations;
+    SumcheckArrayOfValuesOverSubrelations result;
+    for (auto& element : result) {
+        element = 0;
+    }
+
+    for (size_t i = 0; i < circuit_size; i++) {
+
+        // Extract an array containing all the polynomial evaluations at a given row i
+        AllValues evaluations_at_index_i;
+        for (auto [eval, poly] : zip_view(evaluations_at_index_i.pointer_view(), polynomials.pointer_view())) {
+            *eval = (*poly)[i];
+        }
+
+        // Evaluate each constraint in the relation and check that each is satisfied
+        Relation::accumulate(result, evaluations_at_index_i, params, 1);
+    }
+
+    // Result accumulated across entire execution trace should be zero
+    for (auto& element : result) {
+        ASSERT_EQ(element, 0);
+    }
+}
+
 template <typename Flavor> void create_some_add_gates(auto& circuit_builder)
 {
     using FF = typename Flavor::FF;
@@ -295,6 +333,7 @@ TEST_F(RelationCorrectnessTests, GoblinUltraRelationCorrectness)
 
     instance->initialize_prover_polynomials();
     instance->compute_sorted_accumulator_polynomials(eta);
+    instance->compute_logderivative_inverse(beta, gamma);
     instance->compute_grand_product_polynomials(beta, gamma);
 
     // Check that selectors are nonzero to ensure corresponding relation has nontrivial contribution
@@ -303,6 +342,11 @@ TEST_F(RelationCorrectnessTests, GoblinUltraRelationCorrectness)
     ensure_non_zero(proving_key->q_lookup);
     ensure_non_zero(proving_key->q_elliptic);
     ensure_non_zero(proving_key->q_aux);
+    ensure_non_zero(proving_key->q_busread);
+
+    ensure_non_zero(proving_key->calldata);
+    ensure_non_zero(proving_key->calldata_read_counts);
+    ensure_non_zero(proving_key->lookup_inverses);
 
     // Construct the round for applying sumcheck relations and results for storing computed results
     using Relations = typename Flavor::Relations;
@@ -317,6 +361,8 @@ TEST_F(RelationCorrectnessTests, GoblinUltraRelationCorrectness)
     check_relation<Flavor, std::tuple_element_t<4, Relations>>(circuit_size, prover_polynomials, params);
     check_relation<Flavor, std::tuple_element_t<5, Relations>>(circuit_size, prover_polynomials, params);
     check_relation<Flavor, std::tuple_element_t<6, Relations>>(circuit_size, prover_polynomials, params);
+    check_linearly_dependent_relation<Flavor, std::tuple_element_t<7, Relations>>(
+        circuit_size, prover_polynomials, params);
 }
 
 /**

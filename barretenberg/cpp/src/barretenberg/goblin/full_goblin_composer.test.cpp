@@ -80,7 +80,7 @@ class FullGoblinComposerTests : public ::testing::Test {
     static void perform_op_queue_interactions_for_mock_first_circuit(
         std::shared_ptr<proof_system::ECCOpQueue>& op_queue)
     {
-        auto builder = GoblinUltraBuilder(op_queue);
+        auto builder = GoblinUltraBuilder{ op_queue };
 
         // Add a mul accum op and an equality op
         auto point = Point::one() * FF::random_element();
@@ -163,7 +163,7 @@ TEST_F(FullGoblinComposerTests, SimpleCircuit)
     // Construct a series of simple Goblin circuits; generate and verify their proofs
     size_t NUM_CIRCUITS = 3;
     for (size_t circuit_idx = 0; circuit_idx < NUM_CIRCUITS; ++circuit_idx) {
-        auto builder = GoblinUltraBuilder(op_queue);
+        auto builder = GoblinUltraBuilder{ op_queue };
 
         generate_test_circuit(builder);
 
@@ -205,7 +205,7 @@ TEST_F(FullGoblinComposerTests, SimpleCircuitFailureCase)
     // Construct a series of simple Goblin circuits; generate and verify their proofs
     size_t NUM_CIRCUITS = 3;
     for (size_t circuit_idx = 0; circuit_idx < NUM_CIRCUITS; ++circuit_idx) {
-        auto builder = GoblinUltraBuilder(op_queue);
+        auto builder = GoblinUltraBuilder{ op_queue };
 
         generate_test_circuit(builder);
 

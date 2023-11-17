@@ -27,6 +27,7 @@ template <UltraFlavor Flavor> class UltraProver_ {
     BBERG_PROFILE void execute_preamble_round();
     BBERG_PROFILE void execute_wire_commitments_round();
     BBERG_PROFILE void execute_sorted_list_accumulator_round();
+    BBERG_PROFILE void execute_log_derivative_inverse_round();
     BBERG_PROFILE void execute_grand_product_computation_round();
     BBERG_PROFILE void execute_relation_check_rounds();
     BBERG_PROFILE void execute_zeromorph_rounds();
@@ -38,6 +39,8 @@ template <UltraFlavor Flavor> class UltraProver_ {
 
     std::vector<FF> public_inputs;
     size_t pub_inputs_offset;
+
+    proof_system::RelationParameters<FF> relation_parameters;
 
     CommitmentLabels commitment_labels;
 

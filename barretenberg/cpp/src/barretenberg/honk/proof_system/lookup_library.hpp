@@ -1,5 +1,4 @@
 #pragma once
-#include "barretenberg/sumcheck/sumcheck.hpp"
 #include <typeinfo>
 
 namespace proof_system::honk::lookup_library {
@@ -24,9 +23,7 @@ namespace proof_system::honk::lookup_library {
  *
  */
 template <typename Flavor, typename Relation, typename Polynomials>
-void compute_logderivative_inverse(Polynomials& polynomials,
-                                   proof_system::RelationParameters<typename Flavor::FF>& relation_parameters,
-                                   const size_t circuit_size)
+void compute_logderivative_inverse(Polynomials& polynomials, auto& relation_parameters, const size_t circuit_size)
 {
     using FF = typename Flavor::FF;
     using Accumulator = typename Relation::ValueAccumulator0;
@@ -128,6 +125,7 @@ void accumulate_logderivative_lookup_subrelation_contributions(ContainerOverSubr
 
     const auto inverse_exists = lookup_relation.template compute_inverse_exists<Accumulator>(in);
 
+    // Note: the lookup_inverses are computed so that the value is 0 if !inverse_exists
     std::get<0>(accumulator) +=
         (denominator_accumulator[NUM_TOTAL_TERMS - 1] * lookup_inverses - inverse_exists) * scaling_factor;
 
@@ -150,7 +148,7 @@ void accumulate_logderivative_lookup_subrelation_contributions(ContainerOverSubr
     // degree of relation = NUM_TOTAL_TERMS + 2
     barretenberg::constexpr_for<0, WRITE_TERMS, 1>([&]<size_t i>() {
         const auto p = lookup_relation.template compute_write_term_predicate<Accumulator, i>(in);
-        const auto lookup_read_count = View(in.template lookup_read_counts<i>());
+        const auto lookup_read_count = lookup_relation.template lookup_read_counts<Accumulator, i>(in);
         std::get<1>(accumulator) -= p * (denominator_accumulator[i + READ_TERMS] * lookup_read_count);
     });
 }
