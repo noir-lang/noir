@@ -38,20 +38,16 @@ impl F for Bar {
     fn f1(self) -> Field { 10 }
     fn f3(self) -> Field { 30 }
 }
-
-
 // Impls on mutable references are temporarily disabled
 // impl F for &mut Bar {
 //     fn f1(self) -> Field { 101 }
 //     fn f5(self) -> Field { 505 }
 // }
-
-
 fn main(x: Field) {
     let first = Foo::method2(x);
     assert(first == 3 * x);
 
-    let bar = Bar{};
+    let bar = Bar {};
 
     assert(bar.f1() == 10, "1");
     assert(bar.f2() == 2, "2");
@@ -59,15 +55,13 @@ fn main(x: Field) {
     assert(bar.f4() == 4, "4");
     assert(bar.f5() == 50, "5");
 
-    let mut bar_mut = Bar{};
-
+    let mut bar_mut = Bar {};
     // Impls on mutable references are temporarily disabled
     // assert_eq((&mut bar_mut).f1(), 101);
     // assert((&mut bar_mut).f2() == 2, "7");
     // assert((&mut bar_mut).f3() == 3, "8");
     // assert((&mut bar_mut).f4() == 4, "9");
     // assert((&mut bar_mut).f5() == 505, "10");
-
     assert(bar_mut.f1() == 10, "10");
     assert(bar_mut.f2() == 2, "12");
     assert(bar_mut.f3() == 30, "13");

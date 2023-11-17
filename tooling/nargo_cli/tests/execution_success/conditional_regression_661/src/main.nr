@@ -9,18 +9,18 @@ fn main(a: u32, mut c: [u32; 4]) {
     assert(c_661[0] < 20000);
 }
 
-fn test5(a : u32) {
+fn test5(a: u32) {
     if a > 1 {
         let q = a / 2;
         assert(q == 2);
     }
 }
 
-fn issue_661_foo(array: [u32;4], b:u32) ->[u32;1] {
+fn issue_661_foo(array: [u32;4], b: u32) -> [u32;1] {
     [array[0] + b]
 }
 
-fn issue_661_bar(a : [u32;4]) ->[u32;4] {
+fn issue_661_bar(a: [u32;4]) -> [u32;4] {
     let mut b: [u32; 4] = [0; 4];
     b[0]=a[0]+1;
     b

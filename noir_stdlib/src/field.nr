@@ -1,4 +1,3 @@
-
 impl Field {
     pub fn to_le_bits(self: Self, bit_size: u32) -> [u1] {
         crate::assert_constant(bit_size);
@@ -82,9 +81,8 @@ pub fn modulus_be_bytes() -> [u8] {}
 
 #[builtin(modulus_le_bytes)]
 pub fn modulus_le_bytes() -> [u8] {}
-
 // Convert a 32 byte array to a field element
-pub fn bytes32_to_field(bytes32 : [u8; 32]) -> Field {
+pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
     // Convert it to a field element
     let mut v = 1;
     let mut high = 0 as Field;
@@ -95,7 +93,6 @@ pub fn bytes32_to_field(bytes32 : [u8; 32]) -> Field {
         low = low + (bytes32[16 + 15 - i] as Field) * v;
         v = v * 256;
     }
-
     // Abuse that a % p + b % p = (a + b) % p and that low < p
     low + high * v
 }

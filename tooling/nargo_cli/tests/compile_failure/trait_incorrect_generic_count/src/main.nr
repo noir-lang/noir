@@ -1,5 +1,4 @@
-
-fn main(){
+fn main() {
     let x: u32 = 0;
     x.trait_fn();
 }
