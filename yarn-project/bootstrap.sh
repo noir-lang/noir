@@ -27,7 +27,6 @@ yarn workspace @aztec/circuits.js remake-bindings
 yarn workspace @aztec/circuits.js remake-constants
 
 (cd noir-contracts && ./bootstrap.sh)
-(cd boxes && ./bootstrap.sh)
 (cd .. && l1-contracts/bootstrap.sh)
 
 # We do not need to build individual packages, yarn build will build the root tsconfig.json

@@ -70,7 +70,7 @@ if [[ -f .bootstrapped && $(cat .bootstrapped) -eq "$VERSION" ]]; then
   (cd circuits/cpp && cmake --build --preset wasm -j --target aztec3-circuits.wasm)
 else
   # Heavy bootstrap.
-  barretenberg/cpp/bootstrap.sh
+  barretenberg/bootstrap.sh
   circuits/cpp/bootstrap.sh
   yarn-project/bootstrap.sh
 
