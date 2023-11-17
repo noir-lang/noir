@@ -10,7 +10,6 @@ fn main() {
     let minus_two: i4 = -2; // 14
     let minus_three: i4 = -3; // 13
     let minus_five: i4 = -5; // 11
-
     // (5 / -3) * -3 + 2 = -1 * -3 + 2 = 3 + 2 = 5
     assert(signed_modulo(5, minus_three) == 2);
     // (-5 / 3) * 3 - 2 = -1 * 3 - 2 = -3 - 2 = -5

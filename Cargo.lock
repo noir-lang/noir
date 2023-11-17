@@ -418,8 +418,9 @@ dependencies = [
 
 [[package]]
 name = "async-lsp"
-version = "0.0.5"
-source = "git+https://github.com/oxalica/async-lsp?rev=4568bd6c2039bb03d88eae2f4f8aa2a64d71fadb#4568bd6c2039bb03d88eae2f4f8aa2a64d71fadb"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "138985dd8aefbefeaa66b01b7f5b2b6b4c333fcef1cc5f32c63a2aabe37d6de3"
 dependencies = [
  "async-io",
  "futures",
@@ -2458,6 +2459,7 @@ dependencies = [
  "noirc_evaluator",
  "noirc_frontend",
  "noirc_printable_type",
+ "rayon",
  "rustc_version",
  "serde",
  "thiserror",
@@ -2595,6 +2597,7 @@ dependencies = [
  "cfg-if",
  "codespan-lsp",
  "codespan-reporting",
+ "fm",
  "lsp-types 0.94.1",
  "nargo",
  "nargo_toml",
@@ -2603,6 +2606,7 @@ dependencies = [
  "noirc_frontend",
  "serde",
  "serde_json",
+ "serde_with",
  "tokio",
  "tower",
  "wasm-bindgen",
@@ -3742,9 +3746,9 @@ dependencies = [
 
 [[package]]
 name = "self_cell"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c309e515543e67811222dbc9e3dd7e1056279b782e1dacffe4242b718734fb6"
+checksum = "e388332cd64eb80cd595a00941baf513caffae8dce9cfd0467fc9c66397dade6"
 
 [[package]]
 name = "semver"

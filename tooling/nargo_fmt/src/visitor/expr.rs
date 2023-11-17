@@ -62,7 +62,13 @@ impl FmtVisitor<'_> {
                     self.span_before(call_expr.func.span.end()..span.end(), Token::LeftParen);
 
                 let callee = self.format_sub_expr(*call_expr.func);
-                let args = format_parens(self.fork(), false, call_expr.arguments, args_span);
+                let args = format_parens(
+                    self.config.fn_call_width.into(),
+                    self.fork(),
+                    false,
+                    call_expr.arguments,
+                    args_span,
+                );
 
                 format!("{callee}{args}")
             }
@@ -74,7 +80,13 @@ impl FmtVisitor<'_> {
 
                 let object = self.format_sub_expr(method_call_expr.object);
                 let method = method_call_expr.method_name.to_string();
-                let args = format_parens(self.fork(), false, method_call_expr.arguments, args_span);
+                let args = format_parens(
+                    self.config.fn_call_width.into(),
+                    self.fork(),
+                    false,
+                    method_call_expr.arguments,
+                    args_span,
+                );
 
                 format!("{object}.{method}{args}")
             }
@@ -92,7 +104,7 @@ impl FmtVisitor<'_> {
                 format!("{collection}{index}")
             }
             ExpressionKind::Tuple(exprs) => {
-                format_parens(self.fork(), exprs.len() == 1, exprs, span)
+                format_parens(None, self.fork(), exprs.len() == 1, exprs, span)
             }
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) | Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) => {
@@ -105,7 +117,7 @@ impl FmtVisitor<'_> {
                     format!("[{repeated}; {length}]")
                 }
                 Literal::Array(ArrayLiteral::Standard(exprs)) => {
-                    format_brackets(self.fork(), false, exprs, span)
+                    rewrite::array(self.fork(), exprs, span)
                 }
                 Literal::Unit => "()".to_string(),
             },
@@ -353,7 +365,8 @@ impl FmtVisitor<'_> {
     }
 }
 
-fn format_expr_seq<T: Item>(
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn format_seq<T: Item>(
     prefix: &str,
     suffix: &str,
     mut visitor: FmtVisitor,
@@ -361,6 +374,7 @@ fn format_expr_seq<T: Item>(
     exprs: Vec<T>,
     span: Span,
     tactic: Tactic,
+    soft_newline: bool,
 ) -> String {
     visitor.indent.block_indent(visitor.config);
 
@@ -370,7 +384,7 @@ fn format_expr_seq<T: Item>(
 
     visitor.indent.block_unindent(visitor.config);
 
-    wrap_exprs(prefix, suffix, exprs, nested_indent, visitor.shape())
+    wrap_exprs(prefix, suffix, exprs, nested_indent, visitor.shape(), soft_newline)
 }
 
 fn format_brackets(
@@ -380,7 +394,7 @@ fn format_brackets(
     span: Span,
 ) -> String {
     let array_width = visitor.config.array_width;
-    format_expr_seq(
+    format_seq(
         "[",
         "]",
         visitor,
@@ -388,16 +402,19 @@ fn format_brackets(
         exprs,
         span,
         Tactic::LimitedHorizontalVertical(array_width),
+        false,
     )
 }
 
 fn format_parens(
+    max_width: Option<usize>,
     visitor: FmtVisitor,
     trailing_comma: bool,
     exprs: Vec<Expression>,
     span: Span,
 ) -> String {
-    format_expr_seq("(", ")", visitor, trailing_comma, exprs, span, Tactic::Horizontal)
+    let tactic = max_width.map(Tactic::LimitedHorizontalVertical).unwrap_or(Tactic::Horizontal);
+    format_seq("(", ")", visitor, trailing_comma, exprs, span, tactic, false)
 }
 
 fn format_exprs(
@@ -483,16 +500,20 @@ fn format_exprs(
     result
 }
 
-fn wrap_exprs(
+pub(crate) fn wrap_exprs(
     prefix: &str,
     suffix: &str,
     exprs: String,
     nested_shape: Shape,
     shape: Shape,
+    soft_newline: bool,
 ) -> String {
     let first_line_width = first_line_width(&exprs);
 
-    if first_line_width <= shape.width {
+    let force_one_line =
+        if soft_newline { !exprs.contains('\n') } else { first_line_width <= shape.width };
+
+    if force_one_line {
         let allow_trailing_newline = exprs
             .lines()
             .last()
@@ -515,8 +536,8 @@ fn wrap_exprs(
     }
 }
 
-#[derive(PartialEq, Eq)]
-enum Tactic {
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub(crate) enum Tactic {
     Horizontal,
     HorizontalVertical,
     LimitedHorizontalVertical(usize),

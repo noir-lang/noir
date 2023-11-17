@@ -3,5 +3,4 @@ trait MyTrait {
   fn SomeFunc();
 }
 
-fn main() {
-}
+fn main() {}
