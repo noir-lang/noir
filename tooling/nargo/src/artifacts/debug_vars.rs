@@ -1,11 +1,14 @@
 use std::collections::{HashMap,HashSet};
 use acvm::acir::brillig::Value;
+use noirc_printable_type::PrintableType;
 
 #[derive(Debug, Default, Clone)]
 pub struct DebugVars {
     id_to_name: HashMap<u32,String>,
     active: HashSet<u32>,
     id_to_value: HashMap<u32, Value>, // TODO: something more sophisticated for lexical levels
+    id_to_type: HashMap<u32, u32>,
+    types: HashMap<u32, PrintableType>,
 }
 
 impl DebugVars {
@@ -15,22 +18,35 @@ impl DebugVars {
         debug_vars
     }
 
-    pub fn get_variables<'a>(&'a self) -> Vec<(&'a str, &'a Value)> {
+    pub fn get_variables<'a>(&'a self) -> Vec<(&'a str, &'a Value, &'a PrintableType)> {
         self.active.iter().filter_map(|var_id| {
-            self.id_to_name.get(var_id).and_then(|name| {
-                self.id_to_value.get(var_id).map(|value| (name.as_str(), value))
-            })
+            self.id_to_name.get(var_id)
+                .and_then(|name| {
+                    self.id_to_value.get(var_id).map(|value| (name, value))
+                })
+                .and_then(|(name, value)| {
+                    self.id_to_type.get(var_id).map(|type_id| (name, value, type_id))
+                })
+                .and_then(|(name, value, type_id)| {
+                    self.types.get(type_id).map(|ptype| (name.as_str(), value, ptype))
+                })
         }).collect()
     }
 
-    pub fn insert_variables(&mut self, vars: &HashMap<u32,String>) {
-        vars.iter().for_each(|(var_id, var_name)| {
+    pub fn insert_variables(&mut self, vars: &HashMap<u32, (String, u32)>) {
+        vars.iter().for_each(|(var_id, (var_name, var_type))| {
             self.id_to_name.insert(*var_id, var_name.clone());
+            self.id_to_type.insert(*var_id, *var_type);
+        });
+    }
+
+    pub fn insert_types(&mut self, types: &HashMap<u32, PrintableType>) {
+        types.iter().for_each(|(type_id, ptype)| {
+            self.types.insert(*type_id, ptype.clone());
         });
     }
 
     pub fn assign(&mut self, var_id: u32, value: Value) {
-        let name = self.id_to_name.get(&var_id).unwrap();
         self.active.insert(var_id);
         self.id_to_value.insert(var_id, value);
     }
@@ -52,7 +68,6 @@ impl DebugVars {
     }
 
     pub fn drop(&mut self, var_id: u32) {
-        let name = self.id_to_name.get(&var_id).unwrap();
         self.active.remove(&var_id);
     }
 }

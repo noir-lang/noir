@@ -9,6 +9,11 @@ use std::mem;
 
 use crate::Location;
 use serde::{Deserialize, Serialize};
+use noirc_printable_type::PrintableType;
+
+pub type Variables = Vec<(u32, (String, u32))>;
+pub type Types = Vec<(u32, PrintableType)>;
+pub type VariableTypes = (Variables,Types);
 
 #[serde_as]
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -18,7 +23,8 @@ pub struct DebugInfo {
     /// that they should be serialized to/from strings.
     #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
-    pub variables: HashMap<u32, String>,
+    pub variables: HashMap<u32, (String, u32)>, // var_id => (name, type_id)
+    pub types: HashMap<u32, PrintableType>, // type_id => printable type
 }
 
 /// Holds OpCodes Counts for Acir and Brillig Opcodes
@@ -32,9 +38,13 @@ pub struct OpCodesCount {
 impl DebugInfo {
     pub fn new(
         locations: BTreeMap<OpcodeLocation, Vec<Location>>,
-        variables: HashMap<u32, String>,
+        var_types: VariableTypes,
     ) -> Self {
-        Self { locations, variables }
+        Self {
+            locations,
+            variables: var_types.0.into_iter().collect(),
+            types: var_types.1.into_iter().collect(),
+        }
     }
 
     /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.

@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 
 #[derive(Debug,Clone)]
 pub struct DebugState {
-    pub variables: HashMap<u32,String>, // id => name
+    pub variables: HashMap<u32,String>, // var_id => name
     next_var_id: u32,
     scope: Vec<HashSet<u32>>,
     pub enabled: bool,
@@ -267,6 +267,7 @@ impl DebugState {
             },
             ast::LValue::Index { array: _array, index: _index } => {
                 // TODO
+                // TODO: also remember to self.walk(index)
                 unimplemented![]
             },
             ast::LValue::Dereference(_lv) => {
@@ -401,7 +402,7 @@ impl DebugState {
     fn insert_state_set_oracle(&self, module: &mut ParsedModule) {
         let (program, errors) = parse_program(r#"
             #[oracle(__debug_var_assign)]
-            unconstrained fn __debug_var_assign_oracle<T>(_var_id: u32, _input: T) {}
+            unconstrained fn __debug_var_assign_oracle<T>(_var_id: u32, _value: T) {}
             unconstrained fn __debug_var_assign_inner<T>(var_id: u32, value: T) {
                 __debug_var_assign_oracle(var_id, value);
             }
@@ -419,8 +420,8 @@ impl DebugState {
             }
 
             #[oracle(__debug_member_assign)]
-            unconstrained fn __debug_member_assign_oracle<T>(_var_id: u32, _member_id: u32, _input: T) {}
-            unconstrained fn __debug_member_assign_inner<T>(var_id: u32, member_id: u32,value: T) {
+            unconstrained fn __debug_member_assign_oracle<T>(_var_id: u32, _member_id: u32, _value: T) {}
+            unconstrained fn __debug_member_assign_inner<T>(var_id: u32, member_id: u32, value: T) {
                 __debug_member_assign_oracle(var_id, member_id, value);
             }
             pub fn __debug_member_assign<T>(var_id: u32, member_id: u32, value: T) {
@@ -428,7 +429,7 @@ impl DebugState {
             }
 
             #[oracle(__debug_index_assign)]
-            unconstrained fn __debug_index_assign_oracle<T>(_var_id: u32, _index: Field, _input: T) {}
+            unconstrained fn __debug_index_assign_oracle<T>(_var_id: u32, _index: Field, _value: T) {}
             unconstrained fn __debug_index_assign_inner<T>(var_id: u32, index: Field, value: T) {
                 __debug_index_assign_oracle(var_id, index, value);
             }
@@ -437,7 +438,7 @@ impl DebugState {
             }
 
             #[oracle(__debug_dereference_assign)]
-            unconstrained fn __debug_dereference_assign_oracle<T>(_var_id: u32, _input: T) {}
+            unconstrained fn __debug_dereference_assign_oracle<T>(_var_id: u32, _value: T) {}
             unconstrained fn __debug_dereference_assign_inner<T>(var_id: u32, value: T) {
                 __debug_dereference_assign_oracle(var_id, value);
             }

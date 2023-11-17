@@ -9,7 +9,6 @@ use nargo::NargoError;
 
 use easy_repl::{command, CommandStatus, Repl};
 use std::cell::RefCell;
-use std::collections::HashMap;
 
 use codespan_reporting::files::Files;
 use noirc_errors::Location;
@@ -560,9 +559,9 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 () => || {
                     let mut ctx = ref_context.borrow_mut();
                     let vars = ctx.context.debug_vars.get_variables();
-                    println!["{}", vars.iter().map(|(var_name, value)| {
+                    println!["{}", vars.iter().map(|(var_name, value, var_type)| {
                         let field = value.to_field();
-                        format!("{var_name}={field}")
+                        format!("{var_name}:{var_type:?}={field}")
                     }).collect::<Vec<String>>().join(", ")];
                     Ok(CommandStatus::Done)
                 }

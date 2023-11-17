@@ -41,6 +41,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         let mut debug_vars = DebugVars::default();
         debug_artifact.debug_symbols.iter().for_each(|info| {
             debug_vars.insert_variables(&info.variables);
+            debug_vars.insert_types(&info.types);
         });
         Self {
             acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
