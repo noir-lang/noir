@@ -157,7 +157,6 @@ impl<'me> FmtVisitor<'me> {
         }
 
         let slice = self.slice(start..end);
-        dbg!(slice);
         self.last_position = end;
 
         if slice.trim().is_empty() && !self.at_start() {
