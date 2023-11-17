@@ -12,7 +12,7 @@ use rayon::prelude::*;
 ///
 /// # Errors
 ///
-/// This function will return an error if .
+/// This function will return an error if there are any compilations errors reported.
 pub fn compile_workspace(
     workspace: &Workspace,
     binary_packages: &[Package],
