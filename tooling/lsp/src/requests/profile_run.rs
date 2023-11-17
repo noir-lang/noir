@@ -57,6 +57,7 @@ fn on_profile_run_request_inner(
                 .cloned()
                 .partition(|package| package.is_binary());
 
+            // # TODO(#3504): Consider how to incorporate Backend relevant information in wider context.
             let is_opcode_supported = |_opcode: &Opcode| true;
             let np_language = Language::PLONKCSat { width: 3 };
 
