@@ -1,8 +1,6 @@
-
 fn main() {
     let array: [Field; 3] = [1, 2, 3];
     assert(array.eq(array));
-
     // Ensure this still works if we have to infer the type of the integer literals
     let array = [1, 2, 3];
     assert(array.eq(array));

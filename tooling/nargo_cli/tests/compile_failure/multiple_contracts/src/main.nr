@@ -1,4 +1,3 @@
 contract Foo {}
 
-
 contract Bar {}

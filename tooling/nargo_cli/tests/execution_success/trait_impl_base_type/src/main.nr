@@ -9,7 +9,6 @@ impl Fieldable for u32 {
     }
 }
 
-
 impl Fieldable for [u32; 3] {
     fn to_field(self) -> Field {
         let res = self[0] + self[1] + self[2];
@@ -80,13 +79,11 @@ fn some_func(x: u32) -> u32 {
     x * 2 - 3
 }
 
-
 impl Fieldable for u64 {
     fn to_field(self) -> Field {
         66 as Field
     }
 }
-
 // x = 15
 fn main(x: u32) {
     assert(x.to_field() == 15);
