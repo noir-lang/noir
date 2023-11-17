@@ -16,6 +16,7 @@ pub struct Lexer<'a> {
     position: Position,
     done: bool,
     skip_comments: bool,
+    skip_whitespaces: bool,
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
@@ -37,11 +38,22 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn new(source: &'a str) -> Self {
-        Lexer { chars: source.char_indices(), position: 0, done: false, skip_comments: true }
+        Lexer {
+            chars: source.char_indices(),
+            position: 0,
+            done: false,
+            skip_comments: true,
+            skip_whitespaces: true,
+        }
     }
 
     pub fn skip_comments(mut self, flag: bool) -> Self {
         self.skip_comments = flag;
+        self
+    }
+
+    pub fn skip_whitespaces(mut self, flag: bool) -> Self {
+        self.skip_whitespaces = flag;
         self
     }
 
@@ -82,9 +94,13 @@ impl<'a> Lexer<'a> {
 
     fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
-            Some(x) if { x.is_whitespace() } => {
-                self.eat_whitespace();
-                self.next_token()
+            Some(x) if x.is_whitespace() => {
+                let spanned = self.eat_whitespace(x);
+                if self.skip_whitespaces {
+                    self.next_token()
+                } else {
+                    Ok(spanned)
+                }
             }
             Some('<') => self.glue(Token::Less),
             Some('>') => self.glue(Token::Greater),
@@ -454,8 +470,10 @@ impl<'a> Lexer<'a> {
     }
 
     /// Skips white space. They are not significant in the source language
-    fn eat_whitespace(&mut self) {
-        self.eat_while(None, |ch| ch.is_whitespace());
+    fn eat_whitespace(&mut self, initial_char: char) -> SpannedToken {
+        let start = self.position;
+        let whitespace = self.eat_while(initial_char.into(), |ch| ch.is_whitespace());
+        SpannedToken::new(Token::Whitespace(whitespace), Span::inclusive(start, self.position))
     }
 }
 

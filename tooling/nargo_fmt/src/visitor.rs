@@ -157,13 +157,14 @@ impl<'me> FmtVisitor<'me> {
         }
 
         let slice = self.slice(start..end);
+        dbg!(slice);
         self.last_position = end;
 
         if slice.trim().is_empty() && !self.at_start() {
             self.push_vertical_spaces(slice);
             process_last_slice(self, "", slice);
         } else {
-            let (result, last_end) = self.format_comment_in_block(slice, start, true);
+            let (result, last_end) = self.format_comment_in_block(slice);
             if result.trim().is_empty() {
                 process_last_slice(self, slice, slice);
             } else {
@@ -174,75 +175,36 @@ impl<'me> FmtVisitor<'me> {
         }
     }
 
-    pub(crate) fn format_comment_in_block(
-        &mut self,
-        slice: &str,
-        start: u32,
-        fix_indent: bool,
-    ) -> (String, u32) {
+    pub(crate) fn format_comment_in_block(&mut self, slice: &str) -> (String, u32) {
         let mut result = String::new();
-        let mut last_end = 0;
+        let comments = Lexer::new(slice).skip_comments(false).skip_whitespaces(false).flatten();
 
-        let mut comments = Lexer::new(slice).skip_comments(false).flatten();
-
-        if let Some(comment) = comments.next() {
+        let indent = self.indent.to_string();
+        for comment in comments {
             let span = comment.to_span();
-            let diff = start;
-            let big_snippet = &self.source[..(span.start() + diff) as usize];
-            let last_char = big_snippet.chars().rev().find(|rev_c| ![' ', '\t'].contains(rev_c));
-            let fix_indent =
-                fix_indent && last_char.map_or(true, |rev_c| ['{', '\n'].contains(&rev_c));
 
-            if let Token::LineComment(_, _) | Token::BlockComment(_, _) = comment.into_token() {
-                let starts_with_newline = slice.starts_with('\n');
-                let comment = &slice[span.start() as usize..span.end() as usize];
-
-                if fix_indent {
-                    if let Some('{') = last_char {
-                        result.push('\n');
+            match comment.token() {
+                Token::LineComment(_, _) | Token::BlockComment(_, _) => {
+                    let comment = &slice[span.start() as usize..span.end() as usize];
+                    if result.ends_with('\n') {
+                        result.push_str(&indent);
+                    } else if !self.at_start() {
+                        result.push(' ');
                     }
-
-                    if let Some('\n') = last_char {
-                        result.push('\n');
-                    }
-
-                    let indent_str = self.indent.to_string();
-                    result.push_str(&indent_str);
-                } else {
-                    match (starts_with_newline, self.at_start()) {
-                        (false, false) => {
-                            result.push(' ');
-                        }
-                        (true, _) => {
-                            result.push_str(&self.indent.to_string_with_newline());
-                        }
-                        (false, _) => {
-                            result.push(' ');
-                        }
-                    };
+                    result.push_str(comment);
                 }
-
-                result.push_str(comment);
+                Token::Whitespace(whitespaces) => {
+                    let mut visitor = self.fork();
+                    if whitespaces.contains('\n') {
+                        visitor.push_vertical_spaces(&whitespaces.trim_matches(' '));
+                        result.push_str(&visitor.finish());
+                    }
+                }
+                _ => {}
             }
         }
 
-        for spanned in comments {
-            let span = spanned.to_span();
-            last_end = span.end();
-
-            if let Token::LineComment(_, _) | Token::BlockComment(_, _) = spanned.token() {
-                let comment = &slice[span.start() as usize..span.end() as usize];
-
-                result.push_str(&self.indent.to_string_with_newline());
-                result.push_str(comment);
-            }
-        }
-
-        if slice.trim_end_matches([' ', '\t']).ends_with(['\n', '\r']) {
-            result.push('\n');
-        }
-
-        (result, last_end)
+        (result, slice.len() as u32)
     }
 
     fn push_vertical_spaces(&mut self, slice: &str) {
