@@ -97,13 +97,18 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             .collect()
     }
 
+    /// Offsets the given location by the given number of opcodes (including
+    /// Brillig opcodes). If the offset would move the location outside of a
+    /// valid circuit location, returns None and the number of remaining
+    /// opcodes/instructions left which span outside the valid range in the
+    /// second element of the returned tuple.
     pub(super) fn offset_opcode_location(
         &self,
         location: &Option<OpcodeLocation>,
         mut offset: i64,
     ) -> (Option<OpcodeLocation>, i64) {
         if offset == 0 {
-            return (location.clone(), 0);
+            return (*location, 0);
         }
         let Some(location) = location else {
             return (None, offset);
@@ -161,8 +166,28 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn render_opcode_at_location(&self, _location: &Option<OpcodeLocation>) -> String {
-        String::from("invalid")
+    pub(super) fn render_opcode_at_location(&self, location: &Option<OpcodeLocation>) -> String {
+        let opcodes = self.get_opcodes();
+        match location {
+            None => String::from("invalid"),
+            Some(OpcodeLocation::Acir(acir_index)) => {
+                let opcode = &opcodes[*acir_index];
+                if let Opcode::Brillig(ref brillig) = opcode {
+                    let first_opcode = &brillig.bytecode[0];
+                    format!("BRILLIG {first_opcode:?}")
+                } else {
+                    format!("{opcode:?}")
+                }
+            }
+            Some(OpcodeLocation::Brillig { acir_index, brillig_index }) => {
+                if let Opcode::Brillig(ref brillig) = opcodes[*acir_index] {
+                    let opcode = &brillig.bytecode[*brillig_index];
+                    format!("      | {opcode:?}")
+                } else {
+                    String::from("      | invalid")
+                }
+            }
+        }
     }
 
     fn step_brillig_opcode(&mut self) -> DebugCommandResult {

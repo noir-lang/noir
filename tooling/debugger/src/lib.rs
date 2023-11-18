@@ -132,26 +132,16 @@ pub fn loop_initialized<R: Read, W: Write, B: BlackBoxFunctionSolver>(
                                 id: index as i64,
                                 name: format!("frame #{index}"),
                                 source: Some(Source {
-                                    name: None,
                                     path: debug_artifact.file_map[&location.file]
                                         .path
                                         .to_str()
-                                        .map(|s| String::from(s)),
-                                    source_reference: None,
-                                    presentation_hint: None,
-                                    origin: None,
-                                    sources: None,
-                                    adapter_data: None,
-                                    checksums: None,
+                                        .map(String::from),
+                                    ..Source::default()
                                 }),
                                 line: line_number as i64,
                                 column: column_number as i64,
-                                end_line: None,
-                                end_column: None,
-                                can_restart: None,
                                 instruction_pointer_reference: ip_reference,
-                                module_id: None,
-                                presentation_hint: None,
+                                ..StackFrame::default()
                             }
                         })
                         .collect(),
@@ -163,29 +153,50 @@ pub fn loop_initialized<R: Read, W: Write, B: BlackBoxFunctionSolver>(
                 })))?;
             }
             Command::Disassemble(ref args) => {
-                eprintln!("INFO: Received Disassemble {:?}", args);
                 let starting_ip = OpcodeLocation::from_str(args.memory_reference.as_str()).ok();
-                let (opcode_location, _) = context
-                    .offset_opcode_location(&starting_ip, args.instruction_offset.unwrap_or(0));
-                let mut opcode_location = opcode_location.or(Some(OpcodeLocation::Acir(0)));
-                eprintln!("INFO: From IP {opcode_location:?}");
+                let instruction_offset = args.instruction_offset.unwrap_or(0);
+                let (mut opcode_location, mut invalid_count) =
+                    context.offset_opcode_location(&starting_ip, instruction_offset);
                 let mut count = args.instruction_count;
+
                 let mut instructions: Vec<DisassembledInstruction> = vec![];
-                while count > 0 {
+
+                // leading invalid locations (when the request goes back beyond the start of the program)
+                if invalid_count < 0 {
+                    while invalid_count < 0 {
+                        instructions.push(DisassembledInstruction {
+                            address: String::from("---"),
+                            instruction: String::from("---"),
+                            ..DisassembledInstruction::default()
+                        });
+                        invalid_count += 1;
+                        count -= 1;
+                    }
+                    if count > 0 {
+                        opcode_location = Some(OpcodeLocation::Acir(0));
+                    }
+                }
+                // the actual opcodes
+                while count > 0 && !matches!(opcode_location, None) {
                     instructions.push(DisassembledInstruction {
-                        address: format!("{}", opcode_location.unwrap_or(OpcodeLocation::Acir(0))),
-                        instruction_bytes: None,
+                        address: format!("{}", opcode_location.unwrap()),
                         instruction: context.render_opcode_at_location(&opcode_location),
-                        symbol: None,
-                        location: None,
-                        line: None,
-                        column: None,
-                        end_line: None,
-                        end_column: None,
+                        ..DisassembledInstruction::default()
                     });
                     (opcode_location, _) = context.offset_opcode_location(&opcode_location, 1);
                     count -= 1;
                 }
+                // any remaining instruction count is beyond the valid opcode vector so return invalid placeholders
+                while count > 0 {
+                    instructions.push(DisassembledInstruction {
+                        address: String::from("---"),
+                        instruction: String::from("---"),
+                        ..DisassembledInstruction::default()
+                    });
+                    invalid_count -= 1;
+                    count -= 1;
+                }
+
                 server.respond(
                     req.success(ResponseBody::Disassemble(DisassembleResponse { instructions })),
                 )?;
