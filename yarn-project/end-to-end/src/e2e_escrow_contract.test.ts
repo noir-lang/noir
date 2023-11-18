@@ -53,9 +53,9 @@ describe('e2e_escrow_contract', () => {
     // Generate private key for escrow contract, register key in pxe service, and deploy
     // Note that we need to register it first if we want to emit an encrypted note for it in the constructor
     escrowPrivateKey = GrumpkinScalar.random();
-    escrowPublicKey = await generatePublicKey(escrowPrivateKey);
+    escrowPublicKey = generatePublicKey(escrowPrivateKey);
     const salt = Fr.random();
-    const deployInfo = await getContractDeploymentInfo(EscrowContractArtifact, [owner], salt, escrowPublicKey);
+    const deployInfo = getContractDeploymentInfo(EscrowContractArtifact, [owner], salt, escrowPublicKey);
     await pxe.registerAccount(escrowPrivateKey, deployInfo.completeAddress.partialAddress);
 
     escrowContract = await EscrowContract.deployWithPublicKey(escrowPublicKey, wallet, owner)

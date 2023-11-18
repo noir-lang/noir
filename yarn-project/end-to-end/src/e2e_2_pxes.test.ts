@@ -254,7 +254,7 @@ describe('e2e_2_pxes', () => {
   it('permits migrating an account from one PXE to another', async () => {
     const privateKey = GrumpkinScalar.random();
     const account = getUnsafeSchnorrAccount(pxeA, privateKey, Fr.random());
-    const completeAddress = await account.getCompleteAddress();
+    const completeAddress = account.getCompleteAddress();
     const wallet = await account.waitDeploy();
 
     await expect(wallet.isAccountStateSynchronized(completeAddress.address)).resolves.toBe(true);

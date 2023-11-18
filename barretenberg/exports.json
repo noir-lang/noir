@@ -36,6 +36,26 @@
     "isAsync": false
   },
   {
+    "functionName": "pedersen_hash_buffer",
+    "inArgs": [
+      {
+        "name": "input_buffer",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "hash_index",
+        "type": "const uint32_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "output",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
     "functionName": "blake2s",
     "inArgs": [
       {
@@ -270,6 +290,62 @@
       {
         "name": "success",
         "type": "bool *"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "aes_encrypt_buffer_cbc",
+    "inArgs": [
+      {
+        "name": "input",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "iv",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "key",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "length",
+        "type": "const uint32_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "r",
+        "type": "uint8_t **"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "aes_decrypt_buffer_cbc",
+    "inArgs": [
+      {
+        "name": "input",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "iv",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "key",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "length",
+        "type": "const uint32_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "r",
+        "type": "uint8_t **"
       }
     ],
     "isAsync": false

@@ -1,17 +1,15 @@
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import { CircuitsWasm, GrumpkinScalar, Point } from '../../../index.js';
+import { GrumpkinScalar, Point } from '../../../index.js';
 import { Grumpkin } from './index.js';
 
 const debug = createDebugLogger('bb:grumpkin_test');
 
 describe('grumpkin', () => {
-  let barretenberg!: CircuitsWasm;
   let grumpkin!: Grumpkin;
 
-  beforeAll(async () => {
-    barretenberg = await CircuitsWasm.get();
-    grumpkin = new Grumpkin(barretenberg);
+  beforeAll(() => {
+    grumpkin = new Grumpkin();
   });
 
   it('should correctly perform scalar muls', () => {

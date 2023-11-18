@@ -99,7 +99,7 @@ describe('guides/dapp/testing', () => {
         pxe = createPXEClient(PXE_URL);
         owner = await createAccount(pxe);
         testContract = await TestContract.deploy(owner).send().deployed();
-        cheats = await CheatCodes.create(ETHEREUM_HOST, pxe);
+        cheats = CheatCodes.create(ETHEREUM_HOST, pxe);
       }, 30_000);
 
       it('warps time to 1h into the future', async () => {
@@ -141,7 +141,7 @@ describe('guides/dapp/testing', () => {
         await token.methods.redeem_shield(ownerAddress, 100n, secret).send().wait();
 
         // docs:start:calc-slot
-        cheats = await CheatCodes.create(ETHEREUM_HOST, pxe);
+        cheats = CheatCodes.create(ETHEREUM_HOST, pxe);
         // The balances mapping is defined on storage slot 3 and is indexed by user address
         ownerSlot = cheats.aztec.computeSlotInMap(3n, ownerAddress);
         // docs:end:calc-slot

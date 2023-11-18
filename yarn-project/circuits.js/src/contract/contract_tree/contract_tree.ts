@@ -1,4 +1,4 @@
-import { CircuitsWasm, ContractFunctionDao, Fr, FunctionData, FunctionLeafPreimage } from '@aztec/circuits.js';
+import { ContractFunctionDao, Fr, FunctionData, FunctionLeafPreimage } from '@aztec/circuits.js';
 import { computeFunctionLeaf, hashVK } from '@aztec/circuits.js/abis';
 import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 
@@ -11,9 +11,9 @@ import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
  * @param wasm - An instance of CircuitsWasm class used for hashing.
  * @returns A Promise resolving to a Buffer containing the hash of the verification key.
  */
-export function hashVKStr(vk: string, wasm: CircuitsWasm) {
+export function hashVKStr(vk: string) {
   // TODO - check consistent encoding
-  return hashVK(wasm, Buffer.from(vk, 'hex'));
+  return hashVK(Buffer.from(vk, 'hex'));
 }
 
 /**

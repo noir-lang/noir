@@ -39,6 +39,7 @@
     "rootDir": "./src"
   },
   "dependencies": {
+    "@aztec/bb.js": "portal:../../barretenberg/ts",
     "@aztec/foundation": "workspace:^",
     "@msgpack/msgpack": "^3.0.0-beta2",
     "@noble/curves": "^1.0.0",

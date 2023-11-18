@@ -8,7 +8,6 @@ import {
 } from '@aztec/acir-simulator';
 import {
   AztecAddress,
-  CircuitsWasm,
   CombinedAccumulatedData,
   ContractStorageRead,
   ContractStorageUpdateRequest,
@@ -249,10 +248,9 @@ export class PublicProcessor {
     this.blockData.publicDataTreeRoot = Fr.fromBuffer(publicDataTreeInfo.root);
 
     const callStackPreimages = await this.getPublicCallStackPreimages(result);
-    const wasm = await CircuitsWasm.get();
 
     const publicCallStack = mapTuple(callStackPreimages, item =>
-      item.isEmpty() ? Fr.zero() : computeCallStackItemHash(wasm, item),
+      item.isEmpty() ? Fr.zero() : computeCallStackItemHash(item),
     );
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165) --> set this in Noir

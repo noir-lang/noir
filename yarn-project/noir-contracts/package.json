@@ -38,7 +38,6 @@
   "devDependencies": {
     "@aztec/noir-compiler": "workspace:^",
     "@jest/globals": "^29.5.0",
-    "@rushstack/eslint-patch": "^1.1.4",
     "@types/jest": "^29.5.0",
     "@types/lodash.camelcase": "^4.3.7",
     "@types/lodash.omit": "^4.5.7",

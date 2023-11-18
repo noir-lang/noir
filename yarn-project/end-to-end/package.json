@@ -71,7 +71,6 @@
     "winston": "^3.10.0"
   },
   "devDependencies": {
-    "@rushstack/eslint-patch": "^1.1.4",
     "concurrently": "^7.6.0"
   },
   "files": [

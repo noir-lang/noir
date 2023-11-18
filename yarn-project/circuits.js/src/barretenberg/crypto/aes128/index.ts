@@ -1,13 +1,15 @@
-import { IWasmModule } from '@aztec/foundation/wasm';
+import { BarretenbergSync, RawBuffer } from '@aztec/bb.js';
 
 import { Buffer } from 'buffer';
+
+// Get the singleton. This constructs (if not already) the barretenberg sync api within bb.js itself.
+// This can be called from multiple other modules as needed, and it ensures it's only constructed once.
+const api = await BarretenbergSync.getSingleton();
 
 /**
  * AES-128-CBC encryption/decryption.
  */
 export class Aes128 {
-  constructor(private wasm: IWasmModule) {}
-
   /**
    * Encrypt a buffer using AES-128-CBC.
    * @param data - Data to encrypt.
@@ -25,26 +27,10 @@ export class Aes128 {
       paddingBuffer.fill(numPaddingBytes);
     }
     const input = Buffer.concat([data, paddingBuffer]);
-    const mem = this.wasm.call('bbmalloc', input.length + key.length + iv.length + input.length);
-    this.wasm.writeMemory(mem, input);
-    this.wasm.writeMemory(mem + input.length, iv);
-    this.wasm.writeMemory(mem + input.length + iv.length, key);
-    this.wasm.call(
-      'aes__encrypt_buffer_cbc',
-      mem,
-      mem + input.length,
-      mem + input.length + iv.length,
-      input.length,
-      mem + input.length + iv.length + key.length,
+
+    return Buffer.from(
+      api.aesEncryptBufferCbc(new RawBuffer(input), new RawBuffer(iv), new RawBuffer(key), input.length),
     );
-    const result: Buffer = Buffer.from(
-      this.wasm.getMemorySlice(
-        mem + input.length + key.length + iv.length,
-        mem + input.length + key.length + iv.length + input.length,
-      ),
-    );
-    this.wasm.call('bbfree', mem);
-    return result;
   }
 
   /**
@@ -55,25 +41,8 @@ export class Aes128 {
    * @returns Decrypted data.
    */
   public decryptBufferCBC(data: Uint8Array, iv: Uint8Array, key: Uint8Array) {
-    const mem = this.wasm.call('bbmalloc', data.length + key.length + iv.length + data.length);
-    this.wasm.writeMemory(mem, data);
-    this.wasm.writeMemory(mem + data.length, iv);
-    this.wasm.writeMemory(mem + data.length + iv.length, key);
-    this.wasm.call(
-      'aes__decrypt_buffer_cbc',
-      mem,
-      mem + data.length,
-      mem + data.length + iv.length,
-      data.length,
-      mem + data.length + iv.length + key.length,
+    return Buffer.from(
+      api.aesDecryptBufferCbc(new RawBuffer(data), new RawBuffer(iv), new RawBuffer(key), data.length),
     );
-    const result: Buffer = Buffer.from(
-      this.wasm.getMemorySlice(
-        mem + data.length + key.length + iv.length,
-        mem + data.length + key.length + iv.length + data.length,
-      ),
-    );
-    this.wasm.call('bbfree', mem);
-    return result;
   }
 }

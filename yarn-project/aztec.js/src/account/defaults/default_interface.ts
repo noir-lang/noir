@@ -27,9 +27,11 @@ export class DefaultAccountInterface implements AccountInterface {
   createTxExecutionRequest(executions: FunctionCall[]): Promise<TxExecutionRequest> {
     return this.entrypoint.createTxExecutionRequest(executions);
   }
+
   createAuthWitness(message: Fr): Promise<AuthWitness> {
     return this.authWitnessProvider.createAuthWitness(message);
   }
+
   getCompleteAddress(): CompleteAddress {
     return this.address;
   }

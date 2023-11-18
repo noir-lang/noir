@@ -18,8 +18,8 @@ export class SingleKeyAccountContract extends BaseAccountContract {
     super(SchnorrSingleKeyAccountContractArtifact as ContractArtifact);
   }
 
-  getDeploymentArgs(): Promise<any[]> {
-    return Promise.resolve([]);
+  getDeploymentArgs(): any[] {
+    return [];
   }
 
   getAuthWitnessProvider({ partialAddress }: CompleteAddress): AuthWitnessProvider {
@@ -35,11 +35,11 @@ export class SingleKeyAccountContract extends BaseAccountContract {
 class SingleKeyAuthWitnessProvider implements AuthWitnessProvider {
   constructor(private privateKey: GrumpkinPrivateKey, private partialAddress: PartialAddress) {}
 
-  async createAuthWitness(message: Fr): Promise<AuthWitness> {
-    const schnorr = await Schnorr.new();
+  createAuthWitness(message: Fr): Promise<AuthWitness> {
+    const schnorr = new Schnorr();
     const signature = schnorr.constructSignature(message.toBuffer(), this.privateKey);
-    const publicKey = await generatePublicKey(this.privateKey);
+    const publicKey = generatePublicKey(this.privateKey);
     const witness = [...publicKey.toFields(), ...signature.toBuffer(), this.partialAddress];
-    return new AuthWitness(message, witness);
+    return Promise.resolve(new AuthWitness(message, witness));
   }
 }

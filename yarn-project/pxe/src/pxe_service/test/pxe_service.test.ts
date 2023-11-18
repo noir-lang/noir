@@ -11,8 +11,8 @@ import { PXEServiceConfig } from '../../index.js';
 import { PXEService } from '../pxe_service.js';
 import { pxeTestSuite } from './pxe_test_suite.js';
 
-async function createPXEService(): Promise<PXE> {
-  const keyStore = new TestKeyStore(await Grumpkin.new());
+function createPXEService(): Promise<PXE> {
+  const keyStore = new TestKeyStore(new Grumpkin());
   const node = mock<AztecNode>();
   const db = new MemoryDB();
   const config: PXEServiceConfig = { l2BlockPollingIntervalMS: 100, l2StartingBlock: INITIAL_L2_BLOCK_NUM };
@@ -31,7 +31,7 @@ async function createPXEService(): Promise<PXE> {
   };
   node.getL1ContractAddresses.mockResolvedValue(mockedContracts);
 
-  return new PXEService(keyStore, node, db, config);
+  return Promise.resolve(new PXEService(keyStore, node, db, config));
 }
 
 pxeTestSuite('PXEService', createPXEService);
@@ -42,8 +42,8 @@ describe('PXEService', () => {
   let db: MemoryDB;
   let config: PXEServiceConfig;
 
-  beforeEach(async () => {
-    keyStore = new TestKeyStore(await Grumpkin.new());
+  beforeEach(() => {
+    keyStore = new TestKeyStore(new Grumpkin());
     node = mock<AztecNode>();
     db = new MemoryDB();
     config = { l2BlockPollingIntervalMS: 100, l2StartingBlock: INITIAL_L2_BLOCK_NUM };

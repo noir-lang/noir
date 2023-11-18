@@ -1,7 +1,6 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 
 import { computePublicCallStackItemHash } from '../abis/abis.js';
-import { CircuitsWasm } from '../index.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { FunctionData } from './function_data.js';
 import { PrivateCircuitPublicInputs } from './private_circuit_public_inputs.js';
@@ -102,7 +101,7 @@ export class PublicCallStackItem {
    * Computes this call stack item hash.
    * @returns Hash.
    */
-  public async hash() {
-    return computePublicCallStackItemHash(await CircuitsWasm.get(), this);
+  public hash() {
+    return computePublicCallStackItemHash(this);
   }
 }

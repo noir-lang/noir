@@ -31,7 +31,6 @@
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",
-    "@rushstack/eslint-patch": "^1.1.4",
     "@types/jest": "^29.5.0",
     "@types/lodash.pick": "^4.4.7",
     "@types/node": "^18.14.6",

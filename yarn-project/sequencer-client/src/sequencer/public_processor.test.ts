@@ -3,7 +3,6 @@ import {
   ARGS_LENGTH,
   AztecAddress,
   CallContext,
-  CircuitsWasm,
   CombinedAccumulatedData,
   EthAddress,
   Fr,
@@ -116,11 +115,6 @@ describe('public_processor', () => {
 
   describe('with actual circuits', () => {
     let publicKernel: PublicKernelCircuitSimulator;
-    let wasm: CircuitsWasm;
-
-    beforeAll(async () => {
-      wasm = await CircuitsWasm.get();
-    });
 
     beforeEach(() => {
       const path = times(PUBLIC_DATA_TREE_HEIGHT, i => Buffer.alloc(32, i));
@@ -146,7 +140,7 @@ describe('public_processor', () => {
     it('runs a tx with enqueued public calls', async function () {
       const callRequests: PublicCallRequest[] = [makePublicCallRequest(0x100), makePublicCallRequest(0x100)];
       const callStackItems = await Promise.all(callRequests.map(call => call.toPublicCallStackItem()));
-      const callStackHashes = callStackItems.map(call => computeCallStackItemHash(wasm, call));
+      const callStackHashes = callStackItems.map(call => computeCallStackItemHash(call));
 
       const kernelOutput = makePrivateKernelPublicInputsFinal(0x10);
       kernelOutput.end.publicCallStack = padArrayEnd(callStackHashes, Fr.ZERO, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX);
@@ -176,7 +170,7 @@ describe('public_processor', () => {
     it('runs a tx with an enqueued public call with nested execution', async function () {
       const callRequest: PublicCallRequest = makePublicCallRequest(0x100);
       const callStackItem = callRequest.toPublicCallStackItem();
-      const callStackHash = computeCallStackItemHash(wasm, callStackItem);
+      const callStackHash = computeCallStackItemHash(callStackItem);
 
       const kernelOutput = makePrivateKernelPublicInputsFinal(0x10);
       kernelOutput.end.publicCallStack = padArrayEnd([callStackHash], Fr.ZERO, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX);

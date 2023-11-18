@@ -1,16 +1,14 @@
 import {
   AztecAddress,
   CONTRACT_TREE_HEIGHT,
-  CircuitsWasm,
   EthAddress,
   FunctionLeafPreimage,
   FunctionSelector,
   NOTE_HASH_TREE_HEIGHT,
   NewContractData,
-  computeFunctionTree,
   computeFunctionTreeData,
 } from '@aztec/circuits.js';
-import { computeContractLeaf, computeFunctionLeaf } from '@aztec/circuits.js/abis';
+import { computeContractLeaf, computeFunctionLeaf, computeFunctionTree } from '@aztec/circuits.js/abis';
 import { Fr } from '@aztec/foundation/fields';
 import { Pedersen, StandardTree } from '@aztec/merkle-tree';
 import { MerkleTreeId } from '@aztec/types';
@@ -28,12 +26,6 @@ describe('Data generation for noir tests', () => {
   let functionLeaf: Fr;
   let functionTreeRoot: Fr;
 
-  let wasm: CircuitsWasm;
-
-  beforeAll(async () => {
-    wasm = await CircuitsWasm.get();
-  });
-
   it('Computes function leaf', () => {
     const functionLeafPreimage = new FunctionLeafPreimage(selector, false, true, vkHash, acirHash);
 
@@ -43,7 +35,7 @@ describe('Data generation for noir tests', () => {
   });
 
   it('Computes function tree data', () => {
-    const tree = computeFunctionTree(wasm, [functionLeaf]);
+    const tree = computeFunctionTree([functionLeaf]);
 
     const functionTreeData = computeFunctionTreeData(tree, 0);
 

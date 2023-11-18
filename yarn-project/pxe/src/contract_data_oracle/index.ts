@@ -1,4 +1,4 @@
-import { AztecAddress, CircuitsWasm, MembershipWitness, VK_TREE_HEIGHT } from '@aztec/circuits.js';
+import { AztecAddress, MembershipWitness, VK_TREE_HEIGHT } from '@aztec/circuits.js';
 import { FunctionDebugMetadata, FunctionSelector, getFunctionDebugMetadata } from '@aztec/foundation/abi';
 import { ContractDatabase, StateInfoProvider } from '@aztec/types';
 
@@ -155,8 +155,7 @@ export class ContractDataOracle {
         throw new Error(`Unknown contract: ${contractAddress}`);
       }
 
-      const wasm = await CircuitsWasm.get();
-      tree = new ContractTree(contract, this.stateProvider, wasm);
+      tree = new ContractTree(contract, this.stateProvider);
       this.trees.push(tree);
     }
     return tree;

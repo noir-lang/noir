@@ -41,9 +41,6 @@
     "typescript": "^5.0.4",
     "viem": "^1.2.5"
   },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.1.4"
-  },
   "files": [
     "dest",
     "src",

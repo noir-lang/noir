@@ -119,6 +119,6 @@ export async function getWallet(
     throw new Error(`Account ${address} not found`);
   }
   const nodeInfo = await pxe.getNodeInfo();
-  const entrypoint = await accountContract.getInterface(completeAddress, nodeInfo);
+  const entrypoint = accountContract.getInterface(completeAddress, nodeInfo);
   return new AccountWallet(pxe, entrypoint);
 }

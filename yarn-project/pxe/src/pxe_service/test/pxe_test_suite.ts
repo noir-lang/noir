@@ -12,13 +12,10 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
     }, 120_000);
 
     it('registers an account and returns it as an account only and not as a recipient', async () => {
-      const keyPair = ConstantKeyPair.random(await Grumpkin.new());
-      const completeAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(
-        await keyPair.getPrivateKey(),
-        Fr.random(),
-      );
+      const keyPair = ConstantKeyPair.random(new Grumpkin());
+      const completeAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(keyPair.getPrivateKey(), Fr.random());
 
-      await pxe.registerAccount(await keyPair.getPrivateKey(), completeAddress.partialAddress);
+      await pxe.registerAccount(keyPair.getPrivateKey(), completeAddress.partialAddress);
 
       // Check that the account is correctly registered using the getAccounts and getRecipients methods
       const accounts = await pxe.getRegisteredAccounts();
@@ -52,14 +49,11 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
     });
 
     it('does not throw when registering the same account twice (just ignores the second attempt)', async () => {
-      const keyPair = ConstantKeyPair.random(await Grumpkin.new());
-      const completeAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(
-        await keyPair.getPrivateKey(),
-        Fr.random(),
-      );
+      const keyPair = ConstantKeyPair.random(new Grumpkin());
+      const completeAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(keyPair.getPrivateKey(), Fr.random());
 
-      await pxe.registerAccount(await keyPair.getPrivateKey(), completeAddress.partialAddress);
-      await pxe.registerAccount(await keyPair.getPrivateKey(), completeAddress.partialAddress);
+      await pxe.registerAccount(keyPair.getPrivateKey(), completeAddress.partialAddress);
+      await pxe.registerAccount(keyPair.getPrivateKey(), completeAddress.partialAddress);
     });
 
     it('cannot register a recipient with the same aztec address but different pub key or partial address', async () => {

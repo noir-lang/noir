@@ -25,18 +25,18 @@ class SchnorrHardcodedKeyAccountContract extends BaseAccountContract {
     super(SchnorrHardcodedAccountContractArtifact);
   }
 
-  getDeploymentArgs(): Promise<any[]> {
+  getDeploymentArgs(): any[] {
     // This contract does not require any arguments in its constructor.
-    return Promise.resolve([]);
+    return [];
   }
 
   getAuthWitnessProvider(_address: CompleteAddress): AuthWitnessProvider {
     const privateKey = this.privateKey;
     return {
-      async createAuthWitness(message: Fr): Promise<AuthWitness> {
-        const signer = await Schnorr.new();
+      createAuthWitness(message: Fr): Promise<AuthWitness> {
+        const signer = new Schnorr();
         const signature = signer.constructSignature(message.toBuffer(), privateKey);
-        return new AuthWitness(message, [...signature.toBuffer()]);
+        return Promise.resolve(new AuthWitness(message, [...signature.toBuffer()]));
       },
     };
   }

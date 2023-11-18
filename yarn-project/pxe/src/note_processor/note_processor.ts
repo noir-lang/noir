@@ -94,7 +94,7 @@ export class NoteProcessor {
     }
 
     const blocksAndNotes: ProcessedData[] = [];
-    const curve = await Grumpkin.new();
+    const curve = new Grumpkin();
 
     // Iterate over both blocks and encrypted logs.
     for (let blockIndex = 0; blockIndex < encryptedL2BlockLogs.length; ++blockIndex) {

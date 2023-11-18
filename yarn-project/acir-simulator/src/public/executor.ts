@@ -97,7 +97,7 @@ export class PublicExecutor {
 
     // Functions can request to pack arguments before calling other functions.
     // We use this cache to hold the packed arguments.
-    const packedArgs = await PackedArgsCache.create([]);
+    const packedArgs = PackedArgsCache.create([]);
 
     const sideEffectCounter = new SideEffectCounter();
 

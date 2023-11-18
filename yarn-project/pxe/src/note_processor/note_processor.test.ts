@@ -1,5 +1,5 @@
 import { AcirSimulator } from '@aztec/acir-simulator';
-import { CircuitsWasm, Fr, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
+import { Fr, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
@@ -28,7 +28,6 @@ import { NoteProcessor } from './note_processor.js';
 const TXS_PER_BLOCK = 4;
 
 describe('Note Processor', () => {
-  let wasm: CircuitsWasm;
   let grumpkin: Grumpkin;
   let database: Database;
   let aztecNode: ReturnType<typeof mock<AztecNode>>;
@@ -110,9 +109,8 @@ describe('Note Processor', () => {
     return { blockContexts, encryptedLogsArr, ownedL1NotePayloads };
   };
 
-  beforeAll(async () => {
-    wasm = await CircuitsWasm.get();
-    grumpkin = new Grumpkin(wasm);
+  beforeAll(() => {
+    grumpkin = new Grumpkin();
     owner = ConstantKeyPair.random(grumpkin);
   });
 

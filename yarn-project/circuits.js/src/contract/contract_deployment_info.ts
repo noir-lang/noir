@@ -6,7 +6,7 @@ import {
 } from '@aztec/circuits.js/abis';
 import { ContractArtifact, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 
-import { CircuitsWasm, DeploymentInfo, Fr, FunctionData, PublicKey } from '../index.js';
+import { DeploymentInfo, Fr, FunctionData, PublicKey } from '../index.js';
 import { generateFunctionLeaves, hashVKStr, isConstructor } from './contract_tree/contract_tree.js';
 
 /**
@@ -17,12 +17,12 @@ import { generateFunctionLeaves, hashVKStr, isConstructor } from './contract_tre
  * @param publicKey - The account public key
  * @returns - The contract deployment info
  */
-export async function getContractDeploymentInfo(
+export function getContractDeploymentInfo(
   artifact: ContractArtifact,
   args: any[],
   contractAddressSalt: Fr,
   publicKey: PublicKey,
-): Promise<DeploymentInfo> {
+): DeploymentInfo {
   const constructorArtifact = artifact.functions.find(isConstructor);
   if (!constructorArtifact) {
     throw new Error('Cannot find constructor in the artifact.');
@@ -31,15 +31,14 @@ export async function getContractDeploymentInfo(
     throw new Error('Missing verification key for the constructor.');
   }
 
-  const wasm = await CircuitsWasm.get();
-  const vkHash = hashVKStr(constructorArtifact.verificationKey, wasm);
+  const vkHash = hashVKStr(constructorArtifact.verificationKey);
   const constructorVkHash = Fr.fromBuffer(vkHash);
   const functions = artifact.functions.map(f => ({
     ...f,
     selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
   }));
   const leaves = generateFunctionLeaves(functions);
-  const functionTreeRoot = computeFunctionTreeRoot(wasm, leaves);
+  const functionTreeRoot = computeFunctionTreeRoot(leaves);
   const functionData = FunctionData.fromAbi(constructorArtifact);
   const flatArgs = encodeArguments(constructorArtifact, args);
   const argsHash = computeVarArgsHash(flatArgs);

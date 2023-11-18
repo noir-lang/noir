@@ -22,7 +22,7 @@ export interface AccountContract {
   /**
    * Returns the deployment arguments for this instance.
    */
-  getDeploymentArgs(): Promise<any[]>;
+  getDeploymentArgs(): any[];
 
   /**
    * Returns the account interface for this account contract given a deployment at the provided address.
@@ -32,6 +32,6 @@ export interface AccountContract {
    * @param nodeInfo - Info on the chain where it is deployed.
    * @returns An account interface instance for creating tx requests and authorizing actions.
    */
-  getInterface(address: CompleteAddress, nodeInfo: NodeInfo): Promise<AccountInterface>;
+  getInterface(address: CompleteAddress, nodeInfo: NodeInfo): AccountInterface;
 }
 // docs:end:account-contract-interface

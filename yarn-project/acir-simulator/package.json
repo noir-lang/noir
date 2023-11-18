@@ -42,7 +42,6 @@
     "@aztec/merkle-tree": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
     "@jest/globals": "^29.5.0",
-    "@rushstack/eslint-patch": "^1.1.4",
     "@types/jest": "^29.5.0",
     "@types/levelup": "^5.1.3",
     "@types/memdown": "^3.0.2",

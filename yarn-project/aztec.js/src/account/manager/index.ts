@@ -40,9 +40,9 @@ export class AccountManager {
     }
   }
 
-  protected async getEncryptionPublicKey() {
+  protected getEncryptionPublicKey() {
     if (!this.encryptionPublicKey) {
-      this.encryptionPublicKey = await generatePublicKey(this.encryptionPrivateKey);
+      this.encryptionPublicKey = generatePublicKey(this.encryptionPrivateKey);
     }
     return this.encryptionPublicKey;
   }
@@ -53,7 +53,7 @@ export class AccountManager {
    */
   public async getAccount(): Promise<AccountInterface> {
     const nodeInfo = await this.pxe.getNodeInfo();
-    const completeAddress = await this.getCompleteAddress();
+    const completeAddress = this.getCompleteAddress();
     return this.accountContract.getInterface(completeAddress, nodeInfo);
   }
 
@@ -62,12 +62,12 @@ export class AccountManager {
    * Does not require the account to be deployed or registered.
    * @returns The address, partial address, and encryption public key.
    */
-  public async getCompleteAddress(): Promise<CompleteAddress> {
+  public getCompleteAddress(): CompleteAddress {
     if (!this.completeAddress) {
-      const encryptionPublicKey = await generatePublicKey(this.encryptionPrivateKey);
-      const contractDeploymentInfo = await getContractDeploymentInfo(
+      const encryptionPublicKey = generatePublicKey(this.encryptionPrivateKey);
+      const contractDeploymentInfo = getContractDeploymentInfo(
         this.accountContract.getContractArtifact(),
-        await this.accountContract.getDeploymentArgs(),
+        this.accountContract.getDeploymentArgs(),
         this.salt!,
         encryptionPublicKey,
       );
@@ -109,9 +109,9 @@ export class AccountManager {
     if (!this.deployMethod) {
       if (!this.salt) throw new Error(`Cannot deploy account contract without known salt.`);
       await this.#register();
-      const encryptionPublicKey = await this.getEncryptionPublicKey();
+      const encryptionPublicKey = this.getEncryptionPublicKey();
       const deployer = new ContractDeployer(this.accountContract.getContractArtifact(), this.pxe, encryptionPublicKey);
-      const args = await this.accountContract.getDeploymentArgs();
+      const args = this.accountContract.getDeploymentArgs();
       this.deployMethod = deployer.deploy(...args);
     }
     return this.deployMethod;
@@ -147,7 +147,7 @@ export class AccountManager {
   }
 
   async #register(): Promise<CompleteAddress> {
-    const completeAddress = await this.getCompleteAddress();
+    const completeAddress = this.getCompleteAddress();
     await this.pxe.registerAccount(this.encryptionPrivateKey, completeAddress.partialAddress);
     return completeAddress;
   }

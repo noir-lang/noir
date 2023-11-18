@@ -129,18 +129,18 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       '-m, --mnemonic',
       'An optional mnemonic string used for the private key generation. If not provided, random private key will be generated.',
     )
-    .action(async options => {
+    .action(options => {
       let privKey;
       let publicKey;
       if (options.mnemonic) {
         const acc = mnemonicToAccount(options.mnemonic);
         // TODO(#2052): This reduction is not secure enough. TACKLE THIS ISSUE BEFORE MAINNET.
         const key = GrumpkinScalar.fromBufferWithReduction(Buffer.from(acc.getHdKey().privateKey!));
-        publicKey = await generatePublicKey(key);
+        publicKey = generatePublicKey(key);
       } else {
         const key = GrumpkinScalar.random();
         privKey = key.toString(true);
-        publicKey = await generatePublicKey(key);
+        publicKey = generatePublicKey(key);
       }
       log(`\nPrivate Key: ${privKey}\nPublic Key: ${publicKey.toString()}\n`);
     });
@@ -174,7 +174,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const actualPrivateKey = privateKey ?? GrumpkinScalar.random();
 
       const account = getSchnorrAccount(client, actualPrivateKey, actualPrivateKey, accountCreationSalt);
-      const { address, publicKey, partialAddress } = await account.getCompleteAddress();
+      const { address, publicKey, partialAddress } = account.getCompleteAddress();
       const tx = await account.deploy();
       const txHash = await tx.getTxHash();
       debugLogger(`Account contract tx sent with hash ${txHash}`);

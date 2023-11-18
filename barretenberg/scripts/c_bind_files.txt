@@ -2,6 +2,7 @@
 ./cpp/src/barretenberg/crypto/pedersen_hash/c_bind.hpp
 ./cpp/src/barretenberg/crypto/blake2s/c_bind.hpp
 ./cpp/src/barretenberg/crypto/schnorr/c_bind.hpp
+./cpp/src/barretenberg/crypto/aes128/c_bind.hpp
 ./cpp/src/barretenberg/srs/c_bind.hpp
 ./cpp/src/barretenberg/examples/c_bind.hpp
 ./cpp/src/barretenberg/common/c_bind.hpp

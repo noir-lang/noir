@@ -16,8 +16,8 @@ export class SchnorrAccountContract extends BaseAccountContract {
     super(SchnorrAccountContractArtifact as ContractArtifact);
   }
 
-  async getDeploymentArgs() {
-    const signingPublicKey = await Schnorr.new().then(e => e.computePublicKey(this.signingPrivateKey));
+  getDeploymentArgs() {
+    const signingPublicKey = new Schnorr().computePublicKey(this.signingPrivateKey);
     return [signingPublicKey.x, signingPublicKey.y];
   }
 
@@ -30,9 +30,9 @@ export class SchnorrAccountContract extends BaseAccountContract {
 class SchnorrAuthWitnessProvider implements AuthWitnessProvider {
   constructor(private signingPrivateKey: GrumpkinPrivateKey) {}
 
-  async createAuthWitness(message: Fr): Promise<AuthWitness> {
-    const schnorr = await Schnorr.new();
+  createAuthWitness(message: Fr): Promise<AuthWitness> {
+    const schnorr = new Schnorr();
     const signature = schnorr.constructSignature(message.toBuffer(), this.signingPrivateKey).toBuffer();
-    return new AuthWitness(message, [...signature]);
+    return Promise.resolve(new AuthWitness(message, [...signature]));
   }
 }

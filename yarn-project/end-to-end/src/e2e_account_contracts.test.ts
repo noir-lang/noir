@@ -62,7 +62,7 @@ function itShouldBehaveLikeAnAccountContract(
     }, 60_000);
 
     it('fails to call a function using an invalid signature', async () => {
-      const accountAddress = await account.getCompleteAddress();
+      const accountAddress = account.getCompleteAddress();
       const { wallet: invalidWallet } = await walletSetup(
         context.pxe,
         encryptionPrivateKey,

@@ -1,4 +1,4 @@
-import { AztecAddress, CircuitsWasm, EthAddress, Fr } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 import { toBigIntBE, toHex } from '@aztec/foundation/bigint-buffer';
 import { keccak, pedersenHash } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -21,9 +21,9 @@ export class CheatCodes {
     public aztec: AztecCheatCodes,
   ) {}
 
-  static async create(rpcUrl: string, pxe: PXE): Promise<CheatCodes> {
+  static create(rpcUrl: string, pxe: PXE): CheatCodes {
     const ethCheatCodes = new EthCheatCodes(rpcUrl);
-    const aztecCheatCodes = new AztecCheatCodes(pxe, await CircuitsWasm.get(), ethCheatCodes);
+    const aztecCheatCodes = new AztecCheatCodes(pxe, ethCheatCodes);
     return new CheatCodes(ethCheatCodes, aztecCheatCodes);
   }
 }
@@ -211,10 +211,6 @@ export class AztecCheatCodes {
      * The PXE Service to use for interacting with the chain
      */
     public pxe: PXE,
-    /**
-     * The circuits wasm module used for pedersen hashing
-     */
-    public wasm: CircuitsWasm,
     /**
      * The eth cheat codes.
      */

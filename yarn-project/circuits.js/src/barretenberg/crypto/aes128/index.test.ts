@@ -1,16 +1,12 @@
-import { CircuitsWasm } from '@aztec/circuits.js';
-
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 
 import { Aes128 } from './index.js';
 
 describe('aes128', () => {
-  let barretenberg!: CircuitsWasm;
   let aes128!: Aes128;
 
-  beforeAll(async () => {
-    barretenberg = await CircuitsWasm.get();
-    aes128 = new Aes128(barretenberg);
+  beforeAll(() => {
+    aes128 = new Aes128();
   });
 
   it('should correctly encrypt input', () => {

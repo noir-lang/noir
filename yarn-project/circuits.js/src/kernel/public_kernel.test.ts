@@ -11,7 +11,7 @@ import { makePublicDataRead, makePublicKernelInputsWithTweak } from '../tests/fa
 
 describe('kernel/public_kernel', () => {
   it('simulates public kernel circuit with previous public kernel', async function () {
-    const input = await makePublicKernelInputsWithTweak(1, input => {
+    const input = makePublicKernelInputsWithTweak(1, input => {
       input.publicCall.callStackItem.functionData.isConstructor = false;
       input.publicCall.callStackItem.functionData.isPrivate = false;
       input.previousKernel.publicInputs.isPrivate = false;
@@ -21,7 +21,7 @@ describe('kernel/public_kernel', () => {
   });
 
   it('simulates public kernel circuit with previous private kernel', async function () {
-    const input = await makePublicKernelInputsWithTweak(1, input => {
+    const input = makePublicKernelInputsWithTweak(1, input => {
       input.previousKernel.publicInputs.isPrivate = true;
       input.previousKernel.publicInputs.end.privateCallStack = makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, Fr.zero);
     });
@@ -30,7 +30,7 @@ describe('kernel/public_kernel', () => {
   });
 
   it('simulating public kernel circuit fails when aggregating proofs will overflow', async function () {
-    const input = await makePublicKernelInputsWithTweak(1, input => {
+    const input = makePublicKernelInputsWithTweak(1, input => {
       input.publicCall.callStackItem.functionData.isConstructor = false;
       input.publicCall.callStackItem.functionData.isPrivate = false;
       input.previousKernel.publicInputs.isPrivate = false;

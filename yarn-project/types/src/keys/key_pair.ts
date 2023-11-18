@@ -16,5 +16,5 @@ export interface KeyPair {
    * The function returns a Promise that resolves to a Buffer containing the private key.
    * @returns A Promise that resolves to a Buffer containing the private key.
    */
-  getPrivateKey(): Promise<GrumpkinPrivateKey>;
+  getPrivateKey(): GrumpkinPrivateKey;
 }

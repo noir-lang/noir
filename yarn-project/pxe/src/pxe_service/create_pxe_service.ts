@@ -43,7 +43,7 @@ export async function createPXEService(
         : undefined
       : useLogSuffix;
 
-  keyStore = keyStore || new TestKeyStore(await Grumpkin.new());
+  keyStore = keyStore || new TestKeyStore(new Grumpkin());
   db = db || new MemoryDB(logSuffix);
 
   const server = new PXEService(keyStore, aztecNode, db, config, logSuffix);

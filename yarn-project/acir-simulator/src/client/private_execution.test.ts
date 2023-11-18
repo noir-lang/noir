@@ -1,6 +1,5 @@
 import {
   CallContext,
-  CircuitsWasm,
   CompleteAddress,
   ContractDeploymentData,
   EMPTY_NULLIFIED_COMMITMENT,
@@ -144,11 +143,11 @@ describe('Private Execution test suite', () => {
 
   const hashFields = (data: Fr[]) => Fr.fromBuffer(pedersenHash(data.map(f => f.toBuffer())));
 
-  beforeAll(async () => {
+  beforeAll(() => {
     logger = createDebugLogger('aztec:test:private_execution');
 
-    ownerCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
-    recipientCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(recipientPk, Fr.random());
+    ownerCompleteAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
+    recipientCompleteAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(recipientPk, Fr.random());
 
     owner = ownerCompleteAddress.address;
     recipient = recipientCompleteAddress.address;
@@ -364,8 +363,7 @@ describe('Private Execution test suite', () => {
       expect(result.nestedExecutions[0].callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(privateIncrement));
 
       // check that Aztec.nr calculated the call stack item hash like cpp does
-      const wasm = await CircuitsWasm.get();
-      const expectedCallStackItemHash = computeCallStackItemHash(wasm, result.nestedExecutions[0].callStackItem);
+      const expectedCallStackItemHash = computeCallStackItemHash(result.nestedExecutions[0].callStackItem);
       expect(result.callStackItem.publicInputs.privateCallStack[0]).toEqual(expectedCallStackItemHash);
     });
   });
@@ -549,10 +547,7 @@ describe('Private Execution test suite', () => {
         sideEffectCounter: 0,
       });
 
-      const publicCallRequestHash = computeCallStackItemHash(
-        await CircuitsWasm.get(),
-        publicCallRequest.toPublicCallStackItem(),
-      );
+      const publicCallRequestHash = computeCallStackItemHash(publicCallRequest.toPublicCallStackItem());
 
       expect(result.enqueuedPublicFunctionCalls).toHaveLength(1);
       expect(result.enqueuedPublicFunctionCalls[0]).toEqual(publicCallRequest);

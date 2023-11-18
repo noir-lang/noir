@@ -38,7 +38,7 @@ describe('e2e_deploy_contract', () => {
   it('should deploy a contract', async () => {
     const publicKey = accounts[0].publicKey;
     const salt = Fr.random();
-    const deploymentData = await getContractDeploymentInfo(TestContractArtifact, [], salt, publicKey);
+    const deploymentData = getContractDeploymentInfo(TestContractArtifact, [], salt, publicKey);
     const deployer = new ContractDeployer(TestContractArtifact, pxe, publicKey);
     const tx = deployer.deploy().send({ contractAddressSalt: salt });
     logger(`Tx sent with hash ${await tx.getTxHash()}`);

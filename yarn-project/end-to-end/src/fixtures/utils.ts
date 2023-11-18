@@ -196,7 +196,7 @@ async function setupWithSandbox(account: Account, config: AztecNodeConfig, logge
     walletClient,
     publicClient,
   };
-  const cheatCodes = await CheatCodes.create(config.rpcUrl, pxeClient!);
+  const cheatCodes = CheatCodes.create(config.rpcUrl, pxeClient!);
   const teardown = () => Promise.resolve();
   return {
     aztecNode,
@@ -287,7 +287,7 @@ export async function setup(numberOfAccounts = 1, opts: SetupOptions = {}): Prom
 
   const { pxe, accounts, wallets } = await setupPXEService(numberOfAccounts, aztecNode!, logger);
 
-  const cheatCodes = await CheatCodes.create(config.rpcUrl, pxe!);
+  const cheatCodes = CheatCodes.create(config.rpcUrl, pxe!);
 
   const teardown = async () => {
     if (aztecNode instanceof AztecNodeService) await aztecNode?.stop();

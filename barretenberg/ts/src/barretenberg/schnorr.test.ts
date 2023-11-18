@@ -1,6 +1,6 @@
 import { TextEncoder } from 'util';
 import { Buffer128, Buffer32, Fq, Fr, Point } from '../types/index.js';
-import { Barretenberg } from '../barretenberg/index.js';
+import { Barretenberg } from './index.js';
 import { asyncMap } from '../async_map/index.js';
 
 describe('schnorr', () => {

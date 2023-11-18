@@ -1,4 +1,4 @@
-import { Barretenberg } from '../barretenberg/index.js';
+import { Barretenberg } from './index.js';
 
 describe('env', () => {
   let api: Barretenberg;

@@ -74,7 +74,7 @@ async function main() {
 
   const registeredAccounts = await pxe.getRegisteredAccounts();
   for (const account of accounts) {
-    const completeAddress = await account.account.getCompleteAddress();
+    const completeAddress = account.account.getCompleteAddress();
     if (registeredAccounts.find(a => a.equals(completeAddress))) {
       accountStrings.push(` Address: ${completeAddress.address.toString()}\n`);
       accountStrings.push(` Partial Address: ${completeAddress.partialAddress.toString()}\n`);

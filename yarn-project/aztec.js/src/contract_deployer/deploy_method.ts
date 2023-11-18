@@ -67,7 +67,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
 
     const { chainId, protocolVersion } = await this.pxe.getNodeInfo();
 
-    const { completeAddress, constructorHash, functionTreeRoot } = await getContractDeploymentInfo(
+    const { completeAddress, constructorHash, functionTreeRoot } = getContractDeploymentInfo(
       this.artifact,
       this.args,
       contractAddressSalt,

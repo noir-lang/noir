@@ -43,6 +43,6 @@ export class ConstantKeyPair implements KeyPair {
   }
 
   public getPrivateKey() {
-    return Promise.resolve(this.privateKey);
+    return this.privateKey;
   }
 }

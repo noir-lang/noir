@@ -11,7 +11,7 @@ import { AccountContract } from './index.js';
  */
 export abstract class BaseAccountContract implements AccountContract {
   abstract getAuthWitnessProvider(address: CompleteAddress): AuthWitnessProvider;
-  abstract getDeploymentArgs(): Promise<any[]>;
+  abstract getDeploymentArgs(): any[];
 
   constructor(private artifact: ContractArtifact) {}
 
@@ -19,7 +19,7 @@ export abstract class BaseAccountContract implements AccountContract {
     return this.artifact;
   }
 
-  getInterface(address: CompleteAddress, nodeInfo: NodeInfo): Promise<AccountInterface> {
-    return Promise.resolve(new DefaultAccountInterface(this.getAuthWitnessProvider(address), address, nodeInfo));
+  getInterface(address: CompleteAddress, nodeInfo: NodeInfo): AccountInterface {
+    return new DefaultAccountInterface(this.getAuthWitnessProvider(address), address, nodeInfo);
   }
 }

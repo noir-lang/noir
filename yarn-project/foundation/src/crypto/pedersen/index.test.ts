@@ -1,5 +1,5 @@
 import { toBufferBE } from '../../bigint-buffer/index.js';
-import { pedersenCommit, pedersenHash } from './index.js';
+import { pedersenCommit, pedersenHash, pedersenHashBuffer } from './index.js';
 
 describe('pedersen', () => {
   it('pedersen commit', () => {
@@ -26,5 +26,13 @@ describe('pedersen', () => {
   it('pedersen hash with index', () => {
     const r = pedersenHash([toBufferBE(1n, 32), toBufferBE(1n, 32)], 5);
     expect(r).toEqual(Buffer.from('1c446df60816b897cda124524e6b03f36df0cec333fad87617aab70d7861daa6', 'hex'));
+  });
+
+  it('pedersen hash buffer', () => {
+    const input = Buffer.alloc(123);
+    input.writeUint32BE(321, 0);
+    input.writeUint32BE(456, 119);
+    const r = pedersenHashBuffer(input);
+    expect(r).toMatchSnapshot();
   });
 });

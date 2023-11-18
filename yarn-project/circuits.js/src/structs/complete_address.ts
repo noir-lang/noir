@@ -4,7 +4,7 @@ import { BufferReader } from '@aztec/foundation/serialize';
 
 import { computeContractAddressFromPartial } from '../abis/abis.js';
 import { Grumpkin } from '../barretenberg/index.js';
-import { CircuitsWasm, GrumpkinPrivateKey, PartialAddress, PublicKey } from '../index.js';
+import { GrumpkinPrivateKey, PartialAddress, PublicKey } from '../index.js';
 
 /**
  * A complete address is a combination of an Aztec address, a public key and a partial address.
@@ -47,12 +47,8 @@ export class CompleteAddress {
     return new CompleteAddress(address, pubKey, partialAddress);
   }
 
-  static async fromPrivateKeyAndPartialAddress(
-    privateKey: GrumpkinPrivateKey,
-    partialAddress: Fr,
-  ): Promise<CompleteAddress> {
-    const wasm = await CircuitsWasm.get();
-    const grumpkin = new Grumpkin(wasm);
+  static fromPrivateKeyAndPartialAddress(privateKey: GrumpkinPrivateKey, partialAddress: Fr): CompleteAddress {
+    const grumpkin = new Grumpkin();
     const pubKey = grumpkin.mul(Grumpkin.generator, privateKey);
     const address = computeContractAddressFromPartial(pubKey, partialAddress);
     return new CompleteAddress(address, pubKey, partialAddress);

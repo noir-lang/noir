@@ -1,21 +1,12 @@
-import { IWasmModule } from '@aztec/foundation/wasm';
+import { BarretenbergSync } from '@aztec/bb.js';
 
-import { CircuitsWasm } from '../../../index.js';
+const api = await BarretenbergSync.getSingleton();
+const wasm = api.getWasm();
 
 /**
  * Secp256k1 elliptic curve operations.
  */
 export class Secp256k1 {
-  /**
-   * Creates a new Secp256k1 instance.
-   * @returns New Secp256k1 instance.
-   */
-  public static async new() {
-    return new this(await CircuitsWasm.get());
-  }
-
-  constructor(private wasm: IWasmModule) {}
-
   // prettier-ignore
   static generator = Buffer.from([
     0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62, 0x95, 0xce, 0x87, 0x0b, 0x07,
@@ -39,10 +30,10 @@ export class Secp256k1 {
    * @returns Result of the multiplication.
    */
   public mul(point: Uint8Array, scalar: Uint8Array) {
-    this.wasm.writeMemory(0, point);
-    this.wasm.writeMemory(64, scalar);
-    this.wasm.call('ecc_secp256k1__mul', 0, 64, 96);
-    return Buffer.from(this.wasm.getMemorySlice(96, 160));
+    wasm.writeMemory(0, point);
+    wasm.writeMemory(64, scalar);
+    wasm.call('ecc_secp256k1__mul', 0, 64, 96);
+    return Buffer.from(wasm.getMemorySlice(96, 160));
   }
 
   /**
@@ -50,8 +41,8 @@ export class Secp256k1 {
    * @returns Random field element.
    */
   public getRandomFr() {
-    this.wasm.call('ecc_secp256k1__get_random_scalar_mod_circuit_modulus', 0);
-    return Buffer.from(this.wasm.getMemorySlice(0, 32));
+    wasm.call('ecc_secp256k1__get_random_scalar_mod_circuit_modulus', 0);
+    return Buffer.from(wasm.getMemorySlice(0, 32));
   }
 
   /**
@@ -60,8 +51,8 @@ export class Secp256k1 {
    * @returns Buffer representation of the field element.
    */
   public reduce512BufferToFr(uint512Buf: Buffer) {
-    this.wasm.writeMemory(0, uint512Buf);
-    this.wasm.call('ecc_secp256k1__reduce512_buffer_mod_circuit_modulus', 0, 64);
-    return Buffer.from(this.wasm.getMemorySlice(64, 96));
+    wasm.writeMemory(0, uint512Buf);
+    wasm.call('ecc_secp256k1__reduce512_buffer_mod_circuit_modulus', 0, 64);
+    return Buffer.from(wasm.getMemorySlice(64, 96));
   }
 }

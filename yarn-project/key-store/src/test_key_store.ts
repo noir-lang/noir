@@ -37,7 +37,7 @@ export class TestKeyStore implements KeyStore {
 
   public getAccountPrivateKey(pubKey: PublicKey): Promise<GrumpkinPrivateKey> {
     const account = this.getAccount(pubKey);
-    return account.getPrivateKey();
+    return Promise.resolve(account.getPrivateKey());
   }
 
   /**

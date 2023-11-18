@@ -99,7 +99,7 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
           const privateKey = GrumpkinScalar.fromString(privateKeyString);
           const account = getUnsafeSchnorrAccount(pxe, privateKey);
           await account.waitDeploy();
-          const completeAddress = await account.getCompleteAddress();
+          const completeAddress = account.getCompleteAddress();
           const addressString = completeAddress.address.toString();
           console.log(`Created Account: ${addressString}`);
           return addressString;

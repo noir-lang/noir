@@ -1,6 +1,4 @@
-import { Bufferable, serializeBufferable, OutputType } from '../serialize/index.js';
-import { BarretenbergWasm, BarretenbergWasmWorker } from '../barretenberg_wasm/index.js';
-import { asyncMap } from '../async_map/index.js';
+import { type BarretenbergWasmMain } from './index.js';
 
 /**
  * Keeps track of heap allocations so they can be easily freed.
@@ -15,33 +13,33 @@ export class HeapAllocator {
   private inScratchRemaining = 1024;
   private outScratchRemaining = 1024;
 
-  constructor(private wasm: BarretenbergWasm | BarretenbergWasmWorker) {}
+  constructor(private wasm: BarretenbergWasmMain) {}
 
-  async copyToMemory(bufferable: Bufferable[]) {
-    return await asyncMap(bufferable.map(serializeBufferable), async buf => {
+  copyToMemory(buffers: Uint8Array[]) {
+    return buffers.map(buf => {
       if (buf.length <= this.inScratchRemaining) {
         const ptr = (this.inScratchRemaining -= buf.length);
-        await this.wasm.writeMemory(ptr, buf);
+        this.wasm.writeMemory(ptr, buf);
         return ptr;
       } else {
-        const ptr = await this.wasm.call('bbmalloc', buf.length);
-        await this.wasm.writeMemory(ptr, buf);
+        const ptr = this.wasm.call('bbmalloc', buf.length);
+        this.wasm.writeMemory(ptr, buf);
         this.allocs.push(ptr);
         return ptr;
       }
     });
   }
 
-  async getOutputPtrs(objs: OutputType[]) {
-    return await asyncMap(objs, async obj => {
+  getOutputPtrs(outLens: (number | undefined)[]) {
+    return outLens.map(len => {
       // If the obj is variable length, we need a 4 byte ptr to write the serialized data address to.
       // WARNING: 4 only works with WASM as it has 32 bit memory.
-      const size = obj.SIZE_IN_BYTES || 4;
+      const size = len || 4;
 
       if (size <= this.outScratchRemaining) {
         return (this.outScratchRemaining -= size);
       } else {
-        const ptr = await this.wasm.call('bbmalloc', size);
+        const ptr = this.wasm.call('bbmalloc', size);
         this.allocs.push(ptr);
         return ptr;
       }
@@ -54,9 +52,9 @@ export class HeapAllocator {
     }
   }
 
-  async freeAll() {
+  freeAll() {
     for (const ptr of this.allocs) {
-      await this.wasm.call('bbfree', ptr);
+      this.wasm.call('bbfree', ptr);
     }
   }
 }

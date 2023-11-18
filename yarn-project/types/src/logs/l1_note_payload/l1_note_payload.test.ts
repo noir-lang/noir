@@ -1,4 +1,3 @@
-import { CircuitsWasm } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { GrumpkinScalar, Point } from '@aztec/foundation/fields';
 
@@ -7,8 +6,8 @@ import { L1NotePayload } from './l1_note_payload.js';
 describe('L1 Note Payload', () => {
   let grumpkin: Grumpkin;
 
-  beforeAll(async () => {
-    grumpkin = new Grumpkin(await CircuitsWasm.get());
+  beforeAll(() => {
+    grumpkin = new Grumpkin();
   });
 
   it('convert to and from buffer', () => {

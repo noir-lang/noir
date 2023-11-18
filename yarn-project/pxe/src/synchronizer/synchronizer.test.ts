@@ -102,10 +102,10 @@ describe('Synchronizer', () => {
     aztecNode.getBlockNumber.mockResolvedValueOnce(1);
 
     // Manually adding account to database so that we can call synchronizer.isAccountStateSynchronized
-    const keyStore = new TestKeyStore(await Grumpkin.new());
+    const keyStore = new TestKeyStore(new Grumpkin());
     const privateKey = GrumpkinScalar.random();
     keyStore.addAccount(privateKey);
-    const completeAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(privateKey, Fr.random());
+    const completeAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(privateKey, Fr.random());
     await database.addCompleteAddress(completeAddress);
 
     // Add the account which will add the note processor to the synchronizer

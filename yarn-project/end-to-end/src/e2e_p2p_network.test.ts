@@ -127,8 +127,7 @@ describe('e2e_p2p_network', () => {
     const txs: DeploySentTx[] = [];
     for (let i = 0; i < numTxs; i++) {
       const salt = Fr.random();
-      const origin = (await getContractDeploymentInfo(TestContractArtifact, [], salt, publicKey)).completeAddress
-        .address;
+      const origin = getContractDeploymentInfo(TestContractArtifact, [], salt, publicKey).completeAddress.address;
       const deployer = new ContractDeployer(TestContractArtifact, pxe, publicKey);
       const tx = deployer.deploy().send({ contractAddressSalt: salt });
       logger(`Tx sent with hash ${await tx.getTxHash()}`);
@@ -153,12 +152,9 @@ describe('e2e_p2p_network', () => {
     const rpcConfig = getRpcConfig();
     const pxeService = await createPXEService(node, rpcConfig, {}, true);
 
-    const keyPair = ConstantKeyPair.random(await Grumpkin.new());
-    const completeAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(
-      await keyPair.getPrivateKey(),
-      Fr.random(),
-    );
-    await pxeService.registerAccount(await keyPair.getPrivateKey(), completeAddress.partialAddress);
+    const keyPair = ConstantKeyPair.random(new Grumpkin());
+    const completeAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(keyPair.getPrivateKey(), Fr.random());
+    await pxeService.registerAccount(keyPair.getPrivateKey(), completeAddress.partialAddress);
 
     const txs = await submitTxsTo(pxeService, completeAddress.address, numTxs, completeAddress.publicKey);
     return {

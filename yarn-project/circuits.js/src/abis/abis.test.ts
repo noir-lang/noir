@@ -18,7 +18,6 @@ import {
   makeTxRequest,
   makeVerificationKey,
 } from '../tests/factories.js';
-import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 import {
   computeBlockHashWithGlobals,
   computeCallStackItemHash,
@@ -44,11 +43,6 @@ import {
 } from './abis.js';
 
 describe('abis wasm bindings', () => {
-  let wasm: CircuitsWasm;
-  beforeAll(async () => {
-    wasm = await CircuitsWasm.get();
-  });
-
   it('hashes a tx request', () => {
     const txRequest = makeTxRequest();
     const hash = hashTxRequest(txRequest);
@@ -63,7 +57,7 @@ describe('abis wasm bindings', () => {
 
   it('hashes VK', () => {
     const vk = makeVerificationKey();
-    const res = hashVK(wasm, vk.toBuffer());
+    const res = hashVK(vk.toBuffer());
     expect(res).toMatchSnapshot();
   });
 
@@ -74,7 +68,7 @@ describe('abis wasm bindings', () => {
   });
 
   it('computes function tree root', () => {
-    const res = computeFunctionTreeRoot(wasm, [new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n)]);
+    const res = computeFunctionTreeRoot([new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n)]);
     expect(res).toMatchSnapshot();
   });
 
@@ -215,13 +209,13 @@ describe('abis wasm bindings', () => {
 
   it('compute private call stack item hash', () => {
     const item = makePrivateCallStackItem();
-    const hash = computeCallStackItemHash(wasm, item);
+    const hash = computeCallStackItemHash(item);
     expect(hash).toMatchSnapshot();
   });
 
   it('compute public call stack item hash', () => {
     const item = makePublicCallStackItem();
-    const hash = computeCallStackItemHash(wasm, item);
+    const hash = computeCallStackItemHash(item);
     expect(hash).toMatchSnapshot();
   });
 

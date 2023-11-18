@@ -22,8 +22,8 @@ describe('Simulator', () => {
 
   const hashFields = (data: Fr[]) => Fr.fromBuffer(pedersenHash(data.map(f => f.toBuffer())));
 
-  beforeAll(async () => {
-    ownerCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
+  beforeAll(() => {
+    ownerCompleteAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
     owner = ownerCompleteAddress.address;
   });
 

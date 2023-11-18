@@ -1,6 +1,5 @@
 import { randomBytes } from '@aztec/foundation/crypto';
 
-import { CircuitsWasm } from '../../../index.js';
 import { Ecdsa } from '../ecdsa/index.js';
 import { Secp256k1 } from './index.js';
 
@@ -8,10 +7,9 @@ describe('secp256k1', () => {
   let secp256k1!: Secp256k1;
   let ecdsa!: Ecdsa;
 
-  beforeAll(async () => {
-    const wasm = await CircuitsWasm.get();
-    secp256k1 = new Secp256k1(wasm);
-    ecdsa = new Ecdsa(wasm);
+  beforeAll(() => {
+    secp256k1 = new Secp256k1();
+    ecdsa = new Ecdsa();
   });
 
   it('should correctly compute public key', () => {
