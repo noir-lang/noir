@@ -52,7 +52,7 @@ fn send_stopped_event<R: Read, W: Write>(
     Ok(())
 }
 
-pub fn loop_initialized<R: Read, W: Write, B: BlackBoxFunctionSolver>(
+pub fn run_dap_loop<R: Read, W: Write, B: BlackBoxFunctionSolver>(
     mut server: Server<R, W>,
     solver: &B,
     program: CompiledProgram,
