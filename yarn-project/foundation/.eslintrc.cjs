@@ -111,6 +111,7 @@ module.exports = {
       },
     ],
     'import/no-extraneous-dependencies': 'error',
+    'import/no-cycle': 'warn',
     'tsdoc/syntax': JSDOC_RULES_LEVEL,
     'jsdoc/require-jsdoc': [
       JSDOC_RULES_LEVEL,
