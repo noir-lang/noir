@@ -928,6 +928,15 @@ jobs:
       - run:
           name: "Build docs"
           command: build docs
+      - run:
+          name: "Deploy docs"
+          command: |
+            if [ "$CIRCLE_BRANCH" == "master" ]; then
+              echo "Deploying docs (on master)."
+              docs/deploy_netlify.sh
+            else
+              echo "Skipping doc deploy (not on master)."
+            fi
 
   e2e-join:
     docker:

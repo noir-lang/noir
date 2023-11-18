@@ -173,6 +173,7 @@ docs:
   rebuildPatterns:
     - ^docs/
     - ^.*.cpp$
+    - ^.*.hpp$
     - ^.*.ts$
     - ^.release-please-manifest.json$
     - ^.*/noir-version.json$

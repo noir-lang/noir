@@ -1,4 +1,4 @@
-*.node_modules
+**/node_modules
 *.docusaurus
 *.processed-docs
 *.processed-docs-cache
