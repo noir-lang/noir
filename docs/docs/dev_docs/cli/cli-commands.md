@@ -8,11 +8,17 @@ Here you will find a reference to the commands available in the Aztec CLI.
 
 ### NPM
 
-This command will install the Aztec CLI.
+This command will install the Aztec CLI as a dev dependency in your npm project.
 
 ```bash
-npm install -g @aztec/cli
+npm install --save-dev @aztec/cli
 ```
+
+:::info
+
+You can install the CLI globally, but it is recommended that you install the CLI as a local dependency in your project. This will make it easier to keep the CLI version in sync with the sandbox version.
+
+:::
 
 ### Docker
 

@@ -3,23 +3,38 @@ title: Updating
 ---
 
 ## TL;DR
-1. **Updating the sandbox:** 
+
+1. **Updating the sandbox:**
+
 - If you installed sandbox via docker, run:
+
 ```shell
 /bin/bash -c "$(curl -fsSL 'https://sandbox.aztec.network')"
 ```
+
 - If you have installed via an npm package then step 3 handles the update.
 
 2. **Updating Aztec-CLI:**
+
 - The above command also downloads the aztec-cli if a node package version of the CLI isn't found locally.
 - If you have globally installed the CLI previously, then run:
+
 ```shell
-npm install -g @aztec/aztec-cli
+npm install -g @aztec/cli
 ```
+
 (replace with `yarn` or your node package version manager tool).
+
 - If you have aztec-cli listed as a local dependency in your project's `package.json`, then step 3 handles the update.
 
-3. **Updating aztec-nr and individual @aztec dependencies:**
+:::info
+
+You can install the CLI globally, but it is recommended that you install the CLI as a local dependency in your project. This will make it easier to keep the CLI version in sync with the sandbox version.
+
+:::
+
+1. **Updating aztec-nr and individual @aztec dependencies:**
+
 Inside your project run:
 
 ```shell
@@ -53,22 +68,28 @@ This will also update the CLI if a node package version of the CLI isn't found l
 
 ### npm
 
+:::info
+
+You can install the CLI globally, but it is recommended that you install the CLI as a local dependency in your project. This will make it easier to keep the CLI version in sync with the sandbox version.
+
+:::
+
 If the latest version was used when updating the sandbox then we can simply run the following command to update the CLI:
 
 ```shell
-npm install -g @aztec/cli
+npm install --save-dev @aztec/cli
 ```
 
 If a specific version was set for the sandbox then we need to install the CLI with the same version:
 
 ```shell
-npm install -g @aztec/cli@$SANDBOX_VERSION
+npm install --save-dev @aztec/cli@$SANDBOX_VERSION
 ```
 
 E.g.:
 
 ```shell
-npm install -g @aztec/cli@#include_aztec_short_version
+npm install --save-dev @aztec/cli@#include_aztec_short_version
 ```
 
 ### Docker
