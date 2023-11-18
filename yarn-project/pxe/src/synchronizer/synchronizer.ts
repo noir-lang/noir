@@ -39,7 +39,9 @@ export class Synchronizer {
    * @param retryInterval - The time interval (in ms) to wait before retrying if no data is available.
    */
   public async start(from = INITIAL_L2_BLOCK_NUM, limit = 1, retryInterval = 1000) {
-    if (this.running) return;
+    if (this.running) {
+      return;
+    }
     this.running = true;
 
     if (from < this.synchedToBlock + 1) {
@@ -197,7 +199,9 @@ export class Synchronizer {
 
   private async setBlockDataFromBlock(latestBlock: L2BlockContext) {
     const { block } = latestBlock;
-    if (block.number < this.initialSyncBlockNumber) return;
+    if (block.number < this.initialSyncBlockNumber) {
+      return;
+    }
 
     const globalsHash = computeGlobalsHash(latestBlock.block.globalVariables);
     const blockData = new HistoricBlockData(
@@ -241,7 +245,9 @@ export class Synchronizer {
   public addAccount(publicKey: PublicKey, keyStore: KeyStore, startingBlock: number) {
     const predicate = (x: NoteProcessor) => x.publicKey.equals(publicKey);
     const processor = this.noteProcessors.find(predicate) ?? this.noteProcessorsToCatchUp.find(predicate);
-    if (processor) return;
+    if (processor) {
+      return;
+    }
 
     this.noteProcessorsToCatchUp.push(new NoteProcessor(publicKey, keyStore, this.db, this.node, startingBlock));
   }

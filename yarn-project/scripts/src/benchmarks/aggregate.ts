@@ -52,15 +52,21 @@ function append(
     log(`Value ${value} for ${metric} in ${bucket} is not a number`);
     return;
   }
-  if (!results[metric]) results[metric] = {};
-  if (!results[metric]![bucket]) results[metric]![bucket] = [];
+  if (!results[metric]) {
+    results[metric] = {};
+  }
+  if (!results[metric]![bucket]) {
+    results[metric]![bucket] = [];
+  }
   results[metric]![bucket].push(numeric);
 }
 
 /** Processes an entry with event name 'rollup-published-to-l1' and updates results */
 function processRollupPublished(entry: L1PublishStats, results: BenchmarkCollectedResults) {
   const bucket = entry.txCount;
-  if (!BENCHMARK_BLOCK_SIZES.includes(bucket)) return;
+  if (!BENCHMARK_BLOCK_SIZES.includes(bucket)) {
+    return;
+  }
   append(results, 'l1_rollup_calldata_gas', bucket, entry.calldataGas);
   append(results, 'l1_rollup_calldata_size_in_bytes', bucket, entry.calldataSize);
   append(results, 'l1_rollup_execution_gas', bucket, entry.gasUsed);
@@ -72,8 +78,12 @@ function processRollupPublished(entry: L1PublishStats, results: BenchmarkCollect
  */
 function processRollupBlockSynced(entry: L2BlockHandledStats, results: BenchmarkCollectedResults) {
   const bucket = entry.txCount;
-  if (!BENCHMARK_BLOCK_SIZES.includes(bucket)) return;
-  if (entry.isBlockOurs) return;
+  if (!BENCHMARK_BLOCK_SIZES.includes(bucket)) {
+    return;
+  }
+  if (entry.isBlockOurs) {
+    return;
+  }
   append(results, 'l2_block_processing_time_in_ms', bucket, entry.duration);
 }
 
@@ -83,7 +93,9 @@ function processRollupBlockSynced(entry: L2BlockHandledStats, results: Benchmark
  */
 function processCircuitSimulation(entry: CircuitSimulationStats, results: BenchmarkCollectedResults) {
   const bucket = entry.circuitName;
-  if (!bucket) return;
+  if (!bucket) {
+    return;
+  }
   append(results, 'circuit_simulation_time_in_ms', bucket, entry.duration);
   append(results, 'circuit_input_size_in_bytes', bucket, entry.inputSize);
   append(results, 'circuit_output_size_in_bytes', bucket, entry.outputSize);
@@ -105,14 +117,17 @@ function processNoteProcessorCaughtUp(entry: NoteProcessorCaughtUpStats, results
     append(results, 'note_history_successful_decrypting_time_in_ms', blocks, duration);
     append(results, 'pxe_database_size_in_bytes', blocks, dbSize);
   }
-  if (BENCHMARK_HISTORY_CHAIN_LENGTHS.includes(blocks) && decrypted === 0)
+  if (BENCHMARK_HISTORY_CHAIN_LENGTHS.includes(blocks) && decrypted === 0) {
     append(results, 'note_history_trial_decrypting_time_in_ms', blocks, duration);
+  }
 }
 
 /** Processes an entry with event name 'l2-block-built' and updates results where buckets are rollup sizes */
 function processL2BlockBuilt(entry: L2BlockBuiltStats, results: BenchmarkCollectedResults) {
   const bucket = entry.txCount;
-  if (!BENCHMARK_BLOCK_SIZES.includes(bucket)) return;
+  if (!BENCHMARK_BLOCK_SIZES.includes(bucket)) {
+    return;
+  }
   append(results, 'l2_block_building_time_in_ms', bucket, entry.duration);
   append(results, 'l2_block_rollup_simulation_time_in_ms', bucket, entry.rollupCircuitsDuration);
   append(results, 'l2_block_public_tx_process_time_in_ms', bucket, entry.publicProcessDuration);
@@ -121,8 +136,12 @@ function processL2BlockBuilt(entry: L2BlockBuiltStats, results: BenchmarkCollect
 /** Processes entries with event name node-synced-chain-history emitted by benchmark tests where buckets are chain lengths */
 function processNodeSyncedChain(entry: NodeSyncedChainHistoryStats, results: BenchmarkCollectedResults) {
   const bucket = entry.blockCount;
-  if (!BENCHMARK_HISTORY_CHAIN_LENGTHS.includes(bucket)) return;
-  if (entry.txsPerBlock !== BENCHMARK_HISTORY_BLOCK_SIZE) return;
+  if (!BENCHMARK_HISTORY_CHAIN_LENGTHS.includes(bucket)) {
+    return;
+  }
+  if (entry.txsPerBlock !== BENCHMARK_HISTORY_BLOCK_SIZE) {
+    return;
+  }
   append(results, 'node_history_sync_time_in_ms', bucket, entry.duration);
   append(results, 'node_database_size_in_bytes', bucket, entry.dbSize);
 }
@@ -188,7 +207,9 @@ export async function main() {
     results[metricName as MetricName] = resultMetric;
     for (const [bucketName, bucket] of Object.entries(metric)) {
       let avg = bucket.reduce((acc, val) => acc + val, 0) / bucket.length;
-      if (avg > 100) avg = Math.floor(avg);
+      if (avg > 100) {
+        avg = Math.floor(avg);
+      }
       resultMetric[bucketName] = avg;
     }
   }

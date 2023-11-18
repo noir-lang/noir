@@ -95,7 +95,9 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
 
   public getTreeRoots(): Record<MerkleTreeId, Fr> {
     const roots = this.treeRoots;
-    if (!roots) throw new Error(`Tree roots not set in memory database`);
+    if (!roots) {
+      throw new Error(`Tree roots not set in memory database`);
+    }
     return roots;
   }
 
@@ -106,7 +108,9 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
 
   public getHistoricBlockData(): HistoricBlockData {
     const roots = this.getTreeRoots();
-    if (!this.globalVariablesHash) throw new Error(`Global variables hash not set in memory database`);
+    if (!this.globalVariablesHash) {
+      throw new Error(`Global variables hash not set in memory database`);
+    }
     return new HistoricBlockData(
       roots[MerkleTreeId.NOTE_HASH_TREE],
       roots[MerkleTreeId.NULLIFIER_TREE],

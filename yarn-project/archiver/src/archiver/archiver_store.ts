@@ -507,7 +507,9 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @returns The number of the latest L2 block processed.
    */
   public getBlockNumber(): Promise<number> {
-    if (this.l2BlockContexts.length === 0) return Promise.resolve(INITIAL_L2_BLOCK_NUM - 1);
+    if (this.l2BlockContexts.length === 0) {
+      return Promise.resolve(INITIAL_L2_BLOCK_NUM - 1);
+    }
     return Promise.resolve(this.l2BlockContexts[this.l2BlockContexts.length - 1].block.number);
   }
 }

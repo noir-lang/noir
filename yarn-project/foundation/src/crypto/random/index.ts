@@ -6,8 +6,12 @@ import isNode from 'detect-node';
 const MAX_BYTES = 65536;
 
 const getWebCrypto = () => {
-  if (typeof window !== 'undefined' && window.crypto) return window.crypto;
-  if (typeof self !== 'undefined' && self.crypto) return self.crypto;
+  if (typeof window !== 'undefined' && window.crypto) {
+    return window.crypto;
+  }
+  if (typeof self !== 'undefined' && self.crypto) {
+    return self.crypto;
+  }
   return undefined;
 };
 

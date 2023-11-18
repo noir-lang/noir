@@ -107,7 +107,9 @@ export class AccountManager {
    */
   public async getDeployMethod() {
     if (!this.deployMethod) {
-      if (!this.salt) throw new Error(`Cannot deploy account contract without known salt.`);
+      if (!this.salt) {
+        throw new Error(`Cannot deploy account contract without known salt.`);
+      }
       await this.#register();
       const encryptionPublicKey = this.getEncryptionPublicKey();
       const deployer = new ContractDeployer(this.accountContract.getContractArtifact(), this.pxe, encryptionPublicKey);

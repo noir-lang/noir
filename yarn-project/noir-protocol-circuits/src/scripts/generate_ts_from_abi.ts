@@ -114,7 +114,9 @@ function generateStructInterfaces(type: ABIType, output: Set<string>): string {
   if (type.kind === 'array' && type.type.kind === 'struct' && !output.has(getLastComponentOfPath(type.type.path))) {
     result += generateStructInterfaces(type.type, output);
   }
-  if (type.kind !== 'struct') return result;
+  if (type.kind !== 'struct') {
+    return result;
+  }
 
   // List of structs encountered while viewing this type that we need to generate
   // bindings for.

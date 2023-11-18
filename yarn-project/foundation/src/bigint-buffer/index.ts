@@ -33,7 +33,9 @@ export function toBigIntBE(buf: Buffer): bigint {
  * @returns A little-endian buffer representation of num.
  */
 export function toBufferLE(num: bigint, width: number): Buffer {
-  if (num < BigInt(0)) throw new Error(`Cannot convert negative bigint ${num.toString()} to buffer with toBufferLE.`);
+  if (num < BigInt(0)) {
+    throw new Error(`Cannot convert negative bigint ${num.toString()} to buffer with toBufferLE.`);
+  }
   const hex = num.toString(16);
   const buffer = Buffer.from(hex.padStart(width * 2, '0').slice(0, width * 2), 'hex');
   buffer.reverse();
@@ -47,10 +49,14 @@ export function toBufferLE(num: bigint, width: number): Buffer {
  * @returns A big-endian buffer representation of num.
  */
 export function toBufferBE(num: bigint, width: number): Buffer {
-  if (num < BigInt(0)) throw new Error(`Cannot convert negative bigint ${num.toString()} to buffer with toBufferBE.`);
+  if (num < BigInt(0)) {
+    throw new Error(`Cannot convert negative bigint ${num.toString()} to buffer with toBufferBE.`);
+  }
   const hex = num.toString(16);
   const buffer = Buffer.from(hex.padStart(width * 2, '0').slice(0, width * 2), 'hex');
-  if (buffer.length > width) throw new Error(`Number ${num.toString(16)} does not fit in ${width}`);
+  if (buffer.length > width) {
+    throw new Error(`Number ${num.toString(16)} does not fit in ${width}`);
+  }
   return buffer;
 }
 

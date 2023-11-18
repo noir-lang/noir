@@ -588,7 +588,9 @@ export function makePublicKernelInputsWithTweak(
     makePreviousKernelData(seed, kernelCircuitPublicInputs),
     makePublicCallData(seed + 0x1000),
   );
-  if (tweak) tweak(publicKernelInputs);
+  if (tweak) {
+    tweak(publicKernelInputs);
+  }
   // Set the call stack item for this circuit iteration at the top of the call stack
   publicKernelInputs.previousKernel.publicInputs.end.publicCallStack[MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX - 1] =
     computeCallStackItemHash(publicKernelInputs.publicCall.callStackItem);

@@ -59,7 +59,9 @@ export class PendingL1ToL2MessageStore extends L1ToL2MessageStore {
 
   removeMessage(messageKey: Fr) {
     // ignore 0 - messageKey is a hash, so a 0 can probabilistically never occur. It is best to skip it.
-    if (messageKey.equals(Fr.ZERO)) return;
+    if (messageKey.equals(Fr.ZERO)) {
+      return;
+    }
     const messageKeyBigInt = messageKey.value;
     const msgAndCount = this.store.get(messageKeyBigInt);
     if (!msgAndCount) {

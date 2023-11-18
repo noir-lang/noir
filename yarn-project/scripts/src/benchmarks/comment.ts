@@ -16,7 +16,9 @@ const log = createConsoleLogger();
 
 /** Returns the number of the current PR */
 function getPrNumber() {
-  if (!process.env.CIRCLE_PULL_REQUEST) throw new Error(`Not in Circle PR`);
+  if (!process.env.CIRCLE_PULL_REQUEST) {
+    throw new Error(`Not in Circle PR`);
+  }
   const fragments = process.env.CIRCLE_PULL_REQUEST.split('/');
   return fragments[fragments.length - 1];
 }
@@ -60,8 +62,11 @@ function sendGitHubRequest(url: string, method = 'GET', data?: object): Promise<
     'User-Agent': OWNER,
     'Content-Type': undefined as string | undefined,
   };
-  if (data) headers['Content-Type'] = 'application/json';
-  else delete headers['Content-Type'];
+  if (data) {
+    headers['Content-Type'] = 'application/json';
+  } else {
+    delete headers['Content-Type'];
+  }
 
   const requestOptions = { method, headers };
 
@@ -91,7 +96,9 @@ function sendGitHubRequest(url: string, method = 'GET', data?: object): Promise<
       reject(error);
     });
 
-    if (data) req.write(JSON.stringify(data));
+    if (data) {
+      req.write(JSON.stringify(data));
+    }
     req.end();
   });
 }

@@ -351,7 +351,9 @@ export class CbindCompiler {
     // Raw object, used as return value of fromType() generated functions.
     let result = `interface Msgpack${name} {\n`;
     for (const [key, value] of Object.entries(type)) {
-      if (key === '__typename') continue;
+      if (key === '__typename') {
+        continue;
+      }
       result += `  ${key}: ${this.getMsgpackTypename(value)};\n`;
     }
     result += '}';
@@ -370,7 +372,9 @@ export class CbindCompiler {
     const checkerSyntax = () => {
       const statements: string[] = [];
       for (const [key] of Object.entries(type)) {
-        if (key === '__typename') continue;
+        if (key === '__typename') {
+          continue;
+        }
         statements.push(
           `  if (o.${key} === undefined) { throw new Error("Expected ${key} in ${typename} deserialization"); }`,
         );
@@ -382,7 +386,9 @@ export class CbindCompiler {
     const constructorBodySyntax = () => {
       const statements: string[] = [];
       for (const [key, value] of Object.entries(type)) {
-        if (key === '__typename') continue;
+        if (key === '__typename') {
+          continue;
+        }
         statements.push(`  ${msgpackConverterExpr(this.getTypeInfo(value), `o.${key}`)},`);
       }
       return statements.join('\n');
@@ -411,7 +417,9 @@ return ${callSyntax.call(this)};
     const checkerSyntax = () => {
       const statements: string[] = [];
       for (const [key] of Object.entries(type)) {
-        if (key === '__typename') continue;
+        if (key === '__typename') {
+          continue;
+        }
         statements.push(
           `  if (o.${camelCase(key)} === undefined) { throw new Error("Expected ${camelCase(
             key,
@@ -423,7 +431,9 @@ return ${callSyntax.call(this)};
     const bodySyntax = () => {
       const statements: string[] = [];
       for (const [key, value] of Object.entries(type)) {
-        if (key === '__typename') continue;
+        if (key === '__typename') {
+          continue;
+        }
         statements.push(`  ${key}: ${classConverterExpr(this.getTypeInfo(value), `o.${camelCase(key)}`)},`);
       }
       return statements.join('\n');

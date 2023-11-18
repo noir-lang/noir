@@ -110,7 +110,9 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
    */
   public getLeafValue(index: bigint, includeUncommitted: boolean): Promise<Buffer | undefined> {
     const leaf = this.getLatestLeafDataCopy(Number(index), includeUncommitted);
-    if (!leaf) return Promise.resolve(undefined);
+    if (!leaf) {
+      return Promise.resolve(undefined);
+    }
     return Promise.resolve(toBufferBE(leaf.value, 32));
   }
 
@@ -453,7 +455,9 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
         // check the pending low nullifiers for a low nullifier that works
         // This is the case where the next value is less than the pending
         for (let j = 0; j < pendingInsertionSubtree.length; j++) {
-          if (pendingInsertionSubtree[j].value === 0n) continue;
+          if (pendingInsertionSubtree[j].value === 0n) {
+            continue;
+          }
 
           if (
             pendingInsertionSubtree[j].value < newValue &&

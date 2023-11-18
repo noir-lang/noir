@@ -39,9 +39,13 @@ export class ContractStorageActionsCollector {
   public async read(storageSlot: Fr, sideEffectCounter: number): Promise<Fr> {
     const slot = storageSlot.value;
     const updateRequest = this.contractStorageUpdateRequests.get(slot);
-    if (updateRequest) return updateRequest.newValue;
+    if (updateRequest) {
+      return updateRequest.newValue;
+    }
     const read = this.contractStorageReads.get(slot);
-    if (read) return read.currentValue;
+    if (read) {
+      return read.currentValue;
+    }
     const value = await this.db.storageRead(this.address, storageSlot);
     this.contractStorageReads.set(slot, { currentValue: value, sideEffectCounter });
     return value;

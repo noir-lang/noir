@@ -31,16 +31,19 @@ export class SimulatorOracle implements DBOracle {
 
   async getCompleteAddress(address: AztecAddress): Promise<CompleteAddress> {
     const completeAddress = await this.db.getCompleteAddress(address);
-    if (!completeAddress)
+    if (!completeAddress) {
       throw new Error(
         `No public key registered for address ${address.toString()}. Register it by calling pxe.registerRecipient(...) or pxe.registerAccount(...).\nSee docs for context: https://docs.aztec.network/dev_docs/contracts/common_errors#no-public-key-registered-error`,
       );
+    }
     return completeAddress;
   }
 
   async getAuthWitness(messageHash: Fr): Promise<Fr[]> {
     const witness = await this.db.getAuthWitness(messageHash);
-    if (!witness) throw new Error(`Unknown auth witness for message hash ${messageHash.toString(true)}`);
+    if (!witness) {
+      throw new Error(`Unknown auth witness for message hash ${messageHash.toString(true)}`);
+    }
     return witness;
   }
 

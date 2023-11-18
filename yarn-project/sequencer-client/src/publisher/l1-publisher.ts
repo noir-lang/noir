@@ -134,10 +134,14 @@ export class L1Publisher implements L2BlockReceiver {
       }
 
       const txHash = await this.sendProcessTx(txData);
-      if (!txHash) break;
+      if (!txHash) {
+        break;
+      }
 
       const receipt = await this.getTransactionReceipt(txHash);
-      if (!receipt) break;
+      if (!receipt) {
+        break;
+      }
 
       // Tx was mined successfully
       if (receipt.status) {
@@ -184,17 +188,23 @@ export class L1Publisher implements L2BlockReceiver {
 
       const arr = _contractData.length ? _contractData : contractData;
       const txHashes = await this.sendEmitNewContractDataTx(l2BlockNum, l2BlockHash, arr);
-      if (!txHashes) break;
+      if (!txHashes) {
+        break;
+      }
       // filter successful txs
       _contractData = arr.filter((_, i) => !!txHashes[i]);
 
       const receipts = await Promise.all(
         txHashes.filter(isNotUndefined).map(txHash => this.getTransactionReceipt(txHash)),
       );
-      if (!receipts?.length) break;
+      if (!receipts?.length) {
+        break;
+      }
 
       // ALL Txs were mined successfully
-      if (receipts.length === contractData.length && receipts.every(r => r?.status)) return true;
+      if (receipts.length === contractData.length && receipts.every(r => r?.status)) {
+        return true;
+      }
 
       this.log(
         `Transaction status failed: ${receipts

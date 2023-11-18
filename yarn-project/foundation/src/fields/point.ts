@@ -128,7 +128,9 @@ export class Point {
  * @returns Whether it looks like a point.
  */
 export function isPoint(obj: object): obj is Point {
-  if (!obj) return false;
+  if (!obj) {
+    return false;
+  }
   const point = obj as Point;
   return point.kind === 'point' && point.x !== undefined && point.y !== undefined;
 }

@@ -276,7 +276,9 @@ export class PXEService implements PXE {
     const commitments = tx.newCommitments;
     for (let i = 0; i < commitments.length; ++i) {
       const commitment = commitments[i];
-      if (commitment.equals(Fr.ZERO)) break;
+      if (commitment.equals(Fr.ZERO)) {
+        break;
+      }
 
       const nonce = computeCommitmentNonce(firstNullifier, i);
       const { siloedNoteHash, uniqueSiloedNoteHash } = await this.simulator.computeNoteHashAndNullifier(
@@ -321,7 +323,9 @@ export class PXEService implements PXE {
     const newContract = deployedContractAddress ? await this.db.getContract(deployedContractAddress) : undefined;
 
     const tx = await this.#simulateAndProve(txRequest, newContract);
-    if (simulatePublic) await this.#simulatePublicCalls(tx);
+    if (simulatePublic) {
+      await this.#simulatePublicCalls(tx);
+    }
     this.log.info(`Executed local simulation for ${await tx.getTxHash()}`);
 
     return tx;

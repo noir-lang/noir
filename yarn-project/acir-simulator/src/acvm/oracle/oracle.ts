@@ -49,7 +49,9 @@ export class Oracle {
   async getAuthWitness([messageHash]: ACVMField[]): Promise<ACVMField[]> {
     const messageHashField = fromACVMField(messageHash);
     const witness = await this.typedOracle.getAuthWitness(messageHashField);
-    if (!witness) throw new Error(`Authorization not found for message hash ${messageHashField}`);
+    if (!witness) {
+      throw new Error(`Authorization not found for message hash ${messageHashField}`);
+    }
     return witness.map(toACVMField);
   }
 

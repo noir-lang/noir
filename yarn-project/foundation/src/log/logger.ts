@@ -39,7 +39,9 @@ export type DebugLogger = LogFn & Logger;
  */
 export function createDebugLogger(name: string): DebugLogger {
   const debugLogger = debug(name);
-  if (currentLevel === 'debug') debugLogger.enabled = true;
+  if (currentLevel === 'debug') {
+    debugLogger.enabled = true;
+  }
 
   const logger = {
     silent: () => {},
@@ -78,7 +80,9 @@ function logWithDebug(debug: debug.Debugger, level: LogLevel, msg: string, data?
 
   msg = data ? `${msg} ${fmtLogData(data)}` : msg;
   if (debug.enabled) {
-    if (level !== 'debug') msg = `${level.toUpperCase()} ${msg}`;
+    if (level !== 'debug') {
+      msg = `${level.toUpperCase()} ${msg}`;
+    }
     debug(msg);
   } else if (LogLevels.indexOf(level) <= LogLevels.indexOf(currentLevel)) {
     printLog(`${getPrefix(debug, level)} ${msg}`);
@@ -94,7 +98,9 @@ function logWithDebug(debug: debug.Debugger, level: LogLevel, msg: string, data?
 function getPrefix(debugLogger: debug.Debugger, level: LogLevel) {
   const levelLabel = currentLevel !== level ? ` ${level.toUpperCase()}` : '';
   const prefix = `${debugLogger.namespace.replace(/^aztec:/, '')}${levelLabel}`;
-  if (!isNode || !isatty(process.stderr.fd)) return prefix;
+  if (!isNode || !isatty(process.stderr.fd)) {
+    return prefix;
+  }
   const colorIndex = debug.selectColor(debugLogger.namespace) as number;
   const colorCode = '\u001B[3' + (colorIndex < 8 ? colorIndex : '8;5;' + colorIndex);
   return `  ${colorCode};1m${prefix}\u001B[0m`;

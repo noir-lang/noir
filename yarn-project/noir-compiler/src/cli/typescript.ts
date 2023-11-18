@@ -37,7 +37,9 @@ export function generateTypescriptInterface(program: Command, name = 'typescript
         /* eslint-enable jsdoc/require-jsdoc */
       ) => {
         const { outdir, artifacts } = options;
-        if (typeof projectPath !== 'string') throw new Error(`Missing project path argument`);
+        if (typeof projectPath !== 'string') {
+          throw new Error(`Missing project path argument`);
+        }
         const currentDir = process.cwd();
 
         const artifactsDir = resolve(projectPath, artifacts);
@@ -45,7 +47,9 @@ export function generateTypescriptInterface(program: Command, name = 'typescript
           const artifactPath = resolve(artifactsDir, artifactsDirItem);
           if (statSync(artifactPath).isFile() && artifactPath.endsWith('.json')) {
             const contract = JSON.parse(readFileSync(artifactPath).toString());
-            if (!isContractArtifact(contract)) continue;
+            if (!isContractArtifact(contract)) {
+              continue;
+            }
             const tsPath = resolve(projectPath, outdir, `${contract.name}.ts`);
             log(`Writing ${contract.name} typescript interface to ${path.relative(currentDir, tsPath)}`);
             let relativeArtifactPath = path.relative(path.dirname(tsPath), artifactPath);

@@ -36,7 +36,9 @@ export interface TransferDescriptor<T = any> {
  * @returns A boolean indicating whether the object is transferable.
  */
 function isTransferable(thing: any): thing is Transferable {
-  if (!thing || typeof thing !== 'object') return false;
+  if (!thing || typeof thing !== 'object') {
+    return false;
+  }
   // Don't check too thoroughly, since the list of transferable things in JS might grow over time
   return true;
 }
@@ -109,7 +111,9 @@ export function Transfer<T>(payload: T, transferables: Transferable[]): Transfer
  */
 export function Transfer<T>(payload: T, transferables?: Transferable[]): TransferDescriptor<T> {
   if (!transferables) {
-    if (!isTransferable(payload)) throw Error();
+    if (!isTransferable(payload)) {
+      throw Error();
+    }
     transferables = [payload];
   }
 

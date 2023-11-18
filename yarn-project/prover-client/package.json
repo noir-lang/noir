@@ -15,7 +15,7 @@
     "build:dev": "tsc -b --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
-    "formatting:fix": "run -T prettier -w ./src",
+    "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
   },
   "inherits": [

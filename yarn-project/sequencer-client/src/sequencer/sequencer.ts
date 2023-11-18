@@ -56,9 +56,15 @@ export class Sequencer {
    * @param config - New parameters.
    */
   public updateConfig(config: SequencerConfig) {
-    if (config.transactionPollingIntervalMS) this.pollingIntervalMs = config.transactionPollingIntervalMS;
-    if (config.maxTxsPerBlock) this.maxTxsPerBlock = config.maxTxsPerBlock;
-    if (config.minTxsPerBlock) this.minTxsPerBLock = config.minTxsPerBlock;
+    if (config.transactionPollingIntervalMS) {
+      this.pollingIntervalMs = config.transactionPollingIntervalMS;
+    }
+    if (config.maxTxsPerBlock) {
+      this.maxTxsPerBlock = config.maxTxsPerBlock;
+    }
+    if (config.minTxsPerBlock) {
+      this.minTxsPerBLock = config.minTxsPerBlock;
+    }
   }
 
   /**
@@ -119,14 +125,18 @@ export class Sequencer {
       }
 
       // Do not go forward with new block if the previous one has not been mined and processed
-      if (!prevBlockSynced) return;
+      if (!prevBlockSynced) {
+        return;
+      }
 
       const workTimer = new Timer();
       this.state = SequencerState.WAITING_FOR_TXS;
 
       // Get txs to build the new block
       const pendingTxs = await this.p2pClient.getTxs();
-      if (pendingTxs.length < this.minTxsPerBLock) return;
+      if (pendingTxs.length < this.minTxsPerBLock) {
+        return;
+      }
       this.log.info(`Retrieved ${pendingTxs.length} txs from P2P pool`);
 
       const blockNumber = (await this.l2BlockSource.getBlockNumber()) + 1;
@@ -146,7 +156,9 @@ export class Sequencer {
       // Filter out invalid txs
       // TODO: It should be responsibility of the P2P layer to validate txs before passing them on here
       const validTxs = await this.takeValidTxs(pendingTxs, newGlobalVariables);
-      if (validTxs.length < this.minTxsPerBLock) return;
+      if (validTxs.length < this.minTxsPerBLock) {
+        return;
+      }
 
       this.log.info(`Building block ${blockNumber} with ${validTxs.length} transactions`);
       this.state = SequencerState.CREATING_BLOCK;
@@ -284,7 +296,9 @@ export class Sequencer {
 
       tx.data.end.newNullifiers.forEach(n => thisBlockNullifiers.add(n.toBigInt()));
       validTxs.push(tx);
-      if (validTxs.length >= this.maxTxsPerBlock) break;
+      if (validTxs.length >= this.maxTxsPerBlock) {
+        break;
+      }
     }
 
     // Make sure we remove these from the tx pool so we do not consider it again
@@ -373,13 +387,17 @@ export class Sequencer {
 
     // Ditch this tx if it has a repeated nullifiers
     const uniqNullifiers = new Set(newNullifiers.map(n => n.toBigInt()));
-    if (uniqNullifiers.size !== newNullifiers.length) return true;
+    if (uniqNullifiers.size !== newNullifiers.length) {
+      return true;
+    }
 
     for (const nullifier of newNullifiers) {
       // TODO(AD): this is an exhaustive search currently
       const db = this.worldState.getLatest();
       const indexInDb = await db.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
-      if (indexInDb !== undefined) return true;
+      if (indexInDb !== undefined) {
+        return true;
+      }
     }
     return false;
   }

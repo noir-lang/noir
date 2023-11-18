@@ -527,7 +527,9 @@ export class SoloBlockBuilder implements BlockBuilder {
     height: N,
   ): Promise<MembershipWitness<N>> {
     // If this is an empty tx, then just return zeroes
-    if (value.isZero()) return this.makeEmptyMembershipWitness(height);
+    if (value.isZero()) {
+      return this.makeEmptyMembershipWitness(height);
+    }
 
     const index = await this.db.findLeafIndex(treeId, value.toBuffer());
     if (index === undefined) {
@@ -576,7 +578,9 @@ export class SoloBlockBuilder implements BlockBuilder {
     const tree = MerkleTreeId.NULLIFIER_TREE;
     const prevValueIndex = await this.db.getPreviousValueIndex(tree, frToBigInt(nullifier));
     const prevValueInfo = await this.db.getLeafData(tree, prevValueIndex.index);
-    if (!prevValueInfo) throw new Error(`Nullifier tree should have one initial leaf`);
+    if (!prevValueInfo) {
+      throw new Error(`Nullifier tree should have one initial leaf`);
+    }
     const prevValueSiblingPath = await this.db.getSiblingPath(tree, BigInt(prevValueIndex.index));
 
     return {

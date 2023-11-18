@@ -368,9 +368,12 @@ const ARGS_HASH_CHUNK_COUNT = 16;
  * @returns Pedersen hash of the arguments.
  */
 export function computeVarArgsHash(args: Fr[]) {
-  if (args.length === 0) return Fr.ZERO;
-  if (args.length > ARGS_HASH_CHUNK_SIZE * ARGS_HASH_CHUNK_COUNT)
+  if (args.length === 0) {
+    return Fr.ZERO;
+  }
+  if (args.length > ARGS_HASH_CHUNK_SIZE * ARGS_HASH_CHUNK_COUNT) {
     throw new Error(`Cannot hash more than ${ARGS_HASH_CHUNK_SIZE * ARGS_HASH_CHUNK_COUNT} arguments`);
+  }
 
   let chunksHashes = chunk(args, ARGS_HASH_CHUNK_SIZE).map(c => {
     if (c.length < ARGS_HASH_CHUNK_SIZE) {

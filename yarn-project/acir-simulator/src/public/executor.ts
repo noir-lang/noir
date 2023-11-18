@@ -93,7 +93,9 @@ export class PublicExecutor {
   public async simulate(execution: PublicExecution, globalVariables: GlobalVariables): Promise<PublicExecutionResult> {
     const selector = execution.functionData.selector;
     const acir = await this.contractsDb.getBytecode(execution.contractAddress, selector);
-    if (!acir) throw new Error(`Bytecode not found for ${execution.contractAddress}:${selector}`);
+    if (!acir) {
+      throw new Error(`Bytecode not found for ${execution.contractAddress}:${selector}`);
+    }
 
     // Functions can request to pack arguments before calling other functions.
     // We use this cache to hold the packed arguments.

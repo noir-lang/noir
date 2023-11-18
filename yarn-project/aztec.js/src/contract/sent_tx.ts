@@ -65,8 +65,9 @@ export class SentTx {
       throw new Error('Cannot set getNotes to true if waitForNotesSync is false');
     }
     const receipt = await this.waitForReceipt(opts);
-    if (receipt.status !== TxStatus.MINED)
+    if (receipt.status !== TxStatus.MINED) {
       throw new Error(`Transaction ${await this.getTxHash()} was ${receipt.status}`);
+    }
     if (opts?.debug) {
       const txHash = await this.getTxHash();
       const tx = (await this.pxe.getTx(txHash))!;
@@ -110,12 +111,18 @@ export class SentTx {
       async () => {
         const txReceipt = await this.pxe.getTxReceipt(txHash);
         // If receipt is not yet available, try again
-        if (txReceipt.status === TxStatus.PENDING) return undefined;
+        if (txReceipt.status === TxStatus.PENDING) {
+          return undefined;
+        }
         // If the tx was dropped, return it
-        if (txReceipt.status === TxStatus.DROPPED) return txReceipt;
+        if (txReceipt.status === TxStatus.DROPPED) {
+          return txReceipt;
+        }
         // If we don't care about waiting for notes to be synced, return the receipt
         const waitForNotesSync = opts?.waitForNotesSync ?? DefaultWaitOpts.waitForNotesSync;
-        if (!waitForNotesSync) return txReceipt;
+        if (!waitForNotesSync) {
+          return txReceipt;
+        }
         // Check if all sync blocks on the PXE Service are greater or equal than the block in which the tx was mined
         const { blocks, notes } = await this.pxe.getSyncStatus();
         const targetBlock = txReceipt.blockNumber!;

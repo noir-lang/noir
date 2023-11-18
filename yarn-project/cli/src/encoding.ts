@@ -42,9 +42,14 @@ function encodeArg(arg: string, abiType: ABIType, name: string): any {
     }
     return res;
   } else if (kind === 'boolean') {
-    if (arg === 'true') return true;
-    if (arg === 'false') return false;
-    else throw Error(`Invalid boolean value passed for ${name}: ${arg}.`);
+    if (arg === 'true') {
+      return true;
+    }
+    if (arg === 'false') {
+      return false;
+    } else {
+      throw Error(`Invalid boolean value passed for ${name}: ${arg}.`);
+    }
   } else if (kind === 'array') {
     let arr;
     const res = [];
@@ -53,9 +58,12 @@ function encodeArg(arg: string, abiType: ABIType, name: string): any {
     } catch {
       throw new Error(`Unable to parse arg ${arg} as array for ${name} parameter`);
     }
-    if (!Array.isArray(arr)) throw Error(`Invalid argument ${arg} passed for array parameter ${name}.`);
-    if (arr.length !== abiType.length)
+    if (!Array.isArray(arr)) {
+      throw Error(`Invalid argument ${arg} passed for array parameter ${name}.`);
+    }
+    if (arr.length !== abiType.length) {
       throw Error(`Invalid array length passed for ${name}. Expected ${abiType.length}, received ${arr.length}.`);
+    }
     for (let i = 0; i < abiType.length; i += 1) {
       res.push(encodeArg(arr[i], abiType.type, name));
     }
@@ -71,12 +79,16 @@ function encodeArg(arg: string, abiType: ABIType, name: string): any {
     } catch {
       throw new Error(`Unable to parse arg ${arg} as struct`);
     }
-    if (Array.isArray(obj)) throw Error(`Array passed for arg ${name}. Expected a struct.`);
+    if (Array.isArray(obj)) {
+      throw Error(`Array passed for arg ${name}. Expected a struct.`);
+    }
     const res: any = {};
     for (const field of abiType.fields) {
       // Remove field name from list as it's present
       const arg = obj[field.name];
-      if (!arg) throw Error(`Expected field ${field.name} not found in struct ${name}.`);
+      if (!arg) {
+        throw Error(`Expected field ${field.name} not found in struct ${name}.`);
+      }
       res[field.name] = encodeArg(obj[field.name], field.type, field.name);
     }
     return res;

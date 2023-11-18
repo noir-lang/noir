@@ -284,7 +284,9 @@ describe('L1Publisher integration', () => {
 
       // check that values are in the inbox
       for (let j = 0; j < l1ToL2Messages.length; j++) {
-        if (l1ToL2Messages[j].isZero()) continue;
+        if (l1ToL2Messages[j].isZero()) {
+          continue;
+        }
         expect(await inbox.read.contains([l1ToL2Messages[j].toString(true)])).toBeTruthy();
       }
 
@@ -341,7 +343,9 @@ describe('L1Publisher integration', () => {
 
       // check that values have been consumed from the inbox
       for (let j = 0; j < l1ToL2Messages.length; j++) {
-        if (l1ToL2Messages[j].isZero()) continue;
+        if (l1ToL2Messages[j].isZero()) {
+          continue;
+        }
         expect(await inbox.read.contains([l1ToL2Messages[j].toString(true)])).toBeFalsy();
       }
       // check that values are inserted into the outbox
@@ -418,7 +422,11 @@ describe('L1Publisher integration', () => {
  * Converts a hex string into a buffer. String may be 0x-prefixed or not.
  */
 function hexStringToBuffer(hex: string): Buffer {
-  if (!/^(0x)?[a-fA-F0-9]+$/.test(hex)) throw new Error(`Invalid format for hex string: "${hex}"`);
-  if (hex.length % 2 === 1) throw new Error(`Invalid length for hex string: "${hex}"`);
+  if (!/^(0x)?[a-fA-F0-9]+$/.test(hex)) {
+    throw new Error(`Invalid format for hex string: "${hex}"`);
+  }
+  if (hex.length % 2 === 1) {
+    throw new Error(`Invalid length for hex string: "${hex}"`);
+  }
   return Buffer.from(hex.replace(/^0x/, ''), 'hex');
 }

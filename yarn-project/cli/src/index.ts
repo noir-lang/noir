@@ -188,7 +188,9 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       log(`\nNew account:\n`);
       log(`Address:         ${address.toString()}`);
       log(`Public key:      ${publicKey.toString()}`);
-      if (!privateKey) log(`Private key:     ${actualPrivateKey.toString(true)}`);
+      if (!privateKey) {
+        log(`Private key:     ${actualPrivateKey.toString(true)}`);
+      }
       log(`Partial address: ${partialAddress.toString()}`);
     });
 
@@ -259,7 +261,9 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const deployer = new ContractDeployer(contractArtifact, client, publicKey);
 
       const constructor = getFunctionArtifact(contractArtifact, 'constructor');
-      if (!constructor) throw new Error(`Constructor not found in contract ABI`);
+      if (!constructor) {
+        throw new Error(`Constructor not found in contract ABI`);
+      }
 
       debugLogger(`Input arguments: ${rawArgs.map((x: any) => `"${x}"`).join(', ')}`);
       const args = encodeArgs(rawArgs, constructorArtifact!.parameters);
@@ -295,8 +299,11 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const client = await createCompatibleClient(options.rpcUrl, debugLogger);
       const address = options.contractAddress;
       const isDeployed = await isContractDeployed(client, address);
-      if (isDeployed) log(`\nContract found at ${address.toString()}\n`);
-      else log(`\nNo contract found at ${address.toString()}\n`);
+      if (isDeployed) {
+        log(`\nContract found at ${address.toString()}\n`);
+      } else {
+        log(`\nNo contract found at ${address.toString()}\n`);
+      }
     });
 
   program
@@ -392,8 +399,12 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const pxe = await createCompatibleClient(rpcUrl, debugLogger);
 
       if (follow) {
-        if (txHash) throw Error('Cannot use --follow with --tx-hash');
-        if (toBlock) throw Error('Cannot use --follow with --to-block');
+        if (txHash) {
+          throw Error('Cannot use --follow with --tx-hash');
+        }
+        if (toBlock) {
+          throw Error('Cannot use --follow with --to-block');
+        }
       }
 
       const filter: LogFilter = { txHash, fromBlock, toBlock, afterLog, contractAddress, selector };
@@ -407,9 +418,13 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
             .filter(([, value]) => value !== undefined)
             .map(([key, value]) => `${key}: ${value}`)
             .join(', ');
-          if (!follow) log(`No logs found for filter: {${filterOptions}}`);
+          if (!follow) {
+            log(`No logs found for filter: {${filterOptions}}`);
+          }
         } else {
-          if (!follow && !filter.afterLog) log('Logs found: \n');
+          if (!follow && !filter.afterLog) {
+            log('Logs found: \n');
+          }
           logs.forEach(unencryptedLog => log(unencryptedLog.toHumanReadable()));
           // Set the continuation parameter for the following requests
           filter.afterLog = logs[logs.length - 1].id;
@@ -421,7 +436,9 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
         log('Fetching logs...');
         while (true) {
           const maxLogsHit = await fetchLogs();
-          if (!maxLogsHit) await sleep(1000);
+          if (!maxLogsHit) {
+            await sleep(1000);
+          }
         }
       } else {
         while (await fetchLogs()) {

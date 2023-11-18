@@ -56,7 +56,9 @@ function processNoirCompilerArtifact(projectName: string, contractName: string) 
 
 const main = () => {
   const name = process.argv[2];
-  if (!name) throw new Error(`Missing argument contract name`);
+  if (!name) {
+    throw new Error(`Missing argument contract name`);
+  }
 
   const projectName = `${snakeCase(name)}_contract`;
   const contractName = upperFirst(camelCase(name));

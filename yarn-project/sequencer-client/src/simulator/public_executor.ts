@@ -109,7 +109,9 @@ class WorldStatePublicDB implements PublicStateDB {
   public async storageRead(contract: AztecAddress, slot: Fr): Promise<Fr> {
     const index = computePublicDataTreeIndex(contract, slot).value;
     const cached = this.writeCache.get(index);
-    if (cached !== undefined) return cached;
+    if (cached !== undefined) {
+      return cached;
+    }
     const value = await this.db.getLeafValue(MerkleTreeId.PUBLIC_DATA_TREE, index);
     return value ? Fr.fromBuffer(value) : Fr.ZERO;
   }

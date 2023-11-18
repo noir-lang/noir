@@ -53,7 +53,9 @@ describe('e2e_block_building', () => {
       // Send them simultaneously to be picked up by the sequencer
       const txs = await Promise.all(methods.map(method => method.send()));
       logger(`Txs sent with hashes: `);
-      for (const tx of txs) logger(` ${await tx.getTxHash()}`);
+      for (const tx of txs) {
+        logger(` ${await tx.getTxHash()}`);
+      }
 
       // Await txs to be mined and assert they are all mined on the same block
       const receipts = await Promise.all(txs.map(tx => tx.wait()));
@@ -111,7 +113,9 @@ describe('e2e_block_building', () => {
     it('drops tx with private nullifier already emitted on the same block', async () => {
       const nullifier = Fr.random();
       const calls = times(2, () => contract.methods.emit_nullifier(nullifier));
-      for (const call of calls) await call.simulate();
+      for (const call of calls) {
+        await call.simulate();
+      }
       const [tx1, tx2] = calls.map(call => call.send());
       await tx1.wait();
       await expect(tx2.wait()).rejects.toThrowError(/dropped/);
@@ -120,7 +124,9 @@ describe('e2e_block_building', () => {
     it('drops tx with public nullifier already emitted on the same block', async () => {
       const secret = Fr.random();
       const calls = times(2, () => contract.methods.create_nullifier_public(140n, secret));
-      for (const call of calls) await call.simulate();
+      for (const call of calls) {
+        await call.simulate();
+      }
       const [tx1, tx2] = calls.map(call => call.send());
       await tx1.wait();
       await expect(tx2.wait()).rejects.toThrowError(/dropped/);
@@ -142,7 +148,9 @@ describe('e2e_block_building', () => {
         contract.methods.emit_nullifier(emittedPublicNullifier),
       ];
 
-      for (const call of calls) await call.simulate();
+      for (const call of calls) {
+        await call.simulate();
+      }
       const [tx1, tx2] = calls.map(call => call.send());
       await tx1.wait();
       await expect(tx2.wait()).rejects.toThrowError(/dropped/);

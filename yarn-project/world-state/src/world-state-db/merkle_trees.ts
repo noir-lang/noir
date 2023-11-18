@@ -564,7 +564,9 @@ export class MerkleTrees implements MerkleTreeDb {
 
       // Sync the public data tree
       for (const dataWrite of l2Block.newPublicDataWrites) {
-        if (dataWrite.isEmpty()) continue;
+        if (dataWrite.isEmpty()) {
+          continue;
+        }
         const { newValue, leafIndex } = dataWrite;
         await this._updateLeaf(MerkleTreeId.PUBLIC_DATA_TREE, newValue.toBuffer(), leafIndex.value);
       }

@@ -26,7 +26,9 @@ const log = createConsoleLogger();
 
 /** Returns whether the value should be a warning, based on the % difference and absolute value. */
 function isWarning(row: string, col: string, value: number, base: number | undefined) {
-  if (base === undefined) return false;
+  if (base === undefined) {
+    return false;
+  }
   const absPercentDiff = Math.abs(Math.round(((value - base) / base) * 100));
   if ((row.endsWith('_ms') || col.endsWith('_ms')) && value < SMALL_MS_THRESHOLD) {
     return absPercentDiff >= WARNING_DIFF_THRESHOLD_SMALL_MS;
@@ -62,10 +64,14 @@ function getWarnings(
   data: Record<string, Record<string, number>>,
   base: Record<string, Record<string, number>> | undefined,
 ) {
-  if (!base) return [];
+  if (!base) {
+    return [];
+  }
   const warnings: string[] = [];
   for (const row in data) {
-    if (row === 'timestamp') continue;
+    if (row === 'timestamp') {
+      continue;
+    }
     for (const col in data[row]) {
       const value = data[row][col];
       const baseValue = (base[row] ?? {})[col];
@@ -101,13 +107,17 @@ function getCell(
 /** Wraps the metric name in a span with a title with the description, if found. */
 function withDesc(name: string) {
   const description = Metrics.find(m => m.name === name)?.description;
-  if (!description) return name;
+  if (!description) {
+    return name;
+  }
   return `<span title="${description}">${name}</span>`;
 }
 
 /** Formats a numeric value for display. */
 function formatValue(value: number) {
-  if (value < 100) return value.toPrecision(3);
+  if (value < 100) {
+    return value.toPrecision(3);
+  }
   return value.toLocaleString();
 }
 
@@ -117,7 +127,9 @@ function transpose(obj: any) {
   for (const outerKey in obj) {
     const innerObj = obj[outerKey];
     for (const innerKey in innerObj) {
-      if (!transposed[innerKey]) transposed[innerKey] = {};
+      if (!transposed[innerKey]) {
+        transposed[innerKey] = {};
+      }
       transposed[innerKey][outerKey] = innerObj[innerKey];
     }
   }

@@ -58,7 +58,9 @@ describe('e2e_2_pxes', () => {
 
   afterEach(async () => {
     await teardownA();
-    if ((pxeB as any).stop) await (pxeB as any).stop();
+    if ((pxeB as any).stop) {
+      await (pxeB as any).stop();
+    }
   });
 
   const awaitUserSynchronized = async (wallet: Wallet, owner: AztecAddress) => {

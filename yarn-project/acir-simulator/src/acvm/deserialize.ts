@@ -105,7 +105,9 @@ export class PublicInputsReader {
    */
   public readField(): Fr {
     const acvmField = this.publicInputs.shift();
-    if (!acvmField) throw new Error('Not enough public inputs');
+    if (!acvmField) {
+      throw new Error('Not enough public inputs');
+    }
     return fromACVMField(acvmField);
   }
 

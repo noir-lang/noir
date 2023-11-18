@@ -26,8 +26,12 @@ function abiTypeToTypescript(type: ABIParameter['type']): string {
     case 'array':
       return `${abiTypeToTypescript(type.type)}[]`;
     case 'struct':
-      if (isEthereumAddressStruct(type)) return 'EthAddressLike';
-      if (isAztecAddressStruct(type)) return 'AztecAddressLike';
+      if (isEthereumAddressStruct(type)) {
+        return 'EthAddressLike';
+      }
+      if (isAztecAddressStruct(type)) {
+        return 'AztecAddressLike';
+      }
       return `{ ${type.fields.map(f => `${f.name}: ${abiTypeToTypescript(f.type)}`).join(', ')} }`;
     default:
       throw new Error(`Unknown type ${type}`);

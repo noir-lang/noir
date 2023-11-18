@@ -18,7 +18,9 @@ export function isMetricsLoggingRequested() {
  * Idempotent and automatically called by `setup` if CI or BENCHMARK env vars are set.
  */
 export function setupMetricsLogger(filename: string) {
-  if (metricsLoggerSet) return;
+  if (metricsLoggerSet) {
+    return;
+  }
   mkdirpSync(dirname(filename));
   const logger = winston.createLogger({
     level: 'debug',

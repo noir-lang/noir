@@ -102,7 +102,9 @@ async function getBlockFromCallData(
     abi: RollupAbi.filter(item => item.type.toString() !== 'constructor'),
     data,
   });
-  if (functionName !== 'process') throw new Error(`Unexpected method called ${functionName}`);
+  if (functionName !== 'process') {
+    throw new Error(`Unexpected method called ${functionName}`);
+  }
   const [, l2BlockHex] = args! as [Hex, Hex];
   const block = L2Block.fromBufferWithLogs(Buffer.from(hexToBytes(l2BlockHex)));
   if (BigInt(block.number) !== l2BlockNum) {

@@ -45,7 +45,9 @@ export class AcirSimulator {
    * @returns ACVM WasmBlackBoxFunctionSolver
    */
   public static getSolver(): Promise<WasmBlackBoxFunctionSolver> {
-    if (!this.solver) this.solver = createBlackBoxSolver();
+    if (!this.solver) {
+      this.solver = createBlackBoxSolver();
+    }
     return this.solver;
   }
 

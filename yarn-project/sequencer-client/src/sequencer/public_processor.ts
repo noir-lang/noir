@@ -159,7 +159,9 @@ export class PublicProcessor {
 
   protected async processEnqueuedPublicCalls(tx: Tx): Promise<[PublicKernelPublicInputs, Proof, FunctionL2Logs[]]> {
     this.log(`Executing enqueued public calls for tx ${await tx.getTxHash()}`);
-    if (!tx.enqueuedPublicFunctionCalls) throw new Error(`Missing preimages for enqueued public calls`);
+    if (!tx.enqueuedPublicFunctionCalls) {
+      throw new Error(`Missing preimages for enqueued public calls`);
+    }
 
     let kernelOutput = new KernelCircuitPublicInputs(
       CombinedAccumulatedData.fromFinalAccumulatedData(tx.data.end),
@@ -196,7 +198,9 @@ export class PublicProcessor {
 
         [kernelOutput, kernelProof] = await this.runKernelCircuit(callData, kernelOutput, kernelProof);
 
-        if (!enqueuedExecutionResult) enqueuedExecutionResult = result;
+        if (!enqueuedExecutionResult) {
+          enqueuedExecutionResult = result;
+        }
       }
       // HACK(#1622): Manually patches the ordering of public state actions
       // TODO(#757): Enforce proper ordering of public state actions

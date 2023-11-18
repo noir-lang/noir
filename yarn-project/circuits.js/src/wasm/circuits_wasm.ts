@@ -48,7 +48,9 @@ export class CircuitsWasm implements IWasmModule {
    * @returns The singleton.
    */
   public static get(): Promise<CircuitsWasm> {
-    if (!this.instance) this.instance = CircuitsWasm.new();
+    if (!this.instance) {
+      this.instance = CircuitsWasm.new();
+    }
     return this.instance;
   }
 

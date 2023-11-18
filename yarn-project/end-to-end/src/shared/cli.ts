@@ -60,7 +60,9 @@ export const cliTestSuite = (
     const findInLogs = (regex: RegExp) => {
       for (const log of logs) {
         const match = regex.exec(log);
-        if (match) return match;
+        if (match) {
+          return match;
+        }
       }
     };
 
@@ -68,7 +70,9 @@ export const cliTestSuite = (
       const matches = [];
       for (const log of logs) {
         const match = regex.exec(log);
-        if (match) matches.push(match);
+        if (match) {
+          matches.push(match);
+        }
       }
       return matches;
     };

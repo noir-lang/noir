@@ -78,10 +78,14 @@ const selectNotes = <T extends ContainsNote>(noteDatas: T[], selects: Select[]):
   noteDatas.filter(noteData => selects.every(({ index, value }) => noteData.note.items[index]?.equals(value)));
 
 const sortNotes = (a: Fr[], b: Fr[], sorts: Sort[], level = 0): number => {
-  if (sorts[level] === undefined) return 0;
+  if (sorts[level] === undefined) {
+    return 0;
+  }
 
   const { index, order } = sorts[level];
-  if (order === 0) return 0;
+  if (order === 0) {
+    return 0;
+  }
 
   const dir = order === 1 ? [-1, 1] : [1, -1];
   return a[index].value === b[index].value

@@ -232,7 +232,9 @@ export class WasmModule implements IWasmModule {
     addr = addr >>> 0;
     const m = this.getMemory();
     let i = addr;
-    for (; m[i] !== 0; ++i);
+    while (m[i] !== 0) {
+      ++i;
+    }
     return Buffer.from(m.slice(addr, i)).toString('ascii');
   }
 

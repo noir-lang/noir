@@ -69,7 +69,9 @@ function copyNrFilesExceptInterface(contractName: string): void {
 
 const main = () => {
   const contractName = process.argv[2];
-  if (!contractName) throw new Error(`Missing argument contract name`);
+  if (!contractName) {
+    throw new Error(`Missing argument contract name`);
+  }
 
   copyNrFilesExceptInterface(contractName);
 };

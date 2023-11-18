@@ -11,7 +11,7 @@
     "build:dev": "tsc -b --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
-    "formatting:fix": "run -T prettier -w ./src",
+    "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
     "noir:clean": "rm -rf ./src/artifacts ./src/types && mkdir -p ../aztec.js/src/artifacts/ && find ../aztec.js/src/artifacts/ -mindepth 1 -delete && rm -rf target/",
     "noir:build": "./src/scripts/compile.sh",

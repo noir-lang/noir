@@ -203,10 +203,14 @@ export class NoteProcessor {
     let uniqueSiloedNoteHash: Fr | undefined;
     let innerNullifier: Fr | undefined;
     for (; commitmentIndex < commitments.length; ++commitmentIndex) {
-      if (excludedIndices.has(commitmentIndex)) continue;
+      if (excludedIndices.has(commitmentIndex)) {
+        continue;
+      }
 
       const commitment = commitments[commitmentIndex];
-      if (commitment.equals(Fr.ZERO)) break;
+      if (commitment.equals(Fr.ZERO)) {
+        break;
+      }
 
       const expectedNonce = computeCommitmentNonce(firstNullifier, commitmentIndex);
       ({ innerNoteHash, siloedNoteHash, uniqueSiloedNoteHash, innerNullifier } =

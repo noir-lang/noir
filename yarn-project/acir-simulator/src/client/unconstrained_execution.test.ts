@@ -33,7 +33,9 @@ describe('Unconstrained Execution test suite', () => {
       owner = ownerCompleteAddress.address;
 
       oracle.getCompleteAddress.mockImplementation((address: AztecAddress) => {
-        if (address.equals(owner)) return Promise.resolve(ownerCompleteAddress);
+        if (address.equals(owner)) {
+          return Promise.resolve(ownerCompleteAddress);
+        }
         throw new Error(`Unknown address ${address}`);
       });
     });

@@ -156,8 +156,12 @@ describe('Private Execution test suite', () => {
   beforeEach(() => {
     oracle = mock<DBOracle>();
     oracle.getSecretKey.mockImplementation((contractAddress: AztecAddress, pubKey: PublicKey) => {
-      if (pubKey.equals(ownerCompleteAddress.publicKey)) return Promise.resolve(ownerPk);
-      if (pubKey.equals(recipientCompleteAddress.publicKey)) return Promise.resolve(recipientPk);
+      if (pubKey.equals(ownerCompleteAddress.publicKey)) {
+        return Promise.resolve(ownerPk);
+      }
+      if (pubKey.equals(recipientCompleteAddress.publicKey)) {
+        return Promise.resolve(recipientPk);
+      }
       throw new Error(`Unknown address ${pubKey}`);
     });
     oracle.getHistoricBlockData.mockResolvedValue(blockData);
@@ -209,8 +213,12 @@ describe('Private Execution test suite', () => {
 
     beforeEach(() => {
       oracle.getCompleteAddress.mockImplementation((address: AztecAddress) => {
-        if (address.equals(owner)) return Promise.resolve(ownerCompleteAddress);
-        if (address.equals(recipient)) return Promise.resolve(recipientCompleteAddress);
+        if (address.equals(owner)) {
+          return Promise.resolve(ownerCompleteAddress);
+        }
+        if (address.equals(recipient)) {
+          return Promise.resolve(recipientCompleteAddress);
+        }
         throw new Error(`Unknown address ${address}`);
       });
 
@@ -420,7 +428,9 @@ describe('Private Execution test suite', () => {
 
     beforeEach(() => {
       oracle.getCompleteAddress.mockImplementation((address: AztecAddress) => {
-        if (address.equals(recipient)) return Promise.resolve(recipientCompleteAddress);
+        if (address.equals(recipient)) {
+          return Promise.resolve(recipientCompleteAddress);
+        }
         throw new Error(`Unknown address ${address}`);
       });
     });
@@ -558,7 +568,9 @@ describe('Private Execution test suite', () => {
   describe('pending commitments contract', () => {
     beforeEach(() => {
       oracle.getCompleteAddress.mockImplementation((address: AztecAddress) => {
-        if (address.equals(owner)) return Promise.resolve(ownerCompleteAddress);
+        if (address.equals(owner)) {
+          return Promise.resolve(ownerCompleteAddress);
+        }
         throw new Error(`Unknown address ${address}`);
       });
     });

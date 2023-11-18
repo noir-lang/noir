@@ -8,14 +8,26 @@ import { ContractArtifact } from '@aztec/foundation/abi';
  * @returns True if it looks like a ContractArtifact.
  */
 export function isContractArtifact(input: any): input is ContractArtifact {
-  if (typeof input !== 'object') return false;
+  if (typeof input !== 'object') {
+    return false;
+  }
   const maybeContractArtifact = input as ContractArtifact;
-  if (typeof maybeContractArtifact.name !== 'string') return false;
-  if (!Array.isArray(maybeContractArtifact.functions)) return false;
+  if (typeof maybeContractArtifact.name !== 'string') {
+    return false;
+  }
+  if (!Array.isArray(maybeContractArtifact.functions)) {
+    return false;
+  }
   for (const fn of maybeContractArtifact.functions) {
-    if (typeof fn.name !== 'string') return false;
-    if (typeof fn.functionType !== 'string') return false;
-    if (typeof fn.isInternal !== 'boolean') return false;
+    if (typeof fn.name !== 'string') {
+      return false;
+    }
+    if (typeof fn.functionType !== 'string') {
+      return false;
+    }
+    if (typeof fn.isInternal !== 'boolean') {
+      return false;
+    }
   }
   return true;
 }
