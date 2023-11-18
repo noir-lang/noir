@@ -7,9 +7,6 @@
   },
   "references": [
     {
-      "path": "../circuits.js"
-    },
-    {
       "path": "../foundation"
     },
     {

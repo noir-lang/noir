@@ -579,7 +579,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/merkle-tree@workspace:merkle-tree"
   dependencies:
-    "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
