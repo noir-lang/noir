@@ -139,7 +139,7 @@ impl Type {
             | Type::Forall(_, _)
             | Type::Constant(_)
             | Type::NotConstant
-            | Type::Error => todo!(),
+            | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
         }
     }
 }
