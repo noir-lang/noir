@@ -67,7 +67,7 @@ export class PublicDataWrite {
    */
   static fromBuffer(buffer: Buffer | BufferReader): PublicDataWrite {
     const reader = BufferReader.asReader(buffer);
-    return new PublicDataWrite(reader.readFr(), reader.readFr());
+    return new PublicDataWrite(Fr.fromBuffer(reader), Fr.fromBuffer(reader));
   }
 
   /**

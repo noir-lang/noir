@@ -11,7 +11,7 @@ import { identifyService } from 'libp2p/identify';
 import { format } from 'util';
 
 import { P2PConfig } from '../config.js';
-import { createLibP2PPeerId } from '../index.js';
+import { createLibP2PPeerId } from '../service/index.js';
 
 /**
  * Encapsulates a 'Bootstrap' node, used for the purpose of assisting new joiners in acquiring peers.

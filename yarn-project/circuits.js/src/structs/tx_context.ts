@@ -58,9 +58,9 @@ export class ContractDeploymentData {
     const reader = BufferReader.asReader(buffer);
     return new ContractDeploymentData(
       reader.readObject(Point),
-      reader.readFr(),
-      reader.readFr(),
-      reader.readFr(),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
       new EthAddress(reader.readBytes(32)),
     );
   }
@@ -131,8 +131,8 @@ export class TxContext {
       reader.readBoolean(),
       reader.readBoolean(),
       reader.readObject(ContractDeploymentData),
-      reader.readFr(),
-      reader.readFr(),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
     );
   }
 

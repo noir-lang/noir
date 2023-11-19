@@ -26,7 +26,7 @@ import { Tuple } from '@aztec/foundation/serialize';
 
 import { getReturnWitness } from '@noir-lang/acvm_js';
 
-import { ACVMField, ACVMWitness } from './acvm.js';
+import { ACVMField, ACVMWitness } from './acvm_types.js';
 
 /**
  * Converts an ACVM field to a Buffer.

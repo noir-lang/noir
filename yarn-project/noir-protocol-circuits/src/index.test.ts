@@ -465,7 +465,7 @@ describe('Noir compatibility tests (interop_testing.nr)', () => {
   });
 
   it('Public call stack item matches noir', () => {
-    const contractAddress = AztecAddress.fromField(new Fr(1));
+    const contractAddress = AztecAddress.fromBigInt(1n);
     const functionData = new FunctionData(new FunctionSelector(2), false, false, false);
     const appPublicInputs = PublicCircuitPublicInputs.empty();
     appPublicInputs.newCommitments[0] = new Fr(1);
@@ -475,7 +475,7 @@ describe('Noir compatibility tests (interop_testing.nr)', () => {
   });
 
   it('Public call stack item request matches noir', () => {
-    const contractAddress = AztecAddress.fromField(new Fr(1));
+    const contractAddress = AztecAddress.fromBigInt(1n);
     const functionData = new FunctionData(new FunctionSelector(2), false, false, false);
     const appPublicInputs = PublicCircuitPublicInputs.empty();
     appPublicInputs.newCommitments[0] = new Fr(1);

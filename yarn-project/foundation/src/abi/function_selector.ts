@@ -70,7 +70,7 @@ export class FunctionSelector {
    * @returns An Fr instance.
    */
   public toField() {
-    return new Fr(this.value);
+    return new Fr(BigInt(this.value));
   }
 
   /**
@@ -79,7 +79,7 @@ export class FunctionSelector {
    * @returns The function selector.
    */
   static fromField(fr: Fr): FunctionSelector {
-    return new FunctionSelector(Number(fr.value));
+    return new FunctionSelector(Number(fr.toBigInt()));
   }
 
   /**

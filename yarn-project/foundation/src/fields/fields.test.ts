@@ -1,4 +1,4 @@
-import { GrumpkinScalar } from './grumpkin_scalar.js';
+import { GrumpkinScalar } from './fields.js';
 
 describe('GrumpkinScalar Serialization', () => {
   // Test case for GrumpkinScalar.fromHighLow

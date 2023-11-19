@@ -2,7 +2,8 @@ import { BufferReader } from '@aztec/foundation/serialize';
 
 import isEqual from 'lodash.isequal';
 
-import { LogId, UnencryptedL2Log } from '../index.js';
+import { LogId } from './log_id.js';
+import { UnencryptedL2Log } from './unencrypted_l2_log.js';
 
 /**
  * Represents an individual unencrypted log entry extended with info about the block and tx it was emitted in.

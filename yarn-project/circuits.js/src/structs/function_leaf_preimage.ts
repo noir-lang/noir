@@ -51,8 +51,8 @@ export class FunctionLeafPreimage {
       reader.readObject(FunctionSelector),
       reader.readBoolean(),
       reader.readBoolean(),
-      reader.readFr(),
-      reader.readFr(),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
     );
   }
 }

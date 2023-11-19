@@ -1,6 +1,6 @@
 import debug from 'debug';
 
-import { LogFn } from './index.js';
+import { LogFn } from './log_fn.js';
 
 let preLogHook: ((...args: any[]) => void) | undefined;
 let postLogHook: ((...args: any[]) => void) | undefined;

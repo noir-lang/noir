@@ -1,4 +1,3 @@
-import { Fq, Fr } from '../fields/fields.js';
 import { Tuple } from './types.js';
 
 /**
@@ -81,27 +80,6 @@ export class BufferReader {
   public readBytes(n: number): Buffer {
     this.index += n;
     return Buffer.from(this.buffer.subarray(this.index - n, this.index));
-  }
-
-  /**
-   * Reads a Fr (finite field) element from the buffer using the 'fromBuffer' method of the Fr class.
-   * The Fr class should provide a 'fromBuffer' method that takes a BufferReader instance as input.
-   *
-   * @returns An instance of the Fr class representing the finite field element.
-   */
-  public readFr(): Fr {
-    return Fr.fromBuffer(this);
-  }
-
-  /**
-   * Reads the next Fq element from the buffer using the Fq.fromBuffer method.
-   * The Fq element represents a finite field in elliptic curve cryptography and is used for calculations.
-   * Advances the internal buffer index by the number of bytes read.
-   *
-   * @returns An Fq instance representing the finite field element.
-   */
-  public readFq(): Fq {
-    return Fq.fromBuffer(this);
   }
 
   /**

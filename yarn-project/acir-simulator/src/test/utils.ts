@@ -1,7 +1,7 @@
 import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
 import { ContractArtifact, FunctionSelector, getFunctionDebugMetadata } from '@aztec/foundation/abi';
-import { sha256ToField } from '@aztec/foundation/crypto';
+import { sha256 } from '@aztec/foundation/crypto';
 import { L1Actor, L1ToL2Message, L2Actor } from '@aztec/types';
 
 import { FunctionArtifactWithDebugMetadata } from '../index.js';
@@ -24,7 +24,7 @@ export const buildL1ToL2Message = (
   const selectorBuf = Buffer.from(selector, 'hex');
 
   const contentBuf = Buffer.concat([selectorBuf, ...contentPreimage.map(field => field.toBuffer())]);
-  const content = sha256ToField(contentBuf);
+  const content = Fr.fromBufferReduce(sha256(contentBuf));
 
   const secretHash = computeSecretMessageHash(secret);
 

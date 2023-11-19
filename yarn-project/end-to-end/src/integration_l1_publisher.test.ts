@@ -192,9 +192,9 @@ describe('L1Publisher integration', () => {
     // Note: using max deadline
     const deadline = 2 ** 32 - 1;
     // getting the 32 byte hex string representation of the content
-    const contentString = content.toString(true);
+    const contentString = content.toString();
     // Using the 0 value for the secretHash.
-    const emptySecretHash = Fr.ZERO.toString(true);
+    const emptySecretHash = Fr.ZERO.toString();
 
     await inbox.write.sendL2Message(
       [
@@ -255,9 +255,9 @@ describe('L1Publisher integration', () => {
       expect(inboxLogs).toHaveLength(l1ToL2Messages.length * (i + 1));
       for (let j = 0; j < NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP; j++) {
         const event = inboxLogs[j + i * NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP].args;
-        expect(event.content).toEqual(l1ToL2Content[j].toString(true));
+        expect(event.content).toEqual(l1ToL2Content[j].toString());
         expect(event.deadline).toEqual(2 ** 32 - 1);
-        expect(event.entryKey).toEqual(l1ToL2Messages[j].toString(true));
+        expect(event.entryKey).toEqual(l1ToL2Messages[j].toString());
         expect(event.fee).toEqual(0n);
         expect(event.recipient).toEqual(recipientAddress.toString());
         expect(event.recipientVersion).toEqual(1n);
@@ -287,12 +287,12 @@ describe('L1Publisher integration', () => {
         if (l1ToL2Messages[j].isZero()) {
           continue;
         }
-        expect(await inbox.read.contains([l1ToL2Messages[j].toString(true)])).toBeTruthy();
+        expect(await inbox.read.contains([l1ToL2Messages[j].toString()])).toBeTruthy();
       }
 
       // check that values are not in the outbox
       for (let j = 0; j < block.newL2ToL1Msgs.length; j++) {
-        expect(await outbox.read.contains([block.newL2ToL1Msgs[j].toString(true)])).toBeFalsy();
+        expect(await outbox.read.contains([block.newL2ToL1Msgs[j].toString()])).toBeFalsy();
       }
 
       // Useful for sol tests block generation
@@ -346,11 +346,11 @@ describe('L1Publisher integration', () => {
         if (l1ToL2Messages[j].isZero()) {
           continue;
         }
-        expect(await inbox.read.contains([l1ToL2Messages[j].toString(true)])).toBeFalsy();
+        expect(await inbox.read.contains([l1ToL2Messages[j].toString()])).toBeFalsy();
       }
       // check that values are inserted into the outbox
       for (let j = 0; j < block.newL2ToL1Msgs.length; j++) {
-        expect(await outbox.read.contains([block.newL2ToL1Msgs[j].toString(true)])).toBeTruthy();
+        expect(await outbox.read.contains([block.newL2ToL1Msgs[j].toString()])).toBeTruthy();
       }
     }
   }, 360_000);

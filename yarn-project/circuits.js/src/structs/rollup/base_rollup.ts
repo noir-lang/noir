@@ -90,10 +90,10 @@ export class ConstantRollupData {
     const reader = BufferReader.asReader(buffer);
     return new ConstantRollupData(
       reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readFr(),
-      reader.readFr(),
-      reader.readFr(),
-      reader.readFr(),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
       reader.readObject(GlobalVariables),
     );
   }

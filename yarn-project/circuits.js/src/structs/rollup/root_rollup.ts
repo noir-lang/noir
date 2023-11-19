@@ -242,8 +242,8 @@ export class RootRollupPublicInputs {
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readFr(),
-      reader.readFr(),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
@@ -254,8 +254,8 @@ export class RootRollupPublicInputs {
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
-      [reader.readFr(), reader.readFr()],
-      [reader.readFr(), reader.readFr()],
+      [Fr.fromBuffer(reader), Fr.fromBuffer(reader)],
+      [Fr.fromBuffer(reader), Fr.fromBuffer(reader)],
     );
   }
 }

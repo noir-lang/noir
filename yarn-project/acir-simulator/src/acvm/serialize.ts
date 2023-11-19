@@ -12,8 +12,8 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 
-import { ACVMField } from './acvm.js';
-import { MessageLoadOracleInputs } from './oracle/index.js';
+import { ACVMField } from './acvm_types.js';
+import { MessageLoadOracleInputs } from './oracle/typed_oracle.js';
 
 /**
  * Adapts the buffer to the field size.

@@ -38,7 +38,7 @@ export class G1AffineElement {
    */
   static fromBuffer(buffer: Buffer | BufferReader): G1AffineElement {
     const reader = BufferReader.asReader(buffer);
-    return new G1AffineElement(reader.readFr(), reader.readFr());
+    return new G1AffineElement(Fq.fromBuffer(reader), Fq.fromBuffer(reader));
   }
 }
 

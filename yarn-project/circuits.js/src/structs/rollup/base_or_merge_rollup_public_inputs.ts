@@ -85,7 +85,7 @@ export class BaseOrMergeRollupPublicInputs {
     const reader = BufferReader.asReader(buffer);
     return new BaseOrMergeRollupPublicInputs(
       reader.readNumber(),
-      reader.readFr(),
+      Fr.fromBuffer(reader),
       reader.readObject(AggregationObject),
       reader.readObject(ConstantRollupData),
       reader.readObject(AppendOnlyTreeSnapshot),
@@ -94,8 +94,8 @@ export class BaseOrMergeRollupPublicInputs {
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readFr(),
-      reader.readFr(),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
       reader.readArray(NUM_FIELDS_PER_SHA256, Fr) as [Fr, Fr],
     );
   }

@@ -33,7 +33,7 @@ export class ReadRequestMembershipWitness {
      */
     public hintToCommitment: Fr,
   ) {
-    if (hintToCommitment.value > MAX_NEW_COMMITMENTS_PER_CALL) {
+    if (hintToCommitment.toBigInt() > MAX_NEW_COMMITMENTS_PER_CALL) {
       throw new Error(
         `Expected ReadRequestMembershipWitness' hintToCommitment(${hintToCommitment}) to be <= NEW_COMMITMENTS_LENGTH(${MAX_NEW_COMMITMENTS_PER_CALL})`,
       );
@@ -124,10 +124,10 @@ export class ReadRequestMembershipWitness {
    */
   static fromBuffer(buffer: Buffer | BufferReader): ReadRequestMembershipWitness {
     const reader = BufferReader.asReader(buffer);
-    const leafIndex = reader.readFr();
+    const leafIndex = Fr.fromBuffer(reader);
     const siblingPath = reader.readArray<Fr, typeof NOTE_HASH_TREE_HEIGHT>(NOTE_HASH_TREE_HEIGHT, Fr);
     const isTransient = reader.readBoolean();
-    const hintToCommitment = reader.readFr();
+    const hintToCommitment = Fr.fromBuffer(reader);
     return new ReadRequestMembershipWitness(leafIndex, siblingPath, isTransient, hintToCommitment);
   }
 }

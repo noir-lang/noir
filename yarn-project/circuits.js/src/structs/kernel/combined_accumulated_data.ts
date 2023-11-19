@@ -60,7 +60,11 @@ export class NewContractData {
    */
   static fromBuffer(buffer: Buffer | BufferReader): NewContractData {
     const reader = BufferReader.asReader(buffer);
-    return new NewContractData(reader.readObject(AztecAddress), new EthAddress(reader.readBytes(32)), reader.readFr());
+    return new NewContractData(
+      reader.readObject(AztecAddress),
+      new EthAddress(reader.readBytes(32)),
+      Fr.fromBuffer(reader),
+    );
   }
 
   static empty() {
@@ -142,9 +146,9 @@ export class OptionallyRevealedData {
   static fromBuffer(buffer: Buffer | BufferReader): OptionallyRevealedData {
     const reader = BufferReader.asReader(buffer);
     return new OptionallyRevealedData(
-      reader.readFr(),
+      Fr.fromBuffer(reader),
       reader.readObject(FunctionData),
-      reader.readFr(),
+      Fr.fromBuffer(reader),
       new EthAddress(reader.readBytes(32)),
       reader.readBoolean(),
       reader.readBoolean(),
@@ -205,7 +209,7 @@ export class PublicDataRead {
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new PublicDataRead(reader.readFr(), reader.readFr());
+    return new PublicDataRead(Fr.fromBuffer(reader), Fr.fromBuffer(reader));
   }
 
   static empty() {
@@ -263,7 +267,7 @@ export class PublicDataUpdateRequest {
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new PublicDataUpdateRequest(reader.readFr(), reader.readFr(), reader.readFr());
+    return new PublicDataUpdateRequest(Fr.fromBuffer(reader), Fr.fromBuffer(reader), Fr.fromBuffer(reader));
   }
 
   static empty() {
@@ -398,8 +402,8 @@ export class CombinedAccumulatedData {
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr),
       reader.readArray(2, Fr),
       reader.readArray(2, Fr),
-      reader.readFr(),
-      reader.readFr(),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
       reader.readArray(MAX_NEW_CONTRACTS_PER_TX, NewContractData),
       reader.readArray(MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX, OptionallyRevealedData),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
@@ -563,8 +567,8 @@ export class FinalAccumulatedData {
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr),
       reader.readArray(2, Fr),
       reader.readArray(2, Fr),
-      reader.readFr(),
-      reader.readFr(),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
       reader.readArray(MAX_NEW_CONTRACTS_PER_TX, NewContractData),
       reader.readArray(MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX, OptionallyRevealedData),
     );

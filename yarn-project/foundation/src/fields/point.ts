@@ -72,8 +72,8 @@ export class Point {
    */
   toBigInts() {
     return {
-      x: this.x.value,
-      y: this.y.value,
+      x: this.x.toBigInt(),
+      y: this.y.toBigInt(),
     };
   }
 

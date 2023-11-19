@@ -62,7 +62,7 @@ export class ContractStorageRead {
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new ContractStorageRead(reader.readFr(), reader.readFr());
+    return new ContractStorageRead(Fr.fromBuffer(reader), Fr.fromBuffer(reader));
   }
 
   static empty() {
@@ -110,7 +110,7 @@ export class ContractStorageUpdateRequest {
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new ContractStorageUpdateRequest(reader.readFr(), reader.readFr(), reader.readFr());
+    return new ContractStorageUpdateRequest(Fr.fromBuffer(reader), Fr.fromBuffer(reader), Fr.fromBuffer(reader));
   }
 
   /**

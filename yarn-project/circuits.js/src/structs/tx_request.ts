@@ -58,7 +58,7 @@ export class TxRequest {
     return new TxRequest(
       reader.readObject(AztecAddress),
       reader.readObject(FunctionData),
-      reader.readFr(),
+      Fr.fromBuffer(reader),
       reader.readObject(TxContext),
     );
   }

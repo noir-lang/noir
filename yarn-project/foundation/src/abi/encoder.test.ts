@@ -96,7 +96,9 @@ describe('abi/encoder', () => {
       returnTypes: [],
     };
     const args = ['garbage'];
-    expect(() => encodeArguments(testFunctionAbi, args)).toThrowError('Cannot convert garbage to a BigInt');
+    expect(() => encodeArguments(testFunctionAbi, args)).toThrowError(
+      `Type 'string' with value 'garbage' passed to BaseField ctor.`,
+    );
   });
 
   it('throws when passing object argument as field', () => {

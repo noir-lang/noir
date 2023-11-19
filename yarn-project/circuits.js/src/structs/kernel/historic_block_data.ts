@@ -107,14 +107,14 @@ export class HistoricBlockData {
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new HistoricBlockData(
-      reader.readFr(),
-      reader.readFr(),
-      reader.readFr(),
-      reader.readFr(),
-      reader.readFr(),
-      reader.readFr(),
-      reader.readFr(),
-      reader.readFr(),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
     );
   }
 

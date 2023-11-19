@@ -22,9 +22,11 @@ describe('CLI Utils', () => {
     subField1: field.toString(),
     subField2: 'true',
   };
+
   beforeEach(() => {
     client = mock<PXE>();
   });
+
   it('Gets a txSender correctly or throw error', async () => {
     // returns a parsed Aztec Address
     const aztecAddress = AztecAddress.random();
@@ -41,19 +43,11 @@ describe('CLI Utils', () => {
 
     // throws when invalid parameter passed
     const errorAddr = 'foo';
-    await expect(
-      (async () => {
-        await getTxSender(client, errorAddr);
-      })(),
-    ).rejects.toThrow(`Invalid option 'from' passed: ${errorAddr}`);
+    await expect(getTxSender(client, errorAddr)).rejects.toThrow(`Invalid option 'from' passed: ${errorAddr}`);
 
     // Throws error when no string is passed & no accounts found in RPC
     client.getRegisteredAccounts.mockResolvedValueOnce([]);
-    await expect(
-      (async () => {
-        await getTxSender(client);
-      })(),
-    ).rejects.toThrow('No accounts found in PXE instance.');
+    await expect(getTxSender(client)).rejects.toThrow('No accounts found in PXE instance.');
   });
 
   it('Encodes args correctly', () => {

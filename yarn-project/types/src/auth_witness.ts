@@ -24,7 +24,7 @@ export class AuthWitness {
 
   static fromBuffer(buffer: Buffer | BufferReader): AuthWitness {
     const reader = BufferReader.asReader(buffer);
-    return new AuthWitness(reader.readFr(), reader.readVector(Fr));
+    return new AuthWitness(Fr.fromBuffer(reader), reader.readVector(Fr));
   }
 
   toString() {

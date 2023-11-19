@@ -90,7 +90,7 @@ export class TxExecutionRequest {
     return new TxExecutionRequest(
       reader.readObject(AztecAddress),
       reader.readObject(FunctionData),
-      reader.readFr(),
+      Fr.fromBuffer(reader),
       reader.readObject(TxContext),
       reader.readVector(PackedArguments),
       reader.readVector(AuthWitness),

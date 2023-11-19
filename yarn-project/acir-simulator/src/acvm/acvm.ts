@@ -7,22 +7,12 @@ import {
   ForeignCallInput,
   ForeignCallOutput,
   WasmBlackBoxFunctionSolver,
-  WitnessMap,
   executeCircuitWithBlackBoxSolver,
 } from '@noir-lang/acvm_js';
 
 import { traverseCauseChain } from '../common/errors.js';
+import { ACVMWitness } from './acvm_types.js';
 import { ORACLE_NAMES } from './oracle/index.js';
-
-/**
- * The format for fields on the ACVM.
- */
-export type ACVMField = string;
-
-/**
- * The format for witnesses of the ACVM.
- */
-export type ACVMWitness = WitnessMap;
 
 /**
  * The callback interface for the ACIR.

@@ -11,14 +11,17 @@ import {
 } from '@aztec/circuits.js';
 import { makeAppendOnlyTreeSnapshot, makeGlobalVariables } from '@aztec/circuits.js/factories';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
-import { keccak, sha256, sha256ToField } from '@aztec/foundation/crypto';
+import { keccak, sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import times from 'lodash.times';
 
-import { ContractData, L2Tx, LogType, PublicDataWrite, TxL2Logs } from './index.js';
+import { ContractData } from './contract_data.js';
+import { L2Tx } from './l2_tx.js';
+import { LogType, TxL2Logs } from './logs/index.js';
 import { L2BlockL2Logs } from './logs/l2_block_l2_logs.js';
+import { PublicDataWrite } from './public_data_write.js';
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
@@ -155,7 +158,7 @@ export class L2Block {
     // of non-zero tx hashes --> tx hash is set to be the first nullifier in the tx.
     this.numberOfTxs = 0;
     for (let i = 0; i < this.newNullifiers.length; i += MAX_NEW_NULLIFIERS_PER_TX) {
-      if (!this.newNullifiers[i].equals(Fr.zero())) {
+      if (!this.newNullifiers[i].equals(Fr.ZERO)) {
         this.numberOfTxs++;
       }
     }
@@ -427,7 +430,7 @@ export class L2Block {
   static fromBuffer(buf: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buf);
     const globalVariables = reader.readObject(GlobalVariables);
-    const number = Number(globalVariables.blockNumber.value);
+    const number = Number(globalVariables.blockNumber.toBigInt());
     const startNoteHashTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const startNullifierTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const startContractTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
@@ -565,7 +568,7 @@ export class L2Block {
       this.getL1ToL2MessagesHash(),
     );
 
-    return sha256ToField(buf);
+    return Fr.fromBufferReduce(sha256(buf));
   }
 
   /**

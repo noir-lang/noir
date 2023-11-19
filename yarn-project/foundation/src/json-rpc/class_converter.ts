@@ -1,4 +1,4 @@
-import { assert, hasOwnProperty } from './js_utils.js';
+import { assert } from './js_utils.js';
 
 /**
  * Represents a class compatible with our class conversion system.
@@ -133,7 +133,7 @@ export class ClassConverter {
   register(type: string, class_: IOClass, encoding: ClassEncoding) {
     assert(type !== 'Buffer', "'Buffer' handling is hardcoded. Cannot use as name.");
     assert(
-      hasOwnProperty(class_.prototype, 'toString') || hasOwnProperty(class_.prototype, 'toJSON'),
+      class_.prototype['toString'] || class_.prototype['toJSON'],
       `Class ${type} must define a toString() OR toJSON() method.`,
     );
     assert(

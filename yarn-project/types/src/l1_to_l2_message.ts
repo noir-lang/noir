@@ -120,8 +120,8 @@ export class L1ToL2Message {
     const reader = BufferReader.asReader(buffer);
     const sender = reader.readObject(L1Actor);
     const recipient = reader.readObject(L2Actor);
-    const content = reader.readFr();
-    const secretHash = reader.readFr();
+    const content = Fr.fromBuffer(reader);
+    const secretHash = Fr.fromBuffer(reader);
     const deadline = reader.readNumber();
     const fee = reader.readNumber();
     return new L1ToL2Message(sender, recipient, content, secretHash, deadline, fee);

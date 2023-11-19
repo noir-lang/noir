@@ -37,7 +37,7 @@ export class AppendOnlyTreeSnapshot {
 
   static fromBuffer(buffer: Buffer | BufferReader): AppendOnlyTreeSnapshot {
     const reader = BufferReader.asReader(buffer);
-    return new AppendOnlyTreeSnapshot(reader.readFr(), reader.readNumber());
+    return new AppendOnlyTreeSnapshot(Fr.fromBuffer(reader), reader.readNumber());
   }
 
   static fromString(str: string): AppendOnlyTreeSnapshot {

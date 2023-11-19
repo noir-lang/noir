@@ -104,7 +104,7 @@ describe('e2e_public_cross_chain_messaging', () => {
     await crossChainTestHarness.withdrawFundsFromBridgeOnL1(withdrawAmount, entryKey);
     expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount + withdrawAmount);
 
-    expect(await outbox.read.contains([entryKey.toString(true)])).toBeFalsy();
+    expect(await outbox.read.contains([entryKey.toString()])).toBeFalsy();
   }, 120_000);
   // docs:end:e2e_public_cross_chain
 

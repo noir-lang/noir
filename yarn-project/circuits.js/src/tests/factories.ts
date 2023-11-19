@@ -433,7 +433,7 @@ export function makeVerificationKey(): VerificationKey {
     101, // arbitrary
     102, // arbitrary
     {
-      A: new G1AffineElement(fr(0x200), fr(0x300)),
+      A: new G1AffineElement(new Fq(0x200), new Fq(0x300)),
     },
     /* recursive proof */ true,
     range(5, 400),

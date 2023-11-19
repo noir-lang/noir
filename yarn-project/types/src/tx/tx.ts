@@ -164,7 +164,7 @@ export class Tx {
   /** Returns stats about this tx. */
   getStats(): TxStats {
     return {
-      txHash: this.data!.end.newNullifiers[0].toString(true),
+      txHash: this.data!.end.newNullifiers[0].toString(),
       encryptedLogCount: this.encryptedLogs.getTotalLogCount(),
       unencryptedLogCount: this.unencryptedLogs.getTotalLogCount(),
       encryptedLogSize: this.encryptedLogs.getSerializedLength(),

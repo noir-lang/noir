@@ -12,7 +12,7 @@ import {
   Wallet,
   computeMessageSecretHash,
   deployL1Contract,
-  sha256ToField,
+  sha256,
 } from '@aztec/aztec.js';
 import {
   OutboxAbi,
@@ -214,7 +214,7 @@ export class CrossChainTestHarness {
     this.logger("Generating a claim secret using pedersen's hash function");
     const secret = Fr.random();
     const secretHash = computeMessageSecretHash(secret);
-    this.logger('Generated claim secret: ' + secretHash.toString(true));
+    this.logger('Generated claim secret: ' + secretHash.toString());
     return [secret, secretHash];
   }
 
@@ -240,7 +240,7 @@ export class CrossChainTestHarness {
       bridgeAmount,
       this.ethAccount.toString(),
       deadline,
-      secretHash.toString(true),
+      secretHash.toString(),
     ] as const;
     const { result: messageKeyHex } = await this.tokenPortal.simulate.depositToAztecPublic(args, {
       account: this.ethAccount.toString(),
@@ -262,11 +262,11 @@ export class CrossChainTestHarness {
 
     this.logger('Sending messages to L1 portal to be consumed privately');
     const args = [
-      secretHashForRedeemingMintedNotes.toString(true),
+      secretHashForRedeemingMintedNotes.toString(),
       bridgeAmount,
       this.ethAccount.toString(),
       deadline,
-      secretHashForL2MessageConsumption.toString(true),
+      secretHashForL2MessageConsumption.toString(),
     ] as const;
     const { result: messageKeyHex } = await this.tokenPortal.simulate.depositToAztecPrivate(args, {
       account: this.ethAccount.toString(),
@@ -370,24 +370,28 @@ export class CrossChainTestHarness {
   async checkEntryIsNotInOutbox(withdrawAmount: bigint, callerOnL1: EthAddress = EthAddress.ZERO): Promise<Fr> {
     this.logger('Ensure that the entry is not in outbox yet');
 
-    const content = sha256ToField(
-      Buffer.concat([
-        Buffer.from(getFunctionSelector('withdraw(address,uint256,address)').substring(2), 'hex'),
-        this.ethAccount.toBuffer32(),
-        new Fr(withdrawAmount).toBuffer(),
-        callerOnL1.toBuffer32(),
-      ]),
+    const content = Fr.fromBufferReduce(
+      sha256(
+        Buffer.concat([
+          Buffer.from(getFunctionSelector('withdraw(address,uint256,address)').substring(2), 'hex'),
+          this.ethAccount.toBuffer32(),
+          new Fr(withdrawAmount).toBuffer(),
+          callerOnL1.toBuffer32(),
+        ]),
+      ),
     );
-    const entryKey = sha256ToField(
-      Buffer.concat([
-        this.l2Bridge.address.toBuffer(),
-        new Fr(1).toBuffer(), // aztec version
-        this.tokenPortalAddress.toBuffer32() ?? Buffer.alloc(32, 0),
-        new Fr(this.publicClient.chain.id).toBuffer(), // chain id
-        content.toBuffer(),
-      ]),
+    const entryKey = Fr.fromBufferReduce(
+      sha256(
+        Buffer.concat([
+          this.l2Bridge.address.toBuffer(),
+          new Fr(1).toBuffer(), // aztec version
+          this.tokenPortalAddress.toBuffer32() ?? Buffer.alloc(32, 0),
+          new Fr(this.publicClient.chain.id).toBuffer(), // chain id
+          content.toBuffer(),
+        ]),
+      ),
     );
-    expect(await this.outbox.read.contains([entryKey.toString(true)])).toBeFalsy();
+    expect(await this.outbox.read.contains([entryKey.toString()])).toBeFalsy();
 
     return entryKey;
   }
@@ -401,7 +405,7 @@ export class CrossChainTestHarness {
       false,
     ]);
 
-    expect(withdrawEntryKey).toBe(entryKey.toString(true));
+    expect(withdrawEntryKey).toBe(entryKey.toString());
     expect(await this.outbox.read.contains([withdrawEntryKey])).toBeTruthy();
 
     await this.walletClient.writeContract(withdrawRequest);

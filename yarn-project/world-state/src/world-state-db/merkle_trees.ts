@@ -61,7 +61,7 @@ export class MerkleTrees implements MerkleTreeDb {
   private jobQueue = new SerialQueue();
 
   constructor(private db: levelup.LevelUp, private log = createDebugLogger('aztec:merkle_trees')) {
-    this.latestGlobalVariablesHash = new Committable(Fr.zero());
+    this.latestGlobalVariablesHash = new Committable(Fr.ZERO);
   }
 
   /**

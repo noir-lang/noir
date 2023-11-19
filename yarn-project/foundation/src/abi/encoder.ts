@@ -1,5 +1,6 @@
 import { ABIType, FunctionAbi, isAddressStruct } from '@aztec/foundation/abi';
-import { Fr } from '@aztec/foundation/fields';
+
+import { Fr } from '../fields/index.js';
 
 /**
  * Encodes arguments for a function call.
@@ -46,7 +47,7 @@ class ArgumentEncoder {
         } else if (typeof arg === 'bigint') {
           this.flattened.push(new Fr(arg));
         } else if (typeof arg === 'boolean') {
-          this.flattened.push(new Fr(arg ? 1 : 0));
+          this.flattened.push(new Fr(arg ? 1n : 0n));
         } else if (typeof arg === 'object') {
           if (Buffer.isBuffer(arg)) {
             this.flattened.push(Fr.fromBuffer(arg));

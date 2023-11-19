@@ -35,7 +35,7 @@ export class L1NotePayload {
    */
   static fromBuffer(buffer: Buffer | BufferReader): L1NotePayload {
     const reader = BufferReader.asReader(buffer);
-    return new L1NotePayload(reader.readObject(Note), reader.readObject(AztecAddress), reader.readFr());
+    return new L1NotePayload(reader.readObject(Note), reader.readObject(AztecAddress), Fr.fromBuffer(reader));
   }
 
   /**

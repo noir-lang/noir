@@ -254,7 +254,7 @@ export class PublicProcessor {
     const callStackPreimages = await this.getPublicCallStackPreimages(result);
 
     const publicCallStack = mapTuple(callStackPreimages, item =>
-      item.isEmpty() ? Fr.zero() : computeCallStackItemHash(item),
+      item.isEmpty() ? Fr.ZERO : computeCallStackItemHash(item),
     );
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165) --> set this in Noir

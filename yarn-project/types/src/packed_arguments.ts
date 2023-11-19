@@ -35,6 +35,6 @@ export class PackedArguments {
 
   static fromBuffer(buffer: Buffer | BufferReader): PackedArguments {
     const reader = BufferReader.asReader(buffer);
-    return new PackedArguments(reader.readVector(Fr), reader.readFr());
+    return new PackedArguments(reader.readVector(Fr), Fr.fromBuffer(reader));
   }
 }

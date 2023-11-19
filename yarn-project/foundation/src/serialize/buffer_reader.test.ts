@@ -44,13 +44,13 @@ describe('buffer reader', () => {
 
   describe('readFr', () => {
     it('should get Fr from buffer', () => {
-      expect(bufferReader.readFr()).toEqual(Fr.fromBuffer(BUFFER));
+      expect(Fr.fromBuffer(bufferReader)).toEqual(Fr.fromBuffer(BUFFER));
     });
   });
 
   describe('readFq', () => {
     it('should get Fq from buffer', () => {
-      expect(bufferReader.readFq()).toEqual(Fq.fromBuffer(BUFFER));
+      expect(Fq.fromBuffer(bufferReader)).toEqual(Fq.fromBuffer(BUFFER));
     });
   });
 
