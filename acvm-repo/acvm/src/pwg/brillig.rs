@@ -120,7 +120,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         self.vm.set_register(RegisterIndex(register_index), value);
     }
 
-    pub fn get_memory(&self) -> &Vec<Value> {
+    pub fn get_memory(&self) -> &[Value] {
         self.vm.get_memory()
     }
 
