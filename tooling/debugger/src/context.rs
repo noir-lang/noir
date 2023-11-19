@@ -219,7 +219,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn get_brillig_memory(&self) -> Option<&Vec<Value>> {
+    pub(super) fn get_brillig_memory(&self) -> Option<&[Value]> {
         self.brillig_solver.as_ref().map(|solver| solver.get_memory())
     }
 
