@@ -17,7 +17,6 @@ fn main(mut x: Field) {
 
     issue_2120();
 }
-
 // https://github.com/noir-lang/noir/issues/2120
 fn issue_2120() {
     let x1 = &mut 42;

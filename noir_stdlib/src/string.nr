@@ -8,4 +8,4 @@ impl<N> str<N> {
     pub fn as_bytes_vec(self: Self) -> Vec<u8> {
         Vec::from_slice(self.as_bytes().as_slice())
     }
-} 
+}

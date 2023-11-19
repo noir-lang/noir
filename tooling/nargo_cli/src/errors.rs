@@ -1,10 +1,8 @@
 use acvm::acir::native_types::WitnessMapError;
 use hex::FromHexError;
-use nargo::NargoError;
+use nargo::{errors::CompileError, NargoError};
 use nargo_toml::ManifestError;
 use noirc_abi::errors::{AbiError, InputParserError};
-use noirc_errors::reporter::ReportedErrors;
-use noirc_frontend::graph::CrateName;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -86,25 +84,4 @@ pub(crate) enum BackendError {
 
     #[error("Backend installation failed: {0}")]
     InstallationError(#[from] std::io::Error),
-}
-
-/// Errors covering situations where a package cannot be compiled.
-#[derive(Debug, Error)]
-pub(crate) enum CompileError {
-    #[error("Package `{0}` has type `lib` but only `bin` types can be compiled")]
-    LibraryCrate(CrateName),
-
-    #[error("Package `{0}` is expected to have a `main` function but it does not")]
-    MissingMainFunction(CrateName),
-
-    /// Errors encountered while compiling the Noir program.
-    /// These errors are already written to stderr.
-    #[error("Aborting due to {} previous error{}", .0.error_count, if .0.error_count == 1 { "" } else { "s" })]
-    ReportedErrors(ReportedErrors),
-}
-
-impl From<ReportedErrors> for CompileError {
-    fn from(errors: ReportedErrors) -> Self {
-        Self::ReportedErrors(errors)
-    }
 }

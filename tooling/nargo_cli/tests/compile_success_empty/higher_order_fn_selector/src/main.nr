@@ -8,7 +8,6 @@ fn h(x: &mut Field) -> () {
 
 fn selector(flag: &mut bool) -> fn(&mut Field) -> () {
     let my_func = if *flag { g } else { h };
-
     // Flip the flag for the next function call
     *flag = !(*flag);
     my_func

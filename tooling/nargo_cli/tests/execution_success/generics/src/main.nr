@@ -37,16 +37,13 @@ fn main(x: Field, y: Field) {
 
     foo(bar1);
     foo(bar2);
-
     // Test generic impls
     let int1 = BigInt { limbs: [1] };
     let int2 = BigInt { limbs: [2] };
     let BigInt { limbs } = int1.second(int2).first(int1);
     assert(limbs == int2.limbs);
-
     // Test impl exclusively for Bar<Field>
     assert(bar1.get_other() == bar1.other);
-
     // Expected type error
     // assert(bar2.get_other() == bar2.other);
     let one = x;

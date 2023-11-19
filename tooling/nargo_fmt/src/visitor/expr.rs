@@ -1,12 +1,13 @@
 use noirc_frontend::{
-    hir::resolution::errors::Span, token::Token, ArrayLiteral, BlockExpression,
+    hir::resolution::errors::Span, lexer::Lexer, token::Token, ArrayLiteral, BlockExpression,
     ConstructorExpression, Expression, ExpressionKind, IfExpression, Literal, Statement,
     StatementKind, UnaryOp,
 };
 
 use super::{ExpressionType, FmtVisitor, Indent, Shape};
 use crate::{
-    utils::{self, Expr, FindToken, Item},
+    rewrite,
+    utils::{self, first_line_width, Expr, FindToken, Item},
     Config,
 };
 
@@ -52,20 +53,22 @@ impl FmtVisitor<'_> {
             ExpressionKind::Cast(cast) => {
                 format!("{} as {}", self.format_sub_expr(cast.lhs), cast.r#type)
             }
-            ExpressionKind::Infix(infix) => {
-                format!(
-                    "{} {} {}",
-                    self.format_sub_expr(infix.lhs),
-                    infix.operator.contents.as_string(),
-                    self.format_sub_expr(infix.rhs)
-                )
+            kind @ ExpressionKind::Infix(_) => {
+                let shape = self.shape();
+                rewrite::infix(self.fork(), Expression { kind, span }, shape)
             }
             ExpressionKind::Call(call_expr) => {
                 let args_span =
                     self.span_before(call_expr.func.span.end()..span.end(), Token::LeftParen);
 
                 let callee = self.format_sub_expr(*call_expr.func);
-                let args = format_parens(self.fork(), false, call_expr.arguments, args_span);
+                let args = format_parens(
+                    self.config.fn_call_width.into(),
+                    self.fork(),
+                    false,
+                    call_expr.arguments,
+                    args_span,
+                );
 
                 format!("{callee}{args}")
             }
@@ -77,7 +80,13 @@ impl FmtVisitor<'_> {
 
                 let object = self.format_sub_expr(method_call_expr.object);
                 let method = method_call_expr.method_name.to_string();
-                let args = format_parens(self.fork(), false, method_call_expr.arguments, args_span);
+                let args = format_parens(
+                    self.config.fn_call_width.into(),
+                    self.fork(),
+                    false,
+                    method_call_expr.arguments,
+                    args_span,
+                );
 
                 format!("{object}.{method}{args}")
             }
@@ -95,7 +104,7 @@ impl FmtVisitor<'_> {
                 format!("{collection}{index}")
             }
             ExpressionKind::Tuple(exprs) => {
-                format_parens(self.fork(), exprs.len() == 1, exprs, span)
+                format_parens(None, self.fork(), exprs.len() == 1, exprs, span)
             }
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) | Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) => {
@@ -108,7 +117,7 @@ impl FmtVisitor<'_> {
                     format!("[{repeated}; {length}]")
                 }
                 Literal::Array(ArrayLiteral::Standard(exprs)) => {
-                    format_brackets(self.fork(), false, exprs, span)
+                    rewrite::array(self.fork(), exprs, span)
                 }
                 Literal::Unit => "()".to_string(),
             },
@@ -290,17 +299,13 @@ impl FmtVisitor<'_> {
 
         self.trim_spaces_after_opening_brace(&block.0);
 
-        self.with_indent(|this| {
-            this.visit_stmts(block.0);
-        });
+        self.indent.block_indent(self.config);
 
-        let slice = self.slice(self.last_position..block_span.end() - 1).trim_end();
-        self.push_str(slice);
+        self.visit_stmts(block.0);
 
+        let span = (self.last_position..block_span.end() - 1).into();
+        self.close_block(span);
         self.last_position = block_span.end();
-
-        self.push_str(&self.indent.to_string_with_newline());
-        self.push_str("}");
     }
 
     fn trim_spaces_after_opening_brace(&mut self, block: &[Statement]) {
@@ -315,22 +320,53 @@ impl FmtVisitor<'_> {
     pub(crate) fn visit_empty_block(&mut self, block_span: Span) {
         let slice = self.slice(block_span);
         let comment_str = slice[1..slice.len() - 1].trim();
-        let block_str = if comment_str.is_empty() {
-            "{}".to_string()
+
+        if comment_str.is_empty() {
+            self.push_str("{}");
         } else {
+            self.push_str("{");
             self.indent.block_indent(self.config);
-            let (comment_str, _) = self.format_comment_in_block(comment_str);
-            let comment_str = comment_str.trim_matches('\n');
-            self.indent.block_unindent(self.config);
-            let close_indent = self.indent.to_string();
-            format!("{{\n{comment_str}\n{close_indent}}}")
+            self.close_block(block_span);
         };
+
         self.last_position = block_span.end();
-        self.push_str(&block_str);
+    }
+
+    pub(crate) fn close_block(&mut self, span: Span) {
+        let slice = self.slice(span);
+
+        for spanned in Lexer::new(slice).skip_comments(false).flatten() {
+            match spanned.token() {
+                Token::LineComment(_, _) | Token::BlockComment(_, _) => {
+                    let token_span = spanned.to_span();
+
+                    let offset = token_span.start();
+                    let sub_slice = &slice[token_span.start() as usize..token_span.end() as usize];
+
+                    let span_in_between = span.start()..span.start() + offset;
+                    let slice_in_between = self.slice(span_in_between);
+                    let comment_on_same_line = !slice_in_between.contains('\n');
+
+                    if comment_on_same_line {
+                        self.push_str(" ");
+                        self.push_str(sub_slice);
+                    } else {
+                        self.push_str(&self.indent.to_string_with_newline());
+                        self.push_str(sub_slice);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        self.indent.block_unindent(self.config);
+        self.push_str(&self.indent.to_string_with_newline());
+        self.push_str("}");
     }
 }
 
-fn format_expr_seq<T: Item>(
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn format_seq<T: Item>(
     prefix: &str,
     suffix: &str,
     mut visitor: FmtVisitor,
@@ -338,6 +374,7 @@ fn format_expr_seq<T: Item>(
     exprs: Vec<T>,
     span: Span,
     tactic: Tactic,
+    soft_newline: bool,
 ) -> String {
     visitor.indent.block_indent(visitor.config);
 
@@ -347,7 +384,7 @@ fn format_expr_seq<T: Item>(
 
     visitor.indent.block_unindent(visitor.config);
 
-    wrap_exprs(prefix, suffix, exprs, nested_indent, visitor.shape())
+    wrap_exprs(prefix, suffix, exprs, nested_indent, visitor.shape(), soft_newline)
 }
 
 fn format_brackets(
@@ -357,7 +394,7 @@ fn format_brackets(
     span: Span,
 ) -> String {
     let array_width = visitor.config.array_width;
-    format_expr_seq(
+    format_seq(
         "[",
         "]",
         visitor,
@@ -365,16 +402,19 @@ fn format_brackets(
         exprs,
         span,
         Tactic::LimitedHorizontalVertical(array_width),
+        false,
     )
 }
 
 fn format_parens(
+    max_width: Option<usize>,
     visitor: FmtVisitor,
     trailing_comma: bool,
     exprs: Vec<Expression>,
     span: Span,
 ) -> String {
-    format_expr_seq("(", ")", visitor, trailing_comma, exprs, span, Tactic::Horizontal)
+    let tactic = max_width.map(Tactic::LimitedHorizontalVertical).unwrap_or(Tactic::Horizontal);
+    format_seq("(", ")", visitor, trailing_comma, exprs, span, tactic, false)
 }
 
 fn format_exprs(
@@ -460,16 +500,20 @@ fn format_exprs(
     result
 }
 
-fn wrap_exprs(
+pub(crate) fn wrap_exprs(
     prefix: &str,
     suffix: &str,
     exprs: String,
     nested_shape: Shape,
     shape: Shape,
+    soft_newline: bool,
 ) -> String {
-    let first_line_width = exprs.lines().next().map_or(0, |line| line.chars().count());
+    let first_line_width = first_line_width(&exprs);
 
-    if first_line_width <= shape.width {
+    let force_one_line =
+        if soft_newline { !exprs.contains('\n') } else { first_line_width <= shape.width };
+
+    if force_one_line {
         let allow_trailing_newline = exprs
             .lines()
             .last()
@@ -492,8 +536,8 @@ fn wrap_exprs(
     }
 }
 
-#[derive(PartialEq, Eq)]
-enum Tactic {
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub(crate) enum Tactic {
     Horizontal,
     HorizontalVertical,
     LimitedHorizontalVertical(usize),

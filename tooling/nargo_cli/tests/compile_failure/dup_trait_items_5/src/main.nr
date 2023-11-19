@@ -3,5 +3,4 @@ trait MyTrait {
   let MyItem: u32;
 }
 
-fn main() {
-}
+fn main() {}
