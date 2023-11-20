@@ -2537,7 +2537,6 @@ dependencies = [
  "dap",
  "easy-repl",
  "nargo",
- "nargo_toml",
  "noirc_driver",
  "noirc_errors",
  "noirc_printable_type",

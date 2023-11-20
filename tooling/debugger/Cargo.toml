@@ -11,7 +11,6 @@ license.workspace = true
 [dependencies]
 acvm.workspace = true
 nargo.workspace = true
-nargo_toml.workspace = true
 noirc_printable_type.workspace = true
 noirc_errors.workspace = true
 noirc_driver.workspace = true
