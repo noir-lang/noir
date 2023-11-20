@@ -29,7 +29,7 @@ pub(crate) fn parse_toml(
         (&abi.return_type, data.get(MAIN_RETURN_NAME))
     {
         let return_value =
-            InputValue::try_from_toml(toml_return_value.clone(), return_type, MAIN_RETURN_NAME)?;
+            InputValue::try_from_toml(toml_return_value.clone(), &return_type.0, MAIN_RETURN_NAME)?;
         parsed_inputs.insert(MAIN_RETURN_NAME.to_owned(), return_value);
     }
 
@@ -48,7 +48,7 @@ pub(crate) fn serialize_to_toml(
     if let (Some(return_type), Some(return_value)) =
         (&abi.return_type, input_map.get(MAIN_RETURN_NAME))
     {
-        let return_value = TomlTypes::try_from_input_value(return_value, return_type)?;
+        let return_value = TomlTypes::try_from_input_value(return_value, &return_type.0)?;
         toml_map.insert(MAIN_RETURN_NAME.to_owned(), return_value);
     }
 

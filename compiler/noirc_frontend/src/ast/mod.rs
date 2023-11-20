@@ -285,6 +285,9 @@ pub enum Visibility {
     // Constants are not allowed in the ABI for main at the moment.
     // Constant,
     Private,
+    /// DataBus is public input handled as private input. We use the fact that return values are properly computed by the program to avoid having them as public inputs
+    /// it is useful for recursion and is handled by the proving system.
+    DataBus,
 }
 
 impl std::fmt::Display for Visibility {
@@ -292,6 +295,7 @@ impl std::fmt::Display for Visibility {
         match self {
             Self::Public => write!(f, "pub"),
             Self::Private => write!(f, "priv"),
+            Self::DataBus => write!(f, "databus"),
         }
     }
 }

@@ -1020,10 +1020,18 @@ fn parse_type_inner(
 }
 
 fn optional_visibility() -> impl NoirParser<Visibility> {
-    keyword(Keyword::Pub).or_not().map(|opt| match opt {
-        Some(_) => Visibility::Public,
-        None => Visibility::Private,
-    })
+    keyword(Keyword::Pub)
+        .or(keyword(Keyword::CallData))
+        .or(keyword(Keyword::ReturnData))
+        .or_not()
+        .map(|opt| match opt {
+            Some(Token::Keyword(Keyword::Pub)) => Visibility::Public,
+            Some(Token::Keyword(Keyword::CallData)) | Some(Token::Keyword(Keyword::ReturnData)) => {
+                Visibility::DataBus
+            }
+            None => Visibility::Private,
+            _ => unreachable!("unexpected token found"),
+        })
 }
 
 fn optional_distinctness() -> impl NoirParser<Distinctness> {

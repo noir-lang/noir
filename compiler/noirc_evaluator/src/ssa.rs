@@ -88,6 +88,7 @@ pub fn create_circuit(
     enable_brillig_logging: bool,
 ) -> Result<(Circuit, DebugInfo, Abi, Vec<SsaReport>), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
+    let return_visibility = program.return_visibility;
     let mut generated_acir =
         optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
     let opcodes = generated_acir.take_opcodes();
@@ -101,7 +102,8 @@ pub fn create_circuit(
         ..
     } = generated_acir;
 
-    let abi = gen_abi(context, func_sig, input_witnesses, return_witnesses.clone());
+    let abi =
+        gen_abi(context, func_sig, input_witnesses, return_witnesses.clone(), return_visibility);
     let public_abi = abi.clone().public_abi();
 
     let public_parameters = PublicInputs(tree_to_set(&public_abi.param_witnesses));

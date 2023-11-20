@@ -62,8 +62,11 @@ use fxhash::FxHashMap as HashMap;
 impl Ssa {
     pub(crate) fn fill_internal_slices(mut self) -> Ssa {
         for function in self.functions.values_mut() {
+            let databus = function.dfg.data_bus.clone();
             let mut context = Context::new(function);
             context.process_blocks();
+            // update the databus with the new array instructions
+            function.dfg.data_bus = databus.map_values(|t| context.inserter.resolve(t));
         }
         self
     }

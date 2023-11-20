@@ -98,7 +98,7 @@ mod tests {
                     visibility: AbiVisibility::Private,
                 },
             ],
-            return_type: Some(AbiType::Field),
+            return_type: Some((AbiType::Field, AbiVisibility::Public)),
 
             // Input serialization is only dependent on types, not position in witness map.
             // Neither of these should be relevant so we leave them empty.

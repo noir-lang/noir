@@ -105,8 +105,14 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
     }
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    let FuncMeta { return_distinctness, .. } = interner.function_meta(&main);
-    Program::new(functions, function_sig, return_distinctness, monomorphizer.return_location)
+    let FuncMeta { return_distinctness, return_visibility, .. } = interner.function_meta(&main);
+    Program::new(
+        functions,
+        function_sig,
+        return_distinctness,
+        monomorphizer.return_location,
+        return_visibility,
+    )
 }
 
 impl<'interner> Monomorphizer<'interner> {

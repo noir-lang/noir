@@ -6,6 +6,7 @@ use std::fmt::Debug;
 use std::ops::RangeInclusive;
 
 use self::acir_ir::acir_variable::{AcirContext, AcirType, AcirVar};
+use super::function_builder::data_bus::DataBus;
 use super::ir::dfg::CallStack;
 use super::{
     ir::{
@@ -90,6 +91,8 @@ struct Context {
     /// Maps SSA array values to their slice size and any nested slices internal to the parent slice.
     /// This enables us to maintain the slice structure of a slice when performing an array get.
     slice_sizes: HashMap<Id<Value>, Vec<usize>>,
+
+    data_bus: DataBus,
 }
 
 #[derive(Clone)]
@@ -187,6 +190,7 @@ impl Context {
             internal_mem_block_lengths: HashMap::default(),
             max_block_id: 0,
             slice_sizes: HashMap::default(),
+            data_bus: DataBus::default(),
         }
     }
 
@@ -214,6 +218,8 @@ impl Context {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
         let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
+
+        self.data_bus = dfg.data_bus.to_owned();
         let mut warnings = Vec::new();
         for instruction_id in entry_block.instructions() {
             warnings.extend(self.convert_ssa_instruction(
@@ -878,7 +884,16 @@ impl Context {
         dfg: &DataFlowGraph,
     ) -> Result<AcirValue, RuntimeError> {
         let (array_id, _, block_id) = self.check_array_is_initialized(array, dfg)?;
-
+        // Get operations to call-data parameters are replaced by a get to the call-data-bus array
+        if let Some(call_data) = self.data_bus.call_data {
+            if self.data_bus.call_data_map.contains_key(&array_id) {
+                let bus_index = self.acir_context.add_constant(FieldElement::from(
+                    self.data_bus.call_data_map[&array_id] as i128,
+                ));
+                let new_index = self.acir_context.add_var(var_index, bus_index)?;
+                return self.array_get(instruction, call_data, new_index, dfg);
+            }
+        }
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
 

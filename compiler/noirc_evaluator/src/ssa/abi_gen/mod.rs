@@ -10,6 +10,7 @@ use noirc_frontend::{
         stmt::HirPattern,
     },
     node_interner::NodeInterner,
+    Visibility,
 };
 use std::ops::Range;
 
@@ -41,10 +42,12 @@ pub(crate) fn gen_abi(
     func_sig: FunctionSignature,
     input_witnesses: Vec<Range<Witness>>,
     return_witnesses: Vec<Witness>,
+    return_visibility: Visibility,
 ) -> Abi {
     let (parameters, return_type) = func_sig;
     let parameters = into_abi_params(context, parameters);
-    let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
+    let return_type =
+        return_type.map(|typ| (AbiType::from_type(context, &typ), return_visibility.into()));
     let param_witnesses = param_witnesses_from_abi_param(&parameters, input_witnesses);
     Abi { parameters, return_type, param_witnesses, return_witnesses }
 }
