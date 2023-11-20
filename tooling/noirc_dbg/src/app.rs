@@ -4,14 +4,16 @@ use dap::events::*;
 use dap::requests::*;
 use dap::responses::*;
 use dap::types::{
-    Capabilities, DisassembledInstruction, Scope, ScopePresentationhint, SourceBreakpoint,
-    StoppedEventReason, Thread, Variable,
+    Capabilities, DisassembledInstruction, InvalidatedAreas, Scope, ScopePresentationhint,
+    SourceBreakpoint, StoppedEventReason, Thread, Variable,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_evaluator::brillig::brillig_ir::artifact::GeneratedBrillig;
 use serde_json::Value;
 
 use crate::{compile, dap_server::Server, error::DebuggingError, vm, vm::VMType};
+
+use base64::{display::Base64Display, engine::general_purpose};
 
 use acvm::brillig_vm::VMStatus;
 #[allow(deprecated)]
@@ -66,7 +68,14 @@ impl UninitializedState {
             Command::Initialize(_) => {
                 let rsp = request.success(ResponseBody::Initialize(Capabilities {
                     supports_step_back: Some(false),
-                    supports_restart_request: Some(false),
+                    supports_restart_request: Some(true),
+                    supports_disassemble_request: Some(true),
+                    supports_instruction_breakpoints: Some(false),
+                    supports_exception_filter_options: Some(false),
+                    supports_read_memory_request: Some(true),
+                    supports_step_in_targets_request: Some(true),
+                    supports_value_formatting_options: Some(true),
+                    supports_single_thread_execution_requests: Some(true),
                     ..Default::default()
                 }));
 
@@ -188,14 +197,23 @@ impl RunningState {
         let stop_event = Event::Stopped(StoppedEventBody {
             reason,
             description: Some(description),
-            thread_id: Some(0),
+            thread_id: None,
             preserve_focus_hint: Some(false),
             text: None,
             all_threads_stopped: Some(true),
             hit_breakpoint_ids: None,
         });
 
+        #[cfg(feature = "dap")]
+        crate::dap_server::log(server, &stop_event);
+
         server.write(Sendable::Event(stop_event));
+
+        server.write(Sendable::Event(Event::Invalidated(InvalidatedEventBody {
+            areas: Some(vec![InvalidatedAreas::Variables, InvalidatedAreas::Stacks]),
+            thread_id: None,
+            stack_frame_id: None,
+        })));
         self.running = false;
 
         Ok(())
@@ -359,6 +377,7 @@ impl RunningState {
                     .map(|(i, r)| Variable {
                         name: format!("Register {i}"),
                         value: format!("{}", r.to_u128()),
+                        memory_reference: Some(i.to_string()),
                         ..Default::default()
                     })
                     .collect::<Vec<_>>();
@@ -369,12 +388,21 @@ impl RunningState {
             }
             Command::ReadMemory(_) => {
                 let memory = self.vm.get_memory();
-                let memory = memory.iter().map(|v| format!("{}", v.to_u128())).collect::<Vec<_>>();
-                let memory_string = memory.join(", ");
+                let memory_string;
+                if cfg!(feature = "dap") {
+                    let mut m = vec![];
+                    memory.iter().for_each(|v| m.extend_from_slice(&v.to_u128().to_ne_bytes()));
+                    let wrapper = Base64Display::new(&m, &general_purpose::STANDARD);
+                    memory_string = format!("{wrapper}");
+                } else {
+                    let memory =
+                        memory.iter().map(|v| format!("{}", v.to_u128())).collect::<Vec<_>>();
+                    memory_string = memory.join(", ");
+                }
 
                 server.write(Sendable::Response(request.success(ResponseBody::ReadMemory(
                     ReadMemoryResponse {
-                        address: "Memory".to_string(),
+                        address: "0".to_string(),
                         unreadable_bytes: None,
                         data: Some(memory_string),
                     },
@@ -392,14 +420,20 @@ impl RunningState {
                 return Ok(Some(State::Exit));
             }
 
-            Command::SetExceptionBreakpoints(_) => {}
-            // _ => {
-            //     return Err(DebuggingError::CustomError(
-            //         "Unsupported command. Please, use the other commands to continue process."
-            //             .to_string(),
-            //     ))
-            // }
-            _ => {}
+            Command::StackTrace(_) => {
+                server.write(Sendable::Response(request.success(ResponseBody::StackTrace(
+                    dap::responses::StackTraceResponse {
+                        stack_frames: vec![dap::types::StackFrame::default()],
+                        ..Default::default()
+                    },
+                ))));
+            }
+            _ => {
+                return Err(DebuggingError::CustomError(
+                    "Unsupported command. Please, use the other commands to continue process."
+                        .to_string(),
+                ))
+            } // _ => {}
         }
         Ok(None)
     }
