@@ -96,7 +96,7 @@ pub fn abi_encode(
                 .expect("could not decode return value");
             InputValue::try_from_json(
                 toml_return_value,
-                abi.return_type.as_ref().unwrap(),
+                &abi.return_type.as_ref().unwrap().0,
                 MAIN_RETURN_NAME,
             )
         })
@@ -134,7 +134,7 @@ pub fn abi_decode(abi: JsAbi, witness_map: JsWitnessMap) -> Result<JsValue, JsAb
     })?;
 
     let return_value = return_value
-        .map(|value| JsonTypes::try_from_input_value(&value, &abi.return_type.unwrap()))
+        .map(|value| JsonTypes::try_from_input_value(&value, &abi.return_type.unwrap().0))
         .transpose()?;
 
     #[derive(Serialize)]

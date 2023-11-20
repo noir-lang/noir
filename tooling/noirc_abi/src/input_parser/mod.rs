@@ -159,7 +159,7 @@ mod serialization_tests {
                     visibility: AbiVisibility::Private,
                 },
             ],
-            return_type: Some(AbiType::String { length: 5 }),
+            return_type: Some((AbiType::String { length: 5 }, AbiVisibility::Public)),
             // These two fields are unused when serializing/deserializing to file.
             param_witnesses: BTreeMap::new(),
             return_witnesses: Vec::new(),
