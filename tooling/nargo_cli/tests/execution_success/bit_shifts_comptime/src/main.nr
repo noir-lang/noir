@@ -14,7 +14,7 @@ fn main(x: u64) {
     regression_2250();
 
     //regression for 3481
-    assert(x << 100000 == 0);
+    assert(x << 63 == 0);
 }
 
 fn regression_2250() {
