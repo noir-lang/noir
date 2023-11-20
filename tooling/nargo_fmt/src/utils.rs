@@ -246,6 +246,7 @@ impl Item for Param {
         let visibility = match self.visibility {
             Visibility::Public => "pub ",
             Visibility::Private => "",
+            Visibility::DataBus => "call_data",
         };
         let pattern = visitor.slice(self.pattern.span());
         let ty = visitor.slice(self.typ.span.unwrap());
