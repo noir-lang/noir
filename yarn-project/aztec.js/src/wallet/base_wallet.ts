@@ -35,6 +35,10 @@ export abstract class BaseWallet implements Wallet {
 
   abstract createAuthWitness(message: Fr): Promise<AuthWitness>;
 
+  addCapsule(capsule: Fr[]): Promise<void> {
+    return this.pxe.addCapsule(capsule);
+  }
+
   registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<CompleteAddress> {
     return this.pxe.registerAccount(privKey, partialAddress);
   }

@@ -168,9 +168,16 @@ export async function setupPXEService(
  * @param account - The account for use in create viem wallets.
  * @param config - The aztec Node Configuration
  * @param logger - The logger to be used
+ * @param numberOfAccounts - The number of new accounts to be created once the PXE is initiated.
+ * (will create extra accounts if the sandbox don't already have enough accounts)
  * @returns Private eXecution Environment (PXE) client, viem wallets, contract addresses etc.
  */
-async function setupWithSandbox(account: Account, config: AztecNodeConfig, logger: DebugLogger) {
+async function setupWithSandbox(
+  account: Account,
+  config: AztecNodeConfig,
+  logger: DebugLogger,
+  numberOfAccounts: number,
+) {
   // we are setting up against the sandbox, l1 contracts are already deployed
   const aztecNodeUrl = getAztecNodeUrl();
   logger(`Creating Aztec Node client to remote host ${aztecNodeUrl}`);
@@ -183,6 +190,10 @@ async function setupWithSandbox(account: Account, config: AztecNodeConfig, logge
   const l1Contracts = (await pxeClient.getNodeInfo()).l1ContractAddresses;
   logger('PXE created, constructing wallets from initial sandbox accounts...');
   const wallets = await getSandboxAccountsWallets(pxeClient);
+
+  if (wallets.length < numberOfAccounts) {
+    wallets.push(...(await createAccounts(pxeClient, numberOfAccounts - wallets.length)));
+  }
 
   const walletClient = createWalletClient<HttpTransport, Chain, HDAccount>({
     account,
@@ -268,7 +279,7 @@ export async function setup(numberOfAccounts = 1, opts: SetupOptions = {}): Prom
 
   if (PXE_URL) {
     // we are setting up against the sandbox, l1 contracts are already deployed
-    return await setupWithSandbox(hdAccount, config, logger);
+    return await setupWithSandbox(hdAccount, config, logger, numberOfAccounts);
   }
 
   const deployL1ContractsValues = await setupL1Contracts(config.rpcUrl, hdAccount, logger);
@@ -340,6 +351,10 @@ function getJobName() {
  */
 export function getLogger() {
   const describeBlockName = expect.getState().currentTestName?.split(' ')[0].replaceAll('/', ':');
+  if (!describeBlockName) {
+    const name = expect.getState().testPath?.split('/').pop()?.split('.')[0] ?? 'unknown';
+    return createDebugLogger('aztec:' + name);
+  }
   return createDebugLogger('aztec:' + describeBlockName);
 }
 

@@ -20,6 +20,9 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   private globalVariablesHash: Fr | undefined;
   private addresses: CompleteAddress[] = [];
   private authWitnesses: Record<string, Fr[]> = {};
+  // A capsule is a "blob" of data that is passed to the contract through an oracle.
+  // We are using a stack to keep track of the capsules that are passed to the contract.
+  private capsuleStack: Fr[][] = [];
 
   constructor(logSuffix?: string) {
     super(createDebugLogger(logSuffix ? 'aztec:memory_db_' + logSuffix : 'aztec:memory_db'));
@@ -44,9 +47,18 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     return Promise.resolve(this.authWitnesses[messageHash.toString()]);
   }
 
-  public addNote(note: NoteDao) {
+  public addNote(note: NoteDao): Promise<void> {
     this.notesTable.push(note);
     return Promise.resolve();
+  }
+
+  public addCapsule(capsule: Fr[]): Promise<void> {
+    this.capsuleStack.push(capsule);
+    return Promise.resolve();
+  }
+
+  public popCapsule(): Promise<Fr[] | undefined> {
+    return Promise.resolve(this.capsuleStack.pop());
   }
 
   public addNotes(notes: NoteDao[]) {

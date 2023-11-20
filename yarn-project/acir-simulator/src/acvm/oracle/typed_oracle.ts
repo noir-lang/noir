@@ -80,6 +80,10 @@ export abstract class TypedOracle {
     throw new Error('Not available.');
   }
 
+  popCapsule(): Promise<Fr[]> {
+    throw new Error('Not available.');
+  }
+
   getNotes(
     _storageSlot: Fr,
     _numSelects: number,

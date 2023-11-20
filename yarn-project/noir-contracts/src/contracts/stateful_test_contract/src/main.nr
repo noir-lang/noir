@@ -50,7 +50,6 @@ contract StatefulTest {
 
     #[aztec(private)]
     fn constructor(owner: Field, value: Field) {
-        
         let loc = storage.notes.at(owner);
         increment(loc, value, owner);
     }

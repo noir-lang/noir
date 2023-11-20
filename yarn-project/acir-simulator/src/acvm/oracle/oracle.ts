@@ -55,6 +55,14 @@ export class Oracle {
     return witness.map(toACVMField);
   }
 
+  async popCapsule(): Promise<ACVMField[]> {
+    const capsule = await this.typedOracle.popCapsule();
+    if (!capsule) {
+      throw new Error(`No capsules available`);
+    }
+    return capsule.map(toACVMField);
+  }
+
   async getNotes(
     [storageSlot]: ACVMField[],
     [numSelects]: ACVMField[],
