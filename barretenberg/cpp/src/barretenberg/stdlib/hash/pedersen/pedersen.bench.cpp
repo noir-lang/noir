@@ -39,7 +39,7 @@ constexpr size_t get_index(const size_t target_count_base)
     }
     return 0;
 }
-void generate_test_pedersen_circuit(Builder& builder, size_t num_repetitions)
+void generate_test_pedersen_hash_circuit(Builder& builder, size_t num_repetitions)
 {
     plonk::stdlib::field_t<Builder> left(plonk::stdlib::witness_t(&builder, barretenberg::fr::random_element()));
     plonk::stdlib::field_t<Builder> out(plonk::stdlib::witness_t(&builder, barretenberg::fr::random_element()));
@@ -47,6 +47,17 @@ void generate_test_pedersen_circuit(Builder& builder, size_t num_repetitions)
     for (size_t i = 0; i < num_repetitions; ++i) {
         out = proof_system::plonk::stdlib::pedersen_hash<Builder>::hash({ left, out });
     }
+}
+
+void generate_test_pedersen_hash_buffer_circuit(Builder& builder, size_t num_repetitions)
+{
+    stdlib::byte_array<Builder> input;
+    for (size_t i = 0; i < num_repetitions; ++i) {
+        stdlib::byte_array<Builder> tmp(plonk::stdlib::witness_t(&builder, barretenberg::fr::random_element()));
+        input.write(tmp);
+    }
+    auto out = proof_system::plonk::stdlib::pedersen_hash<Builder>::hash_buffer(input);
+    (void)out;
 }
 
 plonk::UltraProver pedersen_provers[NUM_CIRCUITS];
@@ -95,12 +106,18 @@ BENCHMARK(native_pedersen_eight_hash_bench)->MinTime(3);
 
 void construct_pedersen_witnesses_bench(State& state) noexcept
 {
+    barretenberg::srs::init_crs_factory(BARRETENBERG_SRS_PATH);
+
     for (auto _ : state) {
+        state.PauseTiming();
         auto builder = Builder(static_cast<size_t>(state.range(0)));
-        generate_test_pedersen_circuit(builder, static_cast<size_t>(state.range(0)));
+        generate_test_pedersen_hash_circuit(builder, static_cast<size_t>(state.range(0)));
         std::cout << "builder gates = " << builder.get_num_gates() << std::endl;
 
         auto composer = Composer();
+        composer.compute_proving_key(builder);
+        state.ResumeTiming();
+
         composer.compute_witness(builder);
     }
 }
@@ -120,7 +137,7 @@ void construct_pedersen_proving_keys_bench(State& state) noexcept
 {
     for (auto _ : state) {
         Builder builder = Builder(static_cast<size_t>(state.range(0)));
-        generate_test_pedersen_circuit(builder, static_cast<size_t>(state.range(0)));
+        generate_test_pedersen_hash_circuit(builder, static_cast<size_t>(state.range(0)));
         size_t idx = get_index(static_cast<size_t>(state.range(0)));
 
         auto composer = Composer();
@@ -147,7 +164,7 @@ void construct_pedersen_instances_bench(State& state) noexcept
     for (auto _ : state) {
         state.PauseTiming();
         auto builder = Builder(static_cast<size_t>(state.range(0)));
-        generate_test_pedersen_circuit(builder, static_cast<size_t>(state.range(0)));
+        generate_test_pedersen_hash_circuit(builder, static_cast<size_t>(state.range(0)));
         size_t idx = get_index(static_cast<size_t>(state.range(0)));
         auto composer = Composer();
         composer.create_prover(builder);
