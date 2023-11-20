@@ -234,7 +234,7 @@ struct TxContext {
 
 The sequencer will need to specify the intended size of the rollup (determined as part of the sequencer selection commitment phase) and use this value to calculate gas amortisation. These values of amortised L1 and L2 gas will be added to the `l1GasUsed` and `l2GasUsed` accumulators. These accumulators will need to accurately reflect the gas consumption of the transaction prior to public function execution including state updates produced as part of private execution.
 
-Any enqueued public function calls can be simulated by the sequencer to obtain an accurate gas profile of the execution. This simulation will enable the sequencer to compute the number of additional state updates to be made, the number of public function calls and the L2 gas consumption of each of those calls. If either the L1 or L2 gas limits are breached, simulation will identify where in the execution trace this takes place and so the sequencer will only need to perform iterations of the public VM and public kernel circuits for the calls that either partially or completely succeeded. This ensures that the sequencer is not forced to exeucte and prove circuits for which they will not be compensated. 
+Any enqueued public function calls can be simulated by the sequencer to obtain an accurate gas profile of the execution. This simulation will enable the sequencer to compute the number of additional state updates to be made, the number of public function calls and the L2 gas consumption of each of those calls. If either the L1 or L2 gas limits are breached, simulation will identify where in the execution trace this takes place and so the sequencer will only need to perform iterations of the public VM and public kernel circuits for the calls that either partially or completely succeeded. This ensures that the sequencer is not forced to execute and prove circuits for which they will not be compensated. 
 
 The public VM circuit can now be executed and proven until completion or until the gas limit is reached. Each invocation of the circuit will constrain it's reported usage of both L1 and L2 gas.
 
@@ -248,7 +248,7 @@ Public kernel circuit iterations will be executed for each public function call 
 
 Once public function execution has completed (or hit the gas limit), the fee distribution component is executed. This is a public function and will also need to be proven via the VM and publc kernel circuits. The sequencer will have agency over which functions they are willing to accept and this will be part of the earlier transaction acceptance.
 
-The total fee taken by the sequencer is calculated from the values of consumed L1 and L2 gas and the `feePerGas` values provided with the transaction. Any balance reamining must be refunded.
+The total fee taken by the sequencer is calculated from the values of consumed L1 and L2 gas and the `feePerGas` values provided with the transaction. Any balance remaining must be refunded.
 
 ```
 let actual_l1_cost = tx_context.l1GasUsed * tx_context.feePerL1Gas;
