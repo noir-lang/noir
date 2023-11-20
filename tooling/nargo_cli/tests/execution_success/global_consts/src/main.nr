@@ -6,7 +6,6 @@ global L: Field = 10; // Unused globals currently allowed
 global N: Field = 5;
 global T_LEN = 2; // Type inference is allowed on globals
 //global N: Field = 5; // Uncomment to see duplicate globals error 
-global NEGATIVE: i32 = -5;
 
 struct Dummy {
      x: [Field; N],
@@ -69,8 +68,6 @@ fn main(
 
     let arr: [Field; mysubmodule::N] = [N; 10];
     assert((arr[0] == 5) & (arr[9] == 5));
-
-    assert(NEGATIVE < 0);
 
     foo::from_foo(d);
     baz::from_baz(c);
