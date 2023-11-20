@@ -6,7 +6,6 @@ global L: Field = 10; // Unused globals currently allowed
 global N: Field = 5;
 global T_LEN = 2; // Type inference is allowed on globals
 //global N: Field = 5; // Uncomment to see duplicate globals error 
-
 struct Dummy {
      x: [Field; N],
      y: [Field; foo::MAGIC_NUMBER]
