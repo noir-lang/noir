@@ -129,8 +129,7 @@ impl BrilligContext {
         size: usize,
     ) {
         // debug_show handled by allocate_array_instruction
-        // We allocate size + 1 elements to account for the Reference Count field on arrays
-        let size_register = self.make_constant((size + 1).into());
+        let size_register = self.make_constant(size.into());
         self.allocate_array_instruction(pointer_register, size_register);
     }
 
@@ -575,7 +574,7 @@ impl BrilligContext {
             RegisterOrMemory::RegisterIndex(register_index) => {
                 self.load_instruction(register_index, variable_pointer);
             }
-            RegisterOrMemory::HeapArray(HeapArray { pointer, size: _ }) => {
+            RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => {
                 self.load_instruction(pointer, variable_pointer);
             }
             RegisterOrMemory::HeapVector(HeapVector { pointer, size }) => {
@@ -1152,8 +1151,6 @@ pub(crate) mod tests {
         let r_array_ptr = RegisterIndex::from(ReservedRegisters::len() + 1);
         let r_output_size = RegisterIndex::from(ReservedRegisters::len() + 2);
         let r_equality = RegisterIndex::from(ReservedRegisters::len() + 3);
-        let r_output_rc = RegisterIndex::from(ReservedRegisters::len() + 4);
-
         context.const_instruction(r_input_size, Value::from(12_usize));
         // copy our stack frame to r_array_ptr
         context.mov_instruction(r_array_ptr, r_stack);
