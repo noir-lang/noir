@@ -25,7 +25,6 @@ fn fibonacci_generator() -> fn[(&mut Field, &mut Field)]() -> Field {
         old_x
     }
 }
-
 // we'll be able to un-hardcode the array length if we have the ::<> syntax proposed in https://github.com/noir-lang/noir/issues/2458
 fn get_some<Env>(generator: fn[Env]() -> Field) -> [Field; 5] {
     [0, 0, 0, 0, 0].map(|_| generator())
