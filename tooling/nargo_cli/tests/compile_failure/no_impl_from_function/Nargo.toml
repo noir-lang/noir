@@ -1,0 +1,6 @@
+[package]
+name = "no_impl_from_function"
+type = "bin"
+authors = [""]
+
+[dependencies]

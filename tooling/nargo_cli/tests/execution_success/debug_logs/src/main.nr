@@ -1,9 +1,8 @@
 use dep::std;
 
-fn main(x : Field, y : pub Field) {
+fn main(x: Field, y: pub Field) {
     let string = "i: {i}, j: {j}";
     std::println(string);
-
     // A `fmtstr` lets you easily perform string interpolation.
     let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
     let fmt_str = string_identity(fmt_str);

@@ -4,7 +4,7 @@ use noirc_errors::Span;
 
 use crate::{
     token::{Attributes, FunctionAttribute, SecondaryAttribute},
-    FunctionReturnType, Ident, Pattern, Visibility,
+    FunctionReturnType, Ident, Param, Visibility,
 };
 
 use super::{FunctionDefinition, UnresolvedType, UnresolvedTypeData};
@@ -45,6 +45,10 @@ impl NoirFunction {
         NoirFunction { kind: FunctionKind::Oracle, def }
     }
 
+    pub fn return_visibility(&self) -> Visibility {
+        self.def.return_visibility
+    }
+
     pub fn return_type(&self) -> UnresolvedType {
         match &self.def.return_type {
             FunctionReturnType::Default(_) => {
@@ -59,7 +63,7 @@ impl NoirFunction {
     pub fn name_ident(&self) -> &Ident {
         &self.def.name
     }
-    pub fn parameters(&self) -> &Vec<(Pattern, UnresolvedType, Visibility)> {
+    pub fn parameters(&self) -> &[Param] {
         &self.def.parameters
     }
     pub fn attributes(&self) -> &Attributes {

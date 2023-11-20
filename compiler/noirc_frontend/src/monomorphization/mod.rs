@@ -843,7 +843,14 @@ impl<'interner> Monomorphizer<'interner> {
                         "There should be no remaining Assumed impls during monomorphization"
                     ),
                     Err(constraints) => {
-                        unreachable!("Failed to find trait impl during monomorphization. The failed constraint(s) are:\n  {constraints:?}")
+                        let failed_constraints = vecmap(constraints, |constraint| {
+                            let id = constraint.trait_id;
+                            let name = self.interner.get_trait(id).name.to_string();
+                            format!("  {}: {name}", constraint.typ)
+                        })
+                        .join("\n");
+
+                        unreachable!("Failed to find trait impl during monomorphization. The failed constraint(s) are:\n{failed_constraints}")
                     }
                 }
             }
