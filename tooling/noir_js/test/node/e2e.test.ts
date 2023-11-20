@@ -69,19 +69,7 @@ it('end-to-end proof creation and verification (inner)', async () => {
   expect(isValid).to.be.true;
 });
 
-// The "real" workflow will involve a prover and a verifier on different systems.
-//
-// We cannot do this in our tests because they will panic with:
-// `unreachable`
-//
-// This happens when we we create a proof with one barretenberg instance and
-// try to verify it with another.
-//
-// If this bug is fixed, we can remove this test and split barretenberg into
-// a prover and verifier class to more accurately reflect what happens in production.
-//
-// If its not fixable, we can leave it in as documentation of this behavior.
-it('[BUG] -- bb.js unreachable (different instance) ', async () => {
+it('end-to-end proving and verification with different instances', async () => {
   // Noir.Js part
   const inputs = {
     x: '2',
@@ -97,16 +85,9 @@ it('[BUG] -- bb.js unreachable (different instance) ', async () => {
 
   const proof = await prover.generateFinalProof(witness);
 
-  try {
-    const verifier = new Backend(assert_lt_program);
-    await verifier.verifyFinalProof(proof);
-    expect.fail(
-      'bb.js currently returns a bug when we try to verify a proof with a different Barretenberg instance that created it.',
-    );
-  } catch (error) {
-    const knownError = error as Error;
-    expect(knownError.message).to.contain('unreachable');
-  }
+  const verifier = new Backend(assert_lt_program);
+  const proof_is_valid = await verifier.verifyFinalProof(proof);
+  expect(proof_is_valid).to.be.true;
 });
 
 // This bug occurs when we use the same backend to create an inner proof and then an outer proof
