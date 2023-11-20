@@ -92,6 +92,13 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn minus_or_negative_integer(&mut self) -> SpannedTokenResult {
+        match self.peek_char() {
+            Some(integer) if ('0'..'9').contains(&integer) => self.eat_integer('-'),
+            _ => self.glue(Token::Minus),
+        }
+    }
+
     fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
             Some(x) if x.is_whitespace() => {
@@ -109,7 +116,7 @@ impl<'a> Lexer<'a> {
             Some('.') => self.glue(Token::Dot),
             Some(':') => self.glue(Token::Colon),
             Some('!') => self.glue(Token::Bang),
-            Some('-') => self.glue(Token::Minus),
+            Some('-') => self.minus_or_negative_integer(),
             Some('&') => self.ampersand(),
             Some('|') => self.single_char_token(Token::Pipe),
             Some('%') => self.single_char_token(Token::Percent),
@@ -249,7 +256,7 @@ impl<'a> Lexer<'a> {
     fn eat_alpha_numeric(&mut self, initial_char: char) -> SpannedTokenResult {
         match initial_char {
             'A'..='Z' | 'a'..='z' | '_' => Ok(self.eat_word(initial_char)?),
-            '0'..='9' => self.eat_digit(initial_char),
+            '0'..='9' => self.eat_integer(initial_char),
             _ => Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
                 found: initial_char.into(),
@@ -318,7 +325,7 @@ impl<'a> Lexer<'a> {
         Ok(ident_token.into_span(start, end))
     }
 
-    fn eat_digit(&mut self, initial_char: char) -> SpannedTokenResult {
+    fn eat_integer(&mut self, initial_char: char) -> SpannedTokenResult {
         let start = self.position;
 
         let integer_str = self.eat_while(Some(initial_char), |ch| {
