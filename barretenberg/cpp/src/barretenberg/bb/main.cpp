@@ -1,5 +1,6 @@
 #include "barretenberg/dsl/acir_format/acir_format.hpp"
 #include "barretenberg/dsl/types.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "config.hpp"
 #include "get_bytecode.hpp"
 #include "get_crs.hpp"
@@ -183,7 +184,7 @@ bool verify(const std::string& proof_path, bool recursive, const std::string& vk
  * @param bytecodePath Path to the file containing the serialized circuit
  * @param outputPath Path to write the verification key to
  */
-void writeVk(const std::string& bytecodePath, const std::string& outputPath)
+void write_vk(const std::string& bytecodePath, const std::string& outputPath)
 {
     auto constraint_system = get_constraint_system(bytecodePath);
     auto acir_composer = init(constraint_system);
@@ -196,6 +197,22 @@ void writeVk(const std::string& bytecodePath, const std::string& outputPath)
     } else {
         write_file(outputPath, serialized_vk);
         vinfo("vk written to: ", outputPath);
+    }
+}
+
+void write_pk(const std::string& bytecodePath, const std::string& outputPath)
+{
+    auto constraint_system = get_constraint_system(bytecodePath);
+    auto acir_composer = init(constraint_system);
+    auto pk = acir_composer.init_proving_key(constraint_system);
+    auto serialized_pk = to_buffer(*pk);
+
+    if (outputPath == "-") {
+        writeRawBytesToStdout(serialized_pk);
+        vinfo("pk written to stdout");
+    } else {
+        write_file(outputPath, serialized_pk);
+        vinfo("pk written to: ", outputPath);
     }
 }
 
@@ -253,7 +270,7 @@ void contract(const std::string& output_path, const std::string& vk_path)
  * @param vk_path Path to the file containing the serialized verification key
  * @param output_path Path to write the proof to
  */
-void proofAsFields(const std::string& proof_path, std::string const& vk_path, const std::string& output_path)
+void proof_as_fields(const std::string& proof_path, std::string const& vk_path, const std::string& output_path)
 {
     auto acir_composer = init();
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
@@ -282,7 +299,7 @@ void proofAsFields(const std::string& proof_path, std::string const& vk_path, co
  * @param vk_path Path to the file containing the serialized verification key
  * @param output_path Path to write the verification key to
  */
-void vkAsFields(const std::string& vk_path, const std::string& output_path)
+void vk_as_fields(const std::string& vk_path, const std::string& output_path)
 {
     auto acir_composer = init();
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
@@ -311,7 +328,7 @@ void vkAsFields(const std::string& vk_path, const std::string& output_path)
  *
  * @param output_path Path to write the information to
  */
-void acvmInfo(const std::string& output_path)
+void acvm_info(const std::string& output_path)
 {
 
     const char* jsonData = R"({
@@ -335,12 +352,12 @@ void acvmInfo(const std::string& output_path)
     }
 }
 
-bool flagPresent(std::vector<std::string>& args, const std::string& flag)
+bool flag_present(std::vector<std::string>& args, const std::string& flag)
 {
     return std::find(args.begin(), args.end(), flag) != args.end();
 }
 
-std::string getOption(std::vector<std::string>& args, const std::string& option, const std::string& defaultValue)
+std::string get_option(std::vector<std::string>& args, const std::string& option, const std::string& defaultValue)
 {
     auto itr = std::find(args.begin(), args.end(), option);
     return (itr != args.end() && std::next(itr) != args.end()) ? *(std::next(itr)) : defaultValue;
@@ -350,7 +367,7 @@ int main(int argc, char* argv[])
 {
     try {
         std::vector<std::string> args(argv + 1, argv + argc);
-        verbose = flagPresent(args, "-v") || flagPresent(args, "--verbose");
+        verbose = flag_present(args, "-v") || flag_present(args, "--verbose");
 
         if (args.empty()) {
             std::cerr << "No command provided.\n";
@@ -359,12 +376,13 @@ int main(int argc, char* argv[])
 
         std::string command = args[0];
 
-        std::string bytecode_path = getOption(args, "-b", "./target/acir.gz");
-        std::string witness_path = getOption(args, "-w", "./target/witness.gz");
-        std::string proof_path = getOption(args, "-p", "./proofs/proof");
-        std::string vk_path = getOption(args, "-k", "./target/vk");
-        CRS_PATH = getOption(args, "-c", "./crs");
-        bool recursive = flagPresent(args, "-r") || flagPresent(args, "--recursive");
+        std::string bytecode_path = get_option(args, "-b", "./target/acir.gz");
+        std::string witness_path = get_option(args, "-w", "./target/witness.gz");
+        std::string proof_path = get_option(args, "-p", "./proofs/proof");
+        std::string vk_path = get_option(args, "-k", "./target/vk");
+        std::string pk_path = get_option(args, "-r", "./target/pk");
+        CRS_PATH = get_option(args, "-c", "./crs");
+        bool recursive = flag_present(args, "-r") || flag_present(args, "--recursive");
 
         // Skip CRS initialization for any command which doesn't require the CRS.
         if (command == "--version") {
@@ -372,8 +390,8 @@ int main(int argc, char* argv[])
             return 0;
         }
         if (command == "info") {
-            std::string output_path = getOption(args, "-o", "info.json");
-            acvmInfo(output_path);
+            std::string output_path = get_option(args, "-o", "info.json");
+            acvm_info(output_path);
             return 0;
         }
 
@@ -381,24 +399,27 @@ int main(int argc, char* argv[])
             return proveAndVerify(bytecode_path, witness_path, recursive) ? 0 : 1;
         }
         if (command == "prove") {
-            std::string output_path = getOption(args, "-o", "./proofs/proof");
+            std::string output_path = get_option(args, "-o", "./proofs/proof");
             prove(bytecode_path, witness_path, recursive, output_path);
         } else if (command == "gates") {
             gateCount(bytecode_path);
         } else if (command == "verify") {
             return verify(proof_path, recursive, vk_path) ? 0 : 1;
         } else if (command == "contract") {
-            std::string output_path = getOption(args, "-o", "./target/contract.sol");
+            std::string output_path = get_option(args, "-o", "./target/contract.sol");
             contract(output_path, vk_path);
         } else if (command == "write_vk") {
-            std::string output_path = getOption(args, "-o", "./target/vk");
-            writeVk(bytecode_path, output_path);
+            std::string output_path = get_option(args, "-o", "./target/vk");
+            write_vk(bytecode_path, output_path);
+        } else if (command == "write_pk") {
+            std::string output_path = get_option(args, "-o", "./target/pk");
+            write_pk(bytecode_path, output_path);
         } else if (command == "proof_as_fields") {
-            std::string output_path = getOption(args, "-o", proof_path + "_fields.json");
-            proofAsFields(proof_path, vk_path, output_path);
+            std::string output_path = get_option(args, "-o", proof_path + "_fields.json");
+            proof_as_fields(proof_path, vk_path, output_path);
         } else if (command == "vk_as_fields") {
-            std::string output_path = getOption(args, "-o", vk_path + "_fields.json");
-            vkAsFields(vk_path, output_path);
+            std::string output_path = get_option(args, "-o", vk_path + "_fields.json");
+            vk_as_fields(vk_path, output_path);
         } else {
             std::cerr << "Unknown command: " << command << "\n";
             return 1;

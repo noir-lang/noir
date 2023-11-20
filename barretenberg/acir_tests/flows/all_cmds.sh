@@ -9,6 +9,7 @@ FLAGS="-c $CRS_PATH $VFLAG"
 $BIN gates $FLAGS $BFLAG > /dev/null
 $BIN prove -o proof $FLAGS $BFLAG
 $BIN write_vk -o vk $FLAGS $BFLAG
+$BIN write_pk -o pk $FLAGS $BFLAG
 $BIN verify -k vk -p proof $FLAGS
 
 # Check supplemental functions.

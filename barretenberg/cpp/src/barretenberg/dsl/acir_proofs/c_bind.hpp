@@ -38,6 +38,8 @@ WASM_EXPORT void acir_init_verification_key(in_ptr acir_composer_ptr);
 
 WASM_EXPORT void acir_get_verification_key(in_ptr acir_composer_ptr, uint8_t** out);
 
+WASM_EXPORT void acir_get_proving_key(in_ptr acir_composer_ptr, uint8_t const* acir_vec, uint8_t** out);
+
 WASM_EXPORT void acir_verify_proof(in_ptr acir_composer_ptr,
                                    uint8_t const* proof_buf,
                                    bool const* is_recursive,

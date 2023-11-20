@@ -219,6 +219,25 @@ export async function writeVk(bytecodePath: string, crsPath: string, outputPath:
   }
 }
 
+export async function writePk(bytecodePath: string, crsPath: string, outputPath: string) {
+  const { api, acirComposer } = await init(bytecodePath, crsPath);
+  try {
+    debug('initing proving key...');
+    const bytecode = getBytecode(bytecodePath);
+    const pk = await api.acirGetProvingKey(acirComposer, bytecode);
+
+    if (outputPath === '-') {
+      process.stdout.write(pk);
+      debug(`pk written to stdout`);
+    } else {
+      writeFileSync(outputPath, pk);
+      debug(`pk written to: ${outputPath}`);
+    }
+  } finally {
+    await api.destroy();
+  }
+}
+
 export async function proofAsFields(proofPath: string, vkPath: string, outputPath: string) {
   const { api, acirComposer } = await initLite();
 
@@ -345,6 +364,16 @@ program
   .action(async ({ bytecodePath, outputPath, crsPath }) => {
     handleGlobalOptions();
     await writeVk(bytecodePath, crsPath, outputPath);
+  });
+
+program
+  .command('write_pk')
+  .description('Output proving key.')
+  .option('-b, --bytecode-path <path>', 'Specify the bytecode path', './target/acir.gz')
+  .requiredOption('-o, --output-path <path>', 'Specify the path to write the key')
+  .action(async ({ bytecodePath, outputPath, crsPath }) => {
+    handleGlobalOptions();
+    await writePk(bytecodePath, crsPath, outputPath);
   });
 
 program
