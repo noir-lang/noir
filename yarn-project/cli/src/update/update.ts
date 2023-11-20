@@ -98,7 +98,13 @@ async function getNpmSandboxVersion(projectPath: string, log: LogFn): Promise<Se
   try {
     const pkg = await readPackageJson(projectPath);
     // use coerce instead of parse because it eliminates semver operators like ~ and ^
-    return coerce(pkg.dependencies?.[SANDBOX_PACKAGE]);
+    if (pkg.dependencies?.[SANDBOX_PACKAGE]) {
+      return coerce(pkg.dependencies[SANDBOX_PACKAGE]);
+    } else if (pkg.devDependencies?.[SANDBOX_PACKAGE]) {
+      return coerce(pkg.devDependencies[SANDBOX_PACKAGE]);
+    } else {
+      return null;
+    }
   } catch (err) {
     if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
       log(`No package.json found in ${projectPath}`);

@@ -17,6 +17,8 @@ import { DependencyChanges } from './common.js';
 export async function readPackageJson(projectPath: string): Promise<{
   /** dependencies */
   dependencies?: Record<string, string>;
+  /** devDependencies */
+  devDependencies?: Record<string, string>;
 }> {
   const configFilepath = resolve(join(projectPath, 'package.json'));
   const pkg = JSON.parse(await readFile(configFilepath, 'utf-8'));
@@ -63,31 +65,34 @@ export async function updateAztecDeps(
     dependencies: [],
   };
 
-  if (!pkg.dependencies) {
-    return changes;
-  }
-
   log(`Updating @aztec packages to ${aztecVersion} in ${relative(process.cwd(), changes.file)}`);
   const version = aztecVersion.version;
 
-  for (const name of Object.keys(pkg.dependencies)) {
-    if (!name.startsWith('@aztec/')) {
+  for (const depType of ['dependencies', 'devDependencies'] as const) {
+    const dependencies = pkg[depType];
+    if (!dependencies) {
       continue;
     }
 
-    // different release schedule
-    if (name === '@aztec/aztec-ui') {
-      continue;
-    }
+    for (const name of Object.keys(dependencies)) {
+      if (!name.startsWith('@aztec/')) {
+        continue;
+      }
 
-    if (pkg.dependencies[name] !== version) {
-      changes.dependencies.push({
-        name,
-        from: pkg.dependencies[name],
-        to: version,
-      });
+      // different release schedule
+      if (name === '@aztec/aztec-ui') {
+        continue;
+      }
 
-      pkg.dependencies[name] = version;
+      if (dependencies[name] !== version) {
+        changes.dependencies.push({
+          name,
+          from: dependencies[name],
+          to: version,
+        });
+
+        dependencies[name] = version;
+      }
     }
   }
 
