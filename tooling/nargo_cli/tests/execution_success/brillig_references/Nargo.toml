@@ -2,6 +2,5 @@
 name = "brillig_references"
 type = "bin"
 authors = [""]
-compiler_version = "0.5.1"
 
 [dependencies]

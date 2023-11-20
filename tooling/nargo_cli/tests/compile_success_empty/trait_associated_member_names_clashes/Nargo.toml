@@ -1,0 +1,5 @@
+[package]
+name = "trait_associated_member_names_clashes"
+type = "bin"
+authors = [""]
+[dependencies]

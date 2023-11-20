@@ -40,7 +40,7 @@ pub(crate) fn directive_invert() -> GeneratedBrillig {
 
 /// Generates brillig bytecode which computes `a / b` and returns the quotient and remainder.
 ///
-/// This is equivalent to the Noir (psuedo)code
+/// This is equivalent to the Noir (pseudo)code
 ///
 /// ```ignore
 /// fn quotient<T>(a: T, b: T) -> (T,T) {

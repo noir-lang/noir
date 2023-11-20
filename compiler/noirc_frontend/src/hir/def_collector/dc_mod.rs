@@ -7,7 +7,7 @@ use noirc_errors::Location;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
-    node_interner::{TraitId, TypeAliasId},
+    node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
@@ -145,12 +145,13 @@ impl<'a> ModCollector<'a> {
         for trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
 
-            let unresolved_functions =
+            let mut unresolved_functions =
                 self.collect_trait_impl_function_overrides(context, &trait_impl, krate);
 
             let module = ModuleId { krate, local_id: self.module_id };
 
-            for (_, func_id, noir_function) in &unresolved_functions.functions {
+            for (_, func_id, noir_function) in &mut unresolved_functions.functions {
+                noir_function.def.where_clause.append(&mut trait_impl.where_clause.clone());
                 context.def_interner.push_function(*func_id, &noir_function.def, module);
             }
 
@@ -160,6 +161,8 @@ impl<'a> ModCollector<'a> {
                 trait_path: trait_name,
                 methods: unresolved_functions,
                 object_type: trait_impl.object_type,
+                generics: trait_impl.impl_generics,
+                where_clause: trait_impl.where_clause,
                 trait_id: None, // will be filled later
             };
 
@@ -251,7 +254,7 @@ impl<'a> ModCollector<'a> {
         types: Vec<NoirStruct>,
         krate: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
-        let mut definiton_errors = vec![];
+        let mut definition_errors = vec![];
         for struct_definition in types {
             let name = struct_definition.name.clone();
 
@@ -265,7 +268,7 @@ impl<'a> ModCollector<'a> {
             let id = match self.push_child_module(&name, self.file_id, false, false) {
                 Ok(local_id) => context.def_interner.new_struct(&unresolved, krate, local_id),
                 Err(error) => {
-                    definiton_errors.push((error.into(), self.file_id));
+                    definition_errors.push((error.into(), self.file_id));
                     continue;
                 }
             };
@@ -280,13 +283,13 @@ impl<'a> ModCollector<'a> {
                     first_def,
                     second_def,
                 };
-                definiton_errors.push((error.into(), self.file_id));
+                definition_errors.push((error.into(), self.file_id));
             }
 
             // And store the TypeId -> StructType mapping somewhere it is reachable
             self.def_collector.collected_types.insert(id, unresolved);
         }
-        definiton_errors
+        definition_errors
     }
 
     /// Collect any type aliases definitions declared within the ast.
@@ -378,11 +381,22 @@ impl<'a> ModCollector<'a> {
                         body,
                     } => {
                         let func_id = context.def_interner.push_empty_fn();
+                        let modifiers = FunctionModifiers {
+                            name: name.to_string(),
+                            visibility: crate::FunctionVisibility::Public,
+                            // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
+                            attributes: crate::token::Attributes::empty(),
+                            is_unconstrained: false,
+                            contract_function_type: None,
+                            is_internal: None,
+                        };
+
+                        context.def_interner.push_function_definition(func_id, modifiers, id.0);
+
                         match self.def_collector.def_map.modules[id.0.local_id.0]
                             .declare_function(name.clone(), func_id)
                         {
                             Ok(()) => {
-                                // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                                 if let Some(body) = body {
                                     let impl_method =
                                         NoirFunction::normal(FunctionDefinition::normal(
@@ -514,7 +528,7 @@ impl<'a> ModCollector<'a> {
             };
             errors.push((error.into(), location.file));
 
-            let error2 = DefCollectorErrorKind::ModuleOrignallyDefined {
+            let error2 = DefCollectorErrorKind::ModuleOriginallyDefined {
                 mod_name: mod_name.clone(),
                 span: old_location.span,
             };

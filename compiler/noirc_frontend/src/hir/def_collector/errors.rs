@@ -33,14 +33,26 @@ pub enum DefCollectorErrorKind {
     PathResolutionError(PathResolutionError),
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { span: Span },
-    #[error("Trait implementation is not allowed for this")]
-    TraitImplNotAllowedFor { trait_path: Path, span: Span },
+    #[error("Cannot implement trait on a mutable reference type")]
+    MutableReferenceInTraitImpl { span: Span },
+    #[error("Impl for type `{typ}` overlaps with existing impl")]
+    OverlappingImpl { span: Span, typ: crate::Type },
+    #[error("Previous impl defined here")]
+    OverlappingImplNote { span: Span },
     #[error("Cannot `impl` a type defined outside the current crate")]
     ForeignImpl { span: Span, type_name: String },
-    #[error("Mismatch number of parameters in of trait implementation")]
+    #[error("Mismatched number of parameters in trait implementation")]
     MismatchTraitImplementationNumParameters {
         actual_num_parameters: usize,
         expected_num_parameters: usize,
+        trait_name: String,
+        method_name: String,
+        span: Span,
+    },
+    #[error("Mismatched number of generics in impl method")]
+    MismatchTraitImplementationNumGenerics {
+        impl_method_generic_count: usize,
+        trait_method_generic_count: usize,
         trait_name: String,
         method_name: String,
         span: Span,
@@ -56,14 +68,20 @@ pub enum DefCollectorErrorKind {
     #[error("Module is already part of the crate")]
     ModuleAlreadyPartOfCrate { mod_name: Ident, span: Span },
     #[error("Module was originally declared here")]
-    ModuleOrignallyDefined { mod_name: Ident, span: Span },
-    #[cfg(feature = "aztec")]
-    #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
-    AztecNotFound {},
+    ModuleOriginallyDefined { mod_name: Ident, span: Span },
     #[error(
         "Either the type or the trait must be from the same crate as the trait implementation"
     )]
     TraitImplOrphaned { span: Span },
+
+    // Aztec feature flag errors
+    // TODO(benesjan): https://github.com/AztecProtocol/aztec-packages/issues/2905
+    #[cfg(feature = "aztec")]
+    #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
+    AztecNotFound {},
+    #[cfg(feature = "aztec")]
+    #[error("compute_note_hash_and_nullifier function not found. Define it in your contract.")]
+    AztecComputeNoteHashAndNullifierNotFound { span: Span },
 }
 
 impl DefCollectorErrorKind {
@@ -125,10 +143,25 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 "Only struct types may have implementation methods".into(),
                 span,
             ),
-            DefCollectorErrorKind::TraitImplNotAllowedFor { trait_path, span } => {
+            DefCollectorErrorKind::MutableReferenceInTraitImpl { span } => Diagnostic::simple_error(
+                "Trait impls are not allowed on mutable reference types".into(),
+                "Try using a struct type here instead".into(),
+                span,
+            ),
+            DefCollectorErrorKind::OverlappingImpl { span, typ } => {
                 Diagnostic::simple_error(
-                    format!("Only limited types may implement trait `{trait_path}`"),
-                    "Only limited types may implement traits".into(),
+                    format!("Impl for type `{typ}` overlaps with existing impl"),
+                    "Overlapping impl".into(),
+                    span,
+                )
+            }
+            DefCollectorErrorKind::OverlappingImplNote { span } => {
+                // This should be a note or part of the previous error eventually.
+                // This must be an error to appear next to the previous OverlappingImpl
+                // error since we sort warnings first.
+                Diagnostic::simple_error(
+                    "Previous impl defined here".into(),
+                    "Previous impl defined here".into(),
                     span,
                 )
             }
@@ -149,8 +182,21 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 method_name,
                 span,
             } => {
+                let plural = if expected_num_parameters == 1 { "" } else { "s" };
                 let primary_message = format!(
-                    "Method `{method_name}` of trait `{trait_name}` needs {expected_num_parameters} parameters, but has {actual_num_parameters}");
+                    "`{trait_name}::{method_name}` expects {expected_num_parameters} parameter{plural}, but this method has {actual_num_parameters}");
+                Diagnostic::simple_error(primary_message, "".to_string(), span)
+            }
+            DefCollectorErrorKind::MismatchTraitImplementationNumGenerics {
+                impl_method_generic_count,
+                trait_method_generic_count,
+                trait_name,
+                method_name,
+                span,
+            } => {
+                let plural = if trait_method_generic_count == 1 { "" } else { "s" };
+                let primary_message = format!(
+                    "`{trait_name}::{method_name}` expects {trait_method_generic_count} generic{plural}, but this method has {impl_method_generic_count}");
                 Diagnostic::simple_error(primary_message, "".to_string(), span)
             }
             DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method } => {
@@ -189,19 +235,25 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 let secondary = String::new();
                 Diagnostic::simple_error(message, secondary, span)
             }
-            DefCollectorErrorKind::ModuleOrignallyDefined { mod_name, span } => {
+            DefCollectorErrorKind::ModuleOriginallyDefined { mod_name, span } => {
                 let message = format!("Note: {mod_name} was originally declared here");
                 let secondary = String::new();
                 Diagnostic::simple_error(message, secondary, span)
             }
-            #[cfg(feature = "aztec")]
-            DefCollectorErrorKind::AztecNotFound {} => Diagnostic::from_message(
-                "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml",
-            ),
             DefCollectorErrorKind::TraitImplOrphaned { span } => Diagnostic::simple_error(
                 "Orphaned trait implementation".into(),
                 "Either the type or the trait must be from the same crate as the trait implementation".into(),
                 span,
+            ),
+            #[cfg(feature = "aztec")]
+            DefCollectorErrorKind::AztecNotFound {} => Diagnostic::from_message(
+                "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml",
+            ),
+            #[cfg(feature = "aztec")]
+            DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound  {span} => Diagnostic::simple_error(
+                "compute_note_hash_and_nullifier function not found. Define it in your contract.".into(),
+                "".into(),
+                span
             ),
         }
     }

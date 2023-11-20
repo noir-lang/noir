@@ -18,6 +18,7 @@ use acvm::brillig_vm::brillig::HeapVector;
 use acvm::FieldElement;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
+use num_bigint::BigUint;
 
 use super::brillig_black_box::convert_black_box_call;
 use super::brillig_block_variables::BlockVariables;
@@ -564,6 +565,26 @@ impl<'block> BrilligBlock<'block> {
             Instruction::EnableSideEffects { .. } => {
                 todo!("ICE: Instruction not supported {instruction:?}")
             }
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+                let left = self.convert_ssa_register_value(*value, dfg);
+                let max = BigUint::from(2_u128).pow(*max_bit_size);
+                let right = self.brillig_context.allocate_register();
+                self.brillig_context.const_instruction(
+                    right,
+                    FieldElement::from_be_bytes_reduce(&max.to_bytes_be()).into(),
+                );
+
+                let brillig_binary_op = BrilligBinaryOp::Integer {
+                    op: BinaryIntOp::LessThan,
+                    bit_size: max_bit_size + 1,
+                };
+                let condition = self.brillig_context.allocate_register();
+                self.brillig_context.binary_instruction(left, right, condition, brillig_binary_op);
+                self.brillig_context.constrain_instruction(condition, assert_message.clone());
+                self.brillig_context.deallocate_register(condition);
+                self.brillig_context.deallocate_register(right);
+            }
+            _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
 
         let dead_variables = self

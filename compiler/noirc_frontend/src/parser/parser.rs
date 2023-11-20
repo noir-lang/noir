@@ -26,8 +26,8 @@
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
-    ForRange, NoirParser, ParsedModule, ParsedSubModule, ParserError, ParserErrorReason,
-    Precedence, TopLevelStatement,
+    NoirParser, ParsedModule, ParsedSubModule, ParserError, ParserErrorReason, Precedence,
+    TopLevelStatement,
 };
 use super::{spanned, Item, ItemKind};
 use crate::ast::{
@@ -37,11 +37,12 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, Distinctness, FunctionDefinition,
-    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
-    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path, PathKind, Pattern,
-    Recoverable, Statement, TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
-    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
+    ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident,
+    IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
+    NoirTraitImpl, NoirTypeAlias, Param, Path, PathKind, Pattern, Recoverable, Statement,
+    TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint,
+    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -55,8 +56,11 @@ use noirc_errors::{Span, Spanned};
 /// Vec is non-empty, there may be Error nodes in the Ast to fill in the gaps that
 /// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
 pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
-    let (tokens, _lexing_errors) = Lexer::lex(source_program);
-    let (module, parsing_errors) = program().parse_recovery_verbose(tokens);
+    let (tokens, lexing_errors) = Lexer::lex(source_program);
+    let (module, mut parsing_errors) = program().parse_recovery_verbose(tokens);
+
+    parsing_errors.extend(lexing_errors.into_iter().map(Into::into));
+
     (module.unwrap(), parsing_errors)
 }
 
@@ -173,16 +177,21 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
             let ((((attributes, modifiers), name), generics), parameters) = args;
 
             // Validate collected attributes, filtering them into function and secondary variants
-            let attrs = validate_attributes(attributes, span, emit);
-            validate_where_clause(&generics, &where_clause, span, emit);
+            let attributes = validate_attributes(attributes, span, emit);
             FunctionDefinition {
                 span: body_span,
                 name,
-                attributes: attrs,
+                attributes,
                 is_unconstrained: modifiers.0,
-                is_open: modifiers.1,
-                is_internal: modifiers.2,
-                is_public: modifiers.3,
+                is_open: modifiers.2,
+                is_internal: modifiers.3,
+                visibility: if modifiers.1 {
+                    FunctionVisibility::PublicCrate
+                } else if modifiers.4 {
+                    FunctionVisibility::Public
+                } else {
+                    FunctionVisibility::Private
+                },
                 generics,
                 parameters,
                 body,
@@ -195,18 +204,33 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         })
 }
 
-/// function_modifiers: 'unconstrained'? 'open'? 'internal'?
+/// function_modifiers: 'unconstrained'? 'pub(crate)'? 'pub'? 'open'? 'internal'?
 ///
-/// returns (is_unconstrained, is_open, is_internal) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool)> {
+/// returns (is_unconstrained, is_pub_crate, is_open, is_internal, is_pub) for whether each keyword was present
+fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool, bool)> {
     keyword(Keyword::Unconstrained)
         .or_not()
+        .then(is_pub_crate())
         .then(keyword(Keyword::Pub).or_not())
         .then(keyword(Keyword::Open).or_not())
         .then(keyword(Keyword::Internal).or_not())
-        .map(|(((unconstrained, public), open), internal)| {
-            (unconstrained.is_some(), open.is_some(), internal.is_some(), public.is_some())
+        .map(|((((unconstrained, pub_crate), public), open), internal)| {
+            (
+                unconstrained.is_some(),
+                pub_crate,
+                open.is_some(),
+                internal.is_some(),
+                public.is_some(),
+            )
         })
+}
+fn is_pub_crate() -> impl NoirParser<bool> {
+    (keyword(Keyword::Pub)
+        .then_ignore(just(Token::LeftParen))
+        .then_ignore(keyword(Keyword::Crate))
+        .then_ignore(just(Token::RightParen)))
+    .or_not()
+    .map(|a| a.is_some())
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list
@@ -318,9 +342,7 @@ fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
         .labelled(ParsingRuleLabel::Parameter)
 }
 
-fn function_parameters<'a>(
-    allow_self: bool,
-) -> impl NoirParser<Vec<(Pattern, UnresolvedType, Visibility)>> + 'a {
+fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a {
     let typ = parse_type().recover_via(parameter_recovery());
 
     let full_parameter = pattern()
@@ -328,7 +350,12 @@ fn function_parameters<'a>(
         .then_ignore(just(Token::Colon))
         .then(optional_visibility())
         .then(typ)
-        .map(|((name, visibility), typ)| (name, typ, visibility));
+        .map_with_span(|((pattern, visibility), typ), span| Param {
+            visibility,
+            pattern,
+            typ,
+            span,
+        });
 
     let self_parameter = if allow_self { self_parameter().boxed() } else { nothing().boxed() };
 
@@ -345,11 +372,11 @@ fn nothing<T>() -> impl NoirParser<T> {
     one_of([]).map(|_| unreachable!())
 }
 
-fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, Visibility)> {
-    let refmut_pattern = just(Token::Ampersand).then_ignore(keyword(Keyword::Mut));
+fn self_parameter() -> impl NoirParser<Param> {
+    let mut_ref_pattern = just(Token::Ampersand).then_ignore(keyword(Keyword::Mut));
     let mut_pattern = keyword(Keyword::Mut);
 
-    refmut_pattern
+    mut_ref_pattern
         .or(mut_pattern)
         .map_with_span(|token, span| (token, span))
         .or_not()
@@ -374,7 +401,7 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, Visibility)> {
                 _ => (),
             }
 
-            (pattern, self_type, Visibility::Private)
+            Param { pattern, typ: self_type, visibility: Visibility::Private, span }
         })
 }
 
@@ -387,7 +414,6 @@ fn trait_definition() -> impl NoirParser<TopLevelStatement> {
         .then(trait_body())
         .then_ignore(just(Token::RightBrace))
         .validate(|(((name, generics), where_clause), items), span, emit| {
-            validate_where_clause(&generics, &where_clause, span, emit);
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
             TopLevelStatement::Trait(NoirTrait { name, generics, where_clause, span, items })
         })
@@ -426,12 +452,9 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
         .then(function_return_type().map(|(_, typ)| typ))
         .then(where_clause())
         .then(trait_function_body_or_semicolon)
-        .validate(
-            |(((((name, generics), parameters), return_type), where_clause), body), span, emit| {
-                validate_where_clause(&generics, &where_clause, span, emit);
-                TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
-            },
-        )
+        .map(|(((((name, generics), parameters), return_type), where_clause), body)| {
+            TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
+        })
 }
 
 fn validate_attributes(
@@ -489,17 +512,6 @@ fn validate_struct_attributes(
     struct_attributes
 }
 
-fn validate_where_clause(
-    generics: &Vec<Ident>,
-    where_clause: &Vec<UnresolvedTraitConstraint>,
-    span: Span,
-    emit: &mut dyn FnMut(ParserError),
-) {
-    if !where_clause.is_empty() && generics.is_empty() {
-        emit(ParserError::with_reason(ParserErrorReason::WhereClauseOnNonGenericFunction, span));
-    }
-}
-
 /// Function declaration parameters differ from other parameters in that parameter
 /// patterns are not allowed in declarations. All parameters must be identifiers.
 fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
@@ -508,8 +520,8 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
 
     let full_parameter = ident().recover_via(parameter_name_recovery()).then(typ);
     let self_parameter = self_parameter().validate(|param, span, emit| {
-        match param.0 {
-            Pattern::Identifier(ident) => (ident, param.1),
+        match param.pattern {
+            Pattern::Identifier(ident) => (ident, param.typ),
             other => {
                 emit(ParserError::with_reason(
                     ParserErrorReason::PatternInTraitFunctionParameter,
@@ -517,7 +529,7 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
                 ));
                 // into_ident panics on tuple or struct patterns but should be fine to call here
                 // since the `self` parser can only parse `self`, `mut self` or `&mut self`.
-                (other.into_ident(), param.1)
+                (other.into_ident(), param.typ)
             }
         }
     });
@@ -786,7 +798,7 @@ where
 }
 
 fn fresh_statement() -> impl NoirParser<StatementKind> {
-    statement(expression(), expression_no_constructors())
+    statement(expression(), expression_no_constructors(expression()))
 }
 
 fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
@@ -797,7 +809,7 @@ where
         keyword(Keyword::Constrain).labelled(ParsingRuleLabel::Statement),
         expr_parser,
     )
-    .map(|expr| StatementKind::Constrain(ConstrainStatement(expr, None)))
+    .map(|expr| StatementKind::Constrain(ConstrainStatement(expr, None, ConstrainKind::Constrain)))
     .validate(|expr, span, emit| {
         emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
         expr
@@ -825,7 +837,11 @@ where
                 }
             }
 
-            StatementKind::Constrain(ConstrainStatement(condition, message_str))
+            StatementKind::Constrain(ConstrainStatement(
+                condition,
+                message_str,
+                ConstrainKind::Assert,
+            ))
         })
 }
 
@@ -856,7 +872,11 @@ where
                     emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
                 }
             }
-            StatementKind::Constrain(ConstrainStatement(predicate, message_str))
+            StatementKind::Constrain(ConstrainStatement(
+                predicate,
+                message_str,
+                ConstrainKind::AssertEq,
+            ))
         })
 }
 
@@ -935,7 +955,7 @@ fn assign_operator() -> impl NoirParser<Token> {
     let shorthand_operators = right_shift_operator().or(one_of(shorthand_operators));
     let shorthand_syntax = shorthand_operators.then_ignore(just(Token::Assign));
 
-    // Since >> is lexed as two separate greater-thans, >>= is lexed as > >=, so
+    // Since >> is lexed as two separate "greater-than"s, >>= is lexed as > >=, so
     // we need to account for that case here as well.
     let right_shift_fix =
         just(Token::Greater).then(just(Token::GreaterEqual)).map(|_| Token::ShiftRight);
@@ -993,6 +1013,7 @@ fn parse_type_inner(
         string_type(),
         format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
+        named_trait(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
         recursive_type_parser.clone().delimited_by(just(Token::LeftParen), just(Token::RightParen)),
         tuple_type(recursive_type_parser.clone()),
@@ -1080,6 +1101,12 @@ fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<U
     path()
         .then(generic_type_args(type_parser))
         .map_with_span(|(path, args), span| UnresolvedTypeData::Named(path, args).with_span(span))
+}
+
+fn named_trait(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::Impl).ignore_then(path()).then(generic_type_args(type_parser)).map_with_span(
+        |(path, args), span| UnresolvedTypeData::TraitAsType(path, args).with_span(span),
+    )
 }
 
 fn generic_type_args(
@@ -1179,8 +1206,8 @@ fn expression() -> impl ExprParser {
         expression_with_precedence(
             Precedence::Lowest,
             expr.clone(),
-            expression_no_constructors(),
-            statement(expr, expression_no_constructors()),
+            expression_no_constructors(expr.clone()),
+            statement(expr.clone(), expression_no_constructors(expr)),
             false,
             true,
         )
@@ -1188,13 +1215,16 @@ fn expression() -> impl ExprParser {
     .labelled(ParsingRuleLabel::Expression)
 }
 
-fn expression_no_constructors() -> impl ExprParser {
-    recursive(|expr| {
+fn expression_no_constructors<'a, P>(expr_parser: P) -> impl ExprParser + 'a
+where
+    P: ExprParser + 'a,
+{
+    recursive(|expr_no_constructors| {
         expression_with_precedence(
             Precedence::Lowest,
-            expr.clone(),
-            expr.clone(),
-            statement(expr.clone(), expr),
+            expr_parser.clone(),
+            expr_no_constructors.clone(),
+            statement(expr_parser, expr_no_constructors),
             false,
             false,
         )
@@ -1439,7 +1469,9 @@ where
         .then_ignore(keyword(Keyword::In))
         .then(for_range(expr_no_constructors))
         .then(block_expr(statement))
-        .map_with_span(|((identifier, range), block), span| range.into_for(identifier, block, span))
+        .map_with_span(|((identifier, range), block), span| {
+            StatementKind::For(ForLoopStatement { identifier, range, block, span })
+        })
 }
 
 /// The 'range' of a for loop. Either an actual range `start .. end` or an array expression.
@@ -1554,7 +1586,9 @@ where
         literal(),
     ))
     .map_with_span(Expression::new)
-    .or(parenthesized(expr_parser.clone()))
+    .or(parenthesized(expr_parser.clone()).map_with_span(|sub_expr, span| {
+        Expression::new(ExpressionKind::Parenthesized(sub_expr.into()), span)
+    }))
     .or(tuple(expr_parser))
     .labelled(ParsingRuleLabel::Atom)
 }
@@ -1711,6 +1745,51 @@ mod test {
             .collect()
     }
 
+    #[derive(Copy, Clone)]
+    struct Case {
+        source: &'static str,
+        errors: usize,
+        expect: &'static str,
+    }
+
+    fn check_cases_with_errors<T, P>(cases: &[Case], parser: P)
+    where
+        P: NoirParser<T> + Clone,
+        T: std::fmt::Display,
+    {
+        let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");
+
+        let results = vecmap(cases, |&case| {
+            let (opt, errors) = parse_recover(parser.clone(), case.source);
+            let actual = opt.map(|ast| ast.to_string());
+            let actual = if let Some(s) = &actual { s.to_string() } else { "(none)".to_string() };
+
+            let result = ((errors.len(), actual.clone()), (case.errors, case.expect.to_string()));
+            if result.0 != result.1 {
+                let num_errors = errors.len();
+                let shown_errors = show_errors(errors);
+                eprintln!(
+                    concat!(
+                        "\nExpected {expected_errors} error(s) and got {num_errors}:",
+                        "\n\n{shown_errors}",
+                        "\n\nFrom input:   {src}",
+                        "\nExpected AST: {expected_result}",
+                        "\nActual AST:   {actual}\n",
+                    ),
+                    expected_errors = case.errors,
+                    num_errors = num_errors,
+                    shown_errors = shown_errors,
+                    src = case.source,
+                    expected_result = case.expect,
+                    actual = actual,
+                );
+            }
+            result
+        });
+
+        assert_eq!(vecmap(&results, |t| t.0.clone()), vecmap(&results, |t| t.1.clone()),);
+    }
+
     #[test]
     fn regression_skip_comment() {
         parse_all(
@@ -1760,7 +1839,7 @@ mod test {
         parse_all(
             atom_or_right_unary(
                 expression(),
-                expression_no_constructors(),
+                expression_no_constructors(expression()),
                 fresh_statement(),
                 true,
             ),
@@ -1769,7 +1848,7 @@ mod test {
         parse_all_failing(
             atom_or_right_unary(
                 expression(),
-                expression_no_constructors(),
+                expression_no_constructors(expression()),
                 fresh_statement(),
                 true,
             ),
@@ -1789,7 +1868,7 @@ mod test {
         parse_all(
             atom_or_right_unary(
                 expression(),
-                expression_no_constructors(),
+                expression_no_constructors(expression()),
                 fresh_statement(),
                 true,
             ),
@@ -1978,7 +2057,7 @@ mod test {
 
         match parse_with(assertion(expression()), "assert(x == y, \"assertion message\")").unwrap()
         {
-            StatementKind::Constrain(ConstrainStatement(_, message)) => {
+            StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
                 assert_eq!(message, Some("assertion message".to_owned()));
             }
             _ => unreachable!(),
@@ -2002,7 +2081,7 @@ mod test {
         match parse_with(assertion_eq(expression()), "assert_eq(x, y, \"assertion message\")")
             .unwrap()
         {
-            StatementKind::Constrain(ConstrainStatement(_, message)) => {
+            StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
                 assert_eq!(message, Some("assertion message".to_owned()));
             }
             _ => unreachable!(),
@@ -2028,12 +2107,12 @@ mod test {
     #[test]
     fn parse_for_loop() {
         parse_all(
-            for_loop(expression_no_constructors(), fresh_statement()),
+            for_loop(expression_no_constructors(expression()), fresh_statement()),
             vec!["for i in x+y..z {}", "for i in 0..100 { foo; bar }"],
         );
 
         parse_all_failing(
-            for_loop(expression_no_constructors(), fresh_statement()),
+            for_loop(expression_no_constructors(expression()), fresh_statement()),
             vec![
                 "for 1 in x+y..z {}",  // Cannot have a literal as the loop identifier
                 "for i in 0...100 {}", // Only '..' is supported, there are no inclusive ranges yet
@@ -2086,7 +2165,6 @@ mod test {
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where T: {}",
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where SomeTrait {}",
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) SomeTrait {}",
-                "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) where T: SomeTrait {}",
                 // A leading plus is not allowed.
                 "fn func_name<T>(f: Field, y : T) where T: + SomeTrait {}",
                 "fn func_name<T>(f: Field, y : T) where T: TraitX + <Y> {}",
@@ -2117,22 +2195,18 @@ mod test {
 
         parse_all_failing(
             trait_definition(),
-            vec![
-                "trait MissingBody",
-                "trait WrongDelimiter { fn foo() -> u8, fn bar() -> u8 }",
-                "trait WhereClauseWithoutGenerics where A: SomeTrait { }",
-            ],
+            vec!["trait MissingBody", "trait WrongDelimiter { fn foo() -> u8, fn bar() -> u8 }"],
         );
     }
 
     #[test]
     fn parse_parenthesized_expression() {
         parse_all(
-            atom(expression(), expression_no_constructors(), fresh_statement(), true),
+            atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
             vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"],
         );
         parse_all_failing(
-            atom(expression(), expression_no_constructors(), fresh_statement(), true),
+            atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
             vec!["(x+a", "((x+a)", "(,)"],
         );
     }
@@ -2145,12 +2219,12 @@ mod test {
     #[test]
     fn parse_if_expr() {
         parse_all(
-            if_expr(expression_no_constructors(), fresh_statement()),
+            if_expr(expression_no_constructors(expression()), fresh_statement()),
             vec!["if x + a {  } else {  }", "if x {}", "if x {} else if y {} else {}"],
         );
 
         parse_all_failing(
-            if_expr(expression_no_constructors(), fresh_statement()),
+            if_expr(expression_no_constructors(expression()), fresh_statement()),
             vec!["if (x / a) + 1 {} else", "if foo then 1 else 2", "if true { 1 }else 3"],
         );
     }
@@ -2244,11 +2318,11 @@ mod test {
     #[test]
     fn parse_unary() {
         parse_all(
-            term(expression(), expression_no_constructors(), fresh_statement(), true),
+            term(expression(), expression_no_constructors(expression()), fresh_statement(), true),
             vec!["!hello", "-hello", "--hello", "-!hello", "!-hello"],
         );
         parse_all_failing(
-            term(expression(), expression_no_constructors(), fresh_statement(), true),
+            term(expression(), expression_no_constructors(expression()), fresh_statement(), true),
             vec!["+hello", "/hello"],
         );
     }
@@ -2362,68 +2436,117 @@ mod test {
     #[test]
     fn statement_recovery() {
         let cases = vec![
-            ("let a = 4 + 3", 0, "let a: unspecified = (4 + 3)"),
-            ("let a: = 4 + 3", 1, "let a: error = (4 + 3)"),
-            ("let = 4 + 3", 1, "let $error: unspecified = (4 + 3)"),
-            ("let = ", 2, "let $error: unspecified = Error"),
-            ("let", 3, "let $error: unspecified = Error"),
-            ("foo = one two three", 1, "foo = plain::one"),
-            ("constrain", 2, "constrain Error"),
-            ("assert", 1, "constrain Error"),
-            ("constrain x ==", 2, "constrain (plain::x == Error)"),
-            ("assert(x ==)", 1, "constrain (plain::x == Error)"),
-            ("assert(x == x, x)", 1, "constrain (plain::x == plain::x)"),
-            ("assert_eq(x,)", 1, "constrain (Error == Error)"),
-            ("assert_eq(x, x, x, x)", 1, "constrain (Error == Error)"),
-            ("assert_eq(x, x, x)", 1, "constrain (plain::x == plain::x)"),
+            Case { source: "let a = 4 + 3", expect: "let a: unspecified = (4 + 3)", errors: 0 },
+            Case { source: "let a: = 4 + 3", expect: "let a: error = (4 + 3)", errors: 1 },
+            Case { source: "let = 4 + 3", expect: "let $error: unspecified = (4 + 3)", errors: 1 },
+            Case { source: "let = ", expect: "let $error: unspecified = Error", errors: 2 },
+            Case { source: "let", expect: "let $error: unspecified = Error", errors: 3 },
+            Case { source: "foo = one two three", expect: "foo = plain::one", errors: 1 },
+            Case { source: "constrain", expect: "constrain Error", errors: 2 },
+            Case { source: "assert", expect: "constrain Error", errors: 1 },
+            Case { source: "constrain x ==", expect: "constrain (plain::x == Error)", errors: 2 },
+            Case { source: "assert(x ==)", expect: "constrain (plain::x == Error)", errors: 1 },
+            Case {
+                source: "assert(x == x, x)",
+                expect: "constrain (plain::x == plain::x)",
+                errors: 1,
+            },
+            Case { source: "assert_eq(x,)", expect: "constrain (Error == Error)", errors: 1 },
+            Case {
+                source: "assert_eq(x, x, x, x)",
+                expect: "constrain (Error == Error)",
+                errors: 1,
+            },
+            Case {
+                source: "assert_eq(x, x, x)",
+                expect: "constrain (plain::x == plain::x)",
+                errors: 1,
+            },
         ];
 
-        let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
-
-        for (src, expected_errors, expected_result) in cases {
-            let (opt, errors) = parse_recover(fresh_statement(), src);
-            let actual = opt.map(|ast| ast.to_string());
-            let actual = if let Some(s) = &actual { s } else { "(none)" };
-
-            assert_eq!((errors.len(), actual), (expected_errors, expected_result),
-                "\nExpected {} error(s) and got {}:\n\n{}\n\nFrom input:   {}\nExpected AST: {}\nActual AST:   {}\n",
-                expected_errors, errors.len(), show_errors(&errors), src, expected_result, actual
-            );
-        }
+        check_cases_with_errors(&cases[..], fresh_statement());
     }
 
     #[test]
     fn return_validation() {
         let cases = vec![
-            ("{ return 42; }", 1, "{\n    Error\n}"),
-            ("{ return 1; return 2; }", 2, "{\n    Error\n    Error\n}"),
-            (
-                "{ return 123; let foo = 4 + 3; }",
-                1,
-                "{\n    Error\n    let foo: unspecified = (4 + 3)\n}",
-            ),
-            ("{ return 1 + 2 }", 2, "{\n    Error\n}"),
-            ("{ return; }", 1, "{\n    Error\n}"),
+            Case {
+                source: "{ return 42; }",
+                expect: concat!("{\n", "    Error\n", "}",),
+                errors: 1,
+            },
+            Case {
+                source: "{ return 1; return 2; }",
+                expect: concat!("{\n", "    Error\n", "    Error\n", "}"),
+                errors: 2,
+            },
+            Case {
+                source: "{ return 123; let foo = 4 + 3; }",
+                expect: concat!("{\n", "    Error\n", "    let foo: unspecified = (4 + 3)\n", "}"),
+                errors: 1,
+            },
+            Case {
+                source: "{ return 1 + 2 }",
+                expect: concat!("{\n", "    Error\n", "}",),
+                errors: 2,
+            },
+            Case { source: "{ return; }", expect: concat!("{\n", "    Error\n", "}",), errors: 1 },
         ];
 
-        let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");
+        check_cases_with_errors(&cases[..], block(fresh_statement()));
+    }
 
-        let results = vecmap(&cases, |&(src, expected_errors, expected_result)| {
-            let (opt, errors) = parse_recover(block(fresh_statement()), src);
-            let actual = opt.map(|ast| ast.to_string());
-            let actual = if let Some(s) = &actual { s.to_string() } else { "(none)".to_string() };
+    #[test]
+    fn expr_no_constructors() {
+        let cases = vec![
+            Case {
+                source: "{ if structure { a: 1 } {} }",
+                expect: concat!(
+                    "{\n",
+                    "    if plain::structure {\n",
+                    "        Error\n",
+                    "    }\n",
+                    "    {\n",
+                    "    }\n",
+                    "}",
+                ),
+                errors: 1,
+            },
+            Case {
+                source: "{ if ( structure { a: 1 } ) {} }",
+                expect: concat!("{\n", "    if ((plain::structure { a: 1 })) {\n", "    }\n", "}",),
+                errors: 0,
+            },
+            Case {
+                source: "{ if ( structure {} ) {} }",
+                expect: concat!("{\n", "    if ((plain::structure {  })) {\n", "    }\n", "}"),
+                errors: 0,
+            },
+            Case {
+                source: "{ if (a { x: 1 }, b { y: 2 }) {} }",
+                expect: concat!(
+                    "{\n",
+                    "    if ((plain::a { x: 1 }), (plain::b { y: 2 })) {\n",
+                    "    }\n",
+                    "}",
+                ),
+                errors: 0,
+            },
+            Case {
+                source: "{ if ({ let foo = bar { baz: 42 }; foo == bar { baz: 42 }}) {} }",
+                expect: concat!(
+                    "{\n",
+                    "    if ({\n",
+                    "        let foo: unspecified = (plain::bar { baz: 42 })\n",
+                    "        (plain::foo == (plain::bar { baz: 42 }))\n",
+                    "    }) {\n",
+                    "    }\n",
+                    "}",
+                ),
+                errors: 0,
+            },
+        ];
 
-            let result =
-                ((errors.len(), actual.clone()), (expected_errors, expected_result.to_string()));
-            if result.0 != result.1 {
-                let num_errors = errors.len();
-                let shown_errors = show_errors(errors);
-                eprintln!(
-                    "\nExpected {expected_errors} error(s) and got {num_errors}:\n\n{shown_errors}\n\nFrom input:   {src}\nExpected AST: {expected_result}\nActual AST:   {actual}\n");
-            }
-            result
-        });
-
-        assert_eq!(vecmap(&results, |t| t.0.clone()), vecmap(&results, |t| t.1.clone()),);
+        check_cases_with_errors(&cases[..], block(fresh_statement()));
     }
 }

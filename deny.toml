@@ -52,12 +52,12 @@ allow = [
     "Zlib",
     # https://github.com/briansmith/ring/issues/902
     "LicenseRef-ring",
-    # https://github.com/briansmith/webpki/issues/148
-    "LicenseRef-webpki",
     # https://github.com/rustls/webpki/blob/main/LICENSE ISC Style
     "LicenseRef-rustls-webpki",
     # bitmaps 2.1.0, generational-arena 0.2.9,im 15.1.0
     "MPL-2.0",
+    # Boost Software License
+    "BSL-1.0"
 ]
 
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses
@@ -78,11 +78,6 @@ expression = "LicenseRef-ring"
 license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
 [[licenses.clarify]]
-name = "webpki"
-expression = "LicenseRef-webpki"
-license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
-
-[[licenses.clarify]]
 name = "rustls-webpki"
 expression = "LicenseRef-rustls-webpki"
 license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
@@ -97,4 +92,7 @@ unknown-registry = "warn"
 # Lint level for what to happen when a crate from a git repository that is not
 # in the allow list is encountered
 unknown-git = "deny"
-allow-git = ["https://github.com/jfecher/chumsky"]
+allow-git = [
+    "https://github.com/noir-lang/grumpkin",
+    "https://github.com/jfecher/chumsky"
+]

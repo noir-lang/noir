@@ -5,14 +5,17 @@ mod value;
 pub(crate) use program::Ssa;
 
 use context::SharedContext;
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_frontend::{
     monomorphization::ast::{self, Binary, Expression, Program},
     BinaryOpKind,
 };
 
-use crate::ssa::ir::{instruction::Intrinsic, types::NumericType};
+use crate::{
+    errors::RuntimeError,
+    ssa::ir::{instruction::Intrinsic, types::NumericType},
+};
 
 use self::{
     context::FunctionContext,
@@ -29,7 +32,7 @@ use super::ir::{
 /// Generates SSA for the given monomorphized program.
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.
-pub(crate) fn generate_ssa(program: Program) -> Ssa {
+pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let return_location = program.return_location;
     let context = SharedContext::new(program);
 
@@ -45,7 +48,7 @@ pub(crate) fn generate_ssa(program: Program) -> Ssa {
         if main.unconstrained { RuntimeType::Brillig } else { RuntimeType::Acir },
         &context,
     );
-    function_context.codegen_function_body(&main.body);
+    function_context.codegen_function_body(&main.body)?;
 
     if let Some(return_location) = return_location {
         let block = function_context.builder.current_block();
@@ -69,24 +72,25 @@ pub(crate) fn generate_ssa(program: Program) -> Ssa {
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
         function_context.new_function(dest_id, function);
-        function_context.codegen_function_body(&function.body);
+        function_context.codegen_function_body(&function.body)?;
     }
 
-    function_context.builder.finish()
+    Ok(function_context.builder.finish())
 }
 
 impl<'a> FunctionContext<'a> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
-    fn codegen_function_body(&mut self, body: &Expression) {
-        let return_value = self.codegen_expression(body);
+    fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
+        let return_value = self.codegen_expression(body)?;
         let results = return_value.into_value_list(self);
         self.builder.terminate_with_return(results);
+        Ok(())
     }
 
-    fn codegen_expression(&mut self, expr: &Expression) -> Values {
+    fn codegen_expression(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
         match expr {
-            Expression::Ident(ident) => self.codegen_ident(ident),
+            Expression::Ident(ident) => Ok(self.codegen_ident(ident)),
             Expression::Literal(literal) => self.codegen_literal(literal),
             Expression::Block(block) => self.codegen_block(block),
             Expression::Unary(unary) => self.codegen_unary(unary),
@@ -111,8 +115,8 @@ impl<'a> FunctionContext<'a> {
 
     /// Codegen any non-tuple expression so that we can unwrap the Values
     /// tree to return a single value for use with most SSA instructions.
-    fn codegen_non_tuple_expression(&mut self, expr: &Expression) -> ValueId {
-        self.codegen_expression(expr).into_leaf().eval(self)
+    fn codegen_non_tuple_expression(&mut self, expr: &Expression) -> Result<ValueId, RuntimeError> {
+        Ok(self.codegen_expression(expr)?.into_leaf().eval(self))
     }
 
     /// Codegen a reference to an ident.
@@ -140,17 +144,19 @@ impl<'a> FunctionContext<'a> {
         self.codegen_ident_reference(ident).map(|value| value.eval(self).into())
     }
 
-    fn codegen_literal(&mut self, literal: &ast::Literal) -> Values {
+    fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<Values, RuntimeError> {
         match literal {
             ast::Literal::Array(array) => {
-                let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
+                let elements =
+                    try_vecmap(&array.contents, |element| self.codegen_expression(element))?;
 
                 let typ = Self::convert_type(&array.typ).flatten();
-                match array.typ {
+                Ok(match array.typ {
                     ast::Type::Array(_, _) => self.codegen_array(elements, typ[0].clone()),
                     ast::Type::Slice(_) => {
                         let slice_length =
                             self.builder.field_constant(array.contents.len() as u128);
+
                         let slice_contents = self.codegen_array(elements, typ[1].clone());
                         Tree::Branch(vec![slice_length.into(), slice_contents])
                     }
@@ -158,35 +164,35 @@ impl<'a> FunctionContext<'a> {
                         "ICE: array literal type must be an array or a slice, but got {}",
                         array.typ
                     ),
-                }
+                })
             }
-            ast::Literal::Integer(value, typ) => {
+            ast::Literal::Integer(value, typ, location) => {
+                self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ);
-                self.builder.numeric_constant(*value, typ).into()
+                self.checked_numeric_constant(*value, typ).map(Into::into)
             }
             ast::Literal::Bool(value) => {
-                self.builder.numeric_constant(*value as u128, Type::bool()).into()
+                // Don't need to call checked_numeric_constant here since `value` can only be true or false
+                Ok(self.builder.numeric_constant(*value as u128, Type::bool()).into())
             }
-            ast::Literal::Str(string) => {
-                let elements = vecmap(string.as_bytes(), |byte| {
-                    self.builder.numeric_constant(*byte as u128, Type::field()).into()
-                });
-                let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u64));
-                self.codegen_array(elements, typ)
-            }
+            ast::Literal::Str(string) => Ok(self.codegen_string(string)),
             ast::Literal::FmtStr(string, number_of_fields, fields) => {
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
-                let string = Expression::Literal(ast::Literal::Str(string.clone()));
-                let number_of_fields = Expression::Literal(ast::Literal::Integer(
-                    (*number_of_fields as u128).into(),
-                    ast::Type::Field,
-                ));
-                let fields = *fields.clone();
-                let fmt_str_tuple = &[string, number_of_fields, fields];
-                self.codegen_tuple(fmt_str_tuple)
+                let string = self.codegen_string(string);
+                let field_count = self.builder.field_constant(*number_of_fields as u128);
+                let fields = self.codegen_expression(fields)?;
+
+                Ok(Tree::Branch(vec![string, field_count.into(), fields]))
             }
         }
+    }
+
+    fn codegen_string(&mut self, string: &str) -> Values {
+        let elements =
+            vecmap(string.as_bytes(), |byte| self.builder.field_constant(*byte as u128).into());
+        let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u64));
+        self.codegen_array(elements, typ)
     }
 
     /// Codegen an array by allocating enough space for each element and inserting separate
@@ -211,35 +217,35 @@ impl<'a> FunctionContext<'a> {
         self.builder.array_constant(array, typ).into()
     }
 
-    fn codegen_block(&mut self, block: &[Expression]) -> Values {
+    fn codegen_block(&mut self, block: &[Expression]) -> Result<Values, RuntimeError> {
         let mut result = Self::unit_value();
         for expr in block {
-            result = self.codegen_expression(expr);
+            result = self.codegen_expression(expr)?;
         }
-        result
+        Ok(result)
     }
 
-    fn codegen_unary(&mut self, unary: &ast::Unary) -> Values {
+    fn codegen_unary(&mut self, unary: &ast::Unary) -> Result<Values, RuntimeError> {
         match unary.operator {
             noirc_frontend::UnaryOp::Not => {
-                let rhs = self.codegen_expression(&unary.rhs);
+                let rhs = self.codegen_expression(&unary.rhs)?;
                 let rhs = rhs.into_leaf().eval(self);
-                self.builder.insert_not(rhs).into()
+                Ok(self.builder.insert_not(rhs).into())
             }
             noirc_frontend::UnaryOp::Minus => {
-                let rhs = self.codegen_expression(&unary.rhs);
+                let rhs = self.codegen_expression(&unary.rhs)?;
                 let rhs = rhs.into_leaf().eval(self);
                 let typ = self.builder.type_of_value(rhs);
                 let zero = self.builder.numeric_constant(0u128, typ);
-                self.insert_binary(
+                Ok(self.insert_binary(
                     zero,
                     noirc_frontend::BinaryOpKind::Subtract,
                     rhs,
                     unary.location,
-                )
+                ))
             }
             noirc_frontend::UnaryOp::MutableReference => {
-                self.codegen_reference(&unary.rhs).map(|rhs| {
+                Ok(self.codegen_reference(&unary.rhs)?.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
                             let rhs_type = self.builder.current_function.dfg.type_of_value(value);
@@ -251,11 +257,11 @@ impl<'a> FunctionContext<'a> {
                         // a Value::Normal so it is no longer automatically dereferenced.
                         value::Value::Mutable(reference, _) => reference.into(),
                     }
-                })
+                }))
             }
             noirc_frontend::UnaryOp::Dereference { .. } => {
-                let rhs = self.codegen_expression(&unary.rhs);
-                self.dereference(&rhs, &unary.result_type)
+                let rhs = self.codegen_expression(&unary.rhs)?;
+                Ok(self.dereference(&rhs, &unary.result_type))
             }
         }
     }
@@ -268,26 +274,26 @@ impl<'a> FunctionContext<'a> {
         })
     }
 
-    fn codegen_reference(&mut self, expr: &Expression) -> Values {
+    fn codegen_reference(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
         match expr {
-            Expression::Ident(ident) => self.codegen_ident_reference(ident),
+            Expression::Ident(ident) => Ok(self.codegen_ident_reference(ident)),
             Expression::ExtractTupleField(tuple, index) => {
-                let tuple = self.codegen_reference(tuple);
-                Self::get_field(tuple, *index)
+                let tuple = self.codegen_reference(tuple)?;
+                Ok(Self::get_field(tuple, *index))
             }
             other => self.codegen_expression(other),
         }
     }
 
-    fn codegen_binary(&mut self, binary: &ast::Binary) -> Values {
-        let lhs = self.codegen_non_tuple_expression(&binary.lhs);
-        let rhs = self.codegen_non_tuple_expression(&binary.rhs);
-        self.insert_binary(lhs, binary.operator, rhs, binary.location)
+    fn codegen_binary(&mut self, binary: &ast::Binary) -> Result<Values, RuntimeError> {
+        let lhs = self.codegen_non_tuple_expression(&binary.lhs)?;
+        let rhs = self.codegen_non_tuple_expression(&binary.rhs)?;
+        Ok(self.insert_binary(lhs, binary.operator, rhs, binary.location))
     }
 
-    fn codegen_index(&mut self, index: &ast::Index) -> Values {
-        let array_or_slice = self.codegen_expression(&index.collection).into_value_list(self);
-        let index_value = self.codegen_non_tuple_expression(&index.index);
+    fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
+        let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
+        let index_value = self.codegen_non_tuple_expression(&index.index)?;
         // Slices are represented as a tuple in the form: (length, slice contents).
         // Thus, slices require two value ids for their representation.
         let (array, slice_length) = if array_or_slice.len() > 1 {
@@ -317,7 +323,7 @@ impl<'a> FunctionContext<'a> {
         element_type: &ast::Type,
         location: Location,
         length: Option<super::ir::value::ValueId>,
-    ) -> Values {
+    ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size = self.builder.field_constant(type_size as u128);
@@ -325,7 +331,7 @@ impl<'a> FunctionContext<'a> {
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
 
         let mut field_index = 0u128;
-        Self::map_type(element_type, |typ| {
+        Ok(Self::map_type(element_type, |typ| {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
 
@@ -340,7 +346,7 @@ impl<'a> FunctionContext<'a> {
                 _ => unreachable!("must have array or slice but got {array_type}"),
             }
             self.builder.insert_array_get(array, offset, typ).into()
-        })
+        }))
     }
 
     /// Prepare a slice access.
@@ -375,11 +381,11 @@ impl<'a> FunctionContext<'a> {
         );
     }
 
-    fn codegen_cast(&mut self, cast: &ast::Cast) -> Values {
-        let lhs = self.codegen_non_tuple_expression(&cast.lhs);
+    fn codegen_cast(&mut self, cast: &ast::Cast) -> Result<Values, RuntimeError> {
+        let lhs = self.codegen_non_tuple_expression(&cast.lhs)?;
         let typ = Self::convert_non_tuple_type(&cast.r#type);
         self.builder.set_location(cast.location);
-        self.builder.insert_cast(lhs, typ).into()
+        Ok(self.builder.insert_cast(lhs, typ).into())
     }
 
     /// Codegens a for loop, creating three new blocks in the process.
@@ -399,7 +405,7 @@ impl<'a> FunctionContext<'a> {
     ///   br loop_entry(v4)
     /// loop_end():
     ///   ... This is the current insert point after codegen_for finishes ...
-    fn codegen_for(&mut self, for_expr: &ast::For) -> Values {
+    fn codegen_for(&mut self, for_expr: &ast::For) -> Result<Values, RuntimeError> {
         let loop_entry = self.builder.insert_block();
         let loop_body = self.builder.insert_block();
         let loop_end = self.builder.insert_block();
@@ -409,10 +415,10 @@ impl<'a> FunctionContext<'a> {
         let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
 
         self.builder.set_location(for_expr.start_range_location);
-        let start_index = self.codegen_non_tuple_expression(&for_expr.start_range);
+        let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
 
         self.builder.set_location(for_expr.end_range_location);
-        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range);
+        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
 
         // Set the location of the initial jmp instruction to the start range. This is the location
         // used to issue an error if the start range cannot be determined at compile-time.
@@ -432,13 +438,13 @@ impl<'a> FunctionContext<'a> {
         // Compile the loop body
         self.builder.switch_to_block(loop_body);
         self.define(for_expr.index_variable, loop_index.into());
-        self.codegen_expression(&for_expr.block);
+        self.codegen_expression(&for_expr.block)?;
         let new_loop_index = self.make_offset(loop_index, 1);
         self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
 
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
-        Self::unit_value()
+        Ok(Self::unit_value())
     }
 
     /// Codegens an if expression, handling the case of what to do if there is no 'else'.
@@ -465,8 +471,8 @@ impl<'a> FunctionContext<'a> {
     ///   br end_if()
     /// end_if:  // No block parameter is needed. Without an else, the unit value is always returned.
     ///   ... This is the current insert point after codegen_if finishes ...
-    fn codegen_if(&mut self, if_expr: &ast::If) -> Values {
-        let condition = self.codegen_non_tuple_expression(&if_expr.condition);
+    fn codegen_if(&mut self, if_expr: &ast::If) -> Result<Values, RuntimeError> {
+        let condition = self.codegen_non_tuple_expression(&if_expr.condition)?;
 
         let then_block = self.builder.insert_block();
         let else_block = self.builder.insert_block();
@@ -474,7 +480,7 @@ impl<'a> FunctionContext<'a> {
         self.builder.terminate_with_jmpif(condition, then_block, else_block);
 
         self.builder.switch_to_block(then_block);
-        let then_value = self.codegen_expression(&if_expr.consequence);
+        let then_value = self.codegen_expression(&if_expr.consequence)?;
 
         let mut result = Self::unit_value();
 
@@ -484,7 +490,7 @@ impl<'a> FunctionContext<'a> {
             self.builder.terminate_with_jmp(end_block, then_values);
 
             self.builder.switch_to_block(else_block);
-            let else_value = self.codegen_expression(alternative);
+            let else_value = self.codegen_expression(alternative)?;
             let else_values = else_value.into_value_list(self);
             self.builder.terminate_with_jmp(end_block, else_values);
 
@@ -502,27 +508,32 @@ impl<'a> FunctionContext<'a> {
             self.builder.switch_to_block(else_block);
         }
 
-        result
+        Ok(result)
     }
 
-    fn codegen_tuple(&mut self, tuple: &[Expression]) -> Values {
-        Tree::Branch(vecmap(tuple, |expr| self.codegen_expression(expr)))
+    fn codegen_tuple(&mut self, tuple: &[Expression]) -> Result<Values, RuntimeError> {
+        Ok(Tree::Branch(try_vecmap(tuple, |expr| self.codegen_expression(expr))?))
     }
 
-    fn codegen_extract_tuple_field(&mut self, tuple: &Expression, field_index: usize) -> Values {
-        let tuple = self.codegen_expression(tuple);
-        Self::get_field(tuple, field_index)
+    fn codegen_extract_tuple_field(
+        &mut self,
+        tuple: &Expression,
+        field_index: usize,
+    ) -> Result<Values, RuntimeError> {
+        let tuple = self.codegen_expression(tuple)?;
+        Ok(Self::get_field(tuple, field_index))
     }
 
     /// Generate SSA for a function call. Note that calls to built-in functions
     /// and intrinsics are also represented by the function call instruction.
-    fn codegen_call(&mut self, call: &ast::Call) -> Values {
-        let function = self.codegen_non_tuple_expression(&call.func);
-        let arguments = call
-            .arguments
-            .iter()
-            .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
-            .collect::<Vec<_>>();
+    fn codegen_call(&mut self, call: &ast::Call) -> Result<Values, RuntimeError> {
+        let function = self.codegen_non_tuple_expression(&call.func)?;
+        let mut arguments = Vec::with_capacity(call.arguments.len());
+
+        for argument in &call.arguments {
+            let mut values = self.codegen_expression(argument)?.into_value_list(self);
+            arguments.append(&mut values);
+        }
 
         // If an array is passed as an argument we increase its reference count
         for argument in &arguments {
@@ -531,7 +542,7 @@ impl<'a> FunctionContext<'a> {
 
         self.codegen_intrinsic_call_checks(function, &arguments, call.location);
 
-        self.insert_call(function, arguments, &call.return_type, call.location)
+        Ok(self.insert_call(function, arguments, &call.return_type, call.location))
     }
 
     fn codegen_intrinsic_call_checks(
@@ -545,7 +556,8 @@ impl<'a> FunctionContext<'a> {
         {
             match intrinsic {
                 Intrinsic::SliceInsert => {
-                    let one = self.builder.numeric_constant(1u128, Type::field());
+                    let one = self.builder.field_constant(1u128);
+
                     // We add one here in the case of a slice insert as a slice insert at the length of the slice
                     // can be converted to a slice push back
                     let len_plus_one = self.builder.insert_binary(arguments[0], BinaryOp::Add, one);
@@ -566,8 +578,8 @@ impl<'a> FunctionContext<'a> {
     /// If the variable is immutable, no special handling is necessary and we can return the given
     /// ValueId directly. If it is mutable, we'll need to allocate space for the value and store
     /// the initial value before returning the allocate instruction.
-    fn codegen_let(&mut self, let_expr: &ast::Let) -> Values {
-        let mut values = self.codegen_expression(&let_expr.expression);
+    fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
+        let mut values = self.codegen_expression(&let_expr.expression)?;
 
         values = values.map(|value| {
             let value = value.eval(self);
@@ -583,7 +595,7 @@ impl<'a> FunctionContext<'a> {
         });
 
         self.define(let_expr.id, values);
-        Self::unit_value()
+        Ok(Self::unit_value())
     }
 
     fn codegen_constrain(
@@ -591,17 +603,17 @@ impl<'a> FunctionContext<'a> {
         expr: &Expression,
         location: Location,
         assert_message: Option<String>,
-    ) -> Values {
+    ) -> Result<Values, RuntimeError> {
         match expr {
             // If we're constraining an equality to be true then constrain the two sides directly.
             Expression::Binary(Binary { lhs, operator: BinaryOpKind::Equal, rhs, .. }) => {
-                let lhs = self.codegen_non_tuple_expression(lhs);
-                let rhs = self.codegen_non_tuple_expression(rhs);
+                let lhs = self.codegen_non_tuple_expression(lhs)?;
+                let rhs = self.codegen_non_tuple_expression(rhs)?;
                 self.builder.set_location(location).insert_constrain(lhs, rhs, assert_message);
             }
 
             _ => {
-                let expr = self.codegen_non_tuple_expression(expr);
+                let expr = self.codegen_non_tuple_expression(expr)?;
                 let true_literal = self.builder.numeric_constant(true, Type::bool());
                 self.builder.set_location(location).insert_constrain(
                     expr,
@@ -610,19 +622,19 @@ impl<'a> FunctionContext<'a> {
                 );
             }
         }
-        Self::unit_value()
+        Ok(Self::unit_value())
     }
 
-    fn codegen_assign(&mut self, assign: &ast::Assign) -> Values {
-        let lhs = self.extract_current_value(&assign.lvalue);
-        let rhs = self.codegen_expression(&assign.expression);
+    fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
+        let lhs = self.extract_current_value(&assign.lvalue)?;
+        let rhs = self.codegen_expression(&assign.expression)?;
 
         self.assign_new_value(lhs, rhs);
-        Self::unit_value()
+        Ok(Self::unit_value())
     }
 
-    fn codegen_semi(&mut self, expr: &Expression) -> Values {
-        self.codegen_expression(expr);
-        Self::unit_value()
+    fn codegen_semi(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
+        self.codegen_expression(expr)?;
+        Ok(Self::unit_value())
     }
 }

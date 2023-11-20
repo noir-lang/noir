@@ -2,6 +2,5 @@
 name = "signed_arithmetic"
 type = "bin"
 authors = [""]
-compiler_version = "0.1"
 
 [dependencies]

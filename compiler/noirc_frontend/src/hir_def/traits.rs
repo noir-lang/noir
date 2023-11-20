@@ -1,14 +1,17 @@
+use std::rc::Rc;
+
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
     Generics, Ident, NoirFunction, Type, TypeVariable, TypeVariableId,
 };
+use fm::FileId;
 use noirc_errors::Span;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitFunction {
     pub name: Ident,
-    pub generics: Generics,
+    pub generics: Vec<(Rc<String>, TypeVariable, Span)>,
     pub arguments: Vec<Type>,
     pub return_type: Type,
     pub span: Span,
@@ -34,7 +37,7 @@ pub struct TraitType {
 /// Represents a trait in the type system. Each instance of this struct
 /// will be shared across all Type::Trait variants that represent
 /// the same trait.
-#[derive(Clone, Debug)]
+#[derive(Debug, Eq, Clone)]
 pub struct Trait {
     /// A unique id representing this trait type. Used to check if two
     /// struct traits are equal.
@@ -62,7 +65,14 @@ pub struct TraitImpl {
     pub ident: Ident,
     pub typ: Type,
     pub trait_id: TraitId,
+    pub file: FileId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
+
+    /// The where clause, if present, contains each trait requirement which must
+    /// be satisfied for this impl to be selected. E.g. in `impl Eq for [T] where T: Eq`,
+    /// `where_clause` would contain the one `T: Eq` constraint. If there is no where clause,
+    /// this Vec is empty.
+    pub where_clause: Vec<TraitConstraint>,
 }
 
 #[derive(Debug, Clone)]
@@ -70,6 +80,12 @@ pub struct TraitConstraint {
     pub typ: Type,
     pub trait_id: TraitId,
     // pub trait_generics: Generics, TODO
+}
+
+impl TraitConstraint {
+    pub fn new(typ: Type, trait_id: TraitId) -> Self {
+        Self { typ, trait_id }
+    }
 }
 
 impl std::hash::Hash for Trait {
@@ -135,5 +151,6 @@ impl TraitFunction {
             Box::new(self.return_type.clone()),
             Box::new(Type::Unit),
         )
+        .generalize()
     }
 }

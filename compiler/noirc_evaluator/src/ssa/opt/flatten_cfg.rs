@@ -662,6 +662,22 @@ impl<'f> Context<'f> {
                     self.remember_store(address, value);
                     Instruction::Store { address, value }
                 }
+                Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+                    // Replace value with `value * predicate` to zero out value when predicate is inactive.
+
+                    // Condition needs to be cast to argument type in order to multiply them together.
+                    let argument_type = self.inserter.function.dfg.type_of_value(value);
+                    let casted_condition = self.insert_instruction(
+                        Instruction::Cast(condition, argument_type),
+                        call_stack.clone(),
+                    );
+
+                    let value = self.insert_instruction(
+                        Instruction::binary(BinaryOp::Mul, value, casted_condition),
+                        call_stack.clone(),
+                    );
+                    Instruction::RangeCheck { value, max_bit_size, assert_message }
+                }
                 other => other,
             }
         } else {
@@ -1284,8 +1300,8 @@ mod test {
         let zero = builder.field_constant(0_u128);
         let zero_array = builder.array_constant(im::Vector::unit(zero), array_type);
         let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
-        let pedersen =
-            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Pedersen));
+        let pedersen = builder
+            .import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::PedersenCommitment));
         let v4 = builder.insert_call(
             pedersen,
             vec![zero_array, i_zero],

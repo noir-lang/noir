@@ -19,6 +19,8 @@ pub enum Token {
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
+    LineComment(String, Option<DocStyle>),
+    BlockComment(String, Option<DocStyle>),
     /// <
     Less,
     /// <=
@@ -86,6 +88,8 @@ pub enum Token {
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
+    Whitespace(String),
+
     /// An invalid character is one that is not in noir's language or grammar.
     ///
     /// We don't report invalid tokens in the source as errors until parsing to
@@ -93,6 +97,12 @@ pub enum Token {
     /// during parsing). Reporting during lexing then removing these from the token stream
     /// would not be equivalent as it would change the resulting parse.
     Invalid(char),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+pub enum DocStyle {
+    Outer,
+    Inner,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -149,6 +159,8 @@ impl fmt::Display for Token {
             Token::FmtStr(ref b) => write!(f, "f{b}"),
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
+            Token::LineComment(ref s, _style) => write!(f, "//{s}"),
+            Token::BlockComment(ref s, _style) => write!(f, "/*{s}*/"),
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -184,6 +196,7 @@ impl fmt::Display for Token {
             Token::Bang => write!(f, "!"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
+            Token::Whitespace(ref s) => write!(f, "{s}"),
         }
     }
 }
@@ -388,6 +401,13 @@ impl Attributes {
         matches!(self.function, Some(FunctionAttribute::Test(_)))
     }
 
+    /// True if these attributes mean the given function is an entry point function if it was
+    /// defined within a contract. Note that this does not check if the function is actually part
+    /// of a contract.
+    pub fn is_contract_entry_point(&self) -> bool {
+        !self.has_contract_library_method() && !self.is_test_function()
+    }
+
     /// Returns note if a deprecated secondary attribute is found
     pub fn get_deprecated_note(&self) -> Option<Option<String>> {
         self.secondary.iter().find_map(|attr| match attr {
@@ -445,6 +465,7 @@ impl Attribute {
                         || ch == '='
                         || ch == '"'
                         || ch == ' '
+                        || ch == '\''
                 })
                 .then_some(());
 

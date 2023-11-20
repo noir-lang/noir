@@ -15,6 +15,7 @@ members = [
     "tooling/backend_interface",
     "tooling/bb_abstraction_leaks",
     "tooling/lsp",
+    "tooling/debugger",
     "tooling/nargo",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
@@ -37,7 +38,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.16.0"
+version = "0.19.2"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
@@ -46,22 +47,53 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/noir-lang/noir/"
 
 [workspace.dependencies]
+
+# ACVM workspace dependencies
+acir = { path = "acvm-repo/acir", default-features = false }
+acvm = { path = "acvm-repo/acvm" }
+acir_field = { path = "acvm-repo/acir_field", default-features = false }
+stdlib = { package = "acvm_stdlib", path = "acvm-repo/stdlib", default-features = false }
+brillig = { path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { path = "acvm-repo/blackbox_solver", default-features = false }
+barretenberg_blackbox_solver = { path = "acvm-repo/barretenberg_blackbox_solver", default-features = false }
+
+# Noir compiler workspace dependencies
 arena = { path = "compiler/utils/arena" }
 fm = { path = "compiler/fm" }
 iter-extended = { path = "compiler/utils/iter-extended" }
-nargo = { path = "tooling/nargo" }
-nargo_fmt = { path = "tooling/nargo_fmt" }
-nargo_cli = { path = "tooling/nargo_cli" }
-nargo_toml = { path = "tooling/nargo_toml" }
-noir_lsp = { path = "tooling/lsp" }
-noirc_abi = { path = "tooling/noirc_abi" }
-bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
 noirc_driver = { path = "compiler/noirc_driver" }
 noirc_errors = { path = "compiler/noirc_errors" }
 noirc_evaluator = { path = "compiler/noirc_evaluator" }
 noirc_frontend = { path = "compiler/noirc_frontend" }
 noirc_printable_type = { path = "compiler/noirc_printable_type" }
 noir_wasm = { path = "compiler/wasm" }
+
+# Noir tooling workspace dependencies
+nargo = { path = "tooling/nargo" }
+nargo_fmt = { path = "tooling/nargo_fmt" }
+nargo_cli = { path = "tooling/nargo_cli" }
+nargo_toml = { path = "tooling/nargo_toml" }
+noir_lsp = { path = "tooling/lsp" }
+noir_debugger = { path = "tooling/debugger" }
+noirc_abi = { path = "tooling/noirc_abi" }
+bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
+
+# LSP
+async-lsp = { version = "0.1.0", default-features = false }
+lsp-types = "0.94.1"
+tower = "0.4"
+
+# Wasm
+wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
+wasm-bindgen-test = "0.3.36"
+wasm-bindgen-futures = "0.4.36"
+console_error_panic_hook = "0.1.7"
+gloo-utils = { version = "0.1", features = ["serde"] }
+js-sys = "0.3.62"
+getrandom = "0.2"
+
+
 cfg-if = "1.0.0"
 clap = { version = "4.3.19", features = ["derive"] }
 codespan = { version = "0.11.1", features = ["serialization"] }
@@ -72,31 +104,18 @@ chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312", default
     "std",
 ] }
 dirs = "4"
-lsp-types = "0.94"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0"
-smol_str = "0.1.17"
+smol_str = { version = "0.1.17", features = ["serde"] }
 thiserror = "1.0.21"
 toml = "0.7.2"
-tower = "0.4"
 url = "2.2.0"
-wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
-wasm-bindgen-test = "0.3.33"
-js-sys = "0.3.62"
 base64 = "0.21.2"
 fxhash = "0.2.1"
-acir = { path = "acvm-repo/acir", default-features = false }
-acvm = { path = "acvm-repo/acvm" }
-acir_field = { path = "acvm-repo/acir_field", default-features = false }
-stdlib = { package = "acvm_stdlib", path = "acvm-repo/stdlib", default-features = false }
-brillig = { path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { path = "acvm-repo/blackbox_solver", default-features = false }
-barretenberg_blackbox_solver = { path = "acvm-repo/barretenberg_blackbox_solver", default-features = false }
-
+build-data = "0.1.3"
 bincode = "1.3.3"
-
 hex = "0.4.2"
+const_format = "0.2.30"
 num-bigint = "0.4"
 num-traits = "0.2"
 

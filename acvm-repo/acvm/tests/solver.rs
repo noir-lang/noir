@@ -29,11 +29,18 @@ impl BlackBoxFunctionSolver for StubbedBackend {
     ) -> Result<bool, BlackBoxResolutionError> {
         panic!("Path not trodden by this test")
     }
-    fn pedersen(
+    fn pedersen_commitment(
         &self,
         _inputs: &[FieldElement],
         _domain_separator: u32,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+        panic!("Path not trodden by this test")
+    }
+    fn pedersen_hash(
+        &self,
+        _inputs: &[FieldElement],
+        _domain_separator: u32,
+    ) -> Result<FieldElement, BlackBoxResolutionError> {
         panic!("Path not trodden by this test")
     }
     fn fixed_base_scalar_mul(
@@ -90,8 +97,6 @@ fn inversion_brillig_oracle_equivalence() {
             BrilligOutputs::Simple(w_oracle),   // Output Register 1
             BrilligOutputs::Simple(w_equal_res), // Output Register 2
         ],
-        // stack of foreign call/oracle resolutions, starts empty
-        foreign_call_results: vec![],
         bytecode: vec![
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
@@ -130,7 +135,7 @@ fn inversion_brillig_oracle_equivalence() {
     ])
     .into();
 
-    let mut acvm = ACVM::new(&StubbedBackend, opcodes, witness_assignments);
+    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, witness_assignments);
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
 
@@ -214,8 +219,6 @@ fn double_inversion_brillig_oracle() {
             BrilligOutputs::Simple(w_ij_oracle), // Output Register 3
             BrilligOutputs::Simple(w_equal_res), // Output Register 4
         ],
-        // stack of foreign call/oracle resolutions, starts empty
-        foreign_call_results: vec![],
         bytecode: vec![
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
@@ -261,7 +264,7 @@ fn double_inversion_brillig_oracle() {
     ])
     .into();
 
-    let mut acvm = ACVM::new(&StubbedBackend, opcodes, witness_assignments);
+    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, witness_assignments);
 
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -342,8 +345,6 @@ fn oracle_dependent_execution() {
             BrilligOutputs::Simple(w_y),     // Output Register 2 - from input
             BrilligOutputs::Simple(w_y_inv), // Output Register 3
         ],
-        // stack of foreign call/oracle resolutions, starts empty
-        foreign_call_results: vec![],
         bytecode: vec![
             // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
@@ -384,7 +385,7 @@ fn oracle_dependent_execution() {
     let witness_assignments =
         BTreeMap::from([(w_x, FieldElement::from(2u128)), (w_y, FieldElement::from(2u128))]).into();
 
-    let mut acvm = ACVM::new(&StubbedBackend, opcodes, witness_assignments);
+    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, witness_assignments);
 
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -473,8 +474,6 @@ fn brillig_oracle_predicate() {
             },
         ],
         predicate: Some(Expression::default()),
-        // oracle results
-        foreign_call_results: vec![],
     });
 
     let opcodes = vec![brillig_opcode];
@@ -485,7 +484,7 @@ fn brillig_oracle_predicate() {
     ])
     .into();
 
-    let mut acvm = ACVM::new(&StubbedBackend, opcodes, witness_assignments);
+    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, witness_assignments);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
 
@@ -518,7 +517,7 @@ fn unsatisfied_opcode_resolved() {
     values.insert(d, FieldElement::from(2_i128));
 
     let opcodes = vec![Opcode::Arithmetic(opcode_a)];
-    let mut acvm = ACVM::new(&StubbedBackend, opcodes, values);
+    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, values);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
@@ -574,8 +573,6 @@ fn unsatisfied_opcode_resolved_brillig() {
         outputs: vec![BrilligOutputs::Simple(w_result)],
         bytecode: vec![equal_opcode, jmp_if_opcode, trap_opcode, stop_opcode],
         predicate: Some(Expression::one()),
-        // oracle results
-        foreign_call_results: vec![],
     });
 
     let opcode_a = Expression {
@@ -600,7 +597,7 @@ fn unsatisfied_opcode_resolved_brillig() {
 
     let opcodes = vec![brillig_opcode, Opcode::Arithmetic(opcode_a)];
 
-    let mut acvm = ACVM::new(&StubbedBackend, opcodes, values);
+    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, values);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
@@ -644,7 +641,7 @@ fn memory_operations() {
 
     let opcodes = vec![init, read_op, expression];
 
-    let mut acvm = ACVM::new(&StubbedBackend, opcodes, initial_witness);
+    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, initial_witness);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();

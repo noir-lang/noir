@@ -6,4 +6,4 @@
 //
 // This program will never fail since there are
 // no assertions being applied.
-fn main(_x : Field, _y : pub Field) {}
+fn main(_x: Field, _y: pub Field) {}

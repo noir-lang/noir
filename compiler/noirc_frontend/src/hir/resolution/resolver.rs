@@ -29,6 +29,7 @@ use crate::hir::def_map::{LocalModuleId, ModuleDefId, TryFromModuleDefId, MAIN_F
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId,
+    TraitImplId, TraitImplKind,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -36,10 +37,11 @@ use crate::{
     StatementKind,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
-    Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable,
-    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+    ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionVisibility, Generics,
+    LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern, Shared, StructType, Type,
+    TypeAliasType, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics,
+    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -87,6 +89,18 @@ pub struct Resolver<'a> {
     /// Set to the current type if we're resolving an impl
     self_type: Option<Type>,
 
+    /// If we're currently resolving methods within a trait impl, this will be set
+    /// to the corresponding trait impl ID.
+    current_trait_impl: Option<TraitImplId>,
+
+    /// True if the current module is a contract.
+    /// This is usually determined by self.path_resolver.module_id(), but it can
+    /// be overriden for impls. Impls are an odd case since the methods within resolve
+    /// as if they're in the parent module, but should be placed in a child module.
+    /// Since they should be within a child module, in_contract is manually set to false
+    /// for these so we can still resolve them in the parent module without them being in a contract.
+    in_contract: bool,
+
     /// Contains a mapping of the current struct or functions's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
     /// This is a Vec rather than a map to preserve the order a functions generics
@@ -119,6 +133,9 @@ impl<'a> Resolver<'a> {
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
         file: FileId,
     ) -> Resolver<'a> {
+        let module_id = path_resolver.module_id();
+        let in_contract = module_id.module(def_maps).is_contract;
+
         Self {
             path_resolver,
             def_maps,
@@ -130,7 +147,9 @@ impl<'a> Resolver<'a> {
             generics: Vec::new(),
             errors: Vec::new(),
             lambda_stack: Vec::new(),
+            current_trait_impl: None,
             file,
+            in_contract,
         }
     }
 
@@ -140,6 +159,10 @@ impl<'a> Resolver<'a> {
 
     pub fn set_trait_id(&mut self, trait_id: Option<TraitId>) {
         self.trait_id = trait_id;
+    }
+
+    pub fn set_trait_impl_id(&mut self, impl_id: Option<TraitImplId>) {
+        self.current_trait_impl = impl_id;
     }
 
     pub fn get_self_type(&mut self) -> Option<&Type> {
@@ -344,6 +367,15 @@ impl<'a> Resolver<'a> {
         (hir_func, func_meta)
     }
 
+    pub fn resolve_trait_constraint(
+        &mut self,
+        constraint: UnresolvedTraitConstraint,
+    ) -> Option<TraitConstraint> {
+        let typ = self.resolve_type(constraint.typ);
+        let trait_id = self.lookup_trait_or_error(constraint.trait_bound.trait_path)?.id;
+        Some(TraitConstraint { typ, trait_id })
+    }
+
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
@@ -376,6 +408,8 @@ impl<'a> Resolver<'a> {
             Unspecified => Type::Error,
             Error => Type::Error,
             Named(path, args) => self.resolve_named_type(path, args, new_variables),
+            TraitAsType(path, args) => self.resolve_trait_as_type(path, args, new_variables),
+
             Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
@@ -476,6 +510,19 @@ impl<'a> Resolver<'a> {
                 Type::Struct(struct_type, args)
             }
             None => Type::Error,
+        }
+    }
+
+    fn resolve_trait_as_type(
+        &mut self,
+        path: Path,
+        _args: Vec<UnresolvedType>,
+        _new_variables: &mut Generics,
+    ) -> Type {
+        if let Some(t) = self.lookup_trait_or_error(path) {
+            Type::TraitAsType(t)
+        } else {
+            Type::Error
         }
     }
 
@@ -713,12 +760,16 @@ impl<'a> Resolver<'a> {
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 
-        for (pattern, typ, visibility) in func.parameters().iter().cloned() {
+        for Param { visibility, pattern, typ, span: _ } in func.parameters().iter().cloned() {
             if visibility == Visibility::Public && !self.pub_allowed(func) {
                 self.push_err(ResolverError::UnnecessaryPub {
                     ident: func.name_ident().clone(),
                     position: PubPosition::Parameter,
                 });
+            }
+
+            if self.is_entry_point_function(func) {
+                self.verify_type_valid_for_program_input(&typ);
             }
 
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
@@ -777,6 +828,7 @@ impl<'a> Resolver<'a> {
             kind: func.kind,
             location,
             typ,
+            trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
@@ -786,10 +838,25 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// Override whether this name resolver is within a contract or not.
+    /// This will affect which types are allowed as parameters to methods as well
+    /// as which modifiers are allowed on a function.
+    pub(crate) fn set_in_contract(&mut self, in_contract: bool) {
+        self.in_contract = in_contract;
+    }
+
     /// True if the 'pub' keyword is allowed on parameters in this function
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
-        if self.in_contract() {
+        if self.in_contract {
             !func.def.is_unconstrained
+        } else {
+            func.name() == MAIN_FUNCTION
+        }
+    }
+
+    fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
+        if self.in_contract {
+            func.attributes().is_contract_entry_point()
         } else {
             func.name() == MAIN_FUNCTION
         }
@@ -797,7 +864,7 @@ impl<'a> Resolver<'a> {
 
     /// True if the `distinct` keyword is allowed on a function's return type
     fn distinct_allowed(&self, func: &NoirFunction) -> bool {
-        if self.in_contract() {
+        if self.in_contract {
             // "open" and "unconstrained" functions are compiled to brillig and thus duplication of
             // witness indices in their abis is not a concern.
             !func.def.is_unconstrained && !func.def.is_open
@@ -809,7 +876,7 @@ impl<'a> Resolver<'a> {
     fn handle_function_type(&mut self, function: &FuncId) {
         let function_type = self.interner.function_modifiers(function).contract_function_type;
 
-        if !self.in_contract() && function_type == Some(ContractFunctionType::Open) {
+        if !self.in_contract && function_type == Some(ContractFunctionType::Open) {
             let span = self.interner.function_ident(function).span();
             self.errors.push(ResolverError::ContractFunctionTypeInNormalFunction { span });
             self.interner.function_modifiers_mut(function).contract_function_type = None;
@@ -817,7 +884,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn handle_is_function_internal(&mut self, function: &FuncId) {
-        if !self.in_contract() {
+        if !self.in_contract {
             if self.interner.function_modifiers(function).is_internal == Some(true) {
                 let span = self.interner.function_ident(function).span();
                 self.push_err(ResolverError::ContractFunctionInternalInNormalFunction { span });
@@ -874,6 +941,7 @@ impl<'a> Resolver<'a> {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
+            | Type::TraitAsType(_)
             | Type::Forall(_, _) => (),
 
             Type::Array(length, element_type) => {
@@ -960,23 +1028,37 @@ impl<'a> Resolver<'a> {
                 HirStatement::Assign(stmt)
             }
             StatementKind::For(for_loop) => {
-                let start_range = self.resolve_expression(for_loop.start_range);
-                let end_range = self.resolve_expression(for_loop.end_range);
-                let (identifier, block) = (for_loop.identifier, for_loop.block);
+                match for_loop.range {
+                    ForRange::Range(start_range, end_range) => {
+                        let start_range = self.resolve_expression(start_range);
+                        let end_range = self.resolve_expression(end_range);
+                        let (identifier, block) = (for_loop.identifier, for_loop.block);
 
-                // TODO: For loop variables are currently mutable by default since we haven't
-                //       yet implemented syntax for them to be optionally mutable.
-                let (identifier, block) = self.in_new_scope(|this| {
-                    let decl = this.add_variable_decl(
-                        identifier,
-                        false,
-                        true,
-                        DefinitionKind::Local(None),
-                    );
-                    (decl, this.resolve_expression(block))
-                });
+                        // TODO: For loop variables are currently mutable by default since we haven't
+                        //       yet implemented syntax for them to be optionally mutable.
+                        let (identifier, block) = self.in_new_scope(|this| {
+                            let decl = this.add_variable_decl(
+                                identifier,
+                                false,
+                                true,
+                                DefinitionKind::Local(None),
+                            );
+                            (decl, this.resolve_expression(block))
+                        });
 
-                HirStatement::For(HirForStatement { start_range, end_range, block, identifier })
+                        HirStatement::For(HirForStatement {
+                            start_range,
+                            end_range,
+                            block,
+                            identifier,
+                        })
+                    }
+                    range @ ForRange::Array(_) => {
+                        let for_stmt =
+                            range.into_for(for_loop.identifier, for_loop.block, for_loop.span);
+                        self.resolve_stmt(for_stmt)
+                    }
+                }
             }
             StatementKind::Error => HirStatement::Error,
         }
@@ -1011,20 +1093,39 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    // Issue an error if the given private function is being called from a non-child module
-    fn check_can_reference_private_function(&mut self, func: FuncId, span: Span) {
+    // Issue an error if the given private function is being called from a non-child module, or
+    // if the given pub(crate) function is being called from another crate
+    fn check_can_reference_function(
+        &mut self,
+        func: FuncId,
+        span: Span,
+        visibility: FunctionVisibility,
+    ) {
         let function_module = self.interner.function_module(func);
         let current_module = self.path_resolver.module_id();
 
         let same_crate = function_module.krate == current_module.krate;
         let krate = function_module.krate;
         let current_module = current_module.local_id;
-
-        if !same_crate
-            || !self.module_descendent_of_target(krate, function_module.local_id, current_module)
-        {
-            let name = self.interner.function_name(&func).to_string();
-            self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
+        let name = self.interner.function_name(&func).to_string();
+        match visibility {
+            FunctionVisibility::Public => (),
+            FunctionVisibility::Private => {
+                if !same_crate
+                    || !self.module_descendent_of_target(
+                        krate,
+                        function_module.local_id,
+                        current_module,
+                    )
+                {
+                    self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
+                }
+            }
+            FunctionVisibility::PublicCrate => {
+                if !same_crate {
+                    self.errors.push(ResolverError::NonCrateFunctionCalled { span, name });
+                }
+            }
         }
     }
 
@@ -1106,8 +1207,12 @@ impl<'a> Resolver<'a> {
                 Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
-                if let Some(expr) = self.resolve_trait_generic_path(&path) {
-                    expr
+                if let Some((hir_expr, object_type)) = self.resolve_trait_generic_path(&path) {
+                    let expr_id = self.interner.push_expr(hir_expr);
+                    self.interner.push_expr_location(expr_id, expr.span, self.file);
+                    self.interner
+                        .select_impl_for_ident(expr_id, TraitImplKind::Assumed { object_type });
+                    return expr_id;
                 } else {
                     // If the Path is being used as an Expression, then it is referring to a global from a separate module
                     // Otherwise, then it is referring to an Identifier
@@ -1118,9 +1223,15 @@ impl<'a> Resolver<'a> {
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
                             DefinitionKind::Function(id) => {
-                                if self.interner.function_visibility(id) == Visibility::Private {
+                                if self.interner.function_visibility(id)
+                                    != FunctionVisibility::Public
+                                {
                                     let span = hir_ident.location.span;
-                                    self.check_can_reference_private_function(id, span);
+                                    self.check_can_reference_function(
+                                        id,
+                                        span,
+                                        self.interner.function_visibility(id),
+                                    );
                                 }
                             }
                             DefinitionKind::Global(_) => {}
@@ -1260,8 +1371,11 @@ impl<'a> Resolver<'a> {
                     captures: lambda_context.captures,
                 })
             }),
+            ExpressionKind::Parenthesized(sub_expr) => return self.resolve_expression(*sub_expr),
         };
 
+        // If these lines are ever changed, make sure to change the early return
+        // in the ExpressionKind::Variable case as well
         let expr_id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(expr_id, expr.span, self.file);
         expr_id
@@ -1429,6 +1543,17 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// Lookup a given trait by name/path.
+    fn lookup_trait_or_error(&mut self, path: Path) -> Option<Trait> {
+        match self.lookup(path) {
+            Ok(trait_id) => Some(self.get_trait(trait_id)),
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
     /// Looks up a given type by name.
     /// This will also instantiate any struct types found.
     fn lookup_type_or_error(&mut self, path: Path) -> Option<Type> {
@@ -1457,7 +1582,10 @@ impl<'a> Resolver<'a> {
     }
 
     // this resolves Self::some_static_method, inside an impl block (where we don't have a concrete self_type)
-    fn resolve_trait_static_method_by_self(&mut self, path: &Path) -> Option<HirExpression> {
+    fn resolve_trait_static_method_by_self(
+        &mut self,
+        path: &Path,
+    ) -> Option<(HirExpression, Type)> {
         if let Some(trait_id) = self.trait_id {
             if path.kind == PathKind::Plain && path.segments.len() == 2 {
                 let name = &path.segments[0].0.contents;
@@ -1471,7 +1599,7 @@ impl<'a> Resolver<'a> {
                             the_trait.self_type_typevar,
                             crate::TypeVariableKind::Normal,
                         );
-                        return Some(HirExpression::TraitMethodReference(self_type, method));
+                        return Some((HirExpression::TraitMethodReference(method), self_type));
                     }
                 }
             }
@@ -1480,7 +1608,10 @@ impl<'a> Resolver<'a> {
     }
 
     // this resolves a static trait method T::trait_method by iterating over the where clause
-    fn resolve_trait_method_by_named_generic(&mut self, path: &Path) -> Option<HirExpression> {
+    fn resolve_trait_method_by_named_generic(
+        &mut self,
+        path: &Path,
+    ) -> Option<(HirExpression, Type)> {
         if path.segments.len() != 2 {
             return None;
         }
@@ -1502,7 +1633,7 @@ impl<'a> Resolver<'a> {
                         the_trait.find_method(path.segments.last().unwrap().clone())
                     {
                         let self_type = self.resolve_type(typ.clone());
-                        return Some(HirExpression::TraitMethodReference(self_type, method));
+                        return Some((HirExpression::TraitMethodReference(method), self_type));
                     }
                 }
             }
@@ -1510,7 +1641,7 @@ impl<'a> Resolver<'a> {
         None
     }
 
-    fn resolve_trait_generic_path(&mut self, path: &Path) -> Option<HirExpression> {
+    fn resolve_trait_generic_path(&mut self, path: &Path) -> Option<(HirExpression, Type)> {
         self.resolve_trait_static_method_by_self(path)
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
@@ -1565,11 +1696,6 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn in_contract(&self) -> bool {
-        let module_id = self.path_resolver.module_id();
-        module_id.module(self.def_maps).is_contract
-    }
-
     fn resolve_fmt_str_literal(&mut self, str: String, call_expr_span: Span) -> HirLiteral {
         let re = Regex::new(r"\{([a-zA-Z0-9_]+)\}")
             .expect("ICE: an invalid regex pattern was used for checking format strings");
@@ -1598,6 +1724,88 @@ impl<'a> Resolver<'a> {
             }
         }
         HirLiteral::FmtStr(str, fmt_str_idents)
+    }
+
+    /// Only sized types are valid to be used as main's parameters or the parameters to a contract
+    /// function. If the given type is not sized (e.g. contains a slice or NamedGeneric type), an
+    /// error is issued.
+    fn verify_type_valid_for_program_input(&mut self, typ: &UnresolvedType) {
+        match &typ.typ {
+            UnresolvedTypeData::FieldElement
+            | UnresolvedTypeData::Integer(_, _)
+            | UnresolvedTypeData::Bool
+            | UnresolvedTypeData::Unit
+            | UnresolvedTypeData::Error => (),
+
+            UnresolvedTypeData::MutableReference(_)
+            | UnresolvedTypeData::Function(_, _, _)
+            | UnresolvedTypeData::FormatString(_, _)
+            | UnresolvedTypeData::TraitAsType(..)
+            | UnresolvedTypeData::Unspecified => {
+                let span = typ.span.expect("Function parameters should always have spans");
+                self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
+            }
+
+            UnresolvedTypeData::Array(length, element) => {
+                if let Some(length) = length {
+                    self.verify_type_expression_valid_for_program_input(length);
+                } else {
+                    let span = typ.span.expect("Function parameters should always have spans");
+                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
+                }
+                self.verify_type_valid_for_program_input(element);
+            }
+            UnresolvedTypeData::Expression(expression) => {
+                self.verify_type_expression_valid_for_program_input(expression);
+            }
+            UnresolvedTypeData::String(length) => {
+                if let Some(length) = length {
+                    self.verify_type_expression_valid_for_program_input(length);
+                } else {
+                    let span = typ.span.expect("Function parameters should always have spans");
+                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
+                }
+            }
+            UnresolvedTypeData::Named(path, generics) => {
+                // Since the type is named, we need to resolve it to see what it actually refers to
+                // in order to check whether it is valid. Since resolving it may lead to a
+                // resolution error, we have to truncate our error count to the previous count just
+                // in case. This is to ensure resolution errors are not issued twice when this type
+                // is later resolved properly.
+                let error_count = self.errors.len();
+                let resolved = self.resolve_named_type(path.clone(), generics.clone(), &mut vec![]);
+                self.errors.truncate(error_count);
+
+                if !resolved.is_valid_for_program_input() {
+                    let span = typ.span.expect("Function parameters should always have spans");
+                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
+                }
+            }
+            UnresolvedTypeData::Tuple(elements) => {
+                for element in elements {
+                    self.verify_type_valid_for_program_input(element);
+                }
+            }
+        }
+    }
+
+    fn verify_type_expression_valid_for_program_input(&mut self, expr: &UnresolvedTypeExpression) {
+        match expr {
+            UnresolvedTypeExpression::Constant(_, _) => (),
+            UnresolvedTypeExpression::Variable(path) => {
+                let error_count = self.errors.len();
+                let resolved = self.resolve_named_type(path.clone(), vec![], &mut vec![]);
+                self.errors.truncate(error_count);
+
+                if !resolved.is_valid_for_program_input() {
+                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span: path.span() });
+                }
+            }
+            UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
+                self.verify_type_expression_valid_for_program_input(lhs);
+                self.verify_type_expression_valid_for_program_input(rhs);
+            }
+        }
     }
 }
 

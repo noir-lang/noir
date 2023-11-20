@@ -194,7 +194,8 @@ impl<'a> ValueMerger<'a> {
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
-                let index_value = ((i * element_types.len() + element_index) as u128).into();
+                let index_usize = i * element_types.len() + element_index;
+                let index_value = (index_usize as u128).into();
                 let index = self.dfg.make_constant(index_value, Type::field());
 
                 let typevars = Some(vec![element_type.clone()]);
@@ -202,7 +203,7 @@ impl<'a> ValueMerger<'a> {
                 let mut get_element = |array, typevars, len| {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
-                    if len <= index_value.to_u128() as usize {
+                    if len <= index_usize {
                         self.make_slice_dummy_data(element_type)
                     } else {
                         let get = Instruction::ArrayGet { array, index };
@@ -239,6 +240,11 @@ impl<'a> ValueMerger<'a> {
             Value::Instruction { instruction: instruction_id, .. } => {
                 let instruction = &self.dfg[*instruction_id];
                 match instruction {
+                    // TODO(#3188): A slice can be the result of an ArrayGet when it is the
+                    // fetched from a slice of slices or as a struct field.
+                    // However, we need to incorporate nested slice support in flattening
+                    // in order for this to be valid
+                    // Instruction::ArrayGet { array, .. } => {}
                     Instruction::ArraySet { array, .. } => {
                         let array = *array;
                         let len = self.get_slice_length(array);
@@ -323,7 +329,9 @@ impl<'a> ValueMerger<'a> {
                 self.dfg.make_array(array, typ.clone())
             }
             Type::Slice(_) => {
-                unreachable!("ICE: Slices of slice is unsupported")
+                // TODO(#3188): Need to update flattening to use true user facing length of slices
+                // to accurately construct dummy data
+                unreachable!("ICE: Cannot return a slice of slices from an if expression")
             }
             Type::Reference(_) => {
                 unreachable!("ICE: Merging references is unsupported")

@@ -3,5 +3,4 @@ trait MyTrait {
   let SomeConst: Field;
 }
 
-fn main() {
-}
+fn main() {}

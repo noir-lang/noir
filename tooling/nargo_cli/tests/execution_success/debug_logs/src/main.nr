@@ -1,9 +1,8 @@
 use dep::std;
 
-fn main(x : Field, y : pub Field) {
+fn main(x: Field, y: pub Field) {
     let string = "i: {i}, j: {j}";
     std::println(string);
-
     // A `fmtstr` lets you easily perform string interpolation.
     let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
     let fmt_str = string_identity(fmt_str);
@@ -25,12 +24,12 @@ fn main(x : Field, y : pub Field) {
 
     std::println(x);
     std::println([x, y]);
-    
+
     let foo = fooStruct { my_struct: s, foo: 15 };
     std::println(f"s: {s}, foo: {foo}");
 
     std::println(f"x: 0, y: 1");
-    
+
     let s_2 = myStruct { x: 20, y: 30 };
     std::println(f"s1: {s}, s2: {s_2}");
 
@@ -67,7 +66,7 @@ struct fooStruct {
 
 fn regression_2906() {
     let array_two_vals = [1, 2];
-    dep::std::println(f"array_two_vals: {array_two_vals}"); 
+    dep::std::println(f"array_two_vals: {array_two_vals}");
 
     let label_two_vals = "12";
     dep::std::println(f"label_two_vals: {label_two_vals}");
