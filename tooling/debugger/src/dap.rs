@@ -110,94 +110,10 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     })))?;
                 }
                 Command::StackTrace(_) => {
-                    let opcode_location = self.context.get_current_opcode_location();
-                    let source_location = self.context.get_current_source_location();
-                    let frames = match source_location {
-                        None => vec![],
-                        Some(locations) => locations
-                            .iter()
-                            .enumerate()
-                            .map(|(index, location)| {
-                                let line_number =
-                                    self.debug_artifact.location_line_number(*location).unwrap();
-                                let column_number =
-                                    self.debug_artifact.location_column_number(*location).unwrap();
-                                let ip_reference =
-                                    opcode_location.map(|location| location.to_string());
-                                StackFrame {
-                                    id: index as i64,
-                                    name: format!("frame #{index}"),
-                                    source: Some(Source {
-                                        path: self.debug_artifact.file_map[&location.file]
-                                            .path
-                                            .to_str()
-                                            .map(String::from),
-                                        ..Source::default()
-                                    }),
-                                    line: line_number as i64,
-                                    column: column_number as i64,
-                                    instruction_pointer_reference: ip_reference,
-                                    ..StackFrame::default()
-                                }
-                            })
-                            .collect(),
-                    };
-                    let total_frames = Some(frames.len() as i64);
-                    self.server.respond(req.success(ResponseBody::StackTrace(
-                        StackTraceResponse { stack_frames: frames, total_frames },
-                    )))?;
+                    self.handle_stack_trace(req)?;
                 }
-                Command::Disassemble(ref args) => {
-                    let starting_ip = OpcodeLocation::from_str(args.memory_reference.as_str()).ok();
-                    let instruction_offset = args.instruction_offset.unwrap_or(0);
-                    let (mut opcode_location, mut invalid_count) =
-                        self.context.offset_opcode_location(&starting_ip, instruction_offset);
-                    let mut count = args.instruction_count;
-
-                    let mut instructions: Vec<DisassembledInstruction> = vec![];
-
-                    // leading invalid locations (when the request goes back
-                    // beyond the start of the program)
-                    if invalid_count < 0 {
-                        while invalid_count < 0 {
-                            instructions.push(DisassembledInstruction {
-                                address: String::from("---"),
-                                instruction: String::from("---"),
-                                ..DisassembledInstruction::default()
-                            });
-                            invalid_count += 1;
-                            count -= 1;
-                        }
-                        if count > 0 {
-                            opcode_location = Some(OpcodeLocation::Acir(0));
-                        }
-                    }
-                    // the actual opcodes
-                    while count > 0 && !matches!(opcode_location, None) {
-                        instructions.push(DisassembledInstruction {
-                            address: format!("{}", opcode_location.unwrap()),
-                            instruction: self.context.render_opcode_at_location(&opcode_location),
-                            ..DisassembledInstruction::default()
-                        });
-                        (opcode_location, _) =
-                            self.context.offset_opcode_location(&opcode_location, 1);
-                        count -= 1;
-                    }
-                    // any remaining instruction count is beyond the valid opcode
-                    // vector so return invalid placeholders
-                    while count > 0 {
-                        instructions.push(DisassembledInstruction {
-                            address: String::from("---"),
-                            instruction: String::from("---"),
-                            ..DisassembledInstruction::default()
-                        });
-                        invalid_count -= 1;
-                        count -= 1;
-                    }
-
-                    self.server.respond(req.success(ResponseBody::Disassemble(
-                        DisassembleResponse { instructions },
-                    )))?;
+                Command::Disassemble(_) => {
+                    self.handle_disassemble(req)?;
                 }
                 Command::Next(_) | Command::StepIn(_) | Command::StepOut(_) => {
                     self.handle_next(req)?;
@@ -216,6 +132,101 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                 }
             }
         }
+        Ok(())
+    }
+
+    fn handle_stack_trace(&mut self, req: Request) -> Result<(), ServerError> {
+        let opcode_location = self.context.get_current_opcode_location();
+        let source_location = self.context.get_current_source_location();
+        let frames = match source_location {
+            None => vec![],
+            Some(locations) => locations
+                .iter()
+                .enumerate()
+                .map(|(index, location)| {
+                    let line_number = self.debug_artifact.location_line_number(*location).unwrap();
+                    let column_number =
+                        self.debug_artifact.location_column_number(*location).unwrap();
+                    let ip_reference = opcode_location.map(|location| location.to_string());
+                    StackFrame {
+                        id: index as i64,
+                        name: format!("frame #{index}"),
+                        source: Some(Source {
+                            path: self.debug_artifact.file_map[&location.file]
+                                .path
+                                .to_str()
+                                .map(String::from),
+                            ..Source::default()
+                        }),
+                        line: line_number as i64,
+                        column: column_number as i64,
+                        instruction_pointer_reference: ip_reference,
+                        ..StackFrame::default()
+                    }
+                })
+                .collect(),
+        };
+        let total_frames = Some(frames.len() as i64);
+        self.server.respond(req.success(ResponseBody::StackTrace(StackTraceResponse {
+            stack_frames: frames,
+            total_frames,
+        })))?;
+        Ok(())
+    }
+
+    fn handle_disassemble(&mut self, req: Request) -> Result<(), ServerError> {
+        let Command::Disassemble(ref args) = req.command else {
+            unreachable!("handle_disassemble called on a non disassemble request");
+        };
+        let starting_ip = OpcodeLocation::from_str(args.memory_reference.as_str()).ok();
+        let instruction_offset = args.instruction_offset.unwrap_or(0);
+        let (mut opcode_location, mut invalid_count) =
+            self.context.offset_opcode_location(&starting_ip, instruction_offset);
+        let mut count = args.instruction_count;
+
+        let mut instructions: Vec<DisassembledInstruction> = vec![];
+
+        // leading invalid locations (when the request goes back
+        // beyond the start of the program)
+        if invalid_count < 0 {
+            while invalid_count < 0 {
+                instructions.push(DisassembledInstruction {
+                    address: String::from("---"),
+                    instruction: String::from("---"),
+                    ..DisassembledInstruction::default()
+                });
+                invalid_count += 1;
+                count -= 1;
+            }
+            if count > 0 {
+                opcode_location = Some(OpcodeLocation::Acir(0));
+            }
+        }
+        // the actual opcodes
+        while count > 0 && !matches!(opcode_location, None) {
+            instructions.push(DisassembledInstruction {
+                address: format!("{}", opcode_location.unwrap()),
+                instruction: self.context.render_opcode_at_location(&opcode_location),
+                ..DisassembledInstruction::default()
+            });
+            (opcode_location, _) = self.context.offset_opcode_location(&opcode_location, 1);
+            count -= 1;
+        }
+        // any remaining instruction count is beyond the valid opcode
+        // vector so return invalid placeholders
+        while count > 0 {
+            instructions.push(DisassembledInstruction {
+                address: String::from("---"),
+                instruction: String::from("---"),
+                ..DisassembledInstruction::default()
+            });
+            invalid_count -= 1;
+            count -= 1;
+        }
+
+        self.server.respond(
+            req.success(ResponseBody::Disassemble(DisassembleResponse { instructions })),
+        )?;
         Ok(())
     }
 
