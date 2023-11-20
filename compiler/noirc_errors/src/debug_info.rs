@@ -22,6 +22,7 @@ pub struct DebugInfo {
 
 /// Holds OpCodes Counts for Acir and Brillig Opcodes
 /// To be printed with `nargo info --profile-info`
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct OpCodesCount {
     pub acir_size: usize,
     pub brillig_size: usize,
@@ -51,12 +52,12 @@ impl DebugInfo {
         self.locations.get(loc).cloned()
     }
 
-    pub fn count_span_opcodes(&self) -> HashMap<&Location, OpCodesCount> {
-        let mut accumulator: HashMap<&Location, Vec<&OpcodeLocation>> = HashMap::new();
+    pub fn count_span_opcodes(&self) -> HashMap<Location, OpCodesCount> {
+        let mut accumulator: HashMap<Location, Vec<&OpcodeLocation>> = HashMap::new();
 
         for (opcode_location, locations) in self.locations.iter() {
             for location in locations.iter() {
-                let opcodes = accumulator.entry(location).or_insert(Vec::new());
+                let opcodes = accumulator.entry(*location).or_insert(Vec::new());
                 opcodes.push(opcode_location);
             }
         }

@@ -5,7 +5,7 @@ fn main(x: Field) {
     assert(1 == conditional(x as bool));
 }
 
-unconstrained fn conditional(x : bool) -> Field {
+unconstrained fn conditional(x: bool) -> Field {
     assert(x);
     1
 }

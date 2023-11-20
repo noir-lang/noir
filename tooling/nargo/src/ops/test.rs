@@ -6,7 +6,7 @@ use noirc_frontend::hir::{def_map::TestFunction, Context};
 
 use crate::{errors::try_to_diagnose_runtime_error, NargoError};
 
-use super::execute_circuit;
+use super::{execute_circuit, DefaultForeignCallExecutor};
 
 pub enum TestStatus {
     Pass,
@@ -26,8 +26,12 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
         Ok(program) => {
             // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
             // otherwise constraints involving these expressions will not error.
-            let circuit_execution =
-                execute_circuit(blackbox_solver, &program.circuit, WitnessMap::new(), show_output);
+            let circuit_execution = execute_circuit(
+                &program.circuit,
+                WitnessMap::new(),
+                blackbox_solver,
+                &mut DefaultForeignCallExecutor::new(show_output),
+            );
             test_status_program_compile_pass(test_function, program.debug, circuit_execution)
         }
         Err(err) => test_status_program_compile_fail(err, test_function),

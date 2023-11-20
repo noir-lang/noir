@@ -10,7 +10,6 @@ fn main(x: Field, y: Field) {
     let (u, v) = if x as u32 < 1 { (x, x + 1) } else { (x + 1, x) };
     assert(u == x + 1);
     assert(v == x);
-
     // Test mutating tuples
     let mut mutable = ((0, 0), 1, 2, 3);
     mutable.0 = (x, y);
