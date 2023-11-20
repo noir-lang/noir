@@ -10,7 +10,6 @@ license.workspace = true
 
 [dependencies]
 acvm.workspace = true
-backend_interface.workspace = true
 nargo.workspace = true
 nargo_toml.workspace = true
 noirc_printable_type.workspace = true

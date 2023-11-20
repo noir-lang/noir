@@ -71,7 +71,6 @@ noirc_printable_type = { path = "compiler/noirc_printable_type" }
 noir_wasm = { path = "compiler/wasm" }
 
 # Noir tooling workspace dependencies
-backend_interface = { path = "tooling/backend_interface" }
 nargo = { path = "tooling/nargo" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_cli = { path = "tooling/nargo_cli" }
