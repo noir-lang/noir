@@ -183,6 +183,7 @@ __metadata:
     "@aztec/l1-artifacts": "workspace:^"
     "@aztec/noir-compiler": "workspace:^"
     "@aztec/noir-contracts": "workspace:^"
+    "@aztec/p2p": "workspace:^"
     "@aztec/pxe": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0

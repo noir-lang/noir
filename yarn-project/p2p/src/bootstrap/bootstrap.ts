@@ -31,7 +31,9 @@ export class BootstrapNode {
       config;
     const peerId = await createLibP2PPeerId(peerIdPrivateKey);
     this.logger(
-      `Starting bootstrap node ${peerId} on ${tcpListenIp}:${tcpListenPort} announced at ${announceHostname}:${announcePort}`,
+      `Starting bootstrap node ${peerId} on ${tcpListenIp}:${tcpListenPort} announced at ${announceHostname}:${
+        announcePort ?? tcpListenPort
+      }`,
     );
 
     const opts: Libp2pOptions<ServiceMap> = {

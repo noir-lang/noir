@@ -21,13 +21,14 @@ import {
   RollupAbi,
   RollupBytecode,
 } from '@aztec/l1-artifacts';
-import { createPXEService, getPXEServiceConfig } from '@aztec/pxe';
+import { PXEServiceConfig, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
+import { AztecNode } from '@aztec/types';
 
 import { HDAccount, createPublicClient, http as httpViemTransport } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
 
-const { MNEMONIC = 'test test test test test test test test test test test junk' } = process.env;
+export const { MNEMONIC = 'test test test test test test test test test test test junk' } = process.env;
 
 const logger = createDebugLogger('aztec:sandbox');
 
@@ -71,7 +72,7 @@ async function waitThenDeploy(config: AztecNodeConfig, deployFunction: () => Pro
  * @param aztecNodeConfig - The Aztec Node Config
  * @param hdAccount - Account for publishing L1 contracts
  */
-async function deployContractsToL1(aztecNodeConfig: AztecNodeConfig, hdAccount: HDAccount) {
+export async function deployContractsToL1(aztecNodeConfig: AztecNodeConfig, hdAccount: HDAccount) {
   const l1Artifacts: L1ContractArtifactsForDeployment = {
     contractDeploymentEmitter: {
       contractAbi: ContractDeploymentEmitterAbi,
@@ -117,7 +118,6 @@ export type SandboxConfig = AztecNodeConfig & {
  */
 export async function createSandbox(config: Partial<SandboxConfig> = {}) {
   const aztecNodeConfig: AztecNodeConfig = { ...getConfigEnvVars(), ...config };
-  const pxeServiceConfig = getPXEServiceConfig();
   const hdAccount = mnemonicToAccount(config.l1Mnemonic ?? MNEMONIC);
   if (aztecNodeConfig.publisherPrivateKey === NULL_KEY) {
     const privKey = hdAccount.getHdKey().privateKey;
@@ -128,8 +128,8 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
     await deployContractsToL1(aztecNodeConfig, hdAccount);
   }
 
-  const node = await AztecNodeService.createAndSync(aztecNodeConfig);
-  const pxe = await createPXEService(node, pxeServiceConfig);
+  const node = await createAztecNode(aztecNodeConfig);
+  const pxe = await createAztecPXE(node);
 
   const stop = async () => {
     await pxe.stop();
@@ -137,4 +137,24 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
   };
 
   return { node, pxe, aztecNodeConfig, stop };
+}
+
+/**
+ * Create and start a new Aztec RPC HTTP Server
+ * @param config - Optional Aztec node settings.
+ */
+export async function createAztecNode(config: Partial<AztecNodeConfig> = {}) {
+  const aztecNodeConfig: AztecNodeConfig = { ...getConfigEnvVars(), ...config };
+  const node = await AztecNodeService.createAndSync(aztecNodeConfig);
+  return node;
+}
+
+/**
+ * Create and start a new Aztec PXE HTTP Server
+ * @param config - Optional PXE settings.
+ */
+export async function createAztecPXE(node: AztecNode, config: Partial<PXEServiceConfig> = {}) {
+  const pxeServiceConfig: PXEServiceConfig = { ...getPXEServiceConfig(), ...config };
+  const pxe = await createPXEService(node, pxeServiceConfig);
+  return pxe;
 }
