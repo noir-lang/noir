@@ -23,4 +23,8 @@ impl PublicDataRead {
     pub fn is_empty(self) -> bool {
         (self.leaf_index == 0) & (self.value == 0)
     }
+
+    pub fn eq(self, public_data_read: PublicDataRead) -> bool {
+        (public_data_read.leaf_index == self.leaf_index) & (public_data_read.value == self.value)
+    }
 }

@@ -166,7 +166,7 @@ mod tests {
     use dep::types::{
         abis::kernel_circuit_public_inputs::KernelCircuitPublicInputsFinal,
         hash::compute_unique_siloed_commitments,
-        tests::testing_harness::PreviousKernelDataBuilder,
+        tests::previous_kernel_data_builder::PreviousKernelDataBuilder,
         utils::{
             arrays::{array_length, is_empty_array, expect_array_fields},
             bounded_vec::BoundedVec,
@@ -182,7 +182,7 @@ mod tests {
     impl PrivateKernelOrderingInputsBuilder {
         pub fn new() -> Self {
             PrivateKernelOrderingInputsBuilder {
-                previous_kernel: PreviousKernelDataBuilder::new(false),
+                previous_kernel: PreviousKernelDataBuilder::new(),
                 read_commitment_hints: [0; MAX_READ_REQUESTS_PER_TX],
                 nullifier_commitment_hints: [0; MAX_NEW_NULLIFIERS_PER_TX],
             }
@@ -235,7 +235,7 @@ mod tests {
             kernel.native_private_kernel_circuit_ordering()
         }
 
-        pub fn failed(&mut self) {
+        pub fn failed(self) {
             let _ = self.execute();
         }
     }

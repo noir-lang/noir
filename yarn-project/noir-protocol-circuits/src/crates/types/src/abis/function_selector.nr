@@ -12,5 +12,9 @@ impl FunctionSelector {
         FunctionSelector {
             inner : value,
         }
-    } 
+    }
+
+    pub fn zero() -> Self {
+        FunctionSelector { inner: 0 }
+    }
 }

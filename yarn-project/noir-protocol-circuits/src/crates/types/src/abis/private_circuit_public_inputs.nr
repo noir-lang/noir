@@ -79,3 +79,68 @@ impl PrivateCircuitPublicInputs{
         dep::std::hash::pedersen_hash_with_separator(fields.storage, constants_gen::GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS)
     }
 }
+
+struct PrivateCircuitPublicInputsBuilder {
+    call_context: CallContext,
+    
+    args_hash: Field,
+    return_values: BoundedVec<Field, RETURN_VALUES_LENGTH>,
+
+    read_requests: BoundedVec<Field, MAX_READ_REQUESTS_PER_CALL>,
+    pending_read_requests: BoundedVec<Field, MAX_PENDING_READ_REQUESTS_PER_CALL>,
+
+    new_commitments: BoundedVec<Field, MAX_NEW_COMMITMENTS_PER_CALL>,
+    new_nullifiers: BoundedVec<Field, MAX_NEW_NULLIFIERS_PER_CALL>,
+    nullified_commitments: BoundedVec<Field, MAX_NEW_NULLIFIERS_PER_CALL>,
+
+    private_call_stack: BoundedVec<Field, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
+    public_call_stack: BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
+    new_l2_to_l1_msgs: BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
+
+    encrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
+    unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
+
+    encrypted_log_preimages_length: Field,
+    unencrypted_log_preimages_length: Field,
+
+    historical_block_data: HistoricalBlockData,
+
+    contract_deployment_data: ContractDeploymentData,
+
+    chain_id: Field,
+    version: Field,
+}
+
+impl PrivateCircuitPublicInputsBuilder {
+    pub fn finish(self) ->  PrivateCircuitPublicInputs {
+        PrivateCircuitPublicInputs {
+            call_context: self.call_context,
+            args_hash: self.args_hash,
+            return_values: self.return_values.storage,
+
+            read_requests: self.read_requests.storage,
+            pending_read_requests: self.pending_read_requests.storage,
+
+            new_commitments: self.new_commitments.storage,
+            new_nullifiers: self.new_nullifiers.storage,
+            nullified_commitments: self.nullified_commitments.storage,
+
+            private_call_stack: self.private_call_stack.storage,
+            public_call_stack: self.public_call_stack.storage,
+            new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
+
+            encrypted_logs_hash: self.encrypted_logs_hash,
+            unencrypted_logs_hash: self.unencrypted_logs_hash,
+
+            encrypted_log_preimages_length: self.encrypted_log_preimages_length,
+            unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
+
+            historical_block_data: self.historical_block_data,
+
+            contract_deployment_data: self.contract_deployment_data,
+
+            chain_id: self.chain_id,
+            version: self.version,
+        }
+    }
+}

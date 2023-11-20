@@ -142,9 +142,7 @@ mod tests {
             compute_logs_hash,
             stdlib_recursion_verification_key_compress_native_vk,
         },
-        tests::{
-            testing_harness::PrivateCallDataBuilder,
-        },
+        tests::private_call_data_builder::PrivateCallDataBuilder,
         transaction::request::TxRequest,
         utils::arrays::array_length,
     };

@@ -95,10 +95,8 @@ mod tests {
     use dep::types::{
         abis::kernel_circuit_public_inputs::KernelCircuitPublicInputs,
         tests::{
-            testing_harness::{
-                PreviousKernelDataBuilder,
-                PrivateCallDataBuilder,
-            },
+            previous_kernel_data_builder::PreviousKernelDataBuilder,
+            private_call_data_builder::PrivateCallDataBuilder,
         },
         address::Address,
         hash::compute_logs_hash,
@@ -115,7 +113,7 @@ mod tests {
 
     impl PrivateKernelInnerInputsBuilder {
         pub fn new() -> Self {
-            let previous_kernel = PreviousKernelDataBuilder::new(false);
+            let previous_kernel = PreviousKernelDataBuilder::new();
             let private_call = PrivateCallDataBuilder::new(false);
 
             PrivateKernelInnerInputsBuilder { previous_kernel, private_call }

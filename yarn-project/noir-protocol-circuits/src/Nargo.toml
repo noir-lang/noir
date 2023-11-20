@@ -8,6 +8,7 @@ members = [
     "crates/private-kernel-inner-simulated",
     "crates/private-kernel-ordering",
     "crates/private-kernel-ordering-simulated",
+    "crates/public-kernel-lib",
     "crates/public-kernel-private-previous",
     "crates/public-kernel-private-previous-simulated",
     "crates/public-kernel-public-previous",

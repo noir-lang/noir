@@ -24,5 +24,7 @@ mod previous_kernel_data;
 mod call_stack_item;
 mod call_context;
 
+mod public_call_data;
+
 mod public_circuit_public_inputs;
 mod private_circuit_public_inputs;
