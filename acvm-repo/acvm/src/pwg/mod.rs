@@ -168,6 +168,14 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
         &self.witness_map
     }
 
+    pub fn overwrite_witness(
+        &mut self,
+        witness: Witness,
+        value: FieldElement,
+    ) -> Option<FieldElement> {
+        self.witness_map.insert(witness, value)
+    }
+
     /// Returns a slice containing the opcodes of the circuit being executed.
     pub fn opcodes(&self) -> &[Opcode] {
         self.opcodes
