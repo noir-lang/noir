@@ -23,7 +23,7 @@ impl HistoricalBlockData {
             self.block.note_hash_tree_root,
             self.block.nullifier_tree_root,
             self.block.contract_tree_root,
-            self.block.l1_to_l2_data_tree_root,
+            self.block.l1_to_l2_messages_tree_root,
             self.blocks_tree_root,
             self.block.public_data_tree_root,
             self.block.global_variables_hash

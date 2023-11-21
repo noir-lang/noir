@@ -6,7 +6,7 @@ struct Block {
     note_hash_tree_root : Field,
     nullifier_tree_root : Field,
     contract_tree_root : Field,
-    l1_to_l2_data_tree_root : Field,
+    l1_to_l2_messages_tree_root : Field,
 
     // Public data
     public_data_tree_root : Field,
@@ -19,7 +19,7 @@ impl Block {
         assert(self.note_hash_tree_root == 0);
         assert(self.nullifier_tree_root == 0);
         assert(self.contract_tree_root == 0);
-        assert(self.l1_to_l2_data_tree_root == 0);
+        assert(self.l1_to_l2_messages_tree_root == 0);
         assert(self.public_data_tree_root == 0);
     }
 
@@ -29,7 +29,7 @@ impl Block {
             self.note_hash_tree_root,
             self.nullifier_tree_root,
             self.contract_tree_root,
-            self.l1_to_l2_data_tree_root,
+            self.l1_to_l2_messages_tree_root,
             self.public_data_tree_root,
         ], constants_gen::GENERATOR_INDEX__BLOCK_HASH)
     }

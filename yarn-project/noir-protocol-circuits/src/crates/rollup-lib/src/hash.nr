@@ -6,10 +6,10 @@ pub fn compute_block_hash_with_globals(
     note_hash_tree_root : Field,
     nullifier_tree_root : Field,
     contract_tree_root : Field,
-    l1_to_l2_data_tree_root : Field,
+    l1_to_l2_messages_tree_root : Field,
     public_data_tree_root : Field) -> Field {
     
-    let inputs = [globals.hash(), note_hash_tree_root, nullifier_tree_root, contract_tree_root, l1_to_l2_data_tree_root, public_data_tree_root];
+    let inputs = [globals.hash(), note_hash_tree_root, nullifier_tree_root, contract_tree_root, l1_to_l2_messages_tree_root, public_data_tree_root];
     
     dep::std::hash::pedersen_hash_with_separator(inputs, constants_gen::GENERATOR_INDEX__BLOCK_HASH)
 }
