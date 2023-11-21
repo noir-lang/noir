@@ -28,6 +28,7 @@ void ProtoGalaxyVerifier_<VerifierInstances>::prepare_for_folding(std::vector<ui
         const FF lookup_grand_product_delta = compute_lookup_grand_product_delta<FF>(beta, gamma, inst->instance_size);
         inst->relation_parameters =
             RelationParameters<FF>{ eta, beta, gamma, public_input_delta, lookup_grand_product_delta };
+        inst->alpha = transcript.get_challenge(domain_separator + "_alpha");
     }
 }
 
@@ -38,7 +39,7 @@ VerifierFoldingResult<typename VerifierInstances::Flavor> ProtoGalaxyVerifier_<
     using Flavor = typename VerifierInstances::Flavor;
 
     prepare_for_folding(fold_data);
-    auto [alpha, delta] = transcript.get_challenges("alpha", "delta");
+    auto delta = transcript.get_challenge("delta");
     auto accumulator = get_accumulator();
     auto log_instance_size = static_cast<size_t>(numeric::get_msb(accumulator->instance_size));
     auto deltas = compute_round_challenge_pows(log_instance_size, delta);
@@ -51,16 +52,13 @@ VerifierFoldingResult<typename VerifierInstances::Flavor> ProtoGalaxyVerifier_<
     auto perturbator_at_challenge = perturbator.evaluate(perturbator_challenge);
 
     // Thed degree of K(X) is dk - k - 1 = k(d - 1) - 1. Hence we need  k(d - 1) evaluations to represent it.
-    std::array<FF, (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 2) * (VerifierInstances::NUM - 1)>
-        combiner_quotient_evals = {};
-    for (size_t idx = 0; idx < (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 2) * (VerifierInstances::NUM - 1); idx++) {
+    std::array<FF, VerifierInstances::BATCHED_EXTENDED_LENGTH - VerifierInstances::NUM> combiner_quotient_evals = {};
+    for (size_t idx = 0; idx < VerifierInstances::BATCHED_EXTENDED_LENGTH - VerifierInstances::NUM; idx++) {
         combiner_quotient_evals[idx] = transcript.template receive_from_prover<FF>(
             "combiner_quotient_" + std::to_string(idx + VerifierInstances::NUM));
     }
-    Univariate<FF,
-               (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 1) * (VerifierInstances::NUM - 1) + 1,
-               VerifierInstances::NUM>
-        combiner_quotient(combiner_quotient_evals);
+    Univariate<FF, VerifierInstances::BATCHED_EXTENDED_LENGTH, VerifierInstances::NUM> combiner_quotient(
+        combiner_quotient_evals);
     auto combiner_challenge = transcript.get_challenge("combiner_quotient_challenge");
     auto combiner_quotient_at_challenge = combiner_quotient.evaluate(combiner_challenge);
 

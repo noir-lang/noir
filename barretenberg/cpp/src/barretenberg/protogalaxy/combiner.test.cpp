@@ -12,6 +12,8 @@ using Polynomial = typename Flavor::Polynomial;
 using FF = typename Flavor::FF;
 using RelationParameters = proof_system::RelationParameters<FF>;
 
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/780): Improve combiner tests to check more than the
+// arithmetic relation so we more than unit test folding relation parameters and alpha as well.
 TEST(Protogalaxy, CombinerOn2Instances)
 {
     constexpr size_t NUM_INSTANCES = 2;
@@ -36,7 +38,6 @@ TEST(Protogalaxy, CombinerOn2Instances)
             std::array<std::array<Polynomial, Flavor::NUM_ALL_ENTITIES>, NUM_INSTANCES> storage_arrays;
             ProtoGalaxyProver prover;
             std::vector<FF> pow_betas = { FF(1), FF(2) };
-            auto alpha = FF(0); // focus on the arithmetic relation only
 
             for (size_t idx = 0; idx < NUM_INSTANCES; idx++) {
                 auto instance = std::make_shared<ProverInstance>();
@@ -49,8 +50,9 @@ TEST(Protogalaxy, CombinerOn2Instances)
             }
 
             ProverInstances instances{ instance_data };
+            instances.alpha = Univariate<FF, 13>(FF(0)); // focus on the arithmetic relation only
 
-            auto result = prover.compute_combiner(instances, pow_betas, alpha);
+            auto result = prover.compute_combiner(instances, pow_betas);
             auto expected_result =
                 barretenberg::Univariate<FF, 13>(std::array<FF, 13>{ 87706,
                                                                      13644570,
@@ -71,7 +73,6 @@ TEST(Protogalaxy, CombinerOn2Instances)
             std::array<std::array<Polynomial, Flavor::NUM_ALL_ENTITIES>, NUM_INSTANCES> storage_arrays;
             ProtoGalaxyProver prover;
             std::vector<FF> pow_betas = { FF(1), FF(2) };
-            auto alpha = FF(0); // focus on the arithmetic relation only
 
             for (size_t idx = 0; idx < NUM_INSTANCES; idx++) {
                 auto instance = std::make_shared<ProverInstance>();
@@ -84,6 +85,7 @@ TEST(Protogalaxy, CombinerOn2Instances)
             }
 
             ProverInstances instances{ instance_data };
+            instances.alpha = Univariate<FF, 13>(FF(0)); // focus on the arithmetic relation only
 
             const auto create_add_gate = [](auto& polys, const size_t idx, FF w_l, FF w_r) {
                 polys.w_l[idx] = w_l;
@@ -129,7 +131,7 @@ TEST(Protogalaxy, CombinerOn2Instances)
             relation value:
                       0    0    0    0    0    0    0              0    0    6   18   36   60   90      */
 
-            auto result = prover.compute_combiner(instances, pow_betas, alpha);
+            auto result = prover.compute_combiner(instances, pow_betas);
             auto expected_result = barretenberg::Univariate<FF, 13>(
                 std::array<FF, 13>{ 0, 0, 12, 36, 72, 120, 180, 252, 336, 432, 540, 660, 792 });
 
@@ -162,7 +164,6 @@ TEST(Protogalaxy, CombinerOn4Instances)
         std::vector<std::shared_ptr<ProverInstance>> instance_data(NUM_INSTANCES);
         std::array<std::array<Polynomial, Flavor::NUM_ALL_ENTITIES>, NUM_INSTANCES> storage_arrays;
         ProtoGalaxyProver prover;
-        auto alpha = FF(0); // focus on the arithmetic relation only
         std::vector<FF> pow_betas = { FF(1), FF(2) };
 
         for (size_t idx = 0; idx < NUM_INSTANCES; idx++) {
@@ -175,16 +176,17 @@ TEST(Protogalaxy, CombinerOn4Instances)
         }
 
         ProverInstances instances{ instance_data };
+        instances.alpha = Univariate<FF, 43>(FF(0)); // focus on the arithmetic relation only
 
         zero_all_selectors(instances[0]->prover_polynomials);
         zero_all_selectors(instances[1]->prover_polynomials);
         zero_all_selectors(instances[2]->prover_polynomials);
         zero_all_selectors(instances[3]->prover_polynomials);
 
-        auto result = prover.compute_combiner(instances, pow_betas, alpha);
-        std::array<FF, 37> zeroes;
+        auto result = prover.compute_combiner(instances, pow_betas);
+        std::array<FF, 43> zeroes;
         std::fill(zeroes.begin(), zeroes.end(), 0);
-        auto expected_result = barretenberg::Univariate<FF, 37>(zeroes);
+        auto expected_result = barretenberg::Univariate<FF, 43>(zeroes);
         EXPECT_EQ(result, expected_result);
     };
     run_test();

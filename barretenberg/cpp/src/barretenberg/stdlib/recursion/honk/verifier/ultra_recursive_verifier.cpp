@@ -103,7 +103,9 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     // Execute Sumcheck Verifier and extract multivariate opening point u = (u_0, ..., u_{d-1}) and purported
     // multivariate evaluations at u
     auto sumcheck = Sumcheck(key->circuit_size);
-    auto [multivariate_challenge, claimed_evaluations, verified] = sumcheck.verify(relation_parameters, transcript);
+    auto alpha = transcript.get_challenge("alpha");
+    auto [multivariate_challenge, claimed_evaluations, verified] =
+        sumcheck.verify(relation_parameters, alpha, transcript);
 
     // Execute ZeroMorph multilinear PCS evaluation verifier
     auto pairing_points = ZeroMorph::verify(commitments.get_unshifted(),

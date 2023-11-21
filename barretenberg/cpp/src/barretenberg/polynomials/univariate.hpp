@@ -38,7 +38,8 @@ template <class Fr, size_t domain_end, size_t domain_start = 0> class Univariate
     Univariate(Univariate&& other) noexcept = default;
     Univariate& operator=(const Univariate& other) = default;
     Univariate& operator=(Univariate&& other) noexcept = default;
-    // Construct Univariate from scalar
+    // Construct constant Univariate from scalar which represents the value that all the points in the domain evaluate
+    // to
     explicit Univariate(Fr value)
         : evaluations{}
     {
@@ -80,6 +81,15 @@ template <class Fr, size_t domain_end, size_t domain_start = 0> class Univariate
         }
         return output;
     };
+
+    static Univariate zero()
+    {
+        auto output = Univariate<Fr, domain_end, domain_start>();
+        for (size_t i = 0; i != LENGTH; ++i) {
+            output.value_at(i) = Fr::zero();
+        }
+        return output;
+    }
 
     static Univariate random_element() { return get_random(); };
 

@@ -27,9 +27,11 @@ template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::prepa
             domain_separator + "_eta", domain_separator + "_beta", domain_separator + "_gamma");
         instance->compute_sorted_accumulator_polynomials(eta);
         instance->compute_grand_product_polynomials(beta, gamma);
+        instance->alpha = transcript.get_challenge(domain_separator + "_alpha");
     }
 
-    fold_parameters(instances);
+    fold_relation_parameters(instances);
+    fold_alpha(instances);
 }
 
 // TODO(#https://github.com/AztecProtocol/barretenberg/issues/689): finalise implementation this function
@@ -40,13 +42,13 @@ ProverFoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverI
     // TODO(#https://github.com/AztecProtocol/barretenberg/issues/740): Handle the case where we are folding for the
     // first time and accumulator is 0
     // TODO(#https://github.com/AztecProtocol/barretenberg/issues/763): Fold alpha
-    auto [alpha, delta] = transcript.get_challenges("alpha", "delta");
+    auto delta = transcript.get_challenge("delta");
     auto accumulator = get_accumulator();
     auto instance_size = accumulator->prover_polynomials.get_polynomial_size();
     const auto log_instance_size = static_cast<size_t>(numeric::get_msb(instance_size));
     auto deltas = compute_round_challenge_pows(log_instance_size, delta);
 
-    auto perturbator = compute_perturbator(accumulator, deltas, alpha);
+    auto perturbator = compute_perturbator(accumulator, deltas);
     for (size_t idx = 0; idx <= log_instance_size; idx++) {
         transcript.send_to_verifier("perturbator_" + std::to_string(idx), perturbator[idx]);
     }
@@ -62,7 +64,7 @@ ProverFoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverI
 
     auto pow_betas_star = compute_pow_polynomial_at_values(betas_star, instance_size);
 
-    auto combiner = compute_combiner(instances, pow_betas_star, alpha);
+    auto combiner = compute_combiner(instances, pow_betas_star);
     auto combiner_quotient = compute_combiner_quotient(compressed_perturbator, combiner);
     for (size_t idx = ProverInstances::NUM; idx < combiner.size(); idx++) {
         transcript.send_to_verifier("combiner_quotient_" + std::to_string(idx), combiner_quotient.value_at(idx));

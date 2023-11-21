@@ -107,8 +107,8 @@ TEST_F(SumcheckTests, PolynomialNormalization)
     Flavor::Transcript transcript = Flavor::Transcript::prover_init_empty();
 
     auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
-
-    auto output = sumcheck.prove(full_polynomials, {});
+    auto alpha = transcript.get_challenge("alpha");
+    auto output = sumcheck.prove(full_polynomials, {}, alpha);
 
     FF u_0 = output.challenge[0];
     FF u_1 = output.challenge[1];
@@ -176,7 +176,8 @@ TEST_F(SumcheckTests, Prover)
 
     auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
 
-    auto output = sumcheck.prove(full_polynomials, {});
+    auto alpha = transcript.get_challenge("alpha");
+    auto output = sumcheck.prove(full_polynomials, {}, alpha);
     FF u_0 = output.challenge[0];
     FF u_1 = output.challenge[1];
     std::vector<FF> expected_values;
@@ -248,16 +249,16 @@ TEST_F(SumcheckTests, ProverAndVerifierSimple)
         };
 
         Flavor::Transcript prover_transcript = Flavor::Transcript::prover_init_empty();
-
         auto sumcheck_prover = SumcheckProver<Flavor>(multivariate_n, prover_transcript);
 
-        auto prover_output = sumcheck_prover.prove(full_polynomials, relation_parameters);
+        auto prover_alpha = prover_transcript.get_challenge("alpha");
+        auto output = sumcheck_prover.prove(full_polynomials, {}, prover_alpha);
 
         Flavor::Transcript verifier_transcript = Flavor::Transcript::verifier_init_empty(prover_transcript);
 
         auto sumcheck_verifier = SumcheckVerifier<Flavor>(multivariate_n);
-
-        auto verifier_output = sumcheck_verifier.verify(relation_parameters, verifier_transcript);
+        auto verifier_alpha = verifier_transcript.get_challenge("alpha");
+        auto verifier_output = sumcheck_verifier.verify(relation_parameters, verifier_alpha, verifier_transcript);
 
         auto verified = verifier_output.verified.value();
 

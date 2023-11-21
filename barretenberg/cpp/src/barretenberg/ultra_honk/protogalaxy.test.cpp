@@ -165,9 +165,10 @@ TEST_F(ProtoGalaxyTests, PerturbatorPolynomial)
                                .verification_key = std::make_shared<Flavor::VerificationKey>(),
                                .folding_parameters = { betas, target_sum } });
     accumulator->relation_parameters = relation_parameters;
+    accumulator->alpha = alpha;
 
     auto deltas = ProtoGalaxyProver::compute_round_challenge_pows(log_instance_size, FF::random_element());
-    auto perturbator = ProtoGalaxyProver::compute_perturbator(accumulator, deltas, alpha);
+    auto perturbator = ProtoGalaxyProver::compute_perturbator(accumulator, deltas);
 
     // Ensure the constant coefficient of the perturbator is equal to the target sum as indicated by the paper
     EXPECT_EQ(perturbator[0], target_sum);
@@ -224,10 +225,31 @@ TEST_F(ProtoGalaxyTests, FoldChallenges)
     instance2->relation_parameters.eta = 3;
 
     Instances instances{ { instance1, instance2 } };
-    ProtoGalaxyProver::fold_parameters(instances);
+    ProtoGalaxyProver::fold_relation_parameters(instances);
 
     Univariate<FF, 12> expected_eta{ { 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23 } };
     EXPECT_EQ(instances.relation_parameters.eta, expected_eta);
+}
+
+TEST_F(ProtoGalaxyTests, FoldAlpha)
+{
+    using Instances = ProverInstances_<Flavor, 2>;
+    using Instance = typename Instances::Instance;
+
+    Builder builder1;
+    auto instance1 = std::make_shared<Instance>(builder1);
+    instance1->alpha = 2;
+
+    Builder builder2;
+    builder2.add_variable(3);
+    auto instance2 = std::make_shared<Instance>(builder2);
+    instance2->alpha = 4;
+
+    Instances instances{ { instance1, instance2 } };
+    ProtoGalaxyProver::fold_alpha(instances);
+
+    Univariate<FF, 13> expected_alpha{ { 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26 } };
+    EXPECT_EQ(instances.alpha, expected_alpha);
 }
 
 } // namespace protogalaxy_tests

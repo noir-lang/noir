@@ -22,13 +22,18 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     using RowEvaluations = typename Flavor::AllValues;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Relations = typename Flavor::Relations;
+    using AlphaType = typename ProverInstances::AlphaType;
 
     using BaseUnivariate = Univariate<FF, ProverInstances::NUM>;
-    // The length of ExtendedUnivariate is the largest length (==degree + 1) of a univariate polynomial obtained by
-    // composing a relation with folded instance + challenge data.
+    // The length of ExtendedUnivariate is the largest length (==max_relation_degree + 1) of a univariate polynomial
+    // obtained by composing a relation with folded instance + relation parameters .
     using ExtendedUnivariate = Univariate<FF, (Flavor::MAX_TOTAL_RELATION_LENGTH - 1) * (ProverInstances::NUM - 1) + 1>;
+    // Represents the total length of the combiner univariate, obtained by combining the already folded relations with
+    // the folded relation batching challenge.
     using ExtendedUnivariateWithRandomization =
-        Univariate<FF, (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 1) * (ProverInstances::NUM - 1) + 1>;
+        Univariate<FF,
+                   (Flavor::MAX_TOTAL_RELATION_LENGTH - 1 + ProverInstances::NUM - 1) * (ProverInstances::NUM - 1) + 1>;
+
     using ExtendedUnivariates = typename Flavor::template ProverUnivariates<ExtendedUnivariate::LENGTH>;
 
     using TupleOfTuplesOfUnivariates =
@@ -181,11 +186,10 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      *
      */
     static Polynomial<FF> compute_perturbator(const std::shared_ptr<Instance> accumulator,
-                                              const std::vector<FF>& deltas,
-                                              const FF& alpha)
+                                              const std::vector<FF>& deltas)
     {
-        auto full_honk_evaluations =
-            compute_full_honk_evaluations(accumulator->prover_polynomials, alpha, accumulator->relation_parameters);
+        auto full_honk_evaluations = compute_full_honk_evaluations(
+            accumulator->prover_polynomials, accumulator->alpha, accumulator->relation_parameters);
         const auto betas = accumulator->folding_parameters.gate_separation_challenges;
         assert(betas.size() == deltas.size());
         auto coeffs = construct_perturbator_coefficients(betas, deltas, full_honk_evaluations);
@@ -237,8 +241,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      *
      */
     ExtendedUnivariateWithRandomization compute_combiner(const ProverInstances& instances,
-                                                         const std::vector<FF>& pow_betas_star,
-                                                         const FF& alpha)
+                                                         const std::vector<FF>& pow_betas_star)
     {
         size_t common_circuit_size = instances[0]->prover_polynomials.get_polynomial_size();
 
@@ -288,8 +291,25 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
             Utils::add_nested_tuples(univariate_accumulators, accumulators);
         }
         // Batch the univariate contributions from each sub-relation to obtain the round univariate
-        return Utils::template batch_over_relations<ExtendedUnivariateWithRandomization>(univariate_accumulators,
-                                                                                         alpha);
+        return batch_over_relations(univariate_accumulators, instances.alpha);
+    }
+    static ExtendedUnivariateWithRandomization batch_over_relations(TupleOfTuplesOfUnivariates univariate_accumulators,
+                                                                    AlphaType alpha)
+    {
+
+        // First relation does not get multiplied by a batching challenge
+        auto result = std::get<0>(std::get<0>(univariate_accumulators))
+                          .template extend_to<ProverInstances::BATCHED_EXTENDED_LENGTH>();
+        auto scale_and_sum = [&]<size_t outer_idx, size_t>(auto& element) {
+            auto extended = element.template extend_to<ProverInstances::BATCHED_EXTENDED_LENGTH>();
+            extended *= alpha;
+            result += extended;
+        };
+
+        Utils::template apply_to_tuple_of_tuples<0, 1>(univariate_accumulators, scale_and_sum);
+        Utils::zero_univariates(univariate_accumulators);
+
+        return result;
     }
 
     /**
@@ -299,13 +319,10 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      * polynomials and Lagrange basis and use batch_invert.
      *
      */
-    static Univariate<FF,
-                      (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 1) * (ProverInstances::NUM - 1) + 1,
-                      ProverInstances::NUM>
-    compute_combiner_quotient(FF compressed_perturbator, ExtendedUnivariateWithRandomization combiner)
+    static Univariate<FF, ProverInstances::BATCHED_EXTENDED_LENGTH, ProverInstances::NUM> compute_combiner_quotient(
+        FF compressed_perturbator, ExtendedUnivariateWithRandomization combiner)
     {
-        std::array<FF, (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 2) * (ProverInstances::NUM - 1)>
-            combiner_quotient_evals = {};
+        std::array<FF, ProverInstances::BATCHED_EXTENDED_LENGTH - ProverInstances::NUM> combiner_quotient_evals = {};
 
         // Compute the combiner quotient polynomial as evaluations on points that are not in the vanishing set.
         //
@@ -318,10 +335,8 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
                 (combiner.value_at(point) - compressed_perturbator * lagrange_0) * vanishing_polynomial.invert();
         }
 
-        Univariate<FF,
-                   (Flavor::BATCHED_RELATION_TOTAL_LENGTH - 1) * (ProverInstances::NUM - 1) + 1,
-                   ProverInstances::NUM>
-            combiner_quotient(combiner_quotient_evals);
+        Univariate<FF, ProverInstances::BATCHED_EXTENDED_LENGTH, ProverInstances::NUM> combiner_quotient(
+            combiner_quotient_evals);
         return combiner_quotient;
     }
 
@@ -331,7 +346,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      * univariate (i.e., sum them against an appropriate univariate Lagrange basis) and then extended as needed during
      * the constuction of the combiner.
      */
-    static void fold_parameters(ProverInstances& instances)
+    static void fold_relation_parameters(ProverInstances& instances)
     {
         // array of parameters to be computed
         auto& folded_parameters = instances.relation_parameters.to_fold;
@@ -346,6 +361,25 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
             folded_parameter.get() = tmp.template extend_to<ProverInstances::EXTENDED_LENGTH>();
             param_idx++;
         }
+    }
+
+    /**
+     * @brief Create folded univariate for the relation batching parameter (alpha).
+     *
+     */
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/772): At the moment we have a single α per Instance, we
+    // fold them and then we use the unique folded_α for each folded subrelation that is batched in the combiner. This
+    // is obviously insecure. We need to generate α_i for each subrelation_i, fold them and then use folded_α_i when
+    // batching the i-th folded subrelation in the combiner.
+    static void fold_alpha(ProverInstances& instances)
+    {
+        Univariate<FF, ProverInstances::NUM> accumulated_alpha;
+        size_t instance_idx = 0;
+        for (auto& instance : instances) {
+            accumulated_alpha.value_at(instance_idx) = instance->alpha;
+            instance_idx++;
+        }
+        instances.alpha = accumulated_alpha.template extend_to<ProverInstances::BATCHED_EXTENDED_LENGTH>();
     }
 };
 

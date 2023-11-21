@@ -126,7 +126,10 @@ template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
         round++;
         manifest_expected.add_entry(round, "LOOKUP_INVERSES", size_G);
         manifest_expected.add_entry(round, "Z_PERM", size_G);
-        manifest_expected.add_challenge(round, "Sumcheck:alpha", "Sumcheck:zeta");
+        manifest_expected.add_challenge(round, "alpha");
+
+        round++;
+        manifest_expected.add_challenge(round, "Sumcheck:zeta");
 
         for (size_t i = 0; i < log_n; ++i) {
             round++;

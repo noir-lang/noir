@@ -206,8 +206,8 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_relation_check_
     using Sumcheck = sumcheck::SumcheckProver<Flavor>;
 
     auto sumcheck = Sumcheck(key->circuit_size, transcript);
-
-    sumcheck_output = sumcheck.prove(prover_polynomials, relation_parameters);
+    auto alpha = transcript.get_challenge("alpha");
+    sumcheck_output = sumcheck.prove(prover_polynomials, relation_parameters, alpha);
 }
 
 /**

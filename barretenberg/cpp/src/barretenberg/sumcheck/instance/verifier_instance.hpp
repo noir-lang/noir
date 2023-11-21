@@ -15,6 +15,7 @@ template <class Flavor> class VerifierInstance_ {
     size_t public_input_size;
     size_t instance_size;
     RelationParameters<FF> relation_parameters;
+    FF alpha;
     FoldingParameters folding_parameters;
 };
 } // namespace proof_system::honk
