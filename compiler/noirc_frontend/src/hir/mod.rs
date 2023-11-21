@@ -7,13 +7,13 @@ pub mod type_check;
 #[cfg(feature = "aztec")]
 pub(crate) mod aztec_library;
 
+use crate::debug::DebugState;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
-use crate::debug::DebugState;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
-use crate::parser::{SortedModule, ParserError};
-use def_map::{Contract, CrateDefMap, parse_file};
-use fm::{FileManager, FileId};
+use crate::parser::{ParserError, SortedModule};
+use def_map::{parse_file, Contract, CrateDefMap};
+use fm::{FileId, FileManager};
 use noirc_errors::Location;
 use std::collections::BTreeMap;
 
@@ -221,7 +221,11 @@ impl Context {
 
     /// Given a FileId, fetch the File, from the FileManager and parse its content,
     /// applying sorting and debug transforms if debug mode is enabled.
-    pub fn parse_file(&mut self, file_id: FileId, crate_id: CrateId) -> (SortedModule, Vec<ParserError>) {
+    pub fn parse_file(
+        &mut self,
+        file_id: FileId,
+        crate_id: CrateId,
+    ) -> (SortedModule, Vec<ParserError>) {
         let (mut ast, parsing_errors) = parse_file(&self.file_manager, file_id);
 
         if crate_id == self.root_crate_id {

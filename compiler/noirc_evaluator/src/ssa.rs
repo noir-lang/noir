@@ -127,10 +127,7 @@ pub fn create_circuit(
         .map(|(index, locations)| (index, locations.into_iter().collect()))
         .collect();
 
-    let mut debug_info = DebugInfo::new(
-        locations,
-        debug_var_types,
-    );
+    let mut debug_info = DebugInfo::new(locations, debug_var_types);
 
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);

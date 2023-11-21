@@ -1,10 +1,10 @@
-use std::collections::{HashMap,HashSet};
 use acvm::acir::brillig::Value;
 use noirc_printable_type::PrintableType;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Default, Clone)]
 pub struct DebugVars {
-    id_to_name: HashMap<u32,String>,
+    id_to_name: HashMap<u32, String>,
     active: HashSet<u32>,
     id_to_value: HashMap<u32, Value>, // TODO: something more sophisticated for lexical levels
     id_to_type: HashMap<u32, u32>,
@@ -19,18 +19,20 @@ impl DebugVars {
     }
 
     pub fn get_variables<'a>(&'a self) -> Vec<(&'a str, &'a Value, &'a PrintableType)> {
-        self.active.iter().filter_map(|var_id| {
-            self.id_to_name.get(var_id)
-                .and_then(|name| {
-                    self.id_to_value.get(var_id).map(|value| (name, value))
-                })
-                .and_then(|(name, value)| {
-                    self.id_to_type.get(var_id).map(|type_id| (name, value, type_id))
-                })
-                .and_then(|(name, value, type_id)| {
-                    self.types.get(type_id).map(|ptype| (name.as_str(), value, ptype))
-                })
-        }).collect()
+        self.active
+            .iter()
+            .filter_map(|var_id| {
+                self.id_to_name
+                    .get(var_id)
+                    .and_then(|name| self.id_to_value.get(var_id).map(|value| (name, value)))
+                    .and_then(|(name, value)| {
+                        self.id_to_type.get(var_id).map(|type_id| (name, value, type_id))
+                    })
+                    .and_then(|(name, value, type_id)| {
+                        self.types.get(type_id).map(|ptype| (name.as_str(), value, ptype))
+                    })
+            })
+            .collect()
     }
 
     pub fn insert_variables(&mut self, vars: &HashMap<u32, (String, u32)>) {

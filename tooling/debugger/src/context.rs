@@ -8,7 +8,7 @@ use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use nargo::artifacts::debug::{DebugArtifact, DebugVars};
 use nargo::errors::{ExecutionError, Location};
-use nargo::ops::{DefaultForeignCallExecutor};
+use nargo::ops::DefaultForeignCallExecutor;
 use nargo::NargoError;
 
 use std::collections::{hash_set::Iter, HashSet};
@@ -125,10 +125,8 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
     }
 
     fn handle_foreign_call(&mut self, foreign_call: ForeignCallWaitInfo) -> DebugCommandResult {
-        let foreign_call_result = self.foreign_call_executor.execute_with_debug_vars(
-            &foreign_call,
-            &mut self.debug_vars,
-        );
+        let foreign_call_result =
+            self.foreign_call_executor.execute_with_debug_vars(&foreign_call, &mut self.debug_vars);
         match foreign_call_result {
             Ok(foreign_call_result) => {
                 self.acvm.resolve_pending_foreign_call(foreign_call_result);

@@ -3,9 +3,8 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    hir_def::function::FunctionSignature,
-    BinaryOpKind, Distinctness, Signedness,
-    monomorphization::debug_types,
+    hir_def::function::FunctionSignature, monomorphization::debug_types, BinaryOpKind,
+    Distinctness, Signedness,
 };
 
 /// The monomorphized AST is expression-based, all statements are also
@@ -263,7 +262,7 @@ impl Program {
             main_function_signature,
             return_distinctness,
             return_location,
-            debug_var_types
+            debug_var_types,
         }
     }
 

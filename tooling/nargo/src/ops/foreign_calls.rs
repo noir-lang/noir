@@ -1,10 +1,10 @@
+use crate::artifacts::debug::DebugVars;
 use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult, Value},
     pwg::ForeignCallWaitInfo,
 };
 use iter_extended::vecmap;
 use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
-use crate::artifacts::debug::DebugVars;
 
 pub trait ForeignCallExecutor {
     fn execute(
@@ -152,7 +152,8 @@ impl DefaultForeignCallExecutor {
                     Some(ds),
                     ForeignCallParam::Single(var_id_value),
                     ForeignCallParam::Single(value),
-                ) = (debug_vars, fcp_var_id, fcp_value) {
+                ) = (debug_vars, fcp_var_id, fcp_value)
+                {
                     let var_id = var_id_value.to_u128() as u32;
                     ds.assign(var_id, value.clone());
                 }
@@ -160,10 +161,8 @@ impl DefaultForeignCallExecutor {
             }
             Some(ForeignCall::DebugVarDrop) => {
                 let fcp_var_id = &foreign_call.inputs[0];
-                if let (
-                    Some(ds),
-                    ForeignCallParam::Single(var_id_value),
-                ) = (debug_vars, fcp_var_id) {
+                if let (Some(ds), ForeignCallParam::Single(var_id_value)) = (debug_vars, fcp_var_id)
+                {
                     let var_id = var_id_value.to_u128() as u32;
                     ds.drop(var_id);
                 }
@@ -178,7 +177,8 @@ impl DefaultForeignCallExecutor {
                     ForeignCallParam::Single(var_id_value),
                     ForeignCallParam::Single(member_id_value),
                     ForeignCallParam::Single(value),
-                ) = (debug_vars, fcp_var_id, fcp_member_id, fcp_value) {
+                ) = (debug_vars, fcp_var_id, fcp_member_id, fcp_value)
+                {
                     let var_id = var_id_value.to_u128() as u32;
                     let member_id = member_id_value.to_u128() as u32;
                     ds.assign_member(var_id, member_id, value.clone());
@@ -194,7 +194,8 @@ impl DefaultForeignCallExecutor {
                     ForeignCallParam::Single(var_id_value),
                     ForeignCallParam::Single(index_value),
                     ForeignCallParam::Single(value),
-                ) = (debug_vars, fcp_var_id, fcp_index, fcp_value) {
+                ) = (debug_vars, fcp_var_id, fcp_index, fcp_value)
+                {
                     let var_id = var_id_value.to_u128() as u32;
                     let index = index_value.to_u128() as u64;
                     ds.assign_index(var_id, index, value.clone());
@@ -208,7 +209,8 @@ impl DefaultForeignCallExecutor {
                     Some(ds),
                     ForeignCallParam::Single(var_id_value),
                     ForeignCallParam::Single(value),
-                ) = (debug_vars, fcp_var_id, fcp_value) {
+                ) = (debug_vars, fcp_var_id, fcp_value)
+                {
                     let var_id = var_id_value.to_u128() as u32;
                     ds.assign_deref(var_id, value.clone());
                 }

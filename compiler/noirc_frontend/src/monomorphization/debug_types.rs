@@ -1,12 +1,12 @@
-use std::collections::HashMap;
 use crate::hir_def::types::Type;
+pub use noirc_errors::debug_info::{Types, VariableTypes, Variables};
 use noirc_printable_type::PrintableType;
-pub use noirc_errors::debug_info::{Variables, Types, VariableTypes};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default)]
 pub struct DebugTypes {
-    variables: HashMap<u32, (String,u32)>, // var_id => (var_name, type_id)
-    types: HashMap<PrintableType,u32>,
+    variables: HashMap<u32, (String, u32)>, // var_id => (var_name, type_id)
+    types: HashMap<PrintableType, u32>,
     next_type_id: u32,
 }
 

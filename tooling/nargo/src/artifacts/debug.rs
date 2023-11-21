@@ -4,12 +4,12 @@ use noirc_errors::{debug_info::DebugInfo, Location};
 use noirc_evaluator::errors::SsaReport;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap,BTreeSet},
+    collections::{BTreeMap, BTreeSet},
     ops::Range,
 };
 
-use fm::{FileId, FileManager, PathString};
 pub use super::debug_vars::DebugVars;
+use fm::{FileId, FileManager, PathString};
 
 /// A Debug Artifact stores, for a given program, the debug info for every function
 /// along with a map of file Id to the source code so locations in debug info can be mapped to source code they point to.
@@ -24,10 +24,8 @@ impl DebugArtifact {
     pub fn new(debug_symbols: Vec<DebugInfo>, file_manager: &FileManager) -> Self {
         let mut file_map = BTreeMap::new();
 
-        let file_ids: BTreeSet<FileId> = debug_symbols
-            .iter()
-            .flat_map(|debug_info| debug_info.get_file_ids())
-            .collect();
+        let file_ids: BTreeSet<FileId> =
+            debug_symbols.iter().flat_map(|debug_info| debug_info.get_file_ids()).collect();
 
         for file_id in file_ids.iter() {
             let file_source = file_manager.fetch_file(*file_id).source();
