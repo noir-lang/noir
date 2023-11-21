@@ -9,20 +9,18 @@ fn f2(mut x: Field) -> Field {
     x += 2;
     x
 }
-
 // Simple example
 fn test0(mut a: Field) {
     a = f2(a);
     assert(a == 3);
 }
-
 // Nested call
 fn test1(mut a: Field) {
     a = f1(a);
     assert(a == 4);
 }
 
-fn test2(z: Field, t: u32 ) {
+fn test2(z: Field, t: u32) {
     let a = z + t as Field;
     assert(a == 64);
     let e = pow(z, t as Field);
@@ -92,7 +90,7 @@ fn bar() -> [Field; 1] {
     foo([0])
 }
 
-fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
+fn main(x: u32, y: u32, a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
     let mut ss: my_struct = my_struct { b: x, a: x + 2 };
     test_multiple4(ss);
     test_multiple5((ss.a, ss.b));
@@ -123,12 +121,10 @@ fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
     let d = test_multiple2();
     assert(d.b == d.a + 2 as u32);
     test_multiple3(y, y);
-
     //Regression test for issue #628:
     let result = first(arr_to_field(arr1), arr_to_field(arr2));
     assert(result[0] == arr1[0] as Field);
 }
-
 // Issue #628
 fn arr_to_field(arr: [u32; 9]) -> [Field; 9] {
     let mut as_field: [Field; 9] = [0 as Field; 9];

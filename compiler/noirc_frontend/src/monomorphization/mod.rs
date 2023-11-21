@@ -24,7 +24,7 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
-    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitMethodId},
+    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
     ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind,
     Visibility,
@@ -378,9 +378,9 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr),
 
-            HirExpression::TraitMethodReference(typ, method) => {
+            HirExpression::TraitMethodReference(method) => {
                 if let Type::Function(_, _, _) = self.interner.id_type(expr) {
-                    self.resolve_trait_method_reference(typ, expr, method)
+                    self.resolve_trait_method_reference(expr, method)
                 } else {
                     unreachable!(
                         "Calling a non-function, this should've been caught in typechecking"
@@ -812,7 +812,6 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn resolve_trait_method_reference(
         &mut self,
-        self_type: HirType,
         expr_id: node_interner::ExprId,
         method: TraitMethodId,
     ) -> ast::Expression {
@@ -820,10 +819,36 @@ impl<'interner> Monomorphizer<'interner> {
 
         let trait_impl = self
             .interner
-            .lookup_trait_implementation(&self_type, method.trait_id)
+            .get_selected_impl_for_ident(expr_id)
             .expect("ICE: missing trait impl - should be caught during type checking");
 
-        let hir_func_id = trait_impl.borrow().methods[method.method_index];
+        let hir_func_id = match trait_impl {
+            node_interner::TraitImplKind::Normal(impl_id) => {
+                self.interner.get_trait_implementation(impl_id).borrow().methods
+                    [method.method_index]
+            }
+            node_interner::TraitImplKind::Assumed { object_type } => {
+                match self.interner.lookup_trait_implementation(&object_type, method.trait_id) {
+                    Ok(TraitImplKind::Normal(impl_id)) => {
+                        self.interner.get_trait_implementation(impl_id).borrow().methods
+                            [method.method_index]
+                    }
+                    Ok(TraitImplKind::Assumed { .. }) => unreachable!(
+                        "There should be no remaining Assumed impls during monomorphization"
+                    ),
+                    Err(constraints) => {
+                        let failed_constraints = vecmap(constraints, |constraint| {
+                            let id = constraint.trait_id;
+                            let name = self.interner.get_trait(id).name.to_string();
+                            format!("  {}: {name}", constraint.typ)
+                        })
+                        .join("\n");
+
+                        unreachable!("Failed to find trait impl during monomorphization. The failed constraint(s) are:\n{failed_constraints}")
+                    }
+                }
+            }
+        };
 
         let func_def = self.lookup_function(hir_func_id, expr_id, &function_type);
         let func_id = match func_def {

@@ -5,22 +5,18 @@ fn main(mut x: Field) {
     let mut s = S { y: x };
     s.add2();
     assert(s.y == 5);
-
     // Regression for #1946: Method resolution error when calling &mut methods with a variable of type &mut T
     let s_ref = &mut s;
     s_ref.add2();
     assert(s.y == 7);
-
     // Test that normal mutable variables are still copied
     let mut a = 0;
     mutate_copy(a);
     assert(a == 0);
-
     // Test something 3 allocations deep
     let mut nested_allocations = Nested { y: &mut &mut 0 };
     add1(*nested_allocations.y);
     assert(**nested_allocations.y == 1);
-
     // Test nested struct allocations with a mutable reference to an array.
     let mut c = C { foo: 0, bar: &mut C2 { array: &mut [1, 2] } };
     *c.bar.array = [3, 4];
@@ -70,7 +66,6 @@ impl S {
 fn mutate_copy(mut a: Field) {
     a = 7;
 }
-
 // Previously the `foo.bar` in `foo.bar.mutate()` would insert an automatic dereference
 // of `foo` which caused the method to wrongly be mutating a copy of bar rather than the original.
 fn regression_1887() {
@@ -87,7 +82,6 @@ impl Bar {
         self.x = 32;
     }
 }
-
 // Ensure that mutating a variable does not also mutate its copy
 fn regression_2054() {
     let mut x = 2;
@@ -96,7 +90,6 @@ fn regression_2054() {
     x += 1;
     assert(z == 2);
 }
-
 // The compiler was still trying to convert an LValue from an array of structs to struct of arrays indexing,
 // even though this conversion was mostly removed elsewhere.
 fn regression_2030() {
@@ -105,7 +98,6 @@ fn regression_2030() {
     let _ = *array[0];
     *array[0] = 1;
 }
-
 // The `mut x: &mut ...` caught a bug handling lvalues where a double-dereference would occur internally
 // in one step rather than being tracked by two separate steps. This lead to assigning the 1 value to the
 // incorrect outer `mut` reference rather than the correct `&mut` reference.
@@ -168,12 +160,11 @@ fn regression_2218_loop(x: Field, y: Field) {
         if x != y {
             *q1 = 10;
             *q2 = 2; // now we'd expect q1 == q2 == 2
-            
             assert(*q1 == 2);
         } else {
             *q2 = 20;
-            assert(*q1 == 20);  
-        } 
+            assert(*q1 == 20);
+        }
     }
     assert(*q1 == 2);
 
@@ -185,7 +176,6 @@ fn regression_2218_loop(x: Field, y: Field) {
                 if x != 20 {
                     *q1 = 10;
                     *q2 = 2; // now we'd expect q1 == q2 == 2
-                    
                     assert(*q1 == 2);
                 }
             } else {
@@ -200,13 +190,12 @@ fn regression_2218_loop(x: Field, y: Field) {
                 if x != 20 {
                     *q1 = 10;
                     *q2 = 2; // now we'd expect q1 == q2 == 2
-                    
                     assert(*q1 == 2);
                 }
             }
         } else {
             *q2 = 20;
-            assert(*q1 == 20);  
+            assert(*q1 == 20);
         }
     }
     assert(*q1 == 2);
@@ -219,8 +208,7 @@ fn regression_2218_loop(x: Field, y: Field) {
                 if x != 20 {
                     *q1 = 10;
                     *q2 = 2; // now we'd expect q1 == q2 == 2
-
-                    assert(*q1 == 2);  
+                    assert(*q1 == 2);
                 }
             }
         }
@@ -230,7 +218,6 @@ fn regression_2218_loop(x: Field, y: Field) {
     }
     assert(*q1 == 2);
 }
-
 // This is more a feature test than a proper regression.
 // Before, we never automatically dereferenced objects in method calls to their value types.
 // Now, we insert as many `*` as necessary to get to `S`.

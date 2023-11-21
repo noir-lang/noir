@@ -113,6 +113,8 @@ pub enum TypeCheckError {
     },
     #[error("No matching impl found")]
     NoMatchingImplFound { constraints: Vec<(Type, String)>, span: Span },
+    #[error("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope")]
+    UnneededTraitConstraint { trait_name: String, typ: Type, span: Span },
 }
 
 impl TypeCheckError {
@@ -268,6 +270,10 @@ impl From<TypeCheckError> for Diagnostic {
                 }
 
                 diagnostic
+            }
+            TypeCheckError::UnneededTraitConstraint { trait_name, typ, span } => {
+                let msg = format!("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope");
+                Diagnostic::simple_warning(msg, "Unnecessary trait constraint in where clause".into(), span)
             }
         }
     }

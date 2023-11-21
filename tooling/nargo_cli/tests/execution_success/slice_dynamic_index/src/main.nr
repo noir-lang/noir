@@ -1,4 +1,4 @@
-fn main(x : Field) {
+fn main(x: Field) {
     // The parameters to this function must come directly from witness values (inputs to main).
     regression_dynamic_slice_index(x - 1, x - 4);
 }
@@ -57,7 +57,6 @@ fn dynamic_slice_index_set_else(mut slice: [Field], x: Field, y: Field) {
     }
     assert(slice[4] == 0);
 }
-
 // This tests the case of missing a store instruction in the else branch
 // of merging slices
 fn dynamic_slice_index_if(mut slice: [Field], x: Field) {
@@ -79,7 +78,6 @@ fn dynamic_array_index_if(mut array: [Field; 5], x: Field) {
     }
     assert(array[4] == 2);
 }
-
 // This tests the case of missing a store instruction in the then branch
 // of merging slices
 fn dynamic_slice_index_else(mut slice: [Field], x: Field) {
@@ -125,13 +123,11 @@ fn dynamic_slice_merge_if(mut slice: [Field], x: Field) {
         let (first_elem, rest_of_slice) = popped_slice.pop_front();
         assert(first_elem == 12);
         assert(rest_of_slice.len() == 6);
-
         // TODO(#2462): SliceInsert and SliceRemove with a dynamic index are not yet implemented in ACIR gen
         slice = rest_of_slice.insert(2, 20);
         assert(slice[2] == 20);
         assert(slice[6] == 30);
         assert(slice.len() == 7);
-
         // TODO(#2462): SliceInsert and SliceRemove with a dynamic index are not yet implemented in ACIR gen
         let (removed_slice, removed_elem) = slice.remove(3);
         // The deconstructed tuple assigns to the slice but is not seen outside of the if statement
@@ -237,7 +233,7 @@ fn dynamic_slice_merge_two_ifs(mut slice: [Field], x: Field) {
 
     if x == 20 {
         slice = slice.push_back(20);
-    } 
+    }
 
     slice = slice.push_back(15);
 

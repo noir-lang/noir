@@ -2,8 +2,7 @@
 fn qux() {
     {}
 
-    {
-        /* a block with a comment */
+    { /* a block with a comment */
     }
     {}
     {
@@ -72,6 +71,22 @@ fn test() {
     34
 }
 
+fn line() {
+    42; // 42
+}
+
+fn line() {
+    42; // 42
+    42;
+    // hello
+}
+
+fn line() {
+    42; // 42
+    // 42
+    // hello
+}
+
 fn parenthesized() {
     value + (x as Field)
 }
@@ -86,9 +101,9 @@ fn parenthesized() {
 
 fn parenthesized() {
     value + (
-        // line
-        x as Field
-    )
+            // line
+            x as Field
+        )
 }
 
 fn constructor() {

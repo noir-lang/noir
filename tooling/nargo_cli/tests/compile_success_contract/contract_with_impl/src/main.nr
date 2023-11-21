@@ -1,4 +1,3 @@
-
 contract Foo {
     struct T { x: [Field] }
 
