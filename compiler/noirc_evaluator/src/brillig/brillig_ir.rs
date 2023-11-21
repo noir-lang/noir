@@ -5,6 +5,7 @@
 //! ssa types and types in this module.
 //! A similar paradigm can be seen with the `acir_ir` module.
 pub(crate) mod artifact;
+pub(crate) mod brillig_variable;
 pub(crate) mod debug_show;
 pub(crate) mod registers;
 
@@ -14,6 +15,7 @@ use crate::ssa::ir::dfg::CallStack;
 
 use self::{
     artifact::{BrilligArtifact, UnresolvedJumpLocation},
+    brillig_variable::{BrilligArray, BrilligVariable, BrilligVector},
     registers::BrilligRegistersContext,
 };
 use acvm::{
@@ -166,8 +168,8 @@ impl BrilligContext {
     /// pointer to the array in `pointer_register`
     pub(crate) fn allocate_variable_instruction(&mut self, pointer_register: RegisterIndex) {
         self.debug_show.allocate_instruction(pointer_register);
-        // A variable can be stored in up to two values, so we reserve two values for that.
-        let size_register = self.make_constant(2_u128.into());
+        // A variable can be stored in up to three values, so we reserve three values for that.
+        let size_register = self.make_constant(3_u128.into());
         self.push_opcode(BrilligOpcode::Mov {
             destination: pointer_register,
             source: ReservedRegisters::stack_pointer(),
@@ -567,17 +569,24 @@ impl BrilligContext {
     /// Loads a variable stored previously
     pub(crate) fn load_variable_instruction(
         &mut self,
-        destination: RegisterOrMemory,
+        destination: BrilligVariable,
         variable_pointer: RegisterIndex,
     ) {
         match destination {
-            RegisterOrMemory::RegisterIndex(register_index) => {
+            BrilligVariable::Simple(register_index) => {
                 self.load_instruction(register_index, variable_pointer);
             }
-            RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => {
+            BrilligVariable::BrilligArray(BrilligArray { pointer, size: _, rc }) => {
                 self.load_instruction(pointer, variable_pointer);
+
+                let rc_pointer = self.allocate_register();
+                self.mov_instruction(rc_pointer, variable_pointer);
+                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 2_usize);
+
+                self.load_instruction(rc, rc_pointer);
+                self.deallocate_register(rc_pointer);
             }
-            RegisterOrMemory::HeapVector(HeapVector { pointer, size }) => {
+            BrilligVariable::BrilligVector(BrilligVector { pointer, size, rc }) => {
                 self.load_instruction(pointer, variable_pointer);
 
                 let size_pointer = self.allocate_register();
@@ -586,6 +595,13 @@ impl BrilligContext {
 
                 self.load_instruction(size, size_pointer);
                 self.deallocate_register(size_pointer);
+
+                let rc_pointer = self.allocate_register();
+                self.mov_instruction(rc_pointer, variable_pointer);
+                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 2_usize);
+
+                self.load_instruction(rc, rc_pointer);
+                self.deallocate_register(rc_pointer);
             }
         }
     }
@@ -604,32 +620,39 @@ impl BrilligContext {
     pub(crate) fn store_variable_instruction(
         &mut self,
         variable_pointer: RegisterIndex,
-        source: RegisterOrMemory,
+        source: BrilligVariable,
     ) {
         let size_pointer = self.allocate_register();
         self.mov_instruction(size_pointer, variable_pointer);
         self.usize_op_in_place(size_pointer, BinaryIntOp::Add, 1_usize);
+        let rc_pointer = self.allocate_register();
+        self.mov_instruction(rc_pointer, variable_pointer);
+        self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 2_usize);
 
         match source {
-            RegisterOrMemory::RegisterIndex(register_index) => {
+            BrilligVariable::Simple(register_index) => {
                 self.store_instruction(variable_pointer, register_index);
                 let size_constant = self.make_constant(Value::from(1_usize));
                 self.store_instruction(size_pointer, size_constant);
                 self.deallocate_register(size_constant);
             }
-            RegisterOrMemory::HeapArray(HeapArray { pointer, size }) => {
+            BrilligVariable::BrilligArray(BrilligArray { pointer, size, rc }) => {
                 self.store_instruction(variable_pointer, pointer);
                 let size_constant = self.make_constant(Value::from(size));
                 self.store_instruction(size_pointer, size_constant);
                 self.deallocate_register(size_constant);
+                self.store_instruction(size_pointer, size_constant);
+                self.store_instruction(rc_pointer, rc);
             }
-            RegisterOrMemory::HeapVector(HeapVector { pointer, size }) => {
+            BrilligVariable::BrilligVector(BrilligVector { pointer, size, rc }) => {
                 self.store_instruction(variable_pointer, pointer);
                 self.store_instruction(size_pointer, size);
+                self.store_instruction(rc_pointer, rc);
             }
         }
 
         self.deallocate_register(size_pointer);
+        self.deallocate_register(rc_pointer);
     }
 
     /// Emits a truncate instruction.
@@ -764,14 +787,14 @@ impl BrilligContext {
     }
 
     /// Saves all of the registers that have been used up until this point.
-    fn save_registers_of_vars(&mut self, vars: &[RegisterOrMemory]) -> Vec<RegisterIndex> {
+    fn save_registers_of_vars(&mut self, vars: &[BrilligVariable]) -> Vec<RegisterIndex> {
         // Save all of the used registers at this point in memory
         // because the function call will/may overwrite them.
         //
         // Note that here it is important that the stack pointer register is at register 0,
         // as after the first register save we add to the pointer.
         let mut used_registers: Vec<_> =
-            vars.iter().flat_map(|var| extract_registers(*var)).collect();
+            vars.iter().flat_map(|var| var.extract_registers()).collect();
 
         // Also dump the previous stack pointer
         used_registers.push(ReservedRegisters::previous_stack_pointer());
@@ -850,7 +873,7 @@ impl BrilligContext {
     pub(crate) fn pre_call_save_registers_prep_args(
         &mut self,
         arguments: &[RegisterIndex],
-        variables_to_save: &[RegisterOrMemory],
+        variables_to_save: &[BrilligVariable],
     ) -> Vec<RegisterIndex> {
         // Save all the registers we have used to the stack.
         let saved_registers = self.save_registers_of_vars(variables_to_save);
@@ -891,9 +914,9 @@ impl BrilligContext {
     }
 
     /// Utility method to transform a HeapArray to a HeapVector by making a runtime constant with the size.
-    pub(crate) fn array_to_vector(&mut self, array: &HeapArray) -> HeapVector {
+    pub(crate) fn array_to_vector(&mut self, array: &BrilligArray) -> BrilligVector {
         let size_register = self.make_constant(array.size.into());
-        HeapVector { size: size_register, pointer: array.pointer }
+        BrilligVector { size: size_register, pointer: array.pointer, rc: array.rc }
     }
 
     /// Issues a blackbox operation.
@@ -907,7 +930,7 @@ impl BrilligContext {
     pub(crate) fn radix_instruction(
         &mut self,
         source: RegisterIndex,
-        target_vector: HeapVector,
+        target_vector: BrilligVector,
         radix: RegisterIndex,
         limb_count: RegisterIndex,
         big_endian: bool,
@@ -953,7 +976,7 @@ impl BrilligContext {
     }
 
     /// This instruction will reverse the order of the elements in a vector.
-    pub(crate) fn reverse_vector_in_place_instruction(&mut self, vector: HeapVector) {
+    pub(crate) fn reverse_vector_in_place_instruction(&mut self, vector: BrilligVector) {
         let iteration_count = self.allocate_register();
         self.usize_op(vector.size, iteration_count, BinaryIntOp::UnsignedDiv, 2);
 
