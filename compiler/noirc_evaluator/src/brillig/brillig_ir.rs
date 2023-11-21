@@ -20,8 +20,8 @@ use self::{
 };
 use acvm::{
     acir::brillig::{
-        BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, Opcode as BrilligOpcode,
-        RegisterIndex, RegisterOrMemory, Value,
+        BinaryFieldOp, BinaryIntOp, BlackBoxOp, Opcode as BrilligOpcode, RegisterIndex,
+        RegisterOrMemory, Value,
     },
     FieldElement,
 };
@@ -1005,48 +1005,9 @@ impl BrilligContext {
         self.deallocate_register(index_at_end_of_array);
     }
 
-    pub(crate) fn extract_heap_vector(&mut self, variable: RegisterOrMemory) -> HeapVector {
-        match variable {
-            RegisterOrMemory::HeapVector(vector) => vector,
-            RegisterOrMemory::HeapArray(array) => {
-                let size = self.allocate_register();
-                self.const_instruction(size, array.size.into());
-                HeapVector { pointer: array.pointer, size }
-            }
-            _ => unreachable!("ICE: Expected vector, got {variable:?}"),
-        }
-    }
-
     /// Sets a current call stack that the next pushed opcodes will be associated with.
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
         self.obj.set_call_stack(call_stack);
-    }
-}
-
-pub(crate) fn extract_register(variable: RegisterOrMemory) -> RegisterIndex {
-    match variable {
-        RegisterOrMemory::RegisterIndex(register_index) => register_index,
-        _ => unreachable!("ICE: Expected register, got {variable:?}"),
-    }
-}
-
-pub(crate) fn extract_heap_array(variable: RegisterOrMemory) -> HeapArray {
-    match variable {
-        RegisterOrMemory::HeapArray(array) => array,
-        _ => unreachable!("ICE: Expected array, got {variable:?}"),
-    }
-}
-
-/// Collects the registers that a given variable is stored in.
-pub(crate) fn extract_registers(variable: RegisterOrMemory) -> Vec<RegisterIndex> {
-    match variable {
-        RegisterOrMemory::RegisterIndex(register_index) => vec![register_index],
-        RegisterOrMemory::HeapArray(array) => {
-            vec![array.pointer]
-        }
-        RegisterOrMemory::HeapVector(vector) => {
-            vec![vector.pointer, vector.size]
-        }
     }
 }
 

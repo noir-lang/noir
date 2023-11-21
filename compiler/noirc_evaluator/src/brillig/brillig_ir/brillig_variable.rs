@@ -2,10 +2,10 @@ use acvm::brillig_vm::brillig::{HeapArray, HeapVector, RegisterIndex, RegisterOr
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
-pub struct BrilligArray {
-    pub pointer: RegisterIndex,
-    pub size: usize,
-    pub rc: RegisterIndex,
+pub(crate) struct BrilligArray {
+    pub(crate) pointer: RegisterIndex,
+    pub(crate) size: usize,
+    pub(crate) rc: RegisterIndex,
 }
 
 impl BrilligArray {
@@ -15,10 +15,10 @@ impl BrilligArray {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
-pub struct BrilligVector {
-    pub pointer: RegisterIndex,
-    pub size: RegisterIndex,
-    pub rc: RegisterIndex,
+pub(crate) struct BrilligVector {
+    pub(crate) pointer: RegisterIndex,
+    pub(crate) size: RegisterIndex,
+    pub(crate) rc: RegisterIndex,
 }
 
 impl BrilligVector {
@@ -28,7 +28,7 @@ impl BrilligVector {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
-pub enum BrilligVariable {
+pub(crate) enum BrilligVariable {
     Simple(RegisterIndex),
     BrilligArray(BrilligArray),
     BrilligVector(BrilligVector),
