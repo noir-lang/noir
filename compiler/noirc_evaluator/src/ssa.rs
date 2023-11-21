@@ -7,10 +7,7 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    ops::Range,
-};
+use std::collections::BTreeSet;
 
 use crate::{
     brillig::Brillig,
@@ -23,13 +20,12 @@ use acvm::acir::{
 
 use noirc_errors::debug_info::DebugInfo;
 
-use noirc_abi::Abi;
+use noirc_frontend::{
+    hir_def::function::FunctionSignature, monomorphization::ast::Program, Visibility,
+};
 
-use noirc_frontend::{hir::Context, monomorphization::ast::Program};
+use self::{acir_gen::GeneratedAcir, ssa_gen::Ssa};
 
-use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ssa_gen::Ssa};
-
-pub mod abi_gen;
 mod acir_gen;
 pub(super) mod function_builder;
 pub mod ir;
@@ -81,12 +77,12 @@ pub(crate) fn optimize_into_acir(
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Circuit].
 ///
 /// The output ACIR is is backend-agnostic and so must go through a transformation pass before usage in proof generation.
+#[allow(clippy::type_complexity)]
 pub fn create_circuit(
-    context: &Context,
     program: Program,
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
-) -> Result<(Circuit, DebugInfo, Abi, Vec<SsaReport>), RuntimeError> {
+) -> Result<(Circuit, DebugInfo, Vec<Witness>, Vec<Witness>, Vec<SsaReport>), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
     let mut generated_acir =
         optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
@@ -101,15 +97,11 @@ pub fn create_circuit(
         ..
     } = generated_acir;
 
-    let abi = gen_abi(context, func_sig, input_witnesses, return_witnesses.clone());
-    let public_abi = abi.clone().public_abi();
+    let (public_parameter_witnesses, private_parameters) =
+        split_public_and_private_inputs(&func_sig, &input_witnesses);
 
-    let public_parameters = PublicInputs(tree_to_set(&public_abi.param_witnesses));
-
-    let all_parameters: BTreeSet<Witness> = tree_to_set(&abi.param_witnesses);
-    let private_parameters = all_parameters.difference(&public_parameters.0).copied().collect();
-
-    let return_values = PublicInputs(return_witnesses.into_iter().collect());
+    let public_parameters = PublicInputs(public_parameter_witnesses);
+    let return_values = PublicInputs(return_witnesses.iter().copied().collect());
 
     let circuit = Circuit {
         current_witness_index,
@@ -132,7 +124,41 @@ pub fn create_circuit(
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
     debug_info.update_acir(transformation_map);
 
-    Ok((optimized_circuit, debug_info, abi, warnings))
+    Ok((optimized_circuit, debug_info, input_witnesses, return_witnesses, warnings))
+}
+
+// Takes each function argument and partitions the circuit's inputs witnesses according to its visibility.
+fn split_public_and_private_inputs(
+    func_sig: &FunctionSignature,
+    input_witnesses: &[Witness],
+) -> (BTreeSet<Witness>, BTreeSet<Witness>) {
+    let mut idx = 0_usize;
+    if input_witnesses.is_empty() {
+        return (BTreeSet::new(), BTreeSet::new());
+    }
+
+    func_sig
+        .0
+        .iter()
+        .map(|(_, typ, visibility)| {
+            let num_field_elements_needed = typ.field_count() as usize;
+            let witnesses = input_witnesses[idx..idx + num_field_elements_needed].to_vec();
+            idx += num_field_elements_needed;
+            (visibility, witnesses)
+        })
+        .fold((BTreeSet::new(), BTreeSet::new()), |mut acc, (vis, witnesses)| {
+            // Split witnesses into sets based on their visibility.
+            if *vis == Visibility::Public {
+                for witness in witnesses {
+                    acc.0.insert(witness);
+                }
+            } else {
+                for witness in witnesses {
+                    acc.1.insert(witness);
+                }
+            }
+            (acc.0, acc.1)
+        })
 }
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
@@ -177,16 +203,4 @@ impl SsaBuilder {
         }
         self
     }
-}
-
-// Flatten the witnesses in the map into a BTreeSet
-fn tree_to_set(input: &BTreeMap<String, Vec<Range<Witness>>>) -> BTreeSet<Witness> {
-    let mut result = BTreeSet::new();
-    for range in input.values().flatten() {
-        for i in range.start.witness_index()..range.end.witness_index() {
-            result.insert(Witness(i));
-        }
-    }
-
-    result
 }

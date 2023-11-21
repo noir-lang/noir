@@ -8,8 +8,8 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
+use noirc_evaluator::create_circuit;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -18,6 +18,7 @@ use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+mod abi_gen;
 mod contract;
 mod debug;
 mod program;
@@ -140,12 +141,7 @@ pub fn compute_function_abi(
 ) -> Option<(Vec<AbiParameter>, Option<AbiType>)> {
     let main_function = context.get_main_function(crate_id)?;
 
-    let func_meta = context.def_interner.function_meta(&main_function);
-
-    let (parameters, return_type) = func_meta.into_function_signature();
-    let parameters = into_abi_params(context, parameters);
-    let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
-    Some((parameters, return_type))
+    Some(abi_gen::compute_function_abi(context, &main_function))
 }
 
 /// Run the frontend to check the crate for errors then compile the main function if there were none
@@ -345,9 +341,10 @@ pub fn compile_no_check(
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
 
-    let (circuit, debug, abi, warnings) =
-        create_circuit(context, program, options.show_ssa, options.show_brillig)?;
+    let (circuit, debug, input_witnesses, return_witnesses, warnings) =
+        create_circuit(program, options.show_ssa, options.show_brillig)?;
 
+    let abi = abi_gen::gen_abi(context, &main_function, input_witnesses, return_witnesses);
     let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
 
     Ok(CompiledProgram {
