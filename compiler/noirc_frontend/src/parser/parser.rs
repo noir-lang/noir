@@ -1003,14 +1003,14 @@ fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {
     recursive(parse_type_inner)
 }
 
-fn parse_type_inner(
-    recursive_type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<UnresolvedType> {
+fn parse_type_inner<'a>(
+    recursive_type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     choice((
         field_type(),
         int_type(),
         bool_type(),
-        string_type(),
+        string_type(recursive_type_parser.clone()),
         format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
         named_trait(recursive_type_parser.clone()),
@@ -1056,20 +1056,22 @@ fn bool_type() -> impl NoirParser<UnresolvedType> {
         .map_with_span(|_, span| UnresolvedTypeData::Bool.with_span(span))
 }
 
-fn string_type() -> impl NoirParser<UnresolvedType> {
+fn string_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+              ) -> impl NoirParser<UnresolvedType> + 'a {
     keyword(Keyword::String)
         .ignore_then(
-            type_expression().delimited_by(just(Token::Less), just(Token::Greater)).or_not(),
+            type_expression(type_parser).delimited_by(just(Token::Less), just(Token::Greater)).or_not(),
         )
         .map_with_span(|expr, span| UnresolvedTypeData::String(expr).with_span(span))
 }
 
-fn format_string_type(
-    type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<UnresolvedType> {
+fn format_string_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     keyword(Keyword::FormatString)
         .ignore_then(
-            type_expression()
+            type_expression(type_parser.clone())
                 .then_ignore(just(Token::Comma))
                 .then(type_parser)
                 .delimited_by(just(Token::Less), just(Token::Greater)),
@@ -1097,28 +1099,28 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
         })
 }
 
-fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+fn named_type<'a>(type_parser: impl NoirParser<UnresolvedType> + 'a) -> impl NoirParser<UnresolvedType> + 'a {
     path()
         .then(generic_type_args(type_parser))
         .map_with_span(|(path, args), span| UnresolvedTypeData::Named(path, args).with_span(span))
 }
 
-fn named_trait(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+fn named_trait<'a>(type_parser: impl NoirParser<UnresolvedType> + 'a) -> impl NoirParser<UnresolvedType> + 'a {
     keyword(Keyword::Impl).ignore_then(path()).then(generic_type_args(type_parser)).map_with_span(
         |(path, args), span| UnresolvedTypeData::TraitAsType(path, args).with_span(span),
     )
 }
 
-fn generic_type_args(
-    type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<Vec<UnresolvedType>> {
-    type_parser
+fn generic_type_args<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<Vec<UnresolvedType>> + 'a {
+    type_parser.clone()
         // Without checking for a terminating ',' or '>' here we may incorrectly
         // parse a generic `N * 2` as just the type `N` then fail when there is no
         // separator afterward. Failing early here ensures we try the `type_expression`
         // parser afterward.
         .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
-        .or(type_expression()
+        .or(type_expression(type_parser)
             .map_with_span(|expr, span| UnresolvedTypeData::Expression(expr).with_span(span)))
         .separated_by(just(Token::Comma))
         .allow_trailing()
@@ -1128,23 +1130,26 @@ fn generic_type_args(
         .map(Option::unwrap_or_default)
 }
 
-fn array_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+fn array_type<'a>(type_parser: impl NoirParser<UnresolvedType> + 'a) -> impl NoirParser<UnresolvedType> + 'a {
     just(Token::LeftBracket)
-        .ignore_then(type_parser)
-        .then(just(Token::Semicolon).ignore_then(type_expression()).or_not())
+        .ignore_then(type_parser.clone())
+        .then(just(Token::Semicolon).ignore_then(type_expression(type_parser)).or_not())
         .then_ignore(just(Token::RightBracket))
         .map_with_span(|(element_type, size), span| {
             UnresolvedTypeData::Array(size, Box::new(element_type)).with_span(span)
         })
 }
 
-fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
+fn type_expression<'a, T>(type_parser: T) -> impl NoirParser<UnresolvedTypeExpression> + 'a
+    where T: NoirParser<UnresolvedType> + 'a
+{
     recursive(|expr| {
         expression_with_precedence(
             Precedence::lowest_type_precedence(),
             expr,
             nothing(),
             nothing(),
+            type_parser,
             true,
             false,
         )
@@ -1201,6 +1206,10 @@ where
         })
 }
 
+fn turbofish<'a>(type_parser: impl NoirParser<UnresolvedType> + 'a) -> impl NoirParser<Option<Vec<UnresolvedType>>> + 'a {
+    just(Token::DoubleColon).ignore_then(generic_type_args(type_parser)).or_not()
+}
+
 fn expression() -> impl ExprParser {
     recursive(|expr| {
         expression_with_precedence(
@@ -1208,6 +1217,7 @@ fn expression() -> impl ExprParser {
             expr.clone(),
             expression_no_constructors(expr.clone()),
             statement(expr.clone(), expression_no_constructors(expr)),
+            parse_type(),
             false,
             true,
         )
@@ -1225,6 +1235,7 @@ where
             expr_parser.clone(),
             expr_no_constructors.clone(),
             statement(expr_parser, expr_no_constructors),
+            parse_type(),
             false,
             false,
         )
@@ -1247,11 +1258,12 @@ where
 // An expression is a single term followed by 0 or more (OP subexpression)*
 // where OP is an operator at the given precedence level and subexpression
 // is an expression at the current precedence level plus one.
-fn expression_with_precedence<'a, P, P2, S>(
+fn expression_with_precedence<'a, P, P2, S, T>(
     precedence: Precedence,
     expr_parser: P,
     expr_no_constructors: P2,
     statement: S,
+    type_parser: T,
     // True if we should only parse the restricted subset of operators valid within type expressions
     is_type_expression: bool,
     // True if we should also parse constructors `Foo { field1: value1, ... }` as an expression.
@@ -1263,10 +1275,11 @@ where
     P: ExprParser + 'a,
     P2: ExprParser + 'a,
     S: NoirParser<StatementKind> + 'a,
+    T: NoirParser<UnresolvedType> + 'a,
 {
     if precedence == Precedence::Highest {
         if is_type_expression {
-            type_expression_term(expr_parser).boxed().labelled(ParsingRuleLabel::Term)
+            type_expression_term(expr_parser, type_parser).boxed().labelled(ParsingRuleLabel::Term)
         } else {
             term(expr_parser, expr_no_constructors, statement, allow_constructors)
                 .boxed()
@@ -1281,6 +1294,7 @@ where
             expr_parser,
             expr_no_constructors,
             statement,
+            type_parser,
             is_type_expression,
             allow_constructors,
         );
@@ -1353,12 +1367,13 @@ where
 
 /// The equivalent of a 'term' for use in type expressions. Unlike regular terms, the grammar here
 /// is restricted to no longer include right-unary expressions, unary not, and most atoms.
-fn type_expression_term<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
+fn type_expression_term<'a, P, P2>(expr_parser: P, type_parser: P2) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
+    P2: NoirParser<UnresolvedType> + 'a,
 {
     recursive(move |term_parser| {
-        negation(term_parser).map_with_span(Expression::new).or(type_expression_atom(expr_parser))
+        negation(term_parser).map_with_span(Expression::new).or(type_expression_atom(expr_parser, type_parser))
     })
 }
 
@@ -1582,7 +1597,7 @@ where
         },
         lambda(expr_parser.clone()),
         block(statement).map(ExpressionKind::Block),
-        variable(),
+        variable(parse_type()),
         literal(),
     ))
     .map_with_span(Expression::new)
@@ -1595,11 +1610,12 @@ where
 
 /// Atoms within type expressions are limited to only variables, literals, and parenthesized
 /// type expressions.
-fn type_expression_atom<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
+fn type_expression_atom<'a, P, P2>(expr_parser: P, type_parser: P2) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
+    P2: NoirParser<UnresolvedType> + 'a,
 {
-    variable()
+    variable(type_parser)
         .or(literal())
         .map_with_span(Expression::new)
         .or(parenthesized(expr_parser))
@@ -1648,8 +1664,8 @@ where
     long_form.or(short_form)
 }
 
-fn variable() -> impl NoirParser<ExpressionKind> {
-    path().map(ExpressionKind::Variable)
+fn variable<'a>(type_parser: impl NoirParser<UnresolvedType> + 'a) -> impl NoirParser<ExpressionKind> + 'a {
+    path().then(turbofish(type_parser)).map(|(path, generics)| ExpressionKind::Variable(path, generics))
 }
 
 fn literal() -> impl NoirParser<ExpressionKind> {
@@ -1913,7 +1929,7 @@ mod test {
 
     #[test]
     fn parse_type_expression() {
-        parse_all(type_expression(), vec!["(123)", "123", "(1 + 1)", "(1 + (1))"]);
+        parse_all(type_expression(parse_type()), vec!["(123)", "123", "(1 + 1)", "(1 + (1))"]);
     }
 
     #[test]

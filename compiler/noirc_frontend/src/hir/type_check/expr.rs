@@ -18,7 +18,7 @@ use super::{errors::TypeCheckError, TypeChecker};
 
 impl<'interner> TypeChecker<'interner> {
     fn check_if_deprecated(&mut self, expr: &ExprId) {
-        if let HirExpression::Ident(expr::HirIdent { location, id }) =
+        if let HirExpression::Ident(expr::HirIdent { location, id }, _) =
             self.interner.expression(expr)
         {
             if let Some(DefinitionKind::Function(func_id)) =
@@ -46,13 +46,17 @@ impl<'interner> TypeChecker<'interner> {
     /// function `foo` to refer to.
     pub(crate) fn check_expression(&mut self, expr_id: &ExprId) -> Type {
         let typ = match self.interner.expression(expr_id) {
-            HirExpression::Ident(ident) => {
+            HirExpression::Ident(ident, generics) => {
                 // An identifiers type may be forall-quantified in the case of generic functions.
                 // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
                 // We must instantiate identifiers at every call site to replace this T with a new type
                 // variable to handle generic functions.
                 let t = self.interner.id_type_substitute_trait_as_type(ident.id);
-                let (typ, bindings) = t.instantiate(self.interner);
+
+                let (typ, bindings) = match generics {
+                    Some(generics) => t.instantiate_with(generics),
+                    None => t.instantiate(self.interner),
+                };
 
                 // Push any trait constraints required by this definition to the context
                 // to be checked later when the type of this variable is further constrained.

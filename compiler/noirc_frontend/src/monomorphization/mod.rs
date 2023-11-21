@@ -299,7 +299,7 @@ impl<'interner> Monomorphizer<'interner> {
         use ast::Literal::*;
 
         match self.interner.expression(&expr) {
-            HirExpression::Ident(ident) => self.ident(ident, expr),
+            HirExpression::Ident(ident, _) => self.ident(ident, expr),
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
             HirExpression::Literal(HirLiteral::FmtStr(contents, idents)) => {
                 let fields = vecmap(idents, |ident| self.expr(ident));
@@ -955,17 +955,15 @@ impl<'interner> Monomorphizer<'interner> {
         arguments: &mut Vec<ast::Expression>,
     ) {
         match hir_argument {
-            HirExpression::Ident(ident) => {
-                let typ = self.interner.id_type(ident.id);
-                let typ: Type = typ.follow_bindings();
-                let is_fmt_str = match typ {
+            HirExpression::Ident(ident, _) => {
+                let is_fmt_str = match self.interner.id_type(ident.id).follow_bindings() {
                     // A format string has many different possible types that need to be handled.
                     // Loop over each element in the format string to fetch each type's relevant metadata
                     Type::FmtString(_, elements) => {
                         match *elements {
                             Type::Tuple(element_types) => {
-                                for typ in element_types {
-                                    Self::append_printable_type_info_inner(&typ, arguments);
+                                for element in element_types {
+                                    Self::append_printable_type_info_inner(&element, arguments);
                                 }
                             }
                             _ => unreachable!(
@@ -974,7 +972,7 @@ impl<'interner> Monomorphizer<'interner> {
                         }
                         true
                     }
-                    _ => {
+                    typ => {
                         Self::append_printable_type_info_inner(&typ, arguments);
                         false
                     }

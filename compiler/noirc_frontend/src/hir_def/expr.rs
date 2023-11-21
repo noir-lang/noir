@@ -15,7 +15,9 @@ use super::types::{StructType, Type};
 /// from the definition that refers to them so there is no ambiguity with names.
 #[derive(Debug, Clone)]
 pub enum HirExpression {
-    Ident(HirIdent),
+    // The optional vec here is the optional list of generics
+    // provided by the turbofish operator, if it was used
+    Ident(HirIdent, Option<Vec<Type>>),
     Literal(HirLiteral),
     Block(HirBlockExpression),
     Prefix(HirPrefixExpression),
@@ -172,7 +174,7 @@ impl HirMethodCallExpression {
         let expr = match method {
             HirMethodReference::FuncId(func_id) => {
                 let id = interner.function_definition_id(func_id);
-                HirExpression::Ident(HirIdent { location, id })
+                HirExpression::Ident(HirIdent { location, id }, None)
             }
             HirMethodReference::TraitMethodId(method_id) => {
                 HirExpression::TraitMethodReference(method_id)

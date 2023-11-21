@@ -1206,7 +1206,7 @@ impl<'a> Resolver<'a> {
                 Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),
                 Literal::Unit => HirLiteral::Unit,
             }),
-            ExpressionKind::Variable(path) => {
+            ExpressionKind::Variable(path, generics) => {
                 if let Some((hir_expr, object_type)) = self.resolve_trait_generic_path(&path) {
                     let expr_id = self.interner.push_expr(hir_expr);
                     self.interner.push_expr_location(expr_id, expr.span, self.file);
@@ -1252,7 +1252,9 @@ impl<'a> Resolver<'a> {
                         }
                     }
 
-                    HirExpression::Ident(hir_ident)
+                    let generics = generics.map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
+
+                    HirExpression::Ident(hir_ident, generics)
                 }
             }
             ExpressionKind::Prefix(prefix) => {
@@ -1708,7 +1710,7 @@ impl<'a> Resolver<'a> {
             let variable = scope_tree.find(ident_name);
             if let Some((old_value, _)) = variable {
                 old_value.num_times_used += 1;
-                let expr_id = self.interner.push_expr(HirExpression::Ident(old_value.ident));
+                let expr_id = self.interner.push_expr(HirExpression::Ident(old_value.ident, None));
                 self.interner.push_expr_location(expr_id, call_expr_span, self.file);
                 fmt_str_idents.push(expr_id);
             } else if ident_name.parse::<usize>().is_ok() {
@@ -1820,7 +1822,7 @@ pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<
             let span = interner.expr_span(&rhs);
             Err(ResolverError::MutableReferenceToArrayElement { span })
         }
-        HirExpression::Ident(ident) => {
+        HirExpression::Ident(ident, _) => {
             if let Some(definition) = interner.try_definition(ident.id) {
                 if !definition.mutable {
                     return Err(ResolverError::MutableReferenceToImmutableVariable {

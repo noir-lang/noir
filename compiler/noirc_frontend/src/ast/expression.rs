@@ -23,7 +23,9 @@ pub enum ExpressionKind {
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
     If(Box<IfExpression>),
-    Variable(Path),
+    // The optional vec here is the optional list of generics
+    // provided by the turbofish operator, if used
+    Variable(Path, Option<Vec<UnresolvedType>>),
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
@@ -37,7 +39,7 @@ pub type UnresolvedGenerics = Vec<Ident>;
 impl ExpressionKind {
     pub fn into_path(self) -> Option<Path> {
         match self {
-            ExpressionKind::Variable(path) => Some(path),
+            ExpressionKind::Variable(path, _) => Some(path),
             _ => None,
         }
     }
@@ -165,7 +167,11 @@ impl Expression {
         Expression::new(kind, span)
     }
 
-    pub fn call(lhs: Expression, arguments: Vec<Expression>, span: Span) -> Expression {
+    pub fn call(
+        lhs: Expression,
+        arguments: Vec<Expression>,
+        span: Span,
+    ) -> Expression {
         // Need to check if lhs is an if expression since users can sequence if expressions
         // with tuples without calling them. E.g. `if c { t } else { e }(a, b)` is interpreted
         // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
@@ -181,7 +187,10 @@ impl Expression {
                 },
             ]))
         } else {
-            ExpressionKind::Call(Box::new(CallExpression { func: Box::new(lhs), arguments }))
+            ExpressionKind::Call(Box::new(CallExpression {
+                func: Box::new(lhs),
+                arguments,
+            }))
         };
         Expression::new(kind, span)
     }
@@ -480,7 +489,14 @@ impl Display for ExpressionKind {
             Cast(cast) => cast.fmt(f),
             Infix(infix) => infix.fmt(f),
             If(if_expr) => if_expr.fmt(f),
-            Variable(path) => path.fmt(f),
+            Variable(path, generics) => {
+                if let Some(generics) = generics {
+                    let generics = vecmap(generics, ToString::to_string);
+                    write!(f, "{path}::<{}>", generics.join(", "))
+                } else {
+                    path.fmt(f)
+                }
+            }
             Constructor(constructor) => constructor.fmt(f),
             MemberAccess(access) => access.fmt(f),
             Tuple(elements) => {

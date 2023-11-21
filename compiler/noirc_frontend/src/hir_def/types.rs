@@ -1126,6 +1126,29 @@ impl Type {
         }
     }
 
+    /// Instantiates a type with the given types.
+    /// This differs from substitute in that only the quantified type variables
+    /// are matched against the type list and are eligible for substitution - similar
+    /// to normal instantiation. This function is used when the turbofish operator
+    /// is used and generic substitutions are provided manually by users.
+    ///
+    /// Expects the given type vector to be the same length as the Forall type variables.
+    pub fn instantiate_with(&self, types: Vec<Type>) -> (Type, TypeBindings) {
+        match self {
+            Type::Forall(typevars, typ) => {
+                let replacements = typevars
+                    .iter()
+                    .zip(types)
+                    .map(|((id, var), binding)| (*id, (var.clone(), binding)))
+                    .collect();
+
+                let instantiated = typ.substitute(&replacements);
+                (instantiated, replacements)
+            }
+            other => (other.clone(), HashMap::new()),
+        }
+    }
+
     /// Replace each NamedGeneric (and TypeVariable) in this type with a fresh type variable
     pub(crate) fn instantiate_type_variables(
         &self,
@@ -1381,7 +1404,7 @@ fn convert_array_expression_to_slice(
 
     let as_slice_id = interner.function_definition_id(as_slice_method);
     let location = interner.expr_location(&expression);
-    let as_slice = HirExpression::Ident(HirIdent { location, id: as_slice_id });
+    let as_slice = HirExpression::Ident(HirIdent { location, id: as_slice_id }, None);
     let func = interner.push_expr(as_slice);
 
     let arguments = vec![expression];
