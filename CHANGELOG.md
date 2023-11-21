@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.15.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.15.0...aztec-packages-v0.15.1) (2023-11-21)
+
+
+### Features
+
+* **bb:** Add ability to write pk to file or stdout ([#3335](https://github.com/AztecProtocol/aztec-packages/issues/3335)) ([c99862c](https://github.com/AztecProtocol/aztec-packages/commit/c99862c9602d7d37f7fef348e9f014fb137adab1))
+* DataBus PoC (UltraHonk as extension of Ultra) ([#3181](https://github.com/AztecProtocol/aztec-packages/issues/3181)) ([dd9dd84](https://github.com/AztecProtocol/aztec-packages/commit/dd9dd84e9cfc93f8605f28aa25fa36b0004052cb))
+* Deploy docs from CCI w/ netlify-cli ([#3348](https://github.com/AztecProtocol/aztec-packages/issues/3348)) ([624d733](https://github.com/AztecProtocol/aztec-packages/commit/624d7339d6bd9755156487a07c553b00f92c3b4b))
+* Fold batching challenge (alpha) ([#3291](https://github.com/AztecProtocol/aztec-packages/issues/3291)) ([bc99a4f](https://github.com/AztecProtocol/aztec-packages/commit/bc99a4f644824727920b0b4a38ec5ba915d5c0ce))
+* Open transcript polys as univariates in ECCVM ([#3331](https://github.com/AztecProtocol/aztec-packages/issues/3331)) ([436b22e](https://github.com/AztecProtocol/aztec-packages/commit/436b22e35bf8a41f78def237889f2afd2ca79830))
+* Sandbox packages ([#3360](https://github.com/AztecProtocol/aztec-packages/issues/3360)) ([0dc2d58](https://github.com/AztecProtocol/aztec-packages/commit/0dc2d586c60587f62e50bb7af0862d1a3f828688))
+* Slow updates experimentation ([#2732](https://github.com/AztecProtocol/aztec-packages/issues/2732)) ([193e6c8](https://github.com/AztecProtocol/aztec-packages/commit/193e6c8e0afd1646f3b90c30c250fc4c087a4dde))
+* ZM updates for Translator concatenated polys ([#3343](https://github.com/AztecProtocol/aztec-packages/issues/3343)) ([0e425db](https://github.com/AztecProtocol/aztec-packages/commit/0e425dbfc99af9fc2598a957acd8b71f3fd45fe9))
+
+
+### Bug Fixes
+
+* Bootstrap bbjs. ([#3337](https://github.com/AztecProtocol/aztec-packages/issues/3337)) ([06aedcb](https://github.com/AztecProtocol/aztec-packages/commit/06aedcbfd601e243d3486763c1306e20c1ae3688))
+* Noir-compiler breadth-first resolver ([#3307](https://github.com/AztecProtocol/aztec-packages/issues/3307)) ([02348cf](https://github.com/AztecProtocol/aztec-packages/commit/02348cf94ff21d585ca43c22be69433af9cd3b98))
+* Update command looks at devDeps ([#3276](https://github.com/AztecProtocol/aztec-packages/issues/3276)) ([54ee38d](https://github.com/AztecProtocol/aztec-packages/commit/54ee38d94f904a94cec948b9db9ca833f097d9c1)), closes [#3275](https://github.com/AztecProtocol/aztec-packages/issues/3275)
+* Updating pedersen benchmarks ([#3211](https://github.com/AztecProtocol/aztec-packages/issues/3211)) ([7e89ff3](https://github.com/AztecProtocol/aztec-packages/commit/7e89ff363521dd65e0c9f0c098b3bacea33c2764))
+* Warn on circular imports. ([#3350](https://github.com/AztecProtocol/aztec-packages/issues/3350)) ([5bfbddb](https://github.com/AztecProtocol/aztec-packages/commit/5bfbddb21bc81dd47698f0c8796d0c8dc0a498e0))
+
+
+### Miscellaneous
+
+* All hashes in ts ([#3333](https://github.com/AztecProtocol/aztec-packages/issues/3333)) ([6307e12](https://github.com/AztecProtocol/aztec-packages/commit/6307e129770af7791dc5a477859b75ebb112a653))
+* Compute function tree root in ts. ([#3326](https://github.com/AztecProtocol/aztec-packages/issues/3326)) ([48d8c7f](https://github.com/AztecProtocol/aztec-packages/commit/48d8c7fd53c11b2d84c8f8e9e137ce0bb0dc3604))
+* **docs:** Suggest CLI install per project ([#3267](https://github.com/AztecProtocol/aztec-packages/issues/3267)) ([b4c967b](https://github.com/AztecProtocol/aztec-packages/commit/b4c967bcb222e410030fe6066b32aa1802ddb15b))
+* Enforce bracing around blocks. Generally considered easier to read and less error prone. ([#3349](https://github.com/AztecProtocol/aztec-packages/issues/3349)) ([ee11dec](https://github.com/AztecProtocol/aztec-packages/commit/ee11decb8d3ba65d2a74aedf72396b57fccb1db6))
+* Fix circulars in foundation. Also cleanup fields and optimise to be buffer underlying. ([#3351](https://github.com/AztecProtocol/aztec-packages/issues/3351)) ([c4bf8d3](https://github.com/AztecProtocol/aztec-packages/commit/c4bf8d371550e27ee8982ec3ea2a6848bd02a46f))
+* Public kernel tests ([#3325](https://github.com/AztecProtocol/aztec-packages/issues/3325)) ([bace972](https://github.com/AztecProtocol/aztec-packages/commit/bace9722cbb5903ea28ebc8e32ddfa4cf784e62a))
+
+
+### Documentation
+
+* Fixed errors in Gas and Fees yellow paper ([#3363](https://github.com/AztecProtocol/aztec-packages/issues/3363)) ([d818206](https://github.com/AztecProtocol/aztec-packages/commit/d818206391801b69fff9ff63d4aeefa1bb3fb72a))
+* Initial network section of yellow paper ([#3341](https://github.com/AztecProtocol/aztec-packages/issues/3341)) ([5a18615](https://github.com/AztecProtocol/aztec-packages/commit/5a18615fe68a25adf33f9d158c03cf9d68fbcfc6))
+* Yellow paper section on Gas and Fees ([#3327](https://github.com/AztecProtocol/aztec-packages/issues/3327)) ([caa7e10](https://github.com/AztecProtocol/aztec-packages/commit/caa7e10565f2b9177085fca5fc3366ccea5f0d33))
+
 ## [0.15.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.14.2...aztec-packages-v0.15.0) (2023-11-16)
 
 
