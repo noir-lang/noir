@@ -6,6 +6,7 @@ use clap::Args;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
+use nargo::ops::DefaultForeignCallExecutor;
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
@@ -117,10 +118,10 @@ pub(crate) fn execute_program(
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let solved_witness_err = nargo::ops::execute_circuit(
-        &blackbox_solver,
         &compiled_program.circuit,
         initial_witness,
-        true,
+        &blackbox_solver,
+        &mut DefaultForeignCallExecutor::new(true),
     );
     match solved_witness_err {
         Ok(solved_witness) => Ok(solved_witness),

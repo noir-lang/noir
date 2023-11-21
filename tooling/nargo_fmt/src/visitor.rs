@@ -1,4 +1,4 @@
-mod expr;
+pub(crate) mod expr;
 mod item;
 mod stmt;
 
@@ -10,16 +10,18 @@ use crate::{
 };
 
 pub(crate) struct FmtVisitor<'me> {
-    config: &'me Config,
+    ignore_next_node: bool,
+    pub(crate) config: &'me Config,
     buffer: String,
     pub(crate) source: &'me str,
-    indent: Indent,
+    pub(crate) indent: Indent,
     last_position: u32,
 }
 
 impl<'me> FmtVisitor<'me> {
     pub(crate) fn new(source: &'me str, config: &'me Config) -> Self {
         Self {
+            ignore_next_node: false,
             buffer: String::new(),
             config,
             source,
@@ -51,7 +53,7 @@ impl<'me> FmtVisitor<'me> {
         (span.start() + offset..span.end()).into()
     }
 
-    fn shape(&self) -> Shape {
+    pub(crate) fn shape(&self) -> Shape {
         Shape {
             width: self.config.max_width.saturating_sub(self.indent.width()),
             indent: self.indent,
@@ -61,6 +63,7 @@ impl<'me> FmtVisitor<'me> {
     pub(crate) fn fork(&self) -> Self {
         Self {
             buffer: String::new(),
+            ignore_next_node: self.ignore_next_node,
             config: self.config,
             source: self.source,
             last_position: self.last_position,
@@ -77,6 +80,24 @@ impl<'me> FmtVisitor<'me> {
     }
 
     fn push_str(&mut self, s: &str) {
+        let comments = Lexer::new(s).skip_comments(false).flatten().flat_map(|token| {
+            if let Token::LineComment(content, _) | Token::BlockComment(content, _) =
+                token.into_token()
+            {
+                let content = content.trim();
+                content.strip_prefix("noir-fmt:").map(ToOwned::to_owned)
+            } else {
+                None
+            }
+        });
+
+        for comment in comments {
+            match comment.as_str() {
+                "ignore" => self.ignore_next_node = true,
+                this => unreachable!("unknown settings {this}"),
+            }
+        }
+
         self.buffer.push_str(s);
     }
 
@@ -89,10 +110,19 @@ impl<'me> FmtVisitor<'me> {
             panic!("not formatted because a comment would be lost: {rewrite:?}");
         }
 
-        let rewrite = if changed_comment_content { original.to_string() } else { rewrite };
-
         self.format_missing_indent(span.start(), true);
+
+        let rewrite = if changed_comment_content || std::mem::take(&mut self.ignore_next_node) {
+            original.to_string()
+        } else {
+            rewrite
+        };
+
         self.push_str(&rewrite);
+
+        if rewrite.starts_with('{') && rewrite.ends_with('}') {
+            self.ignore_next_node = false;
+        }
     }
 
     #[track_caller]
@@ -133,7 +163,7 @@ impl<'me> FmtVisitor<'me> {
             self.push_vertical_spaces(slice);
             process_last_slice(self, "", slice);
         } else {
-            let (result, last_end) = self.format_comment_in_block(slice, start);
+            let (result, last_end) = self.format_comment_in_block(slice);
             if result.trim().is_empty() {
                 process_last_slice(self, slice, slice);
             } else {
@@ -144,67 +174,36 @@ impl<'me> FmtVisitor<'me> {
         }
     }
 
-    fn format_comment_in_block(&mut self, slice: &str, start: u32) -> (String, u32) {
+    pub(crate) fn format_comment_in_block(&mut self, slice: &str) -> (String, u32) {
         let mut result = String::new();
-        let mut last_end = 0;
+        let comments = Lexer::new(slice).skip_comments(false).skip_whitespaces(false).flatten();
 
-        let mut comments = Lexer::new(slice).skip_comments(false).flatten();
-
-        if let Some(comment) = comments.next() {
+        let indent = self.indent.to_string();
+        for comment in comments {
             let span = comment.to_span();
-            let diff = start;
-            let big_snippet = &self.source[..(span.start() + diff) as usize];
-            let last_char = big_snippet.chars().rev().find(|rev_c| ![' ', '\t'].contains(rev_c));
-            let fix_indent = last_char.map_or(true, |rev_c| ['{', '\n'].contains(&rev_c));
 
-            if let Token::LineComment(_, _) | Token::BlockComment(_, _) = comment.into_token() {
-                let starts_with_newline = slice.starts_with('\n');
-                let comment = &slice[span.start() as usize..span.end() as usize];
-
-                if fix_indent {
-                    if let Some('{') = last_char {
-                        result.push('\n');
+            match comment.token() {
+                Token::LineComment(_, _) | Token::BlockComment(_, _) => {
+                    let comment = &slice[span.start() as usize..span.end() as usize];
+                    if result.ends_with('\n') {
+                        result.push_str(&indent);
+                    } else if !self.at_start() {
+                        result.push(' ');
                     }
-
-                    if let Some('\n') = last_char {
-                        result.push('\n');
-                    }
-
-                    let indent_str = self.indent.to_string();
-                    result.push_str(&indent_str);
-                } else {
-                    match (starts_with_newline, self.at_start()) {
-                        (false, false) => {
-                            result.push(' ');
-                        }
-                        (true, _) => {
-                            result.push_str(&self.indent.to_string_with_newline());
-                        }
-                        _ => {}
-                    };
+                    result.push_str(comment);
                 }
-
-                result.push_str(comment);
+                Token::Whitespace(whitespaces) => {
+                    let mut visitor = self.fork();
+                    if whitespaces.contains('\n') {
+                        visitor.push_vertical_spaces(whitespaces.trim_matches(' '));
+                        result.push_str(&visitor.finish());
+                    }
+                }
+                _ => {}
             }
         }
 
-        for spanned in comments {
-            let span = spanned.to_span();
-            last_end = span.end();
-
-            if let Token::LineComment(_, _) | Token::BlockComment(_, _) = spanned.token() {
-                let comment = &slice[span.start() as usize..span.end() as usize];
-
-                result.push_str(&self.indent.to_string_with_newline());
-                result.push_str(comment);
-            }
-        }
-
-        if slice.trim_end_matches([' ', '\t']).ends_with(['\n', '\r']) {
-            result.push('\n');
-        }
-
-        (result, last_end)
+        (result, slice.len() as u32)
     }
 
     fn push_vertical_spaces(&mut self, slice: &str) {
@@ -245,37 +244,37 @@ impl<'me> FmtVisitor<'me> {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-struct Indent {
+pub(crate) struct Indent {
     block_indent: usize,
 }
 
 impl Indent {
-    fn width(&self) -> usize {
+    pub(crate) fn width(&self) -> usize {
         self.block_indent
     }
 
-    fn block_indent(&mut self, config: &Config) {
+    pub(crate) fn block_indent(&mut self, config: &Config) {
         self.block_indent += config.tab_spaces;
     }
 
-    fn block_unindent(&mut self, config: &Config) {
+    pub(crate) fn block_unindent(&mut self, config: &Config) {
         self.block_indent -= config.tab_spaces;
     }
 
-    fn to_string_with_newline(self) -> String {
+    pub(crate) fn to_string_with_newline(self) -> String {
         "\n".to_string() + &self.to_string()
     }
 
     #[allow(clippy::inherent_to_string)]
-    fn to_string(self) -> String {
+    pub(crate) fn to_string(self) -> String {
         " ".repeat(self.block_indent)
     }
 }
 
 #[derive(Clone, Copy, Debug)]
-struct Shape {
-    width: usize,
-    indent: Indent,
+pub(crate) struct Shape {
+    pub(crate) width: usize,
+    pub(crate) indent: Indent,
 }
 
 #[derive(PartialEq, Eq, Debug)]
