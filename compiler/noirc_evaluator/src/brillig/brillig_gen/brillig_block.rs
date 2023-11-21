@@ -429,13 +429,12 @@ impl<'block> BrilligBlock<'block> {
 
                     let results = dfg.instruction_results(instruction_id);
 
-                    let target_len_variable = self.variables.define_variable(
+                    let target_len = self.variables.define_register_variable(
                         self.function_context,
                         self.brillig_context,
                         results[0],
                         dfg,
                     );
-                    let target_len = target_len_variable.extract_register();
 
                     let target_slice = self.variables.define_variable(
                         self.function_context,
@@ -588,7 +587,19 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.deallocate_register(right);
             }
             Instruction::IncrementRc { value } => {
-                // TODO
+                let rc_register = match self.convert_ssa_value(*value, dfg) {
+                    BrilligVariable::BrilligArray(BrilligArray { rc, .. })
+                    | BrilligVariable::BrilligVector(BrilligVector { rc, .. }) => rc,
+                    _ => unreachable!("ICE: increment rc on non-array"),
+                };
+                self.brillig_context.constrain_instruction(
+                    rc_register,
+                    Some(format!(
+                        "Invalid RC {} of value {} at function {}",
+                        rc_register.0, value, self.function_context.function_id
+                    )),
+                );
+                self.brillig_context.usize_op_in_place(rc_register, BinaryIntOp::Add, 1);
             }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
@@ -697,7 +708,12 @@ impl<'block> BrilligBlock<'block> {
             _ => unreachable!("ICE: array set returns non-array"),
         };
 
-        // First issue a array copy to the destination
+        let reference_count = match source_variable {
+            BrilligVariable::BrilligArray(BrilligArray { rc, .. })
+            | BrilligVariable::BrilligVector(BrilligVector { rc, .. }) => rc,
+            _ => unreachable!("ICE: array set on non-array"),
+        };
+
         let (source_pointer, source_size_as_register) = match source_variable {
             BrilligVariable::BrilligArray(BrilligArray { size, pointer, rc: _ }) => {
                 let source_size_register = self.brillig_context.allocate_register();
@@ -712,19 +728,45 @@ impl<'block> BrilligBlock<'block> {
             _ => unreachable!("ICE: array set on non-array"),
         };
 
-        self.brillig_context
-            .allocate_array_instruction(destination_pointer, source_size_as_register);
+        let one = self.brillig_context.make_constant(1_usize.into());
+        let condition = self.brillig_context.allocate_register();
 
-        self.brillig_context.copy_array_instruction(
-            source_pointer,
-            destination_pointer,
-            source_size_as_register,
+        self.brillig_context.binary_instruction(
+            reference_count,
+            one,
+            condition,
+            BrilligBinaryOp::Field { op: BinaryFieldOp::Equals },
         );
 
-        if let BrilligVariable::BrilligVector(BrilligVector { size: target_size, .. }) =
-            destination_variable
-        {
-            self.brillig_context.mov_instruction(target_size, source_size_as_register);
+        self.brillig_context.branch_instruction(condition, |ctx, cond| {
+            if cond {
+                // Reference count is 1, we can mutate the array directly
+                ctx.mov_instruction(destination_pointer, source_pointer);
+            } else {
+                // First issue a array copy to the destination
+                ctx.allocate_array_instruction(destination_pointer, source_size_as_register);
+
+                ctx.copy_array_instruction(
+                    source_pointer,
+                    destination_pointer,
+                    source_size_as_register,
+                );
+            }
+        });
+
+        match destination_variable {
+            BrilligVariable::BrilligArray(BrilligArray { rc: target_rc, .. }) => {
+                self.brillig_context.const_instruction(target_rc, 1_usize.into());
+            }
+            BrilligVariable::BrilligVector(BrilligVector {
+                size: target_size,
+                rc: target_rc,
+                ..
+            }) => {
+                self.brillig_context.mov_instruction(target_size, source_size_as_register);
+                self.brillig_context.const_instruction(target_rc, 1_usize.into());
+            }
+            _ => unreachable!("ICE: array set on non-array"),
         }
 
         // Then set the value in the newly created array
@@ -733,24 +775,38 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.deallocate_register(source_size_as_register);
     }
 
-    pub(crate) fn store_variable_in_array(
-        &mut self,
+    pub(crate) fn store_variable_in_array_with_ctx(
+        ctx: &mut BrilligContext,
         destination_pointer: RegisterIndex,
         index_register: RegisterIndex,
         value_variable: BrilligVariable,
     ) {
         match value_variable {
             BrilligVariable::Simple(value_register) => {
-                self.brillig_context.array_set(destination_pointer, index_register, value_register);
+                ctx.array_set(destination_pointer, index_register, value_register);
             }
             BrilligVariable::BrilligArray(_) | BrilligVariable::BrilligVector(_) => {
-                let reference = self.brillig_context.allocate_register();
-                self.brillig_context.allocate_variable_instruction(reference);
-                self.brillig_context.store_variable_instruction(reference, value_variable);
-                self.brillig_context.array_set(destination_pointer, index_register, reference);
-                self.brillig_context.deallocate_register(reference);
+                let reference = ctx.allocate_register();
+                ctx.allocate_variable_instruction(reference);
+                ctx.store_variable_instruction(reference, value_variable);
+                ctx.array_set(destination_pointer, index_register, reference);
+                ctx.deallocate_register(reference);
             }
         }
+    }
+
+    pub(crate) fn store_variable_in_array(
+        &mut self,
+        destination_pointer: RegisterIndex,
+        index_register: RegisterIndex,
+        value_variable: BrilligVariable,
+    ) {
+        Self::store_variable_in_array_with_ctx(
+            self.brillig_context,
+            destination_pointer,
+            index_register,
+            value_variable,
+        );
     }
 
     /// Convert the SSA slice operations to brillig slice operations

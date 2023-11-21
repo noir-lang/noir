@@ -19,6 +19,8 @@ impl<'block> BrilligBlock<'block> {
             variables_to_insert.len(),
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
+        // We initialize the RC of the target vector to 1
+        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
 
         // Now we copy the source vector into the target vector
         self.brillig_context.copy_array_instruction(
@@ -54,6 +56,8 @@ impl<'block> BrilligBlock<'block> {
             variables_to_insert.len(),
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
+        // We initialize the RC of the target vector to 1
+        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
 
         // Now we offset the target pointer by variables_to_insert.len()
         let destination_copy_pointer = self.brillig_context.allocate_register();
@@ -95,6 +99,8 @@ impl<'block> BrilligBlock<'block> {
             removed_items.len(),
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
+        // We initialize the RC of the target vector to 1
+        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
 
         // Now we offset the source pointer by removed_items.len()
         let source_copy_pointer = self.brillig_context.allocate_register();
@@ -135,6 +141,8 @@ impl<'block> BrilligBlock<'block> {
             removed_items.len(),
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
+        // We initialize the RC of the target vector to 1
+        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
 
         // Now we copy all elements except the last items into the target vector
         self.brillig_context.copy_array_instruction(
@@ -171,6 +179,8 @@ impl<'block> BrilligBlock<'block> {
             items.len(),
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
+        // We initialize the RC of the target vector to 1
+        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
 
         // Copy the elements to the left of the index
         self.brillig_context.copy_array_instruction(
@@ -241,6 +251,8 @@ impl<'block> BrilligBlock<'block> {
             removed_items.len(),
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
+        // We initialize the RC of the target vector to 1
+        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
 
         // Copy the elements to the left of the index
         self.brillig_context.copy_array_instruction(

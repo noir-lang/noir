@@ -321,13 +321,6 @@ impl BrilligContext {
         self.enter_section(end_section);
     }
 
-    /// Add one to the given register value and store it in the given register
-    pub(crate) fn increment(&mut self, value: RegisterIndex, result: RegisterIndex) {
-        let one = self.make_constant(1_usize.into());
-        let add = BrilligBinaryOp::Field { op: BinaryFieldOp::Add };
-        self.binary_instruction(value, one, result, add);
-    }
-
     /// Adds a label to the next opcode
     pub(crate) fn enter_context<T: ToString>(&mut self, label: T) {
         self.debug_show.enter_context(label.to_string());
@@ -936,6 +929,7 @@ impl BrilligContext {
         big_endian: bool,
     ) {
         self.mov_instruction(target_vector.size, limb_count);
+        self.const_instruction(target_vector.rc, 1_usize.into());
         self.allocate_array_instruction(target_vector.pointer, target_vector.size);
 
         let shifted_register = self.allocate_register();
