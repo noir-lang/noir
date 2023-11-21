@@ -276,7 +276,25 @@ impl<'block> BrilligBlock<'block> {
                     result_value,
                     dfg,
                 );
-                self.brillig_context.allocate_variable_instruction(address_register);
+                match dfg.type_of_value(result_value) {
+                    Type::Reference(element) => match *element {
+                        Type::Array(..) => {
+                            self.brillig_context
+                                .allocate_array_reference_instruction(address_register);
+                        }
+                        Type::Slice(..) => {
+                            self.brillig_context
+                                .allocate_vector_reference_instruction(address_register);
+                        }
+                        _ => {
+                            self.brillig_context
+                                .allocate_simple_reference_instruction(address_register);
+                        }
+                    },
+                    _ => {
+                        unreachable!("ICE: Allocate on non-reference type")
+                    }
+                }
             }
             Instruction::Store { address, value } => {
                 let address_register = self.convert_ssa_register_value(*address, dfg);
@@ -785,9 +803,16 @@ impl<'block> BrilligBlock<'block> {
             BrilligVariable::Simple(value_register) => {
                 ctx.array_set(destination_pointer, index_register, value_register);
             }
-            BrilligVariable::BrilligArray(_) | BrilligVariable::BrilligVector(_) => {
+            BrilligVariable::BrilligArray(_) => {
+                let reference: RegisterIndex = ctx.allocate_register();
+                ctx.allocate_array_reference_instruction(reference);
+                ctx.store_variable_instruction(reference, value_variable);
+                ctx.array_set(destination_pointer, index_register, reference);
+                ctx.deallocate_register(reference);
+            }
+            BrilligVariable::BrilligVector(_) => {
                 let reference = ctx.allocate_register();
-                ctx.allocate_variable_instruction(reference);
+                ctx.allocate_vector_reference_instruction(reference);
                 ctx.store_variable_instruction(reference, value_variable);
                 ctx.array_set(destination_pointer, index_register, reference);
                 ctx.deallocate_register(reference);

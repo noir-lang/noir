@@ -34,13 +34,16 @@ impl BrilligContext {
     }
 
     /// Adds the instructions needed to handle entry point parameters
-    ///
-    /// And sets the starting value of the reserved registers
+    /// The runtime will leave the parameters in the first `n` registers.
+    /// Arrays will be passed as pointers to the first element, with all the nested arrays flattened.
+    /// First, reserve the registers that contain the parameters.
+    /// This function also sets the starting value of the reserved registers
     fn entry_point_instruction(&mut self, arguments: Vec<BrilligParameter>) {
         let preallocated_registers: Vec<_> =
             arguments.iter().enumerate().map(|(i, _)| RegisterIndex::from(i)).collect();
         self.set_allocated_registers(preallocated_registers.clone());
 
+        // Then allocate and initialize the variables that will hold the parameters
         let argument_variables: Vec<_> = arguments
             .iter()
             .zip(preallocated_registers)
@@ -87,6 +90,7 @@ impl BrilligContext {
             value: 0_usize.into(),
         });
 
+        // Deflatten the arrays
         for (parameter, assigned_variable) in arguments.iter().zip(&argument_variables) {
             if let BrilligParameter::Array(item_type, item_count) = parameter {
                 if item_type.iter().any(|param| !matches!(param, BrilligParameter::Simple)) {
@@ -98,7 +102,7 @@ impl BrilligContext {
             }
         }
 
-        // Move the parameters to the first user defined registers
+        // Move the parameters to the first user defined registers, to follow function call convention.
         for (i, register) in
             argument_variables.into_iter().flat_map(|arg| arg.extract_registers()).enumerate()
         {
@@ -173,7 +177,7 @@ impl BrilligContext {
                         let rc = self.allocate_register();
                         self.const_instruction(rc, 1_usize.into());
 
-                        self.allocate_variable_instruction(reference);
+                        self.allocate_array_reference_instruction(reference);
                         self.store_variable_instruction(
                             reference,
                             BrilligVariable::BrilligArray(BrilligArray {
@@ -205,7 +209,11 @@ impl BrilligContext {
     }
 
     /// Adds the instructions needed to handle return parameters
+    /// The runtime expects the results in the first `n` registers.
+    /// Arrays are expected to be returned as pointers to the first element with all the nested arrays flattened.
+    /// However, the function called returns variables (that have extra data) and the returned arrays are unflattened.
     fn exit_point_instruction(&mut self, return_parameters: Vec<BrilligParameter>) {
+        // First, we allocate the registers that hold the returned variables from the function call.
         self.set_allocated_registers(vec![]);
         let returned_variables: Vec<_> = return_parameters
             .iter()
@@ -223,7 +231,7 @@ impl BrilligContext {
                 }
             })
             .collect();
-
+        // Now, we unflatten the returned arrays
         for (return_param, returned_variable) in return_parameters.iter().zip(&returned_variables) {
             if let BrilligParameter::Array(item_type, item_count) = return_param {
                 if item_type.iter().any(|item| !matches!(item, BrilligParameter::Simple)) {
@@ -246,7 +254,7 @@ impl BrilligContext {
                 }
             }
         }
-        // We want all functions to follow the calling convention of returning
+        // The VM expects us to follow the calling convention of returning
         // their results in the first `n` registers. So we to move the return values
         // to the first `n` registers once completed.
 
@@ -393,7 +401,6 @@ mod tests {
         let vm = create_and_run_vm(flattened_array.clone(), vec![Value::from(0_usize)], &bytecode);
         let memory = vm.get_memory();
 
-        assert_eq!(vm.get_registers().get(RegisterIndex(0)), Value::from(flattened_array.len()));
         assert_eq!(
             memory,
             &vec![
@@ -405,10 +412,10 @@ mod tests {
                 Value::from(5_usize),
                 Value::from(6_usize),
                 // The pointer to the nested array of the first item
-                Value::from(10_usize),
+                Value::from(12_usize),
                 Value::from(3_usize),
                 // The pointer to the nested array of the second item
-                Value::from(12_usize),
+                Value::from(17_usize),
                 Value::from(6_usize),
                 // The nested array of the first item
                 Value::from(1_usize),
@@ -418,6 +425,7 @@ mod tests {
                 Value::from(5_usize),
             ]
         );
+        assert_eq!(vm.get_registers().get(RegisterIndex(0)), Value::from(flattened_array.len()));
     }
 
     #[test]

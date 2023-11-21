@@ -166,10 +166,14 @@ impl BrilligContext {
 
     /// Allocates a variable in memory and stores the
     /// pointer to the array in `pointer_register`
-    pub(crate) fn allocate_variable_instruction(&mut self, pointer_register: RegisterIndex) {
+    fn allocate_variable_reference_instruction(
+        &mut self,
+        pointer_register: RegisterIndex,
+        size: usize,
+    ) {
         self.debug_show.allocate_instruction(pointer_register);
         // A variable can be stored in up to three values, so we reserve three values for that.
-        let size_register = self.make_constant(3_u128.into());
+        let size_register = self.make_constant(size.into());
         self.push_opcode(BrilligOpcode::Mov {
             destination: pointer_register,
             source: ReservedRegisters::stack_pointer(),
@@ -180,6 +184,24 @@ impl BrilligContext {
             ReservedRegisters::stack_pointer(),
             BinaryIntOp::Add,
         );
+    }
+
+    pub(crate) fn allocate_simple_reference_instruction(
+        &mut self,
+        pointer_register: RegisterIndex,
+    ) {
+        self.allocate_variable_reference_instruction(pointer_register, 1);
+    }
+
+    pub(crate) fn allocate_array_reference_instruction(&mut self, pointer_register: RegisterIndex) {
+        self.allocate_variable_reference_instruction(pointer_register, 2);
+    }
+
+    pub(crate) fn allocate_vector_reference_instruction(
+        &mut self,
+        pointer_register: RegisterIndex,
+    ) {
+        self.allocate_variable_reference_instruction(pointer_register, 3);
     }
 
     /// Gets the value in the array at index `index` and stores it in `result`
@@ -574,7 +596,7 @@ impl BrilligContext {
 
                 let rc_pointer = self.allocate_register();
                 self.mov_instruction(rc_pointer, variable_pointer);
-                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 2_usize);
+                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 1_usize);
 
                 self.load_instruction(rc, rc_pointer);
                 self.deallocate_register(rc_pointer);
@@ -615,37 +637,36 @@ impl BrilligContext {
         variable_pointer: RegisterIndex,
         source: BrilligVariable,
     ) {
-        let size_pointer = self.allocate_register();
-        self.mov_instruction(size_pointer, variable_pointer);
-        self.usize_op_in_place(size_pointer, BinaryIntOp::Add, 1_usize);
-        let rc_pointer = self.allocate_register();
-        self.mov_instruction(rc_pointer, variable_pointer);
-        self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 2_usize);
-
         match source {
             BrilligVariable::Simple(register_index) => {
                 self.store_instruction(variable_pointer, register_index);
-                let size_constant = self.make_constant(Value::from(1_usize));
-                self.store_instruction(size_pointer, size_constant);
-                self.deallocate_register(size_constant);
             }
-            BrilligVariable::BrilligArray(BrilligArray { pointer, size, rc }) => {
+            BrilligVariable::BrilligArray(BrilligArray { pointer, size: _, rc }) => {
                 self.store_instruction(variable_pointer, pointer);
-                let size_constant = self.make_constant(Value::from(size));
-                self.store_instruction(size_pointer, size_constant);
-                self.deallocate_register(size_constant);
-                self.store_instruction(size_pointer, size_constant);
+
+                let rc_pointer: RegisterIndex = self.allocate_register();
+                self.mov_instruction(rc_pointer, variable_pointer);
+                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 1_usize);
                 self.store_instruction(rc_pointer, rc);
+                self.deallocate_register(rc_pointer);
             }
             BrilligVariable::BrilligVector(BrilligVector { pointer, size, rc }) => {
                 self.store_instruction(variable_pointer, pointer);
+
+                let size_pointer = self.allocate_register();
+                self.mov_instruction(size_pointer, variable_pointer);
+                self.usize_op_in_place(size_pointer, BinaryIntOp::Add, 1_usize);
                 self.store_instruction(size_pointer, size);
+
+                let rc_pointer: RegisterIndex = self.allocate_register();
+                self.mov_instruction(rc_pointer, variable_pointer);
+                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 2_usize);
                 self.store_instruction(rc_pointer, rc);
+
+                self.deallocate_register(size_pointer);
+                self.deallocate_register(rc_pointer);
             }
         }
-
-        self.deallocate_register(size_pointer);
-        self.deallocate_register(rc_pointer);
     }
 
     /// Emits a truncate instruction.
