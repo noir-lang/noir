@@ -36,8 +36,8 @@ impl DebugState {
         self.scope.push(HashSet::new());
 
         let pvars: Vec<(u32,ast::Ident,bool)> = f.parameters.iter()
-            .flat_map(|(pattern, _utype, _vis)| {
-                pattern_vars(pattern).iter().map(|(id,is_mut)| {
+            .flat_map(|param| {
+                pattern_vars(&param.pattern).iter().map(|(id,is_mut)| {
                     (self.insert_var(&id.0.contents), id.clone(), *is_mut)
                 }).collect::<Vec<(u32,ast::Ident,bool)>>()
             })

@@ -123,40 +123,6 @@ impl DefaultForeignCallExecutor {
     pub fn new(show_output: bool) -> Self {
         DefaultForeignCallExecutor { show_output, ..DefaultForeignCallExecutor::default() }
     }
-}
-
-impl DefaultForeignCallExecutor {
-    fn extract_mock_id(
-        foreign_call_inputs: &[ForeignCallParam],
-    ) -> Result<(usize, &[ForeignCallParam]), ForeignCallError> {
-        let (id, params) =
-            foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
-        Ok((id.unwrap_value().to_usize(), params))
-    }
-
-    fn find_mock_by_id(&mut self, id: usize) -> Option<&mut MockedCall> {
-        self.mocked_responses.iter_mut().find(|response| response.id == id)
-    }
-
-    fn parse_string(param: &ForeignCallParam) -> String {
-        let fields: Vec<_> = param.values().into_iter().map(|value| value.to_field()).collect();
-        decode_string_value(&fields)
-    }
-
-    fn execute_println(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
-        let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
-        println!("{display_values}");
-        Ok(())
-    }
-}
-
-impl ForeignCallExecutor for DefaultForeignCallExecutor {
-    fn execute(
-        &mut self,
-        foreign_call: &ForeignCallWaitInfo,
-    ) -> Result<ForeignCallResult, ForeignCallError> {
-        self.execute_optional_debug_vars(foreign_call, None)
-    }
 
     pub fn execute_with_debug_vars(
         &mut self,
@@ -339,5 +305,39 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 Ok(ForeignCallResult { values: result })
             }
         }
+    }
+}
+
+impl DefaultForeignCallExecutor {
+    fn extract_mock_id(
+        foreign_call_inputs: &[ForeignCallParam],
+    ) -> Result<(usize, &[ForeignCallParam]), ForeignCallError> {
+        let (id, params) =
+            foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
+        Ok((id.unwrap_value().to_usize(), params))
+    }
+
+    fn find_mock_by_id(&mut self, id: usize) -> Option<&mut MockedCall> {
+        self.mocked_responses.iter_mut().find(|response| response.id == id)
+    }
+
+    fn parse_string(param: &ForeignCallParam) -> String {
+        let fields: Vec<_> = param.values().into_iter().map(|value| value.to_field()).collect();
+        decode_string_value(&fields)
+    }
+
+    fn execute_println(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
+        let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
+        println!("{display_values}");
+        Ok(())
+    }
+}
+
+impl ForeignCallExecutor for DefaultForeignCallExecutor {
+    fn execute(
+        &mut self,
+        foreign_call: &ForeignCallWaitInfo,
+    ) -> Result<ForeignCallResult, ForeignCallError> {
+        self.execute_optional_debug_vars(foreign_call, None)
     }
 }

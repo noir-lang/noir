@@ -8,7 +8,7 @@ use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use nargo::artifacts::debug::{DebugArtifact, DebugVars};
 use nargo::errors::{ExecutionError, Location};
-use nargo::ops::{DefaultForeignCallExecutor, ForeignCallExecutor};
+use nargo::ops::{DefaultForeignCallExecutor};
 use nargo::NargoError;
 
 use std::collections::{hash_set::Iter, HashSet};
