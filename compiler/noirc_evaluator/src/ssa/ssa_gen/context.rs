@@ -365,13 +365,7 @@ impl<'a> FunctionContext<'a> {
                 };
 
                 if operator == BinaryOpKind::ShiftLeft {
-                    match result_type {
-                        Type::Numeric(NumericType::Signed { bit_size })
-                        | Type::Numeric(NumericType::Unsigned { bit_size }) => {
-                            self.check_left_shift_overflow(result, rhs, bit_size, location)
-                        }
-                        _ => result,
-                    }
+                    self.check_left_shift_overflow(result, rhs, bit_size, location)
                 } else {
                     let message = format!("attempt to {} with overflow", op_name);
                     let range_constraint = Instruction::RangeCheck {

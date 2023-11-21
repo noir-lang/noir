@@ -260,6 +260,21 @@ impl FunctionBuilder {
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
     ) -> Cow<[ValueId]> {
+        if let Value::Intrinsic(intrinsic) = &self.current_function.dfg[func] {
+            if intrinsic == &Intrinsic::WrappingShiftLeft {
+                let result_type = self.current_function.dfg.type_of_value(arguments[0]);
+                let bit_size = match result_type {
+                    Type::Numeric(NumericType::Signed { bit_size })
+                    | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
+                    _ => {
+                        unreachable!("ICE: Truncation attempted on non-integer");
+                    }
+                };
+                return vec![self.insert_wrapping_shift_left(arguments[0], arguments[1], bit_size)]
+                    .into();
+            }
+        }
+
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
     }
 
