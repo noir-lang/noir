@@ -4,8 +4,9 @@ use dap::events::*;
 use dap::requests::*;
 use dap::responses::*;
 use dap::types::{
-    Capabilities, DisassembledInstruction, InvalidatedAreas, Scope, ScopePresentationhint,
-    SourceBreakpoint, StoppedEventReason, Thread, Variable,
+    Capabilities, DisassembledInstruction, InstructionBreakpoint, InvalidatedAreas, Scope,
+    ScopePresentationhint, Source, SourceBreakpoint, StackFrame, StoppedEventReason, Thread,
+    Variable,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_evaluator::brillig::brillig_ir::artifact::GeneratedBrillig;
@@ -26,9 +27,13 @@ struct Breakpoint {
 }
 
 impl Breakpoint {
+    // /// Create breakpoint from request.
+    // pub(crate) fn new(breakpoint: &SourceBreakpoint) -> Option<Self> {
+    //     Some(Breakpoint { instruction: breakpoint.line as usize })
+    // }
     /// Create breakpoint from request.
-    pub(crate) fn new(breakpoint: &SourceBreakpoint) -> Option<Self> {
-        Some(Breakpoint { instruction: breakpoint.line as usize })
+    pub(crate) fn new_instruction_breakpoint(breakpoint: &InstructionBreakpoint) -> Option<Self> {
+        Some(Breakpoint { instruction: breakpoint.offset.unwrap_or_default() as usize })
     }
 }
 
@@ -70,7 +75,10 @@ impl UninitializedState {
                     supports_step_back: Some(false),
                     supports_restart_request: Some(true),
                     supports_disassemble_request: Some(true),
-                    supports_instruction_breakpoints: Some(false),
+                    supports_instruction_breakpoints: Some(true),
+                    supports_function_breakpoints: Some(false),
+                    supports_data_breakpoints: Some(false),
+                    supports_conditional_breakpoints: Some(false),
                     supports_exception_filter_options: Some(false),
                     supports_read_memory_request: Some(true),
                     supports_step_in_targets_request: Some(true),
@@ -204,13 +212,10 @@ impl RunningState {
             hit_breakpoint_ids: None,
         });
 
-        #[cfg(feature = "dap")]
-        crate::dap_server::log(server, &stop_event);
-
         server.write(Sendable::Event(stop_event));
 
         server.write(Sendable::Event(Event::Invalidated(InvalidatedEventBody {
-            areas: Some(vec![InvalidatedAreas::Variables, InvalidatedAreas::Stacks]),
+            areas: Some(vec![InvalidatedAreas::Variables]),
             thread_id: None,
             stack_frame_id: None,
         })));
@@ -278,6 +283,7 @@ impl RunningState {
                 }
             }
             Command::Disassemble(_) => {
+                #[cfg(not(feature = "dap"))]
                 let pos = self.vm.program_counter();
                 let instructions = self
                     .program
@@ -285,15 +291,20 @@ impl RunningState {
                     .iter()
                     .enumerate()
                     .map(|(i, opcode)| {
+                        #[cfg(not(feature = "dap"))]
                         let instruction = if pos == i {
                             // special formatting for current opcode
                             format!("==>\n<<<<<\n{:#?}\n>>>>>", opcode)
                         } else {
                             format!("{:#?}", opcode)
                         };
+                        #[cfg(feature = "dap")]
+                        let instruction = format!("{:?}", opcode);
+
                         DisassembledInstruction {
                             address: i.to_string(),
                             instruction,
+                            line: Some(i as i64),
                             ..Default::default()
                         }
                     })
@@ -347,27 +358,19 @@ impl RunningState {
                     ThreadsResponse { threads: vec![Thread { id: 0, name: "main".to_string() }] },
                 ))));
             }
-            Command::Scopes(ref args) => {
-                if args.frame_id == 0 {
-                    let scope = Scope {
-                        name: "Locals".to_string(),
-                        presentation_hint: Some(ScopePresentationhint::Locals),
-                        variables_reference: 133,
-                        named_variables: None,
-                        indexed_variables: None,
-                        line: Some(self.get_current_instruction() as i64),
-                        ..Default::default()
-                    };
-                    server
-                        .write(Sendable::Response(request.success(ResponseBody::Scopes(
-                            ScopesResponse { scopes: vec![scope] },
-                        ))));
-                } else {
-                    server.write(Sendable::Response(
-                        request
-                            .success(ResponseBody::Scopes(ScopesResponse { scopes: Vec::new() })),
-                    ));
-                }
+            Command::Scopes(_) => {
+                let scope = Scope {
+                    name: "Registers".to_string(),
+                    presentation_hint: Some(ScopePresentationhint::Registers),
+                    variables_reference: 133,
+                    named_variables: None,
+                    indexed_variables: None,
+                    line: Some(self.get_current_instruction() as i64),
+                    ..Default::default()
+                };
+                server.write(Sendable::Response(
+                    request.success(ResponseBody::Scopes(ScopesResponse { scopes: vec![scope] })),
+                ));
             }
             Command::Variables(_) => {
                 let registers = self.vm.get_registers();
@@ -388,17 +391,16 @@ impl RunningState {
             }
             Command::ReadMemory(_) => {
                 let memory = self.vm.get_memory();
-                let memory_string;
-                if cfg!(feature = "dap") {
+                let memory_string = if cfg!(feature = "dap") {
                     let mut m = vec![];
                     memory.iter().for_each(|v| m.extend_from_slice(&v.to_u128().to_ne_bytes()));
                     let wrapper = Base64Display::new(&m, &general_purpose::STANDARD);
-                    memory_string = format!("{wrapper}");
+                    format!("{wrapper}")
                 } else {
                     let memory =
                         memory.iter().map(|v| format!("{}", v.to_u128())).collect::<Vec<_>>();
-                    memory_string = memory.join(", ");
-                }
+                    memory.join(", ")
+                };
 
                 server.write(Sendable::Response(request.success(ResponseBody::ReadMemory(
                     ReadMemoryResponse {
@@ -408,23 +410,71 @@ impl RunningState {
                     },
                 ))));
             }
-            Command::SetBreakpoints(ref args) => {
+            Command::SetBreakpoints(_ /* ref args */) => {
+                // do nothing for now, current realization does not support source code
+                // breakpoints
+                // self.clear_breakpoints();
+                // if let Some(new_breakpoints) = &args.breakpoints {
+                //     let breakpoints = new_breakpoints.iter().filter_map(Breakpoint::new);
+                //     self.breakpoints.extend(breakpoints);
+                // }
+            }
+            Command::SetInstructionBreakpoints(ref args) => {
                 self.clear_breakpoints();
-                if let Some(new_breakpoints) = &args.breakpoints {
-                    let breakpoints = new_breakpoints.iter().filter_map(Breakpoint::new);
-                    self.breakpoints.extend(breakpoints);
-                }
+                let breakpoints =
+                    args.breakpoints.iter().filter_map(Breakpoint::new_instruction_breakpoint);
+                self.breakpoints.extend(breakpoints);
             }
             Command::Disconnect(_) => {
                 server.write(Sendable::Response(request.ack()?));
                 return Ok(Some(State::Exit));
             }
 
-            Command::StackTrace(_) => {
+            Command::StackTrace(ref args) => {
+                let levels = args.levels.unwrap_or(10) as usize;
+                let current_instruction = self.get_current_instruction();
+
+                let frames = self
+                    .program
+                    .byte_code
+                    .iter()
+                    .enumerate()
+                    .skip(current_instruction)
+                    .take(levels)
+                    .map(|(i, opcode)| {
+                        let source = if let Some(loc) = self.program.locations.get(&i) {
+                            if !loc.is_empty() {
+                                Some(Source {
+                                    source_reference: Some(loc[0].file.as_usize() as i32),
+                                    name: Some(format!("{:?}", loc[0].file)),
+                                    ..Default::default()
+                                })
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+                        StackFrame {
+                            id: i as i64,
+                            name: opcode.name().to_string(),
+                            source,
+                            line: i as i64,
+                            column: 0,
+                            end_line: None,
+                            end_column: None,
+                            can_restart: None,
+                            instruction_pointer_reference: Some(i.to_string()),
+                            module_id: None,
+                            presentation_hint: None,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
                 server.write(Sendable::Response(request.success(ResponseBody::StackTrace(
                     dap::responses::StackTraceResponse {
-                        stack_frames: vec![dap::types::StackFrame::default()],
-                        ..Default::default()
+                        stack_frames: frames,
+                        total_frames: Some(self.program.byte_code.len() as i64),
                     },
                 ))));
             }
@@ -433,7 +483,7 @@ impl RunningState {
                     "Unsupported command. Please, use the other commands to continue process."
                         .to_string(),
                 ))
-            } // _ => {}
+            }
         }
         Ok(None)
     }
