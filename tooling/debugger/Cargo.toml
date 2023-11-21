@@ -10,7 +10,9 @@ license.workspace = true
 
 [dependencies]
 acvm.workspace = true
+fm.workspace = true
 nargo.workspace = true
+noirc_frontend.workspace = true
 noirc_printable_type.workspace = true
 noirc_errors.workspace = true
 thiserror.workspace = true

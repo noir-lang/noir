@@ -81,6 +81,10 @@ impl Span {
     pub fn end(&self) -> u32 {
         self.0.end().into()
     }
+
+    pub fn from_str(s: &str) -> Span {
+        Span(ByteSpan::from_str(s))
+    }
 }
 
 impl From<Span> for Range<usize> {

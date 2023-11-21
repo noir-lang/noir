@@ -85,6 +85,9 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         let locations = self.debug_artifact.debug_symbols[0].opcode_location(location);
         let Some(locations) = locations else { return };
         for loc in locations {
+            if loc.span.start() == loc.span.end() {
+                continue;
+            }
             self.print_location_path(loc);
 
             let loc_line_index = self.debug_artifact.location_line_index(loc).unwrap();
@@ -120,8 +123,9 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
 
                 if current_line_index == loc_line_index {
                     // Highlight current location
-                    let Range { start: loc_start, end: loc_end } =
+                    let Range { start: loc_start, end: mut loc_end } =
                         self.debug_artifact.location_in_line(loc).unwrap();
+                    loc_end = loc_end.min(line.len());
                     println!(
                         "{:>3} {:2} {}{}{}",
                         current_line_number,
@@ -546,6 +550,21 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "update a Brillig memory cell with the given value",
                 (index: usize, value: String) => |index, value| {
                     ref_context.borrow_mut().write_brillig_memory(index, value);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "vars",
+            command! {
+                "show variable values available at this point in execution",
+                () => || {
+                    let mut ctx = ref_context.borrow_mut();
+                    let vars = ctx.context.debug_vars.get_variables();
+                    println!["{}", vars.iter().map(|(var_name, value, var_type)| {
+                        let field = value.to_field();
+                        format!("{var_name}:{var_type:?}={field}")
+                    }).collect::<Vec<String>>().join(", ")];
                     Ok(CommandStatus::Done)
                 }
             },

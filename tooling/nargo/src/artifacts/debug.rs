@@ -8,6 +8,7 @@ use std::{
     ops::Range,
 };
 
+pub use super::debug_vars::DebugVars;
 use fm::{FileId, FileManager, PathString};
 
 /// A Debug Artifact stores, for a given program, the debug info for every function
@@ -23,24 +24,17 @@ impl DebugArtifact {
     pub fn new(debug_symbols: Vec<DebugInfo>, file_manager: &FileManager) -> Self {
         let mut file_map = BTreeMap::new();
 
-        let files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
-            .iter()
-            .flat_map(|function_symbols| {
-                function_symbols
-                    .locations
-                    .values()
-                    .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
-            })
-            .collect();
+        let file_ids: BTreeSet<FileId> =
+            debug_symbols.iter().flat_map(|debug_info| debug_info.get_file_ids()).collect();
 
-        for file_id in files_with_debug_symbols {
-            let file_source = file_manager.fetch_file(file_id).source();
+        for file_id in file_ids.iter() {
+            let file_source = file_manager.fetch_file(*file_id).source();
 
             file_map.insert(
-                file_id,
+                *file_id,
                 DebugFile {
                     source: file_source.to_string(),
-                    path: file_manager.path(file_id).to_path_buf(),
+                    path: file_manager.path(*file_id).to_path_buf(),
                 },
             );
         }
@@ -93,6 +87,14 @@ impl DebugArtifact {
     pub fn last_line_index(&self, location: Location) -> Result<usize, Error> {
         let source = self.source(location.file)?;
         self.line_index(location.file, source.len())
+    }
+
+    pub fn from_program(program: &CompiledProgram) -> Self {
+        Self {
+            debug_symbols: vec![program.debug.clone()],
+            file_map: program.file_map.clone(),
+            warnings: program.warnings.clone(),
+        }
     }
 }
 

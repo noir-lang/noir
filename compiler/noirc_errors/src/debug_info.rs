@@ -1,14 +1,19 @@
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::compiler::AcirTransformationMap;
+use fm::FileId;
 
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
-use std::collections::BTreeMap;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::mem;
 
 use crate::Location;
+use noirc_printable_type::PrintableType;
 use serde::{Deserialize, Serialize};
+
+pub type Variables = Vec<(u32, (String, u32))>;
+pub type Types = Vec<(u32, PrintableType)>;
+pub type VariableTypes = (Variables, Types);
 
 #[serde_as]
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -18,6 +23,8 @@ pub struct DebugInfo {
     /// that they should be serialized to/from strings.
     #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
+    pub variables: HashMap<u32, (String, u32)>, // var_id => (name, type_id)
+    pub types: HashMap<u32, PrintableType>,     // type_id => printable type
 }
 
 /// Holds OpCodes Counts for Acir and Brillig Opcodes
@@ -29,8 +36,15 @@ pub struct OpCodesCount {
 }
 
 impl DebugInfo {
-    pub fn new(locations: BTreeMap<OpcodeLocation, Vec<Location>>) -> Self {
-        DebugInfo { locations }
+    pub fn new(
+        locations: BTreeMap<OpcodeLocation, Vec<Location>>,
+        var_types: VariableTypes,
+    ) -> Self {
+        Self {
+            locations,
+            variables: var_types.0.into_iter().collect(),
+            types: var_types.1.into_iter().collect(),
+        }
     }
 
     /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.
@@ -84,5 +98,12 @@ impl DebugInfo {
             .collect();
 
         counted_opcodes
+    }
+
+    pub fn get_file_ids(&self) -> Vec<FileId> {
+        self.locations
+            .values()
+            .filter_map(|call_stack| call_stack.last().map(|location| location.file))
+            .collect()
     }
 }

@@ -31,8 +31,10 @@ use crate::{
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
+use self::debug_types::DebugTypes;
 
 pub mod ast;
+pub mod debug_types;
 pub mod printer;
 
 struct LambdaContext {
@@ -76,6 +78,8 @@ struct Monomorphizer<'interner> {
     is_range_loop: bool,
 
     return_location: Option<Location>,
+
+    debug_types: DebugTypes,
 }
 
 type HirType = crate::Type;
@@ -106,7 +110,13 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
     let FuncMeta { return_distinctness, .. } = interner.function_meta(&main);
-    Program::new(functions, function_sig, return_distinctness, monomorphizer.return_location)
+    Program::new(
+        functions,
+        function_sig,
+        return_distinctness,
+        monomorphizer.return_location,
+        monomorphizer.debug_types.into(),
+    )
 }
 
 impl<'interner> Monomorphizer<'interner> {
@@ -122,6 +132,7 @@ impl<'interner> Monomorphizer<'interner> {
             lambda_envs_stack: Vec::new(),
             is_range_loop: false,
             return_location: None,
+            debug_types: DebugTypes::default(),
         }
     }
 
@@ -875,6 +886,23 @@ impl<'interner> Monomorphizer<'interner> {
         let original_func = Box::new(self.expr(call.func));
         let mut arguments = vecmap(&call.arguments, |id| self.expr(*id));
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
+        if let (ast::Expression::Ident(ast::Ident { name, .. }), 2) =
+            (original_func.as_ref(), arguments.len())
+        {
+            if let (
+                HirExpression::Literal(HirLiteral::Integer(fe_var_id)),
+                HirExpression::Ident(HirIdent { id, .. }),
+                true,
+            ) = (&hir_arguments[0], &hir_arguments[1], name == "__debug_var_assign")
+            {
+                let var_def = self.interner.definition(*id);
+                let var_type = self.interner.id_type(call.arguments[1]);
+                let var_id = fe_var_id.to_u128() as u32;
+                if var_def.name != "__debug_expr" {
+                    self.debug_types.insert_var(var_id, &var_def.name, var_type);
+                }
+            }
+        }
         let func: Box<ast::Expression>;
         let return_type = self.interner.id_type(id);
         let return_type = self.convert_type(&return_type);

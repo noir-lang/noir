@@ -6,7 +6,7 @@ use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum PrintableType {
     Field,
