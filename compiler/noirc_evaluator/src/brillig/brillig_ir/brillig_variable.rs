@@ -12,6 +12,14 @@ impl BrilligArray {
     pub(crate) fn to_heap_array(self) -> HeapArray {
         HeapArray { pointer: self.pointer, size: self.size }
     }
+
+    pub(crate) fn registers_count() -> usize {
+        2
+    }
+
+    pub(crate) fn extract_registers(self) -> Vec<RegisterIndex> {
+        vec![self.pointer, self.rc]
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
@@ -24,6 +32,14 @@ pub(crate) struct BrilligVector {
 impl BrilligVector {
     pub(crate) fn to_heap_vector(self) -> HeapVector {
         HeapVector { pointer: self.pointer, size: self.size }
+    }
+
+    pub(crate) fn registers_count() -> usize {
+        3
+    }
+
+    pub(crate) fn extract_registers(self) -> Vec<RegisterIndex> {
+        vec![self.pointer, self.size, self.rc]
     }
 }
 
@@ -59,8 +75,8 @@ impl BrilligVariable {
     pub(crate) fn extract_registers(self) -> Vec<RegisterIndex> {
         match self {
             BrilligVariable::Simple(register_index) => vec![register_index],
-            BrilligVariable::BrilligArray(array) => vec![array.pointer, array.rc],
-            BrilligVariable::BrilligVector(vector) => vec![vector.pointer, vector.size, vector.rc],
+            BrilligVariable::BrilligArray(array) => array.extract_registers(),
+            BrilligVariable::BrilligVector(vector) => vector.extract_registers(),
         }
     }
 

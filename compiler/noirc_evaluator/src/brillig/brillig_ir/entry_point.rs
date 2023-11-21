@@ -368,6 +368,7 @@ mod tests {
 
     use crate::brillig::brillig_ir::{
         artifact::BrilligParameter,
+        brillig_variable::BrilligArray,
         tests::{create_and_run_vm, create_context, create_entry_point_bytecode},
     };
 
@@ -401,6 +402,7 @@ mod tests {
         let vm = create_and_run_vm(flattened_array.clone(), vec![Value::from(0_usize)], &bytecode);
         let memory = vm.get_memory();
 
+        assert_eq!(vm.get_registers().get(RegisterIndex(0)), Value::from(flattened_array.len()));
         assert_eq!(
             memory,
             &vec![
@@ -411,21 +413,26 @@ mod tests {
                 Value::from(4_usize),
                 Value::from(5_usize),
                 Value::from(6_usize),
-                // The pointer to the nested array of the first item
+                // The pointer to the nested reference of the first item
                 Value::from(12_usize),
                 Value::from(3_usize),
-                // The pointer to the nested array of the second item
-                Value::from(17_usize),
+                // The pointer to the nested reference of the second item
+                Value::from(16_usize),
                 Value::from(6_usize),
                 // The nested array of the first item
                 Value::from(1_usize),
                 Value::from(2_usize),
+                // The nested reference of the first item
+                Value::from(10_usize),
+                Value::from(1_usize),
                 // The nested array of the second item
                 Value::from(4_usize),
                 Value::from(5_usize),
+                // The nested reference of the second item
+                Value::from(14_usize),
+                Value::from(1_usize),
             ]
         );
-        assert_eq!(vm.get_registers().get(RegisterIndex(0)), Value::from(flattened_array.len()));
     }
 
     #[test]
@@ -453,20 +460,18 @@ mod tests {
         let mut context = create_context();
 
         // Allocate the parameter
-        let array_pointer = context.allocate_register();
+        let brillig_array = BrilligArray {
+            pointer: context.allocate_register(),
+            size: 2,
+            rc: context.allocate_register(),
+        };
 
-        context.return_instruction(&[array_pointer]);
+        context.return_instruction(&brillig_array.extract_registers());
 
         let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
         let vm = create_and_run_vm(flattened_array.clone(), vec![Value::from(0_usize)], &bytecode);
         let memory = vm.get_memory();
-
-        assert_eq!(
-            vm.get_registers().get(RegisterIndex(0)),
-            // The returned value will be past the original array and the deflattened array
-            Value::from(flattened_array.len() + (flattened_array.len() + 2)),
-        );
-
+        dbg!(memory);
         assert_eq!(
             memory,
             &vec![
@@ -477,18 +482,24 @@ mod tests {
                 Value::from(4_usize),
                 Value::from(5_usize),
                 Value::from(6_usize),
-                // The pointer to the nested array of the first item
-                Value::from(1_usize),
-                Value::from(10_usize),
-                // The pointer to the nested array of the second item
-                Value::from(4_usize),
+                // The pointer to the nested reference of the first item
                 Value::from(12_usize),
-                // The nested array of the first item
-                Value::from(2_usize),
                 Value::from(3_usize),
-                // The nested array of the second item
-                Value::from(5_usize),
+                // The pointer to the nested reference of the second item
+                Value::from(16_usize),
                 Value::from(6_usize),
+                // The nested array of the first item
+                Value::from(1_usize),
+                Value::from(2_usize),
+                // The nested reference of the first item
+                Value::from(10_usize),
+                Value::from(1_usize),
+                // The nested array of the second item
+                Value::from(4_usize),
+                Value::from(5_usize),
+                // The nested reference of the second item
+                Value::from(14_usize),
+                Value::from(1_usize),
                 // The values flattened again
                 Value::from(1_usize),
                 Value::from(2_usize),
@@ -497,6 +508,11 @@ mod tests {
                 Value::from(5_usize),
                 Value::from(6_usize),
             ]
+        );
+        assert_eq!(
+            vm.get_registers().get(RegisterIndex(0)),
+            // The returned value will be past the original array and the deflattened array
+            Value::from(flattened_array.len() + (flattened_array.len() + 2)),
         );
     }
 }

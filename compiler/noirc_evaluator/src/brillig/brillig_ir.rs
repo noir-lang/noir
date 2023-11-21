@@ -194,14 +194,20 @@ impl BrilligContext {
     }
 
     pub(crate) fn allocate_array_reference_instruction(&mut self, pointer_register: RegisterIndex) {
-        self.allocate_variable_reference_instruction(pointer_register, 2);
+        self.allocate_variable_reference_instruction(
+            pointer_register,
+            BrilligArray::registers_count(),
+        );
     }
 
     pub(crate) fn allocate_vector_reference_instruction(
         &mut self,
         pointer_register: RegisterIndex,
     ) {
-        self.allocate_variable_reference_instruction(pointer_register, 3);
+        self.allocate_variable_reference_instruction(
+            pointer_register,
+            BrilligVector::registers_count(),
+        );
     }
 
     /// Gets the value in the array at index `index` and stores it in `result`
