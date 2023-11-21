@@ -7,15 +7,13 @@ use crate::NargoError;
 
 use super::foreign_calls::ForeignCallExecutor;
 
-pub fn execute_circuit<B: BlackBoxFunctionSolver>(
-    blackbox_solver: &B,
+pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
     circuit: &Circuit,
     initial_witness: WitnessMap,
-    show_output: bool,
+    blackbox_solver: &B,
+    foreign_call_executor: &mut F,
 ) -> Result<WitnessMap, NargoError> {
     let mut acvm = ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness);
-
-    let mut foreign_call_executor = ForeignCallExecutor::default();
 
     loop {
         let solver_status = acvm.solve();
@@ -50,8 +48,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver>(
                 }));
             }
             ACVMStatus::RequiresForeignCall(foreign_call) => {
-                let foreign_call_result =
-                    foreign_call_executor.execute(&foreign_call, show_output)?;
+                let foreign_call_result = foreign_call_executor.execute(&foreign_call)?;
                 acvm.resolve_pending_foreign_call(foreign_call_result);
             }
         }

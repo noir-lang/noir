@@ -2,7 +2,7 @@ use crate::visitor::FmtVisitor;
 use noirc_frontend::hir::resolution::errors::Span;
 use noirc_frontend::lexer::Lexer;
 use noirc_frontend::token::Token;
-use noirc_frontend::{Expression, Ident};
+use noirc_frontend::{Expression, Ident, Param, Visibility};
 
 pub(crate) fn changed_comment_content(original: &str, new: &str) -> bool {
     comments(original).ne(comments(new))
@@ -234,6 +234,33 @@ impl Item for (Ident, Expression) {
         } else {
             format!("{name}: {expr}")
         }
+    }
+}
+
+impl Item for Param {
+    fn span(&self) -> Span {
+        self.span
+    }
+
+    fn format(self, visitor: &FmtVisitor) -> String {
+        let visibility = match self.visibility {
+            Visibility::Public => "pub ",
+            Visibility::Private => "",
+        };
+        let pattern = visitor.slice(self.pattern.span());
+        let ty = visitor.slice(self.typ.span.unwrap());
+
+        format!("{pattern}: {visibility}{ty}")
+    }
+}
+
+impl Item for Ident {
+    fn span(&self) -> Span {
+        self.span()
+    }
+
+    fn format(self, visitor: &FmtVisitor) -> String {
+        visitor.slice(self.span()).into()
     }
 }
 

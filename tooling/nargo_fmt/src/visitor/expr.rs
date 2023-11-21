@@ -365,7 +365,8 @@ impl FmtVisitor<'_> {
     }
 }
 
-fn format_expr_seq<T: Item>(
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn format_seq<T: Item>(
     prefix: &str,
     suffix: &str,
     mut visitor: FmtVisitor,
@@ -373,6 +374,7 @@ fn format_expr_seq<T: Item>(
     exprs: Vec<T>,
     span: Span,
     tactic: Tactic,
+    soft_newline: bool,
 ) -> String {
     visitor.indent.block_indent(visitor.config);
 
@@ -382,7 +384,7 @@ fn format_expr_seq<T: Item>(
 
     visitor.indent.block_unindent(visitor.config);
 
-    wrap_exprs(prefix, suffix, exprs, nested_indent, visitor.shape(), false)
+    wrap_exprs(prefix, suffix, exprs, nested_indent, visitor.shape(), soft_newline)
 }
 
 fn format_brackets(
@@ -392,7 +394,7 @@ fn format_brackets(
     span: Span,
 ) -> String {
     let array_width = visitor.config.array_width;
-    format_expr_seq(
+    format_seq(
         "[",
         "]",
         visitor,
@@ -400,6 +402,7 @@ fn format_brackets(
         exprs,
         span,
         Tactic::LimitedHorizontalVertical(array_width),
+        false,
     )
 }
 
@@ -411,7 +414,7 @@ fn format_parens(
     span: Span,
 ) -> String {
     let tactic = max_width.map(Tactic::LimitedHorizontalVertical).unwrap_or(Tactic::Horizontal);
-    format_expr_seq("(", ")", visitor, trailing_comma, exprs, span, tactic)
+    format_seq("(", ")", visitor, trailing_comma, exprs, span, tactic, false)
 }
 
 fn format_exprs(
@@ -503,12 +506,12 @@ pub(crate) fn wrap_exprs(
     exprs: String,
     nested_shape: Shape,
     shape: Shape,
-    array: bool,
+    soft_newline: bool,
 ) -> String {
     let first_line_width = first_line_width(&exprs);
 
     let force_one_line =
-        if array { !exprs.contains('\n') } else { first_line_width <= shape.width };
+        if soft_newline { !exprs.contains('\n') } else { first_line_width <= shape.width };
 
     if force_one_line {
         let allow_trailing_newline = exprs
@@ -533,8 +536,8 @@ pub(crate) fn wrap_exprs(
     }
 }
 
-#[derive(PartialEq, Eq)]
-enum Tactic {
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub(crate) enum Tactic {
     Horizontal,
     HorizontalVertical,
     LimitedHorizontalVertical(usize),

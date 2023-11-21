@@ -1,13 +1,14 @@
-use acvm::acir::circuit::{Opcode, OpcodeLocation};
+use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
+use acvm::acir::native_types::{Witness, WitnessMap};
+use acvm::brillig_vm::{brillig::Value, Registers};
 use acvm::pwg::{
     ACVMStatus, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo, StepResult, ACVM,
 };
-use acvm::BlackBoxFunctionSolver;
-use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::errors::{ExecutionError, Location};
-use nargo::ops::ForeignCallExecutor;
+use nargo::ops::{DefaultForeignCallExecutor, ForeignCallExecutor};
 use nargo::NargoError;
 
 use std::collections::{hash_set::Iter, HashSet};
@@ -23,9 +24,8 @@ pub(super) enum DebugCommandResult {
 pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     acvm: ACVM<'a, B>,
     brillig_solver: Option<BrilligSolver<'a, B>>,
-    foreign_call_executor: ForeignCallExecutor,
+    foreign_call_executor: DefaultForeignCallExecutor,
     debug_artifact: &'a DebugArtifact,
-    show_output: bool,
     breakpoints: HashSet<OpcodeLocation>,
 }
 
@@ -39,15 +39,26 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         Self {
             acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
             brillig_solver: None,
-            foreign_call_executor: ForeignCallExecutor::default(),
+            foreign_call_executor: DefaultForeignCallExecutor::new(true),
             debug_artifact,
-            show_output: true,
             breakpoints: HashSet::new(),
         }
     }
 
     pub(super) fn get_opcodes(&self) -> &[Opcode] {
         self.acvm.opcodes()
+    }
+
+    pub(super) fn get_witness_map(&self) -> &WitnessMap {
+        self.acvm.witness_map()
+    }
+
+    pub(super) fn overwrite_witness(
+        &mut self,
+        witness: Witness,
+        value: FieldElement,
+    ) -> Option<FieldElement> {
+        self.acvm.overwrite_witness(witness, value)
     }
 
     pub(super) fn get_current_opcode_location(&self) -> Option<OpcodeLocation> {
@@ -64,11 +75,11 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    // Returns the callstack in source code locations for the currently
-    // executing opcode. This can be None if the execution finished (and
-    // get_current_opcode_location() returns None) or if the opcode is not
-    // mapped to a specific source location in the debug artifact (which can
-    // happen for certain opcodes inserted synthetically by the compiler)
+    /// Returns the callstack in source code locations for the currently
+    /// executing opcode. This can be `None` if the execution finished (and
+    /// `get_current_opcode_location()` returns `None`) or if the opcode is not
+    /// mapped to a specific source location in the debug artifact (which can
+    /// happen for certain opcodes inserted synthetically by the compiler)
     pub(super) fn get_current_source_location(&self) -> Option<Vec<Location>> {
         self.get_current_opcode_location()
             .as_ref()
@@ -106,15 +117,14 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
     }
 
     fn handle_foreign_call(&mut self, foreign_call: ForeignCallWaitInfo) -> DebugCommandResult {
-        let foreign_call_result =
-            self.foreign_call_executor.execute(&foreign_call, self.show_output);
+        let foreign_call_result = self.foreign_call_executor.execute(&foreign_call);
         match foreign_call_result {
             Ok(foreign_call_result) => {
                 self.acvm.resolve_pending_foreign_call(foreign_call_result);
                 // TODO: should we retry executing the opcode somehow in this case?
                 DebugCommandResult::Ok
             }
-            Err(error) => DebugCommandResult::Error(error),
+            Err(error) => DebugCommandResult::Error(error.into()),
         }
     }
 
@@ -187,6 +197,32 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             if !matches!(result, DebugCommandResult::Ok) {
                 return result;
             }
+        }
+    }
+
+    pub(super) fn is_executing_brillig(&self) -> bool {
+        let opcodes = self.get_opcodes();
+        let acir_index = self.acvm.instruction_pointer();
+        acir_index < opcodes.len() && matches!(opcodes[acir_index], Opcode::Brillig(..))
+    }
+
+    pub(super) fn get_brillig_registers(&self) -> Option<&Registers> {
+        self.brillig_solver.as_ref().map(|solver| solver.get_registers())
+    }
+
+    pub(super) fn set_brillig_register(&mut self, register_index: usize, value: FieldElement) {
+        if let Some(solver) = self.brillig_solver.as_mut() {
+            solver.set_register(register_index, value.into());
+        }
+    }
+
+    pub(super) fn get_brillig_memory(&self) -> Option<&[Value]> {
+        self.brillig_solver.as_ref().map(|solver| solver.get_memory())
+    }
+
+    pub(super) fn write_brillig_memory(&mut self, ptr: usize, value: FieldElement) {
+        if let Some(solver) = self.brillig_solver.as_mut() {
+            solver.write_memory_at(ptr, value.into());
         }
     }
 
