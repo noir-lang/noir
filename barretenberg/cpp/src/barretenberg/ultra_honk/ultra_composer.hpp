@@ -56,10 +56,6 @@ template <UltraFlavor Flavor> class UltraComposer_ {
 
     std::shared_ptr<CommitmentKey> compute_commitment_key(size_t circuit_size)
     {
-        if (commitment_key) {
-            return commitment_key;
-        }
-
         commitment_key = std::make_shared<CommitmentKey>(circuit_size, crs_factory_);
         return commitment_key;
     };
@@ -91,9 +87,9 @@ template <UltraFlavor Flavor> class UltraComposer_ {
      * @param size Size of commitment key required to commit to shifted op queue contribution t_i
      * @return MergeVerifier_<Flavor>
      */
-    MergeVerifier_<Flavor> create_merge_verifier(size_t size)
+    MergeVerifier_<Flavor> create_merge_verifier(size_t srs_size)
     {
-        auto pcs_verification_key = std::make_unique<VerifierCommitmentKey>(size, crs_factory_);
+        auto pcs_verification_key = std::make_unique<VerifierCommitmentKey>(srs_size, crs_factory_);
         return MergeVerifier_<Flavor>(std::move(pcs_verification_key));
     }
 

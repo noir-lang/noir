@@ -227,7 +227,8 @@ TYPED_TEST_SUITE(ECCVMTranscriptTests, FlavorTypes);
  */
 TYPED_TEST(ECCVMTranscriptTests, ProverManifestConsistency)
 {
-    GTEST_SKIP() << "WORKTODO: update and reinstate after the protocol is finalized.";
+    GTEST_SKIP() << "TODO(https://github.com/AztecProtocol/barretenberg/issues/782): update and reinstate after the "
+                    "protocol is finalized.";
     using Flavor = TypeParam;
 
     // Construct a simple circuit
@@ -256,7 +257,8 @@ TYPED_TEST(ECCVMTranscriptTests, ProverManifestConsistency)
  */
 TYPED_TEST(ECCVMTranscriptTests, VerifierManifestConsistency)
 {
-    GTEST_SKIP() << "WORKTODO: update and reinstate after the protocol is finalized.";
+    GTEST_SKIP() << "TODO(https://github.com/AztecProtocol/barretenberg/issues/782): update and reinstate after the "
+                    "protocol is finalized.";
 
     using Flavor = TypeParam;
 
@@ -310,7 +312,8 @@ TYPED_TEST(ECCVMTranscriptTests, ChallengeGenerationTest)
 
 TYPED_TEST(ECCVMTranscriptTests, StructureTest)
 {
-    GTEST_SKIP() << "WORKTODO: update and reinstate after the protocol is finalized.";
+    GTEST_SKIP() << "TODO(https://github.com/AztecProtocol/barretenberg/issues/782): update and reinstate after the "
+                    "protocol is finalized.";
 
     using Flavor = TypeParam;
 

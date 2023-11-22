@@ -8,6 +8,8 @@
 #include <string>
 #include <unistd.h>
 
+#pragma GCC diagnostic ignored "-Wunused-result" // GCC13 hits this
+
 namespace {
 /**
  * If user provides the env var BENCHMARK_FD write benchmarks to this fd, otherwise default to -1 (disable).

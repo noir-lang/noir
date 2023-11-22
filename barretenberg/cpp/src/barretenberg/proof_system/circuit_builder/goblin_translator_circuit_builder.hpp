@@ -94,7 +94,6 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<barretenberg::f
 
     /**
      * @brief There are so many wires that naming them has no sense, it is easier to access them with enums
-     *
      */
     enum WireIds : size_t {
         OP, // The first 4 wires contain the standard values from the EccQueue wire
@@ -360,7 +359,9 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<barretenberg::f
      * @param evaluation_input_x_
      * @param op_queue
      */
-    GoblinTranslatorCircuitBuilder(Fq batching_challenge_v_, Fq evaluation_input_x_, ECCOpQueue op_queue)
+    GoblinTranslatorCircuitBuilder(Fq batching_challenge_v_,
+                                   Fq evaluation_input_x_,
+                                   std::shared_ptr<ECCOpQueue> op_queue)
         : GoblinTranslatorCircuitBuilder(batching_challenge_v_, evaluation_input_x_)
     {
         feed_ecc_op_queue_into_circuit(op_queue);
@@ -447,7 +448,7 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<barretenberg::f
      *
      * @param ecc_op_queue The queue
      */
-    void feed_ecc_op_queue_into_circuit(ECCOpQueue& ecc_op_queue);
+    void feed_ecc_op_queue_into_circuit(std::shared_ptr<ECCOpQueue> ecc_op_queue);
 
     /**
      * @brief Check the witness satisifies the circuit

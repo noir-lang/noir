@@ -599,12 +599,12 @@ GoblinTranslatorCircuitBuilder::AccumulationInput compute_witness_values_for_one
                                    batching_challenge_v,
                                    evaluation_input_x);
 }
-void GoblinTranslatorCircuitBuilder::feed_ecc_op_queue_into_circuit(ECCOpQueue& ecc_op_queue)
+void GoblinTranslatorCircuitBuilder::feed_ecc_op_queue_into_circuit(std::shared_ptr<ECCOpQueue> ecc_op_queue)
 {
     using Fq = barretenberg::fq;
     std::vector<Fq> accumulator_trace;
     Fq current_accumulator(0);
-    if (ecc_op_queue.raw_ops.empty()) {
+    if (ecc_op_queue->raw_ops.empty()) {
         return;
     }
     // Rename for ease of use
@@ -613,8 +613,8 @@ void GoblinTranslatorCircuitBuilder::feed_ecc_op_queue_into_circuit(ECCOpQueue& 
 
     // We need to precompute the accumulators at each step, because in the actual circuit we compute the values starting
     // from the later indices. We need to know the previous accumulator to create the gate
-    for (size_t i = 0; i < ecc_op_queue.raw_ops.size(); i++) {
-        auto& ecc_op = ecc_op_queue.raw_ops[ecc_op_queue.raw_ops.size() - 1 - i];
+    for (size_t i = 0; i < ecc_op_queue->raw_ops.size(); i++) {
+        auto& ecc_op = ecc_op_queue->raw_ops[ecc_op_queue->raw_ops.size() - 1 - i];
         current_accumulator *= x;
         current_accumulator +=
             (Fq(ecc_op.get_opcode_value()) +
@@ -625,7 +625,7 @@ void GoblinTranslatorCircuitBuilder::feed_ecc_op_queue_into_circuit(ECCOpQueue& 
     // We don't care about the last value since we'll recompute it during witness generation anyway
     accumulator_trace.pop_back();
 
-    for (auto& raw_op : ecc_op_queue.raw_ops) {
+    for (auto& raw_op : ecc_op_queue->raw_ops) {
         Fq previous_accumulator = 0;
         // Pop the last value from accumulator trace and use it as previous accumulator
         if (!accumulator_trace.empty()) {

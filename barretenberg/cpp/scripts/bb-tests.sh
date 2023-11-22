@@ -35,6 +35,7 @@ TESTS=(
   srs_tests
   sumcheck_tests
   transcript_tests
+  translator_vm_tests
   ultra_honk_tests
 )
 TESTS_STR="${TESTS[@]}"

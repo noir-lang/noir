@@ -42,7 +42,7 @@ template <typename Curve> class FileProverCrs : public ProverCrs<Curve> {
 
     typename Curve::AffineElement* get_monomial_points() { return monomials_.get(); }
 
-    size_t get_monomial_size() const { return num_points; }
+    [[nodiscard]] size_t get_monomial_size() const { return num_points; }
 
   private:
     size_t num_points;

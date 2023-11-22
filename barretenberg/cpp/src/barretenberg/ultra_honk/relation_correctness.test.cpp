@@ -483,7 +483,8 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorPermutationRelationCorrectness)
     // Compute the grand product polynomial
     grand_product_library::compute_grand_product<Flavor, proof_system::GoblinTranslatorPermutationRelation<FF>>(
         circuit_size, prover_polynomials, params);
-    prover_polynomials.z_perm_shift = polynomial_container[Flavor::ALL_ENTITIES_IDS::Z_PERM].shifted();
+    prover_polynomials.z_perm_shift =
+        polynomial_container[90].shifted(); // TODO(https://github.com/AztecProtocol/barretenberg/issues/784)
 
     using Relations = typename Flavor::Relations;
 
@@ -558,17 +559,20 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorGenPermSortRelationCorrectness)
                   polynomial_pointers[i + 1]->begin());
     });
 
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/784)
+    enum ORDERED_RANGE_CONSTRAINTS : size_t { C0 = 85, C1, C2, C3, C4 };
+
     // Get shifted polynomials
     prover_polynomials.ordered_range_constraints_0_shift =
-        polynomial_container[Flavor::ORDERED_RANGE_CONSTRAINTS_0].shifted();
+        polynomial_container[ORDERED_RANGE_CONSTRAINTS::C0].shifted();
     prover_polynomials.ordered_range_constraints_1_shift =
-        polynomial_container[Flavor::ORDERED_RANGE_CONSTRAINTS_1].shifted();
+        polynomial_container[ORDERED_RANGE_CONSTRAINTS::C1].shifted();
     prover_polynomials.ordered_range_constraints_2_shift =
-        polynomial_container[Flavor::ORDERED_RANGE_CONSTRAINTS_2].shifted();
+        polynomial_container[ORDERED_RANGE_CONSTRAINTS::C2].shifted();
     prover_polynomials.ordered_range_constraints_3_shift =
-        polynomial_container[Flavor::ORDERED_RANGE_CONSTRAINTS_3].shifted();
+        polynomial_container[ORDERED_RANGE_CONSTRAINTS::C3].shifted();
     prover_polynomials.ordered_range_constraints_4_shift =
-        polynomial_container[Flavor::ORDERED_RANGE_CONSTRAINTS_4].shifted();
+        polynomial_container[ORDERED_RANGE_CONSTRAINTS::C4].shifted();
 
     using Relations = typename Flavor::Relations;
 
@@ -1072,22 +1076,22 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorNonNativeRelationCorrectness)
 
     auto& engine = numeric::random::get_debug_engine();
 
-    proof_system::ECCOpQueue op_queue;
+    auto op_queue = std::make_shared<proof_system::ECCOpQueue>();
 
     // Generate random EccOpQueue actions
     for (size_t i = 0; i < ((Flavor::MINI_CIRCUIT_SIZE >> 1) - 1); i++) {
         switch (engine.get_random_uint8() & 3) {
         case 0:
-            op_queue.empty_row();
+            op_queue->empty_row();
             break;
         case 1:
-            op_queue.eq();
+            op_queue->eq();
             break;
         case 2:
-            op_queue.add_accumulate(GroupElement::random_element(&engine));
+            op_queue->add_accumulate(GroupElement::random_element(&engine));
             break;
         case 3:
-            op_queue.mul_accumulate(GroupElement::random_element(&engine), FF::random_element(&engine));
+            op_queue->mul_accumulate(GroupElement::random_element(&engine), FF::random_element(&engine));
             break;
         }
     }

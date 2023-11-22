@@ -4,9 +4,6 @@
 #include <cstddef>
 #include <gtest/gtest.h>
 
-#pragma GCC diagnostic ignored "-Wunused-local-typedefs"
-#pragma GCC diagnostic ignored "-Wunused-variable"
-
 namespace proof_system::test_flavor {
 TEST(Flavor, Getters)
 {
@@ -139,7 +136,6 @@ TEST(Flavor, GetRow)
         return std::vector<FF>({ FF::random_element(), FF::random_element() });
     });
     Flavor::ProverPolynomials prover_polynomials;
-    size_t poly_idx = 0;
     for (auto [poly, entry] : zip_view(prover_polynomials.pointer_view(), data)) {
         *poly = entry;
     }

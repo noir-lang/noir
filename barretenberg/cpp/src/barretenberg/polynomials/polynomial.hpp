@@ -105,8 +105,8 @@ template <typename Fr> class Polynomial {
         return coefficients_.get()[i];
     };
 
-    Fr evaluate(const Fr& z, const size_t target_size) const;
-    Fr evaluate(const Fr& z) const;
+    [[nodiscard]] Fr evaluate(const Fr& z, const size_t target_size) const;
+    [[nodiscard]] Fr evaluate(const Fr& z) const;
 
     Fr compute_barycentric_evaluation(const Fr& z, const EvaluationDomain<Fr>& domain)
         requires polynomial_arithmetic::SupportsFFT<Fr>;

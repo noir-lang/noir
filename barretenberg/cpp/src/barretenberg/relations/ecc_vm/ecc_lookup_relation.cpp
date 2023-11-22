@@ -29,7 +29,6 @@ void ECCVMLookupRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumula
         accumulator, in, params, scaling_factor);
 }
 
-template class ECCVMLookupRelationImpl<barretenberg::fr>;
 template class ECCVMLookupRelationImpl<grumpkin::fr>;
 DEFINE_SUMCHECK_RELATION_CLASS(ECCVMLookupRelationImpl, flavor::ECCVM);
 

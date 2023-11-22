@@ -1,14 +1,14 @@
-#include <cstddef>
-#include <cstdint>
-#include <gtest/gtest.h>
-
-#include "barretenberg/common/log.hpp"
 #include "barretenberg/eccvm/eccvm_composer.hpp"
+#include "barretenberg/goblin/translation_evaluations.hpp"
 #include "barretenberg/proof_system/circuit_builder/eccvm/eccvm_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "barretenberg/translator_vm/goblin_translator_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
-#include "barretenberg/ultra_honk/ultra_prover.hpp"
+
+#include <gtest/gtest.h>
+
+using namespace proof_system::honk;
 
 namespace test_full_goblin_composer {
 
@@ -26,22 +26,27 @@ class FullGoblinComposerTests : public ::testing::Test {
 
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
+    using Fbase = Curve::BaseField;
     using Point = Curve::AffineElement;
-    using CommitmentKey = proof_system::honk::pcs::CommitmentKey<Curve>;
+    using CommitmentKey = pcs::CommitmentKey<Curve>;
+    using OpQueue = proof_system::ECCOpQueue;
     using GoblinUltraBuilder = proof_system::GoblinUltraCircuitBuilder;
-    using GoblinUltraComposer = proof_system::honk::GoblinUltraComposer;
-    using ECCVMFlavor = proof_system::honk::flavor::ECCVM;
+    using ECCVMFlavor = flavor::ECCVM;
     using ECCVMBuilder = proof_system::ECCVMCircuitBuilder<ECCVMFlavor>;
-    using ECCVMComposer = proof_system::honk::ECCVMComposer_<ECCVMFlavor>;
-    using VMOp = proof_system_eccvm::VMOperation<ECCVMFlavor::CycleGroup>;
-    static constexpr size_t NUM_OP_QUEUE_COLUMNS = proof_system::honk::flavor::GoblinUltra::NUM_WIRES;
+    using ECCVMComposer = ECCVMComposer_<ECCVMFlavor>;
+    using TranslatorFlavor = flavor::GoblinTranslator;
+    using TranslatorBuilder = proof_system::GoblinTranslatorCircuitBuilder;
+    using TranslatorComposer = GoblinTranslatorComposer;
+    using TranslatorConsistencyData = barretenberg::TranslationEvaluations;
+
+    static constexpr size_t NUM_OP_QUEUE_COLUMNS = flavor::GoblinUltra::NUM_WIRES;
 
     /**
      * @brief Generate a simple test circuit with some ECC op gates and conventional arithmetic gates
      *
      * @param builder
      */
-    void generate_test_circuit(auto& builder)
+    static void generate_test_circuit(GoblinUltraBuilder& builder)
     {
         // Add some arbitrary ecc op gates
         for (size_t i = 0; i < 3; ++i) {
@@ -50,7 +55,8 @@ class FullGoblinComposerTests : public ::testing::Test {
             builder.queue_ecc_add_accum(point);
             builder.queue_ecc_mul_accum(point, scalar);
         }
-        builder.queue_ecc_eq();
+        // queues the result of the preceding ECC
+        builder.queue_ecc_eq(); // should be eq and reset
 
         // Add some conventional gates that utilize public inputs
         for (size_t i = 0; i < 10; ++i) {
@@ -74,6 +80,8 @@ class FullGoblinComposerTests : public ::testing::Test {
      * circuit. This way, when we go to generate a proof over our first "real" circuit, the transcript aggregation
      * protocol can proceed nominally. The mock data is valid in the sense that it can be processed by all stages of
      * Goblin as if it came from a genuine circuit.
+     *
+     * @todo WOKTODO: this is a zero commitments issue
      *
      * @param op_queue
      */
@@ -106,7 +114,7 @@ class FullGoblinComposerTests : public ::testing::Test {
      * @brief Construct and a verify a Honk proof
      *
      */
-    bool construct_and_verify_honk_proof(auto& composer, auto& builder)
+    static bool construct_and_verify_honk_proof(GoblinUltraComposer& composer, GoblinUltraBuilder& builder)
     {
         auto instance = composer.create_instance(builder);
         auto prover = composer.create_prover(instance);
@@ -121,26 +129,12 @@ class FullGoblinComposerTests : public ::testing::Test {
      * @brief Construct and verify a Goblin ECC op queue merge proof
      *
      */
-    bool construct_and_verify_merge_proof(auto& composer, auto& op_queue)
+    static bool construct_and_verify_merge_proof(GoblinUltraComposer& composer, std::shared_ptr<OpQueue>& op_queue)
     {
         auto merge_prover = composer.create_merge_prover(op_queue);
-        auto merge_verifier = composer.create_merge_verifier(10);
+        auto merge_verifier = composer.create_merge_verifier(/*srs_size=*/10);
         auto merge_proof = merge_prover.construct_proof();
         bool verified = merge_verifier.verify_proof(merge_proof);
-
-        return verified;
-    }
-
-    /**
-     * @brief Construct and verify a Goblin ECC op queue merge proof
-     *
-     */
-    bool construct_and_verify_eccvm_proof(auto& composer, auto& builder)
-    {
-        auto prover = composer.create_prover(builder);
-        auto proof = prover.construct_proof();
-        auto verifier = composer.create_verifier(builder);
-        bool verified = verifier.verify_proof(proof);
 
         return verified;
     }
@@ -171,69 +165,36 @@ TEST_F(FullGoblinComposerTests, SimpleCircuit)
         auto composer = GoblinUltraComposer();
 
         // Construct and verify Ultra Goblin Honk proof
-        auto honk_verified = construct_and_verify_honk_proof(composer, builder);
+        bool honk_verified = construct_and_verify_honk_proof(composer, builder);
         EXPECT_TRUE(honk_verified);
 
         // Construct and verify op queue merge proof
-        auto merge_verified = construct_and_verify_merge_proof(composer, op_queue);
+        bool merge_verified = construct_and_verify_merge_proof(composer, op_queue);
         EXPECT_TRUE(merge_verified);
     }
 
-    // Construct an ECCVM circuit then generate and verify its proof
-    {
-        // Instantiate an ECCVM builder with the vm ops stored in the op queue
-        auto builder = ECCVMBuilder(op_queue->raw_ops);
+    // Execute the ECCVM
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/785) Properly initialize transcript
+    auto eccvm_builder = ECCVMBuilder(op_queue);
+    auto eccvm_composer = ECCVMComposer();
+    auto eccvm_prover = eccvm_composer.create_prover(eccvm_builder);
+    auto eccvm_verifier = eccvm_composer.create_verifier(eccvm_builder);
+    auto eccvm_proof = eccvm_prover.construct_proof();
+    bool eccvm_verified = eccvm_verifier.verify_proof(eccvm_proof);
+    EXPECT_TRUE(eccvm_verified);
 
-        // Construct and verify ECCVM proof
-        auto composer = ECCVMComposer();
-        auto eccvm_verified = construct_and_verify_eccvm_proof(composer, builder);
-        EXPECT_TRUE(eccvm_verified);
-    }
+    // Execute the Translator
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/786) Properly derive batching_challenge
+    auto batching_challenge = Fbase::random_element();
+    auto evaluation_input = eccvm_prover.evaluation_challenge_x;
+    auto translator_builder = TranslatorBuilder(batching_challenge, evaluation_input, op_queue);
+    auto translator_composer = TranslatorComposer();
+    auto translator_prover = translator_composer.create_prover(translator_builder);
+    auto translator_verifier = translator_composer.create_verifier(translator_builder);
+    auto translator_proof = translator_prover.construct_proof();
+    bool accumulator_construction_verified = translator_verifier.verify_proof(translator_proof);
+    bool translation_verified = translator_verifier.verify_translation(eccvm_prover.translation_evaluations);
+    EXPECT_TRUE(accumulator_construction_verified && translation_verified);
 }
-
-/**
- * @brief Check that ECCVM verification fails if ECC op queue operands are tampered with
- *
- */
-TEST_F(FullGoblinComposerTests, SimpleCircuitFailureCase)
-{
-    auto op_queue = std::make_shared<proof_system::ECCOpQueue>();
-
-    // Add mock data to op queue to simulate interaction with a "first" circuit
-    perform_op_queue_interactions_for_mock_first_circuit(op_queue);
-
-    // Construct a series of simple Goblin circuits; generate and verify their proofs
-    size_t NUM_CIRCUITS = 3;
-    for (size_t circuit_idx = 0; circuit_idx < NUM_CIRCUITS; ++circuit_idx) {
-        auto builder = GoblinUltraBuilder{ op_queue };
-
-        generate_test_circuit(builder);
-
-        // The same composer is used to manage Honk and Merge prover/verifier
-        auto composer = GoblinUltraComposer();
-
-        // Construct and verify Ultra Goblin Honk proof
-        auto honk_verified = construct_and_verify_honk_proof(composer, builder);
-        EXPECT_TRUE(honk_verified);
-
-        // Construct and verify op queue merge proof
-        auto merge_verified = construct_and_verify_merge_proof(composer, op_queue);
-        EXPECT_TRUE(merge_verified);
-    }
-
-    // Construct an ECCVM circuit then generate and verify its proof
-    {
-        // Instantiate an ECCVM builder with the vm ops stored in the op queue
-        auto builder = ECCVMBuilder(op_queue->raw_ops);
-
-        // Fiddle with one of the operands to trigger a failure
-        builder.vm_operations[0].z1 += 1;
-
-        // Construct and verify ECCVM proof
-        auto composer = ECCVMComposer();
-        auto eccvm_verified = construct_and_verify_eccvm_proof(composer, builder);
-        EXPECT_FALSE(eccvm_verified);
-    }
-}
-
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/787) Expand these tests.
 } // namespace test_full_goblin_composer

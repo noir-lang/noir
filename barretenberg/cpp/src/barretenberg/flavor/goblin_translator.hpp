@@ -1,10 +1,7 @@
 #pragma once
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/commitment_schemes/kzg/kzg.hpp"
-#include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/flavor/flavor.hpp"
-#include "barretenberg/polynomials/univariate.hpp"
-#include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_translator_circuit_builder.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/relations/translator_vm/translator_decomposition_relation.hpp"
@@ -13,248 +10,16 @@
 #include "barretenberg/relations/translator_vm/translator_non_native_field_relation.hpp"
 #include "barretenberg/relations/translator_vm/translator_permutation_relation.hpp"
 #include "relation_definitions_fwd.hpp"
-#include <array>
-#include <concepts>
-#include <span>
-#include <string>
-#include <type_traits>
-#include <vector>
 
 namespace proof_system::honk::flavor {
 
-template <size_t mini_circuit_size> class GoblinTranslator_ {
+class GoblinTranslator {
 
   public:
-    /**
-     * @brief Enum containing IDs of all the polynomials used in Goblin Translator
-     *
-     * @details We use the enum for easier updates of structure sizes and for cases where we need to get a particular
-     * polynomial programmatically
-     */
-    enum ALL_ENTITIES_IDS : size_t {
-        /*The first 4 wires contain the standard values from the EccOpQueue*/
-        OP,
-        X_LO_Y_HI,
-        X_HI_Z_1,
-        Y_LO_Z_2,
-        /*P.xₗₒ split into 2 NUM_LIMB_BITS bit limbs*/
-        P_X_LOW_LIMBS,
-        /*Low limbs split further into smaller chunks for range constraints*/
-        P_X_LOW_LIMBS_RANGE_CONSTRAINT_0,
-        P_X_LOW_LIMBS_RANGE_CONSTRAINT_1,
-        P_X_LOW_LIMBS_RANGE_CONSTRAINT_2,
-        P_X_LOW_LIMBS_RANGE_CONSTRAINT_3,
-        P_X_LOW_LIMBS_RANGE_CONSTRAINT_4,
-        P_X_LOW_LIMBS_RANGE_CONSTRAINT_TAIL,
-        /*P.xₕᵢ split into 2 NUM_LIMB_BITS bit limbs*/
-        P_X_HIGH_LIMBS,
-        /*High limbs split into chunks for range constraints*/
-        P_X_HIGH_LIMBS_RANGE_CONSTRAINT_0,
-        P_X_HIGH_LIMBS_RANGE_CONSTRAINT_1,
-        P_X_HIGH_LIMBS_RANGE_CONSTRAINT_2,
-        P_X_HIGH_LIMBS_RANGE_CONSTRAINT_3,
-        P_X_HIGH_LIMBS_RANGE_CONSTRAINT_4,
-        P_X_HIGH_LIMBS_RANGE_CONSTRAINT_TAIL, // The tail also contains some leftover values from  relation wide limb
-                                              // range cosntraints
-        /*P.yₗₒ split into 2 NUM_LIMB_BITS bit limbs*/
-        P_Y_LOW_LIMBS,
-        /*Low limbs split into chunks for range constraints*/
-        P_Y_LOW_LIMBS_RANGE_CONSTRAINT_0,
-        P_Y_LOW_LIMBS_RANGE_CONSTRAINT_1,
-        P_Y_LOW_LIMBS_RANGE_CONSTRAINT_2,
-        P_Y_LOW_LIMBS_RANGE_CONSTRAINT_3,
-        P_Y_LOW_LIMBS_RANGE_CONSTRAINT_4,
-        P_Y_LOW_LIMBS_RANGE_CONSTRAINT_TAIL,
-        /*P.yₕᵢ split into 2 NUM_LIMB_BITS bit limbs*/
-        P_Y_HIGH_LIMBS,
-        /*High limbs split into chunks for range constraints*/
-        P_Y_HIGH_LIMBS_RANGE_CONSTRAINT_0,
-        P_Y_HIGH_LIMBS_RANGE_CONSTRAINT_1,
-        P_Y_HIGH_LIMBS_RANGE_CONSTRAINT_2,
-        P_Y_HIGH_LIMBS_RANGE_CONSTRAINT_3,
-        P_Y_HIGH_LIMBS_RANGE_CONSTRAINT_4,
-        P_Y_HIGH_LIMBS_RANGE_CONSTRAINT_TAIL, // The tail also contains some leftover values from  relation wide limb
-                                              // range cosntraints
-        /*Low limbs of z_1 and z_2*/
-        Z_LOW_LIMBS,
-        /*Range constraints for low limbs of z_1 and z_2*/
-        Z_LOW_LIMBS_RANGE_CONSTRAINT_0,
-        Z_LOW_LIMBS_RANGE_CONSTRAINT_1,
-        Z_LOW_LIMBS_RANGE_CONSTRAINT_2,
-        Z_LOW_LIMBS_RANGE_CONSTRAINT_3,
-        Z_LOW_LIMBS_RANGE_CONSTRAINT_4,
-        Z_LOW_LIMBS_RANGE_CONSTRAINT_TAIL,
-        /*High Limbs of z_1 and z_2*/
-        Z_HIGH_LIMBS,
-        /*Range constraints for high limbs of z_1 and z_2*/
-        Z_HIGH_LIMBS_RANGE_CONSTRAINT_0,
-        Z_HIGH_LIMBS_RANGE_CONSTRAINT_1,
-        Z_HIGH_LIMBS_RANGE_CONSTRAINT_2,
-        Z_HIGH_LIMBS_RANGE_CONSTRAINT_3,
-        Z_HIGH_LIMBS_RANGE_CONSTRAINT_4,
-        Z_HIGH_LIMBS_RANGE_CONSTRAINT_TAIL,
-        /* Contain NUM_LIMB_BITS-bit limbs of current and previous accumulator (previous at higher indices because of
-           the nuances of KZG commitment) */
-        ACCUMULATORS_BINARY_LIMBS_0,
-        ACCUMULATORS_BINARY_LIMBS_1,
-        ACCUMULATORS_BINARY_LIMBS_2,
-        ACCUMULATORS_BINARY_LIMBS_3,
-        ACCUMULATOR_LOW_LIMBS_RANGE_CONSTRAINT_0, // Range constraints for the current accumulator limbs (no need to
-                                                  // redo previous accumulator)
-        ACCUMULATOR_LOW_LIMBS_RANGE_CONSTRAINT_1,
-        ACCUMULATOR_LOW_LIMBS_RANGE_CONSTRAINT_2,
-        ACCUMULATOR_LOW_LIMBS_RANGE_CONSTRAINT_3,
-        ACCUMULATOR_LOW_LIMBS_RANGE_CONSTRAINT_4,
-        ACCUMULATOR_LOW_LIMBS_RANGE_CONSTRAINT_TAIL,
-        ACCUMULATOR_HIGH_LIMBS_RANGE_CONSTRAINT_0,
-        ACCUMULATOR_HIGH_LIMBS_RANGE_CONSTRAINT_1,
-        ACCUMULATOR_HIGH_LIMBS_RANGE_CONSTRAINT_2,
-        ACCUMULATOR_HIGH_LIMBS_RANGE_CONSTRAINT_3,
-        ACCUMULATOR_HIGH_LIMBS_RANGE_CONSTRAINT_4,
-        ACCUMULATOR_HIGH_LIMBS_RANGE_CONSTRAINT_TAIL, // The tail also contains some leftover values from  relation wide
-                                                      // limb range constraints
-
-        /* Quotient limbs*/
-        QUOTIENT_LOW_BINARY_LIMBS,
-        QUOTIENT_HIGH_BINARY_LIMBS,
-        /* Range constraints for quotient */
-        QUOTIENT_LOW_LIMBS_RANGE_CONSTRAINT_0,
-        QUOTIENT_LOW_LIMBS_RANGE_CONSTRAINT_1,
-        QUOTIENT_LOW_LIMBS_RANGE_CONSTRAINT_2,
-        QUOTIENT_LOW_LIMBS_RANGE_CONSTRAINT_3,
-        QUOTIENT_LOW_LIMBS_RANGE_CONSTRAINT_4,
-        QUOTIENT_LOW_LIMBS_RANGE_CONSTRAINT_TAIL,
-        QUOTIENT_HIGH_LIMBS_RANGE_CONSTRAINT_0,
-        QUOTIENT_HIGH_LIMBS_RANGE_CONSTRAINT_1,
-        QUOTIENT_HIGH_LIMBS_RANGE_CONSTRAINT_2,
-        QUOTIENT_HIGH_LIMBS_RANGE_CONSTRAINT_3,
-        QUOTIENT_HIGH_LIMBS_RANGE_CONSTRAINT_4,
-        QUOTIENT_HIGH_LIMBS_RANGE_CONSTRAINT_TAIL, // The tail also contains some leftover values from  relation wide
-                                                   // limb range constraints
-
-        /* Limbs for checking the correctness of  mod 2²⁷² relations*/
-        RELATION_WIDE_LIMBS,
-        RELATION_WIDE_LIMBS_RANGE_CONSTRAINT_0,
-        RELATION_WIDE_LIMBS_RANGE_CONSTRAINT_1,
-        RELATION_WIDE_LIMBS_RANGE_CONSTRAINT_2,
-        RELATION_WIDE_LIMBS_RANGE_CONSTRAINT_3,
-        /*Concatenations of various range constraint wires*/
-        CONCATENATED_RANGE_CONSTRAINTS_0,
-        CONCATENATED_RANGE_CONSTRAINTS_1,
-        CONCATENATED_RANGE_CONSTRAINTS_2,
-        CONCATENATED_RANGE_CONSTRAINTS_3,
-        /*Values from concatenated range constraints + some additional ones*/
-        ORDERED_RANGE_CONSTRAINTS_0,
-        ORDERED_RANGE_CONSTRAINTS_1,
-        ORDERED_RANGE_CONSTRAINTS_2,
-        ORDERED_RANGE_CONSTRAINTS_3,
-        ORDERED_RANGE_CONSTRAINTS_4,
-        /*Grand Product Polynomial*/
-        Z_PERM,
-        /*Shifted versions of polynomials*/
-        X_LO_Y_HI_SHIFT,
-        X_HI_Z_1_SHIFT,
-        Y_LO_Z_2_SHIFT,
-        P_X_LOW_LIMBS_SHIFT,
-        P_X_LOW_LIMBS_RANGE_CONSTRAINT_0_SHIFT,
-        P_X_LOW_LIMBS_RANGE_CONSTRAINT_1_SHIFT,
-        P_X_LOW_LIMBS_RANGE_CONSTRAINT_2_SHIFT,
-        P_X_LOW_LIMBS_RANGE_CONSTRAINT_3_SHIFT,
-        P_X_LOW_LIMBS_RANGE_CONSTRAINT_4_SHIFT,
-        P_X_LOW_LIMBS_RANGE_CONSTRAINT_TAIL_SHIFT,
-        P_X_HIGH_LIMBS_SHIFT,
-        P_X_HIGH_LIMBS_RANGE_CONSTRAINT_0_SHIFT,
-        P_X_HIGH_LIMBS_RANGE_CONSTRAINT_1_SHIFT,
-        P_X_HIGH_LIMBS_RANGE_CONSTRAINT_2_SHIFT,
-        P_X_HIGH_LIMBS_RANGE_CONSTRAINT_3_SHIFT,
-        P_X_HIGH_LIMBS_RANGE_CONSTRAINT_4_SHIFT,
-        P_X_HIGH_LIMBS_RANGE_CONSTRAINT_TAIL_SHIFT,
-        P_Y_LOW_LIMBS_SHIFT,
-        P_Y_LOW_LIMBS_RANGE_CONSTRAINT_0_SHIFT,
-        P_Y_LOW_LIMBS_RANGE_CONSTRAINT_1_SHIFT,
-        P_Y_LOW_LIMBS_RANGE_CONSTRAINT_2_SHIFT,
-        P_Y_LOW_LIMBS_RANGE_CONSTRAINT_3_SHIFT,
-        P_Y_LOW_LIMBS_RANGE_CONSTRAINT_4_SHIFT,
-        P_Y_LOW_LIMBS_RANGE_CONSTRAINT_TAIL_SHIFT,
-        P_Y_HIGH_LIMBS_SHIFT,
-        P_Y_HIGH_LIMBS_RANGE_CONSTRAINT_0_SHIFT,
-        P_Y_HIGH_LIMBS_RANGE_CONSTRAINT_1_SHIFT,
-        P_Y_HIGH_LIMBS_RANGE_CONSTRAINT_2_SHIFT,
-        P_Y_HIGH_LIMBS_RANGE_CONSTRAINT_3_SHIFT,
-        P_Y_HIGH_LIMBS_RANGE_CONSTRAINT_4_SHIFT,
-        P_Y_HIGH_LIMBS_RANGE_CONSTRAINT_TAIL_SHIFT,
-        Z_LOW_LIMBS_SHIFT,
-        Z_LOW_LIMBS_RANGE_CONSTRAINT_0_SHIFT,
-        Z_LOW_LIMBS_RANGE_CONSTRAINT_1_SHIFT,
-        Z_LOW_LIMBS_RANGE_CONSTRAINT_2_SHIFT,
-        Z_LOW_LIMBS_RANGE_CONSTRAINT_3_SHIFT,
-        Z_LOW_LIMBS_RANGE_CONSTRAINT_4_SHIFT,
-        Z_LOW_LIMBS_RANGE_CONSTRAINT_TAIL_SHIFT,
-        Z_HIGH_LIMBS_SHIFT,
-        Z_HIGH_LIMBS_RANGE_CONSTRAINT_0_SHIFT,
-        Z_HIGH_LIMBS_RANGE_CONSTRAINT_1_SHIFT,
-        Z_HIGH_LIMBS_RANGE_CONSTRAINT_2_SHIFT,
-        Z_HIGH_LIMBS_RANGE_CONSTRAINT_3_SHIFT,
-        Z_HIGH_LIMBS_RANGE_CONSTRAINT_4_SHIFT,
-        Z_HIGH_LIMBS_RANGE_CONSTRAINT_TAIL_SHIFT,
-        ACCUMULATORS_BINARY_LIMBS_0_SHIFT,
-        ACCUMULATORS_BINARY_LIMBS_1_SHIFT,
-        ACCUMULATORS_BINARY_LIMBS_2_SHIFT,
-        ACCUMULATORS_BINARY_LIMBS_3_SHIFT,
-        ACCUMULATOR_LOW_LIMBS_RANGE_CONSTRAINT_0_SHIFT,
-        ACCUMULATOR_LOW_LIMBS_RANGE_CONSTRAINT_1_SHIFT,
-        ACCUMULATOR_LOW_LIMBS_RANGE_CONSTRAINT_2_SHIFT,
-        ACCUMULATOR_LOW_LIMBS_RANGE_CONSTRAINT_3_SHIFT,
-        ACCUMULATOR_LOW_LIMBS_RANGE_CONSTRAINT_4_SHIFT,
-        ACCUMULATOR_LOW_LIMBS_RANGE_CONSTRAINT_TAIL_SHIFT,
-        ACCUMULATOR_HIGH_LIMBS_RANGE_CONSTRAINT_0_SHIFT,
-        ACCUMULATOR_HIGH_LIMBS_RANGE_CONSTRAINT_1_SHIFT,
-        ACCUMULATOR_HIGH_LIMBS_RANGE_CONSTRAINT_2_SHIFT,
-        ACCUMULATOR_HIGH_LIMBS_RANGE_CONSTRAINT_3_SHIFT,
-        ACCUMULATOR_HIGH_LIMBS_RANGE_CONSTRAINT_4_SHIFT,
-        ACCUMULATOR_HIGH_LIMBS_RANGE_CONSTRAINT_TAIL_SHIFT,
-        QUOTIENT_LOW_BINARY_LIMBS_SHIFT,
-        QUOTIENT_HIGH_BINARY_LIMBS_SHIFT,
-        QUOTIENT_LOW_LIMBS_RANGE_CONSTRAINT_0_SHIFT,
-        QUOTIENT_LOW_LIMBS_RANGE_CONSTRAINT_1_SHIFT,
-        QUOTIENT_LOW_LIMBS_RANGE_CONSTRAINT_2_SHIFT,
-        QUOTIENT_LOW_LIMBS_RANGE_CONSTRAINT_3_SHIFT,
-        QUOTIENT_LOW_LIMBS_RANGE_CONSTRAINT_4_SHIFT,
-        QUOTIENT_LOW_LIMBS_RANGE_CONSTRAINT_TAIL_SHIFT,
-        QUOTIENT_HIGH_LIMBS_RANGE_CONSTRAINT_0_SHIFT,
-        QUOTIENT_HIGH_LIMBS_RANGE_CONSTRAINT_1_SHIFT,
-        QUOTIENT_HIGH_LIMBS_RANGE_CONSTRAINT_2_SHIFT,
-        QUOTIENT_HIGH_LIMBS_RANGE_CONSTRAINT_3_SHIFT,
-        QUOTIENT_HIGH_LIMBS_RANGE_CONSTRAINT_4_SHIFT,
-        QUOTIENT_HIGH_LIMBS_RANGE_CONSTRAINT_TAIL_SHIFT,
-        RELATION_WIDE_LIMBS_SHIFT,
-        RELATION_WIDE_LIMBS_RANGE_CONSTRAINT_0_SHIFT,
-        RELATION_WIDE_LIMBS_RANGE_CONSTRAINT_1_SHIFT,
-        RELATION_WIDE_LIMBS_RANGE_CONSTRAINT_2_SHIFT,
-        RELATION_WIDE_LIMBS_RANGE_CONSTRAINT_3_SHIFT,
-        ORDERED_RANGE_CONSTRAINTS_0_SHIFT,
-        ORDERED_RANGE_CONSTRAINTS_1_SHIFT,
-        ORDERED_RANGE_CONSTRAINTS_2_SHIFT,
-        ORDERED_RANGE_CONSTRAINTS_3_SHIFT,
-        ORDERED_RANGE_CONSTRAINTS_4_SHIFT,
-
-        Z_PERM_SHIFT,
-        /*All precomputed polynomials*/
-        LAGRANGE_FIRST,
-        LAGRANGE_LAST,
-        LAGRANGE_ODD_IN_MINICIRCUIT,
-        LAGRANGE_EVEN_IN_MINICIRCUIT,
-        LAGRANGE_SECOND,
-        LAGRANGE_SECOND_TO_LAST_IN_MINICIRCUIT,
-        ORDERED_EXTRA_RANGE_CONSTRAINTS_NUMERATOR,
-        /*Utility value*/
-        TOTAL_COUNT
-
-    };
-
+    static constexpr size_t mini_circuit_size = 2048;
     using CircuitBuilder = GoblinTranslatorCircuitBuilder;
-    using PCS = pcs::kzg::KZG<curve::BN254>;
     using Curve = curve::BN254;
+    using PCS = pcs::kzg::KZG<Curve>;
     using GroupElement = Curve::Element;
     using Commitment = Curve::AffineElement;
     using CommitmentHandle = Curve::AffineElement;
@@ -300,13 +65,12 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
     // need containers of this size to hold related data, so we choose a name more agnostic than `NUM_POLYNOMIALS`.
     // Note: this number does not include the individual sorted list polynomials.
-    static constexpr size_t NUM_ALL_ENTITIES = ALL_ENTITIES_IDS::TOTAL_COUNT;
+    static constexpr size_t NUM_ALL_ENTITIES = 184;
     // The number of polynomials precomputed to describe a circuit and to aid a prover in constructing a satisfying
     // assignment of witnesses. We again choose a neutral name.
-    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = ALL_ENTITIES_IDS::TOTAL_COUNT - ALL_ENTITIES_IDS::Z_PERM_SHIFT;
+    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 7;
     // The total number of witness entities not including shifts.
-    static constexpr size_t NUM_WITNESS_ENTITIES =
-        ALL_ENTITIES_IDS::TOTAL_COUNT - (ALL_ENTITIES_IDS::Z_PERM_SHIFT - ALL_ENTITIES_IDS::Z_PERM);
+    static constexpr size_t NUM_WITNESS_ENTITIES = 91;
 
     using GrandProductRelations = std::tuple<GoblinTranslatorPermutationRelation<FF>>;
     // define the tuple of Relations that comprise the Sumcheck relation
@@ -328,7 +92,13 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
     static constexpr size_t NUM_RELATIONS = std::tuple_size_v<Relations>;
 
     // define the containers for storing the contributions from each relation in Sumcheck
-    using SumcheckTupleOfTuplesOfUnivariates = decltype(create_sumcheck_tuple_of_tuples_of_univariates<Relations>());
+    using SumcheckTupleOfTuplesOfUnivariates =
+        std::tuple<typename GoblinTranslatorPermutationRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+                   typename GoblinTranslatorGenPermSortRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+                   typename GoblinTranslatorOpcodeConstraintRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+                   typename GoblinTranslatorAccumulatorTransferRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+                   typename GoblinTranslatorDecompositionRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+                   typename GoblinTranslatorNonNativeFieldRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations>;
     using TupleOfArraysOfValues = decltype(create_tuple_of_arrays_of_values<Relations>());
 
   private:
@@ -355,6 +125,7 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
                             &lagrange_second,
                             &lagrange_second_to_last_in_minicircuit,
                             &ordered_extra_range_constraints_numerator);
+
         std::vector<HandleType> get_selectors() { return {}; };
         std::vector<HandleType> get_sigma_polynomials() { return {}; };
         std::vector<HandleType> get_id_polynomials() { return {}; };
@@ -550,7 +321,7 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
                             &ordered_range_constraints_2,
                             &ordered_range_constraints_3,
                             &ordered_range_constraints_4,
-                            &z_perm, )
+                            &z_perm)
 
         std::vector<HandleType> get_wires() override
         {
@@ -935,7 +706,6 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
         DataType lagrange_second;                                    // column 181
         DataType lagrange_second_to_last_in_minicircuit;             // column 182
         DataType ordered_extra_range_constraints_numerator;          // column 183
-
         // defines a method pointer_view that returns the following, with const and non-const variants
         DEFINE_POINTER_VIEW(NUM_ALL_ENTITIES,
                             &op,
@@ -1122,7 +892,6 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
                             &lagrange_second,
                             &lagrange_second_to_last_in_minicircuit,
                             &ordered_extra_range_constraints_numerator)
-
         std::vector<HandleType> get_wires() override
         {
 
@@ -1688,7 +1457,6 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
       public:
         using Base = AllEntities<FF, FF>;
         using Base::Base;
-        AllValues(std::array<FF, NUM_ALL_ENTITIES> _data_in) { this->_data = _data_in; }
     };
     /**
      * @brief A container for the prover polynomials handles; only stores spans.
@@ -1728,13 +1496,11 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
      */
     class AllPolynomials : public AllEntities<Polynomial, PolynomialHandle> {
       public:
-        AllValues get_row(const size_t row_idx) const
+        [[nodiscard]] AllValues get_row(const size_t row_idx) const
         {
             AllValues result;
-            size_t column_idx = 0; // // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
-            for (auto& column : this->_data) {
-                result[column_idx] = column[row_idx];
-                column_idx++;
+            for (auto [result_field, polynomial] : zip_view(result.pointer_view(), this->pointer_view())) {
+                *result_field = (*polynomial)[row_idx];
             }
             return result;
         }
@@ -1755,8 +1521,8 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
         PartiallyEvaluatedMultivariates(const size_t circuit_size)
         {
             // Storage is only needed after the first partial evaluation, hence polynomials of size (n / 2)
-            for (auto& poly : this->_data) {
-                poly = Polynomial(circuit_size / 2);
+            for (auto* poly : this->pointer_view()) {
+                *poly = Polynomial(circuit_size / 2);
             }
         }
     };
@@ -1782,7 +1548,6 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
       public:
         CommitmentLabels()
         {
-
             this->op = "OP";
             this->x_lo_y_hi = "X_LO_Y_HI";
             this->x_hi_z_1 = "X_HI_Z_1";
@@ -1882,10 +1647,9 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
 
     class VerifierCommitments : public AllEntities<Commitment, CommitmentHandle> {
       public:
-        VerifierCommitments(std::shared_ptr<VerificationKey> verification_key,
+        VerifierCommitments([[maybe_unused]] std::shared_ptr<VerificationKey> verification_key,
                             [[maybe_unused]] const BaseTranscript<FF>& transcript)
         {
-            static_cast<void>(transcript);
             this->lagrange_first = verification_key->lagrange_first;
             this->lagrange_last = verification_key->lagrange_last;
             this->lagrange_odd_in_minicircuit = verification_key->lagrange_odd_in_minicircuit;
@@ -1896,10 +1660,9 @@ template <size_t mini_circuit_size> class GoblinTranslator_ {
                 verification_key->ordered_extra_range_constraints_numerator;
         }
     };
+
+    using Transcript = BaseTranscript<FF>;
 };
-
-using GoblinTranslator = GoblinTranslator_<2048>;
-
 } // namespace proof_system::honk::flavor
 
 namespace proof_system {

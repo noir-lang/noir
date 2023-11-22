@@ -270,7 +270,7 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const plonk
         univariate_opening_verified = PCS::verify(pcs_verification_key, batched_univariate_claim, transcript);
     }
 
-    return multivariate_opening_verified && univariate_opening_verified;
+    return sumcheck_verified.value() && multivariate_opening_verified && univariate_opening_verified;
 }
 
 template class ECCVMVerifier_<honk::flavor::ECCVM>;

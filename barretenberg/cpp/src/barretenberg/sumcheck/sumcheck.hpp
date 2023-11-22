@@ -1,9 +1,5 @@
 #pragma once
-#include "barretenberg/common/serialize.hpp"
-#include "barretenberg/common/throw_or_abort.hpp"
-#include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/library/grand_product_delta.hpp"
-#include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/instance/prover_instance.hpp"
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
 #include "barretenberg/transcript/transcript.hpp"

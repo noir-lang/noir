@@ -438,7 +438,7 @@ class GoblinUltra {
         PartiallyEvaluatedMultivariates(const size_t circuit_size)
         {
             // Storage is only needed after the first partial evaluation, hence polynomials of size (n / 2)
-            for (auto* poly : pointer_view()) {
+            for (auto* poly : this->pointer_view()) {
                 *poly = Polynomial(circuit_size / 2);
             }
         }
@@ -475,7 +475,7 @@ class GoblinUltra {
         [[nodiscard]] AllValues get_row(size_t row_idx) const
         {
             AllValues result;
-            for (auto [result_field, polynomial] : zip_view(result.pointer_view(), pointer_view())) {
+            for (auto [result_field, polynomial] : zip_view(result.pointer_view(), this->pointer_view())) {
                 *result_field = (*polynomial)[row_idx];
             }
             return result;

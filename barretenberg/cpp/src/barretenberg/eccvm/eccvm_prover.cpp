@@ -320,35 +320,38 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_transcript_cons
     transcript.send_to_verifier("Translation:hack_commitment", commitment_key->commit(hack));
 
     // Get the challenge at which we evaluate the polynomials as univariates
-    FF evaluation_challenge_x = transcript.get_challenge("Translation:evaluation_challenge_x");
+    evaluation_challenge_x = transcript.get_challenge("Translation:evaluation_challenge_x");
 
-    // Collect the polynomials and evaluations to be batched
-    const size_t NUM_UNIVARIATES = 6; // 5 transcript polynomials plus the constant hack poly
-    std::array<Polynomial, NUM_UNIVARIATES> univariate_polynomials = { key->transcript_op, key->transcript_Px,
-                                                                       key->transcript_Py, key->transcript_z1,
-                                                                       key->transcript_z2, hack };
-    std::array<FF, NUM_UNIVARIATES> univariate_evaluations;
-    for (auto [eval, polynomial] : zip_view(univariate_evaluations, univariate_polynomials)) {
-        eval = polynomial.evaluate(evaluation_challenge_x);
-    }
+    translation_evaluations.op = key->transcript_op.evaluate(evaluation_challenge_x);
+    translation_evaluations.Px = key->transcript_Px.evaluate(evaluation_challenge_x);
+    translation_evaluations.Py = key->transcript_Py.evaluate(evaluation_challenge_x);
+    translation_evaluations.z1 = key->transcript_z1.evaluate(evaluation_challenge_x);
+    translation_evaluations.z2 = key->transcript_z2.evaluate(evaluation_challenge_x);
 
     // Add the univariate evaluations to the transcript
-    transcript.send_to_verifier("Translation:op", univariate_evaluations[0]);
-    transcript.send_to_verifier("Translation:Px", univariate_evaluations[1]);
-    transcript.send_to_verifier("Translation:Py", univariate_evaluations[2]);
-    transcript.send_to_verifier("Translation:z1", univariate_evaluations[3]);
-    transcript.send_to_verifier("Translation:z2", univariate_evaluations[4]);
-    transcript.send_to_verifier("Translation:hack_evaluation", univariate_evaluations[5]);
+    transcript.send_to_verifier("Translation:op", translation_evaluations.op);
+    transcript.send_to_verifier("Translation:Px", translation_evaluations.Px);
+    transcript.send_to_verifier("Translation:Py", translation_evaluations.Py);
+    transcript.send_to_verifier("Translation:z1", translation_evaluations.z1);
+    transcript.send_to_verifier("Translation:z2", translation_evaluations.z2);
+    transcript.send_to_verifier("Translation:hack_evaluation", hack.evaluate(evaluation_challenge_x));
 
     // Get another challenge for batching the univariate claims
     FF batching_challenge = transcript.get_challenge("Translation:batching_challenge");
+
+    // Collect the polynomials and evaluations to be batched
+    const size_t NUM_UNIVARIATES = 6; // 5 transcript polynomials plus the constant hack poly
+    std::array<Polynomial*, NUM_UNIVARIATES> univariate_polynomials = { &key->transcript_op, &key->transcript_Px,
+                                                                        &key->transcript_Py, &key->transcript_z1,
+                                                                        &key->transcript_z2, &hack };
+    std::array<FF, NUM_UNIVARIATES> univariate_evaluations;
 
     // Constuct the batched polynomial and batched evaluation
     Polynomial batched_univariate{ key->circuit_size };
     FF batched_evaluation{ 0 };
     auto batching_scalar = FF(1);
     for (auto [eval, polynomial] : zip_view(univariate_evaluations, univariate_polynomials)) {
-        batched_univariate.add_scaled(polynomial, batching_scalar);
+        batched_univariate.add_scaled(*polynomial, batching_scalar);
         batched_evaluation += eval * batching_scalar;
         batching_scalar *= batching_challenge;
     }
