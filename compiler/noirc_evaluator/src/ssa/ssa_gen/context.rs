@@ -289,6 +289,17 @@ impl<'a> FunctionContext<'a> {
         self.builder.insert_binary(positive_predicate, BinaryOp::Add, negative_predicate)
     }
 
+    /// Insert constraints ensuring that the operation does not overflow the bit size of the result
+    ///
+    /// If the result is unsigned, we simply range check against the bit size
+    ///
+    /// If the result is signed, we just prepare it for check_signed_overflow() by casting it to
+    /// an unsigned value representing the signed integer.
+    /// We need to use a bigger bit size depending on the operation, in case the operation does overflow,
+    /// Then, we delegate the overflow checks to check_signed_overflow() and cast the result back to its type.
+    /// Note that we do NOT want to check for overflows here, only check_signed_overflow() is allowed to do so.
+    /// This is because an overflow might be valid. For instance if 'a' is a signed integer, then 'a - a', as an unsigned result will always
+    /// overflow the bit size, however the operation is still valid (i.e it is not a signed overflow)
     fn check_overflow(
         &mut self,
         result: ValueId,
@@ -375,6 +386,18 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    /// Insert constraints ensuring that the operation does not overflow the bit size of the result
+    /// We assume that:
+    /// lhs and rhs are signed integers of bit size bit_size
+    /// result is the result of the operation, casted into an unsigned integer and not reduced
+    ///
+    /// overflow check for signed integer is less straightforward than for unsigned integers.
+    /// We first compute the sign of the operands, and then we use the following rules:
+    /// addition:   positive operands => result must be positive (i.e less than half the bit size)
+    ///             negative operands => result must be negative (i.e not positive)
+    ///             different sign => no overflow
+    /// multiplication:     we check that the product of the operands' absolute values does not overflow the bit size
+    ///                     then we check that the result has the proper sign, using the rule of signs
     fn check_signed_overflow(
         &mut self,
         result: ValueId,
@@ -450,6 +473,7 @@ impl<'a> FunctionContext<'a> {
             _ => unreachable!("operator {} should not overflow", operator),
         }
     }
+
     /// Insert a binary instruction at the end of the current block.
     /// Converts the form of the binary instruction as necessary
     /// (e.g. swapping arguments, inserting a not) to represent it in the IR.

@@ -370,13 +370,21 @@ pub struct FunctionDefinition {
     pub visibility: FunctionVisibility,
 
     pub generics: UnresolvedGenerics,
-    pub parameters: Vec<(Pattern, UnresolvedType, Visibility)>,
+    pub parameters: Vec<Param>,
     pub body: BlockExpression,
     pub span: Span,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub return_type: FunctionReturnType,
     pub return_visibility: Visibility,
     pub return_distinctness: Distinctness,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Param {
+    pub visibility: Visibility,
+    pub pattern: Pattern,
+    pub typ: UnresolvedType,
+    pub span: Span,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -634,8 +642,11 @@ impl FunctionDefinition {
     ) -> FunctionDefinition {
         let p = parameters
             .iter()
-            .map(|(ident, unresolved_type)| {
-                (Pattern::Identifier(ident.clone()), unresolved_type.clone(), Visibility::Private)
+            .map(|(ident, unresolved_type)| Param {
+                visibility: Visibility::Private,
+                pattern: Pattern::Identifier(ident.clone()),
+                typ: unresolved_type.clone(),
+                span: ident.span().merge(unresolved_type.span.unwrap()),
             })
             .collect();
         FunctionDefinition {
@@ -661,8 +672,8 @@ impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{:?}", self.attributes)?;
 
-        let parameters = vecmap(&self.parameters, |(name, r#type, visibility)| {
-            format!("{name}: {visibility} {type}")
+        let parameters = vecmap(&self.parameters, |Param { visibility, pattern, typ, span: _ }| {
+            format!("{pattern}: {visibility} {typ}")
         });
 
         let where_clause = vecmap(&self.where_clause, ToString::to_string);

@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.19.2](https://github.com/noir-lang/noir/compare/v0.19.1...v0.19.2) (2023-11-07)
+
+
+### Features
+
+* Add profile info print out ([#3425](https://github.com/noir-lang/noir/issues/3425)) ([a8b5fa8](https://github.com/noir-lang/noir/commit/a8b5fa8e30dc27e64666381b7451569f350967d1))
+
+## [0.19.1](https://github.com/noir-lang/noir/compare/v0.19.0...v0.19.1) (2023-11-07)
+
+
+### Features
+
+* **acir:** Handle dynamic array operations for nested slices ([#3187](https://github.com/noir-lang/noir/issues/3187)) ([e026319](https://github.com/noir-lang/noir/commit/e026319fc25763d30781b90e6a4454ddb5d3bc7b))
+* Properly track equivalence of witnesses generated for black box functions ([#3428](https://github.com/noir-lang/noir/issues/3428)) ([20b70c2](https://github.com/noir-lang/noir/commit/20b70c29b4bd323d67ef56ab1933341a7747d3cb))
+* Use ranges instead of a vector for input witness ([#3314](https://github.com/noir-lang/noir/issues/3314)) ([b12b7ec](https://github.com/noir-lang/noir/commit/b12b7ecb995988c731be5f1f2f67fda952f1a228))
+
+
+### Bug Fixes
+
+* Follow dependencies when looking for a struct ([#3405](https://github.com/noir-lang/noir/issues/3405)) ([561b1b8](https://github.com/noir-lang/noir/commit/561b1b8f0b22d8b1800cb3552942a442a27c2a2c))
+* Overflow checks for constant folding ([#3420](https://github.com/noir-lang/noir/issues/3420)) ([b7a6383](https://github.com/noir-lang/noir/commit/b7a6383cf9dc3bc4a71b9644352340c1e9339c81))
+
 ## [0.19.0](https://github.com/noir-lang/noir/compare/v0.18.0...v0.19.0) (2023-11-02)
 
 

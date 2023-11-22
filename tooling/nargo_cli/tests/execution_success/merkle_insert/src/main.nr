@@ -8,7 +8,7 @@ fn main(
     new_root: pub Field,
     leaf: Field,
     index: Field,
-    mimc_input: [Field; 4],
+    mimc_input: [Field; 4]
 ) {
     assert(old_root == std::merkle::compute_merkle_root(old_leaf, index, old_hash_path));
 

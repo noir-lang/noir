@@ -13,7 +13,7 @@ struct FooParent {
     foos: [Foo; 4],
 }
 
-fn main(mut x : [Foo; 4], y : pub Field) {
+fn main(mut x: [Foo; 4], y: pub Field) {
     assert(x[y - 3].a == 1);
     assert(x[y - 3].b == [2, 3, 20]);
     assert(x[y - 2].a == 4);
@@ -23,7 +23,6 @@ fn main(mut x : [Foo; 4], y : pub Field) {
     assert(x[y].a == 10);
     assert(x[y].b == [11, 12, 23]);
     assert(x[y].bar.inner == [109, 110, 111]);
-
     // Check dynamic array set
     if y != 2 {
         x[y].a = 50;
@@ -70,7 +69,6 @@ fn main(mut x : [Foo; 4], y : pub Field) {
         foo_parents[y - 2].foos[y - 2].b[y - 1] = 1000;
     }
     assert(foo_parents[1].foos[1].b[2] == 5000);
-
     // Set a dynamic array value
     foo_parents[y - 2].foos[y - 3].b = foo_parents[y - 2].foos[y - 2].b;
     assert(foo_parents[1].foos[0].b == [20, 19, 5000]);

@@ -27,8 +27,8 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    on_code_lens_request, on_formatting, on_initialize, on_shutdown, on_test_run_request,
-    on_tests_request,
+    on_code_lens_request, on_formatting, on_initialize, on_profile_run_request, on_shutdown,
+    on_test_run_request, on_tests_request,
 };
 use serde_json::Value as JsonValue;
 use tower::Service;
@@ -75,6 +75,7 @@ impl NargoLspService {
             .request::<request::CodeLens, _>(on_code_lens_request)
             .request::<request::NargoTests, _>(on_tests_request)
             .request::<request::NargoTestRun, _>(on_test_run_request)
+            .request::<request::NargoProfileRun, _>(on_profile_run_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)

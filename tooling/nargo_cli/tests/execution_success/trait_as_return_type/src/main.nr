@@ -8,7 +8,6 @@ struct C {
     x: Field
 }
 
-
 impl SomeTrait for A {
     fn magic_number(self) -> Field {
         2
@@ -27,8 +26,6 @@ impl SomeTrait for C {
     }
 }
 
-
-
 fn factory_a() -> impl SomeTrait {
     A {}
 }
@@ -38,9 +35,8 @@ fn factory_b() -> impl SomeTrait {
 }
 
 fn factory_c(x: Field) -> impl SomeTrait {
-    C {x:x}
+    C { x }
 }
-
 // x = 15
 fn main(x: u32) {
     let a = factory_a();
