@@ -55,7 +55,7 @@ pub(crate) fn run(
             package,
             &args.compile_options,
             np_language,
-            Some(&opcode_support),
+            &opcode_support,
         )?;
 
         verify_package(backend, &workspace, package, program, &args.verifier_name)?;

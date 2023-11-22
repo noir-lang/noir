@@ -63,7 +63,7 @@ pub(crate) fn run(
             package,
             &args.compile_options,
             np_language,
-            opcode_support.as_ref(),
+            &opcode_support,
         )?;
 
         let (return_value, solved_witness) =

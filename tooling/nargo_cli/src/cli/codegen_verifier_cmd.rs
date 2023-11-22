@@ -54,7 +54,7 @@ pub(crate) fn run(
             package,
             &args.compile_options,
             np_language,
-            Some(&opcode_support),
+            &opcode_support,
         )?;
 
         let contract_dir = workspace.contracts_directory_path(package);
@@ -74,7 +74,7 @@ fn smart_contract_for_package(
     package: &Package,
     compile_options: &CompileOptions,
     np_language: Language,
-    opcode_support: Option<&BackendOpcodeSupport>,
+    opcode_support: &BackendOpcodeSupport,
 ) -> Result<String, CliError> {
     let program =
         compile_bin_package(workspace, package, compile_options, np_language, opcode_support)?;

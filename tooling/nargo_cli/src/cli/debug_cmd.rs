@@ -61,7 +61,7 @@ pub(crate) fn run(
         package,
         &args.compile_options,
         np_language,
-        Some(&opcode_support),
+        &opcode_support,
     )?;
 
     println!("[{}] Starting debugger", package.name);

@@ -99,46 +99,23 @@ pub(super) fn compile_workspace(
     binary_packages: &[Package],
     contract_packages: &[Package],
     np_language: Language,
-    opcode_support: &Option<BackendOpcodeSupport>,
+    opcode_support: &BackendOpcodeSupport,
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
     // Compile all of the packages in parallel.
     let program_results: Vec<(FileManager, CompilationResult<CompiledProgram>)> = binary_packages
         .par_iter()
         .map(|package| {
-            if let Some(opcode_support) = opcode_support {
-                let is_opcode_supported = |opcode: &_| opcode_support.is_opcode_supported(opcode);
-                compile_program(
-                    workspace,
-                    package,
-                    compile_options,
-                    np_language,
-                    &is_opcode_supported,
-                )
-            } else {
-                let is_opcode_supported = |_opcode: &_| true;
-                compile_program(
-                    workspace,
-                    package,
-                    compile_options,
-                    np_language,
-                    &is_opcode_supported,
-                )
-            }
+            let is_opcode_supported = |opcode: &_| opcode_support.is_opcode_supported(opcode);
+            compile_program(workspace, package, compile_options, np_language, &is_opcode_supported)
         })
         .collect();
     let contract_results: Vec<(FileManager, CompilationResult<CompiledContract>)> =
         contract_packages
             .par_iter()
             .map(|package| {
-                if let Some(opcode_support) = opcode_support {
-                    let is_opcode_supported =
-                        |opcode: &_| opcode_support.is_opcode_supported(opcode);
-                    compile_contract(package, compile_options, np_language, &is_opcode_supported)
-                } else {
-                    let is_opcode_supported = |_opcode: &_| true;
-                    compile_contract(package, compile_options, np_language, &is_opcode_supported)
-                }
+                let is_opcode_supported = |opcode: &_| opcode_support.is_opcode_supported(opcode);
+                compile_contract(package, compile_options, np_language, &is_opcode_supported)
             })
             .collect();
 
@@ -174,19 +151,16 @@ pub(crate) fn compile_bin_package(
     package: &Package,
     compile_options: &CompileOptions,
     np_language: Language,
-    opcode_support: Option<&BackendOpcodeSupport>,
+    opcode_support: &BackendOpcodeSupport,
 ) -> Result<CompiledProgram, CliError> {
     if package.is_library() {
         return Err(CompileError::LibraryCrate(package.name.clone()).into());
     }
 
-    let (file_manager, compilation_result) = if let Some(opcode_support) = opcode_support {
+    let (file_manager, compilation_result) =
         compile_program(workspace, package, compile_options, np_language, &|opcode| {
             opcode_support.is_opcode_supported(opcode)
-        })
-    } else {
-        compile_program(workspace, package, compile_options, np_language, &|_opcode| true)
-    };
+        });
 
     let program = report_errors(
         compilation_result,

@@ -64,7 +64,7 @@ pub(crate) fn run(
             package,
             &args.compile_options,
             np_language,
-            Some(&opcode_support),
+            &opcode_support,
         )?;
 
         prove_package(

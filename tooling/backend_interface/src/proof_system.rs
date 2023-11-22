@@ -39,12 +39,12 @@ impl Backend {
     /// If we cannot get a valid backend, returns the default backend which supports all the opcodes
     /// and uses Plonk with width 3
     /// The function also prints a message saying we could not find a backend
-    pub fn get_backend_info_or_default(&self) -> (Language, Option<BackendOpcodeSupport>) {
+    pub fn get_backend_info_or_default(&self) -> (Language, BackendOpcodeSupport) {
         if let Ok(backend_info) = self.get_backend_info() {
-            (backend_info.0, Some(backend_info.1))
+            (backend_info.0, backend_info.1)
         } else {
             println!("No valid backend found, defaulting to Plonk with width 3 and all opcodes supported");
-            (Language::PLONKCSat { width: 3 }, None)
+            (Language::PLONKCSat { width: 3 }, BackendOpcodeSupport::all())
         }
     }
 
