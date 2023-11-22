@@ -445,15 +445,13 @@ mod tests {
             Value::from(5_usize),
             Value::from(6_usize),
         ];
-
         let array_param = BrilligParameter::Array(
             vec![
-                BrilligParameter::Simple,
                 BrilligParameter::Array(vec![BrilligParameter::Simple], 2),
+                BrilligParameter::Simple,
             ],
             2,
         );
-
         let arguments = vec![array_param.clone()];
         let returns = vec![array_param];
 
@@ -471,7 +469,7 @@ mod tests {
         let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
         let vm = create_and_run_vm(flattened_array.clone(), vec![Value::from(0_usize)], &bytecode);
         let memory = vm.get_memory();
-        dbg!(memory);
+
         assert_eq!(
             memory,
             &vec![
@@ -500,7 +498,7 @@ mod tests {
                 // The nested reference of the second item
                 Value::from(14_usize),
                 Value::from(1_usize),
-                // The values flattened again
+                // The original flattened again
                 Value::from(1_usize),
                 Value::from(2_usize),
                 Value::from(3_usize),
@@ -509,10 +507,6 @@ mod tests {
                 Value::from(6_usize),
             ]
         );
-        assert_eq!(
-            vm.get_registers().get(RegisterIndex(0)),
-            // The returned value will be past the original array and the deflattened array
-            Value::from(flattened_array.len() + (flattened_array.len() + 2)),
-        );
+        assert_eq!(vm.get_registers().get(RegisterIndex(0)), 18_usize.into());
     }
 }
