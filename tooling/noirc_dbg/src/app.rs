@@ -5,8 +5,8 @@ use dap::requests::*;
 use dap::responses::*;
 use dap::types::{
     Capabilities, DisassembledInstruction, InstructionBreakpoint, InvalidatedAreas, Scope,
-    ScopePresentationhint, Source, SourceBreakpoint, StackFrame, StoppedEventReason, Thread,
-    Variable,
+    ScopePresentationhint, Source, /* SourceBreakpoint, */ StackFrame, StoppedEventReason,
+    Thread, Variable,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_evaluator::brillig::brillig_ir::artifact::GeneratedBrillig;
@@ -411,8 +411,12 @@ impl RunningState {
                 ))));
             }
             Command::SetBreakpoints(_ /* ref args */) => {
-                // do nothing for now, current realization does not support source code
-                // breakpoints
+                // do nothing for now, current realization does not support source code breakpoints
+                #[cfg(feature = "dap")]
+                crate::dap_server::log(
+                    server,
+                    "current realization does not support source code breakpoints ",
+                );
                 // self.clear_breakpoints();
                 // if let Some(new_breakpoints) = &args.breakpoints {
                 //     let breakpoints = new_breakpoints.iter().filter_map(Breakpoint::new);

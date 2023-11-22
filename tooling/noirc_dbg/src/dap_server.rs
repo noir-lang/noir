@@ -4,6 +4,8 @@ use crossbeam::channel::unbounded;
 use crossbeam::channel::Receiver;
 
 use crossbeam::channel::TryRecvError;
+#[cfg(not(feature = "dap"))]
+use dap::types::InstructionBreakpoint;
 
 #[cfg(not(feature = "dap"))]
 use std::io::Write;
@@ -20,7 +22,7 @@ use dap::events::{Event, StoppedEventBody};
 #[cfg(not(feature = "dap"))]
 use dap::requests::{
     Command, ContinueArguments, DisassembleArguments, DisconnectArguments, LaunchRequestArguments,
-    NextArguments, ReadMemoryArguments, VariablesArguments,
+    NextArguments, ReadMemoryArguments, SetInstructionBreakpointsArguments, VariablesArguments,
 };
 #[cfg(not(feature = "dap"))]
 use dap::responses::ResponseBody;
@@ -121,6 +123,28 @@ impl Dap {
     fn get_request_from_stdin(&self) -> Result<Request, TryRecvError> {
         let command = stdin_get("Enter command> ");
         let req = match command.trim() {
+            "b" | "breakpoint" => {
+                let breakpoints = stdin_get("Enter comma separated list of instruction numbers> ");
+                let breakpoints = breakpoints
+                    .split(',')
+                    .map(|s| {
+                        let instruction_reference = s.trim().to_string();
+                        let offset = instruction_reference.parse::<i64>().unwrap();
+                        InstructionBreakpoint {
+                            instruction_reference,
+                            offset: Some(offset),
+                            ..Default::default()
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                Request {
+                    seq: self.seq,
+                    command: Command::SetInstructionBreakpoints(
+                        SetInstructionBreakpointsArguments { breakpoints },
+                    ),
+                }
+            }
             "c" | "continue" => {
                 Request { seq: self.seq, command: Command::Continue(ContinueArguments::default()) }
             }
@@ -164,6 +188,18 @@ impl Dap {
             },
             "s" | "step" => {
                 Request { seq: self.seq, command: Command::Next(NextArguments::default()) }
+            }
+            "h" | "help" => {
+                println!("\"h\" | \"help\" - print this help\n");
+                println!("\"l\" | \"launch\" - launch binary program to debug, asks for a path to module");
+                println!("\"b\" | \"breakpoint\" - set breakpoints for a program");
+                println!("\"s\" | \"step\"");
+                println!("\"c\" | \"continue\" - continue execution until breakpoint or the end of program");
+                println!("\"m\" | \"memory\" - print memory layout");
+                println!("\"r\" | \"registers\" - print vm registers");
+                println!("\"d\" | \"disassemble\" - print disassembled program");
+                println!("\"q\" | \"quit\" - quit from debugger");
+                self.get_request_from_stdin()?
             }
             command => {
                 println!("Unknown command \"{}\"", command);
@@ -213,6 +249,7 @@ impl Server for Dap {
                         reason, description
                     );
                 }
+                Event::Invalidated(_) => {}
                 _ => println!("{:#?}", e),
             },
             Sendable::ReverseRequest(r) => println!("{:#?}", r),
