@@ -52,14 +52,18 @@ contract SchnorrHardcodedAccount {
         // Load auth witness and format as an u8 array
         let witness: [Field; 64] = get_auth_witness(message_hash);
         let mut signature: [u8; 64] = [0; 64];
-        for i in 0..64 { signature[i] = witness[i] as u8; }
+        for i in 0..64 {
+            signature[i] = witness[i] as u8;
+        }
 
         // Verify signature using hardcoded public key
-        let verification = std::schnorr::verify_signature(public_key_x, public_key_y, signature, message_hash.to_be_bytes(32));
+        let verification = std::schnorr::verify_signature(public_key_x,
+            public_key_y,
+            signature,
+            message_hash.to_be_bytes(32));
         assert(verification == true);
         true
     }
     // docs:end:is-valid
-
 }
 // docs:end:contract

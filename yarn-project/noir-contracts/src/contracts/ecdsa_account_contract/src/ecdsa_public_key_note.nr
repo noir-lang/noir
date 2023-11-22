@@ -89,23 +89,22 @@ impl EcdsaPublicKeyNote {
 }
 
 fn deserialize(serialized_note: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> EcdsaPublicKeyNote {
-    let mut x: [u8; 32] = [0;32];
-    let mut y: [u8; 32] = [0;32];
+    let mut x: [u8; 32] = [0; 32];
+    let mut y: [u8; 32] = [0; 32];
 
     let part_x = serialized_note[0].to_be_bytes(32);
-    for i in 0..31 { x[i] = part_x[i + 1]; }
+    for i in 0..31 {
+        x[i] = part_x[i + 1];
+    }
     x[31] = serialized_note[1].to_be_bytes(32)[31];
 
     let part_y = serialized_note[2].to_be_bytes(32);
-    for i in 0..31 { y[i] = part_y[i + 1]; }
+    for i in 0..31 {
+        y[i] = part_y[i + 1];
+    }
     y[31] = serialized_note[3].to_be_bytes(32)[31];
 
-    EcdsaPublicKeyNote {
-        x,
-        y,
-        owner: serialized_note[4],
-        header: NoteHeader::empty(),
-    }
+    EcdsaPublicKeyNote { x, y, owner: serialized_note[4], header: NoteHeader::empty() }
 }
 
 fn serialize(note: EcdsaPublicKeyNote) -> [Field; ECDSA_PUBLIC_KEY_NOTE_LEN] {
@@ -114,7 +113,7 @@ fn serialize(note: EcdsaPublicKeyNote) -> [Field; ECDSA_PUBLIC_KEY_NOTE_LEN] {
 
 fn compute_note_hash(note: EcdsaPublicKeyNote) -> Field {
     // TODO(#1205) Should use a non-zero generator index.
-    pedersen_hash(note.serialize(),0)
+    pedersen_hash(note.serialize(), 0)
 }
 
 fn compute_nullifier(note: EcdsaPublicKeyNote) -> Field {

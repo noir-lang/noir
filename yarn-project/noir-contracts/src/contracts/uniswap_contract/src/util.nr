@@ -13,7 +13,7 @@ pub fn compute_swap_public_content_hash(
     secret_hash_for_L1_to_l2_message: Field,
     deadline_for_L1_to_l2_message: Field,
     canceller_for_L1_to_L2_message: Field,
-    caller_on_L1: Field,
+    caller_on_L1: Field
 ) -> Field {
     let mut hash_bytes: [u8; 324] = [0; 324]; // 10 fields of 32 bytes each + 4 bytes fn selector
 
@@ -65,7 +65,7 @@ pub fn compute_swap_private_content_hash(
     secret_hash_for_L1_to_l2_message: Field,
     deadline_for_L1_to_l2_message: Field,
     canceller_for_L1_to_L2_message: Field,
-    caller_on_L1: Field,
+    caller_on_L1: Field
 ) -> Field {
     let mut hash_bytes: [u8; 324] = [0; 324]; // 10 fields of 32 bytes each + 4 bytes fn selector
 

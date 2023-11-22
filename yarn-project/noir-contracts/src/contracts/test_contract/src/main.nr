@@ -52,19 +52,15 @@ contract Test {
     // docs:end:empty-constructor
 
     #[aztec(private)]
-    fn get_public_key(
-        address: Field,
-    ) -> [Field; 2]{
+    fn get_public_key(address: Field) -> [Field; 2] {
         let pub_key = get_public_key_oracle(address);
-        
+
         [pub_key.x, pub_key.y]
     }
 
     // Get the portal contract address through an oracle call
     #[aztec(private)]
-    fn get_portal_contract_address(
-        aztec_address: Field
-    ) -> Field {
+    fn get_portal_contract_address(aztec_address: Field) -> Field {
         get_portal_address(aztec_address)
     }
 
@@ -90,7 +86,7 @@ contract Test {
         a_number: u32,
         an_array: [Field; 2],
         a_struct: DummyNote,
-        a_deep_struct: DeepStruct,
+        a_deep_struct: DeepStruct
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let mut args: BoundedVec<Field, 17> = BoundedVec::new(0);
         args.push(a_field);
@@ -105,7 +101,7 @@ contract Test {
         args.push(a_deep_struct.a_note.secret_hash);
         for note in a_deep_struct.many_notes {
             args.push(note.amount);
-            args.push(note.secret_hash);            
+            args.push(note.secret_hash);
         }
         let args_hash = abi::hash_args(args.storage);
         let mut context = PrivateContext::new(inputs, args_hash);
@@ -115,27 +111,20 @@ contract Test {
 
     // Purely exists for testing
     #[aztec(public)]
-    fn create_l2_to_l1_message_public(
-        amount: Field,
-        secret_hash: Field,
-    ) {
+    fn create_l2_to_l1_message_public(amount: Field, secret_hash: Field) {
         // Create a commitment to the amount
         let note = DummyNote::new(amount, secret_hash);
-        
+
         // Public oracle call to emit new commitment.
         context.message_portal(note.get_commitment());
-        
     }
 
     // Purely exists for testing
     #[aztec(public)]
-    fn create_nullifier_public(
-        amount: Field,
-        secret_hash: Field,
-    ) {
+    fn create_nullifier_public(amount: Field, secret_hash: Field) {
         // Create a commitment to the amount
         let note = DummyNote::new(amount, secret_hash);
-        
+
         // Public oracle call to emit new commitment.
         context.push_new_nullifier(note.get_commitment(), EMPTY_NULLIFIED_COMMITMENT);
     }
@@ -154,18 +143,14 @@ contract Test {
 
     // docs:start:is-time-equal
     #[aztec(public)]
-    fn is_time_equal(
-        time: Field,
-    ) -> Field {
+    fn is_time_equal(time: Field) -> Field {
         assert(context.timestamp() == time);
         time
     }
     // docs:end:is-time-equal
 
     #[aztec(public)]
-    fn emit_unencrypted(
-        value: Field
-    ) -> Field {
+    fn emit_unencrypted(value: Field) -> Field {
         // docs:start:emit_unencrypted
         emit_unencrypted_log(&mut context, value);
         // docs:end:emit_unencrypted
@@ -173,25 +158,19 @@ contract Test {
     }
 
     #[aztec(public)]
-    fn consume_mint_public_message(
-        to: Field,
-        amount: Field,
-        canceller: Field,
-        msg_key: Field,
-        secret: Field,
-    ) {
+    fn consume_mint_public_message(to: Field, amount: Field, canceller: Field, msg_key: Field, secret: Field) {
         let content_hash = get_mint_public_content_hash(to, amount, canceller);
         // Consume message and emit nullifier
         context.consume_l1_to_l2_message(msg_key, content_hash, secret);
     }
 
-     #[aztec(private)]
+    #[aztec(private)]
     fn consume_mint_private_message(
-        secret_hash_for_redeeming_minted_notes: Field, 
+        secret_hash_for_redeeming_minted_notes: Field,
         amount: Field,
         canceller: Field,
         msg_key: Field,
-        secret_for_L1_to_L2_message_consumption: Field, 
+        secret_for_L1_to_L2_message_consumption: Field
     ) {
         // Consume L1 to L2 message and emit nullifier
         let content_hash = get_mint_private_content_hash(secret_hash_for_redeeming_minted_notes, amount, canceller);
@@ -199,9 +178,7 @@ contract Test {
     }
 
     #[aztec(private)]
-    fn set_constant(
-        value: Field,
-    ) {
+    fn set_constant(value: Field) {
         let mut note = FieldNote::new(value);
         storage.example_constant.initialize(&mut note, Option::none(), false);
     }
@@ -212,9 +189,7 @@ contract Test {
     }
 
     // Purely exists for testing
-    unconstrained fn get_random(
-        kindaSeed: Field
-    ) -> Field {
+    unconstrained fn get_random(kindaSeed: Field) -> Field {
         kindaSeed * rand()
     }
 

@@ -1,4 +1,3 @@
-
 struct BoundedVec<T, MaxLen> {
     storage: [T; MaxLen],
     len: Field,

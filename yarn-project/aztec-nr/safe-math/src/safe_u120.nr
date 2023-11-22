@@ -163,7 +163,6 @@ fn test_lt() {
     assert(b.lt(a) == false);
 }
 
-
 #[test]
 fn test_le() {
     let a = SafeU120::new(2);
@@ -181,7 +180,6 @@ fn test_gt() {
     assert(b.gt(a));
     assert(a.gt(b) == false);
 }
-
 
 #[test]
 fn test_ge() {
@@ -301,7 +299,6 @@ fn test_mul_div_up_non_rounding() {
     let d = SafeU120::mul_div_up(a, b, c);
     assert(d.value == 9);
 }
-
 
 #[test(should_fail)]
 fn test_mul_div_up_ghost_overflow() {

@@ -1,4 +1,3 @@
-
 #[oracle(createCommitment)]
 fn create_commitment_oracle(_commitment: Field) -> Field {}
 

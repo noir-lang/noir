@@ -1,5 +1,3 @@
-
-
 #[oracle(getRandomField)]
 fn rand_oracle() -> Field {}
 

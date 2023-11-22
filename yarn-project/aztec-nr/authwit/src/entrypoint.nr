@@ -3,7 +3,7 @@ use dep::aztec::types::vec::BoundedVec;
 use dep::aztec::hash::pedersen_hash;
 use dep::aztec::context::PrivateContext;
 use dep::aztec::private_call_stack_item::PrivateCallStackItem;
-use dep::aztec::public_call_stack_item::PublicCallStackItem;    
+use dep::aztec::public_call_stack_item::PublicCallStackItem;
 use dep::aztec::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
 
 global ACCOUNT_MAX_CALLS: Field = 4;

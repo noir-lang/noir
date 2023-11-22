@@ -16,15 +16,10 @@ use crate::hash::pedersen_hash;
 pub fn compute_singleton_initialization_nullifier(storage_slot: Field, owner: Option<Field>) -> Field {
     if owner.is_some() {
         let secret = get_secret_key(owner.unwrap_unchecked());
-        pedersen_hash(
-            [storage_slot, secret.low, secret.high],
-            GENERATOR_INDEX__INITIALIZATION_NULLIFIER,
-        )
+        pedersen_hash([storage_slot, secret.low, secret.high],
+            GENERATOR_INDEX__INITIALIZATION_NULLIFIER)
     } else {
-        pedersen_hash(
-            [storage_slot],
-            GENERATOR_INDEX__INITIALIZATION_NULLIFIER,
-        )
+        pedersen_hash([storage_slot], GENERATOR_INDEX__INITIALIZATION_NULLIFIER)
     }
 }
 

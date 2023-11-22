@@ -7,9 +7,7 @@ struct Asset {
 global ASSET_SERIALIZED_LEN: Field = 1;
 
 fn deserializeAsset(fields: [Field; ASSET_SERIALIZED_LEN]) -> Asset {
-    Asset {
-        price: fields[0] as u120,
-    }
+    Asset { price: fields[0] as u120 }
 }
 
 fn serializeAsset(asset: Asset) -> [Field; ASSET_SERIALIZED_LEN] {

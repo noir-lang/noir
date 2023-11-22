@@ -16,7 +16,7 @@ pub fn create_note<Note, N>(
     storage_slot: Field,
     note: &mut Note,
     note_interface: NoteInterface<Note, N>,
-    broadcast: bool,
+    broadcast: bool
 ) {
     let contract_address = (*context).this_address();
 
@@ -41,7 +41,7 @@ pub fn create_note_hash_from_public<Note, N>(
     context: &mut PublicContext,
     storage_slot: Field,
     note: &mut Note,
-    note_interface: NoteInterface<Note, N>,
+    note_interface: NoteInterface<Note, N>
 ) {
     let contract_address = (*context).this_address();
 
@@ -53,11 +53,7 @@ pub fn create_note_hash_from_public<Note, N>(
     context.push_new_note_hash(inner_note_hash);
 }
 
-pub fn destroy_note<Note, N>(
-    context: &mut PrivateContext,
-    note: Note,
-    note_interface: NoteInterface<Note, N>,
-) {
+pub fn destroy_note<Note, N>(context: &mut PrivateContext, note: Note, note_interface: NoteInterface<Note, N>) {
     let mut nullifier = 0;
     let mut nullified_commitment: Field = EMPTY_NULLIFIED_COMMITMENT;
     let compute_nullifier = note_interface.compute_nullifier;

@@ -11,7 +11,6 @@ contract CardGame {
         },
     };
 
-
     use dep::std::option::Option;
     use dep::value_note::{
         balance_utils,
@@ -50,7 +49,7 @@ contract CardGame {
         GameSerializationMethods,
         GAME_SERIALIZED_LEN
     };
-    
+
     struct Storage {
         collections: Map<Deck>,
         game_decks: Map<Map<Deck>>,
@@ -107,10 +106,8 @@ contract CardGame {
     fn constructor() {}
 
     #[aztec(private)]
-    fn buy_pack(
-        seed: Field, // The randomness used to generate the cards. Passed in for now.
-    )  {
-        
+    fn buy_pack(seed: Field // The randomness used to generate the cards. Passed in for now.
+    ) {
         let buyer = context.msg_sender();
         let mut cards = get_pack_cards(seed, buyer);
 
@@ -119,12 +116,9 @@ contract CardGame {
     }
 
     #[aztec(private)]
-    fn join_game(
-        game: u32,
-        cards_fields: [Field; 2],
-    )  {
+    fn join_game(game: u32, cards_fields: [Field; 2]) {
         let cards = cards_fields.map(|card_field| Card::from_field(card_field));
-        
+
         let player = context.msg_sender();
 
         let mut collection = storage.collections.at(player);
@@ -133,54 +127,47 @@ contract CardGame {
         let _added_to_game_deck = game_deck.add_cards(cards, player);
         let selector = compute_selector("on_game_joined(u32,Field,u32)");
         let strength = compute_deck_strength(cards);
-        context.call_public_function(context.this_address(), selector, [game as Field, player, strength]);
+        context.call_public_function(context.this_address(),
+            selector,
+            [game as Field, player, strength]);
     }
 
     #[aztec(public)]
-    internal fn on_game_joined(
-        game: u32,
-        player: Field,
-        deck_strength: u32,
-    )  {
-        
+    internal fn on_game_joined(game: u32, player: Field, deck_strength: u32) {
         let game_storage = storage.games.at(game as Field);
 
         let mut game_data = game_storage.read();
-        assert(game_data.add_player(PlayerEntry {address: player, deck_strength, points: 0}), "Game full");
+        assert(game_data.add_player(PlayerEntry { address: player, deck_strength, points: 0 }), "Game full");
 
         game_storage.write(game_data);
     }
 
     #[aztec(public)]
-    fn start_game(game: u32)  {
-        
+    fn start_game(game: u32) {
         let game_storage = storage.games.at(game as Field);
-        
+
         let mut game_data = game_storage.read();
         game_data.start_game();
         game_storage.write(game_data);
     }
 
     #[aztec(private)]
-    fn play_card(
-        game: u32,
-        card: Card,
-    )  {
-        
+    fn play_card(game: u32, card: Card) {
         let player = context.msg_sender();
 
         let mut game_deck = storage.game_decks.at(game as Field).at(player);
         game_deck.remove_cards([card], player);
 
         let selector = compute_selector("on_card_played(u32,Field,Field)");
-        context.call_public_function(context.this_address(), selector, [game as Field, player, card.to_field()]);
+        context.call_public_function(context.this_address(),
+            selector,
+            [game as Field, player, card.to_field()]);
     }
 
     #[aztec(public)]
     internal fn on_card_played(game: u32, player: Field, card_as_field: Field) {
-        
         let game_storage = storage.games.at(game as Field);
-        
+
         let mut game_data = game_storage.read();
 
         let card = Card::from_field(card_as_field);
@@ -192,11 +179,7 @@ contract CardGame {
     }
 
     #[aztec(private)]
-    fn claim_cards(
-        game: u32,
-        cards_fields: [Field; PLAYABLE_CARDS],
-    )  {
-        
+    fn claim_cards(game: u32, cards_fields: [Field; PLAYABLE_CARDS]) {
         let player = context.msg_sender();
         let cards = cards_fields.map(|card_field| Card::from_field(card_field));
 
@@ -204,26 +187,20 @@ contract CardGame {
         let _inserted_cards = collection.add_cards(cards, player);
 
         let selector = compute_selector("on_cards_claimed(u32,Field,Field)");
-        context.call_public_function(
-            context.this_address(), 
-            selector, 
-            [game as Field, player, pedersen_hash(cards_fields,0)]
-        );
+        context.call_public_function(context.this_address(),
+            selector,
+            [game as Field, player, pedersen_hash(cards_fields, 0)]);
     }
 
     #[aztec(public)]
     internal fn on_cards_claimed(game: u32, player: Field, cards_hash: Field) {
-        
         let game_storage = storage.games.at(game as Field);
         let mut game_data = game_storage.read();
-        
+
         assert(!game_data.claimed, "Already claimed");
         game_data.claimed = true;
 
-        assert_eq(
-            cards_hash, 
-            pedersen_hash(game_data.rounds_cards.map(|card: Card| card.to_field()),0)
-        );
+        assert_eq(cards_hash, pedersen_hash(game_data.rounds_cards.map(|card: Card| card.to_field()), 0));
 
         let winner = game_data.winner();
         assert_eq(player, winner.address, "Not the winner");
@@ -232,22 +209,20 @@ contract CardGame {
     }
 
     unconstrained fn view_collection_cards(owner: Field, offset: u32) -> [Option<Card>; MAX_NOTES_PER_PAGE] {
-        
         let collection = storage.collections.at(owner);
 
         collection.view_cards(offset)
-    } 
+    }
 
     unconstrained fn view_game_cards(game: u32, player: Field, offset: u32) -> [Option<Card>; MAX_NOTES_PER_PAGE] {
-        
         let game_deck = storage.game_decks.at(game as Field).at(player);
 
         game_deck.view_cards(offset)
-    } 
+    }
 
     unconstrained fn view_game(game: u32) -> Game {
         storage.games.at(game as Field).read()
-    } 
+    }
 
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.

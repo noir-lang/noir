@@ -5,10 +5,7 @@ use crate::note::{
 };
 use crate::utils::arr_copy_slice;
 
-pub fn compute_inner_note_hash<Note, N>(
-    note_interface: NoteInterface<Note, N>,
-    note: Note,
-) -> Field {
+pub fn compute_inner_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, note: Note) -> Field {
     let get_header = note_interface.get_header;
     let header = get_header(note);
 
@@ -18,10 +15,7 @@ pub fn compute_inner_note_hash<Note, N>(
     compute_inner_hash(header.storage_slot, note_hash)
 }
 
-pub fn compute_siloed_note_hash<Note, N>(
-    note_interface: NoteInterface<Note, N>,
-    note_with_header: Note,
-) -> Field {
+pub fn compute_siloed_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, note_with_header: Note) -> Field {
     let get_header = note_interface.get_header;
     let header = get_header(note_with_header);
 
@@ -30,10 +24,7 @@ pub fn compute_siloed_note_hash<Note, N>(
     compute_siloed_hash(header.contract_address, inner_note_hash)
 }
 
-pub fn compute_unique_siloed_note_hash<Note, N>(
-    note_interface: NoteInterface<Note, N>,
-    note_with_header: Note,
-) -> Field {
+pub fn compute_unique_siloed_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, note_with_header: Note) -> Field {
     let get_header = note_interface.get_header;
     let header = get_header(note_with_header);
 
@@ -42,10 +33,7 @@ pub fn compute_unique_siloed_note_hash<Note, N>(
     compute_unique_hash(header.nonce, siloed_note_hash)
 }
 
-pub fn compute_note_hash_for_read_or_nullify<Note, N>(
-    note_interface: NoteInterface<Note, N>,
-    note_with_header: Note,
-) -> Field {
+pub fn compute_note_hash_for_read_or_nullify<Note, N>(note_interface: NoteInterface<Note, N>, note_with_header: Note) -> Field {
     let get_header = note_interface.get_header;
     let header = get_header(note_with_header);
 
@@ -63,14 +51,9 @@ pub fn compute_note_hash_for_read_or_nullify<Note, N>(
         // data tree, so the kernel can just perform a membership check directly on this hash/leaf.
         compute_unique_siloed_note_hash(note_interface, note_with_header)
     }
-
 }
 
-pub fn compute_note_hash_and_nullifier<Note, N, S>(
-    note_interface: NoteInterface<Note, N>,
-    note_header: NoteHeader,
-    serialized_note: [Field; S],
-) -> [Field; 4] {
+pub fn compute_note_hash_and_nullifier<Note, N, S>(note_interface: NoteInterface<Note, N>, note_header: NoteHeader, serialized_note: [Field; S]) -> [Field; 4] {
     let deserialize = note_interface.deserialize;
     let set_header = note_interface.set_header;
     let mut note = deserialize(arr_copy_slice(serialized_note, [0; N], 0));

@@ -1,8 +1,4 @@
-pub fn arr_copy_slice<T, N, M>(
-    src: [T; N],
-    mut dst: [T; M],
-    offset: Field,
-) -> [T; M] {
+pub fn arr_copy_slice<T, N, M>(src: [T; N], mut dst: [T; M], offset: Field) -> [T; M] {
     for i in 0..dst.len() {
         dst[i] = src[i + offset];
     }

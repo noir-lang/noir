@@ -38,10 +38,7 @@ pub fn get_current_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>) ->
 }
 // docs:end:state_vars-PublicStateReadCustom
 
-pub fn can_replace_queen(
-    state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>,
-    new_queen: Queen,
-) -> bool {
+pub fn can_replace_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>, new_queen: Queen) -> bool {
     let current_queen = get_current_queen(state_var);
     new_queen.points > current_queen.points
 }
@@ -79,10 +76,7 @@ pub fn get_legendary_card(state_var: Singleton<CardNote, CARD_NOTE_LEN>) -> Card
 // docs:end:state_vars-SingletonGet
 
 // docs:start:state_vars-ImmutableSingletonInit
-pub fn init_game_rules(
-    state_var: ImmutableSingleton<RulesNote, RULES_NOTE_LEN>,
-    rules: &mut RulesNote,
-) {
+pub fn init_game_rules(state_var: ImmutableSingleton<RulesNote, RULES_NOTE_LEN>, rules: &mut RulesNote) {
     state_var.initialize(rules, Option::none(), true);
 }
 // docs:end:state_vars-ImmutableSingletonInit
@@ -109,29 +103,20 @@ pub fn remove_card(state_var: Set<CardNote, CARD_NOTE_LEN>, card: CardNote) {
 // docs:start:state_vars-SetGet
 pub fn get_cards<FILTER_PARAMS>(
     state_var: Set<CardNote, CARD_NOTE_LEN>,
-    options: NoteGetterOptions<CardNote, CARD_NOTE_LEN, FILTER_PARAMS>,
+    options: NoteGetterOptions<CardNote, CARD_NOTE_LEN, FILTER_PARAMS>
 ) -> [Option<CardNote>; MAX_READ_REQUESTS_PER_CALL] {
     state_var.get_notes(options)
 }
 // docs:end:state_vars-SetGet
 
 // docs:start:state_vars-SetView
-unconstrained pub fn view_cards(
-    state_var: Set<CardNote, CARD_NOTE_LEN>,
-    options: NoteViewerOptions<CardNote, CARD_NOTE_LEN>,
-) -> [Option<CardNote>; MAX_NOTES_PER_PAGE] {
+unconstrained pub fn view_cards(state_var: Set<CardNote, CARD_NOTE_LEN>, options: NoteViewerOptions<CardNote, CARD_NOTE_LEN>) -> [Option<CardNote>; MAX_NOTES_PER_PAGE] {
     state_var.view_notes(options)
 }
 // docs:end:state_vars-SetView
 
-unconstrained pub fn get_total_points(
-    state_var: Set<CardNote, CARD_NOTE_LEN>,
-    account: Field,
-    offset: u32,
-) -> u8 {
-    let options = NoteViewerOptions::new()
-        .select(2, account)
-        .set_offset(offset);
+unconstrained pub fn get_total_points(state_var: Set<CardNote, CARD_NOTE_LEN>, account: Field, offset: u32) -> u8 {
+    let options = NoteViewerOptions::new().select(2, account).set_offset(offset);
     let mut total_points = 0;
     let notes = view_cards(state_var, options);
     for i in 0..notes.len() {
@@ -146,20 +131,13 @@ unconstrained pub fn get_total_points(
 }
 
 // docs:start:state_vars-MapAtSingletonInit
-pub fn add_new_profile(
-    state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>,
-    account: Field,
-    profile: &mut ProfileNote,
-) {
+pub fn add_new_profile(state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>, account: Field, profile: &mut ProfileNote) {
     state_var.at(account).initialize(profile, Option::some(account), true);
 }
 // docs:end:state_vars-MapAtSingletonInit
 
 // docs:start:state_vars-MapAtSingletonGet
-pub fn get_profile(
-    state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>,
-    account: Field,
-) -> ProfileNote {
+pub fn get_profile(state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>, account: Field) -> ProfileNote {
     state_var.at(account).get_note(true)
 }
 // docs:end:state_vars-MapAtSingletonGet

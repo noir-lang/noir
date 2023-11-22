@@ -50,7 +50,7 @@ contract Benchmarking {
     // by @rahul-kothari for a full explanation on why this is needed.
     #[aztec(private)]
     fn recreate_note(owner: Field, index: u32) {
-        let owner_notes = storage.notes.at(owner); 
+        let owner_notes = storage.notes.at(owner);
         let getter_options = NoteGetterOptions::new().set_limit(1).set_offset(index);
         let notes = owner_notes.get_notes(getter_options);
         let note = notes[0].unwrap_unchecked();
@@ -63,7 +63,9 @@ contract Benchmarking {
     fn increment_balance(owner: Field, value: Field) {
         let current = storage.balances.at(owner).read();
         storage.balances.at(owner).write(current + value);
-        let _callStackItem1 = context.call_public_function(context.this_address(), compute_selector("broadcast(Field)"), [owner]);        
+        let _callStackItem1 = context.call_public_function(context.this_address(),
+            compute_selector("broadcast(Field)"),
+            [owner]);
     }
 
     // Emits a public log.

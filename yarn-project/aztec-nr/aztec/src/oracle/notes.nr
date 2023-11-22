@@ -6,30 +6,16 @@ use crate::note::{
 use crate::utils::arr_copy_slice;
 
 #[oracle(notifyCreatedNote)]
-fn notify_created_note_oracle<N>(
-    _storage_slot: Field,
-    _serialized_note: [Field; N],
-    _inner_note_hash: Field,
-) -> Field {}
+fn notify_created_note_oracle<N>(_storage_slot: Field, _serialized_note: [Field; N], _inner_note_hash: Field) -> Field {}
 
-unconstrained pub fn notify_created_note<N>(
-    storage_slot: Field,
-    serialized_note: [Field; N],
-    inner_note_hash: Field,
-) -> Field {
+unconstrained pub fn notify_created_note<N>(storage_slot: Field, serialized_note: [Field; N], inner_note_hash: Field) -> Field {
     notify_created_note_oracle(storage_slot, serialized_note, inner_note_hash)
 }
 
 #[oracle(notifyNullifiedNote)]
-fn notify_nullified_note_oracle<N>(
-    _nullifier: Field,
-    _inner_note_hash: Field,
-) -> Field {}
+fn notify_nullified_note_oracle<N>(_nullifier: Field, _inner_note_hash: Field) -> Field {}
 
-unconstrained pub fn notify_nullified_note<N>(
-    nullifier: Field,
-    inner_note_hash: Field,
-) -> Field {
+unconstrained pub fn notify_nullified_note<N>(nullifier: Field, inner_note_hash: Field) -> Field {
     notify_nullified_note_oracle(nullifier, inner_note_hash)
 }
 
@@ -44,7 +30,7 @@ fn get_notes_oracle<N, S>(
     _limit: u32,
     _offset: u32,
     _return_size: u32,
-    _placeholder_fields: [Field; S],
+    _placeholder_fields: [Field; S]
 ) -> [Field; S] {}
 
 unconstrained fn get_notes_oracle_wrapper<N, S>(
@@ -56,10 +42,19 @@ unconstrained fn get_notes_oracle_wrapper<N, S>(
     sort_order: [u2; N],
     limit: u32,
     offset: u32,
-    mut placeholder_fields: [Field; S],
-)-> [Field; S] {
+    mut placeholder_fields: [Field; S]
+) -> [Field; S] {
     let return_size = placeholder_fields.len() as u32;
-    get_notes_oracle(storage_slot, num_selects, select_by, select_values, sort_by, sort_order, limit, offset, return_size, placeholder_fields)
+    get_notes_oracle(storage_slot,
+        num_selects,
+        select_by,
+        select_values,
+        sort_by,
+        sort_order,
+        limit,
+        offset,
+        return_size,
+        placeholder_fields)
 }
 
 unconstrained pub fn get_notes<Note, N, M, S, NS>(
@@ -73,9 +68,17 @@ unconstrained pub fn get_notes<Note, N, M, S, NS>(
     limit: u32,
     offset: u32,
     mut placeholder_opt_notes: [Option<Note>; S], // TODO: Remove it and use `limit` to initialize the note array.
-    placeholder_fields: [Field; NS], // TODO: Remove it and use `limit` to initialize the note array.
+    placeholder_fields: [Field; NS] // TODO: Remove it and use `limit` to initialize the note array.
 ) -> [Option<Note>; S] {
-    let fields = get_notes_oracle_wrapper(storage_slot, num_selects, select_by, select_values, sort_by, sort_order, limit, offset, placeholder_fields);
+    let fields = get_notes_oracle_wrapper(storage_slot,
+        num_selects,
+        select_by,
+        select_values,
+        sort_by,
+        sort_order,
+        limit,
+        offset,
+        placeholder_fields);
     let num_notes = fields[0] as u32;
     let contract_address = fields[1];
     let deserialize = note_interface.deserialize;
@@ -94,14 +97,12 @@ unconstrained pub fn get_notes<Note, N, M, S, NS>(
             set_header(&mut note, header);
             placeholder_opt_notes[i] = Option::some(note);
         };
-    };
+    }
     placeholder_opt_notes
 }
 
 #[oracle(checkNullifierExists)]
-fn check_nullifier_exists_oracle(
-    _inner_nullifier: Field,
-) -> Field {}
+fn check_nullifier_exists_oracle(_inner_nullifier: Field) -> Field {}
 
 unconstrained pub fn check_nullifier_exists(inner_nullifier: Field) -> bool {
     check_nullifier_exists_oracle(inner_nullifier) == 1

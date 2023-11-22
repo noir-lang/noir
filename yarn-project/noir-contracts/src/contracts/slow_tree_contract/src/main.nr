@@ -84,11 +84,9 @@ contract SlowTree {
 
         let expected_root = compute_merkle_root(p.value, p.index, p.sibling_path);
         let selector = compute_selector("_assert_current_root(Field,Field)");
-        context.call_public_function(
-            context.this_address(), 
-            selector, 
-            [context.msg_sender(), expected_root]
-        );
+        context.call_public_function(context.this_address(),
+            selector,
+            [context.msg_sender(), expected_root]);
 
         p.value
     }
@@ -117,40 +115,27 @@ contract SlowTree {
         let new_after_root = compute_merkle_root(p.new_value, p.index, p.after.sibling_path);
 
         let selector = compute_selector("_update(Field,Field,Field,Field,Field,Field)");
-        context.call_public_function(
-            context.this_address(), 
-            selector, 
+        context.call_public_function(context.this_address(),
+            selector,
             [
-                context.msg_sender(), 
-                p.index, 
-                p.new_value, 
-                before_root, 
-                after_root, 
+                context.msg_sender(),
+                p.index,
+                p.new_value,
+                before_root,
+                after_root,
                 new_after_root
-            ]
-        );
+            ]);
     }
 
     #[aztec(public)]
-    internal fn _update(
-        caller: Field, 
-        index: Field, 
-        new_value: Field, 
-        before: Field, 
-        after: Field, 
-        new_root: Field
-    ) {
+    internal fn _update(caller: Field, index: Field, new_value: Field, before: Field, after: Field, new_root: Field) {
         let current_root = storage.trees.at(caller).current_root();
         let after_root = storage.trees.at(caller).read_root().after;
 
         assert(current_root == before, "Before root does not match expected");
         assert(after_root == after, "After root does not match expected");
 
-        storage.trees.at(caller).update_unsafe_at(
-            index,
-            new_value,
-            new_root,
-        );
+        storage.trees.at(caller).update_unsafe_at(index, new_value, new_root);
     }
 
     unconstrained fn un_read_leaf_at(address: Field, key: Field) -> Leaf {

@@ -50,7 +50,6 @@ fn test_to_from_field() {
     assert(card.to_field() == field);
 }
 
-
 struct CardNote {
     card: Card,
     note: ValueNote,
@@ -96,22 +95,20 @@ pub fn filter_cards<N>(notes: [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL], d
     for i in 0..notes.len() {
         let note = notes[i];
         if note.is_some() {
-            let card_note = CardNote::from_note(
-                note.unwrap_unchecked()
-            );
+            let card_note = CardNote::from_note(note.unwrap_unchecked());
             for j in 0..N {
-                if !found[j] & (card_note.card.strength == desired_cards[j].strength) & (card_note.card.points == desired_cards[j].points) {
+                if !found[j]
+                    & (card_note.card.strength == desired_cards[j].strength)
+                    & (card_note.card.points == desired_cards[j].points) {
                     selected[i] = note;
                     found[j] = true;
                 }
             }
         }
-       
     }
 
     selected
 }
-
 
 impl Deck {
     pub fn new(
@@ -191,10 +188,7 @@ impl Deck {
 
 global PACK_CARDS = 3; // Limited by number of write requests (max 4)
 
-pub fn get_pack_cards(
-    seed: Field,
-    owner_address: Field
-) -> [Card; PACK_CARDS] {
+pub fn get_pack_cards(seed: Field, owner_address: Field) -> [Card; PACK_CARDS] {
     // generate pseudo randomness deterministically from 'seed' and user secret
     let secret = get_secret_key(owner_address);
     let mix = secret.high + secret.low + seed;
@@ -215,7 +209,8 @@ pub fn get_pack_cards(
 }
 
 pub fn compute_deck_strength<N>(cards: [Card; N]) -> Field {
-    cards.fold(0, |acc, card: Card| {
+    cards.fold(0,
+        |acc, card: Card| {
         acc + card.strength as Field
     })
 }

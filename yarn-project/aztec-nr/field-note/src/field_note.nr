@@ -55,7 +55,7 @@ fn deserialize(serialized_note: [Field; FIELD_NOTE_LEN]) -> FieldNote {
     FieldNote::deserialize(serialized_note)
 }
 
-fn serialize(note: FieldNote) -> [Field; FIELD_NOTE_LEN]{
+fn serialize(note: FieldNote) -> [Field; FIELD_NOTE_LEN] {
     note.serialize()
 }
 

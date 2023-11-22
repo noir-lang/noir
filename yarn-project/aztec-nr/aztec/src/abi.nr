@@ -302,7 +302,6 @@ impl ContractStorageUpdateRequest {
     }
 }
 
-
 struct PublicCircuitPublicInputs {
     call_context: CallContext,
     args_hash: Field,

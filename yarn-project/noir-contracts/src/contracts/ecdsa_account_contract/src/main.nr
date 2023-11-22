@@ -41,10 +41,7 @@ contract EcdsaAccount {
 
     // Creates a new account out of an ECDSA public key to use for signature verification
     #[aztec(private)]
-    fn constructor(
-        signing_pub_key_x: pub [u8;32],
-        signing_pub_key_y: pub [u8;32],
-    ) {
+    fn constructor(signing_pub_key_x: pub [u8;32], signing_pub_key_y: pub [u8;32]) {
         let this = context.this_address();
         let mut pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);
         storage.public_key.initialize(&mut pub_key_note, Option::none(), true);
@@ -79,11 +76,13 @@ contract EcdsaAccount {
         // Load public key from storage
         let storage = Storage::init(Context::private(context));
         let public_key = storage.public_key.get_note();
-        
+
         // Load auth witness
         let witness: [Field; 64] = get_auth_witness(message_field);
         let mut signature: [u8; 64] = [0; 64];
-        for i in 0..64 { signature[i] = witness[i] as u8; }
+        for i in 0..64 {
+            signature[i] = witness[i] as u8;
+        }
 
         // Verify payload signature using Ethereum's signing scheme
         // Note that noir expects the hash of the message/challenge as input to the ECDSA verification.
@@ -97,7 +96,12 @@ contract EcdsaAccount {
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: Field,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]
+    ) -> [Field; 4] {
         assert(storage_slot == 1);
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(EcdsaPublicKeyNoteInterface, note_header, serialized_note)

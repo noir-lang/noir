@@ -10,7 +10,7 @@ use dep::std::option::Option;
 global EPOCH_LENGTH: u120 = 100;
 
 fn compute_next_change(time: Field) -> Field {
-  (((time as u120 / EPOCH_LENGTH + 1) * EPOCH_LENGTH)) as Field
+    ((time as u120 / EPOCH_LENGTH + 1) * EPOCH_LENGTH) as Field
 }
 
 // A leaf in the tree.
@@ -21,15 +21,11 @@ struct Leaf {
 }
 
 fn serialize_leaf(leaf: Leaf) -> [Field; 3] {
-  [leaf.next_change, leaf.before, leaf.after]
+    [leaf.next_change, leaf.before, leaf.after]
 }
 
 fn deserialize_leaf(serialized: [Field; 3]) -> Leaf {
-  Leaf {
-    next_change: serialized[0],
-    before: serialized[1],
-    after: serialized[2],
-  }
+    Leaf { next_change: serialized[0], before: serialized[1], after: serialized[2] }
 }
 
 impl Leaf {
@@ -58,7 +54,7 @@ struct SlowUpdateProof<N, M> {
 }
 
 pub fn deserialize_slow_update_proof<N, M>(serialized: [Field; M]) -> SlowUpdateProof<N, M> {
-  SlowUpdateProof::deserialize(serialized)
+    SlowUpdateProof::deserialize(serialized)
 }
 
 impl<N, M> SlowUpdateProof<N, M> {

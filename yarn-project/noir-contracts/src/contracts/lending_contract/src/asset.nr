@@ -21,7 +21,7 @@ fn deserializeAsset(fields: [Field; ASSET_SERIALIZED_LEN]) -> Asset {
         interest_accumulator: fields[0] as u120,
         last_updated_ts: fields[1] as u120,
         loan_to_value: fields[2] as u120,
-        oracle_address: fields[3],
+        oracle_address: fields[3]
     }
 }
 
@@ -30,7 +30,7 @@ fn serializeAsset(asset: Asset) -> [Field; ASSET_SERIALIZED_LEN] {
         asset.interest_accumulator as Field,
         asset.last_updated_ts as Field,
         asset.loan_to_value as Field,
-        asset.oracle_address,
+        asset.oracle_address
     ]
 }
 

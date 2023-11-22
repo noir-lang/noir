@@ -89,7 +89,7 @@ fn deserialize(serialized_note: [Field; ADDRESS_NOTE_LEN]) -> AddressNote {
     AddressNote::deserialize(serialized_note)
 }
 
-fn serialize(note: AddressNote) -> [Field; ADDRESS_NOTE_LEN]{
+fn serialize(note: AddressNote) -> [Field; ADDRESS_NOTE_LEN] {
     note.serialize()
 }
 
