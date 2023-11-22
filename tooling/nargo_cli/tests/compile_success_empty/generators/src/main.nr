@@ -25,10 +25,9 @@ fn fibonacci_generator() -> fn[(&mut Field, &mut Field)]() -> Field {
         old_x
     }
 }
-
 // we'll be able to un-hardcode the array length if we have the ::<> syntax proposed in https://github.com/noir-lang/noir/issues/2458
 fn get_some<Env>(generator: fn[Env]() -> Field) -> [Field; 5] {
-    [0,0,0,0,0].map(|_| generator())
+    [0, 0, 0, 0, 0].map(|_| generator())
 }
 
 fn test_fib() {
@@ -44,9 +43,9 @@ fn test_fib() {
 
 fn test_counter() {
     let counter = make_counter();
-    assert(counter()  == 1);
-    assert(counter()  == 2);
-    assert(counter()  == 3);
+    assert(counter() == 1);
+    assert(counter() == 2);
+    assert(counter() == 3);
 
     assert(get_some(counter) == [4, 5, 6, 7, 8]);
 }

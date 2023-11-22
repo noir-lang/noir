@@ -2,6 +2,5 @@
 name = "conditional_2"
 type = "bin"
 authors = [""]
-compiler_version = "0.1"
 
 [dependencies]

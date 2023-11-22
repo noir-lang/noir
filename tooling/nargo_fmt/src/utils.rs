@@ -2,15 +2,7 @@ use crate::visitor::FmtVisitor;
 use noirc_frontend::hir::resolution::errors::Span;
 use noirc_frontend::lexer::Lexer;
 use noirc_frontend::token::Token;
-use noirc_frontend::{Expression, Ident};
-
-pub(crate) fn recover_comment_removed(original: &str, new: String) -> String {
-    if changed_comment_content(original, &new) {
-        original.to_string()
-    } else {
-        new
-    }
-}
+use noirc_frontend::{Expression, Ident, Param, Visibility};
 
 pub(crate) fn changed_comment_content(original: &str, new: &str) -> bool {
     comments(original).ne(comments(new))
@@ -119,22 +111,19 @@ impl<'me, T> Exprs<'me, T> {
 }
 
 pub(crate) trait FindToken {
-    fn find_token(&self, token: Token) -> Option<u32>;
+    fn find_token(&self, token: Token) -> Option<Span>;
     fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32>;
 }
 
 impl FindToken for str {
-    fn find_token(&self, token: Token) -> Option<u32> {
-        Lexer::new(self)
-            .flatten()
-            .find_map(|it| (it.token() == &token).then(|| it.to_span().start()))
+    fn find_token(&self, token: Token) -> Option<Span> {
+        Lexer::new(self).flatten().find_map(|it| (it.token() == &token).then(|| it.to_span()))
     }
 
     fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32> {
         Lexer::new(self)
             .skip_comments(false)
             .flatten()
-            .into_iter()
             .find_map(|spanned| f(spanned.token()).then(|| spanned.to_span().end()))
     }
 }
@@ -163,7 +152,9 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
     }
 
     let newline_index = slice.find('\n');
-    if let Some(separator_index) = slice.find_token(Token::Comma).map(|index| index as usize) {
+    if let Some(separator_index) =
+        slice.find_token(Token::Comma).map(|index| index.start() as usize)
+    {
         match (block_open_index, newline_index) {
             (Some(block), None) if block > separator_index => separator_index + 1,
             (Some(block), None) => {
@@ -196,6 +187,10 @@ fn comment_len(comment: &str) -> usize {
             }
         }
     }
+}
+
+pub(crate) fn count_newlines(slice: &str) -> usize {
+    bytecount::count(slice.as_bytes(), b'\n')
 }
 
 pub(crate) trait Item {
@@ -240,4 +235,43 @@ impl Item for (Ident, Expression) {
             format!("{name}: {expr}")
         }
     }
+}
+
+impl Item for Param {
+    fn span(&self) -> Span {
+        self.span
+    }
+
+    fn format(self, visitor: &FmtVisitor) -> String {
+        let visibility = match self.visibility {
+            Visibility::Public => "pub ",
+            Visibility::Private => "",
+        };
+        let pattern = visitor.slice(self.pattern.span());
+        let ty = visitor.slice(self.typ.span.unwrap());
+
+        format!("{pattern}: {visibility}{ty}")
+    }
+}
+
+impl Item for Ident {
+    fn span(&self) -> Span {
+        self.span()
+    }
+
+    fn format(self, visitor: &FmtVisitor) -> String {
+        visitor.slice(self.span()).into()
+    }
+}
+
+pub(crate) fn first_line_width(exprs: &str) -> usize {
+    exprs.lines().next().map_or(0, |line: &str| line.chars().count())
+}
+
+pub(crate) fn is_single_line(s: &str) -> bool {
+    !s.chars().any(|c| c == '\n')
+}
+
+pub(crate) fn last_line_contains_single_line_comment(s: &str) -> bool {
+    s.lines().last().map_or(false, |line| line.contains("//"))
 }

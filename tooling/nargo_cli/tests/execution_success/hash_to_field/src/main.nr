@@ -1,5 +1,5 @@
 use dep::std;
 
-fn main(input : Field) -> pub Field {
+fn main(input: Field) -> pub Field {
     std::hash::hash_to_field([input])
 }

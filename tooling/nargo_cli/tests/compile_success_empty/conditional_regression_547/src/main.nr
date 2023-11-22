@@ -7,16 +7,10 @@ fn main(x: Field) -> pub Field {
             assert(i != 2);
         }
     }
-
     // Regression for predicate simplification
     x + safe_inverse(0)
 }
 
 fn safe_inverse(n: Field) -> Field {
-    if n == 0 {
-        0
-    }
-    else {
-        1 / n
-    }
+    if n == 0 { 0 } else { 1 / n }
 }

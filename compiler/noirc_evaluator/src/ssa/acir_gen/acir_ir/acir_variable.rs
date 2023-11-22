@@ -1,7 +1,7 @@
 use super::generated_acir::GeneratedAcir;
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
-use crate::errors::{InternalError, RuntimeError};
+use crate::errors::{InternalError, RuntimeError, SsaReport};
 use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
@@ -114,7 +114,7 @@ impl AcirContext {
         self.acir_ir.current_witness_index()
     }
 
-    pub(crate) fn extract_witness(&self, inputs: &[AcirValue]) -> Vec<u32> {
+    pub(crate) fn extract_witness(&self, inputs: &[AcirValue]) -> Vec<Witness> {
         inputs
             .iter()
             .flat_map(|value| value.clone().flatten())
@@ -125,7 +125,6 @@ impl AcirContext {
                     .to_expression()
                     .to_witness()
                     .expect("ICE - cannot extract a witness")
-                    .0
             })
             .collect()
     }
@@ -656,7 +655,11 @@ impl AcirContext {
         let remainder_var = r_value.into_var()?;
 
         // Constrain `q < 2^{max_q_bits}`.
-        self.range_constrain_var(quotient_var, &NumericType::Unsigned { bit_size: max_q_bits })?;
+        self.range_constrain_var(
+            quotient_var,
+            &NumericType::Unsigned { bit_size: max_q_bits },
+            None,
+        )?;
 
         // Constrain `r < 2^{max_rhs_bits}`.
         //
@@ -664,7 +667,11 @@ impl AcirContext {
         // In the case where `rhs` isn't a power of 2 then this range constraint is required
         // as the bound constraint creates a new witness.
         // This opcode will be optimized out if it is redundant so we always add it for safety.
-        self.range_constrain_var(remainder_var, &NumericType::Unsigned { bit_size: max_rhs_bits })?;
+        self.range_constrain_var(
+            remainder_var,
+            &NumericType::Unsigned { bit_size: max_rhs_bits },
+            None,
+        )?;
 
         // Constrain `r < rhs`.
         self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits)?;
@@ -768,12 +775,12 @@ impl AcirContext {
             let r_var = self.add_constant(r.into());
             let aor = self.add_var(lhs_offset, r_var)?;
             // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
-            self.range_constrain_var(aor, &NumericType::Unsigned { bit_size })?;
+            self.range_constrain_var(aor, &NumericType::Unsigned { bit_size }, None)?;
             return Ok(());
         }
         // General case:  lhs_offset<=rhs <=> rhs-lhs_offset>=0 <=> rhs-lhs_offset is a 'bits' bit integer
         let sub_expression = self.sub_var(rhs, lhs_offset)?; //rhs-lhs_offset
-        self.range_constrain_var(sub_expression, &NumericType::Unsigned { bit_size: bits })?;
+        self.range_constrain_var(sub_expression, &NumericType::Unsigned { bit_size: bits }, None)?;
 
         Ok(())
     }
@@ -874,6 +881,7 @@ impl AcirContext {
         &mut self,
         variable: AcirVar,
         numeric_type: &NumericType,
+        message: Option<String>,
     ) -> Result<AcirVar, RuntimeError> {
         match numeric_type {
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
@@ -884,8 +892,15 @@ impl AcirContext {
                         return Ok(variable);
                     }
                 }
-                let witness = self.var_to_witness(variable)?;
+
+                let witness_var = self.get_or_create_witness_var(variable)?;
+                let witness = self.var_to_witness(witness_var)?;
                 self.acir_ir.range_constraint(witness, *bit_size)?;
+                if let Some(message) = message {
+                    self.acir_ir
+                        .assert_messages
+                        .insert(self.acir_ir.last_acir_opcode_location(), message);
+                }
             }
             NumericType::NativeField => {
                 // Range constraining a Field is a no-op
@@ -1068,7 +1083,8 @@ impl AcirContext {
                 // Intrinsics only accept Witnesses. This is not a limitation of the
                 // intrinsics, its just how we have defined things. Ideally, we allow
                 // constants too.
-                let witness = self.var_to_witness(input)?;
+                let witness_var = self.get_or_create_witness_var(input)?;
+                let witness = self.var_to_witness(witness_var)?;
                 let num_bits = typ.bit_size();
                 single_val_witnesses.push(FunctionInput { witness, num_bits });
             }
@@ -1162,8 +1178,13 @@ impl AcirContext {
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
-    pub(crate) fn finish(mut self, inputs: Vec<u32>) -> GeneratedAcir {
-        self.acir_ir.input_witnesses = vecmap(inputs, Witness);
+    pub(crate) fn finish(
+        mut self,
+        inputs: Vec<Witness>,
+        warnings: Vec<SsaReport>,
+    ) -> GeneratedAcir {
+        self.acir_ir.input_witnesses = inputs;
+        self.acir_ir.warnings = warnings;
         self.acir_ir
     }
 

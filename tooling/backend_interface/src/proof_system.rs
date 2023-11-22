@@ -23,7 +23,7 @@ impl Backend {
 
         // Create a temporary file for the circuit
         let circuit_path = temp_directory.join("circuit").with_extension("bytecode");
-        let serialized_circuit = serialize_circuit(circuit);
+        let serialized_circuit = Circuit::serialize_circuit(circuit);
         write_to_file(&serialized_circuit, &circuit_path);
 
         GatesCommand { crs_path: self.crs_directory(), bytecode_path: circuit_path }
@@ -57,7 +57,7 @@ impl Backend {
         // Create a temporary file for the circuit
         //
         let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
-        let serialized_circuit = serialize_circuit(circuit);
+        let serialized_circuit = Circuit::serialize_circuit(circuit);
         write_to_file(&serialized_circuit, &bytecode_path);
 
         // Create proof and store it in the specified path
@@ -97,7 +97,7 @@ impl Backend {
 
         // Create a temporary file for the circuit
         let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
-        let serialized_circuit = serialize_circuit(circuit);
+        let serialized_circuit = Circuit::serialize_circuit(circuit);
         write_to_file(&serialized_circuit, &bytecode_path);
 
         // Create the verification key and write it to the specified path
@@ -130,7 +130,7 @@ impl Backend {
         // Create a temporary file for the circuit
         //
         let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
-        let serialized_circuit = serialize_circuit(circuit);
+        let serialized_circuit = Circuit::serialize_circuit(circuit);
         write_to_file(&serialized_circuit, &bytecode_path);
 
         // Create the verification key and write it to the specified path
@@ -173,12 +173,4 @@ pub(super) fn write_to_file(bytes: &[u8], path: &Path) -> String {
         Err(why) => panic!("couldn't write to {display}: {why}"),
         Ok(_) => display.to_string(),
     }
-}
-
-// TODO: See nargo/src/artifacts/mod.rs
-// TODO: This method should live in ACVM and be the default method for serializing/deserializing circuits
-pub(super) fn serialize_circuit(circuit: &Circuit) -> Vec<u8> {
-    let mut circuit_bytes: Vec<u8> = Vec::new();
-    circuit.write(&mut circuit_bytes).unwrap();
-    circuit_bytes
 }

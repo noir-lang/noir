@@ -16,8 +16,9 @@ use crate::{
     UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::{
-    ForLoopStatement, FunctionDefinition, FunctionVisibility, ImportStatement, NoirStruct,
-    PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
+    ForLoopStatement, ForRange, FunctionDefinition, FunctionVisibility, ImportStatement,
+    NoirStruct, Param, PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl,
+    UnaryOp,
 };
 use fm::FileId;
 
@@ -170,15 +171,9 @@ pub(crate) fn transform(
 
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
-        let storage_defined = check_for_storage_definition(&submodule.contents);
-
-        if transform_module(&mut submodule.contents, storage_defined) {
-            match check_for_aztec_dependency(crate_id, context) {
-                Ok(()) => include_relevant_imports(&mut submodule.contents),
-                Err(file_id) => {
-                    return Err((DefCollectorErrorKind::AztecNotFound {}, file_id));
-                }
-            }
+        if transform_module(&mut submodule.contents, crate_id, context)? {
+            check_for_aztec_dependency(crate_id, context)?;
+            include_relevant_imports(&mut submodule.contents);
         }
     }
     Ok(ast)
@@ -209,19 +204,59 @@ fn include_relevant_imports(ast: &mut SortedModule) {
 }
 
 /// Creates an error alerting the user that they have not downloaded the Aztec-noir library
-fn check_for_aztec_dependency(crate_id: &CrateId, context: &Context) -> Result<(), FileId> {
+fn check_for_aztec_dependency(
+    crate_id: &CrateId,
+    context: &Context,
+) -> Result<(), (DefCollectorErrorKind, FileId)> {
     let crate_graph = &context.crate_graph[crate_id];
     let has_aztec_dependency = crate_graph.dependencies.iter().any(|dep| dep.as_name() == "aztec");
     if has_aztec_dependency {
         Ok(())
     } else {
-        Err(crate_graph.root_file_id)
+        Err((DefCollectorErrorKind::AztecNotFound {}, crate_graph.root_file_id))
     }
 }
 
 // Check to see if the user has defined a storage struct
 fn check_for_storage_definition(module: &SortedModule) -> bool {
-    module.types.iter().any(|function| function.name.0.contents == "Storage")
+    module.types.iter().any(|r#struct| r#struct.name.0.contents == "Storage")
+}
+
+// Check if "compute_note_hash_and_nullifier(Field,Field,Field,[Field; N]) -> [Field; 4]" is defined
+fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -> bool {
+    module.functions.iter().any(|func| {
+        func.def.name.0.contents == "compute_note_hash_and_nullifier"
+                && func.def.parameters.len() == 4
+                && func.def.parameters[0].typ.typ == UnresolvedTypeData::FieldElement
+                && func.def.parameters[1].typ.typ == UnresolvedTypeData::FieldElement
+                && func.def.parameters[2].typ.typ == UnresolvedTypeData::FieldElement
+                // checks if the 4th parameter is an array and the Box<UnresolvedType> in
+                // Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>) contains only fields
+                && match &func.def.parameters[3].typ.typ {
+                    UnresolvedTypeData::Array(_, inner_type) => {
+                        match inner_type.typ {
+                            UnresolvedTypeData::FieldElement => true,
+                            _ => false,
+                        }
+                    },
+                    _ => false,
+                }
+                // We check the return type the same way as we did the 4th parameter
+                && match &func.def.return_type {
+                    FunctionReturnType::Default(_) => false,
+                    FunctionReturnType::Ty(unresolved_type) => {
+                        match &unresolved_type.typ {
+                            UnresolvedTypeData::Array(_, inner_type) => {
+                                match inner_type.typ {
+                                    UnresolvedTypeData::FieldElement => true,
+                                    _ => false,
+                                }
+                            },
+                            _ => false,
+                        }
+                    }
+                }
+    })
 }
 
 /// Checks if an attribute is a custom attribute with a specific name
@@ -236,8 +271,25 @@ fn is_custom_attribute(attr: &SecondaryAttribute, attribute_name: &str) -> bool 
 /// Determines if ast nodes are annotated with aztec attributes.
 /// For annotated functions it calls the `transform` function which will perform the required transformations.
 /// Returns true if an annotated node is found, false otherwise
-fn transform_module(module: &mut SortedModule, storage_defined: bool) -> bool {
+fn transform_module(
+    module: &mut SortedModule,
+    crate_id: &CrateId,
+    context: &Context,
+) -> Result<bool, (DefCollectorErrorKind, FileId)> {
     let mut has_transformed_module = false;
+
+    // Check for a user defined storage struct
+    let storage_defined = check_for_storage_definition(&module);
+
+    if storage_defined && !check_for_compute_note_hash_and_nullifier_definition(&module) {
+        let crate_graph = &context.crate_graph[crate_id];
+        return Err((
+            DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound {
+                span: Span::default(), // Add a default span so we know which contract file the error originates from
+            },
+            crate_graph.root_file_id,
+        ));
+    }
 
     for structure in module.types.iter() {
         if structure.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event)) {
@@ -262,7 +314,7 @@ fn transform_module(module: &mut SortedModule, storage_defined: bool) -> bool {
             has_transformed_module = true;
         }
     }
-    has_transformed_module
+    Ok(has_transformed_module)
 }
 
 /// If it does, it will insert the following things:
@@ -462,14 +514,14 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
 /// fn foo() {
 ///   // ...
 /// }
-pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
+pub(crate) fn create_inputs(ty: &str) -> Param {
     let context_ident = ident("inputs");
     let context_pattern = Pattern::Identifier(context_ident);
     let type_path = chained_path!("aztec", "abi", ty);
     let context_type = make_type(UnresolvedTypeData::Named(type_path, vec![]));
     let visibility = Visibility::Private;
 
-    (context_pattern, context_type, visibility)
+    Param { pattern: context_pattern, typ: context_type, visibility, span: Span::default() }
 }
 
 /// Creates the private context object to be accessed within the function, the parameters need to be extracted to be
@@ -497,7 +549,7 @@ pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
 ///     let mut context = PrivateContext::new(inputs, hasher.hash());
 /// }
 /// ```
-fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) -> Vec<Statement> {
+fn create_context(ty: &str, params: &[Param]) -> Vec<Statement> {
     let mut injected_expressions: Vec<Statement> = vec![];
 
     // `let mut hasher = Hasher::new();`
@@ -513,7 +565,7 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
     injected_expressions.push(let_hasher);
 
     // Iterate over each of the function parameters, adding to them to the hasher
-    params.iter().for_each(|(pattern, typ, _vis)| {
+    params.iter().for_each(|Param { pattern, typ, span: _, visibility: _ }| {
         match pattern {
             Pattern::Identifier(identifier) => {
                 // Match the type to determine the padding to do
@@ -521,8 +573,9 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
                 let expression = match unresolved_type {
                     // `hasher.add_multiple({ident}.serialize())`
                     UnresolvedTypeData::Named(..) => add_struct_to_hasher(identifier),
-                    // TODO: if this is an array of structs, we should call serialize on each of them (no methods currently do this yet)
-                    UnresolvedTypeData::Array(..) => add_array_to_hasher(identifier),
+                    UnresolvedTypeData::Array(_, arr_type) => {
+                        add_array_to_hasher(identifier, &arr_type)
+                    }
                     // `hasher.add({ident})`
                     UnresolvedTypeData::FieldElement => add_field_to_hasher(identifier),
                     // Add the integer to the hasher, casted to a field
@@ -822,6 +875,7 @@ fn add_struct_to_hasher(identifier: &Ident) -> Statement {
 fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     // If this is an array of primitive types (integers / fields) we can add them each to the hasher
     // casted to a field
+    let span = var.span.clone();
 
     // `array.len()`
     let end_range_expression = method_call(
@@ -836,29 +890,51 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
 
     // `for i in 0..{ident}.len()`
     make_statement(StatementKind::For(ForLoopStatement {
+        range: ForRange::Range(
+            expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(i128::from(
+                0,
+            ))))),
+            end_range_expression,
+        ),
         identifier: ident("i"),
-        start_range: expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(
-            i128::from(0),
-        )))),
-        end_range: end_range_expression,
         block: for_loop_block,
+        span,
     }))
 }
 
-fn add_array_to_hasher(identifier: &Ident) -> Statement {
+fn add_array_to_hasher(identifier: &Ident, arr_type: &UnresolvedType) -> Statement {
     // If this is an array of primitive types (integers / fields) we can add them each to the hasher
     // casted to a field
 
     // Wrap in the semi thing - does that mean ended with semi colon?
     // `hasher.add({ident}[i] as Field)`
-    let cast_expression = cast(
-        index_array(identifier.clone(), "i"), // lhs - `ident[i]`
-        UnresolvedTypeData::FieldElement,     // cast to - `as Field`
-    );
+
+    let arr_index = index_array(identifier.clone(), "i");
+    let (add_expression, hasher_method_name) = match arr_type.typ {
+        UnresolvedTypeData::Named(..) => {
+            let hasher_method_name = "add_multiple".to_owned();
+            let call = method_call(
+                // All serialise on each element
+                arr_index,   // variable
+                "serialize", // method name
+                vec![],      // args
+            );
+            (call, hasher_method_name)
+        }
+        _ => {
+            let hasher_method_name = "add".to_owned();
+            let call = cast(
+                arr_index,                        // lhs - `ident[i]`
+                UnresolvedTypeData::FieldElement, // cast to - `as Field`
+            );
+            (call, hasher_method_name)
+        }
+    };
+
     let block_statement = make_statement(StatementKind::Semi(method_call(
-        variable("hasher"), // variable
-        "add",              // method name
-        vec![cast_expression],
+        variable("hasher"),  // variable
+        &hasher_method_name, // method name
+        vec![add_expression],
     )));
 
     create_loop_over(variable_ident(identifier.clone()), vec![block_statement])
