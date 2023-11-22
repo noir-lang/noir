@@ -14,9 +14,6 @@ DIST_TAG=${3:-"latest"}
 echo "Repo: $REPOSITORY"
 echo "Arch: $ARCH"
 
-ACCOUNT="aztecprotocol"
-USERNAME="aztecprotocolci"
-
 IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
 
 IMAGE_DIST_URI=$ACCOUNT/$REPOSITORY:$DIST_TAG

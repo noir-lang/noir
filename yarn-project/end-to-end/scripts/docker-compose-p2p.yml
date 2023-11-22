@@ -7,11 +7,12 @@ services:
       - '8545:8545'
 
   p2p-bootstrap:
-    image: aztecprotocol/p2p-bootstrap:latest
+    image: aztecprotocol/aztec-sandbox:latest
     ports:
       - '40400:40400'
     command: 'start'
     environment:
+      MODE: 'p2p-bootstrap'
       DEBUG: 'aztec:*'
       DEBUG_COLORS: 1
       P2P_TCP_LISTEN_PORT: 40400

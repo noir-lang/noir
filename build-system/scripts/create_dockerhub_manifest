@@ -20,14 +20,11 @@ DIST_TAG=${3:-"latest"}
 echo "Repo: $REPOSITORY"
 echo "Arch list: $ARCH_LIST"
 
-ACCOUNT="aztecprotocol"
-USERNAME="aztecprotocolci"
-
 # Extract the version, if valid; exit otherwise.
 IMAGE_TAG=$(extract_tag_version $REPOSITORY true)
 
-MANIFEST_DEPLOY_URI=$ACCOUNT/$REPOSITORY:$IMAGE_TAG
-MANIFEST_DIST_URI=$ACCOUNT/$REPOSITORY:$DIST_TAG
+MANIFEST_DEPLOY_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:$IMAGE_TAG
+MANIFEST_DIST_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:$DIST_TAG
 
 # Login to dockerhub.
 dockerhub_login
@@ -38,9 +35,8 @@ OLD_IFS=$IFS
 IFS=','
 
 # For each arch, add the tagged image to 2 manifest lists. One tagged with the version, the other with 'latest'
-for A in $ARCH_LIST
-do
-  IMAGE_DEPLOY_URI=$ACCOUNT/$REPOSITORY:$IMAGE_TAG-$A
+for A in $ARCH_LIST; do
+  IMAGE_DEPLOY_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:$IMAGE_TAG-$A
   echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_DEPLOY_URI"
   docker_or_dryrun manifest create $MANIFEST_DEPLOY_URI \
     --amend $IMAGE_DEPLOY_URI

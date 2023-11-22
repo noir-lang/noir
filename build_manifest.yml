@@ -106,12 +106,6 @@ cli:
   dependencies:
     - yarn-project
 
-pxe:
-  buildDir: yarn-project
-  projectDir: yarn-project/pxe
-  dependencies:
-    - yarn-project
-
 boxes-blank-react:
   buildDir: yarn-project
   projectDir: yarn-project/boxes/blank-react
@@ -150,18 +144,6 @@ end-to-end:
     - yarn-project
   runDependencies:
     - aztec-sandbox
-
-aztec-node:
-  buildDir: yarn-project
-  projectDir: yarn-project/aztec-node
-  dependencies:
-    - yarn-project
-
-p2p-bootstrap:
-  buildDir: yarn-project
-  projectDir: yarn-project/p2p-bootstrap
-  dependencies:
-    - yarn-project
 
 mainnet-fork:
   buildDir: iac/mainnet-fork

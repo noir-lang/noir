@@ -424,28 +424,6 @@ jobs:
             echo "export DOCKER_BUILDKIT=" > $BASH_ENV
             build cli false arm64
 
-  aztec-p2p-bootstrap:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build p2p-bootstrap | add_timestamps
-
-  aztec-node:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build aztec-node | add_timestamps
-
   mainnet-fork:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -479,32 +457,6 @@ jobs:
           name: "Build and test"
           command: build aztec-faucet | add_timestamps
 
-  pxe-x86_64:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build pxe false x86_64
-
-  pxe-arm64:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: arm.large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          # We need to force not to use docker buildkit because for some reason on arm only, it ends up making a call
-          # out to eu-west2 despite the image being locally tagged, resulting in unauthorized 401. Weird docker bug?
-          command: |
-            echo "export DOCKER_BUILDKIT=" > $BASH_ENV
-            build pxe false arm64
-
   ecr-manifest:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -516,7 +468,6 @@ jobs:
           name: "Create ECR manifest"
           command: |
             create_ecr_manifest aztec-sandbox x86_64,arm64
-            create_ecr_manifest pxe x86_64,arm64
             create_ecr_manifest cli x86_64,arm64
 
   boxes-blank-react:
@@ -1033,17 +984,6 @@ jobs:
   #         name: "Deploy to dockerhub"
   #         command: yarn-project/deploy_dockerhub.sh canary
 
-  # deploy-ecr:
-  #   machine:
-  #     image: ubuntu-2204:2023.07.2
-  #   resource_class: medium
-  #   steps:
-  #     - *checkout
-  #     - *setup_env
-  #     - run:
-  #         name: "yarn-project"
-  #         command: yarn-project/deploy_ecr.sh
-
   deploy-dockerhub:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -1112,7 +1052,7 @@ defaults: &defaults
     - slack/notify:
         event: fail
         branch_pattern: "master"
-deploy_defaults: &deploy_defaults
+release_defaults: &release_defaults
   filters:
     tags:
       only: *tag_regex
@@ -1201,7 +1141,7 @@ workflows:
       - deploy-mainnet-fork:
           requires:
             - mainnet-fork
-          <<: *deploy_defaults
+          <<: *release_defaults
 
       # Yarn Project
       - yarn-project-base:
@@ -1254,26 +1194,7 @@ workflows:
             - yarn-project
           <<: *defaults
 
-      - aztec-p2p-bootstrap:
-          requires:
-            - yarn-project
-          <<: *defaults
-
-      - aztec-node:
-          requires:
-            - yarn-project
-          <<: *defaults
-
       - aztec-faucet:
-          requires:
-            - yarn-project
-          <<: *defaults
-
-      - pxe-x86_64:
-          requires:
-            - yarn-project
-          <<: *defaults
-      - pxe-arm64:
           requires:
             - yarn-project
           <<: *defaults
@@ -1282,8 +1203,6 @@ workflows:
           requires:
             - aztec-sandbox-x86_64
             - aztec-sandbox-arm64
-            - pxe-x86_64
-            - pxe-arm64
             - cli-x86_64
             - cli-arm64
           <<: *defaults
@@ -1390,53 +1309,53 @@ workflows:
       # - deploy-npm-canary:
       #     requires:
       #       - e2e-end
-      #     <<: *deploy_defaults
+      #     <<: *release_defaults
       # - deploy-dockerhub-canary:
       #     requires:
       #       - e2e-end
-      #     <<: *deploy_defaults
+      #     <<: *release_defaults
       # - deploy-ecr:
       #     requires:
       #       - e2e-end
-      #     <<: *deploy_defaults
+      #     <<: *release_defaults
 
       # - build-deployment-canary:
       #     requires:
       #       - deploy-npm-canary
       #       - deploy-dockerhub-canary
-      #     <<: *deploy_defaults
+      #     <<: *release_defaults
 
       # Run canary tests
       # - canary-uniswap-test:
       #     requires:
       #       - build-deployment-canary
-      #     <<: *deploy_defaults
+      #     <<: *release_defaults
 
       # - canary-browser-test:
       #     requires:
       #       - build-deployment-canary
-      #     <<: *deploy_defaults
+      #     <<: *release_defaults
 
       # - canary-cli-test:
       #     requires:
       #       - build-deployment-canary
-      #     <<: *deploy_defaults
+      #     <<: *release_defaults
 
       # - canary-end:
       #     requires:
       #       - canary-uniswap-test
       #       - canary-browser-test
       #       - canary-cli-test
-      #     <<: *deploy_defaults
+      #     <<: *release_defaults
 
       # Production deployment
       - deploy-dockerhub:
           requires:
             # - canary-end
             - e2e-end
-          <<: *deploy_defaults
+          <<: *release_defaults
       - deploy-npm:
           requires:
             # - canary-end
             - e2e-end
-          <<: *deploy_defaults
+          <<: *release_defaults

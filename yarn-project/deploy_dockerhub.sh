@@ -5,7 +5,7 @@ DIST_TAG=${1:-"latest"}
 extract_repo yarn-project /usr/src project
 PROJECT_ROOT=$(pwd)/project/src/
 
-for REPOSITORY in "pxe" "aztec-sandbox" "cli"; do
+for REPOSITORY in "aztec-sandbox" "cli"; do
   echo "Deploying $REPOSITORY $DIST_TAG"
   RELATIVE_PROJECT_DIR=$(query_manifest relativeProjectDir $REPOSITORY)
   cd "$PROJECT_ROOT/$RELATIVE_PROJECT_DIR"
