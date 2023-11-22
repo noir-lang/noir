@@ -1,13 +1,7 @@
 use crossbeam::channel::TryRecvError;
 use dap::requests::{
-    Command,
-    ContinueArguments,
-    DisassembleArguments,
-    DisconnectArguments,
-    LaunchRequestArguments,
-    NextArguments,
-    ReadMemoryArguments,
-    VariablesArguments,
+    Command, ContinueArguments, DisassembleArguments, DisconnectArguments, LaunchRequestArguments,
+    NextArguments, ReadMemoryArguments, VariablesArguments,
 };
 use dap::responses::ResponseBody;
 use dap::{base_message::Sendable, requests::Request};
@@ -113,7 +107,7 @@ impl Server for MockDap {
                         let program = v
                             .instructions
                             .iter()
-                            .map(|v| { format!("{}  {}", v.address, v.instruction) })
+                            .map(|v| format!("{}  {}", v.address, v.instruction))
                             .collect::<Vec<_>>()
                             .join("\n");
                         *self.response.borrow_mut() = (seq, program);
