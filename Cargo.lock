@@ -2436,6 +2436,7 @@ dependencies = [
  "rustc_version",
  "serde",
  "serde_json",
+ "similar-asserts",
  "tempfile",
  "termcolor",
  "test-binary",
