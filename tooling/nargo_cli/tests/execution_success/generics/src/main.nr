@@ -29,7 +29,9 @@ impl Bar<Field> {
     fn get_other(self) -> Field {
         self.other
     }
+}
 
+impl<T> Bar<T> {
     // This is to test that we can use turbofish on methods as well
     fn zeroed<A>(_self: Self) -> A {
         dep::std::unsafe::zeroed()
@@ -58,6 +60,10 @@ fn main(x: Field, y: Field) {
 
     // Test turbofish operator
     foo::<Field>(bar1);
+
+    // Test that turbofish works on methods and that it uses the generics on the methods
+    // While still handilng the generic on the impl (T in this case) that is implicitly added
+    // to the method.
     assert(bar1.zeroed::<u32>() == 0);
 
     let _ = regression_2055([1, 2, 3]);
