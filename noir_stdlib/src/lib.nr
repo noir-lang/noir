@@ -61,7 +61,3 @@ pub fn wrapping_sub<T>(x: T, y: T) -> T {
 pub fn wrapping_mul<T>(x: T, y: T) -> T {
     crate::from_field(crate::as_field(x) * crate::as_field(y))
 }
-/// Shift-left x by y bits
-/// If the result overflow the bitsize; it does not fail and returns 0 instead
-#[builtin(wrapping_shift_left)]
-pub fn wrapping_shift_left<T>(_x: T, _y: T) -> T {}
