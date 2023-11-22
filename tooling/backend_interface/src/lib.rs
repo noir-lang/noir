@@ -156,16 +156,14 @@ impl BackendOpcodeSupport {
 
     pub fn all() -> BackendOpcodeSupport {
         BackendOpcodeSupport {
-            opcodes: vec![
+            opcodes: HashSet::from([
                 "arithmetic".to_string(),
                 "directive".to_string(),
                 "brillig".to_string(),
                 "memory_init".to_string(),
                 "memory_op".to_string(),
-            ]
-            .into_iter()
-            .collect(),
-            black_box_functions: vec![
+            ]),
+            black_box_functions: HashSet::from([
                 "sha256".to_string(),
                 "schnorr_verify".to_string(),
                 "blake2s".to_string(),
@@ -180,9 +178,7 @@ impl BackendOpcodeSupport {
                 "keccak256".to_string(),
                 "recursive_aggregation".to_string(),
                 "ecdsa_secp256r1".to_string(),
-            ]
-            .into_iter()
-            .collect(),
+            ]),
         }
     }
 }
