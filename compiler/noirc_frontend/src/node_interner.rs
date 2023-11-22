@@ -176,6 +176,8 @@ pub struct FunctionModifiers {
 
     pub is_unconstrained: bool,
 
+    pub generic_count: usize,
+
     /// This function's type in its contract.
     /// If this function is not in a contract, this is always 'Secret'.
     pub contract_function_type: Option<ContractFunctionType>,
@@ -198,6 +200,7 @@ impl FunctionModifiers {
             is_unconstrained: false,
             is_internal: None,
             contract_function_type: None,
+            generic_count: 0,
         }
     }
 }
@@ -684,6 +687,7 @@ impl NodeInterner {
             is_unconstrained: function.is_unconstrained,
             contract_function_type: Some(if function.is_open { Open } else { Secret }),
             is_internal: Some(function.is_internal),
+            generic_count: function.generics.len(),
         };
         self.push_function_definition(id, modifiers, module)
     }

@@ -11,7 +11,7 @@ use crate::{
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitMethodId},
-    BinaryOpKind, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
+    BinaryOpKind, Signedness, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -52,11 +52,18 @@ impl<'interner> TypeChecker<'interner> {
                 // We must instantiate identifiers at every call site to replace this T with a new type
                 // variable to handle generic functions.
                 let t = self.interner.id_type_substitute_trait_as_type(ident.id);
+                let span = self.interner.expr_span(expr_id);
 
-                let (typ, bindings) = match generics {
-                    Some(generics) => t.instantiate_with(generics),
-                    None => t.instantiate(self.interner),
-                };
+                let definition = self.interner.try_definition(ident.id);
+                let expected_generic_count =
+                    definition.map_or(0, |definition| match &definition.kind {
+                        DefinitionKind::Function(function) => {
+                            self.interner.function_modifiers(function).generic_count
+                        }
+                        _ => 0,
+                    });
+
+                let (typ, bindings) = self.instantiate(t, generics, expected_generic_count, span);
 
                 // Push any trait constraints required by this definition to the context
                 // to be checked later when the type of this variable is further constrained.
@@ -537,7 +544,7 @@ impl<'interner> TypeChecker<'interner> {
         arguments: Vec<(Type, ExprId, Span)>,
         span: Span,
     ) -> Type {
-        let (fn_typ, param_len) = match method_ref {
+        let (fn_typ, param_len, expected_generic_count) = match method_ref {
             HirMethodReference::FuncId(func_id) => {
                 if func_id == FuncId::dummy_id() {
                     return Type::Error;
@@ -545,12 +552,13 @@ impl<'interner> TypeChecker<'interner> {
 
                 let func_meta = self.interner.function_meta(&func_id);
                 let param_len = func_meta.parameters.len();
-                (func_meta.typ, param_len)
+                let generic_count = self.interner.function_modifiers(&func_id).generic_count;
+                (func_meta.typ, param_len, generic_count)
             }
             HirMethodReference::TraitMethodId(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
-                (method.get_type(), method.arguments.len())
+                (method.get_type(), method.arguments.len(), method.generics.len())
             }
         };
 
@@ -564,14 +572,36 @@ impl<'interner> TypeChecker<'interner> {
             });
         }
 
-        let (function_type, instantiation_bindings) = match generics {
-            Some(generics) => fn_typ.instantiate_with(generics),
-            None => fn_typ.instantiate(self.interner),
-        };
+        let (function_type, instantiation_bindings) =
+            self.instantiate(fn_typ, generics, expected_generic_count, span);
 
         self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
         self.interner.push_expr_type(function_ident_id, function_type.clone());
         self.bind_function_type(function_type, arguments, span)
+    }
+
+    fn instantiate(
+        &mut self,
+        typ: Type,
+        generics: Option<Vec<Type>>,
+        expected_generic_count: usize,
+        span: Span,
+    ) -> (Type, TypeBindings) {
+        match generics {
+            Some(generics) => {
+                if generics.len() != expected_generic_count {
+                    self.errors.push(TypeCheckError::IncorrectTurbofishGenericCount {
+                        expected_count: expected_generic_count,
+                        actual_count: generics.len(),
+                        span,
+                    });
+                    typ.instantiate(self.interner)
+                } else {
+                    typ.instantiate_with(generics)
+                }
+            }
+            None => typ.instantiate(self.interner),
+        }
     }
 
     fn check_if_expr(&mut self, if_expr: &expr::HirIfExpression, expr_id: &ExprId) -> Type {

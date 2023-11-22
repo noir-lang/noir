@@ -1136,6 +1136,8 @@ impl Type {
     pub fn instantiate_with(&self, types: Vec<Type>) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
+                assert_eq!(types.len(), typevars.len(), "Turbofish operator used with incorrect generic count which was not caught by name resolution");
+
                 let replacements = typevars
                     .iter()
                     .zip(types)

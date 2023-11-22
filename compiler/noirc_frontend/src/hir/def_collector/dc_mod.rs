@@ -389,6 +389,7 @@ impl<'a> ModCollector<'a> {
                             is_unconstrained: false,
                             contract_function_type: None,
                             is_internal: None,
+                            generic_count: generics.len(),
                         };
 
                         context.def_interner.push_function_definition(func_id, modifiers, id.0);
