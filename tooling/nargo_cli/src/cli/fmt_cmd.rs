@@ -73,7 +73,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
                 )
                 .to_string();
 
-                if !diff.contains("Invisible differences") {
+                if !diff.lines().next().is_some_and(|line| line.contains("Invisible differences")) {
                     if !check_exit_code_one {
                         check_exit_code_one = true;
                     }
