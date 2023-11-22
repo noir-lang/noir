@@ -2533,6 +2533,7 @@ dependencies = [
  "fm",
  "lsp-types 0.94.1",
  "nargo",
+ "nargo_fmt",
  "nargo_toml",
  "noirc_driver",
  "noirc_errors",
