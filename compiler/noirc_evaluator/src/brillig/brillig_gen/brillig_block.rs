@@ -454,21 +454,22 @@ impl<'block> BrilligBlock<'block> {
                         dfg,
                     );
 
-                    let target_slice = self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        results[1],
-                        dfg,
-                    );
-
-                    let heap_vec = target_slice.extract_vector();
+                    let target_vector = self
+                        .variables
+                        .define_variable(
+                            self.function_context,
+                            self.brillig_context,
+                            results[1],
+                            dfg,
+                        )
+                        .extract_vector();
 
                     // Update the user-facing slice length
                     self.brillig_context.mov_instruction(target_len, limb_count);
 
                     self.brillig_context.radix_instruction(
                         source,
-                        heap_vec,
+                        target_vector,
                         radix,
                         limb_count,
                         matches!(endianness, Endian::Big),
@@ -488,22 +489,24 @@ impl<'block> BrilligBlock<'block> {
                     );
                     let target_len = target_len_variable.extract_register();
 
-                    let target_slice = self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        results[1],
-                        dfg,
-                    );
+                    let target_vector = self
+                        .variables
+                        .define_variable(
+                            self.function_context,
+                            self.brillig_context,
+                            results[1],
+                            dfg,
+                        )
+                        .extract_vector();
 
                     let radix = self.brillig_context.make_constant(2_usize.into());
-                    let heap_vec = target_slice.extract_vector();
 
                     // Update the user-facing slice length
                     self.brillig_context.mov_instruction(target_len, limb_count);
 
                     self.brillig_context.radix_instruction(
                         source,
-                        heap_vec,
+                        target_vector,
                         radix,
                         limb_count,
                         matches!(endianness, Endian::Big),
@@ -1186,14 +1189,13 @@ impl<'block> BrilligBlock<'block> {
 
                             brillig_array.pointer
                         }
-                        BrilligVariable::BrilligVector(heap_vector) => {
+                        BrilligVariable::BrilligVector(vector) => {
+                            self.brillig_context.const_instruction(vector.size, array.len().into());
                             self.brillig_context
-                                .const_instruction(heap_vector.size, array.len().into());
-                            self.brillig_context
-                                .allocate_array_instruction(heap_vector.pointer, heap_vector.size);
-                            self.brillig_context.const_instruction(heap_vector.rc, 1_usize.into());
+                                .allocate_array_instruction(vector.pointer, vector.size);
+                            self.brillig_context.const_instruction(vector.rc, 1_usize.into());
 
-                            heap_vector.pointer
+                            vector.pointer
                         }
                         _ => unreachable!(
                             "ICE: Cannot initialize array value created as {new_variable:?}"
@@ -1289,7 +1291,7 @@ impl<'block> BrilligBlock<'block> {
     }
 
     /// Gets the "user-facing" length of an array.
-    /// An array of structs with two fields would be stored as an 2 * array.len() heap array/heap vector.
+    /// An array of structs with two fields would be stored as an 2 * array.len() array/vector.
     /// So we divide the length by the number of subitems in an item to get the user-facing length.
     fn convert_ssa_array_len(
         &mut self,

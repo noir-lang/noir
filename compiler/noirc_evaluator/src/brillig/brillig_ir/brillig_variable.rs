@@ -1,6 +1,7 @@
 use acvm::brillig_vm::brillig::{HeapArray, HeapVector, RegisterIndex, RegisterOrMemory};
 use serde::{Deserialize, Serialize};
 
+/// The representation of a noir array in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct BrilligArray {
     pub(crate) pointer: RegisterIndex,
@@ -22,6 +23,7 @@ impl BrilligArray {
     }
 }
 
+/// The representation of a noir slice in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct BrilligVector {
     pub(crate) pointer: RegisterIndex,
@@ -43,6 +45,7 @@ impl BrilligVector {
     }
 }
 
+/// The representation of a noir value in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) enum BrilligVariable {
     Simple(RegisterIndex),
