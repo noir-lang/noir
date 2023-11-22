@@ -46,7 +46,10 @@ function abiTypeToTs(type: AbiType, primitiveTypeMap: Map<string, PrimitiveTypes
   switch (type.kind) {
     case 'integer': {
       const typeName = type.sign === 'signed' ? `i${type.width}` : `u${type.width}`;
-      const tsType = type.width <= 32 ? `string | number` : `string`;
+      // Javascript cannot safely represent the full range of Noir's integer types as numbers.
+      // `Number.MAX_SAFE_INTEGER == 2**53 - 1` so we disallow passing numbers to types which may exceed this.
+      // 52 has been chosen as the cutoff rather than 53 for safety.
+      const tsType = type.width <= 52 ? `string | number` : `string`;
 
       addIfUnique(primitiveTypeMap, { aliasName: typeName, tsType });
       return typeName;
