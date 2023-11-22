@@ -120,9 +120,10 @@ impl Server for MockDap {
                     }
                 };
             }
-            Sendable::Event(e) => {
-                *self.response.borrow_mut() = (0, format!("{:?}", e));
-            }
+            Sendable::Event(e) => match e {
+                dap::prelude::Event::Invalidated(_) => {}
+                _ => *self.response.borrow_mut() = (0, format!("{:?}", e)),
+            },
             Sendable::ReverseRequest(r) => {
                 *self.response.borrow_mut() = (r.seq, format!("{:?}", r));
             }

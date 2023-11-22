@@ -84,7 +84,7 @@ fn check_registers_and_memory() {
     assert_eq!(resp, app.server.response.borrow().1);
     app.server.command = "memory".to_string();
     app.run().unwrap();
-    let resp = String::from("ReadMemory(ReadMemoryResponse { address: \"Memory\", unreadable_bytes: None, data: Some(\"0, 0, 0, 0, 1, 2\") })");
+    let resp = String::from("ReadMemory(ReadMemoryResponse { address: \"0\", unreadable_bytes: None, data: Some(\"0, 0, 0, 0, 1, 2\") })");
     assert_eq!(resp, app.server.response.borrow().1);
 }
 
@@ -111,7 +111,7 @@ fn exit_from_running() {
 
     app.server.command = "launch".to_string();
     let r = app.run();
-    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: Some(0), preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(false), hit_breakpoint_ids: None })");
+    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: None, preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(true), hit_breakpoint_ids: None })");
     assert_eq!(resp, app.server.response.borrow().1);
     assert!(r.is_ok());
     match app.state {

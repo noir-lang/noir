@@ -40,7 +40,7 @@ fn provide_wrong_command() {
     // launch
     app.server.command = "launch".to_string();
     let r = app.run();
-    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: Some(0), preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(false), hit_breakpoint_ids: None })");
+    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: None, preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(true), hit_breakpoint_ids: None })");
     assert_eq!(resp, app.server.response.borrow().1);
     assert!(r.is_ok());
     match app.state {
@@ -50,7 +50,7 @@ fn provide_wrong_command() {
 
     // perform unsupported command in running state
     let r = app.run();
-    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: Some(0), preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(false), hit_breakpoint_ids: None })");
+    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: None, preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(true), hit_breakpoint_ids: None })");
     assert_eq!(resp, app.server.response.borrow().1);
     assert!(r.is_err());
     match r {
@@ -82,7 +82,7 @@ fn simple_with_success() {
     }
     app.server.command = "launch".to_string();
     let r = app.run();
-    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: Some(0), preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(false), hit_breakpoint_ids: None })");
+    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: None, preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(true), hit_breakpoint_ids: None })");
     assert_eq!(resp, app.server.response.borrow().1);
     assert!(r.is_ok());
     match app.state {
@@ -92,7 +92,7 @@ fn simple_with_success() {
 
     app.server.command = "step".to_string();
     let r = app.run();
-    let resp = String::from("Stopped(StoppedEventBody { reason: Step, description: Some(\"Step\"), thread_id: Some(0), preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(false), hit_breakpoint_ids: None })");
+    let resp = String::from("Stopped(StoppedEventBody { reason: Step, description: Some(\"Step\"), thread_id: None, preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(true), hit_breakpoint_ids: None })");
     assert_eq!(resp, app.server.response.borrow().1);
     assert!(r.is_ok());
     match app.state {
@@ -124,7 +124,7 @@ fn failing() {
     }
     app.server.command = "launch".to_string();
     let r = app.run();
-    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: Some(0), preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(false), hit_breakpoint_ids: None })");
+    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: None, preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(true), hit_breakpoint_ids: None })");
     assert_eq!(resp, app.server.response.borrow().1);
     assert!(r.is_ok());
     match app.state {
@@ -162,7 +162,7 @@ fn value_in_memory_with_success() {
     }
     app.server.command = "launch".to_string();
     let r = app.run();
-    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: Some(0), preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(false), hit_breakpoint_ids: None })");
+    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: None, preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(true), hit_breakpoint_ids: None })");
     assert_eq!(resp, app.server.response.borrow().1);
     assert!(r.is_ok());
     match app.state {
@@ -194,7 +194,7 @@ fn value_in_registers_and_memory_with_success() {
     }
     app.server.command = "launch".to_string();
     let r = app.run();
-    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: Some(0), preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(false), hit_breakpoint_ids: None })");
+    let resp = String::from("Stopped(StoppedEventBody { reason: Entry, description: Some(\"Entry\"), thread_id: None, preserve_focus_hint: Some(false), text: None, all_threads_stopped: Some(true), hit_breakpoint_ids: None })");
     assert_eq!(resp, app.server.response.borrow().1);
     assert!(r.is_ok());
     match app.state {
