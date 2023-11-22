@@ -521,13 +521,13 @@ impl<'dfg> InsertInstructionResult<'dfg> {
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
-    use crate::ssa::ir::instruction::Instruction;
+    use crate::ssa::ir::{instruction::Instruction, types::Type};
 
     #[test]
     fn make_instruction() {
         let mut dfg = DataFlowGraph::default();
         let ins = Instruction::Allocate;
-        let ins_id = dfg.make_instruction(ins, None);
+        let ins_id = dfg.make_instruction(ins, Some(vec![Type::field()]));
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), 1);
