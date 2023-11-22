@@ -24,6 +24,18 @@ export interface PublicStateDB {
    * @returns Nothing.
    */
   storageWrite(contract: AztecAddress, slot: Fr, newValue: Fr): Promise<void>;
+
+  /**
+   * Commit the pending changes to the DB.
+   * @returns Nothing.
+   */
+  commit(): Promise<void>;
+
+  /**
+   * Rollback the pending changes.
+   * @returns Nothing.
+   */
+  rollback(): Promise<void>;
 }
 
 /**

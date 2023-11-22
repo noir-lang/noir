@@ -1,34 +1,8 @@
-import {
-  CommitmentsDB,
-  MessageLoadOracleInputs,
-  PublicContractsDB,
-  PublicExecutor,
-  PublicStateDB,
-} from '@aztec/acir-simulator';
-import { AztecAddress, EthAddress, Fr, FunctionSelector, HistoricBlockData } from '@aztec/circuits.js';
+import { CommitmentsDB, MessageLoadOracleInputs, PublicContractsDB, PublicStateDB } from '@aztec/acir-simulator';
+import { AztecAddress, EthAddress, Fr, FunctionSelector } from '@aztec/circuits.js';
 import { computePublicDataTreeIndex } from '@aztec/circuits.js/abis';
 import { ContractDataSource, ExtendedContractData, L1ToL2MessageSource, MerkleTreeId, Tx } from '@aztec/types';
 import { MerkleTreeOperations } from '@aztec/world-state';
-
-/**
- * Returns a new PublicExecutor simulator backed by the supplied merkle tree db and contract data source.
- * @param merkleTree - A merkle tree database.
- * @param contractDataSource - A contract data source.
- * @returns A new instance of a PublicExecutor.
- */
-export function getPublicExecutor(
-  merkleTree: MerkleTreeOperations,
-  publicContractsDB: PublicContractsDB,
-  l1toL2MessageSource: L1ToL2MessageSource,
-  blockData: HistoricBlockData,
-) {
-  return new PublicExecutor(
-    new WorldStatePublicDB(merkleTree),
-    publicContractsDB,
-    new WorldStateDB(merkleTree, l1toL2MessageSource),
-    blockData,
-  );
-}
 
 /**
  * Implements the PublicContractsDB using a ContractDataSource.
@@ -95,8 +69,9 @@ export class ContractsDataSourcePublicDB implements PublicContractsDB {
 /**
  * Implements the PublicStateDB using a world-state database.
  */
-class WorldStatePublicDB implements PublicStateDB {
-  private writeCache: Map<bigint, Fr> = new Map();
+export class WorldStatePublicDB implements PublicStateDB {
+  private commitedWriteCache: Map<bigint, Fr> = new Map();
+  private uncommitedWriteCache: Map<bigint, Fr> = new Map();
 
   constructor(private db: MerkleTreeOperations) {}
 
@@ -108,9 +83,13 @@ class WorldStatePublicDB implements PublicStateDB {
    */
   public async storageRead(contract: AztecAddress, slot: Fr): Promise<Fr> {
     const index = computePublicDataTreeIndex(contract, slot).value;
-    const cached = this.writeCache.get(index);
-    if (cached !== undefined) {
-      return cached;
+    const uncommited = this.uncommitedWriteCache.get(index);
+    if (uncommited !== undefined) {
+      return uncommited;
+    }
+    const commited = this.commitedWriteCache.get(index);
+    if (commited !== undefined) {
+      return commited;
     }
     const value = await this.db.getLeafValue(MerkleTreeId.PUBLIC_DATA_TREE, index);
     return value ? Fr.fromBuffer(value) : Fr.ZERO;
@@ -124,7 +103,27 @@ class WorldStatePublicDB implements PublicStateDB {
    */
   public storageWrite(contract: AztecAddress, slot: Fr, newValue: Fr): Promise<void> {
     const index = computePublicDataTreeIndex(contract, slot).value;
-    this.writeCache.set(index, newValue);
+    this.uncommitedWriteCache.set(index, newValue);
+    return Promise.resolve();
+  }
+
+  /**
+   * Commit the pending changes to the DB.
+   * @returns Nothing.
+   */
+  commit(): Promise<void> {
+    for (const [k, v] of this.uncommitedWriteCache) {
+      this.commitedWriteCache.set(k, v);
+    }
+    return this.rollback();
+  }
+
+  /**
+   * Rollback the pending changes.
+   * @returns Nothing.
+   */
+  rollback(): Promise<void> {
+    this.uncommitedWriteCache = new Map<bigint, Fr>();
     return Promise.resolve();
   }
 }
