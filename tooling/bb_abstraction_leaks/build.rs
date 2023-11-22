@@ -35,7 +35,6 @@ fn main() -> Result<(), String> {
         println!(
             "cargo:warning=ARM64 builds of linux are not supported for the barretenberg binary"
         );
-        return Ok(());
     };
 
     println!("cargo:rustc-env=BB_BINARY_URL={}", get_bb_download_url(arch, os));
