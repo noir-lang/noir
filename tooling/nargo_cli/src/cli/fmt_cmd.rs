@@ -91,7 +91,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
 
     if check_exit_code_one {
         std::process::exit(1);
-    } else {
+    } else if check_mode {
         println!("No formatting changes were detected");
     }
 
