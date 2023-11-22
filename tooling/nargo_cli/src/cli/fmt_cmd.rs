@@ -14,7 +14,7 @@ use super::NargoConfig;
 /// Format the Noir files in a workspace
 #[derive(Debug, Clone, Args)]
 pub(crate) struct FormatCommand {
-    /// Run nargofmt in check mode
+    /// Run noirfmt in check mode
     #[arg(long)]
     check: bool,
 }
