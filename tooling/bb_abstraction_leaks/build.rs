@@ -30,8 +30,12 @@ fn main() -> Result<(), String> {
     };
 
     // Arm builds of linux are not supported
+    // We do not panic because we allow users to run nargo without a backend.
     if let (Os::Linux, Arch::AARCH64) = (&os, &arch) {
-        panic!("ARM64 builds of linux are not supported")
+        println!(
+            "cargo:warning=ARM64 builds of linux are not supported for the barretenberg binary"
+        );
+        return Ok(());
     };
 
     println!("cargo:rustc-env=BB_BINARY_URL={}", get_bb_download_url(arch, os));
