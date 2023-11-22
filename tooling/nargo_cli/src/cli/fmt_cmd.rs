@@ -65,7 +65,9 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
             let formatted = nargo_fmt::format(original, parsed_module, &config);
 
             if check_mode {
-                exit_code_one = original != formatted;
+                if !exit_code_one {
+                    exit_code_one = original != formatted;
+                }
 
                 let diff = similar_asserts::SimpleDiff::from_str(
                     original,
