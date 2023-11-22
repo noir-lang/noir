@@ -68,7 +68,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
                 exit_code_one = original != formatted;
 
                 let diff = similar_asserts::SimpleDiff::from_str(
-                    &original,
+                    original,
                     &formatted,
                     "original",
                     "formatted",
