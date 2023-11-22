@@ -44,6 +44,9 @@ function addIfUnique(primitiveTypeMap: Map<string, PrimitiveTypesUsed>, item: Pr
  */
 function abiTypeToTs(type: AbiType, primitiveTypeMap: Map<string, PrimitiveTypesUsed>): string {
   switch (type.kind) {
+    case 'field':
+      addIfUnique(primitiveTypeMap, { aliasName: 'Field', tsType: 'string' });
+      return 'Field';
     case 'integer': {
       const typeName = type.sign === 'signed' ? `i${type.width}` : `u${type.width}`;
       // Javascript cannot safely represent the full range of Noir's integer types as numbers.
@@ -67,9 +70,6 @@ function abiTypeToTs(type: AbiType, primitiveTypeMap: Map<string, PrimitiveTypes
       return `string`;
     case 'struct':
       return getLastComponentOfPath(type.path);
-    case 'field':
-      addIfUnique(primitiveTypeMap, { aliasName: 'Field', tsType: 'string' });
-      return 'Field';
     default:
       throw new Error(`Unknown ABI type ${JSON.stringify(type)}`);
   }
