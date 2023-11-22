@@ -6,6 +6,7 @@ import { execSync } from 'child_process';
 import path from 'path';
 
 import {
+  ProgramArtifact,
   compileUsingNargo,
   compileUsingNoirWasm,
   generateNoirContractInterface,
@@ -33,25 +34,33 @@ describe('noir-compiler', () => {
   const nargoAvailable = isNargoAvailable();
   const conditionalDescribe = nargoAvailable ? describe : describe.skip;
   const conditionalIt = nargoAvailable ? it : it.skip;
-  const withoutDebug = ({ debug: _debug, ...rest }: ContractArtifact): Omit<ContractArtifact, 'debug'> => rest;
+  const withoutDebug = ({
+    debug: _debug,
+    ...rest
+  }: ContractArtifact | ProgramArtifact): Omit<ContractArtifact | ProgramArtifact, 'debug'> => rest;
 
-  function compilerTest(compileFn: (path: string, opts: { log: LogFn }) => Promise<ContractArtifact[]>) {
-    let compiled: ContractArtifact[];
+  function compilerTest(
+    compileFn: (path: string, opts: { log: LogFn }) => Promise<(ProgramArtifact | ContractArtifact)[]>,
+  ) {
+    let compiled: (ProgramArtifact | ContractArtifact)[];
+    let compiledContract: ContractArtifact[];
+
     beforeAll(async () => {
       compiled = await compileFn(projectPath, { log });
+      compiledContract = compiled.map(_compiled => _compiled as ContractArtifact);
     });
 
     it('compiles the test contract', () => {
-      expect(compiled.map(withoutDebug)).toMatchSnapshot();
+      expect(compiledContract.map(withoutDebug)).toMatchSnapshot();
     });
 
     it('generates typescript interface', () => {
-      const result = generateTypescriptContractInterface(compiled[0], `../target/test.json`);
+      const result = generateTypescriptContractInterface(compiledContract[0], `../target/test.json`);
       expect(result).toMatchSnapshot();
     });
 
     it('generates Aztec.nr external interface', () => {
-      const result = generateNoirContractInterface(compiled[0]);
+      const result = generateNoirContractInterface(compiledContract[0]);
       expect(result).toMatchSnapshot();
     });
   }

@@ -6,7 +6,7 @@ import { emptyDirSync } from 'fs-extra';
 import path from 'path';
 
 import { NoirCommit, NoirTag } from '../index.js';
-import { NoirCompilationArtifacts, NoirCompiledContract, NoirDebugMetadata } from '../noir_artifact.js';
+import { NoirCompiledContract, NoirContractCompilationArtifacts, NoirDebugMetadata } from '../noir_artifact.js';
 
 /** Compilation options */
 export type CompileOpts = {
@@ -31,7 +31,7 @@ export class NargoContractCompiler {
    * Compiles the contracts in projectPath and returns the Aztec.nr artifact.
    * @returns Aztec.nr artifact of the compiled contracts.
    */
-  public compile(): Promise<NoirCompilationArtifacts[]> {
+  public compile(): Promise<NoirContractCompilationArtifacts[]> {
     const stdio = this.opts.quiet ? 'ignore' : 'inherit';
     const nargoBin = this.opts.nargoBin ?? 'nargo';
     const version = execSync(`${nargoBin} --version`, { cwd: this.projectPath, stdio: 'pipe' }).toString();
@@ -51,7 +51,7 @@ export class NargoContractCompiler {
     }
   }
 
-  private collectArtifacts(): NoirCompilationArtifacts[] {
+  private collectArtifacts(): NoirContractCompilationArtifacts[] {
     const contractArtifacts = new Map<string, NoirCompiledContract>();
     const debugArtifacts = new Map<string, NoirDebugMetadata>();
 

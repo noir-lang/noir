@@ -1,10 +1,5 @@
 import { ABIType } from '@aztec/foundation/abi';
-import { createConsoleLogger } from '@aztec/foundation/log';
-import { NoirCompiledCircuit, NoirFunctionAbi } from '@aztec/noir-compiler';
-
-import fs from 'fs/promises';
-
-const log = createConsoleLogger('aztec:noir-contracts');
+import { NoirFunctionAbi } from '@aztec/noir-compiler';
 
 /**
  * Keep track off all of the Noir primitive types that were used.
@@ -151,7 +146,7 @@ function generateStructInterfaces(type: ABIType, output: Set<string>): string {
  * @param abiObj - The ABI to generate the interface for.
  * @returns The TypeScript code to define the interface.
  */
-function generateTsInterface(abiObj: NoirFunctionAbi): string {
+export function generateTypescriptProgramInterface(abiObj: NoirFunctionAbi): string {
   let result = ``;
   const outputStructs = new Set<string>();
 
@@ -191,31 +186,4 @@ function generateTsInterface(abiObj: NoirFunctionAbi): string {
     '\n' +
     result
   );
-}
-
-const circuits = [
-  'private_kernel_init',
-  'private_kernel_inner',
-  'private_kernel_ordering',
-  'public_kernel_private_previous',
-  'public_kernel_public_previous',
-  'rollup_base',
-  'rollup_merge',
-  'rollup_root',
-];
-
-const main = async () => {
-  for (const circuit of circuits) {
-    const rawData = await fs.readFile(`./src/target/${circuit}.json`, 'utf-8');
-    const abiObj: NoirCompiledCircuit = JSON.parse(rawData);
-    const generatedInterface = generateTsInterface(abiObj.abi);
-    await fs.writeFile(`./src/types/${circuit}_types.ts`, generatedInterface);
-  }
-};
-
-try {
-  await main();
-} catch (err: unknown) {
-  log(`Error generating types ${err}`);
-  process.exit(1);
 }

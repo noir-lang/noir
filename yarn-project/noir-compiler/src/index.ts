@@ -6,12 +6,14 @@ import { join, resolve } from 'path';
 import { CompileOpts, NargoContractCompiler } from './compile/nargo.js';
 import { FileManager } from './compile/noir/file-manager/file-manager.js';
 import { NoirWasmCompileOptions, NoirWasmContractCompiler } from './compile/noir/noir-wasm-compiler.js';
-import { generateContractArtifact } from './contract-interface-gen/abi.js';
+import { generateArtifact, generateContractArtifact } from './contract-interface-gen/abi.js';
+import { ProgramArtifact } from './noir_artifact.js';
 
 export * from './versions.js';
 
+export { generateTypescriptContractInterface } from './contract-interface-gen/contractTypescript.js';
 export { generateNoirContractInterface } from './contract-interface-gen/noir.js';
-export { generateTypescriptContractInterface } from './contract-interface-gen/typescript.js';
+export { generateTypescriptProgramInterface } from './contract-interface-gen/programTypescript.js';
 export { generateContractArtifact };
 
 export * from './noir_artifact.js';
@@ -37,12 +39,12 @@ export async function compileUsingNargo(projectPath: string, opts: CompileOpts =
 export async function compileUsingNoirWasm(
   projectPath: string,
   opts: NoirWasmCompileOptions,
-): Promise<ContractArtifact[]> {
+): Promise<(ContractArtifact | ProgramArtifact)[]> {
   const cacheRoot = process.env.XDG_CACHE_HOME ?? join(process.env.HOME ?? '', '.cache');
   const fileManager = new FileManager(fs, join(cacheRoot, 'aztec-noir-compiler'));
   const compiler = NoirWasmContractCompiler.new(fileManager, resolve(projectPath), opts);
   const artifacts = await compiler.compile();
-  const resolvedAztecNrVersion = compiler.getResolvedAztecNrVersion();
-
-  return artifacts.map(artifact => generateContractArtifact(artifact, resolvedAztecNrVersion));
+  return artifacts.map(artifact => {
+    return generateArtifact(artifact);
+  });
 }

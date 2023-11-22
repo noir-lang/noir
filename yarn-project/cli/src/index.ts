@@ -20,7 +20,7 @@ import { JsonStringify } from '@aztec/foundation/json-rpc';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import { sleep } from '@aztec/foundation/sleep';
 import { fileURLToPath } from '@aztec/foundation/url';
-import { compileContract, generateNoirInterface, generateTypescriptInterface } from '@aztec/noir-compiler/cli';
+import { compileNoir, generateNoirInterface, generateTypescriptInterface } from '@aztec/noir-compiler/cli';
 import { CompleteAddress, ContractData, ExtendedNote, LogFilter } from '@aztec/types';
 
 import { createSecp256k1PeerId } from '@libp2p/peer-id-factory';
@@ -740,7 +740,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       await update(projectPath, contract, options.rpcUrl, options.sandboxVersion, log, debugLogger);
     });
 
-  compileContract(program, 'compile', log);
+  compileNoir(program, 'compile', log);
   generateTypescriptInterface(program, 'generate-typescript', log);
   generateNoirInterface(program, 'generate-noir-interface', log);
 

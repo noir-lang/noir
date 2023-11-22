@@ -30,6 +30,13 @@ export class NoirPackage {
   }
 
   /**
+   * Gets this package's Nargo.toml (NoirPackage)Config.
+   */
+  public getNoirPackageConfig() {
+    return this.#config;
+  }
+
+  /**
    * The path to the source directory.
    */
   public getSrcPath() {
@@ -44,6 +51,8 @@ export class NoirPackage {
 
     switch (this.getType()) {
       case 'lib':
+        // we shouldn't need to compile `lib` type, since the .nr source is read directly
+        // when the lib is used as a dependency elsewhere.
         entrypoint = 'lib.nr';
         break;
       case 'contract':

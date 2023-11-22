@@ -13,7 +13,7 @@ build() {
   echo "Compiling $CONTRACT_NAME..."
   rm -rf ${CONTRACT_FOLDER}/target
 
-  node --no-warnings "$COMPILER" contract "$CONTRACT_FOLDER"
+  node --no-warnings "$COMPILER" compile "$CONTRACT_FOLDER"
 }
 
 export -f build

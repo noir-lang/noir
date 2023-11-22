@@ -3,7 +3,15 @@ import { ContractArtifact, DebugMetadata, FunctionArtifact, FunctionType } from 
 import { deflate } from 'pako';
 
 import { mockVerificationKey } from '../mocked_keys.js';
-import { NoirCompilationArtifacts, NoirFunctionEntry } from '../noir_artifact.js';
+import {
+  NoirCompilationResult,
+  NoirContractCompilationArtifacts,
+  NoirFunctionEntry,
+  NoirProgramCompilationArtifacts,
+  ProgramArtifact,
+  isNoirContractCompilationArtifacts,
+  isNoirProgramCompilationArtifacts,
+} from '../noir_artifact.js';
 
 /**
  * Generates a function build artifact. Replaces verification key with a mock value.
@@ -35,12 +43,49 @@ function generateFunctionArtifact(fn: NoirFunctionEntry): FunctionArtifact {
 }
 
 /**
+ * Entrypoint for generating the .json artifact for compiled contract or program
+ * @param compileResult - Noir build output.
+ * @returns Aztec contract build artifact.
+ */
+export function generateArtifact(compileResult: NoirCompilationResult) {
+  if (isNoirContractCompilationArtifacts(compileResult)) {
+    return generateContractArtifact(compileResult);
+  } else if (isNoirProgramCompilationArtifacts(compileResult)) {
+    return generateProgramArtifact(compileResult);
+  } else {
+    throw Error('Unsupported artifact type');
+  }
+}
+
+/**
+ * Given a Nargo output generates an Aztec-compatible contract artifact.
+ * @param compiled - Noir build output.
+ * @returns Aztec contract build artifact.
+ */
+export function generateProgramArtifact(
+  { program }: NoirProgramCompilationArtifacts,
+  // eslint-disable-next-line camelcase
+  noir_version?: string,
+): ProgramArtifact {
+  return {
+    // eslint-disable-next-line camelcase
+    noir_version,
+    hash: program.hash,
+    backend: program.backend,
+    abi: program.abi,
+
+    // TODO: should we parse and write the debug?  it doesn't seem to be in the nargo output
+    // debug: someParsedDebug,
+  };
+}
+
+/**
  * Given a Nargo output generates an Aztec-compatible contract artifact.
  * @param compiled - Noir build output.
  * @returns Aztec contract build artifact.
  */
 export function generateContractArtifact(
-  { contract, debug }: NoirCompilationArtifacts,
+  { contract, debug }: NoirContractCompilationArtifacts,
   aztecNrVersion?: string,
 ): ContractArtifact {
   const originalFunctions = contract.functions;

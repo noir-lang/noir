@@ -3,7 +3,7 @@ import { createConsoleLogger } from '@aztec/foundation/log';
 
 import { Command } from 'commander';
 
-import { compileContract } from './cli/contract.js';
+import { compileNoir } from './cli/compileNoir.js';
 import { generateNoirInterface } from './cli/noir-interface.js';
 import { generateTypescriptInterface } from './cli/typescript.js';
 
@@ -12,7 +12,7 @@ const log = createConsoleLogger('aztec:compiler-cli');
 
 const main = async () => {
   program.name('aztec-compile');
-  compileContract(program, 'contract', log);
+  compileNoir(program, 'compile', log);
   generateTypescriptInterface(program, 'typescript', log);
   generateNoirInterface(program, 'interface', log);
   await program.parseAsync(process.argv);

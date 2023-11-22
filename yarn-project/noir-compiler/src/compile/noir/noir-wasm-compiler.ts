@@ -3,7 +3,7 @@ import { LogFn, createDebugLogger } from '@aztec/foundation/log';
 import { CompileError, compile } from '@noir-lang/noir_wasm';
 import { isAbsolute } from 'node:path';
 
-import { NoirCompilationArtifacts } from '../../noir_artifact.js';
+import { NoirCompilationResult, NoirProgramCompilationArtifacts } from '../../noir_artifact.js';
 import { NoirDependencyManager } from './dependencies/dependency-manager.js';
 import { GithubDependencyResolver as GithubCodeArchiveDependencyResolver } from './dependencies/github-dependency-resolver.js';
 import { LocalDependencyResolver } from './dependencies/local-dependency-resolver.js';
@@ -54,9 +54,6 @@ export class NoirWasmContractCompiler {
     }
 
     const noirPackage = NoirPackage.open(projectPath, fileManager);
-    if (noirPackage.getType() !== 'contract') {
-      throw new Error('This is not a contract project');
-    }
 
     const dependencyManager = new NoirDependencyManager(
       [
@@ -80,15 +77,65 @@ export class NoirWasmContractCompiler {
   }
 
   /**
-   * Compiles the project.
+   * Compile EntryPoint
    */
-  public async compile(): Promise<NoirCompilationArtifacts[]> {
-    const isContract = this.#package.getType() === 'contract';
-    // limit to contracts-only because the rest of the pipeline only supports processing contracts
-    if (!isContract) {
-      throw new Error('Noir project is not a contract');
+  public async compile(): Promise<NoirCompilationResult[]> {
+    if (this.#package.getType() === 'contract') {
+      this.#debugLog(`Compiling Contract at ${this.#package.getEntryPointPath()}`);
+      return await this.compileContract();
+    } else if (this.#package.getType() === 'bin') {
+      this.#debugLog(`Compiling Program at ${this.#package.getEntryPointPath()}`);
+      return await this.compileProgram();
+    } else {
+      this.#log(
+        `Compile skipped - only supports compiling "contract" and "bin" package types (${this.#package.getType()})`,
+      );
+      return [];
     }
+  }
 
+  /**
+   * Compiles the Program.
+   */
+  public async compileProgram(): Promise<NoirProgramCompilationArtifacts[]> {
+    await this.#dependencyManager.resolveDependencies();
+    this.#debugLog(`Dependencies: ${this.#dependencyManager.getPackageNames().join(', ')}`);
+
+    initializeResolver(this.#resolveFile);
+
+    try {
+      const isContract: boolean = false;
+      const result = compile(this.#package.getEntryPointPath(), isContract, {
+        /* eslint-disable camelcase */
+        root_dependencies: this.#dependencyManager.getEntrypointDependencies(),
+        library_dependencies: this.#dependencyManager.getLibraryDependencies(),
+        /* eslint-enable camelcase */
+      });
+
+      if (!('program' in result)) {
+        throw new Error('No program found in compilation result');
+      }
+
+      return [{ name: this.#package.getNoirPackageConfig().package.name, ...result }];
+    } catch (err) {
+      if (err instanceof Error && err.name === 'CompileError') {
+        this.#processCompileError(err as CompileError);
+      }
+
+      throw err;
+    }
+  }
+
+  /**
+   * Compiles the Contract.
+   */
+  public async compileContract(): Promise<NoirCompilationResult[]> {
+    if (!(this.#package.getType() === 'contract' || this.#package.getType() === 'bin')) {
+      this.#log(
+        `Compile skipped - only supports compiling "contract" and "bin" package types (${this.#package.getType()})`,
+      );
+      return [];
+    }
     this.#debugLog(`Compiling contract at ${this.#package.getEntryPointPath()}`);
     await this.#dependencyManager.resolveDependencies();
     this.#debugLog(`Dependencies: ${this.#dependencyManager.getPackageNames().join(', ')}`);
@@ -96,6 +143,7 @@ export class NoirWasmContractCompiler {
     initializeResolver(this.#resolveFile);
 
     try {
+      const isContract: boolean = true;
       const result = compile(this.#package.getEntryPointPath(), isContract, {
         /* eslint-disable camelcase */
         root_dependencies: this.#dependencyManager.getEntrypointDependencies(),
