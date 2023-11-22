@@ -610,13 +610,6 @@ impl<'block> BrilligBlock<'block> {
                     | BrilligVariable::BrilligVector(BrilligVector { rc, .. }) => rc,
                     _ => unreachable!("ICE: increment rc on non-array"),
                 };
-                self.brillig_context.constrain_instruction(
-                    rc_register,
-                    Some(format!(
-                        "Invalid RC {} of value {} at function {}",
-                        rc_register.0, value, self.function_context.function_id
-                    )),
-                );
                 self.brillig_context.usize_op_in_place(rc_register, BinaryIntOp::Add, 1);
             }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
@@ -791,6 +784,8 @@ impl<'block> BrilligBlock<'block> {
         self.store_variable_in_array(destination_pointer, index_register, value_variable);
 
         self.brillig_context.deallocate_register(source_size_as_register);
+        self.brillig_context.deallocate_register(one);
+        self.brillig_context.deallocate_register(condition);
     }
 
     pub(crate) fn store_variable_in_array_with_ctx(

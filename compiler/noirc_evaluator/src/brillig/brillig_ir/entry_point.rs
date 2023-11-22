@@ -47,26 +47,24 @@ impl BrilligContext {
         let argument_variables: Vec<_> = arguments
             .iter()
             .zip(preallocated_registers)
-            .map(|(argument, param_register)| {
-                match argument {
-                    BrilligParameter::Simple => {
-                        let variable_register = self.allocate_register();
-                        self.mov_instruction(variable_register, param_register);
-                        BrilligVariable::Simple(variable_register)
-                    }
-                    BrilligParameter::Array(..) => {
-                        let pointer_register = self.allocate_register();
-                        let rc_register = self.allocate_register();
-                        self.mov_instruction(pointer_register, param_register);
-                        self.const_instruction(rc_register, 1_usize.into());
-                        BrilligVariable::BrilligArray(BrilligArray {
-                            pointer: pointer_register,
-                            size: 0, // TODO
-                            rc: rc_register,
-                        })
-                    }
-                    BrilligParameter::Slice(_) => unimplemented!("Unsupported slices as parameter"),
+            .map(|(argument, param_register)| match argument {
+                BrilligParameter::Simple => {
+                    let variable_register = self.allocate_register();
+                    self.mov_instruction(variable_register, param_register);
+                    BrilligVariable::Simple(variable_register)
                 }
+                BrilligParameter::Array(item_types, item_count) => {
+                    let pointer_register = self.allocate_register();
+                    let rc_register = self.allocate_register();
+                    self.mov_instruction(pointer_register, param_register);
+                    self.const_instruction(rc_register, 1_usize.into());
+                    BrilligVariable::BrilligArray(BrilligArray {
+                        pointer: pointer_register,
+                        size: item_types.len() * item_count,
+                        rc: rc_register,
+                    })
+                }
+                BrilligParameter::Slice(_) => unimplemented!("Unsupported slices as parameter"),
             })
             .collect();
 
@@ -182,7 +180,7 @@ impl BrilligContext {
                             reference,
                             BrilligVariable::BrilligArray(BrilligArray {
                                 pointer: deflattened_nested_array_pointer,
-                                size: 0, // TODO
+                                size: nested_array_item_type.len() * nested_array_item_count,
                                 rc,
                             }),
                         );
@@ -217,18 +215,16 @@ impl BrilligContext {
         self.set_allocated_registers(vec![]);
         let returned_variables: Vec<_> = return_parameters
             .iter()
-            .map(|return_parameter| {
-                match return_parameter {
-                    BrilligParameter::Simple => BrilligVariable::Simple(self.allocate_register()),
-                    BrilligParameter::Array(..) => {
-                        BrilligVariable::BrilligArray(BrilligArray {
-                            pointer: self.allocate_register(),
-                            size: 0, // TODO
-                            rc: self.allocate_register(),
-                        })
-                    }
-                    BrilligParameter::Slice(..) => unreachable!("ICE: Cannot return slices"),
+            .map(|return_parameter| match return_parameter {
+                BrilligParameter::Simple => BrilligVariable::Simple(self.allocate_register()),
+                BrilligParameter::Array(item_types, item_count) => {
+                    BrilligVariable::BrilligArray(BrilligArray {
+                        pointer: self.allocate_register(),
+                        size: item_types.len() * item_count,
+                        rc: self.allocate_register(),
+                    })
                 }
+                BrilligParameter::Slice(..) => unreachable!("ICE: Cannot return slices"),
             })
             .collect();
         // Now, we unflatten the returned arrays
@@ -311,7 +307,7 @@ impl BrilligContext {
 
                         let nested_array_variable = BrilligVariable::BrilligArray(BrilligArray {
                             pointer: self.allocate_register(),
-                            size: 0, // TODO
+                            size: nested_array_item_type.len() * nested_array_item_count,
                             rc: self.allocate_register(),
                         });
 
