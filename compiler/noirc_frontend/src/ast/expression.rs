@@ -143,16 +143,19 @@ impl Expression {
 
     pub fn member_access_or_method_call(
         lhs: Expression,
-        (rhs, args): (Ident, Option<Vec<Expression>>),
+        (rhs, args): (Ident, Option<(Option<Vec<UnresolvedType>>, Vec<Expression>)>),
         span: Span,
     ) -> Expression {
         let kind = match args {
             None => ExpressionKind::MemberAccess(Box::new(MemberAccessExpression { lhs, rhs })),
-            Some(arguments) => ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                object: lhs,
-                method_name: rhs,
-                arguments,
-            })),
+            Some((generics, arguments)) => {
+                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: lhs,
+                    method_name: rhs,
+                    generics,
+                    arguments,
+                }))
+            }
         };
         Expression::new(kind, span)
     }
@@ -167,11 +170,7 @@ impl Expression {
         Expression::new(kind, span)
     }
 
-    pub fn call(
-        lhs: Expression,
-        arguments: Vec<Expression>,
-        span: Span,
-    ) -> Expression {
+    pub fn call(lhs: Expression, arguments: Vec<Expression>, span: Span) -> Expression {
         // Need to check if lhs is an if expression since users can sequence if expressions
         // with tuples without calling them. E.g. `if c { t } else { e }(a, b)` is interpreted
         // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
@@ -187,10 +186,7 @@ impl Expression {
                 },
             ]))
         } else {
-            ExpressionKind::Call(Box::new(CallExpression {
-                func: Box::new(lhs),
-                arguments,
-            }))
+            ExpressionKind::Call(Box::new(CallExpression { func: Box::new(lhs), arguments }))
         };
         Expression::new(kind, span)
     }
@@ -432,6 +428,8 @@ pub struct CallExpression {
 pub struct MethodCallExpression {
     pub object: Expression,
     pub method_name: Ident,
+    /// Method calls have an optional list of generics if the turbofish operator was used
+    pub generics: Option<Vec<UnresolvedType>>,
     pub arguments: Vec<Expression>,
 }
 

@@ -551,6 +551,7 @@ impl ForRange {
                 let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
                     object: Expression::new(array_ident.clone(), array_span),
                     method_name: Ident::new("len".to_string(), array_span),
+                    generics: None,
                     arguments: vec![],
                 }));
                 let end_range = Expression::new(end_range, array_span);

@@ -203,14 +203,12 @@ impl<'interner> TypeChecker<'interner> {
                             HirMethodReference::TraitMethodId(method) => Some(method.trait_id),
                         };
 
-                        let (function_id, function_call) = method_call.into_function_call(
-                            method_ref.clone(),
-                            location,
-                            self.interner,
-                        );
+                        let (function_id, function_call, generics) = method_call
+                            .into_function_call(method_ref.clone(), location, self.interner);
 
                         let span = self.interner.expr_span(expr_id);
-                        let ret = self.check_method_call(&function_id, method_ref, args, span);
+                        let ret =
+                            self.check_method_call(&function_id, method_ref, generics, args, span);
 
                         if let Some(trait_id) = trait_id {
                             self.verify_trait_constraint(&object_type, trait_id, function_id, span);
@@ -534,6 +532,8 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         function_ident_id: &ExprId,
         method_ref: HirMethodReference,
+        // The optional list of generics if the turbofish operator was used
+        generics: Option<Vec<Type>>,
         arguments: Vec<(Type, ExprId, Span)>,
         span: Span,
     ) -> Type {
@@ -564,7 +564,10 @@ impl<'interner> TypeChecker<'interner> {
             });
         }
 
-        let (function_type, instantiation_bindings) = fn_typ.instantiate(self.interner);
+        let (function_type, instantiation_bindings) = match generics {
+            Some(generics) => fn_typ.instantiate_with(generics),
+            None => fn_typ.instantiate(self.interner),
+        };
 
         self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
         self.interner.push_expr_type(function_ident_id, function_type.clone());

@@ -1252,7 +1252,8 @@ impl<'a> Resolver<'a> {
                         }
                     }
 
-                    let generics = generics.map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
+                    let generics =
+                        generics.map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
 
                     HirExpression::Ident(hir_ident, generics)
                 }
@@ -1290,12 +1291,16 @@ impl<'a> Resolver<'a> {
             ExpressionKind::MethodCall(call_expr) => {
                 let method = call_expr.method_name;
                 let object = self.resolve_expression(call_expr.object);
+                let generics = call_expr
+                    .generics
+                    .map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
                 HirExpression::MethodCall(HirMethodCallExpression {
-                    arguments,
                     method,
                     object,
+                    generics,
+                    arguments,
                     location,
                 })
             }

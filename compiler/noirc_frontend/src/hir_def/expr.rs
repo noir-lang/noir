@@ -144,6 +144,8 @@ pub struct HirCallExpression {
 pub struct HirMethodCallExpression {
     pub method: Ident,
     pub object: ExprId,
+    /// Method calls have an optional list of generics provided by the turbofish operator
+    pub generics: Option<Vec<Type>>,
     pub arguments: Vec<ExprId>,
     pub location: Location,
 }
@@ -167,7 +169,7 @@ impl HirMethodCallExpression {
         method: HirMethodReference,
         location: Location,
         interner: &mut NodeInterner,
-    ) -> (ExprId, HirExpression) {
+    ) -> (ExprId, HirExpression, Option<Vec<Type>>) {
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
@@ -181,7 +183,7 @@ impl HirMethodCallExpression {
             }
         };
         let func = interner.push_expr(expr);
-        (func, HirExpression::Call(HirCallExpression { func, arguments, location }))
+        (func, HirExpression::Call(HirCallExpression { func, arguments, location }), self.generics)
     }
 }
 
