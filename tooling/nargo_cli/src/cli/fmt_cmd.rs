@@ -32,7 +32,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
     let config = nargo_fmt::Config::read(&config.program_dir)
         .map_err(|err| CliError::Generic(err.to_string()))?;
 
-    let mut exit_code_one = false;
+    let mut check_exit_code_one = false;
 
     for package in &workspace {
         let mut file_manager =
@@ -65,17 +65,22 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
             let formatted = nargo_fmt::format(original, parsed_module, &config);
 
             if check_mode {
-                if !exit_code_one {
-                    exit_code_one = original != formatted;
-                }
-
                 let diff = similar_asserts::SimpleDiff::from_str(
                     original,
                     &formatted,
                     "original",
                     "formatted",
-                );
-                println!("{diff}");
+                )
+                .to_string();
+
+                if !diff.contains("Invisible differences") {
+                    if !check_exit_code_one {
+                        check_exit_code_one = true;
+                    }
+
+                    println!("{diff}");
+                }
+
                 Ok(())
             } else {
                 std::fs::write(entry.path(), formatted)
@@ -84,8 +89,10 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
         .map_err(|error| CliError::Generic(error.to_string()))?;
     }
 
-    if exit_code_one {
+    if check_exit_code_one {
         std::process::exit(1);
+    } else {
+        println!("No formatting changes were detected");
     }
 
     Ok(())
