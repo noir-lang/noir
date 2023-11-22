@@ -43,6 +43,8 @@ impl Dependency {
 
 #[derive(Clone)]
 pub struct Package {
+    // A semver string which specifies the compiler version required to compile this package
+    pub compiler_required_version: Option<String>,
     pub root_dir: PathBuf,
     pub package_type: PackageType,
     pub entry_path: PathBuf,

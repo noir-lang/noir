@@ -3,8 +3,9 @@ use std::{fs::DirEntry, path::Path};
 use clap::Args;
 use fm::FileManager;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_errors::CustomDiagnostic;
-use noirc_frontend::hir::def_map::parse_file;
+use noirc_frontend::{hir::def_map::parse_file, parser::ParserError};
 
 use crate::errors::CliError;
 
@@ -16,7 +17,11 @@ pub(crate) struct FormatCommand {}
 
 pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
-    let workspace = resolve_workspace_from_toml(&toml_path, PackageSelection::All)?;
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        PackageSelection::All,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    )?;
 
     let config = nargo_fmt::Config::read(&config.program_dir)
         .map_err(|err| CliError::Generic(err.to_string()))?;
@@ -29,7 +34,8 @@ pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliEr
             let file_id = file_manager.add_file(&entry.path()).expect("file exists");
             let (parsed_module, errors) = parse_file(&file_manager, file_id);
 
-            if !errors.is_empty() {
+            let is_all_warnings = errors.iter().all(ParserError::is_warning);
+            if !is_all_warnings {
                 let errors = errors
                     .into_iter()
                     .map(|error| {

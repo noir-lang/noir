@@ -6,20 +6,17 @@ use super::{
 };
 use acvm::FieldElement;
 use noirc_errors::{Position, Span};
-use std::str::Chars;
-use std::{
-    iter::{Peekable, Zip},
-    ops::RangeFrom,
-};
+use std::str::CharIndices;
 
 /// The job of the lexer is to transform an iterator of characters (`char_iter`)
 /// into an iterator of `SpannedToken`. Each `Token` corresponds roughly to 1 word or operator.
 /// Tokens are tagged with their location in the source file (a `Span`) for use in error reporting.
 pub struct Lexer<'a> {
-    char_iter: Peekable<Zip<Chars<'a>, RangeFrom<u32>>>,
+    chars: CharIndices<'a>,
     position: Position,
     done: bool,
     skip_comments: bool,
+    skip_whitespaces: bool,
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
@@ -42,11 +39,11 @@ impl<'a> Lexer<'a> {
 
     pub fn new(source: &'a str) -> Self {
         Lexer {
-            // We zip with the character index here to ensure the first char has index 0
-            char_iter: source.chars().zip(0..).peekable(),
+            chars: source.char_indices(),
             position: 0,
             done: false,
             skip_comments: true,
+            skip_whitespaces: true,
         }
     }
 
@@ -55,23 +52,28 @@ impl<'a> Lexer<'a> {
         self
     }
 
+    pub fn skip_whitespaces(mut self, flag: bool) -> Self {
+        self.skip_whitespaces = flag;
+        self
+    }
+
     /// Iterates the cursor and returns the char at the new cursor position
     fn next_char(&mut self) -> Option<char> {
-        let (c, index) = self.char_iter.next()?;
-        self.position = index;
-        Some(c)
+        let (position, ch) = self.chars.next()?;
+        self.position = position as u32;
+        Some(ch)
     }
 
     /// Peeks at the next char. Does not iterate the cursor
     fn peek_char(&mut self) -> Option<char> {
-        self.char_iter.peek().map(|(c, _)| *c)
+        self.chars.clone().next().map(|(_, ch)| ch)
     }
 
     /// Peeks at the character two positions ahead. Does not iterate the cursor
     fn peek2_char(&mut self) -> Option<char> {
-        let mut chars = self.char_iter.clone();
+        let mut chars = self.chars.clone();
         chars.next();
-        chars.next().map(|(c, _)| c)
+        chars.next().map(|(_, ch)| ch)
     }
 
     /// Peeks at the next char and returns true if it is equal to the char argument
@@ -92,9 +94,13 @@ impl<'a> Lexer<'a> {
 
     fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
-            Some(x) if { x.is_whitespace() } => {
-                self.eat_whitespace();
-                self.next_token()
+            Some(x) if x.is_whitespace() => {
+                let spanned = self.eat_whitespace(x);
+                if self.skip_whitespaces {
+                    self.next_token()
+                } else {
+                    Ok(spanned)
+                }
             }
             Some('<') => self.glue(Token::Less),
             Some('>') => self.glue(Token::Greater),
@@ -464,8 +470,10 @@ impl<'a> Lexer<'a> {
     }
 
     /// Skips white space. They are not significant in the source language
-    fn eat_whitespace(&mut self) {
-        self.eat_while(None, |ch| ch.is_whitespace());
+    fn eat_whitespace(&mut self, initial_char: char) -> SpannedToken {
+        let start = self.position;
+        let whitespace = self.eat_while(initial_char.into(), |ch| ch.is_whitespace());
+        SpannedToken::new(Token::Whitespace(whitespace), Span::inclusive(start, self.position))
     }
 }
 
@@ -548,6 +556,20 @@ mod tests {
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Deprecated(None)))
+        );
+    }
+
+    #[test]
+    fn test_attribute_with_apostrophe() {
+        let input = r#"#[test(should_fail_with = "the eagle's feathers")]"#;
+        let mut lexer = Lexer::new(input);
+
+        let token = lexer.next_token().unwrap().token().clone();
+        assert_eq!(
+            token,
+            Token::Attribute(Attribute::Function(FunctionAttribute::Test(
+                TestScope::ShouldFailWith { reason: "the eagle's feathers".to_owned().into() }
+            )))
         );
     }
 

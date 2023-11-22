@@ -5,7 +5,7 @@ struct myStruct {
     bar: Field,
 }
 
-fn main(y : pub myStruct) {
+fn main(y: pub myStruct) {
     assert(y.foo == 5);
     assert(y.bar == 7);
 }

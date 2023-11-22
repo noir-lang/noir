@@ -10,6 +10,7 @@ use nargo::artifacts::contract::PreprocessedContract;
 use nargo::artifacts::contract::PreprocessedContractFunction;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::artifacts::program::PreprocessedProgram;
+use nargo::errors::CompileError;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
@@ -21,7 +22,7 @@ use noirc_frontend::graph::CrateName;
 use clap::Args;
 
 use crate::backends::Backend;
-use crate::errors::{CliError, CompileError};
+use crate::errors::CliError;
 
 use super::fs::program::{
     read_debug_artifact_from_file, read_program_from_file, save_contract_to_file,
@@ -61,7 +62,12 @@ pub(crate) fn run(
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
-    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
+
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        selection,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+    )?;
     let circuit_dir = workspace.target_directory_path();
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace

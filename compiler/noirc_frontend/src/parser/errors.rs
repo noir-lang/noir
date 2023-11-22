@@ -30,8 +30,6 @@ pub enum ParserErrorReason {
     ComptimeDeprecated,
     #[error("{0} are experimental and aren't fully supported yet")]
     ExperimentalFeature(&'static str),
-    #[error("Where clauses are allowed only on functions with generic parameters")]
-    WhereClauseOnNonGenericFunction,
     #[error(
         "Multiple primary attributes found. Only one function attribute is allowed per function"
     )]
@@ -98,6 +96,10 @@ impl ParserError {
 
     pub fn reason(&self) -> Option<&ParserErrorReason> {
         self.reason.as_ref()
+    }
+
+    pub fn is_warning(&self) -> bool {
+        matches!(self.reason(), Some(ParserErrorReason::ExperimentalFeature(_)))
     }
 }
 

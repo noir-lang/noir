@@ -4,7 +4,7 @@ use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 
 use nargo::{package::Package, prepare_package, workspace::Workspace};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::check_crate;
+use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
@@ -22,6 +22,9 @@ const INFO_COMMAND: &str = "nargo.info";
 const INFO_CODELENS_TITLE: &str = "Info";
 const EXECUTE_COMMAND: &str = "nargo.execute";
 const EXECUTE_CODELENS_TITLE: &str = "Execute";
+
+const PROFILE_COMMAND: &str = "nargo.profile";
+const PROFILE_CODELENS_TITLE: &str = "Profile";
 
 fn with_arrow(title: &str) -> String {
     format!("{ARROW} {title}")
@@ -67,11 +70,15 @@ fn on_code_lens_request_inner(
             return Ok(None);
         }
     };
-    let workspace =
-        resolve_workspace_from_toml(&toml_path, PackageSelection::All).map_err(|err| {
-            // If we found a manifest, but the workspace is invalid, we raise an error about it
-            ResponseError::new(ErrorCode::REQUEST_FAILED, err)
-        })?;
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        PackageSelection::All,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    )
+    .map_err(|err| {
+        // If we found a manifest, but the workspace is invalid, we raise an error about it
+        ResponseError::new(ErrorCode::REQUEST_FAILED, err)
+    })?;
 
     let mut lenses: Vec<CodeLens> = vec![];
 
@@ -159,6 +166,16 @@ fn on_code_lens_request_inner(
                 let execute_lens = CodeLens { range, command: Some(execute_command), data: None };
 
                 lenses.push(execute_lens);
+
+                let profile_command = Command {
+                    title: PROFILE_CODELENS_TITLE.to_string(),
+                    command: PROFILE_COMMAND.into(),
+                    arguments: Some(package_selection_args(&workspace, package)),
+                };
+
+                let profile_lens = CodeLens { range, command: Some(profile_command), data: None };
+
+                lenses.push(profile_lens);
             }
         }
 
@@ -196,6 +213,16 @@ fn on_code_lens_request_inner(
                 let info_lens = CodeLens { range, command: Some(info_command), data: None };
 
                 lenses.push(info_lens);
+
+                let profile_command = Command {
+                    title: PROFILE_CODELENS_TITLE.to_string(),
+                    command: PROFILE_COMMAND.into(),
+                    arguments: Some(package_selection_args(&workspace, package)),
+                };
+
+                let profile_lens = CodeLens { range, command: Some(profile_command), data: None };
+
+                lenses.push(profile_lens);
             }
         }
     }

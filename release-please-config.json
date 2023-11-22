@@ -26,6 +26,11 @@
         },
         {
           "type": "json",
+          "path": "tooling/noir_codegen/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
           "path": "tooling/noir_js/package.json",
           "jsonpath": "$.version"
         },
@@ -45,8 +50,8 @@
           "jsonpath": "$.version"
         }
       ]
-    }, 
-    "acvm-repo" : {
+    },
+    "acvm-repo": {
       "release-type": "simple",
       "package-name": "acvm",
       "component": "acvm",

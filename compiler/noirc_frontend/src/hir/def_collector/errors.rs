@@ -41,10 +41,18 @@ pub enum DefCollectorErrorKind {
     OverlappingImplNote { span: Span },
     #[error("Cannot `impl` a type defined outside the current crate")]
     ForeignImpl { span: Span, type_name: String },
-    #[error("Mismatch number of parameters in of trait implementation")]
+    #[error("Mismatched number of parameters in trait implementation")]
     MismatchTraitImplementationNumParameters {
         actual_num_parameters: usize,
         expected_num_parameters: usize,
+        trait_name: String,
+        method_name: String,
+        span: Span,
+    },
+    #[error("Mismatched number of generics in impl method")]
+    MismatchTraitImplementationNumGenerics {
+        impl_method_generic_count: usize,
+        trait_method_generic_count: usize,
         trait_name: String,
         method_name: String,
         span: Span,
@@ -67,6 +75,7 @@ pub enum DefCollectorErrorKind {
     TraitImplOrphaned { span: Span },
 
     // Aztec feature flag errors
+    // TODO(benesjan): https://github.com/AztecProtocol/aztec-packages/issues/2905
     #[cfg(feature = "aztec")]
     #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
     AztecNotFound {},
@@ -173,8 +182,21 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 method_name,
                 span,
             } => {
+                let plural = if expected_num_parameters == 1 { "" } else { "s" };
                 let primary_message = format!(
-                    "Method `{method_name}` of trait `{trait_name}` needs {expected_num_parameters} parameters, but has {actual_num_parameters}");
+                    "`{trait_name}::{method_name}` expects {expected_num_parameters} parameter{plural}, but this method has {actual_num_parameters}");
+                Diagnostic::simple_error(primary_message, "".to_string(), span)
+            }
+            DefCollectorErrorKind::MismatchTraitImplementationNumGenerics {
+                impl_method_generic_count,
+                trait_method_generic_count,
+                trait_name,
+                method_name,
+                span,
+            } => {
+                let plural = if trait_method_generic_count == 1 { "" } else { "s" };
+                let primary_message = format!(
+                    "`{trait_name}::{method_name}` expects {trait_method_generic_count} generic{plural}, but this method has {impl_method_generic_count}");
                 Diagnostic::simple_error(primary_message, "".to_string(), span)
             }
             DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method } => {

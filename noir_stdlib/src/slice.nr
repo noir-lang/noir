@@ -1,4 +1,3 @@
-
 impl<T> [T] {
     /// Push a new element to the end of the slice, returning a
     /// new slice with a length one greater than the

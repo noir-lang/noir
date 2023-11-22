@@ -1,5 +1,5 @@
 mod bar;
 
-fn hello(x : Field) -> Field {
+fn hello(x: Field) -> Field {
     x
 }

@@ -11,8 +11,8 @@ use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, Unr
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
-use crate::hir_def::traits::Trait;
 use crate::hir_def::traits::TraitImpl;
+use crate::hir_def::traits::{Trait, TraitConstraint};
 use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
@@ -24,6 +24,10 @@ use crate::{
     ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared, TypeAliasType,
     TypeBinding, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
+
+/// An arbitrary number to limit the recursion depth when searching for trait impls.
+/// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
+const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 
 type StructAttributes = Vec<SecondaryAttribute>;
 
@@ -97,7 +101,13 @@ pub struct NodeInterner {
     /// we cannot map from Type directly to impl, we need to iterate a Vec of all impls
     /// of that trait to see if any type may match. This can be further optimized later
     /// by splitting it up by type.
-    trait_implementation_map: HashMap<TraitId, Vec<(Type, TraitImplId)>>,
+    trait_implementation_map: HashMap<TraitId, Vec<(Type, TraitImplKind)>>,
+
+    /// When impls are found during type checking, we tag the function call's Ident
+    /// with the impl that was selected. For cases with where clauses, this may be
+    /// an Assumed (but verified) impl. In this case the monomorphizer should have
+    /// the context to get the concrete type of the object and select the correct impl itself.
+    selected_trait_implementations: HashMap<ExprId, TraitImplKind>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -125,6 +135,18 @@ pub struct NodeInterner {
 
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
+}
+
+/// A trait implementation is either a normal implementation that is present in the source
+/// program via an `impl` block, or it is assumed to exist from a `where` clause or similar.
+#[derive(Debug, Clone)]
+pub enum TraitImplKind {
+    Normal(TraitImplId),
+
+    /// Assumed impls don't have an impl id since they don't link back to any concrete part of the source code.
+    Assumed {
+        object_type: Type,
+    },
 }
 
 /// Represents the methods on a given type that each share the same name.
@@ -401,6 +423,7 @@ impl Default for NodeInterner {
             traits: HashMap::new(),
             trait_implementations: Vec::new(),
             trait_implementation_map: HashMap::new(),
+            selected_trait_implementations: HashMap::new(),
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: std::cell::Cell::new(0),
@@ -822,6 +845,10 @@ impl NodeInterner {
         self.traits[&id].clone()
     }
 
+    pub fn try_get_trait(&self, id: TraitId) -> Option<Trait> {
+        self.traits.get(&id).cloned()
+    }
+
     pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
         &self.type_aliases[id.0]
     }
@@ -946,44 +973,128 @@ impl NodeInterner {
         self.trait_implementations[id.0].clone()
     }
 
+    /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
+    /// constraint. If an impl cannot be found, this will return a vector of each constraint
+    /// in the path to get to the failing constraint. Usually this is just the single failing
+    /// constraint, but when where clauses are involved, the failing constraint may be several
+    /// constraints deep. In this case, all of the constraints are returned, starting with the
+    /// failing one.
     pub fn lookup_trait_implementation(
         &self,
-        object_type: Type,
+        object_type: &Type,
         trait_id: TraitId,
-    ) -> Option<Shared<TraitImpl>> {
-        let impls = self.trait_implementation_map.get(&trait_id)?;
-        for (existing_object_type, impl_id) in impls {
-            if object_type.try_unify(existing_object_type).is_ok() {
-                return Some(self.get_trait_implementation(*impl_id));
-            }
-        }
-        None
+    ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
+        self.lookup_trait_implementation_helper(object_type, trait_id, IMPL_SEARCH_RECURSION_LIMIT)
     }
 
+    fn lookup_trait_implementation_helper(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+        recursion_limit: u32,
+    ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
+        let make_constraint = || TraitConstraint::new(object_type.clone(), trait_id);
+
+        // Prevent infinite recursion when looking for impls
+        if recursion_limit == 0 {
+            return Err(vec![make_constraint()]);
+        }
+
+        let impls =
+            self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
+
+        for (existing_object_type, impl_kind) in impls {
+            let (existing_object_type, type_bindings) = existing_object_type.instantiate(self);
+
+            if object_type.try_unify(&existing_object_type).is_ok() {
+                if let TraitImplKind::Normal(impl_id) = impl_kind {
+                    let trait_impl = self.get_trait_implementation(*impl_id);
+                    let trait_impl = trait_impl.borrow();
+
+                    if let Err(mut errors) = self.validate_where_clause(
+                        &trait_impl.where_clause,
+                        &type_bindings,
+                        recursion_limit,
+                    ) {
+                        errors.push(make_constraint());
+                        return Err(errors);
+                    }
+                }
+
+                return Ok(impl_kind.clone());
+            }
+        }
+
+        Err(vec![make_constraint()])
+    }
+
+    /// Verifies that each constraint in the given where clause is valid.
+    /// If an impl cannot be found for any constraint, the erroring constraint is returned.
+    fn validate_where_clause(
+        &self,
+        where_clause: &[TraitConstraint],
+        type_bindings: &TypeBindings,
+        recursion_limit: u32,
+    ) -> Result<(), Vec<TraitConstraint>> {
+        for constraint in where_clause {
+            let constraint_type = constraint.typ.substitute(type_bindings);
+            self.lookup_trait_implementation_helper(
+                &constraint_type,
+                constraint.trait_id,
+                recursion_limit - 1,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Adds an "assumed" trait implementation to the currently known trait implementations.
+    /// Unlike normal trait implementations, these are only assumed to exist. They often correspond
+    /// to `where` clauses in functions where we assume there is some `T: Eq` even though we do
+    /// not yet know T. For these cases, we store an impl here so that we assume they exist and
+    /// can resolve them. They are then later verified when the function is called, and linked
+    /// properly after being monomorphized to the correct variant.
+    ///
+    /// Returns true on success, or false if there is already an overlapping impl in scope.
+    pub fn add_assumed_trait_implementation(
+        &mut self,
+        object_type: Type,
+        trait_id: TraitId,
+    ) -> bool {
+        // Make sure there are no overlapping impls
+        if self.lookup_trait_implementation(&object_type, trait_id).is_ok() {
+            return false;
+        }
+
+        let entries = self.trait_implementation_map.entry(trait_id).or_default();
+        entries.push((object_type.clone(), TraitImplKind::Assumed { object_type }));
+        true
+    }
+
+    /// Adds a trait implementation to the list of known implementations.
     pub fn add_trait_implementation(
         &mut self,
         object_type: Type,
         trait_id: TraitId,
+        impl_id: TraitImplId,
         trait_impl: Shared<TraitImpl>,
-    ) -> Option<(Span, FileId)> {
-        let id = TraitImplId(self.trait_implementations.len());
+    ) -> Result<(), (Span, FileId)> {
+        assert_eq!(impl_id.0, self.trait_implementations.len(), "trait impl defined out of order");
 
         self.trait_implementations.push(trait_impl.clone());
 
-        if let Some(entries) = self.trait_implementation_map.get(&trait_id) {
-            // Check that this new impl does not overlap with any existing impls first
-            for (existing_object_type, existing_impl_id) in entries {
-                // Instantiate named generics so that S<T> overlaps with S<u32>
-                let object_type = object_type.instantiate_named_generics(self);
-                let existing_object_type = existing_object_type.instantiate_named_generics(self);
+        // Ignoring overlapping TraitImplKind::Assumed impls here is perfectly fine.
+        // It should never happen since impls are defined at global scope, but even
+        // if they were, we should never prevent defining a new impl because a where
+        // clause already assumes it exists.
+        let (instantiated_object_type, substitutions) =
+            object_type.instantiate_type_variables(self);
 
-                if object_type.try_unify(&existing_object_type).is_ok() {
-                    // Overlapping impl
-                    let existing_impl = &self.trait_implementations[existing_impl_id.0];
-                    let existing_impl = existing_impl.borrow();
-                    return Some((existing_impl.ident.span(), existing_impl.file));
-                }
-            }
+        if let Ok(TraitImplKind::Normal(existing)) =
+            self.lookup_trait_implementation(&instantiated_object_type, trait_id)
+        {
+            let existing_impl = self.get_trait_implementation(existing);
+            let existing_impl = existing_impl.borrow();
+            return Err((existing_impl.ident.span(), existing_impl.file));
         }
 
         for method in &trait_impl.borrow().methods {
@@ -991,9 +1102,12 @@ impl NodeInterner {
             self.add_method(&object_type, method_name, *method, true);
         }
 
+        // The object type is generalized so that a generic impl will apply
+        // to any type T, rather than just the generic type named T.
+        let generalized_object_type = object_type.generalize_from_substitutions(substitutions);
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.push((object_type, id));
-        None
+        entries.push((generalized_object_type, TraitImplKind::Normal(impl_id)));
+        Ok(())
     }
 
     /// Search by name for a method on the given struct.
@@ -1059,6 +1173,33 @@ impl NodeInterner {
     ) -> Option<FuncId> {
         let typ = Type::MutableReference(Box::new(typ.clone()));
         self.lookup_primitive_method(&typ, method_name)
+    }
+
+    /// Returns what the next trait impl id is expected to be.
+    /// Note that this does not actually reserve the slot so care should
+    /// be taken that the next trait impl added matches this ID.
+    pub fn next_trait_impl_id(&self) -> TraitImplId {
+        TraitImplId(self.trait_implementations.len())
+    }
+
+    /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
+    pub fn remove_assumed_trait_implementations_for_trait(&mut self, trait_id: TraitId) {
+        let entries = self.trait_implementation_map.entry(trait_id).or_default();
+        entries.retain(|(_, kind)| matches!(kind, TraitImplKind::Normal(_)));
+    }
+
+    /// Tags the given identifier with the selected trait_impl so that monomorphization
+    /// can later recover which impl was selected, or alternatively see if it needs to
+    /// decide which impl to select (because the impl was Assumed).
+    pub fn select_impl_for_ident(&mut self, ident_id: ExprId, trait_impl: TraitImplKind) {
+        self.selected_trait_implementations.insert(ident_id, trait_impl);
+    }
+
+    /// Tags the given identifier with the selected trait_impl so that monomorphization
+    /// can later recover which impl was selected, or alternatively see if it needs to
+    /// decide which (because the impl was Assumed).
+    pub fn get_selected_impl_for_ident(&self, ident_id: ExprId) -> Option<TraitImplKind> {
+        self.selected_trait_implementations.get(&ident_id).cloned()
     }
 }
 
