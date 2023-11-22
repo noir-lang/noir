@@ -29,6 +29,11 @@ impl Bar<Field> {
     fn get_other(self) -> Field {
         self.other
     }
+
+    // This is to test that we can use turbofish on methods as well
+    fn zeroed<A>(_self: Self) -> A {
+        dep::std::unsafe::zeroed()
+    }
 }
 
 fn main(x: Field, y: Field) {
@@ -50,6 +55,10 @@ fn main(x: Field, y: Field) {
     let two = y;
     let nested_generics: Bar<Bar<Field>> = Bar { one, two, other: Bar { one, two, other: 0 } };
     assert(nested_generics.other.other == bar1.get_other());
+
+    // Test turbofish operator
+    foo::<Field>(bar1);
+    assert(bar1.zeroed::<u32>() == 0);
 
     let _ = regression_2055([1, 2, 3]);
 }
