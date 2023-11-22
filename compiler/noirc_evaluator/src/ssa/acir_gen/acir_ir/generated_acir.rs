@@ -23,7 +23,6 @@ use acvm::{
 };
 use iter_extended::vecmap;
 use num_bigint::BigUint;
-use std::ops::Range;
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass
@@ -43,7 +42,7 @@ pub(crate) struct GeneratedAcir {
     pub(crate) return_witnesses: Vec<Witness>,
 
     /// All witness indices which are inputs to the main function
-    pub(crate) input_witnesses: Vec<Range<Witness>>,
+    pub(crate) input_witnesses: Vec<Witness>,
 
     /// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
     pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
