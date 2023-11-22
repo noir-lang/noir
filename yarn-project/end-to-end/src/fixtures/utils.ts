@@ -232,8 +232,8 @@ type SetupOptions = { /** State load */ stateLoad?: string } & Partial<AztecNode
 /** Context for an end-to-end test as returned by the `setup` function */
 export type EndToEndContext = {
   /** The Aztec Node service or client a connected to it. */
-  aztecNode: AztecNode | undefined;
-  /** A client to the sequencer service */
+  aztecNode: AztecNode;
+  /** A client to the sequencer service (undefined if connected to remote sandbox) */
   sequencer: SequencerClient | undefined;
   /** The Private eXecution Environment (PXE). */
   pxe: PXE;

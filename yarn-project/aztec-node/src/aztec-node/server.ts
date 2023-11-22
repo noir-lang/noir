@@ -34,6 +34,7 @@ import {
   LogFilter,
   LogType,
   MerkleTreeId,
+  SequencerConfig,
   SiblingPath,
   Tx,
   TxHash,
@@ -432,6 +433,11 @@ export class AztecNodeService implements AztecNode {
       throw failedTxs[0].error;
     }
     this.log.info(`Simulated tx ${await tx.getTxHash()} succeeds`);
+  }
+
+  public setConfig(config: Partial<SequencerConfig>): Promise<void> {
+    this.sequencer?.updateSequencerConfig(config);
+    return Promise.resolve();
   }
 
   /**

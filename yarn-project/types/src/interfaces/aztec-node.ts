@@ -13,6 +13,7 @@ import {
   LogFilter,
   LogType,
   MerkleTreeId,
+  SequencerConfig,
   StateInfoProvider,
   Tx,
   TxHash,
@@ -156,4 +157,10 @@ export interface AztecNode extends StateInfoProvider {
    * @param tx - The transaction to simulate.
    **/
   simulatePublicCalls(tx: Tx): Promise<void>;
+
+  /**
+   * Updates the configuration of this node.
+   * @param config - Updated configuration to be merged with the current one.
+   */
+  setConfig(config: Partial<SequencerConfig>): Promise<void>;
 }
