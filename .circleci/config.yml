@@ -1259,7 +1259,7 @@ workflows:
       - guides-writing-an-account-contract: *e2e_test
       - guides-dapp-testing: *e2e_test
       - guides-sample-dapp: *e2e_test
-      # - guides-up-quick-start: *e2e_test
+      - guides-up-quick-start: *e2e_test
       - bench-publish-rollup: *e2e_test
       - bench-process-history: *e2e_test
 
@@ -1295,7 +1295,7 @@ workflows:
             - guides-writing-an-account-contract
             - guides-dapp-testing
             - guides-sample-dapp
-            # - guides-up-quick-start
+            - guides-up-quick-start
           <<: *defaults
 
       - bench-summary:
