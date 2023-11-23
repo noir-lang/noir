@@ -30,12 +30,16 @@ impl<'me> FmtVisitor<'me> {
         }
     }
 
+    pub(crate) fn budget(&self, used_width: usize) -> usize {
+        self.config.max_width.saturating_sub(used_width)
+    }
+
     pub(crate) fn slice(&self, span: impl Into<Span>) -> &'me str {
         let span = span.into();
         &self.source[span.start() as usize..span.end() as usize]
     }
 
-    fn span_after(&self, span: impl Into<Span>, token: Token) -> Span {
+    pub(crate) fn span_after(&self, span: impl Into<Span>, token: Token) -> Span {
         let span = span.into();
 
         let slice = self.slice(span);
@@ -44,7 +48,7 @@ impl<'me> FmtVisitor<'me> {
         (span.start() + offset..span.end()).into()
     }
 
-    fn span_before(&self, span: impl Into<Span>, token: Token) -> Span {
+    pub(crate) fn span_before(&self, span: impl Into<Span>, token: Token) -> Span {
         let span = span.into();
 
         let slice = self.slice(span);
@@ -253,10 +257,12 @@ impl Indent {
         self.block_indent
     }
 
+    #[track_caller]
     pub(crate) fn block_indent(&mut self, config: &Config) {
         self.block_indent += config.tab_spaces;
     }
 
+    #[track_caller]
     pub(crate) fn block_unindent(&mut self, config: &Config) {
         self.block_indent -= config.tab_spaces;
     }
