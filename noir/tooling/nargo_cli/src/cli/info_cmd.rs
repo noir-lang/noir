@@ -67,7 +67,7 @@ pub(crate) fn run(
         .cloned()
         .partition(|package| package.is_binary());
 
-    let (np_language, opcode_support) = backend.get_backend_info()?;
+    let (np_language, opcode_support) = backend.get_backend_info_or_default();
     let (compiled_programs, compiled_contracts) = compile_workspace(
         &workspace,
         &binary_packages,
