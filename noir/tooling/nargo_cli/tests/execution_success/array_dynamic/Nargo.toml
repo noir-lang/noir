@@ -1,0 +1,6 @@
+[package]
+name = "array_dynamic"
+type = "bin"
+authors = [""]
+
+[dependencies]

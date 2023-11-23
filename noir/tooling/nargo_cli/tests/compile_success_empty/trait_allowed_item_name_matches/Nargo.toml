@@ -1,0 +1,5 @@
+[package]
+name = "trait_allowed_item_name_matches"
+type = "bin"
+authors = [""]
+[dependencies]

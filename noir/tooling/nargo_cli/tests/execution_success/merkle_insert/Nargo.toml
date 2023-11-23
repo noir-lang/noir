@@ -1,0 +1,6 @@
+[package]
+name = "merkle_insert"
+type = "bin"
+authors = [""]
+
+[dependencies]

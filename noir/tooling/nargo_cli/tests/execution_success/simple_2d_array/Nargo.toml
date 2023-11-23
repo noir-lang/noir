@@ -1,0 +1,6 @@
+[package]
+name = "simple_2d_array"
+type = "bin"
+authors = [""]
+
+[dependencies]

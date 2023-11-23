@@ -1,0 +1,6 @@
+[package]
+name = "brillig_unitialised_arrays"
+type = "bin"
+authors = [""]
+
+[dependencies]

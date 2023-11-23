@@ -1,0 +1,6 @@
+[package]
+name = "brillig_pedersen"
+type = "bin"
+authors = [""]
+
+[dependencies]

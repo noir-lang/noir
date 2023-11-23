@@ -1,0 +1,6 @@
+[package]
+name = "sha2_byte"
+type = "bin"
+authors = [""]
+
+[dependencies]

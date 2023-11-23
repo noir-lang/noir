@@ -1,0 +1,5 @@
+[package]
+name = "assert_eq_struct"
+type = "bin"
+authors = [""]
+[dependencies]

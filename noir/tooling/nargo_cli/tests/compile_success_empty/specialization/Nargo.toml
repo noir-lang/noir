@@ -1,0 +1,5 @@
+[package]
+name = "specialization"
+type = "bin"
+authors = [""]
+[dependencies]

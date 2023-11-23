@@ -1,0 +1,5 @@
+[package]
+name = "debug_logs"
+type = "bin"
+authors = [""]
+[dependencies]

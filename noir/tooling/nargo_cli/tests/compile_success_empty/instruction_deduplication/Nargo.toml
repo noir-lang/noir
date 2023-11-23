@@ -1,0 +1,5 @@
+[package]
+name = "instruction_deduplication"
+type = "bin"
+authors = [""]
+[dependencies]

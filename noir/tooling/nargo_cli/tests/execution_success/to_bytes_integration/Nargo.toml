@@ -1,0 +1,5 @@
+[package]
+name = "to_bytes_integration"
+type = "bin"
+authors = [""]
+[dependencies]

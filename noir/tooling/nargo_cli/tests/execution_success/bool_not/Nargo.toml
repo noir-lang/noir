@@ -1,0 +1,6 @@
+[package]
+name = "bool_not"
+type = "bin"
+authors = [""]
+
+[dependencies]
