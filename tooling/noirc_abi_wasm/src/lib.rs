@@ -47,7 +47,7 @@ extern "C" {
 
 #[wasm_bindgen(typescript_custom_section)]
 const ABI: &'static str = r#"
-export type Visibility = "public" | "private";
+export type Visibility = "public" | "private" | "databus";
 export type Sign = "unsigned" | "signed";
 export type AbiType = 
     { kind: "field" } |
