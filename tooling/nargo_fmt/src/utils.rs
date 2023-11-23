@@ -221,7 +221,7 @@ impl Item for Expression {
     }
 
     fn format(self, visitor: &FmtVisitor, shape: Shape) -> String {
-        rewrite::subexpr(visitor, self, shape)
+        rewrite::sub_expr(visitor, shape, self)
     }
 }
 
@@ -235,7 +235,7 @@ impl Item for (Ident, Expression) {
         let (name, expr) = self;
 
         let name = name.0.contents;
-        let expr = rewrite::subexpr(visitor, expr, shape);
+        let expr = rewrite::sub_expr(visitor, shape, expr);
 
         if name == expr {
             name

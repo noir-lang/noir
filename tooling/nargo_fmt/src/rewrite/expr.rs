@@ -5,10 +5,10 @@ use crate::visitor::{
     ExpressionType, FmtVisitor, Indent, Shape,
 };
 
-pub(crate) fn rewrite_subexpr(
+pub(crate) fn rewrite_sub_expr(
     visitor: &FmtVisitor,
-    expression: Expression,
     shape: Shape,
+    expression: Expression,
 ) -> String {
     rewrite(visitor, expression, ExpressionType::SubExpression, shape)
 }
@@ -39,10 +39,10 @@ pub(crate) fn rewrite(
                 }
             };
 
-            format!("{op}{}", rewrite_subexpr(visitor, prefix.rhs, shape))
+            format!("{op}{}", rewrite_sub_expr(visitor, shape, prefix.rhs))
         }
         ExpressionKind::Cast(cast) => {
-            format!("{} as {}", rewrite_subexpr(visitor, cast.lhs, shape), cast.r#type)
+            format!("{} as {}", rewrite_sub_expr(visitor, shape, cast.lhs), cast.r#type)
         }
         kind @ ExpressionKind::Infix(_) => {
             super::infix(visitor.fork(), Expression { kind, span }, shape)
@@ -51,7 +51,7 @@ pub(crate) fn rewrite(
             let args_span =
                 visitor.span_before(call_expr.func.span.end()..span.end(), Token::LeftParen);
 
-            let callee = rewrite_subexpr(visitor, *call_expr.func, shape);
+            let callee = rewrite_sub_expr(visitor, shape, *call_expr.func);
             let args = format_parens(
                 visitor.config.fn_call_width.into(),
                 visitor.fork(),
@@ -70,7 +70,7 @@ pub(crate) fn rewrite(
                 Token::LeftParen,
             );
 
-            let object = rewrite_subexpr(visitor, method_call_expr.object, shape);
+            let object = rewrite_sub_expr(visitor, shape, method_call_expr.object);
             let method = method_call_expr.method_name.to_string();
             let args = format_parens(
                 visitor.config.fn_call_width.into(),
@@ -85,14 +85,14 @@ pub(crate) fn rewrite(
             format!("{object}.{method}{args}")
         }
         ExpressionKind::MemberAccess(member_access_expr) => {
-            let lhs_str = rewrite_subexpr(visitor, member_access_expr.lhs, shape);
+            let lhs_str = rewrite_sub_expr(visitor, shape, member_access_expr.lhs);
             format!("{}.{}", lhs_str, member_access_expr.rhs)
         }
         ExpressionKind::Index(index_expr) => {
             let index_span = visitor
                 .span_before(index_expr.collection.span.end()..span.end(), Token::LeftBracket);
 
-            let collection = rewrite_subexpr(visitor, index_expr.collection, shape);
+            let collection = rewrite_sub_expr(visitor, shape, index_expr.collection);
             let index = format_brackets(visitor.fork(), false, vec![index_expr.index], index_span);
 
             format!("{collection}{index}")
@@ -105,8 +105,8 @@ pub(crate) fn rewrite(
                 visitor.slice(span).to_string()
             }
             Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
-                let repeated = rewrite_subexpr(visitor, *repeated_element, shape);
-                let length = rewrite_subexpr(visitor, *length, shape);
+                let repeated = rewrite_sub_expr(visitor, shape, *repeated_element);
+                let length = rewrite_sub_expr(visitor, shape, *length);
 
                 format!("[{repeated}; {length}]")
             }
@@ -115,7 +115,9 @@ pub(crate) fn rewrite(
             }
             Literal::Unit => "()".to_string(),
         },
-        ExpressionKind::Parenthesized(sub_expr) => super::parenthesized(visitor, span, *sub_expr),
+        ExpressionKind::Parenthesized(sub_expr) => {
+            super::parenthesized(visitor, shape, span, *sub_expr)
+        }
         ExpressionKind::Constructor(constructor) => {
             let type_name = visitor.slice(span.start()..constructor.type_name.span().end());
             let fields_span = visitor

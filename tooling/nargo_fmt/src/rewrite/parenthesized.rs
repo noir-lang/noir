@@ -1,9 +1,10 @@
 use noirc_frontend::{hir::resolution::errors::Span, Expression, ExpressionKind};
 
-use crate::visitor::FmtVisitor;
+use crate::visitor::{FmtVisitor, Shape};
 
 pub(crate) fn rewrite(
     visitor: &FmtVisitor<'_>,
+    shape: Shape,
     mut span: Span,
     mut sub_expr: Expression,
 ) -> String {
@@ -31,7 +32,7 @@ pub(crate) fn rewrite(
     }
 
     if !leading.contains("//") && !trailing.contains("//") {
-        let sub_expr = super::subexpr(visitor, sub_expr, visitor.shape());
+        let sub_expr = super::sub_expr(visitor, shape, sub_expr);
         format!("({leading}{sub_expr}{trailing})")
     } else {
         let mut visitor = visitor.fork();
@@ -40,7 +41,7 @@ pub(crate) fn rewrite(
         visitor.indent.block_indent(visitor.config);
         let nested_indent = visitor.indent.to_string_with_newline();
 
-        let sub_expr = super::subexpr(&visitor, sub_expr, visitor.shape());
+        let sub_expr = super::sub_expr(&visitor, shape, sub_expr);
 
         let mut result = String::new();
         result.push('(');

@@ -17,9 +17,9 @@ pub(crate) fn rewrite(visitor: FmtVisitor, expr: Expression, shape: Shape) -> St
 
             format!(
                 "{} {} {}",
-                rewrite::subexpr(&visitor, infix.lhs, shape),
+                rewrite::sub_expr(&visitor, shape, infix.lhs),
                 infix.operator.contents.as_string(),
-                rewrite::subexpr(&visitor, infix.rhs, shape)
+                rewrite::sub_expr(&visitor, shape, infix.rhs)
             )
         }
     }
@@ -88,10 +88,10 @@ pub(crate) fn flatten(
             }
             _ => {
                 let rewrite = if result.is_empty() {
-                    rewrite::subexpr(&visitor, node.clone(), visitor.shape())
+                    rewrite::sub_expr(&visitor, visitor.shape(), node.clone())
                 } else {
                     visitor.indent.block_indent(visitor.config);
-                    rewrite::subexpr(&visitor, node.clone(), visitor.shape())
+                    rewrite::sub_expr(&visitor, visitor.shape(), node.clone())
                 };
 
                 result.push(rewrite);

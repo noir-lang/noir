@@ -28,7 +28,7 @@ impl super::FmtVisitor<'_> {
                     let let_str =
                         self.slice(span.start()..let_stmt.expression.span.start()).trim_end();
 
-                    let expr_str = rewrite::subexpr(self, let_stmt.expression, self.shape());
+                    let expr_str = rewrite::sub_expr(self, self.shape(), let_stmt.expression);
 
                     self.push_rewrite(format!("{let_str} {expr_str};"), span);
                 }
@@ -37,14 +37,14 @@ impl super::FmtVisitor<'_> {
                         message.map_or(String::new(), |message| format!(", \"{message}\""));
                     let constrain = match kind {
                         ConstrainKind::Assert => {
-                            let assertion = rewrite::subexpr(self, expr, self.shape());
+                            let assertion = rewrite::sub_expr(self, self.shape(), expr);
 
                             format!("assert({assertion}{message});")
                         }
                         ConstrainKind::AssertEq => {
                             if let ExpressionKind::Infix(infix) = expr.kind {
-                                let lhs = rewrite::subexpr(self, infix.lhs, self.shape());
-                                let rhs = rewrite::subexpr(self, infix.rhs, self.shape());
+                                let lhs = rewrite::sub_expr(self, self.shape(), infix.lhs);
+                                let rhs = rewrite::sub_expr(self, self.shape(), infix.rhs);
 
                                 format!("assert_eq({lhs}, {rhs}{message});")
                             } else {
@@ -52,7 +52,7 @@ impl super::FmtVisitor<'_> {
                             }
                         }
                         ConstrainKind::Constrain => {
-                            let expr = rewrite::subexpr(self, expr, self.shape());
+                            let expr = rewrite::sub_expr(self, self.shape(), expr);
                             format!("constrain {expr};")
                         }
                     };
@@ -64,12 +64,12 @@ impl super::FmtVisitor<'_> {
                     let range = match for_stmt.range {
                         ForRange::Range(start, end) => format!(
                             "{}..{}",
-                            rewrite::subexpr(self, start, self.shape()),
-                            rewrite::subexpr(self, end, self.shape())
+                            rewrite::sub_expr(self, self.shape(), start),
+                            rewrite::sub_expr(self, self.shape(), end)
                         ),
-                        ForRange::Array(array) => rewrite::subexpr(self, array, self.shape()),
+                        ForRange::Array(array) => rewrite::sub_expr(self, self.shape(), array),
                     };
-                    let block = rewrite::subexpr(self, for_stmt.block, self.shape());
+                    let block = rewrite::sub_expr(self, self.shape(), for_stmt.block);
 
                     let result = format!("for {identifier} in {range} {block}");
                     self.push_rewrite(result, span);

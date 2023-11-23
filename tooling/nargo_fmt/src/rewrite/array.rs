@@ -26,7 +26,7 @@ pub(crate) fn rewrite(mut visitor: FmtVisitor, array: Vec<Expression>, array_spa
         let end = item_span.start();
 
         let leading = visitor.slice(start..end).trim_matches(pattern);
-        let item = super::subexpr(&visitor, item, visitor.shape());
+        let item = super::sub_expr(&visitor, visitor.shape(), item);
         let next_start = items.peek().map_or(end_position, |expr| expr.span.start());
         let trailing = visitor.slice(item_span.end()..next_start);
         let offset = trailing

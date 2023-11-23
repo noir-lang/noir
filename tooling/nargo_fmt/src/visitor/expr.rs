@@ -19,8 +19,8 @@ impl FmtVisitor<'_> {
     }
 
     pub(crate) fn format_if(&self, if_expr: IfExpression) -> String {
-        let condition_str = rewrite::subexpr(self, if_expr.condition, self.shape());
-        let consequence_str = rewrite::subexpr(self, if_expr.consequence, self.shape());
+        let condition_str = rewrite::sub_expr(self, self.shape(), if_expr.condition);
+        let consequence_str = rewrite::sub_expr(self, self.shape(), if_expr.consequence);
 
         let mut result = format!("if {condition_str} {consequence_str}");
 
@@ -41,9 +41,9 @@ impl FmtVisitor<'_> {
     }
 
     pub(crate) fn format_if_single_line(&self, if_expr: IfExpression) -> Option<String> {
-        let condition_str = rewrite::subexpr(self, if_expr.condition, self.shape());
+        let condition_str = rewrite::sub_expr(self, self.shape(), if_expr.condition);
         let consequence_str =
-            rewrite::subexpr(self, extract_simple_expr(if_expr.consequence)?, self.shape());
+            rewrite::sub_expr(self, self.shape(), extract_simple_expr(if_expr.consequence)?);
 
         let if_str = if let Some(alternative) = if_expr.alternative {
             let alternative_str = if let Some(ExpressionKind::If(_)) =
