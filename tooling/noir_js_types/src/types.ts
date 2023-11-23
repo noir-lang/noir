@@ -1,5 +1,7 @@
 import { Abi, WitnessMap } from '@noir-lang/noirc_abi';
 
+export { Abi, WitnessMap } from '@noir-lang/noirc_abi';
+
 export interface Backend {
   /**
    * @description Generates a final proof (not meant to be verified in another circuit) */

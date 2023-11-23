@@ -1,4 +1,4 @@
-import { Abi, WitnessMap } from '@noir-lang/noirc_abi';
+import { Abi, WitnessMap } from '@noir-lang/types';
 
 export function flattenPublicInputs(publicInputs: WitnessMap): Uint8Array {
   const publicInputIndices = [...publicInputs.keys()].sort();
