@@ -6,11 +6,10 @@ REPOSITORY=$1
 COMPOSE_FILE=$2
 shift 2
 
-CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
-BASE_TAG=cache-$CONTENT_HASH
+BASE_TAG=$(calculate_image_tag $REPOSITORY)
 SUCCESS_TAG=$BASE_TAG-$JOB_NAME
 
-echo "Content hash: $CONTENT_HASH"
+echo "Success tag: $SUCCESS_TAG"
 
 if ! check_rebuild $SUCCESS_TAG $REPOSITORY; then
   # Login to pull our ecr images with docker.
@@ -27,7 +26,12 @@ if ! check_rebuild $SUCCESS_TAG $REPOSITORY; then
   cd $(query_manifest projectDir $REPOSITORY)
 
   export $@
-  docker-compose -f $COMPOSE_FILE up --exit-code-from $REPOSITORY --force-recreate
+  if docker compose > /dev/null 2>&1; then
+    CMD="docker compose"
+  else
+    CMD="docker-compose"
+  fi
+  $CMD -f $COMPOSE_FILE up --exit-code-from $REPOSITORY --force-recreate
 
   upload_logs_to_s3 log
 

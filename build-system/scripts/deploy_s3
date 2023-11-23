@@ -22,7 +22,7 @@ if [ -n "$IS_GLOBAL" ]; then
   TF_DIR=$ROOT_PATH/$PROJECT_DIR/terraform
   deploy_terraform "" $TF_DIR
 else
-  TF_DIR=$ROOT_PATH/$PROJECT_DIR/terraform/$VERSION_TAG
+  TF_DIR=$ROOT_PATH/$PROJECT_DIR/terraform/$DEPLOY_ENV
   deploy_terraform $REPOSITORY $TF_DIR
 fi
 

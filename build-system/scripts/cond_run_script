@@ -10,11 +10,10 @@ set -eu
 REPOSITORY=$1
 shift
 
-CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
-BASE_TAG=cache-$CONTENT_HASH
+BASE_TAG=$(calculate_image_tag $REPOSITORY)
 SUCCESS_TAG=$BASE_TAG-$JOB_NAME
 
-echo "Content hash: $CONTENT_HASH"
+echo "Success tag: $SUCCESS_TAG"
 
 if ! check_rebuild $SUCCESS_TAG $REPOSITORY; then
   init_submodules $REPOSITORY

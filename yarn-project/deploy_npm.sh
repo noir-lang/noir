@@ -52,7 +52,9 @@ function deploy_package() {
   fi
 
   # Publish
-  if [ -n "${COMMIT_TAG:-}" ]; then
+  if [ "$DRY_DEPLOY" -eq 1 ]; then
+    npm publish --dry-run $TAG_ARG --access public
+  else
     # Check if version exists
     if npm view "$PACKAGE_NAME@$VERSION" version >/dev/null 2>&1; then
       # Tag the existing version
@@ -61,8 +63,6 @@ function deploy_package() {
       # Publish new version
       npm publish $TAG_ARG --access public
     fi
-  else
-    npm publish --dry-run $TAG_ARG --access public
   fi
 
   # Back to root

@@ -19,8 +19,7 @@
     ".": {
       "release-type": "simple",
       "component": "aztec-packages",
-      "package-name": "aztec-packages",
-      "extra-files": ["VERSION"]
+      "package-name": "aztec-packages"
     },
     "barretenberg/ts": {
       "release-type": "node",
@@ -31,12 +30,7 @@
       "release-type": "simple",
       "component": "barretenberg",
       "package-name": "barretenberg",
-      "extra-files": [
-        "cpp/CMakeLists.txt",
-        "VERSION",
-        "barretenberg.nix",
-        "barretenberg-wasm.nix"
-      ]
+      "extra-files": ["cpp/CMakeLists.txt"]
     }
   },
   "plugins": [

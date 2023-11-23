@@ -16,20 +16,21 @@ set -eu
 
 REPOSITORY=$1
 CPUS=$2
-shift 2
+ARCH=$3
+shift 3
 
-CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
-BASE_TAG=cache-$CONTENT_HASH
+# If the CPUS have a specific architecture assigned, we need to use that to build the success tag.
+BASE_TAG=$(calculate_image_tag $REPOSITORY $ARCH)
 SUCCESS_TAG=$BASE_TAG
 
 if [ -n "${TAG_POSTFIX:-}" ]; then
   SUCCESS_TAG=$BASE_TAG-$TAG_POSTFIX
 fi
 
-echo "Content hash: $CONTENT_HASH"
+echo "Success tag: $SUCCESS_TAG"
 
 if ! check_rebuild $SUCCESS_TAG $REPOSITORY; then
   init_submodules $REPOSITORY
-  spot_run_script $CONTENT_HASH $CPUS $@
+  spot_run_script $SUCCESS_TAG $CPUS $ARCH $@
   retry tag_remote_image $REPOSITORY $BASE_TAG $SUCCESS_TAG
 fi

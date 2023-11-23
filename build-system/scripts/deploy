@@ -19,7 +19,7 @@ if check_rebuild cache-$CONTENT_HASH-$DEPLOY_TAG-deployed $REPOSITORY; then
   exit 0
 fi
 
-deploy_terraform $REPOSITORY ./terraform/$VERSION_TAG "$TO_TAINT"
+deploy_terraform $REPOSITORY ./terraform/$DEPLOY_ENV "$TO_TAINT"
 
 # Restart services.
 for SERVICE in $SERVICES; do

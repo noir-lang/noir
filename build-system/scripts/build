@@ -8,26 +8,20 @@
 # usage: ./build <repository>
 # example: ./build aztec-connect-cpp-x86_64-linux-clang
 # output image:
-#   278380418400.dkr.ecr.us-east-2.amazonaws.com/aztec-connect-cpp-x86_64-linux-clang:cache-deadbeefcafebabe1337c0d3
+#   278380418400.dkr.ecr.us-east-2.amazonaws.com/aztec-connect-cpp-x86_64-linux-clang:cache-deadbeefcafebabe1337c0d3-x86_64
 #
 # In more detail:
 # - Init all submodules required to build this project.
 # - Log into cache ECR, and ensures repository exists.
-# - Checks if current project needs to be rebuilt, if not, retag previous image with current commit hash and early out.
 # - Validate any terraform that may exist.
-# - Pull down dependent images that we do not control (e.g. alpine etc).
-# - For images we do control, pull the image we've built (or retagged) as part of this build.
-# - For each "named stage" (usually intermittent builders before creating final image), pull previous to prime the cache, build and push the results.
-# - Pull previous project image to use it as a layer cache if it exists.
-# - Perform the build of the image itself. With the cache primed we should only have to rebuild the necessary layers.
-# - Push the image tagged with the commit hash to the cache.
+# - For images built previously in pipeline, pull the image we've built.
+# - Perform the build of the image itself.
+# - Push the image tagged with the content hash to the cache.
 
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -euo pipefail
 
 REPOSITORY=$1
-FORCE_BUILD=${2:-"false"}
-ARCH=${3:-""}
 DOCKERFILE=$(query_manifest dockerfile $REPOSITORY)
 PROJECT_DIR=$(query_manifest projectDir $REPOSITORY)
 BUILD_DIR=$(query_manifest buildDir $REPOSITORY)
@@ -36,7 +30,6 @@ echo "Repository: $REPOSITORY"
 echo "Working directory: $PWD"
 echo "Dockerfile: $DOCKERFILE"
 echo "Build directory: $BUILD_DIR"
-echo "Arch: $ARCH"
 
 # Fetch images with retries
 function fetch_image() {
@@ -67,7 +60,8 @@ echo "Content hash: $CONTENT_HASH"
 cd $BUILD_DIR
 
 # If we have previously successful commit, we can early out if nothing relevant has changed since.
-if [[ $FORCE_BUILD == 'false' ]] && check_rebuild cache-"$CONTENT_HASH" $REPOSITORY; then
+IMAGE_COMMIT_TAG=$(calculate_image_tag $REPOSITORY)
+if check_rebuild $IMAGE_COMMIT_TAG $REPOSITORY; then
   echo "No rebuild necessary."
   exit 0
 fi
@@ -94,15 +88,17 @@ fi
 
 # For each dependency, pull in the latest image and give it correct tag.
 for PARENT_REPO in $(query_manifest dependencies $REPOSITORY); do
-  PARENT_CONTENT_HASH=$(calculate_content_hash $PARENT_REPO)
-  # There must be a parent image to continue.
-  if [ -z "$PARENT_CONTENT_HASH" ]; then
-    echo "No parent image found for $PARENT_REPO"
-    exit 1
+  PARENT_IMAGE_URI=$(calculate_image_uri $PARENT_REPO)
+  echo "Pulling dependency $PARENT_IMAGE_URI..."
+  if ! fetch_image $PARENT_IMAGE_URI; then
+    # This is a *bit* of a hack maybe. Some of our arm images can be built from x86 dependents.
+    # e.g. node projects are architecture independent.
+    # This may not hold true if we start introducing npm modules that are backed by native code.
+    # But for now, to avoid building some projects twice, we can fallback onto x86 variant.
+    PARENT_IMAGE_URI=$(calculate_image_uri $PARENT_REPO x86_64)
+    echo "Falling back onto x86 build. Pulling dependency $PARENT_IMAGE_URI..."
+    fetch_image $PARENT_IMAGE_URI
   fi
-  PARENT_IMAGE_URI=$ECR_URL/$PARENT_REPO:cache-$PARENT_CONTENT_HASH
-  echo "Pulling dependency $PARENT_REPO..."
-  fetch_image $PARENT_IMAGE_URI
   # Tag it to look like an official release as that's what we use in Dockerfiles.
   TAG=$ECR_DEPLOY_URL/$PARENT_REPO
   docker tag $PARENT_IMAGE_URI $TAG
@@ -112,10 +108,7 @@ COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY false)
 echo "Commit tag version: $COMMIT_TAG_VERSION"
 
 # Build the actual image and give it a commit tag.
-IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH
-if [[ -n "$ARCH" ]]; then
-  IMAGE_COMMIT_URI=$IMAGE_COMMIT_URI-$ARCH
-fi
+IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
 echo "Building image: $IMAGE_COMMIT_URI"
 docker build -t $IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg ARG_CONTENT_HASH=$CONTENT_HASH .
 echo "Pushing image: $IMAGE_COMMIT_URI"

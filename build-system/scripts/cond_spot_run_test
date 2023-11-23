@@ -13,5 +13,5 @@ SCRIPT=$(query_manifest relativeProjectDir $REPOSITORY)/$SCRIPT
 
 # Specify a TAG_POSTFIX as the JOB_NAME
 mkdir -p /tmp/test-logs
-export TAG_POSTFIX=$JOB_NAME 
-cond_spot_run_script $REPOSITORY $CPUS $SCRIPT $@ | tee "/tmp/test-logs/$JOB_NAME.log"
+export TAG_POSTFIX=$JOB_NAME
+cond_spot_run_script $REPOSITORY $CPUS x86_64 $SCRIPT $@ | tee "/tmp/test-logs/$JOB_NAME.log"

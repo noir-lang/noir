@@ -50,8 +50,8 @@ if [ -z "$STANDALONE" ]; then
 fi
 
 # Publish if we have a commit tag
-if [ -n "$COMMIT_TAG" ] ; then 
-  npm publish $TAG_ARG --access public
-else
+if [ "$DRY_DEPLOY" -eq 1 ] ; then
   npm publish --dry-run $TAG_ARG --access public
+else
+  npm publish $TAG_ARG --access public
 fi

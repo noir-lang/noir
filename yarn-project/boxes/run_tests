@@ -23,41 +23,39 @@ YARN_PROJECT=yarn-project
 SANDBOX_IMAGE_URI=$(calculate_image_uri $SANDBOX)
 YP_IMAGE_URI=$(calculate_image_uri $YARN_PROJECT)
 
-################### CHECK REBUILD ################### 
+################### CHECK REBUILD ###################
 # Before doing any work we check if we need to rebuild
 # Each box is suffixed with the box name, such that rebuilding of each box is independent, if one fails we don't rebuild the others
 ensure_repo $SANDBOX $ECR_REGION refresh_lifecycle
-CONTENT_HASH=$(calculate_content_hash $SANDBOX)
-BASE_TAG=cache-$CONTENT_HASH-$BOX_NAME # Append the box name to separate the tag
+BASE_TAG=$(calculate_image_tag $SANDBOX)
 SUCCESS_TAG=$BASE_TAG
 
-echo "Content hash: $CONTENT_HASH"
+echo "Success tag: $SUCCESS_TAG"
 if check_rebuild $SUCCESS_TAG $SANDBOX; then
   echo "No rebuild required."
   retry tag_remote_image $SANDBOX $BASE_TAG $SUCCESS_TAG
   exit 0
 fi
 
-################### PREAMBLE ################### 
+################### PREAMBLE ###################
 
 # Pull images from ecr and retag for the docker compose
-SANDBOX_IMAGE=$SANDBOX_IMAGE_URI-x86_64
-echo "pulling docker image for $SANDBOX $SANDBOX_IMAGE"
-retry docker pull $SANDBOX_IMAGE
-retry docker tag $SANDBOX_IMAGE aztecprotocol/$SANDBOX:latest
+echo "pulling docker image for $SANDBOX $SANDBOX_IMAGE_URI"
+retry docker pull $SANDBOX_IMAGE_URI
+retry docker tag $SANDBOX_IMAGE_URI aztecprotocol/$SANDBOX:latest
 
 echo "pulling docker image for $YARN_PROJECT $YP_IMAGE_URI"
 retry docker pull $YP_IMAGE_URI
 retry docker tag $YP_IMAGE_URI aztecprotocol/$YARN_PROJECT:latest
 
-################### RUN TESTS ################### 
+################### RUN TESTS ###################
 
 docker-compose rm -f
 docker-compose -f $COMPOSE_FILE up --exit-code-from boxes-$BOX_NAME
 
-################### POST TEST ################### 
+################### POST TEST ###################
 
 # Success - push a new tag for the commit hash with the box name appended
 IMAGE_COMMIT_URI=$SANDBOX_IMAGE_URI-$BOX_NAME
-retry docker tag $SANDBOX_IMAGE $IMAGE_COMMIT_URI
+retry docker tag $SANDBOX_IMAGE_URI $IMAGE_COMMIT_URI
 retry docker push $IMAGE_COMMIT_URI > /dev/null 2>&1

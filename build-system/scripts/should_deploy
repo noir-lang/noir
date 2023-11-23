@@ -1,0 +1,7 @@
+#!/bin/bash
+# Retuns success if we are expected to do a deploy.
+# At present this is only if we have a commit tag.
+# Once we are doing master deployments to devnet, we'll want to check if BRANCH is master.
+set -eu
+
+[ -n "$COMMIT_TAG" ]

@@ -2,56 +2,44 @@
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
-if [ -z "$COMMIT_TAG" ]; then
-  echo "Will only push tagged builds to dockerhub. Skipping."
-  exit 0
-fi
-
 REPOSITORY=$1
-ARCH=${2:-""}
-DIST_TAG=${3:-"latest"}
+# TODO: Why even provide this? We can just figure it out by probing.
+ARCH_LIST=${2:-}
+
+function docker_or_dryrun {
+  if [ "$DRY_DEPLOY" -eq 1 ] ; then
+    echo DRY RUN: docker $@
+  else
+    retry docker $@
+  fi
+}
 
 echo "Repo: $REPOSITORY"
-echo "Arch: $ARCH"
+echo "Arch List: $ARCH_LIST"
 
-IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
-
-IMAGE_DIST_URI=$ACCOUNT/$REPOSITORY:$DIST_TAG
-if [[ -n "$ARCH" ]]; then
-  IMAGE_COMMIT_URI=$IMAGE_COMMIT_URI-$ARCH
-  IMAGE_DIST_URI=$IMAGE_DIST_URI-$ARCH
-fi
-
-COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY true)
-
-IMAGE_TAG=$COMMIT_TAG_VERSION
-IMAGE_DEPLOY_URI=$ACCOUNT/$REPOSITORY:$IMAGE_TAG
-if [[ -n "$ARCH" ]]; then
-  IMAGE_DEPLOY_URI=$IMAGE_DEPLOY_URI-$ARCH
-fi
-
-echo "Deploying to dockerhub: $IMAGE_DEPLOY_URI"
-
-# Login.
-retry ensure_repo $REPOSITORY $ECR_DEPLOY_REGION
+VERSION_TAG=$(extract_tag_version $REPOSITORY true)
+MANIFEST_DEPLOY_URI=aztecprotocol/$REPOSITORY:$VERSION_TAG
 
 # Login to dockerhub and ecr
 dockerhub_login
 ecr_login
 
-echo "Pulling $IMAGE_COMMIT_URI"
-# Pull image.
-retry docker pull $IMAGE_COMMIT_URI
+IFS=','
+for ARCH in $ARCH_LIST; do
+  IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY $ARCH)
+  retry docker pull $IMAGE_COMMIT_URI
 
-echo "Tagging $IMAGE_COMMIT_URI as $IMAGE_DEPLOY_URI"
-# Tag with commit tag
-docker_or_dryrun tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_URI
+  # Retag and push image.
+  IMAGE_DEPLOY_URI=aztecprotocol/$REPOSITORY:$VERSION_TAG-$ARCH
+  docker tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_URI
+  docker_or_dryrun push $IMAGE_DEPLOY_URI
 
-echo "Tagging $IMAGE_COMMIT_URI as $IMAGE_DIST_URI"
-# Tag with :$DIST_TAG (latest or canary)
-docker_or_dryrun tag $IMAGE_COMMIT_URI $IMAGE_DIST_URI
+  echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_DEPLOY_URI..."
+  docker_or_dryrun manifest create $MANIFEST_DEPLOY_URI --amend $IMAGE_DEPLOY_URI
+done
 
-# Push tagged image to dockerhub.
-docker_or_dryrun push $IMAGE_DEPLOY_URI
-# Push :latest or :canary image to dockerhub
-docker_or_dryrun push $IMAGE_DIST_URI
+docker_or_dryrun push $MANIFEST_DEPLOY_URI
+
+# Retag versioned as latest.
+docker_or_dryrun tag $MANIFEST_DEPLOY_URI aztecprotocol/$REPOSITORY:latest
+docker_or_dryrun push aztecprotocol/$REPOSITORY:latest

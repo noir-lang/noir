@@ -1,6 +1,6 @@
 #!/bin/bash
 # Runs a test script on a remote spot instance. Arguments are:
-# 1. CONTENT_HASH: Content hash for our repository contents. Used to identify spot jobs and image tags.
+# 1. NAME: Used to identify spot jobs.
 # 2. CPUS: Number of cpus on spot request.
 # 3... ARGS: Script and arguments to run.
 #
@@ -8,13 +8,15 @@
 # JOB_NAME: Set within setup-env. The job name as per CI.
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
-CONTENT_HASH=$1
+NAME=$1
 CPUS=$2
-shift 2
+ARCH=$3
+shift 3
 IP=
 
 # On any sort of exit (error or not).
 function on_exit {
+    # We want to execute all this block, regardless of potential errors.
     set +e
 
     if [ -n "$IP" ]; then
@@ -23,8 +25,8 @@ function on_exit {
     fi
 
     # Kill spot request so it doesn't count against quota.
-    if [ -f "sir-$CONTENT_HASH:$JOB_NAME.txt" ]; then
-        SIR=$(cat sir-$CONTENT_HASH:$JOB_NAME.txt)
+    if [ -f "sir-$NAME.txt" ]; then
+        SIR=$(cat sir-$NAME.txt)
         echo "Cancelling spot instance request $SIR..."
         aws ec2 cancel-spot-instance-requests --spot-instance-request-ids $SIR >/dev/null 2>&1 || true
     fi
@@ -32,7 +34,7 @@ function on_exit {
 trap on_exit EXIT
 
 # Get spot instance.
-IP=$(retry request_spot $CONTENT_HASH:$JOB_NAME $CPUS)
+IP=$(retry request_spot $NAME $CPUS $ARCH)
 
 if [ -z "$IP" ]; then
     echo "Failed to get spot instance."

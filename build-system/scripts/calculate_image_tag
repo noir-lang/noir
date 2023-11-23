@@ -6,4 +6,4 @@ REPOSITORY=$1
 ARCH=${2:-$(uname -m)}
 [ "$ARCH" == "aarch64" ] && ARCH=arm64
 CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
-echo "$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH-$ARCH"
+echo "cache-$CONTENT_HASH-$ARCH"

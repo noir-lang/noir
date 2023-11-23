@@ -4,6 +4,7 @@ set -eu
 
 NAME=$1
 CPUS=$2
+ARCH=$3
 
 # Declare an associative array to map CPU counts to instance type suffixes.
 declare -A cpu_map
@@ -29,7 +30,17 @@ if [ -z "$INSTANCE_TYPE_SUFFIX" ]; then
 fi
 
 # Construct the full instance type. We use r6a currently.
-INSTANCE_TYPE="r6a.$INSTANCE_TYPE_SUFFIX"
+if [ "$ARCH" == "x86_64" ]; then
+  MACHINE_TYPE="r6a"
+  AMI="ami-0e5df77ac318c7a18"
+elif [ "$ARCH" == "arm64" ]; then
+  MACHINE_TYPE="r7g"
+  AMI="ami-02c5a5064fe72b22e"
+else
+  echo "Unknown arch: $ARCH"
+  exit 1
+fi
+INSTANCE_TYPE="$MACHINE_TYPE.$INSTANCE_TYPE_SUFFIX"
 
 export AWS_DEFAULT_REGION=us-east-2
 
@@ -38,7 +49,7 @@ PRICE=$(jq -n "$BID_PER_CPU_HOUR*$CPUS*100000 | round / 100000")
 
 launch_spec=$(cat <<EOF
 {
-  "ImageId": "ami-0e5df77ac318c7a18",
+  "ImageId": "$AMI",
   "KeyName": "build-instance",
   "SecurityGroupIds": ["sg-0ccd4e5df0dcca0c9"],
   "InstanceType": "$INSTANCE_TYPE",
@@ -111,10 +122,12 @@ done
 # Wait till ssh port is open.
 >&2 echo "Waiting for SSH at $IP..."
 SECONDS=0
-while ! nc -z -w1 $IP 22; do
+SSH_CONFIG_PATH=${SSH_CONFIG_PATH:-$BUILD_SYSTEM_PATH/remote/ssh_config}
+while ! ssh -F $SSH_CONFIG_PATH -o ConnectTimeout=1 $IP true > /dev/null 2>&1; do
   if (( SECONDS >= 60 )); then
-    >&2 echo "Timeout: SSH port 22 at $IP did not become available after 60 seconds."
+    >&2 echo "Timeout: SSH could not login to $IP within 60 seconds."
     exit 1
   fi
+  sleep 1
 done
 echo $IP

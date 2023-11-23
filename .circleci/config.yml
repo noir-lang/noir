@@ -68,14 +68,42 @@ setup_env: &setup_env
     name: "Setup environment"
     command: ./build-system/scripts/setup_env "$CIRCLE_SHA1" "$CIRCLE_TAG" "$CIRCLE_JOB" "$CIRCLE_REPOSITORY_URL" "$CIRCLE_BRANCH" "$CIRCLE_PULL_REQUEST"
 
-# This step is used to save logs from various barretenberg test to the workspace so that they can be used later to parse benchmark values out of them
-save_logs: &save_logs
-  persist_to_workspace:
-    root: /tmp/test-logs
-    paths:
-      - ./*
-
 jobs:
+  # Noir
+  noir-x86_64:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build noir 32
+
+  noir-arm64:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build noir 32 arm64
+
+  noir-ecr-manifest:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: medium
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Create ECR manifest"
+          command: create_ecr_manifest noir x86_64,arm64
+
+  # Barretenberg
   barretenberg-wasm-linux-clang:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -152,7 +180,6 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 stdlib-tests
-      - *save_logs
 
   barretenberg-dsl-tests:
     docker:
@@ -164,7 +191,6 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 dsl_tests
-      - *save_logs
 
   barretenberg-tests:
     docker:
@@ -176,7 +202,6 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/bb-tests.sh
-      - *save_logs
 
   barretenberg-honk-tests:
     docker:
@@ -188,7 +213,6 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 honk_tests
-      - *save_logs
 
   barretenberg-proof-system-tests:
     docker:
@@ -200,7 +224,6 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 proof_system_tests
-      - *save_logs
 
   barretenberg-stdlib-recursion-ultra-tests:
     docker:
@@ -212,7 +235,6 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 3 stdlib_recursion_tests --gtest_filter=-*turbo*
-      - *save_logs
 
   barretenberg-join-split-tests:
     docker:
@@ -224,20 +246,6 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 3 join_split_example_proofs_join_split_tests --gtest_filter=-*full_proof*
-      - *save_logs
-
-  # barretenberg-benchmark-aggregator:
-  #   docker:
-  #     - image: aztecprotocol/alpine-build-image
-  #   resource_class: small
-  #   steps:
-  #     - attach_workspace:
-  #         at: /tmp/test-logs
-  #     - *checkout
-  #     - *setup_env
-  #     - run:
-  #         name: "Test"
-  #         command: ./scripts/ci/store_test_benchmark_logs $AZTEC_GITHUB_TOKEN
 
   barretenberg-acir-tests-bb:
     docker:
@@ -315,7 +323,6 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_test circuits-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 x86_64 scripts/a3-tests -*.skip*
-      - *save_logs
 
   l1-contracts:
     machine:
@@ -381,7 +388,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build and test"
-          command: build aztec-sandbox false x86_64
+          command: build aztec-sandbox
 
   aztec-sandbox-arm64:
     machine:
@@ -396,7 +403,7 @@ jobs:
           # out to eu-west2 despite the image being locally tagged, resulting in unauthorized 401. Weird docker bug?
           command: |
             echo "export DOCKER_BUILDKIT=" > $BASH_ENV
-            build aztec-sandbox false arm64
+            build aztec-sandbox
 
   cli-x86_64:
     machine:
@@ -407,7 +414,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build and test"
-          command: build cli false x86_64
+          command: build cli
 
   cli-arm64:
     machine:
@@ -422,7 +429,7 @@ jobs:
           # out to eu-west2 despite the image being locally tagged, resulting in unauthorized 401. Weird docker bug?
           command: |
             echo "export DOCKER_BUILDKIT=" > $BASH_ENV
-            build cli false arm64
+            build cli
 
   mainnet-fork:
     machine:
@@ -434,17 +441,6 @@ jobs:
       - run:
           name: "Build"
           command: build mainnet-fork | add_timestamps
-
-  deploy-mainnet-fork:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: medium
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Deploy mainnet fork"
-          command: deploy_ecr mainnet-fork
 
   aztec-faucet:
     machine:
@@ -502,17 +498,6 @@ jobs:
       - run:
           name: "Test via adhoc script"
           command: ./yarn-project/boxes/run_tests token
-
-  canary:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: build canary-build
 
   end-to-end:
     machine:
@@ -920,7 +905,7 @@ jobs:
           name: "Noop"
           command: echo Noop
 
-  e2e-end:
+  end:
     docker:
       - image: cimg/base:2023.09
     resource_class: small
@@ -928,15 +913,6 @@ jobs:
       - run:
           name: "Noop"
           command: echo Noop
-
-  # canary-end:
-  #   docker:
-  #     - image: cimg/base:2023.09
-  #   resource_class: small
-  #   steps:
-  #     - run:
-  #         name: "Noop"
-  #         command: echo Noop
 
   bench-summary:
     machine:
@@ -948,18 +924,19 @@ jobs:
           name: "Assemble benchmark summary from uploaded logs"
           command: ./scripts/ci/assemble_e2e_benchmark.sh
 
-  # deploy-npm-canary:
-  #   # Deploys next version under 'canary' dist tag.
-  #   machine:
-  #     image: ubuntu-2204:2023.07.2
-  #   resource_class: medium
-  #   steps:
-  #     - *checkout
-  #     - *setup_env
-  #     # Aztec.js and dependencies
-  #     - run:
-  #         name: "yarn-project"
-  #         command: yarn-project/deploy_npm.sh canary
+  # Deploy jobs.
+  deploy-mainnet-fork:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: medium
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Deploy mainnet fork"
+          command: |
+            should_deploy || exit 0
+            deploy_ecr mainnet-fork
 
   deploy-npm:
     machine:
@@ -968,21 +945,11 @@ jobs:
     steps:
       - *checkout
       - *setup_env
-      # Aztec.js and dependencies
       - run:
           name: "yarn-project"
-          command: yarn-project/deploy_npm.sh latest
-
-  # deploy-dockerhub-canary:
-  #   machine:
-  #     image: ubuntu-2204:2023.07.2
-  #   resource_class: medium
-  #   steps:
-  #     - *checkout
-  #     - *setup_env
-  #     - run:
-  #         name: "Deploy to dockerhub"
-  #         command: yarn-project/deploy_dockerhub.sh canary
+          command: |
+            should_deploy || exit 0
+            yarn-project/deploy_npm.sh latest
 
   deploy-dockerhub:
     machine:
@@ -993,58 +960,17 @@ jobs:
       - *setup_env
       - run:
           name: "Deploy to dockerhub"
-          command: yarn-project/deploy_dockerhub.sh
-
-  # build-deployment-canary:
-  #   machine:
-  #     image: ubuntu-2204:2023.07.2
-  #   resource_class: large
-  #   steps:
-  #     - *checkout
-  #     - *setup_env
-  #     - run:
-  #         name: "Build"
-  #         command: build canary true
-
-  # canary-uniswap-test:
-  #   machine:
-  #     image: ubuntu-2204:2023.07.2
-  #   resource_class: large
-  #   steps:
-  #     - *checkout
-  #     - *setup_env
-  #     - run:
-  #         name: "Test"
-  #         command: run_script canary ./scripts/run_tests ./src/uniswap_trade_on_l1_from_l2.test.ts canary ./scripts/docker-compose.yml
-
-  # canary-browser-test:
-  #   machine:
-  #     image: ubuntu-2204:2023.07.2
-  #   resource_class: large
-  #   steps:
-  #     - *checkout
-  #     - *setup_env
-  #     - run:
-  #         name: "Test"
-  #         command: run_script canary ./scripts/run_tests ./src/aztec_js_browser.test.ts canary ./scripts/docker-compose-browser.yml
-
-  # canary-cli-test:
-  #   machine:
-  #     image: ubuntu-2204:2023.07.2
-  #   resource_class: large
-  #   steps:
-  #     - *checkout
-  #     - *setup_env
-  #     - run:
-  #         name: "Test"
-  #         command: run_script canary ./scripts/run_tests ./src/cli.test.ts canary ./scripts/docker-compose.yml
+          command: |
+            should_deploy || exit 0
+            deploy_dockerhub noir x86_64,arm64
+            deploy_dockerhub aztec-sandbox x86_64,arm64
+            deploy_dockerhub cli x86_64,arm64
 
 # Repeatable config for defining the workflow below.
-tag_regex: &tag_regex /^aztec-packages-v.*/
 defaults: &defaults
   filters:
     tags:
-      only: *tag_regex
+      only: /^aztec-packages-v.*/
   context:
     - build
     - slack
@@ -1052,33 +978,42 @@ defaults: &defaults
     - slack/notify:
         event: fail
         branch_pattern: "master"
-release_defaults: &release_defaults
-  filters:
-    tags:
-      only: *tag_regex
-    branches:
-      ignore: /.*/
-  context:
-    - build
-    - slack
-  post-steps:
-    - slack/notify:
-        event: fail
-        branch_pattern: "master"
+
+defaults_yarn_project: &defaults_yarn_project
+  requires:
+    - yarn-project
+  <<: *defaults
+
+defaults_deploy: &defaults_deploy
+  requires:
+    - end
+  <<: *defaults
+
 e2e_test: &e2e_test
   requires:
     - e2e-join
   <<: *defaults
+
 bb_test: &bb_test
   requires:
     - barretenberg-x86_64-linux-clang-assert
   <<: *defaults
 
+# Workflows.
 workflows:
   system:
     when:
       equal: [system, << pipeline.parameters.workflow >>]
     jobs:
+      # Noir
+      - noir-x86_64: *defaults
+      - noir-arm64: *defaults
+      - noir-ecr-manifest:
+          requires:
+            - noir-x86_64
+            - noir-arm64
+          <<: *defaults
+
       # Barretenberg
       - barretenberg-x86_64-linux-gcc: *defaults
       - barretenberg-x86_64-linux-clang: *defaults
@@ -1093,17 +1028,6 @@ workflows:
       - barretenberg-stdlib-tests: *bb_test
       - barretenberg-stdlib-recursion-ultra-tests: *bb_test
       - barretenberg-join-split-tests: *bb_test
-      # - barretenberg-benchmark-aggregator:
-      #     requires:
-      #       - barretenberg-tests
-      #       - barretenberg-stdlib-tests
-      #       - barretenberg-stdlib-recursion-ultra-tests
-      #       - barretenberg-join-split-tests
-      #     filters:
-      #       branches:
-      #         only:
-      #           - master
-      #     <<: *defaults
       - barretenberg-acir-tests-bb:
           requires:
             - barretenberg-x86_64-linux-clang-assert
@@ -1138,10 +1062,6 @@ workflows:
       - l1-contracts: *defaults
 
       - mainnet-fork: *defaults
-      - deploy-mainnet-fork:
-          requires:
-            - mainnet-fork
-          <<: *release_defaults
 
       # Yarn Project
       - yarn-project-base:
@@ -1154,51 +1074,15 @@ workflows:
           requires:
             - yarn-project-base
           <<: *defaults
-      - yarn-project-formatting:
-          requires:
-            - yarn-project
-          <<: *defaults
-      - yarn-project-tests:
-          requires:
-            - yarn-project
-          <<: *defaults
-
-      - end-to-end:
-          requires:
-            - yarn-project
-          <<: *defaults
-      - canary:
-          requires:
-            - yarn-project
-          <<: *defaults
-      - build-docs:
-          requires:
-            - yarn-project
-          <<: *defaults
-
-      - aztec-sandbox-x86_64:
-          requires:
-            - yarn-project
-          <<: *defaults
-      - aztec-sandbox-arm64:
-          requires:
-            - yarn-project
-          <<: *defaults
-
-      - cli-x86_64:
-          requires:
-            - yarn-project
-          <<: *defaults
-      - cli-arm64:
-          requires:
-            - yarn-project
-          <<: *defaults
-
-      - aztec-faucet:
-          requires:
-            - yarn-project
-          <<: *defaults
-
+      - yarn-project-formatting: *defaults_yarn_project
+      - yarn-project-tests: *defaults_yarn_project
+      - end-to-end: *defaults_yarn_project
+      - build-docs: *defaults_yarn_project
+      - aztec-sandbox-x86_64: *defaults_yarn_project
+      - aztec-sandbox-arm64: *defaults_yarn_project
+      - cli-x86_64: *defaults_yarn_project
+      - cli-arm64: *defaults_yarn_project
+      - aztec-faucet: *defaults_yarn_project
       - ecr-manifest:
           requires:
             - aztec-sandbox-x86_64
@@ -1207,28 +1091,26 @@ workflows:
             - cli-arm64
           <<: *defaults
 
+      # Boxes.
       - boxes-blank-react:
           requires:
             - aztec-sandbox-x86_64
           <<: *defaults
-
       - boxes-blank:
           requires:
             - aztec-sandbox-x86_64
           <<: *defaults
-
       - boxes-token:
           requires:
             - aztec-sandbox-x86_64
           <<: *defaults
 
+      # End to end tests.
       - e2e-join:
           requires:
             - end-to-end
             - ecr-manifest
-            - canary
           <<: *defaults
-
       - e2e-2-pxes: *e2e_test
       - e2e-deploy-contract: *e2e_test
       - e2e-lending-contract: *e2e_test
@@ -1260,11 +1142,12 @@ workflows:
       - guides-dapp-testing: *e2e_test
       - guides-sample-dapp: *e2e_test
       - guides-up-quick-start: *e2e_test
-      - bench-publish-rollup: *e2e_test
-      - bench-process-history: *e2e_test
 
-      - e2e-end:
+      # Everything that must complete before deployment.
+      - end:
           requires:
+            - mainnet-fork
+            - noir-ecr-manifest
             - e2e-2-pxes
             - e2e-deploy-contract
             - e2e-lending-contract
@@ -1298,64 +1181,16 @@ workflows:
             - guides-up-quick-start
           <<: *defaults
 
+      # Benchmark jobs.
+      - bench-publish-rollup: *e2e_test
+      - bench-process-history: *e2e_test
       - bench-summary:
           requires:
-            - e2e-end
             - bench-publish-rollup
             - bench-process-history
           <<: *defaults
 
-        # Deploy under canary tag
-      # - deploy-npm-canary:
-      #     requires:
-      #       - e2e-end
-      #     <<: *release_defaults
-      # - deploy-dockerhub-canary:
-      #     requires:
-      #       - e2e-end
-      #     <<: *release_defaults
-      # - deploy-ecr:
-      #     requires:
-      #       - e2e-end
-      #     <<: *release_defaults
-
-      # - build-deployment-canary:
-      #     requires:
-      #       - deploy-npm-canary
-      #       - deploy-dockerhub-canary
-      #     <<: *release_defaults
-
-      # Run canary tests
-      # - canary-uniswap-test:
-      #     requires:
-      #       - build-deployment-canary
-      #     <<: *release_defaults
-
-      # - canary-browser-test:
-      #     requires:
-      #       - build-deployment-canary
-      #     <<: *release_defaults
-
-      # - canary-cli-test:
-      #     requires:
-      #       - build-deployment-canary
-      #     <<: *release_defaults
-
-      # - canary-end:
-      #     requires:
-      #       - canary-uniswap-test
-      #       - canary-browser-test
-      #       - canary-cli-test
-      #     <<: *release_defaults
-
       # Production deployment
-      - deploy-dockerhub:
-          requires:
-            # - canary-end
-            - e2e-end
-          <<: *release_defaults
-      - deploy-npm:
-          requires:
-            # - canary-end
-            - e2e-end
-          <<: *release_defaults
+      - deploy-dockerhub: *defaults_deploy
+      - deploy-npm: *defaults_deploy
+      - deploy-mainnet-fork: *defaults_deploy
