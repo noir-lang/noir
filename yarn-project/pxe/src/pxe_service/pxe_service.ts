@@ -355,13 +355,23 @@ export class PXEService implements PXE {
   }
 
   public async getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
+    let txReceipt = new TxReceipt(txHash, TxStatus.DROPPED, 'Tx dropped by P2P node.');
+
+    // We first check if the tx is in pending (instead of first checking if it is mined) because if we first check
+    // for mined and then for pending there could be a race condition where the tx is mined between the two checks
+    // and we would incorrectly return a TxReceipt with status DROPPED
+    const pendingTx = await this.node.getPendingTxByHash(txHash);
+    if (pendingTx) {
+      txReceipt = new TxReceipt(txHash, TxStatus.PENDING, '');
+    }
+
     const settledTx = await this.node.getTx(txHash);
     if (settledTx) {
       const deployedContractAddress = settledTx.newContractData.find(
         c => !c.contractAddress.equals(AztecAddress.ZERO),
       )?.contractAddress;
 
-      return new TxReceipt(
+      txReceipt = new TxReceipt(
         txHash,
         TxStatus.MINED,
         '',
@@ -371,12 +381,7 @@ export class PXEService implements PXE {
       );
     }
 
-    const pendingTx = await this.node.getPendingTxByHash(txHash);
-    if (pendingTx) {
-      return new TxReceipt(txHash, TxStatus.PENDING, '');
-    }
-
-    return new TxReceipt(txHash, TxStatus.DROPPED, 'Tx dropped by P2P node.');
+    return txReceipt;
   }
 
   public async getTx(txHash: TxHash): Promise<L2Tx | undefined> {
