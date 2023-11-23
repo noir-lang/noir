@@ -148,6 +148,15 @@ const config = {
     },
   plugins: [
     [
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'specs',
+        path: 'specs',
+        routeBasePath: 'specs',
+        sidebarPath: './sidebarsSpecs.js',
+      },
+    ],
+    [
       'docusaurus-plugin-typedoc',
       {
         id: 'noir_js',
