@@ -68,6 +68,7 @@ impl FmtVisitor<'_> {
                     false,
                     call_expr.arguments,
                     args_span,
+                    true,
                 );
 
                 format!("{callee}{args}")
@@ -86,6 +87,7 @@ impl FmtVisitor<'_> {
                     false,
                     method_call_expr.arguments,
                     args_span,
+                    true,
                 );
 
                 format!("{object}.{method}{args}")
@@ -104,7 +106,7 @@ impl FmtVisitor<'_> {
                 format!("{collection}{index}")
             }
             ExpressionKind::Tuple(exprs) => {
-                format_parens(None, self.fork(), exprs.len() == 1, exprs, span)
+                format_parens(None, self.fork(), exprs.len() == 1, exprs, span, false)
             }
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) | Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) => {
@@ -412,9 +414,10 @@ fn format_parens(
     trailing_comma: bool,
     exprs: Vec<Expression>,
     span: Span,
+    soft_newline: bool,
 ) -> String {
     let tactic = max_width.map(Tactic::LimitedHorizontalVertical).unwrap_or(Tactic::Horizontal);
-    format_seq("(", ")", visitor, trailing_comma, exprs, span, tactic, false)
+    format_seq("(", ")", visitor, trailing_comma, exprs, span, tactic, soft_newline)
 }
 
 fn format_exprs(

@@ -3,7 +3,6 @@ mod acir_ir;
 
 use std::collections::HashSet;
 use std::fmt::Debug;
-use std::ops::RangeInclusive;
 
 use self::acir_ir::acir_variable::{AcirContext, AcirType, AcirVar};
 use super::function_builder::data_bus::DataBus;
@@ -27,6 +26,7 @@ use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunction
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 
+use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
 use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
@@ -232,7 +232,7 @@ impl Context {
         }
 
         warnings.extend(self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?);
-        Ok(self.acir_context.finish(vec![input_witness], warnings))
+        Ok(self.acir_context.finish(input_witness, warnings))
     }
 
     fn convert_brillig_main(
@@ -268,8 +268,7 @@ impl Context {
         for acir_var in output_vars {
             self.acir_context.return_var(acir_var)?;
         }
-        let witnesses = vecmap(witness_inputs, |input| RangeInclusive::new(input, input));
-        Ok(self.acir_context.finish(witnesses, Vec::new()))
+        Ok(self.acir_context.finish(witness_inputs, Vec::new()))
     }
 
     /// Adds and binds `AcirVar`s for each numeric block parameter or block parameter array element.
@@ -277,7 +276,7 @@ impl Context {
         &mut self,
         params: &[ValueId],
         dfg: &DataFlowGraph,
-    ) -> Result<RangeInclusive<u32>, RuntimeError> {
+    ) -> Result<Vec<Witness>, RuntimeError> {
         // The first witness (if any) is the next one
         let start_witness = self.acir_context.current_witness_index().0 + 1;
         for param_id in params {
@@ -306,7 +305,8 @@ impl Context {
             self.ssa_values.insert(*param_id, value);
         }
         let end_witness = self.acir_context.current_witness_index().0;
-        Ok(start_witness..=end_witness)
+        let witnesses = (start_witness..=end_witness).map(Witness::from).collect();
+        Ok(witnesses)
     }
 
     fn convert_ssa_block_param(&mut self, param_type: &Type) -> Result<AcirValue, RuntimeError> {
