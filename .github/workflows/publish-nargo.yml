@@ -55,6 +55,12 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
       - name: Build environment and Compile
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
@@ -137,6 +143,12 @@ jobs:
           key: ${{ matrix.target }}
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
 
       - name: Install Cross
         uses: taiki-e/install-action@v2
