@@ -475,7 +475,7 @@ impl FunctionBuilder {
                 self.insert_instruction(Instruction::IncrementRc { value }, None);
 
                 if element_types.iter().any(|element| element.contains_an_array()) {
-                    for i in 0 .. length {
+                    for i in 0..length {
                         let index = self.field_constant(i as u128);
                         let element_type = element_types[i % element_types.len()].clone();
                         let element = self.insert_array_get(value, index, element_type);
