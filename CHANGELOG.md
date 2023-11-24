@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.19.4](https://github.com/noir-lang/noir/compare/v0.19.3...v0.19.4) (2023-11-24)
+
+
+### Features
+
+* Add --check option to nargo fmt for dry-run formatting verification ([#3530](https://github.com/noir-lang/noir/issues/3530)) ([4469707](https://github.com/noir-lang/noir/commit/4469707d97085fab0f7ade8d015dc827c56156ee))
+* Committing to fake master ([381b114](https://github.com/noir-lang/noir/commit/381b1148fa6bc404e21a7d4ccdf3b08426466926))
+* Committing to fake master ([5edd062](https://github.com/noir-lang/noir/commit/5edd0622b4af75e71f33ae844448b9c487f29de0))
+* Committing to fake master ([640a648](https://github.com/noir-lang/noir/commit/640a6489859f4d2f24962b29c071e1fe52afbf93))
+* Committing to fake master ([6c07471](https://github.com/noir-lang/noir/commit/6c074710cecd617d4df2a5678d4620ab5a9cc01d))
+
+
+### Bug Fixes
+
+* Compiler version error message ([#3558](https://github.com/noir-lang/noir/issues/3558)) ([026a358](https://github.com/noir-lang/noir/commit/026a3587b01ddc8f444ff588a7b3f3fd1a0bb386))
+
 ## [0.19.3](https://github.com/noir-lang/noir/compare/v0.19.2...v0.19.3) (2023-11-22)
 
 
