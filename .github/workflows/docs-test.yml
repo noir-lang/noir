@@ -101,14 +101,14 @@ jobs:
 
       - name: Cut a new version
         working-directory: ./docs
-        run: yarn docusaurus docs:version ${{ inputs.tag }}
+        run: yarn docusaurus docs:version ${{ needs.release-please.outputs.tag-name }}
 
       - name: Commit new documentation version
         run: |
           git config --local user.name 'signorecello'
           git config --local user.email 'github@zepedro.me'
           git add .
-          git commit -m "chore(docs): cut new docs version for tag ${{ github.event.inputs.tag }}"
+          git commit -m "chore(docs): cut new docs version for tag ${{ needs.release-please.outputs.tag-name }}"
           git push
           
       - name: Build docs for deploying
@@ -122,7 +122,7 @@ jobs:
         #   production-deploy: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
           enable-github-deployment: false
-          deploy-message: "Deploy from GitHub Actions for tag ${{ inputs.tag }}"
+          deploy-message: "Deploy from GitHub Actions for tag ${{ needs.release-please.outputs.tag-name }}"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
