@@ -31,7 +31,7 @@ jobs:
           nix build -L .#acvm_js
 
       - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+        run: echo "UPLOAD_PATH=$(readlink -f result/acvm_js)" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
@@ -81,12 +81,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: acvm-js
-          path: ./result
-      
-      - name: Move build artifacts
-        run: |
-          mv ./result/acvm_js/nodejs ./acvm-repo/acvm_js/nodejs
-          mv ./result/acvm_js/web ./acvm-repo/acvm_js/web
+          path: ./acvm_repo/acvm_js
 
       - name: Set up test environment
         uses: ./.github/actions/setup
