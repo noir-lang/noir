@@ -2536,6 +2536,7 @@ dependencies = [
  "codespan-reporting",
  "dap",
  "easy-repl",
+ "fm",
  "nargo",
  "noirc_driver",
  "noirc_errors",

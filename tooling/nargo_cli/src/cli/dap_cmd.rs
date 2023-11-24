@@ -31,18 +31,22 @@ struct LoadError(&'static str);
 
 fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspace> {
     let Ok(toml_path) = get_package_manifest(Path::new(project_folder)) else {
+        eprintln!("ERROR: Failed to get package manifest");
         return None;
     };
     let package = package.and_then(|p| serde_json::from_str::<CrateName>(p).ok());
     let selection = package.map_or(PackageSelection::DefaultOrAll, PackageSelection::Selected);
-    let Ok(workspace) = resolve_workspace_from_toml(
+    match resolve_workspace_from_toml(
         &toml_path,
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    ) else {
-        return None;
-    };
-    Some(workspace)
+    ) {
+        Ok(workspace) => Some(workspace),
+        Err(err) => {
+            eprintln!("ERROR: Failed to resolve workspace: {}", err.to_string());
+            None
+        }
+    }
 }
 
 fn load_and_compile_project(

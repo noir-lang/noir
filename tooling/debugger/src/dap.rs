@@ -1,9 +1,11 @@
+use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::str::FromStr;
 
 use acvm::acir::circuit::{Circuit, OpcodeLocation};
 use acvm::acir::native_types::WitnessMap;
 use acvm::BlackBoxFunctionSolver;
+use codespan_reporting::files::{Files, SimpleFile};
 
 use crate::context::DebugCommandResult;
 use crate::context::DebugContext;
@@ -13,15 +15,18 @@ use dap::events::StoppedEventBody;
 use dap::prelude::Event;
 use dap::requests::{Command, Request};
 use dap::responses::{
-    DisassembleResponse, ResponseBody, ScopesResponse, SetBreakpointsResponse,
+    ContinueResponse, DisassembleResponse, ResponseBody, ScopesResponse, SetBreakpointsResponse,
     SetExceptionBreakpointsResponse, SetInstructionBreakpointsResponse, StackTraceResponse,
     ThreadsResponse,
 };
 use dap::server::Server;
-use dap::types::{DisassembledInstruction, Source, StackFrame, StoppedEventReason, Thread};
+use dap::types::{
+    Breakpoint, DisassembledInstruction, Source, StackFrame, StoppedEventReason, Thread,
+};
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::ops::DefaultForeignCallExecutor;
 
+use fm::FileId;
 use noirc_driver::CompiledProgram;
 
 pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> {
@@ -29,7 +34,10 @@ pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> {
     context: DebugContext<'a, B>,
     debug_artifact: &'a DebugArtifact,
     running: bool,
+    source_to_opcodes: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>>,
 }
+
+// BTreeMap<FileId, Vec<(usize, OpcodeLocation)>
 
 impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     pub fn new(
@@ -39,6 +47,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
     ) -> Self {
+        let source_to_opcodes = Self::build_source_to_opcode_debug_mappings(debug_artifact);
         let context = DebugContext::new(
             solver,
             circuit,
@@ -46,7 +55,47 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             initial_witness,
             Box::new(DefaultForeignCallExecutor::new(true)),
         );
-        Self { server, context, debug_artifact, running: false }
+        Self { server, context, debug_artifact, source_to_opcodes, running: false }
+    }
+
+    /// Builds a map from FileId to an ordered vector of tuples with line
+    /// numbers and opcode locations correspoding to those line numbers
+    fn build_source_to_opcode_debug_mappings(
+        debug_artifact: &'a DebugArtifact,
+    ) -> BTreeMap<FileId, Vec<(usize, OpcodeLocation)>> {
+        let mut result = BTreeMap::new();
+        if debug_artifact.debug_symbols.is_empty() {
+            return result;
+        }
+        let locations = &debug_artifact.debug_symbols[0].locations;
+        let mut simple_files = BTreeMap::new();
+        debug_artifact.file_map.iter().for_each(|(file_id, debug_file)| {
+            simple_files.insert(
+                file_id,
+                SimpleFile::new(debug_file.path.to_str().unwrap(), debug_file.source.as_str()),
+            );
+        });
+
+        locations.iter().for_each(|(opcode_location, source_locations)| {
+            if source_locations.is_empty() {
+                return;
+            }
+            let source_location = source_locations[0];
+            let span = source_location.span;
+            let file_id = source_location.file;
+            let Ok(line_index) = &simple_files[&file_id].line_index((), span.start() as usize) else {
+                return;
+            };
+            let line_number = line_index + 1;
+
+            if result.contains_key(&file_id) {
+                result.get_mut(&file_id).unwrap().push((line_number, *opcode_location));
+            } else {
+                result.insert(file_id, vec![(line_number, *opcode_location)]);
+            }
+        });
+        result.iter_mut().for_each(|(_, file_locations)| file_locations.sort_by_key(|x| x.0));
+        result
     }
 
     fn send_stopped_event(&mut self, reason: StoppedEventReason) -> Result<(), ServerError> {
@@ -85,24 +134,16 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     self.server.respond(req.ack()?)?;
                     break;
                 }
-                Command::SetBreakpoints(ref args) => {
-                    eprintln!("INFO: Received SetBreakpoints {:?}", args);
-                    // FIXME: set and return the breakpoints actually set
-                    self.server.respond(req.success(ResponseBody::SetBreakpoints(
-                        SetBreakpointsResponse { breakpoints: vec![] },
-                    )))?;
+                Command::SetBreakpoints(_) => {
+                    self.handle_set_source_breakpoints(req)?;
                 }
                 Command::SetExceptionBreakpoints(_) => {
                     self.server.respond(req.success(ResponseBody::SetExceptionBreakpoints(
                         SetExceptionBreakpointsResponse { breakpoints: None },
                     )))?;
                 }
-                Command::SetInstructionBreakpoints(ref args) => {
-                    eprintln!("INFO: Received SetInstructionBreakpoints {:?}", args);
-                    // FIXME: set and return the breakpoints actually set
-                    self.server.respond(req.success(ResponseBody::SetInstructionBreakpoints(
-                        SetInstructionBreakpointsResponse { breakpoints: vec![] },
-                    )))?;
+                Command::SetInstructionBreakpoints(_) => {
+                    self.handle_set_instruction_breakpoints(req)?;
                 }
                 Command::Threads => {
                     self.server.respond(req.success(ResponseBody::Threads(ThreadsResponse {
@@ -233,30 +274,137 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     fn handle_next(&mut self, req: Request) -> Result<(), ServerError> {
         let result = self.context.next();
         eprintln!("INFO: stepped with result {result:?}");
-        self.handle_execution_result(req, result)
+        self.server.respond(req.ack()?)?;
+        self.handle_execution_result(result)
     }
 
     fn handle_continue(&mut self, req: Request) -> Result<(), ServerError> {
         let result = self.context.cont();
         eprintln!("INFO: continue with result {result:?}");
-        self.handle_execution_result(req, result)
+        self.server.respond(req.success(ResponseBody::Continue(ContinueResponse {
+            all_threads_continued: Some(true),
+        })))?;
+        self.handle_execution_result(result)
     }
 
-    fn handle_execution_result(
-        &mut self,
-        req: Request,
-        result: DebugCommandResult,
-    ) -> Result<(), ServerError> {
+    fn handle_execution_result(&mut self, result: DebugCommandResult) -> Result<(), ServerError> {
         match result {
             DebugCommandResult::Done => {
-                self.server.respond(req.success(ResponseBody::Terminate))?;
                 self.running = false;
             }
             _ => {
-                self.server.respond(req.ack()?)?;
                 self.send_stopped_event(StoppedEventReason::Pause)?;
             }
         }
+        Ok(())
+    }
+
+    fn handle_set_instruction_breakpoints(&mut self, req: Request) -> Result<(), ServerError> {
+        let Command::SetInstructionBreakpoints(ref args) = req.command else {
+            unreachable!("handle_set_instruction_breakpoints called on a different request");
+        };
+        // FIXME: clear previous instruction breakpoints
+        let breakpoints = args.breakpoints.iter().filter_map(|breakpoint| {
+            let Ok(location) = OpcodeLocation::from_str(breakpoint.instruction_reference.as_str()) else {
+                return None;
+            };
+            if !self.context.is_valid_opcode_location(&location) {
+                return None;
+            }
+            if self.context.add_breakpoint(location) {
+                Some(
+                    Breakpoint {
+                        verified: true,
+                        instruction_reference: Some(breakpoint.instruction_reference.clone()),
+                        ..Breakpoint::default()
+                    }
+                )
+            } else {
+                None
+            }
+        }).collect();
+        self.server.respond(req.success(ResponseBody::SetInstructionBreakpoints(
+            SetInstructionBreakpointsResponse { breakpoints },
+        )))?;
+        Ok(())
+    }
+
+    fn find_file_id(&self, source_path: &str) -> Option<FileId> {
+        let file_map = &self.debug_artifact.file_map;
+        let found = file_map.iter().find(|(_, debug_file)| match debug_file.path.to_str() {
+            Some(debug_file_path) => debug_file_path == source_path,
+            None => false,
+        });
+        if let Some(iter) = found {
+            Some(*iter.0)
+        } else {
+            None
+        }
+    }
+
+    fn find_opcode_for_source_location(&self, source: &str, line: i64) -> Option<OpcodeLocation> {
+        let line = line as usize;
+        let Some(file_id) = self.find_file_id(source) else {
+            return None;
+        };
+        if self.debug_artifact.debug_symbols.is_empty() {
+            return None;
+        }
+        let Some(line_to_opcodes) = self.source_to_opcodes.get(&file_id) else {
+            return None;
+        };
+        let found_index = match line_to_opcodes.binary_search_by(|x| x.0.cmp(&line)) {
+            Ok(index) => line_to_opcodes[index].1,
+            Err(index) => line_to_opcodes[index].1,
+        };
+        Some(found_index)
+    }
+
+    fn handle_set_source_breakpoints(&mut self, req: Request) -> Result<(), ServerError> {
+        let Command::SetBreakpoints(ref args) = req.command else {
+            unreachable!("handle_set_source_breakpoints called on a different request");
+        };
+        let Some(ref source) = &args.source.path else {
+            self.server.respond(
+                req.success(ResponseBody::SetBreakpoints(SetBreakpointsResponse { breakpoints: vec![] })),
+            )?;
+            return Ok(());
+        };
+        let Some(ref breakpoints) = &args.breakpoints else {
+            self.server.respond(
+                req.success(ResponseBody::SetBreakpoints(SetBreakpointsResponse { breakpoints: vec![] })),
+            )?;
+            return Ok(());
+        };
+        // FIXME: clear previous source breakpoints on this source
+        let breakpoints = breakpoints
+            .iter()
+            .filter_map(|breakpoint| {
+                let line = breakpoint.line;
+                let Some(location) = self.find_opcode_for_source_location(source, line) else {
+                    return None;
+                };
+                if !self.context.is_valid_opcode_location(&location) {
+                    return None;
+                }
+                if self.context.add_breakpoint(location) {
+                    let instruction_reference = format!("{}", location);
+                    Some(Breakpoint {
+                        verified: true,
+                        source: Some(args.source.clone()),
+                        instruction_reference: Some(instruction_reference),
+                        line: Some(line),
+                        ..Breakpoint::default()
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        self.server.respond(
+            req.success(ResponseBody::SetBreakpoints(SetBreakpointsResponse { breakpoints })),
+        )?;
         Ok(())
     }
 }

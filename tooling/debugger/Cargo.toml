@@ -14,6 +14,7 @@ nargo.workspace = true
 noirc_printable_type.workspace = true
 noirc_errors.workspace = true
 noirc_driver.workspace = true
+fm.workspace = true
 thiserror.workspace = true
 codespan-reporting.workspace = true
 dap.workspace = true
