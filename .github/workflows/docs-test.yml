@@ -63,6 +63,9 @@ jobs:
           ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
 
+      - name: Print Release Tag Name
+        run: echo "Tag name is ${{ needs.release-please.outputs.tag-name }}"
+
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
