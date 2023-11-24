@@ -52,7 +52,7 @@ jobs:
 
   test-publish-docs:
     name: Publish docs
-    needs: [release-please]
+    needs: [test-release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
     steps:
