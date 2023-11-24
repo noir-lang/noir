@@ -15,10 +15,6 @@ impl PublicDataUpdateRequest {
         }
     }
 
-    pub fn is_empty(self) -> bool {
-        (self.leaf_index == 0) & (self.old_value == 0) & (self.new_value == 0)
-    }
-
     pub fn eq(self, update_request: PublicDataUpdateRequest) -> bool {
         (update_request.leaf_index == self.leaf_index) & (update_request.old_value == self.old_value) 
             & (update_request.new_value == self.new_value)
@@ -30,5 +26,9 @@ impl PublicDataUpdateRequest {
             self.old_value,
             self.new_value
         ], GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST)
+    }
+
+    pub fn is_empty(self) -> bool {
+        (self.leaf_index == 0) & (self.old_value == 0) & (self.new_value == 0)
     }
 }

@@ -1,5 +1,6 @@
 import {
   BaseOrMergeRollupPublicInputs,
+  BaseRollupInputs,
   KernelCircuitPublicInputs,
   KernelCircuitPublicInputsFinal,
   MergeRollupInputs,
@@ -25,10 +26,12 @@ import PublicKernelPrivatePreviousJson from './target/public_kernel_private_prev
 import PublicKernelPrivatePreviousSimulatedJson from './target/public_kernel_private_previous_simulated.json' assert { type: 'json' };
 import PublicKernelPublicPreviousJson from './target/public_kernel_public_previous.json' assert { type: 'json' };
 import PublicKernelPublicPreviousSimulatedJson from './target/public_kernel_public_previous_simulated.json' assert { type: 'json' };
+import BaseRollupJson from './target/rollup_base.json' assert { type: 'json' };
 import MergeRollupJson from './target/rollup_merge.json' assert { type: 'json' };
 import RootRollupJson from './target/rollup_root.json' assert { type: 'json' };
 import {
   mapBaseOrMergeRollupPublicInputsFromNoir,
+  mapBaseRollupInputsToNoir,
   mapKernelCircuitPublicInputsFinalFromNoir,
   mapKernelCircuitPublicInputsFromNoir,
   mapMergeRollupInputsToNoir,
@@ -53,6 +56,7 @@ import {
   InputType as PublicPublicPreviousInputType,
   ReturnType as PublicPublicPreviousReturnType,
 } from './types/public_kernel_public_previous_types.js';
+import { InputType as BaseRollupInputType, ReturnType as BaseRollupReturnType } from './types/rollup_base_types.js';
 import { InputType as MergeRollupInputType, ReturnType as MergeRollupReturnType } from './types/rollup_merge_types.js';
 import { InputType as RootRollupInputType, ReturnType as RootRollupReturnType } from './types/rollup_root_types.js';
 
@@ -201,6 +205,21 @@ export async function executeMergeRollup(mergeRollupInputs: MergeRollupInputs): 
   };
 
   const returnType = await executeMergeRollupWithACVM(params);
+
+  return mapBaseOrMergeRollupPublicInputsFromNoir(returnType);
+}
+
+/**
+ * Executes the base rollup.
+ * @param mergeRollupInputs - The merge rollup inputs.
+ * @returns The public inputs.
+ */
+export async function executeBaseRollup(baseRollupInputs: BaseRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
+  const params: BaseRollupInputType = {
+    inputs: mapBaseRollupInputsToNoir(baseRollupInputs),
+  };
+
+  const returnType = await executeBaseRollupWithACVM(params);
 
   return mapBaseOrMergeRollupPublicInputsFromNoir(returnType);
 }
@@ -391,4 +410,32 @@ async function executeMergeRollupWithACVM(input: MergeRollupInputType): Promise<
 
   // Cast the inputs as the return type
   return decodedInputs.return_value as MergeRollupReturnType;
+}
+
+/**
+ * Executes the base rollup with the given inputs using the acvm.
+ */
+async function executeBaseRollupWithACVM(input: BaseRollupInputType): Promise<BaseRollupReturnType> {
+  const initialWitnessMap = abiEncode(BaseRollupJson.abi, input, null);
+
+  // Execute the circuit on those initial witness values
+  //
+  // Decode the bytecode from base64 since the acvm does not know about base64 encoding
+  const decodedBytecode = Buffer.from(BaseRollupJson.bytecode, 'base64');
+  //
+  // Execute the circuit
+  const _witnessMap = await executeCircuitWithBlackBoxSolver(
+    await getSolver(),
+    decodedBytecode,
+    initialWitnessMap,
+    () => {
+      throw Error('unexpected oracle during execution');
+    },
+  );
+
+  // Decode the witness map into two fields, the return values and the inputs
+  const decodedInputs: DecodedInputs = abiDecode(BaseRollupJson.abi, _witnessMap);
+
+  // Cast the inputs as the return type
+  return decodedInputs.return_value as BaseRollupReturnType;
 }

@@ -79,7 +79,7 @@ describe('e2e_p2p_network', () => {
       await context.pxeService.stop();
     }
     await bootstrapNode.stop();
-  }, 80_000);
+  }, 120_000);
 
   const createBootstrapNode = async () => {
     const peerId = await createLibP2PPeerId();

@@ -143,7 +143,7 @@ mod tests {
             root_rollup_inputs::RootRollupInputs,
             NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP_NUM_BYTES,
         },
-        fixtures::root_rollup_inputs::default_root_rollup_inputs,
+        tests::root_rollup_inputs::default_root_rollup_inputs,
     };
     use dep::types::utils::uint128::U128;
     use dep::types::utils::uint256::U256;

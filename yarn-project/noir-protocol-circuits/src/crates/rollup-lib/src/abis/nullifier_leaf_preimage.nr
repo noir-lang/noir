@@ -5,12 +5,19 @@ struct NullifierLeafPreimage {
 }
 
 impl NullifierLeafPreimage {
-    // TODO(Kev): Check if this is needed.
-    fn is_empty(self) -> bool {
+    pub fn default() -> Self {
+        NullifierLeafPreimage {
+            leaf_value : 0,
+            next_value : 0,
+            next_index : 0,
+        }
+    }
+
+    pub fn is_empty(self) -> bool {
         (self.leaf_value == 0) & (self.next_index == 0) & (self.next_value == 0)
     }
 
-    fn hash(self) -> Field {
+    pub fn hash(self) -> Field {
         if self.is_empty() {
             0
         } else {

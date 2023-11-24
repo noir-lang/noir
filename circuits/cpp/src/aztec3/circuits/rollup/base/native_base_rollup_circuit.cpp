@@ -57,6 +57,7 @@ AggregationObject aggregate_proofs(BaseRollupInputs const& baseRollupInputs)
 }
 
 /** TODO: implement
+ * This is not being used
  * @brief Get the prover contribution hash object
  *
  * @return NT::fr

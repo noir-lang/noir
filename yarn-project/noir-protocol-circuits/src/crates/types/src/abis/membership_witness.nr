@@ -2,9 +2,10 @@ use dep::aztec::constants_gen::{
     CONTRACT_TREE_HEIGHT,
     FUNCTION_TREE_HEIGHT,
     KERNELS_PER_BASE_ROLLUP,
-    MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
+    NULLIFIER_TREE_HEIGHT,
     NOTE_HASH_TREE_HEIGHT,
     ROLLUP_VK_TREE_HEIGHT,
+    HISTORIC_BLOCKS_TREE_HEIGHT,
 };
 
 struct MembershipWitness<N> {
@@ -33,12 +34,12 @@ struct VKMembershipWitness{
 
 struct NullifierMembershipWitness{
     leaf_index: Field,
-    sibling_path: [Field; MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP]
+    sibling_path: [Field; NULLIFIER_TREE_HEIGHT]
 }
 
 struct HistoricBlocksTreeRootMembershipWitness{
     leaf_index: Field,
-    sibling_path: [Field; KERNELS_PER_BASE_ROLLUP]
+    sibling_path: [Field; HISTORIC_BLOCKS_TREE_HEIGHT]
 }
 
 struct ReadRequestMembershipWitness {

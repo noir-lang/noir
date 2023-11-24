@@ -216,5 +216,5 @@ describe('e2e_sandbox_example', () => {
     // check that alice and bob are in registeredAccounts
     expect(registeredAccounts.find(acc => acc.equals(alice))).toBeTruthy();
     expect(registeredAccounts.find(acc => acc.equals(bob))).toBeTruthy();
-  });
+  }, 60_000);
 });

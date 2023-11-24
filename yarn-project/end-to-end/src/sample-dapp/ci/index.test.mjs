@@ -9,5 +9,5 @@ describe('sample-dapp', () => {
     await waitForSandbox();
     await deploy();
     await main();
-  }, 60_000);
+  }, 90_000);
 });

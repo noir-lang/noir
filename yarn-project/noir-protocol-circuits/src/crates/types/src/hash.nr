@@ -37,12 +37,12 @@ pub fn root_from_sibling_path<N>(leaf : Field, leaf_index : Field, sibling_path 
     let indices = leaf_index.to_le_bits(N);
 
     for i in 0..N {
-        // indices[i]; // This line will fail.
-        if indices[i] == 1 {
-            node = merkle_hash(sibling_path[i], node);
+        let (hash_left, hash_right) = if indices[i] == 1 {
+            (sibling_path[i], node)
         } else {
-            node = merkle_hash(node, sibling_path[i]);
-        }
+            (node, sibling_path[i])
+        };
+        node = merkle_hash(hash_left, hash_right);
     }
     node
 }

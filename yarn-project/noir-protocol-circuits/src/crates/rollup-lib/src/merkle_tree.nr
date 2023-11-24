@@ -32,7 +32,7 @@ impl<N> MerkleTree<N> {
     }
 }
 
-pub fn calculate_subtree<N>(leaves : [Field; N]) -> Field { 
+pub fn calculate_subtree<N>(leaves: [Field; N]) -> Field {
     MerkleTree::new(leaves).get_root()
 }
 
@@ -41,12 +41,12 @@ pub fn calculate_subtree<N>(leaves : [Field; N]) -> Field {
 //
 // Would be good if we could use width since the compute_subtree
 // algorithm uses depth.
-pub fn calculate_empty_tree_root(depth : Field) -> Field {
+pub fn calculate_empty_tree_root(depth: Field) -> Field {
     if depth == 1 {
         0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed
     } else if depth == 2 {
         0x21dbfd1d029bf447152fcf89e355c334610d1632436ba170f738107266a71550
-    } else if depth == 3{
+    } else if depth == 3 {
         0x0bcd1f91cf7bdd471d0a30c58c4706f3fdab3807a954b8f5b5e3bfec87d001bb
     } else if depth == 4 {
         0x06e62084ee7b602fe9abc15632dda3269f56fb0c6e12519a2eb2ec897091919d
@@ -68,13 +68,12 @@ pub fn calculate_empty_tree_root(depth : Field) -> Field {
     }
 }
 
-
 #[test]
 fn test_merkle_root_interop_test() {
     // This is a test to ensure that we match the cpp implementation.
     // You can grep for `TEST_F(root_rollup_tests, noir_interop_test)`
     // to find the test that matches this.
-    let root = calculate_subtree([1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4]);
+    let root = calculate_subtree([1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4]);
     assert(0x17e8bb70a11d0c946345950879484d2f4f9fef397ff6adbfdec3baab2d41faab == root);
 
     let empty_root = calculate_subtree([0; 16]);
@@ -85,7 +84,7 @@ fn test_merkle_root_interop_test() {
 fn test_empty_subroot() {
     let expected_empty_root_2 = calculate_subtree([0; 2]);
     assert(calculate_empty_tree_root(1) == expected_empty_root_2);
-    
+
     let expected_empty_root_4 = calculate_subtree([0; 4]);
     assert(calculate_empty_tree_root(2) == expected_empty_root_4);
 
@@ -97,10 +96,10 @@ fn test_empty_subroot() {
 
     let expected_empty_root_32 = calculate_subtree([0; 32]);
     assert(calculate_empty_tree_root(5) == expected_empty_root_32);
-    
+
     let expected_empty_root_64 = calculate_subtree([0; 64]);
     assert(calculate_empty_tree_root(6) == expected_empty_root_64);
- 
+
     let expected_empty_root_128 = calculate_subtree([0; 128]);
     assert(calculate_empty_tree_root(7) == expected_empty_root_128);
 }

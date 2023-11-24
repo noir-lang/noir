@@ -119,5 +119,5 @@ describe('archiver integration with l1 to l2 messages', () => {
 
     expect((await archiver.getPendingL1ToL2Messages(10)).length).toEqual(0);
     expect(() => archiver.getConfirmedL1ToL2Message(Fr.ZERO)).toThrow();
-  });
+  }, 30_000);
 });

@@ -35,7 +35,7 @@ describe('guides/dapp/testing', () => {
         owner = await createAccount(pxe);
         recipient = await createAccount(pxe);
         token = await TokenContract.deploy(owner, owner.getCompleteAddress()).send().deployed();
-      }, 30_000);
+      }, 60_000);
 
       it('increases recipient funds on mint', async () => {
         const recipientAddress = recipient.getAddress();
@@ -145,7 +145,7 @@ describe('guides/dapp/testing', () => {
         // The balances mapping is defined on storage slot 3 and is indexed by user address
         ownerSlot = cheats.aztec.computeSlotInMap(3n, ownerAddress);
         // docs:end:calc-slot
-      }, 60_000);
+      }, 90_000);
 
       it('checks private storage', async () => {
         // docs:start:private-storage
@@ -158,7 +158,7 @@ describe('guides/dapp/testing', () => {
         const balance = values.reduce((sum, current) => sum + current.toBigInt(), 0n);
         expect(balance).toEqual(100n);
         // docs:end:private-storage
-      });
+      }, 30_000);
 
       it('checks public storage', async () => {
         // docs:start:public-storage
@@ -167,7 +167,7 @@ describe('guides/dapp/testing', () => {
         const balance = await pxe.getPublicStorageAt(token.address, ownerPublicBalanceSlot);
         expect(balance!.value).toEqual(100n);
         // docs:end:public-storage
-      });
+      }, 30_000);
 
       it('checks unencrypted logs, [Kinda broken with current implementation]', async () => {
         // docs:start:unencrypted-logs
@@ -180,21 +180,21 @@ describe('guides/dapp/testing', () => {
         const logs = (await pxe.getUnencryptedLogs(filter)).logs;
         expect(Fr.fromBuffer(logs[0].log.data)).toEqual(value);
         // docs:end:unencrypted-logs
-      });
+      }, 30_000);
 
       it('asserts a local transaction simulation fails by calling simulate', async () => {
         // docs:start:local-tx-fails
         const call = token.methods.transfer(owner.getAddress(), recipient.getAddress(), 200n, 0);
         await expect(call.simulate()).rejects.toThrowError(/Balance too low/);
         // docs:end:local-tx-fails
-      });
+      }, 30_000);
 
       it('asserts a local transaction simulation fails by calling send', async () => {
         // docs:start:local-tx-fails-send
         const call = token.methods.transfer(owner.getAddress(), recipient.getAddress(), 200n, 0);
         await expect(call.send().wait()).rejects.toThrowError(/Balance too low/);
         // docs:end:local-tx-fails-send
-      });
+      }, 30_000);
 
       it('asserts a transaction is dropped', async () => {
         // docs:start:tx-dropped
@@ -207,21 +207,21 @@ describe('guides/dapp/testing', () => {
         await call1.send().wait();
         await expect(call2.send().wait()).rejects.toThrowError(/dropped/);
         // docs:end:tx-dropped
-      });
+      }, 30_000);
 
       it('asserts a simulation for a public function call fails', async () => {
         // docs:start:local-pub-fails
         const call = token.methods.transfer_public(owner.getAddress(), recipient.getAddress(), 1000n, 0);
         await expect(call.simulate()).rejects.toThrowError(/Underflow/);
         // docs:end:local-pub-fails
-      });
+      }, 30_000);
 
       it('asserts a transaction with a failing public call is dropped (until we get public reverts)', async () => {
         // docs:start:pub-dropped
         const call = token.methods.transfer_public(owner.getAddress(), recipient.getAddress(), 1000n, 0);
         await expect(call.send({ skipPublicSimulation: true }).wait()).rejects.toThrowError(/dropped/);
         // docs:end:pub-dropped
-      });
+      }, 30_000);
     });
   });
 

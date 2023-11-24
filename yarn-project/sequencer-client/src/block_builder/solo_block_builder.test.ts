@@ -348,7 +348,7 @@ describe('sequencer/solo_block_builder', () => {
         expect(contractTreeAfter.root).toEqual(expectedContractTreeAfter);
         expect(contractTreeAfter.size).toEqual(BigInt(totalCount));
       },
-      30000,
+      60000,
     );
 
     it('builds an empty L2 block', async () => {
@@ -363,6 +363,8 @@ describe('sequencer/solo_block_builder', () => {
       expect(l2Block.number).toEqual(blockNumber);
     }, 10_000);
 
+    // TODO(Alvaro) This test is horribly slow since it creates strictly increasing nullifiers, the worst case scenario for the simulated base rollup
+    // With the current implementation.
     it('builds a mixed L2 block', async () => {
       // Ensure that each transaction has unique (non-intersecting nullifier values)
       const txs = await Promise.all([
@@ -376,7 +378,7 @@ describe('sequencer/solo_block_builder', () => {
 
       const [l2Block] = await builder.buildL2Block(globalVariables, txs, l1ToL2Messages);
       expect(l2Block.number).toEqual(blockNumber);
-    }, 40_000);
+    }, 200_000);
 
     // This test specifically tests nullifier values which previously caused e2e_private_token test to fail
     it('e2e_private_token edge case regression test on nullifier values', async () => {
@@ -409,7 +411,7 @@ describe('sequencer/solo_block_builder', () => {
       const [l2Block] = await builder.buildL2Block(globalVariables, txs, mockL1ToL2Messages);
 
       expect(l2Block.number).toEqual(blockNumber);
-    }, 10000);
+    }, 20000);
   });
 
   // describe("Input guard tests", () => {

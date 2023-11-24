@@ -149,12 +149,12 @@ export interface NullifierLeafPreimage {
 
 export interface NullifierMembershipWitness {
   leaf_index: Field;
-  sibling_path: FixedLengthArray<Field, 128>;
+  sibling_path: FixedLengthArray<Field, 20>;
 }
 
 export interface HistoricBlocksTreeRootMembershipWitness {
   leaf_index: Field;
-  sibling_path: FixedLengthArray<Field, 2>;
+  sibling_path: FixedLengthArray<Field, 16>;
 }
 
 export interface GlobalVariables {

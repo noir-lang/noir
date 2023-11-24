@@ -3,6 +3,7 @@ import {
   AppendOnlyTreeSnapshot,
   AztecAddress,
   BaseOrMergeRollupPublicInputs,
+  BaseRollupInputs,
   CallContext,
   CombinedAccumulatedData,
   CombinedConstantData,
@@ -16,6 +17,7 @@ import {
   FunctionData,
   FunctionSelector,
   GlobalVariables,
+  HISTORIC_BLOCKS_TREE_HEIGHT,
   HistoricBlockData,
   KernelCircuitPublicInputs,
   KernelCircuitPublicInputsFinal,
@@ -32,7 +34,9 @@ import {
   MAX_READ_REQUESTS_PER_TX,
   MembershipWitness,
   MergeRollupInputs,
+  NULLIFIER_TREE_HEIGHT,
   NewContractData,
+  NullifierLeafPreimage,
   OptionallyRevealedData,
   Point,
   PreviousKernelData,
@@ -102,6 +106,12 @@ import {
   StorageRead as StorageReadNoir,
   StorageUpdateRequest as StorageUpdateRequestNoir,
 } from './types/public_kernel_private_previous_types.js';
+import {
+  BaseRollupInputs as BaseRollupInputsNoir,
+  HistoricBlocksTreeRootMembershipWitness as HistoricBlocksTreeRootMembershipWitnessNoir,
+  NullifierLeafPreimage as NullifierLeafPreimageNoir,
+  NullifierMembershipWitness as NullifierMembershipWitnessNoir,
+} from './types/rollup_base_types.js';
 import { MergeRollupInputs as MergeRollupInputsNoir } from './types/rollup_merge_types.js';
 import {
   AppendOnlyTreeSnapshot as AppendOnlyTreeSnapshotNoir,
@@ -1237,5 +1247,97 @@ export function mapMergeRollupInputsToNoir(mergeRollupInputs: MergeRollupInputs)
       PreviousRollupDataNoir,
       2
     >,
+  };
+}
+
+/**
+ * Maps a nullifier leaf preimage to noir
+ * @param nullifierLeafPreimage - The nullifier leaf preimage.
+ * @returns The noir nullifier leaf preimage.
+ */
+export function mapNullifierLeafPreimageToNoir(
+  nullifierLeafPreimage: NullifierLeafPreimage,
+): NullifierLeafPreimageNoir {
+  return {
+    leaf_value: mapFieldToNoir(nullifierLeafPreimage.leafValue),
+    next_value: mapFieldToNoir(nullifierLeafPreimage.nextValue),
+    next_index: mapFieldToNoir(new Fr(nullifierLeafPreimage.nextIndex)),
+  };
+}
+
+/**
+ * Maps a nullifier membership witness to noir.
+ * @param membershipWitness - The nullifier membership witness.
+ * @returns The noir nullifier membership witness.
+ */
+export function mapNullifierMembershipWitnessToNoir(
+  membershipWitness: MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>,
+): NullifierMembershipWitnessNoir {
+  return {
+    leaf_index: membershipWitness.leafIndex.toString(),
+    sibling_path: membershipWitness.siblingPath.map(mapFieldToNoir) as FixedLengthArray<
+      NoirField,
+      typeof NULLIFIER_TREE_HEIGHT
+    >,
+  };
+}
+
+/**
+ * Maps a membership witness of the historic blocks tree to noir.
+ * @param membershipWitness - The membership witness.
+ * @returns The noir membership witness.
+ */
+export function mapHistoricBlocksTreeRootMembershipWitnessToNoir(
+  membershipWitness: MembershipWitness<typeof HISTORIC_BLOCKS_TREE_HEIGHT>,
+): HistoricBlocksTreeRootMembershipWitnessNoir {
+  return {
+    leaf_index: membershipWitness.leafIndex.toString(),
+    sibling_path: membershipWitness.siblingPath.map(mapFieldToNoir) as FixedLengthArray<
+      NoirField,
+      typeof HISTORIC_BLOCKS_TREE_HEIGHT
+    >,
+  };
+}
+
+/**
+ * Maps the inputs to the base rollup to noir.
+ * @param input - The circuits.js base rollup inputs.
+ * @returns The noir base rollup inputs.
+ */
+export function mapBaseRollupInputsToNoir(inputs: BaseRollupInputs): BaseRollupInputsNoir {
+  return {
+    kernel_data: inputs.kernelData.map(mapPreviousKernelDataToNoir) as FixedLengthArray<PreviousKernelDataNoir, 2>,
+    start_note_hash_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.startNoteHashTreeSnapshot),
+    start_nullifier_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.startNullifierTreeSnapshot),
+    start_contract_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.startContractTreeSnapshot),
+    start_public_data_tree_root: mapFieldToNoir(inputs.startPublicDataTreeRoot),
+    start_historic_blocks_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.startHistoricBlocksTreeSnapshot),
+    low_nullifier_leaf_preimages: inputs.lowNullifierLeafPreimages.map(
+      mapNullifierLeafPreimageToNoir,
+    ) as FixedLengthArray<NullifierLeafPreimageNoir, 128>,
+    low_nullifier_membership_witness: inputs.lowNullifierMembershipWitness.map(
+      mapNullifierMembershipWitnessToNoir,
+    ) as FixedLengthArray<NullifierMembershipWitnessNoir, 128>,
+    new_commitments_subtree_sibling_path: inputs.newCommitmentsSubtreeSiblingPath.map(
+      mapFieldToNoir,
+    ) as FixedLengthArray<NoirField, 25>,
+    new_nullifiers_subtree_sibling_path: inputs.newNullifiersSubtreeSiblingPath.map(mapFieldToNoir) as FixedLengthArray<
+      NoirField,
+      13
+    >,
+    new_contracts_subtree_sibling_path: inputs.newContractsSubtreeSiblingPath.map(mapFieldToNoir) as FixedLengthArray<
+      NoirField,
+      15
+    >,
+    new_public_data_update_requests_sibling_paths: inputs.newPublicDataUpdateRequestsSiblingPaths.map(siblingPath =>
+      siblingPath.map(mapFieldToNoir),
+    ) as FixedLengthArray<FixedLengthArray<NoirField, 254>, 32>,
+    new_public_data_reads_sibling_paths: inputs.newPublicDataReadsSiblingPaths.map(siblingPath =>
+      siblingPath.map(mapFieldToNoir),
+    ) as FixedLengthArray<FixedLengthArray<NoirField, 254>, 32>,
+    historic_blocks_tree_root_membership_witnesses: inputs.historicBlocksTreeRootMembershipWitnesses.map(
+      mapHistoricBlocksTreeRootMembershipWitnessToNoir,
+    ) as FixedLengthArray<HistoricBlocksTreeRootMembershipWitnessNoir, 2>,
+    constants: mapConstantRollupDataToNoir(inputs.constants),
   };
 }

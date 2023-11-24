@@ -10,17 +10,8 @@ use dep::aztec::constants_gen::{
     HISTORIC_BLOCKS_TREE_HEIGHT,
 };
 use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
-use crate::fixtures::previous_rollup_data::default_previous_rollup_data;
-
-pub fn compute_zero_hashes<N>(mut hashes: [Field; N]) -> [Field; N] {
-    hashes[0] = dep::std::hash::pedersen_hash([0, 0]);
-
-    for i in 1..N {
-        hashes[i] = dep::std::hash::pedersen_hash([hashes[i-1], hashes[i-1]]);
-    }
-
-    hashes
-}
+use crate::tests::previous_rollup_data::default_previous_rollup_data;
+use crate::tests::merkle_tree_utils::compute_zero_hashes;
 
 pub fn compute_l1_l2_empty_snapshot() -> (AppendOnlyTreeSnapshot, [Field; L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH]) {
     let zero_hashes = compute_zero_hashes([0; L1_TO_L2_MSG_TREE_HEIGHT]);

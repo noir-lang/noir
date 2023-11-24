@@ -15,4 +15,4 @@ mod hash;
 
 mod merkle_tree;
 
-mod fixtures;
+mod tests;
