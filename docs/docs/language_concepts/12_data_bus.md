@@ -1,11 +1,12 @@
 ---
 title: Data Bus
 ---
+**Disclaimer** this feature is experimental, do not use it!
 
-The data bus is an optimization that the backend can use in order to do recursion more efficiently.
+The data bus is an optimization that the backend can use to make recursion more efficient.
 In order to use it, you must define some inputs of the program entry points (usually the `main()`
 function) with the `call_data` modifier, and the return values with the `return_data` modifier.
-These modifiers are incompatible with `pub` and `mut` modifier.
+These modifiers are incompatible with `pub` and `mut` modifiers.
 
 
 ## Example
