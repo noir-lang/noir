@@ -70,6 +70,10 @@ const config = {
         },
         items: [
           {
+            type: 'docsVersionDropdown',
+            docsPluginId: 'specs',
+          },
+          {
             href: 'https://github.com/noir-lang/noir/tree/master/docs',
             label: 'GitHub',
             position: 'right',
