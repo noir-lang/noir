@@ -132,9 +132,8 @@ function generateStructInterfaces(
   if (!output.has(structName)) {
     codeGeneratedStruct += `export type ${structName} = {\n`;
     for (const field of type.fields) {
-      const [name, type] = field;
-      codeGeneratedStruct += `  ${name}: ${abiTypeToTs(type, primitiveTypeMap)};\n`;
-      typesEncountered.add(type);
+      codeGeneratedStruct += `  ${field.name}: ${abiTypeToTs(field.type, primitiveTypeMap)};\n`;
+      typesEncountered.add(field.type);
     }
     codeGeneratedStruct += `};`;
     output.add(structName);
