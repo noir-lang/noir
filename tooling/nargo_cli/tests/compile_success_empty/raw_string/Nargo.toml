@@ -1,5 +1,5 @@
 [package]
-name = "unit"
+name = "raw_string"
 type = "bin"
 authors = [""]
 

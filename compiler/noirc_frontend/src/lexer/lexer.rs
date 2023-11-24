@@ -468,12 +468,8 @@ impl<'a> Lexer<'a> {
         let peek1 = self.peek_char().unwrap_or('X');
         let peek2 = self.peek2_char().unwrap_or('X');
         match (peek1, peek2) {
-            ('#', '#') | ('#', '"') | ('"', _) => {
-                self.eat_raw_string()
-            }
-            _ => {
-                self.eat_alpha_numeric('r')
-            }
+            ('#', '#') | ('#', '"') | ('"', _) => self.eat_raw_string(),
+            _ => self.eat_alpha_numeric('r'),
         }
     }
 

@@ -2562,7 +2562,11 @@ mod test {
             Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
             Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
             // escape sequence
-            Case { source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##, expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##, errors: 0 },
+            Case {
+                source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##,
+                expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##,
+                errors: 0,
+            },
             Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
             // mismatch - errors:
             Case { source: r###" r#"foo"## "###, expect: r###"r#"foo"#"###, errors: 1 },
@@ -2573,7 +2577,7 @@ mod test {
             // empty string
             Case { source: r####"r"""####, expect: r####"r"""####, errors: 0 },
             Case { source: r####"r###""###"####, expect: r####"r###""###"####, errors: 0 },
-            // miscelanneous
+            // miscellaneous
             Case { source: r###" r#\"foo\"# "###, expect: "plain::r", errors: 2 },
             Case { source: r###" r\"foo\" "###, expect: "plain::r", errors: 1 },
             Case { source: r###" r##"foo"# "###, expect: "(none)", errors: 2 },
@@ -2602,7 +2606,11 @@ mod test {
             Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
             Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
             // escape sequence
-            Case { source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##, expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##, errors: 0 },
+            Case {
+                source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##,
+                expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##,
+                errors: 0,
+            },
             Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
             // mismatch - errors:
             Case { source: r###" r#"foo"## "###, expect: r###"r#"foo"#"###, errors: 1 },
