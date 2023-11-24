@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.19.4](https://github.com/noir-lang/noir/compare/v0.19.3...v0.19.4) (2023-11-24)
+
+
+### Features
+
+* Add --check option to nargo fmt for dry-run formatting verification ([#3530](https://github.com/noir-lang/noir/issues/3530)) ([4469707](https://github.com/noir-lang/noir/commit/4469707d97085fab0f7ade8d015dc827c56156ee))
+* Committing to fake master ([eb3fba2](https://github.com/noir-lang/noir/commit/eb3fba21e5e586626a157d6e8c0ff9e7bd44a17c))
+* Committing to fake master ([c431558](https://github.com/noir-lang/noir/commit/c43155868942e4a7c0657d326d799f90ff98186b))
+* Committing to fake master ([0d5aca9](https://github.com/noir-lang/noir/commit/0d5aca9837385202737867c8357f86d7bb630088))
+* Committing to fake master ([466af09](https://github.com/noir-lang/noir/commit/466af09b704e999bf1f30a164b765d3d45a24549))
+* Committing to fake master ([381b114](https://github.com/noir-lang/noir/commit/381b1148fa6bc404e21a7d4ccdf3b08426466926))
+* Committing to fake master ([5edd062](https://github.com/noir-lang/noir/commit/5edd0622b4af75e71f33ae844448b9c487f29de0))
+* Committing to fake master ([640a648](https://github.com/noir-lang/noir/commit/640a6489859f4d2f24962b29c071e1fe52afbf93))
+* Committing to fake master ([6c07471](https://github.com/noir-lang/noir/commit/6c074710cecd617d4df2a5678d4620ab5a9cc01d))
+* Committing to fake master before docs are published ([3b5844b](https://github.com/noir-lang/noir/commit/3b5844bbd9c7bf19ce4a71cdc7f349eae8559c72))
+* Committing to fake master before docs are published ([05373b3](https://github.com/noir-lang/noir/commit/05373b3fc5e8bdec70a821198352d27a541631f6))
+* Committing to fake master before docs are published 1 ([fc797ae](https://github.com/noir-lang/noir/commit/fc797ae31422ba97005a5554c1c2dc970927353f))
+
+
+### Bug Fixes
+
+* Compiler version error message ([#3558](https://github.com/noir-lang/noir/issues/3558)) ([026a358](https://github.com/noir-lang/noir/commit/026a3587b01ddc8f444ff588a7b3f3fd1a0bb386))
+
 ## [0.19.3](https://github.com/noir-lang/noir/compare/v0.19.2...v0.19.3) (2023-11-22)
 
 
