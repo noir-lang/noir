@@ -1,5 +1,5 @@
 [package]
-name = "conditional_underflow"
+name = "conditional_regression_underflow"
 type = "bin"
 authors = [""]
 

@@ -56,10 +56,13 @@ pub(crate) fn run(
         return Ok(());
     };
 
-    let compiled_program =
-        compile_bin_package(&workspace, package, &args.compile_options, np_language, &|opcode| {
-            opcode_support.is_opcode_supported(opcode)
-        })?;
+    let compiled_program = compile_bin_package(
+        &workspace,
+        package,
+        &args.compile_options,
+        np_language,
+        &opcode_support,
+    )?;
 
     println!("[{}] Starting debugger", package.name);
     let (return_value, solved_witness) =
