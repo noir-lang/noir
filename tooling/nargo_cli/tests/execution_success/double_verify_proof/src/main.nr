@@ -8,17 +8,21 @@ fn main(
     input_aggregation_object: [Field; 16],
     proof_b: [Field; 94]
 ) -> pub [Field; 16] {
-    let output_aggregation_object_a = std::verify_proof(verification_key.as_slice(),
+    let output_aggregation_object_a = std::verify_proof(
+        verification_key.as_slice(),
         proof.as_slice(),
         public_inputs.as_slice(),
         key_hash,
-        input_aggregation_object);
+        input_aggregation_object
+    );
 
-    let output_aggregation_object = std::verify_proof(verification_key.as_slice(),
+    let output_aggregation_object = std::verify_proof(
+        verification_key.as_slice(),
         proof_b.as_slice(),
         public_inputs.as_slice(),
         key_hash,
-        output_aggregation_object_a);
+        output_aggregation_object_a
+    );
 
     let mut output = [0; 16];
     for i in 0..16 {
