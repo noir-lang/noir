@@ -54,7 +54,7 @@ jobs:
   publish-docs:
     name: Publish docs
     needs: [release-please]
-    if: ${{ needs.release-please.outputs.tag-name }}
+    if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout release branch
