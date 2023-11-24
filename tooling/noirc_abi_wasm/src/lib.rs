@@ -69,6 +69,7 @@ export type Abi = {
     param_witnesses: Record<string, {start: number, end: number}[]>,
     return_type: AbiType | null,
     return_witnesses: number[],
+    return_visibility: Visibility,
 }
 "#;
 
