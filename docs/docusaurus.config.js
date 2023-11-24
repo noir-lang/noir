@@ -70,6 +70,11 @@ const config = {
         },
         items: [
           {
+            type: 'docsVersionDropdown',
+            position: 'left',
+            dropdownActiveClassDisabled: true,
+          },
+          {
             type: 'doc',
             docId: 'index',
             label: 'Specs',
@@ -79,11 +84,6 @@ const config = {
             href: 'https://github.com/noir-lang/noir/tree/master/docs',
             label: 'GitHub',
             position: 'right',
-          },
-          {
-            type: 'docsVersionDropdown',
-            position: 'left',
-            dropdownActiveClassDisabled: true,
           },
         ],
       },
