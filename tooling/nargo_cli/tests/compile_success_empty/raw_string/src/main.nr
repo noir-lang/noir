@@ -7,4 +7,7 @@ fn main() {
     assert(a == b);
     assert(b == c);
     assert(c == D);
+    let x = r#"Hello World"#;
+    let y = r"Hello World";
+    assert(x == y);
 }
