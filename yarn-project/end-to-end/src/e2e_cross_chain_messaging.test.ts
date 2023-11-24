@@ -96,6 +96,7 @@ describe('e2e_cross_chain_messaging', () => {
     // time to withdraw the funds again!
     logger('Withdrawing funds from L2');
 
+    // docs:start:authwit_to_another_sc
     // 4. Give approval to bridge to burn owner's funds:
     const withdrawAmount = 9n;
     const nonce = Fr.random();
@@ -103,7 +104,9 @@ describe('e2e_cross_chain_messaging', () => {
       l2Bridge.address,
       l2Token.methods.burn(ownerAddress, withdrawAmount, nonce).request(),
     );
-    await user1Wallet.createAuthWitness(burnMessageHash);
+    const witness = await user1Wallet.createAuthWitness(burnMessageHash);
+    await user1Wallet.addAuthWitness(witness);
+    // docs:end:authwit_to_another_sc
 
     // 5. Withdraw owner's funds from L2 to L1
     const entryKey = await crossChainTestHarness.checkEntryIsNotInOutbox(withdrawAmount);

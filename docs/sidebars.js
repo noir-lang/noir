@@ -347,10 +347,10 @@ const sidebars = {
             {
               label: "Common Patterns",
               type: "category",
-              //       link: {
-              //         type: "doc",
-              //         id: "dev_docs/contracts/resources/common_patterns/main",
-              //       },
+                    link: {
+                      type: "doc",
+                      id: "dev_docs/contracts/resources/common_patterns/main",
+                    },
               items: [
                 "dev_docs/contracts/resources/common_patterns/authwit",
                 //         "dev_docs/contracts/resources/common_patterns/sending_tokens_to_user",
