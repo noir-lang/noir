@@ -2552,7 +2552,7 @@ mod test {
     }
 
     #[test]
-    fn parse_raw_string() {
+    fn parse_raw_string_expr() {
         let cases = vec![
             Case { source: r##" r"foo" "##, expect: r##"r"foo""##, errors: 0 },
             Case { source: r##" r#"foo"# "##, expect: r##"r#"foo"#"##, errors: 0 },
@@ -2561,12 +2561,54 @@ mod test {
             Case { source: r##" r#"\"# "##, expect: r##"r#"\"#"##, errors: 0 },
             Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
             Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
+            // escape sequence
+            Case { source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##, expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##, errors: 0 },
+            Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
+            // mismatch - errors:
+            Case { source: r###" r#"foo"## "###, expect: r###"r#"foo"#"###, errors: 1 },
+            Case { source: r###" r##"foo"# "###, expect: "(none)", errors: 2 },
+            // mismatch: short:
+            Case { source: r###" r"foo"# "###, expect: r###"r"foo""###, errors: 1 },
+            Case { source: r###" r#"foo" "###, expect: "(none)", errors: 2 },
+            // empty string
+            Case { source: r####"r"""####, expect: r####"r"""####, errors: 0 },
+            Case { source: r####"r###""###"####, expect: r####"r###""###"####, errors: 0 },
+            // miscelanneous
+            Case { source: r###" r#\"foo\"# "###, expect: "plain::r", errors: 2 },
+            Case { source: r###" r\"foo\" "###, expect: "plain::r", errors: 1 },
+            Case { source: r###" r##"foo"# "###, expect: "(none)", errors: 2 },
+            // missing 'r' letter
+            Case { source: r###" ##"foo"# "###, expect: r#""foo""#, errors: 2 },
+            Case { source: r###" #"foo" "###, expect: "plain::foo", errors: 2 },
+            // whitespace
+            Case { source: r###" r #"foo"# "###, expect: "plain::r", errors: 2 },
+            Case { source: r###" r# "foo"# "###, expect: "plain::r", errors: 3 },
+            Case { source: r###" r#"foo" # "###, expect: "(none)", errors: 2 },
+            // after identifier
+            Case { source: r###" bar#"foo"# "###, expect: "plain::bar", errors: 2 },
+        ];
+
+        check_cases_with_errors(&cases[..], expression());
+    }
+
+    #[test]
+    fn parse_raw_string_lit() {
+        let lit_cases = vec![
+            Case { source: r##" r"foo" "##, expect: r##"r"foo""##, errors: 0 },
+            Case { source: r##" r#"foo"# "##, expect: r##"r#"foo"#"##, errors: 0 },
+            // backslash
+            Case { source: r##" r"\\" "##, expect: r##"r"\\""##, errors: 0 },
+            Case { source: r##" r#"\"# "##, expect: r##"r#"\"#"##, errors: 0 },
+            Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
+            Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
+            // escape sequence
+            Case { source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##, expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##, errors: 0 },
+            Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
             // mismatch - errors:
             Case { source: r###" r#"foo"## "###, expect: r###"r#"foo"#"###, errors: 1 },
             Case { source: r###" r##"foo"# "###, expect: "(none)", errors: 2 },
         ];
 
-        check_cases_with_errors(&cases[..], expression());
-        check_cases_with_errors(&cases[..], literal());
+        check_cases_with_errors(&lit_cases[..], literal());
     }
 }

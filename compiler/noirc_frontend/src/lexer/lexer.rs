@@ -465,13 +465,15 @@ impl<'a> Lexer<'a> {
         // Problem: we commit to eating raw strings once we see one or two characters.
         // This is unclean, but likely ok in all practical cases, and works with existing
         // `Lexer` methods.
-        let peek2 = self.peek2_char();
-        if (self.peek_char_is('#') && (peek2 == Some('#') || peek2 == Some('"')))
-            || self.peek_char_is('"')
-        {
-            self.eat_raw_string()
-        } else {
-            self.eat_alpha_numeric('r')
+        let peek1 = self.peek_char().unwrap_or('X');
+        let peek2 = self.peek2_char().unwrap_or('X');
+        match (peek1, peek2) {
+            ('#', '#') | ('#', '"') | ('"', _) => {
+                self.eat_raw_string()
+            }
+            _ => {
+                self.eat_alpha_numeric('r')
+            }
         }
     }
 
