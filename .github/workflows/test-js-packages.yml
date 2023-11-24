@@ -1,4 +1,4 @@
-name: Test Javascript
+name: Javascript Tests
 
 on:
   pull_request:
@@ -70,7 +70,7 @@ jobs:
 
   test-acvm_js-node:
     needs: [build-acvm-js]
-    name: Test ACVM JS (Node.js)
+    name: ACVM JS (Node.js)
     runs-on: ubuntu-latest
 
     steps:
@@ -91,7 +91,7 @@ jobs:
 
   test-acvm_js-browser:
     needs: [build-acvm-js]
-    name: Test ACVM JS (Browser)
+    name: ACVM JS (Browser)
     runs-on: ubuntu-latest
 
     steps:
@@ -117,7 +117,7 @@ jobs:
 
   test-noirc-abi:
     needs: [build-noirc-abi]
-    name: Test noirc_abi
+    name: noirc_abi
     runs-on: ubuntu-latest
 
     steps:
@@ -144,7 +144,7 @@ jobs:
 
   test-noir-js:
     needs: [build-acvm-js, build-noirc-abi]
-    name: Test Noir JS
+    name: Noir JS
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
