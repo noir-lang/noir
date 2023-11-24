@@ -2590,6 +2590,12 @@ mod test {
             Case { source: r###" r#"foo" # "###, expect: "(none)", errors: 2 },
             // after identifier
             Case { source: r###" bar#"foo"# "###, expect: "plain::bar", errors: 2 },
+            // nested
+            Case {
+                source: r###"r##"foo r#"bar"# r"baz" ### bye"##"###,
+                expect: r###"r##"foo r#"bar"# r"baz" ### bye"##"###,
+                errors: 0,
+            },
         ];
 
         check_cases_with_errors(&cases[..], expression());
