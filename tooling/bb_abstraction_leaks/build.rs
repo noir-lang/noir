@@ -10,7 +10,7 @@ use const_format::formatcp;
 
 const USERNAME: &str = "AztecProtocol";
 const REPO: &str = "aztec-packages";
-const VERSION: &str = "0.12.0";
+const VERSION: &str = "0.15.1";
 const TAG: &str = formatcp!("aztec-packages-v{}", VERSION);
 
 const API_URL: &str =
@@ -35,7 +35,6 @@ fn main() -> Result<(), String> {
         println!(
             "cargo:warning=ARM64 builds of linux are not supported for the barretenberg binary"
         );
-        return Ok(());
     };
 
     println!("cargo:rustc-env=BB_BINARY_URL={}", get_bb_download_url(arch, os));
