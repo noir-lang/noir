@@ -1,4 +1,5 @@
 use fm::FileId;
+use lsp_types::{DefinitionOptions, OneOf};
 use noirc_driver::DebugFile;
 use noirc_errors::{debug_info::OpCodesCount, Location};
 use noirc_frontend::graph::CrateName;
@@ -108,6 +109,10 @@ pub(crate) struct ServerCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) text_document_sync: Option<TextDocumentSyncCapability>,
 
+    /// The server provides goto definition support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) definition_provider: Option<OneOf<bool, DefinitionOptions>>,
+    
     /// The server provides code lens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) code_lens_provider: Option<CodeLensOptions>,

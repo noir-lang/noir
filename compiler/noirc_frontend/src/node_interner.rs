@@ -37,6 +37,7 @@ type StructAttributes = Vec<SecondaryAttribute>;
 /// each definition or struct, etc. Because it is used on the Hir, the NodeInterner is
 /// useful in passes where the Hir is used - name resolution, type checking, and
 /// monomorphization - and it is not useful afterward.
+#[derive(Debug)]
 pub struct NodeInterner {
     nodes: Arena<Node>,
     func_meta: HashMap<FuncId, FuncMeta>,
@@ -157,7 +158,7 @@ pub enum TraitImplKind {
 ///
 /// Additionally, types can define specialized impls with methods of the same name
 /// as long as these specialized impls do not overlap. E.g. `impl Struct<u32>` and `impl Struct<u64>`
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Methods {
     direct: Vec<FuncId>,
     trait_impl_methods: Vec<FuncId>,
@@ -166,6 +167,7 @@ pub struct Methods {
 /// All the information from a function that is filled out during definition collection rather than
 /// name resolution. As a result, if information about a function is needed during name resolution,
 /// this is the only place where it is safe to retrieve it (where all fields are guaranteed to be initialized).
+#[derive(Debug, Clone)]
 pub struct FunctionModifiers {
     pub name: String,
 
@@ -361,6 +363,16 @@ impl DefinitionInfo {
     pub fn is_global(&self) -> bool {
         self.kind.is_global()
     }
+
+    pub fn get_index(&self) -> Option<Index> {
+        match self.kind {
+            DefinitionKind::Function(func_id) => Some(func_id.0),
+            DefinitionKind::Global(stmt_id) => Some(stmt_id.0),
+            DefinitionKind::Local(expr_id) => expr_id.map(|id| Some(id.0)).unwrap_or(None),
+            DefinitionKind::GenericType(_) => None,
+        }
+    }
+        
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -454,6 +466,24 @@ impl NodeInterner {
     /// Stores the span for an interned expression.
     pub fn push_expr_location(&mut self, expr_id: ExprId, span: Span, file: FileId) {
         self.id_to_location.insert(expr_id.into(), Location::new(span, file));
+    }
+
+    /// Scans the interner for the location which contains the span
+    pub fn find_location(&self, file: FileId, location_span: &Span) -> Option<(&Index, &Location)> {
+        let mut location_candidate: Option<(&Index, &Location)> = None;
+
+        for (index, location) in self.id_to_location.iter() {
+            if location.file == file && location.span.contains(location_span) {
+                if let Some(current_location) = location_candidate {
+                    if location.span.is_smaller(&current_location.1.span) {
+                        location_candidate = Some((index, location));
+                    }
+                } else {
+                    location_candidate = Some((index, location));
+                }
+            }
+        }
+        location_candidate
     }
 
     /// Interns a HIR Function.
@@ -1201,6 +1231,43 @@ impl NodeInterner {
     pub fn get_selected_impl_for_ident(&self, ident_id: ExprId) -> Option<TraitImplKind> {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
+
+    pub fn resolve_location(&self, index: Index) -> Option<Location> {
+        let def =
+            self.nodes.get(index).unwrap();
+        match def {
+            Node::Statement(stmt) => {
+                println!("follow_node: Statement {:?}\n", stmt);
+                None
+            },
+            Node::Function(func) => {
+                println!("follow_node: Function {:?}\n", func);
+                None
+            },
+            Node::Expression(expression) => {
+                println!("follow_node: Expression {:?}\n\n", expression);
+                match expression {
+                    HirExpression::Ident(ident) => {
+                        let definition_info = self.definition(ident.id);
+
+                        match definition_info.kind {
+                            DefinitionKind::Function(func_id) => {
+                                Some(self.function_meta(&func_id).location)
+                            },
+                            _ => {
+                                todo!("not implemented for {:?}", definition_info);
+
+                            }
+                        }
+                    },
+                    _ => {
+                        println!("Not Ident {:?}\n", expression);
+                        None
+                    }
+                }
+            },    
+        }
+    }
 }
 
 impl Methods {
@@ -1253,7 +1320,7 @@ impl Methods {
 }
 
 /// These are the primitive type variants that we support adding methods to
-#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
 enum TypeMethodKey {
     /// Fields and integers share methods for ease of use. These methods may still
     /// accept only fields or integers, it is just that their names may not clash.

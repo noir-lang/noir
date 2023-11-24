@@ -9,9 +9,9 @@ pub(crate) mod aztec_library;
 
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
-use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::node_interner::{FuncId, NodeInterner, StructId, ExprId};
 use def_map::{Contract, CrateDefMap};
-use fm::FileManager;
+use fm::{FileManager, FileId};
 use noirc_errors::Location;
 use std::collections::BTreeMap;
 
@@ -188,6 +188,24 @@ impl Context {
                 }
             })
             .collect()
+    }
+
+    pub fn find_definition_location(
+        &self,
+        file: FileId,
+        query_location: &noirc_errors::Span,
+    ) -> Option<Location>{
+        let interner = &self.def_interner;
+
+        let perimeter = interner.find_location(file, query_location);
+
+        if let Some(perimeter) = perimeter {
+            let location = interner.resolve_location(perimeter.0.clone());
+            return location;
+        } else {
+            return None;
+        }
+
     }
 
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain
