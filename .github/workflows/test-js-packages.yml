@@ -81,7 +81,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: acvm-js
-          path: ./acvm_repo/acvm_js
+          path: ./acvm-repo/acvm_js
 
       - name: Set up test environment
         uses: ./.github/actions/setup
@@ -102,7 +102,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: acvm-js
-          path: ./acvm_repo/acvm_js
+          path: ./acvm-repo/acvm_js
       
       - name: Set up test environment
         uses: ./.github/actions/setup
@@ -156,7 +156,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: acvm-js
-          path: ./acvm_repo/acvm_js
+          path: ./acvm-repo/acvm_js
 
       - name: Download wasm package artifact
         uses: actions/download-artifact@v3
