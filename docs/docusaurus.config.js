@@ -70,7 +70,9 @@ const config = {
         },
         items: [
           {
-            type: 'docsVersionDropdown',
+            type: 'doc',
+            docId: 'index',
+            label: 'Specs',
             docsPluginId: 'specs',
           },
           {
