@@ -99,4 +99,4 @@ Some libraries that are available today include:
 
 See the section on [dependencies](./modules_packages_crates/dependencies) for more information.
 
-I'm a test lol
+I'm a test
