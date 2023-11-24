@@ -14,7 +14,7 @@ To declare a function the `fn` keyword is used.
 fn foo() {}
 ```
 
-By default, functions are visible only within the package they are defined. To make them visible outside of that package (for example, as part of a [library](../modules_packages_crates/crates_and_packages.md#libraries)), you should mark them as `pub`:
+By default, functions are visible only within the package they are defined. To make them visible outside of that package (for example, as part of a library), you should mark them as `pub`:
 
 ```rust
 pub fn foo() {}
@@ -61,7 +61,7 @@ fn main(x : [Field]) // can't compile, has variable size
 fn main(....// i think you got it by now
 ```
 
-Keep in mind [tests](../nargo/02_testing.md) don't differentiate between `main` and any other function. The following snippet passes tests, but won't compile or prove:
+Keep in mind [tests](../tooling/nargo/02_testing.md) don't differentiate between `main` and any other function. The following snippet passes tests, but won't compile or prove:
 
 ```rust
 fn main(x : [Field]) {
@@ -188,8 +188,8 @@ Supported attributes include:
 - **builtin**: the function is implemented by the compiler, for efficiency purposes.
 - **deprecated**: mark the function as _deprecated_. Calling the function will generate a warning: `warning: use of deprecated function`
 - **field**: Used to enable conditional compilation of code depending on the field size. See below for more details
-- **oracle**: mark the function as _oracle_; meaning it is an external unconstrained function, implemented in noir_js. See [Unconstrained](./05_unconstrained.md) and [NoirJS](../noir_js/noir_js.md) for more details.
-- **test**: mark the function as unit tests. See [Tests](../nargo/02_testing.md) for more details
+- **oracle**: mark the function as _oracle_; meaning it is an external unconstrained function, implemented in noir_js. See [Unconstrained](./05_unconstrained.md) and NoirJS for more details.
+- **test**: mark the function as unit tests. See [Tests](../tooling/nargo/02_testing.md) for more details
 
 ### Field Attribute
 
