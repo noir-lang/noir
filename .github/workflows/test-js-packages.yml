@@ -268,7 +268,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/wasm/downloaded
+          path: ./compiler/wasm
 
       - name: Download nargo binary
         uses: actions/download-artifact@v3
@@ -295,8 +295,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cp -r ./compiler/wasm/downloaded/nodejs ./compiler/wasm
-          cp -r ./compiler/wasm/downloaded/web ./compiler/wasm
           yarn workspace @noir-lang/source-resolver build
 
       - name: Run node tests
