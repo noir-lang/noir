@@ -410,7 +410,7 @@ impl<'a> Lexer<'a> {
             // too many hashes (unlikely in practice)
             // also, Rust disallows 256+ hashes as well
             return Err(LexerErrorKind::UnexpectedCharacter {
-                span: Span::single_char(self.position + 255),
+                span: Span::single_char(start + 255),
                 found: Some('#'),
                 expected: "\"".to_owned(),
             });
