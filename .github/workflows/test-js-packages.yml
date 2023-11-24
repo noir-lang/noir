@@ -368,7 +368,6 @@ jobs:
     name: End
     runs-on: ubuntu-latest
     needs: 
-      - build-noirc-abi
       - test-acvm_js-node
       - test-acvm_js-browser
       - test-noirc-abi
