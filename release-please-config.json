@@ -48,6 +48,11 @@
           "type": "json",
           "path": "tooling/noirc_abi_wasm/package.json",
           "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "docs/docs/package.json",
+          "jsonpath": "$.version"
         }
       ]
     },
