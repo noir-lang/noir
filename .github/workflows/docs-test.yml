@@ -19,6 +19,7 @@ jobs:
         with:
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
           command: manifest
+          default-branch: zpedro/docs_workflow
 
   update-lockfile:
     name: Update lockfile
