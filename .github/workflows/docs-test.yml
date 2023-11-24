@@ -1,4 +1,4 @@
-name: TEST - Release
+name: Release
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - zpedro/docs_workflow
 
 jobs:
-  test-release-please:
+  release-please:
     name: Create Release
     outputs:
       release-pr: ${{ steps.release.outputs.pr }}
@@ -20,9 +20,9 @@ jobs:
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
           command: manifest
 
-  test-update-lockfile:
+  update-lockfile:
     name: Update lockfile
-    needs: [test-release-please]
+    needs: [release-please]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-latest
     steps:
@@ -50,7 +50,7 @@ jobs:
           git commit -m 'chore: Update lockfile'
           git push
 
-  test-publish-docs:
+  publish-docs:
     name: Publish docs
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
