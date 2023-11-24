@@ -15,7 +15,7 @@ impl Token {
   }
 
   pub fn transfer_public(self: Self, context: PublicContext, from: Field, to: Field, amount: Field, nonce: Field) {
-    let _transfer_return_values = context.call_public_function(
+    context.call_public_function(
       self.address,
       compute_selector("transfer_public((Field),(Field),Field,Field)"),
       [from, to, amount, nonce]
@@ -23,7 +23,7 @@ impl Token {
   }
 
   pub fn unshield(self: Self, context: &mut PrivateContext, from: Field, to: Field,  amount: Field, nonce: Field) {
-    let _return_values = context.call_private_function(
+    context.call_private_function(
       self.address,
       compute_selector("unshield((Field),(Field),Field,Field)"),
       [from, to, amount, nonce]
@@ -46,7 +46,7 @@ impl TokenBridge {
   }
 
   pub fn exit_to_l1_public(self: Self, context: PublicContext, recipient: Field, amount: Field, callerOnL1: Field, nonce: Field) {
-    let _return_values = context.call_public_function(
+    context.call_public_function(
       self.address,
       compute_selector("exit_to_l1_public((Field),Field,(Field),Field)"),
       [recipient, amount, callerOnL1, nonce]

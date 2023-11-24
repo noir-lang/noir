@@ -37,7 +37,7 @@ impl Token {
   }
 
   pub fn transfer_public(self: Self, context: PublicContext, from: Field, to: Field, amount: Field, nonce: Field) {
-    let _transfer_return_values = context.call_public_function(
+    context.call_public_function(
       self.address,
       compute_selector("transfer_public((Field),(Field),Field,Field)"),
       [from, to, amount, nonce]
@@ -45,15 +45,15 @@ impl Token {
   }
 
   pub fn mint_public(self: Self, context: PublicContext, to: Field, amount: Field) {
-    let _return_values = context.call_public_function(
+    context.call_public_function(
       self.address,
       compute_selector("mint_public((Field),Field)"),
       [to, amount]
     );
   }
 
-  pub fn burn_public(self: Self, context: PublicContext, from: Field, amount: Field, nonce: Field){
-    let _return_values = context.call_public_function(
+  pub fn burn_public(self: Self, context: PublicContext, from: Field, amount: Field, nonce: Field) {
+    context.call_public_function(
       self.address,
       compute_selector("burn_public((Field),Field,Field)"),
       [from, amount, nonce]

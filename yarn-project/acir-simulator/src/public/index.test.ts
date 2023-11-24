@@ -86,8 +86,6 @@ describe('ACIR public execution simulator', () => {
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
         const result = await executor.simulate(execution, GlobalVariables.empty());
 
-        expect(result.returnValues[0]).toEqual(new Fr(1n));
-
         const recipientBalanceStorageSlot = computeSlotForMapping(new Fr(6n), recipient.toField());
         const totalSupplyStorageSlot = new Fr(4n);
 
@@ -181,8 +179,6 @@ describe('ACIR public execution simulator', () => {
 
         const expectedRecipientBalance = new Fr(160n);
         const expectedSenderBalance = new Fr(60n);
-
-        expect(result.returnValues[0]).toEqual(new Fr(1n));
 
         expect(result.contractStorageUpdateRequests).toEqual([
           {

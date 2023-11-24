@@ -52,15 +52,14 @@ contract TokenBridge {
     // docs:start:claim_public
     // Consumes a L1->L2 message and calls the token contract to mint the appropriate amount publicly
     #[aztec(public)]
-    fn claim_public(to: AztecAddress, amount: Field, canceller: EthereumAddress, msg_key: Field, secret: Field) -> Field {
+    fn claim_public(to: AztecAddress, amount: Field, canceller: EthereumAddress, msg_key: Field, secret: Field) {
         let content_hash = get_mint_public_content_hash(to.address, amount, canceller.address);
+
         // Consume message and emit nullifier
         context.consume_l1_to_l2_message(msg_key, content_hash, secret);
 
         // Mint tokens
         Token::at(storage.token.read()).mint_public(context, to.address, amount);
-
-        1
     }
     // docs:end:claim_public
 
@@ -73,15 +72,13 @@ contract TokenBridge {
         amount: Field,
         callerOnL1: EthereumAddress, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
         nonce: Field // nonce used in the approval message by `msg.sender` to let bridge burn their tokens on L2
-    ) -> Field {
+    ) {
         // Send an L2 to L1 message
         let content = get_withdraw_content_hash(recipient.address, amount, callerOnL1.address);
         context.message_portal(content);
 
         // Burn tokens
         Token::at(storage.token.read()).burn_public(context, context.msg_sender(), amount, nonce);
-
-        1
     }
     // docs:end:exit_to_l1_public
     // docs:start:claim_private
@@ -94,7 +91,7 @@ contract TokenBridge {
         canceller: EthereumAddress,
         msg_key: Field, // L1 to L2 message key as derived from the inbox contract
         secret_for_L1_to_L2_message_consumption: Field // secret used to consume the L1 to L2 message
-    ) -> Field {
+    ) {
         // Consume L1 to L2 message and emit nullifier
         let content_hash = get_mint_private_content_hash(secret_hash_for_redeeming_minted_notes,
             amount,
@@ -108,8 +105,6 @@ contract TokenBridge {
         context.call_public_function(context.this_address(),
             compute_selector("_call_mint_on_token(Field,Field)"),
             [amount, secret_hash_for_redeeming_minted_notes]);
-
-        1
     }
     // docs:end:claim_private
 
@@ -123,7 +118,7 @@ contract TokenBridge {
         amount: Field,
         callerOnL1: EthereumAddress, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
         nonce: Field // nonce used in the approval message by `msg.sender` to let bridge burn their tokens on L2
-    ) -> Field {
+    ) {
         // Send an L2 to L1 message
         let content = get_withdraw_content_hash(recipient.address, amount, callerOnL1.address);
         context.message_portal(content);
@@ -137,8 +132,6 @@ contract TokenBridge {
 
         // Burn tokens
         Token::at(token.address).burn(&mut context, context.msg_sender(), amount, nonce);
-
-        1
     }
     /// docs:end:exit_to_l1_private
 
@@ -182,5 +175,5 @@ contract TokenBridge {
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; 0]) -> [Field; 4] {
         [0, 0, 0, 0]
     }
-    // docs:end:compute_note_hash_and_nullifier_placeholder
+// docs:end:compute_note_hash_and_nullifier_placeholder
 }

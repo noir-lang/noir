@@ -72,7 +72,7 @@ contract Uniswap {
         caller_on_L1: EthereumAddress,
         // nonce for someone to call swap on sender's behalf
         nonce_for_swap_approval: Field
-    ) -> Field {
+    ) {
         if (sender.address != context.msg_sender()) {
             assert_current_call_valid_authwit_public(&mut context, sender);
         }
@@ -110,8 +110,6 @@ contract Uniswap {
             canceller_for_L1_to_L2_message.address,
             caller_on_L1.address);
         context.message_portal(content_hash);
-
-        1
     }
     // docs:end:swap_public
 
@@ -133,7 +131,7 @@ contract Uniswap {
         deadline_for_L1_to_l2_message: Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
         canceller_for_L1_to_L2_message: EthereumAddress, // L1 address of who can cancel the message to consume assets on L2.
         caller_on_L1: EthereumAddress // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
-    ) -> Field {
+    ) {
         // Assert that user provided token address is same as expected by token bridge.
         // we can't directly use `input_asset_bridge.token` because that is a public method and public can't return data to private
         context.call_public_function(context.this_address(),
@@ -171,8 +169,6 @@ contract Uniswap {
             canceller_for_L1_to_L2_message.address,
             caller_on_L1.address);
         context.message_portal(content_hash);
-
-        1
     }
     // docs:end:swap_private
 
