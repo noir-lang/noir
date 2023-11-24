@@ -1,29 +1,67 @@
-name: Cut a new version of the docs
+name: TEST - Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: The tag to build Docs for
-        required: false
+  push:
+    branches:
+      - zpedro/docs_workflow
 
 jobs:
-  publish-docs:
+  test-release-please:
+    name: Create Release
+    outputs:
+      release-pr: ${{ steps.release.outputs.pr }}
+      tag-name: ${{ steps.release.outputs.tag_name }}
     runs-on: ubuntu-latest
-    if: ${{ inputs.tag != '' }}
-    permissions:
-      pull-requests: write
-      contents: write
     steps:
-      - name: Checkout sources
+      - name: Run release-please
+        id: release
+        uses: google-github-actions/release-please-action@v3
+        with:
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
+          command: manifest
+
+  test-update-lockfile:
+    name: Update lockfile
+    needs: [test-release-please]
+    if: ${{ needs.release-please.outputs.release-pr }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
 
-      - name: Create new branch
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.65.0
+
+      - name: Update lockfile
         run: |
-          git checkout -b new-docs-version-${{ github.event.inputs.tag }}
-    
+          cargo update --workspace
+
+      - name: Configure git
+        run: |
+          git config user.name kevaundray
+          git config user.email kevtheappdev@gmail.com
+
+      - name: Commit updates
+        run: |
+          git add Cargo.lock
+          git commit -m 'chore: Update lockfile'
+          git push
+
+  test-publish-docs:
+    name: Publish docs
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
@@ -60,18 +98,9 @@ jobs:
         run: |
           yarn workspace @noir-lang/noir_js build
 
-      - name: Build docs
-        run: 
-          yarn workspace docs build
-
       - name: Cut a new version
         working-directory: ./docs
         run: yarn docusaurus docs:version ${{ inputs.tag }}
-
-      - name: Remove pre-releases
-        id: get_version
-        run: |
-            cd docs && yarn setStable
 
       - name: Commit new documentation version
         run: |
@@ -79,29 +108,17 @@ jobs:
           git config --local user.email 'github@zepedro.me'
           git add .
           git commit -m "chore(docs): cut new docs version for tag ${{ github.event.inputs.tag }}"
-      
-      - name: Push changes to new branch
-        run: git push origin new-docs-version-${{ github.event.inputs.tag }}
-
-      - name: Create Pull Request
-        run: |
-          gh pr create \
-            --title "chore(docs): docs for ${{ github.event.inputs.tag }}" \
-            --body "Updates documentation to new version for tag ${{ github.event.inputs.tag }}." \
-            --base master \
-            --head new-docs-version-${{ github.event.inputs.tag }} \
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build docs
+          git push
+          
+      - name: Build docs for deploying
         run: yarn workspace docs build
     
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v2.1
         with:
           publish-dir: './docs/build'
-          production-branch: master
-          production-deploy: true
+        #   production-branch: master
+        #   production-deploy: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
           enable-github-deployment: false
           deploy-message: "Deploy from GitHub Actions for tag ${{ inputs.tag }}"
@@ -109,4 +126,3 @@ jobs:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         timeout-minutes: 1
-

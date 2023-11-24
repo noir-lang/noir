@@ -89,12 +89,6 @@ jobs:
       - name: Run noir_js
         run: |
           yarn workspace @noir-lang/noir_js build
-
-      - name: Remove pre-releases
-        working-directory: docs
-        env: 
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn setStable
     
       - name: Build docs
         run: 
