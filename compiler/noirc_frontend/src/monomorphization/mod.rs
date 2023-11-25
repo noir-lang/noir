@@ -883,7 +883,8 @@ impl<'interner> Monomorphizer<'interner> {
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
             if let Definition::Oracle(name) = &ident.definition {
-                if name.as_str() == "println" {
+                let name_str = name.as_str();
+                if (name_str == "println") | (name_str == "print") {
                     // Oracle calls are required to be wrapped in an unconstrained function
                     // Thus, the only argument to the `println` oracle is expected to always be an ident
                     self.append_printable_type_info(&hir_arguments[0], &mut arguments);

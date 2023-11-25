@@ -19,13 +19,21 @@ mod compat;
 mod option;
 mod string;
 mod test;
+
 // Oracle calls are required to be wrapped in an unconstrained function
-// Thus, the only argument to the `println` oracle is expected to always be an ident 
+// Thus, the only argument to the `println` oracle is expected to always be an ident
 #[oracle(println)]
 unconstrained fn println_oracle<T>(_input: T) {}
 
 unconstrained pub fn println<T>(input: T) {
     println_oracle(input);
+}
+
+#[oracle(print)]
+unconstrained fn print_oracle<T>(_input: T) {}
+
+unconstrained pub fn print<T>(input: T) {
+    print_oracle(input);
 }
 
 #[foreign(recursive_aggregation)]
@@ -36,10 +44,12 @@ pub fn verify_proof<N>(
     _key_hash: Field,
     _input_aggregation_object: [Field; N]
 ) -> [Field; N] {}
+
 // Asserts that the given value is known at compile-time.
 // Useful for debugging for-loop bounds.
 #[builtin(assert_constant)]
 pub fn assert_constant<T>(_x: T) {}
+
 // from_field and as_field are private since they are not valid for every type.
 // `as` should be the default for users to cast between primitive types, and in the future
 // traits can be used to work with generic types.

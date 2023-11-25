@@ -2,6 +2,7 @@ use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult, Value},
     pwg::ForeignCallWaitInfo,
 };
+use iter_extended::vecmap;
 use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
 
 pub trait ForeignCallExecutor {
@@ -15,6 +16,9 @@ pub trait ForeignCallExecutor {
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
 pub(crate) enum ForeignCall {
     Println,
+    Print,
+    Sequence,
+    ReverseSequence,
     CreateMock,
     SetMockParams,
     SetMockReturns,
@@ -32,6 +36,9 @@ impl ForeignCall {
     pub(crate) fn name(&self) -> &'static str {
         match self {
             ForeignCall::Println => "println",
+            ForeignCall::Print => "print",
+            ForeignCall::Sequence => "get_number_sequence",
+            ForeignCall::ReverseSequence => "get_reverse_number_sequence",
             ForeignCall::CreateMock => "create_mock",
             ForeignCall::SetMockParams => "set_mock_params",
             ForeignCall::SetMockReturns => "set_mock_returns",
@@ -43,6 +50,9 @@ impl ForeignCall {
     pub(crate) fn lookup(op_name: &str) -> Option<ForeignCall> {
         match op_name {
             "println" => Some(ForeignCall::Println),
+            "print" => Some(ForeignCall::Print),
+            "get_number_sequence" => Some(ForeignCall::Sequence),
+            "get_reverse_number_sequence" => Some(ForeignCall::ReverseSequence),
             "create_mock" => Some(ForeignCall::CreateMock),
             "set_mock_params" => Some(ForeignCall::SetMockParams),
             "set_mock_returns" => Some(ForeignCall::SetMockReturns),
@@ -125,6 +135,12 @@ impl DefaultForeignCallExecutor {
         println!("{display_values}");
         Ok(())
     }
+
+    fn execute_print(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
+        let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
+        print!("{display_values}");
+        Ok(())
+    }
 }
 
 impl ForeignCallExecutor for DefaultForeignCallExecutor {
@@ -139,6 +155,36 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     Self::execute_println(&foreign_call.inputs)?;
                 }
                 Ok(ForeignCallResult { values: vec![] })
+            }
+            Some(ForeignCall::Print) => {
+                if self.show_output {
+                    Self::execute_print(&foreign_call.inputs)?;
+                }
+                Ok(ForeignCallResult { values: vec![] })
+            }
+            Some(ForeignCall::Sequence) => {
+                let sequence_length: u128 =
+                    foreign_call.inputs[0].unwrap_value().to_field().to_u128();
+                let sequence = vecmap(0..sequence_length, Value::from);
+
+                Ok(ForeignCallResult {
+                    values: vec![
+                        ForeignCallParam::Single(sequence_length.into()),
+                        ForeignCallParam::Array(sequence),
+                    ],
+                })
+            }
+            Some(ForeignCall::ReverseSequence) => {
+                let sequence_length: u128 =
+                    foreign_call.inputs[0].unwrap_value().to_field().to_u128();
+                let sequence = vecmap((0..sequence_length).rev(), Value::from);
+
+                Ok(ForeignCallResult {
+                    values: vec![
+                        ForeignCallParam::Single(sequence_length.into()),
+                        ForeignCallParam::Array(sequence),
+                    ],
+                })
             }
             Some(ForeignCall::CreateMock) => {
                 let mock_oracle_name = Self::parse_string(&foreign_call.inputs[0]);
