@@ -13,6 +13,7 @@ use noirc_evaluator::errors::RuntimeError;
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
+use noirc_frontend::macros_api::MacroProcessor;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
@@ -121,8 +122,13 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
 ) -> CompilationResult<()> {
+    #[cfg(not(feature = "aztec"))]
+    let macros: Vec<DummyMacroProcessor> = Vec::new();
+    #[cfg(feature = "aztec")]
+    let macros = vec![aztec_macros::AztecMacro];
+
     let mut errors = vec![];
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, &macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic: CustomDiagnostic = error.into();
         diagnostic.in_file(file_id)
@@ -356,4 +362,24 @@ pub fn compile_no_check(
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
     })
+}
+
+pub struct DummyMacroProcessor;
+
+impl MacroProcessor for DummyMacroProcessor {
+    fn process_untyped_ast(
+        &self,
+        _ast: noirc_frontend::parser::SortedModule,
+        _crate_id: &CrateId,
+        _context: &Context,
+    ) -> Result<
+        noirc_frontend::parser::SortedModule,
+        (noirc_frontend::macros_api::MacroError, FileId),
+    > {
+        unimplemented!("We only use this to satisfy the type checker")
+    }
+
+    fn process_typed_ast(&self, _crate_id: &CrateId, _context: &mut Context) {
+        unimplemented!("We only use this to satisfy the type checker")
+    }
 }
