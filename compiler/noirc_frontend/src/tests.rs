@@ -89,7 +89,7 @@ mod test {
                 &mut context,
                 program.clone().into_sorted(),
                 root_file_id,
-                &empty_macro_processors,
+                empty_macro_processors,
             ));
         }
         (program, context, errors)
