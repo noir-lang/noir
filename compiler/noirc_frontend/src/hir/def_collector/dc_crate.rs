@@ -213,7 +213,11 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
-            errors.extend(CrateDefMap::collect_defs(dep.crate_id, context, macro_processors.clone()));
+            errors.extend(CrateDefMap::collect_defs(
+                dep.crate_id,
+                context,
+                macro_processors.clone(),
+            ));
 
             let dep_def_root =
                 context.def_map(&dep.crate_id).expect("ice: def map was just created").root;
