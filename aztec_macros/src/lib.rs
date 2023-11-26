@@ -265,10 +265,7 @@ fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -
                 // Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>) contains only fields
                 && match &func.def.parameters[3].typ.typ {
                     UnresolvedTypeData::Array(_, inner_type) => {
-                        match inner_type.typ {
-                            UnresolvedTypeData::FieldElement => true,
-                            _ => false,
-                        }
+                        matches!(inner_type.typ, UnresolvedTypeData::FieldElement)
                     },
                     _ => false,
                 }
@@ -278,10 +275,7 @@ fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -
                     FunctionReturnType::Ty(unresolved_type) => {
                         match &unresolved_type.typ {
                             UnresolvedTypeData::Array(_, inner_type) => {
-                                match inner_type.typ {
-                                    UnresolvedTypeData::FieldElement => true,
-                                    _ => false,
-                                }
+                                matches!(inner_type.typ, UnresolvedTypeData::FieldElement)
                             },
                             _ => false,
                         }
@@ -310,9 +304,9 @@ fn transform_module(
     let mut has_transformed_module = false;
 
     // Check for a user defined storage struct
-    let storage_defined = check_for_storage_definition(&module);
+    let storage_defined = check_for_storage_definition(module);
 
-    if storage_defined && !check_for_compute_note_hash_and_nullifier_definition(&module) {
+    if storage_defined && !check_for_compute_note_hash_and_nullifier_definition(module) {
         let crate_graph = &context.crate_graph[crate_id];
         return Err((
             MacroError {
@@ -607,7 +601,7 @@ fn create_context(ty: &str, params: &[Param]) -> Vec<Statement> {
                     // `hasher.add_multiple({ident}.serialize())`
                     UnresolvedTypeData::Named(..) => add_struct_to_hasher(identifier),
                     UnresolvedTypeData::Array(_, arr_type) => {
-                        add_array_to_hasher(identifier, &arr_type)
+                        add_array_to_hasher(identifier, arr_type)
                     }
                     // `hasher.add({ident})`
                     UnresolvedTypeData::FieldElement => add_field_to_hasher(identifier),
@@ -908,7 +902,7 @@ fn add_struct_to_hasher(identifier: &Ident) -> Statement {
 fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     // If this is an array of primitive types (integers / fields) we can add them each to the hasher
     // casted to a field
-    let span = var.span.clone();
+    let span = var.span;
 
     // `array.len()`
     let end_range_expression = method_call(
