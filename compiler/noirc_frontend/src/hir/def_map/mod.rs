@@ -72,7 +72,7 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        macro_processors: &[&dyn MacroProcessor],
+        macro_processors: Vec<&dyn MacroProcessor>,
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -89,7 +89,7 @@ impl CrateDefMap {
         let (ast, parsing_errors) = parse_file(&context.file_manager, root_file_id);
         let mut ast = ast.into_sorted();
 
-        for macro_processor in macro_processors {
+        for macro_processor in &macro_processors {
             ast = match macro_processor.process_untyped_ast(ast, &crate_id, context) {
                 Ok(ast) => ast,
                 Err((error, file_id)) => {
@@ -113,7 +113,7 @@ impl CrateDefMap {
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        errors.extend(DefCollector::collect(def_map, context, ast, root_file_id, macro_processors));
+        errors.extend(DefCollector::collect(def_map, context, ast, root_file_id, macro_processors.clone()));
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),
