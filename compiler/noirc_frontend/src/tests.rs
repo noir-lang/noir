@@ -55,24 +55,6 @@ mod test {
             .collect()
     }
 
-    struct DummyMacroProcessor;
-
-    impl MacroProcessor for DummyMacroProcessor {
-        fn process_untyped_ast(
-            &self,
-            ast: crate::macros_api::SortedModule,
-            crate_id: &crate::graph::CrateId,
-            context: &Context,
-        ) -> Result<crate::macros_api::SortedModule, (crate::macros_api::MacroError, FileId)>
-        {
-            unimplemented!()
-        }
-
-        fn process_typed_ast(&self, crate_id: &crate::graph::CrateId, context: &mut Context) {
-            unimplemented!()
-        }
-    }
-
     pub(crate) fn get_program(
         src: &str,
     ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
@@ -98,13 +80,16 @@ mod test {
                 krate: root_crate_id,
                 extern_prelude: BTreeMap::new(),
             };
+
+            let empty_macro_processors: Vec<&dyn MacroProcessor> = Vec::new();
+
             // Now we want to populate the CrateDefMap using the DefCollector
             errors.extend(DefCollector::collect(
                 def_map,
                 &mut context,
                 program.clone().into_sorted(),
                 root_file_id,
-                &Vec::<DummyMacroProcessor>::new(),
+                &empty_macro_processors,
             ));
         }
         (program, context, errors)
