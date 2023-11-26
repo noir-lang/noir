@@ -18,6 +18,7 @@ mod test {
     use crate::hir::resolution::import::PathResolutionError;
     use crate::hir::type_check::TypeCheckError;
     use crate::hir::Context;
+    use crate::macros_api::MacroProcessor;
     use crate::node_interner::{NodeInterner, StmtId};
 
     use crate::graph::CrateGraph;
@@ -54,6 +55,24 @@ mod test {
             .collect()
     }
 
+    struct DummyMacroProcessor;
+
+    impl MacroProcessor for DummyMacroProcessor {
+        fn process_untyped_ast(
+            &self,
+            ast: crate::macros_api::SortedModule,
+            crate_id: &crate::graph::CrateId,
+            context: &Context,
+        ) -> Result<crate::macros_api::SortedModule, (crate::macros_api::MacroError, FileId)>
+        {
+            unimplemented!()
+        }
+
+        fn process_typed_ast(&self, crate_id: &crate::graph::CrateId, context: &mut Context) {
+            unimplemented!()
+        }
+    }
+
     pub(crate) fn get_program(
         src: &str,
     ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
@@ -85,6 +104,7 @@ mod test {
                 &mut context,
                 program.clone().into_sorted(),
                 root_file_id,
+                &Vec::<DummyMacroProcessor>::new(),
             ));
         }
         (program, context, errors)
