@@ -123,12 +123,14 @@ pub fn check_crate(
     deny_warnings: bool,
 ) -> CompilationResult<()> {
     #[cfg(not(feature = "aztec"))]
-    let macros: &[&dyn MacroProcessor] = &[];
+    let macros: Vec<&dyn MacroProcessor> = Vec::new();
     #[cfg(feature = "aztec")]
-    let macros = &[aztec_macros::AztecMacro];
+    let macros = vec![aztec_macros::AztecMacro];
+    #[cfg(feature = "aztec")]
+    let macros : Vec<&dyn MacroProcessor> = macros.iter().map(|m| m as &dyn MacroProcessor).collect();
 
     let mut errors = vec![];
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context, macros);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, &macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic: CustomDiagnostic = error.into();
         diagnostic.in_file(file_id)
