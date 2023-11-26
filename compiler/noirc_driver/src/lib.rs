@@ -127,7 +127,8 @@ pub fn check_crate(
     #[cfg(feature = "aztec")]
     let macros = vec![aztec_macros::AztecMacro];
     #[cfg(feature = "aztec")]
-    let macros : Vec<&dyn MacroProcessor> = macros.iter().map(|m| m as &dyn MacroProcessor).collect();
+    let macros: Vec<&dyn MacroProcessor> =
+        macros.iter().map(|m| m as &dyn MacroProcessor).collect();
 
     let mut errors = vec![];
     let diagnostics = CrateDefMap::collect_defs(crate_id, context, &macros);
