@@ -172,7 +172,7 @@ impl SsaBuilder {
         let ssa = ssa_gen::generate_ssa(program)?;
         Ok(SsaBuilder { print_ssa_passes, ssa }.print("Initial SSA:"))
     }
-    
+
     fn finish(self) -> Ssa {
         self.ssa
     }
