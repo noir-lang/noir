@@ -251,7 +251,7 @@ pub(crate) fn format_parens(
         exprs,
         span,
         tactic,
-        NewlineMode::Normal,
+        NewlineMode::IfContainsNewLineAndWidth,
         reduce,
     )
 }
