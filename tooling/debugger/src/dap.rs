@@ -13,7 +13,7 @@ use crate::context::DebugContext;
 use dap::errors::ServerError;
 use dap::events::StoppedEventBody;
 use dap::prelude::Event;
-use dap::requests::{Command, Request};
+use dap::requests::{Command, Request, SetBreakpointsArguments};
 use dap::responses::{
     ContinueResponse, DisassembleResponse, ResponseBody, ScopesResponse, SetBreakpointsResponse,
     SetExceptionBreakpointsResponse, SetInstructionBreakpointsResponse, StackTraceResponse,
@@ -35,6 +35,9 @@ pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> {
     debug_artifact: &'a DebugArtifact,
     running: bool,
     source_to_opcodes: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>>,
+    next_breakpoint_id: i64,
+    instruction_breakpoints: Vec<(OpcodeLocation, i64)>,
+    source_breakpoints: BTreeMap<FileId, Vec<(OpcodeLocation, i64)>>,
 }
 
 // BTreeMap<FileId, Vec<(usize, OpcodeLocation)>
@@ -55,7 +58,16 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             initial_witness,
             Box::new(DefaultForeignCallExecutor::new(true)),
         );
-        Self { server, context, debug_artifact, source_to_opcodes, running: false }
+        Self {
+            server,
+            context,
+            debug_artifact,
+            source_to_opcodes,
+            running: false,
+            next_breakpoint_id: 1,
+            instruction_breakpoints: vec![],
+            source_breakpoints: BTreeMap::new(),
+        }
     }
 
     /// Builds a map from FileId to an ordered vector of tuples with line
@@ -287,42 +299,120 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         self.handle_execution_result(result)
     }
 
+    fn find_breakpoints_at_location(&self, opcode_location: &OpcodeLocation) -> Vec<i64> {
+        let mut result = vec![];
+        for (location, id) in &self.instruction_breakpoints {
+            if opcode_location == location {
+                result.push(*id);
+            }
+        }
+        for (_, breakpoints) in &self.source_breakpoints {
+            for (location, id) in breakpoints {
+                if opcode_location == location {
+                    result.push(*id);
+                }
+            }
+        }
+        result
+    }
+
     fn handle_execution_result(&mut self, result: DebugCommandResult) -> Result<(), ServerError> {
         match result {
             DebugCommandResult::Done => {
                 self.running = false;
             }
-            _ => {
-                self.send_stopped_event(StoppedEventReason::Pause)?;
+            DebugCommandResult::Ok => {
+                self.server.send_event(Event::Stopped(StoppedEventBody {
+                    reason: StoppedEventReason::Pause,
+                    description: None,
+                    thread_id: Some(0),
+                    preserve_focus_hint: Some(false),
+                    text: None,
+                    all_threads_stopped: Some(false),
+                    hit_breakpoint_ids: None,
+                }))?;
+            }
+            DebugCommandResult::BreakpointReached(location) => {
+                let breakpoint_ids = self.find_breakpoints_at_location(&location);
+                self.server.send_event(Event::Stopped(StoppedEventBody {
+                    reason: StoppedEventReason::Breakpoint,
+                    description: Some(String::from("Paused at breakpoint")),
+                    thread_id: Some(0),
+                    preserve_focus_hint: Some(false),
+                    text: None,
+                    all_threads_stopped: Some(false),
+                    hit_breakpoint_ids: Some(breakpoint_ids),
+                }))?;
+            }
+            DebugCommandResult::Error(err) => {
+                self.server.send_event(Event::Stopped(StoppedEventBody {
+                    reason: StoppedEventReason::Exception,
+                    description: Some(format!("{err:?}")),
+                    thread_id: Some(0),
+                    preserve_focus_hint: Some(false),
+                    text: None,
+                    all_threads_stopped: Some(false),
+                    hit_breakpoint_ids: None,
+                }))?;
             }
         }
         Ok(())
+    }
+
+    fn get_next_breakpoint_id(&mut self) -> i64 {
+        let id = self.next_breakpoint_id;
+        self.next_breakpoint_id += 1;
+        id
+    }
+
+    fn reinstall_breakpoints(&mut self) {
+        self.context.clear_breakpoints();
+        for (location, _) in &self.instruction_breakpoints {
+            self.context.add_breakpoint(*location);
+        }
+        for (_, breakpoints) in &self.source_breakpoints {
+            for (location, _) in breakpoints {
+                self.context.add_breakpoint(*location);
+            }
+        }
     }
 
     fn handle_set_instruction_breakpoints(&mut self, req: Request) -> Result<(), ServerError> {
         let Command::SetInstructionBreakpoints(ref args) = req.command else {
             unreachable!("handle_set_instruction_breakpoints called on a different request");
         };
-        // FIXME: clear previous instruction breakpoints
-        let breakpoints = args.breakpoints.iter().filter_map(|breakpoint| {
+
+        // compute breakpoints to set and return
+        let mut breakpoints_to_set: Vec<(OpcodeLocation, i64)> = vec![];
+        let breakpoints: Vec<Breakpoint> = args.breakpoints.iter().map(|breakpoint| {
             let Ok(location) = OpcodeLocation::from_str(breakpoint.instruction_reference.as_str()) else {
-                return None;
+                return Breakpoint {
+                    verified: false,
+                    message: Some(String::from("Missing instruction reference")),
+                    ..Breakpoint::default()
+                };
             };
             if !self.context.is_valid_opcode_location(&location) {
-                return None;
+                return Breakpoint {
+                    verified: false,
+                    message: Some(String::from("Invalid opcode location")),
+                    ..Breakpoint::default()
+                };
             }
-            if self.context.add_breakpoint(location) {
-                Some(
-                    Breakpoint {
-                        verified: true,
-                        instruction_reference: Some(breakpoint.instruction_reference.clone()),
-                        ..Breakpoint::default()
-                    }
-                )
-            } else {
-                None
+            let id = self.get_next_breakpoint_id();
+            breakpoints_to_set.push((location, id));
+            Breakpoint {
+                id: Some(id),
+                verified: true,
+                ..Breakpoint::default()
             }
         }).collect();
+
+        // actually set the computed breakpoints
+        self.instruction_breakpoints = breakpoints_to_set;
+        self.reinstall_breakpoints();
+
+        // response to request
         self.server.respond(req.success(ResponseBody::SetInstructionBreakpoints(
             SetInstructionBreakpointsResponse { breakpoints },
         )))?;
@@ -342,15 +432,22 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         }
     }
 
-    fn find_opcode_for_source_location(&self, source: &str, line: i64) -> Option<OpcodeLocation> {
+    // FIXME: there are four possibilities for the return value of this function:
+    // 1. the source location is not found -> None
+    // 2. an exact unique location is found -> Some(opcode_location)
+    // 3. an exact but not unique location is found (ie. a source location may
+    //    be mapped to multiple opcodes, and those may be disjoint, for example for
+    //    functions called multiple times throughout the program)
+    // 4. exact location is not found, so an opcode for a nearby source location
+    //    is returned (this again could actually be more than one opcodes)
+    // Case 3 is not supported yet, and 4 is not correctly handled.
+    fn find_opcode_for_source_location(
+        &self,
+        file_id: &FileId,
+        line: i64,
+    ) -> Option<OpcodeLocation> {
         let line = line as usize;
-        let Some(file_id) = self.find_file_id(source) else {
-            return None;
-        };
-        if self.debug_artifact.debug_symbols.is_empty() {
-            return None;
-        }
-        let Some(line_to_opcodes) = self.source_to_opcodes.get(&file_id) else {
+        let Some(line_to_opcodes) = self.source_to_opcodes.get(file_id) else {
             return None;
         };
         let found_index = match line_to_opcodes.binary_search_by(|x| x.0.cmp(&line)) {
@@ -360,48 +457,64 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         Some(found_index)
     }
 
-    fn handle_set_source_breakpoints(&mut self, req: Request) -> Result<(), ServerError> {
-        let Command::SetBreakpoints(ref args) = req.command else {
-            unreachable!("handle_set_source_breakpoints called on a different request");
-        };
+    fn map_source_breakpoints(&mut self, args: &SetBreakpointsArguments) -> Vec<Breakpoint> {
         let Some(ref source) = &args.source.path else {
-            self.server.respond(
-                req.success(ResponseBody::SetBreakpoints(SetBreakpointsResponse { breakpoints: vec![] })),
-            )?;
-            return Ok(());
+            return vec![];
+        };
+        let Some(file_id) = self.find_file_id(source) else {
+            eprintln!("WARN: file ID for source {source} not found");
+            return vec![];
         };
         let Some(ref breakpoints) = &args.breakpoints else {
-            self.server.respond(
-                req.success(ResponseBody::SetBreakpoints(SetBreakpointsResponse { breakpoints: vec![] })),
-            )?;
-            return Ok(());
+            return vec![];
         };
-        // FIXME: clear previous source breakpoints on this source
+        let mut breakpoints_to_set: Vec<(OpcodeLocation, i64)> = vec![];
         let breakpoints = breakpoints
             .iter()
-            .filter_map(|breakpoint| {
+            .map(|breakpoint| {
                 let line = breakpoint.line;
-                let Some(location) = self.find_opcode_for_source_location(source, line) else {
-                    return None;
-                };
-                if !self.context.is_valid_opcode_location(&location) {
-                    return None;
-                }
-                if self.context.add_breakpoint(location) {
-                    let instruction_reference = format!("{}", location);
-                    Some(Breakpoint {
-                        verified: true,
-                        source: Some(args.source.clone()),
-                        instruction_reference: Some(instruction_reference),
-                        line: Some(line),
+                let Some(location) = self.find_opcode_for_source_location(&file_id, line) else {
+                    return Breakpoint {
+                        verified: false,
+                        message: Some(String::from("Source location cannot be matched to opcode location")),
                         ..Breakpoint::default()
-                    })
-                } else {
-                    None
+                    };
+                };
+                // FIXME: line will not necessarily be the one requested; we
+                // should do the reverse mapping and retrieve the actual source
+                // code line number
+                if !self.context.is_valid_opcode_location(&location) {
+                    return Breakpoint {
+                        verified: false,
+                        message: Some(String::from("Invalid opcode location")),
+                        ..Breakpoint::default()
+                    };
+                }
+                let instruction_reference = format!("{}", location);
+                let breakpoint_id = self.get_next_breakpoint_id();
+                breakpoints_to_set.push((location, breakpoint_id));
+                Breakpoint {
+                    id: Some(breakpoint_id),
+                    verified: true,
+                    source: Some(args.source.clone()),
+                    instruction_reference: Some(instruction_reference),
+                    line: Some(line),
+                    ..Breakpoint::default()
                 }
             })
             .collect();
 
+        self.source_breakpoints.insert(file_id, breakpoints_to_set);
+
+        breakpoints
+    }
+
+    fn handle_set_source_breakpoints(&mut self, req: Request) -> Result<(), ServerError> {
+        let Command::SetBreakpoints(ref args) = req.command else {
+            unreachable!("handle_set_source_breakpoints called on a different request");
+        };
+        let breakpoints = self.map_source_breakpoints(args);
+        self.reinstall_breakpoints();
         self.server.respond(
             req.success(ResponseBody::SetBreakpoints(SetBreakpointsResponse { breakpoints })),
         )?;

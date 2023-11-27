@@ -414,6 +414,10 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         self.breakpoints.iter()
     }
 
+    pub(super) fn clear_breakpoints(&mut self) {
+        self.breakpoints.clear();
+    }
+
     pub(super) fn is_solved(&self) -> bool {
         matches!(self.acvm.get_status(), ACVMStatus::Solved)
     }
