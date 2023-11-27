@@ -61,6 +61,10 @@ pub struct CompileOptions {
     /// Suppress warnings
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
+
+    /// Enables the aztec macro preprocessor
+    #[arg(long, hide = true)]
+    pub aztec_macro: bool,
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
@@ -121,11 +125,12 @@ pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
+    enable_aztec_macro: bool,
 ) -> CompilationResult<()> {
-    #[cfg(not(feature = "aztec"))]
-    let macros: Vec<&dyn MacroProcessor> = Vec::new();
-    #[cfg(feature = "aztec")]
-    let macros = vec![&aztec_macros::AztecMacro as &dyn MacroProcessor];
+    let mut macros: Vec<&dyn MacroProcessor> = Vec::new();
+    if enable_aztec_macro {
+        macros.push(&aztec_macros::AztecMacro as &dyn MacroProcessor);
+    }
 
     let mut errors = vec![];
     let diagnostics = CrateDefMap::collect_defs(crate_id, context, macros);
@@ -161,7 +166,8 @@ pub fn compile_main(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, mut warnings) = check_crate(context, crate_id, options.deny_warnings)?;
+    let (_, mut warnings) =
+        check_crate(context, crate_id, options.deny_warnings, options.aztec_macro)?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -194,7 +200,7 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (_, warnings) = check_crate(context, crate_id, options.deny_warnings)?;
+    let (_, warnings) = check_crate(context, crate_id, options.deny_warnings, options.aztec_macro)?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);

@@ -46,6 +46,7 @@ pub struct LspState {
     root_path: Option<PathBuf>,
     client: ClientSocket,
     solver: WrapperSolver,
+    enable_aztec_macro: bool,
     input_files: HashMap<String, String>,
 }
 
@@ -55,6 +56,7 @@ impl LspState {
             client: client.clone(),
             root_path: None,
             solver: WrapperSolver(Box::new(solver)),
+            enable_aztec_macro: false,
             input_files: HashMap::new(),
         }
     }

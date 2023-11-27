@@ -113,10 +113,11 @@ pub(super) fn on_did_save_text_document(
         .flat_map(|package| -> Vec<Diagnostic> {
             let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
 
-            let file_diagnostics = match check_crate(&mut context, crate_id, false) {
-                Ok(((), warnings)) => warnings,
-                Err(errors_and_warnings) => errors_and_warnings,
-            };
+            let file_diagnostics =
+                match check_crate(&mut context, crate_id, false, state.enable_aztec_macro) {
+                    Ok(((), warnings)) => warnings,
+                    Err(errors_and_warnings) => errors_and_warnings,
+                };
 
             // We don't add test headings for a package if it contains no `#[test]` functions
             if let Some(tests) = get_package_tests_in_crate(&context, &crate_id, &package.name) {

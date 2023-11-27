@@ -61,13 +61,15 @@ fn on_profile_run_request_inner(
             let is_opcode_supported = |_opcode: &Opcode| true;
             let np_language = Language::PLONKCSat { width: 3 };
 
+            let compile_options =
+                CompileOptions { aztec_macro: state.enable_aztec_macro, ..Default::default() };
             let (compiled_programs, compiled_contracts) = nargo::ops::compile_workspace(
                 &workspace,
                 &binary_packages,
                 &contract_packages,
                 np_language,
                 is_opcode_supported,
-                &CompileOptions::default(),
+                &compile_options,
             )
             .map_err(|err| ResponseError::new(ErrorCode::REQUEST_FAILED, err))?;
 

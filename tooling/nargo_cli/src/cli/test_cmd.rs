@@ -93,6 +93,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
         crate_id,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
+        compile_options.aztec_macro,
     )?;
 
     let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, test_name);
