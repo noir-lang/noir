@@ -210,6 +210,13 @@ impl<'a> FunctionContext<'a> {
         for element in elements {
             element.for_each(|element| {
                 let element = element.eval(self);
+
+                // If we're referencing a sub-array in a larger nested array we need to
+                // increase the reference count of the sub array. This maintains a
+                // pessimistic reference count (since some are likely moved rather than shared)
+                // which is important for Brillig's copy on write optimization. This has no
+                // effect in ACIR code.
+                self.builder.increment_array_reference_count(element);
                 array.push_back(element);
             });
         }
@@ -301,6 +308,7 @@ impl<'a> FunctionContext<'a> {
         } else {
             (array_or_slice[0], None)
         };
+
         self.codegen_array_index(
             array,
             index_value,
@@ -345,7 +353,13 @@ impl<'a> FunctionContext<'a> {
                 }
                 _ => unreachable!("must have array or slice but got {array_type}"),
             }
-            self.builder.insert_array_get(array, offset, typ).into()
+
+            // Reference counting in brillig relies on us incrementing reference
+            // counts when nested arrays/slices are constructed or indexed. This
+            // has not effect in ACIR code.
+            let result = self.builder.insert_array_get(array, offset, typ);
+            self.builder.increment_array_reference_count(result);
+            result.into()
         }))
     }
 

@@ -462,6 +462,11 @@ impl FunctionBuilder {
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
+        // Reference-counted arrays are only needed for Brillig's copy on write optimization.
+        if self.current_function.runtime() != RuntimeType::Brillig {
+            return;
+        }
+
         match self.type_of_value(value) {
             Type::Numeric(_) => (),
             Type::Function => (),
@@ -471,26 +476,10 @@ impl FunctionBuilder {
                     self.increment_array_reference_count(value);
                 }
             }
-            Type::Array(element_types, length) => {
+            Type::Array(..) | Type::Slice(..) => {
                 self.insert_instruction(Instruction::IncrementRc { value }, None);
-
-                if element_types.iter().any(|element| element.contains_an_array()) {
-                    for i in 0..length {
-                        let index = self.field_constant(i as u128);
-                        let element_type = element_types[i % element_types.len()].clone();
-                        let element = self.insert_array_get(value, index, element_type);
-                        self.increment_array_reference_count(element);
-                    }
-                }
-            }
-            Type::Slice(element_types) => {
-                self.insert_instruction(Instruction::IncrementRc { value }, None);
-
-                for element_type in element_types.iter() {
-                    if element_type.contains_an_array() {
-                        todo!("inc_rc for nested slices")
-                    }
-                }
+                // If there are nested arrays or slices, we wait until ArrayGet
+                // is issued to increment the count of that array.
             }
         }
     }
