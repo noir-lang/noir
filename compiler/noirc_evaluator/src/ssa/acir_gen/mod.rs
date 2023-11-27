@@ -1305,7 +1305,7 @@ impl Context {
         var_index: AcirVar,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
-        if can_omit_element_sizes_array(&array_typ) {
+        if can_omit_element_sizes_array(array_typ) {
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg)?;
 
