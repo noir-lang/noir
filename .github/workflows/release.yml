@@ -51,9 +51,9 @@ jobs:
           git push
 
   
-  publish-docs:
-    name: Publish docs
-    needs: [release-please]
+  update-docs:
+    name: Update docs
+    needs: [release-please, update-lockfile]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-latest
     steps:
@@ -68,66 +68,23 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install wasm-bindgen-cli
-        uses: taiki-e/install-action@v2
-        with:
-          tool: wasm-bindgen-cli@0.2.86
-
-      - name: Install wasm-opt
-        run: |
-          npm i wasm-opt -g
-
-      - name: Install Yarn
-        run: npm install -g yarn
-
       - name: Install Yarn dependencies
-        run: yarn
-    
-      - name: Build acvm_js
-        run: yarn workspace @noir-lang/acvm_js build
-
-      - name: Build noirc_abi
-        run: yarn workspace @noir-lang/noirc_abi build
-
-      - name: Build noir_js_types
-        run: yarn workspace @noir-lang/types build
-
-      - name: Build barretenberg wrapper
-        run: yarn workspace @noir-lang/backend_barretenberg build
-
-      - name: Run noir_js
-        run: |
-          yarn workspace @noir-lang/noir_js build
+        uses: ./.github/actions/setup
 
       - name: Cut a new version
         working-directory: ./docs
         run: yarn docusaurus docs:version ${{ needs.release-please.outputs.tag-name }}
 
-      - name: Commit new documentation version
+      - name: Configure git
         run: |
           git config --local user.name 'signorecello'
           git config --local user.email 'github@zepedro.me'
+
+      - name: Commit new documentation version
+        run: |
           git add .
           git commit -m "chore(docs): cut new docs version for tag ${{ needs.release-please.outputs.tag-name }}"
           git push
-          
-      - name: Build docs for deploying
-        run: yarn workspace docs build
-    
-      - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v2.1
-        with:
-          publish-dir: './docs/build'
-          production-branch: master
-          production-deploy: true
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          enable-github-deployment: false
-          deploy-message: "Deploy from GitHub Actions for tag ${{ needs.release-please.outputs.tag-name }}"
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        timeout-minutes: 1
-
 
   build-binaries:
     name: Build binaries
@@ -157,3 +114,51 @@ jobs:
           ref: master
           token: ${{ secrets.NOIR_REPO_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}", "npm-tag": "latest" }'
+
+  publish-docs:
+    name: Publish docs
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag-name }}
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.86
+
+      - name: Install wasm-opt
+        run: |
+          npm i wasm-opt -g
+      
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Build docs for deploying
+        working-directory: docs
+        run: 
+          yarn workspaces foreach -Rt run build
+
+      - name: Deploy to Netlify
+        uses: nwtgck/actions-netlify@v2.1
+        with:
+          publish-dir: './docs/build'
+          production-branch: master
+          production-deploy: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          enable-github-deployment: false
+          deploy-message: "Deploy from GitHub Actions for tag ${{ needs.release-please.outputs.tag-name }}"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        timeout-minutes: 1
