@@ -356,7 +356,7 @@ impl<'a> FunctionContext<'a> {
 
             // Reference counting in brillig relies on us incrementing reference
             // counts when nested arrays/slices are constructed or indexed. This
-            // has not effect in ACIR code.
+            // has no effect in ACIR code.
             let result = self.builder.insert_array_get(array, offset, typ);
             self.builder.increment_array_reference_count(result);
             result.into()
