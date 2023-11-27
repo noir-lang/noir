@@ -38,7 +38,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.19.0"
+version = "0.19.3"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
@@ -80,8 +80,8 @@ noirc_abi = { path = "tooling/noirc_abi" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
 
 # LSP
-async-lsp = { version = "0.0.5", default-features = false }
-lsp-types = "0.94"
+async-lsp = { version = "0.1.0", default-features = false }
+lsp-types = "0.94.1"
 tower = "0.4"
 
 # Wasm
@@ -118,8 +118,22 @@ hex = "0.4.2"
 const_format = "0.2.30"
 num-bigint = "0.4"
 num-traits = "0.2"
+similar-asserts = "1.5.0"
 
 [profile.dev]
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.
 # See https://ritik-mishra.medium.com/resolving-the-wasm-pack-error-locals-exceed-maximum-ec3a9d96685b
 opt-level = 1
+
+
+[profile.size]
+inherits = "release"
+lto = true
+opt-level = "z"
+
+[profile.size-aggressive]
+inherits = "release"
+strip = true
+lto = true
+panic = "abort"
+opt-level = "z"

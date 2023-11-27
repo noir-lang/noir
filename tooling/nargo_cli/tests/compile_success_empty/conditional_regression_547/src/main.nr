@@ -7,7 +7,6 @@ fn main(x: Field) -> pub Field {
             assert(i != 2);
         }
     }
-
     // Regression for predicate simplification
     x + safe_inverse(0)
 }

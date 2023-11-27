@@ -1,12 +1,9 @@
-
 fn main() {
-    // Test is temporarily disabled, see #3409
-    // let array: [Field; 3] = [1, 2, 3];
-    // assert(array.eq(array));
-
-    // // Ensure this still works if we have to infer the type of the integer literals
-    // let array = [1, 2, 3];
-    // assert(array.eq(array));
+    let array: [Field; 3] = [1, 2, 3];
+    assert(array.eq(array));
+    // Ensure this still works if we have to infer the type of the integer literals
+    let array = [1, 2, 3];
+    assert(array.eq(array));
 }
 
 trait Eq {

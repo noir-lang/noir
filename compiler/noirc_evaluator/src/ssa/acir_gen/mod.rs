@@ -3,7 +3,6 @@ mod acir_ir;
 
 use std::collections::HashSet;
 use std::fmt::Debug;
-use std::ops::RangeInclusive;
 
 use self::acir_ir::acir_variable::{AcirContext, AcirType, AcirVar};
 use super::ir::dfg::CallStack;
@@ -26,6 +25,8 @@ use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunction
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 
+use acvm::acir::native_types::Witness;
+use acvm::acir::BlackBoxFunc;
 use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
@@ -213,14 +214,19 @@ impl Context {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
         let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
-
+        let mut warnings = Vec::new();
         for instruction_id in entry_block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, last_array_uses)?;
+            warnings.extend(self.convert_ssa_instruction(
+                *instruction_id,
+                dfg,
+                ssa,
+                &brillig,
+                last_array_uses,
+            )?);
         }
 
-        let warnings = self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
-
-        Ok(self.acir_context.finish(vec![input_witness], warnings))
+        warnings.extend(self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?);
+        Ok(self.acir_context.finish(input_witness, warnings))
     }
 
     fn convert_brillig_main(
@@ -256,8 +262,7 @@ impl Context {
         for acir_var in output_vars {
             self.acir_context.return_var(acir_var)?;
         }
-        let witnesses = vecmap(witness_inputs, |input| RangeInclusive::new(input, input));
-        Ok(self.acir_context.finish(witnesses, Vec::new()))
+        Ok(self.acir_context.finish(witness_inputs, Vec::new()))
     }
 
     /// Adds and binds `AcirVar`s for each numeric block parameter or block parameter array element.
@@ -265,7 +270,7 @@ impl Context {
         &mut self,
         params: &[ValueId],
         dfg: &DataFlowGraph,
-    ) -> Result<RangeInclusive<u32>, RuntimeError> {
+    ) -> Result<Vec<Witness>, RuntimeError> {
         // The first witness (if any) is the next one
         let start_witness = self.acir_context.current_witness_index().0 + 1;
         for param_id in params {
@@ -294,7 +299,8 @@ impl Context {
             self.ssa_values.insert(*param_id, value);
         }
         let end_witness = self.acir_context.current_witness_index().0;
-        Ok(start_witness..=end_witness)
+        let witnesses = (start_witness..=end_witness).map(Witness::from).collect();
+        Ok(witnesses)
     }
 
     fn convert_ssa_block_param(&mut self, param_type: &Type) -> Result<AcirValue, RuntimeError> {
@@ -377,9 +383,10 @@ impl Context {
         ssa: &Ssa,
         brillig: &Brillig,
         last_array_uses: &HashMap<ValueId, InstructionId>,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<Vec<SsaReport>, RuntimeError> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
+        let mut warnings = Vec::new();
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
@@ -482,6 +489,14 @@ impl Context {
                         }
                     }
                     Value::Intrinsic(intrinsic) => {
+                        if matches!(
+                            intrinsic,
+                            Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation)
+                        ) {
+                            warnings.push(SsaReport::Warning(InternalWarning::VerifyProof {
+                                call_stack: self.acir_context.get_call_stack(),
+                            }));
+                        }
                         let outputs = self
                             .convert_ssa_intrinsic_call(*intrinsic, arguments, dfg, result_ids)?;
 
@@ -510,7 +525,6 @@ impl Context {
                                     // Do nothing
                                 }
                             }
-                            // dbg!(result);
                             self.ssa_values.insert(*result, output);
                         }
                     }
@@ -559,7 +573,7 @@ impl Context {
             }
         }
         self.acir_context.set_call_stack(CallStack::new());
-        Ok(())
+        Ok(warnings)
     }
 
     fn gen_brillig_for(
@@ -644,75 +658,76 @@ impl Context {
         store_value: Option<ValueId>,
     ) -> Result<bool, RuntimeError> {
         let index_const = dfg.get_numeric_constant(index);
-        match dfg.type_of_value(array) {
-            Type::Array(_, _) => {
-                match self.convert_value(array, dfg) {
-                    AcirValue::Var(acir_var, _) => {
-                        return Err(RuntimeError::InternalError(InternalError::UnExpected {
-                            expected: "an array value".to_string(),
-                            found: format!("{acir_var:?}"),
-                            call_stack: self.acir_context.get_call_stack(),
-                        }))
-                    }
-                    AcirValue::Array(array) => {
-                        if let Some(index_const) = index_const {
-                            let array_size = array.len();
-                            let index = match index_const.try_to_u64() {
-                                Some(index_const) => index_const as usize,
-                                None => {
-                                    let call_stack = self.acir_context.get_call_stack();
-                                    return Err(RuntimeError::TypeConversion {
-                                        from: "array index".to_string(),
-                                        into: "u64".to_string(),
-                                        call_stack,
-                                    });
-                                }
-                            };
-                            if self
-                                .acir_context
-                                .is_constant_one(&self.current_side_effects_enabled_var)
-                            {
-                                // Report the error if side effects are enabled.
-                                if index >= array_size {
-                                    let call_stack = self.acir_context.get_call_stack();
-                                    return Err(RuntimeError::IndexOutOfBounds {
-                                        index,
-                                        array_size,
-                                        call_stack,
-                                    });
-                                } else {
-                                    let value = match store_value {
-                                        Some(store_value) => {
-                                            let store_value = self.convert_value(store_value, dfg);
-                                            AcirValue::Array(array.update(index, store_value))
-                                        }
-                                        None => array[index].clone(),
-                                    };
+        let value_type = dfg.type_of_value(array);
+        let (Type::Array(element_types, _) | Type::Slice(element_types)) = &value_type else {
+            unreachable!("ICE: expected array or slice type");
 
-                                    self.define_result(dfg, instruction, value);
-                                    return Ok(true);
+        };
+
+        // TODO(#3188): Need to be able to handle constant index for slices to seriously reduce
+        // constraint sizes of nested slices
+        // This can only be done if we accurately flatten nested slices as otherwise we will reach
+        // index out of bounds errors. If the slice is already flat then we can treat them similarly to arrays.
+        if matches!(value_type, Type::Slice(_))
+            && element_types.iter().any(|element| element.contains_slice_element())
+        {
+            return Ok(false);
+        }
+
+        match self.convert_value(array, dfg) {
+            AcirValue::Var(acir_var, _) => {
+                return Err(RuntimeError::InternalError(InternalError::UnExpected {
+                    expected: "an array value".to_string(),
+                    found: format!("{acir_var:?}"),
+                    call_stack: self.acir_context.get_call_stack(),
+                }))
+            }
+            AcirValue::Array(array) => {
+                if let Some(index_const) = index_const {
+                    let array_size = array.len();
+                    let index = match index_const.try_to_u64() {
+                        Some(index_const) => index_const as usize,
+                        None => {
+                            let call_stack = self.acir_context.get_call_stack();
+                            return Err(RuntimeError::TypeConversion {
+                                from: "array index".to_string(),
+                                into: "u64".to_string(),
+                                call_stack,
+                            });
+                        }
+                    };
+                    if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
+                        // Report the error if side effects are enabled.
+                        if index >= array_size {
+                            let call_stack = self.acir_context.get_call_stack();
+                            return Err(RuntimeError::IndexOutOfBounds {
+                                index,
+                                array_size,
+                                call_stack,
+                            });
+                        } else {
+                            let value = match store_value {
+                                Some(store_value) => {
+                                    let store_value = self.convert_value(store_value, dfg);
+                                    AcirValue::Array(array.update(index, store_value))
                                 }
-                            }
-                            // If there is a predicate and the index is not out of range, we can directly perform the read
-                            else if index < array_size && store_value.is_none() {
-                                self.define_result(dfg, instruction, array[index].clone());
-                                return Ok(true);
-                            }
+                                None => array[index].clone(),
+                            };
+
+                            self.define_result(dfg, instruction, value);
+                            return Ok(true);
                         }
                     }
-                    AcirValue::DynamicArray(_) => (),
+                    // If there is a predicate and the index is not out of range, we can directly perform the read
+                    else if index < array_size && store_value.is_none() {
+                        self.define_result(dfg, instruction, array[index].clone());
+                        return Ok(true);
+                    }
                 }
             }
-            Type::Slice(_) => {
-                // TODO(#3188): Need to be able to handle constant index for slices to seriously reduce
-                // constraint sizes of nested slices
-                // This can only be done if we accurately flatten nested slices as other we will reach
-                // index out of bounds errors.
+            AcirValue::DynamicArray(_) => (),
+        };
 
-                // Do nothing we only want dynamic checks for slices
-            }
-            _ => unreachable!("ICE: expected array or slice type"),
-        }
         Ok(false)
     }
 
@@ -1884,10 +1899,8 @@ impl Context {
                         popped_elems.push(elem);
                     }
                 } else {
-                    dbg!(slice_typ.clone());
                     let mut slice_sizes =
                         slice_sizes.expect("ICE: should have slice sizes").clone();
-                    dbg!(slice_sizes.clone());
                     // We want to remove the parent size as we are fetching the child
                     slice_sizes.remove(0);
 
@@ -1970,7 +1983,6 @@ impl Context {
                         popped_elems.push(element);
                     }
                 }
-                dbg!(popped_elems_size);
                 new_slice = new_slice.slice(popped_elems_size..);
 
                 popped_elems.push(AcirValue::Var(new_slice_length, AcirType::field()));

@@ -10,7 +10,6 @@ fn main() {
 fn increment(mut r: &mut Field) {
     *r = *r + 1;
 }
-
 // If aliasing within arrays and constant folding within the mem2reg pass aren't
 // handled, we'll fail to optimize out all the references in this function.
 fn regression_2445() {

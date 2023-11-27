@@ -306,18 +306,14 @@ impl<'f> Context<'f> {
         match &self.inserter.function.dfg[instruction] {
             Instruction::ArrayGet { array, .. } | Instruction::ArraySet { array, .. } => {
                 if slice_values.contains(array) {
-                    println!("about to get updated array op for {array}");
-
                     let (new_array_op_instr, call_stack) =
                         self.get_updated_array_op_instr(*array, slice_sizes, instruction);
-                    println!("about to push udpated array op instr");
                     self.inserter.push_instruction_value(
                         new_array_op_instr,
                         instruction,
                         block,
                         call_stack,
                     );
-                    println!("pushed udpated array op instr");
                 } else {
                     self.inserter.push_instruction(instruction, block);
                 }
@@ -390,9 +386,7 @@ impl<'f> Context<'f> {
         slice_sizes: &HashMap<ValueId, (usize, Vec<ValueId>)>,
         instruction: InstructionId,
     ) -> (Instruction, CallStack) {
-        println!("about to resolve {array_id}");
         let mapped_slice_value = self.resolve_slice_value(array_id);
-        println!("resolved to {mapped_slice_value}");
 
         let (current_size, _) = slice_sizes
             .get(&mapped_slice_value)

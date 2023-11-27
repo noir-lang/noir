@@ -1,6 +1,0 @@
-[package]
-name = "trait_self"
-type = "bin"
-authors = [""]
-
-[dependencies]

@@ -4,6 +4,7 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use std::{
+    collections::HashMap,
     future::Future,
     ops::{self, ControlFlow},
     path::{Path, PathBuf},
@@ -26,7 +27,8 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    on_code_lens_request, on_initialize, on_shutdown, on_test_run_request, on_tests_request,
+    on_code_lens_request, on_formatting, on_initialize, on_profile_run_request, on_shutdown,
+    on_test_run_request, on_tests_request,
 };
 use serde_json::Value as JsonValue;
 use tower::Service;
@@ -44,11 +46,17 @@ pub struct LspState {
     root_path: Option<PathBuf>,
     client: ClientSocket,
     solver: WrapperSolver,
+    input_files: HashMap<String, String>,
 }
 
 impl LspState {
     fn new(client: &ClientSocket, solver: impl BlackBoxFunctionSolver + 'static) -> Self {
-        Self { client: client.clone(), root_path: None, solver: WrapperSolver(Box::new(solver)) }
+        Self {
+            client: client.clone(),
+            root_path: None,
+            solver: WrapperSolver(Box::new(solver)),
+            input_files: HashMap::new(),
+        }
     }
 }
 
@@ -62,10 +70,12 @@ impl NargoLspService {
         let mut router = Router::new(state);
         router
             .request::<request::Initialize, _>(on_initialize)
+            .request::<request::Formatting, _>(on_formatting)
             .request::<request::Shutdown, _>(on_shutdown)
             .request::<request::CodeLens, _>(on_code_lens_request)
             .request::<request::NargoTests, _>(on_tests_request)
             .request::<request::NargoTestRun, _>(on_test_run_request)
+            .request::<request::NargoProfileRun, _>(on_profile_run_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)

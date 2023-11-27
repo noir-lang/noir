@@ -4,7 +4,7 @@ fn must_be_zero(x: u8) {
     assert(x == 0);
 }
 
-fn test3 (x: u8) {
+fn test3(x: u8) {
     if x == 0 {
         must_be_zero(x);
     }
@@ -29,7 +29,6 @@ fn main(a: u32, mut c: [u32; 4]) {
     assert(c[1] == 2);
 
     test5(4);
-    
     // Test case for function synchronisation
     let mut c_sync = 0;
     if a == 42 {
@@ -40,7 +39,7 @@ fn main(a: u32, mut c: [u32; 4]) {
     assert(c_sync == 6);
 }
 
-fn test5(a : u32) {
+fn test5(a: u32) {
     if a > 1 {
         let q = a / 2;
         assert(q == 2);

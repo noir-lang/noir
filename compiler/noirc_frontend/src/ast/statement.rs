@@ -436,6 +436,14 @@ pub enum Pattern {
 }
 
 impl Pattern {
+    pub fn span(&self) -> Span {
+        match self {
+            Pattern::Identifier(ident) => ident.span(),
+            Pattern::Mutable(_, span) | Pattern::Tuple(_, span) | Pattern::Struct(_, _, span) => {
+                *span
+            }
+        }
+    }
     pub fn name_ident(&self) -> &Ident {
         match self {
             Pattern::Identifier(name_ident) => name_ident,
