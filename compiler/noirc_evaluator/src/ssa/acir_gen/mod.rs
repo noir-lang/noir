@@ -923,7 +923,7 @@ impl Context {
                 // Read the value from the array at the specified index
                 let read = self.acir_context.read_from_memory(block_id, var_index)?;
 
-                // Incremement the var_index in case of a nested array
+                // Increment the var_index in case of a nested array
                 *var_index = self.acir_context.add_var(*var_index, one)?;
 
                 let typ = AcirType::NumericType(numeric_type);
@@ -1038,7 +1038,7 @@ impl Context {
             }
         }
 
-        let element_type_sizes = if array_typ.contains_slice_element() {
+        let element_type_sizes = if can_omit_element_sizes_array(&array_typ) {
             Some(self.init_element_type_sizes_array(&array_typ, array_id, None, dfg)?)
         } else {
             None
@@ -1305,7 +1305,7 @@ impl Context {
         var_index: AcirVar,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
-        if array_typ.contains_slice_element() {
+        if can_omit_element_sizes_array(&array_typ) {
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg)?;
 
@@ -1792,7 +1792,7 @@ impl Context {
                 let mut var_index = slice_length;
                 self.array_set_value(element, result_block_id, &mut var_index)?;
 
-                let element_type_sizes = if array_typ.contains_slice_element() {
+                let element_type_sizes = if can_omit_element_sizes_array(&array_typ) {
                     Some(self.init_element_type_sizes_array(
                         &array_typ,
                         array_id,
@@ -2056,4 +2056,10 @@ impl Context {
             }
         }
     }
+}
+
+// We can omit the element size array for arrays which have elements of size 1 and do not contain slices.
+// TODO: remove restriction on size 1 elements.
+fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
+    array_typ.contains_slice_element() || array_typ.flattened_size() > 1
 }
