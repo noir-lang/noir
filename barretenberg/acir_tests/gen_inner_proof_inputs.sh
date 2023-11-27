@@ -5,7 +5,7 @@ set -eu
 
 BIN=${BIN:-../cpp/build/bin/bb}
 CRS_PATH=~/.bb-crs
-BRANCH=master
+BRANCH=tf/restructure-integration-tests
 VERBOSE=${VERBOSE:-}
 RECURSIVE=true
 PROOF_NAME="proof_a"
