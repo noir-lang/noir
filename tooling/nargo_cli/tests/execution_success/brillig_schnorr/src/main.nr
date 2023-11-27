@@ -2,7 +2,11 @@ use dep::std;
 // Note: If main has any unsized types, then the verifier will never be able
 // to figure out the circuit instance
 unconstrained fn main(
-    message: [u8; 10], message_field: Field, pub_key_x: Field, pub_key_y: Field, signature: [u8; 64]
+    message: [u8; 10],
+    message_field: Field,
+    pub_key_x: Field,
+    pub_key_y: Field,
+    signature: [u8; 64]
 ) {
     // Regression for issue #2421
     // We want to make sure that we can accurately verify a signature whose message is a slice vs. an array

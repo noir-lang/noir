@@ -1,7 +1,12 @@
 use dep::std;
 
 unconstrained fn main(
-    a: Field, a_pub_x: pub Field, a_pub_y: pub Field, b: Field, b_pub_x: pub Field, b_pub_y: pub Field
+    a: Field,
+    a_pub_x: pub Field,
+    a_pub_y: pub Field,
+    b: Field,
+    b_pub_x: pub Field,
+    b_pub_y: pub Field
 ) {
     let mut priv_key = a;
     let mut pub_x: Field = a_pub_x;
