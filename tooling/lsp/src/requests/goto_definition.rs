@@ -1,14 +1,13 @@
-use std::{future::{self, Future}, path::{Path, PathBuf, self}};
+use std::{future::{self, Future}, path::{Path}};
 
 use async_lsp::{ResponseError, ErrorCode};
 use codespan_reporting::files::Error;
-use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, LogMessageParams, MessageType, Location};
+use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 
 use crate::LspState;
-use fm::FileId;
-use lsp_types::{Position, TextDocumentIdentifier, Url};
+use lsp_types::{Position, Url};
 
 pub(crate) fn on_goto_definition_request(
     state: &mut LspState,
@@ -37,7 +36,7 @@ fn find_definition_location(root_path: &Path, params: GotoDefinitionParams) -> R
 
     let toml_path = match find_package_manifest(root_path, &file_path) {
         Ok(toml_path) => toml_path,
-        Err(err) => {
+        Err(_err) => {
             // If we cannot find a manifest, we log a warning but return no code lenses
             // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
             // let _ = state.client.log_message(LogMessageParams {
@@ -71,6 +70,7 @@ fn find_definition_location(root_path: &Path, params: GotoDefinitionParams) -> R
 
         let byte_index = position_to_byte_index(files, file_id, &params.text_document_position_params.position);
 
+        println!("Looking up Byte Index {:?}", byte_index);
         if let Ok(byte_index) = byte_index {
         
             let found_location = context.find_definition_location(file_id, &noirc_errors::Span::single_char(byte_index as u32));
@@ -104,8 +104,8 @@ where
         let path = file_name.to_string();
         let uri = Url::from_file_path(path).unwrap();
 
-        return Some(Location {
-            uri: uri,
+        Some(Location {
+            uri,
             range,
         })
     } else {
@@ -114,7 +114,7 @@ where
 
 }
 
-pub fn position_to_byte_index<'a, F>(
+pub(crate) fn position_to_byte_index<'a, F>(
     files: &'a F,
     file_id: F::FileId,
     position: &Position,
@@ -126,7 +126,9 @@ where
     let source = source.as_ref();
 
     let line_span = files.line_range(file_id, position.line as usize).unwrap();
+    println!("position to BI: line_span: {:?}", line_span);
     let line_str = source.get(line_span.clone()).unwrap();
+    println!("position to BI: line_str: {:?}", line_str);
 
     let byte_offset = character_to_line_offset(line_str, position.character)?;
 
@@ -134,7 +136,7 @@ where
    
 }
 
-pub fn character_to_line_offset(line: &str, character: u32) -> Result<usize, Error> {
+fn character_to_line_offset(line: &str, character: u32) -> Result<usize, Error> {
     let line_len = line.len();
     let mut character_offset = 0;
 
@@ -176,12 +178,12 @@ mod tests {
         
         let params = GotoDefinitionParams {
             text_document_position_params: lsp_types::TextDocumentPositionParams {
-                text_document: TextDocumentIdentifier {
+                text_document: lsp_types::TextDocumentIdentifier {
                     uri: Url::from_file_path(root_path.join("src/main.nr").as_path()).unwrap(),
                 },
                 position: Position {
-                    line: 122,
-                    character: 4,
+                    line: 18,
+                    character: 19,
                 },
             },
             work_done_progress_params: Default::default(),
