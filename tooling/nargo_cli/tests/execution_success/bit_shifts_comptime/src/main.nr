@@ -13,6 +13,8 @@ fn main(x: u64) {
 
     //regression for 3481
     assert(x << 63 == 0);
+
+    assert_eq((1 as u56) << (32 as u56), 0x0100000000);
 }
 
 fn regression_2250() {
