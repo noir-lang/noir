@@ -22,4 +22,4 @@ fm.workspace = true
 serde.workspace = true
 fxhash.workspace = true
 
-aztec_macros ={path = "../../aztec_macros"}
+aztec_macros = { path = "../../aztec_macros" }
