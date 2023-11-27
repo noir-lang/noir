@@ -289,8 +289,11 @@ impl FunctionBuilder {
                 let (rhs_bit_size_pow_2, overflows) =
                     2_u128.overflowing_pow(rhs_constant.to_u128() as u32);
                 if overflows {
-                    let zero = self.numeric_constant(FieldElement::zero(), typ);
-                    return InsertInstructionResult::SimplifiedTo(zero).first();
+                    assert!(bit_size < 128, "ICE - shift left with big integers are not supported");
+                    if bit_size < 128 {
+                        let zero = self.numeric_constant(FieldElement::zero(), typ);
+                        return InsertInstructionResult::SimplifiedTo(zero).first();
+                    }
                 }
                 let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ);
                 (bit_size + (rhs_constant.to_u128() as u32), pow)
