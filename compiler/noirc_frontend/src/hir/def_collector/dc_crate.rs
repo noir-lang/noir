@@ -398,7 +398,7 @@ fn type_check_functions(
 }
 
 // TODO(vitkov): Move this out of here and into type_check
-pub fn check_methods_signatures(
+pub(crate) fn check_methods_signatures(
     resolver: &mut Resolver,
     impl_methods: &Vec<(FileId, FuncId)>,
     trait_id: TraitId,
