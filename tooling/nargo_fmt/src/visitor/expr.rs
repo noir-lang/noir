@@ -187,6 +187,7 @@ impl FmtVisitor<'_> {
     }
 }
 
+// TODO: fixme
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn format_seq<T: Item>(
     shape: Shape,
@@ -232,6 +233,8 @@ pub(crate) fn format_brackets(
     )
 }
 
+// TODO: fixme
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn format_parens(
     max_width: Option<usize>,
     visitor: FmtVisitor,
@@ -240,20 +243,10 @@ pub(crate) fn format_parens(
     exprs: Vec<Expression>,
     span: Span,
     reduce: bool,
+    mode: NewlineMode,
 ) -> String {
     let tactic = max_width.map(Tactic::LimitedHorizontalVertical).unwrap_or(Tactic::Horizontal);
-    format_seq(
-        shape,
-        "(",
-        ")",
-        visitor,
-        trailing_comma,
-        exprs,
-        span,
-        tactic,
-        NewlineMode::IfContainsNewLineAndWidth,
-        reduce,
-    )
+    format_seq(shape, "(", ")", visitor, trailing_comma, exprs, span, tactic, mode, reduce)
 }
 
 fn format_exprs(
