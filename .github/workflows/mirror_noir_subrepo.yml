@@ -1,0 +1,60 @@
+# Mirror a special 'aztec' branch on noir any changes that have accumulated in aztec.
+# Might fail if we have pushed changes to noir that we don't expect - in which case we need an explicit pull PR.
+# See the last example of such a PR for instructions.
+name: Mirror to noir repo
+
+# Don't allow multiple of these running at once:
+concurrency:
+  group: ${{ github.workflow }}
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'noir/**'
+      - '!noir/.gitrepo'
+
+jobs:
+  mirror_repo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+
+      # We push using git subrepo (https://github.com/ingydotnet/git-subrepo)
+      # with some logic to recover from squashed parent commits
+      # We push to subrepo, commit to master. The commit is needed
+      # to continue to replay. If we still hit issues such as this
+      # action failing due to upstream changes, a manual resolution
+      # PR with ./scripts/git_subrepo.sh pull will be needed.
+      - name: Push to branch
+        run: |
+          SUBREPO_PATH=noir
+          BRANCH=aztec
+          # identify ourselves, needed to commit
+          git config --global user.name AztecBot
+          git config --global user.email tech@aztecprotocol.com
+          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=$BRANCH; then
+            git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"
+            git push
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          repository: noir-lang/noir
+          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+      - name: Create PR for Aztec Branch
+        continue-on-error: true
+        uses: repo-sync/pull-request@v2
+        with:
+          github_token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+          pr_title: 'feat: aztec-packages'
+          pr_body: 'Development from Aztec.'
+          destination_branch: 'master'
+          source_branch: 'aztec'

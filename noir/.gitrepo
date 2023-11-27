@@ -4,9 +4,9 @@
 ; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
 ;
 [subrepo]
-	remote = git@github.com:noir-lang/noir
+	remote = https://github.com/noir-lang/noir
 	branch = master
 	commit = 90a63042d5b5eb2edf03378dff46ce75c9cb33ba
-	parent = 8f1cb832cd0adeff0da69da293bb45a3748583e7
-	method = merge
+	parent = bef260888e9f3799543d5a76f5ba40d9b9e4db89
+	method = pull
 	cmdver = 0.4.6

@@ -22,4 +22,4 @@ git config --file="$SUBREPO_PATH/.gitrepo" subrepo.parent $new_parent
 # Commit this change
 git add "$SUBREPO_PATH/.gitrepo"
 # This commit should only go into squashed PRs
-git commit -m "git_subrepo.sh: Fix parent in .gitrepo file."
+git commit -m "git_subrepo.sh: Fix parent in .gitrepo file. [skip ci]"
