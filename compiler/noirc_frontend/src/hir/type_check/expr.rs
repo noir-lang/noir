@@ -53,6 +53,19 @@ impl<'interner> TypeChecker<'interner> {
                 // variable to handle generic functions.
                 let t = self.interner.id_type_substitute_trait_as_type(ident.id);
                 let (typ, bindings) = t.instantiate(self.interner);
+
+                // Push any trait constraints required by this definition to the context
+                // to be checked later when the type of this variable is further constrained.
+                if let Some(definition) = self.interner.try_definition(ident.id) {
+                    if let DefinitionKind::Function(function) = definition.kind {
+                        let function = self.interner.function_meta(&function);
+                        for mut constraint in function.trait_constraints.clone() {
+                            constraint.typ = constraint.typ.substitute(&bindings);
+                            self.trait_constraints.push((constraint, *expr_id));
+                        }
+                    }
+                }
+
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
                 typ
             }
@@ -294,7 +307,7 @@ impl<'interner> TypeChecker<'interner> {
         typ
     }
 
-    fn verify_trait_constraint(
+    pub fn verify_trait_constraint(
         &mut self,
         object_type: &Type,
         trait_id: TraitId,
@@ -304,12 +317,19 @@ impl<'interner> TypeChecker<'interner> {
         match self.interner.lookup_trait_implementation(object_type, trait_id) {
             Ok(impl_kind) => self.interner.select_impl_for_ident(function_ident_id, impl_kind),
             Err(erroring_constraints) => {
-                let constraints = vecmap(erroring_constraints, |constraint| {
-                    let r#trait = self.interner.get_trait(constraint.trait_id);
-                    (constraint.typ, r#trait.name.to_string())
-                });
+                // Don't show any errors where try_get_trait returns None.
+                // This can happen if a trait is used that was never declared.
+                let constraints = erroring_constraints
+                    .into_iter()
+                    .map(|constraint| {
+                        let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
+                        Some((constraint.typ, r#trait.name.to_string()))
+                    })
+                    .collect::<Option<Vec<_>>>();
 
-                self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+                if let Some(constraints) = constraints {
+                    self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+                }
             }
         }
     }
@@ -859,7 +879,7 @@ impl<'interner> TypeChecker<'interner> {
         method_name: &str,
         expr_id: &ExprId,
     ) -> Option<HirMethodReference> {
-        match object_type {
+        match object_type.follow_bindings() {
             Type::Struct(typ, _args) => {
                 let id = typ.borrow().id;
                 match self.interner.lookup_method(object_type, id, method_name, false) {
@@ -889,13 +909,15 @@ impl<'interner> TypeChecker<'interner> {
 
                 for constraint in func_meta.trait_constraints {
                     if *object_type == constraint.typ {
-                        let the_trait = self.interner.get_trait(constraint.trait_id);
-
-                        for (method_index, method) in the_trait.methods.iter().enumerate() {
-                            if method.name.0.contents == method_name {
-                                let trait_method =
-                                    TraitMethodId { trait_id: constraint.trait_id, method_index };
-                                return Some(HirMethodReference::TraitMethodId(trait_method));
+                        if let Some(the_trait) = self.interner.try_get_trait(constraint.trait_id) {
+                            for (method_index, method) in the_trait.methods.iter().enumerate() {
+                                if method.name.0.contents == method_name {
+                                    let trait_method = TraitMethodId {
+                                        trait_id: constraint.trait_id,
+                                        method_index,
+                                    };
+                                    return Some(HirMethodReference::TraitMethodId(trait_method));
+                                }
                             }
                         }
                     }
@@ -914,12 +936,20 @@ impl<'interner> TypeChecker<'interner> {
                 .interner
                 .lookup_primitive_trait_method_mut(element.as_ref(), method_name)
                 .map(HirMethodReference::FuncId)
-                .or_else(|| self.lookup_method(element, method_name, expr_id)),
+                .or_else(|| self.lookup_method(&element, method_name, expr_id)),
+
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
             Type::Error => None,
 
-            other => match self.interner.lookup_primitive_method(other, method_name) {
+            // The type variable must be unbound at this point since follow_bindings was called
+            Type::TypeVariable(_, TypeVariableKind::Normal) => {
+                let span = self.interner.expr_span(expr_id);
+                self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
+                None
+            }
+
+            other => match self.interner.lookup_primitive_method(&other, method_name) {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     self.errors.push(TypeCheckError::UnresolvedMethodCall {

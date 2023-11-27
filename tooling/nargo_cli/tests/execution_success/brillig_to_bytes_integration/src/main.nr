@@ -1,6 +1,6 @@
 use dep::std;
 
-unconstrained fn main(x : Field, _y: Field) {
+unconstrained fn main(x: Field, _y: Field) {
     // The result of this byte array will be big-endian
     let y: Field = 2040124;
     let be_byte_array = y.to_be_bytes(31);

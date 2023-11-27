@@ -164,8 +164,16 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         &self.registers
     }
 
+    pub fn set_register(&mut self, register_index: RegisterIndex, value: Value) {
+        self.registers.set(register_index, value);
+    }
+
     pub fn get_memory(&self) -> &Vec<Value> {
         self.memory.values()
+    }
+
+    pub fn write_memory_at(&mut self, ptr: usize, value: Value) {
+        self.memory.write(ptr, value);
     }
 
     /// Process a single opcode and modify the program counter.

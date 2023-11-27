@@ -14,7 +14,7 @@ mod stmt;
 pub use errors::TypeCheckError;
 
 use crate::{
-    hir_def::{expr::HirExpression, stmt::HirStatement},
+    hir_def::{expr::HirExpression, stmt::HirStatement, traits::TraitConstraint},
     node_interner::{ExprId, FuncId, NodeInterner, StmtId},
     Type,
 };
@@ -28,6 +28,12 @@ pub struct TypeChecker<'interner> {
     interner: &'interner mut NodeInterner,
     errors: Vec<TypeCheckError>,
     current_function: Option<FuncId>,
+
+    /// Trait constraints are collected during type checking until they are
+    /// verified at the end of a function. This is because constraints arise
+    /// on each variable, but it is only until function calls when the types
+    /// needed for the trait constraint may become known.
+    trait_constraints: Vec<(TraitConstraint, ExprId)>,
 }
 
 /// Type checks a function and assigns the
@@ -52,10 +58,12 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         let trait_id = constraint.trait_id;
 
         if !type_checker.interner.add_assumed_trait_implementation(object, trait_id) {
-            let trait_name = type_checker.interner.get_trait(trait_id).name.to_string();
-            let typ = constraint.typ.clone();
-            let span = meta.name.location.span;
-            errors.push(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
+            if let Some(the_trait) = type_checker.interner.try_get_trait(trait_id) {
+                let trait_name = the_trait.name.to_string();
+                let typ = constraint.typ.clone();
+                let span = meta.name.location.span;
+                errors.push(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
+            }
         }
     }
 
@@ -66,10 +74,8 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         type_checker.bind_pattern(&param.0, param.1);
     }
 
-    let (function_last_type, delayed_type_check_functions, mut body_errors) =
+    let (function_last_type, delayed_type_check_functions) =
         type_checker.check_function_body(function_body_id);
-
-    errors.append(&mut body_errors);
 
     // Go through any delayed type checking errors to see if they are resolved, or error otherwise.
     for type_check_fn in delayed_type_check_functions {
@@ -77,6 +83,14 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
             errors.push(error);
         }
     }
+
+    // Verify any remaining trait constraints arising from the function body
+    for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
+        let span = type_checker.interner.expr_span(&expr_id);
+        type_checker.verify_trait_constraint(&constraint.typ, constraint.trait_id, expr_id, span);
+    }
+
+    errors.append(&mut type_checker.errors);
 
     // Now remove all the `where` clause constraints we added
     for constraint in &meta.trait_constraints {
@@ -146,26 +160,30 @@ fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_e
 
 impl<'interner> TypeChecker<'interner> {
     fn new(interner: &'interner mut NodeInterner) -> Self {
-        Self { delayed_type_checks: Vec::new(), interner, errors: vec![], current_function: None }
+        Self {
+            delayed_type_checks: Vec::new(),
+            interner,
+            errors: Vec::new(),
+            trait_constraints: Vec::new(),
+            current_function: None,
+        }
     }
 
     pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
         self.delayed_type_checks.push(f);
     }
 
-    fn check_function_body(
-        mut self,
-        body: &ExprId,
-    ) -> (Type, Vec<TypeCheckFn>, Vec<TypeCheckError>) {
+    fn check_function_body(&mut self, body: &ExprId) -> (Type, Vec<TypeCheckFn>) {
         let body_type = self.check_expression(body);
-        (body_type, self.delayed_type_checks, self.errors)
+        (body_type, std::mem::take(&mut self.delayed_type_checks))
     }
 
     pub fn check_global(id: &StmtId, interner: &'interner mut NodeInterner) -> Vec<TypeCheckError> {
         let mut this = Self {
             delayed_type_checks: Vec::new(),
             interner,
-            errors: vec![],
+            errors: Vec::new(),
+            trait_constraints: Vec::new(),
             current_function: None,
         };
         this.check_statement(id);
