@@ -5,7 +5,7 @@ import {
   HISTORIC_BLOCKS_TREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
-} from '../../cbind/constants.gen.js';
+} from '../../constants.gen.js';
 import { FieldsOf } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { AggregationObject } from '../aggregation_object.js';

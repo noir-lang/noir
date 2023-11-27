@@ -9,7 +9,7 @@ import {
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
   MAX_READ_REQUESTS_PER_TX,
-} from '../../cbind/constants.gen.js';
+} from '../../constants.gen.js';
 import { FieldsOf } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { CallRequest } from '../call_request.js';
@@ -23,7 +23,6 @@ import { PreviousKernelData } from './previous_kernel_data.js';
 
 /**
  * Private call data.
- * @see circuits/cpp/src/aztec3/circuits/abis/call_stack_item.hpp
  */
 export class PrivateCallData {
   constructor(
@@ -77,7 +76,6 @@ export class PrivateCallData {
    */
   static getFields(fields: FieldsOf<PrivateCallData>) {
     return [
-      // NOTE: Must have same order as CPP.
       fields.callStackItem,
       fields.privateCallStack,
       fields.publicCallStack,

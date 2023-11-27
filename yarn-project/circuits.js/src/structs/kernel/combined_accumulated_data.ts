@@ -14,7 +14,7 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_READ_REQUESTS_PER_TX,
   NUM_FIELDS_PER_SHA256,
-} from '../../cbind/constants.gen.js';
+} from '../../constants.gen.js';
 import { makeTuple } from '../../index.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { CallRequest } from '../call_request.js';

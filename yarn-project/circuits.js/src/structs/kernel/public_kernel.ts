@@ -6,7 +6,7 @@ import {
   MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   PUBLIC_DATA_TREE_HEIGHT,
-} from '../../cbind/constants.gen.js';
+} from '../../constants.gen.js';
 import { assertMemberLength } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { CallRequest } from '../call_request.js';

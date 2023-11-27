@@ -21,8 +21,6 @@ yarn start
 
 It will look for a local Ethereum RPC to talk to but you can change this with the `ETHEREUM_HOST` environment variable.
 
-You'll also need to run `./bootstrap.sh` in the `circuits/cpp` directory in order to build the WASM binaries.
-
 ## Examples
 
 The package also includes 2 examples. There are some system prerequisites that you will need to run these locally:

@@ -1,6 +1,28 @@
-// GENERATED FILE - DO NOT EDIT, RUN yarn remake-constants in circuits.js
 global ARGS_LENGTH: Field = 16;
 global RETURN_VALUES_LENGTH: Field = 4;
+
+/**
+ * Convention for constant array lengths are mainly divided in 2 classes:
+ *  - FUNCTION CALL
+ *  - TRANSACTION
+ *
+ * Agreed convention is to use MAX_XXX_PER_CALL resp. MAX_XXX_PER_TX, where XXX denotes a type of element such as
+ * commitment, or nullifier, e.g.,:
+ *  - MAX_NEW_NULLIFIERS_PER_CALL
+ *  - MAX_NEW_COMMITMENTS_PER_TX
+ *
+ * In the kernel circuits, we accumulate elements such as commitments and the nullifiers from all functions calls in a
+ * transaction. Therefore, we always must have:
+ * MAX_XXX_PER_TX ≥ MAX_XXX_PER_CALL
+ *
+ * For instance:
+ * MAX_NEW_COMMITMENTS_PER_TX ≥ MAX_NEW_COMMITMENTS_PER_CALL
+ * MAX_NEW_NULLIFIERS_PER_TX ≥ MAX_NEW_NULLIFIERS_PER_CALL
+ *
+ */
+
+// docs:start:constants
+// "PER CALL" CONSTANTS
 global MAX_NEW_COMMITMENTS_PER_CALL: Field = 16;
 global MAX_NEW_NULLIFIERS_PER_CALL: Field = 16;
 global MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL: Field = 4;
@@ -10,6 +32,8 @@ global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL: Field = 16;
 global MAX_PUBLIC_DATA_READS_PER_CALL: Field = 16;
 global MAX_READ_REQUESTS_PER_CALL: Field = 32;
 global MAX_PENDING_READ_REQUESTS_PER_CALL: Field = 32;
+
+// "PER TRANSACTION" CONSTANTS
 global MAX_NEW_COMMITMENTS_PER_TX: Field = 64;
 global MAX_NEW_NULLIFIERS_PER_TX: Field = 64;
 global MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX: Field = 8;
@@ -23,11 +47,17 @@ global MAX_READ_REQUESTS_PER_TX: Field = 128;
 global MAX_PENDING_READ_REQUESTS_PER_TX: Field = 128;
 global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: Field = 1;
 global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: Field = 1;
+// docs:end:constants
+
+// ROLLUP CONTRACT CONSTANTS - constants used only in l1-contracts
 global NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP: Field = 16;
+// TODO(961): Use this constant everywhere instead of hard-coded "2".
 global KERNELS_PER_BASE_ROLLUP: Field = 2;
 global MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP: Field = 128;
 global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP: Field = 32;
 global MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP: Field = 32;
+
+// TREES RELATED CONSTANTS
 global VK_TREE_HEIGHT: Field = 3;
 global FUNCTION_TREE_HEIGHT: Field = 4;
 global CONTRACT_TREE_HEIGHT: Field = 16;
@@ -36,6 +66,8 @@ global PUBLIC_DATA_TREE_HEIGHT: Field = 254;
 global NULLIFIER_TREE_HEIGHT: Field = 20;
 global L1_TO_L2_MSG_TREE_HEIGHT: Field = 16;
 global ROLLUP_VK_TREE_HEIGHT: Field = 8;
+
+// SUB-TREES RELATED CONSTANTS
 global CONTRACT_SUBTREE_HEIGHT: Field = 1;
 global CONTRACT_SUBTREE_SIBLING_PATH_LENGTH: Field = 15;
 global NOTE_HASH_SUBTREE_HEIGHT: Field = 7;
@@ -45,22 +77,37 @@ global HISTORIC_BLOCKS_TREE_HEIGHT: Field = 16;
 global NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH: Field = 13;
 global L1_TO_L2_MSG_SUBTREE_HEIGHT: Field = 4;
 global L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH: Field = 12;
+
+// MISC CONSTANTS
 global FUNCTION_SELECTOR_NUM_BYTES: Field = 4;
 global MAPPING_SLOT_PEDERSEN_SEPARATOR: Field = 4;
 global NUM_FIELDS_PER_SHA256: Field = 2;
+
+// NOIR CONSTANTS - constants used only in yarn-packages/noir-contracts
+// Some are defined here because Noir doesn't yet support globals referencing other globals yet.
+// Move these constants to a noir file once the issue bellow is resolved:
+// https://github.com/noir-lang/noir/issues/1734
 global L1_TO_L2_MESSAGE_LENGTH: Field = 8;
 global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH: Field = 26;
 global MAX_NOTE_FIELDS_LENGTH: Field = 20;
+// GET_NOTE_ORACLE_RETURN_LENGT = MAX_NOTE_FIELDS_LENGTH + 1 + 2
+// The plus 1 is 1 extra field for nonce.
+// + 2 for EXTRA_DATA: [number_of_return_notes, contract_address]
 global GET_NOTE_ORACLE_RETURN_LENGTH: Field = 23;
 global MAX_NOTES_PER_PAGE: Field = 10;
+// VIEW_NOTE_ORACLE_RETURN_LENGTH = MAX_NOTES_PER_PAGE * (MAX_NOTE_FIELDS_LENGTH + 1) + 2;
 global VIEW_NOTE_ORACLE_RETURN_LENGTH: Field = 212;
 global CALL_CONTEXT_LENGTH: Field = 7;
 global HISTORIC_BLOCK_DATA_LENGTH: Field = 7;
 global FUNCTION_DATA_LENGTH: Field = 4;
 global CONTRACT_DEPLOYMENT_DATA_LENGTH: Field = 6;
+// Change this ONLY if you have changed the PrivateCircuitPublicInputs structure.
+// In other words, if the structure/size of the public inputs of a function call changes then we
+// should change this constant as well as the offsets in private_call_stack_item.nr
 global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: Field = 155;
 global CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH: Field = 3;
 global CONTRACT_STORAGE_READ_LENGTH: Field = 2;
+// Change this ONLY if you have changed the PublicCircuitPublicInputs structure.
 global PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH: Field = 142;
 global GET_NOTES_ORACLE_RETURN_LENGTH: Field = 674;
 global EMPTY_NULLIFIED_COMMITMENT: Field = 1000000;
@@ -75,6 +122,23 @@ global CONTRACT_DATA_NUM_BYTES_PER_BASE_ROLLUP: Field = 128;
 global CONTRACT_DATA_NUM_BYTES_PER_BASE_ROLLUP_UNPADDED: Field = 104;
 global L2_TO_L1_MSGS_NUM_BYTES_PER_BASE_ROLLUP: Field = 128;
 global LOGS_HASHES_NUM_BYTES_PER_BASE_ROLLUP: Field = 128;
+
+/**
+ * Enumerate the hash_indices which are used for pedersen hashing.
+ * We start from 1 to avoid the default generators. The generator indices are listed
+ * based on the number of elements each index hashes. The following conditions must be met:
+ *
+ * +-----------+-------------------------------+----------------------+
+ * | Hash size | Number of elements hashed (n) | Condition to use     |
+ * |-----------+-------------------------------+----------------------|
+ * | LOW       | n ≤ 8                         | 0 < hash_index ≤ 32  |
+ * | MID       | 8 < n ≤ 16                    | 32 < hash_index ≤ 40 |
+ * | HIGH      | 16 < n ≤ 48                   | 40 < hash_index ≤ 48 |
+ * +-----------+-------------------------------+----------------------+
+ *
+ * Note: When modifying, modify `GeneratorIndexPacker` in packer.hpp accordingly.
+ */
+// Indices with size ≤ 8
 global GENERATOR_INDEX__COMMITMENT = 1;
 global GENERATOR_INDEX__COMMITMENT_NONCE = 2;
 global GENERATOR_INDEX__UNIQUE_COMMITMENT = 3;
@@ -103,21 +167,11 @@ global GENERATOR_INDEX__SIGNED_TX_REQUEST = 25;
 global GENERATOR_INDEX__GLOBAL_VARIABLES = 26;
 global GENERATOR_INDEX__PARTIAL_ADDRESS = 27;
 global GENERATOR_INDEX__BLOCK_HASH = 28;
+// Indices with size ≤ 16
 global GENERATOR_INDEX__TX_REQUEST = 33;
 global GENERATOR_INDEX__SIGNATURE_PAYLOAD = 34;
+// Indices with size ≤ 44
 global GENERATOR_INDEX__VK = 41;
 global GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS = 42;
 global GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS = 43;
 global GENERATOR_INDEX__FUNCTION_ARGS = 44;
-global STORAGE_SLOT_GENERATOR_INDEX__BASE_SLOT = 0;
-global STORAGE_SLOT_GENERATOR_INDEX__MAPPING_SLOT = 1;
-global STORAGE_SLOT_GENERATOR_INDEX__MAPPING_SLOT_PLACEHOLDER = 2;
-global PRIVATE_STATE_NOTE_GENERATOR_INDEX__VALUE = 1;
-global PRIVATE_STATE_NOTE_GENERATOR_INDEX__OWNER = 2;
-global PRIVATE_STATE_NOTE_GENERATOR_INDEX__CREATOR = 3;
-global PRIVATE_STATE_NOTE_GENERATOR_INDEX__SALT = 4;
-global PRIVATE_STATE_NOTE_GENERATOR_INDEX__NONCE = 5;
-global PRIVATE_STATE_NOTE_GENERATOR_INDEX__MEMO = 6;
-global PRIVATE_STATE_NOTE_GENERATOR_INDEX__IS_DUMMY = 7;
-global PRIVATE_STATE_TYPE__PARTITIONED = 1;
-global PRIVATE_STATE_TYPE__WHOLE = 2;

@@ -44,7 +44,7 @@ import times from 'lodash.times';
 import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { ContractsDataSourcePublicDB, WorldStatePublicDB } from '../simulator/public_executor.js';
-import { WasmPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
+import { RealPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
 import { PublicProcessor } from './public_processor.js';
 
 describe('public_processor', () => {
@@ -133,7 +133,7 @@ describe('public_processor', () => {
     beforeEach(() => {
       const path = times(PUBLIC_DATA_TREE_HEIGHT, i => Buffer.alloc(32, i));
       db.getSiblingPath.mockResolvedValue(new SiblingPath<number>(PUBLIC_DATA_TREE_HEIGHT, path));
-      publicKernel = new WasmPublicKernelCircuitSimulator();
+      publicKernel = new RealPublicKernelCircuitSimulator();
       processor = new PublicProcessor(
         db,
         publicExecutor,

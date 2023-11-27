@@ -71,13 +71,6 @@ export default (_, argv) => ({
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: `${dirname(require.resolve(`@aztec/circuits.js`)).replace(
-            /\/dest$/,
-            '',
-          )}/resources/aztec3-circuits.wasm`,
-          to: 'aztec3-circuits.wasm',
-        },
-        {
           from: './src/assets',
         },
         {

@@ -302,39 +302,6 @@ jobs:
           name: "Build and test"
           command: cond_spot_run_build barretenberg-acir-tests-bb.js 32
 
-  circuits-wasm-linux-clang:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: cond_spot_run_build circuits-wasm-linux-clang 32
-
-  circuits-x86_64-linux-clang-assert:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: cond_spot_run_build circuits-x86_64-linux-clang-assert 32
-
-  circuits-x86_64-tests:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_test circuits-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 x86_64 scripts/a3-tests -*.skip*
-
   l1-contracts:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -1057,20 +1024,6 @@ workflows:
             - bb-js
           <<: *defaults
 
-      # Circuits
-      - circuits-wasm-linux-clang:
-          requires:
-            - barretenberg-wasm-linux-clang
-          <<: *defaults
-      - circuits-x86_64-linux-clang-assert:
-          requires:
-            - barretenberg-x86_64-linux-clang
-          <<: *defaults
-      - circuits-x86_64-tests:
-          requires:
-            - circuits-x86_64-linux-clang-assert
-          <<: *defaults
-
       - l1-contracts: *defaults
 
       - mainnet-fork: *defaults
@@ -1078,7 +1031,6 @@ workflows:
       # Yarn Project
       - yarn-project-base:
           requires:
-            - circuits-wasm-linux-clang
             - l1-contracts
             - bb-js
             - noir-ecr-manifest

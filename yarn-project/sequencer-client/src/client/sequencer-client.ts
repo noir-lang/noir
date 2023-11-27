@@ -8,7 +8,7 @@ import { getGlobalVariableBuilder } from '../global_variable_builder/index.js';
 import { Sequencer, SequencerConfig, getL1Publisher, getVerificationKeys } from '../index.js';
 import { EmptyRollupProver } from '../prover/empty.js';
 import { PublicProcessorFactory } from '../sequencer/public_processor.js';
-import { WasmRollupCircuitSimulator } from '../simulator/rollup.js';
+import { RealRollupCircuitSimulator } from '../simulator/rollup.js';
 
 /**
  * Encapsulates the full sequencer and publisher.
@@ -41,7 +41,7 @@ export class SequencerClient {
     const blockBuilder = new SoloBlockBuilder(
       merkleTreeDb,
       getVerificationKeys(),
-      new WasmRollupCircuitSimulator(),
+      new RealRollupCircuitSimulator(),
       new EmptyRollupProver(),
     );
 

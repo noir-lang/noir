@@ -1,4 +1,4 @@
-import { ROLLUP_VK_TREE_HEIGHT } from '../../cbind/constants.gen.js';
+import { ROLLUP_VK_TREE_HEIGHT } from '../../constants.gen.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { Proof } from '../proof.js';

@@ -112,21 +112,3 @@ export enum GeneratorIndex {
   PUBLIC_CIRCUIT_PUBLIC_INPUTS = 43,
   FUNCTION_ARGS = 44,
 }
-export enum StorageSlotGeneratorIndex {
-  BASE_SLOT = 0,
-  MAPPING_SLOT = 1,
-  MAPPING_SLOT_PLACEHOLDER = 2,
-}
-export enum PrivateStateNoteGeneratorIndex {
-  VALUE = 1,
-  OWNER = 2,
-  CREATOR = 3,
-  SALT = 4,
-  NONCE = 5,
-  MEMO = 6,
-  IS_DUMMY = 7,
-}
-export enum PrivateStateType {
-  PARTITIONED = 1,
-  WHOLE = 2,
-}

@@ -7,9 +7,9 @@ import { CircuitSimulationStats } from '@aztec/types/stats';
 import { PublicKernelCircuitSimulator } from './index.js';
 
 /**
- * Implements the PublicKernelCircuitSimulator by calling the wasm implementations of the circuits.
+ * Implements the PublicKernelCircuitSimulator.
  */
-export class WasmPublicKernelCircuitSimulator implements PublicKernelCircuitSimulator {
+export class RealPublicKernelCircuitSimulator implements PublicKernelCircuitSimulator {
   private log = createDebugLogger('aztec:public-kernel-simulator');
 
   /**

@@ -17,7 +17,6 @@ export type NoirPoint = {
  * Computes the resulting storage slot for an entry in a mapping.
  * @param mappingSlot - The slot of the mapping within state.
  * @param owner - The key of the mapping.
- * @param bbWasm - Wasm module for computing.
  * @returns The slot in the contract storage where the value is stored.
  */
 export function computeSlotForMapping(mappingSlot: Fr, owner: NoirPoint | Fr) {

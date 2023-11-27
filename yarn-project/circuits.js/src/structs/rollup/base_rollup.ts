@@ -12,7 +12,7 @@ import {
   NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
   NULLIFIER_TREE_HEIGHT,
   PUBLIC_DATA_TREE_HEIGHT,
-} from '../../cbind/constants.gen.js';
+} from '../../constants.gen.js';
 import { FieldsOf } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { GlobalVariables } from '../global_variables.js';

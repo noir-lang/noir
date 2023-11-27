@@ -26,8 +26,8 @@ import { DecoderHelperAbi, InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-arti
 import {
   EmptyRollupProver,
   L1Publisher,
+  RealRollupCircuitSimulator,
   SoloBlockBuilder,
-  WasmRollupCircuitSimulator,
   getHistoricBlockData,
   getL1Publisher,
   getVerificationKeys,
@@ -133,7 +133,7 @@ describe('L1Publisher integration', () => {
 
     builderDb = await MerkleTrees.new(levelup((memdown as any)())).then(t => t.asLatest());
     const vks = getVerificationKeys();
-    const simulator = new WasmRollupCircuitSimulator();
+    const simulator = new RealRollupCircuitSimulator();
     const prover = new EmptyRollupProver();
     builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
 

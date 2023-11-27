@@ -24,9 +24,7 @@ RUN apk update && apk add --no-cache \
 ENV CHROME_BIN="/usr/bin/chromium-browser" PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true"
 COPY --from=builder /usr/src /usr/src
 
-RUN rm /usr/src/yarn-project/end-to-end/src/web/aztec3-circuits.wasm
 RUN rm /usr/src/yarn-project/end-to-end/src/web/main.js
-COPY --from=builder /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/yarn-project/end-to-end/src/web/aztec3-circuits.wasm
 COPY --from=builder /usr/src/yarn-project/aztec.js/dest/main.js /usr/src/yarn-project/end-to-end/src/web/main.js
 
 WORKDIR /usr/src/yarn-project/end-to-end

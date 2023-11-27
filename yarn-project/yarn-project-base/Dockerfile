@@ -1,7 +1,7 @@
 # This base Dockerfile is for:
 #  - Caching the workspace dependencies.
 #  - Running workspace checks (package.json inheritance, tsconfig.json project references).
-#  - Bringing in any upstream artifacts such as circuits.wasm and L1 contracts.
+#  - Bringing in any upstream resources such as L1 contract artifacts and bb.js.
 #  - Performing any code generation that doesn't require the workspace code to do so (generate L1 artifacts).
 #
 # When installing workspace dependencies, there are issues with doing this naively:
@@ -40,7 +40,6 @@
 #      RUN yarn cache clean && yarn workspaces focus --production
 #  - Create final slim image by copying /usr/src into a fresh image.
 #
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/circuits-wasm-linux-clang as circuits
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/l1-contracts as contracts
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/bb.js as bb.js
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir as noir
@@ -49,10 +48,6 @@ FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir-packages as noir-packages
 FROM node:18-alpine
 RUN apk update && apk add --no-cache bash jq curl
 
-# Bring in circuits wasms.
-COPY --from=circuits /usr/src/circuits/cpp/build-wasm/bin /usr/src/circuits/cpp/build-wasm/bin
-# Copy ignition download script.
-COPY --from=circuits /usr/src/barretenberg/cpp/srs_db/download_ignition.sh /usr/src/barretenberg/cpp/srs_db/download_ignition.sh
 # Copy L1 contracts.
 COPY --from=contracts /usr/src/l1-contracts /usr/src/l1-contracts
 # Copy in bb.js

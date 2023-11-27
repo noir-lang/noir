@@ -32,7 +32,6 @@ WORKDIR /usr/src/canary
 RUN cp ../end-to-end/scripts/start_e2e_ci_browser.sh ./scripts/start_e2e_ci_browser.sh
 RUN chmod +x scripts/start_e2e_ci_browser.sh
 
-RUN cp ./node_modules/@aztec/circuits.js/resources/aztec3-circuits.wasm src/web/
 RUN cp ./node_modules/@aztec/aztec.js/dest/main.js src/web/
 
 ENTRYPOINT ["yarn", "test"]

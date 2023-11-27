@@ -43,7 +43,7 @@ import {
   siloNullifier,
 } from './abis.js';
 
-describe('abis wasm bindings', () => {
+describe('abis', () => {
   it('hashes a tx request', () => {
     const txRequest = makeTxRequest();
     const hash = hashTxRequest(txRequest);

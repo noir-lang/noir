@@ -2,7 +2,6 @@
 
 All the packages that make up [Aztec](https://docs.aztec.network).
 
-- [**`circuits`**](/circuits): C++ code for circuits and cryptographic functions
 - [**`l1-contracts`**](/l1-contracts): Solidity code for the Ethereum contracts that process rollups
 - [**`yarn-project`**](/yarn-project): Typescript code for client and backend
 - [**`docs`**](/docs): Documentation source for the docs site
@@ -22,15 +21,14 @@ All issues being worked on are tracked on the [Aztec Github Project](https://git
 
 ## Development Setup
 
-Run `bootstrap.sh` in the project root to set up your environment. This will update git submodules, download ignition transcripts, build all C++ circuits code, install Foundry, compile Solidity contracts, install the current node version via nvm, and build all typescript packages.
-
-To build the C++ code, follow the [instructions in the circuits subdirectory](./circuits/README.md), which contains all of the ZK circuit logic for Aztec. Note that "barretenberg", Aztec's underlying cryptographic library, can be found inside the circuits subdirectory as well and is automatically built as a side effect of building the circuits.
+Run `bootstrap.sh` in the project root to set up your environment. This will update git submodules, download ignition transcripts, install Foundry, compile Solidity contracts, install the current node version via nvm, and build all typescript packages.
 
 To build Typescript code, make sure to have [`nvm`](https://github.com/nvm-sh/nvm) (node version manager) installed.
 
 To build noir code, make sure that you are using the version from `yarn-project/noir-compiler/src/noir-version.json`.
 
-Install nargo by running 
+Install nargo by running
+
 ```
 noirup -v TAG_FROM_THE_FILE
 ```
@@ -41,18 +39,20 @@ This repository uses CircleCI for continuous integration. Build steps are manage
 
 All packages need to be included in the [build manifest](`build_manifest.json`), which declares what paths belong to each package, as well as dependencies between packages. When the CI runs, if none of the rebuild patterns or dependencies were changed, then the build step is skipped and the last successful image is re-tagged with the current commit. Read more on the [`build-system`](https://github.com/AztecProtocol/build-system) repository README.
 
-It is faster to debug CI failures within a persistent ssh session compared to pushing and waiting.  You can create a session with "Rerun step with SSH" on CircleCI which will generate an ssh command for debugging on a worker.  Run that command locally and then do
+It is faster to debug CI failures within a persistent ssh session compared to pushing and waiting. You can create a session with "Rerun step with SSH" on CircleCI which will generate an ssh command for debugging on a worker. Run that command locally and then do
+
 ```bash
 cd project
 ./build-system/scripts/setup_env "$(git rev-parse HEAD)" "" "" ""
 source /tmp/.bash_env*
 {start testing your CI commands here}
 ```
+
 This provide an interactive environment for debugging the CI test.
 
 ## Debugging
 
-Logging goes through the [`info` and `debug`](barretenberg/cpp/src/barretenberg/common/log.hpp) functions in C++, and through the [DebugLogger](yarn-project/foundation/src/log/debug.ts) module in Typescript. To see the log output, set a `DEBUG` environment variable to the name of the module you want to debug, to `aztec:*`, or to `*` to see all logs.
+Logging goes through the [DebugLogger](yarn-project/foundation/src/log/debug.ts) module in Typescript. To see the log output, set a `DEBUG` environment variable to the name of the module you want to debug, to `aztec:*`, or to `*` to see all logs.
 
 ## Releases
 

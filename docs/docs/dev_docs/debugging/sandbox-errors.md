@@ -9,7 +9,7 @@ This section contains a list of errors you may encounter when using Aztec Sandbo
 
 ## Circuit Errors
 
-**To prevent bloating this doc, here is a list of some of the common errors. Feel free to have a look at [circuit_errors.hpp](https://github.com/AztecProtocol/aztec-packages/blob/master/circuits/cpp/src/aztec3/utils/circuit_errors.hpp) for a list of all possible circuit errors.**
+**To prevent bloating this doc, here is a list of some of the common errors.**
 
 ### Kernel Circuits
 
@@ -160,7 +160,7 @@ Circuits work by having a fixed size array. As such, we have limits on how many 
 - too many transient read requests in one tx
 - too many transient read request membership witnesses in one tx
 
-You can have a look at our current constants/limitations in [constants.hpp](https://github.com/AztecProtocol/aztec-packages/blob/master/circuits/cpp/src/aztec3/constants.hpp)
+You can have a look at our current constants/limitations in [constants.nr](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/constants_gen.nr)
 
 #### 7008 - MEMBERSHIP_CHECK_FAILED
 

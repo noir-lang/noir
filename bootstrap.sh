@@ -46,7 +46,6 @@ fi
 # Install pre-commit git hooks.
 HOOKS_DIR=$(git rev-parse --git-path hooks)
 echo "(cd barretenberg/cpp && ./format.sh staged)" > $HOOKS_DIR/pre-commit
-echo "(cd circuits/cpp && ./format.sh staged)" >> $HOOKS_DIR/pre-commit
 chmod +x $HOOKS_DIR/pre-commit
 
 git submodule update --init --recursive
@@ -54,7 +53,6 @@ git submodule update --init --recursive
 PROJECTS=(
   barretenberg
   noir
-  circuits/cpp
   l1-contracts
   yarn-project
 )

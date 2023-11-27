@@ -66,7 +66,6 @@ export function isPublicExecutionResult(
 /**
  * Collect all public storage reads across all nested executions
  * and convert them to PublicDataReads (to match kernel output).
- * @param wasm - A module providing low-level wasm access.
  * @param execResult - The topmost execution result.
  * @returns All public data reads (in execution order).
  */

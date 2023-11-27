@@ -66,7 +66,6 @@ export class MerkleTrees implements MerkleTreeDb {
 
   /**
    * initializes the collection of Merkle Trees.
-   * @param optionalWasm - WASM instance to use for hashing (if not provided PrimitivesWasm will be used).
    * @param fromDbOptions - Options to initialize the trees from the database.
    */
   public async init(fromDbOptions?: FromDbOptions) {
@@ -135,7 +134,6 @@ export class MerkleTrees implements MerkleTreeDb {
   /**
    * Method to asynchronously create and initialize a MerkleTrees instance.
    * @param db - The db instance to use for data persistance.
-   * @param wasm - WASM instance to use for hashing (if not provided PrimitivesWasm will be used).
    * @returns - A fully initialized MerkleTrees instance.
    */
   public static async new(db: levelup.LevelUp) {

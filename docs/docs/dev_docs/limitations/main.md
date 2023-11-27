@@ -189,7 +189,7 @@ Due to the rigidity of zk-SNARK circuits, there are upper bounds on the amount o
 
 Here are the current constants:
 
-#include_code constants circuits/cpp/src/aztec3/constants.hpp cpp
+#include_code constants /yarn-project/aztec-nr/aztec/src/constants_gen.nr rust
 
 #### What are the consequences?
 

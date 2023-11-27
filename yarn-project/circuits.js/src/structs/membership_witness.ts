@@ -2,7 +2,7 @@ import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
-import { NOTE_HASH_TREE_HEIGHT } from '../cbind/constants.gen.js';
+import { NOTE_HASH_TREE_HEIGHT } from '../constants.gen.js';
 import { assertMemberLength, range } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 

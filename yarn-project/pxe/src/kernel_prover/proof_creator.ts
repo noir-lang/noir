@@ -85,10 +85,10 @@ export interface ProofCreator {
 
 /**
  * The KernelProofCreator class is responsible for generating siloed commitments and zero-knowledge proofs
- * for private kernel circuit. It leverages Barretenberg and Circuits Wasm libraries
- * to perform cryptographic operations and proof creation. The class provides methods to compute commitments
- * based on the given public inputs and to generate proofs based on signed transaction requests, previous kernel
- * data, private call data, and a flag indicating whether it's the first iteration or not.
+ * for private kernel circuit. It leverages Barretenberg to perform cryptographic operations and proof creation.
+ * The class provides methods to compute commitments based on the given public inputs and to generate proofs based on
+ * signed transaction requests, previous kernel data, private call data, and a flag indicating whether it's the first
+ * iteration or not.
  */
 export class KernelProofCreator implements ProofCreator {
   constructor(private log = createDebugLogger('aztec:kernel_proof_creator')) {}

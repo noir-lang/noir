@@ -11,7 +11,7 @@ import {
   MAX_PUBLIC_DATA_READS_PER_CALL,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
   RETURN_VALUES_LENGTH,
-} from '../cbind/constants.gen.js';
+} from '../constants.gen.js';
 import { FieldsOf, makeTuple } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { CallContext } from './call_context.js';

@@ -50,7 +50,7 @@ import { EmptyPublicProver } from '../prover/empty.js';
 import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { ContractsDataSourcePublicDB, WorldStateDB, WorldStatePublicDB } from '../simulator/public_executor.js';
-import { WasmPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
+import { RealPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
 import { FailedTx, ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
 import { getHistoricBlockData } from './utils.js';
 
@@ -83,7 +83,7 @@ export class PublicProcessorFactory {
     return new PublicProcessor(
       this.merkleTree,
       publicExecutor,
-      new WasmPublicKernelCircuitSimulator(),
+      new RealPublicKernelCircuitSimulator(),
       new EmptyPublicProver(),
       globalVariables,
       blockData,

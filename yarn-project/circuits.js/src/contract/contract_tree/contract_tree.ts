@@ -8,7 +8,6 @@ import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
  * Returns a Promise that resolves to a Buffer containing the hash of the verification key.
  *
  * @param vk - The hex-encoded string representing the verification key.
- * @param wasm - An instance of CircuitsWasm class used for hashing.
  * @returns A Promise resolving to a Buffer containing the hash of the verification key.
  */
 export function hashVKStr(vk: string) {
@@ -61,7 +60,6 @@ export function isConstrained({
  * Each function leaf is computed from its selector, privacy flag, hashed verification key, and hashed bytecode.
  *
  * @param functions - Array of ContractFunctionDao objects representing the functions in a contract.
- * @param wasm - CircuitsWasm instance used for hashing and computations.
  * @returns An array of Fr instances representing the generated function leaves.
  */
 export function generateFunctionLeaves(functions: ContractFunctionDao[]) {

@@ -151,6 +151,17 @@ export class TxContext {
     return new TxContext(false, false, false, ContractDeploymentData.empty(), new Fr(chainId), new Fr(version));
   }
 
+  isEmpty(): boolean {
+    return (
+      !this.isFeePaymentTx &&
+      !this.isRebatePaymentTx &&
+      !this.isContractDeploymentTx &&
+      this.contractDeploymentData.isEmpty() &&
+      this.chainId.isZero() &&
+      this.version.isZero()
+    );
+  }
+
   /**
    * Create a new instance from a fields dictionary.
    * @param fields - The dictionary.

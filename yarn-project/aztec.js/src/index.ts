@@ -11,7 +11,6 @@ export * from './wallet/index.js';
 // here once the issue is resolved.
 export {
   AztecAddress,
-  CircuitsWasm,
   EthAddress,
   Point,
   Fr,
