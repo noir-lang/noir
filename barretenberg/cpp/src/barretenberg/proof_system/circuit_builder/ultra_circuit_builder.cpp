@@ -1665,17 +1665,10 @@ void UltraCircuitBuilder_<Arithmetization>::process_non_native_field_multiplicat
             c.b[j] = this->real_variable_index[c.b[j]];
         }
     }
-    std::sort(cached_partial_non_native_field_multiplications.begin(),
-              cached_partial_non_native_field_multiplications.end());
-
-    auto last = std::unique(cached_partial_non_native_field_multiplications.begin(),
-                            cached_partial_non_native_field_multiplications.end());
-
-    auto it = cached_partial_non_native_field_multiplications.begin();
+    cached_partial_non_native_field_multiplication::deduplicate(cached_partial_non_native_field_multiplications);
 
     // iterate over the cached items and create constraints
-    while (it != last) {
-        const auto input = *it;
+    for (const auto& input : cached_partial_non_native_field_multiplications) {
 
         w_l.emplace_back(input.a[1]);
         w_r.emplace_back(input.b[1]);
@@ -1701,7 +1694,6 @@ void UltraCircuitBuilder_<Arithmetization>::process_non_native_field_multiplicat
         w_4.emplace_back(input.hi_1);
         apply_aux_selectors(AUX_SELECTORS::NONE);
         ++this->num_gates;
-        ++it;
     }
 }
 

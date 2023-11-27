@@ -206,18 +206,59 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
             return valid;
         }
 
+        static void deduplicate(std::vector<cached_partial_non_native_field_multiplication>& vec)
+        {
+            std::unordered_set<cached_partial_non_native_field_multiplication, Hash, std::equal_to<>> seen;
+
+            std::vector<cached_partial_non_native_field_multiplication> uniqueVec;
+
+            for (const auto& item : vec) {
+                if (seen.insert(item).second) {
+                    uniqueVec.push_back(item);
+                }
+            }
+
+            vec.swap(uniqueVec);
+        }
+
         bool operator<(const cached_partial_non_native_field_multiplication& other) const
         {
             if (a < other.a) {
                 return true;
             }
-            if (a == other.a) {
-                if (b < other.b) {
-                    return true;
-                }
+            if (other.a < a) {
+                return false;
             }
-            return false;
+            if (b < other.b) {
+                return true;
+            }
+            return other.b < b;
         }
+
+        struct Hash {
+            size_t operator()(const cached_partial_non_native_field_multiplication& obj) const
+            {
+                size_t combined_hash = 0;
+
+                // C++ does not have a standard way to hash values, so we use the
+                // common algorithm that boot uses.
+                // You can search for 'cpp hash_combine' to find more information.
+                // Here is one reference:
+                // https://stackoverflow.com/questions/2590677/how-do-i-combine-hash-values-in-c0x
+                auto hash_combiner = [](size_t lhs, size_t rhs) {
+                    return lhs ^ (rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2));
+                };
+
+                for (const auto& elem : obj.a) {
+                    combined_hash = hash_combiner(combined_hash, std::hash<uint32_t>()(elem));
+                }
+                for (const auto& elem : obj.b) {
+                    combined_hash = hash_combiner(combined_hash, std::hash<uint32_t>()(elem));
+                }
+
+                return combined_hash;
+            }
+        };
     };
 
     struct non_native_field_multiplication_cross_terms {
