@@ -27,23 +27,23 @@ use super::def_map::ModuleDefId;
 //
 //             Helper macros for creating noir ast nodes
 //
-fn ident(name: &str) -> Ident {
+pub fn ident(name: &str) -> Ident {
     Ident::new(name.to_string(), Span::default())
 }
 
-fn ident_path(name: &str) -> Path {
+pub fn ident_path(name: &str) -> Path {
     Path::from_ident(ident(name))
 }
 
-fn path(ident: Ident) -> Path {
+pub fn path(ident: Ident) -> Path {
     Path::from_ident(ident)
 }
 
-fn expression(kind: ExpressionKind) -> Expression {
+pub fn expression(kind: ExpressionKind) -> Expression {
     Expression::new(kind, Span::default())
 }
 
-fn variable(name: &str) -> Expression {
+pub fn variable(name: &str) -> Expression {
     expression(ExpressionKind::Variable(ident_path(name)))
 }
 
@@ -96,6 +96,10 @@ fn assignment(name: &str, assigned_to: Expression) -> Statement {
         r#type: make_type(UnresolvedTypeData::Unspecified),
         expression: assigned_to,
     }))
+}
+
+fn make_statement(kind: StatementKind) -> Statement {
+    Statement { span: Span::default(), kind }
 }
 
 fn member_access(lhs: &str, rhs: &str) -> Expression {
@@ -721,10 +725,6 @@ fn abstract_storage(typ: &str, unconstrained: bool) -> Statement {
 /// ```
 fn context_return_values() -> Expression {
     member_access("context", "return_values")
-}
-
-fn make_statement(kind: StatementKind) -> Statement {
-    Statement { span: Span::default(), kind }
 }
 
 /// Make return Push

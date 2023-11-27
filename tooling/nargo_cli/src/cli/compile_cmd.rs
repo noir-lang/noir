@@ -74,7 +74,7 @@ pub(crate) fn run(
         .into_iter()
         .filter(|package| !package.is_library())
         .cloned()
-        .partition(|package| package.is_binary());
+        .partition(|package| package.is_binary() || package.is_sol()); // TODO: We want to compile sol as a binary for now, this should change in the future
 
     let (np_language, opcode_support) = backend.get_backend_info_or_default();
     let (_, compiled_contracts) = compile_workspace(

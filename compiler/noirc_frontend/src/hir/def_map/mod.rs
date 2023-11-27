@@ -3,6 +3,7 @@ use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::parser::{parse_program, ParsedModule, ParserError};
+use crate::solc;
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
@@ -55,13 +56,13 @@ impl ModuleId {
 /// The definitions of the crate are accessible indirectly via the scopes of each module.
 #[derive(Debug)]
 pub struct CrateDefMap {
-    pub(crate) root: LocalModuleId,
+    pub root: LocalModuleId,
 
-    pub(crate) modules: Arena<ModuleData>,
+    pub modules: Arena<ModuleData>,
 
-    pub(crate) krate: CrateId,
+    pub krate: CrateId,
 
-    pub(crate) extern_prelude: BTreeMap<String, ModuleId>,
+    pub extern_prelude: BTreeMap<String, ModuleId>,
 }
 
 impl CrateDefMap {
@@ -82,8 +83,11 @@ impl CrateDefMap {
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let (ast, parsing_errors) = parse_file(&context.file_manager, root_file_id);
-        let ast = ast.into_sorted();
+
+        // let ast = solc::parse_sol()
+        let (ast, parsing_errors) = solc::parse_sol_file(&context.file_manager, root_file_id);
+        // let (ast, parsing_errors) = parse_file(&context.file_manager, root_file_id);
+        // let ast = ast.into_sorted();
 
         #[cfg(feature = "aztec")]
         let ast = match super::aztec_library::transform(ast, &crate_id, context) {
@@ -108,6 +112,8 @@ impl CrateDefMap {
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect(def_map, context, ast, root_file_id));
+
+        dbg!(&context.get_main_function(&crate_id));
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),

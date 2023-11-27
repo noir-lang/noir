@@ -86,6 +86,7 @@ compiler_version = ">={NOIRC_VERSION}"
             write_to_file(CONTRACT_EXAMPLE.as_bytes(), &src_dir.join("main.nr"))
         }
         PackageType::Library => write_to_file(LIB_EXAMPLE.as_bytes(), &src_dir.join("lib.nr")),
+        PackageType::Sol => unimplemented!("Solidity templates are not yet supported"),
     };
     println!("Project successfully created! It is located at {}", package_dir.display());
 }

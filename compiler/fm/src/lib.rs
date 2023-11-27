@@ -16,6 +16,7 @@ use std::{
 };
 
 pub const FILE_EXTENSION: &str = "nr";
+pub const SOL_FILE_EXTENSION: &str = "sol";
 
 pub struct FileManager {
     root: PathBuf,

@@ -123,6 +123,7 @@ impl PackageConfig {
             Some("lib") => PackageType::Library,
             Some("bin") => PackageType::Binary,
             Some("contract") => PackageType::Contract,
+            Some("sol") => PackageType::Sol,
             Some(invalid) => {
                 return Err(ManifestError::InvalidPackageType(
                     root_dir.join("Nargo.toml"),
@@ -131,6 +132,8 @@ impl PackageConfig {
             }
             None => return Err(ManifestError::MissingPackageType(root_dir.join("Nargo.toml"))),
         };
+
+        dbg!(&package_type);
 
         let entry_path = if let Some(entry_path) = &self.package.entry {
             let custom_entry_path = root_dir.join(entry_path);
@@ -150,6 +153,7 @@ impl PackageConfig {
                 PackageType::Binary | PackageType::Contract => {
                     root_dir.join("src").join("main").with_extension(FILE_EXTENSION)
                 }
+                PackageType::Sol => root_dir.join("src").join("main").with_extension("sol"),
             };
 
             if default_entry_path.exists() {

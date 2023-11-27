@@ -73,15 +73,16 @@ pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
 
 /// Adds the file from the file system at `Path` to the crate graph as a root file
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
-    let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
-    let std_file_id = context.file_manager.add_file(&path_to_std_lib_file).unwrap();
-    let std_crate_id = context.crate_graph.add_stdlib(std_file_id);
+    // TEMP: remove access to stdlib when doing solidity
+    // let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
+    // let std_file_id = context.file_manager.add_file(&path_to_std_lib_file).unwrap();
+    // let std_crate_id = context.crate_graph.add_stdlib(std_file_id);
 
     let root_file_id = context.file_manager.add_file(file_name).unwrap();
 
     let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
-    add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
+    // add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
 
     root_crate_id
 }
@@ -93,8 +94,8 @@ pub fn prepare_dependency(context: &mut Context, file_name: &Path) -> CrateId {
     let crate_id = context.crate_graph.add_crate(root_file_id);
 
     // Every dependency has access to stdlib
-    let std_crate_id = context.stdlib_crate_id();
-    add_dep(context, crate_id, *std_crate_id, STD_CRATE_NAME.parse().unwrap());
+    // let std_crate_id = context.stdlib_crate_id();
+    // add_dep(context, crate_id, *std_crate_id, STD_CRATE_NAME.parse().unwrap());
 
     crate_id
 }

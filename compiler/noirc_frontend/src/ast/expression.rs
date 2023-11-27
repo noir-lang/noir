@@ -646,7 +646,7 @@ impl FunctionDefinition {
                 visibility: Visibility::Private,
                 pattern: Pattern::Identifier(ident.clone()),
                 typ: unresolved_type.clone(),
-                span: ident.span().merge(unresolved_type.span.unwrap()),
+                span: ident.span().merge(unresolved_type.span.unwrap_or(Span::default())),
             })
             .collect();
         FunctionDefinition {

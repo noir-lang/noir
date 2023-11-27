@@ -9,6 +9,7 @@ pub enum PackageType {
     Library,
     Binary,
     Contract,
+    Sol,
 }
 
 impl Display for PackageType {
@@ -17,6 +18,7 @@ impl Display for PackageType {
             Self::Library => write!(f, "lib"),
             Self::Binary => write!(f, "bin"),
             Self::Contract => write!(f, "contract"),
+            Self::Sol => write!(f, "sol"),
         }
     }
 }
@@ -74,5 +76,9 @@ impl Package {
 
     pub fn is_library(&self) -> bool {
         self.package_type == PackageType::Library
+    }
+
+    pub fn is_sol(&self) -> bool {
+        self.package_type == PackageType::Sol
     }
 }
