@@ -69,11 +69,6 @@ impl Ssa {
     }
 }
 
-struct Slice {
-    capacity: usize,
-    nested_slice: Box<Option<Slice>>,
-}
-
 struct Context<'f> {
     post_order: PostOrder,
     inserter: FunctionInserter<'f>,
@@ -88,8 +83,6 @@ struct Context<'f> {
     /// values being used in array operations.
     /// Maps result -> original value
     slice_parents: HashMap<ValueId, ValueId>,
-
-    new_slices: HashMap<ValueId, Slice>,
 }
 
 impl<'f> Context<'f> {
@@ -102,7 +95,6 @@ impl<'f> Context<'f> {
             inserter,
             mapped_slice_values: HashMap::default(),
             slice_parents: HashMap::default(),
-            new_slices: HashMap::default(),
         }
     }
 
@@ -195,23 +187,6 @@ impl<'f> Context<'f> {
                             }
                         }
                     }
-                    // if let Some(inner_sizes) = slice_sizes.get(array) {
-                    //     let inner_sizes_iter = inner_sizes.1.iter();
-                    //     let mut max = 0;
-                    //     let mut possible_children = Vec::new();
-                    //     for slice_value in inner_sizes_iter {
-                    //         if let Some(inner_slice) = slice_sizes.get(&slice_value) {
-                    //             if inner_slice.0 > max {
-                    //                 max = inner_slice.0;
-                    //             }
-                    //             let mut inner_children = inner_slice.1.clone();
-                    //             possible_children.append(&mut inner_children);
-                    //         }
-                    //     }
-                    //     dbg!(max);
-                    //     dbg!(possible_children.len());
-                    //     slice_sizes.insert(results[0], (max, possible_children));
-                    // }
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
@@ -232,13 +207,8 @@ impl<'f> Context<'f> {
                     dbg!(depth);
                     let mut max_sizes = Vec::new();
                     max_sizes.resize(depth, 0);
-                    // dbg!(depth);
-                    // dbg!(array_id);
-                    // dbg!(mapped_slice_value);
-                    // max_sizes[0] = *current_size;
-                    // println!("about to call compute_slice_max_sizes");
+    
                     self.compute_slice_max_sizes(*array, &slice_sizes, &mut max_sizes, 0);
-                    dbg!(max_sizes.clone());
                 }
 
                 // TODO: We might need to replace the value in an array set as well
@@ -282,8 +252,7 @@ impl<'f> Context<'f> {
                     //     // If I map the parents like this I risk a loop if I also set the result of an array get's 
                     //     // parent to the array
                     //     // self.mapped_slice_values.insert(value_parent, array_parent);
-                    //     // self.mapped_slice_values.insert(*value, array_parent);
-                        
+                    //     // self.mapped_slice_values.insert(*value, array_parent); 
                     // }
                 }
 
@@ -329,7 +298,7 @@ impl<'f> Context<'f> {
                         | Intrinsic::SlicePopBack
                         | Intrinsic::SliceInsert
                         | Intrinsic::SliceRemove => (1, 1),
-                        Intrinsic::SlicePopFront => (1, 2),
+                        Intrinsic::SlicePopFront => (1, results.len() - 1),
                         _ => return,
                     };
                     let slice_contents = arguments[argument_index];
@@ -361,12 +330,34 @@ impl<'f> Context<'f> {
                             }
                         }
                         Intrinsic::SlicePopBack
-                        | Intrinsic::SlicePopFront
+                        // | Intrinsic::SlicePopFront
                         | Intrinsic::SliceRemove => {
+                            
                             // let slice_contents = arguments[argument_index];
                             // We do not decrement the size on intrinsics that could remove values from a slice.
                             // This is because we could potentially go back to the smaller slice and not fill in dummies.
                             // This pass should be tracking the potential max that a slice ***could be***
+                            if let Some(inner_sizes) = slice_sizes.get(&slice_contents) {
+                                let inner_sizes = inner_sizes.clone();
+                                slice_sizes.insert(results[result_index], inner_sizes);
+
+                                self.mapped_slice_values
+                                    .insert(slice_contents, results[result_index]);
+                            }
+                        }
+                        Intrinsic::SlicePopFront => {
+                            // `pop_front` returns the the popped element the slice and then the respective slice
+                            // This means in the case of a slice with structs the result index of the popped slice
+                            // will change depending on the number of elements in the struct.
+                            // For example, a slice with four elements will look as such in SSA:
+                            // v3, v4, v5, v6, v7, v8 = call slice_pop_back(v1, v2)
+                            // where v7 is the slice length and v8 is the popped slice itself. 
+                            dbg!("inside SlicePopFront");
+                            dbg!(result_index);
+                            for (i, res) in results[..(result_index - 1)].iter().enumerate() {
+                                let type_of_res = self.inserter.function.dfg.type_of_value(*res);
+                                dbg!(type_of_res);
+                            }
                             if let Some(inner_sizes) = slice_sizes.get(&slice_contents) {
                                 let inner_sizes = inner_sizes.clone();
                                 slice_sizes.insert(results[result_index], inner_sizes);
