@@ -46,7 +46,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::CallStack,
-        function::Function,
+        function::{Function, RuntimeType},
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
@@ -62,8 +62,12 @@ use fxhash::FxHashMap as HashMap;
 impl Ssa {
     pub(crate) fn fill_internal_slices(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            let mut context = Context::new(function);
-            context.process_blocks();
+            // This pass is only necessary for generating ACIR and thus we should not 
+            // process Brillig functions.
+            if function.runtime() == RuntimeType::Acir {
+                let mut context = Context::new(function);
+                context.process_blocks();
+            }
         }
         self
     }
