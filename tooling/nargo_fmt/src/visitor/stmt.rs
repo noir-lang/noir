@@ -4,7 +4,7 @@ use noirc_frontend::{
     ConstrainKind, ConstrainStatement, ExpressionKind, ForRange, Statement, StatementKind,
 };
 
-use crate::rewrite;
+use crate::{rewrite, visitor::expr::wrap_exprs};
 
 use super::ExpressionType;
 
@@ -33,29 +33,43 @@ impl super::FmtVisitor<'_> {
                     self.push_rewrite(format!("{let_str} {expr_str};"), span);
                 }
                 StatementKind::Constrain(ConstrainStatement(expr, message, kind)) => {
+                    let mut nested_shape = self.shape();
+                    let shape = nested_shape;
+
+                    nested_shape.indent.block_indent(self.config);
+
                     let message =
                         message.map_or(String::new(), |message| format!(", \"{message}\""));
-                    let constrain = match kind {
-                        ConstrainKind::Assert => {
-                            let assertion = rewrite::sub_expr(self, self.shape(), expr);
 
-                            format!("assert({assertion}{message});")
+                    let (callee, args) = match kind {
+                        ConstrainKind::Assert => {
+                            let assertion = rewrite::sub_expr(self, nested_shape, expr);
+                            let args = format!("{assertion}{message}");
+
+                            ("assert", args)
                         }
                         ConstrainKind::AssertEq => {
                             if let ExpressionKind::Infix(infix) = expr.kind {
-                                let lhs = rewrite::sub_expr(self, self.shape(), infix.lhs);
-                                let rhs = rewrite::sub_expr(self, self.shape(), infix.rhs);
+                                let lhs = rewrite::sub_expr(self, nested_shape, infix.lhs);
+                                let rhs = rewrite::sub_expr(self, nested_shape, infix.rhs);
 
-                                format!("assert_eq({lhs}, {rhs}{message});")
+                                let args = format!("{lhs}, {rhs}{message}");
+
+                                ("assert_eq", args)
                             } else {
                                 unreachable!()
                             }
                         }
                         ConstrainKind::Constrain => {
                             let expr = rewrite::sub_expr(self, self.shape(), expr);
-                            format!("constrain {expr};")
+                            let constrain = format!("constrain {expr};");
+                            self.push_rewrite(constrain, span);
+                            return;
                         }
                     };
+
+                    let args = wrap_exprs("(", ")", args, nested_shape, shape, true);
+                    let constrain = format!("{callee}{args};");
 
                     self.push_rewrite(constrain, span);
                 }
