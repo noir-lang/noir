@@ -18,19 +18,50 @@ use dep::aztec::oracle::debug_log::{ debug_log };
 ```
 
 **Write log**
-Write `debug_log()` in the appropriate place in your contract. 
+
+Write `debug_log()` in the appropriate place in your contract.
 
 ```rust
-debug_log("here")
+debug_log("here");
+```
+
+Other methods for logging include:
+
+`debug_log_format()`: for logging Field values along arbitrary strings.
+
+```rust
+debug_log_format("get_2(slot:{0}) =>\n\t0:{1}\n\t1:{2}", [storage_slot, note0_hash, note1_hash]);
+```
+
+`debug_log_field()`: for logging Fields.
+
+```rust
+debug_log_field(my_field);
+```
+
+`debug_log_array()`: for logging array types.
+
+```rust
+debug_log_array(my_array);
 ```
 
 **Start Sandbox in debug mode**
 
-Prepend the command to start the sandbox with `DEBUG=aztec` to log everything or `DEBUG=aztec:simulator:oracle` to only log your `debug_log()` statements.
+Prepend the command to start the sandbox with `DEBUG=aztec:*` to log everything or `DEBUG=aztec:simulator:oracle` to only log your `debug_log()` statements.
 
 ```bash
-cd ~./aztec && DEBUG=aztec docker-compose up
+# Using the docker-compose.yml setup
+cd ~./aztec && DEBUG=aztec:* docker-compose up
+
+# or if you're using the npm package
+DEBUG=aztec:* aztec-sandbox
 ```
 
+Alternatively you can update the `DEBUG` environment variable in docker-compose.yml and start the sandbox normally.
+
+```yml
+environment:
+  DEBUG: aztec:*
+```
 
 <DocCardList/>
