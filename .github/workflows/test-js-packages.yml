@@ -303,6 +303,38 @@ jobs:
       - name: Run browser tests
         run: yarn workspace @noir-lang/noir_wasm test:browser
 
+  test-noir-codegen:
+    needs: [build-acvm-js, build-noirc-abi]
+    name: noir_codegen
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download acvm_js package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: acvm-js
+          path: ./acvm-repo/acvm_js
+      
+      - name: Download noirc_abi package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Build noir_js_types
+        run: yarn workspace @noir-lang/types build
+
+      - name: Build noir_js
+        run: yarn workspace @noir-lang/noir_js build
+
+      - name: Run noir_codegen tests
+        run: yarn workspace @noir-lang/noir_codegen test
+
   test-integration:
     name: Integration Tests
     runs-on: ubuntu-latest
@@ -359,7 +391,7 @@ jobs:
       - name: Run `integration-tests`
         run: |
           yarn test:integration
-
+  
   # This is a noop job which depends on all test jobs
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:
@@ -372,6 +404,7 @@ jobs:
       - test-noir-js
       - test-source-resolver
       - test-noir-wasm
+      - test-noir-codegen
       - test-integration
     
     steps:
