@@ -60,6 +60,8 @@ fn format_{test_name}() {{
 
     let (parsed_module, errors) = noirc_frontend::parse_program(&input);
 
+    assert!(errors.is_empty(), "Encountered errors while parsing program);
+
     let config = nargo_fmt::Config::of("{config}").unwrap();
     let fmt_text = nargo_fmt::format(&input, parsed_module, &config);
 
