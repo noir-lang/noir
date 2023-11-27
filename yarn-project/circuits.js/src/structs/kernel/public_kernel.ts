@@ -9,6 +9,7 @@ import {
 } from '../../cbind/constants.gen.js';
 import { assertMemberLength } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
+import { CallRequest } from '../call_request.js';
 import { PublicCallStackItem } from '../call_stack_item.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { Proof } from '../proof.js';
@@ -83,7 +84,7 @@ export class PublicCallData {
     /**
      * Children call stack items.
      */
-    public readonly publicCallStackPreimages: Tuple<PublicCallStackItem, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
+    public readonly publicCallStack: Tuple<CallRequest, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     /**
      * Proof of the call stack item execution.
      */
@@ -96,17 +97,9 @@ export class PublicCallData {
      * Hash of the L2 contract bytecode.
      */
     public readonly bytecodeHash: Fr,
-  ) {
-    assertMemberLength(this, 'publicCallStackPreimages', MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
-  }
+  ) {}
 
   toBuffer() {
-    return serializeToBuffer(
-      this.callStackItem,
-      this.publicCallStackPreimages,
-      this.proof,
-      this.portalContractAddress,
-      this.bytecodeHash,
-    );
+    return serializeToBuffer(this.callStackItem, this.proof, this.portalContractAddress, this.bytecodeHash);
   }
 }

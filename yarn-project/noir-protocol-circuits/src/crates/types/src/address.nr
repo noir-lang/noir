@@ -6,7 +6,7 @@ struct Address {
 }
 
 impl Address {
-    pub fn ZERO() -> Self {
+    pub fn zero() -> Self {
         Self {
             inner: 0
         }
@@ -26,6 +26,10 @@ impl Address {
 
     pub fn to_field(self) -> Field{
         self.inner
+    }
+
+    pub fn is_zero(self) -> bool {
+        self.inner == 0
     }
     
     pub fn assert_is_zero(self) {
@@ -49,7 +53,7 @@ struct EthAddress{
 }
 
 impl EthAddress{
-    pub fn ZERO() -> Self {
+    pub fn zero() -> Self {
         Self {
             inner: 0
         }
@@ -69,6 +73,10 @@ impl EthAddress{
 
     pub fn to_field(self) -> Field{
         self.inner
+    }
+
+    pub fn is_zero(self) -> bool {
+        self.inner == 0
     }
 
     pub fn assert_is_zero(self) {

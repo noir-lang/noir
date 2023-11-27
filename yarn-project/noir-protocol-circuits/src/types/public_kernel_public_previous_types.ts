@@ -13,6 +13,17 @@ export interface Address {
   inner: Field;
 }
 
+export interface CallerContext {
+  msg_sender: Address;
+  storage_contract_address: Address;
+}
+
+export interface CallRequest {
+  hash: Field;
+  caller_contract_address: Address;
+  caller_context: CallerContext;
+}
+
 export interface EthAddress {
   inner: Field;
 }
@@ -63,8 +74,8 @@ export interface CombinedAccumulatedData {
   new_commitments: FixedLengthArray<Field, 64>;
   new_nullifiers: FixedLengthArray<Field, 64>;
   nullified_commitments: FixedLengthArray<Field, 64>;
-  private_call_stack: FixedLengthArray<Field, 8>;
-  public_call_stack: FixedLengthArray<Field, 8>;
+  private_call_stack: FixedLengthArray<CallRequest, 8>;
+  public_call_stack: FixedLengthArray<CallRequest, 8>;
   new_l2_to_l1_msgs: FixedLengthArray<Field, 2>;
   encrypted_logs_hash: FixedLengthArray<Field, 2>;
   unencrypted_logs_hash: FixedLengthArray<Field, 2>;
@@ -163,7 +174,7 @@ export interface PublicCircuitPublicInputs {
   return_values: FixedLengthArray<Field, 4>;
   contract_storage_update_requests: FixedLengthArray<StorageUpdateRequest, 16>;
   contract_storage_reads: FixedLengthArray<StorageRead, 16>;
-  public_call_stack: FixedLengthArray<Field, 4>;
+  public_call_stack_hashes: FixedLengthArray<Field, 4>;
   new_commitments: FixedLengthArray<Field, 16>;
   new_nullifiers: FixedLengthArray<Field, 16>;
   new_l2_to_l1_msgs: FixedLengthArray<Field, 2>;
@@ -182,7 +193,7 @@ export interface PublicCallStackItem {
 
 export interface PublicCallData {
   call_stack_item: PublicCallStackItem;
-  public_call_stack_preimages: FixedLengthArray<PublicCallStackItem, 4>;
+  public_call_stack: FixedLengthArray<CallRequest, 4>;
   proof: Proof;
   portal_contract_address: EthAddress;
   bytecode_hash: Field;

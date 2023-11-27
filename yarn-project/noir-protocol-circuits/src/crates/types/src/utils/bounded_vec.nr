@@ -43,23 +43,27 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
     }
 
     pub fn push_array<Len>(&mut self, array: [T; Len]) {
-        let newLen = self.len + array.len();
-        assert(newLen as u64 <= MaxLen as u64, "push_array out of bounds");
+        let new_len = self.len + array.len();
+        assert(new_len as u64 <= MaxLen as u64, "push_array out of bounds");
         for i in 0..array.len() {
             self.storage[self.len + i] = array[i];
         }
-        self.len = newLen;
+        self.len = new_len;
     }
 
     pub fn push_vec<Len>(&mut self, vec: BoundedVec<T, Len>) {
-        let newLen = self.len + vec.len();
-        assert(newLen as u64 <= MaxLen as u64, "push_vec out of bounds");
+        let append_len = vec.len();
+        let new_len = self.len + append_len;
+        assert(new_len as u64 <= MaxLen as u64, "push_vec out of bounds");
+
+        let mut exceeded_len = false;
         for i in 0..Len {
-            if i < (vec.len() as u64) {
+            exceeded_len |= i == append_len;
+            if !exceeded_len {
                 self.storage[self.len + (i as Field)] = vec.get_unchecked(i as Field);
             }
         }
-        self.len = newLen;
+        self.len = new_len;
     }
 
     pub fn pop(&mut self) -> T {

@@ -20,7 +20,6 @@ import {
 } from '../tests/factories.js';
 import {
   computeBlockHashWithGlobals,
-  computeCallStackItemHash,
   computeCommitmentNonce,
   computeCompleteAddress,
   computeContractAddressFromPartial,
@@ -29,6 +28,8 @@ import {
   computeFunctionSelector,
   computeFunctionTreeRoot,
   computeGlobalsHash,
+  computePrivateCallStackItemHash,
+  computePublicCallStackItemHash,
   computePublicDataTreeIndex,
   computePublicDataTreeValue,
   computeSecretMessageHash,
@@ -209,13 +210,13 @@ describe('abis wasm bindings', () => {
 
   it('compute private call stack item hash', () => {
     const item = makePrivateCallStackItem();
-    const hash = computeCallStackItemHash(item);
+    const hash = computePrivateCallStackItemHash(item);
     expect(hash).toMatchSnapshot();
   });
 
   it('compute public call stack item hash', () => {
     const item = makePublicCallStackItem();
-    const hash = computeCallStackItemHash(item);
+    const hash = computePublicCallStackItemHash(item);
     expect(hash).toMatchSnapshot();
   });
 

@@ -175,7 +175,7 @@ export class PublicCircuitPublicInputs {
     /**
      * Public call stack of the current kernel iteration.
      */
-    public publicCallStack: Tuple<Fr, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
+    public publicCallStackHashes: Tuple<Fr, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     /**
      * New commitments created within a public execution call
      */
@@ -246,7 +246,7 @@ export class PublicCircuitPublicInputs {
       isFrArrayEmpty(this.returnValues) &&
       isArrayEmpty(this.contractStorageUpdateRequests, item => item.isEmpty()) &&
       isArrayEmpty(this.contractStorageReads, item => item.isEmpty()) &&
-      isFrArrayEmpty(this.publicCallStack) &&
+      isFrArrayEmpty(this.publicCallStackHashes) &&
       isFrArrayEmpty(this.newCommitments) &&
       isFrArrayEmpty(this.newNullifiers) &&
       isFrArrayEmpty(this.newL2ToL1Msgs) &&
@@ -269,7 +269,7 @@ export class PublicCircuitPublicInputs {
       fields.returnValues,
       fields.contractStorageUpdateRequests,
       fields.contractStorageReads,
-      fields.publicCallStack,
+      fields.publicCallStackHashes,
       fields.newCommitments,
       fields.newNullifiers,
       fields.newL2ToL1Msgs,

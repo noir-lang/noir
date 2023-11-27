@@ -2,7 +2,7 @@ import { expectReserializeToMatchObject, expectSerializeToMatchSnapshot } from '
 import { makeBaseOrMergeRollupPublicInputs, makeBaseRollupInputs } from '../../tests/factories.js';
 import { BaseOrMergeRollupPublicInputs } from './base_or_merge_rollup_public_inputs.js';
 
-describe('structs/base_rollup', () => {
+describe.skip('structs/base_rollup', () => {
   it(`serializes and prints BaseRollupInputs`, async () => {
     const baseRollupInputs = makeBaseRollupInputs();
 

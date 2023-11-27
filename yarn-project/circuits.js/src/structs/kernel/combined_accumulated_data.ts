@@ -17,6 +17,7 @@ import {
 } from '../../cbind/constants.gen.js';
 import { makeTuple } from '../../index.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
+import { CallRequest } from '../call_request.js';
 import { AggregationObject, AztecAddress, EthAddress, Fr, FunctionData } from '../index.js';
 
 /**
@@ -312,11 +313,11 @@ export class CombinedAccumulatedData {
     /**
      * Current private call stack.
      */
-    public privateCallStack: Tuple<Fr, typeof MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
+    public privateCallStack: Tuple<CallRequest, typeof MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
     /**
      * Current public call stack.
      */
-    public publicCallStack: Tuple<Fr, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
+    public publicCallStack: Tuple<CallRequest, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
     /**
      * All the new L2 to L1 messages created in this transaction.
      */
@@ -397,8 +398,8 @@ export class CombinedAccumulatedData {
       reader.readArray(MAX_NEW_COMMITMENTS_PER_TX, Fr),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
-      reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, Fr),
-      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, Fr),
+      reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest),
+      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr),
       reader.readArray(2, Fr),
       reader.readArray(2, Fr),
@@ -450,8 +451,8 @@ export class CombinedAccumulatedData {
       makeTuple(MAX_NEW_COMMITMENTS_PER_TX, Fr.zero),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),
-      makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, Fr.zero),
-      makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, Fr.zero),
+      makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
+      makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.zero),
       makeTuple(2, Fr.zero),
       makeTuple(2, Fr.zero),
@@ -491,11 +492,11 @@ export class FinalAccumulatedData {
     /**
      * Current private call stack.
      */
-    public privateCallStack: Tuple<Fr, typeof MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
+    public privateCallStack: Tuple<CallRequest, typeof MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
     /**
      * Current public call stack.
      */
-    public publicCallStack: Tuple<Fr, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
+    public publicCallStack: Tuple<CallRequest, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
     /**
      * All the new L2 to L1 messages created in this transaction.
      */
@@ -562,8 +563,8 @@ export class FinalAccumulatedData {
       reader.readArray(MAX_NEW_COMMITMENTS_PER_TX, Fr),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
-      reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, Fr),
-      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, Fr),
+      reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest),
+      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr),
       reader.readArray(2, Fr),
       reader.readArray(2, Fr),
@@ -589,8 +590,8 @@ export class FinalAccumulatedData {
       makeTuple(MAX_NEW_COMMITMENTS_PER_TX, Fr.zero),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),
-      makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, Fr.zero),
-      makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, Fr.zero),
+      makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
+      makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.zero),
       makeTuple(2, Fr.zero),
       makeTuple(2, Fr.zero),

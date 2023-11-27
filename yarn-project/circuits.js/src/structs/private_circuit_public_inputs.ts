@@ -1,3 +1,4 @@
+import { isArrayEmpty } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { Tuple } from '@aztec/foundation/serialize';
 
@@ -59,11 +60,11 @@ export class PrivateCircuitPublicInputs {
     /**
      * Private call stack at the current kernel iteration.
      */
-    public privateCallStack: Tuple<Fr, typeof MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
+    public privateCallStackHashes: Tuple<Fr, typeof MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
     /**
      * Public call stack at the current kernel iteration.
      */
-    public publicCallStack: Tuple<Fr, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
+    public publicCallStackHashes: Tuple<Fr, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     /**
      * New L2 to L1 messages created by the corresponding function call.
      */
@@ -141,6 +142,32 @@ export class PrivateCircuitPublicInputs {
       Fr.ZERO,
     );
   }
+
+  isEmpty() {
+    const isFrArrayEmpty = (arr: Fr[]) => isArrayEmpty(arr, item => item.isZero());
+    return (
+      this.callContext.isEmpty() &&
+      this.argsHash.isZero() &&
+      isFrArrayEmpty(this.returnValues) &&
+      isFrArrayEmpty(this.readRequests) &&
+      isFrArrayEmpty(this.pendingReadRequests) &&
+      isFrArrayEmpty(this.newCommitments) &&
+      isFrArrayEmpty(this.newNullifiers) &&
+      isFrArrayEmpty(this.nullifiedCommitments) &&
+      isFrArrayEmpty(this.privateCallStackHashes) &&
+      isFrArrayEmpty(this.publicCallStackHashes) &&
+      isFrArrayEmpty(this.newL2ToL1Msgs) &&
+      isFrArrayEmpty(this.encryptedLogsHash) &&
+      isFrArrayEmpty(this.unencryptedLogsHash) &&
+      this.encryptedLogPreimagesLength.isZero() &&
+      this.unencryptedLogPreimagesLength.isZero() &&
+      this.historicBlockData.isEmpty() &&
+      this.contractDeploymentData.isEmpty() &&
+      this.chainId.isZero() &&
+      this.version.isZero()
+    );
+  }
+
   /**
    * Serialize into a field array. Low-level utility.
    * @param fields - Object with fields.
@@ -157,8 +184,8 @@ export class PrivateCircuitPublicInputs {
       fields.newCommitments,
       fields.newNullifiers,
       fields.nullifiedCommitments,
-      fields.privateCallStack,
-      fields.publicCallStack,
+      fields.privateCallStackHashes,
+      fields.publicCallStackHashes,
       fields.newL2ToL1Msgs,
       fields.encryptedLogsHash,
       fields.unencryptedLogsHash,

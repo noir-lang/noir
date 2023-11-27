@@ -8,6 +8,7 @@ import {
 } from '@aztec/acir-simulator';
 import {
   AztecAddress,
+  CallRequest,
   CompleteAddress,
   FunctionData,
   GrumpkinPrivateKey,
@@ -635,28 +636,27 @@ export class PXEService implements PXE {
     publicInputs: KernelCircuitPublicInputsFinal,
     enqueuedPublicCalls: PublicCallRequest[],
   ) {
-    const callToHash = (call: PublicCallRequest) => call.toPublicCallStackItem().hash();
-    const enqueuedPublicCallsHashes = await Promise.all(enqueuedPublicCalls.map(callToHash));
+    const enqueuedPublicCallStackItems = await Promise.all(enqueuedPublicCalls.map(c => c.toCallRequest()));
     const { publicCallStack } = publicInputs.end;
 
     // Validate all items in enqueued public calls are in the kernel emitted stack
-    const areEqual = enqueuedPublicCallsHashes.reduce(
+    const areEqual = enqueuedPublicCallStackItems.reduce(
       (accum, enqueued) => accum && !!publicCallStack.find(item => item.equals(enqueued)),
       true,
     );
 
     if (!areEqual) {
       throw new Error(
-        `Enqueued public function calls and public call stack do not match.\nEnqueued calls: ${enqueuedPublicCallsHashes
-          .map(h => h.toString())
+        `Enqueued public function calls and public call stack do not match.\nEnqueued calls: ${enqueuedPublicCallStackItems
+          .map(h => h.hash.toString())
           .join(', ')}\nPublic call stack: ${publicCallStack.map(i => i.toString()).join(', ')}`,
       );
     }
 
     // Override kernel output
     publicInputs.end.publicCallStack = padArrayEnd(
-      enqueuedPublicCallsHashes,
-      Fr.ZERO,
+      enqueuedPublicCallStackItems,
+      CallRequest.empty(),
       MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
     );
   }

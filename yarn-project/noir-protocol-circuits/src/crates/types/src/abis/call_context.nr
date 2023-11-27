@@ -36,4 +36,14 @@ impl CallContext {
         assert(self.is_static_call == false);
         assert(self.is_contract_deployment == false);
     }
+
+    fn eq(self, call_context: CallContext) -> bool {
+        call_context.msg_sender.eq(self.msg_sender)
+            & call_context.storage_contract_address.eq(self.storage_contract_address)
+            & call_context.portal_contract_address.eq(self.portal_contract_address)
+            & call_context.function_selector.eq(self.function_selector)
+            & (call_context.is_delegate_call == self.is_delegate_call)
+            & (call_context.is_static_call == self.is_static_call)
+            & (call_context.is_contract_deployment == self.is_contract_deployment)
+    }
 }

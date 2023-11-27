@@ -1,8 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
-import { privateKernelDummyPreviousKernel } from '../../cbind/circuits.gen.js';
-import { CircuitsWasm, VK_TREE_HEIGHT, makeTuple } from '../../index.js';
+import { VK_TREE_HEIGHT, makeTuple } from '../../index.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { Proof, makeEmptyProof } from '../proof.js';
 import { UInt32 } from '../shared.js';
@@ -72,36 +71,5 @@ export class PreviousKernelData {
       0,
       makeTuple(VK_TREE_HEIGHT, Fr.zero),
     );
-  }
-}
-
-/**
- * Dummy data used in the first kernel in the chain of kernels.
- */
-export class DummyPreviousKernelData {
-  private static instance: DummyPreviousKernelData;
-
-  private constructor(private data: PreviousKernelData) {}
-
-  /**
-   * Gets the dummy data.
-   * @param wasm - The circuits wasm instance.
-   * @returns The dummy previous kernel data.
-   */
-  public static getDummyPreviousKernelData(wasm: CircuitsWasm): PreviousKernelData {
-    if (!DummyPreviousKernelData.instance) {
-      const data = privateKernelDummyPreviousKernel(wasm);
-      DummyPreviousKernelData.instance = new DummyPreviousKernelData(data);
-    }
-
-    return DummyPreviousKernelData.instance.getData();
-  }
-
-  /**
-   * Gets the the dummy data.
-   * @returns The dummy previous kernel data.
-   */
-  public getData(): PreviousKernelData {
-    return this.data;
   }
 }

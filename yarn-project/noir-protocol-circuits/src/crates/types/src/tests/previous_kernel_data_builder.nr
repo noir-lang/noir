@@ -1,5 +1,7 @@
 use crate::{
     abis::{
+        call_context::CallContext,
+        call_request::{CallerContext, CallRequest},
         combined_constant_data::CombinedConstantData,
         combined_accumulated_data::CombinedAccumulatedDataBuilder,
         historical_block_data::HistoricalBlockData,
@@ -8,6 +10,7 @@ use crate::{
         public_data_read::PublicDataRead,
         public_data_update_request::PublicDataUpdateRequest,
     },
+    address::{Address, EthAddress},
     hash::NUM_FIELDS_PER_SHA256,
     mocked::{Proof, VerificationKey},
     tests::{
@@ -28,6 +31,8 @@ use dep::aztec::{
 };
 
 struct PreviousKernelDataBuilder {
+    contract_address: Address,
+    portal_contract_address: EthAddress,
     end: CombinedAccumulatedDataBuilder,
     block_data: HistoricalBlockData,
     tx_context: TxContext,
@@ -43,11 +48,12 @@ impl PreviousKernelDataBuilder {
         let mut end: CombinedAccumulatedDataBuilder = dep::std::unsafe::zeroed();
         end.new_nullifiers.push(321); // 0th nullifier must be non-zero.
         end.nullified_commitments.push(EMPTY_NULLIFIED_COMMITMENT);
-        end.private_call_stack.push(1);
 
         let tx_context = build_tx_context(false);
 
         PreviousKernelDataBuilder {
+            contract_address: fixtures::contracts::parent_contract.address,
+            portal_contract_address: fixtures::contracts::parent_contract.portal_contract_address,
             end,
             block_data: fixtures::HISTORICAL_BLOCK_DATA,
             tx_context,
@@ -66,11 +72,6 @@ impl PreviousKernelDataBuilder {
 
     pub fn is_public(&mut self) -> Self {
         self.is_private = false;
-        *self
-    }
-
-    pub fn next_is_public(&mut self) -> Self {
-        let _ = self.end.private_call_stack.pop();
         *self
     }
 
@@ -141,6 +142,29 @@ impl PreviousKernelDataBuilder {
     pub fn set_unencrypted_logs(&mut self, hash: [Field; NUM_FIELDS_PER_SHA256], preimages_length: Field) {
         self.end.unencrypted_logs_hash = hash;
         self.end.unencrypted_log_preimages_length = preimages_length;
+    }
+
+    pub fn push_private_call_request(&mut self, hash: Field, is_delegate_call: bool) {
+        let call_stack_item = self.generate_call_request(hash, is_delegate_call);
+        self.end.private_call_stack.push(call_stack_item);
+    }
+
+    pub fn push_public_call_request(&mut self, hash: Field, is_delegate_call: bool) {
+        let call_stack_item = self.generate_call_request(hash, is_delegate_call);
+        self.end.public_call_stack.push(call_stack_item);
+    }
+
+    fn generate_call_request(self, hash: Field, is_delegate_call: bool) -> CallRequest {
+        let mut caller_context = CallerContext::empty();
+        if is_delegate_call {
+            caller_context.msg_sender = fixtures::MSG_SENDER;
+            caller_context.storage_contract_address = self.contract_address;
+        }
+        CallRequest {
+            hash,
+            caller_contract_address: self.contract_address,
+            caller_context,
+        }
     }
 
     pub fn finish(self) -> PreviousKernelData {

@@ -120,6 +120,10 @@ export class Point {
   equals(rhs: Point) {
     return this.x.equals(rhs.x) && this.y.equals(rhs.y);
   }
+
+  isZero() {
+    return this.x.isZero() && this.y.isZero();
+  }
 }
 
 /**

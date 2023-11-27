@@ -1,5 +1,7 @@
 use crate::{
     abis::{
+        call_context::CallContext,
+        call_request::{CallerContext, CallRequest},
         call_stack_item::PublicCallStackItem,
         function_data::FunctionData,
         public_call_data::PublicCallData,
@@ -29,7 +31,7 @@ struct PublicCallDataBuilder {
     public_inputs: PublicCircuitPublicInputsBuilder,
     is_execution_request: bool,
     function_data: FunctionData,
-    public_call_stack_preimages: BoundedVec<PublicCallStackItem, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
+    public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     proof: Proof,
     portal_contract_address: EthAddress,
     bytecode_hash: Field,
@@ -38,70 +40,83 @@ struct PublicCallDataBuilder {
 impl PublicCallDataBuilder {
     pub fn new() -> Self {
         let contract_data = fixtures::contracts::default_contract;
+        let contract_address = contract_data.address;
+        let portal_contract_address = contract_data.portal_contract_address;
+
         let contract_function = fixtures::contract_functions::default_public_function;
+        let function_data = contract_function.data;
+
         let mut public_inputs = PublicCircuitPublicInputsBuilder::new();
-        public_inputs.call_context.storage_contract_address = contract_data.address;
+
+        public_inputs.call_context = CallContext {
+            msg_sender: fixtures::contracts::parent_contract.address,
+            storage_contract_address: contract_address,
+            portal_contract_address,
+            function_selector: function_data.selector,
+            is_delegate_call: false,
+            is_static_call: false,
+            is_contract_deployment: false,
+        };
         
         PublicCallDataBuilder {
-            contract_address: contract_data.address,
+            contract_address,
             public_inputs,
             is_execution_request: false,
-            function_data: contract_function.data,
-            public_call_stack_preimages: dep::std::unsafe::zeroed(),
+            function_data,
+            public_call_stack: dep::std::unsafe::zeroed(),
             proof: Proof {},
-            portal_contract_address: contract_data.portal_contract_address,
+            portal_contract_address,
             bytecode_hash: contract_function.acir_hash,
         }
     }
 
-    pub fn append_call_stack_items(&mut self, num_items: Field) {
+    pub fn is_delegate_call(&mut self) -> Self {
+        self.public_inputs.call_context.is_delegate_call = true;
+        self.public_inputs.call_context.storage_contract_address = fixtures::contracts::parent_contract.address;
+        self.public_inputs.call_context.portal_contract_address = fixtures::contracts::parent_contract.portal_contract_address;
+        self.public_inputs.call_context.msg_sender = fixtures::MSG_SENDER;
+        *self
+    }
+
+    pub fn is_internal_call(&mut self) -> Self {
+        self.function_data.is_internal = true;
+        self.public_inputs.call_context.msg_sender = self.contract_address;
+        let contract_function = fixtures::contract_functions::default_internal_public_function;
+        self.function_data = contract_function.data;
+        self.bytecode_hash = contract_function.acir_hash;
+        *self
+    }
+
+    pub fn append_public_call_requests_for_regular_calls(&mut self, num_requests: Field) {
+        self.append_public_call_requests(num_requests, false);
+    }
+
+    pub fn append_public_call_requests_for_delegate_calls(&mut self, num_requests: Field) {
+        self.append_public_call_requests(num_requests, true);
+    }
+
+    pub fn append_public_call_requests(&mut self, num_requests: Field, is_delegate_call: bool) {
+        let value_offset = self.public_inputs.public_call_stack_hashes.len();
+        let mut caller_context = CallerContext::empty();
+        if is_delegate_call {
+            let call_context = self.public_inputs.call_context;
+            caller_context.msg_sender = call_context.msg_sender;
+            caller_context.storage_contract_address = call_context.storage_contract_address;
+        }
+        let mut exceeded_len = false;
         for i in 0..MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL {
-            if i as u64 < num_items as u64 {
-                let preimage = self.generate_call_stack_item(false);
-                self.public_call_stack_preimages.push(preimage);
-                self.public_inputs.public_call_stack.push(preimage.hash());
+            exceeded_len |= i == num_requests;
+            if !exceeded_len {
+                // The default hash is its index + 7788.
+                let hash = value_offset + 7788;
+                let call_request = CallRequest {
+                    hash,
+                    caller_contract_address: self.contract_address,
+                    caller_context,
+                };
+                self.public_inputs.public_call_stack_hashes.push(hash);
+                self.public_call_stack.push(call_request);
             }
-        }
-    }
-
-    pub fn append_delegate_call_stack_items(&mut self, num_items: Field) {
-        for i in 0..MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL {
-            if i as u64 < num_items as u64 {
-                let preimage = self.generate_call_stack_item(true);
-                self.public_call_stack_preimages.push(preimage);
-                self.public_inputs.public_call_stack.push(preimage.hash());
-            }
-        }
-    }
-
-    fn generate_call_stack_item(self, is_delegate_call: bool) -> PublicCallStackItem {
-        let mut public_inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
-        public_inputs.call_context.is_delegate_call = is_delegate_call;
-        public_inputs.call_context.msg_sender = if is_delegate_call {
-            self.public_inputs.call_context.msg_sender
-        } else {
-            self.contract_address
-        };
-        public_inputs.call_context.storage_contract_address = if is_delegate_call {
-            self.public_inputs.call_context.storage_contract_address
-        } else {
-            self.contract_address
-        };
-        // Set different value for each item so that their hashes will be different.
-        let value_offset = self.public_call_stack_preimages.len();
-        public_inputs.args_hash = value_offset + 1;
-        PublicCallStackItem {
-            contract_address: self.contract_address,
-            function_data: self.function_data,
-            public_inputs,
-            is_execution_request: false,
-        }
-    }
-
-    pub fn update_call_stack(&mut self, idx: Field, call_stack: PublicCallStackItem, update_hash: bool) {
-        self.public_call_stack_preimages.storage[idx] = call_stack;
-        if update_hash {
-            self.public_inputs.public_call_stack.storage[idx] = call_stack.hash();
         }
     }
 
@@ -166,7 +181,7 @@ impl PublicCallDataBuilder {
                 is_execution_request: self.is_execution_request,
                 public_inputs: self.public_inputs.finish(),
             },
-            public_call_stack_preimages: self.public_call_stack_preimages.storage,
+            public_call_stack: self.public_call_stack.storage,
             proof: self.proof,
             portal_contract_address: self.portal_contract_address,
             bytecode_hash: self.bytecode_hash,

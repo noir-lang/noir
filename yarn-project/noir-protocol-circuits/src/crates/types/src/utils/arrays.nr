@@ -19,11 +19,12 @@ pub fn is_empty_array<T>(array : [Field; T]) -> bool {
     array.all(|elem| is_empty(elem))
 }
 
-pub fn is_empty(value : Field) -> bool {
+fn is_empty(value : Field) -> bool {
     value == 0
 }
 
-pub fn array_to_bounded_vec<T, N>(array: [T; N], is_empty_item: fn (T)->bool, empty_item: T) -> BoundedVec<T, N> {
+// Replace it with `array_to_bounded_vec` when trait is available.
+pub fn struct_array_to_bounded_vec<T, N>(array: [T; N], is_empty_item: fn (T)->bool, empty_item: T) -> BoundedVec<T, N> {
     let mut len = 0;
     for elem in array {
         if !is_empty_item(elem) {
@@ -35,6 +36,21 @@ pub fn array_to_bounded_vec<T, N>(array: [T; N], is_empty_item: fn (T)->bool, em
         storage: array,
         len,
         empty_value: empty_item,
+    }
+}
+
+pub fn array_to_bounded_vec<N>(array: [Field; N]) -> BoundedVec<Field, N> {
+    let mut len = 0;
+    for elem in array {
+        if !is_empty(elem) {
+            len += 1;
+        }
+    }
+    
+    BoundedVec {
+        storage: array,
+        len,
+        empty_value: 0,
     }
 }
 
@@ -64,6 +80,22 @@ pub fn validate_array<T>(array : [Field;T]) {
     assert((last_non_zero_pos as u64) <= (first_zero_pos as u64), "invalid array");
 }
 
+// TODO: Replace it with `validate_array`
+pub fn validate_struct_array<T, N>(array: [T; N], is_empty_item: fn(T) -> bool) {
+    let array_length = array.len();
+    let mut first_zero_pos = array_length;
+    let mut last_non_zero_pos = 0;
+    for i in 0..array_length {
+        let is_empty = is_empty_item(array[i]);
+        if !is_empty {
+            last_non_zero_pos = i;
+        } else if is_empty & (first_zero_pos == array_length) {
+            first_zero_pos = i;
+        }
+    }
+    assert((last_non_zero_pos as u64) <= (first_zero_pos as u64), "invalid array");
+}
+
 // Helper method to determine the number of non-zero/empty elements in a validated array (ie, validate_array(array) 
 // should be true).
 pub fn array_length<N>(array : [Field; N]) -> Field {
@@ -78,7 +110,8 @@ pub fn array_length<N>(array : [Field; N]) -> Field {
     length
 }
 
-pub fn array_len<T, N>(array: [T; N], is_empty_item: fn(T) -> bool) -> Field {
+// TODO: Replace it with `array_length`.
+pub fn struct_array_length<T, N>(array: [T; N], is_empty_item: fn(T) -> bool) -> Field {
     let mut length = 0;
     let mut end = false;
     for elem in array {
@@ -90,7 +123,7 @@ pub fn array_len<T, N>(array: [T; N], is_empty_item: fn(T) -> bool) -> Field {
     length
 }
 
-pub fn expect_array_fields<N, S>(array: [Field; N], expected: [Field; S]) -> bool {
+pub fn array_eq<N, S>(array: [Field; N], expected: [Field; S]) -> bool {
     let mut eq = array_length(array) == S;
     for i in 0..S {
         eq = eq & (array[i] == expected[i]);
@@ -98,14 +131,14 @@ pub fn expect_array_fields<N, S>(array: [Field; N], expected: [Field; S]) -> boo
     eq
 }
 
-// TODO: Trait: eq, is_empty
-pub fn expect_array_values<T, N, S>(
+// TODO: Replace it with `array_eq`. Trait: eq, is_empty
+pub fn struct_array_eq<T, N, S>(
     array: [T; N],
     expected: [T; S],
     eq: fn (T, T) -> bool,
     is_empty_item: fn (T) -> bool,
 ) -> bool {
-    let length = array_len(array, is_empty_item);
+    let length = struct_array_length(array, is_empty_item);
     let mut ret = length == S;
     for i in 0..S {
         ret &= eq(array[i], expected[i]);

@@ -2,17 +2,18 @@ import { ExecutionResult, NoteAndSlot } from '@aztec/acir-simulator';
 import {
   AztecAddress,
   CONTRACT_TREE_HEIGHT,
+  CallRequest,
   EMPTY_NULLIFIED_COMMITMENT,
   Fr,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
+  MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
   MAX_READ_REQUESTS_PER_TX,
   MembershipWitness,
   PreviousKernelData,
   PrivateCallData,
-  PrivateCallStackItem,
   PrivateKernelInputsInit,
   PrivateKernelInputsInner,
   PrivateKernelInputsOrdering,
@@ -24,6 +25,7 @@ import {
   makeEmptyProof,
   makeTuple,
 } from '@aztec/circuits.js';
+import { padArrayEnd } from '@aztec/foundation/collection';
 import { Tuple, assertLength } from '@aztec/foundation/serialize';
 
 import { KernelProofCreator, ProofCreator, ProofOutput, ProofOutputFinal } from './proof_creator.js';
@@ -93,18 +95,9 @@ export class KernelProver {
     while (executionStack.length) {
       const currentExecution = executionStack.pop()!;
       executionStack.push(...currentExecution.nestedExecutions);
-      const privateCallStackPreimages = currentExecution.nestedExecutions.map(result => result.callStackItem);
-      if (privateCallStackPreimages.length > MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL) {
-        throw new Error(
-          `Too many items in the call stack. Maximum amount is ${MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL}. Got ${privateCallStackPreimages.length}.`,
-        );
-      }
-      // Pad with empty items to reach max/const length expected by circuit.
-      privateCallStackPreimages.push(
-        ...Array(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL - privateCallStackPreimages.length)
-          .fill(0)
-          .map(() => PrivateCallStackItem.empty()),
-      );
+
+      const privateCallRequests = currentExecution.nestedExecutions.map(result => result.callStackItem.toCallRequest());
+      const publicCallRequests = currentExecution.enqueuedPublicFunctionCalls.map(result => result.toCallRequest());
 
       // Start with the partially filled in read request witnesses from the simulator
       // and fill the non-transient ones in with sibling paths via oracle.
@@ -135,8 +128,9 @@ export class KernelProver {
 
       const privateCallData = await this.createPrivateCallData(
         currentExecution,
+        privateCallRequests,
+        publicCallRequests,
         readRequestMembershipWitnesses,
-        makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, i => privateCallStackPreimages[i], 0),
       );
 
       if (firstIteration) {
@@ -196,11 +190,20 @@ export class KernelProver {
 
   private async createPrivateCallData(
     { callStackItem, vk }: ExecutionResult,
+    privateCallRequests: CallRequest[],
+    publicCallRequests: CallRequest[],
     readRequestMembershipWitnesses: ReadRequestMembershipWitness[],
-    privateCallStackPreimages: Tuple<PrivateCallStackItem, typeof MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
   ) {
     const { contractAddress, functionData, publicInputs } = callStackItem;
     const { portalContractAddress } = publicInputs.callContext;
+
+    // Pad with empty items to reach max/const length expected by circuit.
+    const privateCallStack = padArrayEnd(
+      privateCallRequests,
+      CallRequest.empty(),
+      MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
+    );
+    const publicCallStack = padArrayEnd(publicCallRequests, CallRequest.empty(), MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
 
     const contractLeafMembershipWitness = functionData.isConstructor
       ? MembershipWitness.random(CONTRACT_TREE_HEIGHT)
@@ -220,7 +223,8 @@ export class KernelProver {
 
     return new PrivateCallData(
       callStackItem,
-      privateCallStackPreimages,
+      privateCallStack,
+      publicCallStack,
       proof,
       VerificationKey.fromBuffer(vk),
       functionLeafMembershipWitness,

@@ -49,6 +49,17 @@ export class ContractDeploymentData {
   public static empty(): ContractDeploymentData {
     return new ContractDeploymentData(Point.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, EthAddress.ZERO);
   }
+
+  isEmpty() {
+    return (
+      this.deployerPublicKey.isZero() &&
+      this.constructorVkHash.isZero() &&
+      this.functionTreeRoot.isZero() &&
+      this.contractAddressSalt.isZero() &&
+      this.portalContractAddress.isZero()
+    );
+  }
+
   /**
    * Deserializes contract deployment data rom a buffer or reader.
    * @param buffer - Buffer to read from.

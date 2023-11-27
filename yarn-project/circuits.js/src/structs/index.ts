@@ -18,6 +18,7 @@ export * from './kernel/public_inputs_final.js';
 export * from './private_circuit_public_inputs.js';
 export * from './public_circuit_public_inputs.js';
 export * from './circuit_error.js';
+export * from './call_request.js';
 export * from './call_stack_item.js';
 export * from './shared.js';
 export * from './proof.js';

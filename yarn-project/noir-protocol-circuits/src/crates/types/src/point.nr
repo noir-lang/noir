@@ -5,7 +5,7 @@ struct Point {
 }
 
 impl Point {
-    pub fn ZERO() -> Self {
+    pub fn zero() -> Self {
         Point {
             x: 0,
             y: 0,

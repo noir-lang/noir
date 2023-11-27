@@ -14,7 +14,6 @@ import {
   TxContext,
 } from '@aztec/circuits.js';
 import {
-  computeCallStackItemHash,
   computeCommitmentNonce,
   computeSecretMessageHash,
   computeVarArgsHash,
@@ -371,8 +370,8 @@ describe('Private Execution test suite', () => {
       expect(result.nestedExecutions[0].callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(privateIncrement));
 
       // check that Aztec.nr calculated the call stack item hash like cpp does
-      const expectedCallStackItemHash = computeCallStackItemHash(result.nestedExecutions[0].callStackItem);
-      expect(result.callStackItem.publicInputs.privateCallStack[0]).toEqual(expectedCallStackItemHash);
+      const expectedCallStackItemHash = result.nestedExecutions[0].callStackItem.hash();
+      expect(result.callStackItem.publicInputs.privateCallStackHashes[0]).toEqual(expectedCallStackItemHash);
     });
   });
 
@@ -557,11 +556,11 @@ describe('Private Execution test suite', () => {
         sideEffectCounter: 0,
       });
 
-      const publicCallRequestHash = computeCallStackItemHash(publicCallRequest.toPublicCallStackItem());
+      const publicCallRequestHash = publicCallRequest.toPublicCallStackItem().hash();
 
       expect(result.enqueuedPublicFunctionCalls).toHaveLength(1);
       expect(result.enqueuedPublicFunctionCalls[0]).toEqual(publicCallRequest);
-      expect(result.callStackItem.publicInputs.publicCallStack[0]).toEqual(publicCallRequestHash);
+      expect(result.callStackItem.publicInputs.publicCallStackHashes[0]).toEqual(publicCallRequestHash);
     });
   });
 

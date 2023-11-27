@@ -118,4 +118,16 @@ export class CallContext {
       reader.readBoolean(),
     );
   }
+
+  equals(callContext: CallContext) {
+    return (
+      callContext.msgSender.equals(this.msgSender) &&
+      callContext.storageContractAddress.equals(this.storageContractAddress) &&
+      callContext.portalContractAddress.equals(this.portalContractAddress) &&
+      callContext.functionSelector.equals(this.functionSelector) &&
+      callContext.isDelegateCall === this.isDelegateCall &&
+      callContext.isStaticCall === this.isStaticCall &&
+      callContext.isContractDeployment === this.isContractDeployment
+    );
+  }
 }

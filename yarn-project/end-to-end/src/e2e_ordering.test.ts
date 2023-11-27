@@ -64,9 +64,9 @@ describe('e2e_ordering', () => {
           const enqueuedPublicCalls = tx.enqueuedPublicFunctionCalls;
           expect(enqueuedPublicCalls.length).toEqual(2);
 
-          // The call stack hashes in the output of the kernel proof match the tx enqueuedPublicFunctionCalls
-          const hashes = await Promise.all(enqueuedPublicCalls.map(c => c.toPublicCallStackItem().hash()));
-          expect(tx.data.end.publicCallStack.slice(0, 2)).toEqual(hashes);
+          // The call stack items in the output of the kernel proof match the tx enqueuedPublicFunctionCalls
+          const callStackItems = await Promise.all(enqueuedPublicCalls.map(c => c.toCallRequest()));
+          expect(tx.data.end.publicCallStack.slice(0, 2)).toEqual(callStackItems);
 
           // The enqueued public calls are in the expected order based on the argument they set (stack is reversed!)
           expect(enqueuedPublicCalls.map(c => c.args[0].toBigInt())).toEqual([...expectedOrder].reverse());
