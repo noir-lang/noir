@@ -100,7 +100,7 @@ if [ -z "$IID" -o "$IID" == "None" ]; then
   # Request on-demand instance.
   >&2 echo "Falling back to on-demand instance..."
   IID=$(aws ec2 run-instances \
-    --cli-input-json file://$BUILD_SYSTEM_PATH/remote/${CPUS}core.json \
+    --cli-input-json file://$temp_file \
     --query "Instances[*].[InstanceId]" \
     --output text)
 else

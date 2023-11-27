@@ -8,7 +8,15 @@ export interface NoirFunctionAbi {
   /** The parameters of the function. */
   parameters: ABIParameter[];
   /** The witness indices of the parameters. Indexed by parameter name. */
-  param_witnesses: Record<string, number[]>;
+  param_witnesses: {
+    /** input */
+    input: {
+      /** start */
+      start: number;
+      /** end */
+      end: number;
+    }[];
+  };
   /** The return type of the function. */
   return_type: ABIType;
   /** The witness indices of the return type. */

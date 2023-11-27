@@ -12,9 +12,9 @@
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
-    "noir:build": "cd src && nargo compile --no-backend && rm -rf ./target/debug_*",
+    "noir:build": "cd src && ../../../noir/target/release/nargo compile && rm -rf ./target/debug_*",
     "noir:types": "yarn ts-node --esm src/scripts/generate_ts_from_abi.ts && yarn formatting:fix",
-    "noir:test": "cd src && nargo test",
+    "noir:test": "cd src && ../../../noir/target/release/nargo test",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
   },
   "inherits": [
@@ -32,10 +32,10 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/noir-compiler": "workspace:^",
-    "@noir-lang/acvm_js": "^0.30.0",
-    "@noir-lang/backend_barretenberg": "^0.7.10",
-    "@noir-lang/noir_js": "^0.16.0",
-    "@noir-lang/noirc_abi": "^0.16.0",
+    "@noir-lang/acvm_js": "portal:../../noir/packages/acvm_js",
+    "@noir-lang/backend_barretenberg": "portal:../../noir/packages/backend_barretenberg",
+    "@noir-lang/noir_js": "portal:../../noir/packages/noir_js",
+    "@noir-lang/noirc_abi": "portal:../../noir/packages/noirc_abi",
     "tslib": "^2.4.0"
   },
   "devDependencies": {

@@ -19,7 +19,7 @@
     "test": "yarn workspaces foreach run test",
     "test:integration": "yarn workspace integration-tests test",
     "clean:workspaces": "yarn workspaces foreach --exclude @noir-lang/root run clean",
-    "clean:root": "rm -rf ./result ./target",
+    "clean:root": "rm -rf ./result ./target ./packages",
     "clean": "yarn clean:workspaces && yarn clean:root",
     "lint": "yarn workspaces foreach --verbose run lint",
     "install:acvm_js": "yarn workspace @noir-lang/acvm_js run install:from:nix",

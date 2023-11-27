@@ -12,9 +12,7 @@
       "default": "./dest/node/index.js"
     }
   },
-  "bin": {
-    "bb.js": "./dest/node/main.js"
-  },
+  "bin": "./dest/node/main.js",
   "files": [
     "src/",
     "dest/",

@@ -11,9 +11,10 @@ set -eu
 
 TARGET_PROJECT=${1:-}
 ONLY_TARGET=${ONLY_TARGET:-}
+NO_CACHE=${NO_CACHE:-}
 MANIFEST="build_manifest.yml"
 
-if [ -n "${NO_CACHE:-}" ]; then
+if [ -n "$NO_CACHE" ]; then
   ADDITIONAL_ARGS="${ADDITIONAL_ARGS:-} --no-cache"
 fi
 
@@ -93,15 +94,15 @@ for E in "${PROJECTS[@]}"; do
   # Ensure index is updated before we call git diff-index.
   git status > /dev/null
 
-  if (git diff-index --name-only HEAD; git ls-files --others --exclude-standard) | grep -qE "$GREP_PATTERN"; then
+  if (cd $(git rev-parse --show-toplevel) && git diff-index --name-only HEAD; git ls-files --others --exclude-standard) | grep -qE "$GREP_PATTERN"; then
     echo -e "${YELLOW}Project or dependency has local modifications! Building...${RESET}"
     docker build ${ADDITIONAL_ARGS:-} --build-arg ARG_COMMIT_HASH=$COMMIT_HASH -f $DOCKERFILE -t $DEPLOY_IMAGE_URI .
   else
-    if docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -q -w $CACHE_IMAGE_URI; then
+    if [ -z "$NO_CACHE" ] && docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -q -w $CACHE_IMAGE_URI; then
       echo -e "${GREEN}Image exists locally. Tagging as $DEPLOY_IMAGE_URI${RESET}"
       docker tag $CACHE_IMAGE_URI $DEPLOY_IMAGE_URI
     else
-      if ecr_login && image_exists $REPO $TAG ; then
+      if [ -z "$NO_CACHE" ] && ecr_login && image_exists $REPO $TAG ; then
         docker pull $CACHE_IMAGE_URI
       else
         docker build ${ADDITIONAL_ARGS:-} --build-arg ARG_COMMIT_HASH=$COMMIT_HASH -f $DOCKERFILE -t $CACHE_IMAGE_URI .

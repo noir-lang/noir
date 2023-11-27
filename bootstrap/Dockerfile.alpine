@@ -1,0 +1,25 @@
+# At present this doesn't work, as we don't have an alpine wasm toolchain we can use (or it's not directly obvious).
+# Keeping this around though, as it would be nice to resolve this in the future.
+FROM alpine:latest
+RUN apk update && apk add --no-cache \
+  build-base \
+  curl \
+  git \
+  cmake \
+  lsb-release \
+  wget \
+  gnupg \
+  ninja \
+  npm \
+  pkgconf \
+  openssl-dev \
+  jq \
+  llvm \
+  clang \
+  rust \
+  cargo \
+  bash
+RUN npm install -g yarn
+WORKDIR /usr/src
+COPY . .
+RUN ./bootstrap.sh

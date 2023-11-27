@@ -10,5 +10,5 @@ DIR="./dest/node-cjs"
 # Iterate over all .js files in the directory
 for FILE in $(find "$DIR" -name "*.js"); do
     # Use sed to replace 'import.meta.url' with '""'
-    sed -i 's/import\.meta\.url/""/g' "$FILE"
+    sed -i.bak 's/import\.meta\.url/""/g' "$FILE" && rm "$FILE.bak"
 done

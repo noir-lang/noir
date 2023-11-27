@@ -79,6 +79,8 @@ yarn-project-base:
     - circuits-wasm-linux-clang
     - l1-contracts
     - bb.js
+    - noir
+    - noir-packages
 
 yarn-project:
   buildDir: yarn-project
@@ -165,3 +167,7 @@ docs:
 
 noir:
   buildDir: noir
+
+noir-packages:
+  buildDir: noir
+  dockerfile: Dockerfile.packages

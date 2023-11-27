@@ -47,8 +47,8 @@
   "dependencies": {
     "@aztec/foundation": "workspace:^",
     "@ltd/j-toml": "^1.38.0",
-    "@noir-lang/noir_wasm": "0.18.0-6ca33a2.aztec",
-    "@noir-lang/source-resolver": "0.18.0-6ca33a2.aztec",
+    "@noir-lang/noir_wasm": "portal:../../noir/packages/noir_wasm",
+    "@noir-lang/source-resolver": "portal:../../noir/packages/source-resolver",
     "base64-js": "^1.5.1",
     "commander": "^9.0.0",
     "fs-extra": "^11.1.1",

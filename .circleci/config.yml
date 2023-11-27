@@ -103,6 +103,17 @@ jobs:
           name: "Create ECR manifest"
           command: create_ecr_manifest noir x86_64,arm64
 
+  noir-packages:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build noir-packages 32
+
   # Barretenberg
   barretenberg-wasm-linux-clang:
     docker:
@@ -1013,6 +1024,7 @@ workflows:
             - noir-x86_64
             - noir-arm64
           <<: *defaults
+      - noir-packages: *defaults
 
       # Barretenberg
       - barretenberg-x86_64-linux-gcc: *defaults
@@ -1069,6 +1081,8 @@ workflows:
             - circuits-wasm-linux-clang
             - l1-contracts
             - bb-js
+            - noir-ecr-manifest
+            - noir-packages
           <<: *defaults
       - yarn-project:
           requires:
@@ -1147,7 +1161,6 @@ workflows:
       - end:
           requires:
             - mainnet-fork
-            - noir-ecr-manifest
             - e2e-2-pxes
             - e2e-deploy-contract
             - e2e-lending-contract
