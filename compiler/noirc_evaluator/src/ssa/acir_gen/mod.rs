@@ -2021,12 +2021,17 @@ impl Context {
                     // We need to make sure of two things:
                     // 1. That we read the previous element for when we have an index greater than insertion index.
                     // 2. That the index we are reading from is within the array bounds
-                    let index_minus_elem_size = self.acir_context.add_constant(FieldElement::from((i - inner_elem_size_usize) as u128));
-                    let true_pred = self.acir_context.mul_var(index_minus_elem_size, greater_eq_than_idx)?;
-                    let not_pred = self.acir_context.sub_var(one, greater_eq_than_idx)?;
-                    let false_pred = self.acir_context.mul_var(not_pred, index_var)?;
+                    let read_var_index = if i < inner_elem_size_usize {
+                        index_var
+                    } else {
+                        let index_minus_elem_size = self.acir_context.add_constant(FieldElement::from((i - inner_elem_size_usize) as u128));
+                        let true_pred = self.acir_context.mul_var(index_minus_elem_size, greater_eq_than_idx)?;
+                        let not_pred = self.acir_context.sub_var(one, greater_eq_than_idx)?;
+                        let false_pred = self.acir_context.mul_var(not_pred, index_var)?;
+                        self.acir_context.add_var(true_pred, false_pred)?
+                    };
 
-                    let read_var_index = self.acir_context.add_var(true_pred, false_pred)?;
+                    // let read_var_index = self.acir_context.add_var(true_pred, false_pred)?;
 
                     let value_read_var =
                         self.acir_context.read_from_memory(block_id, &read_var_index)?;
@@ -2164,7 +2169,7 @@ impl Context {
                     result,
                 ];
                 result.append(&mut popped_elems);
-                
+
                 Ok(result)
             }
             _ => todo!("expected a black box function"),
