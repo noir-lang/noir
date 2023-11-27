@@ -155,12 +155,6 @@ impl<'f> Context<'f> {
                     // Any other insertions should only occur if the value is already
                     // a part of the map.
                     self.compute_slice_sizes(*array, slice_sizes);
-                    let typ = self.inserter.function.dfg.type_of_value(*array);
-                    let depth = Self::compute_nested_slice_depth(&typ);
-                    let mut max_sizes = Vec::new();
-                    max_sizes.resize(depth, 0);
-
-                    self.compute_slice_max_sizes(*array, &slice_sizes, &mut max_sizes, 0);
                 }
 
                 let res_typ = self.inserter.function.dfg.type_of_value(results[0]);
@@ -197,18 +191,8 @@ impl<'f> Context<'f> {
                     // Any other insertions should only occur if the value is already
                     // a part of the map.
                     self.compute_slice_sizes(*array, slice_sizes);
-
-                    let typ = self.inserter.function.dfg.type_of_value(*array);
-                    let depth = Self::compute_nested_slice_depth(&typ);
-                    let mut max_sizes = Vec::new();
-                    max_sizes.resize(depth, 0);
-
-                    self.compute_slice_max_sizes(*array, &slice_sizes, &mut max_sizes, 0);
                 }
 
-                // TODO: We might need to replace the value in an array set as well
-                // in case the value is a nested slice to match the structure of the nested slice
-                // we are setting into
                 let value_typ = self.inserter.function.dfg.type_of_value(*value);
                 if value_typ.contains_slice_element() {
                     self.compute_slice_sizes(*value, slice_sizes);
@@ -243,7 +227,6 @@ impl<'f> Context<'f> {
                         Intrinsic::SlicePushBack
                         | Intrinsic::SlicePushFront
                         | Intrinsic::SliceInsert => {
-                            // TODO: this range start index needs to be updated for insert
                             for arg in &arguments[(argument_index + 1)..] {
                                 let element_typ = self.inserter.function.dfg.type_of_value(*arg);
                                 if element_typ.contains_slice_element() {
@@ -458,7 +441,6 @@ impl<'f> Context<'f> {
                     let array = match value {
                         Value::Array { array, .. } => array,
                         _ => {
-                            dbg!(value);
                             panic!("Expected an array value");
                         }
                     };
