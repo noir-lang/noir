@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.33.0"
+version = "0.34.0"
 dependencies = [
  "acir_field",
  "base64",
@@ -23,7 +23,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.33.0"
+version = "0.34.0"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -37,7 +37,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.33.0"
+version = "0.34.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.33.0"
+version = "0.34.0"
 dependencies = [
  "acir",
  "blake2",
@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "0.33.0"
+version = "0.34.0"
 dependencies = [
  "acvm",
  "barretenberg_blackbox_solver",
@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.33.0"
+version = "0.34.0"
 dependencies = [
  "acir",
 ]
@@ -217,7 +217,7 @@ checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
 name = "arena"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "generational-arena",
 ]
@@ -389,12 +389,12 @@ dependencies = [
 
 [[package]]
 name = "async-lsp"
-version = "0.0.5"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72bd600f2652d2cccb0a33ab4f92d163ab3930844c8b0ad3713a5ae3285eeb4e"
+checksum = "138985dd8aefbefeaa66b01b7f5b2b6b4c333fcef1cc5f32c63a2aabe37d6de3"
 dependencies = [
  "futures",
- "lsp-types 0.94.0",
+ "lsp-types 0.94.1",
  "pin-project-lite",
  "rustix",
  "serde",
@@ -449,7 +449,7 @@ dependencies = [
 
 [[package]]
 name = "barretenberg_blackbox_solver"
-version = "0.33.0"
+version = "0.34.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -573,7 +573,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "0.33.0"
+version = "0.34.0"
 dependencies = [
  "acir_field",
  "serde",
@@ -581,7 +581,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.33.0"
+version = "0.34.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1596,7 +1596,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -2158,7 +2158,7 @@ dependencies = [
 
 [[package]]
 name = "iter-extended"
-version = "0.19.2"
+version = "0.19.3"
 
 [[package]]
 name = "itertools"
@@ -2275,9 +2275,9 @@ dependencies = [
 
 [[package]]
 name = "lsp-types"
-version = "0.94.0"
+version = "0.94.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b63735a13a1f9cd4f4835223d828ed9c2e35c8c5e61837774399f558b6a1237"
+checksum = "c66bfd44a06ae10647fe3f8214762e9369fd4248df1350924b4ef9e770a85ea1"
 dependencies = [
  "bitflags 1.3.2",
  "serde",
@@ -2380,7 +2380,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "acvm",
  "codespan-reporting",
@@ -2392,6 +2392,7 @@ dependencies = [
  "noirc_evaluator",
  "noirc_frontend",
  "noirc_printable_type",
+ "rayon",
  "rustc_version",
  "serde",
  "thiserror",
@@ -2399,7 +2400,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -2435,6 +2436,7 @@ dependencies = [
  "rustc_version",
  "serde",
  "serde_json",
+ "similar-asserts",
  "tempfile",
  "termcolor",
  "test-binary",
@@ -2447,7 +2449,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "bytecount",
  "noirc_frontend",
@@ -2459,7 +2461,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "dirs",
  "fm",
@@ -2508,7 +2510,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "acvm",
  "codespan-reporting",
@@ -2522,21 +2524,24 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "acvm",
  "async-lsp",
  "cfg-if",
  "codespan-lsp",
  "codespan-reporting",
- "lsp-types 0.94.0",
+ "fm",
+ "lsp-types 0.94.1",
  "nargo",
+ "nargo_fmt",
  "nargo_toml",
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
  "serde",
  "serde_json",
+ "serde_with",
  "tokio",
  "tower",
  "wasm-bindgen",
@@ -2544,7 +2549,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "acvm",
  "build-data",
@@ -2566,7 +2571,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -2583,7 +2588,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "acvm",
  "build-data",
@@ -2600,7 +2605,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "acvm",
  "build-data",
@@ -2617,7 +2622,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "acvm",
  "chumsky",
@@ -2630,13 +2635,12 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "acvm",
  "fxhash",
  "im",
  "iter-extended",
- "noirc_abi",
  "noirc_errors",
  "noirc_frontend",
  "num-bigint",
@@ -2646,7 +2650,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "acvm",
  "arena",
@@ -2668,7 +2672,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3644,9 +3648,9 @@ dependencies = [
 
 [[package]]
 name = "self_cell"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c309e515543e67811222dbc9e3dd7e1056279b782e1dacffe4242b718734fb6"
+checksum = "e388332cd64eb80cd595a00941baf513caffae8dce9cfd0467fc9c66397dade6"
 
 [[package]]
 name = "semver"

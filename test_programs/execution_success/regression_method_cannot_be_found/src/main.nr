@@ -17,7 +17,7 @@ fn create<V>(something: V) -> V {
 fn main() {
     let a = Item { id: 1 };
     let b = create(a);
-    let _id = b.id; 
+    let _id = b.id;
     // Regression for:  cannot find this method
     b.log();
 }

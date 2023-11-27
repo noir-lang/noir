@@ -26,7 +26,7 @@ pub(crate) fn rewrite(mut visitor: FmtVisitor, array: Vec<Expression>, array_spa
         let end = item_span.start();
 
         let leading = visitor.slice(start..end).trim_matches(pattern);
-        let item = visitor.format_sub_expr(item);
+        let item = super::sub_expr(&visitor, visitor.shape(), item);
         let next_start = items.peek().map_or(end_position, |expr| expr.span.start());
         let trailing = visitor.slice(item_span.end()..next_start);
         let offset = trailing
@@ -36,14 +36,14 @@ pub(crate) fn rewrite(mut visitor: FmtVisitor, array: Vec<Expression>, array_spa
         let trailing = trailing[..offset].trim_end_matches(',').trim_matches(pattern);
         last_position = item_span.end() + offset as u32;
 
-        let (leading, _) = visitor.format_comment_in_block(leading, 0, false);
-        let (trailing, _) = visitor.format_comment_in_block(trailing, 0, false);
+        let (leading, _) = visitor.format_comment_in_block(leading);
+        let (trailing, _) = visitor.format_comment_in_block(trailing);
 
         result.push(Expr { leading, value: item, trailing, different_line: false });
     }
 
     let slice = visitor.slice(last_position..end_position);
-    let (comment, _) = visitor.format_comment_in_block(slice, 0, false);
+    let (comment, _) = visitor.format_comment_in_block(slice);
     result.push(Expr {
         leading: "".into(),
         value: "".into(),

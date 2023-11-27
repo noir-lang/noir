@@ -8,7 +8,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {
     bar(a as Field);
 
     if a == 3 {
-       c = test4();
+        c = test4();
     }
     assert(c[1] != 2);
     call_intrinsic(x, result);
@@ -19,7 +19,7 @@ fn foo() {
     x /= 0;
 }
 
-fn bar(x:Field) {
+fn bar(x: Field) {
     if x == 15 {
         foo();
     }
