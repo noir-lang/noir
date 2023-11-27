@@ -56,7 +56,7 @@ pub(crate) fn on_initialize(
                 code_lens_provider: Some(code_lens),
                 document_formatting_provider: true,
                 nargo: Some(nargo),
-                definition_provider: todo!(),
+                definition_provider: Some(lsp_types::OneOf::Left(true)),
             },
             server_info: None,
         })
