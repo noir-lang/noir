@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.16.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.15.1...aztec-packages-v0.16.0) (2023-11-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* deprecate circuits/cpp ([#3421](https://github.com/AztecProtocol/aztec-packages/issues/3421))
+* call stack validation optimisation. ([#3387](https://github.com/AztecProtocol/aztec-packages/issues/3387))
+
+### Features
+
+* Base rollup in noir ([#3257](https://github.com/AztecProtocol/aztec-packages/issues/3257)) ([4a1e9c3](https://github.com/AztecProtocol/aztec-packages/commit/4a1e9c32b1aae52811e348d67cab468cdab89bd6))
+* Call stack validation optimisation. ([#3387](https://github.com/AztecProtocol/aztec-packages/issues/3387)) ([d06d5db](https://github.com/AztecProtocol/aztec-packages/commit/d06d5db376ac4bfb3240046be904205082e77a33))
+* Goblin proof construction ([#3332](https://github.com/AztecProtocol/aztec-packages/issues/3332)) ([6a7ebb6](https://github.com/AztecProtocol/aztec-packages/commit/6a7ebb60e4ecf0ae0d047814e22ecd88c9c7528f))
+* More logs relevant for debugging failures of 2 pixies test ([#3370](https://github.com/AztecProtocol/aztec-packages/issues/3370)) ([683a0f3](https://github.com/AztecProtocol/aztec-packages/commit/683a0f38ac61aa4f9ef8f0b29d3e4f736cdd2771))
+* Noir subrepo. ([#3369](https://github.com/AztecProtocol/aztec-packages/issues/3369)) ([d94d88b](https://github.com/AztecProtocol/aztec-packages/commit/d94d88bf626ddbe41dd1b7fe3eb0f11619dde97a))
+* Noir_wasm compilation of noir programs ([#3272](https://github.com/AztecProtocol/aztec-packages/issues/3272)) ([f9981d5](https://github.com/AztecProtocol/aztec-packages/commit/f9981d5a9b719f0a3220cf069a2bd6ac8c483437))
+* Rollback public state changes on failure ([#3393](https://github.com/AztecProtocol/aztec-packages/issues/3393)) ([0e276fb](https://github.com/AztecProtocol/aztec-packages/commit/0e276fb9f2ce046467032dfdd8210c776ff7e0d2))
+
+
+### Bug Fixes
+
+* **docs:** Doc explaining noir debug_log ([#3322](https://github.com/AztecProtocol/aztec-packages/issues/3322)) ([eed023d](https://github.com/AztecProtocol/aztec-packages/commit/eed023d2f8c642ee1dab8c9910d7a1651622070c))
+* Naming inconsistency in private kernel ([#3384](https://github.com/AztecProtocol/aztec-packages/issues/3384)) ([4743486](https://github.com/AztecProtocol/aztec-packages/commit/4743486411ed56a49660f053f0645e3895c0d44c))
+* Race condition in `PXE.getTxReceipt(...)` ([#3411](https://github.com/AztecProtocol/aztec-packages/issues/3411)) ([9557a66](https://github.com/AztecProtocol/aztec-packages/commit/9557a66dce6104e794a7ab20172738954d4315ba))
+
+
+### Miscellaneous
+
+* Deprecate circuits/cpp ([#3421](https://github.com/AztecProtocol/aztec-packages/issues/3421)) ([4973cfb](https://github.com/AztecProtocol/aztec-packages/commit/4973cfbf352449d32017dd6ebce36e75a608ff41))
+* Deterministically deduplicate `cached_partial_non_native_field_multiplication` across wasm32 and native compilations ([#3425](https://github.com/AztecProtocol/aztec-packages/issues/3425)) ([5524933](https://github.com/AztecProtocol/aztec-packages/commit/55249336212764da4b85634e7d35e8fedb147619))
+* **docs:** Common patterns and anti patterns in aztec.nr ([#3413](https://github.com/AztecProtocol/aztec-packages/issues/3413)) ([65bd855](https://github.com/AztecProtocol/aztec-packages/commit/65bd8556875a8680bb44fc7ec9321c5df8d8ad38))
+* Fix and reenable e2e quick start ([#3403](https://github.com/AztecProtocol/aztec-packages/issues/3403)) ([112740e](https://github.com/AztecProtocol/aztec-packages/commit/112740eb51f512d2099d7ba3537bb55fde3797e5)), closes [#3356](https://github.com/AztecProtocol/aztec-packages/issues/3356)
+* Fix intermittent failures for block-building e2e test ([#3404](https://github.com/AztecProtocol/aztec-packages/issues/3404)) ([e76e2d4](https://github.com/AztecProtocol/aztec-packages/commit/e76e2d4190399ccc917852be7873fffd2f0acf9a)), closes [#3358](https://github.com/AztecProtocol/aztec-packages/issues/3358)
+* Formatted `noir-contracts` and `aztec-nr` ([a73c4aa](https://github.com/AztecProtocol/aztec-packages/commit/a73c4aacc9c8ecd5a2d83f5d07bdf76bcbb13eed))
+* Initial clone of noir to subrepo ([#3409](https://github.com/AztecProtocol/aztec-packages/issues/3409)) ([8f1cb83](https://github.com/AztecProtocol/aztec-packages/commit/8f1cb832cd0adeff0da69da293bb45a3748583e7))
+* **noir-contracts:** Remove redundant return value of 1 ([#3415](https://github.com/AztecProtocol/aztec-packages/issues/3415)) ([2001d47](https://github.com/AztecProtocol/aztec-packages/commit/2001d47408e2bcb704c304ef80e87fbdf0e2d11e)), closes [#2615](https://github.com/AztecProtocol/aztec-packages/issues/2615)
+* Plumbs noir subrepo into yarn-project. ([#3420](https://github.com/AztecProtocol/aztec-packages/issues/3420)) ([63173c4](https://github.com/AztecProtocol/aztec-packages/commit/63173c45db127288bc4b079229239a650fc5d4be))
+* Remove pxe / node /p2p-bootstrap docker images ([#3396](https://github.com/AztecProtocol/aztec-packages/issues/3396)) ([c236143](https://github.com/AztecProtocol/aztec-packages/commit/c236143388ccc34b3ad1c3f48ad3f7872d447c4c))
+* Skip artifacts for prettier ([#3399](https://github.com/AztecProtocol/aztec-packages/issues/3399)) ([98d9e04](https://github.com/AztecProtocol/aztec-packages/commit/98d9e04b32464dbffbb5f109bf69bd3f42236ac3))
+* Update path to acir artifacts ([#3426](https://github.com/AztecProtocol/aztec-packages/issues/3426)) ([f56f88d](https://github.com/AztecProtocol/aztec-packages/commit/f56f88de05a0ebfcc34c279ae869956a48baa0f4))
+
 ## [0.15.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.15.0...aztec-packages-v0.15.1) (2023-11-21)
 
 

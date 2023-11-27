@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.15.1...barretenberg.js-v0.16.0) (2023-11-27)
+
+
+### Miscellaneous
+
+* Plumbs noir subrepo into yarn-project. ([#3420](https://github.com/AztecProtocol/aztec-packages/issues/3420)) ([63173c4](https://github.com/AztecProtocol/aztec-packages/commit/63173c45db127288bc4b079229239a650fc5d4be))
+
 ## [0.15.1](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.15.0...barretenberg.js-v0.15.1) (2023-11-21)
 
 
