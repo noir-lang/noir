@@ -23,7 +23,7 @@ const test_cases = [
     numPublicInputs: 0,
   },
   {
-    case: 'compiler/integration-tests/circuits/main',
+    case: 'test_programs/execution_success/assert_statement',
     numPublicInputs: 1,
   },
 ];
