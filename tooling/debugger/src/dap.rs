@@ -21,7 +21,7 @@ use dap::responses::{
 };
 use dap::server::Server;
 use dap::types::{
-    Breakpoint, DisassembledInstruction, Source, StackFrame, StoppedEventReason, Thread,
+    Breakpoint, DisassembledInstruction, Source, StackFrame, StoppedEventReason, Thread, SteppingGranularity,
 };
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::ops::DefaultForeignCallExecutor;
@@ -168,8 +168,26 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                 Command::Disassemble(_) => {
                     self.handle_disassemble(req)?;
                 }
-                Command::Next(_) | Command::StepIn(_) | Command::StepOut(_) => {
-                    self.handle_next(req)?;
+                Command::StepIn(ref args) => {
+                    let granularity = args.granularity.as_ref().unwrap_or(&SteppingGranularity::Statement);
+                    match granularity {
+                        SteppingGranularity::Instruction => self.handle_step(req)?,
+                        _ => self.handle_next(req)?,
+                    }
+                }
+                Command::StepOut(ref args) => {
+                    let granularity = args.granularity.as_ref().unwrap_or(&SteppingGranularity::Statement);
+                    match granularity {
+                        SteppingGranularity::Instruction => self.handle_step(req)?,
+                        _ => self.handle_next(req)?,
+                    }
+                }
+                Command::Next(ref args) => {
+                    let granularity = args.granularity.as_ref().unwrap_or(&SteppingGranularity::Statement);
+                    match granularity {
+                        SteppingGranularity::Instruction => self.handle_step(req)?,
+                        _ => self.handle_next(req)?,
+                    }
                 }
                 Command::Continue(_) => {
                     self.handle_continue(req)?;
@@ -283,9 +301,16 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         Ok(())
     }
 
+    fn handle_step(&mut self, req: Request) -> Result<(), ServerError> {
+        let result = self.context.step_into_opcode();
+        eprintln!("INFO: stepped by instruction with result {result:?}");
+        self.server.respond(req.ack()?)?;
+        self.handle_execution_result(result)
+    }
+
     fn handle_next(&mut self, req: Request) -> Result<(), ServerError> {
         let result = self.context.next();
-        eprintln!("INFO: stepped with result {result:?}");
+        eprintln!("INFO: stepped by statement with result {result:?}");
         self.server.respond(req.ack()?)?;
         self.handle_execution_result(result)
     }
