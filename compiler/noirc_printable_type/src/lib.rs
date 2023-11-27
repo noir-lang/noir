@@ -197,7 +197,7 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
         }
 
         (PrintableValue::String(s), PrintableType::String { .. }) => {
-            output.push_str(&s);
+            output.push_str(s);
         }
 
         (PrintableValue::Struct(map), PrintableType::Struct { name, fields, .. }) => {
