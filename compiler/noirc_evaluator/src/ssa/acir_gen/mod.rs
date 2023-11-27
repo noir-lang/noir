@@ -863,7 +863,7 @@ impl Context {
         dfg: &DataFlowGraph,
     ) -> Result<AcirValue, RuntimeError> {
         let (array_id, _, block_id) = self.check_array_is_initialized(array, dfg)?;
-        
+
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
 
@@ -971,7 +971,7 @@ impl Context {
         };
 
         let (array_id, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
-   
+
         // Every array has a length in its type, so we fetch that from
         // the SSA IR.
         //
@@ -1751,7 +1751,7 @@ impl Context {
                 if !slice_typ.is_nested_slice() {
                     for elem in &arguments[2..] {
                         let element = self.convert_value(*elem, dfg);
-    
+
                         new_elem_size += Self::flattened_value_size(&element);
                         new_slice.push_back(element);
                     }
@@ -1762,19 +1762,17 @@ impl Context {
 
                 let new_slice_val = AcirValue::Array(new_slice);
                 let result_block_id = self.block_id(&result_ids[1]);
-                self.initialize_array(
-                    result_block_id,
-                    new_elem_size,
-                    Some(new_slice_val.clone()),
-                )?;
+                self.initialize_array(result_block_id, new_elem_size, Some(new_slice_val.clone()))?;
                 let mut var_index = slice_length;
                 if slice_typ.is_nested_slice() {
                     let element_size = slice_typ.element_size();
 
                     // Multiple the element size against the var index before fetching the flattened index
-                    let element_size_var = self.acir_context.add_constant(FieldElement::from(element_size as u128));
+                    let element_size_var =
+                        self.acir_context.add_constant(FieldElement::from(element_size as u128));
                     var_index = self.acir_context.mul_var(slice_length, element_size_var)?;
-                    var_index = self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
+                    var_index =
+                        self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
                 }
 
                 for elem in &arguments[2..] {
@@ -1821,7 +1819,7 @@ impl Context {
                 } else {
                     for elem in arguments[2..].iter().rev() {
                         let element = self.convert_value(*elem, dfg);
-                        
+
                         let elem_size = Self::flattened_value_size(&element);
                         // Have to pop based off of the flattened value size as we read the
                         // slice intrinsic as a flat list of AcirValue::Var
@@ -1855,10 +1853,7 @@ impl Context {
                     )?,
                 });
 
-                Ok(vec![
-                    AcirValue::Var(new_slice_length, AcirType::field()),
-                    result,
-                ])
+                Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), result])
             }
             Intrinsic::SlicePopBack => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
@@ -1866,7 +1861,7 @@ impl Context {
 
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
-                
+
                 let mut var_index = new_slice_length;
 
                 let (_, _, block_id) = self.check_array_is_initialized(arguments[1], dfg)?;
@@ -1880,24 +1875,37 @@ impl Context {
                 let mut popped_elems = Vec::new();
                 if !slice_typ.is_nested_slice() {
                     for i in 0..element_size {
-                        let elem = self.array_get_value(&dfg.type_of_value(result_ids[i + 2]), block_id, &mut var_index, &[])?;
+                        let elem = self.array_get_value(
+                            &dfg.type_of_value(result_ids[i + 2]),
+                            block_id,
+                            &mut var_index,
+                            &[],
+                        )?;
                         popped_elems.push(elem);
                     }
                 } else {
                     dbg!(slice_typ.clone());
-                    let mut slice_sizes = slice_sizes.expect("ICE: should have slice sizes").clone();
+                    let mut slice_sizes =
+                        slice_sizes.expect("ICE: should have slice sizes").clone();
                     dbg!(slice_sizes.clone());
                     // We want to remove the parent size as we are fetching the child
                     slice_sizes.remove(0);
 
                     // Multiply the element size against the var index before fetching the flattened index
-                    let element_size_var = self.acir_context.add_constant(FieldElement::from(element_size as u128));
+                    let element_size_var =
+                        self.acir_context.add_constant(FieldElement::from(element_size as u128));
                     // We want to use an index one less than the slice length
                     var_index = self.acir_context.mul_var(new_slice_length, element_size_var)?;
-                    var_index = self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
+                    var_index =
+                        self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
 
                     for res in &result_ids[2..] {
-                        let elem = self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index, &slice_sizes)?;
+                        let elem = self.array_get_value(
+                            &dfg.type_of_value(*res),
+                            block_id,
+                            &mut var_index,
+                            &slice_sizes,
+                        )?;
                         popped_elems.push(elem);
                     }
                 }
@@ -1934,18 +1942,29 @@ impl Context {
                 let mut var_index = self.acir_context.add_constant(FieldElement::zero());
                 if !slice_typ.is_nested_slice() {
                     for i in 0..element_size {
-                        let element = self.array_get_value(&dfg.type_of_value(result_ids[i]), block_id, &mut var_index, &[])?;
+                        let element = self.array_get_value(
+                            &dfg.type_of_value(result_ids[i]),
+                            block_id,
+                            &mut var_index,
+                            &[],
+                        )?;
                         let elem_size = Self::flattened_value_size(&element);
                         popped_elems_size += elem_size;
                         popped_elems.push(element);
                     }
                 } else {
-                    let mut slice_sizes = slice_sizes.expect("ICE: should have slice sizes").clone();
+                    let mut slice_sizes =
+                        slice_sizes.expect("ICE: should have slice sizes").clone();
                     // We want to remove the parent size as we are fetching the child
                     slice_sizes.remove(0);
 
                     for res in &result_ids[..element_size] {
-                        let element = self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index, &slice_sizes)?;
+                        let element = self.array_get_value(
+                            &dfg.type_of_value(*res),
+                            block_id,
+                            &mut var_index,
+                            &slice_sizes,
+                        )?;
                         let elem_size = Self::flattened_value_size(&element);
                         popped_elems_size += elem_size;
                         popped_elems.push(element);
@@ -1971,21 +1990,19 @@ impl Context {
 
                 let slice_typ = dfg.type_of_value(arguments[1]);
 
-                let (array_id, array_typ, block_id) = self.check_array_is_initialized(arguments[1], dfg)?;
+                let (array_id, array_typ, block_id) =
+                    self.check_array_is_initialized(arguments[1], dfg)?;
 
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
                 let new_slice_val = AcirValue::Array(new_slice);
                 let result_block_id = self.block_id(&result_ids[1]);
-                self.initialize_array(
-                    result_block_id,
-                    slice_len,
-                    Some(new_slice_val.clone()),
-                )?;
+                self.initialize_array(result_block_id, slice_len, Some(new_slice_val.clone()))?;
 
                 let element_size = slice_typ.element_size();
-                let element_size_var = self.acir_context.add_constant(FieldElement::from(element_size as u128));
+                let element_size_var =
+                    self.acir_context.add_constant(FieldElement::from(element_size as u128));
                 let mut var_index = self.acir_context.mul_var(index, element_size_var)?;
                 var_index = self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
 
@@ -1998,25 +2015,43 @@ impl Context {
                     let mut flat_elem = element.flatten().iter().map(|(var, _)| *var).collect();
                     flattened_elems.append(&mut flat_elem);
                 }
-                let inner_elem_size = self.acir_context.add_constant(FieldElement::from(inner_elem_size_usize as u128));
+                let inner_elem_size = self
+                    .acir_context
+                    .add_constant(FieldElement::from(inner_elem_size_usize as u128));
                 let max_var_index = self.acir_context.add_var(var_index, inner_elem_size)?;
 
                 let mut current_insert_index = 0;
                 for i in 0..slice_len {
-                    let current_index = self.acir_context.add_constant(FieldElement::from(i as u128));
+                    let current_index =
+                        self.acir_context.add_constant(FieldElement::from(i as u128));
 
-                    let greater_eq_than_idx = self.acir_context.more_than_eq_var(current_index, var_index, 64, self.current_side_effects_enabled_var)?;
-                    let less_than_idx = self.acir_context.less_than_var(current_index, max_var_index, 64, self.current_side_effects_enabled_var)?;
-                    let insert_value_pred = self.acir_context.and_var(greater_eq_than_idx, less_than_idx, AcirType::field())?;
+                    let greater_eq_than_idx = self.acir_context.more_than_eq_var(
+                        current_index,
+                        var_index,
+                        64,
+                        self.current_side_effects_enabled_var,
+                    )?;
+                    let less_than_idx = self.acir_context.less_than_var(
+                        current_index,
+                        max_var_index,
+                        64,
+                        self.current_side_effects_enabled_var,
+                    )?;
+                    let insert_value_pred = self.acir_context.and_var(
+                        greater_eq_than_idx,
+                        less_than_idx,
+                        AcirType::field(),
+                    )?;
 
-                    let true_pred = self.acir_context.mul_var(flattened_elems[current_insert_index], insert_value_pred)?;
+                    let true_pred = self
+                        .acir_context
+                        .mul_var(flattened_elems[current_insert_index], insert_value_pred)?;
 
                     let one = self.acir_context.add_constant(FieldElement::one());
-                    let not_pred =
-                    self.acir_context.sub_var(one, insert_value_pred)?;
+                    let not_pred = self.acir_context.sub_var(one, insert_value_pred)?;
 
                     let index_var = self.acir_context.add_constant(FieldElement::from((i) as u128));
-                    
+
                     // Read from the original slice the value we want to insert into our new slice.
                     // We need to make sure of two things:
                     // 1. That we read the previous element for when we have an index greater than insertion index.
@@ -2024,8 +2059,12 @@ impl Context {
                     let read_var_index = if i < inner_elem_size_usize {
                         index_var
                     } else {
-                        let index_minus_elem_size = self.acir_context.add_constant(FieldElement::from((i - inner_elem_size_usize) as u128));
-                        let true_pred = self.acir_context.mul_var(index_minus_elem_size, greater_eq_than_idx)?;
+                        let index_minus_elem_size = self
+                            .acir_context
+                            .add_constant(FieldElement::from((i - inner_elem_size_usize) as u128));
+                        let true_pred = self
+                            .acir_context
+                            .mul_var(index_minus_elem_size, greater_eq_than_idx)?;
                         let not_pred = self.acir_context.sub_var(one, greater_eq_than_idx)?;
                         let false_pred = self.acir_context.mul_var(not_pred, index_var)?;
                         self.acir_context.add_var(true_pred, false_pred)?
@@ -2046,7 +2085,7 @@ impl Context {
                         current_insert_index = 0;
                     }
                 }
-            
+
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
                     len: slice_len,
@@ -2058,10 +2097,7 @@ impl Context {
                     )?,
                 });
 
-                Ok(vec![
-                    AcirValue::Var(new_slice_length, AcirType::field()),
-                    result,
-                ])
+                Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), result])
             }
             Intrinsic::SliceRemove => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
@@ -2076,42 +2112,51 @@ impl Context {
                 let slice_typ = dfg.type_of_value(arguments[1]);
 
                 let element_size = slice_typ.element_size();
-                let (array_id, array_typ, block_id) = self.check_array_is_initialized(arguments[1], dfg)?;
+                let (array_id, array_typ, block_id) =
+                    self.check_array_is_initialized(arguments[1], dfg)?;
 
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
                 let new_slice_val = AcirValue::Array(new_slice);
                 let result_block_id = self.block_id(&result_ids[1]);
-                self.initialize_array(
-                    result_block_id,
-                    slice_len,
-                    Some(new_slice_val.clone()),
-                )?;
+                self.initialize_array(result_block_id, slice_len, Some(new_slice_val.clone()))?;
 
-                let element_size_var = self.acir_context.add_constant(FieldElement::from(element_size as u128));
+                let element_size_var =
+                    self.acir_context.add_constant(FieldElement::from(element_size as u128));
                 let mut var_index = self.acir_context.mul_var(index, element_size_var)?;
                 var_index = self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
 
-                let slice_sizes = self.slice_sizes.get(&arguments[1]);  
+                let slice_sizes = self.slice_sizes.get(&arguments[1]);
                 let mut popped_elems = Vec::new();
                 let mut popped_elems_size = 0;
                 if !slice_typ.is_nested_slice() {
                     let mut temp_index = var_index;
                     for i in 2..(2 + element_size) {
-                        let element = self.array_get_value(&dfg.type_of_value(result_ids[i]), block_id, &mut temp_index, &[])?;
+                        let element = self.array_get_value(
+                            &dfg.type_of_value(result_ids[i]),
+                            block_id,
+                            &mut temp_index,
+                            &[],
+                        )?;
                         let elem_size = Self::flattened_value_size(&element);
                         popped_elems_size += elem_size;
                         popped_elems.push(element);
                     }
                 } else {
-                    let mut slice_sizes = slice_sizes.expect("ICE: should have slice sizes").clone();
+                    let mut slice_sizes =
+                        slice_sizes.expect("ICE: should have slice sizes").clone();
                     // We want to remove the parent size as we are fetching the child
                     slice_sizes.remove(0);
 
                     let mut temp_index = var_index;
                     for res in &result_ids[2..(2 + element_size)] {
-                        let element = self.array_get_value(&dfg.type_of_value(*res), block_id, &mut temp_index, &slice_sizes)?;
+                        let element = self.array_get_value(
+                            &dfg.type_of_value(*res),
+                            block_id,
+                            &mut temp_index,
+                            &slice_sizes,
+                        )?;
                         let elem_size = Self::flattened_value_size(&element);
                         popped_elems_size += elem_size;
                         popped_elems.push(element);
@@ -2120,33 +2165,42 @@ impl Context {
 
                 let mut current_insert_index = 0;
                 for i in 0..slice_len {
-                    let current_index = self.acir_context.add_constant(FieldElement::from(i as u128));
-                    
-                    let greater_eq_than_idx = self.acir_context.more_than_eq_var(current_index, var_index, 64, self.current_side_effects_enabled_var)?;                    
+                    let current_index =
+                        self.acir_context.add_constant(FieldElement::from(i as u128));
+
+                    let greater_eq_than_idx = self.acir_context.more_than_eq_var(
+                        current_index,
+                        var_index,
+                        64,
+                        self.current_side_effects_enabled_var,
+                    )?;
 
                     let index_var = self.acir_context.add_constant(FieldElement::from((i) as u128));
 
                     let read_var = if (i + popped_elems_size) >= slice_len {
                         index_var
                     } else {
-                        let index_plus_elem_size = self.acir_context.add_constant(FieldElement::from((i + popped_elems_size) as u128));
+                        let index_plus_elem_size = self
+                            .acir_context
+                            .add_constant(FieldElement::from((i + popped_elems_size) as u128));
                         index_plus_elem_size
                     };
 
-                    let value_read_var =
-                        self.acir_context.read_from_memory(block_id, &read_var)?;
+                    let value_read_var = self.acir_context.read_from_memory(block_id, &read_var)?;
 
-                    let true_pred = self.acir_context.mul_var(value_read_var, greater_eq_than_idx)?;
+                    let true_pred =
+                        self.acir_context.mul_var(value_read_var, greater_eq_than_idx)?;
 
-                    let same_value_read_var = self.acir_context.read_from_memory(block_id, &index_var)?;
-                    
+                    let same_value_read_var =
+                        self.acir_context.read_from_memory(block_id, &index_var)?;
+
                     let not_pred = self.acir_context.sub_var(one, greater_eq_than_idx)?;
                     let false_pred = self.acir_context.mul_var(not_pred, same_value_read_var)?;
 
                     let new_value = self.acir_context.add_var(true_pred, false_pred)?;
 
                     self.acir_context.write_to_memory(result_block_id, &index_var, &new_value)?;
-    
+
                     current_insert_index += 1;
                     if popped_elems_size == current_insert_index {
                         current_insert_index = 0;
@@ -2164,10 +2218,7 @@ impl Context {
                     )?,
                 });
 
-                let mut result = vec![
-                    AcirValue::Var(new_slice_length, AcirType::field()),
-                    result,
-                ];
+                let mut result = vec![AcirValue::Var(new_slice_length, AcirType::field()), result];
                 result.append(&mut popped_elems);
 
                 Ok(result)

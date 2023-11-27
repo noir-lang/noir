@@ -62,7 +62,7 @@ use fxhash::FxHashMap as HashMap;
 impl Ssa {
     pub(crate) fn fill_internal_slices(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            // This pass is only necessary for generating ACIR and thus we should not 
+            // This pass is only necessary for generating ACIR and thus we should not
             // process Brillig functions.
             if function.runtime() == RuntimeType::Acir {
                 let mut context = Context::new(function);
@@ -202,7 +202,7 @@ impl<'f> Context<'f> {
                     let depth = Self::compute_nested_slice_depth(&typ);
                     let mut max_sizes = Vec::new();
                     max_sizes.resize(depth, 0);
-    
+
                     self.compute_slice_max_sizes(*array, &slice_sizes, &mut max_sizes, 0);
                 }
 
@@ -261,8 +261,7 @@ impl<'f> Context<'f> {
                                     .insert(slice_contents, results[result_index]);
                             }
                         }
-                        Intrinsic::SlicePopBack
-                        | Intrinsic::SliceRemove => {
+                        Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
                             // We do not decrement the size on intrinsics that could remove values from a slice.
                             // This is because we could potentially go back to the smaller slice and not fill in dummies.
                             // This pass should be tracking the potential max that a slice ***could be***
@@ -280,7 +279,7 @@ impl<'f> Context<'f> {
                             // will change depending on the number of elements in the struct.
                             // For example, a slice with four elements will look as such in SSA:
                             // v3, v4, v5, v6, v7, v8 = call slice_pop_back(v1, v2)
-                            // where v7 is the slice length and v8 is the popped slice itself. 
+                            // where v7 is the slice length and v8 is the popped slice itself.
                             if let Some(inner_sizes) = slice_sizes.get(&slice_contents) {
                                 let inner_sizes = inner_sizes.clone();
                                 slice_sizes.insert(results[result_index], inner_sizes);
@@ -325,7 +324,7 @@ impl<'f> Context<'f> {
             }
             Instruction::Call { func, arguments } => {
                 let mut index = None;
-                
+
                 for (i, arg) in arguments.iter().enumerate() {
                     let element_typ = self.inserter.function.dfg.type_of_value(*arg);
                     if slice_values.contains(arg) && element_typ.contains_slice_element() {
@@ -350,7 +349,12 @@ impl<'f> Context<'f> {
 
                     let element_typ = self.inserter.function.dfg.type_of_value(arguments[index]);
                     max_sizes.remove(0);
-                    let new_array = self.attach_slice_dummies(&element_typ, Some(arguments[index]), false, &max_sizes);
+                    let new_array = self.attach_slice_dummies(
+                        &element_typ,
+                        Some(arguments[index]),
+                        false,
+                        &max_sizes,
+                    );
 
                     let instruction_id = instruction;
                     let (instruction, call_stack) = self.inserter.map_instruction(instruction_id);
@@ -359,7 +363,7 @@ impl<'f> Context<'f> {
                             arguments[index] = new_array;
                             Instruction::Call { func, arguments }
                         }
-                        _ => panic!("Expected call instruction")
+                        _ => panic!("Expected call instruction"),
                     };
                     self.inserter.push_instruction_value(
                         new_call_instr,
@@ -395,7 +399,7 @@ impl<'f> Context<'f> {
             .unwrap_or_else(|| panic!("should have slice sizes: {mapped_slice_value}"));
 
         let mut max_sizes = Vec::new();
-        
+
         let typ = self.inserter.function.dfg.type_of_value(array_id);
         let depth = Self::compute_nested_slice_depth(&typ);
         max_sizes.resize(depth, 0);
@@ -455,7 +459,7 @@ impl<'f> Context<'f> {
                 let mut max_size = *current_size;
                 if let Some(value) = value {
                     let mut slice = im::Vector::new();
-                    
+
                     let value = self.inserter.function.dfg[value].clone();
                     let array = match value {
                         Value::Array { array, .. } => array,
