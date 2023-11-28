@@ -6,6 +6,7 @@ members = [
     "src/contracts/counter_contract",
     "src/contracts/docs_example_contract",
     "src/contracts/easy_private_token_contract",
+    "src/contracts/easy_private_voting_contract",
     "src/contracts/ecdsa_account_contract",
     "src/contracts/escrow_contract",
     "src/contracts/import_test_contract",

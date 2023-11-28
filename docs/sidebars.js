@@ -223,6 +223,8 @@ const sidebars = {
       },
       items: [
         "dev_docs/tutorials/writing_token_contract",
+        "dev_docs/tutorials/writing_private_voting_contract",
+
         {
           label: "Writing a DApp",
           type: "category",

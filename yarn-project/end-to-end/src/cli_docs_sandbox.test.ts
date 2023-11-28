@@ -103,6 +103,7 @@ ChildContractArtifact
 CounterContractArtifact
 DocsExampleContractArtifact
 EasyPrivateTokenContractArtifact
+EasyPrivateVotingContractArtifact
 EcdsaAccountContractArtifact
 EscrowContractArtifact
 ImportTestContractArtifact
