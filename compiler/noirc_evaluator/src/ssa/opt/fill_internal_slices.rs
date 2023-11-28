@@ -233,14 +233,11 @@ impl<'f> Context<'f> {
                         Intrinsic::SlicePushBack
                         | Intrinsic::SlicePushFront
                         | Intrinsic::SliceInsert => {
-                            let mut slice_args = Vec::new();
                             for arg in &arguments[(argument_index + 1)..] {
                                 let element_typ = self.inserter.function.dfg.type_of_value(*arg);
                                 if element_typ.contains_slice_element() {
                                     slice_values.push(*arg);
                                     self.compute_slice_sizes(*arg, slice_sizes);
-
-                                    slice_args.push(*arg);
                                 }
                             }
                             if let Some(inner_sizes) = slice_sizes.get_mut(&slice_contents) {
