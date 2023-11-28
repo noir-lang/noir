@@ -99,7 +99,7 @@ jobs:
           git config --local user.email kevtheappdev@gmail.com
 
       - name: Run rebuild script
-        working-directory: tooling/nargo_cli/tests
+        working-directory: test_programs
         run: |
           chmod +x ./rebuild.sh
           ./rebuild.sh
@@ -108,14 +108,14 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: acir-artifacts
-          path: ./tooling/nargo_cli/tests/acir_artifacts
+          path: ./test_programs/acir_artifacts
           retention-days: 10
 
       - name: Check for changes in acir_artifacts directory
         id: check_changes
         if: ${{ github.ref_name }} == "master"
         run: |
-          git diff --quiet tooling/nargo_cli/tests/acir_artifacts/ || echo "::set-output name=changes::true"
+          git diff --quiet test_programs/acir_artifacts/ || echo "::set-output name=changes::true"
           
       - name: Create or Update PR
         if: steps.check_changes.outputs.changes == 'true'
@@ -125,6 +125,6 @@ jobs:
           commit-message: "chore: update acir artifacts"
           title: "chore: Update ACIR artifacts"
           body: "Automatic PR to update acir artifacts"
-          add-paths: tooling/nargo_cli/tests/acir_artifacts/*.gz
+          add-paths: test_programs/acir_artifacts/*.gz
           labels: "auto-pr"
           branch: "auto-pr-rebuild-script-branch"

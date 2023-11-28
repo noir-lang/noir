@@ -244,7 +244,7 @@ fn check_for_aztec_dependency(
     if has_aztec_dependency {
         Ok(())
     } else {
-        Err((MacroError { primary_message: "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml".to_owned(), secondary_message: None, span: None }, crate_graph.root_file_id))
+        Err((AztecMacroError::AztecNotFound.into(), crate_graph.root_file_id))
     }
 }
 
@@ -309,11 +309,8 @@ fn transform_module(
     if storage_defined && !check_for_compute_note_hash_and_nullifier_definition(module) {
         let crate_graph = &context.crate_graph[crate_id];
         return Err((
-            MacroError {
-                span: Some(Span::default()), // Add a default span so we know which contract file the error originates from
-                primary_message: "compute_note_hash_and_nullifier function not found. Define it in your contract.".to_owned(),
-                secondary_message: None,
-            },
+            AztecMacroError::AztecComputeNoteHashAndNullifierNotFound { span: Span::default() }
+                .into(),
             crate_graph.root_file_id,
         ));
     }
