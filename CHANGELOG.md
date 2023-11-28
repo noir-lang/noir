@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.16.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.16.0...aztec-packages-v0.16.1) (2023-11-28)
+
+
+### Features
+
+* Added poseidon2 hash function to barretenberg/crypto ([#3118](https://github.com/AztecProtocol/aztec-packages/issues/3118)) ([d47782b](https://github.com/AztecProtocol/aztec-packages/commit/d47782bb480f7e016dbc77cf962978ddca0632aa))
+* Aztec CI files in Noir ([#3430](https://github.com/AztecProtocol/aztec-packages/issues/3430)) ([1621f3a](https://github.com/AztecProtocol/aztec-packages/commit/1621f3a1cec3ad16fe7e87160f9b43d3f9490dbd))
+* Persistent archiver store ([#3410](https://github.com/AztecProtocol/aztec-packages/issues/3410)) ([4735bde](https://github.com/AztecProtocol/aztec-packages/commit/4735bdebc059a323f4be0c4adf2d4ba644eeecc0)), closes [#3361](https://github.com/AztecProtocol/aztec-packages/issues/3361)
+
+
+### Bug Fixes
+
+* **ci:** Don't leave DRY_DEPLOY unset ([#3449](https://github.com/AztecProtocol/aztec-packages/issues/3449)) ([454e316](https://github.com/AztecProtocol/aztec-packages/commit/454e316a48056e944519220aa40ffe8286e2a3bd))
+* **ci:** Publishing dockerhub manifests ([#3451](https://github.com/AztecProtocol/aztec-packages/issues/3451)) ([a59e7f0](https://github.com/AztecProtocol/aztec-packages/commit/a59e7f020e80916e501811c762876c36692742fc))
+* Hotfix noir sync ([#3436](https://github.com/AztecProtocol/aztec-packages/issues/3436)) ([c4e4745](https://github.com/AztecProtocol/aztec-packages/commit/c4e4745df22634a2649f8e7b6e116dc6b399e31f))
+
+
+### Miscellaneous
+
+* **docs:** Core concepts page in getting-started ([#3401](https://github.com/AztecProtocol/aztec-packages/issues/3401)) ([1a62f73](https://github.com/AztecProtocol/aztec-packages/commit/1a62f73006b406c105bf5b98f2a099690ba83af6))
+* Point acir tests at noir master branch ([#3440](https://github.com/AztecProtocol/aztec-packages/issues/3440)) ([106e690](https://github.com/AztecProtocol/aztec-packages/commit/106e690993cdc10db85903d91af873c04744c05f))
+
+
+### Documentation
+
+* Further updates to the gas and fees whitepaper ([#3448](https://github.com/AztecProtocol/aztec-packages/issues/3448)) ([4152ba6](https://github.com/AztecProtocol/aztec-packages/commit/4152ba60432180dba3f7af0d30eff708828d40f1))
+* Updates to gas and fees yellow paper ([#3438](https://github.com/AztecProtocol/aztec-packages/issues/3438)) ([5f0e1ca](https://github.com/AztecProtocol/aztec-packages/commit/5f0e1cad2872d9d16953fa3bc8d43f6cf2709d96))
+
 ## [0.16.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.15.1...aztec-packages-v0.16.0) (2023-11-27)
 
 
