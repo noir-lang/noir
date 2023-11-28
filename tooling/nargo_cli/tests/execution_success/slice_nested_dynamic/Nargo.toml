@@ -1,7 +1,0 @@
-[package]
-name = "slice_nested_dynamic"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.19.0"
-
-[dependencies]

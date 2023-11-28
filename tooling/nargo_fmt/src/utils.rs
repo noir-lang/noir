@@ -120,7 +120,7 @@ impl<'me, T> Exprs<'me, T> {
 
 pub(crate) trait FindToken {
     fn find_token(&self, token: Token) -> Option<Span>;
-    fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32>;
+    fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<Span>;
 }
 
 impl FindToken for str {
@@ -128,11 +128,11 @@ impl FindToken for str {
         Lexer::new(self).flatten().find_map(|it| (it.token() == &token).then(|| it.to_span()))
     }
 
-    fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32> {
+    fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<Span> {
         Lexer::new(self)
             .skip_comments(false)
             .flatten()
-            .find_map(|spanned| f(spanned.token()).then(|| spanned.to_span().end()))
+            .find_map(|spanned| f(spanned.token()).then(|| spanned.to_span()))
     }
 }
 
@@ -142,7 +142,7 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
             .find_token_with(|token| {
                 matches!(token, Token::LineComment(_, _) | Token::BlockComment(_, _))
             })
-            .map(|index| index as usize)
+            .map(|index| index.end() as usize)
             .unwrap_or(slice.len())
     }
 

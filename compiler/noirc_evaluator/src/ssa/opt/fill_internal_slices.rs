@@ -299,7 +299,7 @@ impl<'f> Context<'f> {
                     self.inserter.push_instruction(instruction, block);
                 }
             }
-            Instruction::Call { func, arguments } => {
+            Instruction::Call { func: _, arguments } => {
                 let mut args_to_replace = Vec::new();
                 for (i, arg) in arguments.iter().enumerate() {
                     let element_typ = self.inserter.function.dfg.type_of_value(*arg);
