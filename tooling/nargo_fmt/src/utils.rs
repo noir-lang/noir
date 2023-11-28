@@ -250,13 +250,13 @@ impl Item for Param {
         self.span
     }
 
-    fn format(self, visitor: &FmtVisitor, _shape: Shape) -> String {
+    fn format(self, visitor: &FmtVisitor, shape: Shape) -> String {
         let visibility = match self.visibility {
             Visibility::Public => "pub ",
             Visibility::Private => "",
         };
         let pattern = visitor.slice(self.pattern.span());
-        let ty = visitor.slice(self.typ.span.unwrap());
+        let ty = rewrite::typ(visitor, shape, self.typ);
 
         format!("{pattern}: {visibility}{ty}")
     }

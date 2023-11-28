@@ -1,0 +1,69 @@
+use noirc_frontend::{UnresolvedType, UnresolvedTypeData};
+
+use crate::visitor::{FmtVisitor, Shape};
+
+pub(crate) fn rewrite(visitor: &FmtVisitor, shape: Shape, typ: UnresolvedType) -> String {
+    match typ.typ {
+        UnresolvedTypeData::Array(length, element) => {
+            let typ = rewrite(visitor, shape, *element);
+            if let Some(length) = length {
+                let length = visitor.slice(length.span());
+                format!("[{typ}; {length}]")
+            } else {
+                format!("[{typ}]")
+            }
+        }
+        UnresolvedTypeData::Parenthesized(typ) => {
+            let typ = rewrite(visitor, shape, *typ);
+            format!("({typ})")
+        }
+        UnresolvedTypeData::MutableReference(typ) => {
+            let typ = rewrite(visitor, shape, *typ);
+            format!("&mut {typ}")
+        }
+        UnresolvedTypeData::Tuple(mut types) => {
+            if types.len() == 1 {
+                let typ = types.pop().unwrap();
+                let typ = rewrite(visitor, shape, typ);
+
+                format!("({typ},)")
+            } else {
+                let types: Vec<_> =
+                    types.into_iter().map(|typ| rewrite(visitor, shape, typ)).collect();
+                let types = types.join(", ");
+                format!("({types})")
+            }
+        }
+        UnresolvedTypeData::Function(args, return_type, env) => {
+            let env_slice = visitor.slice(env.span.unwrap());
+
+            let env = if env_slice == "(" {
+                "".into()
+            } else {
+                let ty = rewrite(visitor, shape, *env);
+                format!("[{ty}]")
+            };
+
+            let args = args
+                .into_iter()
+                .map(|arg| rewrite(visitor, shape, arg))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            let return_type = rewrite(visitor, shape, *return_type);
+
+            format!("fn{env}({args}) -> {return_type}")
+        }
+        UnresolvedTypeData::Unspecified => todo!(),
+        UnresolvedTypeData::FieldElement
+        | UnresolvedTypeData::Integer(_, _)
+        | UnresolvedTypeData::Bool
+        | UnresolvedTypeData::Named(_, _)
+        | UnresolvedTypeData::Unit
+        | UnresolvedTypeData::Expression(_)
+        | UnresolvedTypeData::String(_)
+        | UnresolvedTypeData::FormatString(_, _)
+        | UnresolvedTypeData::TraitAsType(_, _) => visitor.slice(typ.span.unwrap()).into(),
+        UnresolvedTypeData::Error => unreachable!(),
+    }
+}
