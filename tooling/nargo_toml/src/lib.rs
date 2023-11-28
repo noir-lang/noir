@@ -165,8 +165,8 @@ impl PackageConfig {
         };
 
         // If there is a package version, ensure that it is semver compatible
-        if let Some(package_version) = &self.package.package_version {
-            semver::parse_semver_compatible_version(package_version).map_err(|err| {
+        if let Some(version) = &self.package.version {
+            semver::parse_semver_compatible_version(version).map_err(|err| {
                 ManifestError::SemverError(SemverError::CouldNotParsePackageVersion {
                     package_name: name.to_string(),
                     error: err.to_string(),
@@ -175,7 +175,7 @@ impl PackageConfig {
         }
 
         Ok(Package {
-            package_version: self.package.package_version.clone(),
+            version: self.package.version.clone(),
             compiler_required_version: self.package.compiler_version.clone(),
             root_dir: root_dir.to_path_buf(),
             entry_path,
@@ -237,7 +237,7 @@ struct WorkspaceConfig {
 #[derive(Default, Debug, Deserialize, Clone)]
 struct PackageMetadata {
     name: Option<String>,
-    package_version: Option<String>,
+    version: Option<String>,
     #[serde(alias = "type")]
     package_type: Option<String>,
     entry: Option<PathBuf>,

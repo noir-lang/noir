@@ -88,7 +88,7 @@ mod tests {
             entry_path: PathBuf::new(),
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
-            package_version: Some("1.0".to_string()),
+            version: Some("1.0".to_string()),
         };
         if let Err(err) = semver_check_package(&package, &compiler_version) {
             panic!("semver check should have passed. compiler version is 0.1.0 and required version from the package is 0.1.0\n error: {err:?}")
@@ -119,7 +119,7 @@ mod tests {
             entry_path: PathBuf::new(),
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
-            package_version: Some("1.0".to_string()),
+            version: Some("1.0".to_string()),
         };
 
         let valid_dependency = Package {
@@ -129,7 +129,7 @@ mod tests {
             entry_path: PathBuf::new(),
             name: CrateName::from_str("good_dependency").unwrap(),
             dependencies: BTreeMap::new(),
-            package_version: Some("1.0".to_string()),
+            version: Some("1.0".to_string()),
         };
         let invalid_dependency = Package {
             compiler_required_version: Some("0.2.0".to_string()),
@@ -138,7 +138,7 @@ mod tests {
             entry_path: PathBuf::new(),
             name: CrateName::from_str("bad_dependency").unwrap(),
             dependencies: BTreeMap::new(),
-            package_version: Some("1.0".to_string()),
+            version: Some("1.0".to_string()),
         };
 
         package.dependencies.insert(
@@ -178,7 +178,7 @@ mod tests {
             entry_path: PathBuf::new(),
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
-            package_version: Some("1.0".to_string()),
+            version: Some("1.0".to_string()),
         };
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
@@ -197,7 +197,7 @@ mod tests {
             entry_path: PathBuf::new(),
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
-            package_version: Some("1.0".to_string()),
+            version: Some("1.0".to_string()),
         };
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
