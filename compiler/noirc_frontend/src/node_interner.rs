@@ -9,7 +9,6 @@ use crate::ast::Ident;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
-use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::traits::{Trait, TraitConstraint};
@@ -399,10 +398,6 @@ impl DefinitionKind {
 pub struct GlobalInfo {
     pub ident: Ident,
     pub local_id: LocalModuleId,
-
-    /// Global definitions have an associated storage slot if they are defined within
-    /// a contract. If they're defined elsewhere, this value is None.
-    pub storage_slot: Option<StorageSlot>,
 }
 
 impl Default for NodeInterner {
@@ -578,14 +573,8 @@ impl NodeInterner {
         self.id_to_type.insert(definition_id.into(), typ);
     }
 
-    pub fn push_global(
-        &mut self,
-        stmt_id: StmtId,
-        ident: Ident,
-        local_id: LocalModuleId,
-        storage_slot: Option<StorageSlot>,
-    ) {
-        self.globals.insert(stmt_id, GlobalInfo { ident, local_id, storage_slot });
+    pub fn push_global(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
+        self.globals.insert(stmt_id, GlobalInfo { ident, local_id });
     }
 
     /// Intern an empty global stmt. Used for collecting globals
@@ -843,6 +832,10 @@ impl NodeInterner {
 
     pub fn get_trait(&self, id: TraitId) -> Trait {
         self.traits[&id].clone()
+    }
+
+    pub fn try_get_trait(&self, id: TraitId) -> Option<Trait> {
+        self.traits.get(&id).cloned()
     }
 
     pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {

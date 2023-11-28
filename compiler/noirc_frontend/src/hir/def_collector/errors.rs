@@ -73,14 +73,16 @@ pub enum DefCollectorErrorKind {
         "Either the type or the trait must be from the same crate as the trait implementation"
     )]
     TraitImplOrphaned { span: Span },
+    #[error("macro error : {0:?}")]
+    MacroError(MacroError),
+}
 
-    // Aztec feature flag errors
-    #[cfg(feature = "aztec")]
-    #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml.  For more information go to https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#aztec-dependency-not-found-please-add-aztec-as-a-dependency-in-your-nargotoml")]
-    AztecNotFound {},
-    #[cfg(feature = "aztec")]
-    #[error("compute_note_hash_and_nullifier function not found. Define it in your contract. For more information go to https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#compute_note_hash_and_nullifier-function-not-found-define-it-in-your-contract")]
-    AztecComputeNoteHashAndNullifierNotFound { span: Span },
+/// An error struct that macro processors can return.
+#[derive(Debug, Clone)]
+pub struct MacroError {
+    pub primary_message: String,
+    pub secondary_message: Option<String>,
+    pub span: Option<Span>,
 }
 
 impl DefCollectorErrorKind {
@@ -244,16 +246,9 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 "Either the type or the trait must be from the same crate as the trait implementation".into(),
                 span,
             ),
-            #[cfg(feature = "aztec")]
-            DefCollectorErrorKind::AztecNotFound {} => Diagnostic::from_message(
-                "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml",
-            ),
-            #[cfg(feature = "aztec")]
-            DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound  {span} => Diagnostic::simple_error(
-                "compute_note_hash_and_nullifier function not found. Define it in your contract.".into(),
-                "".into(),
-                span
-            ),
+            DefCollectorErrorKind::MacroError(macro_error) => {
+                Diagnostic::simple_error(macro_error.primary_message, macro_error.secondary_message.unwrap_or_default(), macro_error.span.unwrap_or_default())
+            },
         }
     }
 }

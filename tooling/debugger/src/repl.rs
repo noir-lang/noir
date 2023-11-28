@@ -1,11 +1,10 @@
 use crate::context::{DebugCommandResult, DebugContext};
 
-use acvm::acir::circuit::{Opcode, OpcodeLocation};
-use acvm::BlackBoxFunctionSolver;
-use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
+use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
+use acvm::acir::native_types::{Witness, WitnessMap};
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 
-use nargo::artifacts::debug::DebugArtifact;
-use nargo::NargoError;
+use nargo::{artifacts::debug::DebugArtifact, ops::DefaultForeignCallExecutor, NargoError};
 
 use easy_repl::{command, CommandStatus, Repl};
 use std::cell::RefCell;
@@ -33,8 +32,13 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
     ) -> Self {
-        let context =
-            DebugContext::new(blackbox_solver, circuit, debug_artifact, initial_witness.clone());
+        let context = DebugContext::new(
+            blackbox_solver,
+            circuit,
+            debug_artifact,
+            initial_witness.clone(),
+            Box::new(DefaultForeignCallExecutor::new(true)),
+        );
         Self {
             context,
             blackbox_solver,
@@ -274,6 +278,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             self.circuit,
             self.debug_artifact,
             self.initial_witness.clone(),
+            Box::new(DefaultForeignCallExecutor::new(true)),
         );
         for opcode_location in breakpoints {
             self.context.add_breakpoint(opcode_location);
@@ -281,6 +286,93 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         self.last_result = DebugCommandResult::Ok;
         println!("Restarted debugging session.");
         self.show_current_vm_status();
+    }
+
+    pub fn show_witness_map(&self) {
+        let witness_map = self.context.get_witness_map();
+        // NOTE: we need to clone() here to get the iterator
+        for (witness, value) in witness_map.clone().into_iter() {
+            println!("_{} = {value}", witness.witness_index());
+        }
+    }
+
+    pub fn show_witness(&self, index: u32) {
+        if let Some(value) = self.context.get_witness_map().get_index(index) {
+            println!("_{} = {value}", index);
+        }
+    }
+
+    pub fn update_witness(&mut self, index: u32, value: String) {
+        let Some(field_value) = FieldElement::try_from_str(&value) else {
+            println!("Invalid witness value: {value}");
+            return;
+        };
+
+        let witness = Witness::from(index);
+        _ = self.context.overwrite_witness(witness, field_value);
+        println!("_{} = {value}", index);
+    }
+
+    pub fn show_brillig_registers(&self) {
+        if !self.context.is_executing_brillig() {
+            println!("Not executing a Brillig block");
+            return;
+        }
+
+        let Some(registers) = self.context.get_brillig_registers() else {
+            // this can happen when just entering the Brillig block since ACVM
+            // would have not initialized the Brillig VM yet; in fact, the
+            // Brillig code may be skipped altogether
+            println!("Brillig VM registers not available");
+            return;
+        };
+
+        for (index, value) in registers.inner.iter().enumerate() {
+            println!("{index} = {}", value.to_field());
+        }
+    }
+
+    pub fn set_brillig_register(&mut self, index: usize, value: String) {
+        let Some(field_value) = FieldElement::try_from_str(&value) else {
+            println!("Invalid value: {value}");
+            return;
+        };
+        if !self.context.is_executing_brillig() {
+            println!("Not executing a Brillig block");
+            return;
+        }
+        self.context.set_brillig_register(index, field_value);
+    }
+
+    pub fn show_brillig_memory(&self) {
+        if !self.context.is_executing_brillig() {
+            println!("Not executing a Brillig block");
+            return;
+        }
+
+        let Some(memory) = self.context.get_brillig_memory() else {
+            // this can happen when just entering the Brillig block since ACVM
+            // would have not initialized the Brillig VM yet; in fact, the
+            // Brillig code may be skipped altogether
+            println!("Brillig VM memory not available");
+            return;
+        };
+
+        for (index, value) in memory.iter().enumerate() {
+            println!("{index} = {}", value.to_field());
+        }
+    }
+
+    pub fn write_brillig_memory(&mut self, index: usize, value: String) {
+        let Some(field_value) = FieldElement::try_from_str(&value) else {
+            println!("Invalid value: {value}");
+            return;
+        };
+        if !self.context.is_executing_brillig() {
+            println!("Not executing a Brillig block");
+            return;
+        }
+        self.context.write_brillig_memory(index, field_value);
     }
 
     fn is_solved(&self) -> bool {
@@ -389,6 +481,76 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "delete breakpoint at an opcode location",
                 (LOCATION:OpcodeLocation) => |location| {
                     ref_context.borrow_mut().delete_breakpoint_at(location);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "witness",
+            command! {
+                "show witness map",
+                () => || {
+                    ref_context.borrow().show_witness_map();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "witness",
+            command! {
+                "display a single witness from the witness map",
+                (index: u32) => |index| {
+                    ref_context.borrow().show_witness(index);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "witness",
+            command! {
+                "update a witness with the given value",
+                (index: u32, value: String) => |index, value| {
+                    ref_context.borrow_mut().update_witness(index, value);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "registers",
+            command! {
+                "show Brillig registers (valid when executing a Brillig block)",
+                () => || {
+                    ref_context.borrow().show_brillig_registers();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "regset",
+            command! {
+                "update a Brillig register with the given value",
+                (index: usize, value: String) => |index, value| {
+                    ref_context.borrow_mut().set_brillig_register(index, value);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "memory",
+            command! {
+                "show Brillig memory (valid when executing a Brillig block)",
+                () => || {
+                    ref_context.borrow().show_brillig_memory();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "memset",
+            command! {
+                "update a Brillig memory cell with the given value",
+                (index: usize, value: String) => |index, value| {
+                    ref_context.borrow_mut().write_brillig_memory(index, value);
                     Ok(CommandStatus::Done)
                 }
             },
