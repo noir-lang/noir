@@ -13,7 +13,7 @@ trap handle_sigchild SIGCHLD
 BIN=${BIN:-../cpp/build/bin/bb}
 FLOW=${FLOW:-prove_and_verify}
 CRS_PATH=~/.bb-crs
-BRANCH=tf/restructure-integration-tests
+BRANCH=master
 VERBOSE=${VERBOSE:-}
 TEST_NAMES=("$@")
 # We get little performance benefit over 16 cores (in fact it can be worse).
