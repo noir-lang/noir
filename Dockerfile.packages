@@ -1,0 +1,19 @@
+FROM rust:alpine3.17
+RUN apk update \
+    && apk upgrade \
+    && apk add --no-cache \
+        build-base \
+        pkgconfig \
+        openssl-dev \
+        npm \
+        yarn \
+        bash \
+        jq
+WORKDIR /usr/src/noir
+COPY . .
+RUN ./scripts/bootstrap_packages.sh
+
+FROM scratch
+COPY --from=0 /usr/src/noir/packages /usr/src/noir/packages
+# For some unknown reason, on alpine only, we need this to exist.
+COPY --from=0 /usr/src/noir/node_modules/@noir-lang /usr/src/noir/node_modules/@noir-lang
