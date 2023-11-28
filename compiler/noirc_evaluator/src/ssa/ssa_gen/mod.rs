@@ -40,14 +40,8 @@ use super::{
 /// This function will generate the SSA but does not perform any optimizations on it.
 pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
-    let mut params_is_databus = Vec::new();
-    for param in &program.main_function_signature.0 {
-        let is_databus = match param.2 {
-            noirc_frontend::Visibility::Public | noirc_frontend::Visibility::Private => false,
-            noirc_frontend::Visibility::DataBus => true,
-        };
-        params_is_databus.push(is_databus);
-    }
+    let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
+
     let is_return_data = matches!(program.return_visibility, Visibility::DataBus);
 
     let return_location = program.return_location;
@@ -67,7 +61,7 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     );
 
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
-    let call_data = function_context.builder.call_data_bus(params_is_databus);
+    let call_data = function_context.builder.call_data_bus(is_databus);
 
     function_context.codegen_function_body(&main.body)?;
 

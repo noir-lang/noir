@@ -884,18 +884,25 @@ impl Context {
         dfg: &DataFlowGraph,
     ) -> Result<AcirValue, RuntimeError> {
         let (array_id, _, block_id) = self.check_array_is_initialized(array, dfg)?;
+        let results = dfg.instruction_results(instruction);
+        let res_typ = dfg.type_of_value(results[0]);
+
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
         if let Some(call_data) = self.data_bus.call_data {
             if self.data_bus.call_data_map.contains_key(&array_id) {
+                // TODO: the block_id of call-data must be notified to the backend
+                // TODO: should we do the same for return-data?
+                let type_size = res_typ.flattened_size();
+                let type_size =
+                    self.acir_context.add_constant(FieldElement::from(type_size as i128));
+                let offset = self.acir_context.mul_var(var_index, type_size)?;
                 let bus_index = self.acir_context.add_constant(FieldElement::from(
                     self.data_bus.call_data_map[&array_id] as i128,
                 ));
-                let new_index = self.acir_context.add_var(var_index, bus_index)?;
+                let new_index = self.acir_context.add_var(offset, bus_index)?;
                 return self.array_get(instruction, call_data, new_index, dfg);
             }
         }
-        let results = dfg.instruction_results(instruction);
-        let res_typ = dfg.type_of_value(results[0]);
 
         let value = if !res_typ.contains_slice_element() {
             self.array_get_value(&res_typ, block_id, &mut var_index, &[])?

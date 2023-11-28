@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::ssa::ir::{types::Type, value::ValueId};
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
+use noirc_frontend::hir_def::function::FunctionSignature;
 
 use super::FunctionBuilder;
 
@@ -23,6 +24,22 @@ impl DataBusBuilder {
             databus: None,
             values: im::Vector::new(),
         }
+    }
+
+    /// Generates a boolean vector telling which (ssa) parameter from the given function signature
+    /// are tagged with databus visibility
+    pub(crate) fn is_databus(main_signature: &FunctionSignature) -> Vec<bool> {
+        let mut params_is_databus = Vec::new();
+
+        for param in &main_signature.0 {
+            let is_databus = match param.2 {
+                noirc_frontend::Visibility::Public | noirc_frontend::Visibility::Private => false,
+                noirc_frontend::Visibility::DataBus => true,
+            };
+            let len = param.1.field_count() as usize;
+            params_is_databus.extend(vec![is_databus; len]);
+        }
+        params_is_databus
     }
 }
 
@@ -111,7 +128,7 @@ impl FunctionBuilder {
     /// Generate the data bus for call-data, based on the parameters of the entry block
     /// and a boolean vector telling which ones are call-data
     pub(crate) fn call_data_bus(&mut self, is_params_databus: Vec<bool>) -> DataBusBuilder {
-        //filter parameters to first block that have call-data visilibity
+        //filter parameters of the first block that have call-data visilibity
         let first_block = self.current_function.entry_block();
         let params = self.current_function.dfg[first_block].parameters();
         let mut databus_param = Vec::new();
