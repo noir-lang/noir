@@ -36,9 +36,10 @@ result
 *.pk
 *.vk
 **/Verifier.toml
+**/contract
 **/target
-!tooling/nargo_cli/tests/acir_artifacts/*/target
-!tooling/nargo_cli/tests/acir_artifacts/*/target/witness.gz
+!test_programs/acir_artifacts/*/target
+!test_programs/acir_artifacts/*/target/witness.gz
 !compiler/wasm/noir-script/target
 
 gates_report.json
