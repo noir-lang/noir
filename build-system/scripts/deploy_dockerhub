@@ -6,8 +6,11 @@ REPOSITORY=$1
 # TODO: Why even provide this? We can just figure it out by probing.
 ARCH_LIST=${2:-}
 
+# The tag to use for release images. Can be turned into an argument if needed, for now we only release 'latest'.
+DIST_TAG="latest"
+
 function docker_or_dryrun {
-  if [ "$DRY_DEPLOY" -eq 1 ] ; then
+  if [ "$DRY_DEPLOY" -eq 1 ]; then
     echo DRY RUN: docker $@
   else
     retry docker $@
@@ -18,7 +21,9 @@ echo "Repo: $REPOSITORY"
 echo "Arch List: $ARCH_LIST"
 
 VERSION_TAG=$(extract_tag_version $REPOSITORY true)
-MANIFEST_DEPLOY_URI=aztecprotocol/$REPOSITORY:$VERSION_TAG
+
+MANIFEST_DEPLOY_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:$VERSION_TAG
+MANIFEST_DIST_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:$DIST_TAG
 
 # Login to dockerhub and ecr
 dockerhub_login
@@ -30,16 +35,19 @@ for ARCH in $ARCH_LIST; do
   retry docker pull $IMAGE_COMMIT_URI
 
   # Retag and push image.
-  IMAGE_DEPLOY_URI=aztecprotocol/$REPOSITORY:$VERSION_TAG-$ARCH
+  IMAGE_DEPLOY_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:$VERSION_TAG-$ARCH
   docker tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_URI
   docker_or_dryrun push $IMAGE_DEPLOY_URI
 
   echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_DEPLOY_URI..."
   docker_or_dryrun manifest create $MANIFEST_DEPLOY_URI --amend $IMAGE_DEPLOY_URI
+
+  echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_DIST_URI"
+  docker_or_dryrun manifest create $MANIFEST_DIST_URI --amend $IMAGE_DEPLOY_URI
 done
 
-docker_or_dryrun push $MANIFEST_DEPLOY_URI
-
-# Retag versioned as latest.
-docker_or_dryrun tag $MANIFEST_DEPLOY_URI aztecprotocol/$REPOSITORY:latest
-docker_or_dryrun push aztecprotocol/$REPOSITORY:latest
+echo "Tagging $MANIFEST_DEPLOY_URI as $VERSION_TAG..."
+docker_or_dryrun manifest push --purge $MANIFEST_DEPLOY_URI
+# Publish version as latest.
+echo "Tagging $MANIFEST_DEPLOY_URI as $DIST_TAG..."
+docker_or_dryrun manifest push --purge $MANIFEST_DIST_URI

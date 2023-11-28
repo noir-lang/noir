@@ -31,8 +31,6 @@ echo "PULL_REQUEST=$PULL_REQUEST"
 if [[ "$COMMIT_MESSAGE" == *"[ci dry-deploy]"* ]]; then
   COMMIT_TAG=v999.999.999
   DRY_DEPLOY=1
-else
-  DRY_DEPLOY=0
 fi
 
 if [ -n "${COMMIT_TAG:-}" ]; then
@@ -83,7 +81,7 @@ echo export DEPLOY_ENV=$DEPLOY_ENV >> $BASH_ENV
 echo export DEPLOY_TAG=$DEPLOY_TAG >> $BASH_ENV
 echo export BRANCH=$BRANCH >> $BASH_ENV
 echo export PULL_REQUEST=$PULL_REQUEST >> $BASH_ENV
-echo export DRY_DEPLOY=${DRY_DEPLOY:-} >> $BASH_ENV
+echo export DRY_DEPLOY=${DRY_DEPLOY:-0} >> $BASH_ENV
 # We want very strict failures on any failing command, undefined variable, or commands that pipe to other commands.
 echo set -euo pipefail >> $BASH_ENV
 # Enable logging if [ci debug] is in commit message.
