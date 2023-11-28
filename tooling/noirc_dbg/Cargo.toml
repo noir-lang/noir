@@ -1,0 +1,29 @@
+[package]
+name = "noirc_dbg"
+description = "Debugger for Noir"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+acvm = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e" }
+barretenberg_blackbox_solver = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e" }
+fm = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e" }
+nargo_toml = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e" }
+noirc_abi = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e" }
+noirc_evaluator = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e" }
+noirc_errors = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e" }
+noirc_frontend = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e" }
+noirc_driver = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e", features = [ "brillig" ] }
+noirc_printable_type = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e" }
+nargo = { git = "https://github.com/dmvict/noir", rev = "db36e6d66b9fadfbf27f7d2852de806095f7c77e" }
+serde_json.workspace = true
+thiserror.workspace = true
+
+crossbeam = "0.8.2"
+dap = "0.4.1-alpha1"
+base64.workspace = true
+
+[features]
+dap = []
