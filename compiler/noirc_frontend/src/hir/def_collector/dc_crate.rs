@@ -14,6 +14,7 @@ use crate::hir::resolution::{
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
 
+use crate::macros_api::MacroProcessor;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
 
 use crate::parser::{ParserError, SortedModule};

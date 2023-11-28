@@ -32,7 +32,6 @@ pub(crate) fn resolve_globals(
     let globals = vecmap(globals, |global| {
         let module_id = ModuleId { local_id: global.module_id, krate: crate_id };
         let path_resolver = StandardPathResolver::new(module_id);
-        let storage_slot = context.next_storage_slot(module_id);
 
         let mut resolver = Resolver::new(
             &mut context.def_interner,
@@ -48,7 +47,7 @@ pub(crate) fn resolve_globals(
 
         context.def_interner.update_global(global.stmt_id, hir_stmt);
 
-        context.def_interner.push_global(global.stmt_id, name, global.module_id, storage_slot);
+        context.def_interner.push_global(global.stmt_id, name, global.module_id);
 
         (global.file_id, global.stmt_id)
     });
