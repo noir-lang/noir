@@ -37,3 +37,11 @@ fn apply_binary_field_op<N>(
 ) -> bool {}
 
 fn main() -> distinct pub [Field;2] {}
+
+fn main(
+    message: [u8; 10],
+    message_field: Field,
+    pub_key_x: Field,
+    pub_key_y: Field,
+    signature: [u8; 64]
+) {}

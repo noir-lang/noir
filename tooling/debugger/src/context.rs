@@ -522,7 +522,7 @@ fn test_break_brillig_block_while_stepping_acir_opcodes() {
 
     // set breakpoint
     let breakpoint_location = OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 };
-    assert!(context.add_breakpoint(breakpoint_location.clone()));
+    assert!(context.add_breakpoint(breakpoint_location));
 
     // execute the first ACIR opcode (Brillig block) -> should reach the breakpoint instead
     let result = context.step_acir_opcode();
