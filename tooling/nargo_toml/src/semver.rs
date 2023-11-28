@@ -3,14 +3,19 @@ use nargo::{
     package::{Dependency, Package},
     workspace::Workspace,
 };
-use semver::{Version, VersionReq};
+use semver::{Error, Version, VersionReq};
+
+// Parse a semver compatible version string
+pub(crate) fn parse_semver_compatible_version(version: &str) -> Result<Version, Error> {
+    Version::parse(version)
+}
 
 // Check that all of the packages in the workspace are compatible with the current compiler version
 pub(crate) fn semver_check_workspace(
     workspace: Workspace,
     current_compiler_version: String,
 ) -> Result<(), ManifestError> {
-    let version = Version::parse(&current_compiler_version)
+    let version = parse_semver_compatible_version(&current_compiler_version)
         .expect("The compiler version is not a valid semver version");
     for package in &workspace.members {
         semver_check_package(package, &version).map_err(ManifestError::SemverError)?;
@@ -83,6 +88,7 @@ mod tests {
             entry_path: PathBuf::new(),
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
+            version: Some("1.0".to_string()),
         };
         if let Err(err) = semver_check_package(&package, &compiler_version) {
             panic!("semver check should have passed. compiler version is 0.1.0 and required version from the package is 0.1.0\n error: {err:?}")
@@ -113,6 +119,7 @@ mod tests {
             entry_path: PathBuf::new(),
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
+            version: Some("1.0".to_string()),
         };
 
         let valid_dependency = Package {
@@ -122,6 +129,7 @@ mod tests {
             entry_path: PathBuf::new(),
             name: CrateName::from_str("good_dependency").unwrap(),
             dependencies: BTreeMap::new(),
+            version: Some("1.0".to_string()),
         };
         let invalid_dependency = Package {
             compiler_required_version: Some("0.2.0".to_string()),
@@ -130,6 +138,7 @@ mod tests {
             entry_path: PathBuf::new(),
             name: CrateName::from_str("bad_dependency").unwrap(),
             dependencies: BTreeMap::new(),
+            version: Some("1.0".to_string()),
         };
 
         package.dependencies.insert(
@@ -169,6 +178,7 @@ mod tests {
             entry_path: PathBuf::new(),
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
+            version: Some("1.0".to_string()),
         };
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
@@ -187,6 +197,7 @@ mod tests {
             entry_path: PathBuf::new(),
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
+            version: Some("1.0".to_string()),
         };
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {

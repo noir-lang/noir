@@ -1,6 +1,5 @@
 [package]
-name = "1_mul"
-version = "0.1.0"
+name = "brillig_cow"
 type = "bin"
 authors = [""]
 
