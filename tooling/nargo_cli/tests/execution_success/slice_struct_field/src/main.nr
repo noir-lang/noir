@@ -356,7 +356,7 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(removed_elem.b[2] == 16);
     assert(removed_elem.bar.inner == [109, 110, 111]);
 
-    // Check correct that we have altered our slice accurately following a removal
+    // Check that we have altered our slice accurately following a removal
     assert(foo_parents[1].foos[1].a == 4);
     assert(foo_parents[1].foos[1].b[0] == 5);
     assert(foo_parents[1].foos[1].b[1] == 6);

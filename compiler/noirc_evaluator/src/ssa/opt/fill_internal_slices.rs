@@ -219,6 +219,12 @@ impl<'f> Context<'f> {
                         | Intrinsic::SlicePopBack
                         | Intrinsic::SliceInsert
                         | Intrinsic::SliceRemove => (1, 1),
+                        // `pop_front` returns the the popped element the slice and then the respective slice
+                        // This means in the case of a slice with structs the result index of the popped slice
+                        // will change depending on the number of elements in the struct.
+                        // For example, a slice with four elements will look as such in SSA:
+                        // v3, v4, v5, v6, v7, v8 = call slice_pop_front(v1, v2)
+                        // where v7 is the slice length and v8 is the popped slice itself.
                         Intrinsic::SlicePopFront => (1, results.len() - 1),
                         _ => return,
                     };
@@ -227,11 +233,14 @@ impl<'f> Context<'f> {
                         Intrinsic::SlicePushBack
                         | Intrinsic::SlicePushFront
                         | Intrinsic::SliceInsert => {
+                            let mut slice_args = Vec::new();
                             for arg in &arguments[(argument_index + 1)..] {
                                 let element_typ = self.inserter.function.dfg.type_of_value(*arg);
                                 if element_typ.contains_slice_element() {
                                     slice_values.push(*arg);
                                     self.compute_slice_sizes(*arg, slice_sizes);
+
+                                    slice_args.push(*arg);
                                 }
                             }
                             if let Some(inner_sizes) = slice_sizes.get_mut(&slice_contents) {
@@ -242,9 +251,10 @@ impl<'f> Context<'f> {
 
                                 self.mapped_slice_values
                                     .insert(slice_contents, results[result_index]);
+                                self.slice_parents.insert(results[result_index], slice_contents);
                             }
                         }
-                        Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
+                        Intrinsic::SlicePopBack | Intrinsic::SliceRemove | Intrinsic::SlicePopFront => {
                             // We do not decrement the size on intrinsics that could remove values from a slice.
                             // This is because we could potentially go back to the smaller slice and not fill in dummies.
                             // This pass should be tracking the potential max that a slice ***could be***
@@ -254,21 +264,7 @@ impl<'f> Context<'f> {
 
                                 self.mapped_slice_values
                                     .insert(slice_contents, results[result_index]);
-                            }
-                        }
-                        Intrinsic::SlicePopFront => {
-                            // `pop_front` returns the the popped element the slice and then the respective slice
-                            // This means in the case of a slice with structs the result index of the popped slice
-                            // will change depending on the number of elements in the struct.
-                            // For example, a slice with four elements will look as such in SSA:
-                            // v3, v4, v5, v6, v7, v8 = call slice_pop_back(v1, v2)
-                            // where v7 is the slice length and v8 is the popped slice itself.
-                            if let Some(inner_sizes) = slice_sizes.get(&slice_contents) {
-                                let inner_sizes = inner_sizes.clone();
-                                slice_sizes.insert(results[result_index], inner_sizes);
-
-                                self.mapped_slice_values
-                                    .insert(slice_contents, results[result_index]);
+                                self.slice_parents.insert(results[result_index], slice_contents);
                             }
                         }
                         _ => {}
@@ -302,17 +298,18 @@ impl<'f> Context<'f> {
                 }
             }
             Instruction::Call { func, arguments } => {
-                let mut index = None;
-
+                let mut args_to_replace = Vec::new();
                 for (i, arg) in arguments.iter().enumerate() {
                     let element_typ = self.inserter.function.dfg.type_of_value(*arg);
                     if slice_values.contains(arg) && element_typ.contains_slice_element() {
-                        // Try and see if we can handle it per call arg
-                        index = Some(i);
+                        args_to_replace.push((i, *arg));
                     }
                 }
-
-                if let Some(index) = index {
+                if args_to_replace.is_empty() {
+                    self.inserter.push_instruction(instruction, block);
+                } else {
+                    // Using the original slice is ok to do as during collection of slice information
+                    // we guarantee that only the arguments to slice intrinsic calls can be replaced.
                     let slice_contents = arguments[1];
 
                     let element_typ = self.inserter.function.dfg.type_of_value(arguments[1]);
@@ -322,36 +319,34 @@ impl<'f> Context<'f> {
                     max_sizes.resize(elem_depth, 0);
                     // We want the max for the parent of the argument
                     let parent = self.resolve_slice_parent(slice_contents);
-                    let resolved_contents = self.resolve_slice_value(slice_contents);
-
                     self.compute_slice_max_sizes(parent, slice_sizes, &mut max_sizes, 0);
 
-                    let element_typ = self.inserter.function.dfg.type_of_value(arguments[index]);
-                    max_sizes.remove(0);
-                    let new_array = self.attach_slice_dummies(
-                        &element_typ,
-                        Some(arguments[index]),
-                        false,
-                        &max_sizes,
-                    );
-
-                    let instruction_id = instruction;
-                    let (instruction, call_stack) = self.inserter.map_instruction(instruction_id);
-                    let new_call_instr = match instruction {
-                        Instruction::Call { func, mut arguments } => {
-                            arguments[index] = new_array;
-                            Instruction::Call { func, arguments }
-                        }
-                        _ => panic!("Expected call instruction"),
-                    };
-                    self.inserter.push_instruction_value(
-                        new_call_instr,
-                        instruction_id,
-                        block,
-                        call_stack,
-                    );
-                } else {
-                    self.inserter.push_instruction(instruction, block);
+                    for (index, arg) in args_to_replace {
+                        let element_typ = self.inserter.function.dfg.type_of_value(arg);
+                        max_sizes.remove(0);
+                        let new_array = self.attach_slice_dummies(
+                            &element_typ,
+                            Some(arg),
+                            false,
+                            &max_sizes,
+                        );
+    
+                        let instruction_id = instruction;
+                        let (instruction, call_stack) = self.inserter.map_instruction(instruction_id);
+                        let new_call_instr = match instruction {
+                            Instruction::Call { func, mut arguments } => {
+                                arguments[index] = new_array;
+                                Instruction::Call { func, arguments }
+                            }
+                            _ => panic!("Expected call instruction"),
+                        };
+                        self.inserter.push_instruction_value(
+                            new_call_instr,
+                            instruction_id,
+                            block,
+                            call_stack,
+                        );
+                    }
                 }
             }
             _ => {
