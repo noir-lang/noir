@@ -1,0 +1,439 @@
+name: Javascript Tests
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - master
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build-nargo:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build Nargo
+        run: cargo build --package nargo_cli --release
+
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/release/nargo ./dist/nargo
+          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-x86_64-unknown-linux-gnu.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nargo
+          path: ./dist/*
+          retention-days: 3
+
+  build-noir-wasm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: ./.github/actions/nix
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          nix-cache-name: "noir"
+          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+
+      - name: Build wasm package
+        run: |
+          nix build -L .#noir_wasm
+
+      - name: Dereference symlink
+        run: echo "UPLOAD_PATH=$(readlink -f ./result/noir_wasm)" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: noir_wasm
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 3
+
+
+  build-acvm-js:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: ./.github/actions/nix
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          nix-cache-name: "noir"
+          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+
+      - name: Build acvm-js
+        run: |
+          nix build -L .#acvm_js
+
+      - name: Dereference symlink
+        run: echo "UPLOAD_PATH=$(readlink -f result/acvm_js)" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: acvm-js
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 3
+
+  build-noirc-abi:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Setup Nix
+        uses: ./.github/actions/nix
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          nix-cache-name: "noir"
+          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+
+      - name: Build noirc_abi_wasm
+        run: |
+          nix build -L .#noirc_abi_wasm
+
+      - name: Dereference symlink
+        run: echo "UPLOAD_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 10
+
+  test-acvm_js-node:
+    needs: [build-acvm-js]
+    name: ACVM JS (Node.js)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: acvm-js
+          path: ./acvm-repo/acvm_js
+
+      - name: Set up test environment
+        uses: ./.github/actions/setup
+
+      - name: Run node tests
+        run: yarn workspace @noir-lang/acvm_js test
+
+  test-acvm_js-browser:
+    needs: [build-acvm-js]
+    name: ACVM JS (Browser)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: acvm-js
+          path: ./acvm-repo/acvm_js
+      
+      - name: Set up test environment
+        uses: ./.github/actions/setup
+
+      - name: Install playwright deps
+        run: |
+          npx playwright install
+          npx playwright install-deps
+
+      - name: Run browser tests
+        run: yarn workspace @noir-lang/acvm_js test:browser
+
+  test-noirc-abi:
+    needs: [build-noirc-abi]
+    name: noirc_abi
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Download wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Run node tests
+        run: yarn workspace @noir-lang/noirc_abi test
+
+      - name: Install Playwright
+        uses: ./.github/actions/install-playwright
+
+      - name: Run browser tests
+        run: yarn workspace @noir-lang/noirc_abi test:browser
+
+  test-noir-js-backend-barretenberg:
+    needs: [build-noirc-abi]
+    name: noir-js-backend-barretenberg
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
+      
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Build noir_js_types
+        run: yarn workspace @noir-lang/types build
+
+      - name: Run barretenberg wrapper tests
+        run: |
+          yarn workspace @noir-lang/backend_barretenberg test
+
+  test-noir-js:
+    needs: [build-acvm-js, build-noirc-abi]
+    name: Noir JS
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: acvm-js
+          path: ./acvm-repo/acvm_js
+
+      - name: Download wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
+      
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Build noir_js_types
+        run: yarn workspace @noir-lang/types build
+
+      - name: Build barretenberg wrapper
+        run: yarn workspace @noir-lang/backend_barretenberg build
+
+      - name: Run noir_js tests
+        run: |
+          yarn workspace @noir-lang/noir_js build
+          yarn workspace @noir-lang/noir_js test
+
+  test-source-resolver:
+    name: source-resolver
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Build @noir-lang/source-resolver
+        run: yarn workspace @noir-lang/source-resolver build
+
+      - name: Run tests
+        run: yarn workspace @noir-lang/source-resolver test
+
+  test-noir-wasm:
+    needs: [build-noir-wasm, build-nargo]
+    name: noir_wasm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Download wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noir_wasm
+          path: ./compiler/wasm
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v3
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Compile fixtures with Nargo CLI
+        working-directory: ./compiler/wasm/fixtures
+        run: |
+          nargo_binary=${{ github.workspace }}/nargo/nargo
+          chmod +x $nargo_binary
+          for dir in $(ls -d */); do
+            pushd $dir/noir-script
+            $nargo_binary compile
+            popd
+          done
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Install Playwright
+        uses: ./.github/actions/install-playwright
+
+      - name: Install dependencies
+        run: |
+          yarn workspace @noir-lang/source-resolver build
+
+      - name: Run node tests
+        run: yarn workspace @noir-lang/noir_wasm test:node
+
+      - name: Run browser tests
+        run: yarn workspace @noir-lang/noir_wasm test:browser
+
+  test-noir-codegen:
+    needs: [build-acvm-js, build-noirc-abi]
+    name: noir_codegen
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download acvm_js package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: acvm-js
+          path: ./acvm-repo/acvm_js
+      
+      - name: Download noirc_abi package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Build noir_js_types
+        run: yarn workspace @noir-lang/types build
+
+      - name: Build noir_js
+        run: yarn workspace @noir-lang/noir_js build
+
+      - name: Run noir_codegen tests
+        run: yarn workspace @noir-lang/noir_codegen test
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
+   
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v3
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Download acvm_js package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: acvm-js
+          path: ./acvm-repo/acvm_js
+
+      - name: Download noir_wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noir_wasm
+          path: ./compiler/wasm
+
+      - name: Download noirc_abi package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Install Playwright
+        uses: ./.github/actions/install-playwright
+
+      - name: Setup `integration-tests`
+        run: |
+          # Note the lack of spaces between package names.
+          PACKAGES_TO_BUILD="@noir-lang/source-resolver,@noir-lang/types,@noir-lang/backend_barretenberg,@noir-lang/noir_js"
+          yarn workspaces foreach -vp --from "{$PACKAGES_TO_BUILD}" run build
+
+      - name: Run `integration-tests`
+        run: |
+          yarn test:integration
+  
+  # This is a noop job which depends on all test jobs
+  # This allows us to add/remove test jobs without having to update the required workflows.
+  tests-end:
+    name: End
+    runs-on: ubuntu-latest
+    needs: 
+      - test-acvm_js-node
+      - test-acvm_js-browser
+      - test-noirc-abi
+      - test-noir-js-backend-barretenberg
+      - test-noir-js
+      - test-source-resolver
+      - test-noir-wasm
+      - test-noir-codegen
+      - test-integration
+    
+    steps:
+        - name: Noop
+          run: echo "noop"

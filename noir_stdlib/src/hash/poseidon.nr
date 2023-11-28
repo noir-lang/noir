@@ -10,7 +10,14 @@ struct PoseidonConfig<M,N> {
     mds: [Field; N] // MDS Matrix in row-major order
 }
 
-pub fn config<M, N>(t: Field, rf: u8, rp: u8, alpha: Field, ark: [Field; M], mds: [Field; N]) -> PoseidonConfig<M,N> {
+pub fn config<M, N>(
+    t: Field,
+    rf: u8,
+    rp: u8,
+    alpha: Field,
+    ark: [Field; M],
+    mds: [Field; N]
+) -> PoseidonConfig<M,N> {
     // Input checks
     let mul = crate::wrapping_mul(t as u8, (rf + rp));
     assert(mul == ark.len() as u8);

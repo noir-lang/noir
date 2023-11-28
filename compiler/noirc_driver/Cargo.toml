@@ -21,3 +21,8 @@ iter-extended.workspace = true
 fm.workspace = true
 serde.workspace = true
 fxhash.workspace = true
+
+aztec_macros ={path = "../../aztec_macros", optional = true}
+
+[features]
+aztec = ["aztec_macros"]

@@ -56,7 +56,7 @@ export type AbiType =
     { kind: "integer", sign: Sign, width: number } |
     { kind: "array", length: number, type: AbiType } |
     { kind: "tuple", fields: AbiType[] } |
-    { kind: "struct", path: string, fields: [string, AbiType][] };
+    { kind: "struct", path: string, fields: { name: string, type: AbiType }[] };
 
 export type AbiParameter = {
     name: string,

@@ -1,6 +1,7 @@
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
+use crate::macros_api::MacroProcessor;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::parser::{parse_program, ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
@@ -16,6 +17,8 @@ mod module_data;
 pub use module_data::*;
 mod namespace;
 pub use namespace::*;
+
+use super::def_collector::errors::DefCollectorErrorKind;
 
 /// The name that is used for a non-contract program's entry-point function.
 pub const MAIN_FUNCTION: &str = "main";
@@ -69,6 +72,7 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
+        macro_processors: Vec<&dyn MacroProcessor>,
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -83,16 +87,18 @@ impl CrateDefMap {
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
         let (ast, parsing_errors) = parse_file(&context.file_manager, root_file_id);
-        let ast = ast.into_sorted();
+        let mut ast = ast.into_sorted();
 
-        #[cfg(feature = "aztec")]
-        let ast = match super::aztec_library::transform(ast, &crate_id, context) {
-            Ok(ast) => ast,
-            Err((error, file_id)) => {
-                errors.push((error.into(), file_id));
-                return errors;
-            }
-        };
+        for macro_processor in &macro_processors {
+            ast = match macro_processor.process_untyped_ast(ast, &crate_id, context) {
+                Ok(ast) => ast,
+                Err((error, file_id)) => {
+                    let def_error = DefCollectorErrorKind::MacroError(error);
+                    errors.push((def_error.into(), file_id));
+                    return errors;
+                }
+            };
+        }
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
@@ -107,7 +113,13 @@ impl CrateDefMap {
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        errors.extend(DefCollector::collect(def_map, context, ast, root_file_id));
+        errors.extend(DefCollector::collect(
+            def_map,
+            context,
+            ast,
+            root_file_id,
+            macro_processors.clone(),
+        ));
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),
