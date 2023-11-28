@@ -1,7 +1,7 @@
 use noirc_frontend::{token::Token, ArrayLiteral, Expression, ExpressionKind, Literal, UnaryOp};
 
 use crate::visitor::{
-    expr::{format_brackets, format_parens},
+    expr::{format_brackets, format_parens, NewlineMode},
     ExpressionType, FmtVisitor, Indent, Shape,
 };
 
@@ -60,6 +60,7 @@ pub(crate) fn rewrite(
                 call_expr.arguments,
                 args_span,
                 true,
+                NewlineMode::IfContainsNewLineAndWidth,
             );
 
             format!("{callee}{args}")
@@ -80,6 +81,7 @@ pub(crate) fn rewrite(
                 method_call_expr.arguments,
                 args_span,
                 true,
+                NewlineMode::IfContainsNewLineAndWidth,
             );
 
             format!("{object}.{method}{args}")
@@ -97,9 +99,16 @@ pub(crate) fn rewrite(
 
             format!("{collection}{index}")
         }
-        ExpressionKind::Tuple(exprs) => {
-            format_parens(None, visitor.fork(), shape, exprs.len() == 1, exprs, span, false)
-        }
+        ExpressionKind::Tuple(exprs) => format_parens(
+            None,
+            visitor.fork(),
+            shape,
+            exprs.len() == 1,
+            exprs,
+            span,
+            true,
+            NewlineMode::Normal,
+        ),
         ExpressionKind::Literal(literal) => match literal {
             Literal::Integer(_) | Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) => {
                 visitor.slice(span).to_string()

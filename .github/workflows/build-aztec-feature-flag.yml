@@ -42,4 +42,4 @@ jobs:
           save-if: ${{ github.event_name != 'merge_group' }}
 
       - name: Build with feature flag
-        run: cargo build --features="noirc_frontend/aztec"
+        run: cargo build --features="noirc_driver/aztec"
