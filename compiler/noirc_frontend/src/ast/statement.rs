@@ -198,7 +198,11 @@ impl From<Ident> for Expression {
     fn from(i: Ident) -> Expression {
         Expression {
             span: i.0.span(),
-            kind: ExpressionKind::Variable(Path { span: i.span(), segments: vec![i], kind: PathKind::Plain }),
+            kind: ExpressionKind::Variable(Path {
+                span: i.span(),
+                segments: vec![i],
+                kind: PathKind::Plain,
+            }),
         }
     }
 }
