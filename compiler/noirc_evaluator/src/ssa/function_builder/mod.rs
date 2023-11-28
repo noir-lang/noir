@@ -462,11 +462,6 @@ impl FunctionBuilder {
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
-        // Reference-counted arrays are only needed for Brillig's copy on write optimization.
-        if self.current_function.runtime() != RuntimeType::Brillig {
-            return;
-        }
-
         match self.type_of_value(value) {
             Type::Numeric(_) => (),
             Type::Function => (),
