@@ -1,0 +1,8 @@
+constant %N = 16;
+namespace Fibonacci(16);
+    col fixed LAST(i) { match i { (%N - 1) => 1, _ => 0, } };
+    col fixed FIRST(i) { match i { 0 => 1, _ => 0, } };
+    col witness x;
+    col witness y;
+    (((1 - Fibonacci.FIRST) * (1 - Fibonacci.LAST)) * (Fibonacci.x' - Fibonacci.y)) = 0;
+    (((1 - Fibonacci.FIRST) * (1 - Fibonacci.LAST)) * (Fibonacci.y' - (Fibonacci.x + Fibonacci.y))) = 0;
