@@ -126,6 +126,7 @@ impl<'a> Lexer<'a> {
             Some(']') => self.single_char_token(Token::RightBracket),
             Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
+            Some('r') => self.eat_raw_string_or_alpha_numeric(),
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
@@ -397,6 +398,78 @@ impl<'a> Lexer<'a> {
             self.eat_fmt_string()
         } else {
             self.eat_alpha_numeric('f')
+        }
+    }
+
+    fn eat_raw_string(&mut self) -> SpannedTokenResult {
+        let start = self.position;
+
+        let beginning_hashes = self.eat_while(None, |ch| ch == '#');
+        let beginning_hashes_count = beginning_hashes.chars().count();
+        if beginning_hashes_count > 255 {
+            // too many hashes (unlikely in practice)
+            // also, Rust disallows 256+ hashes as well
+            return Err(LexerErrorKind::UnexpectedCharacter {
+                span: Span::single_char(start + 255),
+                found: Some('#'),
+                expected: "\"".to_owned(),
+            });
+        }
+
+        if !self.peek_char_is('"') {
+            return Err(LexerErrorKind::UnexpectedCharacter {
+                span: Span::single_char(self.position),
+                found: self.next_char(),
+                expected: "\"".to_owned(),
+            });
+        }
+        self.next_char();
+
+        let mut str_literal = String::new();
+        loop {
+            let chars = self.eat_while(None, |ch| ch != '"');
+            str_literal.push_str(&chars[..]);
+            if !self.peek_char_is('"') {
+                return Err(LexerErrorKind::UnexpectedCharacter {
+                    span: Span::single_char(self.position),
+                    found: self.next_char(),
+                    expected: "\"".to_owned(),
+                });
+            }
+            self.next_char();
+            let mut ending_hashes_count = 0;
+            while let Some('#') = self.peek_char() {
+                if ending_hashes_count == beginning_hashes_count {
+                    break;
+                }
+                self.next_char();
+                ending_hashes_count += 1;
+            }
+            if ending_hashes_count == beginning_hashes_count {
+                break;
+            } else {
+                str_literal.push('"');
+                for _ in 0..ending_hashes_count {
+                    str_literal.push('#');
+                }
+            }
+        }
+
+        let str_literal_token = Token::RawStr(str_literal, beginning_hashes_count as u8);
+
+        let end = self.position;
+        Ok(str_literal_token.into_span(start, end))
+    }
+
+    fn eat_raw_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
+        // Problem: we commit to eating raw strings once we see one or two characters.
+        // This is unclean, but likely ok in all practical cases, and works with existing
+        // `Lexer` methods.
+        let peek1 = self.peek_char().unwrap_or('X');
+        let peek2 = self.peek2_char().unwrap_or('X');
+        match (peek1, peek2) {
+            ('#', '#') | ('#', '"') | ('"', _) => self.eat_raw_string(),
+            _ => self.eat_alpha_numeric('r'),
         }
     }
 

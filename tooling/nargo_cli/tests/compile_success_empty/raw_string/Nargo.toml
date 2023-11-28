@@ -1,0 +1,6 @@
+[package]
+name = "raw_string"
+type = "bin"
+authors = [""]
+
+[dependencies]
