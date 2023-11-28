@@ -790,8 +790,8 @@ impl<'a> Resolver<'a> {
             });
         }
 
-        // 'pub_allowed' also implies 'pub' is required on return types
-        if self.pub_allowed(func)
+        // 'pub' is required on return types for entry point functions
+        if self.is_entry_point_function(func)
             && return_type.as_ref() != &Type::Unit
             && func.def.return_visibility != Visibility::Public
         {
