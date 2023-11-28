@@ -7,7 +7,7 @@ use crate::ssa::{
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
         function::Function,
-        instruction::{InstructionId, Instruction},
+        instruction::{Instruction, InstructionId},
         post_order::PostOrder,
         value::{Value, ValueId},
     },
@@ -38,6 +38,8 @@ fn dead_instruction_elimination(function: &mut Function) {
     for block in blocks.as_slice() {
         context.remove_unused_instructions_in_block(function, *block);
     }
+
+    context.remove_inc_rc_instructions(&mut function.dfg);
 }
 
 /// Per function context for tracking unused values and which instructions to remove.
@@ -45,6 +47,11 @@ fn dead_instruction_elimination(function: &mut Function) {
 struct Context {
     used_values: HashSet<ValueId>,
     instructions_to_remove: HashSet<InstructionId>,
+
+    /// IncrementRc instructions must be revisited after the main DIE pass since
+    /// they are technically side-effectful but we stil want to remove them if their
+    /// `value` parameter is not used elsewhere.
+    inc_rc_instructions: Vec<(InstructionId, BasicBlockId)>,
 }
 
 impl Context {
@@ -67,14 +74,19 @@ impl Context {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
-        for instruction in block.instructions().iter().rev() {
-            if self.is_unused(*instruction, function) {
-                self.instructions_to_remove.insert(*instruction);
+        for instruction_id in block.instructions().iter().rev() {
+            if self.is_unused(*instruction_id, function) {
+                self.instructions_to_remove.insert(*instruction_id);
             } else {
-                let instruction = &function.dfg[*instruction];
-                instruction.for_each_value(|value| {
-                    self.mark_used_instruction_results(&function.dfg, value);
-                });
+                let instruction = &function.dfg[*instruction_id];
+
+                if let Instruction::IncrementRc { .. } = instruction {
+                    self.inc_rc_instructions.push((*instruction_id, block_id));
+                } else {
+                    instruction.for_each_value(|value| {
+                        self.mark_used_instruction_results(&function.dfg, value);
+                    });
+                }
             }
         }
 
@@ -90,12 +102,7 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        // IncrementRc is a special case, we want to remove it if possible
-        // but it has no results so it'd always be removed if left to the normal check.
-        // We must check whether its parameter is unused instead.
-        if let Instruction::IncrementRc { value } = instruction {
-            !self.used_values.contains(value)
-        } else if instruction.has_side_effects(&function.dfg) {
+        if instruction.has_side_effects(&function.dfg) {
             // If the instruction has side effects we should never remove it.
             false
         } else {
@@ -124,8 +131,25 @@ impl Context {
                     self.mark_used_instruction_results(dfg, *elem);
                 }
             }
+            Value::Param { .. } => {
+                self.used_values.insert(value_id);
+            }
             _ => {
                 // Does not comprise of any instruction results
+            }
+        }
+    }
+
+    fn remove_inc_rc_instructions(self, dfg: &mut DataFlowGraph) {
+        for (inc_rc, block) in self.inc_rc_instructions {
+            let value = match &dfg[inc_rc] {
+                Instruction::IncrementRc { value } => *value,
+                other => unreachable!("Expected IncrementRc instruction, found {other:?}"),
+            };
+
+            // This could be more efficient if we have to remove multiple inc_rcs in a single block
+            if !self.used_values.contains(&value) {
+                dfg[block].instructions_mut().retain(|instruction| *instruction != inc_rc);
             }
         }
     }
