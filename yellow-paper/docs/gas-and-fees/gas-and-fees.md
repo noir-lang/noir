@@ -62,22 +62,17 @@ Rollups consist of multiple transactions, allowing for amortisation of certain c
 Transaction specific consumption also consists of both L1 and L2 components:
 
 <!-- prettier-ignore -->
-| Action | Resource Domain | Consumption Calculation | Comment |
-| -------- | -------- | -------- | ------- |
-| Verifying each nullifier against the world state    | L2     | Fixed L2/Tx nullifier     | |
-| Verifying each nullifier against others in the same block     | L2     | Fixed L2/Tx nullifier     | Whilst not strictly a fixed cost, this would need to be allocated as a fixed cost as it depends on the composition of the rollup |
-| Verifying log preimages against the sha256 log hashes contained in the private kernel public inputs | L2 | Hash cost per log preimage field | |
-| Verifying contract deployment data against the sha256 hash of this data contained in the private kernel public inputs | L2 | Hash cost per  field | |  
-| Publishing contract data to L1     | L1     | Calldata gas per byte     | |
-| Publishing state updates to L1     | L1     | Calldata gas per byte     | |
-| Publishing notes/tags to L1    | L1     | Calldata gas per byte + verification hashing per byte     | |
-| Publishing an L2->L1 messages | L1 | Calldata gas per byte + processing & storing of the message | |
-| Simulating a public function     | L2     | L2 gas per function opcode     | |
-| Public VM witness generation for a public function     | L2     | L2 gas per function opcode    | |
-| Proving the public VM circuit for a public function     | L2     | Fixed L2/Tx public function     | |
-| Simulating the public kernel circuit for a public function     | L2     | Fixed L2/Tx public function   | |
-| Public kernel circuit witness generation for a public function    | L2     | Fixed L2/Tx public function    | |
-| Proving the public kernel circuit for a public function    | L2     | Fixed L2/Tx public function   | |
+| Action | Resource Domain | Consumption Calculation |
+| -------- | -------- | -------- |
+| Verifying nullifiers    | L2     | Gas per nullifier     | |
+| Verifying log preimages | L2 | Gas per preimage field | |
+| Verifying contract deployment data | L2 | Gas per preimage field | |  
+| Publishing contract data and state updates to L1     | L1     | Gas per byte of calldata     | |
+| Publishing notes/tags    | L1     | Gas per byte for storage and verification     | |
+| Publishing L2->L1 messages | L1 | Gas per byte + processing & storing of the message | |
+| Executing a public function     | L2     | Gas based on function opcodes     | |
+| Proving the public VM circuit for a public function     | L2     | Gas per public function     | |
+| Proving the public kernel     | L2     | Gas per public function   | |
 
 ## Attributing Transaction Gas
 
@@ -87,7 +82,7 @@ All of the operations listed in the transaction specific table can provide us wi
 
 For example, if the previous 10 rollups consist of an average of 5000 transactions, the sender could decide on a value of 1000 for `N` in it's amortisation. If the transaction is included in a rollup with > `N` transactions, the fee saved by the additional amortisation will be refunded to the sender.
 
-The transaction will be provided with 4 gas values:
+The transaction will be provided with 6 gas values:
 
 <!-- prettier-ignore -->
 | Value | Description |
@@ -96,6 +91,8 @@ The transaction will be provided with 4 gas values:
 | `l1TxGasLimit` | The maximum amount of gas permitted for use in transaction specific L1 operations |
 | `l2BaseGasLimit` | The maximum amount of gas permitted for use in amortised L2 operations |
 | `l2TxGasLimit` | The maximum amount of gas permitted for use in transaction specific operations |
+| `l1FeeDistributionGas` | The amount of L1 gas the sequencer can charge for executing the fee distribution function |
+| `l2FeeDistributionGas` | The amount of L2 gas the sequencer can charge for executing the fee distribution function |
 
 By constraining each of the above values individually, the transaction sender is protected from a dishonest sequencer allocating an unfairly high amount of gas to one category and leaving insufficient gas for other categories causing a transaction to erroneously be deemed 'out of gas' and a fee taken for improper execution.
 
@@ -173,6 +170,8 @@ This would appaear to introduce a circular dependency whereby an appropriate fee
 - **l2BaseGasLimit** - The upper bound of L2 ammortised gas the transaction is willing to pay for
 - **l1TxGasLimit** - The upper bound of L1 transaction specific gas the transaction is willing to pay for
 - **l2TxGasLimit** - The upper bound of L2 transaction specific gas the transaction is willing to pay for
+- **l1FeeDistributionGas** - The amount of L1 gas the transaction is willing to pay for execution of the fee distribution function
+- **l2FeeDistributionGas** - The amount of L1 gas the transaction is willing to pay for execution of the fee distribution function
 
 Initially, the values of transaction gas limits can be set to a very high number, the base gas limits set to values corresponding to the user's chosen amortisation level and the fees aet to 0. The transaction can be simulated under these conditions and simulation will provide actual gas consumption figures. Simulation can then be repeated with more realistic values of gas limits and the updated gas consumption figures will be reported. A few iterations of this process will enable the user to establish and prepare an appropriate fee.
 
@@ -180,14 +179,16 @@ Simulation of the transaction will provide feedback as to it's gas consumption, 
 
 - **feeCommitments** - New commitments generated as part of fee preparation
 - **feeNullifiers** - New nullifiers generated as part of fee preparation
-- **feePreparation** - Public function calls to be made as part of fee preparation
-- **feeDistribution** - Public function calls to be made as part of fee distribution
+- **feePreparation** - A single public function call to be made as part of fee preparation
+- **feeDistribution** - A single public function call to be made as part of fee distribution
 - **feePerL1Gas** - The fee provided per unit of L1 gas
 - **feePerL2Gas** - The fee provided per unit of L2 gas
 - **l1BaseGasLimit** - The upper bound of L1 ammortised gas the transaction is willing to pay for
 - **l2BaseGasLimit** - The upper bound of L2 ammortised gas the transaction is willing to pay for
 - **l1TxGasLimit** - The upper bound of L1 transaction specific gas the transaction is willing to pay for
 - **l2TxGasLimit** - The upper bound of L2 transaction specific gas the transaction is willing to pay for
+- **l1FeeDistributionGas** - The amount of L1 gas the transaction is willing to pay for execution of the fee distribution function
+- **l2FeeDistributionGas** - The amount of L2 gas the transaction is willing to pay for execution of the fee distribution function
 
 
 ### Transaction Selection and Execution
@@ -203,6 +204,8 @@ struct TxContext {
     l2BaseGasLimit; // provided by the client
     l1TxGasLimit; // provided by the client
     l2TxGasLimit; // provided by the client
+    l1FeeDistributionGas: // provided by the client
+    l2FeeDistributionGas: // provided by the client
     feePerL1Gas; // provided by the client
     feePerL2Gas; // provided by the client
     l1GasUsed; // accumulated through circuits
@@ -225,36 +228,32 @@ Public kernel circuit iterations will be executed for each public function call 
 2. Any reverts claimed by the sequencer did indeed occur.
 3. After such reverts no unnecessary gas consumption took place.
 
+Once transaction execution is complete, the sequencer will execute the fee distribution function. 
+
 ### Fee Distribution
 
-Once public function execution has completed (or hit the gas limit), the fee distribution component is executed. This is a public function and will also need to be proven via the VM and publc kernel circuits. The sequencer will have agency over which functions they are willing to accept and this will be part of the earlier transaction acceptance.
+Once public function execution has completed (or hit the gas limit), the fee distribution component is executed. This is a public function and will also need to be proven via the VM and publc kernel circuits. The sequencer will have agency over which functions they are willing to accept and this will be part of the earlier transaction acceptance. Execution of this function is paid for using a fixed fee, specified by the gas values `l1FeeDistributionGas` and `l2FeeDistributionGas`. The sequencer will be able to verify that these are sufficient to cover the likely cost of calling this function.
 
-The total fee taken by the sequencer is calculated from the values of consumed L1 and L2 gas and the `feePerGas` values provided with the transaction. Any balance remaining must be refunded.
+The total fee taken by the sequencer is calculated from the values of consumed L1 and L2 gas and the `feeDistributionGas` and `feePerGas` values provided with the transaction. Any balance remaining must be refunded.
 
 ```
-let actual_l1_cost = tx_context.l1GasUsed * tx_context.feePerL1Gas;
-let actual_l2_cost = tx_context.l2GasUsed * tx_context.feePerL2Gas;
+let actual_l1_cost = (tx_context.l1GasUsed + l1FeeDistributionGas) * tx_context.feePerL1Gas;
+let actual_l2_cost = (tx_context.l2GasUsed + l2FeeDistributionGas) * tx_context.feePerL2Gas;
 let total_tx_cost = actual_l1_cost + actual_l2_cost;
 let refund = tx_context.totalFee - total_tx_cost;
 ```
 
-### Merging the Public Kernel Circuits
-
-The sequencer will have performed public function execution in up to 3 of the transaction components producing a chain of public kernel circuit executions for each. The proofs from the final iteration of each chain will be merged via the public kernel merge circuit.
-
-![Merging the public kernel circuits](../gas-and-fees/images/gas-and-fees/public-merge.jpg)
-
 ### Constraining the Sequencer via the Rollup Circuits
 
-Once all public execution has completed, the public kernel merge circuit proof will be consumed by the base rollup circuit. The base rollup circuit will ensure that the sequencer behaved honestly with regards to fee processing by verifying that:
+To ensure clients are fairly charged for complete execution of their transactions, the public kernel circuit will verify:
 
-1. The values of amortised gas corresponded to the actual rollup size
+1. The values of `base` gas applied to the transaction correctly corresponds to the size of rollup selected by the sequencer
 2. The values of l1 and l2 gas accumulated within the `TxContext` object were accurate
 3. The l1 and l2 gas limits specified in the transaction were respected
 4. The correct values of `feePerL1Gas` and `feePerL2Gas` were used
 5. The correct public functions were called as part of the fee preparation and fee distribution components
 
-Additionally, the merge and root rollup circuits will constrain that the value of amortised gas was the same for all transactions in the rollup.
+Additionally, the merge and root rollup circuits will constrain that the value of `base` gas was consistent with the actual rollup size
 
 ## Payment Methods
 
