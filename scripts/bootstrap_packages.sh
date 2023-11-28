@@ -6,13 +6,15 @@ cd $(dirname "$0")/..
 ./scripts/install_wasm-bindgen.sh
 
 # If this project has been subrepod into another project, set build data manually.
+export SOURCE_DATE_EPOCH=$(date +%s)
+export GIT_DIRTY=false
 if [ -f ".gitrepo" ]; then
-  export SOURCE_DATE_EPOCH=$(date +%s)
-  export GIT_DIRTY=false
   export GIT_COMMIT=$(awk '/commit =/ {print $3}' .gitrepo)
+else
+  export GIT_COMMIT=$(git rev-parse --verify HEAD)
 fi
 
-export cargoExtraArgs="--features noirc_frontend/aztec"
+export cargoExtraArgs="--features noirc_driver/aztec"
 
 yarn
 yarn build
