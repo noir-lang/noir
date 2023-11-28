@@ -114,7 +114,7 @@ impl Type {
                 }
             }
         }
-        return has_internal_slices;
+        has_internal_slices
     }
 }
 

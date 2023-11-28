@@ -1062,7 +1062,7 @@ impl Context {
         match value {
             AcirValue::Var(store_var, _) => {
                 // Write the new value into the new array at the specified index
-                self.acir_context.write_to_memory(block_id, var_index, &store_var)?;
+                self.acir_context.write_to_memory(block_id, var_index, store_var)?;
                 // Incremement the var_index in case of a nested array
                 *var_index = self.acir_context.add_var(*var_index, one)?;
             }
@@ -2209,9 +2209,9 @@ impl Context {
                 // the index internally.
                 let mut temp_index = var_index;
                 if !slice_typ.is_nested_slice() {
-                    for i in 2..(2 + element_size) {
+                    for res in &result_ids[2..(2 + element_size)] {
                         let element = self.array_get_value(
-                            &dfg.type_of_value(result_ids[i]),
+                            &dfg.type_of_value(*res),
                             block_id,
                             &mut temp_index,
                             &[],
@@ -2259,10 +2259,8 @@ impl Context {
                     let read_var = if (i + popped_elements_size) >= slice_len {
                         index_var
                     } else {
-                        let index_plus_elem_size = self
-                            .acir_context
-                            .add_constant(FieldElement::from((i + popped_elements_size) as u128));
-                        index_plus_elem_size
+                        self.acir_context
+                            .add_constant(FieldElement::from((i + popped_elements_size) as u128))
                     };
 
                     let value_read_var = self.acir_context.read_from_memory(block_id, &read_var)?;
