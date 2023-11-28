@@ -7,7 +7,7 @@ use crate::ssa::{
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
         function::Function,
-        instruction::InstructionId,
+        instruction::{InstructionId, Instruction},
         post_order::PostOrder,
         value::{Value, ValueId},
     },
@@ -90,7 +90,12 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if instruction.has_side_effects(&function.dfg) {
+        // IncrementRc is a special case, we want to remove it if possible
+        // but it has no results so it'd always be removed if left to the normal check.
+        // We must check whether its parameter is unused instead.
+        if let Instruction::IncrementRc { value } = instruction {
+            !self.used_values.contains(value)
+        } else if instruction.has_side_effects(&function.dfg) {
             // If the instruction has side effects we should never remove it.
             false
         } else {
