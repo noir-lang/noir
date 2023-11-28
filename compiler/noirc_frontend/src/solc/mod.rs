@@ -1,13 +1,15 @@
 use std::path::Path;
 
 use crate::{
-    ast, graph::CrateId, hir::def_map::Visibility, parser::SortedModule, BlockExpression,
-    CallExpression, CastExpression, Expression as NoirExpression, ExpressionKind,
+    ast, graph::CrateId, hir::def_map::Visibility, parser::SortedModule, AssignStatement,
+    BlockExpression, CallExpression, CastExpression, Expression as NoirExpression, ExpressionKind,
     FunctionDefinition as NoirFunctionDefinition, FunctionReturnType, Ident as NoirIdent,
-    IndexExpression, InfixExpression, LetStatement, MemberAccessExpression, MethodCallExpression,
-    NoirFunction, Path as NoirPath, Pattern, PrefixExpression, Statement as NoirStatement,
-    StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
+    IfExpression, IndexExpression, InfixExpression, LValue, LetStatement, Literal,
+    MemberAccessExpression, MethodCallExpression, NoirFunction, Path as NoirPath, Pattern,
+    PrefixExpression, Statement as NoirStatement, StatementKind, UnaryOp, UnresolvedType,
+    UnresolvedTypeData,
 };
+use acvm::FieldElement;
 use fm::{FileId, FileManager};
 use noirc_errors::{Span, Spanned};
 use solang_parser::{
@@ -55,8 +57,6 @@ pub fn parse_sol(text: &str) -> SortedModule {
             _ => (),
         }
     }
-
-    dbg!(&ast.functions);
 
     ast
 }
@@ -140,7 +140,34 @@ fn resolve_statement(sol_body: SolStatement) -> Vec<NoirStatement> {
                 collected_statements.push(express_statement);
             }
         }
-        _ => panic!("Not implemented"),
+        SolStatement::VariableDefinition(_, var_def, expression_opt) => {
+            // TODO: resolve the type, just use field for now
+            let ty = make_type(UnresolvedTypeData::FieldElement);
+            let name = &var_def.name.unwrap().name;
+
+            let assign = if let Some(expression) = expression_opt {
+                let exp = resolve_expression(expression);
+                mutable_assignment(name, exp)
+            } else {
+                let val = make_numeric_literal("0".to_string());
+                mutable_assignment(name, val)
+            };
+            collected_statements.push(assign);
+        }
+        SolStatement::If(_, expr, inner, outer) => {
+            // TODO Note if in an if statement
+            // Early return is NOT supported
+
+            let expr = resolve_expression(expr);
+            let inner2 = block_expression(resolve_statement(*inner));
+            let outer2 = outer.clone();
+            let outer3 = outer2
+                .clone()
+                .and(Some(block_expression(resolve_statement(*(outer2.unwrap().clone())))));
+
+            collected_statements.push(make_if(expr, inner2, outer3));
+        }
+        _ => panic!("Not implemented statement, {sol_body}"),
     }
     collected_statements
 }
@@ -149,21 +176,47 @@ fn resolve_expression(sol_expression: SolExpression) -> NoirExpression {
     dbg!(&sol_expression);
     match sol_expression {
         SolExpression::Add(_, lhs, rhs) => {
-            let addition = NoirExpression::new(
-                ExpressionKind::Infix(Box::new(InfixExpression {
-                    lhs: resolve_expression(*lhs),
-                    rhs: resolve_expression(*rhs),
-                    operator: Spanned::from(Span::default(), BinaryOpKind::Add),
-                })),
-                Span::default(),
-            );
-            addition
+            let lhs = resolve_expression(*lhs);
+            let rhs = resolve_expression(*rhs);
+            let op = BinaryOpKind::Add;
+            infix_expression(lhs, rhs, op)
+        }
+        SolExpression::Subtract(_, lhs, rhs) => {
+            let lhs = resolve_expression(*lhs);
+            let rhs = resolve_expression(*rhs);
+            let op = BinaryOpKind::Subtract;
+            infix_expression(lhs, rhs, op)
         }
         SolExpression::Variable(ident) => {
             let ident = transform_ident(&ident);
             variable_ident(ident)
         }
-        _ => panic!("Not implemented"),
+        // TODO: support exp / unit
+        // Value is the most common
+        // exp is if the number is exponented?
+        // unit is days / ether that can follow
+        SolExpression::NumberLiteral(_, val, _exp, _unit) => make_numeric_literal(val),
+        SolExpression::Equal(_, lhs, rhs) => {
+            let lhs = resolve_expression(*lhs);
+            let rhs = resolve_expression(*rhs);
+            let op = BinaryOpKind::Equal;
+            infix_expression(lhs, rhs, op)
+        }
+        SolExpression::Assign(_, lhs, rhs) => {
+            dbg!("assignment");
+            dbg!(&lhs);
+            dbg!(&rhs);
+            let lhs = resolve_expression(*lhs);
+            let rhs = resolve_expression(*rhs);
+
+            dbg!(&lhs);
+            dbg!(&rhs);
+
+            // yuck
+            block_expression(vec![var_assignment(lhs, rhs)])
+        }
+
+        _ => panic!("Not implemented expression, {sol_expression}"),
     }
 }
 
@@ -208,6 +261,22 @@ fn path(ident: NoirIdent) -> NoirPath {
 
 fn expression(kind: ExpressionKind) -> NoirExpression {
     NoirExpression::new(kind, Span::default())
+}
+
+fn block_expression(statements: Vec<NoirStatement>) -> NoirExpression {
+    expression(ExpressionKind::Block(BlockExpression(statements)))
+}
+
+fn infix_expression(
+    lhs: NoirExpression,
+    rhs: NoirExpression,
+    operator: BinaryOpKind,
+) -> NoirExpression {
+    expression(ExpressionKind::Infix(Box::new(InfixExpression {
+        lhs,
+        rhs,
+        operator: Spanned::from(Span::default(), operator),
+    })))
 }
 
 fn variable(name: &str) -> NoirExpression {
@@ -261,10 +330,28 @@ fn mutable_reference(variable_name: &str) -> NoirExpression {
     })))
 }
 
-fn assignment(name: &str, assigned_to: NoirExpression) -> NoirStatement {
+fn let_assignment(name: &str, assigned_to: NoirExpression) -> NoirStatement {
     make_statement(StatementKind::Let(LetStatement {
         pattern: pattern(name),
         r#type: make_type(UnresolvedTypeData::Unspecified),
+        expression: assigned_to,
+    }))
+}
+
+fn var_assignment(var: NoirExpression, assigned_to: NoirExpression) -> NoirStatement {
+    // TODO: yuck
+    let name = match var.kind {
+        ExpressionKind::Variable(path) => path.segments.last().unwrap().0.contents.clone(),
+        _ => panic!("Not a variable"),
+    };
+    make_statement(StatementKind::Assign(AssignStatement {
+        lvalue: LValue::Ident(make_ident(&name)),
+        expression: assigned_to,
+    }))
+}
+fn assignment(name: &str, assigned_to: NoirExpression) -> NoirStatement {
+    make_statement(StatementKind::Assign(AssignStatement {
+        lvalue: LValue::Ident(make_ident(name)),
         expression: assigned_to,
     }))
 }
@@ -287,6 +374,23 @@ fn member_access(lhs: &str, rhs: &str) -> NoirExpression {
 
 fn make_statement(kind: StatementKind) -> NoirStatement {
     NoirStatement { span: Span::default(), kind }
+}
+
+fn make_if(
+    condition: NoirExpression,
+    consequence: NoirExpression,
+    alternative: Option<NoirExpression>,
+) -> NoirStatement {
+    make_statement(StatementKind::Expression(expression(ExpressionKind::If(Box::new(
+        IfExpression { condition, consequence, alternative },
+    )))))
+}
+
+fn make_numeric_literal(number: String) -> NoirExpression {
+    // expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from_hex(&number).unwrap())))
+    // convert from string to number
+    let number = number.parse::<u128>().unwrap();
+    expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(number))))
 }
 
 macro_rules! chained_path {
