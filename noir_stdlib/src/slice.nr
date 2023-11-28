@@ -22,8 +22,6 @@ impl<T> [T] {
     pub fn pop_front(_self: Self) -> (T, Self) { }
 
     pub fn insert(self, _index: Field, _elem: T) -> Self {
-        // TODO(#2462): Slice insert with a dynamic index
-        crate::assert_constant(_index);
         self.__slice_insert(_index, _elem)
     }
 
@@ -33,8 +31,6 @@ impl<T> [T] {
     fn __slice_insert(_self: Self, _index: Field, _elem: T) -> Self { }
 
     pub fn remove(self, _index: Field) -> (Self, T) {
-        // TODO(#2462): Slice remove with a dynamic index
-        crate::assert_constant(_index);
         self.__slice_remove(_index)
     }
 
