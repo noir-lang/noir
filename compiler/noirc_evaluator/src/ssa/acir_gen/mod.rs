@@ -1774,6 +1774,8 @@ impl Context {
                 let mut new_elem_size = Self::flattened_value_size(&slice);
 
                 let slice_typ = dfg.type_of_value(arguments[1]);
+                // We only fill internal slices for nested slices (a slice inside of a slice).
+                // So we must directly push back elements for slices which are not a nested slice.
                 if !slice_typ.is_nested_slice() {
                     for elem in &arguments[2..] {
                         let element = self.convert_value(*elem, dfg);
@@ -1783,17 +1785,23 @@ impl Context {
                     }
                 }
 
+                // Increase the slice length by one to enable accessing more elements in the slice.
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
                 let new_slice_val = AcirValue::Array(new_slice);
                 let result_block_id = self.block_id(&result_ids[1]);
                 self.initialize_array(result_block_id, new_elem_size, Some(new_slice_val.clone()))?;
+                // The previous slice length represents the index we want to write into.
                 let mut var_index = slice_length;
+                // Dynamic arrays are represented as flat memory. We must flatten the user facing index
+                // to a flattened index that matches the complex slice structure.
                 if slice_typ.is_nested_slice() {
                     let element_size = slice_typ.element_size();
 
-                    // Multiple the element size against the var index before fetching the flattened index
+                    // Multiply the element size against the var index before fetching the flattened index
+                    // This operation makes sure our user-facing slice index matches the strategy for indexing in SSA,
+                    // which is how `get_flattened_index` expects its index input.
                     let element_size_var =
                         self.acir_context.add_constant(FieldElement::from(element_size as u128));
                     var_index = self.acir_context.mul_var(slice_length, element_size_var)?;
@@ -1801,6 +1809,11 @@ impl Context {
                         self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
                 }
 
+                // Write the elements we wish to push back directly.
+                // The slice's underlying array value should already be filled with dummy data
+                // to enable this write to be within bounds.
+                // The dummy data is either attached during SSA gen or in this match case for non-nested slices.
+                // These values can then be accessed due to the increased dynamic slice length.
                 for elem in &arguments[2..] {
                     let element = self.convert_value(*elem, dfg);
                     self.array_set_value(&element, result_block_id, &mut var_index)?;
@@ -1831,6 +1844,7 @@ impl Context {
                     self.check_array_is_initialized(arguments[1], dfg)?;
                 let mut new_slice_size = Self::flattened_value_size(&slice);
 
+                // Increase the slice length by one to enable accessing more elements in the slice.
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
@@ -1839,6 +1853,8 @@ impl Context {
 
                 let mut elem_size = 0;
                 let slice_typ = dfg.type_of_value(arguments[1]);
+                // We only fill internal slices for nested slices (a slice inside of a slice).
+                // So we must directly push front elements for slices which are not a nested slice.
                 if !slice_typ.is_nested_slice() {
                     for elem in arguments[2..].iter().rev() {
                         let element = self.convert_value(*elem, dfg);
@@ -1848,6 +1864,10 @@ impl Context {
                     }
                     new_slice_size += elem_size;
                 } else {
+                    // We have already filled the appropriate dummy values for nested slice during SSA gen.
+                    // We need to account for that we do not go out of bounds by removing dummy data as we
+                    // push elements to the front of our slice.
+                    // Using this strategy we are able to avoid dynamic writes like we do for a SlicePushBack.
                     for elem in arguments[2..].iter().rev() {
                         let element = self.convert_value(*elem, dfg);
 
@@ -1869,9 +1889,6 @@ impl Context {
                     new_slice_size,
                     Some(new_slice_val.clone()),
                 )?;
-
-                let mut var_index = self.acir_context.add_constant(FieldElement::zero());
-                self.array_set_value(&new_slice_val, result_block_id, &mut var_index)?;
 
                 let element_type_sizes = if !can_omit_element_sizes_array(&array_typ) {
                     Some(self.init_element_type_sizes_array(
@@ -1897,39 +1914,45 @@ impl Context {
 
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
-
+                // For a pop back operation we want to fetch from the `length - 1` as this is the
+                // last valid index that can be accessed in a slice. After the pop back operation
+                // the elements stored at that index will no longer be able to be accessed.
                 let mut var_index = new_slice_length;
 
                 let (_, _, block_id) = self.check_array_is_initialized(arguments[1], dfg)?;
 
                 let slice_typ = dfg.type_of_value(arguments[1]);
-
-                let slice_sizes = self.slice_sizes.get(&arguments[1]);
-
                 let element_size = slice_typ.element_size();
 
-                let mut popped_elems = Vec::new();
+                let mut popped_elements = Vec::new();
+                // Fetch the values we are popping off of the slice.
+                // In the case of non-nested slice the logic is simple as we do not
+                // need to account for the internal slice sizes or flattening the index.
                 if !slice_typ.is_nested_slice() {
-                    for i in 0..element_size {
+                    for res in &result_ids[2..] {
                         let elem = self.array_get_value(
-                            &dfg.type_of_value(result_ids[i + 2]),
+                            &dfg.type_of_value(*res),
                             block_id,
                             &mut var_index,
                             &[],
                         )?;
-                        popped_elems.push(elem);
+                        popped_elements.push(elem);
                     }
                 } else {
+                    // Fetch the slice sizes of the nested slice.
+                    let slice_sizes = self.slice_sizes.get(&arguments[1]);
                     let mut slice_sizes =
                         slice_sizes.expect("ICE: should have slice sizes").clone();
                     // We want to remove the parent size as we are fetching the child
                     slice_sizes.remove(0);
 
                     // Multiply the element size against the var index before fetching the flattened index
+                    // This operation makes sure our user-facing slice index matches the strategy for indexing in SSA,
+                    // which is how `get_flattened_index` expects its index input.
                     let element_size_var =
                         self.acir_context.add_constant(FieldElement::from(element_size as u128));
                     // We want to use an index one less than the slice length
-                    var_index = self.acir_context.mul_var(new_slice_length, element_size_var)?;
+                    var_index = self.acir_context.mul_var(var_index, element_size_var)?;
                     var_index =
                         self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
 
@@ -1940,7 +1963,7 @@ impl Context {
                             &mut var_index,
                             &slice_sizes,
                         )?;
-                        popped_elems.push(elem);
+                        popped_elements.push(elem);
                     }
                 }
 
@@ -1951,7 +1974,7 @@ impl Context {
                     AcirValue::Var(new_slice_length, AcirType::field()),
                     AcirValue::Array(new_slice),
                 ];
-                results.append(&mut popped_elems);
+                results.append(&mut popped_elements);
 
                 Ok(results)
             }
@@ -1969,24 +1992,27 @@ impl Context {
 
                 let slice_typ = dfg.type_of_value(arguments[1]);
                 let element_size = slice_typ.element_size();
-                let slice_sizes = self.slice_sizes.get(&arguments[1]);
 
-                let mut popped_elems = Vec::new();
-                let mut popped_elems_size = 0;
+                let mut popped_elements = Vec::new();
+                let mut popped_elements_size = 0;
                 let mut var_index = self.acir_context.add_constant(FieldElement::zero());
+                // Fetch the values we are popping off of the slice.
+                // In the case of non-nested slice the logic is simple as we do not
+                // need to account for the internal slice sizes or flattening the index.
                 if !slice_typ.is_nested_slice() {
-                    for i in 0..element_size {
+                    for res in &result_ids[..element_size] {
                         let element = self.array_get_value(
-                            &dfg.type_of_value(result_ids[i]),
+                            &dfg.type_of_value(*res),
                             block_id,
                             &mut var_index,
                             &[],
                         )?;
                         let elem_size = Self::flattened_value_size(&element);
-                        popped_elems_size += elem_size;
-                        popped_elems.push(element);
+                        popped_elements_size += elem_size;
+                        popped_elements.push(element);
                     }
                 } else {
+                    let slice_sizes = self.slice_sizes.get(&arguments[1]);
                     let mut slice_sizes =
                         slice_sizes.expect("ICE: should have slice sizes").clone();
                     // We want to remove the parent size as we are fetching the child
@@ -2000,23 +2026,21 @@ impl Context {
                             &slice_sizes,
                         )?;
                         let elem_size = Self::flattened_value_size(&element);
-                        popped_elems_size += elem_size;
-                        popped_elems.push(element);
+                        popped_elements_size += elem_size;
+                        popped_elements.push(element);
                     }
                 }
-                new_slice = new_slice.slice(popped_elems_size..);
+                new_slice = new_slice.slice(popped_elements_size..);
 
-                popped_elems.push(AcirValue::Var(new_slice_length, AcirType::field()));
-                popped_elems.push(AcirValue::Array(new_slice));
+                popped_elements.push(AcirValue::Var(new_slice_length, AcirType::field()));
+                popped_elements.push(AcirValue::Array(new_slice));
 
-                Ok(popped_elems)
+                Ok(popped_elements)
             }
             Intrinsic::SliceInsert => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
                 let slice = self.convert_value(arguments[1], dfg);
                 let index = self.convert_value(arguments[2], dfg).into_var()?;
-
-                let slice_len = Self::flattened_value_size(&slice);
 
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
@@ -2026,35 +2050,48 @@ impl Context {
                 let (array_id, array_typ, block_id) =
                     self.check_array_is_initialized(arguments[1], dfg)?;
 
+                let slice_size = Self::flattened_value_size(&slice);
+
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
                 let new_slice_val = AcirValue::Array(new_slice);
                 let result_block_id = self.block_id(&result_ids[1]);
-                self.initialize_array(result_block_id, slice_len, Some(new_slice_val.clone()))?;
+                self.initialize_array(result_block_id, slice_size, Some(new_slice_val.clone()))?;
 
+                // Fetch the flattened index from the user provided index argument.
                 let element_size = slice_typ.element_size();
                 let element_size_var =
                     self.acir_context.add_constant(FieldElement::from(element_size as u128));
                 let mut var_index = self.acir_context.mul_var(index, element_size_var)?;
                 var_index = self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
 
+                // Determine the elements we need to write into our resulting dynamic array.
+                // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
                 let mut inner_elem_size_usize = 0;
-                let mut flattened_elems = Vec::new();
+                let mut flattened_elements = Vec::new();
                 for i in 0..element_size {
                     let element = self.convert_value(arguments[i + 3], dfg);
                     let elem_size = Self::flattened_value_size(&element);
                     inner_elem_size_usize += elem_size;
                     let mut flat_elem = element.flatten().iter().map(|(var, _)| *var).collect();
-                    flattened_elems.append(&mut flat_elem);
+                    flattened_elements.append(&mut flat_elem);
                 }
                 let inner_elem_size = self
                     .acir_context
                     .add_constant(FieldElement::from(inner_elem_size_usize as u128));
+                // Set the maximum flattened index at which a new element should be inserted.
                 let max_var_index = self.acir_context.add_var(var_index, inner_elem_size)?;
 
                 let mut current_insert_index = 0;
-                for i in 0..slice_len {
+                // Go through the entire slice argument and determine what value should be written to the new slice.
+                // 1. If we are below the starting insertion index we should insert the value that was already
+                //    in the original slice.
+                // 2. If we are above the starting insertion index but below the max insertion index we should insert
+                //    the flattened element arguments.
+                // 3. If we are above the max insertion index we should insert the previous value from the original slice,
+                //    as during an insertion we want to shift all elements after the insertion up an index.
+                for i in 0..slice_size {
                     let current_index =
                         self.acir_context.add_constant(FieldElement::from(i as u128));
 
@@ -2070,15 +2107,12 @@ impl Context {
                         64,
                         self.current_side_effects_enabled_var,
                     )?;
-                    let insert_value_pred = self.acir_context.and_var(
-                        greater_eq_than_idx,
-                        less_than_idx,
-                        AcirType::field(),
-                    )?;
+                    let insert_value_pred =
+                        self.acir_context.mul_var(greater_eq_than_idx, less_than_idx)?;
 
                     let true_pred = self
                         .acir_context
-                        .mul_var(flattened_elems[current_insert_index], insert_value_pred)?;
+                        .mul_var(flattened_elements[current_insert_index], insert_value_pred)?;
 
                     let one = self.acir_context.add_constant(FieldElement::one());
                     let not_pred = self.acir_context.sub_var(one, insert_value_pred)?;
@@ -2102,8 +2136,6 @@ impl Context {
                         let false_pred = self.acir_context.mul_var(not_pred, index_var)?;
                         self.acir_context.add_var(true_pred, false_pred)?
                     };
-
-                    // let read_var_index = self.acir_context.add_var(true_pred, false_pred)?;
 
                     let value_read_var =
                         self.acir_context.read_from_memory(block_id, &read_var_index)?;
@@ -2131,7 +2163,7 @@ impl Context {
                 };
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
-                    len: slice_len,
+                    len: slice_size,
                     element_type_sizes,
                 });
 
@@ -2160,16 +2192,23 @@ impl Context {
                 let result_block_id = self.block_id(&result_ids[1]);
                 self.initialize_array(result_block_id, slice_len, Some(new_slice_val.clone()))?;
 
+                // Fetch the flattened index from the user provided index argument.
                 let element_size_var =
                     self.acir_context.add_constant(FieldElement::from(element_size as u128));
                 let mut var_index = self.acir_context.mul_var(index, element_size_var)?;
                 var_index = self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
 
-                let slice_sizes = self.slice_sizes.get(&arguments[1]);
-                let mut popped_elems = Vec::new();
-                let mut popped_elems_size = 0;
+                // Fetch the values we are remove from the slice.
+                // In the case of non-nested slice the logic is simple as we do not
+                // need to account for the internal slice sizes or flattening the index.
+                // As we fetch the values we can determine the size of the removed values
+                // which we will later use for writing the correct resulting slice.
+                let mut popped_elements = Vec::new();
+                let mut popped_elements_size = 0;
+                // Set a temp index just for fetching from the original slice as `array_get_value` mutates
+                // the index internally.
+                let mut temp_index = var_index;
                 if !slice_typ.is_nested_slice() {
-                    let mut temp_index = var_index;
                     for i in 2..(2 + element_size) {
                         let element = self.array_get_value(
                             &dfg.type_of_value(result_ids[i]),
@@ -2178,16 +2217,16 @@ impl Context {
                             &[],
                         )?;
                         let elem_size = Self::flattened_value_size(&element);
-                        popped_elems_size += elem_size;
-                        popped_elems.push(element);
+                        popped_elements_size += elem_size;
+                        popped_elements.push(element);
                     }
                 } else {
+                    let slice_sizes = self.slice_sizes.get(&arguments[1]);
                     let mut slice_sizes =
                         slice_sizes.expect("ICE: should have slice sizes").clone();
                     // We want to remove the parent size as we are fetching the child
                     slice_sizes.remove(0);
 
-                    let mut temp_index = var_index;
                     for res in &result_ids[2..(2 + element_size)] {
                         let element = self.array_get_value(
                             &dfg.type_of_value(*res),
@@ -2196,31 +2235,33 @@ impl Context {
                             &slice_sizes,
                         )?;
                         let elem_size = Self::flattened_value_size(&element);
-                        popped_elems_size += elem_size;
-                        popped_elems.push(element);
+                        popped_elements_size += elem_size;
+                        popped_elements.push(element);
                     }
                 }
 
-                let mut current_insert_index = 0;
+                // Go through the entire slice argument and determine what value should be written to the new slice.
+                // 1. If the current index is greater than the removal index we must write the next value
+                //    from the original slice to the current index
+                // 2. At the end of the slice reading from the next value of the original slice
+                //    can lead to a potential out of bounds error. In this case we just read from the original slice
+                //    at the current index. As we are decreasing the slice in length, this is a safe operation.
                 for i in 0..slice_len {
-                    let current_index =
-                        self.acir_context.add_constant(FieldElement::from(i as u128));
+                    let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
 
                     let greater_eq_than_idx = self.acir_context.more_than_eq_var(
-                        current_index,
+                        index_var,
                         var_index,
                         64,
                         self.current_side_effects_enabled_var,
                     )?;
 
-                    let index_var = self.acir_context.add_constant(FieldElement::from((i) as u128));
-
-                    let read_var = if (i + popped_elems_size) >= slice_len {
+                    let read_var = if (i + popped_elements_size) >= slice_len {
                         index_var
                     } else {
                         let index_plus_elem_size = self
                             .acir_context
-                            .add_constant(FieldElement::from((i + popped_elems_size) as u128));
+                            .add_constant(FieldElement::from((i + popped_elements_size) as u128));
                         index_plus_elem_size
                     };
 
@@ -2238,11 +2279,6 @@ impl Context {
                     let new_value = self.acir_context.add_var(true_pred, false_pred)?;
 
                     self.acir_context.write_to_memory(result_block_id, &index_var, &new_value)?;
-
-                    current_insert_index += 1;
-                    if popped_elems_size == current_insert_index {
-                        current_insert_index = 0;
-                    }
                 }
 
                 let element_type_sizes = if !can_omit_element_sizes_array(&array_typ) {
@@ -2262,7 +2298,7 @@ impl Context {
                 });
 
                 let mut result = vec![AcirValue::Var(new_slice_length, AcirType::field()), result];
-                result.append(&mut popped_elems);
+                result.append(&mut popped_elements);
 
                 Ok(result)
             }
