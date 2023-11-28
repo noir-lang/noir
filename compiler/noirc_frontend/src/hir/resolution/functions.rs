@@ -67,7 +67,6 @@ pub(crate) fn resolve_free_functions(
     self_type: Option<Type>,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
-    // Lower each function in the crate. This is now possible since imports have been resolved
     collected_functions
         .into_iter()
         .flat_map(|unresolved_functions| {
