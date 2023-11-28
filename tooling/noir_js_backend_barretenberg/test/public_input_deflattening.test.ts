@@ -5,13 +5,6 @@ import { flattenPublicInputsAsArray, deflattenPublicInputs, flattenPublicInputs 
 const abi: Abi = {
   parameters: [
     {
-      name: 'pub_field',
-      type: {
-        kind: 'field',
-      },
-      visibility: 'public',
-    },
-    {
       name: 'array_with_returned_element',
       type: {
         kind: 'array',
@@ -22,17 +15,24 @@ const abi: Abi = {
       },
       visibility: 'private',
     },
+    {
+      name: 'pub_field',
+      type: {
+        kind: 'field',
+      },
+      visibility: 'public',
+    },
   ],
   param_witnesses: {
-    pub_field: [
-      {
-        start: 1,
-        end: 2,
-      },
-    ],
     array_with_returned_element: [
       {
-        start: 2,
+        start: 1,
+        end: 11,
+      },
+    ],
+    pub_field: [
+      {
+        start: 11,
         end: 12,
       },
     ],
@@ -57,7 +57,7 @@ const abi: Abi = {
 it('flattens a witness map in order of its witness indices', async () => {
   // Note that these are not in ascending order. This means that if we read from `witness_map` in insertion order
   // then the witness values will be sorted incorrectly.
-  const public_input_indices = [1, 13, 2];
+  const public_input_indices = [2, 13, 11];
 
   const witness_map = new Map(
     public_input_indices.map((witness_index) => [
@@ -68,8 +68,8 @@ it('flattens a witness map in order of its witness indices', async () => {
 
   const flattened_public_inputs = flattenPublicInputs(witness_map);
   expect(flattened_public_inputs).to.be.deep.eq([
-    '0x0000000000000000000000000000000000000000000000000000000000000001',
     '0x0000000000000000000000000000000000000000000000000000000000000002',
+    '0x000000000000000000000000000000000000000000000000000000000000000b',
     '0x000000000000000000000000000000000000000000000000000000000000000d',
   ]);
 });
@@ -77,7 +77,7 @@ it('flattens a witness map in order of its witness indices', async () => {
 it('recovers the original witness map when deflattening a public input array', async () => {
   // Note that these are not in ascending order. This means that if we read from `witness_map` in insertion order
   // then the witness values will be sorted incorrectly.
-  const public_input_indices = [1, 13, 2];
+  const public_input_indices = [2, 13, 11];
 
   const witness_map = new Map(
     public_input_indices.map((witness_index) => [
