@@ -119,7 +119,7 @@ mod test {
 
         let collapsed_witnesses = collapse_ranges(&witnesses);
 
-        assert_eq!(collapsed_witnesses, vec![Range { start: Witness(1), end: Witness(4) },])
+        assert_eq!(collapsed_witnesses, vec![Range { start: Witness(1), end: Witness(4) },]);
     }
 
     #[test]
@@ -136,6 +136,6 @@ mod test {
                 Range { start: Witness(5), end: Witness(7) },
                 Range { start: Witness(2), end: Witness(5) }
             ]
-        )
+        );
     }
 }

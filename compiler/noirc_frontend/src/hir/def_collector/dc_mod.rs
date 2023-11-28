@@ -528,11 +528,11 @@ impl<'a> ModCollector<'a> {
             };
             errors.push((error.into(), location.file));
 
-            let error2 = DefCollectorErrorKind::ModuleOriginallyDefined {
+            let error = DefCollectorErrorKind::ModuleOriginallyDefined {
                 mod_name: mod_name.clone(),
                 span: old_location.span,
             };
-            errors.push((error2.into(), old_location.file));
+            errors.push((error.into(), old_location.file));
             return errors;
         }
 

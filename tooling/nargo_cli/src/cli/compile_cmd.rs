@@ -76,7 +76,7 @@ pub(crate) fn run(
         .cloned()
         .partition(|package| package.is_binary());
 
-    let (np_language, opcode_support) = backend.get_backend_info()?;
+    let (np_language, opcode_support) = backend.get_backend_info_or_default();
     let (_, compiled_contracts) = compile_workspace(
         &workspace,
         &binary_packages,
@@ -102,12 +102,11 @@ pub(super) fn compile_workspace(
     opcode_support: &BackendOpcodeSupport,
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
-    let is_opcode_supported = |opcode: &_| opcode_support.is_opcode_supported(opcode);
-
     // Compile all of the packages in parallel.
     let program_results: Vec<(FileManager, CompilationResult<CompiledProgram>)> = binary_packages
         .par_iter()
         .map(|package| {
+            let is_opcode_supported = |opcode: &_| opcode_support.is_opcode_supported(opcode);
             compile_program(workspace, package, compile_options, np_language, &is_opcode_supported)
         })
         .collect();
@@ -115,6 +114,7 @@ pub(super) fn compile_workspace(
         contract_packages
             .par_iter()
             .map(|package| {
+                let is_opcode_supported = |opcode: &_| opcode_support.is_opcode_supported(opcode);
                 compile_contract(package, compile_options, np_language, &is_opcode_supported)
             })
             .collect();
@@ -151,14 +151,16 @@ pub(crate) fn compile_bin_package(
     package: &Package,
     compile_options: &CompileOptions,
     np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
+    opcode_support: &BackendOpcodeSupport,
 ) -> Result<CompiledProgram, CliError> {
     if package.is_library() {
         return Err(CompileError::LibraryCrate(package.name.clone()).into());
     }
 
     let (file_manager, compilation_result) =
-        compile_program(workspace, package, compile_options, np_language, &is_opcode_supported);
+        compile_program(workspace, package, compile_options, np_language, &|opcode| {
+            opcode_support.is_opcode_supported(opcode)
+        });
 
     let program = report_errors(
         compilation_result,
