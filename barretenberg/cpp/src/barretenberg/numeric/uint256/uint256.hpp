@@ -13,6 +13,7 @@
 
 #include "../uint128/uint128.hpp"
 #include "barretenberg/common/serialize.hpp"
+#include "barretenberg/common/throw_or_abort.hpp"
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
@@ -35,13 +36,46 @@ class alignas(32) uint256_t {
     {}
     constexpr uint256_t(uint256_t&& other) noexcept = default;
 
-    explicit uint256_t(std::string const& str) noexcept
+    explicit constexpr uint256_t(std::string input) noexcept
     {
-        for (int i = 0; i < 4; ++i) {
-            std::stringstream ss;
-            ss << std::hex << str.substr(static_cast<size_t>(i) * 16, 16);
-            ss >> data[3 - i];
+        /* Quick and dirty conversion from a single character to its hex equivelent */
+        constexpr auto HexCharToInt = [](uint8_t Input) {
+            bool valid =
+                (Input >= 'a' && Input <= 'f') || (Input >= 'A' && Input <= 'F') || (Input >= '0' && Input <= '9');
+            if (!valid) {
+                throw_or_abort("Error, uint256 constructed from string_view with invalid hex parameter");
+            }
+            uint8_t res =
+                ((Input >= 'a') && (Input <= 'f'))   ? (Input - (static_cast<uint8_t>('a') - static_cast<uint8_t>(10)))
+                : ((Input >= 'A') && (Input <= 'F')) ? (Input - (static_cast<uint8_t>('A') - static_cast<uint8_t>(10)))
+                : ((Input >= '0') && (Input <= '9')) ? (Input - static_cast<uint8_t>('0'))
+                                                     : 0;
+            return res;
+        };
+
+        std::array<uint64_t, 4> limbs{ 0, 0, 0, 0 };
+        size_t start_index = 0;
+        if (input.size() == 66 && input[0] == '0' && input[1] == 'x') {
+            start_index = 2;
+        } else if (input.size() != 64) {
+            throw_or_abort("Error, uint256 constructed from string_view with invalid length");
         }
+        for (size_t j = 0; j < 4; ++j) {
+
+            const size_t limb_index = start_index + j * 16;
+            for (size_t i = 0; i < 8; ++i) {
+                const size_t byte_index = limb_index + (i * 2);
+                uint8_t nibble_hi = HexCharToInt(static_cast<uint8_t>(input[byte_index]));
+                uint8_t nibble_lo = HexCharToInt(static_cast<uint8_t>(input[byte_index + 1]));
+                uint8_t byte = static_cast<uint8_t>((nibble_hi * 16) + nibble_lo);
+                limbs[j] <<= 8;
+                limbs[j] += byte;
+            }
+        }
+        data[0] = limbs[3];
+        data[1] = limbs[2];
+        data[2] = limbs[1];
+        data[3] = limbs[0];
     }
 
     static constexpr uint256_t from_uint128(const uint128_t a) noexcept

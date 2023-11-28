@@ -114,7 +114,7 @@ TEST(ECDSASecp256r1, test_hardcoded)
     };
 
     crypto::ecdsa::key_pair<curve_ct::fr, curve_ct::g1> account;
-    account.private_key = curve_ct::fr(uint256_t("020202020202020202020202020202020202020202020202020202020202020202"));
+    account.private_key = curve_ct::fr(uint256_t("0202020202020202020202020202020202020202020202020202020202020202"));
 
     account.public_key = curve_ct::g1::one * account.private_key;
 

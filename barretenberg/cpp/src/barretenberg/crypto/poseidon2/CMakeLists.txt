@@ -1,0 +1,1 @@
+barretenberg_module(crypto_poseidon2 ecc numeric)

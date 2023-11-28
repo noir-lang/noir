@@ -8,6 +8,27 @@ auto& engine = numeric::random::get_debug_engine();
 
 using namespace numeric;
 
+TEST(uint256, TestStringConstructors)
+{
+    std::string input = "9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789";
+    const std::string input4("0x9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789");
+
+    const uint256_t result1(input);
+    constexpr uint256_t result2("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789");
+    const uint256_t result3("0x9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789");
+    const uint256_t result4(input4);
+    constexpr uint256_t expected{
+        0xabcdef0123456789,
+        0xfedcba9876543210,
+        0xa0b1c2d3e4f56789,
+        0x9a807b615c4d3e2f,
+    };
+    EXPECT_EQ(result1, result2);
+    EXPECT_EQ(result1, result3);
+    EXPECT_EQ(result1, result4);
+    EXPECT_EQ(result1, expected);
+}
+
 TEST(uint256, GetBit)
 {
     constexpr uint256_t a{ 0b0110011001110010011001100111001001100110011100100110011001110011,
