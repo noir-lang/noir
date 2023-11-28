@@ -61,3 +61,19 @@ Example:
 let s = "Hello \"world" // prints "Hello "world"
 let s = "hey \tyou"; // prints "hey   you"
 ```
+
+## Raw strings
+
+A raw string begins with the letter `r` and is optionally delimited by a number of hashes `#`.
+
+Escape characters are *not* processed within raw strings. All contents are interpreted literally.
+
+Example:
+
+```rust
+let s = r"Hello world";
+let s = r#"Simon says "hello world""#;
+
+// Any number of hashes may be used (>= 1) as long as the string also terminates with the same number of hashes
+let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####; 
+```
