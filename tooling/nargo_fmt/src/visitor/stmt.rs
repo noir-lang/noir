@@ -6,7 +6,7 @@ use noirc_frontend::{
 
 use crate::{rewrite, visitor::expr::wrap_exprs};
 
-use super::ExpressionType;
+use super::{expr::NewlineMode, ExpressionType};
 
 impl super::FmtVisitor<'_> {
     pub(crate) fn visit_stmts(&mut self, stmts: Vec<Statement>) {
@@ -68,7 +68,14 @@ impl super::FmtVisitor<'_> {
                         }
                     };
 
-                    let args = wrap_exprs("(", ")", args, nested_shape, shape, true);
+                    let args = wrap_exprs(
+                        "(",
+                        ")",
+                        args,
+                        nested_shape,
+                        shape,
+                        NewlineMode::IfContainsNewLineAndWidth,
+                    );
                     let constrain = format!("{callee}{args};");
 
                     self.push_rewrite(constrain, span);
