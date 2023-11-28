@@ -275,10 +275,15 @@ impl Instruction {
             | ArrayGet { .. }
             | ArraySet { .. } => false,
 
+            // IncrementRc is not counted as having side effects since we still
+            // want it to be removed by the DIE pass if its parameter is unused.
+            // At the time of writing has_side_effects is only used by DIE but
+            // we should keep this in mind (or rename this method?) if it is ever used elsewhere.
+            IncrementRc { .. } => false,
+
             Constrain(..)
             | Store { .. }
             | EnableSideEffects { .. }
-            | IncrementRc { .. }
             | RangeCheck { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
