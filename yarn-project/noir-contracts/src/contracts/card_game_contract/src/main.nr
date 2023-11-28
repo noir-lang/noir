@@ -159,9 +159,11 @@ contract CardGame {
         game_deck.remove_cards([card], player);
 
         let selector = compute_selector("on_card_played(u32,Field,Field)");
+        // docs:start:call_public_function
         context.call_public_function(context.this_address(),
             selector,
             [game as Field, player, card.to_field()]);
+         // docs:end:call_public_function
     }
 
     #[aztec(public)]
