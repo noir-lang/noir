@@ -1,6 +1,6 @@
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
-use crate::hir::Context;
+use crate::hir::{Context, Lang};
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::parser::{parse_program, ParsedModule, ParserError};
 use crate::solc;
@@ -84,10 +84,13 @@ impl CrateDefMap {
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
 
-        // let ast = solc::parse_sol()
-        let (ast, parsing_errors) = solc::parse_sol_file(&context.file_manager, root_file_id);
-        // let (ast, parsing_errors) = parse_file(&context.file_manager, root_file_id);
-        // let ast = ast.into_sorted();
+        let (ast, parsing_errors) = if matches!(context.lang, Lang::Solc) {
+            solc::parse_sol_file(&context.file_manager, root_file_id)
+        } else {
+            let (ast, errors) = parse_file(&context.file_manager, root_file_id);
+            (ast.into_sorted(), errors) // bruh
+        };
+        dbg!(&ast.functions);
 
         #[cfg(feature = "aztec")]
         let ast = match super::aztec_library::transform(ast, &crate_id, context) {

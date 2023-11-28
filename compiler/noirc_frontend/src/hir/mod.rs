@@ -17,6 +17,14 @@ use std::collections::BTreeMap;
 
 use self::def_map::TestFunction;
 
+#[derive(Debug)]
+pub enum Lang {
+    // Noir frontend
+    Noir,
+    // Solc frontend
+    Solc,
+}
+
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// def_interner is required for type inference and monomorphization.
@@ -33,6 +41,7 @@ pub struct Context {
     /// Maps a given (contract) module id to the next available storage slot
     /// for that contract.
     pub storage_slots: BTreeMap<def_map::ModuleId, StorageSlot>,
+    pub lang: Lang,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -45,7 +54,7 @@ pub enum FunctionNameMatch<'a> {
 pub type StorageSlot = u32;
 
 impl Context {
-    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
+    pub fn new(file_manager: FileManager, crate_graph: CrateGraph, lang: Lang) -> Context {
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
@@ -53,6 +62,7 @@ impl Context {
             crate_graph,
             file_manager,
             storage_slots: BTreeMap::new(),
+            lang,
         }
     }
 

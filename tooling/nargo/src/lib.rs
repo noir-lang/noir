@@ -22,7 +22,7 @@ use noirc_frontend::{
     graph::{CrateGraph, CrateId, CrateName},
     hir::Context,
 };
-use package::{Dependency, Package};
+use package::{Dependency, Package, PackageType};
 
 pub use self::errors::NargoError;
 
@@ -46,11 +46,21 @@ pub fn prepare_package(package: &Package, file_reader: Box<FileReader>) -> (Cont
     // TODO: FileManager continues to leak into various crates
     let fm = FileManager::new(&package.root_dir, file_reader);
     let graph = CrateGraph::default();
-    let mut context = Context::new(fm, graph);
+
+    let lang = get_lang(&package.package_type);
+    let mut context = Context::new(fm, graph, lang);
 
     let crate_id = prepare_crate(&mut context, &package.entry_path);
 
     prepare_dependencies(&mut context, crate_id, &package.dependencies);
 
     (context, crate_id)
+}
+
+fn get_lang(package_type: &PackageType) -> noirc_frontend::hir::Lang {
+    if matches!(package_type, PackageType::Sol) {
+        noirc_frontend::hir::Lang::Solc
+    } else {
+        noirc_frontend::hir::Lang::Noir
+    }
 }

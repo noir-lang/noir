@@ -17,7 +17,7 @@ mod test {
     use crate::hir::resolution::errors::ResolverError;
     use crate::hir::resolution::import::PathResolutionError;
     use crate::hir::type_check::TypeCheckError;
-    use crate::hir::Context;
+    use crate::hir::{Context, Lang};
     use crate::node_interner::{NodeInterner, StmtId};
 
     use crate::graph::CrateGraph;
@@ -61,7 +61,7 @@ mod test {
         let fm = FileManager::new(root, Box::new(|path| std::fs::read_to_string(path)));
         //let fm = FileManager::new(root,  Box::new(get_non_stdlib_asset));
         let graph = CrateGraph::default();
-        let mut context = Context::new(fm, graph);
+        let mut context = Context::new(fm, graph, Lang::Noir);
         let root_file_id = FileId::dummy();
         let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
         let (program, parser_errors) = parse_program(src);

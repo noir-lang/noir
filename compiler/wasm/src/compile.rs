@@ -149,7 +149,7 @@ pub fn compile(
     let root = Path::new("/");
     let fm = FileManager::new(root, Box::new(get_non_stdlib_asset));
     let graph = CrateGraph::default();
-    let mut context = Context::new(fm, graph);
+    let mut context = Context::new(fm, graph, Lang::Noir);
 
     let path = Path::new(&entry_point);
     let crate_id = prepare_crate(&mut context, path);
@@ -322,7 +322,7 @@ mod test {
     fn setup_test_context() -> Context {
         let fm = FileManager::new(Path::new("/"), Box::new(mock_get_non_stdlib_asset));
         let graph = CrateGraph::default();
-        let mut context = Context::new(fm, graph);
+        let mut context = Context::new(fm, graph, Lang::Noir);
 
         prepare_crate(&mut context, Path::new("/main.nr"));
 
