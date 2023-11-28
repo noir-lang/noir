@@ -172,46 +172,71 @@ fn resolve_statement(sol_body: SolStatement) -> Vec<NoirStatement> {
     collected_statements
 }
 
+fn arith_expression(
+    lhs: SolExpression,
+    rhs: SolExpression,
+    operator: BinaryOpKind,
+) -> NoirExpression {
+    let lhs = resolve_expression(lhs);
+    let rhs = resolve_expression(rhs);
+    infix_expression(lhs, rhs, operator)
+}
+
 fn resolve_expression(sol_expression: SolExpression) -> NoirExpression {
     dbg!(&sol_expression);
     match sol_expression {
-        SolExpression::Add(_, lhs, rhs) => {
-            let lhs = resolve_expression(*lhs);
-            let rhs = resolve_expression(*rhs);
-            let op = BinaryOpKind::Add;
-            infix_expression(lhs, rhs, op)
-        }
+        // Arithmetic
+        SolExpression::Add(_, lhs, rhs) => arith_expression(*lhs, *rhs, BinaryOpKind::Add),
         SolExpression::Subtract(_, lhs, rhs) => {
-            let lhs = resolve_expression(*lhs);
-            let rhs = resolve_expression(*rhs);
-            let op = BinaryOpKind::Subtract;
-            infix_expression(lhs, rhs, op)
+            arith_expression(*lhs, *rhs, BinaryOpKind::Subtract)
         }
+        SolExpression::Equal(_, lhs, rhs) => arith_expression(*lhs, *rhs, BinaryOpKind::Equal),
+        SolExpression::Divide(_, lhs, rhs) => arith_expression(*lhs, *rhs, BinaryOpKind::Divide),
+        SolExpression::NotEqual(_, lhs, rhs) => {
+            arith_expression(*lhs, *rhs, BinaryOpKind::NotEqual)
+        }
+        SolExpression::Less(_, lhs, rhs) => arith_expression(*lhs, *rhs, BinaryOpKind::Less),
+        SolExpression::LessEqual(_, lhs, rhs) => {
+            arith_expression(*lhs, *rhs, BinaryOpKind::LessEqual)
+        }
+        SolExpression::More(_, lhs, rhs) => arith_expression(*lhs, *rhs, BinaryOpKind::Greater),
+        SolExpression::MoreEqual(_, lhs, rhs) => {
+            arith_expression(*lhs, *rhs, BinaryOpKind::GreaterEqual)
+        }
+        SolExpression::And(_, lhs, rhs) => arith_expression(*lhs, *rhs, BinaryOpKind::And),
+        SolExpression::Or(_, lhs, rhs) => arith_expression(*lhs, *rhs, BinaryOpKind::Or),
+        SolExpression::BitwiseXor(_, lhs, rhs) => arith_expression(*lhs, *rhs, BinaryOpKind::Xor),
+        SolExpression::ShiftLeft(_, lhs, rhs) => {
+            arith_expression(*lhs, *rhs, BinaryOpKind::ShiftLeft)
+        }
+        SolExpression::ShiftRight(_, lhs, rhs) => {
+            arith_expression(*lhs, *rhs, BinaryOpKind::ShiftRight)
+        }
+        SolExpression::Modulo(_, lhs, rhs) => arith_expression(*lhs, *rhs, BinaryOpKind::Modulo),
+        SolExpression::PostIncrement(_, expr) => {
+            let expr = resolve_expression(*expr);
+            let one = make_numeric_literal("1".to_string());
+            infix_expression(expr, one, BinaryOpKind::Add)
+        }
+        SolExpression::PostDecrement(_, expr) => {
+            let expr = resolve_expression(*expr);
+            let one = make_numeric_literal("1".to_string());
+            infix_expression(expr, one, BinaryOpKind::Subtract)
+        }
+
         SolExpression::Variable(ident) => {
             let ident = transform_ident(&ident);
             variable_ident(ident)
         }
+
         // TODO: support exp / unit
         // Value is the most common
         // exp is if the number is exponented?
         // unit is days / ether that can follow
         SolExpression::NumberLiteral(_, val, _exp, _unit) => make_numeric_literal(val),
-        SolExpression::Equal(_, lhs, rhs) => {
-            let lhs = resolve_expression(*lhs);
-            let rhs = resolve_expression(*rhs);
-            let op = BinaryOpKind::Equal;
-            infix_expression(lhs, rhs, op)
-        }
         SolExpression::Assign(_, lhs, rhs) => {
-            dbg!("assignment");
-            dbg!(&lhs);
-            dbg!(&rhs);
             let lhs = resolve_expression(*lhs);
             let rhs = resolve_expression(*rhs);
-
-            dbg!(&lhs);
-            dbg!(&rhs);
-
             // yuck
             block_expression(vec![var_assignment(lhs, rhs)])
         }
