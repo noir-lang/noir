@@ -414,6 +414,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
+name = "aztec_macros"
+version = "0.19.4"
+dependencies = [
+ "iter-extended",
+ "noirc_frontend",
+]
+
+[[package]]
 name = "backend-interface"
 version = "0.11.0"
 dependencies = [
@@ -2608,6 +2616,7 @@ name = "noirc_driver"
 version = "0.19.4"
 dependencies = [
  "acvm",
+ "aztec_macros",
  "build-data",
  "clap",
  "fm",

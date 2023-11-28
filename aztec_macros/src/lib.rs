@@ -1,28 +1,59 @@
-use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::Span;
 
-use crate::graph::CrateId;
-use crate::hir::def_collector::errors::DefCollectorErrorKind;
-use crate::hir_def::expr::{HirExpression, HirLiteral};
-use crate::hir_def::stmt::HirStatement;
-use crate::node_interner::{NodeInterner, StructId};
-use crate::parser::SortedModule;
-use crate::token::SecondaryAttribute;
-use crate::{
-    hir::Context, BlockExpression, CallExpression, CastExpression, Distinctness, Expression,
-    ExpressionKind, FunctionReturnType, Ident, IndexExpression, LetStatement, Literal,
-    MemberAccessExpression, MethodCallExpression, NoirFunction, Path, PathKind, Pattern, Statement,
-    UnresolvedType, UnresolvedTypeData, Visibility,
+use noirc_frontend::macros_api::FieldElement;
+use noirc_frontend::macros_api::{
+    BlockExpression, CallExpression, CastExpression, Distinctness, Expression, ExpressionKind,
+    ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility,
+    HirContext, HirExpression, HirLiteral, HirStatement, Ident, ImportStatement, IndexExpression,
+    LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct,
+    Param, Path, PathKind, Pattern, PrefixExpression, SecondaryAttribute, Signedness, Span,
+    Statement, StatementKind, StructType, Type, TypeImpl, UnaryOp, UnresolvedType,
+    UnresolvedTypeData, Visibility,
 };
-use crate::{
-    ForLoopStatement, ForRange, FunctionDefinition, FunctionVisibility, ImportStatement,
-    NoirStruct, Param, PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl,
-    UnaryOp,
-};
-use fm::FileId;
+use noirc_frontend::macros_api::{CrateId, FileId};
+use noirc_frontend::macros_api::{MacroError, MacroProcessor};
+use noirc_frontend::macros_api::{ModuleDefId, NodeInterner, SortedModule, StructId};
 
-use super::def_map::ModuleDefId;
+pub struct AztecMacro;
+
+impl MacroProcessor for AztecMacro {
+    fn process_untyped_ast(
+        &self,
+        ast: SortedModule,
+        crate_id: &CrateId,
+        context: &HirContext,
+    ) -> Result<SortedModule, (MacroError, FileId)> {
+        transform(ast, crate_id, context)
+    }
+
+    fn process_typed_ast(&self, crate_id: &CrateId, context: &mut HirContext) {
+        transform_hir(crate_id, context)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum AztecMacroError {
+    // TODO(benesjan): https://github.com/AztecProtocol/aztec-packages/issues/2905
+    AztecNotFound,
+    AztecComputeNoteHashAndNullifierNotFound { span: Span },
+}
+
+impl From<AztecMacroError> for MacroError {
+    fn from(err: AztecMacroError) -> Self {
+        match err {
+            AztecMacroError::AztecNotFound {} => MacroError {
+                primary_message: "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml".to_owned(),
+                secondary_message: None,
+                span: None,
+            },
+            AztecMacroError::AztecComputeNoteHashAndNullifierNotFound { span } => MacroError {
+                primary_message: "compute_note_hash_and_nullifier function not found. Define it in your contract.".to_owned(),
+                secondary_message: None,
+                span: Some(span),
+            },
+        }
+    }
+}
 
 //
 //             Helper macros for creating noir ast nodes
@@ -162,11 +193,11 @@ fn import(path: Path) -> ImportStatement {
 
 /// Traverses every function in the ast, calling `transform_function` which
 /// determines if further processing is required
-pub(crate) fn transform(
+fn transform(
     mut ast: SortedModule,
     crate_id: &CrateId,
-    context: &Context,
-) -> Result<SortedModule, (DefCollectorErrorKind, FileId)> {
+    context: &HirContext,
+) -> Result<SortedModule, (MacroError, FileId)> {
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
 
     // Covers all functions in the ast
@@ -184,7 +215,7 @@ pub(crate) fn transform(
 //
 
 /// Completes the Hir with data gathered from type resolution
-pub(crate) fn transform_hir(crate_id: &CrateId, context: &mut Context) {
+fn transform_hir(crate_id: &CrateId, context: &mut HirContext) {
     transform_events(crate_id, context);
 }
 
@@ -206,14 +237,14 @@ fn include_relevant_imports(ast: &mut SortedModule) {
 /// Creates an error alerting the user that they have not downloaded the Aztec-noir library
 fn check_for_aztec_dependency(
     crate_id: &CrateId,
-    context: &Context,
-) -> Result<(), (DefCollectorErrorKind, FileId)> {
+    context: &HirContext,
+) -> Result<(), (MacroError, FileId)> {
     let crate_graph = &context.crate_graph[crate_id];
     let has_aztec_dependency = crate_graph.dependencies.iter().any(|dep| dep.as_name() == "aztec");
     if has_aztec_dependency {
         Ok(())
     } else {
-        Err((DefCollectorErrorKind::AztecNotFound {}, crate_graph.root_file_id))
+        Err((AztecMacroError::AztecNotFound.into(), crate_graph.root_file_id))
     }
 }
 
@@ -234,10 +265,7 @@ fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -
                 // Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>) contains only fields
                 && match &func.def.parameters[3].typ.typ {
                     UnresolvedTypeData::Array(_, inner_type) => {
-                        match inner_type.typ {
-                            UnresolvedTypeData::FieldElement => true,
-                            _ => false,
-                        }
+                        matches!(inner_type.typ, UnresolvedTypeData::FieldElement)
                     },
                     _ => false,
                 }
@@ -247,10 +275,7 @@ fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -
                     FunctionReturnType::Ty(unresolved_type) => {
                         match &unresolved_type.typ {
                             UnresolvedTypeData::Array(_, inner_type) => {
-                                match inner_type.typ {
-                                    UnresolvedTypeData::FieldElement => true,
-                                    _ => false,
-                                }
+                                matches!(inner_type.typ, UnresolvedTypeData::FieldElement)
                             },
                             _ => false,
                         }
@@ -274,19 +299,18 @@ fn is_custom_attribute(attr: &SecondaryAttribute, attribute_name: &str) -> bool 
 fn transform_module(
     module: &mut SortedModule,
     crate_id: &CrateId,
-    context: &Context,
-) -> Result<bool, (DefCollectorErrorKind, FileId)> {
+    context: &HirContext,
+) -> Result<bool, (MacroError, FileId)> {
     let mut has_transformed_module = false;
 
     // Check for a user defined storage struct
-    let storage_defined = check_for_storage_definition(&module);
+    let storage_defined = check_for_storage_definition(module);
 
-    if storage_defined && !check_for_compute_note_hash_and_nullifier_definition(&module) {
+    if storage_defined && !check_for_compute_note_hash_and_nullifier_definition(module) {
         let crate_graph = &context.crate_graph[crate_id];
         return Err((
-            DefCollectorErrorKind::AztecComputeNoteHashAndNullifierNotFound {
-                span: Span::default(), // Add a default span so we know which contract file the error originates from
-            },
+            AztecMacroError::AztecComputeNoteHashAndNullifierNotFound { span: Span::default() }
+                .into(),
             crate_graph.root_file_id,
         ));
     }
@@ -374,7 +398,7 @@ fn transform_unconstrained(func: &mut NoirFunction) {
     func.def.body.0.insert(0, abstract_storage("Unconstrained", true));
 }
 
-fn collect_crate_structs(crate_id: &CrateId, context: &Context) -> Vec<StructId> {
+fn collect_crate_structs(crate_id: &CrateId, context: &HirContext) -> Vec<StructId> {
     context
         .def_map(crate_id)
         .expect("ICE: Missing crate in def_map")
@@ -444,7 +468,7 @@ fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
     }
 }
 
-fn transform_events(crate_id: &CrateId, context: &mut Context) {
+fn transform_events(crate_id: &CrateId, context: &mut HirContext) {
     for struct_id in collect_crate_structs(crate_id, context) {
         let attributes = context.def_interner.struct_attributes(&struct_id);
         if attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event)) {
@@ -514,7 +538,7 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
 /// fn foo() {
 ///   // ...
 /// }
-pub(crate) fn create_inputs(ty: &str) -> Param {
+fn create_inputs(ty: &str) -> Param {
     let context_ident = ident("inputs");
     let context_pattern = Pattern::Identifier(context_ident);
     let type_path = chained_path!("aztec", "abi", ty);
@@ -574,7 +598,7 @@ fn create_context(ty: &str, params: &[Param]) -> Vec<Statement> {
                     // `hasher.add_multiple({ident}.serialize())`
                     UnresolvedTypeData::Named(..) => add_struct_to_hasher(identifier),
                     UnresolvedTypeData::Array(_, arr_type) => {
-                        add_array_to_hasher(identifier, &arr_type)
+                        add_array_to_hasher(identifier, arr_type)
                     }
                     // `hasher.add({ident})`
                     UnresolvedTypeData::FieldElement => add_field_to_hasher(identifier),
@@ -819,7 +843,7 @@ fn make_castable_return_type(expression: Expression) -> Statement {
 /// fn foo() {
 ///  // ...
 /// }
-pub(crate) fn create_return_type(ty: &str) -> FunctionReturnType {
+fn create_return_type(ty: &str) -> FunctionReturnType {
     let return_path = chained_path!("aztec", "abi", ty);
 
     let ty = make_type(UnresolvedTypeData::Named(return_path, vec![]));
@@ -844,7 +868,7 @@ pub(crate) fn create_return_type(ty: &str) -> FunctionReturnType {
 /// fn foo() {
 ///  // ...
 /// }
-pub(crate) fn create_context_finish() -> Statement {
+fn create_context_finish() -> Statement {
     let method_call = method_call(
         variable("context"), // variable
         "finish",            // method name
@@ -875,7 +899,7 @@ fn add_struct_to_hasher(identifier: &Ident) -> Statement {
 fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     // If this is an array of primitive types (integers / fields) we can add them each to the hasher
     // casted to a field
-    let span = var.span.clone();
+    let span = var.span;
 
     // `array.len()`
     let end_range_expression = method_call(
