@@ -54,6 +54,8 @@ export class L2Block {
    */
   public newUnencryptedLogs?: L2BlockL2Logs;
 
+  #l1BlockNumber?: bigint;
+
   constructor(
     /**
      * The number of the L2 block.
@@ -142,6 +144,7 @@ export class L2Block {
     newEncryptedLogs?: L2BlockL2Logs,
     newUnencryptedLogs?: L2BlockL2Logs,
     private blockHash?: Buffer,
+    l1BlockNumber?: bigint,
   ) {
     if (newCommitments.length % MAX_NEW_COMMITMENTS_PER_TX !== 0) {
       throw new Error(`The number of new commitments must be a multiple of ${MAX_NEW_COMMITMENTS_PER_TX}.`);
@@ -162,6 +165,8 @@ export class L2Block {
         this.numberOfTxs++;
       }
     }
+
+    this.#l1BlockNumber = l1BlockNumber;
   }
 
   /**
@@ -202,37 +207,43 @@ export class L2Block {
       LogType.UNENCRYPTED,
     );
 
-    return L2Block.fromFields({
-      number: l2BlockNum,
-      globalVariables: makeGlobalVariables(0, l2BlockNum),
-      startNoteHashTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
-      startNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
-      startContractTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
-      startPublicDataTreeRoot: Fr.random(),
-      startL1ToL2MessagesTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
-      startHistoricBlocksTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
-      endNoteHashTreeSnapshot: makeAppendOnlyTreeSnapshot(newCommitments.length),
-      endNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(newNullifiers.length),
-      endContractTreeSnapshot: makeAppendOnlyTreeSnapshot(newContracts.length),
-      endPublicDataTreeRoot: Fr.random(),
-      endL1ToL2MessagesTreeSnapshot: makeAppendOnlyTreeSnapshot(1),
-      endHistoricBlocksTreeSnapshot: makeAppendOnlyTreeSnapshot(1),
-      newCommitments,
-      newNullifiers,
-      newContracts,
-      newContractData,
-      newPublicDataWrites,
-      newL1ToL2Messages,
-      newL2ToL1Msgs,
-      newEncryptedLogs,
-      newUnencryptedLogs,
-    });
+    return L2Block.fromFields(
+      {
+        number: l2BlockNum,
+        globalVariables: makeGlobalVariables(0, l2BlockNum),
+        startNoteHashTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
+        startNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
+        startContractTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
+        startPublicDataTreeRoot: Fr.random(),
+        startL1ToL2MessagesTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
+        startHistoricBlocksTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
+        endNoteHashTreeSnapshot: makeAppendOnlyTreeSnapshot(newCommitments.length),
+        endNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(newNullifiers.length),
+        endContractTreeSnapshot: makeAppendOnlyTreeSnapshot(newContracts.length),
+        endPublicDataTreeRoot: Fr.random(),
+        endL1ToL2MessagesTreeSnapshot: makeAppendOnlyTreeSnapshot(1),
+        endHistoricBlocksTreeSnapshot: makeAppendOnlyTreeSnapshot(1),
+        newCommitments,
+        newNullifiers,
+        newContracts,
+        newContractData,
+        newPublicDataWrites,
+        newL1ToL2Messages,
+        newL2ToL1Msgs,
+        newEncryptedLogs,
+        newUnencryptedLogs,
+      },
+      undefined,
+      // just for testing purposes, each random L2 block got emitted in the equivalent L1 block
+      BigInt(l2BlockNum),
+    );
   }
 
   /**
    * Constructs a new instance from named fields.
    * @param fields - Fields to pass to the constructor.
    * @param blockHash - Hash of the block.
+   * @param l1BlockNumber - The block number of the L1 block that contains this L2 block.
    * @returns A new instance.
    */
   static fromFields(
@@ -331,6 +342,7 @@ export class L2Block {
       newUnencryptedLogs?: L2BlockL2Logs;
     },
     blockHash?: Buffer,
+    l1BlockNumber?: bigint,
   ) {
     return new this(
       fields.number,
@@ -357,6 +369,7 @@ export class L2Block {
       fields.newEncryptedLogs,
       fields.newUnencryptedLogs,
       blockHash,
+      l1BlockNumber,
     );
   }
 
@@ -531,6 +544,25 @@ export class L2Block {
     }
 
     this[logFieldName] = logs;
+  }
+
+  /**
+   * Sets the L1 block number that included this block
+   * @param l1BlockNumber - The block number of the L1 block that contains this L2 block.
+   */
+  public setL1BlockNumber(l1BlockNumber: bigint) {
+    this.#l1BlockNumber = l1BlockNumber;
+  }
+
+  /**
+   * Gets the L1 block number that included this block
+   */
+  public getL1BlockNumber(): bigint {
+    if (typeof this.#l1BlockNumber === 'undefined') {
+      throw new Error('L1 block number has to be attached before calling "getL1BlockNumber"');
+    }
+
+    return this.#l1BlockNumber;
   }
 
   /**

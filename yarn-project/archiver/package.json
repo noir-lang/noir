@@ -41,6 +41,7 @@
     "@aztec/types": "workspace:^",
     "@types/lodash.omit": "^4.5.7",
     "debug": "^4.3.4",
+    "lmdb": "^2.9.1",
     "lodash.omit": "^4.5.0",
     "tsc-watch": "^6.0.0",
     "tslib": "^2.5.0",

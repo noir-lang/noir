@@ -4,8 +4,8 @@ import { fileURLToPath } from '@aztec/foundation/url';
 import { createPublicClient, http } from 'viem';
 import { localhost } from 'viem/chains';
 
-import { MemoryArchiverStore } from './archiver/archiver_store.js';
 import { Archiver, getConfigEnvVars } from './archiver/index.js';
+import { MemoryArchiverStore } from './archiver/memory_archiver_store/memory_archiver_store.js';
 
 export * from './archiver/index.js';
 
@@ -32,7 +32,6 @@ async function main() {
     l1Contracts.inboxAddress,
     l1Contracts.registryAddress,
     l1Contracts.contractDeploymentEmitterAddress,
-    0, // searchStartBlock
     archiverStore,
   );
 

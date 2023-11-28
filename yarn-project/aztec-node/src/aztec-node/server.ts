@@ -1,4 +1,4 @@
-import { Archiver } from '@aztec/archiver';
+import { Archiver, LMDBArchiverStore } from '@aztec/archiver';
 import {
   CONTRACT_TREE_HEIGHT,
   Fr,
@@ -7,7 +7,7 @@ import {
   L1_TO_L2_MSG_TREE_HEIGHT,
   NOTE_HASH_TREE_HEIGHT,
 } from '@aztec/circuits.js';
-import { computePublicDataTreeIndex } from '@aztec/circuits.js/abis';
+import { computeGlobalsHash, computePublicDataTreeIndex } from '@aztec/circuits.js/abis';
 import { L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -47,7 +47,7 @@ import {
   getConfigEnvVars as getWorldStateConfig,
 } from '@aztec/world-state';
 
-import levelup from 'levelup';
+import { LevelUp } from 'levelup';
 
 import { AztecNodeConfig } from './config.js';
 import { openDb } from './db.js';
@@ -69,7 +69,7 @@ export class AztecNodeService implements AztecNode {
     protected readonly chainId: number,
     protected readonly version: number,
     protected readonly globalVariableBuilder: GlobalVariableBuilder,
-    protected readonly merkleTreesDb: levelup.LevelUp,
+    protected readonly merkleTreesDb: LevelUp,
     private log = createDebugLogger('aztec:node'),
   ) {
     const message =
@@ -95,8 +95,13 @@ export class AztecNodeService implements AztecNode {
         `RPC URL configured for chain id ${ethereumChain.chainInfo.id} but expected id ${config.chainId}`,
       );
     }
+
+    const log = createDebugLogger('aztec:node');
+    const [nodeDb, worldStateDb] = await openDb(config, log);
+
     // first create and sync the archiver
-    const archiver = await Archiver.createAndSync(config);
+    const archiverStore = new LMDBArchiverStore(nodeDb, config.maxLogs);
+    const archiver = await Archiver.createAndSync(config, archiverStore, true);
 
     // we identify the P2P transaction protocol by using the rollup contract address.
     // this may well change in future
@@ -106,10 +111,14 @@ export class AztecNodeService implements AztecNode {
     const p2pClient = await createP2PClient(config, new InMemoryTxPool(), archiver);
 
     // now create the merkle trees and the world state synchronizer
-    const db = await openDb(config);
-    const merkleTrees = await MerkleTrees.new(db);
+    const merkleTrees = await MerkleTrees.new(worldStateDb);
     const worldStateConfig: WorldStateConfig = getWorldStateConfig();
-    const worldStateSynchronizer = await ServerWorldStateSynchronizer.new(db, merkleTrees, archiver, worldStateConfig);
+    const worldStateSynchronizer = await ServerWorldStateSynchronizer.new(
+      worldStateDb,
+      merkleTrees,
+      archiver,
+      worldStateConfig,
+    );
 
     // start both and wait for them to sync from the block source
     await Promise.all([p2pClient.start(), worldStateSynchronizer.start()]);
@@ -132,7 +141,8 @@ export class AztecNodeService implements AztecNode {
       ethereumChain.chainInfo.id,
       config.version,
       getGlobalVariableBuilder(config),
-      db,
+      worldStateDb,
+      log,
     );
   }
 
@@ -418,8 +428,9 @@ export class AztecNodeService implements AztecNode {
     // TODO we should be able to remove this after https://github.com/AztecProtocol/aztec-packages/issues/1869
     // So simulation of public functions doesn't affect the merkle trees.
     const merkleTrees = new MerkleTrees(this.merkleTreesDb, this.log);
+    const globalVariablesHash = computeGlobalsHash(prevGlobalVariables);
     await merkleTrees.init({
-      globalVariables: prevGlobalVariables,
+      globalVariablesHash,
     });
 
     const publicProcessorFactory = new PublicProcessorFactory(

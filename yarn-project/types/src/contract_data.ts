@@ -202,11 +202,12 @@ export class ExtendedContractData {
 
   /**
    * Generate ContractData with random addresses.
+   * @param contractData - Optional contract data to use.
    * @returns A random ExtendedContractData object.
    */
-  static random(): ExtendedContractData {
+  static random(contractData?: ContractData): ExtendedContractData {
     return new ExtendedContractData(
-      ContractData.random(),
+      contractData ?? ContractData.random(),
       [EncodedContractFunction.random(), EncodedContractFunction.random()],
       Fr.random(),
       Point.random(),

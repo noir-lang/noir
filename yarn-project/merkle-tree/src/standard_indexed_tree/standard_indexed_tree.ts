@@ -8,7 +8,12 @@ import { TreeBase } from '../tree_base.js';
 const log = createDebugLogger('aztec:standard-indexed-tree');
 
 const indexToKeyLeaf = (name: string, index: bigint) => {
-  return `${name}:leaf:${index}`;
+  return `${name}:leaf:${toBufferBE(index, 32).toString('hex')}`;
+};
+
+const keyLeafToIndex = (key: string): bigint => {
+  const index = key.split(':')[2];
+  return toBigIntBE(Buffer.from(index, 'hex'));
 };
 
 const zeroLeaf: LeafData = {
@@ -245,8 +250,8 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
           lte: indexToKeyLeaf(this.getName(), 2n ** BigInt(this.getDepth())),
         })
         .on('data', function (data) {
-          const index = Number(data.key);
-          values[index] = decodeTreeValue(data.value);
+          const index = keyLeafToIndex(data.key.toString('utf-8'));
+          values[Number(index)] = decodeTreeValue(data.value);
         })
         .on('close', function () {})
         .on('end', function () {
@@ -269,7 +274,7 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
     const keys = Object.getOwnPropertyNames(this.cachedLeaves);
     for (const key of keys) {
       const index = Number(key);
-      batch.put(key, this.cachedLeaves[index]);
+      batch.put(indexToKeyLeaf(this.getName(), BigInt(index)), encodeTreeValue(this.cachedLeaves[index]));
       this.leaves[index] = this.cachedLeaves[index];
     }
     await batch.write();

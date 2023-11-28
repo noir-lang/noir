@@ -63,6 +63,34 @@ export class L1ToL2MessageAndIndex {
 }
 
 /**
+ * An L1 to L2 message emitted in a particular L1 block.
+ */
+export class PendingL1ToL2Message {
+  constructor(
+    /** the message */
+    public readonly message: L1ToL2Message,
+    /** the L1 block this message was emitted in */
+    public readonly blockNumber: bigint,
+    /** at which index in the L1 block this message was emitted */
+    public readonly indexInBlock: number,
+  ) {}
+}
+
+/**
+ * An L1 to L2 message that was cancelled.
+ */
+export class CancelledL1ToL2Message {
+  constructor(
+    /** the message */
+    public readonly entryKey: Fr,
+    /** the L1 block this message was emitted in */
+    public readonly blockNumber: bigint,
+    /** at which index in the L1 block this message was emitted */
+    public readonly indexInBlock: number,
+  ) {}
+}
+
+/**
  * The format of an L1 to L2 Message.
  */
 export class L1ToL2Message {
@@ -131,7 +159,7 @@ export class L1ToL2Message {
     return new L1ToL2Message(L1Actor.empty(), L2Actor.empty(), Fr.ZERO, Fr.ZERO, 0, 0);
   }
 
-  static random(): L1ToL2Message {
+  static random(entryKey?: Fr): L1ToL2Message {
     return new L1ToL2Message(
       L1Actor.random(),
       L2Actor.random(),
@@ -139,6 +167,7 @@ export class L1ToL2Message {
       Fr.random(),
       Math.floor(Math.random() * 1000),
       Math.floor(Math.random() * 1000),
+      entryKey,
     );
   }
 }

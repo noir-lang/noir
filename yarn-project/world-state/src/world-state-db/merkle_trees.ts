@@ -47,10 +47,12 @@ import {
  */
 interface FromDbOptions {
   /**
-   * The global variables from the last block.
+   * The global variables hash from the last block.
    */
-  globalVariables: GlobalVariables;
+  globalVariablesHash: Fr;
 }
+
+const LAST_GLOBAL_VARS_HASH = 'lastGlobalVarsHash';
 
 /**
  * A convenience class for managing multiple merkle trees.
@@ -127,7 +129,9 @@ export class MerkleTrees implements MerkleTreeDb {
       await this._updateHistoricBlocksTree(initialGlobalVariablesHash, true);
       await this._commit();
     } else {
-      await this._updateLatestGlobalVariablesHash(computeGlobalsHash(fromDbOptions.globalVariables));
+      await this._updateLatestGlobalVariablesHash(fromDbOptions.globalVariablesHash);
+      // make the restored global variables hash and tree roots current
+      await this._commit();
     }
   }
 
@@ -138,7 +142,10 @@ export class MerkleTrees implements MerkleTreeDb {
    */
   public static async new(db: levelup.LevelUp) {
     const merkleTrees = new MerkleTrees(db);
-    await merkleTrees.init();
+    const globalVariablesHash: Buffer | undefined = await db.get(LAST_GLOBAL_VARS_HASH).catch(() => undefined);
+    await merkleTrees.init(
+      globalVariablesHash ? { globalVariablesHash: Fr.fromBuffer(globalVariablesHash) } : undefined,
+    );
     return merkleTrees;
   }
 
@@ -504,6 +511,7 @@ export class MerkleTrees implements MerkleTreeDb {
       await tree.commit();
     }
     this.latestGlobalVariablesHash.commit();
+    await this.db.put(LAST_GLOBAL_VARS_HASH, this.latestGlobalVariablesHash.get().toBuffer());
   }
 
   /**

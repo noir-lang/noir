@@ -1,6 +1,5 @@
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
-import { ExtendedContractData, L1ToL2Message, L2Block } from '@aztec/types';
+import { CancelledL1ToL2Message, ExtendedContractData, L2Block, PendingL1ToL2Message } from '@aztec/types';
 
 import { PublicClient } from 'viem';
 
@@ -124,8 +123,8 @@ export async function retrieveNewPendingL1ToL2Messages(
   blockUntilSynced: boolean,
   searchStartBlock: bigint,
   searchEndBlock: bigint,
-): Promise<DataRetrieval<L1ToL2Message>> {
-  const retrievedNewL1ToL2Messages: L1ToL2Message[] = [];
+): Promise<DataRetrieval<PendingL1ToL2Message>> {
+  const retrievedNewL1ToL2Messages: PendingL1ToL2Message[] = [];
   do {
     if (searchStartBlock > searchEndBlock) {
       break;
@@ -162,8 +161,8 @@ export async function retrieveNewCancelledL1ToL2Messages(
   blockUntilSynced: boolean,
   searchStartBlock: bigint,
   searchEndBlock: bigint,
-): Promise<DataRetrieval<Fr>> {
-  const retrievedNewCancelledL1ToL2Messages: Fr[] = [];
+): Promise<DataRetrieval<CancelledL1ToL2Message>> {
+  const retrievedNewCancelledL1ToL2Messages: CancelledL1ToL2Message[] = [];
   do {
     if (searchStartBlock > searchEndBlock) {
       break;

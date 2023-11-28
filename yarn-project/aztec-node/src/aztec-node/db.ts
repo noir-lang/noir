@@ -1,5 +1,8 @@
+import { LogFn } from '@aztec/foundation/log';
+
 import { LevelDown, default as leveldown } from 'leveldown';
 import { LevelUp, default as levelup } from 'levelup';
+import { RootDatabase, open } from 'lmdb';
 import { MemDown, default as memdown } from 'memdown';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -10,6 +13,7 @@ export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 export const createLevelDown = (path: string) => (leveldown as any)(path) as LevelDown;
 
 const DB_SUBDIR = 'aztec-node';
+const WORLD_STATE_SUBDIR = 'aztec-world-state';
 const NODE_METADATA_KEY = '@@aztec_node_metadata';
 
 /**
@@ -28,45 +32,61 @@ type NodeMetadata = {
  * @throws If `config.dataDirectory` is set and the directory cannot be created.
  * @returns The database for the aztec node.
  */
-export async function openDb(config: AztecNodeConfig): Promise<LevelUp> {
+export async function openDb(
+  config: AztecNodeConfig,
+  log: LogFn,
+): Promise<[nodeDb: RootDatabase, worldStateDb: LevelUp]> {
   const nodeMetadata: NodeMetadata = {
     rollupContractAddress: config.l1Contracts.rollupAddress.toString(),
   };
 
-  let db: LevelUp;
+  let nodeDb: RootDatabase;
+  let worldStateDb: LevelUp;
 
   if (config.dataDirectory) {
-    const dbDir = join(config.dataDirectory, DB_SUBDIR);
+    const nodeDir = join(config.dataDirectory, DB_SUBDIR);
+    const worldStateDir = join(config.dataDirectory, WORLD_STATE_SUBDIR);
     // this throws if we don't have permissions to create the directory
-    await mkdir(dbDir, { recursive: true });
-    db = levelup(createLevelDown(dbDir));
+    await mkdir(nodeDir, { recursive: true });
+    await mkdir(worldStateDir, { recursive: true });
+
+    log(`Opening aztec-node database at ${nodeDir}`);
+    nodeDb = open(nodeDir, {});
+
+    log(`Opening world-state database at ${worldStateDir}`);
+    worldStateDb = levelup(createLevelDown(worldStateDir));
   } else {
-    db = levelup(createMemDown());
+    log('Opening temporary databases');
+    // not passing a path will use a temp file that gets deleted when the process exits
+    nodeDb = open({});
+    worldStateDb = levelup(createMemDown());
   }
 
-  const prevNodeMetadata = await getNodeMetadata(db);
-
-  // if the rollup addresses are different, wipe the local database and start over
-  if (nodeMetadata.rollupContractAddress !== prevNodeMetadata.rollupContractAddress) {
-    await db.clear();
-  }
-
-  await db.put(NODE_METADATA_KEY, JSON.stringify(nodeMetadata));
-  return db;
+  await checkNodeMetadataAndClear(nodeDb, worldStateDb, nodeMetadata, log);
+  return [nodeDb, worldStateDb];
 }
 
 /**
- * Gets the metadata for the aztec node.
- * @param db - The database for the aztec node.
- * @returns Node metadata.
+ * Checks the node metadata and clears the database if the rollup contract address has changed.
+ * @param nodeDb - The database for the aztec node.
+ * @param nodeMetadata - The metadata for the aztec node.
  */
-async function getNodeMetadata(db: LevelUp): Promise<NodeMetadata> {
+async function checkNodeMetadataAndClear(
+  nodeDb: RootDatabase,
+  worldStateDb: LevelUp,
+  nodeMetadata: NodeMetadata,
+  log: LogFn,
+): Promise<void> {
+  const metadataDB = nodeDb.openDB<NodeMetadata, string>('metadata', {});
   try {
-    const value: Buffer = await db.get(NODE_METADATA_KEY);
-    return JSON.parse(value.toString('utf-8'));
-  } catch {
-    return {
-      rollupContractAddress: '',
-    };
+    const existing = metadataDB.get(NODE_METADATA_KEY);
+    // if the rollup addresses are different, wipe the local database and start over
+    if (!existing || existing.rollupContractAddress !== nodeMetadata.rollupContractAddress) {
+      log('Rollup contract address has changed, clearing databases');
+      await Promise.all([nodeDb.clearAsync(), worldStateDb.clear()]);
+    }
+    await metadataDB.put(NODE_METADATA_KEY, nodeMetadata);
+  } finally {
+    await metadataDB.close();
   }
 }

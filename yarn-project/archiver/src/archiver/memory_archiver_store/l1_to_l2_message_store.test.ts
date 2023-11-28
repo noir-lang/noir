@@ -16,14 +16,20 @@ describe('l1_to_l2_message_store', () => {
   });
 
   it('addMessage adds a message', () => {
-    store.addMessage(entryKey, msg);
+    store.addMessage(entryKey, msg, 1n, 0);
     expect(store.getMessage(entryKey)).toEqual(msg);
   });
 
   it('addMessage increments the count if the message is already in the store', () => {
-    store.addMessage(entryKey, msg);
-    store.addMessage(entryKey, msg);
+    store.addMessage(entryKey, msg, 1n, 0);
+    store.addMessage(entryKey, msg, 1n, 1);
     expect(store.getMessageAndCount(entryKey)).toEqual({ message: msg, count: 2 });
+  });
+
+  it('addMessage does not increment the count if the message is already in the store at the same position', () => {
+    store.addMessage(entryKey, msg, 1n, 0);
+    store.addMessage(entryKey, msg, 1n, 0);
+    expect(store.getMessageAndCount(entryKey)).toEqual({ message: msg, count: 1 });
   });
 });
 
@@ -40,22 +46,22 @@ describe('pending_l1_to_l2_message_store', () => {
   });
 
   it('removeMessage removes the message if the count is 1', () => {
-    store.addMessage(entryKey, msg);
-    store.removeMessage(entryKey);
+    store.addMessage(entryKey, msg, 1n, 0);
+    store.removeMessage(entryKey, 2n, 0);
     expect(store.getMessage(entryKey)).toBeUndefined();
   });
 
   it("handles case when removing a message that doesn't exist", () => {
-    expect(() => store.removeMessage(new Fr(0))).not.toThrow();
+    expect(() => store.removeMessage(new Fr(0), 1n, 0)).not.toThrow();
     const one = new Fr(1);
-    expect(() => store.removeMessage(one)).toThrow(`Message with key ${one.value} not found in store`);
+    expect(() => store.removeMessage(one, 1n, 0)).toThrow(`Message with key ${one.value} not found in store`);
   });
 
   it('removeMessage decrements the count if the message is already in the store', () => {
-    store.addMessage(entryKey, msg);
-    store.addMessage(entryKey, msg);
-    store.addMessage(entryKey, msg);
-    store.removeMessage(entryKey);
+    store.addMessage(entryKey, msg, 1n, 0);
+    store.addMessage(entryKey, msg, 1n, 1);
+    store.addMessage(entryKey, msg, 1n, 2);
+    store.removeMessage(entryKey, 2n, 0);
     expect(store.getMessageAndCount(entryKey)).toEqual({ message: msg, count: 2 });
   });
 
@@ -64,21 +70,21 @@ describe('pending_l1_to_l2_message_store', () => {
   });
 
   it('getMessageKeys returns an empty array if limit is 0', () => {
-    store.addMessage(entryKey, msg);
+    store.addMessage(entryKey, msg, 1n, 0);
     expect(store.getMessageKeys(0)).toEqual([]);
   });
 
   it('get messages for a non-empty store when limit > number of messages in store', () => {
     const entryKeys = [1, 2, 3, 4, 5].map(x => new Fr(x));
-    entryKeys.forEach(entryKey => {
-      store.addMessage(entryKey, L1ToL2Message.random());
+    entryKeys.forEach((entryKey, i) => {
+      store.addMessage(entryKey, L1ToL2Message.random(), 1n, i);
     });
     expect(store.getMessageKeys(10).length).toEqual(5);
   });
 
   it('get messages returns messages sorted by fees and also includes multiple of the same message', () => {
     const entryKeys = [1, 2, 3, 3, 3, 4].map(x => new Fr(x));
-    entryKeys.forEach(entryKey => {
+    entryKeys.forEach((entryKey, i) => {
       // set msg.fee to entryKey to test the sort.
       const msg = new L1ToL2Message(
         L1Actor.random(),
@@ -89,7 +95,7 @@ describe('pending_l1_to_l2_message_store', () => {
         Number(entryKey.value),
         entryKey,
       );
-      store.addMessage(entryKey, msg);
+      store.addMessage(entryKey, msg, 1n, i);
     });
     const expectedMessageFees = [4n, 3n, 3n, 3n]; // the top 4.
     const receivedMessageFees = store.getMessageKeys(4).map(key => key.value);

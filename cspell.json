@@ -226,7 +226,8 @@
     "auditability",
     "hardfork",
     "composablity",
-    "counterparty"
+    "counterparty",
+    "lmdb"
   ],
   "ignorePaths": [
     "node_modules/",
@@ -253,7 +254,5 @@
     "lib",
     "*.cmake"
   ],
-  "flagWords": [
-    "anonymous"
-  ]
+  "flagWords": ["anonymous"]
 }
