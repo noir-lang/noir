@@ -19,7 +19,7 @@ for i in 0..10 {
 };
 ```
 
-The index for loops is of type `u64`.
+The index for loops is of type `field`.
 
 ## If Expressions
 
