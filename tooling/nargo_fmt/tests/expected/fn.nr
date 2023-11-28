@@ -28,6 +28,20 @@ fn main(
     initial_call_stack_pointer: u64
 ) -> pub ExecutionResult {}
 
-fn apply_binary_field_op<N>(lhs: RegisterIndex, rhs: RegisterIndex, result: RegisterIndex, op: u8, registers: &mut Registers<N>) -> bool {}
+fn apply_binary_field_op<N>(
+    lhs: RegisterIndex,
+    rhs: RegisterIndex,
+    result: RegisterIndex,
+    op: u8,
+    registers: &mut Registers<N>
+) -> bool {}
 
 fn main() -> distinct pub [Field;2] {}
+
+fn main(
+    message: [u8; 10],
+    message_field: Field,
+    pub_key_x: Field,
+    pub_key_y: Field,
+    signature: [u8; 64]
+) {}

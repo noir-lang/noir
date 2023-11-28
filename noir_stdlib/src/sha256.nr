@@ -6,7 +6,7 @@ fn rotr32(a: u32, b: u32) -> u32 // 32-bit right rotation
 {
     // None of the bits overlap between `(a >> b)` and `(a << (32 - b))`
     // Addition is then equivalent to OR, with fewer constraints.
-    (a >> b) + (crate::wrapping_shift_left(a, 32 - b))
+    (a >> b) + (a << (32 - b))
 }
 
 fn ch(x: u32, y: u32, z: u32) -> u32 {
@@ -66,9 +66,13 @@ fn sha_c(msg: [u32; 16], hash: [u32; 8]) -> [u32; 8] {
     let mut out_h: [u32; 8] = hash;
     let w = sha_w(msg);
     for j in 0..64 {
-        let t1 = crate::wrapping_add(crate::wrapping_add(crate::wrapping_add(out_h[7], bigma1(out_h[4])),
-                ch(out_h[4], out_h[5], out_h[6])),
-            crate::wrapping_add(K[j], w[j]));
+        let t1 = crate::wrapping_add(
+            crate::wrapping_add(
+                crate::wrapping_add(out_h[7], bigma1(out_h[4])),
+                ch(out_h[4], out_h[5], out_h[6])
+            ),
+            crate::wrapping_add(K[j], w[j])
+        );
         let t2 = crate::wrapping_add(bigma0(out_h[0]), maj(out_h[0], out_h[1], out_h[2]));
         out_h[7] = out_h[6];
         out_h[6] = out_h[5];

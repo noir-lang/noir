@@ -70,7 +70,7 @@ const config = {
         },
         items: [
           {
-            href: 'https://github.com/noir-lang/docs',
+            href: 'https://github.com/noir-lang/noir/tree/master/docs',
             label: 'GitHub',
             position: 'right',
           },
