@@ -12,7 +12,7 @@ if [ -f ".gitrepo" ]; then
   export GIT_COMMIT=$(awk '/commit =/ {print $3}' .gitrepo)
 fi
 
-export cargoExtraArgs="--features noirc_frontend/aztec"
+export cargoExtraArgs="--features noirc_driver/aztec"
 
 yarn
 yarn build

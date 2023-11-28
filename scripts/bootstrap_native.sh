@@ -11,4 +11,4 @@ if [ -f ".gitrepo" ]; then
 fi
 
 # Build native.
-cargo build --features="noirc_frontend/aztec" --release
+cargo build --features="noirc_driver/aztec" --release
