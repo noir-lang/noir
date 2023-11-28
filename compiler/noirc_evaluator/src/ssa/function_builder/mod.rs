@@ -471,26 +471,10 @@ impl FunctionBuilder {
                     self.increment_array_reference_count(value);
                 }
             }
-            Type::Array(element_types, length) => {
+            Type::Array(..) | Type::Slice(..) => {
                 self.insert_instruction(Instruction::IncrementRc { value }, None);
-
-                if element_types.iter().any(|element| element.contains_an_array()) {
-                    for i in 0..length {
-                        let index = self.field_constant(i as u128);
-                        let element_type = element_types[i % element_types.len()].clone();
-                        let element = self.insert_array_get(value, index, element_type);
-                        self.increment_array_reference_count(element);
-                    }
-                }
-            }
-            Type::Slice(element_types) => {
-                self.insert_instruction(Instruction::IncrementRc { value }, None);
-
-                for element_type in element_types.iter() {
-                    if element_type.contains_an_array() {
-                        todo!("inc_rc for nested slices")
-                    }
-                }
+                // If there are nested arrays or slices, we wait until ArrayGet
+                // is issued to increment the count of that array.
             }
         }
     }

@@ -489,15 +489,18 @@ impl<'block> BrilligBlock<'block> {
                     );
                     let target_len = target_len_variable.extract_register();
 
-                    let target_vector = self
-                        .variables
-                        .define_variable(
-                            self.function_context,
-                            self.brillig_context,
-                            results[1],
-                            dfg,
-                        )
-                        .extract_vector();
+                    let target_vector = match self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        results[1],
+                        dfg,
+                    ) {
+                        BrilligVariable::BrilligArray(array) => {
+                            self.brillig_context.array_to_vector(&array)
+                        }
+                        BrilligVariable::BrilligVector(vector) => vector,
+                        BrilligVariable::Simple(..) => unreachable!("ICE: ToBits on non-array"),
+                    };
 
                     let radix = self.brillig_context.make_constant(2_usize.into());
 
