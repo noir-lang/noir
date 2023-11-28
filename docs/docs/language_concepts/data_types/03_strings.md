@@ -73,4 +73,7 @@ Example:
 ```rust
 let s = r"Hello world";
 let s = r#"Simon says "hello world""#;
+
+// Any number of hashes may be used (>= 1) as long as the string also terminates with the same number of hashes
+let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####; 
 ```
