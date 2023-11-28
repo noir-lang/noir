@@ -254,7 +254,9 @@ impl<'f> Context<'f> {
                                 self.slice_parents.insert(results[result_index], slice_contents);
                             }
                         }
-                        Intrinsic::SlicePopBack | Intrinsic::SliceRemove | Intrinsic::SlicePopFront => {
+                        Intrinsic::SlicePopBack
+                        | Intrinsic::SliceRemove
+                        | Intrinsic::SlicePopFront => {
                             // We do not decrement the size on intrinsics that could remove values from a slice.
                             // This is because we could potentially go back to the smaller slice and not fill in dummies.
                             // This pass should be tracking the potential max that a slice ***could be***
@@ -324,15 +326,12 @@ impl<'f> Context<'f> {
                     for (index, arg) in args_to_replace {
                         let element_typ = self.inserter.function.dfg.type_of_value(arg);
                         max_sizes.remove(0);
-                        let new_array = self.attach_slice_dummies(
-                            &element_typ,
-                            Some(arg),
-                            false,
-                            &max_sizes,
-                        );
-    
+                        let new_array =
+                            self.attach_slice_dummies(&element_typ, Some(arg), false, &max_sizes);
+
                         let instruction_id = instruction;
-                        let (instruction, call_stack) = self.inserter.map_instruction(instruction_id);
+                        let (instruction, call_stack) =
+                            self.inserter.map_instruction(instruction_id);
                         let new_call_instr = match instruction {
                             Instruction::Call { func, mut arguments } => {
                                 arguments[index] = new_array;
