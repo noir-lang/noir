@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "aztec_macros",
     "compiler/noirc_evaluator",
     "compiler/noirc_frontend",
     "compiler/noirc_errors",

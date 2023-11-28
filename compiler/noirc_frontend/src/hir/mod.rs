@@ -4,9 +4,6 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
-#[cfg(feature = "aztec")]
-pub(crate) mod aztec_library;
-
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
