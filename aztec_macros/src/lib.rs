@@ -33,7 +33,6 @@ impl MacroProcessor for AztecMacro {
 
 #[derive(Debug, Clone)]
 pub enum AztecMacroError {
-    // TODO(benesjan): https://github.com/AztecProtocol/aztec-packages/issues/2905
     AztecNotFound,
     AztecComputeNoteHashAndNullifierNotFound { span: Span },
 }
