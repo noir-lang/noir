@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.19.4](https://github.com/noir-lang/noir/compare/v0.19.3...v0.19.4) (2023-11-28)
+
+
+### Features
+
+* Add --check option to nargo fmt for dry-run formatting verification ([#3530](https://github.com/noir-lang/noir/issues/3530)) ([4469707](https://github.com/noir-lang/noir/commit/4469707d97085fab0f7ade8d015dc827c56156ee))
+* Add support for tuple values in `noir_codegen` ([#3592](https://github.com/noir-lang/noir/issues/3592)) ([346d75f](https://github.com/noir-lang/noir/commit/346d75f9dd9261996d4d7bb80eb7e4118e8f8ce2))
+* Codegen typed interfaces for functions in `noir_codegen` ([#3533](https://github.com/noir-lang/noir/issues/3533)) ([290c463](https://github.com/noir-lang/noir/commit/290c463622a93a34293f73b5bf2aea7ade30a11c))
+* Export `CompiledCircuit` from codegened TS ([#3589](https://github.com/noir-lang/noir/issues/3589)) ([e06c675](https://github.com/noir-lang/noir/commit/e06c67500da11518caffe0e98bdb9cd7f5f89049))
+* Remove type arrays for flat slices ([#3466](https://github.com/noir-lang/noir/issues/3466)) ([8225b2b](https://github.com/noir-lang/noir/commit/8225b2b379ddf145f9418f8517478704f9aac350))
+* Send and receive unflattened public inputs to backend ([#3543](https://github.com/noir-lang/noir/issues/3543)) ([a7bdc67](https://github.com/noir-lang/noir/commit/a7bdc67ef3ec2037bffc4f1f472907cad786c319))
+
+
+### Bug Fixes
+
+* Compiler version error message ([#3558](https://github.com/noir-lang/noir/issues/3558)) ([026a358](https://github.com/noir-lang/noir/commit/026a3587b01ddc8f444ff588a7b3f3fd1a0bb386))
+* Remove quotes from println output ([#3574](https://github.com/noir-lang/noir/issues/3574)) ([127b6aa](https://github.com/noir-lang/noir/commit/127b6aa1ec8893275fdfa7795db7c52c4fc1d4dd))
+* Somewhat reduce mem2reg memory usage ([#3572](https://github.com/noir-lang/noir/issues/3572)) ([9b9ed89](https://github.com/noir-lang/noir/commit/9b9ed890e68b6c7f0671b05919bdc86f593c5df5))
+* Use 128 bits for constant bit shift ([#3586](https://github.com/noir-lang/noir/issues/3586)) ([2ca9b05](https://github.com/noir-lang/noir/commit/2ca9b059317f0513ea21153ebdb468c4f6633de5))
+
 ## [0.19.3](https://github.com/noir-lang/noir/compare/v0.19.2...v0.19.3) (2023-11-22)
 
 

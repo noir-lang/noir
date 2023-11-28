@@ -70,6 +70,10 @@ function abiTypeToTs(type: AbiType, primitiveTypeMap: Map<string, PrimitiveTypes
       return `string`;
     case 'struct':
       return getLastComponentOfPath(type.path);
+    case 'tuple': {
+      const field_types = type.fields.map((field) => abiTypeToTs(field, primitiveTypeMap));
+      return `[${field_types.join(', ')}]`;
+    }
     default:
       throw new Error(`Unknown ABI type ${JSON.stringify(type)}`);
   }
