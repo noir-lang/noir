@@ -13,6 +13,7 @@ use crate::hir::resolution::{
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
 use crate::hir_def::traits::{Trait, TraitConstant, TraitFunction, TraitImpl, TraitType};
+use crate::macros_api::MacroProcessor;
 use crate::node_interner::{
     FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplId, TypeAliasId,
 };
@@ -199,6 +200,7 @@ impl DefCollector {
         context: &mut Context,
         ast: SortedModule,
         root_file_id: FileId,
+        macro_processors: Vec<&dyn MacroProcessor>,
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let crate_id = def_map.krate;
@@ -211,7 +213,11 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
-            errors.extend(CrateDefMap::collect_defs(dep.crate_id, context));
+            errors.extend(CrateDefMap::collect_defs(
+                dep.crate_id,
+                context,
+                macro_processors.clone(),
+            ));
 
             let dep_def_root =
                 context.def_map(&dep.crate_id).expect("ice: def map was just created").root;
@@ -341,10 +347,9 @@ impl DefCollector {
 
         errors.extend(resolved_globals.errors);
 
-        // We run hir transformations before type checks
-        #[cfg(feature = "aztec")]
-        crate::hir::aztec_library::transform_hir(&crate_id, context);
-
+        for macro_processor in macro_processors {
+            macro_processor.process_typed_ast(&crate_id, context);
+        }
         errors.extend(type_check_globals(&mut context.def_interner, resolved_globals.globals));
 
         // Type check all of the functions in the crate
@@ -646,7 +651,6 @@ fn resolve_globals(
     let globals = vecmap(globals, |global| {
         let module_id = ModuleId { local_id: global.module_id, krate: crate_id };
         let path_resolver = StandardPathResolver::new(module_id);
-        let storage_slot = context.next_storage_slot(module_id);
 
         let mut resolver = Resolver::new(
             &mut context.def_interner,
@@ -662,7 +666,7 @@ fn resolve_globals(
 
         context.def_interner.update_global(global.stmt_id, hir_stmt);
 
-        context.def_interner.push_global(global.stmt_id, name, global.module_id, storage_slot);
+        context.def_interner.push_global(global.stmt_id, name, global.module_id);
 
         (global.file_id, global.stmt_id)
     });

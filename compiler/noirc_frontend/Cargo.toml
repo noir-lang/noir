@@ -26,6 +26,3 @@ regex = "1.9.1"
 [dev-dependencies]
 strum = "0.24"
 strum_macros = "0.24"
-
-[features]
-aztec = []
