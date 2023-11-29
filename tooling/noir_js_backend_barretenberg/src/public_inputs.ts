@@ -1,7 +1,7 @@
 import { Abi, WitnessMap } from '@noir-lang/types';
 
 export function flattenPublicInputs(publicInputs: WitnessMap): string[] {
-  const publicInputIndices = [...publicInputs.keys()].sort();
+  const publicInputIndices = [...publicInputs.keys()].sort((a, b) => a - b);
   const flattenedPublicInputs = publicInputIndices.map((index) => publicInputs.get(index) as string);
   return flattenedPublicInputs;
 }
@@ -31,7 +31,9 @@ export function deflattenPublicInputs(flattenedPublicInputs: Uint8Array, abi: Ab
 
   // We now have an array of witness indices which have been deduplicated and sorted in ascending order.
   // The elements of this array should correspond to the elements of `flattenedPublicInputs` so that we can build up a `WitnessMap`.
-  const public_input_witnesses = [...new Set(public_parameter_witnesses.concat(return_value_witnesses))].sort();
+  const public_input_witnesses = [...new Set(public_parameter_witnesses.concat(return_value_witnesses))].sort(
+    (a, b) => a - b,
+  );
 
   const publicInputs: WitnessMap = new Map();
   public_input_witnesses.forEach((witness_index, index) => {
