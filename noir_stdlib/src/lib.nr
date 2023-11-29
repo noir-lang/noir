@@ -11,7 +11,7 @@ mod grumpkin_scalar_mul;
 mod scalar_mul;
 mod sha256;
 mod sha512;
-mod field;
+mod field_element;
 mod ec;
 mod unsafe;
 mod collections;

@@ -1,4 +1,4 @@
-impl Field {
+impl field {
     pub fn to_le_bits(self: Self, bit_size: u32) -> [u1] {
         crate::assert_constant(bit_size);
         self.__to_le_bits(bit_size)
@@ -50,25 +50,25 @@ impl Field {
     // Returns self to the power of the given exponent value.
     // Caution: we assume the exponent fits into 32 bits
     // using a bigger bit size impacts negatively the performance and should be done only if the exponent does not fit in 32 bits
-    pub fn pow_32(self, exponent: Field) -> Field {
-        let mut r: Field = 1;
+    pub fn pow_32(self, exponent: field) -> field {
+        let mut r: field = 1;
         let b = exponent.to_le_bits(32);
 
         for i in 1..33 {
             r *= r;
-            r = (b[32-i] as Field) * (r * self) + (1 - b[32-i] as Field) * r;
+            r = (b[32-i] as field) * (r * self) + (1 - b[32-i] as field) * r;
         }
         r
     }
 
-    // Parity of (prime) Field element, i.e. sgn0(x mod p) = 0 if x ∈ {0, ..., p-1} is even, otherwise sgn0(x mod p) = 1.
+    // Parity of (prime) field element, i.e. sgn0(x mod p) = 0 if x ∈ {0, ..., p-1} is even, otherwise sgn0(x mod p) = 1.
     pub fn sgn0(self) -> u1 {
         self as u1
     }
 }
 
 #[builtin(modulus_num_bits)]
-pub fn modulus_num_bits() -> Field {}
+pub fn modulus_num_bits() -> field {}
 
 #[builtin(modulus_be_bits)]
 pub fn modulus_be_bits() -> [u1] {}
@@ -82,15 +82,15 @@ pub fn modulus_be_bytes() -> [u8] {}
 #[builtin(modulus_le_bytes)]
 pub fn modulus_le_bytes() -> [u8] {}
 // Convert a 32 byte array to a field element
-pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
+pub fn bytes32_to_field(bytes32: [u8; 32]) -> field {
     // Convert it to a field element
     let mut v = 1;
-    let mut high = 0 as Field;
-    let mut low = 0 as Field;
+    let mut high = 0 as field;
+    let mut low = 0 as field;
 
     for i in 0..16 {
-        high = high + (bytes32[15 - i] as Field) * v;
-        low = low + (bytes32[16 + 15 - i] as Field) * v;
+        high = high + (bytes32[15 - i] as field) * v;
+        low = low + (bytes32[16 + 15 - i] as field) * v;
         v = v * 256;
     }
     // Abuse that a % p + b % p = (a + b) % p and that low < p
