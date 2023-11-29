@@ -116,7 +116,7 @@ impl Type {
         }
         has_internal_slices
     }
-    
+
     /// True if this type is an array (or slice) or internally contains an array (or slice)
     pub(crate) fn contains_an_array(&self) -> bool {
         match self {
