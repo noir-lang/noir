@@ -33,7 +33,7 @@ You can download and run the Sandbox package directly if you have nodejs 18 or h
 You will also need an Ethereum node like Anvil or Hardhat running locally on port 8545.
 
 ```bash
-npx @aztec/aztec-sandbox @aztec/aztec-cli
+npx @aztec/aztec-sandbox @aztec/cli
 ```
 
 You can read [this tutorial on how to use the npm package](../tutorials/testing.md#running-sandbox-in-the-nodejs-process)
