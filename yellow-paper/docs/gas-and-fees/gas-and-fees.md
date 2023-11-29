@@ -15,16 +15,16 @@ Private state transition execution and proving is performed by the end user. How
 1. Execution of public function bytecode
 2. Generation of initial witnesses and proving of public and rollup circuits
 3. Storage of world state and computation of merkle proofs
-4. Finalisation of state transition functions on Ethereum
+4. Finalization of state transition functions on Ethereum
 5. Storage of private notes
 
-Sequencers will need compensatiing for their efforts leading to requirements for the provision of payments to the sequencer. Note, some of the computation may be outsourced to third parties as part of the prover selection mechanism, the cost of this is borne by the sequencer outside of the protocol.
+Sequencers will need compensating for their efforts leading to requirements for the provision of payments to the sequencer. Note, some of the computation may be outsourced to third parties as part of the prover selection mechanism, the cost of this is borne by the sequencer outside of the protocol.
 
 We can define a number of requirements that serve to provide a transparent and fair mechanism of fee payments between transaction senders and sequencers.
 
 1. Senders need to accurately quantify the resource consumption of a transaction and generate an appropriate fee for it.
 2. Senders need to be assured that they will be charged fees fairly and deterministically for execution of their transaction and inclusion in a rollup.
-3. Senders need to be refunded for any unused fee resulting from procssing their transaction.
+3. Senders need to be refunded for any unused fee resulting from processing their transaction.
 4. Senders need to be able to successfully submit a transaction when they have not previously used Aztec before or possess any funds on the network.
 4. Sequencers need to be fairly and deterministically compensated for their expense in including transactions in a rollup.
 5. Sequencers require agency in accepting transactions based on the fee that is being paid.
@@ -34,65 +34,48 @@ We can define a number of requirements that serve to provide a transparent and f
 ## High Level Concepts and Design
 
 1. We will use concepts of L1 and L2 gas to universally define units of resource for the Ethereum and Aztec networks respectively. L1 gas directly mirrors the actual gas specification as defined by Ethereum, L2 gas covers all resource expended on the L2 network.
-2. We will deterministically quantify all resource consumption of a transaction into 4 values. These being the amortised and transaction specific quantities of each of L1 and L2 gas.
-3. The transaction sender will provide a single fee for the transaction. This will be split into 2 components to cover each of the L1 and L2 gas costs. The sender will specifiy `feePerGas` and `gasLimit` for each component. Doing so provides protection to the sender that the amount of fee applicable to L1 costs has an upper bound and L2 a lower bound.
-4. We will constrain the sequencer to apply the correct amortised and transaction specific fees ensuring the sender can not be charged arbitrarily.
+2. We will deterministically quantify all resource consumption of a transaction into 4 values. These being the amortized and transaction specific quantities of each of L1 and L2 gas.
+3. The transaction sender will provide a single fee for the transaction. This will be split into 2 components to cover each of the L1 and L2 gas costs. The sender will specify `feePerGas` and `gasLimit` for each component. Doing so provides protection to the sender that the amount of fee applicable to L1 costs has an upper bound and L2 a lower bound.
+4. We will constrain the sequencer to apply the correct amortized and transaction specific fees ensuring the sender can not be charged arbitrarily.
 5. We will define a method by which fees can be paid in any asset, either publicly or privately, on Ethereum or Aztec but where the sequencer retains agency as to what assets and fee payment methods they are willing to accept.
 6. Upon accepting a transaction, we will constrain the sequencer to receive payment and provide any refund owing via the methods specified by the sender.
 
 ## Gas Metering
 
-Broadly speaking, resource consumption incurred by the sequencer falls into categories of transaction specific consumption and amortised, per-rollup consumption. Each operation performed by the sequencer can be attributed with a fixed amount of gas per unit representing it's level of resource consumption. The unit will differ between operations, for example in some operations it may be per-byte whilst in others it could be per-opcode. What matters is that we are able to determine the total gas consumption of any given transaction. 
+Broadly speaking, resource consumption incurred by the sequencer falls into categories of transaction specific consumption and amortized, per-rollup consumption. Each operation performed by the sequencer can be attributed with a fixed amount of gas per unit representing it's level of resource consumption. The unit will differ between operations, for example in some operations it may be per-byte whilst in others it could be per-opcode. What matters is that we are able to determine the total gas consumption of any given transaction.
 
-### Amortised Consumption
+### Examples of Gas Consuming Operations
 
-Rollups consist of multiple transactions, allowing for amortisation of certain costs in the production and verification of those rollups. The amortisable costs over a rollup of `N` transactions are:
+Examples of operations for which we want to measure gas consumption are:
 
-<!-- prettier-ignore -->
-| Action | Resource Domain | Amortisation Calculation |
-|---|---|---|
-| Publishing the rollup start and end state as part of the rollup transaction on Ethereum | L1 | Fixed quantity of calldata / N |
-| Executing the rollup transaction on Ethereum, including the ZK verifier | L1 | Fixed verification gas / N |
-| Generating witnesses and proving the rollup circuits | L2 | Sum of Base, Merge and Root rollup circuits gas* / N |
+1. Execution of public function bytecode and proving public function execution
+2. Executing and proving the rollup circuits
+3. Validating that a transaction is not attempting to double spend
+4. Accessing and/or modifying contract storage
+5. Executing L1 verification
+6. Publishing to a data availability layer and verifying the published data
 
-\* To expand on the summing of base, merge and rollup circuits. The rollup has a binary tree structure so it can be deterministically calculated how many of each of the base, merge and root rollup circuits are required for an `N` transaction rollup. A fixed gas value can be applied to each of these components.
-
-### Transaction Specific Consumption
-
-Transaction specific consumption also consists of both L1 and L2 components:
-
-<!-- prettier-ignore -->
-| Action | Resource Domain | Consumption Calculation |
-| -------- | -------- | -------- |
-| Verifying nullifiers    | L2     | Gas per nullifier     | |
-| Verifying log preimages | L2 | Gas per preimage field | |
-| Verifying contract deployment data | L2 | Gas per preimage field | |  
-| Publishing contract data and state updates to L1     | L1     | Gas per byte of calldata     | |
-| Publishing notes/tags    | L1     | Gas per byte for storage and verification     | |
-| Publishing L2->L1 messages | L1 | Gas per byte + processing & storing of the message | |
-| Executing a public function     | L2     | Gas based on function opcodes     | |
-| Proving the public VM circuit for a public function     | L2     | Gas per public function     | |
-| Proving the public kernel     | L2     | Gas per public function   | |
+Some operations are specific to a transaction, such as public function execution. The quantity of gas consumed is solely determined by the nature of the requested function. Other costs such as L1 verification are amortized over all of the transactions within a rollup. These amortized gas values will be apportioned by the sequencer at the point of creating a rollup based on the rollup's size.
 
 ## Attributing Transaction Gas
 
 ### Measuring Gas Before Submission
 
-All of the operations listed in the transaction specific table can provide us with deterministic gas values for a transaction. The transaction can be simulated and appropriate gas figures can be calculated before the transaction is sent to the network. The transaction will also need to provide a fee to cover it's portion of the amortised cost. This can be done by deciding on a value of `N`, the number of transactions in a rollup. Of course, the transaction sender can't know in advance how many other transactions will be included in the same rollup but the sender will be able to see how many transactions were included in prior rollups and decide on a value that will give them some certainty of inclusion without overpaying for insufficient amortisation. As with all costs, any additional amortisation will be refunded to the sender. 
+All of the operations listed in the transaction specific table can provide us with deterministic gas values for a transaction. The transaction can be simulated and appropriate gas figures can be calculated before the transaction is sent to the network. The transaction will also need to provide a fee to cover it's portion of the amortized cost. This can be done by deciding on a value of `N`, the number of transactions in a rollup. Of course, the transaction sender can't know in advance how many other transactions will be included in the same rollup but the sender will be able to see how many transactions were included in prior rollups and decide on a value that will give them some certainty of inclusion without overpaying for insufficient amortization. As with all costs, any additional amortization will be refunded to the sender. 
 
-For example, if the previous 10 rollups consist of an average of 5000 transactions, the sender could decide on a value of 1000 for `N` in it's amortisation. If the transaction is included in a rollup with > `N` transactions, the fee saved by the additional amortisation will be refunded to the sender.
+For example, if the previous 10 rollups consist of an average of 5000 transactions, the sender could decide on a value of 1000 for `N` in it's amortization. If the transaction is included in a rollup with > `N` transactions, the fee saved by the additional amortization will be refunded to the sender.
 
 The transaction will be provided with 6 gas values:
 
 <!-- prettier-ignore -->
 | Value | Description |
 | -------- | -------- |
-| `l1BaseGasLimit` | The maximum amount of gas permitted for use in amortised L1 operations |
-| `l1TxGasLimit` | The maximum amount of gas permitted for use in transaction specific L1 operations |
-| `l2BaseGasLimit` | The maximum amount of gas permitted for use in amortised L2 operations |
-| `l2TxGasLimit` | The maximum amount of gas permitted for use in transaction specific operations |
-| `l1FeeDistributionGas` | The amount of L1 gas the sequencer can charge for executing the fee distribution function |
-| `l2FeeDistributionGas` | The amount of L2 gas the sequencer can charge for executing the fee distribution function |
+| `l1BaseGasLimit` | The maximum quantity of gas permitted for use in amortized L1 operations |
+| `l1TxGasLimit` | The maximum quantity of gas permitted for use in transaction specific L1 operations |
+| `l2BaseGasLimit` | The maximum quantity of gas permitted for use in amortized L2 operations |
+| `l2TxGasLimit` | The maximum quantity of gas permitted for use in transaction specific operations |
+| `l1FeeDistributionGas` | The quantity of L1 gas the sequencer can charge for executing the fee distribution function |
+| `l2FeeDistributionGas` | The quantity of L2 gas the sequencer can charge for executing the fee distribution function |
 
 By constraining each of the above values individually, the transaction sender is protected from a dishonest sequencer allocating an unfairly high amount of gas to one category and leaving insufficient gas for other categories causing a transaction to erroneously be deemed 'out of gas' and a fee taken for improper execution.
 
@@ -100,11 +83,11 @@ By constraining each of the above values individually, the transaction sender is
 
 When a transaction is received by a sequencer, it will want to determine if the transaction has been endowed with sufficient fee to be considered for inclusion in a rollup. Although the transaction contains information as to the gas limits and fees it provides, these may not be accurate either because the sender is dishonest or because the simulation of any public functions was performed on a system state that differs to that at the point of inclusion. Unlike transactions on Ethereum it is not simply a case of linearly executing the transactions opcodes until completion of the transaction exceeds the provided gas. Rollup inclusion and public function execution and proving require significant resource investment on the part of the sequencer even for the most trivial of transaction.
 
-There are a series of steps the sequencer would wish to perform such that it incrementally increases it's committment to processing the transaction as it becomes more confident of a successful outcome:
+There are a series of steps the sequencer would wish to perform such that it incrementally increases it's commitment to processing the transaction as it becomes more confident of a successful outcome:
 
-1. Determine how much fee has been provided and verify that this is sufficent to cover the L1 and L2 gas limits specified in the transaction. Later on we will look at how this is done but it may involve simulation of a public function. The sequencer will have visibility over which function on which contract has been specified for this step and has agency to disregard the transaction if it is not willing to execute this step.
-2. Once the fee is known, verify that enough fee exists to cover the transaction's requirements at this stage. This would include publishing the results of the private stage of the transaction and the amortised cost of rollup construction and publishing.
-3. If at least one public function is enqueued, verify that enough fee exists to cover at least 1 iteration of the public VM, 1 iteration of the public kernel circuit and a non-zero amount left for public function simulation. The sequener here will seek to determine if it is worth proceeding with the transaction. Proceeding requires an investment at least covering the cost of the minimum public VM execution and an iteration of the public kernel circuit. The minimum cost could be described as the cost to simulate, execute and prove a function which reverts as soon as it enters the function.
+1. Determine how much fee has been provided and verify that this is sufficient to cover the L1 and L2 gas limits specified in the transaction. Later on we will look at how this is done but it may involve simulation of a public function. The sequencer will have visibility over which function on which contract has been specified for this step and has agency to disregard the transaction if it is not willing to execute this step.
+2. Once the fee is known, verify that enough fee exists to cover the transaction's requirements at this stage. This would include publishing the results of the private stage of the transaction and the amortized cost of rollup construction and publishing.
+3. If at least one public function is enqueued, verify that enough fee exists to cover at least 1 iteration of the public VM, 1 iteration of the public kernel circuit and a non-zero amount left for public function simulation. The sequencer here will seek to determine if it is worth proceeding with the transaction. Proceeding requires an investment at least covering the cost of the minimum public VM execution and an iteration of the public kernel circuit. The minimum cost could be described as the cost to simulate, execute and prove a function which reverts as soon as it enters the function.
 
 Each of the above steps should be relatively trivial for the sequencer to perform and they have agency to disregard the transaction after each one. Having decided that a transaction is worth proceeding with, the sequencer will simulate any public portion of the transaction until completion or simulation exceeds the provided L1 or L2 gas limits. As simulation takes place, it should be noted that further L1 state updates will be made and any nested public calls will incur additional public VM and public kernel iteration costs.
 
@@ -120,13 +103,13 @@ To achieve the above requirements we will break the transaction into 3 component
 2. The transaction payload component can have both private and/or public functions.
 3. The fee distribution component only has a public function.
 
-All of these components occur **within the same transaction**, ultimately they result in 2 sets of public inputs being emitted from the private kernel circuits. Those related to the fee payment and those related to the transactiopn payload. State changes requested by the transaction payload are reverted if any component fails. State changes in the fee preparation and distribution components are only reverted if either of those components fail.
+All of these components occur **within the same transaction**, ultimately they result in 2 sets of public inputs being emitted from the private kernel circuits. Those related to the fee payment and those related to the transaction payload. State changes requested by the transaction payload are reverted if any component fails. State changes in the fee preparation and distribution components are only reverted if either of those components fail.
 
 ![Transaction Components](../gas-and-fees/images/gas-and-fees/transaction.png)
 
 ### Fee Preparation
 
-This component can consist of both private and/or public execution, the result of which must be that an easily identifiable fee be made available to the sequencer. This could be implemented in a variety of ways but typically, we would expect a call to a 'fee payment', escrowing the funds to later be released by the fee distribution component. Any public execution should be minimal to reduce unnecessary work for the sequencer during the period of evaluating whether a transaction is to be included. If public execution is required as part of fee preparation, the sequencer will have complete visibility over what they are being expected to execute. We expect that sequencers will select only those transactions that provide identifiable fees using whitelisted contract addresses and functions. Ultimately, whilst a sequencer's goal is to include as many transction's as possible within a rollup, it will have agency over how much risk it is willing to take that a transaction does not successfully provide a sufficient fee.
+This component can consist of both private and/or public execution, the result of which must be that an easily identifiable fee be made available to the sequencer. This could be implemented in a variety of ways but typically, we would expect a call to a 'fee payment', escrowing the funds to later be released by the fee distribution component. Any public execution should be minimal to reduce unnecessary work for the sequencer during the period of evaluating whether a transaction is to be included. If public execution is required as part of fee preparation, the sequencer will have complete visibility over what they are being expected to execute. We expect that sequencers will select only those transactions that provide identifiable fees using whitelisted contract addresses and functions. Ultimately, whilst a sequencer's goal is to include as many transactions as possible within a rollup, it will have agency over how much risk it is willing to take that a transaction does not successfully provide a sufficient fee.
 
 ### Transaction Payload
 
@@ -134,7 +117,7 @@ This is the main component of the transaction, the part containing the execution
 
 ### Fee Distribution
 
-Fee distribution consists of a single call to a contract function specified by the client. The function will require the sequencer to provide accurate information about the gas consumed throughout the execution of the transaction payload and perform the necessary steps to finalise the payment to the sequencer and any refund owed to the client.
+Fee distribution consists of a single call to a contract function specified by the client. The function will require the sequencer to provide accurate information about the gas consumed throughout the execution of the transaction payload and perform the necessary steps to finalize the payment to the sequencer and any refund owed to the client.
 
 Like the fee payment component, this must have a very low probability of failure and the sequencer is free to only consider transactions with fee distribution components that they deem acceptable. Reverting here reverts the entire transaction as no fee is distributed to the sequencer. However, it should be straight forward to create fee distribution functions that will not fail given valid inputs that have been verified by the sequencer.
 
@@ -146,7 +129,7 @@ It is of course possible that the fee payment contract and asset is supported by
 
 ### Fee Collection
 
-We will define a new block scoped gobal value ‘coinbase’ that will be used to identify the address of the sequencer for the current block. The sequencer will provide this address to public VM, public kernel and rollup circuits. The rollup circuits will constrain that the same value is used for all circuits in the proving tree.
+We will define a new block scoped global value ‘coinbase’ that will be used to identify the address of the sequencer for the current block. The sequencer will provide this address to public VM, public kernel and rollup circuits. The rollup circuits will constrain that the same value is used for all circuits in the proving tree.
 
 With this new value defined, a typical fee payment flow might look as follows:
 
@@ -160,20 +143,20 @@ We will attempt to walk through the process by which a transaction is created wi
 
 ### User Simulation and Fee Preparation
 
-Transactions begin on a user's device where a user opts to interact privately with a contract. This execution results in the generation of new notes and nulliifiers and potentially some enqueued public function calls. Additionally, at some point during this execution, a fee will need to be generated. The state updates related to this fee will be added to a seperate collection of notes, nullifiers and public calls where these state updates only revert on failure of the fee preparation or distribution logic.
+Transactions begin on a user's device where a user opts to interact privately with a contract. This execution results in the generation of new notes and nullifiers and potentially some enqueued public function calls. Additionally, at some point during this execution, a fee will need to be generated. The state updates related to this fee will be added to a separate collection of notes, nullifiers and public calls where these state updates only revert on failure of the fee preparation or distribution logic.
 
-This would appaear to introduce a circular dependency whereby an appropriate fee can't be produced without knowing the gas profile (the required quantities of L1 and L2 gas) but the gas profile can depend on the fee required. When simulating the transaction, we will introduce new values to the global context:
+This would appear to introduce a circular dependency whereby an appropriate fee can't be produced without knowing the gas profile (the required quantities of L1 and L2 gas) but the gas profile can depend on the fee required. When simulating the transaction, we will introduce new values to the global context:
 
 - **feePerL1Gas** - The fee provided per unit of L1 gas
 - **feePerL2Gas** - The fee provided per unit of L2 gas
-- **l1BaseGasLimit** - The upper bound of L1 ammortised gas the transaction is willing to pay for
-- **l2BaseGasLimit** - The upper bound of L2 ammortised gas the transaction is willing to pay for
+- **l1BaseGasLimit** - The upper bound of L1 amortized gas the transaction is willing to pay for
+- **l2BaseGasLimit** - The upper bound of L2 amortized gas the transaction is willing to pay for
 - **l1TxGasLimit** - The upper bound of L1 transaction specific gas the transaction is willing to pay for
 - **l2TxGasLimit** - The upper bound of L2 transaction specific gas the transaction is willing to pay for
 - **l1FeeDistributionGas** - The amount of L1 gas the transaction is willing to pay for execution of the fee distribution function
 - **l2FeeDistributionGas** - The amount of L1 gas the transaction is willing to pay for execution of the fee distribution function
 
-Initially, the values of transaction gas limits can be set to a very high number, the base gas limits set to values corresponding to the user's chosen amortisation level and the fees aet to 0. The transaction can be simulated under these conditions and simulation will provide actual gas consumption figures. Simulation can then be repeated with more realistic values of gas limits and the updated gas consumption figures will be reported. A few iterations of this process will enable the user to establish and prepare an appropriate fee.
+Initially, the values of transaction gas limits can be set to a very high number, the base gas limits set to values corresponding to the user's chosen amortization level and the fees aet to 0. The transaction can be simulated under these conditions and simulation will provide actual gas consumption figures. Simulation can then be repeated with more realistic values of gas limits and the updated gas consumption figures will be reported. A few iterations of this process will enable the user to establish and prepare an appropriate fee.
 
 Simulation of the transaction will provide feedback as to it's gas consumption, this can then be repeated to converge on the optimum fee to be prepared. The private portion of the transaction will be proven via the private kernel circuit resulting in a number of fee related public inputs:
 
@@ -183,8 +166,8 @@ Simulation of the transaction will provide feedback as to it's gas consumption, 
 - **feeDistribution** - A single public function call to be made as part of fee distribution
 - **feePerL1Gas** - The fee provided per unit of L1 gas
 - **feePerL2Gas** - The fee provided per unit of L2 gas
-- **l1BaseGasLimit** - The upper bound of L1 ammortised gas the transaction is willing to pay for
-- **l2BaseGasLimit** - The upper bound of L2 ammortised gas the transaction is willing to pay for
+- **l1BaseGasLimit** - The upper bound of L1 amortized gas the transaction is willing to pay for
+- **l2BaseGasLimit** - The upper bound of L2 amortized gas the transaction is willing to pay for
 - **l1TxGasLimit** - The upper bound of L1 transaction specific gas the transaction is willing to pay for
 - **l2TxGasLimit** - The upper bound of L2 transaction specific gas the transaction is willing to pay for
 - **l1FeeDistributionGas** - The amount of L1 gas the transaction is willing to pay for execution of the fee distribution function
@@ -211,12 +194,12 @@ struct TxContext {
     l1GasUsed; // accumulated through circuits
     l2GasUsed; // accumulated through circuits
     refundRecipient; // used in the case of public payments/refunds
-    txId; // identifer used for private refunds
-    rollupSize; // set by the sequener for the rollup
+    txId; // identifier used for private refunds
+    rollupSize; // set by the sequencer for the rollup
 }
 ```
 
-The sequencer will need to specify the intended size of the rollup (determined as part of the sequencer selection commitment phase) and use this value to calculate gas amortisation. These values of amortised L1 and L2 gas will be added to the `l1GasUsed` and `l2GasUsed` accumulators. These accumulators will need to accurately reflect the gas consumption of the transaction prior to public function execution including state updates produced as part of private execution.
+The sequencer will need to specify the intended size of the rollup (determined as part of the sequencer selection commitment phase) and use this value to calculate gas amortization. These values of amortized L1 and L2 gas will be added to the `l1GasUsed` and `l2GasUsed` accumulators. These accumulators will need to accurately reflect the gas consumption of the transaction prior to public function execution including state updates produced as part of private execution.
 
 Any enqueued public function calls can be simulated by the sequencer to obtain an accurate gas profile of their execution. This simulation will enable the sequencer to compute the number of additional state updates to be made, the number of public function calls and the L2 gas consumption of each of those calls. If either the L1 or L2 gas limits are breached, simulation will identify where in the execution trace this takes place and so the sequencer will only need to perform iterations of the public VM and public kernel circuits for the calls that either partially or completely succeeded. This ensures that the sequencer is not forced to execute and prove circuits for which they will not be compensated. 
 
@@ -232,7 +215,7 @@ Once transaction execution is complete, the sequencer will execute the fee distr
 
 ### Fee Distribution
 
-Once public function execution has completed (or hit the gas limit), the fee distribution component is executed. This is a public function and will also need to be proven via the VM and publc kernel circuits. The sequencer will have agency over which functions they are willing to accept and this will be part of the earlier transaction acceptance. Execution of this function is paid for using a fixed fee, specified by the gas values `l1FeeDistributionGas` and `l2FeeDistributionGas`. The sequencer will be able to verify that these are sufficient to cover the likely cost of calling this function.
+Once public function execution has completed (or hit the gas limit), the fee distribution component is executed. This is a public function and will also need to be proven via the VM and public kernel circuits. The sequencer will have agency over which functions they are willing to accept and this will be part of the earlier transaction acceptance. Execution of this function is paid for using a fixed fee, specified by the gas values `l1FeeDistributionGas` and `l2FeeDistributionGas`. The sequencer will be able to verify that these are sufficient to cover the likely cost of calling this function.
 
 The total fee taken by the sequencer is calculated from the values of consumed L1 and L2 gas and the `feeDistributionGas` and `feePerGas` values provided with the transaction. Any balance remaining must be refunded.
 
