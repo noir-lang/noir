@@ -64,6 +64,8 @@ impl Ssa {
         for function in self.functions.values_mut() {
             // This pass is only necessary for generating ACIR and thus we should not
             // process Brillig functions.
+            // The pass is also currently only setup to handle a function with a single flattened block.
+            // For complex Brillig functions we can expect this pass to panic.
             if function.runtime() == RuntimeType::Acir {
                 let mut context = Context::new(function);
                 context.process_blocks();
