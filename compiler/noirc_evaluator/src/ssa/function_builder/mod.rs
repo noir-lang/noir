@@ -1,4 +1,4 @@
-use std::{borrow::Cow, rc::Rc};
+use std::rc::Rc;
 
 use acvm::FieldElement;
 use noirc_errors::Location;
@@ -8,7 +8,7 @@ use crate::ssa::ir::{
     function::{Function, FunctionId},
     instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
     types::Type,
-    value::{Value, ValueId},
+    value::ValueId,
 };
 
 use super::{
@@ -137,7 +137,10 @@ impl FunctionBuilder {
     }
 
     /// Returns the parameters of the given block in the current function.
-    pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
+    pub(crate) fn block_parameters(
+        &self,
+        block: BasicBlockId,
+    ) -> impl ExactSizeIterator<Item = ValueId> {
         self.current_function.dfg.block_parameters(block)
     }
 
@@ -259,7 +262,7 @@ impl FunctionBuilder {
         func: ValueId,
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
-    ) -> Cow<[ValueId]> {
+    ) -> Vec<ValueId> {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
     }
 
@@ -438,7 +441,7 @@ impl FunctionBuilder {
     /// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
     /// into the current function if it was not already, and returns that ID.
     pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId {
-        self.current_function.dfg.import_foreign_function(function)
+        self.current_function.dfg.import_foreign_function(function.to_owned())
     }
 
     /// Retrieve a value reference to the given intrinsic operation.
@@ -453,18 +456,10 @@ impl FunctionBuilder {
     }
 
     pub(crate) fn get_intrinsic_from_value(&mut self, value: ValueId) -> Option<Intrinsic> {
-        match self.current_function.dfg[value] {
-            Value::Intrinsic(intrinsic) => Some(intrinsic),
+        match value {
+            ValueId::Intrinsic(intrinsic) => Some(intrinsic),
             _ => None,
         }
-    }
-}
-
-impl std::ops::Index<ValueId> for FunctionBuilder {
-    type Output = Value;
-
-    fn index(&self, id: ValueId) -> &Self::Output {
-        &self.current_function.dfg[id]
     }
 }
 
@@ -495,7 +490,6 @@ mod tests {
         instruction::{Endian, Intrinsic},
         map::Id,
         types::Type,
-        value::Value,
     };
 
     use super::FunctionBuilder;
@@ -514,19 +508,23 @@ mod tests {
         let input = builder.numeric_constant(FieldElement::from(7_u128), Type::field());
         let length = builder.numeric_constant(FieldElement::from(8_u128), Type::field());
         let result_types = vec![Type::Array(Rc::new(vec![Type::bool()]), 8)];
-        let call_results =
-            builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
+        let call_results = builder.insert_call(to_bits_id, vec![input, length], result_types);
 
-        let slice_len = match &builder.current_function.dfg[call_results[0]] {
-            Value::NumericConstant { constant, .. } => *constant,
-            _ => panic!(),
-        };
+        let slice_len = builder
+            .current_function
+            .dfg
+            .get_numeric_constant(call_results[0])
+            .expect("Expected slice length to be a known constant");
+
         assert_eq!(slice_len, FieldElement::from(8_u128));
 
-        let slice = match &builder.current_function.dfg[call_results[1]] {
-            Value::Array { array, .. } => array,
-            _ => panic!(),
-        };
+        let slice = builder
+            .current_function
+            .dfg
+            .get_array_constant(call_results[1])
+            .expect("Expected slice elements to be known")
+            .0;
+
         assert_eq!(slice[0], one);
         assert_eq!(slice[1], one);
         assert_eq!(slice[2], one);

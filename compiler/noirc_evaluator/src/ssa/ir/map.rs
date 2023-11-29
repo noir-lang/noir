@@ -234,13 +234,17 @@ impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
 /// This is accomplished by keeping the map bijective - for every
 /// value there is exactly one key and vice-versa. Any duplicate values
 /// are prevented in the call to insert.
+///
+/// This particular TwoWayMap is specialized to be between a value and an Id
+/// for that value only. This enables us to insert a new value and generate
+/// a fresh Id for it if needed while keeping the two way mapping.
 #[derive(Debug)]
-pub(crate) struct TwoWayMap<K, V> {
-    key_to_value: HashMap<K, V>,
-    value_to_key: HashMap<V, K>,
+pub(crate) struct TwoWayMap<V> {
+    key_to_value: HashMap<Id<V>, V>,
+    value_to_key: HashMap<V, Id<V>>,
 }
 
-impl<K: Clone + Eq + Hash, V: Clone + Hash + Eq> TwoWayMap<K, V> {
+impl<V: Clone + Hash + Eq> TwoWayMap<V> {
     /// Returns the number of elements in the map.
     pub(crate) fn len(&self) -> usize {
         self.key_to_value.len()
@@ -248,23 +252,24 @@ impl<K: Clone + Eq + Hash, V: Clone + Hash + Eq> TwoWayMap<K, V> {
 
     /// Adds an element to the map.
     /// Returns the identifier/reference to that element.
-    pub(crate) fn insert(&mut self, key: K, element: V) -> K {
+    pub(crate) fn insert(&mut self, element: V) -> Id<V> {
         if let Some(existing) = self.value_to_key.get(&element) {
             return existing.clone();
         }
 
+        let key = Id::new(self.key_to_value.len() as u32);
         self.key_to_value.insert(key.clone(), element.clone());
         self.value_to_key.insert(element, key.clone());
 
         key
     }
 
-    pub(crate) fn get(&self, key: &K) -> Option<&V> {
+    pub(crate) fn get(&self, key: &Id<V>) -> Option<&V> {
         self.key_to_value.get(key)
     }
 }
 
-impl<K, V> Default for TwoWayMap<K, V> {
+impl<V> Default for TwoWayMap<V> {
     fn default() -> Self {
         Self { key_to_value: HashMap::default(), value_to_key: HashMap::default() }
     }
@@ -273,19 +278,19 @@ impl<K, V> Default for TwoWayMap<K, V> {
 // Note that there is no impl for IndexMut<T>,
 // if we allowed mutable access to map elements they may be
 // mutated such that elements are no longer unique
-impl<K: Eq + Hash, V> std::ops::Index<K> for TwoWayMap<K, V> {
+impl<V> std::ops::Index<Id<V>> for TwoWayMap<V> {
     type Output = V;
 
-    fn index(&self, id: K) -> &Self::Output {
+    fn index(&self, id: Id<V>) -> &Self::Output {
         &self.key_to_value[&id]
     }
 }
 
-impl<K: Eq + Hash, V> std::ops::Index<&K> for TwoWayMap<K, V> {
-    type Output = V;
+impl<V> std::ops::Index<&V> for TwoWayMap<V> {
+    type Output = Id<V>;
 
-    fn index(&self, id: &K) -> &Self::Output {
-        &self.key_to_value[id]
+    fn index(&self, value: &V) -> &Self::Output {
+        &self.key_to_value[value]
     }
 }
 

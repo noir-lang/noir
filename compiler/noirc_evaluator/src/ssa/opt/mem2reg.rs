@@ -229,14 +229,13 @@ impl<'f> PerFunctionContext<'f> {
 
         match &self.inserter.function.dfg[instruction] {
             Instruction::Load { address } => {
-                let address = self.inserter.function.dfg.resolve(*address);
+                let address = *address;
 
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let result = ValueId::InstructionResult { instruction, position: 0 };
                 references.remember_dereference(self.inserter.function, address, result);
 
                 // If the load is known, replace it with the known value and remove the load
                 if let Some(value) = references.get_known_value(address) {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 } else {
@@ -244,8 +243,8 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::Store { address, value } => {
-                let address = self.inserter.function.dfg.resolve(*address);
-                let value = self.inserter.function.dfg.resolve(*value);
+                let address = *address;
+                let value = *value;
 
                 self.check_array_aliasing(references, value);
 
@@ -260,16 +259,16 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::Allocate => {
                 // Register the new reference
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let result = ValueId::InstructionResult { instruction, position: 0 };
                 references.expressions.insert(result, Expression::Other(result));
                 references.aliases.insert(Expression::Other(result), AliasSet::known(result));
             }
             Instruction::ArrayGet { array, .. } => {
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let result = ValueId::InstructionResult { instruction, position: 0 };
                 references.mark_value_used(*array, self.inserter.function);
 
                 if self.inserter.function.dfg.value_is_reference(result) {
-                    let array = self.inserter.function.dfg.resolve(*array);
+                    let array = *array;
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
@@ -282,8 +281,8 @@ impl<'f> PerFunctionContext<'f> {
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
                 if Self::contains_references(&element_type) {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let array = self.inserter.function.dfg.resolve(*array);
+                    let result = ValueId::InstructionResult { instruction, position: 0 };
+                    let array = *array;
 
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
@@ -347,9 +346,8 @@ impl<'f> PerFunctionContext<'f> {
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
             if self.inserter.function.dfg.value_is_reference(*value) {
-                let value = self.inserter.function.dfg.resolve(*value);
-                references.set_unknown(value);
-                references.mark_value_used(value, self.inserter.function);
+                references.set_unknown(*value);
+                references.mark_value_used(*value, self.inserter.function);
             }
         }
     }
@@ -372,18 +370,16 @@ impl<'f> PerFunctionContext<'f> {
         match self.inserter.function.dfg[block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                let destination_parameters = self.inserter.function.dfg[*destination].parameters();
+                let destination_parameters = self.inserter.function.dfg.block_parameters(*destination);
                 assert_eq!(destination_parameters.len(), arguments.len());
 
                 // Add an alias for each reference parameter
-                for (parameter, argument) in destination_parameters.iter().zip(arguments) {
-                    if self.inserter.function.dfg.value_is_reference(*parameter) {
-                        let argument = self.inserter.function.dfg.resolve(*argument);
-
-                        if let Some(expression) = references.expressions.get(&argument) {
+                for (parameter, argument) in destination_parameters.zip(arguments) {
+                    if self.inserter.function.dfg.value_is_reference(parameter) {
+                        if let Some(expression) = references.expressions.get(argument) {
                             if let Some(aliases) = references.aliases.get_mut(expression) {
                                 // The argument reference is possibly aliased by this block parameter
-                                aliases.insert(*parameter);
+                                aliases.insert(parameter);
                             }
                         }
                     }
@@ -414,7 +410,7 @@ mod tests {
             function::RuntimeType,
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
-            types::Type,
+            types::Type, value::ValueId,
         },
     };
 
@@ -433,7 +429,7 @@ mod tests {
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
         let v0 = builder.insert_allocate();
         let one = builder.field_constant(FieldElement::one());
-        let two = builder.field_constant(FieldElement::one());
+        let two = builder.field_constant(2_u128);
 
         let element_type = Rc::new(vec![Type::field()]);
         let array_type = Type::Array(element_type, 2);
@@ -456,7 +452,7 @@ mod tests {
             TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[two]);
+        assert_eq!(*ret_val_id, two);
     }
 
     #[test]
@@ -492,7 +488,7 @@ mod tests {
             TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[one]);
+        assert_eq!(*ret_val_id, one);
     }
 
     #[test]
@@ -526,9 +522,9 @@ mod tests {
             _ => unreachable!(),
         };
 
-        // Since the mem2reg pass simplifies as it goes, the id of the allocate instruction result
-        // is most likely no longer v0. We have to retrieve the new id here.
-        let allocate_id = func.dfg.instruction_results(instructions[0])[0];
+        // Since the mem2reg pass simplifies as it goes, the allocate instruction may have a
+        // different internal InstructionId than `v0` has that we started with.
+        let allocate_id = ValueId::instruction_result(instructions[0], 0);
         assert_eq!(ret_val_id, allocate_id);
     }
 

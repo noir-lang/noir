@@ -7,7 +7,7 @@ use super::{
     dfg::{CallStack, DataFlowGraph},
     map::Id,
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::ValueId,
 };
 
 mod call;
@@ -237,8 +237,8 @@ impl Instruction {
             | Store { .. }
             | RangeCheck { .. } => false,
 
-            Call { func, .. } => match dfg[*func] {
-                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+            Call { func, .. } => match func {
+                ValueId::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
                 _ => false,
             },
         }
@@ -269,16 +269,16 @@ impl Instruction {
             Constrain(..) | Store { .. } | EnableSideEffects { .. } | RangeCheck { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match dfg[*func] {
-                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+            Call { func, .. } => match func {
+                ValueId::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
 
                 // All foreign functions are treated as having side effects.
                 // This is because they can be used to pass information
                 // from the ACVM to the external world during execution.
-                Value::ForeignFunction(_) => true,
+                ValueId::ForeignFunction(_) => true,
 
                 // We must assume that functions contain a side effect as we cannot inspect more deeply.
-                Value::Function(_) => true,
+                ValueId::Function(_) => true,
 
                 _ => false,
             },
@@ -482,6 +482,25 @@ impl Instruction {
                 }
                 None
             }
+        }
+    }
+
+    /// Returns the number of results this instruction has
+    pub(crate) fn result_count(&self) -> u32 {
+        match self {
+            Instruction::Binary(_) => 1,
+            Instruction::Cast(_, _) => 1,
+            Instruction::Not(_) => 1,
+            Instruction::Truncate { .. } => 1,
+            Instruction::Constrain(_, _, _) => 0,
+            Instruction::RangeCheck { .. } => 0,
+            Instruction::Call { .. } => todo!("Instruction::result_count for Instruction::Call"),
+            Instruction::Allocate => 1,
+            Instruction::Load { .. } => 1,
+            Instruction::Store { .. } => 0,
+            Instruction::EnableSideEffects { .. } => 0,
+            Instruction::ArrayGet { .. } => 1,
+            Instruction::ArraySet { .. } => 1,
         }
     }
 }

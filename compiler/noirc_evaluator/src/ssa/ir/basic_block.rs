@@ -2,6 +2,7 @@ use super::{
     dfg::CallStack,
     instruction::{InstructionId, TerminatorInstruction},
     map::Id,
+    types::Type,
     value::ValueId,
 };
 
@@ -14,7 +15,7 @@ use super::{
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) struct BasicBlock {
     /// Parameters to the basic block.
-    parameters: Vec<ValueId>,
+    parameter_types: Vec<Type>,
 
     /// Instructions in the basic block.
     instructions: Vec<InstructionId>,
@@ -33,30 +34,28 @@ impl BasicBlock {
     /// Create a new BasicBlock with the given parameters.
     /// Parameters can also be added later via BasicBlock::add_parameter
     pub(crate) fn new() -> Self {
-        Self { parameters: Vec::new(), instructions: Vec::new(), terminator: None }
+        Self { parameter_types: Vec::new(), instructions: Vec::new(), terminator: None }
     }
 
-    /// Returns the parameters of this block
-    pub(crate) fn parameters(&self) -> &[ValueId] {
-        &self.parameters
-    }
-
-    /// Removes all the parameters of this block
-    pub(crate) fn take_parameters(&mut self) -> Vec<ValueId> {
-        std::mem::take(&mut self.parameters)
+    /// The number of parameters this basic block has
+    pub(crate) fn parameter_count(&self) -> u32 {
+        self.parameter_types.len() as u32
     }
 
     /// Adds a parameter to this BasicBlock.
-    /// Expects that the ValueId given should refer to a Value::Param
-    /// instance with its position equal to self.parameters.len().
-    pub(crate) fn add_parameter(&mut self, parameter: ValueId) {
-        self.parameters.push(parameter);
+    pub(crate) fn add_parameter(&mut self, parameter_type: Type) {
+        self.parameter_types.push(parameter_type);
     }
 
-    /// Replace this block's current parameters with that of the given Vec.
-    /// This does not perform any checks that any previous parameters were unused.
-    pub(crate) fn set_parameters(&mut self, parameters: Vec<ValueId>) {
-        self.parameters = parameters;
+    /// Returns the types of this block's parameters
+    pub(crate) fn get_parameter_types(&self) -> &[Type] {
+        &self.parameter_types
+    }
+
+    /// Replace this block's current parameter types with that of the given Vec.
+    /// The given Vec is allowed to be a different number of parameters than the block originally had.
+    pub(crate) fn set_parameter_types(&mut self, parameter_types: Vec<Type>) {
+        self.parameter_types = parameter_types;
     }
 
     /// Insert an instruction at the end of this block

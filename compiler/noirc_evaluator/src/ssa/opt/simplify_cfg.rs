@@ -107,7 +107,7 @@ fn remove_block_parameters(
 ) {
     let block = &mut function.dfg[block];
 
-    if !block.parameters().is_empty() {
+    if block.parameter_count() != 0 {
         let block_params = block.take_parameters();
 
         let jump_args = match function.dfg[predecessor].unwrap_terminator_mut() {

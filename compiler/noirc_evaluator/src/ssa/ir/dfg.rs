@@ -1,21 +1,15 @@
-use std::borrow::Cow;
-
 use crate::ssa::ir::instruction::SimplifyResult;
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
-    function::FunctionId,
-    instruction::{
-        Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
-    },
+    instruction::{Instruction, InstructionId, InstructionResultType, TerminatorInstruction},
     map::{DenseMap, TwoWayMap},
     types::Type,
-    value::{ValueId, NumericConstantId, NumericConstant, ForeignFunctionNameId, ForeignFunctionName, ArrayId, ArrayOrSlice},
+    value::{ArrayOrSlice, ForeignFunctionName, NumericConstant, ValueId, NumericConstantId},
 };
 
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
-use iter_extended::vecmap;
 use noirc_errors::Location;
 
 /// The DataFlowGraph contains most of the actual data in a function including
@@ -29,23 +23,18 @@ pub(crate) struct DataFlowGraph {
 
     /// Each constant is unique, attempting to insert the same constant
     /// twice will return the same ValueId.
-    numeric_constants: TwoWayMap<NumericConstantId, NumericConstant>,
+    numeric_constants: TwoWayMap<NumericConstant>,
 
     /// Contains each foreign function that has been imported into the current function.
     /// This map is used to ensure that the ValueId for any given foreign functôn is always
     /// represented by only 1 ValueId within this function.
-    foreign_functions: TwoWayMap<ForeignFunctionNameId, ForeignFunctionName>,
+    foreign_functions: TwoWayMap<ForeignFunctionName>,
 
     /// Each array that may be used by this IR
     arrays: DenseMap<ArrayOrSlice>,
 
     /// All blocks in a function
     blocks: DenseMap<BasicBlock>,
-
-    /// Debugging information about which `ValueId`s have had their underlying `Value` substituted
-    /// for that of another. This information is purely used for printing the SSA, and has no
-    /// material effect on the SSA itself.
-    replaced_value_ids: HashMap<ValueId, ValueId>,
 
     /// Source location of each instruction for debugging and issuing errors.
     ///
@@ -79,14 +68,8 @@ impl DataFlowGraph {
         block: BasicBlockId,
     ) -> BasicBlockId {
         let new_block = self.make_block();
-        let parameters = self.blocks[block].parameters();
-
-        let parameters = vecmap(parameters.iter().enumerate(), |(position, param)| {
-            let typ = self.values[*param].get_type().clone();
-            self.values.insert(Value::Param { block: new_block, position, typ })
-        });
-
-        self.blocks[new_block].set_parameters(parameters);
+        let parameter_types = self.blocks[block].get_parameter_types();
+        self.blocks[new_block].set_parameter_types(parameter_types.to_vec());
         new_block
     }
 
@@ -100,31 +83,13 @@ impl DataFlowGraph {
         self.blocks.iter()
     }
 
-    /// Iterate over every Value in this DFG in no particular order, including unused Values
-    pub(crate) fn values_iter(&self) -> impl ExactSizeIterator<Item = (ValueId, &Value)> {
-        self.values.iter()
-    }
-
     /// Returns the parameters of the given block
-    pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
-        self.blocks[block].parameters()
-    }
-
-    /// Inserts a new instruction into the DFG.
-    /// This does not add the instruction to the block.
-    /// Returns the id of the new instruction and its results.
-    ///
-    /// Populates the instruction's results with the given ctrl_typevars if the instruction
-    /// is a Load, Call, or Intrinsic. Otherwise the instruction's results will be known
-    /// by the instruction itself and None can safely be passed for this parameter.
-    pub(crate) fn make_instruction(
-        &mut self,
-        instruction_data: Instruction,
-        ctrl_typevars: Option<Vec<Type>>,
-    ) -> InstructionId {
-        let id = self.instructions.insert(instruction_data);
-        self.make_instruction_results(id, ctrl_typevars);
-        id
+    pub(crate) fn block_parameters(
+        &self,
+        block: BasicBlockId,
+    ) -> impl ExactSizeIterator<Item = ValueId> {
+        let parameter_count = self.blocks[block].parameter_count();
+        (0..parameter_count).map(move |position| ValueId::Param { block, position })
     }
 
     /// Inserts a new instruction at the end of the given block and returns its results
@@ -144,124 +109,31 @@ impl DataFlowGraph {
             SimplifyResult::Remove => InstructionRemoved,
             result @ (SimplifyResult::SimplifiedToInstruction(_) | SimplifyResult::None) => {
                 let instruction = result.instruction().unwrap_or(instruction);
-                let id = self.make_instruction(instruction, ctrl_typevars);
+                let result_count = instruction.result_count();
+                let id = self.instructions.insert(instruction);
                 self.blocks[block].insert_instruction(id);
                 self.locations.insert(id, call_stack);
-                InsertInstructionResult::Results(id, self.instruction_results(id))
+                InsertInstructionResult::Results(id, result_count)
             }
-        }
-    }
-
-    /// Insert a value into the dfg's storage and return an id to reference it.
-    /// Until the value is used in an instruction it is unreachable.
-    pub(crate) fn make_value(&mut self, value: Value) -> ValueId {
-        self.values.insert(value)
-    }
-
-    /// Set the value of value_to_replace to refer to the value referred to by new_value.
-    ///
-    /// This is the preferred method to call for optimizations simplifying
-    /// values since other instructions referring to the same ValueId need
-    /// not be modified to refer to a new ValueId.
-    pub(crate) fn set_value_from_id(&mut self, value_to_replace: ValueId, new_value: ValueId) {
-        if value_to_replace != new_value {
-            self.replaced_value_ids.insert(value_to_replace, self.resolve(new_value));
-            let new_value = self.values[new_value].clone();
-            self.values[value_to_replace] = new_value;
-        }
-    }
-
-    /// Set the type of value_id to the target_type.
-    pub(crate) fn set_type_of_value(&mut self, value_id: ValueId, target_type: Type) {
-        let value = &mut self.values[value_id];
-        match value {
-            Value::Instruction { typ, .. }
-            | Value::Param { typ, .. }
-            | Value::NumericConstant { typ, .. } => {
-                *typ = target_type;
-            }
-            _ => {
-                unreachable!("ICE: Cannot set type of {:?}", value);
-            }
-        }
-    }
-
-    /// If `original_value_id`'s underlying `Value` has been substituted for that of another
-    /// `ValueId`, this function will return the `ValueId` from which the substitution was taken.
-    /// If `original_value_id`'s underlying `Value` has not been substituted, the same `ValueId`
-    /// is returned.
-    pub(crate) fn resolve(&self, original_value_id: ValueId) -> ValueId {
-        match self.replaced_value_ids.get(&original_value_id) {
-            Some(id) => self.resolve(*id),
-            None => original_value_id,
         }
     }
 
     /// Creates a new constant value, or returns the Id to an existing one if
     /// one already exists.
-    pub(crate) fn make_constant(&mut self, constant: FieldElement, typ: Type) -> ValueId {
-        if let Some(id) = self.constants.get(&(constant, typ.clone())) {
-            return *id;
-        }
-        let id = self.values.insert(Value::NumericConstant { constant, typ: typ.clone() });
-        self.constants.insert((constant, typ), id);
-        id
+    pub(crate) fn make_constant(&mut self, value: FieldElement, typ: Type) -> ValueId {
+        let constant = NumericConstant { value, typ };
+        ValueId::NumericConstant(self.numeric_constants.insert(constant))
     }
 
     /// Create a new constant array value from the given elements
-    pub(crate) fn make_array(&mut self, array: im::Vector<ValueId>, typ: Type) -> ValueId {
+    pub(crate) fn make_array(&mut self, elements: im::Vector<ValueId>, typ: Type) -> ValueId {
         assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
-        self.make_value(Value::Array { array, typ })
+        ValueId::Array(self.arrays.insert(ArrayOrSlice { elements, typ }))
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
-    pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
-        if let Some(existing) = self.functions.get(&function) {
-            return *existing;
-        }
-        self.values.insert(Value::Function(function))
-    }
-
-    /// Gets or creates a ValueId for the given FunctionId.
-    pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId {
-        if let Some(existing) = self.foreign_functions.get(function) {
-            return *existing;
-        }
-        self.values.insert(Value::ForeignFunction(function.to_owned()))
-    }
-
-    /// Gets or creates a ValueId for the given Intrinsic.
-    pub(crate) fn import_intrinsic(&mut self, intrinsic: Intrinsic) -> ValueId {
-        if let Some(existing) = self.get_intrinsic(intrinsic) {
-            return *existing;
-        }
-        let intrinsic_value_id = self.values.insert(Value::Intrinsic(intrinsic));
-        self.intrinsics.insert(intrinsic, intrinsic_value_id);
-        intrinsic_value_id
-    }
-
-    pub(crate) fn get_intrinsic(&mut self, intrinsic: Intrinsic) -> Option<&ValueId> {
-        self.intrinsics.get(&intrinsic)
-    }
-
-    /// Attaches results to the instruction, clearing any previous results.
-    ///
-    /// This does not normally need to be called manually as it is called within
-    /// make_instruction automatically.
-    ///
-    /// Returns the results of the instruction
-    pub(crate) fn make_instruction_results(
-        &mut self,
-        instruction_id: InstructionId,
-        ctrl_typevars: Option<Vec<Type>>,
-    ) {
-        self.results.insert(instruction_id, Default::default());
-
-        // Get all of the types that this instruction produces
-        // and append them as results.
-        for typ in self.instruction_result_types(instruction_id, ctrl_typevars) {
-            self.append_result(instruction_id, typ);
-        }
+    pub(crate) fn import_foreign_function(&mut self, function: String) -> ValueId {
+        ValueId::ForeignFunction(self.foreign_functions.insert(function))
     }
 
     /// Return the result types of this instruction.
@@ -290,49 +162,47 @@ impl DataFlowGraph {
 
     /// Returns the type of a given value
     pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
-        self.values[value].get_type().clone()
+        match value {
+            ValueId::InstructionResult { instruction, position } => todo!(),
+            ValueId::Param { block, position } => {
+                self.blocks[block].get_parameter_types()[position as usize].clone()
+            }
+            ValueId::NumericConstant(constant_id) => {
+                self.numeric_constants[constant_id].typ.clone()
+            }
+            ValueId::Array(array_id) => self.arrays[array_id].typ.clone(),
+            ValueId::Function(_) => {
+                todo!("type_of_value ValueId::Function")
+            }
+            ValueId::Intrinsic(_) => {
+                todo!("type_of_value ValueId::Intrinsic")
+            }
+            ValueId::ForeignFunction(_) => {
+                todo!("type_of_value ValueId::ForeignFunction")
+            }
+        }
     }
 
     /// True if the type of this value is Type::Reference.
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
-        matches!(self.values[value].get_type(), Type::Reference)
-    }
-
-    /// Appends a result type to the instruction.
-    pub(crate) fn append_result(&mut self, instruction_id: InstructionId, typ: Type) -> ValueId {
-        let results = self.results.get_mut(&instruction_id).unwrap();
-        let expected_res_position = results.len();
-
-        let value_id = self.values.insert(Value::Instruction {
-            typ,
-            position: expected_res_position,
-            instruction: instruction_id,
-        });
-
-        // Add value to the list of results for this instruction
-        results.push(value_id);
-        value_id
-    }
-
-    /// Returns the number of instructions
-    /// inserted into functions.
-    pub(crate) fn num_instructions(&self) -> usize {
-        self.instructions.len()
+        matches!(self.type_of_value(value), Type::Reference)
     }
 
     /// Returns all of result values which are attached to this instruction.
-    pub(crate) fn instruction_results(&self, instruction_id: InstructionId) -> &[ValueId] {
-        self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
+    pub(crate) fn instruction_results(
+        &self,
+        instruction: InstructionId,
+    ) -> impl ExactSizeIterator<Item = ValueId> {
+        let result_count = self[instruction].result_count();
+        ValueId::instruction_result_range(instruction, result_count)
     }
 
     /// Add a parameter to the given block
-    pub(crate) fn add_block_parameter(&mut self, block_id: BasicBlockId, typ: Type) -> ValueId {
-        let block = &mut self.blocks[block_id];
-        let position = block.parameters().len();
-        let parameter = self.values.insert(Value::Param { block: block_id, position, typ });
-        block.add_parameter(parameter);
-        parameter
+    pub(crate) fn add_block_parameter(&mut self, block: BasicBlockId, typ: Type) -> ValueId {
+        let position = self.blocks[block].parameter_count();
+        self.blocks[block].add_parameter(typ);
+        ValueId::Param { block, position: position as u32 }
     }
 
     /// Returns the field element represented by this value if it is a numeric constant.
@@ -347,8 +217,11 @@ impl DataFlowGraph {
         &self,
         value: ValueId,
     ) -> Option<(FieldElement, Type)> {
-        match &self.values[self.resolve(value)] {
-            Value::NumericConstant { constant, typ } => Some((*constant, typ.clone())),
+        match value {
+            ValueId::NumericConstant(constant_id) => {
+                let constant = self.numeric_constants[constant_id];
+                Some((constant.value, constant.typ))
+            }
             _ => None,
         }
     }
@@ -356,9 +229,12 @@ impl DataFlowGraph {
     /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
-        match &self.values[self.resolve(value)] {
-            // Arrays are shared, so cloning them is cheap
-            Value::Array { array, typ } => Some((array.clone(), typ.clone())),
+        match value {
+            ValueId::Array(array_id) => {
+                let array = &self.arrays[array_id];
+                // Arrays are shared, so cloning them is cheap
+                Some((array.elements.clone(), array.typ.clone()))
+            }
             _ => None,
         }
     }
@@ -404,15 +280,15 @@ impl DataFlowGraph {
     }
 
     pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
-        match &self.values[self.resolve(value)] {
-            Value::Instruction { instruction, .. } => self.get_call_stack(*instruction),
+        match value {
+            ValueId::InstructionResult { instruction, .. } => self.get_call_stack(instruction),
             _ => im::Vector::new(),
         }
     }
 
     /// True if the given ValueId refers to a constant value
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
-        !matches!(&self[self.resolve(argument)], Value::Instruction { .. } | Value::Param { .. })
+        !matches!(argument, ValueId::InstructionResult { .. } | ValueId::Param { .. })
     }
 }
 
@@ -426,13 +302,6 @@ impl std::ops::Index<InstructionId> for DataFlowGraph {
 impl std::ops::IndexMut<InstructionId> for DataFlowGraph {
     fn index_mut(&mut self, id: InstructionId) -> &mut Self::Output {
         &mut self.instructions[id]
-    }
-}
-
-impl std::ops::Index<ValueId> for DataFlowGraph {
-    type Output = Value;
-    fn index(&self, id: ValueId) -> &Self::Output {
-        &self.values[id]
     }
 }
 
@@ -450,24 +319,37 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
     }
 }
 
+impl std::ops::Index<NumericConstantId> for DataFlowGraph {
+    type Output = NumericConstant;
+    fn index(&self, id: NumericConstantId) -> &Self::Output {
+        &self.numeric_constants[id]
+    }
+}
+
 // The result of calling DataFlowGraph::insert_instruction can
 // be a list of results or a single ValueId if the instruction was simplified
 // to an existing value.
-pub(crate) enum InsertInstructionResult<'dfg> {
-    /// Results is the standard case containing the instruction id and the results of that instruction.
-    Results(InstructionId, &'dfg [ValueId]),
+pub(crate) enum InsertInstructionResult {
+    /// Results is the standard case containing the instruction id and the number of results of that
+    /// instruction. Each result can be constructed either manually via
+    /// `ValueId::InstructionResult { instruction, result_index }`, or iterated over via
+    /// `ValueId::instruction_result_range(instruction, result_count)`
+    Results(InstructionId, u32),
     SimplifiedTo(ValueId),
     SimplifiedToMultiple(Vec<ValueId>),
     InstructionRemoved,
 }
 
-impl<'dfg> InsertInstructionResult<'dfg> {
+impl InsertInstructionResult {
     /// Retrieve the first (and expected to be the only) result.
     pub(crate) fn first(&self) -> ValueId {
         match self {
             InsertInstructionResult::SimplifiedTo(value) => *value,
             InsertInstructionResult::SimplifiedToMultiple(values) => values[0],
-            InsertInstructionResult::Results(_, results) => results[0],
+            InsertInstructionResult::Results(instruction, result_count) => {
+                assert!(*result_count >= 1);
+                ValueId::InstructionResult { instruction: *instruction, position: 0 }
+            }
             InsertInstructionResult::InstructionRemoved => {
                 panic!("Instruction was removed, no results")
             }
@@ -476,12 +358,15 @@ impl<'dfg> InsertInstructionResult<'dfg> {
 
     /// Return all the results contained in the internal results array.
     /// This is used for instructions returning multiple results like function calls.
-    pub(crate) fn results(self) -> Cow<'dfg, [ValueId]> {
+    pub(crate) fn results(self) -> Vec<ValueId> {
         match self {
-            InsertInstructionResult::Results(_, results) => Cow::Borrowed(results),
-            InsertInstructionResult::SimplifiedTo(result) => Cow::Owned(vec![result]),
-            InsertInstructionResult::SimplifiedToMultiple(results) => Cow::Owned(results),
-            InsertInstructionResult::InstructionRemoved => Cow::Owned(vec![]),
+            InsertInstructionResult::Results(instruction, result_count) => {
+                // TODO: Can we avoid collecting into a Vec here?
+                ValueId::instruction_result_range(instruction, result_count).collect()
+            }
+            InsertInstructionResult::SimplifiedTo(result) => vec![result],
+            InsertInstructionResult::SimplifiedToMultiple(results) => results,
+            InsertInstructionResult::InstructionRemoved => vec![],
         }
     }
 
@@ -490,24 +375,8 @@ impl<'dfg> InsertInstructionResult<'dfg> {
         match self {
             InsertInstructionResult::SimplifiedTo(_) => 1,
             InsertInstructionResult::SimplifiedToMultiple(results) => results.len(),
-            InsertInstructionResult::Results(_, results) => results.len(),
+            InsertInstructionResult::Results(_, result_count) => *result_count as usize,
             InsertInstructionResult::InstructionRemoved => 0,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::DataFlowGraph;
-    use crate::ssa::ir::instruction::Instruction;
-
-    #[test]
-    fn make_instruction() {
-        let mut dfg = DataFlowGraph::default();
-        let ins = Instruction::Allocate;
-        let ins_id = dfg.make_instruction(ins, None);
-
-        let results = dfg.instruction_results(ins_id);
-        assert_eq!(results.len(), 1);
     }
 }

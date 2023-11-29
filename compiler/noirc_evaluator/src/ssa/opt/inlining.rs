@@ -13,7 +13,7 @@ use crate::ssa::{
         dfg::{CallStack, InsertInstructionResult},
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
-        value::{Value, ValueId},
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };
@@ -203,22 +203,23 @@ impl<'function> PerFunctionContext<'function> {
             return *value;
         }
 
-        let new_value = match &self.source_function.dfg[id] {
-            value @ Value::Instruction { .. } => {
-                unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
+        let new_value = match id {
+            ValueId::InstructionResult { .. } => {
+                unreachable!("All ValueId::InstructionResults should already be known during inlining after creating the original inlined instruction. Unknown value {id:?}")
             }
-            value @ Value::Param { .. } => {
+            ValueId::Param { .. } => {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
-            Value::NumericConstant { constant, typ } => {
-                self.context.builder.numeric_constant(*constant, typ.clone())
+            ValueId::NumericConstant(constant_id) => {
+                let constant = &self.source_function.dfg[constant_id];
+                self.context.builder.numeric_constant(constant.value, constant.typ.clone())
             }
-            Value::Function(function) => self.context.builder.import_function(*function),
-            Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
-            Value::ForeignFunction(function) => {
+            ValueId::Function(function) => self.context.builder.import_function(*function),
+            ValueId::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
+            ValueId::ForeignFunction(function) => {
                 self.context.builder.import_foreign_function(function)
             }
-            Value::Array { array, typ } => {
+            ValueId::Array { array, typ } => {
                 let elements = array.iter().map(|value| self.translate_value(*value)).collect();
                 self.context.builder.array_constant(elements, typ.clone())
             }
@@ -390,7 +391,7 @@ impl<'function> PerFunctionContext<'function> {
         let instruction = self.source_function.dfg[id].map_values(|id| self.translate_value(id));
 
         let mut call_stack = self.context.call_stack.clone();
-        
+
         for item in self.source_function.dfg.get_call_stack(id) {
             if call_stack.len() >= 5 {
                 break;

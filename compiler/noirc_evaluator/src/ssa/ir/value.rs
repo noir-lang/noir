@@ -9,18 +9,18 @@ use super::{
     types::Type,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct NumericConstant {
-    constant: FieldElement,
-    typ: Type,
+    pub(crate) value: FieldElement,
+    pub(crate) typ: Type,
 }
 
 #[derive(Debug)]
 pub(crate) struct ArrayOrSlice {
-    elements: im::Vector<ValueId>,
+    pub(crate) elements: im::Vector<ValueId>,
 
     /// This is expected to be either Type::Slice { .. } or Type::Array { .. }
-    typ: Type,
+    pub(crate) typ: Type,
 }
 
 /// A foreign function is represented by just its name in the SSA IR
@@ -33,10 +33,18 @@ pub(crate) type ArrayId = Id<ArrayOrSlice>;
 /// ValueId is the basic type in the IR used to represent a Value.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum ValueId {
-    InstructionResult { id: InstructionId, position: u32 },
-    Param { block: BasicBlockId, position: u32 },
+    InstructionResult {
+        instruction: InstructionId,
+        position: u32,
+    },
+    Param {
+        block: BasicBlockId,
+        position: u32,
+    },
 
     NumericConstant(NumericConstantId),
+
+    Array(ArrayId),
 
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
@@ -55,17 +63,20 @@ pub(crate) enum ValueId {
     ForeignFunction(ForeignFunctionNameId),
 }
 
-impl Value {
-    /// Retrieves the type of this Value
-    pub(crate) fn get_type(&self) -> &Type {
-        match self {
-            Value::Instruction { typ, .. } => typ,
-            Value::Param { typ, .. } => typ,
-            Value::NumericConstant { typ, .. } => typ,
-            Value::Array { typ, .. } => typ,
-            Value::Function { .. } => &Type::Function,
-            Value::Intrinsic { .. } => &Type::Function,
-            Value::ForeignFunction { .. } => &Type::Function,
-        }
+impl ValueId {
+    pub(crate) fn instruction_result(instruction: InstructionId, position: u32) -> Self {
+        ValueId::InstructionResult { instruction, position }
+    }
+
+    pub(crate) fn param(block: BasicBlockId, position: u32) -> Self {
+        ValueId::Param { block, position }
+    }
+
+    /// Iterate over instruction results with indices 0 .. result_count
+    pub(crate) fn instruction_result_range(
+        instruction: InstructionId,
+        result_count: u32,
+    ) -> impl ExactSizeIterator<Item = ValueId> {
+        (0..result_count).map(move |i| ValueId::InstructionResult { instruction, position: i })
     }
 }

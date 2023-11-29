@@ -92,9 +92,7 @@ impl<'a> From<&'a SsaType> for AcirType {
 /// `Variables`(AcirVar) and types such as `Expression` and `Witness`
 /// which are placed into ACIR.
 pub(crate) struct AcirContext {
-    /// Two-way map that links `AcirVar` to `AcirVarData`.
-    ///
-    /// The vars object is an instance of the `TwoWayMap`, which provides a bidirectional mapping between `AcirVar` and `AcirVarData`.
+    /// Map that links `AcirVar` to `AcirVarData`.
     vars: HashMap<AcirVar, AcirVarData>,
 
     constant_witnesses: HashMap<FieldElement, Witness>,

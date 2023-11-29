@@ -258,10 +258,10 @@ fn unroll_loop_header<'a>(
 
     let mut context = LoopIteration::new(function, loop_, fresh_block, loop_.header);
     let source_block = &context.dfg()[context.source_block];
-    assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header");
+    assert_eq!(source_block.parameter_count(), 1, "Expected only 1 argument in loop header");
 
     // Insert the current value of the loop induction variable into our context.
-    let first_param = source_block.parameters()[0];
+    let first_param = ValueId::Param { block: context.source_block, position: 0 };
     context.inserter.try_map_value(first_param, induction_value);
     context.inline_instructions_from_block();
 
