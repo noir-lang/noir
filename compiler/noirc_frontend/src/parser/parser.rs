@@ -1015,17 +1015,22 @@ fn parse_type_inner(
         named_type(recursive_type_parser.clone()),
         named_trait(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
-        recursive_type_parser
-            .clone()
-            .delimited_by(just(Token::LeftParen), just(Token::RightParen))
-            .map_with_span(|typ, span| UnresolvedType {
-                typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
-                span: span.into(),
-            }),
+        parenthesized_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser.clone()),
         mutable_reference_type(recursive_type_parser),
     ))
+}
+
+fn parenthesized_type(
+    recursive_type_parser: impl NoirParser<UnresolvedType>,
+) -> impl NoirParser<UnresolvedType> {
+    recursive_type_parser
+        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+        .map_with_span(|typ, span| UnresolvedType {
+            typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
+            span: span.into(),
+        })
 }
 
 fn optional_visibility() -> impl NoirParser<Visibility> {
