@@ -41,6 +41,8 @@ pub enum UnresolvedTypeData {
     FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
     Unit,
 
+    Parenthesized(Box<UnresolvedType>),
+
     /// A Named UnresolvedType can be a struct type or a type variable
     Named(Path, Vec<UnresolvedType>),
 
@@ -152,6 +154,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
+            Parenthesized(typ) => write!(f, "({typ})"),
         }
     }
 }

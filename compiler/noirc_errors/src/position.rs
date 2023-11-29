@@ -65,6 +65,10 @@ impl Span {
         Span::inclusive(start, start)
     }
 
+    pub fn empty(position: u32) -> Span {
+        Span::from(position..position)
+    }
+
     #[must_use]
     pub fn merge(self, other: Span) -> Span {
         Span(self.0.merge(other.0))
