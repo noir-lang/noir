@@ -15,7 +15,6 @@ pub trait ForeignCallExecutor {
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
 pub(crate) enum ForeignCall {
-    Println,
     Print,
     Sequence,
     ReverseSequence,
@@ -35,7 +34,6 @@ impl std::fmt::Display for ForeignCall {
 impl ForeignCall {
     pub(crate) fn name(&self) -> &'static str {
         match self {
-            ForeignCall::Println => "println",
             ForeignCall::Print => "print",
             ForeignCall::Sequence => "get_number_sequence",
             ForeignCall::ReverseSequence => "get_reverse_number_sequence",
@@ -49,7 +47,6 @@ impl ForeignCall {
 
     pub(crate) fn lookup(op_name: &str) -> Option<ForeignCall> {
         match op_name {
-            "println" => Some(ForeignCall::Println),
             "print" => Some(ForeignCall::Print),
             "get_number_sequence" => Some(ForeignCall::Sequence),
             "get_reverse_number_sequence" => Some(ForeignCall::ReverseSequence),
@@ -130,12 +127,6 @@ impl DefaultForeignCallExecutor {
         decode_string_value(&fields)
     }
 
-    fn execute_println(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
-        let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
-        println!("{display_values}");
-        Ok(())
-    }
-
     fn execute_print(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
         let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
         print!("{display_values}");
@@ -150,12 +141,6 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
     ) -> Result<ForeignCallResult, ForeignCallError> {
         let foreign_call_name = foreign_call.function.as_str();
         match ForeignCall::lookup(foreign_call_name) {
-            Some(ForeignCall::Println) => {
-                if self.show_output {
-                    Self::execute_println(&foreign_call.inputs)?;
-                }
-                Ok(ForeignCallResult { values: vec![] })
-            }
             Some(ForeignCall::Print) => {
                 if self.show_output {
                     Self::execute_print(&foreign_call.inputs)?;

@@ -21,19 +21,18 @@ mod string;
 mod test;
 
 // Oracle calls are required to be wrapped in an unconstrained function
-// Thus, the only argument to the `println` oracle is expected to always be an ident
-#[oracle(println)]
-unconstrained fn println_oracle<T>(_input: T) {}
-
-unconstrained pub fn println<T>(input: T) {
-    println_oracle(input);
-}
+// Thus, the only argument to the `print` oracle is expected to always be an ident
 
 #[oracle(print)]
 unconstrained fn print_oracle<T>(_input: T) {}
 
 unconstrained pub fn print<T>(input: T) {
     print_oracle(input);
+}
+
+unconstrained pub fn println<T>(input: T) {
+    print(f"{input}
+"); // skip a 2nd oracle call; use multi-line format to insert a newline
 }
 
 #[foreign(recursive_aggregation)]
