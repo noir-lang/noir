@@ -730,8 +730,8 @@ fn path() -> impl NoirParser<Path> {
 
     let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
     let path_kind = |key, kind| {
-        spanned(prefix(key).ignore_then(idents()))
-            .map(move |(segments, span)| make_path(kind)(segments, span))
+       prefix(key).ignore_then(idents())
+            .map_with_span(move |(segments, span)| make_path(kind)(segments, span))
     };
 
     choice((
