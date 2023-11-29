@@ -1,6 +1,9 @@
 use noirc_frontend::{UnresolvedType, UnresolvedTypeData};
 
-use crate::visitor::{FmtVisitor, Shape};
+use crate::{
+    utils::span_is_empty,
+    visitor::{FmtVisitor, Shape},
+};
 
 pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) -> String {
     match typ.typ {
@@ -35,9 +38,7 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
             }
         }
         UnresolvedTypeData::Function(args, return_type, env) => {
-            let env_slice = visitor.slice(env.span.unwrap());
-
-            let env = if env_slice == "(" {
+            let env = if span_is_empty(env.span.unwrap()) {
                 "".into()
             } else {
                 let ty = rewrite(visitor, _shape, *env);

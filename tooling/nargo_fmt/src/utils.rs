@@ -295,3 +295,7 @@ pub(crate) fn last_line_used_width(s: &str, offset: usize) -> usize {
         offset + s.chars().count()
     }
 }
+
+pub(crate) fn span_is_empty(span: Span) -> bool {
+    span.start() == span.end()
+}
