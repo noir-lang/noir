@@ -32,7 +32,7 @@ pub(crate) fn run(
         let (server, _) = async_lsp::MainLoop::new_server(|client| {
             #[allow(deprecated)]
             let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
-            let router = NargoLspService::new(&client, blackbox_solver);
+            let router = NargoLspService::new(&client, blackbox_solver, true);
 
             ServiceBuilder::new()
                 .layer(TracingLayer::default())
