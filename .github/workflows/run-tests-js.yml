@@ -40,10 +40,9 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile
+          file: Dockerfile.js-tests
           tags: ${{ steps.prep.outputs.tags }}
-          push: true
-          target: production
+          target: test
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
