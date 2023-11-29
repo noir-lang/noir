@@ -50,6 +50,8 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             NPMRC=${{ secrets.NPMRC }}
+
+#Test cache
       # - name: Create Release
       #   id: create_release
       #   uses: actions/create-release@v1
