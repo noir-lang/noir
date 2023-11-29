@@ -24,15 +24,14 @@ mod test;
 // Thus, the only argument to the `print` oracle is expected to always be an ident
 
 #[oracle(print)]
-unconstrained fn print_oracle<T>(_input: T) {}
+unconstrained fn print_oracle<T>(_input: T, _with_newline: bool) {}
 
 unconstrained pub fn print<T>(input: T) {
-    print_oracle(input);
+    print_oracle(input, false);
 }
 
 unconstrained pub fn println<T>(input: T) {
-    print(f"{input}
-"); // skip a 2nd oracle call; use multi-line format to insert a newline
+    print_oracle(input, true);
 }
 
 #[foreign(recursive_aggregation)]

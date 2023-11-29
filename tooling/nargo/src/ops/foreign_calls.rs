@@ -129,7 +129,13 @@ impl DefaultForeignCallExecutor {
 
     fn execute_print(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
         let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
-        print!("{display_values}");
+
+        if foreign_call_inputs[1].unwrap_value().is_zero() {
+            print!("{display_values}");
+        } else {
+            println!("{display_values}");
+        }
+
         Ok(())
     }
 }
