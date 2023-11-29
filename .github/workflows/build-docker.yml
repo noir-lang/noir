@@ -41,15 +41,12 @@ jobs:
         with:
           context: .
           file: Dockerfile
-          tags: ${{ steps.prep.outputs.tags }}
-          # tags: |
-          # build on feature branches, push only on master branch
+          # tags: ${{ steps.prep.outputs.tags }}
+          tags: noir-bin-latest
           push: true
           target: production
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            NPMRC=${{ secrets.NPMRC }}
 
 #Test cache
       # - name: Create Release
