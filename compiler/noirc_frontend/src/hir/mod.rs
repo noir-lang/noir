@@ -9,7 +9,7 @@ pub(crate) mod aztec_library;
 
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
-use crate::node_interner::{FuncId, NodeInterner, StructId, ExprId};
+use crate::node_interner::{FuncId, NodeInterner, StructId};
 use def_map::{Contract, CrateDefMap};
 use fm::{FileManager, FileId};
 use noirc_errors::Location;
@@ -197,14 +197,10 @@ impl Context {
     ) -> Option<Location>{
         let interner = &self.def_interner;
 
-        let perimeter = interner.find_location(file, query_location);
-
-        if let Some(perimeter) = perimeter {
-            let location = interner.resolve_location(perimeter.0.clone());
-            return location;
-        } else {
-            return None;
-        }
+        interner.find_location(file, query_location).and_then(|(index, location)| {
+            eprintln!("Resolve Location for {query_location:?}, location found at {index:?} and {location:?}");
+            interner.resolve_location(file, index)
+        })
 
     }
 

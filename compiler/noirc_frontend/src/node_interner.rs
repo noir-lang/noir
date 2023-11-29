@@ -372,7 +372,6 @@ impl DefinitionInfo {
             DefinitionKind::GenericType(_) => None,
         }
     }
-        
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -526,6 +525,7 @@ impl NodeInterner {
         typ: &UnresolvedStruct,
         krate: CrateId,
         local_id: LocalModuleId,
+        file_id: FileId,
     ) -> StructId {
         let struct_id = StructId(ModuleId { krate, local_id });
         let name = typ.struct_def.name.clone();
@@ -541,7 +541,8 @@ impl NodeInterner {
             (id, Shared::new(TypeBinding::Unbound(id)))
         });
 
-        let new_struct = StructType::new(struct_id, name, typ.struct_def.span, no_fields, generics);
+        let new_struct =
+            StructType::new(struct_id, name, file_id, typ.struct_def.span, no_fields, generics);
         self.structs.insert(struct_id, Shared::new(new_struct));
         self.struct_attributes.insert(struct_id, typ.struct_def.attributes.clone());
         struct_id
@@ -1232,20 +1233,18 @@ impl NodeInterner {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
 
-    pub fn resolve_location(&self, index: Index) -> Option<Location> {
-        let def =
-            self.nodes.get(index).unwrap();
-        match def {
+    pub fn resolve_location(&self, file_id: FileId, index: &Index) -> Option<Location> {
+        self.nodes.get(*index).and_then(|def| match def {
             Node::Statement(stmt) => {
-                println!("follow_node: Statement {:?}\n", stmt);
+                eprintln!("\n -> Resolve Location {:?}\n", stmt);
                 None
-            },
+            }
             Node::Function(func) => {
-                println!("follow_node: Function {:?}\n", func);
-                None
-            },
+                eprintln!("\n -> Resolve Location: {:?}\n", func);
+                self.resolve_location(file_id, &func.as_expr().0)
+            }
             Node::Expression(expression) => {
-                println!("follow_node: Expression {:?}\n\n", expression);
+                eprintln!("\n -> Resolve Location: {:?}\n", expression);
                 match expression {
                     HirExpression::Ident(ident) => {
                         let definition_info = self.definition(ident.id);
@@ -1253,20 +1252,42 @@ impl NodeInterner {
                         match definition_info.kind {
                             DefinitionKind::Function(func_id) => {
                                 Some(self.function_meta(&func_id).location)
-                            },
+                            }
+                            DefinitionKind::Local(local_id) => {
+                                if let Some(local_id) = local_id {
+                                    let location = self.expr_location(&local_id);
+                                    Some(location)
+                                } else {
+                                    eprintln!(
+                                        "\n ---> Local Definition not found for {expression:?}\n"
+                                    );
+                                    None
+                                }
+                            }
+                            DefinitionKind::Global(global_id) => {
+                                let location = self.expr_location(&global_id);
+                                Some(location)
+                            }
                             _ => {
-                                todo!("not implemented for {:?}", definition_info);
-
+                                eprintln!(
+                                    "\n ---> Not Implemented for Ident, Definition Kind {expression:?}\n"
+                                );
+                                None
                             }
                         }
-                    },
+                    }
+                    HirExpression::Constructor(expr) => {
+                        let struct_type = &expr.r#type.borrow();
+
+                        Some(Location::new(struct_type.span, struct_type.file_id))
+                    }
                     _ => {
-                        println!("Not Ident {:?}\n", expression);
+                        eprintln!("\n --> Not Implemented for expression {expression:?}\n");
                         None
                     }
                 }
-            },    
-        }
+            }
+        })
     }
 }
 

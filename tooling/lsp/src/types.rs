@@ -25,7 +25,7 @@ pub(crate) mod request {
     };
 
     // Re-providing lsp_types that we don't need to override
-    pub(crate) use lsp_types::request::{CodeLensRequest as CodeLens, Formatting, Shutdown};
+    pub(crate) use lsp_types::request::{CodeLensRequest as CodeLens, GotoDefinition, Formatting, Shutdown};
 
     #[derive(Debug)]
     pub(crate) struct Initialize;
@@ -220,3 +220,4 @@ pub(crate) struct NargoProfileRunResult {
 }
 
 pub(crate) type CodeLensResult = Option<Vec<CodeLens>>;
+pub(crate) type GotoDefinitionResult = Option<lsp_types::GotoDefinitionResponse>;

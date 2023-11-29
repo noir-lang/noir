@@ -27,8 +27,8 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    on_code_lens_request, on_formatting, on_initialize, on_profile_run_request, on_shutdown,
-    on_test_run_request, on_tests_request, on_goto_definition_request,
+    on_code_lens_request, on_formatting, on_goto_definition_request, on_initialize,
+    on_profile_run_request, on_shutdown, on_test_run_request, on_tests_request,
 };
 use serde_json::Value as JsonValue;
 use tower::Service;
@@ -66,6 +66,11 @@ pub struct NargoLspService {
 
 impl NargoLspService {
     pub fn new(client: &ClientSocket, solver: impl BlackBoxFunctionSolver + 'static) -> Self {
+        // println!("Starting LSP Server");
+        // let file_appender = tracing_appender::rolling::hourly("/Users/koby/git/noir", "nargo-lsp.log");
+        // let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+        // tracing_subscriber::fmt().with_writer(non_blocking).init();
+
         let state = LspState::new(client, solver);
         let mut router = Router::new(state);
         router
@@ -76,7 +81,7 @@ impl NargoLspService {
             .request::<request::NargoTests, _>(on_tests_request)
             .request::<request::NargoTestRun, _>(on_test_run_request)
             .request::<request::NargoProfileRun, _>(on_profile_run_request)
-            .request::<lsp_types::request::GotoDefinition, _>(on_goto_definition_request)
+            .request::<request::GotoDefinition, _>(on_goto_definition_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)

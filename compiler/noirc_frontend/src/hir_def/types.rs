@@ -8,6 +8,7 @@ use crate::{
     hir::type_check::TypeCheckError,
     node_interner::{ExprId, NodeInterner, TypeAliasId},
 };
+use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 use noirc_printable_type::PrintableType;
@@ -167,6 +168,7 @@ pub struct StructType {
 
     pub generics: Generics,
     pub span: Span,
+    pub file_id: FileId,
 }
 
 /// Corresponds to generic lists such as `<T, U>` in the source
@@ -191,11 +193,12 @@ impl StructType {
     pub fn new(
         id: StructId,
         name: Ident,
+        file_id: FileId,
         span: Span,
         fields: Vec<(Ident, Type)>,
         generics: Generics,
     ) -> StructType {
-        StructType { id, fields, name, span, generics }
+        StructType { id, fields, name, file_id, span, generics }
     }
 
     /// To account for cyclic references between structs, a struct's
