@@ -5,6 +5,6 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir
 RUN apk add bash jq
 ENV PATH="/usr/src/noir/target/release:${PATH}"
-WORKDIR /usr/src/noir/tooling/nargo_cli/tests
+WORKDIR /usr/src/noir/test_programs
 COPY . .
 RUN ./rebuild.sh

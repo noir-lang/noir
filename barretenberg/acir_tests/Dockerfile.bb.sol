@@ -6,7 +6,7 @@ FROM node:18-alpine
 RUN apk update && apk add git bash curl jq
 COPY --from=0 /usr/src/barretenberg/cpp/build /usr/src/barretenberg/cpp/build
 COPY --from=1 /usr/src/barretenberg/sol/src/ultra/BaseUltraVerifier.sol /usr/src/barretenberg/sol/src/ultra/BaseUltraVerifier.sol
-COPY --from=noir-acir-tests /usr/src/noir/tooling/nargo_cli/tests /usr/src/noir/tooling/nargo_cli/tests
+COPY --from=noir-acir-tests /usr/src/noir/test_programs /usr/src/noir/test_programs
 COPY --from=ghcr.io/foundry-rs/foundry:latest /usr/local/bin/anvil /usr/local/bin/anvil
 WORKDIR /usr/src/barretenberg/acir_tests
 COPY . .

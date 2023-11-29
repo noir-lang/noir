@@ -7,11 +7,11 @@ noir-packages:
   dockerfile: Dockerfile.packages
 
 noir-acir-tests:
-  buildDir: noir/tooling/nargo_cli/tests
+  buildDir: noir/test_programs
   # Awkward. Maybe change dockerfile paths to be absolute.
-  dockerfile: ../../../../barretenberg/acir_tests/Dockerfile.noir_acir_tests
+  dockerfile: ../../barretenberg/acir_tests/Dockerfile.noir_acir_tests
   rebuildPatterns:
-    - ^noir/tooling/nargo_cli/tests
+    - ^noir/test_programs
     - ^barretenberg/acir_tests/Dockerfile.noir_acir_tests
   dependencies:
     - noir

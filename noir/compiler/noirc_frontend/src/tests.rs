@@ -18,6 +18,7 @@ mod test {
     use crate::hir::resolution::import::PathResolutionError;
     use crate::hir::type_check::TypeCheckError;
     use crate::hir::Context;
+    use crate::macros_api::MacroProcessor;
     use crate::node_interner::{NodeInterner, StmtId};
 
     use crate::graph::CrateGraph;
@@ -79,12 +80,16 @@ mod test {
                 krate: root_crate_id,
                 extern_prelude: BTreeMap::new(),
             };
+
+            let empty_macro_processors: Vec<&dyn MacroProcessor> = Vec::new();
+
             // Now we want to populate the CrateDefMap using the DefCollector
             errors.extend(DefCollector::collect(
                 def_map,
                 &mut context,
                 program.clone().into_sorted(),
                 root_file_id,
+                empty_macro_processors,
             ));
         }
         (program, context, errors)

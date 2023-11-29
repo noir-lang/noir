@@ -3,7 +3,7 @@ FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir-acir-tests as noir-acir-t
 
 FROM node:18
 COPY --from=0 /usr/src/barretenberg/ts /usr/src/barretenberg/ts
-COPY --from=noir-acir-tests /usr/src/noir/tooling/nargo_cli/tests /usr/src/noir/tooling/nargo_cli/tests
+COPY --from=noir-acir-tests /usr/src/noir/test_programs /usr/src/noir/test_programs
 RUN apt update && apt install -y lsof jq
 WORKDIR /usr/src/barretenberg/acir_tests
 # Build/install ts apps.

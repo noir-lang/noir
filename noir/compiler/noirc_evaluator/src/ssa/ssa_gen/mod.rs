@@ -210,6 +210,13 @@ impl<'a> FunctionContext<'a> {
         for element in elements {
             element.for_each(|element| {
                 let element = element.eval(self);
+
+                // If we're referencing a sub-array in a larger nested array we need to
+                // increase the reference count of the sub array. This maintains a
+                // pessimistic reference count (since some are likely moved rather than shared)
+                // which is important for Brillig's copy on write optimization. This has no
+                // effect in ACIR code.
+                self.builder.increment_array_reference_count(element);
                 array.push_back(element);
             });
         }
@@ -248,11 +255,12 @@ impl<'a> FunctionContext<'a> {
                 Ok(self.codegen_reference(&unary.rhs)?.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
-                            let alloc = self.builder.insert_allocate();
+                            let rhs_type = self.builder.current_function.dfg.type_of_value(value);
+                            let alloc = self.builder.insert_allocate(rhs_type);
                             self.builder.insert_store(alloc, value);
                             Tree::Leaf(value::Value::Normal(alloc))
                         }
-                        // NOTE: The `.into()` here converts the Value::Mutable into
+                        // The `.into()` here converts the Value::Mutable into
                         // a Value::Normal so it is no longer automatically dereferenced.
                         value::Value::Mutable(reference, _) => reference.into(),
                     }
@@ -300,6 +308,7 @@ impl<'a> FunctionContext<'a> {
         } else {
             (array_or_slice[0], None)
         };
+
         self.codegen_array_index(
             array,
             index_value,
@@ -344,7 +353,13 @@ impl<'a> FunctionContext<'a> {
                 }
                 _ => unreachable!("must have array or slice but got {array_type}"),
             }
-            self.builder.insert_array_get(array, offset, typ).into()
+
+            // Reference counting in brillig relies on us incrementing reference
+            // counts when nested arrays/slices are constructed or indexed. This
+            // has no effect in ACIR code.
+            let result = self.builder.insert_array_get(array, offset, typ);
+            self.builder.increment_array_reference_count(result);
+            result.into()
         }))
     }
 
@@ -534,6 +549,11 @@ impl<'a> FunctionContext<'a> {
             arguments.append(&mut values);
         }
 
+        // If an array is passed as an argument we increase its reference count
+        for argument in &arguments {
+            self.builder.increment_array_reference_count(*argument);
+        }
+
         self.codegen_intrinsic_call_checks(function, &arguments, call.location);
 
         Ok(self.insert_call(function, arguments, &call.return_type, call.location))
@@ -575,12 +595,18 @@ impl<'a> FunctionContext<'a> {
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
         let mut values = self.codegen_expression(&let_expr.expression)?;
 
-        if let_expr.mutable {
-            values = values.map(|value| {
-                let value = value.eval(self);
-                Tree::Leaf(self.new_mutable_variable(value))
-            });
-        }
+        values = values.map(|value| {
+            let value = value.eval(self);
+
+            // Make sure to increment array reference counts on each let binding
+            self.builder.increment_array_reference_count(value);
+
+            Tree::Leaf(if let_expr.mutable {
+                self.new_mutable_variable(value)
+            } else {
+                value::Value::Normal(value)
+            })
+        });
 
         self.define(let_expr.id, values);
         Ok(Self::unit_value())

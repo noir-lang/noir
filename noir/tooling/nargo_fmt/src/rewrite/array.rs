@@ -2,7 +2,7 @@ use noirc_frontend::{hir::resolution::errors::Span, token::Token, Expression};
 
 use crate::{
     utils::{Expr, FindToken},
-    visitor::FmtVisitor,
+    visitor::{expr::NewlineMode, FmtVisitor},
 };
 
 pub(crate) fn rewrite(mut visitor: FmtVisitor, array: Vec<Expression>, array_span: Span) -> String {
@@ -80,6 +80,6 @@ pub(crate) fn rewrite(mut visitor: FmtVisitor, array: Vec<Expression>, array_spa
         items_str.trim().into(),
         nested_indent,
         visitor.shape(),
-        true,
+        NewlineMode::IfContainsNewLineAndWidth,
     )
 }

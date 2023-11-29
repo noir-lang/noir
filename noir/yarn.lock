@@ -221,9 +221,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:0.15.1":
-  version: 0.15.1
-  resolution: "@aztec/bb.js@npm:0.15.1"
+"@aztec/bb.js@npm:0.16.0":
+  version: 0.16.0
+  resolution: "@aztec/bb.js@npm:0.16.0"
   dependencies:
     comlink: ^4.4.1
     commander: ^10.0.1
@@ -231,7 +231,7 @@ __metadata:
     tslib: ^2.4.0
   bin:
     bb.js: dest/node/main.js
-  checksum: b3d94eb6db1d1579fa7266486d4b1c6ddc408f1d36bd2585b50e623aa90222d273e56464284b94677979840c1119c5385aa961462d3a1af6cb9a2ba1cf9655f9
+  checksum: 5f68b4ad16284a3a871e0ad21fea05aed670383bc639c9d07ab3bf9b7a9d15cc8a4e5cda404a9290775ad5023924739543a8aac37d602892dd1fb5087521970b
   languageName: node
   linkType: hard
 
@@ -3434,14 +3434,17 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg"
   dependencies:
-    "@aztec/bb.js": 0.15.1
+    "@aztec/bb.js": 0.16.0
     "@noir-lang/types": "workspace:*"
     "@types/node": ^20.6.2
     "@types/prettier": ^3
+    chai: ^4.3.8
     eslint: ^8.50.0
     eslint-plugin-prettier: ^5.0.0
     fflate: ^0.8.0
+    mocha: ^10.2.0
     prettier: 3.0.3
+    ts-node: ^10.9.1
     typescript: 5.1.5
   languageName: unknown
   linkType: soft
