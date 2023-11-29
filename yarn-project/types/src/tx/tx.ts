@@ -45,6 +45,7 @@ export class Tx {
     /**
      * Contracts deployed in this tx.
      * Note: Portal address is always set to zero in the tx's new contracts.
+     * TODO(#3417): Check if portal addresses are still always set to zero
      */
     public readonly newContracts: Tuple<ExtendedContractData, typeof MAX_NEW_CONTRACTS_PER_TX>,
   ) {

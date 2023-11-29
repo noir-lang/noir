@@ -491,6 +491,7 @@ export class FinalAccumulatedData {
     public nullifiedCommitments: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>,
     /**
      * Current private call stack.
+     * TODO(#3417): Given this field must empty, should we just remove it?
      */
     public privateCallStack: Tuple<CallRequest, typeof MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
     /**

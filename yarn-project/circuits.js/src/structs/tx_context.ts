@@ -85,6 +85,7 @@ export class TxContext {
   constructor(
     /**
      * Whether this is a fee paying tx. If not other tx in a bundle will pay the fee.
+     * TODO(#3417): Remove fee and rebate payment fields.
      */
     public isFeePaymentTx: boolean,
     /**

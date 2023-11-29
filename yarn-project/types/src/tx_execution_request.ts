@@ -15,6 +15,7 @@ export class TxExecutionRequest {
     public origin: AztecAddress,
     /**
      * Function data representing the function to call.
+     * TODO(#3417): Remove this field and replace with a function selector.
      */
     public functionData: FunctionData,
     /**

@@ -27,10 +27,12 @@ export class PublicCallRequest {
     public contractAddress: AztecAddress,
     /**
      * Data identifying the function being called.
+     * TODO(#3417): Remove this since the only useful data is the function selector, which is already part of the call context.
      */
     public functionData: FunctionData,
     /**
      * Context of the public call.
+     * TODO(#3417): Check if all fields of CallContext are actually needed.
      */
     public callContext: CallContext,
     /**
