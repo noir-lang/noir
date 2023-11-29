@@ -3,9 +3,12 @@ import {
   CONTRACT_TREE_HEIGHT,
   Fr,
   GlobalVariables,
+  HISTORIC_BLOCKS_TREE_HEIGHT,
   HistoricBlockData,
   L1_TO_L2_MSG_TREE_HEIGHT,
   NOTE_HASH_TREE_HEIGHT,
+  NULLIFIER_TREE_HEIGHT,
+  PUBLIC_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { computeGlobalsHash, computePublicDataTreeIndex } from '@aztec/circuits.js/abis';
 import { L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
@@ -34,6 +37,7 @@ import {
   LogFilter,
   LogType,
   MerkleTreeId,
+  NullifierMembershipWitness,
   SequencerConfig,
   SiblingPath,
   Tx,
@@ -171,9 +175,9 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
-   * Get the a given block.
+   * Get a block specified by its number.
    * @param number - The block number being requested.
-   * @returns The blocks requested.
+   * @returns The requested block.
    */
   public async getBlock(number: number): Promise<L2Block | undefined> {
     return await this.blockSource.getBlock(number);
@@ -307,7 +311,7 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
-   * Returns the sibling path for the given index in the contract tree.
+   * Returns a sibling path for the given index in the contract tree.
    * @param leafIndex - The index of the leaf for which the sibling path is required.
    * @returns The sibling path for the leaf index.
    */
@@ -317,7 +321,17 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
-   * Returns the sibling path for the given index in the data tree.
+   * Returns a sibling path for the given index in the nullifier tree.
+   * @param leafIndex - The index of the leaf for which the sibling path is required.
+   * @returns The sibling path for the leaf index.
+   */
+  public async getNullifierTreeSiblingPath(leafIndex: bigint): Promise<SiblingPath<typeof NULLIFIER_TREE_HEIGHT>> {
+    const committedDb = await this.#getWorldState();
+    return committedDb.getSiblingPath(MerkleTreeId.NULLIFIER_TREE, leafIndex);
+  }
+
+  /**
+   * Returns a sibling path for the given index in the data tree.
    * @param leafIndex - The index of the leaf for which the sibling path is required.
    * @returns The sibling path for the leaf index.
    */
@@ -340,13 +354,103 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
-   * Returns the sibling path for a leaf in the committed l1 to l2 data tree.
+   * Returns a sibling path for a leaf in the committed l1 to l2 data tree.
    * @param leafIndex - Index of the leaf in the tree.
    * @returns The sibling path.
    */
   public async getL1ToL2MessageSiblingPath(leafIndex: bigint): Promise<SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
     const committedDb = await this.#getWorldState();
     return committedDb.getSiblingPath(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, leafIndex);
+  }
+
+  /**
+   * Returns a sibling path for a leaf in the committed historic blocks tree.
+   * @param leafIndex - Index of the leaf in the tree.
+   * @returns The sibling path.
+   */
+  public async getHistoricBlocksTreeSiblingPath(
+    leafIndex: bigint,
+  ): Promise<SiblingPath<typeof HISTORIC_BLOCKS_TREE_HEIGHT>> {
+    const committedDb = await this.#getWorldState();
+    return committedDb.getSiblingPath(MerkleTreeId.BLOCKS_TREE, leafIndex);
+  }
+
+  /**
+   * Returns a sibling path for a leaf in the committed public data tree.
+   * @param leafIndex - Index of the leaf in the tree.
+   * @returns The sibling path.
+   */
+  public async getPublicDataTreeSiblingPath(leafIndex: bigint): Promise<SiblingPath<typeof PUBLIC_DATA_TREE_HEIGHT>> {
+    const committedDb = await this.#getWorldState();
+    return committedDb.getSiblingPath(MerkleTreeId.PUBLIC_DATA_TREE, leafIndex);
+  }
+
+  /**
+   * Returns a nullifier membership witness for a given nullifier at a given block.
+   * @param blockNumber - The block number at which to get the index.
+   * @param nullifier - Nullifier we try to find witness for.
+   * @returns The nullifier membership witness (if found).
+   */
+  public async getNullifierMembershipWitness(
+    blockNumber: number,
+    nullifier: Fr,
+  ): Promise<NullifierMembershipWitness | undefined> {
+    const committedDb = await this.#getWorldState();
+    const index = await committedDb.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
+    if (!index) {
+      return undefined;
+    }
+
+    const leafDataPromise = committedDb.getLeafData(MerkleTreeId.NULLIFIER_TREE, Number(index));
+    const siblingPathPromise = committedDb.getSiblingPath<typeof NULLIFIER_TREE_HEIGHT>(
+      MerkleTreeId.NULLIFIER_TREE,
+      BigInt(index),
+    );
+
+    const [leafData, siblingPath] = await Promise.all([leafDataPromise, siblingPathPromise]);
+
+    if (!leafData) {
+      return undefined;
+    }
+
+    return new NullifierMembershipWitness(BigInt(index), leafData, siblingPath);
+  }
+
+  /**
+   * Returns a low nullifier membership witness for a given nullifier at a given block.
+   * @param blockNumber - The block number at which to get the index.
+   * @param nullifier - Nullifier we try to find the low nullifier witness for.
+   * @returns The low nullifier membership witness (if found).
+   * @remarks Low nullifier witness can be used to perform a nullifier non-inclusion proof by leveraging the "linked
+   * list structure" of leaves and proving that a lower nullifier is pointing to a bigger next value than the nullifier
+   * we are trying to prove non-inclusion for.
+   *
+   * Note: This function returns the membership witness of the nullifier itself and not the low nullifier when
+   * the nullifier already exists in the tree. This is because the `getPreviousValueIndex` function returns the
+   * index of the nullifier itself when it already exists in the tree.
+   * TODO: This is a confusing behavior and we should eventually address that.
+   */
+  public async getLowNullifierMembershipWitness(
+    blockNumber: number,
+    nullifier: Fr,
+  ): Promise<NullifierMembershipWitness | undefined> {
+    const committedDb = await this.#getWorldState();
+    const { index, alreadyPresent } = await committedDb.getPreviousValueIndex(
+      MerkleTreeId.NULLIFIER_TREE,
+      nullifier.toBigInt(),
+    );
+    if (alreadyPresent) {
+      this.log.warn(`Nullifier ${nullifier.toBigInt()} already exists in the tree`);
+    }
+    const leafData = await committedDb.getLeafData(MerkleTreeId.NULLIFIER_TREE, index);
+    if (!leafData) {
+      return undefined;
+    }
+    const siblingPath = await committedDb.getSiblingPath<typeof NULLIFIER_TREE_HEIGHT>(
+      MerkleTreeId.NULLIFIER_TREE,
+      BigInt(index),
+    );
+    return new NullifierMembershipWitness(BigInt(index), leafData, siblingPath);
   }
 
   /**

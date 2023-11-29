@@ -1,9 +1,16 @@
-import { PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
+import { HistoricBlockData, PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
-import { CompleteAddress, Note, PublicKey, UnencryptedL2Log } from '@aztec/types';
+import {
+  CompleteAddress,
+  MerkleTreeId,
+  Note,
+  NullifierMembershipWitness,
+  PublicKey,
+  UnencryptedL2Log,
+} from '@aztec/types';
 
 /**
  * Information about a note needed during execution.
@@ -69,6 +76,33 @@ export abstract class TypedOracle {
   }
 
   getSecretKey(_owner: PublicKey): Promise<GrumpkinScalar> {
+    throw new Error('Not available.');
+  }
+
+  getPublicKeyAndPartialAddress(_address: AztecAddress): Promise<Fr[] | undefined> {
+    throw new Error('Not available.');
+  }
+
+  getMembershipWitness(_blockNumber: number, _treeId: MerkleTreeId, _leafValue: Fr): Promise<Fr[] | undefined> {
+    throw new Error('Not available.');
+  }
+
+  getSiblingPath(_blockNumber: number, _treeId: MerkleTreeId, _leafIndex: Fr): Promise<Fr[]> {
+    throw new Error('Not available.');
+  }
+
+  getNullifierMembershipWitness(_blockNumber: number, _nullifier: Fr): Promise<NullifierMembershipWitness | undefined> {
+    throw new Error('Not available.');
+  }
+
+  getLowNullifierMembershipWitness(
+    _blockNumber: number,
+    _nullifier: Fr,
+  ): Promise<NullifierMembershipWitness | undefined> {
+    throw new Error('Not available.');
+  }
+
+  getBlockData(_blockNumber: number): Promise<HistoricBlockData | undefined> {
     throw new Error('Not available.');
   }
 

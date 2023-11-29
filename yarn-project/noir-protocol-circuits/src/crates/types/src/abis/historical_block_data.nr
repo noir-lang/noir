@@ -17,7 +17,7 @@ impl HistoricalBlockData {
     fn to_array(self) -> [Field;7] {
         // This comment was copied from the cpp codebase.
         //
-        // TODO: Note private_kernel_vk_tree_root, is not included yet as
+        // TODO(#3441): Note private_kernel_vk_tree_root, is not included yet as
         // it is not present in noir,
         [
             self.block.note_hash_tree_root,

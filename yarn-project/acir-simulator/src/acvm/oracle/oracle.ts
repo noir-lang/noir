@@ -4,10 +4,10 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { UnencryptedL2Log } from '@aztec/types';
+import { MerkleTreeId, UnencryptedL2Log } from '@aztec/types';
 
 import { ACVMField } from '../acvm_types.js';
-import { fromACVMField } from '../deserialize.js';
+import { frToNumber, fromACVMField } from '../deserialize.js';
 import {
   toACVMField,
   toAcvmCallPrivateStackItem,
@@ -44,6 +44,79 @@ export class Oracle {
       AztecAddress.fromField(fromACVMField(address)),
     );
     return [publicKey.x, publicKey.y, partialAddress].map(toACVMField);
+  }
+
+  async getMembershipWitness(
+    [blockNumber]: ACVMField[],
+    [treeId]: ACVMField[],
+    [leafValue]: ACVMField[],
+  ): Promise<ACVMField[]> {
+    const parsedBlockNumber = frToNumber(fromACVMField(blockNumber));
+    const parsedTreeId = frToNumber(fromACVMField(treeId));
+    const parsedLeafValue = fromACVMField(leafValue);
+
+    const witness = await this.typedOracle.getMembershipWitness(parsedBlockNumber, parsedTreeId, parsedLeafValue);
+    if (!witness) {
+      throw new Error(
+        `Leaf ${leafValue} not found in the tree ${MerkleTreeId[parsedTreeId]} at block ${parsedBlockNumber}.`,
+      );
+    }
+    return witness.map(toACVMField);
+  }
+
+  async getSiblingPath(
+    [blockNumber]: ACVMField[],
+    [treeId]: ACVMField[],
+    [leafIndex]: ACVMField[],
+  ): Promise<ACVMField[]> {
+    const parsedBlockNumber = frToNumber(fromACVMField(blockNumber));
+    const parsedTreeId = frToNumber(fromACVMField(treeId));
+    const parsedLeafIndex = fromACVMField(leafIndex);
+
+    const path = await this.typedOracle.getSiblingPath(parsedBlockNumber, parsedTreeId, parsedLeafIndex);
+    return path.map(toACVMField);
+  }
+
+  async getNullifierMembershipWitness(
+    [blockNumber]: ACVMField[],
+    [nullifier]: ACVMField[], // nullifier, we try to find the witness for (to prove inclusion)
+  ): Promise<ACVMField[]> {
+    const parsedBlockNumber = frToNumber(fromACVMField(blockNumber));
+    const parsedNullifier = fromACVMField(nullifier);
+
+    const witness = await this.typedOracle.getNullifierMembershipWitness(parsedBlockNumber, parsedNullifier);
+    if (!witness) {
+      throw new Error(
+        `Low nullifier witness not found for nullifier ${parsedNullifier} at block ${parsedBlockNumber}.`,
+      );
+    }
+    return witness.toFieldArray().map(toACVMField);
+  }
+
+  async getLowNullifierMembershipWitness(
+    [blockNumber]: ACVMField[],
+    [nullifier]: ACVMField[], // nullifier, we try to find the low nullifier witness for (to prove non-inclusion)
+  ): Promise<ACVMField[]> {
+    const parsedBlockNumber = frToNumber(fromACVMField(blockNumber));
+    const parsedNullifier = fromACVMField(nullifier);
+
+    const witness = await this.typedOracle.getLowNullifierMembershipWitness(parsedBlockNumber, parsedNullifier);
+    if (!witness) {
+      throw new Error(
+        `Low nullifier witness not found for nullifier ${parsedNullifier} at block ${parsedBlockNumber}.`,
+      );
+    }
+    return witness.toFieldArray().map(toACVMField);
+  }
+
+  async getBlockData([blockNumber]: ACVMField[]): Promise<ACVMField[]> {
+    const parsedBlockNumber = frToNumber(fromACVMField(blockNumber));
+
+    const blockData = await this.typedOracle.getBlockData(parsedBlockNumber);
+    if (!blockData) {
+      throw new Error(`Block data not found for block ${parsedBlockNumber}.`);
+    }
+    return blockData.toArray().map(toACVMField);
   }
 
   async getAuthWitness([messageHash]: ACVMField[]): Promise<ACVMField[]> {

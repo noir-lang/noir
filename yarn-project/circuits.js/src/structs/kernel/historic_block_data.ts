@@ -37,7 +37,7 @@ export class HistoricBlockData {
     /**
      * Root of the private kernel vk tree at the time of when this information was assembled.
      */
-    public privateKernelVkTreeRoot: Fr, // future enhancement
+    public privateKernelVkTreeRoot: Fr, // TODO(#3441) future enhancement
     /**
      * Current public state tree hash.
      */
@@ -97,7 +97,7 @@ export class HistoricBlockData {
       this.nullifierTreeRoot,
       this.contractTreeRoot,
       this.l1ToL2MessagesTreeRoot,
-      this.blocksTreeRoot, // Note private_kernel_vk_tree_root, is not included yet as
+      this.blocksTreeRoot, // TODO(#3441) Note private_kernel_vk_tree_root, is not included yet as
       // it is not present in noir,
       this.publicDataTreeRoot,
       this.globalVariablesHash,

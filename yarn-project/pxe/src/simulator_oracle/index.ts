@@ -9,7 +9,8 @@ import {
   HistoricBlockData,
   PublicKey,
 } from '@aztec/circuits.js';
-import { KeyStore, MerkleTreeId, StateInfoProvider } from '@aztec/types';
+import { createDebugLogger } from '@aztec/foundation/log';
+import { KeyStore, L2Block, MerkleTreeId, NullifierMembershipWitness, StateInfoProvider } from '@aztec/types';
 
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { Database } from '../database/index.js';
@@ -23,6 +24,7 @@ export class SimulatorOracle implements DBOracle {
     private db: Database,
     private keyStore: KeyStore,
     private stateInfoProvider: StateInfoProvider,
+    private log = createDebugLogger('aztec:pxe:simulator_oracle'),
   ) {}
 
   getSecretKey(_contractAddress: AztecAddress, pubKey: PublicKey): Promise<GrumpkinPrivateKey> {
@@ -132,6 +134,48 @@ export class SimulatorOracle implements DBOracle {
 
   async getNullifierIndex(nullifier: Fr) {
     return await this.stateInfoProvider.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier);
+  }
+
+  public async findLeafIndex(blockNumber: number, treeId: MerkleTreeId, leafValue: Fr): Promise<bigint | undefined> {
+    this.log.warn('Block number ignored in SimulatorOracle.findLeafIndex because archival node is not yet implemented');
+    return await this.stateInfoProvider.findLeafIndex(treeId, leafValue);
+  }
+
+  public async getSiblingPath(blockNumber: number, treeId: MerkleTreeId, leafIndex: bigint): Promise<Fr[]> {
+    this.log.warn(
+      'Block number ignored in SimulatorOracle.getSiblingPath because archival node is not yet implemented',
+    );
+    // @todo Doing a nasty workaround here because of https://github.com/AztecProtocol/aztec-packages/issues/3414
+    switch (treeId) {
+      case MerkleTreeId.NULLIFIER_TREE:
+        return (await this.stateInfoProvider.getNullifierTreeSiblingPath(leafIndex)).toFieldArray();
+      case MerkleTreeId.NOTE_HASH_TREE:
+        return (await this.stateInfoProvider.getNoteHashSiblingPath(leafIndex)).toFieldArray();
+      case MerkleTreeId.BLOCKS_TREE:
+        return (await this.stateInfoProvider.getHistoricBlocksTreeSiblingPath(leafIndex)).toFieldArray();
+      case MerkleTreeId.PUBLIC_DATA_TREE:
+        return (await this.stateInfoProvider.getPublicDataTreeSiblingPath(leafIndex)).toFieldArray();
+      default:
+        throw new Error('Not implemented');
+    }
+  }
+
+  public getNullifierMembershipWitness(
+    blockNumber: number,
+    nullifier: Fr,
+  ): Promise<NullifierMembershipWitness | undefined> {
+    return this.stateInfoProvider.getNullifierMembershipWitness(blockNumber, nullifier);
+  }
+
+  public getLowNullifierMembershipWitness(
+    blockNumber: number,
+    nullifier: Fr,
+  ): Promise<NullifierMembershipWitness | undefined> {
+    return this.stateInfoProvider.getLowNullifierMembershipWitness(blockNumber, nullifier);
+  }
+
+  public async getBlock(blockNumber: number): Promise<L2Block | undefined> {
+    return await this.stateInfoProvider.getBlock(blockNumber);
   }
 
   /**

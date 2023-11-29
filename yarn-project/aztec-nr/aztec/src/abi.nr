@@ -20,6 +20,7 @@ use crate::constants_gen::{
     CONTRACT_STORAGE_READ_LENGTH,
     PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH,
     PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,
+    GENERATOR_INDEX__BLOCK_HASH,
     GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS,
     GENERATOR_INDEX__FUNCTION_DATA,
     GENERATOR_INDEX__PUBLIC_DATA_READ,
@@ -166,8 +167,34 @@ impl HistoricBlockData {
         ]
     }
 
+    pub fn deserialize(deserialized: [Field; HISTORIC_BLOCK_DATA_LENGTH]) -> Self {
+        HistoricBlockData {
+            note_hash_tree_root: deserialized[0],
+            nullifier_tree_root: deserialized[1],
+            contract_tree_root: deserialized[2],
+            l1_to_l2_messages_tree_root: deserialized[3],
+            blocks_tree_root: deserialized[4],
+            public_data_tree_root: deserialized[5],
+            global_variables_hash: deserialized[6],
+        }
+    }
+
     pub fn empty() -> Self {
         Self { note_hash_tree_root: 0, nullifier_tree_root: 0, contract_tree_root: 0, l1_to_l2_messages_tree_root: 0, blocks_tree_root: 0, public_data_tree_root: 0, global_variables_hash: 0 }
+    }
+
+    pub fn block_hash(self) -> Field {
+        // TODO(#3442): Unify the ordering in `HistoricBlockData::serialize` function and the ordering
+        // in the block hash preimage --> This requires changes in the circuits.
+        let inputs = [
+            self.global_variables_hash,
+            self.note_hash_tree_root,
+            self.nullifier_tree_root,
+            self.contract_tree_root,
+            self.l1_to_l2_messages_tree_root,
+            self.public_data_tree_root
+        ];
+        pedersen_hash(inputs, GENERATOR_INDEX__BLOCK_HASH)
     }
 }
 

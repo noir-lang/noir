@@ -1,6 +1,7 @@
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
+import { LeafData } from '@aztec/types';
 
-import { LeafData, StandardIndexedTree } from '../../index.js';
+import { StandardIndexedTree } from '../../index.js';
 
 /**
  * A testing utility which is here to store the original implementation of StandardIndexedTree.appendLeaves method

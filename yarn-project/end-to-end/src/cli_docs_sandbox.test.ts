@@ -107,6 +107,7 @@ EasyPrivateVotingContractArtifact
 EcdsaAccountContractArtifact
 EscrowContractArtifact
 ImportTestContractArtifact
+InclusionProofsContractArtifact
 LendingContractArtifact
 ParentContractArtifact
 PendingCommitmentsContractArtifact

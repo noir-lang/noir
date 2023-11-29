@@ -118,7 +118,7 @@ template <typename NCT> struct HistoricBlockData {
                  nullifier_tree_root,
                  contract_tree_root,
                  l1_to_l2_messages_tree_root,
-                 blocks_tree_root,  // Note private_kernel_vk_tree_root, is not included yet as
+                 blocks_tree_root,  // TODO(#3441) Note private_kernel_vk_tree_root, is not included yet as
                                     // it is not present in noir,
                  public_data_tree_root,
                  global_variables_hash };

@@ -1,4 +1,5 @@
-import { LeafData } from '../index.js';
+import { LeafData } from '@aztec/types';
+
 import { MerkleTree } from './merkle_tree.js';
 
 /**

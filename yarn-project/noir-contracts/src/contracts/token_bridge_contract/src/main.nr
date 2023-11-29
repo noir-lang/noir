@@ -11,9 +11,7 @@ contract TokenBridge {
         context::{Context},
         hash::{compute_secret_hash},
         state_vars::{public_state::PublicState},
-        types::type_serialization::field_serialization::{
-            FieldSerializationMethods, FIELD_SERIALIZED_LEN,
-        },
+        types::type_serialization::field_serialization::FieldSerializationMethods,
         types::address::{AztecAddress, EthereumAddress},
         selector::compute_selector,
     };
