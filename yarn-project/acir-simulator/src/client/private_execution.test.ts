@@ -467,7 +467,13 @@ describe('Private Execution test suite', () => {
         messageKey,
         secretForL1ToL2MessageConsumption,
       ];
-      const result = await runSimulator({ contractAddress, artifact, args });
+      const result = await runSimulator({
+        contractAddress,
+        artifact,
+        args,
+        portalContractAddress: preimage.sender.sender,
+        txContext: { version: new Fr(1n), chainId: new Fr(1n) },
+      });
 
       // Check a nullifier has been inserted
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));

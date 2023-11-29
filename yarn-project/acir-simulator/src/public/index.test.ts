@@ -386,7 +386,7 @@ describe('ACIR public execution simulator', () => {
       const callContext = CallContext.from({
         msgSender: AztecAddress.random(),
         storageContractAddress: contractAddress,
-        portalContractAddress: EthAddress.random(),
+        portalContractAddress: preimage.sender.sender,
         functionSelector: FunctionSelector.empty(),
         isContractDeployment: false,
         isDelegateCall: false,
@@ -406,7 +406,14 @@ describe('ACIR public execution simulator', () => {
       });
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-      const result = await executor.simulate(execution, GlobalVariables.empty());
+
+      const gv = new GlobalVariables(
+        new Fr(preimage.sender.chainId),
+        new Fr(preimage.recipient.version),
+        Fr.ZERO,
+        Fr.ZERO,
+      );
+      const result = await executor.simulate(execution, gv);
 
       expect(result.newNullifiers.length).toEqual(1);
     });

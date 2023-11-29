@@ -175,5 +175,5 @@ contract TokenBridge {
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; 0]) -> [Field; 4] {
         [0, 0, 0, 0]
     }
-// docs:end:compute_note_hash_and_nullifier_placeholder
+    // docs:end:compute_note_hash_and_nullifier_placeholder
 }

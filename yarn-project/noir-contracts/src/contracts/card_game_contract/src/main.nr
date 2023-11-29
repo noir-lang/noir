@@ -163,7 +163,7 @@ contract CardGame {
         context.call_public_function(context.this_address(),
             selector,
             [game as Field, player, card.to_field()]);
-         // docs:end:call_public_function
+        // docs:end:call_public_function
     }
 
     #[aztec(public)]

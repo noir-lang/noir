@@ -158,9 +158,15 @@ contract Lending {
 
     #[aztec(public)]
     fn deposit_public(amount: Field, nonce: Field, on_behalf_of: Field, collateral_asset: Field) {
-        Token::at(collateral_asset).transfer_public(context, context.msg_sender(), context.this_address(), amount, nonce);
+        Token::at(collateral_asset).transfer_public(context,
+            context.msg_sender(),
+            context.this_address(),
+            amount,
+            nonce);
         let selector = compute_selector("_deposit(Field,Field,Field)");
-        context.call_public_function(context.this_address(), selector, [on_behalf_of, amount, collateral_asset]);
+        context.call_public_function(context.this_address(),
+            selector,
+            [on_behalf_of, amount, collateral_asset]);
     }
 
     #[aztec(public)]
@@ -185,7 +191,9 @@ contract Lending {
     #[aztec(public)]
     fn withdraw_public(to: Field, amount: Field) {
         let selector = compute_selector("_withdraw(Field,Field,Field)");
-        context.call_public_function(context.this_address(), selector, [context.msg_sender(), to, amount]);
+        context.call_public_function(context.this_address(),
+            selector,
+            [context.msg_sender(), to, amount]);
     }
 
     #[aztec(public)]
@@ -201,7 +209,11 @@ contract Lending {
 
         // debt_covered will revert if decrease would leave insufficient collateral to cover debt.
         // or trying to remove more collateral than available
-        let debt_covered = covered_by_collateral(price, asset.loan_to_value, collateral as u120, 0, amount as u120);
+        let debt_covered = covered_by_collateral(price,
+            asset.loan_to_value,
+            collateral as u120,
+            0,
+            amount as u120);
         let debt_returns = debt_updates(asset.interest_accumulator, static_debt as u120, 0, 0);
 
         assert(debt_returns.debt_value < debt_covered);
@@ -223,7 +235,9 @@ contract Lending {
     #[aztec(public)]
     fn borrow_public(to: Field, amount: Field) {
         let selector = compute_selector("_borrow(Field,Field,Field)");
-        context.call_public_function(context.this_address(), selector, [context.msg_sender(), to, amount]);
+        context.call_public_function(context.this_address(),
+            selector,
+            [context.msg_sender(), to, amount]);
     }
 
     #[aztec(public)]
@@ -252,7 +266,9 @@ contract Lending {
         let on_behalf_of = compute_identifier(secret, on_behalf_of, context.msg_sender());
         let _res = Token::at(stable_coin).burn(&mut context, from, amount, nonce);
         let selector = compute_selector("_repay(Field,Field,Field)");
-        context.call_public_function(context.this_address(), selector, [on_behalf_of, amount, stable_coin]);
+        context.call_public_function(context.this_address(),
+            selector,
+            [on_behalf_of, amount, stable_coin]);
     }
 
     #[aztec(public)]

@@ -216,7 +216,6 @@ contract Token {
 
         let to_balance = storage.public_balances.at(to.address).read().add(amount);
         storage.public_balances.at(to.address).write(to_balance);
-
     }
     // docs:end:transfer_public
 
