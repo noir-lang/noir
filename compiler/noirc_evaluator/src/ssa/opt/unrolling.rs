@@ -119,7 +119,18 @@ impl Loops {
         function: &mut Function,
         abort_on_error: bool,
     ) -> Result<(), RuntimeError> {
+        let mut i = 1;
         while let Some(next_loop) = self.yet_to_unroll.pop() {
+            if i % 100 == 0 {
+                println!("On loop {}, total = {}", i, self.yet_to_unroll.len());
+            }
+            i += 1;
+
+            // if i >= 130000 {
+            //     println!("Too many loops!");
+            //     std::process::exit(0);
+            // }
+
             // If we've previously modified a block in this loop we need to refresh the context.
             // This happens any time we have nested loops.
             if next_loop.blocks.iter().any(|block| self.modified_blocks.contains(block)) {

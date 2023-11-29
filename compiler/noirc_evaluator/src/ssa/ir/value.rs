@@ -9,34 +9,34 @@ use super::{
     types::Type,
 };
 
-pub(crate) type ValueId = Id<Value>;
+#[derive(Debug)]
+pub(crate) struct NumericConstant {
+    constant: FieldElement,
+    typ: Type,
+}
 
-/// Value is the most basic type allowed in the IR.
-/// Transition Note: A Id<Value> is similar to `NodeId` in our previous IR.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub(crate) enum Value {
-    /// This value was created due to an instruction
-    ///
-    /// instruction -- This is the instruction which defined it
-    /// typ -- This is the `Type` of the instruction
-    /// position -- Returns the position in the results
-    /// vector that this `Value` is located.
-    /// Example, if you add two numbers together, then the resulting
-    /// value would have position `0`, the typ would be the type
-    /// of the operands, and the instruction would map to an add instruction.
-    Instruction { instruction: InstructionId, position: usize, typ: Type },
+#[derive(Debug)]
+pub(crate) struct ArrayOrSlice {
+    elements: im::Vector<ValueId>,
 
-    /// This Value originates from a block parameter. Since function parameters
-    /// are also represented as block parameters, this includes function parameters as well.
-    ///
-    /// position -- the index of this Value in the block parameters list
-    Param { block: BasicBlockId, position: usize, typ: Type },
+    /// This is expected to be either Type::Slice { .. } or Type::Array { .. }
+    typ: Type,
+}
 
-    /// This Value originates from a numeric constant
-    NumericConstant { constant: FieldElement, typ: Type },
+/// A foreign function is represented by just its name in the SSA IR
+pub(crate) type ForeignFunctionName = String;
 
-    /// Represents a constant array value
-    Array { array: im::Vector<ValueId>, typ: Type },
+pub(crate) type NumericConstantId = Id<NumericConstant>;
+pub(crate) type ForeignFunctionNameId = Id<ForeignFunctionName>;
+pub(crate) type ArrayId = Id<ArrayOrSlice>;
+
+/// ValueId is the basic type in the IR used to represent a Value.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) enum ValueId {
+    InstructionResult { id: InstructionId, position: u32 },
+    Param { block: BasicBlockId, position: u32 },
+
+    NumericConstant(NumericConstantId),
 
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
@@ -52,7 +52,7 @@ pub(crate) enum Value {
     /// This Value refers to an external function in the IR.
     /// ForeignFunction's always have the type Type::Function and have similar semantics to Function,
     /// other than generating different backend operations and being only accessible through Brillig.
-    ForeignFunction(String),
+    ForeignFunction(ForeignFunctionNameId),
 }
 
 impl Value {

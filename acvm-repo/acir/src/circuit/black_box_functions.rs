@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
 #[cfg_attr(test, derive(EnumIter))]
 pub enum BlackBoxFunc {
     /// Bitwise AND.

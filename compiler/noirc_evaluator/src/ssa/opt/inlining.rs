@@ -390,7 +390,13 @@ impl<'function> PerFunctionContext<'function> {
         let instruction = self.source_function.dfg[id].map_values(|id| self.translate_value(id));
 
         let mut call_stack = self.context.call_stack.clone();
-        call_stack.append(self.source_function.dfg.get_call_stack(id));
+        
+        for item in self.source_function.dfg.get_call_stack(id) {
+            if call_stack.len() >= 5 {
+                break;
+            }
+            call_stack.push_back(item);
+        }
 
         let results = self.source_function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));

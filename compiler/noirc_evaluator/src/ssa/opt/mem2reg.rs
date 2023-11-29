@@ -182,6 +182,10 @@ impl<'f> PerFunctionContext<'f> {
             self.remove_stores_that_do_not_alias_parameters(&references);
         }
 
+        if self.blocks.len() % 100 == 0 {
+            println!("On block {}", self.blocks.len());
+        }
+
         self.blocks.insert(block, references);
     }
 

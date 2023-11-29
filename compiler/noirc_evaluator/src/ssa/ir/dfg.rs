@@ -8,9 +8,9 @@ use super::{
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
-    map::DenseMap,
+    map::{DenseMap, TwoWayMap},
     types::Type,
-    value::{Value, ValueId},
+    value::{ValueId, NumericConstantId, NumericConstant, ForeignFunctionNameId, ForeignFunctionName, ArrayId, ArrayOrSlice},
 };
 
 use acvm::FieldElement;
@@ -27,39 +27,17 @@ pub(crate) struct DataFlowGraph {
     /// All of the instructions in a function
     instructions: DenseMap<Instruction>,
 
-    /// Stores the results for a particular instruction.
-    ///
-    /// An instruction may return multiple values
-    /// and for this, we will also use the cranelift strategy
-    /// to fetch them via indices.
-    ///
-    /// Currently, we need to define them in a better way
-    /// Call instructions require the func signature, but
-    /// other instructions may need some more reading on my part
-    results: HashMap<InstructionId, Vec<ValueId>>,
-
-    /// Storage for all of the values defined in this
-    /// function.
-    values: DenseMap<Value>,
-
     /// Each constant is unique, attempting to insert the same constant
     /// twice will return the same ValueId.
-    constants: HashMap<(FieldElement, Type), ValueId>,
-
-    /// Contains each function that has been imported into the current function.
-    /// Each function's Value::Function is uniqued here so any given FunctionId
-    /// will always have the same ValueId within this function.
-    functions: HashMap<FunctionId, ValueId>,
-
-    /// Contains each intrinsic that has been imported into the current function.
-    /// This map is used to ensure that the ValueId for any given intrinsic is always
-    /// represented by only 1 ValueId within this function.
-    intrinsics: HashMap<Intrinsic, ValueId>,
+    numeric_constants: TwoWayMap<NumericConstantId, NumericConstant>,
 
     /// Contains each foreign function that has been imported into the current function.
     /// This map is used to ensure that the ValueId for any given foreign functôn is always
     /// represented by only 1 ValueId within this function.
-    foreign_functions: HashMap<String, ValueId>,
+    foreign_functions: TwoWayMap<ForeignFunctionNameId, ForeignFunctionName>,
+
+    /// Each array that may be used by this IR
+    arrays: DenseMap<ArrayOrSlice>,
 
     /// All blocks in a function
     blocks: DenseMap<BasicBlock>,

@@ -46,7 +46,7 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
         // Run mem2reg with the CFG separated into blocks
-        .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        // .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .try_run_pass(Ssa::evaluate_assert_constant, "After Assert Constant:")?
         .try_run_pass(Ssa::unroll_loops, "After Unrolling:")?
         .run_pass(Ssa::simplify_cfg, "After Simplifying:")
@@ -179,6 +179,7 @@ impl SsaBuilder {
 
     /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
     fn run_pass(mut self, pass: fn(Ssa) -> Ssa, msg: &str) -> Self {
+        println!("On pass {msg}");
         self.ssa = pass(self.ssa);
         self.print(msg)
     }
@@ -189,6 +190,7 @@ impl SsaBuilder {
         pass: fn(Ssa) -> Result<Ssa, RuntimeError>,
         msg: &str,
     ) -> Result<Self, RuntimeError> {
+        println!("On pass {msg}");
         self.ssa = pass(self.ssa)?;
         Ok(self.print(msg))
     }

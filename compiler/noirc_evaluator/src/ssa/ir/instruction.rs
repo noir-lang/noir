@@ -29,7 +29,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// - Opcodes which have no function definition in the
 /// source code and must be processed by the IR. An example
 /// of this is println.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum Intrinsic {
     Sort,
     ArrayLen,
@@ -125,7 +125,7 @@ impl Intrinsic {
 }
 
 /// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Endian {
     Big,
     Little,
