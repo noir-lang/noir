@@ -36,3 +36,28 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build image and push to GitHub Container Registry
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile
+          tags: ${{ steps.prep.outputs.tags }}
+          # tags: |
+          # build on feature branches, push only on master branch
+          push: true
+          target: production
+          build-args: |
+            NPMRC=${{ secrets.NPMRC }}
+      # - name: Create Release
+      #   id: create_release
+      #   uses: actions/create-release@v1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     tag_name: v${{ steps.date.outputs.date }}
+      #     release_name: Release v${{ steps.date.outputs.date }}
+      #     body_path: CHANGELOG.md
+      #     draft: false
+      #     prerelease: ${{ github.ref == 'refs/heads/stage' }}
+      # - name: Image digest
+      #   run: echo ${{ steps.docker_build.outputs.digest }}
