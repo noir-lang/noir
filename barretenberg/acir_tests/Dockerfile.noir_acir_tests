@@ -1,0 +1,10 @@
+# This is a slightly odd location for this Dockerfile, as ostensibly it should belong next to the tests themselves.
+# However, the noir subrepo has no concept of the aztec build pipeline, so the Dockerfile wouldn't make sense there.
+# So, it lives here.
+# This chains off the nargo build, and creates a container with a compiled set of acir tests.
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir
+RUN apk add bash jq
+ENV PATH="/usr/src/noir/target/release:${PATH}"
+WORKDIR /usr/src/noir/tooling/nargo_cli/tests
+COPY . .
+RUN ./rebuild.sh

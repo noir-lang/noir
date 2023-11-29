@@ -1,3 +1,21 @@
+noir:
+  # Add less aggressive rebuildPatterns.
+  buildDir: noir
+
+noir-packages:
+  buildDir: noir
+  dockerfile: Dockerfile.packages
+
+noir-acir-tests:
+  buildDir: noir/tooling/nargo_cli/tests
+  # Awkward. Maybe change dockerfile paths to be absolute.
+  dockerfile: ../../../../barretenberg/acir_tests/Dockerfile.noir_acir_tests
+  rebuildPatterns:
+    - ^noir/tooling/nargo_cli/tests
+    - ^barretenberg/acir_tests/Dockerfile.noir_acir_tests
+  dependencies:
+    - noir
+
 barretenberg-x86_64-linux-clang:
   buildDir: barretenberg/cpp
   dockerfile: dockerfiles/Dockerfile.x86_64-linux-clang
@@ -38,6 +56,7 @@ barretenberg-acir-tests-bb:
   dockerfile: Dockerfile.bb
   dependencies:
     - barretenberg-x86_64-linux-clang-assert
+    - noir-acir-tests
 
 barretenberg-acir-tests-bb-sol:
   buildDir: barretenberg/acir_tests
@@ -45,12 +64,14 @@ barretenberg-acir-tests-bb-sol:
   dependencies:
     - barretenberg-x86_64-linux-clang-assert
     - barretenberg-x86_64-linux-clang-sol
+    - noir-acir-tests
 
 barretenberg-acir-tests-bb.js:
   buildDir: barretenberg/acir_tests
   dockerfile: Dockerfile.bb.js
   dependencies:
     - bb.js
+    - noir-acir-tests
 
 l1-contracts:
   buildDir: l1-contracts
@@ -149,10 +170,3 @@ docs:
     - ^.*.nr$
   dependencies:
     - yarn-project
-
-noir:
-  buildDir: noir
-
-noir-packages:
-  buildDir: noir
-  dockerfile: Dockerfile.packages
