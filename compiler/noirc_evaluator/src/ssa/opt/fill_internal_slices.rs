@@ -398,7 +398,7 @@ impl<'f> Context<'f> {
                     self.inserter.function.dfg.make_array(slice, typ.clone())
                 }
             }
-            Type::Reference => {
+            Type::Reference(_) => {
                 unreachable!("ICE: Generating dummy data for references is unsupported")
             }
             Type::Function => {
