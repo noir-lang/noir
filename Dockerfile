@@ -3,7 +3,8 @@ RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
         build-base \
-        bash
+        bash \
+        git
 WORKDIR /usr/src/noir
 COPY . .
 RUN ./scripts/bootstrap_native.sh
