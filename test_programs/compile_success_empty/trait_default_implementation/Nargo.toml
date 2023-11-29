@@ -1,0 +1,6 @@
+[package]
+name = "trait_default_implementation"
+type = "bin"
+authors = [""]
+
+[dependencies]

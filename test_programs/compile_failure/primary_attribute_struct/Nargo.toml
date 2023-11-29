@@ -1,0 +1,7 @@
+
+[package]
+name = "primary_attribute_struct"
+type = "bin"
+authors = [""]
+
+[dependencies]

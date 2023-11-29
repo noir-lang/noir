@@ -1,0 +1,6 @@
+[package]
+name = "no_entry_points"
+type = "contract"
+authors = [""]
+
+[dependencies]

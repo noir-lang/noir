@@ -1,0 +1,6 @@
+[package]
+name = "struct"
+type = "bin"
+authors = [""]
+
+[dependencies]

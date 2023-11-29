@@ -1,0 +1,6 @@
+[package]
+name = "brillig_calls_array"
+type = "bin"
+authors = [""]
+
+[dependencies]

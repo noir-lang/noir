@@ -7,6 +7,7 @@
 , stdenv
 , curl
 , darwin
+, libiconv
 , runCommand
 }:
 
@@ -23,7 +24,12 @@ rustPlatform.buildRustPackage rec {
 
   nativeBuildInputs = [ pkg-config ];
 
-  buildInputs = [ openssl ] ++ lib.optionals stdenv.isDarwin [ curl darwin.apple_sdk.frameworks.Security ];
+  buildInputs = [ openssl ] ++ lib.optionals stdenv.isDarwin [
+    curl
+    # Need libiconv and apple Security on Darwin. See https://github.com/ipetkov/crane/issues/156
+    libiconv
+    darwin.apple_sdk.frameworks.Security
+  ];
 
   doCheck = false;
 

@@ -1,0 +1,5 @@
+[package]
+name = "let_stmt"
+type = "bin"
+authors = [""]
+[dependencies]

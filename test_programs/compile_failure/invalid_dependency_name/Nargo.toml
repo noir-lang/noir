@@ -1,0 +1,6 @@
+[package]
+name = "invalid_dependency_name"
+type = "bin"
+authors = [""]
+[dependencies]
+bad_name = { path = "../../test_libraries/bad_name" }

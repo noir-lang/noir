@@ -1,0 +1,5 @@
+[package]
+name = "diamond_deps_2"
+type = "lib"
+authors = [""]
+[dependencies]

@@ -1,0 +1,6 @@
+[package]
+name = "brillig_integer_binary_operations"
+type = "bin"
+authors = [""]
+
+[dependencies]

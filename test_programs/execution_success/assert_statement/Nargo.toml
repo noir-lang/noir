@@ -1,0 +1,6 @@
+[package]
+name = "assert_statement"
+type = "bin"
+authors = [""]
+
+[dependencies]

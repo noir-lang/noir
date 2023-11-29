@@ -1,0 +1,6 @@
+[package]
+name = "bit_and"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,0 +1,6 @@
+[package]
+name = "traits"
+type = "bin"
+authors = [""]
+
+[dependencies]

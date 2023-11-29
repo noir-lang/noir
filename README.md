@@ -34,7 +34,6 @@ ACIR Supported OPCODES:
 - Sha256
 - Blake2s
 - Schnorr signature verification
-- MerkleMembership
 - Pedersen
 - HashToField
 
@@ -55,7 +54,7 @@ Concretely the following items are on the road map:
 
 ## Minimum Rust version
 
-This crate's minimum supported rustc version is 1.66.0.
+This crate's minimum supported rustc version is 1.71.1.
 
 ## Working on this project
 

@@ -1,0 +1,5 @@
+[package]
+name = "simple_array_param"
+type = "bin"
+authors = [""]
+[dependencies]

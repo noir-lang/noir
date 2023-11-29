@@ -1,0 +1,23 @@
+[package]
+name = "noirc_abi"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+acvm.workspace = true
+iter-extended.workspace = true
+noirc_frontend.workspace = true
+toml.workspace = true
+serde_json = "1.0"
+serde.workspace = true
+thiserror.workspace = true
+num-bigint = "0.4"
+num-traits = "0.2"
+
+[dev-dependencies]
+strum = "0.24"
+strum_macros = "0.24"

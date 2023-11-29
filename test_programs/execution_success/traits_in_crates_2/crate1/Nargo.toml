@@ -1,0 +1,5 @@
+[package]
+name = "crate1"
+type = "lib"
+authors = [""]
+[dependencies]

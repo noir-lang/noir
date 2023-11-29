@@ -1,2 +1,0 @@
-unconstrained fn main() {
-}

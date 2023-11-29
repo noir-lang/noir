@@ -1,0 +1,6 @@
+[package]
+name = "simple_program_addition"
+type = "bin"
+authors = [""]
+
+[dependencies]

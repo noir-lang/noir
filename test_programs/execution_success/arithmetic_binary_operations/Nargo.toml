@@ -1,0 +1,6 @@
+[package]
+name = "arithmetic_binary_operations"
+type = "bin"
+authors = [""]
+
+[dependencies]

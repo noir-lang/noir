@@ -1,0 +1,6 @@
+[package]
+name = "dup_trait_implementation_5"
+type = "bin"
+authors = [""]
+
+[dependencies]

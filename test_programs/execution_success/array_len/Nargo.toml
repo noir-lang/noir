@@ -1,0 +1,6 @@
+[package]
+name = "array_len"
+type = "bin"
+authors = [""]
+
+[dependencies]

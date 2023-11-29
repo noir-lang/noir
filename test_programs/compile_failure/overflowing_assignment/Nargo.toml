@@ -1,0 +1,5 @@
+[package]
+name = "overflowing_assignment"
+type = "bin"
+authors = [""]
+[dependencies]

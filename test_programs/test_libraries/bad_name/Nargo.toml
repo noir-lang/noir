@@ -1,0 +1,5 @@
+[package]
+name = "bad-name"
+type = "lib"
+authors = [""]
+[dependencies]

@@ -9,7 +9,6 @@ mod affine {
     use crate::ec::montcurve::affine::Point as MPoint;
     use crate::ec::swcurve::affine::Curve as SWCurve;
     use crate::ec::swcurve::affine::Point as SWPoint;
-
     // Curve specification
     struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation ax^2 + y^2 = 1 + dx^2y^2
@@ -18,7 +17,6 @@ mod affine {
         // Generator as point in Cartesian coordinates
         gen: Point
     }
-
     // Point in Cartesian coordinates
     struct Point {
         x: Field,
@@ -27,7 +25,7 @@ mod affine {
 
     impl Point {
         // Point constructor
-        fn new(x: Field, y: Field) -> Self {
+        pub fn new(x: Field, y: Field) -> Self {
             Self { x, y }
         }
 
@@ -40,7 +38,7 @@ mod affine {
         }
 
         // Check if zero
-        fn is_zero(self) -> bool {
+        pub fn is_zero(self) -> bool {
             self.eq(Point::zero())
         }
 
@@ -52,7 +50,7 @@ mod affine {
         }
 
         // Additive identity
-        fn zero() -> Self {
+        pub fn zero() -> Self {
             Point::new(0,1)
         }
 
@@ -76,10 +74,9 @@ mod affine {
         }
     }
 
-
     impl Curve {
         // Curve constructor
-        fn new(a: Field, d: Field, gen: Point) -> Curve {
+        pub fn new(a: Field, d: Field, gen: Point) -> Curve {
             // Check curve coefficients
             assert(a*d*(a-d) != 0);
             
@@ -99,13 +96,13 @@ mod affine {
         }
         
         // Membership check
-        fn contains(self, p: Point) -> bool {
+        pub fn contains(self, p: Point) -> bool {
             let Point {x, y} = p;
             self.a*x*x + y*y == 1 + self.d*x*x*y*y
         }
         
         // Point addition, implemented in terms of mixed addition for reasons of efficiency
-        fn add(self, p1: Point, p2: Point) -> Point {
+        pub fn add(self, p1: Point, p2: Point) -> Point {
             self.mixed_add(p1, p2.into_group()).into_affine()
         }
 
@@ -158,7 +155,7 @@ mod affine {
         }
 
         // Conversion to equivalent Montgomery curve
-        fn into_montcurve(self) -> MCurve {
+        pub fn into_montcurve(self) -> MCurve {
             let j = 2*(self.a + self.d)/(self.a - self.d);
             let k = 4/(self.a - self.d);
             let gen_montcurve = self.gen.into_montcurve();
@@ -167,12 +164,12 @@ mod affine {
         }
 
         // Conversion to equivalent Short Weierstraß curve
-        fn into_swcurve(self) -> SWCurve {
+        pub fn into_swcurve(self) -> SWCurve {
             self.into_montcurve().into_swcurve()
         }
 
         // Point mapping into equivalent Short Weierstraß curve
-        fn map_into_swcurve(self, p: Point) -> SWPoint {
+        pub fn map_into_swcurve(self, p: Point) -> SWPoint {
             self.into_montcurve().map_into_swcurve(p.into_montcurve())
         }
 
@@ -201,7 +198,6 @@ mod curvegroup {
     use crate::ec::montcurve::curvegroup::Point as MPoint;
     use crate::ec::swcurve::curvegroup::Curve as SWCurve;
     use crate::ec::swcurve::curvegroup::Point as SWPoint;
-
     // Curve specification
     struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation a(x^2 + y^2)z^2 = z^4 + dx^2y^2
@@ -210,7 +206,6 @@ mod curvegroup {
         // Generator as point in projective coordinates
         gen: Point
     }
-
     // Point in extended twisted Edwards coordinates
     struct Point {
         x: Field,
@@ -221,7 +216,7 @@ mod curvegroup {
 
     impl Point {
         // Point constructor
-        fn new(x: Field, y: Field, t: Field, z: Field) -> Self {
+        pub fn new(x: Field, y: Field, t: Field, z: Field) -> Self {
             Self {x, y, t, z}
         }
 
@@ -234,20 +229,20 @@ mod curvegroup {
         }
 
         // Check if zero
-        fn is_zero(self) -> bool {
+        pub fn is_zero(self) -> bool {
             let Self {x, y, t, z} = self;
             (x == 0) & (y == z) & (y != 0) & (t == 0)
         }
 
         // Conversion to affine coordinates
-        fn into_affine(self) -> affine::Point {
+        pub fn into_affine(self) -> affine::Point {
             let Self {x, y, t: _t, z} = self;
 
             affine::Point::new(x/z, y/z)
         }
 
         // Additive identity
-        fn zero() -> Self {
+        pub fn zero() -> Self {
             Point::new(0,1,0,1)
         }
 
@@ -266,7 +261,7 @@ mod curvegroup {
 
     impl Curve {
         // Curve constructor
-        fn new(a: Field, d: Field, gen: Point) -> Curve {
+        pub fn new(a: Field, d: Field, gen: Point) -> Curve {
             // Check curve coefficients
             assert(a*d*(a-d) != 0);
             
@@ -279,21 +274,21 @@ mod curvegroup {
         }
 
         // Conversion to affine coordinates
-        fn into_affine(self) -> affine::Curve {
+        pub fn into_affine(self) -> affine::Curve {
             let Curve{a, d, gen} = self;
 
             affine::Curve {a, d, gen: gen.into_affine()}
         }
 
         // Membership check
-        fn contains(self, p: Point) -> bool {
+        pub fn contains(self, p: Point) -> bool {
             let Point {x, y, t, z} = p;
 
             (z != 0) & (z*t == x*y) & (z*z*(self.a*x*x + y*y) == z*z*z*z + self.d*x*x*y*y)
         }
 
         // Point addition
-        fn add(self, p1: Point, p2: Point) -> Point {
+        pub fn add(self, p1: Point, p2: Point) -> Point {
             let Point{x: x1, y: y1, t: t1, z: z1} = p1;
             let Point{x: x2, y: y2, t: t2, z: z2} = p2;
 
@@ -315,7 +310,7 @@ mod curvegroup {
         }
 
         // Point doubling, cf. §3.3
-        fn double(self, p: Point) -> Point {
+        pub fn double(self, p: Point) -> Point {
             let Point{x, y, t: _t, z} = p;
 
             let a = x*x;
@@ -350,7 +345,7 @@ mod curvegroup {
         }
         
         // Scalar multiplication (p + ... + p n times)
-        fn mul(self, n: Field, p: Point) -> Point {
+        pub fn mul(self, n: Field, p: Point) -> Point {
             let N_BITS = crate::field::modulus_num_bits();
 
             // TODO: temporary workaround until issue 1354 is solved
@@ -390,7 +385,7 @@ mod curvegroup {
         }
 
         // Point mapping into equivalent short Weierstraß curve
-        fn map_into_swcurve(self, p: Point) -> SWPoint {
+        pub fn map_into_swcurve(self, p: Point) -> SWPoint {
             self.into_montcurve().map_into_swcurve(p.into_montcurve())
         }
 

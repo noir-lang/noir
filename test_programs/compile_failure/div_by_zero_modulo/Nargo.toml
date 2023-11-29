@@ -1,0 +1,6 @@
+[package]
+name = "div_by_zero_modulo"
+type = "bin"
+authors = [""]
+
+[dependencies]

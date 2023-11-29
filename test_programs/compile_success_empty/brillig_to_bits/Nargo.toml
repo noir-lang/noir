@@ -1,0 +1,5 @@
+[package]
+name = "brillig_to_bits"
+type = "bin"
+authors = [""]
+[dependencies]

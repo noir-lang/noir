@@ -1,0 +1,7 @@
+[package]
+name = "ec_baby_jubjub"
+description = "Baby Jubjub sanity checks"
+type = "bin"
+authors = [""]
+
+[dependencies]
