@@ -692,7 +692,7 @@ impl fmt::Display for Keyword {
             Keyword::Dep => write!(f, "dep"),
             Keyword::Distinct => write!(f, "distinct"),
             Keyword::Else => write!(f, "else"),
-            Keyword::Field => write!(f, "Field"),
+            Keyword::Field => write!(f, "field"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::For => write!(f, "for"),
             Keyword::FormatString => write!(f, "fmtstr"),
@@ -735,7 +735,11 @@ impl Keyword {
             "dep" => Keyword::Dep,
             "distinct" => Keyword::Distinct,
             "else" => Keyword::Else,
+            // Currently we allow both uppercase and lowercase
+            // Fields. This will be used as a transition solution
+            // where we eventually deprecate the uppercase variant.
             "Field" => Keyword::Field,
+            "field" => Keyword::Field,
             "fn" => Keyword::Fn,
             "for" => Keyword::For,
             "fmtstr" => Keyword::FormatString,
