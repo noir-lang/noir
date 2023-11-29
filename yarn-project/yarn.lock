@@ -277,36 +277,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/bb.js@npm:0.16.0":
-  version: 0.16.0
-  resolution: "@aztec/bb.js@npm:0.16.0"
-  dependencies:
-    comlink: ^4.4.1
-    commander: ^10.0.1
-    debug: ^4.3.4
-    tslib: ^2.4.0
-  bin:
-    bb.js: dest/node/main.js
-  checksum: 5f68b4ad16284a3a871e0ad21fea05aed670383bc639c9d07ab3bf9b7a9d15cc8a4e5cda404a9290775ad5023924739543a8aac37d602892dd1fb5087521970b
-  languageName: node
-  linkType: hard
-
-"@aztec/bb.js@portal:../../barretenberg/ts::locator=%40aztec%2Fcircuits.js%40workspace%3Acircuits.js":
+"@aztec/bb.js@portal:../barretenberg/ts/package::locator=%40aztec%2Faztec3-packages%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/bb.js@portal:../../barretenberg/ts::locator=%40aztec%2Fcircuits.js%40workspace%3Acircuits.js"
-  dependencies:
-    comlink: ^4.4.1
-    commander: ^10.0.1
-    debug: ^4.3.4
-    tslib: ^2.4.0
-  bin:
-    bb.js: ./dest/node/main.js
-  languageName: node
-  linkType: soft
-
-"@aztec/bb.js@portal:../../barretenberg/ts::locator=%40aztec%2Ffoundation%40workspace%3Afoundation":
-  version: 0.0.0-use.local
-  resolution: "@aztec/bb.js@portal:../../barretenberg/ts::locator=%40aztec%2Ffoundation%40workspace%3Afoundation"
+  resolution: "@aztec/bb.js@portal:../barretenberg/ts/package::locator=%40aztec%2Faztec3-packages%40workspace%3A."
   dependencies:
     comlink: ^4.4.1
     commander: ^10.0.1

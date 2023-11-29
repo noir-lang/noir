@@ -5,3 +5,5 @@ dest
 .tsbuildinfo*
 *.log
 /crs
+package.tgz
+package

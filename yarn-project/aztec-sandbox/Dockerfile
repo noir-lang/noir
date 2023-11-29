@@ -1,10 +1,9 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project AS yarn-project
 
-# Start a new image as we need arch specific.
+# Need new arch specific image.
 FROM node:18-alpine as builder
+COPY --from=yarn-project /usr/src /usr/src
 ARG COMMIT_TAG=""
-RUN apk add jq
-COPY --from=yarn-project /usr/src/ /usr/src/
 
 # Update pxe version if COMMIT_TAG has been used.
 WORKDIR /usr/src/yarn-project/pxe
@@ -19,12 +18,17 @@ RUN if [[ -n "${COMMIT_TAG}" ]]; then \
   fi
 
 # Productionify. See comment in yarn-project-base/Dockerfile.
-RUN yarn cache clean && yarn workspaces focus --production
+RUN yarn workspaces focus --production && yarn cache clean && rm -rf ../**/src
 
-# Create final, minimal size image.
+# Create final, arch specific, minimal size image.
 FROM node:18-alpine
-COPY --from=builder /usr/src/ /usr/src/
+COPY --from=builder /usr/src/yarn-project /usr/src/yarn-project
+COPY --from=builder /usr/src/barretenberg/ts/package /usr/src/barretenberg/ts/package
+COPY --from=builder /usr/src/noir/packages /usr/src/noir/packages
+# Just until weird source-resolver bug fixed.
+COPY --from=yarn-project /usr/src/noir/compiler /usr/src/noir/compiler
 WORKDIR /usr/src/yarn-project/aztec-sandbox
+ENV NODE_OPTIONS=--preserve-symlinks
 ENTRYPOINT ["yarn"]
 CMD [ "start" ]
 EXPOSE 8079 8080

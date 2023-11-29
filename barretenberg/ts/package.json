@@ -20,19 +20,19 @@
     "README.md"
   ],
   "scripts": {
-    "clean": "rm -rf ./dest .tsbuildinfo .tsbuildinfo.cjs",
-    "build": "yarn clean && yarn build:wasm && yarn build:esm && yarn build:cjs && yarn build:browser",
+    "clean": "rm -rf ./dest .tsbuildinfo .tsbuildinfo.cjs package.tgz package",
+    "build": "yarn clean && yarn build:wasm && yarn build:esm && yarn build:cjs && yarn build:browser && yarn build:package",
     "build:wasm": "./scripts/build_wasm.sh",
     "build:esm": "tsc -b && chmod +x ./dest/node/main.js",
     "build:cjs": "tsc -b tsconfig.cjs.json && ./scripts/cjs_postprocess.sh",
     "build:browser": "webpack",
     "build:bindings": "cd .. && ./scripts/bindgen.sh",
+    "build:package": "yarn pack && tar zxf package.tgz && rm -f package.tgz",
     "formatting": "prettier --check ./src && eslint --max-warnings 0 ./src",
     "formatting:fix": "prettier -w ./src",
     "test": "NODE_OPTIONS='--loader ts-node/esm' NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests",
     "test:debug": "NODE_OPTIONS='--loader ts-node/esm' NODE_NO_WARNINGS=1 node --inspect-brk=0.0.0.0 --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests --runInBand",
     "simple_test": "NODE_OPTIONS='--loader ts-node/esm' NODE_NO_WARNINGS=1 node ./src/examples/simple.rawtest.ts",
-    "prepack": "yarn build",
     "deploy": "npm publish --access public"
   },
   "jest": {

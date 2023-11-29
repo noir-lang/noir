@@ -33,12 +33,14 @@
 #
 # When we build a downstream docker image, we:
 #  - FROM yarn-project as builder, to get the entire built project.
-#  - Do any project specific work.
-#  - Erase the local cache with a `yarn cache clean`. Files will remain in global cache.
-#  - Do a `yarn workspaces focus --production` to install production dependencies from the global to local cache.
+#  - WORKDIR into the relevant project.
+#  - Do any project specific build work.
+#  - Do a `yarn workspaces focus --production` to install production dependencies from the global.
+#  - Erase the local cache with a `yarn cache clean`.
+#  - Destroy the yarn-project /src folders to save additional space.
 #  - The above can be done with:
-#      RUN yarn cache clean && yarn workspaces focus --production
-#  - Create final slim image by copying /usr/src into a fresh image.
+#      RUN yarn workspaces focus --production && yarn cache clean && rm -rf ../**/src
+#  - Create final slim image by copying needed dirs into a fresh image.
 #
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/l1-contracts as contracts
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/bb.js as bb.js
@@ -51,7 +53,7 @@ RUN apk update && apk add --no-cache bash jq curl
 # Copy L1 contracts.
 COPY --from=contracts /usr/src/l1-contracts /usr/src/l1-contracts
 # Copy in bb.js
-COPY --from=bb.js /usr/src/barretenberg/ts /usr/src/barretenberg/ts
+COPY --from=bb.js /usr/src/barretenberg/ts/package /usr/src/barretenberg/ts/package
 # Copy in nargo
 COPY --from=noir /usr/src/noir/target/release/nargo /usr/src/noir/target/release/nargo
 # Copy in noir packages
@@ -59,11 +61,13 @@ COPY --from=noir-packages /usr/src/noir/packages /usr/src/noir/packages
 
 # TODO: FIX: For some reason the source-resolver package needs to be in compiler dir or we get errors like:
 #              Error: ENOENT: no such file or directory, open '/aztec/lib.nr'
-# This affects both ubuntu and alpine builds.
 RUN mkdir /usr/src/noir/compiler && mv /usr/src/noir/packages/source-resolver /usr/src/noir/compiler
-# For some reason this is only needed in alpine builds, otherwise we get errors like:
-#   Error: Cannot find module '@noir-lang/source-resolver'
-COPY --from=noir-packages /usr/src/noir/node_modules/@noir-lang /usr/src/noir/node_modules/@noir-lang
+
+# We install a symlink to yarn-project's node_modules at a location that all portalled packages can find as they
+# walk up the tree as part of module resolution. The supposedly idiomatic way of supporting module resolution
+# correctly for portalled packages, is to use --preserve-symlinks when running node.
+# This does work, but jest doesn't honor it correctly, so this seems like a neat workaround.
+RUN ln -s /usr/src/yarn-project/node_modules /usr/src/node_modules
 
 WORKDIR /usr/src/yarn-project
 # The dockerignore file ensures the context only contains package.json and tsconfig.json files.
@@ -86,4 +90,4 @@ RUN echo "enableNetwork: false" >> .yarnrc.yml
 RUN yarn prepare:check
 
 # Generate L1 contract TypeScript artifacts.
-RUN cd l1-artifacts && ./scripts/generate-artifacts.sh
+RUN cd l1-artifacts && ./scripts/generate-artifacts.sh && rm -rf /usr/src/l1-contracts

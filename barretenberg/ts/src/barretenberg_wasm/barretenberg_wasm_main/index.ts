@@ -2,7 +2,6 @@ import { type Worker } from 'worker_threads';
 import createDebug from 'debug';
 import { Remote } from 'comlink';
 import { getNumCpu, getRemoteBarretenbergWasm, getSharedMemoryAvailable } from '../helpers/index.js';
-import { fetchCode } from '../fetch_code/index.js';
 import { createThreadWorker } from '../barretenberg_wasm_thread/factory/node/index.js';
 import { type BarretenbergWasmThreadWorker } from '../barretenberg_wasm_thread/index.js';
 import { BarretenbergWasmBase } from '../barretenberg_wasm_base/index.js';
@@ -30,6 +29,7 @@ export class BarretenbergWasmMain extends BarretenbergWasmBase {
    * Init as main thread. Spawn child threads.
    */
   public async init(
+    module: WebAssembly.Module,
     threads = Math.min(getNumCpu(), BarretenbergWasmMain.MAX_THREADS),
     logger: (msg: string) => void = debug,
     initial = 25,
@@ -41,10 +41,6 @@ export class BarretenbergWasmMain extends BarretenbergWasmBase {
     const maxMb = (maximum * 2 ** 16) / (1024 * 1024);
     const shared = getSharedMemoryAvailable();
 
-    if (!shared) {
-      threads = 1;
-    }
-
     this.logger(
       `initial mem: ${initial} pages, ${initialMb}MiB. ` +
         `max mem: ${maximum} pages, ${maxMb}MiB. ` +
@@ -53,8 +49,7 @@ export class BarretenbergWasmMain extends BarretenbergWasmBase {
 
     this.memory = new WebAssembly.Memory({ initial, maximum, shared });
 
-    const code = await fetchCode(shared);
-    const { instance, module } = await WebAssembly.instantiate(code, this.getImportObj(this.memory));
+    const instance = await WebAssembly.instantiate(module, this.getImportObj(this.memory));
 
     this.instance = instance;
 

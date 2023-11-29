@@ -17,8 +17,11 @@ export function getRemoteBarretenbergWasm<T>(worker: Worker): T {
   return wrap(nodeEndpoint(worker)) as T;
 }
 
+/**
+ * Returns number of cpus as reported by the system, unless overriden by HARDWARE_CONCURRENCY env var.
+ */
 export function getNumCpu() {
-  return os.cpus().length;
+  return +process.env.HARDWARE_CONCURRENCY! || os.cpus().length;
 }
 
 /**
