@@ -46,6 +46,8 @@ jobs:
           # build on feature branches, push only on master branch
           push: true
           target: production
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           build-args: |
             NPMRC=${{ secrets.NPMRC }}
       # - name: Create Release
