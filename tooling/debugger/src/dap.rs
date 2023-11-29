@@ -1,3 +1,4 @@
+use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::str::FromStr;
@@ -21,7 +22,8 @@ use dap::responses::{
 };
 use dap::server::Server;
 use dap::types::{
-    Breakpoint, DisassembledInstruction, Source, StackFrame, StoppedEventReason, Thread, SteppingGranularity,
+    Breakpoint, DisassembledInstruction, Source, StackFrame, SteppingGranularity,
+    StoppedEventReason, Thread,
 };
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::ops::DefaultForeignCallExecutor;
@@ -100,10 +102,10 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             };
             let line_number = line_index + 1;
 
-            if result.contains_key(&file_id) {
-                result.get_mut(&file_id).unwrap().push((line_number, *opcode_location));
+            if let Entry::Vacant(e) = result.entry(file_id) {
+                e.insert(vec![(line_number, *opcode_location)]);
             } else {
-                result.insert(file_id, vec![(line_number, *opcode_location)]);
+                result.get_mut(&file_id).unwrap().push((line_number, *opcode_location));
             }
         });
         result.iter_mut().for_each(|(_, file_locations)| file_locations.sort_by_key(|x| x.0));
@@ -169,21 +171,24 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     self.handle_disassemble(req)?;
                 }
                 Command::StepIn(ref args) => {
-                    let granularity = args.granularity.as_ref().unwrap_or(&SteppingGranularity::Statement);
+                    let granularity =
+                        args.granularity.as_ref().unwrap_or(&SteppingGranularity::Statement);
                     match granularity {
                         SteppingGranularity::Instruction => self.handle_step(req)?,
                         _ => self.handle_next(req)?,
                     }
                 }
                 Command::StepOut(ref args) => {
-                    let granularity = args.granularity.as_ref().unwrap_or(&SteppingGranularity::Statement);
+                    let granularity =
+                        args.granularity.as_ref().unwrap_or(&SteppingGranularity::Statement);
                     match granularity {
                         SteppingGranularity::Instruction => self.handle_step(req)?,
                         _ => self.handle_next(req)?,
                     }
                 }
                 Command::Next(ref args) => {
-                    let granularity = args.granularity.as_ref().unwrap_or(&SteppingGranularity::Statement);
+                    let granularity =
+                        args.granularity.as_ref().unwrap_or(&SteppingGranularity::Statement);
                     match granularity {
                         SteppingGranularity::Instruction => self.handle_step(req)?,
                         _ => self.handle_next(req)?,
@@ -331,7 +336,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                 result.push(*id);
             }
         }
-        for (_, breakpoints) in &self.source_breakpoints {
+        for breakpoints in self.source_breakpoints.values() {
             for (location, id) in breakpoints {
                 if opcode_location == location {
                     result.push(*id);
@@ -395,7 +400,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         for (location, _) in &self.instruction_breakpoints {
             self.context.add_breakpoint(*location);
         }
-        for (_, breakpoints) in &self.source_breakpoints {
+        for breakpoints in self.source_breakpoints.values() {
             for (location, _) in breakpoints {
                 self.context.add_breakpoint(*location);
             }
@@ -450,11 +455,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             Some(debug_file_path) => debug_file_path == source_path,
             None => false,
         });
-        if let Some(iter) = found {
-            Some(*iter.0)
-        } else {
-            None
-        }
+        found.map(|iter| *iter.0)
     }
 
     // FIXME: there are four possibilities for the return value of this function:

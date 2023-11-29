@@ -43,7 +43,7 @@ fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspa
     ) {
         Ok(workspace) => Some(workspace),
         Err(err) => {
-            eprintln!("ERROR: Failed to resolve workspace: {}", err.to_string());
+            eprintln!("ERROR: Failed to resolve workspace: {err}");
             None
         }
     }
