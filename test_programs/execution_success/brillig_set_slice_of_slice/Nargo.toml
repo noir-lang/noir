@@ -1,5 +1,5 @@
 [package]
-name = "slice_of_slice_set"
+name = "brillig_set_slice_of_slice"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.19.4"
