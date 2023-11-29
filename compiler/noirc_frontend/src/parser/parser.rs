@@ -1188,7 +1188,9 @@ where
         .ignore_then(type_parser.clone())
         .then_ignore(just(Token::RightBracket))
         .or_not()
-        .map_with_span(|t, span| t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(span)));
+        .map_with_span(|t, span| {
+            t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(Span::empty(span.end())))
+        });
 
     keyword(Keyword::Fn)
         .ignore_then(env)
