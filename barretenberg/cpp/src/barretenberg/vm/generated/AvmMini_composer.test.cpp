@@ -43,7 +43,6 @@ TEST_F(AvmMiniTests, basic)
     trace_builder.returnOP(1, 8);
 
     auto trace = trace_builder.finalize();
-    proof_system::log_avmMini_trace(trace, 0, 7);
     circuit_builder.set_trace(std::move(trace));
 
     ASSERT_TRUE(circuit_builder.check_circuit());
@@ -55,6 +54,10 @@ TEST_F(AvmMiniTests, basic)
     bool verified = verifier.verify_proof(proof);
 
     ASSERT_TRUE(verified);
+
+    if (!verified) {
+        proof_system::log_avmMini_trace(circuit_builder.rows, 0, 10);
+    }
 }
 
 } // namespace example_relation_honk_composer

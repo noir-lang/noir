@@ -17,7 +17,7 @@ namespace proof_system {
  */
 void log_avmMini_trace(std::vector<Row> const& trace, size_t beg, size_t end)
 {
-    info("Built circuit with ", trace.size(), " trace");
+    info("Built circuit with ", trace.size(), " rows");
 
     for (size_t i = beg; i < end; i++) {
         info("================================================================================");

@@ -37,6 +37,7 @@ TESTS=(
   transcript_tests
   translator_vm_tests
   ultra_honk_tests
+  vm_tests
 )
 TESTS_STR="${TESTS[@]}"
 
