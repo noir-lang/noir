@@ -290,6 +290,98 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(foo_parents[1].foos[0].b[3] == 20);
     assert(foo_parents[1].foos[0].bar.inner == [100, 101, 102]);
 
+    test_insert_remove_const_index(foo_parents, y, foo);
+
+    // Check values before insertion
+    assert(foo_parents[1].foos[1].a == 4);
+    assert(foo_parents[1].foos[1].b[0] == 5);
+    assert(foo_parents[1].foos[1].b[1] == 6);
+    assert(foo_parents[1].foos[1].b[2] == 5000);
+    assert(foo_parents[1].foos[1].b[3] == 21);
+    assert(foo_parents[1].foos[1].bar.inner == [103, 104, 105]);
+
+    assert(foo_parents[1].foos.len() == 5);
+    assert(foo_parents[1].foos[2].a == 50);
+    assert(foo_parents[1].foos[2].b[0] == 5);
+    assert(foo_parents[1].foos[2].b[2] == 5000);
+    assert(foo_parents[1].foos[2].bar.inner == [106, 107, 108]);
+
+    assert(foo_parents[1].foos[3].a == 10);
+    assert(foo_parents[1].foos[3].b[0] == 11);
+    assert(foo_parents[1].foos[3].b[2] == 23);
+    assert(foo_parents[1].foos[3].bar.inner == [109, 110, 111]);
+
+    foo_parents[y - 2].foos = foo_parents[y - 2].foos.insert(y - 1, foo);
+    assert(foo_parents[1].foos.len() == 6);
+
+    // Check values correctly moved after insertion
+    assert(foo_parents[1].foos[0].a == 1);
+    assert(foo_parents[1].foos[0].b[0] == 2);
+    assert(foo_parents[1].foos[0].b[1] == 3);
+    assert(foo_parents[1].foos[0].b[2] == 20);
+    assert(foo_parents[1].foos[0].b[3] == 20);
+    assert(foo_parents[1].foos[0].bar.inner == [100, 101, 102]);
+
+    assert(foo_parents[1].foos[1].a == 4);
+    assert(foo_parents[1].foos[1].b[0] == 5);
+    assert(foo_parents[1].foos[1].b[1] == 6);
+    assert(foo_parents[1].foos[1].b[2] == 5000);
+    assert(foo_parents[1].foos[1].b[3] == 21);
+    assert(foo_parents[1].foos[1].bar.inner == [103, 104, 105]);
+
+    assert(foo_parents[1].foos[2].a == 40);
+    assert(foo_parents[1].foos[2].b[0] == 14);
+    assert(foo_parents[1].foos[2].b[2] == 16);
+    assert(foo_parents[1].foos[2].bar.inner == [109, 110, 111]);
+
+    assert(foo_parents[1].foos[3].a == 50);
+    assert(foo_parents[1].foos[3].b[0] == 5);
+    assert(foo_parents[1].foos[3].b[2] == 5000);
+    assert(foo_parents[1].foos[3].bar.inner == [106, 107, 108]);
+
+    assert(foo_parents[1].foos[4].a == 10);
+    assert(foo_parents[1].foos[4].b[0] == 11);
+    assert(foo_parents[1].foos[4].b[2] == 23);
+    assert(foo_parents[1].foos[4].bar.inner == [109, 110, 111]);
+
+    assert(foo_parents[1].foos[5].a == 10);
+    assert(foo_parents[1].foos[5].b[0] == 11);
+    assert(foo_parents[1].foos[5].b[2] == 23);
+    assert(foo_parents[1].foos[5].bar.inner == [109, 110, 111]);
+
+    let (rest_of_slice, removed_elem) = foo_parents[y - 2].foos.remove(y - 1);
+    foo_parents[1].foos = rest_of_slice;
+
+    // Check that the accurate element was removed
+    assert(removed_elem.a == 40);
+    assert(removed_elem.b[0] == 14);
+    assert(removed_elem.b[2] == 16);
+    assert(removed_elem.bar.inner == [109, 110, 111]);
+
+    // Check that we have altered our slice accurately following a removal
+    assert(foo_parents[1].foos[1].a == 4);
+    assert(foo_parents[1].foos[1].b[0] == 5);
+    assert(foo_parents[1].foos[1].b[1] == 6);
+    assert(foo_parents[1].foos[1].b[2] == 5000);
+    assert(foo_parents[1].foos[1].b[3] == 21);
+    assert(foo_parents[1].foos[1].bar.inner == [103, 104, 105]);
+
+    assert(foo_parents[1].foos[2].a == 50);
+    assert(foo_parents[1].foos[2].b[0] == 5);
+    assert(foo_parents[1].foos[2].b[2] == 5000);
+    assert(foo_parents[1].foos[2].bar.inner == [106, 107, 108]);
+    
+    assert(foo_parents[1].foos[3].a == 10);
+    assert(foo_parents[1].foos[3].b[0] == 11);
+    assert(foo_parents[1].foos[3].b[2] == 23);
+    assert(foo_parents[1].foos[3].bar.inner == [109, 110, 111]);
+
+    assert(foo_parents[1].foos[4].b[0] == 11);
+    assert(foo_parents[1].foos[4].b[2] == 23);
+    assert(foo_parents[1].foos[4].bar.inner == [109, 110, 111]);
+}
+
+fn test_insert_remove_const_index(mut foo_parents: [FooParent], y: Field, foo: Foo) {
     // Check values before insertion
     assert(foo_parents[1].foos[1].a == 4);
     assert(foo_parents[1].foos[1].b[0] == 5);
@@ -377,5 +469,4 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(foo_parents[1].foos[4].b[0] == 11);
     assert(foo_parents[1].foos[4].b[2] == 23);
     assert(foo_parents[1].foos[4].bar.inner == [109, 110, 111]);
-
 }

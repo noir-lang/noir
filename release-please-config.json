@@ -79,37 +79,37 @@
         },
         {
           "type": "toml",
-          "path": "../Cargo.toml",
+          "path": "acir/Cargo.toml",
           "jsonpath": "$.workspace.dependencies.acir.version"
         },
         {
           "type": "toml",
-          "path": "../Cargo.toml",
+          "path": "acir_field/Cargo.toml",
           "jsonpath": "$.workspace.dependencies.acir_field.version"
         },
         {
           "type": "toml",
-          "path": "../Cargo.toml",
+          "path": "stdlib/Cargo.toml",
           "jsonpath": "$.workspace.dependencies.stdlib.version"
         },
         {
           "type": "toml",
-          "path": "../Cargo.toml",
+          "path": "brillig/Cargo.toml",
           "jsonpath": "$.workspace.dependencies.brillig.version"
         },
         {
           "type": "toml",
-          "path": "../Cargo.toml",
+          "path": "brillig_vm/Cargo.toml",
           "jsonpath": "$.workspace.dependencies.brillig_vm.version"
         },
         {
           "type": "toml",
-          "path": "../Cargo.toml",
+          "path": "blackbox_solver/Cargo.toml",
           "jsonpath": "$.workspace.dependencies.acvm_blackbox_solver.version"
         },
         {
           "type": "toml",
-          "path": "../Cargo.toml",
+          "path": "barretenberg_blackbox_solver/Cargo.toml",
           "jsonpath": "$.workspace.dependencies.barretenberg_blackbox_solver.version"
         },
         {
