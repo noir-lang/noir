@@ -15,5 +15,5 @@ COPY --from=build /usr/src/noir/target/release/nargo /usr/src/noir/target/releas
 WORKDIR /project
 ENTRYPOINT ["/usr/src/noir/target/release/nargo"]
 
-FROM alpine:3.17 as test
+FROM build as test
 RUN cargo test --workspace --locked --release
