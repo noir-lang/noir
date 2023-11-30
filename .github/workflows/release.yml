@@ -120,45 +120,12 @@ jobs:
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout release branch
-        uses: actions/checkout@v4
+      - name: Dispatch to publish-es-packages
+        uses: benc-uk/workflow-dispatch@v1
         with:
-          ref: ${{ needs.release-please.outputs.tag-name }}
-          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '18'
-
-      - name: Install wasm-bindgen-cli
-        uses: taiki-e/install-action@v2
-        with:
-          tool: wasm-bindgen-cli@0.2.86
-
-      - name: Install wasm-opt
-        run: |
-          npm i wasm-opt -g
-      
-      - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
-
-      - name: Build docs for deploying
-        working-directory: docs
-        run: 
-          yarn workspaces foreach -Rt run build
-
-      - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v2.1
-        with:
-          publish-dir: './docs/build'
-          production-branch: master
-          production-deploy: true
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          enable-github-deployment: false
-          deploy-message: "Deploy from GitHub Actions for tag ${{ needs.release-please.outputs.tag-name }}"
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        timeout-minutes: 1
+          workflow: publish-docs.yml
+          ref: master
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
+          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
