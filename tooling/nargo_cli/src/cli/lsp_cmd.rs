@@ -4,6 +4,7 @@ use async_lsp::{
 };
 use clap::Args;
 use noir_lsp::NargoLspService;
+use noirc_driver::is_aztec_environment_variable_set;
 use tower::ServiceBuilder;
 
 use super::NargoConfig;
@@ -32,7 +33,8 @@ pub(crate) fn run(
         let (server, _) = async_lsp::MainLoop::new_server(|client| {
             #[allow(deprecated)]
             let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
-            let router = NargoLspService::new(&client, blackbox_solver, true);
+            let router =
+                NargoLspService::new(&client, blackbox_solver, is_aztec_environment_variable_set());
 
             ServiceBuilder::new()
                 .layer(TracingLayer::default())
