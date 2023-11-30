@@ -2073,16 +2073,6 @@ impl Context {
 
                 let slice_size = Self::flattened_value_size(&slice);
 
-                let mut new_slice = Vector::new();
-                self.slice_intrinsic_input(&mut new_slice, slice)?;
-
-                // Compiler sanity check
-                assert_eq!(
-                    new_slice.len(),
-                    slice_size,
-                    "ICE: The read flattened slice should match the computed size"
-                );
-
                 // Fetch the flattened index from the user provided index argument.
                 let element_size = slice_typ.element_size();
                 let element_size_var =
@@ -2191,12 +2181,12 @@ impl Context {
                     }
                 }
 
-                let new_slice_val = AcirValue::Array(new_slice);
+                // let new_slice_val = AcirValue::Array(new_slice);
                 let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
                     Some(self.init_element_type_sizes_array(
                         &slice_typ,
                         slice_contents,
-                        Some(new_slice_val),
+                        Some(slice),
                         dfg,
                     )?)
                 } else {
