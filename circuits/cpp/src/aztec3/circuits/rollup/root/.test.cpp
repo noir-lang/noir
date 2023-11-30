@@ -177,7 +177,7 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     auto nullifier_tree = get_initial_nullifier_tree_empty();
 
     MemoryStore blocks_tree_store;
-    MerkleTree blocks_tree(blocks_tree_store, HISTORIC_BLOCKS_TREE_HEIGHT);
+    MerkleTree blocks_tree(blocks_tree_store, BLOCKS_TREE_HEIGHT);
 
     std::array<KernelData, 4> kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
@@ -292,8 +292,8 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
               rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_contract_tree_snapshot);
     ASSERT_EQ(outputs.end_l1_to_l2_messages_tree_snapshot, end_l1_to_l2_messages_tree_snapshot);
 
-    ASSERT_EQ(outputs.start_historic_blocks_tree_snapshot, start_blocks_tree_snapshot);
-    ASSERT_EQ(outputs.end_historic_blocks_tree_snapshot, end_blocks_tree_snapshot);
+    ASSERT_EQ(outputs.start_blocks_tree_snapshot, start_blocks_tree_snapshot);
+    ASSERT_EQ(outputs.end_blocks_tree_snapshot, end_blocks_tree_snapshot);
 
     // Compute the expected calldata hash for the root rollup (including the l2 -> l1 messages)
     auto left = components::compute_kernels_calldata_hash({ kernels[0], kernels[1] });

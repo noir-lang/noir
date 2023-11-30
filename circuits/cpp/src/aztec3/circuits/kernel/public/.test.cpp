@@ -26,13 +26,13 @@ namespace aztec3::circuits::kernel::public_kernel {
 using DummyCircuitBuilder = aztec3::utils::DummyCircuitBuilder;
 using aztec3::circuits::abis::public_kernel::PublicKernelInputs;
 using NT = aztec3::utils::types::NativeTypes;
+using aztec3::circuits::abis::BlockHeader;
 using aztec3::circuits::abis::CallContext;
 using aztec3::circuits::abis::CallStackItem;
 using aztec3::circuits::abis::CombinedAccumulatedData;
 using aztec3::circuits::abis::CombinedConstantData;
 using aztec3::circuits::abis::ContractStorageRead;
 using aztec3::circuits::abis::ContractStorageUpdateRequest;
-using aztec3::circuits::abis::HistoricBlockData;
 using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::OptionallyRevealedData;
 using aztec3::circuits::abis::PreviousKernelData;
@@ -328,7 +328,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
     std::array<fr, NUM_FIELDS_PER_SHA256> const unencrypted_logs_hash =
         array_of_values<NUM_FIELDS_PER_SHA256>(seed, NUM_FIELDS_PER_SHA256);
     fr const unencrypted_log_preimages_length = ++seed;
-    HistoricBlockData<NT> block_data = {
+    BlockHeader<NT> block_header = {
         .note_hash_tree_root = ++seed,
         .nullifier_tree_root = ++seed,
         .contract_tree_root = ++seed,
@@ -352,7 +352,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         .new_l2_to_l1_msgs = new_l2_to_l1_msgs,
         .unencrypted_logs_hash = unencrypted_logs_hash,
         .unencrypted_log_preimages_length = unencrypted_log_preimages_length,
-        .historic_block_data = block_data,
+        .block_header = block_header,
     };
 
     const PublicCallStackItem call_stack_item{
@@ -369,18 +369,18 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
     };
 
     // TODO(914) Should this be unused?
-    [[maybe_unused]] HistoricBlockData<NT> const historic_tree_roots = {
+    [[maybe_unused]] BlockHeader<NT> const historical_tree_roots = {
         .note_hash_tree_root = 1000,
         .contract_tree_root = 2000,
         .l1_to_l2_messages_tree_root = 3000,
         .private_kernel_vk_tree_root = 4000,
     };
 
-    CombinedConstantData<NT> const end_constants = { .block_data =
-                                                         HistoricBlockData<NT>{ .note_hash_tree_root = ++seed,
-                                                                                .nullifier_tree_root = ++seed,
-                                                                                .contract_tree_root = ++seed,
-                                                                                .private_kernel_vk_tree_root = ++seed },
+    CombinedConstantData<NT> const end_constants = { .block_header =
+                                                         BlockHeader<NT>{ .note_hash_tree_root = ++seed,
+                                                                          .nullifier_tree_root = ++seed,
+                                                                          .contract_tree_root = ++seed,
+                                                                          .private_kernel_vk_tree_root = ++seed },
                                                      .tx_context = TxContext<NT>{
                                                          .is_fee_payment_tx = false,
                                                          .is_rebate_payment_tx = false,

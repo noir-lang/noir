@@ -1,4 +1,4 @@
-import { HistoricBlockData, PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
+import { BlockHeader, PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -102,7 +102,7 @@ export abstract class TypedOracle {
     throw new Error('Not available.');
   }
 
-  getBlockData(_blockNumber: number): Promise<HistoricBlockData | undefined> {
+  getBlockHeader(_blockNumber: number): Promise<BlockHeader | undefined> {
     throw new Error('Not available.');
   }
 

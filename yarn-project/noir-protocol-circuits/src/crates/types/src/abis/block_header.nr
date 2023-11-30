@@ -1,6 +1,6 @@
 use crate::block::Block;
 
-struct HistoricalBlockData {
+struct BlockHeader {
     blocks_tree_root : Field,
     block : Block,
     // Private data
@@ -8,7 +8,7 @@ struct HistoricalBlockData {
     private_kernel_vk_tree_root : Field,
 }
 
-impl HistoricalBlockData {
+impl BlockHeader {
     fn assert_is_zero(self) {
         self.block.assert_is_zero();
         assert(self.private_kernel_vk_tree_root == 0);

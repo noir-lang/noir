@@ -31,7 +31,7 @@ using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
 void common_validate_call_stack(DummyBuilder& builder, PrivateCallData<NT> const& private_call);
 
 void common_validate_read_requests(DummyBuilder& builder,
-                                   NT::fr const& historic_note_hash_tree_root,
+                                   NT::fr const& historical_note_hash_tree_root,
                                    std::array<fr, MAX_READ_REQUESTS_PER_CALL> const& read_requests,
                                    std::array<ReadRequestMembershipWitness<NT, NOTE_HASH_TREE_HEIGHT>,
                                               MAX_READ_REQUESTS_PER_CALL> const& read_request_membership_witnesses);

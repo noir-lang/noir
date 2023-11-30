@@ -132,42 +132,41 @@ NT::fr calculate_commitments_subtree(DummyBuilder& builder, BaseRollupInputs con
  * @param constantBaseRollupData
  * @param baseRollupInputs
  */
-void perform_historical_blocks_tree_membership_checks(DummyBuilder& builder, BaseRollupInputs const& baseRollupInputs)
+void perform_blocks_tree_membership_checks(DummyBuilder& builder, BaseRollupInputs const& baseRollupInputs)
 {
-    // For each of the historic_note_hash_tree_membership_checks, we need to do an inclusion proof
+    // For each of the historical_note_hash_tree_membership_checks, we need to do an inclusion proof
     // against the historical root provided in the rollup constants
-    auto historic_root = baseRollupInputs.constants.start_historic_blocks_tree_roots_snapshot.root;
+    auto historical_root = baseRollupInputs.constants.start_blocks_tree_snapshot.root;
 
     for (size_t i = 0; i < 2; i++) {
         // Rebuild the block hash
-        auto historic_block = baseRollupInputs.kernel_data[i].public_inputs.constants.block_data;
+        auto historical_block = baseRollupInputs.kernel_data[i].public_inputs.constants.block_header;
 
-        auto note_hash_tree_root = historic_block.note_hash_tree_root;
-        auto nullifier_tree_root = historic_block.nullifier_tree_root;
-        auto contract_tree_root = historic_block.contract_tree_root;
-        auto l1_to_l2_messages_tree_root = historic_block.l1_to_l2_messages_tree_root;
-        auto public_data_tree_root = historic_block.public_data_tree_root;
+        auto note_hash_tree_root = historical_block.note_hash_tree_root;
+        auto nullifier_tree_root = historical_block.nullifier_tree_root;
+        auto contract_tree_root = historical_block.contract_tree_root;
+        auto l1_to_l2_messages_tree_root = historical_block.l1_to_l2_messages_tree_root;
+        auto public_data_tree_root = historical_block.public_data_tree_root;
 
-        auto previous_block_hash = compute_block_hash<NT>(historic_block.global_variables_hash,
+        auto previous_block_hash = compute_block_hash<NT>(historical_block.global_variables_hash,
                                                           note_hash_tree_root,
                                                           nullifier_tree_root,
                                                           contract_tree_root,
                                                           l1_to_l2_messages_tree_root,
                                                           public_data_tree_root);
 
-        abis::MembershipWitness<NT, HISTORIC_BLOCKS_TREE_HEIGHT> const historic_root_witness =
-            baseRollupInputs.historic_blocks_tree_root_membership_witnesses[i];
+        abis::MembershipWitness<NT, BLOCKS_TREE_HEIGHT> const historical_root_witness =
+            baseRollupInputs.blocks_tree_root_membership_witnesses[i];
 
-        check_membership<NT>(
-            builder,
-            previous_block_hash,
-            historic_root_witness.leaf_index,
-            historic_root_witness.sibling_path,
-            historic_root,
-            format(BASE_CIRCUIT_ERROR_MESSAGE_BEGINNING,
-                   "historical root is in rollup constants but not in historic block tree roots at kernel input ",
-                   i,
-                   " to this base rollup circuit"));
+        check_membership<NT>(builder,
+                             previous_block_hash,
+                             historical_root_witness.leaf_index,
+                             historical_root_witness.sibling_path,
+                             historical_root,
+                             format(BASE_CIRCUIT_ERROR_MESSAGE_BEGINNING,
+                                    "historical root is in rollup constants but not in blocks tree at kernel input ",
+                                    i,
+                                    " to this base rollup circuit"));
     }
 }
 
@@ -524,8 +523,8 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyBuilder& builder, BaseRol
     std::array<NT::fr, NUM_FIELDS_PER_SHA256> const calldata_hash =
         components::compute_kernels_calldata_hash(baseRollupInputs.kernel_data);
 
-    // Perform membership checks that the notes provided exist within the historic trees data
-    perform_historical_blocks_tree_membership_checks(builder, baseRollupInputs);
+    // Perform membership checks that the notes provided exist within the historical trees data
+    perform_blocks_tree_membership_checks(builder, baseRollupInputs);
 
     AggregationObject const aggregation_object = aggregate_proofs(baseRollupInputs);
 

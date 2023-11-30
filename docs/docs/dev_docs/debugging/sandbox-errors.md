@@ -62,7 +62,7 @@ Confirms that the TxRequest (user's intent) matches the private call being execu
 
 #### 2018 - PRIVATE_KERNEL\_\_READ_REQUEST_NOTE_HASH_TREE_ROOT_MISMATCH
 
-Given a read request and provided witness, we check that the merkle root obtained from the witness' sibling path and it's leaf is similar to the historic state root we want to read against. This is a sanity check to ensure we are reading from the right state.
+Given a read request and provided witness, we check that the merkle root obtained from the witness' sibling path and it's leaf is similar to the historical state root we want to read against. This is a sanity check to ensure we are reading from the right state.
 For a non transient read, we fetch the merkle root from the membership witnesses and the leaf index
 
 #### 2019 - PRIVATE_KERNEL\_\_TRANSIENT_READ_REQUEST_NO_MATCH
@@ -164,11 +164,11 @@ You can have a look at our current constants/limitations in [constants.nr](https
 
 #### 7008 - MEMBERSHIP_CHECK_FAILED
 
-Users may create a proof against a historic state in Aztec. The rollup circuits performs a merkle membership check to ensure this state existed at some point. If the historic state doesn't exist, you get this error. Some examples when you may hit this error are:
+Users may create a proof against a historical state in Aztec. The rollup circuits performs a merkle membership check to ensure this state existed at some point. If the historical state doesn't exist, you get this error. Some examples when you may hit this error are:
 
-- using invalid historic note hash tree state (aka historic commitments tree)
-- using invalid historic contracts data tree state
-- using invalid historic L1 to L2 message data tree state
+- using invalid historical note hash tree state (aka historical commitments tree)
+- using invalid historical contracts data tree state
+- using invalid historical L1 to L2 message data tree state
 - inserting a subtree into the greater tree
   - we make a smaller merkle tree of all the new commitments/nullifiers etc that were created in a transaction or in a rollup and add it to the bigger state tree. Before inserting, we do a merkle membership check to ensure that the index to insert at is indeed an empty subtree (otherwise we would be overwriting state). This can happen when `next_available_leaf_index` in the state tree's snapshot is wrong (it is fetched by the sequencer from the archiver). The error message should reveal which tree is causing this issue
   - nullifier tree related errors - The nullifier tree uses an [Indexed Merkle Tree](../../concepts/advanced/data_structures/indexed_merkle_tree.md). It requires additional data from the archiver to know which is the nullifier in the tree that is just below the current nullifier before it can perform batch insertion. If the low nullifier is wrong, or the nullifier is in incorrect range, you may receive this error.

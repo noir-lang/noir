@@ -628,26 +628,26 @@ TEST_F(base_rollup_tests, native_calldata_hash)
     // run_cbind(inputs, outputs);
 }
 
-TEST_F(base_rollup_tests, native_compute_membership_historic_blocks_tree_negative)
+TEST_F(base_rollup_tests, native_compute_membership_blocks_tree_negative)
 {
     // WRITE a negative test that will fail the inclusion proof
 
     // Test membership works for empty trees
     DummyCircuitBuilder builder =
-        DummyCircuitBuilder("base_rollup_tests__native_compute_membership_historic_private_data_negative");
+        DummyCircuitBuilder("base_rollup_tests__native_compute_membership_historical_private_data_negative");
     std::array<PreviousKernelData<NT>, 2> const kernel_data = { get_empty_kernel(), get_empty_kernel() };
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels(kernel_data);
 
     MemoryStore blocks_store;
-    auto blocks_tree = MerkleTree(blocks_store, HISTORIC_BLOCKS_TREE_HEIGHT);
+    auto blocks_tree = MerkleTree(blocks_store, BLOCKS_TREE_HEIGHT);
 
-    // Create an INCORRECT sibling path for the note hash tree root in the historic tree roots.
+    // Create an INCORRECT sibling path for the note hash tree root in the historical tree roots.
     auto hash_path = blocks_tree.get_sibling_path(0);
-    std::array<NT::fr, HISTORIC_BLOCKS_TREE_HEIGHT> sibling_path{};
-    for (size_t i = 0; i < HISTORIC_BLOCKS_TREE_HEIGHT; ++i) {
+    std::array<NT::fr, BLOCKS_TREE_HEIGHT> sibling_path{};
+    for (size_t i = 0; i < BLOCKS_TREE_HEIGHT; ++i) {
         sibling_path[i] = hash_path[i] + 1;
     }
-    inputs.historic_blocks_tree_root_membership_witnesses[0] = {
+    inputs.blocks_tree_root_membership_witnesses[0] = {
         .leaf_index = 0,
         .sibling_path = sibling_path,
     };
@@ -658,8 +658,7 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_blocks_tree_negativ
     ASSERT_TRUE(builder.failed());
     ASSERT_EQ(builder.get_first_failure().message,
               "Membership check failed: base_rollup_circuit: historical root is in rollup constants but not in "
-              "historic block tree roots at kernel input 0 to this "
-              "base rollup circuit");
+              "blocks tree at kernel input 0 to this base rollup circuit");
 }
 
 

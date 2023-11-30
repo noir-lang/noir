@@ -114,7 +114,7 @@ export class P2PClient implements P2P {
 
   /**
    * In-memory P2P client constructor.
-   * @param l2BlockSource - P2P client's source for fetching existing block data.
+   * @param l2BlockSource - P2P client's source for fetching existing blocks.
    * @param txPool - The client's instance of a transaction pool. Defaults to in-memory implementation.
    * @param p2pService - The concrete instance of p2p networking to use.
    * @param log - A logger.

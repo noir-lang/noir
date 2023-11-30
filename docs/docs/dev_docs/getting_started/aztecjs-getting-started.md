@@ -337,7 +337,7 @@ This function takes:
 1. A quantity of tokens to be minted.
 2. A secret hash.
 
-This function is public and it inserts a new note into the private data tree and increases the total token supply by the amount minted.
+This function is public and it inserts a new note into the note hash tree and increases the total token supply by the amount minted.
 
 To make the note spendable the note has to be redeemed. A user can do that by calling the `redeem_shield` function.
 

@@ -22,8 +22,8 @@ impl PrivateKernelInputsInner {
     }
 
     fn validate_contract_tree_root(self) {
-        let purported_contract_tree_root = self.private_call.call_stack_item.public_inputs.historical_block_data.contract_tree_root();
-        let previous_kernel_contract_tree_root = self.previous_kernel.public_inputs.constants.block_data.contract_tree_root();
+        let purported_contract_tree_root = self.private_call.call_stack_item.public_inputs.block_header.contract_tree_root();
+        let previous_kernel_contract_tree_root = self.previous_kernel.public_inputs.constants.block_header.contract_tree_root();
 
         assert(purported_contract_tree_root == previous_kernel_contract_tree_root, "purported_contract_tree_root does not match previous_kernel_contract_tree_root");
     }
@@ -52,14 +52,14 @@ impl PrivateKernelInputsInner {
         self.pop_and_validate_this_private_call_hash(&mut public_inputs);
 
         common::validate_read_requests(
-            public_inputs.constants.block_data.note_hash_tree_root(),
+            public_inputs.constants.block_header.note_hash_tree_root(),
             self.private_call.call_stack_item.public_inputs.read_requests,  // read requests from private call
             self.private_call.read_request_membership_witnesses);
 
         //TODO(David): feels like update_end_values should happen later
         common::update_end_values(self.private_call, &mut public_inputs);
 
-        // ensure that historic/purported contract tree root matches the one in previous kernel
+        // ensure that historical/purported contract tree root matches the one in previous kernel
         self.validate_contract_tree_root();
 
         let this_call_stack_item = self.private_call.call_stack_item;
@@ -171,9 +171,9 @@ mod tests {
     fn private_function_incorrect_contract_tree_root_fails() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        // Set historic_tree_root to a wrong value (the correct value + 1).
-        let contract_tree_root = builder.previous_kernel.block_data.block.contract_tree_root;
-        builder.previous_kernel.block_data.block.contract_tree_root = contract_tree_root + 1;
+        // Set historical_tree_root to a wrong value (the correct value + 1).
+        let contract_tree_root = builder.previous_kernel.block_header.block.contract_tree_root;
+        builder.previous_kernel.block_header.block.contract_tree_root = contract_tree_root + 1;
 
         builder.failed();
     }
@@ -560,7 +560,7 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with="private data tree root mismatch")]
+    #[test(should_fail_with="note hash tree root mismatch")]
     fn native_read_request_bad_request() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
@@ -573,7 +573,7 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with="private data tree root mismatch")]
+    #[test(should_fail_with="note hash tree root mismatch")]
     fn native_read_request_bad_leaf_index() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
@@ -587,7 +587,7 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with="private data tree root mismatch")]
+    #[test(should_fail_with="note hash tree root mismatch")]
     fn native_read_request_bad_sibling_path() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
@@ -601,15 +601,15 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with="private data tree root mismatch")]
+    #[test(should_fail_with="note hash tree root mismatch")]
     fn native_read_request_root_mismatch() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
         builder.private_call.append_read_requests(1);
 
         // Set the root to be a different root so the above read request is not under this root.
-        let old_root = builder.previous_kernel.block_data.block.note_hash_tree_root;
-        builder.previous_kernel.block_data.block.note_hash_tree_root = old_root + 1;
+        let old_root = builder.previous_kernel.block_header.block.note_hash_tree_root;
+        builder.previous_kernel.block_header.block.note_hash_tree_root = old_root + 1;
 
         builder.failed();
     }

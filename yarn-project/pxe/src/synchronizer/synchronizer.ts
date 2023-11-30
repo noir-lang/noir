@@ -1,4 +1,4 @@
-import { AztecAddress, Fr, HistoricBlockData, PublicKey } from '@aztec/circuits.js';
+import { AztecAddress, BlockHeader, Fr, PublicKey } from '@aztec/circuits.js';
 import { computeGlobalsHash } from '@aztec/circuits.js/abis';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { InterruptibleSleep } from '@aztec/foundation/sleep';
@@ -68,13 +68,10 @@ export class Synchronizer {
   }
 
   protected async initialSync() {
-    const [blockNumber, historicBlockData] = await Promise.all([
-      this.node.getBlockNumber(),
-      this.node.getHistoricBlockData(),
-    ]);
+    const [blockNumber, blockHeader] = await Promise.all([this.node.getBlockNumber(), this.node.getBlockHeader()]);
     this.initialSyncBlockNumber = blockNumber;
     this.synchedToBlock = this.initialSyncBlockNumber;
-    await this.db.setHistoricBlockData(historicBlockData);
+    await this.db.setBlockHeader(blockHeader);
   }
 
   protected async work(limit = 1, retryInterval = 1000): Promise<void> {
@@ -204,18 +201,18 @@ export class Synchronizer {
     }
 
     const globalsHash = computeGlobalsHash(latestBlock.block.globalVariables);
-    const blockData = new HistoricBlockData(
+    const blockHeader = new BlockHeader(
       block.endNoteHashTreeSnapshot.root,
       block.endNullifierTreeSnapshot.root,
       block.endContractTreeSnapshot.root,
       block.endL1ToL2MessagesTreeSnapshot.root,
-      block.endHistoricBlocksTreeSnapshot.root,
+      block.endBlocksTreeSnapshot.root,
       Fr.ZERO, // todo: private kernel vk tree root
       block.endPublicDataTreeRoot,
       globalsHash,
     );
 
-    await this.db.setHistoricBlockData(blockData);
+    await this.db.setBlockHeader(blockHeader);
   }
 
   /**

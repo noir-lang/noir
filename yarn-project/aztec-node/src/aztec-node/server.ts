@@ -1,10 +1,10 @@
 import { Archiver, LMDBArchiverStore } from '@aztec/archiver';
 import {
+  BLOCKS_TREE_HEIGHT,
+  BlockHeader,
   CONTRACT_TREE_HEIGHT,
   Fr,
   GlobalVariables,
-  HISTORIC_BLOCKS_TREE_HEIGHT,
-  HistoricBlockData,
   L1_TO_L2_MSG_TREE_HEIGHT,
   NOTE_HASH_TREE_HEIGHT,
   NULLIFIER_TREE_HEIGHT,
@@ -364,13 +364,11 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
-   * Returns a sibling path for a leaf in the committed historic blocks tree.
+   * Returns a sibling path for a leaf in the committed blocks tree.
    * @param leafIndex - Index of the leaf in the tree.
    * @returns The sibling path.
    */
-  public async getHistoricBlocksTreeSiblingPath(
-    leafIndex: bigint,
-  ): Promise<SiblingPath<typeof HISTORIC_BLOCKS_TREE_HEIGHT>> {
+  public async getBlocksTreeSiblingPath(leafIndex: bigint): Promise<SiblingPath<typeof BLOCKS_TREE_HEIGHT>> {
     const committedDb = await this.#getWorldState();
     return committedDb.getSiblingPath(MerkleTreeId.BLOCKS_TREE, leafIndex);
   }
@@ -499,14 +497,14 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
-   * Returns the currently committed historic block data.
-   * @returns The current committed block data.
+   * Returns the currently committed block header.
+   * @returns The current committed block header.
    */
-  public async getHistoricBlockData(): Promise<HistoricBlockData> {
+  public async getBlockHeader(): Promise<BlockHeader> {
     const committedDb = await this.#getWorldState();
     const [roots, globalsHash] = await Promise.all([this.getTreeRoots(), committedDb.getLatestGlobalVariablesHash()]);
 
-    return new HistoricBlockData(
+    return new BlockHeader(
       roots[MerkleTreeId.NOTE_HASH_TREE],
       roots[MerkleTreeId.NULLIFIER_TREE],
       roots[MerkleTreeId.CONTRACT_TREE],

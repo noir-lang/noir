@@ -63,15 +63,15 @@ pub fn validate_arrays(app_public_inputs : PrivateCircuitPublicInputs) {
     // encrypted_logs_hash and unencrypted_logs_hash have their own integrity checks.
 }
 
-// Validate all read requests against the historic private data root.
-// Use their membership witnesses to do so. If the historic root is not yet
+// Validate all read requests against the historical private data root.
+// Use their membership witnesses to do so. If the historical root is not yet
 // initialized, initialize it using the first read request here (if present).
 //
 // More info here:
 // - https://discourse.aztec.network/t/to-read-or-not-to-read/178
 // - https://discourse.aztec.network/t/spending-notes-which-havent-yet-been-inserted/180
 pub fn validate_read_requests(
-    historic_note_hash_tree_root: Field,
+    historical_note_hash_tree_root: Field,
     read_requests: [Field; MAX_READ_REQUESTS_PER_CALL],
     read_request_membership_witnesses: [ReadRequestMembershipWitness; MAX_READ_REQUESTS_PER_CALL],
 ) {
@@ -81,7 +81,7 @@ pub fn validate_read_requests(
         let read_request = read_requests[rr_idx];
         let witness = read_request_membership_witnesses[rr_idx];
         
-        // A pending commitment is the one that is not yet added to private data tree
+        // A pending commitment is the one that is not yet added to note hash tree
         // A "transient read" is when we try to "read" a pending commitment within a transaction
         // between function calls, as opposed to reading the outputs of a previous transaction
         // which is a "pending read".
@@ -92,7 +92,7 @@ pub fn validate_read_requests(
     
         if (read_request != 0) & (witness.is_transient == false) {
             let root_for_read_request = read_request_root_from_siblings(read_request, witness.leaf_index, witness.sibling_path);
-            assert(root_for_read_request == historic_note_hash_tree_root, "private data tree root mismatch");
+            assert(root_for_read_request == historical_note_hash_tree_root, "note hash tree root mismatch");
             
             // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1354): do we need to enforce
             // that a non-transient read_request was derived from the proper/current contract address?
@@ -347,7 +347,7 @@ pub fn contract_logic(private_call : PrivateCallData, public_inputs : &mut Kerne
                                                  private_call.contract_leaf_membership_witness.leaf_index,
                                                  private_call.contract_leaf_membership_witness.sibling_path);
 
-        let purported_contract_tree_root = private_call.call_stack_item.public_inputs.historical_block_data.contract_tree_root();
+        let purported_contract_tree_root = private_call.call_stack_item.public_inputs.block_header.contract_tree_root();
         assert_eq(computed_contract_tree_root, purported_contract_tree_root, "computed_contract_tree_root does not match purported_contract_tree_root");
     }
 }

@@ -1,7 +1,7 @@
 use crate::{
     abis::{
         call_context::CallContext,
-        historical_block_data::HistoricalBlockData,
+        block_header::BlockHeader,
     },
     contrakt::deployment_data::ContractDeploymentData,
     hash::NUM_FIELDS_PER_SHA256,
@@ -46,7 +46,7 @@ struct PrivateCircuitPublicInputs {
     encrypted_log_preimages_length: Field,
     unencrypted_log_preimages_length: Field,
 
-    historical_block_data: HistoricalBlockData,
+    block_header: BlockHeader,
 
     contract_deployment_data: ContractDeploymentData,
 
@@ -73,7 +73,7 @@ impl PrivateCircuitPublicInputs {
         fields.push_array(self.unencrypted_logs_hash);
         fields.push(self.encrypted_log_preimages_length);
         fields.push(self.unencrypted_log_preimages_length);
-        fields.push_array(self.historical_block_data.to_array());
+        fields.push_array(self.block_header.to_array());
         fields.push(self.contract_deployment_data.hash());
         fields.push(self.chain_id);
         fields.push(self.version);

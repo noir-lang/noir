@@ -34,7 +34,7 @@ To avoid this issue, we permit the use of historical data as long as the data ha
 
 In this model, instead of informing the builder of our intentions, we construct the proof $\pi$ and then provide them with the transaction results (new commitments and nullifiers, contract deployments and cross-chain messages) in addition to $\pi$. The builder will then be responsible for inserting these new commitments and nullifiers into the state. They will be aware of the intermediates and can discard transactions that try to produce existing nullifiers (double spend), as doing so would invalidate the rollup proof.
 
-On the left-hand side of the diagram below, we see the fully public world where storage is shared, while on the right-hand side, we see the private world where all reads are historic.
+On the left-hand side of the diagram below, we see the fully public world where storage is shared, while on the right-hand side, we see the private world where all reads are historical.
 
 <Image img={require("/img/com-abs-1.png")} />
 
@@ -82,15 +82,15 @@ From the above, we should have a decent idea about what private and public funct
 
 Many applications rely on some form of access control to function well. USDC have a blacklist, where only parties not on the list should be able to transfer. And other systems such as Aave have limits such that only the pool contract is able to mint debt tokens and transfers held funds.
 
-Access control like this cannot easily be enforced in the private domain, as reading is also nullifying(to ensure data is up to date). However, as it is possible to read historic public state, one can combine private and public functions to get the desired effect.
+Access control like this cannot easily be enforced in the private domain, as reading is also nullifying(to ensure data is up to date). However, as it is possible to read historical public state, one can combine private and public functions to get the desired effect.
 
-Say the public state holds a `mapping(address user => bool blacklisted)` and a value with the block number of the last update `last_updated`. The private functions can then use this public blacklist IF it also performs a public function call that reverts if the block number of the historic state is older than the `last_updated`. This means that updating the blacklist would make pending transactions fail, but allow a public blacklist to be used. Similar would work for the Aave example, where it is just a public value with the allowed caller contracts. Example of how this would be written is seen below. Note that because the `onlyFresh` is done in public, the user might not know when he is generating his proof whether it will be valid or not.
+Say the public state holds a `mapping(address user => bool blacklisted)` and a value with the block number of the last update `last_updated`. The private functions can then use this public blacklist IF it also performs a public function call that reverts if the block number of the historical state is older than the `last_updated`. This means that updating the blacklist would make pending transactions fail, but allow a public blacklist to be used. Similar would work for the Aave example, where it is just a public value with the allowed caller contracts. Example of how this would be written is seen below. Note that because the `onlyFresh` is done in public, the user might not know when he is generating his proof whether it will be valid or not.
 
 ```solidity
 function transfer(
   secret address to,
   secret uint256 amount,
-  secret HistoricState state
+  secret HistoricalState state
   ) secret returns(bool) {
   if (blacklisted[msg.sender] || blacklisted[to]) revert("Blacklisted");
   onlyFresh(state.blockNumber);

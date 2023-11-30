@@ -7,7 +7,7 @@ use dep::aztec::constants_gen::{
     L1_TO_L2_MSG_TREE_HEIGHT,
     L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
     L1_TO_L2_MSG_SUBTREE_HEIGHT,
-    HISTORIC_BLOCKS_TREE_HEIGHT,
+    BLOCKS_TREE_HEIGHT,
 };
 use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
 use crate::tests::previous_rollup_data::default_previous_rollup_data;
@@ -25,10 +25,10 @@ pub fn compute_l1_l2_empty_snapshot() -> (AppendOnlyTreeSnapshot, [Field; L1_TO_
     (AppendOnlyTreeSnapshot{ root: zero_hashes[zero_hashes.len() - 1], next_available_leaf_index: 0 }, new_l1_to_l2_messages_tree_root_sibling_path)
 }
 
-pub fn compute_historic_blocks_tree_snapshot() -> (AppendOnlyTreeSnapshot, [Field; HISTORIC_BLOCKS_TREE_HEIGHT]) {
-    let zero_hashes = compute_zero_hashes([0; HISTORIC_BLOCKS_TREE_HEIGHT]);
-    let mut sibling_path = [0; HISTORIC_BLOCKS_TREE_HEIGHT];
-    for i in 1..HISTORIC_BLOCKS_TREE_HEIGHT {
+pub fn compute_blocks_tree_snapshot() -> (AppendOnlyTreeSnapshot, [Field; BLOCKS_TREE_HEIGHT]) {
+    let zero_hashes = compute_zero_hashes([0; BLOCKS_TREE_HEIGHT]);
+    let mut sibling_path = [0; BLOCKS_TREE_HEIGHT];
+    for i in 1..BLOCKS_TREE_HEIGHT {
         sibling_path[i] = zero_hashes[i-1];
     }
     (AppendOnlyTreeSnapshot { root: zero_hashes[zero_hashes.len() - 1], next_available_leaf_index: 0 }, sibling_path)
@@ -42,10 +42,10 @@ pub fn default_root_rollup_inputs() -> RootRollupInputs {
     inputs.new_l1_to_l2_messages_tree_root_sibling_path = l1_l2_empty_sibling_path;
     inputs.start_l1_to_l2_messages_tree_snapshot = l1_l2_empty_snapshot;
 
-    let (historic_blocks_snapshot, historic_blocks_sibling_path) = compute_historic_blocks_tree_snapshot();
+    let (blocks_snapshot, blocks_sibling_path) = compute_blocks_tree_snapshot();
 
-    inputs.start_historic_blocks_tree_snapshot = historic_blocks_snapshot;
-    inputs.new_historic_blocks_tree_sibling_path = historic_blocks_sibling_path;
+    inputs.start_blocks_tree_snapshot = blocks_snapshot;
+    inputs.new_blocks_tree_sibling_path = blocks_sibling_path;
 
     inputs.previous_rollup_data = default_previous_rollup_data();
 

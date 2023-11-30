@@ -353,10 +353,10 @@
               }
             },
             {
-              "name": "block_data",
+              "name": "block_header",
               "type": {
                 "kind": "struct",
-                "path": "aztec::abi::HistoricBlockData",
+                "path": "aztec::abi::BlockHeader",
                 "fields": [
                   {
                     "name": "note_hash_tree_root",
@@ -620,10 +620,10 @@
               }
             },
             {
-              "name": "block_data",
+              "name": "block_header",
               "type": {
                 "kind": "struct",
-                "path": "aztec::abi::HistoricBlockData",
+                "path": "aztec::abi::BlockHeader",
                 "fields": [
                   {
                     "name": "note_hash_tree_root",

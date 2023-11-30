@@ -21,7 +21,7 @@ template <typename NCT> struct BaseRollupInputs {
     AppendOnlyTreeSnapshot<NCT> start_nullifier_tree_snapshot{};
     AppendOnlyTreeSnapshot<NCT> start_contract_tree_snapshot{};
     fr start_public_data_tree_root{};
-    AppendOnlyTreeSnapshot<NCT> start_historic_blocks_tree_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> start_blocks_tree_snapshot{};
 
     std::array<NullifierLeafPreimage<NCT>, MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP> low_nullifier_leaf_preimages{};
     std::array<MembershipWitness<NCT, NULLIFIER_TREE_HEIGHT>, MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP>
@@ -37,8 +37,8 @@ template <typename NCT> struct BaseRollupInputs {
     std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP>
         new_public_data_reads_sibling_paths{};
 
-    std::array<MembershipWitness<NCT, HISTORIC_BLOCKS_TREE_HEIGHT>, KERNELS_PER_BASE_ROLLUP>
-        historic_blocks_tree_root_membership_witnesses{};
+    std::array<MembershipWitness<NCT, BLOCKS_TREE_HEIGHT>, KERNELS_PER_BASE_ROLLUP>
+        blocks_tree_root_membership_witnesses{};
 
     ConstantRollupData<NCT> constants{};
 
@@ -48,7 +48,7 @@ template <typename NCT> struct BaseRollupInputs {
                    start_nullifier_tree_snapshot,
                    start_contract_tree_snapshot,
                    start_public_data_tree_root,
-                   start_historic_blocks_tree_snapshot,
+                   start_blocks_tree_snapshot,
                    low_nullifier_leaf_preimages,
                    low_nullifier_membership_witness,
                    new_commitments_subtree_sibling_path,
@@ -56,7 +56,7 @@ template <typename NCT> struct BaseRollupInputs {
                    new_contracts_subtree_sibling_path,
                    new_public_data_update_requests_sibling_paths,
                    new_public_data_reads_sibling_paths,
-                   historic_blocks_tree_root_membership_witnesses,
+                   blocks_tree_root_membership_witnesses,
                    constants);
 
     boolean operator==(BaseRollupInputs<NCT> const& other) const

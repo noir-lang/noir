@@ -1,4 +1,4 @@
-import { CompleteAddress, GrumpkinPrivateKey, HistoricBlockData, PublicKey } from '@aztec/circuits.js';
+import { BlockHeader, CompleteAddress, GrumpkinPrivateKey, PublicKey } from '@aztec/circuits.js';
 import { FunctionArtifact, FunctionDebugMetadata, FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -109,12 +109,12 @@ export interface DBOracle extends CommitmentsDB {
   getNullifierIndex(nullifier: Fr): Promise<bigint | undefined>;
 
   /**
-   * Retrieve the databases view of the Historic Block Data object.
-   * This structure is fed into the circuits simulator and is used to prove against certain historic roots.
+   * Retrieve the databases view of the Block Header object.
+   * This structure is fed into the circuits simulator and is used to prove against certain historical roots.
    *
-   * @returns A Promise that resolves to a HistoricBlockData object.
+   * @returns A Promise that resolves to a BlockHeader object.
    */
-  getHistoricBlockData(): Promise<HistoricBlockData>;
+  getBlockHeader(): Promise<BlockHeader>;
 
   /**
    * Fetch the index of the leaf in the respective tree

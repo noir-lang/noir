@@ -5,14 +5,14 @@ import { FieldsOf } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 
 /**
- * The string encoding used for serializing HistoricBlockData objects.
+ * The string encoding used for serializing BlockHeader objects.
  */
 const STRING_ENCODING: BufferEncoding = 'hex';
 
 /**
  * Information about the tree roots used for both public and private kernels.
  */
-export class HistoricBlockData {
+export class BlockHeader {
   constructor(
     /**
      * Root of the note hash tree at the time of when this information was assembled.
@@ -31,7 +31,7 @@ export class HistoricBlockData {
      */
     public l1ToL2MessagesTreeRoot: Fr,
     /**
-     * Root of the historic blocks tree at the time of when this information was assembled.
+     * Root of the blocks tree at the time of when this information was assembled.
      */
     public blocksTreeRoot: Fr,
     /**
@@ -48,12 +48,12 @@ export class HistoricBlockData {
     public globalVariablesHash: Fr,
   ) {}
 
-  static from(fields: FieldsOf<HistoricBlockData>) {
-    return new HistoricBlockData(...HistoricBlockData.getFields(fields));
+  static from(fields: FieldsOf<BlockHeader>) {
+    return new BlockHeader(...BlockHeader.getFields(fields));
   }
 
   static random() {
-    return new HistoricBlockData(
+    return new BlockHeader(
       Fr.random(),
       Fr.random(),
       Fr.random(),
@@ -65,7 +65,7 @@ export class HistoricBlockData {
     );
   }
 
-  static getFields(fields: FieldsOf<HistoricBlockData>) {
+  static getFields(fields: FieldsOf<BlockHeader>) {
     return [
       fields.noteHashTreeRoot,
       fields.nullifierTreeRoot,
@@ -79,7 +79,7 @@ export class HistoricBlockData {
   }
 
   toBuffer() {
-    return serializeToBuffer(...HistoricBlockData.getFields(this));
+    return serializeToBuffer(...BlockHeader.getFields(this));
   }
 
   toString() {
@@ -88,7 +88,7 @@ export class HistoricBlockData {
   }
 
   /**
-   * Return the historic block data as an array of items in the order they are serialized in noir.
+   * Return the block header as an array of items in the order they are serialized in noir.
    * @returns Array of items in the order they are stored in the contract
    */
   toArray(): Fr[] {
@@ -106,7 +106,7 @@ export class HistoricBlockData {
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new HistoricBlockData(
+    return new BlockHeader(
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
@@ -119,7 +119,7 @@ export class HistoricBlockData {
   }
 
   static fromString(str: string) {
-    return HistoricBlockData.fromBuffer(Buffer.from(str, STRING_ENCODING));
+    return BlockHeader.fromBuffer(Buffer.from(str, STRING_ENCODING));
   }
 
   isEmpty() {
@@ -136,6 +136,6 @@ export class HistoricBlockData {
   }
 
   static empty() {
-    return new HistoricBlockData(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO);
+    return new BlockHeader(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO);
   }
 }

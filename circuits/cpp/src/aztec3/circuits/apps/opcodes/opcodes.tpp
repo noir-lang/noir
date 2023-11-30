@@ -54,7 +54,7 @@ Note Opcodes<Builder>::UTXO_SLOAD(UTXOStateVar<Builder, Note>* utxo_state_var,
 
     // TODO within this function:
     // - Merkle Membership Check using the contract_address, utxo_datum.{sibling_path, leaf_index,
-    // historic_note_hash_tree_root}
+    // historical_note_hash_tree_root}
 
     return new_note;
 };
@@ -95,7 +95,7 @@ std::vector<Note> Opcodes<Builder>::UTXO_SLOAD(UTXOSetStateVar<Builder, Note>* u
 
         // TODO within this function:
         // - Merkle Membership Check using the contract_address, utxo_datum.{sibling_path, leaf_index,
-        // historic_note_hash_tree_root}
+        // historical_note_hash_tree_root}
 
         new_notes.push_back(new_note);
     }

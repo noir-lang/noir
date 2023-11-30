@@ -449,10 +449,10 @@ export class PXEService implements PXE {
 
   /**
    * Retrieves the simulation parameters required to run an ACIR simulation.
-   * This includes the contract address, function artifact, portal contract address, and historic tree roots.
+   * This includes the contract address, function artifact, portal contract address, and historical tree roots.
    *
    * @param execRequest - The transaction request object containing details of the contract call.
-   * @returns An object containing the contract address, function artifact, portal contract address, and historic tree roots.
+   * @returns An object containing the contract address, function artifact, portal contract address, and historical tree roots.
    */
   async #getSimulationParameters(execRequest: FunctionCall | TxExecutionRequest) {
     const contractAddress = (execRequest as FunctionCall).to ?? (execRequest as TxExecutionRequest).origin;

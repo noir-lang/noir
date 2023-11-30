@@ -125,7 +125,7 @@ There are several patterns here:
 There are several other designs we are discussing through [in this discourse post](https://discourse.aztec.network/t/how-to-handle-private-escrows-between-two-parties/2440) but they need some changes in the protocol or in our demo contract. If you are interested in this discussion, please participate in the discourse post!
 
 ### Share Private Notes
-If you have private state that needs to be handled by more than a single user (but no more than a handful), you can add the note commitment to the private data tree, and then encrypt the note once for each of the users that need to see it. And if any of those users should be able to consume the note, you can generate a random nullifier on creation and store it in the encrypted note, instead of relying on the user secret.
+If you have private state that needs to be handled by more than a single user (but no more than a handful), you can add the note commitment to the note hash tree, and then encrypt the note once for each of the users that need to see it. And if any of those users should be able to consume the note, you can generate a random nullifier on creation and store it in the encrypted note, instead of relying on the user secret.
 
 ## Anti Patterns
 There are mistakes one can make to reduce their privacy set and therefore make it trivial to do analysis and link addresses. Some of them are:

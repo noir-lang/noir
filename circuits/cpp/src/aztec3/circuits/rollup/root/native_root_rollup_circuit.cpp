@@ -107,7 +107,7 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
                "l1 to l2 message tree not empty at location where subtree would be inserted"));
 
     // Build the block hash for this iteration from the tree roots and global variables
-    // Then insert the block into the historic blocks tree
+    // Then insert the block into the blocks tree
     auto block_hash = compute_block_hash_with_globals(left.constants.global_variables,
                                                       right.end_note_hash_tree_snapshot.root,
                                                       right.end_nullifier_tree_snapshot.root,
@@ -115,16 +115,16 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
                                                       new_l1_to_l2_messages_tree_snapshot.root,
                                                       right.end_public_data_tree_root);
 
-    // Update the historic blocks tree
-    auto end_historic_blocks_tree_snapshot = components::insert_subtree_to_snapshot_tree(
+    // Update the blocks tree
+    auto end_blocks_tree_snapshot = components::insert_subtree_to_snapshot_tree(
         builder,
-        rootRollupInputs.start_historic_blocks_tree_snapshot,
-        rootRollupInputs.new_historic_blocks_tree_sibling_path,
+        rootRollupInputs.start_blocks_tree_snapshot,
+        rootRollupInputs.new_blocks_tree_sibling_path,
         fr::zero(),
         block_hash,
         0,
         format(ROOT_CIRCUIT_ERROR_MESSAGE_BEGINNING,
-               "historic blocks tree roots not empty at location where subtree would be inserted"));
+               "blocks tree roots not empty at location where subtree would be inserted"));
 
 
     RootRollupPublicInputs public_inputs = {
@@ -140,8 +140,8 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
         .end_public_data_tree_root = right.end_public_data_tree_root,
         .start_l1_to_l2_messages_tree_snapshot = rootRollupInputs.start_l1_to_l2_messages_tree_snapshot,
         .end_l1_to_l2_messages_tree_snapshot = new_l1_to_l2_messages_tree_snapshot,
-        .start_historic_blocks_tree_snapshot = rootRollupInputs.start_historic_blocks_tree_snapshot,
-        .end_historic_blocks_tree_snapshot = end_historic_blocks_tree_snapshot,
+        .start_blocks_tree_snapshot = rootRollupInputs.start_blocks_tree_snapshot,
+        .end_blocks_tree_snapshot = end_blocks_tree_snapshot,
         .calldata_hash = components::compute_calldata_hash(rootRollupInputs.previous_rollup_data),
         .l1_to_l2_messages_hash = compute_messages_hash(rootRollupInputs.new_l1_to_l2_messages)
     };

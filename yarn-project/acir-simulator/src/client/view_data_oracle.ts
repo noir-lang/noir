@@ -1,4 +1,4 @@
-import { HistoricBlockData, PublicKey } from '@aztec/circuits.js';
+import { BlockHeader, PublicKey } from '@aztec/circuits.js';
 import { computeGlobalsHash, siloNullifier } from '@aztec/circuits.js/abis';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -16,8 +16,8 @@ import { pickNotes } from './pick_notes.js';
 export class ViewDataOracle extends TypedOracle {
   constructor(
     protected readonly contractAddress: AztecAddress,
-    /** Data required to reconstruct the block hash, it contains historic roots. */
-    protected readonly historicBlockData: HistoricBlockData,
+    /** Data required to reconstruct the block hash, it contains historical roots. */
+    protected readonly blockHeader: BlockHeader,
     /** List of transient auth witnesses to be used during this simulation */
     protected readonly authWitnesses: AuthWitness[],
     protected readonly db: DBOracle,
@@ -92,21 +92,21 @@ export class ViewDataOracle extends TypedOracle {
   }
 
   /**
-   * Fetches historic block data for a given block.
-   * @param blockNumber - The block number at which to get the historic block data.
-   * @returns Historic block data extracted from a block with block number `blockNumber`.
+   * Fetches a block header of a given block.
+   * @param blockNumber - The number of a block of which to get the block header.
+   * @returns Block extracted from a block with block number `blockNumber`.
    */
-  public async getBlockData(blockNumber: number): Promise<HistoricBlockData | undefined> {
+  public async getBlockHeader(blockNumber: number): Promise<BlockHeader | undefined> {
     const block = await this.db.getBlock(blockNumber);
     if (!block) {
       return undefined;
     }
-    return new HistoricBlockData(
+    return new BlockHeader(
       block.endNoteHashTreeSnapshot.root,
       block.endNullifierTreeSnapshot.root,
       block.endContractTreeSnapshot.root,
       block.endL1ToL2MessagesTreeSnapshot.root,
-      block.endHistoricBlocksTreeSnapshot.root,
+      block.endBlocksTreeSnapshot.root,
       new Fr(0), // TODO(#3441) privateKernelVkTreeRoot is not present in L2Block and it's not yet populated in noir
       block.endPublicDataTreeRoot,
       computeGlobalsHash(block.globalVariables),
@@ -199,7 +199,7 @@ export class ViewDataOracle extends TypedOracle {
    */
   public async getL1ToL2Message(msgKey: Fr) {
     const message = await this.db.getL1ToL2Message(msgKey);
-    return { ...message, root: this.historicBlockData.l1ToL2MessagesTreeRoot };
+    return { ...message, root: this.blockHeader.l1ToL2MessagesTreeRoot };
   }
 
   /**

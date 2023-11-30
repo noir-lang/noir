@@ -18,7 +18,7 @@ On this page, you'll learn
 
 - The details and functionalities of the private context in Aztec.nr
 - Difference between the private and public contexts and their unified APIs
-- Components of the private context, such as inputs, historic block data, and contract deployment data
+- Components of the private context, such as inputs, block header, and contract deployment data
 - Elements like return values, read requests, new commitments, and nullifiers in transaction processing
 - Differences between the private and public contexts, especially the unique features and variables in the public context
 
@@ -44,7 +44,7 @@ The context inputs includes all of the information that is passed from the kerne
 
 #include_code private-context-inputs /yarn-project/aztec-nr/aztec/src/abi.nr rust
 
-As shown in the snippet, the application context is made up of 4 main structures. The call context, the block data, the contract deployment data and the private global variables.
+As shown in the snippet, the application context is made up of 4 main structures. The call context, the block header, the contract deployment data and the private global variables.
 
 First of all, the call context.
 
@@ -71,11 +71,11 @@ The call context contains information about the current call being made:
      - is_static_call: This will be set if and only if the current call is a static call. In a static call, state changing altering operations are not allowed.
      - is_contract_deployment: This will be set if and only if the current call is the contract's constructor.
 
-### Historic Block Data
+### Block Header
 
-Another structure that is contained within the context is the Historic Block Data object. This object is a special one as it contains all of the roots of Aztec's data trees.
+Another structure that is contained within the context is the Block Header object. This object is a special one as it contains all of the roots of Aztec's data trees.
 
-#include_code historic-block-data /yarn-project/aztec-nr/aztec/src/abi.nr rust
+#include_code block-header /yarn-project/aztec-nr/aztec/src/abi.nr rust
 
 ### Contract Deployment Data
 
@@ -137,7 +137,7 @@ The Public Context includes all of the information passed from the `Public VM` i
 
 ### Public Context Inputs
 
-In the current version of the system, the public context is almost a clone of the private execution context. It contains the same call context data, access to the same historic tree roots, however it does NOT have access to contract deployment data, this is due to traditional contract deployments only currently being possible from private transactions.
+In the current version of the system, the public context is almost a clone of the private execution context. It contains the same call context data, access to the same historical tree roots, however it does NOT have access to contract deployment data, this is due to traditional contract deployments only currently being possible from private transactions.
 
 #include_code public-context-inputs /yarn-project/aztec-nr/aztec/src/abi.nr rust
 

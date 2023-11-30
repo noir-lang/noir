@@ -11,7 +11,7 @@ use dep::aztec::constants_gen::{
 use crate::{
     abis::{
         call_context::CallContext,
-        historical_block_data::HistoricalBlockData,
+        block_header::BlockHeader,
     },
     address::Address,
     contrakt::{
@@ -42,7 +42,7 @@ struct PublicCircuitPublicInputs{
     // variable-length data.
     unencrypted_log_preimages_length: Field,
 
-    historical_block_data: HistoricalBlockData,
+    block_header: BlockHeader,
 
     prover_address: Address,
 }
@@ -66,7 +66,7 @@ impl PublicCircuitPublicInputs{
         inputs.push_array(self.new_l2_to_l1_msgs);
         inputs.push_array(self.unencrypted_logs_hash);
         inputs.push(self.unencrypted_log_preimages_length);
-        inputs.push_array(self.historical_block_data.to_array());
+        inputs.push_array(self.block_header.to_array());
         inputs.push(self.prover_address.to_field());
 
         assert_eq(inputs.len(), constants_gen::PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH, "Incorrect number of input fields when hashing PublicCircuitPublicInputs");

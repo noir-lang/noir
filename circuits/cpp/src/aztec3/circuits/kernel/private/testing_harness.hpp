@@ -89,7 +89,7 @@ inline const auto& get_empty_contract_siblings()
  *      read_request_memberships_witnesses,
  *      transient_read_requests,
  *      transient_read_request_memberships_witnesses,
- *      historic_note_hash_tree_root>
+ *      historical_note_hash_tree_root>
  */
 std::tuple<std::array<NT::fr, MAX_READ_REQUESTS_PER_CALL>,
            std::array<ReadRequestMembershipWitness<NT, NOTE_HASH_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>,

@@ -15,7 +15,7 @@ import {Errors} from "../libraries/Errors.sol";
 /**
  * @title Registry
  * @author Aztec Labs
- * @notice Keeps track of addresses of rollup, inbox and outbox as well as historic addresses.
+ * @notice Keeps track of addresses of rollup, inbox and outbox as well as historical addresses.
  * Used as the source of truth for finding the "head" of the rollup chain. Very important information
  * for L1<->L2 communication.
  */

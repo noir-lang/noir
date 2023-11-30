@@ -31,20 +31,20 @@ template <typename NCT> struct RootRollupPublicInputs {
     fr start_public_data_tree_root{};
     fr end_public_data_tree_root{};
 
-    AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_note_hash_tree_roots_snapshot{};
-    AppendOnlyTreeSnapshot<NCT> end_tree_of_historic_note_hash_tree_roots_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> start_tree_of_historical_note_hash_tree_roots_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> end_tree_of_historical_note_hash_tree_roots_snapshot{};
 
-    AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_contract_tree_roots_snapshot{};
-    AppendOnlyTreeSnapshot<NCT> end_tree_of_historic_contract_tree_roots_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> start_tree_of_historical_contract_tree_roots_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> end_tree_of_historical_contract_tree_roots_snapshot{};
 
     AppendOnlyTreeSnapshot<NCT> start_l1_to_l2_messages_tree_snapshot{};
     AppendOnlyTreeSnapshot<NCT> end_l1_to_l2_messages_tree_snapshot{};
 
-    AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot{};
-    AppendOnlyTreeSnapshot<NCT> end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> start_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> end_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot{};
 
-    AppendOnlyTreeSnapshot<NCT> start_historic_blocks_tree_snapshot{};
-    AppendOnlyTreeSnapshot<NCT> end_historic_blocks_tree_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> start_blocks_tree_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> end_blocks_tree_snapshot{};
 
     std::array<fr, NUM_FIELDS_PER_SHA256> calldata_hash{};
     std::array<fr, NUM_FIELDS_PER_SHA256> l1_to_l2_messages_hash{};
@@ -60,16 +60,16 @@ template <typename NCT> struct RootRollupPublicInputs {
                    end_contract_tree_snapshot,
                    start_public_data_tree_root,
                    end_public_data_tree_root,
-                   start_tree_of_historic_note_hash_tree_roots_snapshot,
-                   end_tree_of_historic_note_hash_tree_roots_snapshot,
-                   start_tree_of_historic_contract_tree_roots_snapshot,
-                   end_tree_of_historic_contract_tree_roots_snapshot,
+                   start_tree_of_historical_note_hash_tree_roots_snapshot,
+                   end_tree_of_historical_note_hash_tree_roots_snapshot,
+                   start_tree_of_historical_contract_tree_roots_snapshot,
+                   end_tree_of_historical_contract_tree_roots_snapshot,
                    start_l1_to_l2_messages_tree_snapshot,
                    end_l1_to_l2_messages_tree_snapshot,
-                   start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot,
-                   end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot,
-                   start_historic_blocks_tree_snapshot,
-                   end_historic_blocks_tree_snapshot,
+                   start_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot,
+                   end_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot,
+                   start_blocks_tree_snapshot,
+                   end_blocks_tree_snapshot,
                    calldata_hash,
                    l1_to_l2_messages_hash);
 
@@ -83,21 +83,21 @@ template <typename NCT> struct RootRollupPublicInputs {
         write(buf, start_note_hash_tree_snapshot);
         write(buf, start_nullifier_tree_snapshot);
         write(buf, start_contract_tree_snapshot);
-        write(buf, start_tree_of_historic_note_hash_tree_roots_snapshot);
-        write(buf, start_tree_of_historic_contract_tree_roots_snapshot);
+        write(buf, start_tree_of_historical_note_hash_tree_roots_snapshot);
+        write(buf, start_tree_of_historical_contract_tree_roots_snapshot);
         write(buf, start_public_data_tree_root);
         write(buf, start_l1_to_l2_messages_tree_snapshot);
-        write(buf, start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
-        write(buf, start_historic_blocks_tree_snapshot);
+        write(buf, start_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot);
+        write(buf, start_blocks_tree_snapshot);
         write(buf, end_note_hash_tree_snapshot);
         write(buf, end_nullifier_tree_snapshot);
         write(buf, end_contract_tree_snapshot);
-        write(buf, end_tree_of_historic_note_hash_tree_roots_snapshot);
-        write(buf, end_tree_of_historic_contract_tree_roots_snapshot);
+        write(buf, end_tree_of_historical_note_hash_tree_roots_snapshot);
+        write(buf, end_tree_of_historical_contract_tree_roots_snapshot);
         write(buf, end_public_data_tree_root);
         write(buf, end_l1_to_l2_messages_tree_snapshot);
-        write(buf, end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
-        write(buf, end_historic_blocks_tree_snapshot);
+        write(buf, end_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot);
+        write(buf, end_blocks_tree_snapshot);
 
         // Stitching calldata hash together
         auto high_buffer = calldata_hash[0].to_buffer();

@@ -1,7 +1,7 @@
 use crate::{
     abis::{
         call_context::CallContext,
-        historical_block_data::HistoricalBlockData,
+        block_header::BlockHeader,
         public_circuit_public_inputs::PublicCircuitPublicInputs,
     },
     address::Address,
@@ -35,7 +35,7 @@ struct PublicCircuitPublicInputsBuilder {
     new_l2_to_l1_msgs: BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
     unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
     unencrypted_log_preimages_length: Field,
-    historical_block_data: HistoricalBlockData,
+    block_header: BlockHeader,
     prover_address: Address,
 }
 
@@ -43,7 +43,7 @@ impl PublicCircuitPublicInputsBuilder {
     pub fn new() -> Self {
         let mut public_inputs: PublicCircuitPublicInputsBuilder = dep::std::unsafe::zeroed();
         public_inputs.call_context.msg_sender = fixtures::MSG_SENDER;
-        public_inputs.historical_block_data = fixtures::HISTORICAL_BLOCK_DATA;
+        public_inputs.block_header = fixtures::BLOCK_HEADER;
         public_inputs
     }
 
@@ -60,7 +60,7 @@ impl PublicCircuitPublicInputsBuilder {
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
             unencrypted_logs_hash: self.unencrypted_logs_hash,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
-            historical_block_data: self.historical_block_data,
+            block_header: self.block_header,
             prover_address: self.prover_address,
         }
     }

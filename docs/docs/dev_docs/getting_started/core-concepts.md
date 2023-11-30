@@ -31,7 +31,7 @@ You can call a public function from a private function by using `context.call_pu
 
 #include_code call_public_function yarn-project/noir-contracts/src/contracts/card_game_contract/src/main.nr rust
 
-You cannot call a private function from a public function, but you can use a slow updates tree to read historic public state and stage writes to public state from a private function. 
+You cannot call a private function from a public function, but you can use a slow updates tree to read historical public state and stage writes to public state from a private function. 
 
 ### Data types
 

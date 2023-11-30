@@ -16,7 +16,7 @@ import { getAcirSimulator } from '../simulator/index.js';
  */
 interface ProcessedData {
   /**
-   * Holds L2 block data and associated context.
+   * Holds L2 block and a cache of already requested tx hashes.
    */
   blockContext: L2BlockContext;
   /**

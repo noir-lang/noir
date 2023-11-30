@@ -97,7 +97,7 @@ It's not just the broadcasting of transactions to the network that can leak data
 
 Ethereum has a notion of a 'full node' which keeps-up with the blockchain and stores the full chain state. Many users don't wish to run full nodes, so rely on 3rd-party 'full-node-as-a-service' infrastructure providers, who service blockchain queries from their users.
 
-This pattern is likely to develop in Aztec as well, except there's a problem: privacy. If a privacy-seeking user makes a query to a 3rd-party 'full node', that user might leak data about who they are; about their historic network activity; or about their future intentions. One solution to this problem is "always run a full node", but pragmatically, not everyone will. To protect less-advanced users' privacy, research is underway to explore how a privacy-seeking user may request and receive data from a 3rd-party node without revealing what that data is, nor who is making the request.
+This pattern is likely to develop in Aztec as well, except there's a problem: privacy. If a privacy-seeking user makes a query to a 3rd-party 'full node', that user might leak data about who they are; about their historical network activity; or about their future intentions. One solution to this problem is "always run a full node", but pragmatically, not everyone will. To protect less-advanced users' privacy, research is underway to explore how a privacy-seeking user may request and receive data from a 3rd-party node without revealing what that data is, nor who is making the request.
 
 App developers should be aware of this avenue for private data leakage. **Whenever an app requests information from a node, the entity running that node is unlikely be your user!**
 
@@ -105,9 +105,9 @@ App developers should be aware of this avenue for private data leakage. **Whenev
 
 ##### Querying for up-to-date note sibling paths
 
-To read a private state is to read a note from the note hash tree. To read a note is to prove existence of that note in the note hash tree. And to prove existence is to re-compute the root of the note hash tree using the leaf value, the leaf index, and the sibling path of that leaf. This computed root is then exposed to the world, as a way of saying "This note exists", or more precisely "This note has existed at least since this historic snapshot time".
+To read a private state is to read a note from the note hash tree. To read a note is to prove existence of that note in the note hash tree. And to prove existence is to re-compute the root of the note hash tree using the leaf value, the leaf index, and the sibling path of that leaf. This computed root is then exposed to the world, as a way of saying "This note exists", or more precisely "This note has existed at least since this historical snapshot time".
 
-If an old historic snapshot is used, then that old historic root will be exposed, and this leaks some information about the nature of your transaction: it leaks that your note was created before the snapshot date. It shrinks the 'privacy set' of the transaction to a smaller window of time than the entire history of the network.
+If an old historical snapshot is used, then that old historical root will be exposed, and this leaks some information about the nature of your transaction: it leaks that your note was created before the snapshot date. It shrinks the 'privacy set' of the transaction to a smaller window of time than the entire history of the network.
 
 So for maximal privacy, it's in a user's best interest to read from the very-latest snapshot of the data tree.
 

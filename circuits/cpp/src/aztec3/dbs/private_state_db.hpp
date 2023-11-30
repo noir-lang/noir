@@ -17,7 +17,7 @@
 //     std::vector<PrivateStatePreimage*> active_private_state_preimages;
 // };
 
-// // contract->storageSlots->[current->historic]
+// // contract->storageSlots->[current->historical]
 
 // /**
 //  * Hmmm... There are multiple active leaves for partitioned states.

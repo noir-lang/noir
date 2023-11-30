@@ -1,7 +1,7 @@
 import {
+  BlockHeader,
   CombinedAccumulatedData,
   Fr,
-  HistoricBlockData,
   Proof,
   PublicKernelPublicInputs,
   makeEmptyProof,
@@ -87,13 +87,9 @@ export async function makeProcessedTx(
  * Makes an empty tx from an empty kernel circuit public inputs.
  * @returns A processed empty tx.
  */
-export function makeEmptyProcessedTx(
-  historicTreeRoots: HistoricBlockData,
-  chainId: Fr,
-  version: Fr,
-): Promise<ProcessedTx> {
+export function makeEmptyProcessedTx(historicalTreeRoots: BlockHeader, chainId: Fr, version: Fr): Promise<ProcessedTx> {
   const emptyKernelOutput = PublicKernelPublicInputs.empty();
-  emptyKernelOutput.constants.blockData = historicTreeRoots;
+  emptyKernelOutput.constants.blockHeader = historicalTreeRoots;
   emptyKernelOutput.constants.txContext.chainId = chainId;
   emptyKernelOutput.constants.txContext.version = version;
   const emptyProof = makeEmptyProof();

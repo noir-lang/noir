@@ -1,6 +1,7 @@
 import {
   AggregationObject,
   AztecAddress,
+  BlockHeader,
   CONTRACT_TREE_HEIGHT,
   CallContext,
   CallRequest,
@@ -12,7 +13,6 @@ import {
   FunctionData,
   FunctionLeafPreimage,
   FunctionSelector,
-  HistoricBlockData,
   KernelCircuitPublicInputs,
   MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_COMMITMENTS_PER_TX,
@@ -103,7 +103,7 @@ describe('Private kernel', () => {
 
     const callContext = new CallContext(AztecAddress.ZERO, contractAddress, Fr.ZERO, selector, false, false, true);
 
-    const historicBlockData = new HistoricBlockData(
+    const blockHeader = new BlockHeader(
       Fr.fromString('0x16642d9ccd8346c403aa4c3fa451178b22534a27035cdaa6ec34ae53b29c50cb'),
       Fr.fromString('0x0bcfa3e9f1a8922ee92c6dc964d6595907c1804a86753774322b468f69d4f278'),
       Fr.fromString('0x1864fcdaa80ff2719154fa7c8a9050662972707168d69eac9db6fd3110829f80'),
@@ -130,7 +130,7 @@ describe('Private kernel', () => {
       [Fr.fromString('0xe3b0c44298fc1c149afbf4c8996fb924'), Fr.fromString('0x27ae41e4649b934ca495991b7852b855')],
       Fr.fromString('0xf8'),
       Fr.fromString('0x04'),
-      historicBlockData,
+      blockHeader,
       contractDeploymentData,
       Fr.ZERO,
       Fr.ZERO,
@@ -215,7 +215,7 @@ describe('Private kernel', () => {
       makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, () => PublicDataRead.empty()),
     );
 
-    const historicBlockData = new HistoricBlockData(
+    const blockHeader = new BlockHeader(
       Fr.fromString('0x16642d9ccd8346c403aa4c3fa451178b22534a27035cdaa6ec34ae53b29c50cb'),
       Fr.fromString('0x0bcfa3e9f1a8922ee92c6dc964d6595907c1804a86753774322b468f69d4f278'),
       Fr.fromString('0x1864fcdaa80ff2719154fa7c8a9050662972707168d69eac9db6fd3110829f80'),
@@ -226,7 +226,7 @@ describe('Private kernel', () => {
       Fr.fromString('0x200569267c0f73ac89aaa414239398db9445dd4ad3a8cf37015cd55b8d4c5e8d'),
     );
 
-    const constants = new CombinedConstantData(historicBlockData, txContext);
+    const constants = new CombinedConstantData(blockHeader, txContext);
 
     const kernelPublicInputs = new KernelCircuitPublicInputs(combinedAccumulatedData, constants, true);
 
@@ -275,7 +275,7 @@ describe('Private kernel', () => {
       false,
     );
 
-    const historicBlockData = new HistoricBlockData(
+    const blockHeader = new BlockHeader(
       Fr.fromString('0x0dc1f2fbe77c0c72d329cc63f2bd88cd76a30c5802f8138814874cc328148834'),
       Fr.fromString('0x1861d7a76f4c8f7db95fa8aa1bcbdd5cbf576efe17455fee698f625292667070'),
       Fr.fromString('0x2f7255183443071e94e90651593c46342978e689e1f4f3e402616fa59633b974'),
@@ -305,7 +305,7 @@ describe('Private kernel', () => {
       [Fr.fromString('0xe3b0c44298fc1c149afbf4c8996fb924'), Fr.fromString('0x27ae41e4649b934ca495991b7852b855')],
       Fr.fromString('0x04'),
       Fr.fromString('0x04'),
-      historicBlockData,
+      blockHeader,
       ContractDeploymentData.empty(),
       chainId,
       version,
@@ -381,7 +381,7 @@ describe('Private kernel', () => {
       makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, () => PublicDataRead.empty()),
     );
 
-    const constants = new CombinedConstantData(historicBlockData, txContext);
+    const constants = new CombinedConstantData(blockHeader, txContext);
 
     const kernelPublicInputs = new KernelCircuitPublicInputs(combinedAccumulatedData, constants, true);
 

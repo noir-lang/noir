@@ -25,16 +25,16 @@ template <typename NCT> struct RootRollupInputs {
     AppendOnlyTreeSnapshot<NCT> start_l1_to_l2_messages_tree_snapshot{};
 
     // inputs required to add the block hash
-    AppendOnlyTreeSnapshot<NCT> start_historic_blocks_tree_snapshot{};
-    std::array<fr, HISTORIC_BLOCKS_TREE_HEIGHT> new_historic_blocks_tree_sibling_path{};
+    AppendOnlyTreeSnapshot<NCT> start_blocks_tree_snapshot{};
+    std::array<fr, BLOCKS_TREE_HEIGHT> new_blocks_tree_sibling_path{};
 
     // For serialization, update with new fields
     MSGPACK_FIELDS(previous_rollup_data,
                    new_l1_to_l2_messages,
                    new_l1_to_l2_messages_tree_root_sibling_path,
                    start_l1_to_l2_messages_tree_snapshot,
-                   start_historic_blocks_tree_snapshot,
-                   new_historic_blocks_tree_sibling_path);
+                   start_blocks_tree_snapshot,
+                   new_blocks_tree_sibling_path);
     bool operator==(RootRollupInputs<NCT> const&) const = default;
 };
 

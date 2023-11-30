@@ -7,7 +7,7 @@ In addition to being well-formed, the transaction object needs to pass the follo
 - **Proof is valid**: The `proof` for the given public `data` should be valid according to a protocol-wide verification key for the final private kernel circuit.
 - **No double-spends**: No `nullifier` in the transaction `data` should be already present in the nullifier tree.
 - **No pending private function calls**: The `data` private call stack should be empty.
-- **Valid historic data**: The tree roots in the historic block data of `data` must match the tree roots of a block in the chain.
+- **Valid historic data**: The tree roots in the block header of `data` must match the tree roots of a block in the chain.
 - **Maximum block number not exceeded**: The transaction must be included in a block with height no greater than the value specified in `maxBlockNum` within the transaction's `data`.
 - **Preimages must match commitments in `data`**: The expanded fields in the transaction object should match the commitments (hashes) to them in the public `data`.
   - The `encryptedLogs` should match the `encryptedLogsHash` and `encryptedLogPreimagesLength` in the transaction `data`.

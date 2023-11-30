@@ -1,11 +1,11 @@
 import {
+  BlockHeader,
   CallContext,
   CompleteAddress,
   ContractDeploymentData,
   EMPTY_NULLIFIED_COMMITMENT,
   FieldsOf,
   FunctionData,
-  HistoricBlockData,
   L1_TO_L2_MSG_TREE_HEIGHT,
   MAX_NEW_COMMITMENTS_PER_CALL,
   NOTE_HASH_TREE_HEIGHT,
@@ -58,7 +58,7 @@ describe('Private Execution test suite', () => {
   let oracle: MockProxy<DBOracle>;
   let acirSimulator: AcirSimulator;
 
-  let blockData = HistoricBlockData.empty();
+  let blockHeader = BlockHeader.empty();
   let logger: DebugLogger;
 
   const defaultContractAddress = AztecAddress.random();
@@ -132,10 +132,10 @@ describe('Private Execution test suite', () => {
 
     // Update root.
     const newRoot = trees[name].getRoot(false);
-    const prevRoots = blockData.toBuffer();
+    const prevRoots = blockHeader.toBuffer();
     const rootIndex = name === 'noteHash' ? 0 : 32 * 3;
     const newRoots = Buffer.concat([prevRoots.subarray(0, rootIndex), newRoot, prevRoots.subarray(rootIndex + 32)]);
-    blockData = HistoricBlockData.fromBuffer(newRoots);
+    blockHeader = BlockHeader.fromBuffer(newRoots);
 
     return trees[name];
   };
@@ -163,7 +163,7 @@ describe('Private Execution test suite', () => {
       }
       throw new Error(`Unknown address ${pubKey}`);
     });
-    oracle.getHistoricBlockData.mockResolvedValue(blockData);
+    oracle.getBlockHeader.mockResolvedValue(blockHeader);
 
     acirSimulator = new AcirSimulator(oracle);
   });

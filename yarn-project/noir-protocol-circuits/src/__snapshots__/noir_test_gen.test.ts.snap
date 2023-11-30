@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Data generation for noir tests Computes a private data tree 1`] = `
+exports[`Data generation for noir tests Computes a note hash tree 1`] = `
 {
   "root": "0x0d2f152f19e366e9e690e3e551c1aadc0eab0bb27f6d011a9622d8f31bfa6e22",
   "siblingPaths": [

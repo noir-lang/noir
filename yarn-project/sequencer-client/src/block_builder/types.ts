@@ -5,7 +5,7 @@ import { AppendOnlyTreeSnapshot, BaseOrMergeRollupPublicInputs, RootRollupPublic
  */
 export type AllowedTreeNames<T extends BaseOrMergeRollupPublicInputs | RootRollupPublicInputs> =
   T extends RootRollupPublicInputs
-    ? 'NoteHash' | 'Contract' | 'Nullifier' | 'L1ToL2Messages' | 'HistoricBlocks'
+    ? 'NoteHash' | 'Contract' | 'Nullifier' | 'L1ToL2Messages' | 'Blocks'
     : 'NoteHash' | 'Contract' | 'Nullifier';
 
 /**

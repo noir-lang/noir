@@ -103,7 +103,7 @@ exports[`Noir compatibility tests (interop_testing.nr) TxRequest Hash matches No
 exports[`Private kernel Executes private kernel init circuit for a contract deployment 1`] = `
 KernelCircuitPublicInputs {
   "constants": CombinedConstantData {
-    "blockData": HistoricBlockData {
+    "blockHeader": BlockHeader {
       "blocksTreeRoot": Fr {
         "asBigInt": 10561895175368852737061915973188839857007468377789560793687187642867659280638n,
         "asBuffer": {
@@ -25719,7 +25719,7 @@ KernelCircuitPublicInputs {
 exports[`Private kernel Executes private kernel inner for a nested call 1`] = `
 KernelCircuitPublicInputs {
   "constants": CombinedConstantData {
-    "blockData": HistoricBlockData {
+    "blockHeader": BlockHeader {
       "blocksTreeRoot": Fr {
         "asBigInt": 5141115076863619919216387293080007096006645021873634395499188999297490933851n,
         "asBuffer": {
@@ -51335,7 +51335,7 @@ KernelCircuitPublicInputs {
 exports[`Private kernel Executes private kernel ordering after a deployment 1`] = `
 KernelCircuitPublicInputsFinal {
   "constants": CombinedConstantData {
-    "blockData": HistoricBlockData {
+    "blockHeader": BlockHeader {
       "blocksTreeRoot": Fr {
         "asBigInt": 10561895175368852737061915973188839857007468377789560793687187642867659280638n,
         "asBuffer": {

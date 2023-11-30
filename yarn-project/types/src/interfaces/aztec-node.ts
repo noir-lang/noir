@@ -1,4 +1,4 @@
-import { HistoricBlockData } from '@aztec/circuits.js';
+import { BlockHeader } from '@aztec/circuits.js';
 import { L1ContractAddresses } from '@aztec/ethereum';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -139,10 +139,10 @@ export interface AztecNode extends StateInfoProvider {
   getTreeRoots(): Promise<Record<MerkleTreeId, Fr>>;
 
   /**
-   * Returns the currently committed historic block data.
-   * @returns The current committed block data.
+   * Returns the currently committed block header.
+   * @returns The current committed block header.
    */
-  getHistoricBlockData(): Promise<HistoricBlockData>;
+  getBlockHeader(): Promise<BlockHeader>;
 
   /**
    * Simulates the public part of a transaction with the current state.

@@ -17,7 +17,7 @@ The fields of a transaction object are the following:
 
 ### Private kernel public inputs final
 
-Output of the last iteration of the private kernel circuit. Includes _accumulated data_ after recursing through all private function calls, as well as _constant data_ composed of _historic block data_ reflecting the state of the chain when such functions were executed, and the global _transaction context_. Refer to the circuits section for more info.
+Output of the last iteration of the private kernel circuit. Includes _accumulated data_ after recursing through all private function calls, as well as _constant data_ composed of _block header_ reflecting the state of the chain when such functions were executed, and the global _transaction context_. Refer to the circuits section for more info.
 
 **Accumulated data**
 
@@ -37,7 +37,7 @@ Output of the last iteration of the private kernel circuit. Includes _accumulate
 | newContracts | NewContractData[] | All the new contracts deployed in this transaction. |
 | maxBlockNum | Field | Maximum block number (inclusive) for inclusion of this transaction in a block. |
 
-**Historic block data**
+**Block header**
 
 | Field | Type | Description |
 |-------|------|-------------|

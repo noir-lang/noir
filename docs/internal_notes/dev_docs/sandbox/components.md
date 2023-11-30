@@ -246,7 +246,7 @@ Responsibilities:
 - "Persists" the various merkle trees (configurable).
   - For this milestone 1.1, we'll need the following trees:
     - Contract Tree
-    - Contract Tree Roots Tree (the tree whose leaves are the roots of historic rollups' contract trees)
+    - Contract Tree Roots Tree (the tree whose leaves are the roots of historical rollups' contract trees)
     - Nullifier Tree (so that the contract address can never be re-registered in a future deployment)
       - Note: Suyash has implemented C++ for the 'new' kind of nullifier tree.
 - Provides methods for updating the trees with commit, rollback semantics.

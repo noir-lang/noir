@@ -1,9 +1,9 @@
 import {
+  BlockHeader,
   CallContext,
   ContractDeploymentData,
   FunctionData,
   GlobalVariables,
-  HistoricBlockData,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
   PublicCallRequest,
@@ -101,19 +101,19 @@ export function toACVMContractDeploymentData(contractDeploymentData: ContractDep
 }
 
 /**
- * Converts a historic block data into ACVM fields.
- * @param historicBlockData - The historic block data object to convert.
+ * Converts a block header into ACVM fields.
+ * @param blockHeader - The block header object to convert.
  * @returns The ACVM fields.
  */
-export function toACVMHistoricBlockData(historicBlockData: HistoricBlockData): ACVMField[] {
+export function toACVMBlockHeader(blockHeader: BlockHeader): ACVMField[] {
   return [
-    toACVMField(historicBlockData.noteHashTreeRoot),
-    toACVMField(historicBlockData.nullifierTreeRoot),
-    toACVMField(historicBlockData.contractTreeRoot),
-    toACVMField(historicBlockData.l1ToL2MessagesTreeRoot),
-    toACVMField(historicBlockData.blocksTreeRoot),
-    toACVMField(historicBlockData.publicDataTreeRoot),
-    toACVMField(historicBlockData.globalVariablesHash),
+    toACVMField(blockHeader.noteHashTreeRoot),
+    toACVMField(blockHeader.nullifierTreeRoot),
+    toACVMField(blockHeader.contractTreeRoot),
+    toACVMField(blockHeader.l1ToL2MessagesTreeRoot),
+    toACVMField(blockHeader.blocksTreeRoot),
+    toACVMField(blockHeader.publicDataTreeRoot),
+    toACVMField(blockHeader.globalVariablesHash),
   ];
 }
 
@@ -156,7 +156,7 @@ export function toACVMPublicInputs(publicInputs: PrivateCircuitPublicInputs): AC
     toACVMField(publicInputs.encryptedLogPreimagesLength),
     toACVMField(publicInputs.unencryptedLogPreimagesLength),
 
-    ...toACVMHistoricBlockData(publicInputs.historicBlockData),
+    ...toACVMBlockHeader(publicInputs.blockHeader),
 
     ...toACVMContractDeploymentData(publicInputs.contractDeploymentData),
 

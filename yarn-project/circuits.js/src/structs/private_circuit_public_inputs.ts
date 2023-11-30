@@ -16,7 +16,7 @@ import {
 import { FieldsOf, makeTuple } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { CallContext } from './call_context.js';
-import { HistoricBlockData } from './index.js';
+import { BlockHeader } from './index.js';
 import { ContractDeploymentData } from './tx_context.js';
 
 /**
@@ -90,9 +90,9 @@ export class PrivateCircuitPublicInputs {
      */
     public unencryptedLogPreimagesLength: Fr,
     /**
-     * Historic roots of the data trees, used to calculate the block hash the user is proving against.
+     * Historical roots of the data trees, used to calculate the block hash the user is proving against.
      */
-    public historicBlockData: HistoricBlockData,
+    public blockHeader: BlockHeader,
     /**
      * Deployment data of contracts being deployed in this kernel iteration.
      */
@@ -136,7 +136,7 @@ export class PrivateCircuitPublicInputs {
       makeTuple(NUM_FIELDS_PER_SHA256, Fr.zero),
       Fr.ZERO,
       Fr.ZERO,
-      HistoricBlockData.empty(),
+      BlockHeader.empty(),
       ContractDeploymentData.empty(),
       Fr.ZERO,
       Fr.ZERO,
@@ -161,7 +161,7 @@ export class PrivateCircuitPublicInputs {
       isFrArrayEmpty(this.unencryptedLogsHash) &&
       this.encryptedLogPreimagesLength.isZero() &&
       this.unencryptedLogPreimagesLength.isZero() &&
-      this.historicBlockData.isEmpty() &&
+      this.blockHeader.isEmpty() &&
       this.contractDeploymentData.isEmpty() &&
       this.chainId.isZero() &&
       this.version.isZero()
@@ -190,7 +190,7 @@ export class PrivateCircuitPublicInputs {
       fields.unencryptedLogsHash,
       fields.encryptedLogPreimagesLength,
       fields.unencryptedLogPreimagesLength,
-      fields.historicBlockData,
+      fields.blockHeader,
       fields.contractDeploymentData,
       fields.chainId,
       fields.version,

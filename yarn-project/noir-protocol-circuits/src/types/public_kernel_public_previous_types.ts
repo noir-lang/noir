@@ -96,7 +96,7 @@ export interface Block {
   global_variables_hash: Field;
 }
 
-export interface HistoricalBlockData {
+export interface BlockHeader {
   blocks_tree_root: Field;
   block: Block;
   private_kernel_vk_tree_root: Field;
@@ -125,7 +125,7 @@ export interface TxContext {
 }
 
 export interface CombinedConstantData {
-  block_data: HistoricalBlockData;
+  block_header: BlockHeader;
   tx_context: TxContext;
 }
 
@@ -180,7 +180,7 @@ export interface PublicCircuitPublicInputs {
   new_l2_to_l1_msgs: FixedLengthArray<Field, 2>;
   unencrypted_logs_hash: FixedLengthArray<Field, 2>;
   unencrypted_log_preimages_length: Field;
-  historical_block_data: HistoricalBlockData;
+  block_header: BlockHeader;
   prover_address: Address;
 }
 

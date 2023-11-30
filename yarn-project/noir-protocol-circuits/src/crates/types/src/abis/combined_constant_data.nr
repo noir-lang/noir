@@ -1,7 +1,7 @@
 use crate::transaction::context::TxContext;
-use crate::abis::historical_block_data::HistoricalBlockData;
+use crate::abis::block_header::BlockHeader;
 
 struct CombinedConstantData {
-    block_data: HistoricalBlockData,
+    block_header: BlockHeader,
     tx_context: TxContext,
 }

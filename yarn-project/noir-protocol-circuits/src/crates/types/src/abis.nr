@@ -7,7 +7,7 @@ mod membership_witness;
 mod new_contract_data;
 mod contract_leaf_preimage;
 
-mod historical_block_data;
+mod block_header;
 mod combined_constant_data;
 mod public_data_read;
 mod public_data_update_request;

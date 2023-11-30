@@ -90,7 +90,7 @@ describe('Data generation for noir tests', () => {
     }).toMatchSnapshot();
   });
 
-  it('Computes a private data tree', async () => {
+  it('Computes a note hash tree', async () => {
     const indexes = new Array(128).fill(null).map((_, i) => BigInt(i));
     const leaves = indexes.map(i => new Fr(i + 1n).toBuffer());
 

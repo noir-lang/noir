@@ -29,7 +29,7 @@ Explain how to write a dapp using [`aztec.js`](https://github.com/AztecProtocol/
       - How to query state
       - How to query whether a tx has been 'mined'
       - How to subscribe to logs
-      - How to filter for historic data in the historic block tree?
+      - How to filter for historical data in the historical block tree?
       - How to query data from any of the trees (advanced)
 
 FOR INSTRUCTIONS FOR BUILDING A WALLET, WE SHOULD WRITE DOCS HERE

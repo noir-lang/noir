@@ -2,7 +2,7 @@ import { BufferReader } from '@aztec/foundation/serialize';
 
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { TxContext } from '../tx_context.js';
-import { HistoricBlockData } from './historic_block_data.js';
+import { BlockHeader } from './block_header.js';
 
 /**
  * Data that is constant/not modified by neither of the kernels.
@@ -12,7 +12,7 @@ export class CombinedConstantData {
     /**
      * Roots of the trees relevant for both kernel circuits.
      */
-    public blockData: HistoricBlockData,
+    public blockHeader: BlockHeader,
     /**
      * Context of the transaction.
      */
@@ -20,7 +20,7 @@ export class CombinedConstantData {
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.blockData, this.txContext);
+    return serializeToBuffer(this.blockHeader, this.txContext);
   }
 
   /**
@@ -30,10 +30,10 @@ export class CombinedConstantData {
    */
   static fromBuffer(buffer: Buffer | BufferReader): CombinedConstantData {
     const reader = BufferReader.asReader(buffer);
-    return new CombinedConstantData(reader.readObject(HistoricBlockData), reader.readObject(TxContext));
+    return new CombinedConstantData(reader.readObject(BlockHeader), reader.readObject(TxContext));
   }
 
   static empty() {
-    return new CombinedConstantData(HistoricBlockData.empty(), TxContext.empty());
+    return new CombinedConstantData(BlockHeader.empty(), TxContext.empty());
   }
 }

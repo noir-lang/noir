@@ -14,7 +14,7 @@ mod get_secret_key;
 mod get_sibling_path;
 mod rand;
 mod enqueue_public_function_call;
-mod get_block_data;
+mod get_block_header;
 mod public_call;
 mod notes;
 mod storage;

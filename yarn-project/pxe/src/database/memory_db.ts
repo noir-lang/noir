@@ -1,4 +1,4 @@
-import { CompleteAddress, HistoricBlockData, PublicKey } from '@aztec/circuits.js';
+import { BlockHeader, CompleteAddress, PublicKey } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -118,12 +118,12 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     return Promise.resolve();
   }
 
-  public getHistoricBlockData(): HistoricBlockData {
+  public getBlockHeader(): BlockHeader {
     const roots = this.getTreeRoots();
     if (!this.globalVariablesHash) {
       throw new Error(`Global variables hash not set in memory database`);
     }
-    return new HistoricBlockData(
+    return new BlockHeader(
       roots[MerkleTreeId.NOTE_HASH_TREE],
       roots[MerkleTreeId.NULLIFIER_TREE],
       roots[MerkleTreeId.CONTRACT_TREE],
@@ -135,15 +135,15 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     );
   }
 
-  public async setHistoricBlockData(historicBlockData: HistoricBlockData): Promise<void> {
-    this.globalVariablesHash = historicBlockData.globalVariablesHash;
+  public async setBlockHeader(blockHeader: BlockHeader): Promise<void> {
+    this.globalVariablesHash = blockHeader.globalVariablesHash;
     await this.setTreeRoots({
-      [MerkleTreeId.NOTE_HASH_TREE]: historicBlockData.noteHashTreeRoot,
-      [MerkleTreeId.NULLIFIER_TREE]: historicBlockData.nullifierTreeRoot,
-      [MerkleTreeId.CONTRACT_TREE]: historicBlockData.contractTreeRoot,
-      [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: historicBlockData.l1ToL2MessagesTreeRoot,
-      [MerkleTreeId.BLOCKS_TREE]: historicBlockData.blocksTreeRoot,
-      [MerkleTreeId.PUBLIC_DATA_TREE]: historicBlockData.publicDataTreeRoot,
+      [MerkleTreeId.NOTE_HASH_TREE]: blockHeader.noteHashTreeRoot,
+      [MerkleTreeId.NULLIFIER_TREE]: blockHeader.nullifierTreeRoot,
+      [MerkleTreeId.CONTRACT_TREE]: blockHeader.contractTreeRoot,
+      [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: blockHeader.l1ToL2MessagesTreeRoot,
+      [MerkleTreeId.BLOCKS_TREE]: blockHeader.blocksTreeRoot,
+      [MerkleTreeId.PUBLIC_DATA_TREE]: blockHeader.publicDataTreeRoot,
     });
   }
 

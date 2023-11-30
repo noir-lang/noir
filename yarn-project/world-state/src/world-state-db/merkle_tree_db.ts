@@ -175,7 +175,7 @@ export interface MerkleTreeOperations {
    * This includes all of the current roots of all of the data trees and the current blocks global vars.
    * @param globalVariablesHash - The global variables hash to insert into the block hash.
    */
-  updateHistoricBlocksTree(globalVariablesHash: Fr): Promise<void>;
+  updateBlocksTree(globalVariablesHash: Fr): Promise<void>;
 
   /**
    * Updates the latest global variables hash

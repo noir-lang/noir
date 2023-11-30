@@ -2,7 +2,7 @@
 
 #include "tx_context.hpp"
 
-#include "aztec3/circuits/abis/historic_block_data.hpp"
+#include "aztec3/circuits/abis/block_header.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/native_types.hpp"
 
@@ -10,7 +10,7 @@
 
 namespace aztec3::circuits::abis {
 
-using aztec3::circuits::abis::HistoricBlockData;
+using aztec3::circuits::abis::BlockHeader;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using std::is_same;
@@ -19,11 +19,11 @@ template <typename NCT> struct CombinedConstantData {
     using fr = typename NCT::fr;
     using boolean = typename NCT::boolean;
 
-    HistoricBlockData<NCT> block_data{};
+    BlockHeader<NCT> block_header{};
     TxContext<NCT> tx_context{};
 
     // for serialization: update up with new fields
-    MSGPACK_FIELDS(block_data, tx_context);
+    MSGPACK_FIELDS(block_header, tx_context);
     boolean operator==(CombinedConstantData<NCT> const& other) const
     {
         return msgpack_derived_equals<boolean>(*this, other);
@@ -34,7 +34,7 @@ template <typename NCT> struct CombinedConstantData {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         CombinedConstantData<CircuitTypes<Builder>> constant_data = {
-            block_data.to_circuit_type(builder),
+            block_header.to_circuit_type(builder),
             tx_context.to_circuit_type(builder),
         };
 
@@ -48,7 +48,7 @@ template <typename NCT> struct CombinedConstantData {
         auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Builder>(); };
 
         CombinedConstantData<NativeTypes> constant_data = {
-            to_native_type(block_data),
+            to_native_type(block_header),
             to_native_type(tx_context),
         };
 
@@ -59,7 +59,7 @@ template <typename NCT> struct CombinedConstantData {
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
-        block_data.set_public();
+        block_header.set_public();
         tx_context.set_public();
     }
 };

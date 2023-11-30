@@ -3,7 +3,7 @@ use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
 
 struct ConstantRollupData {
     // The very latest roots as at the very beginning of the entire rollup:
-    start_historic_blocks_tree_roots_snapshot : AppendOnlyTreeSnapshot,
+    start_blocks_tree_snapshot : AppendOnlyTreeSnapshot,
 
     // TODO(Sean): Some members of this struct tbd
     private_kernel_vk_tree_root : Field,
@@ -16,7 +16,7 @@ struct ConstantRollupData {
 
 impl ConstantRollupData {
     pub fn eq(self, other : ConstantRollupData) -> bool {
-        self.start_historic_blocks_tree_roots_snapshot.eq(other.start_historic_blocks_tree_roots_snapshot) &
+        self.start_blocks_tree_snapshot.eq(other.start_blocks_tree_snapshot) &
         self.global_variables.eq(other.global_variables) &
         (self.private_kernel_vk_tree_root == other.private_kernel_vk_tree_root) &
         (self.public_kernel_vk_tree_root == other.public_kernel_vk_tree_root) &

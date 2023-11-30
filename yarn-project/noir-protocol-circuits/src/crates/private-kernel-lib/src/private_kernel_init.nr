@@ -21,7 +21,7 @@ struct PrivateKernelInputsInit {
 impl PrivateKernelInputsInit {
     fn initialize_end_values(self, public_inputs: &mut KernelCircuitPublicInputsBuilder) {
         public_inputs.constants = CombinedConstantData {
-            block_data: self.private_call.call_stack_item.public_inputs.historical_block_data,
+            block_header: self.private_call.call_stack_item.public_inputs.block_header,
             tx_context: self.tx_request.tx_context,
         };
     }
@@ -91,7 +91,7 @@ impl PrivateKernelInputsInit {
         self.validate_this_private_call_against_tx_request();
 
         common::validate_read_requests(
-            public_inputs.constants.block_data.note_hash_tree_root(),
+            public_inputs.constants.block_header.note_hash_tree_root(),
             self.private_call.call_stack_item.public_inputs.read_requests,
             self.private_call.read_request_membership_witnesses
         );
@@ -451,7 +451,7 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with="private data tree root mismatch")]
+    #[test(should_fail_with="note hash tree root mismatch")]
     fn native_read_request_bad_request() {
         let mut builder = PrivateKernelInitInputsBuilder::new();
 
@@ -464,7 +464,7 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with="private data tree root mismatch")]
+    #[test(should_fail_with="note hash tree root mismatch")]
     fn native_read_request_bad_leaf_index() {
         let mut builder = PrivateKernelInitInputsBuilder::new();
 
@@ -478,7 +478,7 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with="private data tree root mismatch")]
+    #[test(should_fail_with="note hash tree root mismatch")]
     fn native_read_request_bad_sibling_path() {
         let mut builder = PrivateKernelInitInputsBuilder::new();
 

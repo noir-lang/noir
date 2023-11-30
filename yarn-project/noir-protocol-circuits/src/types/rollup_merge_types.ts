@@ -22,7 +22,7 @@ export interface GlobalVariables {
 }
 
 export interface ConstantRollupData {
-  start_historic_blocks_tree_roots_snapshot: AppendOnlyTreeSnapshot;
+  start_blocks_tree_snapshot: AppendOnlyTreeSnapshot;
   private_kernel_vk_tree_root: Field;
   public_kernel_vk_tree_root: Field;
   base_rollup_vk_hash: Field;

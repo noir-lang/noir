@@ -1,12 +1,12 @@
 import { DBOracle, FunctionArtifactWithDebugMetadata, MessageLoadOracleInputs } from '@aztec/acir-simulator';
 import {
   AztecAddress,
+  BlockHeader,
   CompleteAddress,
   EthAddress,
   Fr,
   FunctionSelector,
   GrumpkinPrivateKey,
-  HistoricBlockData,
   PublicKey,
 } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -152,7 +152,7 @@ export class SimulatorOracle implements DBOracle {
       case MerkleTreeId.NOTE_HASH_TREE:
         return (await this.stateInfoProvider.getNoteHashSiblingPath(leafIndex)).toFieldArray();
       case MerkleTreeId.BLOCKS_TREE:
-        return (await this.stateInfoProvider.getHistoricBlocksTreeSiblingPath(leafIndex)).toFieldArray();
+        return (await this.stateInfoProvider.getBlocksTreeSiblingPath(leafIndex)).toFieldArray();
       case MerkleTreeId.PUBLIC_DATA_TREE:
         return (await this.stateInfoProvider.getPublicDataTreeSiblingPath(leafIndex)).toFieldArray();
       default:
@@ -179,12 +179,12 @@ export class SimulatorOracle implements DBOracle {
   }
 
   /**
-   * Retrieve the databases view of the Historic Block Data object.
-   * This structure is fed into the circuits simulator and is used to prove against certain historic roots.
+   * Retrieve the databases view of the Block Header object.
+   * This structure is fed into the circuits simulator and is used to prove against certain historical roots.
    *
-   * @returns A Promise that resolves to a HistoricBlockData object.
+   * @returns A Promise that resolves to a BlockHeader object.
    */
-  getHistoricBlockData(): Promise<HistoricBlockData> {
-    return Promise.resolve(this.db.getHistoricBlockData());
+  getBlockHeader(): Promise<BlockHeader> {
+    return Promise.resolve(this.db.getBlockHeader());
   }
 }
