@@ -1767,20 +1767,20 @@ impl Context {
             }
             Intrinsic::SlicePushBack => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
-                let (array_id, array_typ, _) =
+                let (slice_contents, slice_typ, _) =
                     self.check_array_is_initialized(arguments[1], dfg)?;
-                let slice = self.convert_value(arguments[1], dfg);
-
-                let mut new_slice = Vector::new();
-                self.slice_intrinsic_input(&mut new_slice, slice.clone())?;
+                let slice = self.convert_value(slice_contents, dfg);
 
                 let mut new_elem_size = Self::flattened_value_size(&slice);
 
-                let slice_typ = dfg.type_of_value(arguments[1]);
+                let mut new_slice = Vector::new();
+                self.slice_intrinsic_input(&mut new_slice, slice)?;
+
+                let elements_to_push = &arguments[2..];
                 // We only fill internal slices for nested slices (a slice inside of a slice).
                 // So we must directly push back elements for slices which are not a nested slice.
                 if !slice_typ.is_nested_slice() {
-                    for elem in &arguments[2..] {
+                    for elem in elements_to_push {
                         let element = self.convert_value(*elem, dfg);
 
                         new_elem_size += Self::flattened_value_size(&element);
@@ -1809,7 +1809,7 @@ impl Context {
                         self.acir_context.add_constant(FieldElement::from(element_size as u128));
                     var_index = self.acir_context.mul_var(slice_length, element_size_var)?;
                     var_index =
-                        self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
+                        self.get_flattened_index(&slice_typ, slice_contents, var_index, dfg)?;
                 }
 
                 // Write the elements we wish to push back directly.
@@ -1817,15 +1817,15 @@ impl Context {
                 // to enable this write to be within bounds.
                 // The dummy data is either attached during SSA gen or in this match case for non-nested slices.
                 // These values can then be accessed due to the increased dynamic slice length.
-                for elem in &arguments[2..] {
+                for elem in elements_to_push {
                     let element = self.convert_value(*elem, dfg);
                     self.array_set_value(&element, result_block_id, &mut var_index)?;
                 }
 
-                let element_type_sizes = if !can_omit_element_sizes_array(&array_typ) {
+                let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
                     Some(self.init_element_type_sizes_array(
-                        &array_typ,
-                        array_id,
+                        &slice_typ,
+                        slice_contents,
                         Some(new_slice_val),
                         dfg,
                     )?)
