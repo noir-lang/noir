@@ -1662,8 +1662,7 @@ impl Context {
                 ) {
                     // Subtractions must first have the integer modulus added before truncation can be
                     // applied. This is done in order to prevent underflow.
-                    let integer_modulus =
-                        self.acir_context.add_constant(FieldElement::from(2_u128.pow(bit_size)));
+                    let integer_modulus = self.acir_context.add_constant(2_u128.pow(bit_size));
                     var = self.acir_context.add_var(var, integer_modulus)?;
                 }
             }
@@ -1815,8 +1814,7 @@ impl Context {
                     // Multiply the element size against the var index before fetching the flattened index
                     // This operation makes sure our user-facing slice index matches the strategy for indexing in SSA,
                     // which is how `get_flattened_index` expects its index input.
-                    let element_size_var =
-                        self.acir_context.add_constant(FieldElement::from(element_size as u128));
+                    let element_size_var = self.acir_context.add_constant(element_size);
                     var_index = self.acir_context.mul_var(slice_length, element_size_var)?;
                     var_index =
                         self.get_flattened_index(&slice_typ, slice_contents, var_index, dfg)?;
@@ -1968,8 +1966,7 @@ impl Context {
                     // Multiply the element size against the var index before fetching the flattened index
                     // This operation makes sure our user-facing slice index matches the strategy for indexing in SSA,
                     // which is how `get_flattened_index` expects its index input.
-                    let element_size_var =
-                        self.acir_context.add_constant(FieldElement::from(element_size as u128));
+                    let element_size_var = self.acir_context.add_constant(element_size);
                     // We want to use an index one less than the slice length
                     var_index = self.acir_context.mul_var(var_index, element_size_var)?;
                     var_index =
@@ -2079,8 +2076,7 @@ impl Context {
 
                 // Fetch the flattened index from the user provided index argument.
                 let element_size = slice_typ.element_size();
-                let element_size_var =
-                    self.acir_context.add_constant(FieldElement::from(element_size as u128));
+                let element_size_var = self.acir_context.add_constant(element_size);
                 let flat_insert_index =
                     self.acir_context.mul_var(insert_index, element_size_var)?;
                 let flat_user_index =
@@ -2098,9 +2094,7 @@ impl Context {
                     let mut flat_elem = element.flatten().into_iter().map(|(var, _)| var).collect();
                     flattened_elements.append(&mut flat_elem);
                 }
-                let inner_elem_size = self
-                    .acir_context
-                    .add_constant(FieldElement::from(inner_elem_size_usize as u128));
+                let inner_elem_size = self.acir_context.add_constant(inner_elem_size_usize);
                 // Set the maximum flattened index at which a new element should be inserted.
                 let max_flat_user_index =
                     self.acir_context.add_var(flat_user_index, inner_elem_size)?;
@@ -2116,8 +2110,7 @@ impl Context {
                 self.initialize_array(result_block_id, slice_size, None)?;
                 let mut current_insert_index = 0;
                 for i in 0..slice_size {
-                    let current_index =
-                        self.acir_context.add_constant(FieldElement::from(i as u128));
+                    let current_index = self.acir_context.add_constant(i);
 
                     // Check that we are above the lower bound of the insertion index
                     let greater_eq_than_idx = self.acir_context.more_than_eq_var(
@@ -2141,9 +2134,8 @@ impl Context {
                     let shifted_index = if i < inner_elem_size_usize {
                         current_index
                     } else {
-                        let index_minus_elem_size = self
-                            .acir_context
-                            .add_constant(FieldElement::from((i - inner_elem_size_usize) as u128));
+                        let index_minus_elem_size =
+                            self.acir_context.add_constant(i - inner_elem_size_usize);
 
                         let use_shifted_index_pred = self
                             .acir_context
@@ -2232,8 +2224,7 @@ impl Context {
 
                 // Fetch the flattened index from the user provided index argument.
                 let element_size = slice_typ.element_size();
-                let element_size_var =
-                    self.acir_context.add_constant(FieldElement::from(element_size as u128));
+                let element_size_var = self.acir_context.add_constant(element_size);
                 let flat_remove_index =
                     self.acir_context.mul_var(remove_index, element_size_var)?;
                 let flat_user_index =
@@ -2290,8 +2281,7 @@ impl Context {
                 let result_block_id = self.block_id(&result_ids[1]);
                 self.initialize_array(result_block_id, slice_size, None)?;
                 for i in 0..slice_size {
-                    let current_index =
-                        self.acir_context.add_constant(FieldElement::from(i as u128));
+                    let current_index = self.acir_context.add_constant(i);
 
                     let value_current_index = new_slice[i].borrow_var()?;
 
@@ -2300,7 +2290,7 @@ impl Context {
                     } else {
                         let shifted_index = self
                             .acir_context
-                            .add_constant(FieldElement::from((i + popped_elements_size) as u128));
+                            .add_constant(i + popped_elements_size);
 
                         let value_shifted_index =
                             self.acir_context.read_from_memory(block_id, &shifted_index)?;
