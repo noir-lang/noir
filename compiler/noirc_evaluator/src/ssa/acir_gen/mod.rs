@@ -2288,9 +2288,8 @@ impl Context {
                     let new_value = if (i + popped_elements_size) >= slice_size {
                         value_current_index
                     } else {
-                        let shifted_index = self
-                            .acir_context
-                            .add_constant(i + popped_elements_size);
+                        let shifted_index =
+                            self.acir_context.add_constant(i + popped_elements_size);
 
                         let value_shifted_index =
                             self.acir_context.read_from_memory(block_id, &shifted_index)?;
