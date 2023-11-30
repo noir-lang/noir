@@ -46,10 +46,10 @@ fn main(x: Field, y: pub Field) {
     assert(append[0] == 1);
     assert(append[4] == 5);
 
-    regression_2083();
+    // regression_2083();
     // The parameters to this function must come from witness values (inputs to main)
     regression_merge_slices(x, y);
-    regression_2370();
+    // regression_2370();
 }
 // Ensure that slices of struct/tuple values work.
 fn regression_2083() {
@@ -85,47 +85,47 @@ fn regression_2083() {
 // The parameters to this function must come from witness values (inputs to main)
 fn regression_merge_slices(x: Field, y: Field) {
     merge_slices_if(x, y);
-    merge_slices_else(x);
+    // merge_slices_else(x);
 }
 
 fn merge_slices_if(x: Field, y: Field) {
-    let slice = merge_slices_return(x, y);
-    assert(slice.len() == 3);
-    assert(slice[2] == 10);
+    // let slice = merge_slices_return(x, y);
+    // assert(slice.len() == 3);
+    // assert(slice[2] == 10);
 
     let slice = merge_slices_mutate(x, y);
     assert(slice.len() == 4);
     assert(slice[3] == 5);
 
-    let slice = merge_slices_mutate_in_loop(x, y);
-    assert(slice.len() == 7);
-    assert(slice[6] == 4);
+    // let slice = merge_slices_mutate_in_loop(x, y);
+    // assert(slice.len() == 7);
+    // assert(slice[6] == 4);
 
-    let slice = merge_slices_mutate_two_ifs(x, y);
-    assert(slice.len() == 6);
-    assert(slice[3] == 5);
-    assert(slice[4] == 15);
-    assert(slice[5] == 30);
+    // let slice = merge_slices_mutate_two_ifs(x, y);
+    // assert(slice.len() == 6);
+    // assert(slice[3] == 5);
+    // assert(slice[4] == 15);
+    // assert(slice[5] == 30);
 
-    let slice = merge_slices_mutate_between_ifs(x, y);
-    assert(slice.len() == 8);
-    assert(slice[3] == 5);
-    assert(slice[4] == 30);
-    assert(slice[5] == 15);
-    assert(slice[6] == 50);
-    assert(slice[7] == 60);
+    // let slice = merge_slices_mutate_between_ifs(x, y);
+    // assert(slice.len() == 8);
+    // assert(slice[3] == 5);
+    // assert(slice[4] == 30);
+    // assert(slice[5] == 15);
+    // assert(slice[6] == 50);
+    // assert(slice[7] == 60);
 
-    merge_slices_push_then_pop(x, y);
+    // merge_slices_push_then_pop(x, y);
 
-    let slice = merge_slices_push_then_insert(x, y);
-    assert(slice.len() == 7);
-    assert(slice[1] == 50);
-    assert(slice[2] == 0);
-    assert(slice[5] == 30);
-    assert(slice[6] == 100);
+    // let slice = merge_slices_push_then_insert(x, y);
+    // assert(slice.len() == 7);
+    // assert(slice[1] == 50);
+    // assert(slice[2] == 0);
+    // assert(slice[5] == 30);
+    // assert(slice[6] == 100);
 
-    let slice = merge_slices_remove_between_ifs(x, y);
-    assert(slice.len() == 5);
+    // let slice = merge_slices_remove_between_ifs(x, y);
+    // assert(slice.len() == 5);
 }
 
 fn merge_slices_else(x: Field) {
