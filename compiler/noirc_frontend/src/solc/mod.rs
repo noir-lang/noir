@@ -3,9 +3,9 @@ use std::path::Path;
 use crate::{
     ast, graph::CrateId, hir::def_map::Visibility, parser::SortedModule, AssignStatement,
     BlockExpression, CallExpression, CastExpression, Expression as NoirExpression, ExpressionKind,
-    FunctionDefinition as NoirFunctionDefinition, FunctionReturnType, Ident as NoirIdent,
-    IfExpression, IndexExpression, InfixExpression, LValue, LetStatement, Literal,
-    MemberAccessExpression, MethodCallExpression, NoirFunction, Path as NoirPath, Pattern,
+    ForLoopStatement, ForRange, FunctionDefinition as NoirFunctionDefinition, FunctionReturnType,
+    Ident as NoirIdent, IfExpression, IndexExpression, InfixExpression, LValue, LetStatement,
+    Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, Path as NoirPath, Pattern,
     PrefixExpression, Statement as NoirStatement, StatementKind, UnaryOp, UnresolvedType,
     UnresolvedTypeData,
 };
@@ -39,14 +39,9 @@ pub fn parse_sol(text: &str) -> SortedModule {
     for part in &tree.0 {
         match part {
             SourceUnitPart::ContractDefinition(def) => {
-                println!("found contract {:?}", def.name);
                 for part in &def.parts {
                     match part {
-                        ContractPart::VariableDefinition(def) => {
-                            println!("variable {:?}", def.name);
-                        }
                         ContractPart::FunctionDefinition(def) => {
-                            println!("function {:?}", def.name);
                             let transformed = transform_function(&def);
                             ast.functions.push(transformed);
                         }
@@ -167,9 +162,56 @@ fn resolve_statement(sol_body: SolStatement) -> Vec<NoirStatement> {
 
             collected_statements.push(make_if(expr, inner2, outer3));
         }
+        SolStatement::For(_, initialise, end_condition, between_condition, body) => {
+            // We want to get the name out of this - TODO: the type
+            let (init_name, starting_value) = get_name_and_value_from_sol_for_loop_init(initialise);
+            let init_ident = make_ident(init_name.as_str());
+            let end_number = get_end_condition_from_sol_for_loop_end(end_condition);
+
+            let start_number = make_numeric_literal(starting_value);
+            let end_number = make_numeric_literal(end_number);
+
+            let inner_body = resolve_statement(*body.expect("For loop must have a body"));
+            // dbg!(_between_condition); TODO: work with the between condition
+
+            let for_loop =
+                make_for(init_ident, start_number, end_number, block_expression(inner_body));
+            collected_statements.push(for_loop);
+        }
         _ => panic!("Not implemented statement, {sol_body}"),
     }
     collected_statements
+}
+
+fn get_name_and_value_from_sol_for_loop_init(
+    initialize: Option<Box<SolStatement>>,
+) -> (String, String) {
+    let init = initialize.expect("In solnoir you must initialise a variable in your for loop");
+    match init.as_ref() {
+        SolStatement::VariableDefinition(_, var_def, expression) => {
+            let name = var_def.clone().name.unwrap().name;
+
+            let exp = expression.clone().expect("For loop assignments MUST have a value");
+            let value = match exp {
+                SolExpression::NumberLiteral(_, val, _exp, _unit) => val.clone(),
+                _ => panic!("For loop assignments MUST have a value"),
+            };
+
+            (name, value)
+        }
+        _ => panic!("Statement other than variable definition found in for loop initialise"),
+    }
+}
+
+fn get_end_condition_from_sol_for_loop_end(end_condition: Option<Box<SolExpression>>) -> String {
+    let end = end_condition.expect("In solnoir you must initialise a variable in your for loop");
+    match end.as_ref() {
+        SolExpression::Less(_, _, num) => match num.as_ref() {
+            SolExpression::NumberLiteral(_, val, _, _) => val.clone(),
+            _ => panic!("For loop assignments MUST have a value"),
+        },
+        _ => panic!("Loop conditionals only implemented for < operator"),
+    }
 }
 
 fn arith_expression(
@@ -182,8 +224,27 @@ fn arith_expression(
     infix_expression(lhs, rhs, operator)
 }
 
+fn assign_and_arith_expression(
+    lhs: SolExpression,
+    rhs: SolExpression,
+    operator: BinaryOpKind,
+) -> NoirExpression {
+    let assign_to = resolve_expression(lhs.clone());
+    let assignment_name = get_name_from_noir_variable(assign_to);
+    let assign_value = arith_expression(lhs, rhs, operator);
+
+    block_expression(vec![assignment(&assignment_name, assign_value)])
+}
+
+// Code quality has decreased
+fn get_name_from_noir_variable(variable: NoirExpression) -> String {
+    match variable.kind {
+        ExpressionKind::Variable(path) => path.segments.last().unwrap().0.contents.clone(),
+        _ => panic!("Assignments must be made to a variable"),
+    }
+}
+
 fn resolve_expression(sol_expression: SolExpression) -> NoirExpression {
-    dbg!(&sol_expression);
     match sol_expression {
         // Arithmetic
         SolExpression::Add(_, lhs, rhs) => arith_expression(*lhs, *rhs, BinaryOpKind::Add),
@@ -223,6 +284,36 @@ fn resolve_expression(sol_expression: SolExpression) -> NoirExpression {
             let one = make_numeric_literal("1".to_string());
             infix_expression(expr, one, BinaryOpKind::Subtract)
         }
+        SolExpression::AssignAdd(_, lhs, rhs) => {
+            assign_and_arith_expression(*lhs, *rhs, BinaryOpKind::Add)
+        }
+        SolExpression::AssignSubtract(_, lhs, rhs) => {
+            assign_and_arith_expression(*lhs, *rhs, BinaryOpKind::Subtract)
+        }
+        SolExpression::AssignDivide(_, lhs, rhs) => {
+            assign_and_arith_expression(*lhs, *rhs, BinaryOpKind::Divide)
+        }
+        SolExpression::AssignModulo(_, lhs, rhs) => {
+            assign_and_arith_expression(*lhs, *rhs, BinaryOpKind::Modulo)
+        }
+        SolExpression::AssignMultiply(_, lhs, rhs) => {
+            assign_and_arith_expression(*lhs, *rhs, BinaryOpKind::Multiply)
+        }
+        SolExpression::AssignShiftLeft(_, lhs, rhs) => {
+            assign_and_arith_expression(*lhs, *rhs, BinaryOpKind::ShiftLeft)
+        }
+        SolExpression::AssignShiftRight(_, lhs, rhs) => {
+            assign_and_arith_expression(*lhs, *rhs, BinaryOpKind::ShiftRight)
+        }
+        SolExpression::AssignOr(_, lhs, rhs) => {
+            assign_and_arith_expression(*lhs, *rhs, BinaryOpKind::Or)
+        }
+        SolExpression::AssignAnd(_, lhs, rhs) => {
+            assign_and_arith_expression(*lhs, *rhs, BinaryOpKind::And)
+        }
+        SolExpression::AssignXor(_, lhs, rhs) => {
+            assign_and_arith_expression(*lhs, *rhs, BinaryOpKind::Xor)
+        }
 
         SolExpression::Variable(ident) => {
             let ident = transform_ident(&ident);
@@ -251,8 +342,6 @@ fn transform_return_type(sol_params: &ParameterList) -> FunctionReturnType {
     // Filter out the spans
     let params: Vec<&SolParameter> =
         sol_params.iter().map(|param| &param.1).filter_map(|v| v.as_ref()).collect();
-
-    dbg!(&params);
 
     if params.len() > 0 {
         let ty = make_type(UnresolvedTypeData::FieldElement);
@@ -409,6 +498,21 @@ fn make_if(
     make_statement(StatementKind::Expression(expression(ExpressionKind::If(Box::new(
         IfExpression { condition, consequence, alternative },
     )))))
+}
+
+fn make_for(
+    identifier: NoirIdent,
+    start_variable: NoirExpression,
+    end_variable: NoirExpression,
+    block: NoirExpression,
+) -> NoirStatement {
+    let range = ForRange::Range(start_variable, end_variable);
+    make_statement(StatementKind::For(ForLoopStatement {
+        identifier,
+        range,
+        block,
+        span: Span::default(),
+    }))
 }
 
 fn make_numeric_literal(number: String) -> NoirExpression {

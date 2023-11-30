@@ -90,7 +90,6 @@ impl CrateDefMap {
             let (ast, errors) = parse_file(&context.file_manager, root_file_id);
             (ast.into_sorted(), errors) // bruh
         };
-        dbg!(&ast.functions);
 
         #[cfg(feature = "aztec")]
         let ast = match super::aztec_library::transform(ast, &crate_id, context) {
@@ -115,8 +114,6 @@ impl CrateDefMap {
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect(def_map, context, ast, root_file_id));
-
-        dbg!(&context.get_main_function(&crate_id));
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),

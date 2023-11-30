@@ -133,8 +133,6 @@ impl PackageConfig {
             None => return Err(ManifestError::MissingPackageType(root_dir.join("Nargo.toml"))),
         };
 
-        dbg!(&package_type);
-
         let entry_path = if let Some(entry_path) = &self.package.entry {
             let custom_entry_path = root_dir.join(entry_path);
             if custom_entry_path.exists() {
