@@ -133,6 +133,16 @@ impl AcirValue {
         }
     }
 
+    fn borrow_var(&self) -> Result<AcirVar, InternalError> {
+        match self {
+            AcirValue::Var(var, _) => Ok(*var),
+            AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
+                message: "Called AcirValue::borrow_var on an array".to_string(),
+                call_stack: CallStack::new(),
+            }),
+        }
+    }
+
     fn flatten(self) -> Vec<(AcirVar, AcirType)> {
         match self {
             AcirValue::Var(var, typ) => vec![(var, typ)],
@@ -2066,9 +2076,12 @@ impl Context {
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
-                let new_slice_val = AcirValue::Array(new_slice);
-                let result_block_id = self.block_id(&result_ids[1]);
-                self.initialize_array(result_block_id, slice_size, Some(new_slice_val.clone()))?;
+                // Compiler sanity check
+                assert_eq!(
+                    new_slice.len(),
+                    slice_size,
+                    "ICE: The read flattened slice should match the computed size"
+                );
 
                 // Fetch the flattened index from the user provided index argument.
                 let element_size = slice_typ.element_size();
@@ -2097,7 +2110,6 @@ impl Context {
                 let max_flat_user_index =
                     self.acir_context.add_var(flat_user_index, inner_elem_size)?;
 
-                let mut current_insert_index = 0;
                 // Go through the entire slice argument and determine what value should be written to the new slice.
                 // 1. If we are below the starting insertion index we should insert the value that was already
                 //    in the original slice.
@@ -2105,6 +2117,9 @@ impl Context {
                 //    the flattened element arguments.
                 // 3. If we are above the max insertion index we should insert the previous value from the original slice,
                 //    as during an insertion we want to shift all elements after the insertion up an index.
+                let result_block_id = self.block_id(&result_ids[1]);
+                self.initialize_array(result_block_id, slice_size, None)?;
+                let mut current_insert_index = 0;
                 for i in 0..slice_size {
                     let current_index =
                         self.acir_context.add_constant(FieldElement::from(i as u128));
@@ -2176,6 +2191,7 @@ impl Context {
                     }
                 }
 
+                let new_slice_val = AcirValue::Array(new_slice);
                 let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
                     Some(self.init_element_type_sizes_array(
                         &slice_typ,
@@ -2206,14 +2222,17 @@ impl Context {
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
 
-                let slice_len = Self::flattened_value_size(&slice);
+                let slice_size = Self::flattened_value_size(&slice);
 
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
-                let new_slice_val = AcirValue::Array(new_slice);
-                let result_block_id = self.block_id(&result_ids[1]);
-                self.initialize_array(result_block_id, slice_len, Some(new_slice_val.clone()))?;
+                // Compiler sanity check
+                assert_eq!(
+                    new_slice.len(),
+                    slice_size,
+                    "ICE: The read flattened slice should match the computed size"
+                );
 
                 // Fetch the flattened index from the user provided index argument.
                 let element_size = slice_typ.element_size();
@@ -2269,13 +2288,15 @@ impl Context {
                 // 1. If the current index is greater than the removal index we must write the next value
                 //    from the original slice to the current index
                 // 2. At the end of the slice reading from the next value of the original slice
-                //    can lead to a potential out of bounds error. In this case we just read from the original slice
+                //    can lead to a potential out of bounds error. In this case we just fetch from the original slice
                 //    at the current index. As we are decreasing the slice in length, this is a safe operation.
-                for i in 0..slice_len {
+                let result_block_id = self.block_id(&result_ids[1]);
+                self.initialize_array(result_block_id, slice_size, None)?;
+                for i in 0..slice_size {
                     let current_index =
                         self.acir_context.add_constant(FieldElement::from(i as u128));
 
-                    let shifted_index = if (i + popped_elements_size) >= slice_len {
+                    let shifted_index = if (i + popped_elements_size) >= slice_size {
                         current_index
                     } else {
                         self.acir_context
@@ -2284,8 +2305,7 @@ impl Context {
 
                     let value_shifted_index =
                         self.acir_context.read_from_memory(block_id, &shifted_index)?;
-                    let value_current_index =
-                        self.acir_context.read_from_memory(block_id, &current_index)?;
+                    let value_current_index = new_slice[i].borrow_var()?;
 
                     let use_shifted_value = self.acir_context.more_than_eq_var(
                         current_index,
@@ -2310,6 +2330,7 @@ impl Context {
                     )?;
                 }
 
+                let new_slice_val = AcirValue::Array(new_slice);
                 let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
                     Some(self.init_element_type_sizes_array(
                         &slice_typ,
@@ -2322,7 +2343,7 @@ impl Context {
                 };
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
-                    len: slice_len,
+                    len: slice_size,
                     element_type_sizes,
                 });
 
