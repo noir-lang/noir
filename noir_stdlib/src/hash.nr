@@ -42,7 +42,7 @@ pub fn hash_to_field<N>(_input: [Field; N]) -> Field {
     }
 
     let hashed_input = blake2s(inputs_as_bytes);
-    crate::field::bytes32_to_field(hashed_input)
+    crate::field_element::bytes32_to_field(hashed_input)
 }
 
 #[foreign(keccak256)]
