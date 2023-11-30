@@ -71,6 +71,46 @@
           "type": "json",
           "path": "acvm_js/package.json",
           "jsonpath": "$.version"
+        },
+        {
+          "type": "toml",
+          "path": "../Cargo.toml",
+          "jsonpath": "$.workspace.dependencies.acir.version"
+        },
+        {
+          "type": "toml",
+          "path": "../Cargo.toml",
+          "jsonpath": "$.workspace.dependencies.acir_field.version"
+        },
+        {
+          "type": "toml",
+          "path": "../Cargo.toml",
+          "jsonpath": "$.workspace.dependencies.stdlib.version"
+        },
+        {
+          "type": "toml",
+          "path": "../Cargo.toml",
+          "jsonpath": "$.workspace.dependencies.brillig.version"
+        },
+        {
+          "type": "toml",
+          "path": "../Cargo.toml",
+          "jsonpath": "$.workspace.dependencies.brillig_vm.version"
+        },
+        {
+          "type": "toml",
+          "path": "../Cargo.toml",
+          "jsonpath": "$.workspace.dependencies.acvm_blackbox_solver.version"
+        },
+        {
+          "type": "toml",
+          "path": "../Cargo.toml",
+          "jsonpath": "$.workspace.dependencies.barretenberg_blackbox_solver.version"
+        },
+        {
+          "type": "json",
+          "path": "acvm_js/package.json",
+          "jsonpath": "$.version"
         }
       ]
     }
