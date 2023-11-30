@@ -937,7 +937,7 @@ impl AcirContext {
 
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
     /// and `0` otherwise.
-    fn more_than_eq_var(
+    pub(crate) fn more_than_eq_var(
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
