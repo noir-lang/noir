@@ -2074,16 +2074,17 @@ impl Context {
                 let element_size = slice_typ.element_size();
                 let element_size_var =
                     self.acir_context.add_constant(FieldElement::from(element_size as u128));
-                let mut var_index = self.acir_context.mul_var(index, element_size_var)?;
-                var_index = self.get_flattened_index(&slice_typ, slice_contents, var_index, dfg)?;
+                let mut flat_user_index = self.acir_context.mul_var(index, element_size_var)?;
+                flat_user_index =
+                    self.get_flattened_index(&slice_typ, slice_contents, flat_user_index, dfg)?;
 
                 let elements_to_insert = &arguments[3..];
                 // Determine the elements we need to write into our resulting dynamic array.
                 // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
                 let mut inner_elem_size_usize = 0;
                 let mut flattened_elements = Vec::new();
-                for i in 0..element_size {
-                    let element = self.convert_value(elements_to_insert[i], dfg);
+                for elem in elements_to_insert {
+                    let element = self.convert_value(*elem, dfg);
                     let elem_size = Self::flattened_value_size(&element);
                     inner_elem_size_usize += elem_size;
                     let mut flat_elem = element.flatten().into_iter().map(|(var, _)| var).collect();
@@ -2093,7 +2094,8 @@ impl Context {
                     .acir_context
                     .add_constant(FieldElement::from(inner_elem_size_usize as u128));
                 // Set the maximum flattened index at which a new element should be inserted.
-                let max_var_index = self.acir_context.add_var(var_index, inner_elem_size)?;
+                let max_flat_user_index =
+                    self.acir_context.add_var(flat_user_index, inner_elem_size)?;
 
                 let mut current_insert_index = 0;
                 // Go through the entire slice argument and determine what value should be written to the new slice.
@@ -2107,55 +2109,66 @@ impl Context {
                     let current_index =
                         self.acir_context.add_constant(FieldElement::from(i as u128));
 
+                    // Check that we are above the lower bound of the insertion index
                     let greater_eq_than_idx = self.acir_context.more_than_eq_var(
                         current_index,
-                        var_index,
+                        flat_user_index,
                         64,
                         self.current_side_effects_enabled_var,
                     )?;
+                    // Check that we are below the upper bound of the insertion index
                     let less_than_idx = self.acir_context.less_than_var(
                         current_index,
-                        max_var_index,
+                        max_flat_user_index,
                         64,
                         self.current_side_effects_enabled_var,
                     )?;
-                    let insert_value_pred =
-                        self.acir_context.mul_var(greater_eq_than_idx, less_than_idx)?;
-
-                    let true_pred = self
-                        .acir_context
-                        .mul_var(flattened_elements[current_insert_index], insert_value_pred)?;
-
-                    let one = self.acir_context.add_constant(FieldElement::one());
-                    let not_pred = self.acir_context.sub_var(one, insert_value_pred)?;
-
-                    let index_var = self.acir_context.add_constant(FieldElement::from((i) as u128));
 
                     // Read from the original slice the value we want to insert into our new slice.
                     // We need to make sure of two things:
                     // 1. That we read the previous element for when we have an index greater than insertion index.
                     // 2. That the index we are reading from is within the array bounds
-                    let read_var_index = if i < inner_elem_size_usize {
-                        index_var
+                    let shifted_index = if i < inner_elem_size_usize {
+                        current_index
                     } else {
                         let index_minus_elem_size = self
                             .acir_context
                             .add_constant(FieldElement::from((i - inner_elem_size_usize) as u128));
-                        let true_pred = self
+
+                        let use_shifted_index_pred = self
                             .acir_context
                             .mul_var(index_minus_elem_size, greater_eq_than_idx)?;
+
                         let not_pred = self.acir_context.sub_var(one, greater_eq_than_idx)?;
-                        let false_pred = self.acir_context.mul_var(not_pred, index_var)?;
-                        self.acir_context.add_var(true_pred, false_pred)?
+                        let use_current_index_pred =
+                            self.acir_context.mul_var(not_pred, current_index)?;
+
+                        self.acir_context.add_var(use_shifted_index_pred, use_current_index_pred)?
                     };
 
-                    let value_read_var =
-                        self.acir_context.read_from_memory(block_id, &read_var_index)?;
+                    let value_shifted_index =
+                        self.acir_context.read_from_memory(block_id, &shifted_index)?;
 
-                    let false_pred = self.acir_context.mul_var(not_pred, value_read_var)?;
-                    let new_value = self.acir_context.add_var(true_pred, false_pred)?;
+                    // Final predicate to determine whether we are within the insertion bounds
+                    let should_insert_value_pred =
+                        self.acir_context.mul_var(greater_eq_than_idx, less_than_idx)?;
+                    let insert_value_pred = self.acir_context.mul_var(
+                        flattened_elements[current_insert_index],
+                        should_insert_value_pred,
+                    )?;
 
-                    self.acir_context.write_to_memory(result_block_id, &index_var, &new_value)?;
+                    let not_pred = self.acir_context.sub_var(one, should_insert_value_pred)?;
+                    let shifted_value_pred =
+                        self.acir_context.mul_var(not_pred, value_shifted_index)?;
+
+                    let new_value =
+                        self.acir_context.add_var(insert_value_pred, shifted_value_pred)?;
+
+                    self.acir_context.write_to_memory(
+                        result_block_id,
+                        &current_index,
+                        &new_value,
+                    )?;
 
                     current_insert_index += 1;
                     if inner_elem_size_usize == current_insert_index {
@@ -2183,19 +2196,17 @@ impl Context {
             }
             Intrinsic::SliceRemove => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
-                let slice = self.convert_value(arguments[1], dfg);
+
+                let (slice_contents, slice_typ, block_id) =
+                    self.check_array_is_initialized(arguments[1], dfg)?;
+
+                let slice = self.convert_value(slice_contents, dfg);
                 let index = self.convert_value(arguments[2], dfg).into_var()?;
 
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
 
                 let slice_len = Self::flattened_value_size(&slice);
-
-                let slice_typ = dfg.type_of_value(arguments[1]);
-
-                let element_size = slice_typ.element_size();
-                let (array_id, array_typ, block_id) =
-                    self.check_array_is_initialized(arguments[1], dfg)?;
 
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
@@ -2205,10 +2216,12 @@ impl Context {
                 self.initialize_array(result_block_id, slice_len, Some(new_slice_val.clone()))?;
 
                 // Fetch the flattened index from the user provided index argument.
+                let element_size = slice_typ.element_size();
                 let element_size_var =
                     self.acir_context.add_constant(FieldElement::from(element_size as u128));
-                let mut var_index = self.acir_context.mul_var(index, element_size_var)?;
-                var_index = self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
+                let mut flat_user_index = self.acir_context.mul_var(index, element_size_var)?;
+                flat_user_index =
+                    self.get_flattened_index(&slice_typ, slice_contents, flat_user_index, dfg)?;
 
                 // Fetch the values we are remove from the slice.
                 // In the case of non-nested slice the logic is simple as we do not
@@ -2219,7 +2232,7 @@ impl Context {
                 let mut popped_elements_size = 0;
                 // Set a temp index just for fetching from the original slice as `array_get_value` mutates
                 // the index internally.
-                let mut temp_index = var_index;
+                let mut temp_index = flat_user_index;
                 if !slice_typ.is_nested_slice() {
                     for res in &result_ids[2..(2 + element_size)] {
                         let element = self.array_get_value(
@@ -2233,7 +2246,7 @@ impl Context {
                         popped_elements.push(element);
                     }
                 } else {
-                    let slice_sizes = self.slice_sizes.get(&arguments[1]);
+                    let slice_sizes = self.slice_sizes.get(&slice_contents);
                     let mut slice_sizes =
                         slice_sizes.expect("ICE: should have slice sizes").clone();
                     // We want to remove the parent size as we are fetching the child
@@ -2259,39 +2272,48 @@ impl Context {
                 //    can lead to a potential out of bounds error. In this case we just read from the original slice
                 //    at the current index. As we are decreasing the slice in length, this is a safe operation.
                 for i in 0..slice_len {
-                    let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+                    let current_index =
+                        self.acir_context.add_constant(FieldElement::from(i as u128));
 
-                    let read_var = if (i + popped_elements_size) >= slice_len {
-                        index_var
+                    let shifted_index = if (i + popped_elements_size) >= slice_len {
+                        current_index
                     } else {
                         self.acir_context
                             .add_constant(FieldElement::from((i + popped_elements_size) as u128))
                     };
-                    
-                    let value_index_var = self.acir_context.read_from_memory(block_id, &index_var)?;
-                    let value_read_var = self.acir_context.read_from_memory(block_id, &read_var)?;
 
-                    let greater_eq_than_idx = self.acir_context.more_than_eq_var(
-                        index_var,
-                        var_index,
+                    let value_shifted_index =
+                        self.acir_context.read_from_memory(block_id, &shifted_index)?;
+                    let value_current_index =
+                        self.acir_context.read_from_memory(block_id, &current_index)?;
+
+                    let use_shifted_value = self.acir_context.more_than_eq_var(
+                        current_index,
+                        flat_user_index,
                         64,
                         self.current_side_effects_enabled_var,
                     )?;
-                    let not_pred = self.acir_context.sub_var(one, greater_eq_than_idx)?;
 
-                    let true_pred =
-                        self.acir_context.mul_var(value_read_var, greater_eq_than_idx)?;
-                    let false_pred = self.acir_context.mul_var(not_pred, value_index_var)?;
+                    let shifted_value_pred =
+                        self.acir_context.mul_var(value_shifted_index, use_shifted_value)?;
+                    let not_pred = self.acir_context.sub_var(one, use_shifted_value)?;
+                    let current_value_pred =
+                        self.acir_context.mul_var(not_pred, value_current_index)?;
 
-                    let new_value = self.acir_context.add_var(true_pred, false_pred)?;
+                    let new_value =
+                        self.acir_context.add_var(shifted_value_pred, current_value_pred)?;
 
-                    self.acir_context.write_to_memory(result_block_id, &index_var, &new_value)?;
+                    self.acir_context.write_to_memory(
+                        result_block_id,
+                        &current_index,
+                        &new_value,
+                    )?;
                 }
 
-                let element_type_sizes = if !can_omit_element_sizes_array(&array_typ) {
+                let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
                     Some(self.init_element_type_sizes_array(
-                        &array_typ,
-                        array_id,
+                        &slice_typ,
+                        slice_contents,
                         Some(new_slice_val),
                         dfg,
                     )?)
