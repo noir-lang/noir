@@ -145,6 +145,14 @@ export class BaseRollupInputs {
     public startHistoricBlocksTreeSnapshot: AppendOnlyTreeSnapshot,
 
     /**
+     * The nullifiers to be inserted in the tree, sorted high to low.
+     */
+    public sortedNewNullifiers: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP>,
+    /**
+     * The indexes of the sorted nullifiers to the original ones.
+     */
+    public sortednewNullifiersIndexes: Tuple<UInt32, typeof MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP>,
+    /**
      * The nullifiers which need to be updated to perform the batch insertion of the new nullifiers.
      * See `StandardIndexedTree.batchInsert` function for more details.
      */
@@ -210,6 +218,8 @@ export class BaseRollupInputs {
       fields.startContractTreeSnapshot,
       fields.startPublicDataTreeRoot,
       fields.startHistoricBlocksTreeSnapshot,
+      fields.sortedNewNullifiers,
+      fields.sortednewNullifiersIndexes,
       fields.lowNullifierLeafPreimages,
       fields.lowNullifierMembershipWitness,
       fields.newCommitmentsSubtreeSiblingPath,

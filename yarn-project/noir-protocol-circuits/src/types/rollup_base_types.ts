@@ -191,6 +191,8 @@ export interface BaseRollupInputs {
   start_contract_tree_snapshot: AppendOnlyTreeSnapshot;
   start_public_data_tree_root: Field;
   start_historic_blocks_tree_snapshot: AppendOnlyTreeSnapshot;
+  sorted_new_nullifiers: FixedLengthArray<Field, 128>;
+  sorted_new_nullifiers_indexes: FixedLengthArray<u32, 128>;
   low_nullifier_leaf_preimages: FixedLengthArray<NullifierLeafPreimage, 128>;
   low_nullifier_membership_witness: FixedLengthArray<NullifierMembershipWitness, 128>;
   new_commitments_subtree_sibling_path: FixedLengthArray<Field, 25>;

@@ -157,6 +157,13 @@ export function mapNumberFromNoir(number: NoirField): number {
 }
 
 /**
+ *
+ */
+export function mapNumberToNoir(number: number): NoirField {
+  return new Fr(BigInt(number)).toString();
+}
+
+/**
  * Maps a point to a noir point.
  * @param point - The point.
  * @returns The noir point.
@@ -1406,6 +1413,11 @@ export function mapBaseRollupInputsToNoir(inputs: BaseRollupInputs): BaseRollupI
     start_contract_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.startContractTreeSnapshot),
     start_public_data_tree_root: mapFieldToNoir(inputs.startPublicDataTreeRoot),
     start_historic_blocks_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.startHistoricBlocksTreeSnapshot),
+    sorted_new_nullifiers: inputs.sortedNewNullifiers.map(mapFieldToNoir) as FixedLengthArray<NoirField, 128>,
+    sorted_new_nullifiers_indexes: inputs.sortednewNullifiersIndexes.map(mapNumberToNoir) as FixedLengthArray<
+      NoirField,
+      128
+    >,
     low_nullifier_leaf_preimages: inputs.lowNullifierLeafPreimages.map(
       mapNullifierLeafPreimageToNoir,
     ) as FixedLengthArray<NullifierLeafPreimageNoir, 128>,

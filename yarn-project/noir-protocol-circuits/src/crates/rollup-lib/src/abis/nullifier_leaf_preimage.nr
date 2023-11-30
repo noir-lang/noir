@@ -6,7 +6,7 @@ struct NullifierLeafPreimage {
 
 impl NullifierLeafPreimage {
     pub fn default() -> Self {
-        NullifierLeafPreimage {
+        Self {
             leaf_value : 0,
             next_value : 0,
             next_index : 0,

@@ -1,5 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
-import { LowLeafWitnessData } from '@aztec/merkle-tree';
+import { BatchInsertionResult } from '@aztec/merkle-tree';
 import { L2Block, LeafData, MerkleTreeId, SiblingPath } from '@aztec/types';
 
 import { CurrentTreeRoots, HandleL2BlockResult, MerkleTreeDb, MerkleTreeOperations, TreeInfo } from '../index.js';
@@ -171,11 +171,11 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
    * @param subtreeHeight - Height of the subtree.
    * @returns The data for the leaves to be updated when inserting the new ones.
    */
-  public batchInsert(
+  public batchInsert<TreeHeight extends number, SubtreeSiblingPathHeight extends number>(
     treeId: MerkleTreeId,
     leaves: Buffer[],
     subtreeHeight: number,
-  ): Promise<[LowLeafWitnessData<number>[], SiblingPath<number>] | [undefined, SiblingPath<number>]> {
+  ): Promise<BatchInsertionResult<TreeHeight, SubtreeSiblingPathHeight>> {
     return this.trees.batchInsert(treeId, leaves, subtreeHeight);
   }
 }

@@ -1,8 +1,9 @@
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { LeafData, SiblingPath } from '@aztec/types';
 
-import { IndexedTree } from '../interfaces/indexed_tree.js';
+import { BatchInsertionResult, IndexedTree } from '../interfaces/indexed_tree.js';
 import { TreeBase } from '../tree_base.js';
 
 const log = createDebugLogger('aztec:standard-indexed-tree');
@@ -317,8 +318,6 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
    *
    * This offers massive circuit performance savings over doing incremental insertions.
    *
-   * A description of the algorithm can be found here: https://colab.research.google.com/drive/1A0gizduSi4FIiIJZ8OylwIpO9-OTqV-R
-   *
    * WARNING: This function has side effects, it will insert values into the tree.
    *
    * Assumptions:
@@ -338,81 +337,78 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
    * roots.
    *
    * This become tricky when two items that are being batch inserted need to update the same low nullifier, or need to use
-   * a value that is part of the same batch insertion as their low nullifier. In this case a zero low nullifier path is given
-   * to the circuit, and it must determine from the set of batch inserted values if the insertion is valid.
+   * a value that is part of the same batch insertion as their low nullifier. What we do to avoid this case is to
+   * update the existing leaves in the tree with the nullifiers in high to low order, ensuring that this case never occurs.
+   * The circuit has to sort the nullifiers (or take a hint of the sorted nullifiers and prove that it's a valid permutation).
+   * Then we just batch insert the new nullifiers in the original order.
    *
    * The following example will illustrate attempting to insert 2,3,20,19 into a tree already containing 0,5,10,15
    *
    * The example will explore two cases. In each case the values low nullifier will exist within the batch insertion,
    * One where the low nullifier comes before the item in the set (2,3), and one where it comes after (20,19).
    *
+   * First, we sort the nullifiers high to low, that's 20,19,3,2
+   *
    * The original tree:                       Pending insertion subtree
    *
-   *  index     0       2       3       4         -       -       -       -
+   *  index     0       1       2       3         -       -       -       -
    *  -------------------------------------      ----------------------------
    *  val       0       5      10      15         -       -       -       -
    *  nextIdx   1       2       3       0         -       -       -       -
    *  nextVal   5      10      15       0         -       -       -       -
    *
    *
-   * Inserting 2: (happy path)
+   * Inserting 20:
+   * 1. Find the low nullifier (3) - provide inclusion proof
+   * 2. Update its pointers
+   * 3. Insert 20 into the pending subtree
+   *
+   *  index     0       1       2       3         -       -       6       -
+   *  -------------------------------------      ----------------------------
+   *  val       0       5      10      15         -       -      20       -
+   *  nextIdx   1       2       3       6         -       -       0       -
+   *  nextVal   5      10      15      20         -       -       0       -
+   *
+   * Inserting 19:
+   * 1. Find the low nullifier (3) - provide inclusion proof
+   * 2. Update its pointers
+   * 3. Insert 19 into the pending subtree
+   *
+   *  index     0       1       2       3         -       -       6       7
+   *  -------------------------------------      ----------------------------
+   *  val       0       5      10      15         -       -      20      19
+   *  nextIdx   1       2       3       7         -       -       0       6
+   *  nextVal   5      10      15      19         -       -       0      20
+   *
+   * Inserting 3:
+   * 1. Find the low nullifier (0) - provide inclusion proof
+   * 2. Update its pointers
+   * 3. Insert 3 into the pending subtree
+   *
+   *  index     0       1       2       3         -       5       6       7
+   *  -------------------------------------      ----------------------------
+   *  val       0       5      10      15         -       3      20      19
+   *  nextIdx   5       2       3       7         -       1       0       6
+   *  nextVal   3      10      15      19         -       5       0      20
+   *
+   * Inserting 2:
    * 1. Find the low nullifier (0) - provide inclusion proof
    * 2. Update its pointers
    * 3. Insert 2 into the pending subtree
    *
-   *  index     0       2       3       4         5       -       -       -
+   *  index     0       1       2       3         4       5       6       7
    *  -------------------------------------      ----------------------------
-   *  val       0       5      10      15         2       -       -       -
-   *  nextIdx   5       2       3       0         2       -       -       -
-   *  nextVal   2      10      15       0         5       -       -       -
-   *
-   * Inserting 3: The low nullifier exists within the insertion current subtree
-   * 1. When looking for the low nullifier for 3, we will receive 0 again as we have not inserted 2 into the main tree
-   *    This is problematic, as we cannot use either 0 or 2 as our inclusion proof.
-   *    Why cant we?
-   *      - Index 0 has a val 0 and nextVal of 2. This is NOT enough to prove non inclusion of 2.
-   *      - Our existing tree is in a state where we cannot prove non inclusion of 3.
-   *    We do not provide a non inclusion proof to out circuit, but prompt it to look within the insertion subtree.
-   * 2. Update pending insertion subtree
-   * 3. Insert 3 into pending subtree
-   *
-   * (no inclusion proof provided)
-   *  index     0       2       3       4         5       6       -       -
-   *  -------------------------------------      ----------------------------
-   *  val       0       5      10      15         2       3       -       -
-   *  nextIdx   5       2       3       0         6       2       -       -
-   *  nextVal   2      10      15       0         3       5       -       -
-   *
-   * Inserting 20: (happy path)
-   * 1. Find the low nullifier (15) - provide inclusion proof
-   * 2. Update its pointers
-   * 3. Insert 20 into the pending subtree
-   *
-   *  index     0       2       3       4         5       6       7       -
-   *  -------------------------------------      ----------------------------
-   *  val       0       5      10      15         2       3      20       -
-   *  nextIdx   5       2       3       7         6       2       0       -
-   *  nextVal   2      10      15      20         3       5       0       -
-   *
-   * Inserting 19:
-   * 1. In this case we can find a low nullifier, but we are updating a low nullifier that has already been updated
-   *    We can provide an inclusion proof of this intermediate tree state.
-   * 2. Update its pointers
-   * 3. Insert 19 into the pending subtree
-   *
-   *  index     0       2       3       4         5       6       7       8
-   *  -------------------------------------      ----------------------------
-   *  val       0       5      10      15         2       3      20       19
-   *  nextIdx   5       2       3       8         6       2       0       7
-   *  nextVal   2      10      15      19         3       5       0       20
+   *  val       0       5      10      15         2       3      20      19
+   *  nextIdx   4       2       3       7         5       1       0       6
+   *  nextVal   2      10      15      19         3       5       0      20
    *
    * Perform subtree insertion
    *
-   *  index     0       2       3       4       5       6       7       8
+   *  index     0       1       2       3       4       5       6       7
    *  ---------------------------------------------------------------------
-   *  val       0       5      10      15       2       3      20       19
-   *  nextIdx   5       2       3       8       6       2       0       7
-   *  nextVal   2      10      15      19       3       5       0       20
+   *  val       0       5      10      15       2       3      20      19
+   *  nextIdx   4       2       3       7       5       1       0       6
+   *  nextVal   2      10      15      19       3       5       0      20
    *
    * TODO: this implementation will change once the zero value is changed from h(0,0,0). Changes incoming over the next sprint
    * @param leaves - Values to insert into the tree.
@@ -426,107 +422,67 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
   >(
     leaves: Buffer[],
     subtreeHeight: SubtreeHeight,
-  ): Promise<
-    | [LowLeafWitnessData<TreeHeight>[], SiblingPath<SubtreeSiblingPathHeight>]
-    | [undefined, SiblingPath<SubtreeSiblingPathHeight>]
-  > {
-    // Keep track of touched low leaves
-    const touched = new Map<number, bigint[]>();
-
+  ): Promise<BatchInsertionResult<TreeHeight, SubtreeSiblingPathHeight>> {
     const emptyLowLeafWitness = getEmptyLowLeafWitness(this.getDepth() as TreeHeight);
     // Accumulators
-    const lowLeavesWitnesses: LowLeafWitnessData<TreeHeight>[] = [];
-    const pendingInsertionSubtree: LeafData[] = [];
+    const lowLeavesWitnesses: LowLeafWitnessData<TreeHeight>[] = leaves.map(() => emptyLowLeafWitness);
+    const pendingInsertionSubtree: LeafData[] = leaves.map(() => zeroLeaf);
 
     // Start info
     const startInsertionIndex = this.getNumLeaves(true);
 
-    // Get insertion path for each leaf
-    for (let i = 0; i < leaves.length; i++) {
-      const newValue = toBigIntBE(leaves[i]);
+    const leavesToInsert = leaves.map(leaf => toBigIntBE(leaf));
+    const sortedDescendingLeafTuples = leavesToInsert
+      .map((leaf, index) => ({ leaf, index }))
+      .sort((a, b) => Number(b.leaf - a.leaf));
+    const sortedDescendingLeaves = sortedDescendingLeafTuples.map(leafTuple => leafTuple.leaf);
 
-      // Keep space and just insert zero values
+    // Get insertion path for each leaf
+    for (let i = 0; i < leavesToInsert.length; i++) {
+      const newValue = sortedDescendingLeaves[i];
+      const originalIndex = leavesToInsert.indexOf(newValue);
+
       if (newValue === 0n) {
-        pendingInsertionSubtree.push(zeroLeaf);
-        lowLeavesWitnesses.push(emptyLowLeafWitness);
         continue;
       }
 
       const indexOfPrevious = this.findIndexOfPreviousValue(newValue, true);
 
-      // If a touched node has a value that is less than the current value
-      const prevNodes = touched.get(indexOfPrevious.index);
-      if (prevNodes && prevNodes.some(v => v < newValue)) {
-        // check the pending low nullifiers for a low nullifier that works
-        // This is the case where the next value is less than the pending
-        for (let j = 0; j < pendingInsertionSubtree.length; j++) {
-          if (pendingInsertionSubtree[j].value === 0n) {
-            continue;
-          }
-
-          if (
-            pendingInsertionSubtree[j].value < newValue &&
-            (pendingInsertionSubtree[j].nextValue > newValue || pendingInsertionSubtree[j].nextValue === 0n)
-          ) {
-            // add the new value to the pending low nullifiers
-            const currentLowLeaf: LeafData = {
-              value: newValue,
-              nextValue: pendingInsertionSubtree[j].nextValue,
-              nextIndex: pendingInsertionSubtree[j].nextIndex,
-            };
-
-            pendingInsertionSubtree.push(currentLowLeaf);
-
-            // Update the pending low leaf to point at the new value
-            pendingInsertionSubtree[j].nextValue = newValue;
-            pendingInsertionSubtree[j].nextIndex = startInsertionIndex + BigInt(i);
-
-            break;
-          }
-        }
-
-        // Any node updated in this space will need to calculate its low nullifier from a previously inserted value
-        lowLeavesWitnesses.push(emptyLowLeafWitness);
-      } else {
-        // Update the touched mapping
-        if (prevNodes) {
-          prevNodes.push(newValue);
-          touched.set(indexOfPrevious.index, prevNodes);
-        } else {
-          touched.set(indexOfPrevious.index, [newValue]);
-        }
-
-        // get the low leaf
-        const lowLeaf = this.getLatestLeafDataCopy(indexOfPrevious.index, true);
-        if (lowLeaf === undefined) {
-          return [undefined, await this.getSubtreeSiblingPath(subtreeHeight, true)];
-        }
-        const siblingPath = await this.getSiblingPath<TreeHeight>(BigInt(indexOfPrevious.index), true);
-
-        const witness: LowLeafWitnessData<TreeHeight> = {
-          leafData: { ...lowLeaf },
-          index: BigInt(indexOfPrevious.index),
-          siblingPath,
+      // get the low leaf
+      const lowLeaf = this.getLatestLeafDataCopy(indexOfPrevious.index, true);
+      if (lowLeaf === undefined) {
+        return {
+          lowLeavesWitnessData: undefined,
+          sortedNewLeaves: sortedDescendingLeafTuples.map(leafTuple => new Fr(leafTuple.leaf).toBuffer()),
+          sortedNewLeavesIndexes: sortedDescendingLeafTuples.map(leafTuple => leafTuple.index),
+          newSubtreeSiblingPath: await this.getSubtreeSiblingPath(subtreeHeight, true),
         };
-
-        // Update the running paths
-        lowLeavesWitnesses.push(witness);
-
-        const currentLowLeaf: LeafData = {
-          value: newValue,
-          nextValue: lowLeaf.nextValue,
-          nextIndex: lowLeaf.nextIndex,
-        };
-
-        pendingInsertionSubtree.push(currentLowLeaf);
-
-        lowLeaf.nextValue = newValue;
-        lowLeaf.nextIndex = startInsertionIndex + BigInt(i);
-
-        const lowLeafIndex = indexOfPrevious.index;
-        this.cachedLeaves[lowLeafIndex] = lowLeaf;
-        await this.updateLeaf(lowLeaf, BigInt(lowLeafIndex));
       }
+      const siblingPath = await this.getSiblingPath<TreeHeight>(BigInt(indexOfPrevious.index), true);
+
+      const witness: LowLeafWitnessData<TreeHeight> = {
+        leafData: { ...lowLeaf },
+        index: BigInt(indexOfPrevious.index),
+        siblingPath,
+      };
+
+      // Update the running paths
+      lowLeavesWitnesses[i] = witness;
+
+      const currentPendingLeaf: LeafData = {
+        value: newValue,
+        nextValue: lowLeaf.nextValue,
+        nextIndex: lowLeaf.nextIndex,
+      };
+
+      pendingInsertionSubtree[originalIndex] = currentPendingLeaf;
+
+      lowLeaf.nextValue = newValue;
+      lowLeaf.nextIndex = startInsertionIndex + BigInt(originalIndex);
+
+      const lowLeafIndex = indexOfPrevious.index;
+      this.cachedLeaves[lowLeafIndex] = lowLeaf;
+      await this.updateLeaf(lowLeaf, BigInt(lowLeafIndex));
     }
 
     const newSubtreeSiblingPath = await this.getSubtreeSiblingPath<SubtreeHeight, SubtreeSiblingPathHeight>(
@@ -538,7 +494,13 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
     // Note: In this case we set `hash0Leaf` param to false because batch insertion algorithm use forced null leaf
     // inclusion. See {@link encodeLeaf} for  a more through param explanation.
     await this.encodeAndAppendLeaves(pendingInsertionSubtree, false);
-    return [lowLeavesWitnesses, newSubtreeSiblingPath];
+
+    return {
+      lowLeavesWitnessData: lowLeavesWitnesses,
+      sortedNewLeaves: sortedDescendingLeafTuples.map(leafTuple => Buffer.from(new Fr(leafTuple.leaf).toBuffer())),
+      sortedNewLeavesIndexes: sortedDescendingLeafTuples.map(leafTuple => leafTuple.index),
+      newSubtreeSiblingPath,
+    };
   }
 
   async getSubtreeSiblingPath<SubtreeHeight extends number, SubtreeSiblingPathHeight extends number>(
