@@ -897,6 +897,17 @@ jobs:
               echo "Skipping doc deploy (not on master)."
             fi
 
+  yellow-paper:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build yellow paper"
+          command: build yellow-paper
+
   e2e-join:
     docker:
       - image: cimg/base:2023.09
@@ -1057,6 +1068,8 @@ workflows:
 
       - mainnet-fork: *defaults
 
+      - yellow-paper: *defaults
+
       # Yarn Project
       - yarn-project-base:
           requires:
@@ -1175,6 +1188,7 @@ workflows:
             - guides-dapp-testing
             - guides-sample-dapp
             - guides-up-quick-start
+            - yellow-paper
           <<: *defaults
 
       # Benchmark jobs.

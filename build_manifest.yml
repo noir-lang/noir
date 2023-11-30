@@ -170,3 +170,8 @@ docs:
     - ^.*.nr$
   dependencies:
     - yarn-project
+
+yellow-paper:
+  buildDir: yellow-paper
+  rebuildPatterns:
+    - ^yellow-paper/
