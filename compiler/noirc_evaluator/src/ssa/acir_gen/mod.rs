@@ -2077,7 +2077,7 @@ impl Context {
                     let element = self.convert_value(arguments[i + 3], dfg);
                     let elem_size = Self::flattened_value_size(&element);
                     inner_elem_size_usize += elem_size;
-                    let mut flat_elem = element.flatten().iter().map(|(var, _)| *var).collect();
+                    let mut flat_elem = element.flatten().into_iter().map(|(var, _)| var).collect();
                     flattened_elements.append(&mut flat_elem);
                 }
                 let inner_elem_size = self
