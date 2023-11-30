@@ -122,7 +122,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Dispatch to publish-es-packages
+      - name: Dispatch to publish-docs
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: publish-docs.yml
