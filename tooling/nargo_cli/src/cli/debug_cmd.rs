@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use acvm::acir::native_types::WitnessMap;
 use clap::Args;
 
@@ -64,27 +66,42 @@ pub(crate) fn run(
         &opcode_support,
     )?;
 
-    println!("[{}] Starting debugger", package.name);
-    let (return_value, solved_witness) =
-        debug_program_and_decode(compiled_program, package, &args.prover_name)?;
+    run_async(package, compiled_program, &args.prover_name, &args.witness_name, target_dir)
+}
 
-    if let Some(solved_witness) = solved_witness {
-        println!("[{}] Circuit witness successfully solved", package.name);
+fn run_async(
+    package: &Package,
+    program: CompiledProgram,
+    prover_name: &str,
+    witness_name: &Option<String>,
+    target_dir: &PathBuf,
+) -> Result<(), CliError> {
+    use tokio::runtime::Builder;
+    let runtime = Builder::new_current_thread().enable_all().build().unwrap();
 
-        if let Some(return_value) = return_value {
-            println!("[{}] Circuit output: {return_value:?}", package.name);
+    runtime.block_on(async {
+        println!("[{}] Starting debugger", package.name);
+        let (return_value, solved_witness) =
+            debug_program_and_decode(program, package, prover_name)?;
+
+        if let Some(solved_witness) = solved_witness {
+            println!("[{}] Circuit witness successfully solved", package.name);
+
+            if let Some(return_value) = return_value {
+                println!("[{}] Circuit output: {return_value:?}", package.name);
+            }
+
+            if let Some(witness_name) = witness_name {
+                let witness_path = save_witness_to_dir(solved_witness, witness_name, target_dir)?;
+
+                println!("[{}] Witness saved to {}", package.name, witness_path.display());
+            }
+        } else {
+            println!("Debugger execution halted.");
         }
 
-        if let Some(witness_name) = &args.witness_name {
-            let witness_path = save_witness_to_dir(solved_witness, witness_name, target_dir)?;
-
-            println!("[{}] Witness saved to {}", package.name, witness_path.display());
-        }
-    } else {
-        println!("Debugger execution halted.");
-    }
-
-    Ok(())
+        Ok(())
+    })
 }
 
 fn debug_program_and_decode(

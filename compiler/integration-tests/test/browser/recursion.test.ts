@@ -23,7 +23,7 @@ await initACVM();
 compilerLogLevel('INFO');
 
 const base_relative_path = '../../../../..';
-const circuit_main = 'compiler/integration-tests/circuits/main';
+const circuit_main = 'test_programs/execution_success/assert_statement';
 const circuit_recursion = 'compiler/integration-tests/circuits/recursion';
 
 function getCircuit(noirSource: string): CompiledProgram {

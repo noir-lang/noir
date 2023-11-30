@@ -89,6 +89,7 @@ impl FmtVisitor<'_> {
                 false,
                 exprs,
                 nested_indent,
+                true,
             );
 
             visitor.indent.block_unindent(visitor.config);
@@ -186,6 +187,7 @@ impl FmtVisitor<'_> {
     }
 }
 
+// TODO: fixme
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn format_seq<T: Item>(
     shape: Shape,
@@ -196,7 +198,8 @@ pub(crate) fn format_seq<T: Item>(
     exprs: Vec<T>,
     span: Span,
     tactic: Tactic,
-    soft_newline: bool,
+    mode: NewlineMode,
+    reduce: bool,
 ) -> String {
     let mut nested_indent = shape;
     let shape = shape;
@@ -204,9 +207,9 @@ pub(crate) fn format_seq<T: Item>(
     nested_indent.indent.block_indent(visitor.config);
 
     let exprs: Vec<_> = utils::Exprs::new(&visitor, nested_indent, span, exprs).collect();
-    let exprs = format_exprs(visitor.config, tactic, trailing_comma, exprs, nested_indent);
+    let exprs = format_exprs(visitor.config, tactic, trailing_comma, exprs, nested_indent, reduce);
 
-    wrap_exprs(prefix, suffix, exprs, nested_indent, shape, soft_newline)
+    wrap_exprs(prefix, suffix, exprs, nested_indent, shape, mode)
 }
 
 pub(crate) fn format_brackets(
@@ -225,10 +228,13 @@ pub(crate) fn format_brackets(
         exprs,
         span,
         Tactic::LimitedHorizontalVertical(array_width),
+        NewlineMode::Normal,
         false,
     )
 }
 
+// TODO: fixme
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn format_parens(
     max_width: Option<usize>,
     visitor: FmtVisitor,
@@ -236,10 +242,11 @@ pub(crate) fn format_parens(
     trailing_comma: bool,
     exprs: Vec<Expression>,
     span: Span,
-    soft_newline: bool,
+    reduce: bool,
+    mode: NewlineMode,
 ) -> String {
     let tactic = max_width.map(Tactic::LimitedHorizontalVertical).unwrap_or(Tactic::Horizontal);
-    format_seq(shape, "(", ")", visitor, trailing_comma, exprs, span, tactic, soft_newline)
+    format_seq(shape, "(", ")", visitor, trailing_comma, exprs, span, tactic, mode, reduce)
 }
 
 fn format_exprs(
@@ -248,11 +255,12 @@ fn format_exprs(
     trailing_comma: bool,
     exprs: Vec<Expr>,
     shape: Shape,
+    reduce: bool,
 ) -> String {
     let mut result = String::new();
     let indent_str = shape.indent.to_string();
 
-    let tactic = tactic.definitive(&exprs, config.short_array_element_width_threshold);
+    let tactic = tactic.definitive(&exprs, config.short_array_element_width_threshold, reduce);
     let mut exprs = exprs.into_iter().enumerate().peekable();
     let mut line_len = 0;
     let mut prev_expr_trailing_comment = false;
@@ -325,16 +333,32 @@ fn format_exprs(
     result
 }
 
+#[derive(PartialEq, Eq)]
+pub(crate) enum NewlineMode {
+    IfContainsNewLine,
+    IfContainsNewLineAndWidth,
+    Normal,
+}
+
 pub(crate) fn wrap_exprs(
     prefix: &str,
     suffix: &str,
     exprs: String,
     nested_shape: Shape,
     shape: Shape,
-    soft_newline: bool,
+    newline_mode: NewlineMode,
 ) -> String {
-    let mut force_one_line = first_line_width(&exprs) <= shape.width;
-    if soft_newline && force_one_line {
+    let mut force_one_line = if newline_mode == NewlineMode::IfContainsNewLine {
+        true
+    } else {
+        first_line_width(&exprs) <= shape.width
+    };
+
+    if matches!(
+        newline_mode,
+        NewlineMode::IfContainsNewLine | NewlineMode::IfContainsNewLineAndWidth
+    ) && force_one_line
+    {
         force_one_line = !exprs.contains('\n');
     }
 
@@ -373,7 +397,8 @@ impl Tactic {
     fn definitive(
         self,
         exprs: &[Expr],
-        short_array_element_width_threshold: usize,
+        short_width_threshold: usize,
+        reduce: bool,
     ) -> DefinitiveTactic {
         let tactic = || {
             let has_single_line_comment = exprs.iter().any(|item| {
@@ -407,7 +432,12 @@ impl Tactic {
             }
         };
 
-        tactic().reduce(exprs, short_array_element_width_threshold)
+        let definitive_tactic = tactic();
+        if reduce {
+            definitive_tactic.reduce(exprs, short_width_threshold)
+        } else {
+            definitive_tactic
+        }
     }
 }
 

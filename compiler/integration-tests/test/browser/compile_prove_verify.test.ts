@@ -19,11 +19,11 @@ compilerLogLevel('INFO');
 
 const test_cases = [
   {
-    case: 'tooling/nargo_cli/tests/execution_success/1_mul',
+    case: 'test_programs/execution_success/1_mul',
     numPublicInputs: 0,
   },
   {
-    case: 'compiler/integration-tests/circuits/main',
+    case: 'test_programs/execution_success/assert_statement',
     numPublicInputs: 1,
   },
 ];
