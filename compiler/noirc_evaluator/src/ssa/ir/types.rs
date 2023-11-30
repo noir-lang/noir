@@ -105,16 +105,11 @@ impl Type {
     }
 
     pub(crate) fn is_nested_slice(&self) -> bool {
-        let mut has_internal_slices = false;
         if let Type::Slice(element_types) = self {
-            for typ in element_types.as_ref() {
-                if typ.contains_slice_element() {
-                    has_internal_slices = true;
-                    break;
-                }
-            }
+            element_types.as_ref().iter().any(|typ| typ.contains_slice_element())
+        } else {
+            false
         }
-        has_internal_slices
     }
 
     /// True if this type is an array (or slice) or internally contains an array (or slice)
