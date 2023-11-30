@@ -27,7 +27,7 @@ inline void compute_gen_permutation_lagrange_base_single(barretenberg::polynomia
     // here, 'index' refers to an element of our subgroup H
     // we can almost use permutation[i] to directly index our `roots` array, which contains our subgroup elements
     // we first have to mask off the 2 high bits, which describe which wire polynomial our permutation maps to (we'll
-    // deal with that in a bit) we then have to accomodate for the fact that, `roots` only contains *half* of our
+    // deal with that in a bit) we then have to accommodate for the fact that, `roots` only contains *half* of our
     // subgroup elements. this is because w^{n/2} = -w and we don't want to perform redundant work computing roots of
     // unity
 

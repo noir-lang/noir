@@ -347,7 +347,7 @@ inline void compute_standard_plonk_lagrange_polynomial(barretenberg::polynomial&
     // `permutation[i]` will specify the 'index' that this wire value will map to.
     // Here, 'index' refers to an element of our subgroup H.
     // We can almost use `permutation[i]` to directly index our `roots` array, which contains our subgroup elements.
-    // We first have to accomodate for the fact that `roots` only contains *half* of our subgroup elements. This is
+    // We first have to accommodate for the fact that `roots` only contains *half* of our subgroup elements. This is
     // because ω^{n/2} = -ω and we don't want to perform redundant work computing roots of unity.
 
     size_t raw_idx = permutation[i].row_index;

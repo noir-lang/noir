@@ -110,7 +110,7 @@ uint<Builder, Native> uint<Builder, Native>::operator>>(const size_t shift) cons
      *
      * We have a special selector configuration in our arithmetic widget that extracts 6.b_x from given the two
      * relevant accumulators. The factor of 6 is for efficiency reasons.  We need to scale our other gate
-     * coefficients by 6 to accomodate this.
+     * coefficients by 6 to accommodate this.
      **/
 
     if ((shift & 1) == 0) {

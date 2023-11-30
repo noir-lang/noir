@@ -26,7 +26,7 @@ So, for example, if the most significant 6 bits of a scalar are `011001` (25), w
 
 At the end of each round, we then 'concatenate' all of the buckets into a sum. Let's represent each bucket accumulator in an array `A[num_buckets]`. The concatenation phase will compute `A[0] + 2A[1] + 3A[2] + 4A[3] + 5A[4] + ... = Sum`.
 
-Finally, we add each `Sum` point into an overall accumulator. For example, for a set of 254 bit scalars, if we evaluate the most 6 significant bits of each scalar and accumulate the resulting point into `Sum`, we actually need `(2^{248}).Sum` to accomodate for the bit shift. 
+Finally, we add each `Sum` point into an overall accumulator. For example, for a set of 254 bit scalars, if we evaluate the most 6 significant bits of each scalar and accumulate the resulting point into `Sum`, we actually need `(2^{248}).Sum` to accommodate for the bit shift. 
 
 This final step is similar to the 'double and add' algorithm in a traditional scalar multiplication algorithm - we start at the most significant bit slice and work our way down to minimize the number of doublings. At each round, we multiply the overall accumulator by 2^{bit slice size} - by the time we iterate over every round, we will have performed the total required number of doublings for every 'bit slice' that we add into our accumulator.
 
@@ -38,7 +38,7 @@ Total run time = 16 * 2^{18} + 16 * 2^{15} = 18 * 2^{18}. So the aggregate numbe
 
 ## The problem with Pippenger's algorithm 
 
-As it is currently implemented, each round will iterate over the points to be added, and add each point into one of the round's buckets. Whilst point access is sequential in memory, bucket access is very much not. In fact, if the points being multiplied are from a zero-knowlege proof, bucket access is literally uniformly randomly distributed and therefore presents the worst-case scenario.
+As it is currently implemented, each round will iterate over the points to be added, and add each point into one of the round's buckets. Whilst point access is sequential in memory, bucket access is very much not. In fact, if the points being multiplied are from a zero-knowledge proof, bucket access is literally uniformly randomly distributed and therefore presents the worst-case scenario.
 
 This makes it difficult to parallelize. It is not possible to simply assign threads a section of points to iterate over, because of race conditions when two threads access the same bucket.
 
@@ -69,7 +69,7 @@ Drawbacks of this approach:
 
 ## Summary 
 
-By restructuring the memory heirarchy of our pippenger algorithm, we can create a parallelizable version of pippenger. This will significantly simplify the logic of our PLONK prover (instead of allocating threads for batches of multi-exponentations, we can multi-thread individual multi-exponentiations, simplifying our thread logic). 
+By restructuring the memory hierarchy of our pippenger algorithm, we can create a parallelizable version of pippenger. This will significantly simplify the logic of our PLONK prover (instead of allocating threads for batches of multi-exponentations, we can multi-thread individual multi-exponentiations, simplifying our thread logic). 
 
 This will concretely reduce the number of pippenger rounds of our multi-exponentiations by approximately 1, giving a theoretical 15% speed-up. Some of this will be eaten by the run-time of the radix sort. 
 

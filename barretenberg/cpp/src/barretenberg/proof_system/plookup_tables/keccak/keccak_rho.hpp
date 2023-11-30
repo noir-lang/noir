@@ -40,7 +40,7 @@ namespace keccak_tables {
  *
  * We need multiple Rho tables in order to efficiently range-constrain our input slices.
  *
- * The maximum number of bits we can accomodate in this lookup table is MAXIMUM_MULTITABLE_BITS (assume this is 8)
+ * The maximum number of bits we can accommodate in this lookup table is MAXIMUM_MULTITABLE_BITS (assume this is 8)
  * For example take a left-rotation by 1 bit. The right-slice will be a 63-bit integer.
  * 63 does not evenly divide 8. i.e. an 8-bit table cannot correctly range-constrain the input slice and we would need
  * additional range constraints.
@@ -49,7 +49,7 @@ namespace keccak_tables {
  * We can stitch together a lookup table sequence that correctly range constrains the left/right slices for any of our
  * 25 rotation values
  *
- * @tparam TABLE_BITS The number of bits each lookup table can accomodate
+ * @tparam TABLE_BITS The number of bits each lookup table can accommodate
  * @tparam LANE_INDEX Required by get_rho_output_table to produce the correct MultiTable
  */
 template <size_t TABLE_BITS = 0, size_t LANE_INDEX = 0> class Rho {

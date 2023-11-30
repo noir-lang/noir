@@ -701,7 +701,7 @@ std::vector<uint32_t> UltraCircuitBuilder_<Arithmetization>::decompose_into_defa
      * This is not strictly required iff num_bits <= target_range_bitnum.
      * However, this produces an edge-case where a variable is range-constrained but NOT present in an arithmetic gate.
      * This in turn produces an unsatisfiable circuit (see `create_new_range_constraint`). We would need to check for
-     * and accomodate/reject this edge case to support not adding addition gates here if not reqiured
+     * and accommodate/reject this edge case to support not adding addition gates here if not reqiured
      * if (num_bits <= target_range_bitnum) {
      *     const uint64_t expected_range = (1ULL << num_bits) - 1ULL;
      *     create_new_range_constraint(variable_index, expected_range);

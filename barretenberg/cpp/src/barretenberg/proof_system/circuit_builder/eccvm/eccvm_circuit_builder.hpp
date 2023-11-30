@@ -390,7 +390,7 @@ template <typename Flavor> class ECCVMCircuitBuilder {
             }
         }
         for (size_t i = 0; i < precompute_table_state.size(); ++i) {
-            // first row is always an empty row (to accomodate shifted polynomials which must have 0 as 1st
+            // first row is always an empty row (to accommodate shifted polynomials which must have 0 as 1st
             // coefficient). All other rows in the precompute_table_state represent active wnaf gates (i.e.
             // precompute_select = 1)
             polys.precompute_select[i] = (i != 0) ? 1 : 0;

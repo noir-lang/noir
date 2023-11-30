@@ -9,11 +9,11 @@
  * The first implementation was `parallel_for_spawning`. You can read a description of each implementation in the
  * relevant source file, but parallel_for_spawning is the simplest approach imaginable.
  * Once WASM was working, I checked its performance in native code by running it against the polynomials benchmarks.
- * In doing so, OMP outperformed it significantly (at least for FFT algorithims). This set me on a course to try
+ * In doing so, OMP outperformed it significantly (at least for FFT algorithms). This set me on a course to try
  * and understand why and to provide a suitable alternative. Ultimately I found solutions that compared to OMP with
  * "moody" and "atomic_pool" solutions, although they were not *quite* as fast as OMP. However interestingly, when it
  * comes to actual "real world" testing (with proof construction), rather than raw benchmarking, most of the solutions
- * performaed about the same, with OMP *actually slightly worse*. So maybe all this effort was a bit redundant.
+ * performed about the same, with OMP *actually slightly worse*. So maybe all this effort was a bit redundant.
  * Remember to always do real world testing...
  *
  * My theory as to why OMP performs so much better in benchmarks is because it runs the tests in a very tight loop,
