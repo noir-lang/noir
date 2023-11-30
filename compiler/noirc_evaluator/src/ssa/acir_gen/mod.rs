@@ -1841,10 +1841,11 @@ impl Context {
             }
             Intrinsic::SlicePushFront => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
-                let slice: AcirValue = self.convert_value(arguments[1], dfg);
 
-                let (array_id, array_typ, _) =
+                let (slice_contents, slice_typ, _) =
                     self.check_array_is_initialized(arguments[1], dfg)?;
+                let slice: AcirValue = self.convert_value(slice_contents, dfg);
+
                 let mut new_slice_size = Self::flattened_value_size(&slice);
 
                 // Increase the slice length by one to enable accessing more elements in the slice.
@@ -1854,12 +1855,12 @@ impl Context {
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
+                let elements_to_push = &arguments[2..];
                 let mut elem_size = 0;
-                let slice_typ = dfg.type_of_value(arguments[1]);
                 // We only fill internal slices for nested slices (a slice inside of a slice).
                 // So we must directly push front elements for slices which are not a nested slice.
                 if !slice_typ.is_nested_slice() {
-                    for elem in arguments[2..].iter().rev() {
+                    for elem in elements_to_push.iter().rev() {
                         let element = self.convert_value(*elem, dfg);
 
                         elem_size += Self::flattened_value_size(&element);
@@ -1871,7 +1872,7 @@ impl Context {
                     // We need to account for that we do not go out of bounds by removing dummy data as we
                     // push elements to the front of our slice.
                     // Using this strategy we are able to avoid dynamic writes like we do for a SlicePushBack.
-                    for elem in arguments[2..].iter().rev() {
+                    for elem in elements_to_push.iter().rev() {
                         let element = self.convert_value(*elem, dfg);
 
                         let elem_size = Self::flattened_value_size(&element);
@@ -1893,10 +1894,10 @@ impl Context {
                     Some(new_slice_val.clone()),
                 )?;
 
-                let element_type_sizes = if !can_omit_element_sizes_array(&array_typ) {
+                let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
                     Some(self.init_element_type_sizes_array(
-                        &array_typ,
-                        array_id,
+                        &slice_typ,
+                        slice_contents,
                         Some(new_slice_val),
                         dfg,
                     )?)
@@ -1913,7 +1914,6 @@ impl Context {
             }
             Intrinsic::SlicePopBack => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
-                let slice = self.convert_value(arguments[1], dfg);
 
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
@@ -1922,15 +1922,19 @@ impl Context {
                 // the elements stored at that index will no longer be able to be accessed.
                 let mut var_index = new_slice_length;
 
-                let (_, _, block_id) = self.check_array_is_initialized(arguments[1], dfg)?;
+                let (slice_contents, slice_typ, block_id) =
+                    self.check_array_is_initialized(arguments[1], dfg)?;
+                let slice = self.convert_value(slice_contents, dfg);
 
-                let slice_typ = dfg.type_of_value(arguments[1]);
                 let element_size = slice_typ.element_size();
 
                 let mut popped_elements = Vec::new();
                 // Fetch the values we are popping off of the slice.
                 // In the case of non-nested slice the logic is simple as we do not
                 // need to account for the internal slice sizes or flattening the index.
+                //
+                // The pop back operation results are of the format [slice length, slice contents, popped elements].
+                // Thus, we look at the result ids at index 2 and onwards to determine the type of each popped element.
                 if !slice_typ.is_nested_slice() {
                     for res in &result_ids[2..] {
                         let elem = self.array_get_value(
@@ -1943,7 +1947,7 @@ impl Context {
                     }
                 } else {
                     // Fetch the slice sizes of the nested slice.
-                    let slice_sizes = self.slice_sizes.get(&arguments[1]);
+                    let slice_sizes = self.slice_sizes.get(&slice_contents);
                     let mut slice_sizes =
                         slice_sizes.expect("ICE: should have slice sizes").clone();
                     // We want to remove the parent size as we are fetching the child
@@ -1957,7 +1961,7 @@ impl Context {
                     // We want to use an index one less than the slice length
                     var_index = self.acir_context.mul_var(var_index, element_size_var)?;
                     var_index =
-                        self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
+                        self.get_flattened_index(&slice_typ, slice_contents, var_index, dfg)?;
 
                     for res in &result_ids[2..] {
                         let elem = self.array_get_value(
@@ -1983,9 +1987,10 @@ impl Context {
             }
             Intrinsic::SlicePopFront => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
-                let slice = self.convert_value(arguments[1], dfg);
 
-                let (_, _, block_id) = self.check_array_is_initialized(arguments[1], dfg)?;
+                let (slice_contents, slice_typ, block_id) =
+                    self.check_array_is_initialized(arguments[1], dfg)?;
+                let slice = self.convert_value(slice_contents, dfg);
 
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
@@ -1993,7 +1998,6 @@ impl Context {
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
-                let slice_typ = dfg.type_of_value(arguments[1]);
                 let element_size = slice_typ.element_size();
 
                 let mut popped_elements: Vec<AcirValue> = Vec::new();
@@ -2002,6 +2006,9 @@ impl Context {
                 // Fetch the values we are popping off of the slice.
                 // In the case of non-nested slice the logic is simple as we do not
                 // need to account for the internal slice sizes or flattening the index.
+                //
+                // The pop front operation results are of the format [popped elements, slice length, slice contents].
+                // Thus, we look at the result ids up to the element size to determine the type of each popped element.
                 if !slice_typ.is_nested_slice() {
                     for res in &result_ids[..element_size] {
                         let element = self.array_get_value(
@@ -2015,7 +2022,7 @@ impl Context {
                         popped_elements.push(element);
                     }
                 } else {
-                    let slice_sizes = self.slice_sizes.get(&arguments[1]);
+                    let slice_sizes = self.slice_sizes.get(&slice_contents);
                     let mut slice_sizes =
                         slice_sizes.expect("ICE: should have slice sizes").clone();
                     // We want to remove the parent size as we are fetching the child
@@ -2033,6 +2040,8 @@ impl Context {
                         popped_elements.push(element);
                     }
                 }
+                // It is expected that the `popped_elements_size` is the flattened size of the elements,
+                // as the input slice should be a dynamic array which is represented by flat memory.
                 new_slice = new_slice.slice(popped_elements_size..);
 
                 popped_elements.push(AcirValue::Var(new_slice_length, AcirType::field()));
@@ -2042,16 +2051,15 @@ impl Context {
             }
             Intrinsic::SliceInsert => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
-                let slice = self.convert_value(arguments[1], dfg);
+
+                let (slice_contents, slice_typ, block_id) =
+                    self.check_array_is_initialized(arguments[1], dfg)?;
+
+                let slice = self.convert_value(slice_contents, dfg);
                 let index = self.convert_value(arguments[2], dfg).into_var()?;
 
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
-
-                let slice_typ = dfg.type_of_value(arguments[1]);
-
-                let (array_id, array_typ, block_id) =
-                    self.check_array_is_initialized(arguments[1], dfg)?;
 
                 let slice_size = Self::flattened_value_size(&slice);
 
@@ -2067,14 +2075,15 @@ impl Context {
                 let element_size_var =
                     self.acir_context.add_constant(FieldElement::from(element_size as u128));
                 let mut var_index = self.acir_context.mul_var(index, element_size_var)?;
-                var_index = self.get_flattened_index(&slice_typ, arguments[1], var_index, dfg)?;
+                var_index = self.get_flattened_index(&slice_typ, slice_contents, var_index, dfg)?;
 
+                let elements_to_insert = &arguments[3..];
                 // Determine the elements we need to write into our resulting dynamic array.
                 // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
                 let mut inner_elem_size_usize = 0;
                 let mut flattened_elements = Vec::new();
                 for i in 0..element_size {
-                    let element = self.convert_value(arguments[i + 3], dfg);
+                    let element = self.convert_value(elements_to_insert[i], dfg);
                     let elem_size = Self::flattened_value_size(&element);
                     inner_elem_size_usize += elem_size;
                     let mut flat_elem = element.flatten().into_iter().map(|(var, _)| var).collect();
@@ -2154,10 +2163,10 @@ impl Context {
                     }
                 }
 
-                let element_type_sizes = if !can_omit_element_sizes_array(&array_typ) {
+                let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
                     Some(self.init_element_type_sizes_array(
-                        &array_typ,
-                        array_id,
+                        &slice_typ,
+                        slice_contents,
                         Some(new_slice_val),
                         dfg,
                     )?)
