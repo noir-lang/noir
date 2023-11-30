@@ -15,5 +15,10 @@ COPY --from=build /usr/src/noir/target/release/nargo /usr/src/noir/target/releas
 WORKDIR /project
 ENTRYPOINT ["/usr/src/noir/target/release/nargo"]
 
-FROM build as test
-RUN ./scripts/test_native.sh
+FROM rust:1-slim-bookworm as test
+RUN apt-get update && apt-get upgrade -y && apt-get install git openssl -y
+WORKDIR /usr/src/noir
+COPY . .
+RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD)
+RUN cargo build --features="noirc_driver/aztec" --release
+RUN cargo test RUST_BACKTRACE=1
