@@ -63,8 +63,15 @@ pub struct CompileOptions {
     pub silence_warnings: bool,
 
     /// Enables the aztec macro preprocessor
-    #[arg(long, hide = true)]
+    #[arg(long, env = AZTEC_MACRO_ENV_VAR, hide = true)]
     pub aztec_macro: bool,
+}
+
+pub(crate) const AZTEC_MACRO_ENV_VAR: &str = "AZTEC_MACROS";
+
+/// Returns true if the `AZTEC_MACROS` environment variable is set.
+pub fn is_aztec_environment_variable_set() -> bool {
+    std::env::var(AZTEC_MACRO_ENV_VAR).is_ok()
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
