@@ -8,24 +8,53 @@
 #include "barretenberg/proof_system/circuit_builder/circuit_builder_base.hpp"
 
 #include "barretenberg/flavor/generated/AvmMini_flavor.hpp"
-#include "barretenberg/relations/generated/AvmMini.hpp"
+#include "barretenberg/relations/generated/AvmMini/avm_mini.hpp"
+#include "barretenberg/relations/generated/AvmMini/mem_trace.hpp"
 
 using namespace barretenberg;
 
 namespace proof_system {
 
+template <typename FF> struct AvmMiniFullRow {
+    FF avmMini_clk{};
+    FF avmMini_first{};
+    FF memTrace_m_clk{};
+    FF memTrace_m_sub_clk{};
+    FF memTrace_m_addr{};
+    FF memTrace_m_val{};
+    FF memTrace_m_lastAccess{};
+    FF memTrace_m_rw{};
+    FF avmMini_subop{};
+    FF avmMini_ia{};
+    FF avmMini_ib{};
+    FF avmMini_ic{};
+    FF avmMini_mem_op_a{};
+    FF avmMini_mem_op_b{};
+    FF avmMini_mem_op_c{};
+    FF avmMini_rwa{};
+    FF avmMini_rwb{};
+    FF avmMini_rwc{};
+    FF avmMini_mem_idx_a{};
+    FF avmMini_mem_idx_b{};
+    FF avmMini_mem_idx_c{};
+    FF avmMini_last{};
+    FF memTrace_m_addr_shift{};
+    FF memTrace_m_rw_shift{};
+    FF memTrace_m_val_shift{};
+};
+
 class AvmMiniCircuitBuilder {
   public:
     using Flavor = proof_system::honk::flavor::AvmMiniFlavor;
     using FF = Flavor::FF;
-    using Row = AvmMini_vm::Row<FF>;
+    using Row = AvmMiniFullRow<FF>;
 
     // TODO: template
     using Polynomial = Flavor::Polynomial;
     using AllPolynomials = Flavor::AllPolynomials;
 
-    static constexpr size_t num_fixed_columns = 26;
-    static constexpr size_t num_polys = 23;
+    static constexpr size_t num_fixed_columns = 25;
+    static constexpr size_t num_polys = 22;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -42,8 +71,13 @@ class AvmMiniCircuitBuilder {
 
         for (size_t i = 0; i < rows.size(); i++) {
             polys.avmMini_clk[i] = rows[i].avmMini_clk;
-            polys.avmMini_positive[i] = rows[i].avmMini_positive;
             polys.avmMini_first[i] = rows[i].avmMini_first;
+            polys.memTrace_m_clk[i] = rows[i].memTrace_m_clk;
+            polys.memTrace_m_sub_clk[i] = rows[i].memTrace_m_sub_clk;
+            polys.memTrace_m_addr[i] = rows[i].memTrace_m_addr;
+            polys.memTrace_m_val[i] = rows[i].memTrace_m_val;
+            polys.memTrace_m_lastAccess[i] = rows[i].memTrace_m_lastAccess;
+            polys.memTrace_m_rw[i] = rows[i].memTrace_m_rw;
             polys.avmMini_subop[i] = rows[i].avmMini_subop;
             polys.avmMini_ia[i] = rows[i].avmMini_ia;
             polys.avmMini_ib[i] = rows[i].avmMini_ib;
@@ -58,17 +92,11 @@ class AvmMiniCircuitBuilder {
             polys.avmMini_mem_idx_b[i] = rows[i].avmMini_mem_idx_b;
             polys.avmMini_mem_idx_c[i] = rows[i].avmMini_mem_idx_c;
             polys.avmMini_last[i] = rows[i].avmMini_last;
-            polys.avmMini_m_clk[i] = rows[i].avmMini_m_clk;
-            polys.avmMini_m_sub_clk[i] = rows[i].avmMini_m_sub_clk;
-            polys.avmMini_m_addr[i] = rows[i].avmMini_m_addr;
-            polys.avmMini_m_val[i] = rows[i].avmMini_m_val;
-            polys.avmMini_m_lastAccess[i] = rows[i].avmMini_m_lastAccess;
-            polys.avmMini_m_rw[i] = rows[i].avmMini_m_rw;
         }
 
-        polys.avmMini_m_val_shift = Polynomial(polys.avmMini_m_val.shifted());
-        polys.avmMini_m_addr_shift = Polynomial(polys.avmMini_m_addr.shifted());
-        polys.avmMini_m_rw_shift = Polynomial(polys.avmMini_m_rw.shifted());
+        polys.memTrace_m_addr_shift = Polynomial(polys.memTrace_m_addr.shifted());
+        polys.memTrace_m_rw_shift = Polynomial(polys.memTrace_m_rw.shifted());
+        polys.memTrace_m_val_shift = Polynomial(polys.memTrace_m_val.shifted());
 
         return polys;
     }
@@ -103,7 +131,14 @@ class AvmMiniCircuitBuilder {
             return true;
         };
 
-        return evaluate_relation.template operator()<AvmMini_vm::AvmMini<FF>>("AvmMini");
+        if (!evaluate_relation.template operator()<AvmMini_vm::mem_trace<FF>>("mem_trace")) {
+            return false;
+        }
+        if (!evaluate_relation.template operator()<AvmMini_vm::avm_mini<FF>>("avm_mini")) {
+            return false;
+        }
+
+        return true;
     }
 
     [[nodiscard]] size_t get_num_gates() const { return rows.size(); }

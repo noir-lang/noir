@@ -55,6 +55,15 @@ bool AvmMiniVerifier::verify_proof(const plonk::proof& proof)
     }
 
     // Get commitments to VM wires
+    commitments.memTrace_m_clk = transcript.template receive_from_prover<Commitment>(commitment_labels.memTrace_m_clk);
+    commitments.memTrace_m_sub_clk =
+        transcript.template receive_from_prover<Commitment>(commitment_labels.memTrace_m_sub_clk);
+    commitments.memTrace_m_addr =
+        transcript.template receive_from_prover<Commitment>(commitment_labels.memTrace_m_addr);
+    commitments.memTrace_m_val = transcript.template receive_from_prover<Commitment>(commitment_labels.memTrace_m_val);
+    commitments.memTrace_m_lastAccess =
+        transcript.template receive_from_prover<Commitment>(commitment_labels.memTrace_m_lastAccess);
+    commitments.memTrace_m_rw = transcript.template receive_from_prover<Commitment>(commitment_labels.memTrace_m_rw);
     commitments.avmMini_subop = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_subop);
     commitments.avmMini_ia = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_ia);
     commitments.avmMini_ib = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_ib);
@@ -75,14 +84,6 @@ bool AvmMiniVerifier::verify_proof(const plonk::proof& proof)
     commitments.avmMini_mem_idx_c =
         transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_mem_idx_c);
     commitments.avmMini_last = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_last);
-    commitments.avmMini_m_clk = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_m_clk);
-    commitments.avmMini_m_sub_clk =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_m_sub_clk);
-    commitments.avmMini_m_addr = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_m_addr);
-    commitments.avmMini_m_val = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_m_val);
-    commitments.avmMini_m_lastAccess =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_m_lastAccess);
-    commitments.avmMini_m_rw = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_m_rw);
 
     // Execute Sumcheck Verifier
     auto sumcheck = SumcheckVerifier<Flavor>(circuit_size);

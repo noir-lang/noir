@@ -1,0 +1,47 @@
+
+
+include "avm_mini.pil";
+
+namespace memTrace(256);
+    // ========= Table MEM-TR =================
+    pol commit m_clk;
+    pol commit m_sub_clk;
+    pol commit m_addr;
+    pol commit m_val;
+    pol commit m_lastAccess; // Boolean (1 when this row is the last of a given address)
+    pol commit m_rw; // Enum: 0 (read), 1 (write)
+    
+    // Type constraints
+    m_lastAccess * (1 - m_lastAccess) = 0;
+    m_rw * (1 - m_rw) = 0;
+    
+    // m_lastAccess == 0 ==> m_addr' == m_addr
+    (1 -  avmMini.first) * (1 - m_lastAccess) * (m_addr' - m_addr) = 0;
+    
+    // We need: m_lastAccess == 1 ==> m_addr' > m_addr
+    // The above implies: m_addr' == m_addr ==> m_lastAccess == 0
+    // This condition does not apply on the last row.
+    // clk + 1 used as an expression for positive integers
+    // TODO: Uncomment when lookups are supported
+    // (1 - first) * (1 - last) * m_lastAccess { (m_addr' - m_addr) } in clk + 1; // Gated inclusion check. Is it supported?
+    
+    // TODO: following constraint
+    // m_addr' == m_addr && m_clk == m_clk' ==> m_sub_clk' - m_sub_clk > 0
+    // Can be enforced with (1 - first) * (1 - last) * (1 - m_lastAccess) { 6 * (m_clk' - m_clk) + m_sub_clk' - m_sub_clk } in clk + 1
+    
+    // Alternatively to the above, one could require 
+    // that m_addr' - m_addr is 0 or 1 (needs to add placeholders m_addr values):
+    // (m_addr' - m_addr) * (m_addr' - m_addr) - (m_addr' - m_addr) = 0;
+    // if m_addr' - m_addr is 0 or 1, the following is equiv. to m_lastAccess
+    // (m_addr' - m_addr)
+    
+    // m_lastAccess == 0 && m_rw' == 0 ==> m_val == m_val'
+    // This condition does not apply on the last row.
+    // Note: in barretenberg, a shifted polynomial will be 0 on the last row (shift is not cyclic)
+    // Note2: in barretenberg, if a poynomial is shifted, its non-shifted equivalent must be 0 on the first row
+    
+    (1 -  avmMini.first) * (1 -  avmMini.last) * (1 - m_lastAccess) * (1 - m_rw') * (m_val' - m_val) = 0;
+    
+    // TODO: Constraint the first load from a given adress has value 0. (Consistency of memory initialization.)
+    // TODO: when introducing load/store as sub-operations, we will have to add consistency of intermediate
+    // register values ia, ib, ic

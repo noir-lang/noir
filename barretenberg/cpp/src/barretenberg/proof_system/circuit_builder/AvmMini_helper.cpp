@@ -1,10 +1,9 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/proof_system/circuit_builder/circuit_builder_base.hpp"
 
-#include "barretenberg/flavor/generated/AvmMini_flavor.hpp"
-#include "barretenberg/relations/generated/AvmMini.hpp"
-
 #include "./AvmMini_helper.hpp"
+#include "barretenberg/flavor/generated/AvmMini_flavor.hpp"
+#include "barretenberg/relations/generated/AvmMini/avm_mini.hpp"
 
 namespace proof_system {
 
@@ -24,13 +23,13 @@ void log_avmMini_trace(std::vector<Row> const& trace, size_t beg, size_t end)
         info("==        ROW ", i);
         info("================================================================================");
 
-        info("m_addr:       ", trace.at(i).avmMini_m_addr);
-        info("m_clk:        ", trace.at(i).avmMini_m_clk);
-        info("m_sub_clk:    ", trace.at(i).avmMini_m_sub_clk);
-        info("m_val:        ", trace.at(i).avmMini_m_val);
-        info("m_lastAccess: ", trace.at(i).avmMini_m_lastAccess);
-        info("m_rw:         ", trace.at(i).avmMini_m_rw);
-        info("m_val_shift:  ", trace.at(i).avmMini_m_val_shift);
+        info("m_addr:       ", trace.at(i).memTrace_m_addr);
+        info("m_clk:        ", trace.at(i).memTrace_m_clk);
+        info("m_sub_clk:    ", trace.at(i).memTrace_m_sub_clk);
+        info("m_val:        ", trace.at(i).memTrace_m_val);
+        info("m_lastAccess: ", trace.at(i).memTrace_m_lastAccess);
+        info("m_rw:         ", trace.at(i).memTrace_m_rw);
+        info("m_val_shift:  ", trace.at(i).memTrace_m_val_shift);
         info("first:        ", trace.at(i).avmMini_first);
         info("last:         ", trace.at(i).avmMini_last);
 
