@@ -45,16 +45,16 @@ jobs:
           target: test
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Build image and push to GitHub Container Registry
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile
-          tags: ${{ steps.prep.outputs.tags }}
-          push: true
-          target: production
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      # - name: Build image and push to GitHub Container Registry
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     context: .
+      #     file: Dockerfile
+      #     tags: ${{ steps.prep.outputs.tags }}
+      #     push: true
+      #     target: production
+      #     cache-from: type=gha
+      #     cache-to: type=gha,mode=max
 
 #Test cache
       # - name: Create Release
