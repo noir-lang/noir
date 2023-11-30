@@ -16,4 +16,4 @@ WORKDIR /project
 ENTRYPOINT ["/usr/src/noir/target/release/nargo"]
 
 FROM build as test
-RUN cargo test --workspace --locked --release
+RUN ./scripts/test_native.sh
