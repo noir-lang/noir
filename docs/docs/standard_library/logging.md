@@ -73,5 +73,5 @@ std::println(person);
 std::print(person);
 
 std::println("Hello world!"); // Prints with a newline at the end of the input
-std::print("Hello world!");   // Prints the input and keeps cursor on the same
+std::print("Hello world!");   // Prints the input and keeps cursor on the same line
 ```
