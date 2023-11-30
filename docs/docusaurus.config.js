@@ -45,9 +45,6 @@ const config = {
               label: 'dev',
               path: 'dev',
             },
-            '0.7.1': {
-              label: '0.7.1 / 0.8.0',
-            },
           },
           editUrl: ({ versionDocsDirPath, docPath }) =>
             `https://github.com/noir-lang/noir/edit/master/docs/${versionDocsDirPath}/${docPath}`,
@@ -62,7 +59,7 @@ const config = {
 
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
-    ({
+    {
       // Replace with your project's social card
       navbar: {
         logo: {
@@ -73,7 +70,7 @@ const config = {
         },
         items: [
           {
-            href: 'https://github.com/noir-lang/docs',
+            href: 'https://github.com/noir-lang/noir/tree/master/docs',
             label: 'GitHub',
             position: 'right',
           },
@@ -87,8 +84,7 @@ const config = {
       metadata: [
         {
           name: 'Noir',
-          content:
-            'noir, programming, language, documentation, zk, zero-knowledge, l2, crypto, layer2, ethereum',
+          content: 'noir, programming, language, documentation, zk, zero-knowledge, l2, crypto, layer2, ethereum',
         },
       ],
       footer: {
@@ -149,7 +145,71 @@ const config = {
 
         indexName: 'noir-lang',
       },
-    }),
+    },
+  plugins: [
+    [
+      'docusaurus-plugin-typedoc',
+      {
+        id: 'noir_js',
+        entryPoints: ['../tooling/noir_js/src/index.ts'],
+        tsconfig: '../tooling/noir_js/tsconfig.json',
+        entryPointStrategy: 'resolve',
+        out: 'docs/noir_js/reference/noir_js',
+        plugin: ['typedoc-plugin-markdown'],
+        name: 'Noir JS',
+        disableSources: true,
+        excludePrivate: true,
+
+        sidebar: {
+          filteredIds: ['noir_js/reference/noir_js/index'],
+        },
+        readme: 'none',
+        hidePageHeader: true,
+        hideBreadcrumbs: true,
+        hideInPageTOC: true,
+        useCodeBlocks: true,
+        typeDeclarationFormat: 'table',
+        propertiesFormat: 'table',
+        parametersFormat: 'table',
+        enumMembersFormat: 'table',
+        indexFormat: 'table',
+        outputFileStrategy: 'members',
+        memberPageTitle: '{name}',
+        membersWithOwnFile: ['Interface', 'Class', 'TypeAlias', 'Function'],
+      },
+    ],
+    [
+      'docusaurus-plugin-typedoc',
+      {
+        id: 'noir_js_backend_barretenberg',
+        entryPoints: ['../tooling/noir_js_backend_barretenberg/src/index.ts'],
+        tsconfig: '../tooling/noir_js_backend_barretenberg/tsconfig.json',
+        entryPointStrategy: 'resolve',
+        out: 'docs/noir_js/reference/backend_barretenberg',
+        plugin: ['typedoc-plugin-markdown'],
+        name: 'Backend Barretenberg',
+        disableSources: true,
+        excludePrivate: true,
+
+        sidebar: {
+          filteredIds: ['noir_js/reference/backend_barretenberg/index'],
+        },
+        readme: 'none',
+        hidePageHeader: true,
+        hideBreadcrumbs: true,
+        hideInPageTOC: true,
+        useCodeBlocks: true,
+        typeDeclarationFormat: 'table',
+        propertiesFormat: 'table',
+        parametersFormat: 'table',
+        enumMembersFormat: 'table',
+        indexFormat: 'table',
+        outputFileStrategy: 'members',
+        memberPageTitle: '{name}',
+        membersWithOwnFile: ['Interface', 'Class', 'TypeAlias'],
+      },
+    ],
+  ],
 };
 
 module.exports = config;

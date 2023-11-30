@@ -1,0 +1,6 @@
+[package]
+name = "numeric_generics"
+type = "bin"
+authors = [""]
+
+[dependencies]

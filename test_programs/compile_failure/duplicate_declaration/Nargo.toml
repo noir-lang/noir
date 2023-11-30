@@ -1,0 +1,6 @@
+[package]
+name = "duplicate_declaration"
+type = "bin"
+authors = [""]
+
+[dependencies]

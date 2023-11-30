@@ -1,0 +1,6 @@
+[package]
+name = "references_aliasing"
+type = "bin"
+authors = [""]
+
+[dependencies]

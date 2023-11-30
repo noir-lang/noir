@@ -6,20 +6,17 @@ use super::{
 };
 use acvm::FieldElement;
 use noirc_errors::{Position, Span};
-use std::str::Chars;
-use std::{
-    iter::{Peekable, Zip},
-    ops::RangeFrom,
-};
+use std::str::CharIndices;
 
 /// The job of the lexer is to transform an iterator of characters (`char_iter`)
 /// into an iterator of `SpannedToken`. Each `Token` corresponds roughly to 1 word or operator.
 /// Tokens are tagged with their location in the source file (a `Span`) for use in error reporting.
 pub struct Lexer<'a> {
-    char_iter: Peekable<Zip<Chars<'a>, RangeFrom<u32>>>,
+    chars: CharIndices<'a>,
     position: Position,
     done: bool,
     skip_comments: bool,
+    skip_whitespaces: bool,
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
@@ -42,11 +39,11 @@ impl<'a> Lexer<'a> {
 
     pub fn new(source: &'a str) -> Self {
         Lexer {
-            // We zip with the character index here to ensure the first char has index 0
-            char_iter: source.chars().zip(0..).peekable(),
+            chars: source.char_indices(),
             position: 0,
             done: false,
             skip_comments: true,
+            skip_whitespaces: true,
         }
     }
 
@@ -55,23 +52,28 @@ impl<'a> Lexer<'a> {
         self
     }
 
+    pub fn skip_whitespaces(mut self, flag: bool) -> Self {
+        self.skip_whitespaces = flag;
+        self
+    }
+
     /// Iterates the cursor and returns the char at the new cursor position
     fn next_char(&mut self) -> Option<char> {
-        let (c, index) = self.char_iter.next()?;
-        self.position = index;
-        Some(c)
+        let (position, ch) = self.chars.next()?;
+        self.position = position as u32;
+        Some(ch)
     }
 
     /// Peeks at the next char. Does not iterate the cursor
     fn peek_char(&mut self) -> Option<char> {
-        self.char_iter.peek().map(|(c, _)| *c)
+        self.chars.clone().next().map(|(_, ch)| ch)
     }
 
     /// Peeks at the character two positions ahead. Does not iterate the cursor
     fn peek2_char(&mut self) -> Option<char> {
-        let mut chars = self.char_iter.clone();
+        let mut chars = self.chars.clone();
         chars.next();
-        chars.next().map(|(c, _)| c)
+        chars.next().map(|(_, ch)| ch)
     }
 
     /// Peeks at the next char and returns true if it is equal to the char argument
@@ -92,9 +94,13 @@ impl<'a> Lexer<'a> {
 
     fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
-            Some(x) if { x.is_whitespace() } => {
-                self.eat_whitespace();
-                self.next_token()
+            Some(x) if x.is_whitespace() => {
+                let spanned = self.eat_whitespace(x);
+                if self.skip_whitespaces {
+                    self.next_token()
+                } else {
+                    Ok(spanned)
+                }
             }
             Some('<') => self.glue(Token::Less),
             Some('>') => self.glue(Token::Greater),
@@ -120,6 +126,7 @@ impl<'a> Lexer<'a> {
             Some(']') => self.single_char_token(Token::RightBracket),
             Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
+            Some('r') => self.eat_raw_string_or_alpha_numeric(),
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
@@ -394,6 +401,78 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn eat_raw_string(&mut self) -> SpannedTokenResult {
+        let start = self.position;
+
+        let beginning_hashes = self.eat_while(None, |ch| ch == '#');
+        let beginning_hashes_count = beginning_hashes.chars().count();
+        if beginning_hashes_count > 255 {
+            // too many hashes (unlikely in practice)
+            // also, Rust disallows 256+ hashes as well
+            return Err(LexerErrorKind::UnexpectedCharacter {
+                span: Span::single_char(start + 255),
+                found: Some('#'),
+                expected: "\"".to_owned(),
+            });
+        }
+
+        if !self.peek_char_is('"') {
+            return Err(LexerErrorKind::UnexpectedCharacter {
+                span: Span::single_char(self.position),
+                found: self.next_char(),
+                expected: "\"".to_owned(),
+            });
+        }
+        self.next_char();
+
+        let mut str_literal = String::new();
+        loop {
+            let chars = self.eat_while(None, |ch| ch != '"');
+            str_literal.push_str(&chars[..]);
+            if !self.peek_char_is('"') {
+                return Err(LexerErrorKind::UnexpectedCharacter {
+                    span: Span::single_char(self.position),
+                    found: self.next_char(),
+                    expected: "\"".to_owned(),
+                });
+            }
+            self.next_char();
+            let mut ending_hashes_count = 0;
+            while let Some('#') = self.peek_char() {
+                if ending_hashes_count == beginning_hashes_count {
+                    break;
+                }
+                self.next_char();
+                ending_hashes_count += 1;
+            }
+            if ending_hashes_count == beginning_hashes_count {
+                break;
+            } else {
+                str_literal.push('"');
+                for _ in 0..ending_hashes_count {
+                    str_literal.push('#');
+                }
+            }
+        }
+
+        let str_literal_token = Token::RawStr(str_literal, beginning_hashes_count as u8);
+
+        let end = self.position;
+        Ok(str_literal_token.into_span(start, end))
+    }
+
+    fn eat_raw_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
+        // Problem: we commit to eating raw strings once we see one or two characters.
+        // This is unclean, but likely ok in all practical cases, and works with existing
+        // `Lexer` methods.
+        let peek1 = self.peek_char().unwrap_or('X');
+        let peek2 = self.peek2_char().unwrap_or('X');
+        match (peek1, peek2) {
+            ('#', '#') | ('#', '"') | ('"', _) => self.eat_raw_string(),
+            _ => self.eat_alpha_numeric('r'),
+        }
+    }
+
     fn parse_comment(&mut self, start: u32) -> SpannedTokenResult {
         let doc_style = match self.peek_char() {
             Some('!') => {
@@ -464,8 +543,10 @@ impl<'a> Lexer<'a> {
     }
 
     /// Skips white space. They are not significant in the source language
-    fn eat_whitespace(&mut self) {
-        self.eat_while(None, |ch| ch.is_whitespace());
+    fn eat_whitespace(&mut self, initial_char: char) -> SpannedToken {
+        let start = self.position;
+        let whitespace = self.eat_while(initial_char.into(), |ch| ch.is_whitespace());
+        SpannedToken::new(Token::Whitespace(whitespace), Span::inclusive(start, self.position))
     }
 }
 
@@ -548,6 +629,20 @@ mod tests {
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Deprecated(None)))
+        );
+    }
+
+    #[test]
+    fn test_attribute_with_apostrophe() {
+        let input = r#"#[test(should_fail_with = "the eagle's feathers")]"#;
+        let mut lexer = Lexer::new(input);
+
+        let token = lexer.next_token().unwrap().token().clone();
+        assert_eq!(
+            token,
+            Token::Attribute(Attribute::Function(FunctionAttribute::Test(
+                TestScope::ShouldFailWith { reason: "the eagle's feathers".to_owned().into() }
+            )))
         );
     }
 

@@ -1,0 +1,6 @@
+[package]
+name = "generics"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -24,7 +24,7 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
-    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKey, TraitMethodId},
+    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
     ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind,
     Visibility,
@@ -312,7 +312,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let typ = self.convert_type(&self.interner.id_type(expr));
-                Literal(Integer(value, typ))
+                let location = self.interner.id_location(expr);
+                Literal(Integer(value, typ, location))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array),
@@ -377,9 +378,9 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr),
 
-            HirExpression::TraitMethodReference(typ, method) => {
+            HirExpression::TraitMethodReference(method) => {
                 if let Type::Function(_, _, _) = self.interner.id_type(expr) {
-                    self.resolve_trait_method_reference(typ, expr, method)
+                    self.resolve_trait_method_reference(expr, method)
                 } else {
                     unreachable!(
                         "Calling a non-function, this should've been caught in typechecking"
@@ -672,7 +673,8 @@ impl<'interner> Monomorphizer<'interner> {
                 };
 
                 let value = FieldElement::from(value as u128);
-                ast::Expression::Literal(ast::Literal::Integer(value, ast::Type::Field))
+                let location = self.interner.id_location(expr_id);
+                ast::Expression::Literal(ast::Literal::Integer(value, ast::Type::Field, location))
             }
         }
     }
@@ -810,7 +812,6 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn resolve_trait_method_reference(
         &mut self,
-        self_type: HirType,
         expr_id: node_interner::ExprId,
         method: TraitMethodId,
     ) -> ast::Expression {
@@ -818,13 +819,36 @@ impl<'interner> Monomorphizer<'interner> {
 
         let trait_impl = self
             .interner
-            .get_trait_implementation(&TraitImplKey {
-                typ: self_type.follow_bindings(),
-                trait_id: method.trait_id,
-            })
+            .get_selected_impl_for_ident(expr_id)
             .expect("ICE: missing trait impl - should be caught during type checking");
 
-        let hir_func_id = trait_impl.borrow().methods[method.method_index];
+        let hir_func_id = match trait_impl {
+            node_interner::TraitImplKind::Normal(impl_id) => {
+                self.interner.get_trait_implementation(impl_id).borrow().methods
+                    [method.method_index]
+            }
+            node_interner::TraitImplKind::Assumed { object_type } => {
+                match self.interner.lookup_trait_implementation(&object_type, method.trait_id) {
+                    Ok(TraitImplKind::Normal(impl_id)) => {
+                        self.interner.get_trait_implementation(impl_id).borrow().methods
+                            [method.method_index]
+                    }
+                    Ok(TraitImplKind::Assumed { .. }) => unreachable!(
+                        "There should be no remaining Assumed impls during monomorphization"
+                    ),
+                    Err(constraints) => {
+                        let failed_constraints = vecmap(constraints, |constraint| {
+                            let id = constraint.trait_id;
+                            let name = self.interner.get_trait(id).name.to_string();
+                            format!("  {}: {name}", constraint.typ)
+                        })
+                        .join("\n");
+
+                        unreachable!("Failed to find trait impl during monomorphization. The failed constraint(s) are:\n{failed_constraints}")
+                    }
+                }
+            }
+        };
 
         let func_def = self.lookup_function(hir_func_id, expr_id, &function_type);
         let func_id = match func_def {
@@ -990,30 +1014,32 @@ impl<'interner> Monomorphizer<'interner> {
         if let ast::Expression::Ident(ident) = func {
             if let Definition::Builtin(opcode) = &ident.definition {
                 // TODO(#1736): Move this builtin to the SSA pass
+                let location = self.interner.expr_location(expr_id);
                 return match opcode.as_str() {
-                    "modulus_num_bits" => Some(ast::Expression::Literal(ast::Literal::Integer(
-                        (FieldElement::max_num_bits() as u128).into(),
-                        ast::Type::Field,
-                    ))),
+                    "modulus_num_bits" => {
+                        let bits = (FieldElement::max_num_bits() as u128).into();
+                        let typ = ast::Type::Field;
+                        Some(ast::Expression::Literal(ast::Literal::Integer(bits, typ, location)))
+                    }
                     "zeroed" => {
                         let location = self.interner.expr_location(expr_id);
                         Some(self.zeroed_value_of_type(result_type, location))
                     }
                     "modulus_le_bits" => {
                         let bits = FieldElement::modulus().to_radix_le(2);
-                        Some(self.modulus_array_literal(bits, 1))
+                        Some(self.modulus_array_literal(bits, 1, location))
                     }
                     "modulus_be_bits" => {
                         let bits = FieldElement::modulus().to_radix_be(2);
-                        Some(self.modulus_array_literal(bits, 1))
+                        Some(self.modulus_array_literal(bits, 1, location))
                     }
                     "modulus_be_bytes" => {
                         let bytes = FieldElement::modulus().to_bytes_be();
-                        Some(self.modulus_array_literal(bytes, 8))
+                        Some(self.modulus_array_literal(bytes, 8, location))
                     }
                     "modulus_le_bytes" => {
                         let bytes = FieldElement::modulus().to_bytes_le();
-                        Some(self.modulus_array_literal(bytes, 8))
+                        Some(self.modulus_array_literal(bytes, 8, location))
                     }
                     _ => None,
                 };
@@ -1022,12 +1048,17 @@ impl<'interner> Monomorphizer<'interner> {
         None
     }
 
-    fn modulus_array_literal(&self, bytes: Vec<u8>, arr_elem_bits: u32) -> ast::Expression {
+    fn modulus_array_literal(
+        &self,
+        bytes: Vec<u8>,
+        arr_elem_bits: u32,
+        location: Location,
+    ) -> ast::Expression {
         use ast::*;
         let int_type = Type::Integer(crate::Signedness::Unsigned, arr_elem_bits);
 
         let bytes_as_expr = vecmap(bytes, |byte| {
-            Expression::Literal(Literal::Integer((byte as u128).into(), int_type.clone()))
+            Expression::Literal(Literal::Integer((byte as u128).into(), int_type.clone(), location))
         });
 
         let typ = Type::Array(bytes_as_expr.len() as u64, Box::new(int_type));
@@ -1277,7 +1308,8 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> ast::Expression {
         match typ {
             ast::Type::Field | ast::Type::Integer(..) => {
-                ast::Expression::Literal(ast::Literal::Integer(0_u128.into(), typ.clone()))
+                let typ = typ.clone();
+                ast::Expression::Literal(ast::Literal::Integer(0_u128.into(), typ, location))
             }
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
             // There is no unit literal currently. Replace it with 'false' since it should be ignored

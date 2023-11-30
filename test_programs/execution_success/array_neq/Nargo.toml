@@ -1,0 +1,6 @@
+[package]
+name = "array_neq"
+type = "bin"
+authors = [""]
+
+[dependencies]

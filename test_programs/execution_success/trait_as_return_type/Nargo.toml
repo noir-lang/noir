@@ -1,0 +1,5 @@
+[package]
+name = "trait_as_return_type"
+type = "bin"
+authors = [""]
+[dependencies]

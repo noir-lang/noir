@@ -1,0 +1,6 @@
+[package]
+name = "brillig_modulo"
+type = "bin"
+authors = [""]
+
+[dependencies]

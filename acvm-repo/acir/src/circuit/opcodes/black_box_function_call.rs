@@ -46,10 +46,15 @@ pub enum BlackBoxFuncCall {
         message: Vec<FunctionInput>,
         output: Witness,
     },
-    Pedersen {
+    PedersenCommitment {
         inputs: Vec<FunctionInput>,
         domain_separator: u32,
         outputs: (Witness, Witness),
+    },
+    PedersenHash {
+        inputs: Vec<FunctionInput>,
+        domain_separator: u32,
+        output: Witness,
     },
     // 128 here specifies that this function
     // should have 128 bits of security
@@ -115,70 +120,6 @@ pub enum BlackBoxFuncCall {
 }
 
 impl BlackBoxFuncCall {
-    #[deprecated = "BlackBoxFuncCall::dummy() is unnecessary and will be removed in ACVM 0.24.0"]
-    pub fn dummy(bb_func: BlackBoxFunc) -> Self {
-        match bb_func {
-            BlackBoxFunc::AND => BlackBoxFuncCall::AND {
-                lhs: FunctionInput::dummy(),
-                rhs: FunctionInput::dummy(),
-                output: Witness(0),
-            },
-            BlackBoxFunc::XOR => BlackBoxFuncCall::XOR {
-                lhs: FunctionInput::dummy(),
-                rhs: FunctionInput::dummy(),
-                output: Witness(0),
-            },
-            BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: FunctionInput::dummy() },
-            BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 { inputs: vec![], outputs: vec![] },
-            BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s { inputs: vec![], outputs: vec![] },
-            BlackBoxFunc::SchnorrVerify => BlackBoxFuncCall::SchnorrVerify {
-                public_key_x: FunctionInput::dummy(),
-                public_key_y: FunctionInput::dummy(),
-                signature: vec![],
-                message: vec![],
-                output: Witness(0),
-            },
-            BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
-                inputs: vec![],
-                domain_separator: 0,
-                outputs: (Witness(0), Witness(0)),
-            },
-            BlackBoxFunc::HashToField128Security => {
-                BlackBoxFuncCall::HashToField128Security { inputs: vec![], output: Witness(0) }
-            }
-            BlackBoxFunc::EcdsaSecp256k1 => BlackBoxFuncCall::EcdsaSecp256k1 {
-                public_key_x: vec![],
-                public_key_y: vec![],
-                signature: vec![],
-                hashed_message: vec![],
-                output: Witness(0),
-            },
-            BlackBoxFunc::EcdsaSecp256r1 => BlackBoxFuncCall::EcdsaSecp256r1 {
-                public_key_x: vec![],
-                public_key_y: vec![],
-                signature: vec![],
-                hashed_message: vec![],
-                output: Witness(0),
-            },
-            BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
-                low: FunctionInput::dummy(),
-                high: FunctionInput::dummy(),
-                outputs: (Witness(0), Witness(0)),
-            },
-            BlackBoxFunc::Keccak256 => {
-                BlackBoxFuncCall::Keccak256 { inputs: vec![], outputs: vec![] }
-            }
-            BlackBoxFunc::RecursiveAggregation => BlackBoxFuncCall::RecursiveAggregation {
-                verification_key: vec![],
-                proof: vec![],
-                public_inputs: vec![],
-                key_hash: FunctionInput::dummy(),
-                input_aggregation_object: None,
-                output_aggregation_object: vec![],
-            },
-        }
-    }
-
     pub fn get_black_box_func(&self) -> BlackBoxFunc {
         match self {
             BlackBoxFuncCall::AND { .. } => BlackBoxFunc::AND,
@@ -187,7 +128,8 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::SHA256 { .. } => BlackBoxFunc::SHA256,
             BlackBoxFuncCall::Blake2s { .. } => BlackBoxFunc::Blake2s,
             BlackBoxFuncCall::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
-            BlackBoxFuncCall::Pedersen { .. } => BlackBoxFunc::Pedersen,
+            BlackBoxFuncCall::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
+            BlackBoxFuncCall::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
             BlackBoxFuncCall::HashToField128Security { .. } => BlackBoxFunc::HashToField128Security,
             BlackBoxFuncCall::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
             BlackBoxFuncCall::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
@@ -207,7 +149,8 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::SHA256 { inputs, .. }
             | BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Keccak256 { inputs, .. }
-            | BlackBoxFuncCall::Pedersen { inputs, .. }
+            | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
+            | BlackBoxFuncCall::PedersenHash { inputs, .. }
             | BlackBoxFuncCall::HashToField128Security { inputs, .. } => inputs.to_vec(),
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
                 vec![*lhs, *rhs]
@@ -304,9 +247,10 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::HashToField128Security { output, .. }
             | BlackBoxFuncCall::SchnorrVerify { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
+            | BlackBoxFuncCall::PedersenHash { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
             BlackBoxFuncCall::FixedBaseScalarMul { outputs, .. }
-            | BlackBoxFuncCall::Pedersen { outputs, .. } => vec![outputs.0, outputs.1],
+            | BlackBoxFuncCall::PedersenCommitment { outputs, .. } => vec![outputs.0, outputs.1],
             BlackBoxFuncCall::RANGE { .. } => vec![],
             BlackBoxFuncCall::Keccak256VariableLength { outputs, .. } => outputs.to_vec(),
         }
@@ -395,7 +339,7 @@ impl std::fmt::Display for BlackBoxFuncCall {
 
         // SPECIFIC PARAMETERS
         match self {
-            BlackBoxFuncCall::Pedersen { domain_separator, .. } => {
+            BlackBoxFuncCall::PedersenCommitment { domain_separator, .. } => {
                 write!(f, " domain_separator: {domain_separator}")
             }
             _ => write!(f, ""),

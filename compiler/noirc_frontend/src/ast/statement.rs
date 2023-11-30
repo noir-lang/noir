@@ -1,9 +1,14 @@
 use std::fmt::Display;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::lexer::token::SpannedToken;
 use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
-use crate::{Expression, ExpressionKind, IndexExpression, MemberAccessExpression, UnresolvedType};
+use crate::{
+    BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression,
+    MethodCallExpression, UnresolvedType,
+};
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
@@ -193,7 +198,11 @@ impl From<Ident> for Expression {
     fn from(i: Ident) -> Expression {
         Expression {
             span: i.0.span(),
-            kind: ExpressionKind::Variable(Path { segments: vec![i], kind: PathKind::Plain }),
+            kind: ExpressionKind::Variable(Path {
+                span: i.span(),
+                segments: vec![i],
+                kind: PathKind::Plain,
+            }),
         }
     }
 }
@@ -306,6 +315,7 @@ impl UseTree {
 pub struct Path {
     pub segments: Vec<Ident>,
     pub kind: PathKind,
+    pub span: Span,
 }
 
 impl Path {
@@ -325,18 +335,11 @@ impl Path {
     }
 
     pub fn from_ident(name: Ident) -> Path {
-        Path { segments: vec![name], kind: PathKind::Plain }
+        Path { span: name.span(), segments: vec![name], kind: PathKind::Plain }
     }
 
     pub fn span(&self) -> Span {
-        let mut segments = self.segments.iter();
-        let first_segment = segments.next().expect("ice : cannot have an empty path");
-        let mut span = first_segment.0.span();
-
-        for segment in segments {
-            span = span.merge(segment.0.span());
-        }
-        span
+        self.span
     }
 
     pub fn last_segment(&self) -> Ident {
@@ -413,7 +416,14 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement(pub Expression, pub Option<String>);
+pub struct ConstrainStatement(pub Expression, pub Option<String>, pub ConstrainKind);
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum ConstrainKind {
+    Assert,
+    AssertEq,
+    Constrain,
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
@@ -424,6 +434,14 @@ pub enum Pattern {
 }
 
 impl Pattern {
+    pub fn span(&self) -> Span {
+        match self {
+            Pattern::Identifier(ident) => ident.span(),
+            Pattern::Mutable(_, span) | Pattern::Tuple(_, span) | Pattern::Struct(_, _, span) => {
+                *span
+            }
+        }
+    }
     pub fn name_ident(&self) -> &Ident {
         match self {
             Pattern::Identifier(name_ident) => name_ident,
@@ -472,11 +490,128 @@ impl LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub enum ForRange {
+    Range(/*start:*/ Expression, /*end:*/ Expression),
+    Array(Expression),
+}
+
+impl ForRange {
+    /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
+    /// into the following if needed:
+    ///
+    /// {
+    ///     let fresh1 = array;
+    ///     for fresh2 in 0 .. std::array::len(fresh1) {
+    ///         let elem = fresh1[fresh2];
+    ///         ...
+    ///     }
+    /// }
+    pub(crate) fn into_for(
+        self,
+        identifier: Ident,
+        block: Expression,
+        for_loop_span: Span,
+    ) -> StatementKind {
+        /// Counter used to generate unique names when desugaring
+        /// code in the parser requires the creation of fresh variables.
+        /// The parser is stateless so this is a static global instead.
+        static UNIQUE_NAME_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+        match self {
+            ForRange::Range(..) => {
+                unreachable!()
+            }
+            ForRange::Array(array) => {
+                let array_span = array.span;
+                let start_range = ExpressionKind::integer(FieldElement::zero());
+                let start_range = Expression::new(start_range, array_span);
+
+                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let array_name = format!("$i{next_unique_id}");
+                let array_span = array.span;
+                let array_ident = Ident::new(array_name, array_span);
+
+                // let fresh1 = array;
+                let let_array = Statement {
+                    kind: StatementKind::Let(LetStatement {
+                        pattern: Pattern::Identifier(array_ident.clone()),
+                        r#type: UnresolvedType::unspecified(),
+                        expression: array,
+                    }),
+                    span: array_span,
+                };
+
+                // array.len()
+                let segments = vec![array_ident];
+                let array_ident = ExpressionKind::Variable(Path {
+                    segments,
+                    kind: PathKind::Plain,
+                    span: array_span,
+                });
+
+                let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: Expression::new(array_ident.clone(), array_span),
+                    method_name: Ident::new("len".to_string(), array_span),
+                    arguments: vec![],
+                }));
+                let end_range = Expression::new(end_range, array_span);
+
+                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let index_name = format!("$i{next_unique_id}");
+                let fresh_identifier = Ident::new(index_name.clone(), array_span);
+
+                // array[i]
+                let segments = vec![Ident::new(index_name, array_span)];
+                let index_ident = ExpressionKind::Variable(Path {
+                    segments,
+                    kind: PathKind::Plain,
+                    span: array_span,
+                });
+
+                let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
+                    collection: Expression::new(array_ident, array_span),
+                    index: Expression::new(index_ident, array_span),
+                }));
+
+                // let elem = array[i];
+                let let_elem = Statement {
+                    kind: StatementKind::Let(LetStatement {
+                        pattern: Pattern::Identifier(identifier),
+                        r#type: UnresolvedType::unspecified(),
+                        expression: Expression::new(loop_element, array_span),
+                    }),
+                    span: array_span,
+                };
+
+                let block_span = block.span;
+                let new_block = BlockExpression(vec![
+                    let_elem,
+                    Statement { kind: StatementKind::Expression(block), span: block_span },
+                ]);
+                let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
+                let for_loop = Statement {
+                    kind: StatementKind::For(ForLoopStatement {
+                        identifier: fresh_identifier,
+                        range: ForRange::Range(start_range, end_range),
+                        block: new_block,
+                        span: for_loop_span,
+                    }),
+                    span: for_loop_span,
+                };
+
+                let block = ExpressionKind::Block(BlockExpression(vec![let_array, for_loop]));
+                StatementKind::Expression(Expression::new(block, for_loop_span))
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ForLoopStatement {
     pub identifier: Ident,
-    pub start_range: Expression,
-    pub end_range: Expression,
+    pub range: ForRange,
     pub block: Expression,
+    pub span: Span,
 }
 
 impl Display for StatementKind {
@@ -568,10 +703,11 @@ impl Display for Pattern {
 
 impl Display for ForLoopStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "for {} in {} .. {} {}",
-            self.identifier, self.start_range, self.end_range, self.block
-        )
+        let range = match &self.range {
+            ForRange::Range(start, end) => format!("{start}..{end}"),
+            ForRange::Array(expr) => expr.to_string(),
+        };
+
+        write!(f, "for {} in {range} {}", self.identifier, self.block)
     }
 }

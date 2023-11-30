@@ -2,7 +2,7 @@
 name = "barretenberg_blackbox_solver"
 description = "A wrapper around a barretenberg WASM binary to execute black box functions for which there is no rust implementation"
 # x-release-please-start-version
-version = "0.29.0"
+version = "0.35.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -30,17 +30,17 @@ ark-ff = { version = "^0.4.0", default-features = false }
 num-bigint.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasmer = { version = "3.3", default-features = false, features = [
+wasmer = { version = "4.2.3", default-features = false, features = [
     "js-default",
 ] }
 
-getrandom = { version = "0.2", features = ["js"] }
-wasm-bindgen-futures = "0.4.36"
+getrandom = { workspace = true, features = ["js"] }
+wasm-bindgen-futures.workspace = true
 js-sys.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-getrandom = "0.2"
-wasmer = "3.3"
+getrandom.workspace = true
+wasmer = "4.2.3"
 
 [build-dependencies]
 pkg-config = "0.3"

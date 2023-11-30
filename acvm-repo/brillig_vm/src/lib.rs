@@ -164,8 +164,16 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         &self.registers
     }
 
+    pub fn set_register(&mut self, register_index: RegisterIndex, value: Value) {
+        self.registers.set(register_index, value);
+    }
+
     pub fn get_memory(&self) -> &Vec<Value> {
         self.memory.values()
+    }
+
+    pub fn write_memory_at(&mut self, ptr: usize, value: Value) {
+        self.memory.write(ptr, value);
     }
 
     /// Process a single opcode and modify the program counter.
@@ -177,8 +185,12 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 self.increment_program_counter()
             }
             Opcode::BinaryIntOp { op, bit_size, lhs, rhs, destination: result } => {
-                self.process_binary_int_op(*op, *bit_size, *lhs, *rhs, *result);
-                self.increment_program_counter()
+                if let Err(error) = self.process_binary_int_op(*op, *bit_size, *lhs, *rhs, *result)
+                {
+                    self.fail(error)
+                } else {
+                    self.increment_program_counter()
+                }
             }
             Opcode::Jump { location: destination } => self.set_program_counter(*destination),
             Opcode::JumpIf { condition, location: destination } => {
@@ -391,17 +403,18 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         lhs: RegisterIndex,
         rhs: RegisterIndex,
         result: RegisterIndex,
-    ) {
+    ) -> Result<(), String> {
         let lhs_value = self.registers.get(lhs);
         let rhs_value = self.registers.get(rhs);
 
         // Convert to big integers
         let lhs_big = BigUint::from_bytes_be(&lhs_value.to_field().to_be_bytes());
         let rhs_big = BigUint::from_bytes_be(&rhs_value.to_field().to_be_bytes());
-        let result_value = evaluate_binary_bigint_op(&op, lhs_big, rhs_big, bit_size);
+        let result_value = evaluate_binary_bigint_op(&op, lhs_big, rhs_big, bit_size)?;
         // Convert back to field element
         self.registers
             .set(result, FieldElement::from_be_bytes_reduce(&result_value.to_bytes_be()).into());
+        Ok(())
     }
 }
 
@@ -417,12 +430,19 @@ impl BlackBoxFunctionSolver for DummyBlackBoxSolver {
     ) -> Result<bool, BlackBoxResolutionError> {
         Ok(true)
     }
-    fn pedersen(
+    fn pedersen_commitment(
         &self,
         _inputs: &[FieldElement],
         _domain_separator: u32,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         Ok((2_u128.into(), 3_u128.into()))
+    }
+    fn pedersen_hash(
+        &self,
+        _inputs: &[FieldElement],
+        _domain_separator: u32,
+    ) -> Result<FieldElement, BlackBoxResolutionError> {
+        Ok(6_u128.into())
     }
     fn fixed_base_scalar_mul(
         &self,

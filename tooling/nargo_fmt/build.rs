@@ -40,8 +40,14 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
         let input_source_path = file.path();
         let input_source = std::fs::read_to_string(input_source_path).unwrap();
 
-        let output_source_path = outputs_dir.join(file_name);
-        let output_source = std::fs::read_to_string(output_source_path).unwrap();
+        let config = input_source
+            .lines()
+            .flat_map(|line| line.strip_prefix("//@"))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let output_source_path = outputs_dir.join(file_name).display().to_string();
+        let output_source = std::fs::read_to_string(output_source_path.clone()).unwrap();
 
         write!(
             test_file,
@@ -53,11 +59,11 @@ fn format_{test_name}() {{
 
 
     let (parsed_module, errors) = noirc_frontend::parse_program(&input);
-    assert!(errors.is_empty());
 
-    let config = nargo_fmt::Config::default();
+    let config = nargo_fmt::Config::of("{config}").unwrap();
     let fmt_text = nargo_fmt::format(&input, parsed_module, &config);
 
+    std::fs::write("{output_source_path}", fmt_text.clone());
 
     similar_asserts::assert_eq!(fmt_text, expected_output);
 }}

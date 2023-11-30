@@ -4,11 +4,12 @@ use clap::Args;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
+use nargo::ops::DefaultForeignCallExecutor;
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
 use super::compile_cmd::compile_bin_package;
@@ -48,17 +49,21 @@ pub(crate) fn run(
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
-    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        selection,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    )?;
     let target_dir = &workspace.target_directory_path();
 
-    let (np_language, opcode_support) = backend.get_backend_info()?;
+    let (np_language, opcode_support) = backend.get_backend_info_or_default();
     for package in &workspace {
         let compiled_program = compile_bin_package(
             &workspace,
             package,
             &args.compile_options,
             np_language,
-            &|opcode| opcode_support.is_opcode_supported(opcode),
+            &opcode_support,
         )?;
 
         let (return_value, solved_witness) =
@@ -102,10 +107,10 @@ pub(crate) fn execute_program(
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let solved_witness_err = nargo::ops::execute_circuit(
-        &blackbox_solver,
         &compiled_program.circuit,
         initial_witness,
-        true,
+        &blackbox_solver,
+        &mut DefaultForeignCallExecutor::new(true),
     );
     match solved_witness_err {
         Ok(solved_witness) => Ok(solved_witness),
@@ -113,6 +118,7 @@ pub(crate) fn execute_program(
             let debug_artifact = DebugArtifact {
                 debug_symbols: vec![compiled_program.debug.clone()],
                 file_map: compiled_program.file_map.clone(),
+                warnings: compiled_program.warnings.clone(),
             };
 
             if let Some(diagnostic) = try_to_diagnose_runtime_error(&err, &compiled_program.debug) {

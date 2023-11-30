@@ -1,0 +1,6 @@
+[package]
+name = "schnorr"
+type = "bin"
+authors = [""]
+
+[dependencies]

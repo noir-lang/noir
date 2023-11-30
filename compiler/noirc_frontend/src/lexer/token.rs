@@ -15,6 +15,7 @@ pub enum Token {
     Int(FieldElement),
     Bool(bool),
     Str(String),
+    RawStr(String, u8),
     FmtStr(String),
     Keyword(Keyword),
     IntType(IntType),
@@ -88,6 +89,8 @@ pub enum Token {
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
+    Whitespace(String),
+
     /// An invalid character is one that is not in noir's language or grammar.
     ///
     /// We don't report invalid tokens in the source as errors until parsing to
@@ -155,6 +158,10 @@ impl fmt::Display for Token {
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b}"),
             Token::FmtStr(ref b) => write!(f, "f{b}"),
+            Token::RawStr(ref b, hashes) => {
+                let h: String = std::iter::once('#').cycle().take(hashes as usize).collect();
+                write!(f, "r{h}\"{b}\"{h}")
+            }
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
             Token::LineComment(ref s, _style) => write!(f, "//{s}"),
@@ -194,6 +201,7 @@ impl fmt::Display for Token {
             Token::Bang => write!(f, "!"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
+            Token::Whitespace(ref s) => write!(f, "{s}"),
         }
     }
 }
@@ -224,7 +232,11 @@ impl Token {
     pub fn kind(&self) -> TokenKind {
         match *self {
             Token::Ident(_) => TokenKind::Ident,
-            Token::Int(_) | Token::Bool(_) | Token::Str(_) | Token::FmtStr(_) => TokenKind::Literal,
+            Token::Int(_)
+            | Token::Bool(_)
+            | Token::Str(_)
+            | Token::RawStr(..)
+            | Token::FmtStr(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             Token::Attribute(_) => TokenKind::Attribute,
             ref tok => TokenKind::Token(tok.clone()),
@@ -462,6 +474,7 @@ impl Attribute {
                         || ch == '='
                         || ch == '"'
                         || ch == ' '
+                        || ch == '\''
                 })
                 .then_some(());
 

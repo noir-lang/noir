@@ -1,0 +1,6 @@
+[package]
+name = "attributes_multiple"
+type = "bin"
+authors = [""]
+
+[dependencies]

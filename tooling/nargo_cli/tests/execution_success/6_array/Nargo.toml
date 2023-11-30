@@ -1,7 +1,0 @@
-[package]
-name = "6_array"
-type = "bin"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

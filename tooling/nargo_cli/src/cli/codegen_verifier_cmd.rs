@@ -6,14 +6,14 @@ use super::{
 use crate::backends::Backend;
 use crate::errors::CliError;
 
-use acvm::acir::circuit::Opcode;
 use acvm::Language;
+use backend_interface::BackendOpcodeSupport;
 use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 use clap::Args;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::CompileOptions;
+use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
 /// Generates a Solidity verifier smart contract for the program
@@ -40,7 +40,11 @@ pub(crate) fn run(
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
-    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        selection,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    )?;
 
     let (np_language, opcode_support) = backend.get_backend_info()?;
     for package in &workspace {
@@ -50,7 +54,7 @@ pub(crate) fn run(
             package,
             &args.compile_options,
             np_language,
-            &|opcode| opcode_support.is_opcode_supported(opcode),
+            &opcode_support,
         )?;
 
         let contract_dir = workspace.contracts_directory_path(package);
@@ -70,15 +74,10 @@ fn smart_contract_for_package(
     package: &Package,
     compile_options: &CompileOptions,
     np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
+    opcode_support: &BackendOpcodeSupport,
 ) -> Result<String, CliError> {
-    let program = compile_bin_package(
-        workspace,
-        package,
-        compile_options,
-        np_language,
-        &is_opcode_supported,
-    )?;
+    let program =
+        compile_bin_package(workspace, package, compile_options, np_language, opcode_support)?;
 
     let mut smart_contract_string = backend.eth_contract(&program.circuit)?;
 

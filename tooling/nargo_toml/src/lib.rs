@@ -8,6 +8,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
+use errors::SemverError;
 use fm::{NormalizePath, FILE_EXTENSION};
 use nargo::{
     package::{Dependency, Package, PackageType},
@@ -18,6 +19,7 @@ use serde::Deserialize;
 
 mod errors;
 mod git;
+mod semver;
 
 pub use errors::ManifestError;
 use git::clone_git_repo;
@@ -98,7 +100,7 @@ struct PackageConfig {
 
 impl PackageConfig {
     fn resolve_to_package(&self, root_dir: &Path) -> Result<Package, ManifestError> {
-        let name = if let Some(name) = &self.package.name {
+        let name: CrateName = if let Some(name) = &self.package.name {
             name.parse().map_err(|_| ManifestError::InvalidPackageName {
                 toml: root_dir.join("Nargo.toml"),
                 name: name.into(),
@@ -162,7 +164,19 @@ impl PackageConfig {
             }
         };
 
+        // If there is a package version, ensure that it is semver compatible
+        if let Some(version) = &self.package.version {
+            semver::parse_semver_compatible_version(version).map_err(|err| {
+                ManifestError::SemverError(SemverError::CouldNotParsePackageVersion {
+                    package_name: name.to_string(),
+                    error: err.to_string(),
+                })
+            })?;
+        }
+
         Ok(Package {
+            version: self.package.version.clone(),
+            compiler_required_version: self.package.compiler_version.clone(),
             root_dir: root_dir.to_path_buf(),
             entry_path,
             package_type,
@@ -223,12 +237,13 @@ struct WorkspaceConfig {
 #[derive(Default, Debug, Deserialize, Clone)]
 struct PackageMetadata {
     name: Option<String>,
+    version: Option<String>,
     #[serde(alias = "type")]
     package_type: Option<String>,
     entry: Option<PathBuf>,
     description: Option<String>,
     authors: Option<Vec<String>>,
-    // If not compiler version is supplied, the latest is used
+    // If no compiler version is supplied, the latest is used
     // For now, we state that all packages must be compiled under the same
     // compiler version.
     // We also state that ACIR and the compiler will upgrade in lockstep.
@@ -391,10 +406,14 @@ pub enum PackageSelection {
 pub fn resolve_workspace_from_toml(
     toml_path: &Path,
     package_selection: PackageSelection,
+    current_compiler_version: Option<String>,
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
-
-    toml_to_workspace(nargo_toml, package_selection)
+    let workspace = toml_to_workspace(nargo_toml, package_selection)?;
+    if let Some(current_compiler_version) = current_compiler_version {
+        semver::semver_check_workspace(workspace.clone(), current_compiler_version)?;
+    }
+    Ok(workspace)
 }
 
 #[test]
@@ -404,7 +423,7 @@ fn parse_standard_toml() {
         [package]
         name = "test"
         authors = ["kev", "foo"]
-        compiler_version = "0.1"
+        compiler_version = "*"
 
         [dependencies]
         rand = { tag = "next", git = "https://github.com/rust-lang-nursery/rand"}
@@ -422,7 +441,7 @@ fn parse_package_toml_no_deps() {
         [package]
         name = "test"
         authors = ["kev", "foo"]
-        compiler_version = "0.1"
+        compiler_version = "*"
     "#;
 
     assert!(Config::try_from(String::from(src)).is_ok());

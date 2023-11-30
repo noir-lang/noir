@@ -23,7 +23,7 @@ impl Backend {
 
         // Create a temporary file for the circuit
         let circuit_path = temp_directory.join("circuit").with_extension("bytecode");
-        let serialized_circuit = serialize_circuit(circuit);
+        let serialized_circuit = Circuit::serialize_circuit(circuit);
         write_to_file(&serialized_circuit, &circuit_path);
 
         GatesCommand { crs_path: self.crs_directory(), bytecode_path: circuit_path }
@@ -34,6 +34,18 @@ impl Backend {
         let binary_path = self.assert_binary_exists()?;
         self.assert_correct_version()?;
         InfoCommand { crs_path: self.crs_directory() }.run(binary_path)
+    }
+
+    /// If we cannot get a valid backend, returns the default backend which supports all the opcodes
+    /// and uses Plonk with width 3
+    /// The function also prints a message saying we could not find a backend
+    pub fn get_backend_info_or_default(&self) -> (Language, BackendOpcodeSupport) {
+        if let Ok(backend_info) = self.get_backend_info() {
+            (backend_info.0, backend_info.1)
+        } else {
+            println!("No valid backend found, defaulting to Plonk with width 3 and all opcodes supported");
+            (Language::PLONKCSat { width: 3 }, BackendOpcodeSupport::all())
+        }
     }
 
     pub fn prove(
@@ -57,7 +69,7 @@ impl Backend {
         // Create a temporary file for the circuit
         //
         let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
-        let serialized_circuit = serialize_circuit(circuit);
+        let serialized_circuit = Circuit::serialize_circuit(circuit);
         write_to_file(&serialized_circuit, &bytecode_path);
 
         // Create proof and store it in the specified path
@@ -97,7 +109,7 @@ impl Backend {
 
         // Create a temporary file for the circuit
         let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
-        let serialized_circuit = serialize_circuit(circuit);
+        let serialized_circuit = Circuit::serialize_circuit(circuit);
         write_to_file(&serialized_circuit, &bytecode_path);
 
         // Create the verification key and write it to the specified path
@@ -130,7 +142,7 @@ impl Backend {
         // Create a temporary file for the circuit
         //
         let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
-        let serialized_circuit = serialize_circuit(circuit);
+        let serialized_circuit = Circuit::serialize_circuit(circuit);
         write_to_file(&serialized_circuit, &bytecode_path);
 
         // Create the verification key and write it to the specified path
@@ -173,12 +185,4 @@ pub(super) fn write_to_file(bytes: &[u8], path: &Path) -> String {
         Err(why) => panic!("couldn't write to {display}: {why}"),
         Ok(_) => display.to_string(),
     }
-}
-
-// TODO: See nargo/src/artifacts/mod.rs
-// TODO: This method should live in ACVM and be the default method for serializing/deserializing circuits
-pub(super) fn serialize_circuit(circuit: &Circuit) -> Vec<u8> {
-    let mut circuit_bytes: Vec<u8> = Vec::new();
-    circuit.write(&mut circuit_bytes).unwrap();
-    circuit_bytes
 }

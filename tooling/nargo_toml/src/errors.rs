@@ -4,7 +4,8 @@ use nargo::package::PackageType;
 use noirc_frontend::graph::CrateName;
 use thiserror::Error;
 
-/// Errors covering situations where a package is either missing or malformed.
+/// Errors covering situations where a package is either missing, malformed or does not pass semver
+/// validation checks.
 #[derive(Debug, Error)]
 pub enum ManifestError {
     /// Package doesn't have a manifest file
@@ -65,4 +66,22 @@ pub enum ManifestError {
 
     #[error("No common ancestor between {root} and {current}")]
     NoCommonAncestor { root: PathBuf, current: PathBuf },
+
+    #[error(transparent)]
+    SemverError(SemverError),
+}
+
+#[allow(clippy::enum_variant_names)]
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
+pub enum SemverError {
+    #[error("Incompatible compiler version in package {package_name}. Required compiler version is {required_compiler_version} but the compiler version is {compiler_version_found}.\n Update the compiler_version field in Nargo.toml to >={required_compiler_version} or compile this project with version {required_compiler_version}")]
+    IncompatibleVersion {
+        package_name: CrateName,
+        required_compiler_version: String,
+        compiler_version_found: String,
+    },
+    #[error("Could not parse the required compiler version for package {package_name} in Nargo.toml. Error: {error}")]
+    CouldNotParseRequiredVersion { package_name: String, error: String },
+    #[error("Could not parse the package version for package {package_name} in Nargo.toml. Error: {error}")]
+    CouldNotParsePackageVersion { package_name: String, error: String },
 }

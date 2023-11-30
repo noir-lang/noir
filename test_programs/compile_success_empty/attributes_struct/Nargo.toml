@@ -1,0 +1,6 @@
+[package]
+name = "attributes_struct"
+type = "bin"
+authors = [""]
+
+[dependencies]

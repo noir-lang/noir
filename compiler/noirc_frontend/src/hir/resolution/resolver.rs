@@ -29,6 +29,7 @@ use crate::hir::def_map::{LocalModuleId, ModuleDefId, TryFromModuleDefId, MAIN_F
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId,
+    TraitImplId, TraitImplKind,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -36,10 +37,11 @@ use crate::{
     StatementKind,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
-    Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable,
-    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+    ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionVisibility, Generics,
+    LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern, Shared, StructType, Type,
+    TypeAliasType, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics,
+    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -86,6 +88,10 @@ pub struct Resolver<'a> {
 
     /// Set to the current type if we're resolving an impl
     self_type: Option<Type>,
+
+    /// If we're currently resolving methods within a trait impl, this will be set
+    /// to the corresponding trait impl ID.
+    current_trait_impl: Option<TraitImplId>,
 
     /// True if the current module is a contract.
     /// This is usually determined by self.path_resolver.module_id(), but it can
@@ -141,6 +147,7 @@ impl<'a> Resolver<'a> {
             generics: Vec::new(),
             errors: Vec::new(),
             lambda_stack: Vec::new(),
+            current_trait_impl: None,
             file,
             in_contract,
         }
@@ -152,6 +159,10 @@ impl<'a> Resolver<'a> {
 
     pub fn set_trait_id(&mut self, trait_id: Option<TraitId>) {
         self.trait_id = trait_id;
+    }
+
+    pub fn set_trait_impl_id(&mut self, impl_id: Option<TraitImplId>) {
+        self.current_trait_impl = impl_id;
     }
 
     pub fn get_self_type(&mut self) -> Option<&Type> {
@@ -356,6 +367,15 @@ impl<'a> Resolver<'a> {
         (hir_func, func_meta)
     }
 
+    pub fn resolve_trait_constraint(
+        &mut self,
+        constraint: UnresolvedTraitConstraint,
+    ) -> Option<TraitConstraint> {
+        let typ = self.resolve_type(constraint.typ);
+        let trait_id = self.lookup_trait_or_error(constraint.trait_bound.trait_path)?.id;
+        Some(TraitConstraint { typ, trait_id })
+    }
+
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
@@ -421,6 +441,7 @@ impl<'a> Resolver<'a> {
             MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
             }
+            Parenthesized(typ) => self.resolve_type_inner(*typ, new_variables),
         }
     }
 
@@ -740,7 +761,7 @@ impl<'a> Resolver<'a> {
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 
-        for (pattern, typ, visibility) in func.parameters().iter().cloned() {
+        for Param { visibility, pattern, typ, span: _ } in func.parameters().iter().cloned() {
             if visibility == Visibility::Public && !self.pub_allowed(func) {
                 self.push_err(ResolverError::UnnecessaryPub {
                     ident: func.name_ident().clone(),
@@ -808,6 +829,7 @@ impl<'a> Resolver<'a> {
             kind: func.kind,
             location,
             typ,
+            trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
@@ -1007,23 +1029,37 @@ impl<'a> Resolver<'a> {
                 HirStatement::Assign(stmt)
             }
             StatementKind::For(for_loop) => {
-                let start_range = self.resolve_expression(for_loop.start_range);
-                let end_range = self.resolve_expression(for_loop.end_range);
-                let (identifier, block) = (for_loop.identifier, for_loop.block);
+                match for_loop.range {
+                    ForRange::Range(start_range, end_range) => {
+                        let start_range = self.resolve_expression(start_range);
+                        let end_range = self.resolve_expression(end_range);
+                        let (identifier, block) = (for_loop.identifier, for_loop.block);
 
-                // TODO: For loop variables are currently mutable by default since we haven't
-                //       yet implemented syntax for them to be optionally mutable.
-                let (identifier, block) = self.in_new_scope(|this| {
-                    let decl = this.add_variable_decl(
-                        identifier,
-                        false,
-                        true,
-                        DefinitionKind::Local(None),
-                    );
-                    (decl, this.resolve_expression(block))
-                });
+                        // TODO: For loop variables are currently mutable by default since we haven't
+                        //       yet implemented syntax for them to be optionally mutable.
+                        let (identifier, block) = self.in_new_scope(|this| {
+                            let decl = this.add_variable_decl(
+                                identifier,
+                                false,
+                                true,
+                                DefinitionKind::Local(None),
+                            );
+                            (decl, this.resolve_expression(block))
+                        });
 
-                HirStatement::For(HirForStatement { start_range, end_range, block, identifier })
+                        HirStatement::For(HirForStatement {
+                            start_range,
+                            end_range,
+                            block,
+                            identifier,
+                        })
+                    }
+                    range @ ForRange::Array(_) => {
+                        let for_stmt =
+                            range.into_for(for_loop.identifier, for_loop.block, for_loop.span);
+                        self.resolve_stmt(for_stmt)
+                    }
+                }
             }
             StatementKind::Error => HirStatement::Error,
         }
@@ -1058,20 +1094,39 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    // Issue an error if the given private function is being called from a non-child module
-    fn check_can_reference_private_function(&mut self, func: FuncId, span: Span) {
+    // Issue an error if the given private function is being called from a non-child module, or
+    // if the given pub(crate) function is being called from another crate
+    fn check_can_reference_function(
+        &mut self,
+        func: FuncId,
+        span: Span,
+        visibility: FunctionVisibility,
+    ) {
         let function_module = self.interner.function_module(func);
         let current_module = self.path_resolver.module_id();
 
         let same_crate = function_module.krate == current_module.krate;
         let krate = function_module.krate;
         let current_module = current_module.local_id;
-
-        if !same_crate
-            || !self.module_descendent_of_target(krate, function_module.local_id, current_module)
-        {
-            let name = self.interner.function_name(&func).to_string();
-            self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
+        let name = self.interner.function_name(&func).to_string();
+        match visibility {
+            FunctionVisibility::Public => (),
+            FunctionVisibility::Private => {
+                if !same_crate
+                    || !self.module_descendent_of_target(
+                        krate,
+                        function_module.local_id,
+                        current_module,
+                    )
+                {
+                    self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
+                }
+            }
+            FunctionVisibility::PublicCrate => {
+                if !same_crate {
+                    self.errors.push(ResolverError::NonCrateFunctionCalled { span, name });
+                }
+            }
         }
     }
 
@@ -1149,12 +1204,17 @@ impl<'a> Resolver<'a> {
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
+                Literal::RawStr(str, _) => HirLiteral::Str(str),
                 Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),
                 Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
-                if let Some(expr) = self.resolve_trait_generic_path(&path) {
-                    expr
+                if let Some((hir_expr, object_type)) = self.resolve_trait_generic_path(&path) {
+                    let expr_id = self.interner.push_expr(hir_expr);
+                    self.interner.push_expr_location(expr_id, expr.span, self.file);
+                    self.interner
+                        .select_impl_for_ident(expr_id, TraitImplKind::Assumed { object_type });
+                    return expr_id;
                 } else {
                     // If the Path is being used as an Expression, then it is referring to a global from a separate module
                     // Otherwise, then it is referring to an Identifier
@@ -1165,9 +1225,15 @@ impl<'a> Resolver<'a> {
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
                             DefinitionKind::Function(id) => {
-                                if self.interner.function_visibility(id) == Visibility::Private {
+                                if self.interner.function_visibility(id)
+                                    != FunctionVisibility::Public
+                                {
                                     let span = hir_ident.location.span;
-                                    self.check_can_reference_private_function(id, span);
+                                    self.check_can_reference_function(
+                                        id,
+                                        span,
+                                        self.interner.function_visibility(id),
+                                    );
                                 }
                             }
                             DefinitionKind::Global(_) => {}
@@ -1310,6 +1376,8 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Parenthesized(sub_expr) => return self.resolve_expression(*sub_expr),
         };
 
+        // If these lines are ever changed, make sure to change the early return
+        // in the ExpressionKind::Variable case as well
         let expr_id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(expr_id, expr.span, self.file);
         expr_id
@@ -1516,7 +1584,10 @@ impl<'a> Resolver<'a> {
     }
 
     // this resolves Self::some_static_method, inside an impl block (where we don't have a concrete self_type)
-    fn resolve_trait_static_method_by_self(&mut self, path: &Path) -> Option<HirExpression> {
+    fn resolve_trait_static_method_by_self(
+        &mut self,
+        path: &Path,
+    ) -> Option<(HirExpression, Type)> {
         if let Some(trait_id) = self.trait_id {
             if path.kind == PathKind::Plain && path.segments.len() == 2 {
                 let name = &path.segments[0].0.contents;
@@ -1530,7 +1601,7 @@ impl<'a> Resolver<'a> {
                             the_trait.self_type_typevar,
                             crate::TypeVariableKind::Normal,
                         );
-                        return Some(HirExpression::TraitMethodReference(self_type, method));
+                        return Some((HirExpression::TraitMethodReference(method), self_type));
                     }
                 }
             }
@@ -1539,7 +1610,10 @@ impl<'a> Resolver<'a> {
     }
 
     // this resolves a static trait method T::trait_method by iterating over the where clause
-    fn resolve_trait_method_by_named_generic(&mut self, path: &Path) -> Option<HirExpression> {
+    fn resolve_trait_method_by_named_generic(
+        &mut self,
+        path: &Path,
+    ) -> Option<(HirExpression, Type)> {
         if path.segments.len() != 2 {
             return None;
         }
@@ -1561,7 +1635,7 @@ impl<'a> Resolver<'a> {
                         the_trait.find_method(path.segments.last().unwrap().clone())
                     {
                         let self_type = self.resolve_type(typ.clone());
-                        return Some(HirExpression::TraitMethodReference(self_type, method));
+                        return Some((HirExpression::TraitMethodReference(method), self_type));
                     }
                 }
             }
@@ -1569,7 +1643,7 @@ impl<'a> Resolver<'a> {
         None
     }
 
-    fn resolve_trait_generic_path(&mut self, path: &Path) -> Option<HirExpression> {
+    fn resolve_trait_generic_path(&mut self, path: &Path) -> Option<(HirExpression, Type)> {
         self.resolve_trait_static_method_by_self(path)
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
@@ -1714,6 +1788,7 @@ impl<'a> Resolver<'a> {
                     self.verify_type_valid_for_program_input(element);
                 }
             }
+            UnresolvedTypeData::Parenthesized(typ) => self.verify_type_valid_for_program_input(typ),
         }
     }
 

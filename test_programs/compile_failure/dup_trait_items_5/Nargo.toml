@@ -1,0 +1,5 @@
+[package]
+name = "dup_trait_items_5"
+type = "bin"
+authors = [""]
+[dependencies]

@@ -1,13 +1,15 @@
-use acvm::brillig_vm::brillig::{BinaryIntOp, HeapVector, RegisterIndex, RegisterOrMemory};
+use acvm::brillig_vm::brillig::{BinaryIntOp, RegisterIndex};
+
+use crate::brillig::brillig_ir::brillig_variable::{BrilligVariable, BrilligVector};
 
 use super::brillig_block::BrilligBlock;
 
 impl<'block> BrilligBlock<'block> {
     pub(crate) fn slice_push_back_operation(
         &mut self,
-        target_vector: HeapVector,
-        source_vector: HeapVector,
-        variables_to_insert: &[RegisterOrMemory],
+        target_vector: BrilligVector,
+        source_vector: BrilligVector,
+        variables_to_insert: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector incrementing the size by variables_to_insert.len()
         self.brillig_context.usize_op(
@@ -17,6 +19,8 @@ impl<'block> BrilligBlock<'block> {
             variables_to_insert.len(),
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
+        // We initialize the RC of the target vector to 1
+        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
 
         // Now we copy the source vector into the target vector
         self.brillig_context.copy_array_instruction(
@@ -40,9 +44,9 @@ impl<'block> BrilligBlock<'block> {
 
     pub(crate) fn slice_push_front_operation(
         &mut self,
-        target_vector: HeapVector,
-        source_vector: HeapVector,
-        variables_to_insert: &[RegisterOrMemory],
+        target_vector: BrilligVector,
+        source_vector: BrilligVector,
+        variables_to_insert: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector incrementing the size by variables_to_insert.len()
         self.brillig_context.usize_op(
@@ -52,6 +56,8 @@ impl<'block> BrilligBlock<'block> {
             variables_to_insert.len(),
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
+        // We initialize the RC of the target vector to 1
+        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
 
         // Now we offset the target pointer by variables_to_insert.len()
         let destination_copy_pointer = self.brillig_context.allocate_register();
@@ -81,9 +87,9 @@ impl<'block> BrilligBlock<'block> {
 
     pub(crate) fn slice_pop_front_operation(
         &mut self,
-        target_vector: HeapVector,
-        source_vector: HeapVector,
-        removed_items: &[RegisterOrMemory],
+        target_vector: BrilligVector,
+        source_vector: BrilligVector,
+        removed_items: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector decrementing the size by removed_items.len()
         self.brillig_context.usize_op(
@@ -93,6 +99,8 @@ impl<'block> BrilligBlock<'block> {
             removed_items.len(),
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
+        // We initialize the RC of the target vector to 1
+        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
 
         // Now we offset the source pointer by removed_items.len()
         let source_copy_pointer = self.brillig_context.allocate_register();
@@ -121,9 +129,9 @@ impl<'block> BrilligBlock<'block> {
 
     pub(crate) fn slice_pop_back_operation(
         &mut self,
-        target_vector: HeapVector,
-        source_vector: HeapVector,
-        removed_items: &[RegisterOrMemory],
+        target_vector: BrilligVector,
+        source_vector: BrilligVector,
+        removed_items: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector decrementing the size by removed_items.len()
         self.brillig_context.usize_op(
@@ -133,6 +141,8 @@ impl<'block> BrilligBlock<'block> {
             removed_items.len(),
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
+        // We initialize the RC of the target vector to 1
+        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
 
         // Now we copy all elements except the last items into the target vector
         self.brillig_context.copy_array_instruction(
@@ -156,10 +166,10 @@ impl<'block> BrilligBlock<'block> {
 
     pub(crate) fn slice_insert_operation(
         &mut self,
-        target_vector: HeapVector,
-        source_vector: HeapVector,
+        target_vector: BrilligVector,
+        source_vector: BrilligVector,
         index: RegisterIndex,
-        items: &[RegisterOrMemory],
+        items: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector incrementing the size by items.len()
         self.brillig_context.usize_op(
@@ -169,6 +179,8 @@ impl<'block> BrilligBlock<'block> {
             items.len(),
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
+        // We initialize the RC of the target vector to 1
+        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
 
         // Copy the elements to the left of the index
         self.brillig_context.copy_array_instruction(
@@ -226,10 +238,10 @@ impl<'block> BrilligBlock<'block> {
 
     pub(crate) fn slice_remove_operation(
         &mut self,
-        target_vector: HeapVector,
-        source_vector: HeapVector,
+        target_vector: BrilligVector,
+        source_vector: BrilligVector,
         index: RegisterIndex,
-        removed_items: &[RegisterOrMemory],
+        removed_items: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector decrementing the size by removed_items.len()
         self.brillig_context.usize_op(
@@ -239,6 +251,8 @@ impl<'block> BrilligBlock<'block> {
             removed_items.len(),
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
+        // We initialize the RC of the target vector to 1
+        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
 
         // Copy the elements to the left of the index
         self.brillig_context.copy_array_instruction(
@@ -297,11 +311,11 @@ impl<'block> BrilligBlock<'block> {
 
     pub(crate) fn convert_array_or_vector_to_vector(
         &mut self,
-        source_variable: RegisterOrMemory,
-    ) -> HeapVector {
+        source_variable: BrilligVariable,
+    ) -> BrilligVector {
         match source_variable {
-            RegisterOrMemory::HeapVector(source_vector) => source_vector,
-            RegisterOrMemory::HeapArray(source_array) => {
+            BrilligVariable::BrilligVector(source_vector) => source_vector,
+            BrilligVariable::BrilligArray(source_array) => {
                 self.brillig_context.array_to_vector(&source_array)
             }
             _ => unreachable!("ICE: unsupported slice push back source {:?}", source_variable),
@@ -313,13 +327,16 @@ impl<'block> BrilligBlock<'block> {
 mod tests {
     use std::vec;
 
-    use acvm::acir::brillig::{HeapVector, Value};
-    use acvm::brillig_vm::brillig::{RegisterIndex, RegisterOrMemory};
+    use acvm::acir::brillig::Value;
+    use acvm::brillig_vm::brillig::RegisterIndex;
 
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
     use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
     use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
     use crate::brillig::brillig_ir::artifact::BrilligParameter;
+    use crate::brillig::brillig_ir::brillig_variable::{
+        BrilligArray, BrilligVariable, BrilligVector,
+    };
     use crate::brillig::brillig_ir::tests::{
         create_and_run_vm, create_context, create_entry_point_bytecode,
     };
@@ -373,33 +390,44 @@ mod tests {
             let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
-            let array_pointer = context.allocate_register();
+            let array_variable = BrilligArray {
+                pointer: context.allocate_register(),
+                size: array.len(),
+                rc: context.allocate_register(),
+            };
             let item_to_insert = context.allocate_register();
 
             // Cast the source array to a vector
-            let array_size = context.make_constant(array.len().into());
+            let source_vector = context.array_to_vector(&array_variable);
 
             // Allocate the results
-            let copied_array_pointer = context.allocate_register();
-            let copied_array_size = context.allocate_register();
+            let target_vector = BrilligVector {
+                pointer: context.allocate_register(),
+                size: context.allocate_register(),
+                rc: context.allocate_register(),
+            };
 
             let mut block = create_brillig_block(&mut function_context, &mut context);
 
             if push_back {
                 block.slice_push_back_operation(
-                    HeapVector { pointer: copied_array_pointer, size: copied_array_size },
-                    HeapVector { pointer: array_pointer, size: array_size },
-                    &[RegisterOrMemory::RegisterIndex(item_to_insert)],
+                    target_vector,
+                    source_vector,
+                    &[BrilligVariable::Simple(item_to_insert)],
                 );
             } else {
                 block.slice_push_front_operation(
-                    HeapVector { pointer: copied_array_pointer, size: copied_array_size },
-                    HeapVector { pointer: array_pointer, size: array_size },
-                    &[RegisterOrMemory::RegisterIndex(item_to_insert)],
+                    target_vector,
+                    source_vector,
+                    &[BrilligVariable::Simple(item_to_insert)],
                 );
             }
 
-            context.return_instruction(&[copied_array_pointer, copied_array_size]);
+            context.return_instruction(&[
+                target_vector.pointer,
+                target_vector.rc,
+                target_vector.size,
+            ]);
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
             let vm = create_and_run_vm(
@@ -465,34 +493,45 @@ mod tests {
             let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
-            let array_pointer = context.allocate_register();
+            let array_variable = BrilligArray {
+                pointer: context.allocate_register(),
+                size: array.len(),
+                rc: context.allocate_register(),
+            };
 
             // Cast the source array to a vector
-            let array_size = context.make_constant(array.len().into());
+            let source_vector = context.array_to_vector(&array_variable);
 
             // Allocate the results
-            let copied_array_pointer = context.allocate_register();
+            let target_vector = BrilligVector {
+                pointer: context.allocate_register(),
+                size: context.allocate_register(),
+                rc: context.allocate_register(),
+            };
             let removed_item = context.allocate_register();
-
-            let copied_array_size = context.allocate_register();
 
             let mut block = create_brillig_block(&mut function_context, &mut context);
 
             if pop_back {
                 block.slice_pop_back_operation(
-                    HeapVector { pointer: copied_array_pointer, size: copied_array_size },
-                    HeapVector { pointer: array_pointer, size: array_size },
-                    &[RegisterOrMemory::RegisterIndex(removed_item)],
+                    target_vector,
+                    source_vector,
+                    &[BrilligVariable::Simple(removed_item)],
                 );
             } else {
                 block.slice_pop_front_operation(
-                    HeapVector { pointer: copied_array_pointer, size: copied_array_size },
-                    HeapVector { pointer: array_pointer, size: array_size },
-                    &[RegisterOrMemory::RegisterIndex(removed_item)],
+                    target_vector,
+                    source_vector,
+                    &[BrilligVariable::Simple(removed_item)],
                 );
             }
 
-            context.return_instruction(&[copied_array_pointer, copied_array_size, removed_item]);
+            context.return_instruction(&[
+                target_vector.pointer,
+                target_vector.rc,
+                target_vector.size,
+                removed_item,
+            ]);
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
             let vm = create_and_run_vm(array.clone(), vec![Value::from(0_usize)], &bytecode);
@@ -557,28 +596,38 @@ mod tests {
             let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
-            let array_pointer = context.allocate_register();
+            let array_variable = BrilligArray {
+                pointer: context.allocate_register(),
+                size: array.len(),
+                rc: context.allocate_register(),
+            };
             let item_to_insert = context.allocate_register();
             let index_to_insert = context.allocate_register();
 
             // Cast the source array to a vector
-            let array_size = context.make_constant(array.len().into());
+            let source_vector = context.array_to_vector(&array_variable);
 
             // Allocate the results
-            let copied_array_pointer = context.allocate_register();
-
-            let copied_array_size = context.allocate_register();
+            let target_vector = BrilligVector {
+                pointer: context.allocate_register(),
+                size: context.allocate_register(),
+                rc: context.allocate_register(),
+            };
 
             let mut block = create_brillig_block(&mut function_context, &mut context);
 
             block.slice_insert_operation(
-                HeapVector { pointer: copied_array_pointer, size: copied_array_size },
-                HeapVector { pointer: array_pointer, size: array_size },
+                target_vector,
+                source_vector,
                 index_to_insert,
-                &[RegisterOrMemory::RegisterIndex(item_to_insert)],
+                &[BrilligVariable::Simple(item_to_insert)],
             );
 
-            context.return_instruction(&[copied_array_pointer, copied_array_size]);
+            context.return_instruction(&[
+                target_vector.pointer,
+                target_vector.rc,
+                target_vector.size,
+            ]);
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
             let vm = create_and_run_vm(
@@ -679,28 +728,39 @@ mod tests {
             let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
-            let array_pointer = context.allocate_register();
+            let array_variable = BrilligArray {
+                pointer: context.allocate_register(),
+                size: array.len(),
+                rc: context.allocate_register(),
+            };
             let index_to_insert = context.allocate_register();
 
             // Cast the source array to a vector
-            let array_size = context.make_constant(array.len().into());
+            let source_vector = context.array_to_vector(&array_variable);
 
             // Allocate the results
-            let copied_array_pointer = context.allocate_register();
+            let target_vector = BrilligVector {
+                pointer: context.allocate_register(),
+                size: context.allocate_register(),
+                rc: context.allocate_register(),
+            };
             let removed_item = context.allocate_register();
-
-            let copied_array_size = context.allocate_register();
 
             let mut block = create_brillig_block(&mut function_context, &mut context);
 
             block.slice_remove_operation(
-                HeapVector { pointer: copied_array_pointer, size: copied_array_size },
-                HeapVector { pointer: array_pointer, size: array_size },
+                target_vector,
+                source_vector,
                 index_to_insert,
-                &[RegisterOrMemory::RegisterIndex(removed_item)],
+                &[BrilligVariable::Simple(removed_item)],
             );
 
-            context.return_instruction(&[copied_array_pointer, copied_array_size, removed_item]);
+            context.return_instruction(&[
+                target_vector.pointer,
+                target_vector.rc,
+                target_vector.size,
+                removed_item,
+            ]);
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
             let vm = create_and_run_vm(array.clone(), vec![Value::from(0_usize), index], &bytecode);

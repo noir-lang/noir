@@ -41,6 +41,8 @@ pub enum UnresolvedTypeData {
     FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
     Unit,
 
+    Parenthesized(Box<UnresolvedType>),
+
     /// A Named UnresolvedType can be a struct type or a type variable
     Named(Path, Vec<UnresolvedType>),
 
@@ -152,6 +154,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
+            Parenthesized(typ) => write!(f, "({typ})"),
         }
     }
 }
@@ -268,6 +271,14 @@ impl UnresolvedTypeExpression {
                 | BinaryOpKind::Modulo
         )
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+/// Represents whether the function can be called outside its module/crate
+pub enum FunctionVisibility {
+    Public,
+    Private,
+    PublicCrate,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

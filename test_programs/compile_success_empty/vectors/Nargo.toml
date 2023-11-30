@@ -1,0 +1,6 @@
+[package]
+name = "vectors"
+type = "bin"
+authors = [""]
+
+[dependencies]

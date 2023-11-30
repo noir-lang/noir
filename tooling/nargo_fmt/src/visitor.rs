@@ -1,22 +1,27 @@
-mod expr;
+pub(crate) mod expr;
 mod item;
 mod stmt;
 
-use noirc_frontend::{hir::resolution::errors::Span, token::Token};
+use noirc_frontend::{hir::resolution::errors::Span, lexer::Lexer, token::Token};
 
-use crate::{config::Config, utils::FindToken};
+use crate::{
+    config::Config,
+    utils::{self, FindToken},
+};
 
 pub(crate) struct FmtVisitor<'me> {
-    config: &'me Config,
+    ignore_next_node: bool,
+    pub(crate) config: &'me Config,
     buffer: String,
     pub(crate) source: &'me str,
-    indent: Indent,
+    pub(crate) indent: Indent,
     last_position: u32,
 }
 
 impl<'me> FmtVisitor<'me> {
     pub(crate) fn new(source: &'me str, config: &'me Config) -> Self {
         Self {
+            ignore_next_node: false,
             buffer: String::new(),
             config,
             source,
@@ -25,21 +30,34 @@ impl<'me> FmtVisitor<'me> {
         }
     }
 
+    pub(crate) fn budget(&self, used_width: usize) -> usize {
+        self.config.max_width.saturating_sub(used_width)
+    }
+
     pub(crate) fn slice(&self, span: impl Into<Span>) -> &'me str {
         let span = span.into();
         &self.source[span.start() as usize..span.end() as usize]
     }
 
-    fn span_before(&self, span: impl Into<Span>, token: Token) -> Span {
+    pub(crate) fn span_after(&self, span: impl Into<Span>, token: Token) -> Span {
         let span = span.into();
 
         let slice = self.slice(span);
-        let offset = slice.find_token(token).unwrap();
+        let offset = slice.find_token(token).unwrap().end();
 
         (span.start() + offset..span.end()).into()
     }
 
-    fn shape(&self) -> Shape {
+    pub(crate) fn span_before(&self, span: impl Into<Span>, token: Token) -> Span {
+        let span = span.into();
+
+        let slice = self.slice(span);
+        let offset = slice.find_token(token).unwrap().start();
+
+        (span.start() + offset..span.end()).into()
+    }
+
+    pub(crate) fn shape(&self) -> Shape {
         Shape {
             width: self.config.max_width.saturating_sub(self.indent.width()),
             indent: self.indent,
@@ -49,6 +67,7 @@ impl<'me> FmtVisitor<'me> {
     pub(crate) fn fork(&self) -> Self {
         Self {
             buffer: String::new(),
+            ignore_next_node: self.ignore_next_node,
             config: self.config,
             source: self.source,
             last_position: self.last_position,
@@ -60,29 +79,54 @@ impl<'me> FmtVisitor<'me> {
         self.buffer
     }
 
-    fn with_indent<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.indent.block_indent(self.config);
-        let ret = f(self);
-        self.indent.block_unindent(self.config);
-        ret
-    }
-
     fn at_start(&self) -> bool {
         self.buffer.is_empty()
     }
 
     fn push_str(&mut self, s: &str) {
+        let comments = Lexer::new(s).skip_comments(false).flatten().flat_map(|token| {
+            if let Token::LineComment(content, _) | Token::BlockComment(content, _) =
+                token.into_token()
+            {
+                let content = content.trim();
+                content.strip_prefix("noir-fmt:").map(ToOwned::to_owned)
+            } else {
+                None
+            }
+        });
+
+        for comment in comments {
+            match comment.as_str() {
+                "ignore" => self.ignore_next_node = true,
+                this => unreachable!("unknown settings {this}"),
+            }
+        }
+
         self.buffer.push_str(s);
     }
 
     #[track_caller]
-    fn push_rewrite(&mut self, s: String, span: Span) {
-        self.format_missing_indent(span.start(), true);
-        self.push_str(&s);
-    }
+    fn push_rewrite(&mut self, rewrite: String, span: Span) {
+        let original = self.slice(span);
+        let changed_comment_content = utils::changed_comment_content(original, &rewrite);
 
-    fn format_missing(&mut self, end: u32) {
-        self.format_missing_inner(end, |this, slice, _| this.push_str(slice));
+        if changed_comment_content && self.config.error_on_lost_comment {
+            panic!("not formatted because a comment would be lost: {rewrite:?}");
+        }
+
+        self.format_missing_indent(span.start(), true);
+
+        let rewrite = if changed_comment_content || std::mem::take(&mut self.ignore_next_node) {
+            original.to_string()
+        } else {
+            rewrite
+        };
+
+        self.push_str(&rewrite);
+
+        if rewrite.starts_with('{') && rewrite.ends_with('}') {
+            self.ignore_next_node = false;
+        }
     }
 
     #[track_caller]
@@ -90,7 +134,7 @@ impl<'me> FmtVisitor<'me> {
         self.format_missing_inner(end, |this, last_slice, slice| {
             this.push_str(last_slice.trim_end());
 
-            if last_slice == slice && !this.at_start() {
+            if (last_slice == slice && !this.at_start()) || this.buffer.ends_with("*/") {
                 this.push_str("\n");
             }
 
@@ -123,15 +167,54 @@ impl<'me> FmtVisitor<'me> {
             self.push_vertical_spaces(slice);
             process_last_slice(self, "", slice);
         } else {
-            process_last_slice(self, slice, slice);
+            let (result, last_end) = self.format_comment_in_block(slice);
+            if result.trim().is_empty() {
+                process_last_slice(self, slice, slice);
+            } else {
+                let last_snippet = &slice[last_end as usize..];
+                self.push_str(&result);
+                process_last_slice(self, last_snippet, &result);
+            }
         }
+    }
+
+    pub(crate) fn format_comment_in_block(&mut self, slice: &str) -> (String, u32) {
+        let mut result = String::new();
+        let comments = Lexer::new(slice).skip_comments(false).skip_whitespaces(false).flatten();
+
+        let indent = self.indent.to_string();
+        for comment in comments {
+            let span = comment.to_span();
+
+            match comment.token() {
+                Token::LineComment(_, _) | Token::BlockComment(_, _) => {
+                    let comment = &slice[span.start() as usize..span.end() as usize];
+                    if result.ends_with('\n') {
+                        result.push_str(&indent);
+                    } else if !self.at_start() {
+                        result.push(' ');
+                    }
+                    result.push_str(comment);
+                }
+                Token::Whitespace(whitespaces) => {
+                    let mut visitor = self.fork();
+                    if whitespaces.contains('\n') {
+                        visitor.push_vertical_spaces(whitespaces.trim_matches(' '));
+                        result.push_str(&visitor.finish());
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        (result, slice.len() as u32)
     }
 
     fn push_vertical_spaces(&mut self, slice: &str) {
         let newline_upper_bound = 2;
         let newline_lower_bound = 1;
 
-        let mut newline_count = bytecount::count(slice.as_bytes(), b'\n');
+        let mut newline_count = utils::count_newlines(slice);
         let offset = self.buffer.chars().rev().take_while(|c| *c == '\n').count();
 
         if newline_count + offset > newline_upper_bound {
@@ -165,37 +248,39 @@ impl<'me> FmtVisitor<'me> {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-struct Indent {
+pub(crate) struct Indent {
     block_indent: usize,
 }
 
 impl Indent {
-    fn width(&self) -> usize {
+    pub(crate) fn width(&self) -> usize {
         self.block_indent
     }
 
-    fn block_indent(&mut self, config: &Config) {
+    #[track_caller]
+    pub(crate) fn block_indent(&mut self, config: &Config) {
         self.block_indent += config.tab_spaces;
     }
 
-    fn block_unindent(&mut self, config: &Config) {
+    #[track_caller]
+    pub(crate) fn block_unindent(&mut self, config: &Config) {
         self.block_indent -= config.tab_spaces;
     }
 
-    fn to_string_with_newline(self) -> String {
+    pub(crate) fn to_string_with_newline(self) -> String {
         "\n".to_string() + &self.to_string()
     }
 
     #[allow(clippy::inherent_to_string)]
-    fn to_string(self) -> String {
+    pub(crate) fn to_string(self) -> String {
         " ".repeat(self.block_indent)
     }
 }
 
 #[derive(Clone, Copy, Debug)]
-struct Shape {
-    width: usize,
-    indent: Indent,
+pub(crate) struct Shape {
+    pub(crate) width: usize,
+    pub(crate) indent: Indent,
 }
 
 #[derive(PartialEq, Eq, Debug)]

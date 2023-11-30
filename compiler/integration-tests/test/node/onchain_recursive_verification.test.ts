@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'path';
 import toml from 'toml';
 
-import { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
+import { compile, CompiledProgram, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { Field, InputMap } from '@noir-lang/noirc_abi';
@@ -13,26 +13,28 @@ import { Field, InputMap } from '@noir-lang/noirc_abi';
 compilerLogLevel('INFO');
 
 it(`smart contract can verify a recursive proof`, async () => {
-  const main_source_path = resolve(`./circuits/main/src/main.nr`);
-  const main_program = compile(main_source_path);
+  const inner_source_path = resolve(`../../test_programs/execution_success/assert_statement/src/main.nr`);
+  const inner_program = (compile(inner_source_path) as { program: CompiledProgram }).program;
 
   const recursion_source_path = resolve(`./circuits/recursion/src/main.nr`);
-  const recursion_program = compile(recursion_source_path);
+  const recursion_program = (compile(recursion_source_path) as { program: CompiledProgram }).program;
 
   // Intermediate proof
 
-  const main_backend = new BarretenbergBackend(main_program);
-  const main = new Noir(main_program);
+  const inner_backend = new BarretenbergBackend(inner_program);
+  const inner = new Noir(inner_program);
 
-  const main_prover_toml = readFileSync(resolve(`./circuits/main/Prover.toml`)).toString();
-  const main_inputs = toml.parse(main_prover_toml);
+  const inner_prover_toml = readFileSync(
+    resolve(`../../test_programs/execution_success/assert_statement/Prover.toml`),
+  ).toString();
+  const inner_inputs = toml.parse(inner_prover_toml);
 
-  const { witness: main_witness } = await main.execute(main_inputs);
-  const intermediate_proof = await main_backend.generateIntermediateProof(main_witness);
+  const { witness: main_witness } = await inner.execute(inner_inputs);
+  const intermediate_proof = await inner_backend.generateIntermediateProof(main_witness);
 
-  expect(await main_backend.verifyIntermediateProof(intermediate_proof)).to.be.true;
+  expect(await inner_backend.verifyIntermediateProof(intermediate_proof)).to.be.true;
 
-  const { proofAsFields, vkAsFields, vkHash } = await main_backend.generateIntermediateProofArtifacts(
+  const { proofAsFields, vkAsFields, vkHash } = await inner_backend.generateIntermediateProofArtifacts(
     intermediate_proof,
     1, // 1 public input
   );
@@ -45,7 +47,7 @@ it(`smart contract can verify a recursive proof`, async () => {
   const recursion_inputs: InputMap = {
     verification_key: vkAsFields,
     proof: proofAsFields,
-    public_inputs: [main_inputs.y as Field],
+    public_inputs: [inner_inputs.y as Field],
     key_hash: vkHash,
   };
 
@@ -55,8 +57,8 @@ it(`smart contract can verify a recursive proof`, async () => {
   // Proof should not contain any public inputs so should be 2144 bytes long.
   expect(recursion_proof.proof.length).to.be.eq(2144);
   // Circuit has 16 public inputs which each are 32 bytes.
-  expect(recursion_proof.publicInputs.length).to.be.eq(16);
-  for (const publicInput of recursion_proof.publicInputs) {
+  expect(recursion_proof.publicInputs.size).to.be.eq(16);
+  for (const publicInput of recursion_proof.publicInputs.values()) {
     expect(publicInput.length).to.be.eq(32);
   }
 

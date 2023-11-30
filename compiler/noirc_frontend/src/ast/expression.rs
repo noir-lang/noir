@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 use crate::token::{Attributes, Token};
 use crate::{
-    Distinctness, Ident, Path, Pattern, Recoverable, Statement, StatementKind,
+    Distinctness, FunctionVisibility, Ident, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use acvm::FieldElement;
@@ -74,6 +74,10 @@ impl ExpressionKind {
 
     pub fn string(contents: String) -> ExpressionKind {
         ExpressionKind::Literal(Literal::Str(contents))
+    }
+
+    pub fn raw_string(contents: String, hashes: u8) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::RawStr(contents, hashes))
     }
 
     pub fn format_string(contents: String) -> ExpressionKind {
@@ -312,6 +316,7 @@ pub enum Literal {
     Bool(bool),
     Integer(FieldElement),
     Str(String),
+    RawStr(String, u8),
     FmtStr(String),
     Unit,
 }
@@ -366,17 +371,25 @@ pub struct FunctionDefinition {
     /// True if this function was defined with the 'unconstrained' keyword
     pub is_unconstrained: bool,
 
-    /// True if this function was defined with the 'pub' keyword
-    pub is_public: bool,
+    /// Indicate if this function was defined with the 'pub' keyword
+    pub visibility: FunctionVisibility,
 
     pub generics: UnresolvedGenerics,
-    pub parameters: Vec<(Pattern, UnresolvedType, Visibility)>,
+    pub parameters: Vec<Param>,
     pub body: BlockExpression,
     pub span: Span,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub return_type: FunctionReturnType,
     pub return_visibility: Visibility,
     pub return_distinctness: Distinctness,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Param {
+    pub visibility: Visibility,
+    pub pattern: Pattern,
+    pub typ: UnresolvedType,
+    pub span: Span,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -499,6 +512,11 @@ impl Display for Literal {
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(integer) => write!(f, "{}", integer.to_u128()),
             Literal::Str(string) => write!(f, "\"{string}\""),
+            Literal::RawStr(string, num_hashes) => {
+                let hashes: String =
+                    std::iter::once('#').cycle().take(*num_hashes as usize).collect();
+                write!(f, "r{hashes}\"{string}\"{hashes}")
+            }
             Literal::FmtStr(string) => write!(f, "f\"{string}\""),
             Literal::Unit => write!(f, "()"),
         }
@@ -634,8 +652,11 @@ impl FunctionDefinition {
     ) -> FunctionDefinition {
         let p = parameters
             .iter()
-            .map(|(ident, unresolved_type)| {
-                (Pattern::Identifier(ident.clone()), unresolved_type.clone(), Visibility::Private)
+            .map(|(ident, unresolved_type)| Param {
+                visibility: Visibility::Private,
+                pattern: Pattern::Identifier(ident.clone()),
+                typ: unresolved_type.clone(),
+                span: ident.span().merge(unresolved_type.span.unwrap()),
             })
             .collect();
         FunctionDefinition {
@@ -644,7 +665,7 @@ impl FunctionDefinition {
             is_open: false,
             is_internal: false,
             is_unconstrained: false,
-            is_public: false,
+            visibility: FunctionVisibility::Private,
             generics: generics.clone(),
             parameters: p,
             body: body.clone(),
@@ -661,8 +682,8 @@ impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{:?}", self.attributes)?;
 
-        let parameters = vecmap(&self.parameters, |(name, r#type, visibility)| {
-            format!("{name}: {visibility} {type}")
+        let parameters = vecmap(&self.parameters, |Param { visibility, pattern, typ, span: _ }| {
+            format!("{pattern}: {visibility} {typ}")
         });
 
         let where_clause = vecmap(&self.where_clause, ToString::to_string);

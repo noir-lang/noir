@@ -7,12 +7,13 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use acvm::acir::native_types::Expression;
+use acvm::{acir::native_types::Expression, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::ssa::ir::dfg::CallStack;
+use crate::ssa::ir::{dfg::CallStack, types::NumericType};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum RuntimeError {
@@ -25,10 +26,12 @@ pub enum RuntimeError {
     },
     #[error(transparent)]
     InternalError(#[from] InternalError),
-    #[error("Index out of bounds, array has size {index:?}, but index was {array_size:?}")]
+    #[error("Index out of bounds, array has size {array_size}, but index was {index}")]
     IndexOutOfBounds { index: usize, array_size: usize, call_stack: CallStack },
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
+    #[error("{value} does not fit within the type bounds for {typ}")]
+    IntegerOutOfBounds { value: FieldElement, typ: NumericType, call_stack: CallStack },
     #[error("Expected array index to fit into a u64")]
     TypeConversion { from: String, into: String, call_stack: CallStack },
     #[error("{name:?} is not initialized")]
@@ -51,6 +54,43 @@ fn format_failed_constraint(message: &Option<String>) -> String {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SsaReport {
+    Warning(InternalWarning),
+}
+
+impl From<SsaReport> for FileDiagnostic {
+    fn from(error: SsaReport) -> FileDiagnostic {
+        match error {
+            SsaReport::Warning(warning) => {
+                let message = warning.to_string();
+                let (secondary_message, call_stack) = match warning {
+                    InternalWarning::ReturnConstant { call_stack } => {
+                        ("constant value".to_string(), call_stack)
+                    },
+                    InternalWarning::VerifyProof { call_stack } => {
+                        ("verify_proof(...) aggregates data for the verifier, the actual verification will be done when the full proof is verified using nargo verify. nargo prove may generate an invalid proof if bad data is used as input to verify_proof".to_string(), call_stack)
+                    },
+                };
+                let call_stack = vecmap(call_stack, |location| location);
+                let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
+                let location = call_stack.last().expect("Expected RuntimeError to have a location");
+                let diagnostic =
+                    Diagnostic::simple_warning(message, secondary_message, location.span);
+                diagnostic.in_file(file_id).with_call_stack(call_stack)
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize)]
+pub enum InternalWarning {
+    #[error("Returning a constant value is not allowed")]
+    ReturnConstant { call_stack: CallStack },
+    #[error("Calling std::verify_proof(...) does not verify a proof")]
+    VerifyProof { call_stack: CallStack },
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum InternalError {
     #[error("ICE: Both expressions should have degree<=1")]
@@ -67,8 +107,6 @@ pub enum InternalError {
     UndeclaredAcirVar { call_stack: CallStack },
     #[error("ICE: Expected {expected:?}, found {found:?}")]
     UnExpected { expected: String, found: String, call_stack: CallStack },
-    #[error("Returning a constant value is not allowed")]
-    ReturnConstant { call_stack: CallStack },
 }
 
 impl RuntimeError {
@@ -81,8 +119,7 @@ impl RuntimeError {
                 | InternalError::MissingArg { call_stack, .. }
                 | InternalError::NotAConstant { call_stack, .. }
                 | InternalError::UndeclaredAcirVar { call_stack }
-                | InternalError::UnExpected { call_stack, .. }
-                | InternalError::ReturnConstant { call_stack, .. },
+                | InternalError::UnExpected { call_stack, .. },
             )
             | RuntimeError::FailedConstraint { call_stack, .. }
             | RuntimeError::IndexOutOfBounds { call_stack, .. }
@@ -91,6 +128,7 @@ impl RuntimeError {
             | RuntimeError::UnInitialized { call_stack, .. }
             | RuntimeError::UnknownLoopBound { call_stack }
             | RuntimeError::AssertConstantFailed { call_stack }
+            | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. } => call_stack,
         }
     }
@@ -108,12 +146,6 @@ impl From<RuntimeError> for FileDiagnostic {
 impl RuntimeError {
     fn into_diagnostic(self) -> Diagnostic {
         match self {
-            RuntimeError::InternalError(InternalError::ReturnConstant { ref call_stack }) => {
-                let message = self.to_string();
-                let location =
-                call_stack.back().expect("Expected RuntimeError to have a location");
-               Diagnostic::simple_error(message, "constant value".to_string(), location.span)
-            }
             RuntimeError::InternalError(cause) => {
                 Diagnostic::simple_error(
                     "Internal Consistency Evaluators Errors: \n

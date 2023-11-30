@@ -1,0 +1,6 @@
+[package]
+name = "brillig_fns_as_values"
+type = "bin"
+authors = [""]
+
+[dependencies]

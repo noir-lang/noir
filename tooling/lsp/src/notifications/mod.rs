@@ -3,7 +3,7 @@ use std::ops::ControlFlow;
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use nargo::prepare_package;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::check_crate;
+use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 
 use crate::types::{
@@ -30,23 +30,27 @@ pub(super) fn on_did_change_configuration(
 }
 
 pub(super) fn on_did_open_text_document(
-    _state: &mut LspState,
-    _params: DidOpenTextDocumentParams,
+    state: &mut LspState,
+    params: DidOpenTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
+    state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
     ControlFlow::Continue(())
 }
 
 pub(super) fn on_did_change_text_document(
-    _state: &mut LspState,
-    _params: DidChangeTextDocumentParams,
+    state: &mut LspState,
+    params: DidChangeTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
+    let text = params.content_changes.into_iter().next().unwrap().text;
+    state.input_files.insert(params.text_document.uri.to_string(), text);
     ControlFlow::Continue(())
 }
 
 pub(super) fn on_did_close_text_document(
-    _state: &mut LspState,
-    _params: DidCloseTextDocumentParams,
+    state: &mut LspState,
+    params: DidCloseTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
+    state.input_files.remove(&params.text_document.uri.to_string());
     ControlFlow::Continue(())
 }
 
@@ -88,7 +92,11 @@ pub(super) fn on_did_save_text_document(
             return ControlFlow::Continue(());
         }
     };
-    let workspace = match resolve_workspace_from_toml(&toml_path, PackageSelection::All) {
+    let workspace = match resolve_workspace_from_toml(
+        &toml_path,
+        PackageSelection::All,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    ) {
         Ok(workspace) => workspace,
         Err(err) => {
             // If we found a manifest, but the workspace is invalid, we raise an error about it

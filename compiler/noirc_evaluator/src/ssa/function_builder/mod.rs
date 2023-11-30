@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;
 use noirc_errors::Location;
@@ -16,7 +16,8 @@ use super::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{InstructionId, Intrinsic},
+        instruction::{Endian, InstructionId, Intrinsic},
+        types::NumericType,
     },
     ssa_gen::Ssa,
 };
@@ -169,8 +170,9 @@ impl FunctionBuilder {
     /// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
-    pub(crate) fn insert_allocate(&mut self) -> ValueId {
-        self.insert_instruction(Instruction::Allocate, None).first()
+    pub(crate) fn insert_allocate(&mut self, element_type: Type) -> ValueId {
+        let reference_type = Type::Reference(Rc::new(element_type));
+        self.insert_instruction(Instruction::Allocate, Some(vec![reference_type])).first()
     }
 
     pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
@@ -181,6 +183,10 @@ impl FunctionBuilder {
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) -> &mut FunctionBuilder {
         self.call_stack = call_stack;
         self
+    }
+
+    pub(crate) fn get_call_stack(&self) -> CallStack {
+        self.call_stack.clone()
     }
 
     /// Insert a Load instruction at the end of the current block, loading from the given offset
@@ -256,6 +262,110 @@ impl FunctionBuilder {
         result_types: Vec<Type>,
     ) -> Cow<[ValueId]> {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+    }
+
+    /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
+    pub(crate) fn insert_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        let base = self.field_constant(FieldElement::from(2_u128));
+        let pow = self.pow(base, rhs);
+        let typ = self.current_function.dfg.type_of_value(lhs);
+        let pow = self.insert_cast(pow, typ);
+        self.insert_binary(lhs, BinaryOp::Mul, pow)
+    }
+
+    /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
+    /// and truncate the result to bit_size
+    pub(crate) fn insert_wrapping_shift_left(
+        &mut self,
+        lhs: ValueId,
+        rhs: ValueId,
+        bit_size: u32,
+    ) -> ValueId {
+        let base = self.field_constant(FieldElement::from(2_u128));
+        let typ = self.current_function.dfg.type_of_value(lhs);
+        let (max_bit, pow) =
+            if let Some(rhs_constant) = self.current_function.dfg.get_numeric_constant(rhs) {
+                // Happy case is that we know precisely by how many bits the the integer will
+                // increase: lhs_bit_size + rhs
+                let (rhs_bit_size_pow_2, overflows) =
+                    2_u128.overflowing_pow(rhs_constant.to_u128() as u32);
+                if overflows {
+                    assert!(bit_size < 128, "ICE - shift left with big integers are not supported");
+                    if bit_size < 128 {
+                        let zero = self.numeric_constant(FieldElement::zero(), typ);
+                        return InsertInstructionResult::SimplifiedTo(zero).first();
+                    }
+                }
+                let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ);
+                (bit_size + (rhs_constant.to_u128() as u32), pow)
+            } else {
+                // we use a predicate to nullify the result in case of overflow
+                let bit_size_var =
+                    self.numeric_constant(FieldElement::from(bit_size as u128), typ.clone());
+                let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
+                let one = self.numeric_constant(FieldElement::one(), Type::unsigned(1));
+                let predicate = self.insert_binary(overflow, BinaryOp::Eq, one);
+                let predicate = self.insert_cast(predicate, typ.clone());
+
+                let pow = self.pow(base, rhs);
+                let pow = self.insert_cast(pow, typ);
+                (FieldElement::max_num_bits(), self.insert_binary(predicate, BinaryOp::Mul, pow))
+            };
+
+        let instruction = Instruction::Binary(Binary { lhs, rhs: pow, operator: BinaryOp::Mul });
+        if max_bit <= bit_size {
+            self.insert_instruction(instruction, None).first()
+        } else {
+            let result = self.insert_instruction(instruction, None).first();
+            self.insert_instruction(
+                Instruction::Truncate { value: result, bit_size, max_bit_size: max_bit },
+                None,
+            )
+            .first()
+        }
+    }
+
+    /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
+    pub(crate) fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        let base = self.field_constant(FieldElement::from(2_u128));
+        let pow = self.pow(base, rhs);
+        self.insert_binary(lhs, BinaryOp::Div, pow)
+    }
+
+    /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
+    /// Pseudo-code of the computation:
+    /// let mut r = 1;
+    /// let rhs_bits = to_bits(rhs);
+    /// for i in 1 .. bit_size + 1 {
+    ///     let r_squared = r * r;
+    ///     let b = rhs_bits[bit_size - i];
+    ///     r = (r_squared * lhs * b) + (1 - b) * r_squared;
+    /// }
+    pub(crate) fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        let typ = self.current_function.dfg.type_of_value(rhs);
+        if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
+            let to_bits = self.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
+            let length = self.field_constant(FieldElement::from(bit_size as i128));
+            let result_types =
+                vec![Type::field(), Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
+            let rhs_bits = self.insert_call(to_bits, vec![rhs, length], result_types);
+            let rhs_bits = rhs_bits[1];
+            let one = self.field_constant(FieldElement::one());
+            let mut r = one;
+            for i in 1..bit_size + 1 {
+                let r_squared = self.insert_binary(r, BinaryOp::Mul, r);
+                let a = self.insert_binary(r_squared, BinaryOp::Mul, lhs);
+                let idx = self.field_constant(FieldElement::from((bit_size - i) as i128));
+                let b = self.insert_array_get(rhs_bits, idx, Type::field());
+                let r1 = self.insert_binary(a, BinaryOp::Mul, b);
+                let c = self.insert_binary(one, BinaryOp::Sub, b);
+                let r2 = self.insert_binary(c, BinaryOp::Mul, r_squared);
+                r = self.insert_binary(r1, BinaryOp::Add, r2);
+            }
+            r
+        } else {
+            unreachable!("Value must be unsigned in power operation");
+        }
     }
 
     /// Insert an instruction to extract an element from an array
@@ -347,6 +457,27 @@ impl FunctionBuilder {
         match self.current_function.dfg[value] {
             Value::Intrinsic(intrinsic) => Some(intrinsic),
             _ => None,
+        }
+    }
+
+    /// Insert instructions to increment the reference count of any array(s) stored
+    /// within the given value. If the given value is not an array and does not contain
+    /// any arrays, this does nothing.
+    pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
+        match self.type_of_value(value) {
+            Type::Numeric(_) => (),
+            Type::Function => (),
+            Type::Reference(element) => {
+                if element.contains_an_array() {
+                    let value = self.insert_load(value, element.as_ref().clone());
+                    self.increment_array_reference_count(value);
+                }
+            }
+            Type::Array(..) | Type::Slice(..) => {
+                self.insert_instruction(Instruction::IncrementRc { value }, None);
+                // If there are nested arrays or slices, we wait until ArrayGet
+                // is issued to increment the count of that array.
+            }
         }
     }
 }

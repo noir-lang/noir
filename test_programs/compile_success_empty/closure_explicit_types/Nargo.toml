@@ -1,0 +1,6 @@
+[package]
+name = "closure_explicit_types"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,0 +1,6 @@
+[package]
+name = "depend_on_bin"
+type = "bin"
+authors = [""]
+[dependencies]
+bin_dep = { path = "../../test_libraries/bin_dep" }

@@ -32,4 +32,16 @@ fn foo() {
         another_function(
                 some_function(), some_value)
     );
+
+    assert_eq( x, y );
+
+    assert_eq( x, y, "message" );
+
+    assert( x );
+
+    assert( x, "message" );
+
+    assert( x == y );
+
+    assert(p4_affine.eq(Gaffine::new(6890855772600357754907169075114257697580319025794532037257385534741338397365, 4338620300185947561074059802482547481416142213883829469920100239455078257889)));
 }

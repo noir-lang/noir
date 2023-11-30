@@ -1,7 +1,0 @@
-[package]
-name = "simple_2d_array"
-type = "bin"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

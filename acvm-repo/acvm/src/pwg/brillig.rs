@@ -14,13 +14,14 @@ use crate::{pwg::OpcodeNotSolvable, OpcodeResolutionError};
 
 use super::{get_value, insert_value};
 
-pub(super) enum BrilligSolverStatus {
+#[derive(Debug)]
+pub enum BrilligSolverStatus {
     Finished,
     InProgress,
     ForeignCallWait(ForeignCallWaitInfo),
 }
 
-pub(super) struct BrilligSolver<'b, B: BlackBoxFunctionSolver> {
+pub struct BrilligSolver<'b, B: BlackBoxFunctionSolver> {
     vm: VM<'b, B>,
     acir_index: usize,
 }
@@ -62,7 +63,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
     /// Constructs a solver for a Brillig block given the bytecode and initial
     /// witness.
     pub(super) fn new(
-        initial_witness: &mut WitnessMap,
+        initial_witness: &WitnessMap,
         brillig: &'b Brillig,
         bb_solver: &'b B,
         acir_index: usize,
@@ -111,9 +112,34 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         Ok(Self { vm, acir_index })
     }
 
+    pub fn get_registers(&self) -> &Registers {
+        self.vm.get_registers()
+    }
+
+    pub fn set_register(&mut self, register_index: usize, value: Value) {
+        self.vm.set_register(RegisterIndex(register_index), value);
+    }
+
+    pub fn get_memory(&self) -> &[Value] {
+        self.vm.get_memory()
+    }
+
+    pub fn write_memory_at(&mut self, ptr: usize, value: Value) {
+        self.vm.write_memory_at(ptr, value);
+    }
+
     pub(super) fn solve(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
         let status = self.vm.process_opcodes();
         self.handle_vm_status(status)
+    }
+
+    pub fn step(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
+        let status = self.vm.process_opcode();
+        self.handle_vm_status(status)
+    }
+
+    pub fn program_counter(&self) -> usize {
+        self.vm.program_counter()
     }
 
     fn handle_vm_status(
@@ -185,7 +211,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         Ok(())
     }
 
-    pub(super) fn resolve_pending_foreign_call(&mut self, foreign_call_result: ForeignCallResult) {
+    pub fn resolve_pending_foreign_call(&mut self, foreign_call_result: ForeignCallResult) {
         match self.vm.get_status() {
             VMStatus::ForeignCallWait { .. } => self.vm.resolve_foreign_call(foreign_call_result),
             _ => unreachable!("Brillig VM is not waiting for a foreign call"),

@@ -1,7 +1,0 @@
-[package]
-name = "specialization"
-type = "bin"
-authors = [""]
-compiler_version = "0.16.0"
-
-[dependencies]

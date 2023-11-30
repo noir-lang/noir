@@ -1,7 +1,0 @@
-[package]
-name = "trait_impl_base_type"
-type = "bin"
-authors = [""]
-compiler_version = "0.10.5"
-
-[dependencies]
