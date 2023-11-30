@@ -51,7 +51,11 @@ pub struct LspState {
 }
 
 impl LspState {
-    fn new(client: &ClientSocket, solver: impl BlackBoxFunctionSolver + 'static, enable_aztec_macro : bool) -> Self {
+    fn new(
+        client: &ClientSocket,
+        solver: impl BlackBoxFunctionSolver + 'static,
+        enable_aztec_macro: bool,
+    ) -> Self {
         Self {
             client: client.clone(),
             root_path: None,
@@ -67,7 +71,11 @@ pub struct NargoLspService {
 }
 
 impl NargoLspService {
-    pub fn new(client: &ClientSocket, solver: impl BlackBoxFunctionSolver + 'static,enable_aztec_macro : bool) -> Self {
+    pub fn new(
+        client: &ClientSocket,
+        solver: impl BlackBoxFunctionSolver + 'static,
+        enable_aztec_macro: bool,
+    ) -> Self {
         let state = LspState::new(client, solver, enable_aztec_macro);
         let mut router = Router::new(state);
         router
