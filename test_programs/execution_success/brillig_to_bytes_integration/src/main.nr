@@ -13,15 +13,15 @@ unconstrained fn main(x: Field, _y: Field) {
     assert(le_byte_array[2] == be_byte_array[28]);
 
     let z = 0 - 1;
-    let p_bytes = std::field::modulus_le_bytes();
+    let p_bytes = std::field_element::modulus_le_bytes();
     let z_bytes = z.to_le_bytes(32);
     assert(p_bytes[10] == z_bytes[10]);
     assert(p_bytes[0] == z_bytes[0] as u8 + 1 as u8);
 
-    let p_bits = std::field::modulus_le_bits();
-    let z_bits = z.to_le_bits(std::field::modulus_num_bits() as u32);
+    let p_bits = std::field_element::modulus_le_bits();
+    let z_bits = z.to_le_bits(std::field_element::modulus_num_bits() as u32);
     assert(z_bits[0] == 0);
     assert(p_bits[100] == z_bits[100]);
 
-    _y.to_le_bits(std::field::modulus_num_bits() as u32);
+    _y.to_le_bits(std::field_element::modulus_num_bits() as u32);
 }
