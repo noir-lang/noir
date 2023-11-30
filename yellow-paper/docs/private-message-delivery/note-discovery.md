@@ -6,9 +6,9 @@ sidebar_position: 3
 
 ## Requirements
 
-When users interact with contracts they will generate and publish encrypted notes for other network participants. In order for a user to consume those notes, they need to identify, retrieve and decrypt them. The total number of encrypted notes published by the network will be substantial, making it infeasible for some users to simply retrieve every note and attempt a naive brute-force decryption. For this reason, those users will want to utilize a note discovery protocol to privately identify and provide a much smaller subset of notes for the user to decrypt.
+When users interact with contracts they will generate and publish encrypted notes for other network participants. In order for a user to consume notes that belong to them, they need to identify, retrieve and decrypt them. A simple, privacy-preserving approach to this would be to download all of the notes and attempt decryption. However, the total number of encrypted notes published by the network will be substantial, making it infeasible for some users to do this. Those users will want to utilize a note discovery protocol to privately identify their notes.
 
-A number of techniques currently exist to perform this task with various compromises of levels of privacy and the required amounts of computational effort and/or network bandwidth. This is a field into which a lot of research if being conducted so our approach is not to dictate a specific technique but to put in place the necessary abstractions such that users can select their preferred protocol and new techniques can be integrated in the future.
+A number of techniques currently exist to help with this and it is a field into which a lot of research is being conducted. Therefore, our approach is not to dictate or enshrine a specific note discovery mechanism but to put in place the necessary abstractions such that users can freely choose. Additionally, through this approach we allow for integration of new or improved protocols in the future.
 
 ## Tag Abstraction
 

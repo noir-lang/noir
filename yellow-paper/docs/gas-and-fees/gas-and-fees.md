@@ -158,7 +158,7 @@ This would appear to introduce a circular dependency whereby an appropriate fee 
 
 Initially, the values of transaction gas limits can be set to a very high number, the base gas limits set to values corresponding to the user's chosen amortization level and the fees aet to 0. The transaction can be simulated under these conditions and simulation will provide actual gas consumption figures. Simulation can then be repeated with more realistic values of gas limits and the updated gas consumption figures will be reported. A few iterations of this process will enable the user to establish and prepare an appropriate fee.
 
-Simulation of the transaction will provide feedback as to it's gas consumption, this can then be repeated to converge on the optimum fee to be prepared. The private portion of the transaction will be proven via the private kernel circuit resulting in a number of fee related public inputs:
+Simulation of the transaction will provide feedback as to it's gas consumption, this can be repeated to converge on the optimum fee to be prepared. The private portion of the transaction will be proven via the private kernel circuit resulting in a number of fee related public inputs:
 
 - **feeCommitments** - New commitments generated as part of fee preparation
 - **feeNullifiers** - New nullifiers generated as part of fee preparation
@@ -253,6 +253,9 @@ A user could opt to take private funds and publicly escrow them to a fee payment
 This next example differs in that the refund is performed privately using partial notes. When the user takes $5 from their private note, they publicly escrow the amount within the fee contract. In addition to this, they create a partial note containing a secret known only to them. At this stage, the note does not contain the value as this is not known. During fee distribution, the note commitment is created from the partial note and the refunded quantity. The quantity is emitted as a public event enabling the user to later reconstruct the note and commitment.
 
 ![Private Refund](../gas-and-fees/images/gas-and-fees/private-refund.jpg)
+
+
+In both of these examples the fee is effectively escrowed as part of the private portion of fee preparation. The enqueued public function is simply an instruction to increase the balance of the payment asset held by the fee payment contract. The sequencer should be able to inspect the public call instruction, consisting of contract address, function selector and arguments and be confident that this function will not fail. Provided the logic of the fee payment contract is defined correctly, once escrowed, the fee can't be modified by the user's transaction payload. This gives the sequencer the guarantee that they will be paid for the work they perform. Finally, the fee distribution function in either of these examples can be written such that the sequencer can be confident of success. This function simply needs to take the securely escrowed fee, compute the actual fee and subsequent refund before increasing the balance of the 2 parties within the payment asset.
 
 
 ### Paying Via L1
