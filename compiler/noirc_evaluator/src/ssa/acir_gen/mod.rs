@@ -2294,7 +2294,6 @@ impl Context {
                         self.acir_context.add_constant(FieldElement::from(i as u128));
 
                     let value_current_index = new_slice[i].borrow_var()?;
-                    // let value_current_index = self.acir_context.read_from_memory(block_id, &current_index)?;
 
                     let new_value = if (i + popped_elements_size) >= slice_size {
                         value_current_index
