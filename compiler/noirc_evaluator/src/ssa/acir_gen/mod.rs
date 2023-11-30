@@ -441,8 +441,7 @@ impl Context {
 
                 let mut read_dynamic_array_index =
                     |block_id: BlockId, array_index: usize| -> Result<AcirVar, InternalError> {
-                        let index_var =
-                            self.acir_context.add_constant(FieldElement::from(array_index as u128));
+                        let index_var = self.acir_context.add_constant(array_index);
 
                         self.acir_context.read_from_memory(block_id, &index_var)
                     };
@@ -852,7 +851,7 @@ impl Context {
                 );
 
                 let values = try_vecmap(0..*len, |i| {
-                    let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+                    let index_var = self.acir_context.add_constant(i);
 
                     let read = self.acir_context.read_from_memory(*block_id, &index_var)?;
                     Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
@@ -1076,7 +1075,7 @@ impl Context {
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id: inner_block_id, len, .. }) => {
                 let values = try_vecmap(0..len, |i| {
-                    let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+                    let index_var = self.acir_context.add_constant(i);
 
                     let read = self.acir_context.read_from_memory(inner_block_id, &index_var)?;
                     Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
@@ -1235,7 +1234,7 @@ impl Context {
 
         // The final array should will the flattened index at each outer array index
         let init_values = vecmap(flat_elem_type_sizes, |type_size| {
-            let var = self.acir_context.add_constant(FieldElement::from(type_size as u128));
+            let var = self.acir_context.add_constant(type_size);
             AcirValue::Var(var, AcirType::field())
         });
         let element_type_sizes_len = init_values.len();
@@ -1292,7 +1291,7 @@ impl Context {
         array_len: usize,
     ) -> Result<(), RuntimeError> {
         let init_values = try_vecmap(0..array_len, |i| {
-            let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+            let index_var = self.acir_context.add_constant(i);
 
             let read = self.acir_context.read_from_memory(source, &index_var)?;
             Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
@@ -1760,8 +1759,8 @@ impl Context {
             Intrinsic::ArrayLen => {
                 let len = match self.convert_value(arguments[0], dfg) {
                     AcirValue::Var(_, _) => unreachable!("Non-array passed to array.len() method"),
-                    AcirValue::Array(values) => (values.len() as u128).into(),
-                    AcirValue::DynamicArray(array) => (array.len as u128).into(),
+                    AcirValue::Array(values) => values.len(),
+                    AcirValue::DynamicArray(array) => array.len,
                 };
                 Ok(vec![AcirValue::Var(self.acir_context.add_constant(len), AcirType::field())])
             }
@@ -1978,7 +1977,7 @@ impl Context {
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
                 for i in 0..len {
                     // We generate witnesses corresponding to the array values
-                    let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+                    let index_var = self.acir_context.add_constant(i);
 
                     let value_read_var =
                         self.acir_context.read_from_memory(block_id, &index_var)?;
