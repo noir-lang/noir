@@ -1,0 +1,6 @@
+[package]
+name = "assign_ex"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,0 +1,5 @@
+[package]
+name = "mutability_regression_2911"
+type = "bin"
+authors = [""]
+[dependencies]

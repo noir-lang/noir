@@ -7,7 +7,6 @@ mod affine {
     use crate::ec::safe_inverse;
     use crate::ec::is_square;
     use crate::ec::sqrt;
-
     // Curve specification
     struct Curve { // Short Weierstraß curve
         // Coefficients in defining equation y^2 = x^3 + ax + b
@@ -16,7 +15,6 @@ mod affine {
         // Generator as point in Cartesian coordinates
         gen: Point
     }
-
     // Point in Cartesian coordinates
     struct Point {
         x: Field,
@@ -26,7 +24,7 @@ mod affine {
 
     impl Point {
         // Point constructor
-        fn new(x: Field, y: Field) -> Self {
+        pub fn new(x: Field, y: Field) -> Self {
             Self {x, y, infty: false}
         }
 
@@ -40,7 +38,7 @@ mod affine {
         }
 
         // Check if zero
-        fn is_zero(self) -> bool {
+        pub fn is_zero(self) -> bool {
             self.eq(Point::zero())
         }
         
@@ -56,7 +54,7 @@ mod affine {
         }
         
         // Additive identity
-        fn zero() -> Self {
+        pub fn zero() -> Self {
             Self {x: 0, y: 0, infty: true}
         }
         
@@ -69,7 +67,7 @@ mod affine {
 
     impl Curve {
         // Curve constructor
-        fn new(a: Field, b: Field, gen: Point) -> Curve {
+        pub fn new(a: Field, b: Field, gen: Point) -> Curve {
             // Check curve coefficients
             assert(4*a*a*a + 27*b*b != 0);
             
@@ -89,13 +87,13 @@ mod affine {
         }
 
         // Membership check
-        fn contains(self, p: Point) -> bool {
+        pub fn contains(self, p: Point) -> bool {
             let Point {x, y, infty} = p;
             infty | (y*y == x*x*x + self.a*x + self.b)
         }
         
         // Point addition, implemented in terms of mixed addition for reasons of efficiency
-        fn add(self, p1: Point, p2: Point) -> Point {
+        pub fn add(self, p1: Point, p2: Point) -> Point {
             self.mixed_add(p1, p2.into_group()).into_affine()
         }
 
@@ -139,12 +137,12 @@ mod affine {
         }
         
         // Scalar multiplication (p + ... + p n times)
-        fn mul(self, n: Field, p: Point) -> Point {
+        pub fn mul(self, n: Field, p: Point) -> Point {
             self.into_group().mul(n, p.into_group()).into_affine()
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
-        fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
+        pub fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -155,7 +153,7 @@ mod affine {
         }
 
         // Point subtraction
-        fn subtract(self, p1: Point, p2: Point) -> Point {
+        pub fn subtract(self, p1: Point, p2: Point) -> Point {
             self.add(p1, p2.negate())
         }
 
@@ -184,7 +182,6 @@ mod curvegroup {
     // Points are represented by three-dimensional Jacobian coordinates.
     // See <https://en.wikibooks.org/wiki/Cryptography/Prime_Curve/Jacobian_Coordinates> for details.
     use crate::ec::swcurve::affine;
-
     // Curve specification
     struct Curve { // Short Weierstraß curve
         // Coefficients in defining equation y^2 = x^3 + axz^4 + bz^6
@@ -193,7 +190,6 @@ mod curvegroup {
         // Generator as point in Cartesian coordinates
         gen: Point
     }
-
     // Point in three-dimensional Jacobian coordinates
     struct Point {
         x: Field,
@@ -203,7 +199,7 @@ mod curvegroup {
 
     impl Point {
         // Point constructor
-        fn new(x: Field, y: Field, z: Field) -> Self {
+        pub fn new(x: Field, y: Field, z: Field) -> Self {
             Self {x, y, z}
         }
 
@@ -216,12 +212,12 @@ mod curvegroup {
         }
 
         // Check if zero
-        fn is_zero(self) -> bool {
+        pub fn is_zero(self) -> bool {
             self.eq(Point::zero())
         }
         
         // Conversion to affine coordinates
-        fn into_affine(self) -> affine::Point {
+        pub fn into_affine(self) -> affine::Point {
             let Self {x, y, z} = self;
 
             if z == 0 {
@@ -232,7 +228,7 @@ mod curvegroup {
         }
 
         // Additive identity
-        fn zero() -> Self {
+        pub fn zero() -> Self {
             Self {x: 0, y: 0, z: 0}
         }
         
@@ -246,7 +242,7 @@ mod curvegroup {
 
     impl Curve {
         // Curve constructor
-        fn new(a: Field, b: Field, gen: Point) -> Curve {
+        pub fn new(a: Field, b: Field, gen: Point) -> Curve {
             // Check curve coefficients
             assert(4*a*a*a + 27*b*b != 0);
             
@@ -259,14 +255,14 @@ mod curvegroup {
         }
 
         // Conversion to affine coordinates
-        fn into_affine(self) -> affine::Curve {
+        pub fn into_affine(self) -> affine::Curve {
             let Curve{a, b, gen} = self;
 
             affine::Curve {a, b, gen: gen.into_affine()}
         }
 
         // Membership check
-        fn contains(self, p: Point) -> bool {
+        pub fn contains(self, p: Point) -> bool {
             let Point {x, y, z} = p;
             if z == 0 {
                 true
@@ -276,7 +272,7 @@ mod curvegroup {
         }
         
         // Addition
-        fn add(self, p1: Point, p2: Point) -> Point {
+        pub fn add(self, p1: Point, p2: Point) -> Point {
 
             if p1.is_zero() {
                 p2
@@ -309,7 +305,7 @@ mod curvegroup {
         }
 
         // Point doubling
-        fn double(self, p: Point) -> Point {
+        pub fn double(self, p: Point) -> Point {
             let Point {x, y, z} = p;
             
             if p.is_zero() {
@@ -342,7 +338,7 @@ mod curvegroup {
         }
 
         // Scalar multiplication (p + ... + p n times)
-        fn mul(self, n: Field, p: Point) -> Point {
+        pub fn mul(self, n: Field, p: Point) -> Point {
             let N_BITS = crate::field::modulus_num_bits();
 
             // TODO: temporary workaround until issue 1354 is solved
@@ -367,7 +363,7 @@ mod curvegroup {
         }
 
         // Point subtraction
-        fn subtract(self, p1: Point, p2: Point) -> Point {
+        pub fn subtract(self, p1: Point, p2: Point) -> Point {
             self.add(p1, p2.negate())
         }
 

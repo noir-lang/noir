@@ -1,0 +1,5 @@
+[package]
+name = "comptime_sort"
+type = "bin"
+authors = [""]
+[dependencies]

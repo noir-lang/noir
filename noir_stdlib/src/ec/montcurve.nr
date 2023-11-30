@@ -12,7 +12,6 @@ mod affine {
     use crate::ec::safe_inverse;
     use crate::ec::sqrt;
     use crate::ec::ZETA;
-
     // Curve specification
     struct Curve { // Montgomery Curve configuration (ky^2 = x^3 + j*x^2 + x)
         j: Field,
@@ -20,7 +19,6 @@ mod affine {
         // Generator as point in Cartesian coordinates
         gen: Point
     }
-
     // Point in Cartesian coordinates
     struct Point {
         x: Field,
@@ -30,7 +28,7 @@ mod affine {
 
     impl Point {
         // Point constructor
-        fn new(x: Field, y: Field) -> Self {
+        pub fn new(x: Field, y: Field) -> Self {
             Self {x, y, infty: false}
         }
 
@@ -40,7 +38,7 @@ mod affine {
         }
 
         // Check if zero
-        fn is_zero(self) -> bool {
+        pub fn is_zero(self) -> bool {
             self.infty
         }
 
@@ -55,7 +53,7 @@ mod affine {
         }
 
         // Additive identity
-        fn zero() -> Self {
+        pub fn zero() -> Self {
             Self {x: 0, y: 0, infty: true}
         }
 
@@ -80,7 +78,7 @@ mod affine {
 
     impl Curve {
         // Curve constructor
-        fn new(j: Field, k: Field, gen: Point) -> Self {
+        pub fn new(j: Field, k: Field, gen: Point) -> Self {
             // Check curve coefficients
             assert(k != 0);
             assert(j*j != 4);
@@ -99,7 +97,7 @@ mod affine {
         }
 
         // Membership check
-        fn contains(self, p: Point) -> bool {
+        pub fn contains(self, p: Point) -> bool {
             let Self {j, k, gen: _gen} = self;
             let Point {x, y, infty: infty} = p;
             
@@ -107,7 +105,7 @@ mod affine {
         }
 
         // Point addition
-        fn add(self, p1: Point, p2: Point) -> Point {
+        pub fn add(self, p1: Point, p2: Point) -> Point {
             self.into_tecurve().add(p1.into_tecurve(), p2.into_tecurve()).into_montcurve()
         }
 
@@ -145,7 +143,7 @@ mod affine {
         }
 
         // Conversion to equivalent Short Weierstraß curve
-        fn into_swcurve(self) -> SWCurve {
+        pub fn into_swcurve(self) -> SWCurve {
             let j = self.j;
             let k = self.k;
             let a0 = (3-j*j)/(3*k*k);
@@ -155,7 +153,7 @@ mod affine {
         }
 
         // Point mapping into equivalent Short Weierstraß curve
-        fn map_into_swcurve(self, p: Point) -> SWPoint {
+        pub fn map_into_swcurve(self, p: Point) -> SWPoint {
             if p.is_zero() {
                 SWPoint::zero()
             } else {
@@ -228,7 +226,6 @@ mod curvegroup {
         // Generator as point in projective coordinates
         gen: Point
     }
-
     // Point in projective coordinates
     struct Point {
         x: Field,
@@ -238,7 +235,7 @@ mod curvegroup {
 
     impl Point {
         // Point constructor
-        fn new(x: Field, y: Field, z: Field) -> Self {
+        pub fn new(x: Field, y: Field, z: Field) -> Self {
             Self {x, y, z}
         }
 
@@ -248,7 +245,7 @@ mod curvegroup {
         }
 
         // Check if zero
-        fn is_zero(self) -> bool {
+        pub fn is_zero(self) -> bool {
             self.z == 0
         }
 
@@ -263,7 +260,7 @@ mod curvegroup {
         }
 
         // Additive identity
-        fn zero() -> Self {
+        pub fn zero() -> Self {
             Self {x: 0, y: 1,z: 0}
         }
 
@@ -282,7 +279,7 @@ mod curvegroup {
 
     impl Curve {
         // Curve constructor
-        fn new(j: Field, k: Field, gen: Point) -> Self {
+        pub fn new(j: Field, k: Field, gen: Point) -> Self {
             // Check curve coefficients
             assert(k != 0);
             assert(j*j != 4);
@@ -301,7 +298,7 @@ mod curvegroup {
         }
 
         // Membership check
-        fn contains(self, p: Point) -> bool {
+        pub fn contains(self, p: Point) -> bool {
             let Self {j, k, gen: _gen} = self;
             let Point {x, y, z} = p;
             
@@ -309,7 +306,7 @@ mod curvegroup {
         }
 
         // Point addition
-        fn add(self, p1: Point, p2: Point) -> Point {
+        pub fn add(self, p1: Point, p2: Point) -> Point {
             self.into_affine().add(p1.into_affine(), p2.into_affine()).into_group()
         }
 
@@ -320,7 +317,7 @@ mod curvegroup {
         }
         
         // Scalar multiplication (p + ... + p n times)
-        fn mul(self, n: Field, p: Point) -> Point {
+        pub fn mul(self, n: Field, p: Point) -> Point {
             self.into_tecurve().mul(n, p.into_tecurve()).into_montcurve()
         }
         
@@ -336,7 +333,7 @@ mod curvegroup {
         }
 
         // Point subtraction
-        fn subtract(self, p1: Point, p2: Point) -> Point {
+        pub fn subtract(self, p1: Point, p2: Point) -> Point {
             self.add(p1, p2.negate())
         }
 
@@ -358,7 +355,7 @@ mod curvegroup {
         }
 
         // Point mapping into equivalent Short Weierstraß curve
-        fn map_into_swcurve(self, p: Point) -> SWPoint {
+        pub fn map_into_swcurve(self, p: Point) -> SWPoint {
             self.into_affine().map_into_swcurve(p.into_affine()).into_group()
         }
 

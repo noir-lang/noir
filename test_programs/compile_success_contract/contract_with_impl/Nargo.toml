@@ -1,0 +1,7 @@
+[package]
+name = "simple_contract"
+type = "contract"
+authors = [""]
+
+[dependencies]
+

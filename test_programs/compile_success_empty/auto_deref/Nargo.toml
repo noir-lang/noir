@@ -1,0 +1,5 @@
+[package]
+name = "auto_deref"
+type = "bin"
+authors = [""]
+[dependencies]

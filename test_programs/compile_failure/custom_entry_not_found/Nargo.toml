@@ -1,0 +1,8 @@
+[package]
+name = "custom_entry"
+type = "bin"
+# Testing that this file is missing and doesn't fallback to default `main.nr` file
+entry = "src/foobarbaz.nr"
+authors = [""]
+
+[dependencies]

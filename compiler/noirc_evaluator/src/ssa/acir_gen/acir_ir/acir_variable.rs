@@ -1,7 +1,7 @@
 use super::generated_acir::GeneratedAcir;
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
-use crate::errors::{InternalError, RuntimeError};
+use crate::errors::{InternalError, RuntimeError, SsaReport};
 use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
@@ -22,6 +22,7 @@ use acvm::{
 use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
+use num_bigint::BigUint;
 use std::{borrow::Cow, hash::Hash};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -61,18 +62,9 @@ impl AcirType {
         AcirType::NumericType(NumericType::NativeField)
     }
 
-    /// Returns a boolean type
-    fn boolean() -> Self {
-        AcirType::NumericType(NumericType::Unsigned { bit_size: 1 })
-    }
-
-    /// True if type is signed
-    pub(crate) fn is_signed(&self) -> bool {
-        let numeric_type = match self {
-            AcirType::NumericType(numeric_type) => numeric_type,
-            AcirType::Array(_, _) => return false,
-        };
-        matches!(numeric_type, NumericType::Signed { .. })
+    /// Returns an unsigned type of the specified bit size
+    pub(crate) fn unsigned(bit_size: u32) -> Self {
+        AcirType::NumericType(NumericType::Unsigned { bit_size })
     }
 }
 
@@ -90,7 +82,7 @@ impl<'a> From<&'a SsaType> for AcirType {
                 let elements = elements.iter().map(|e| e.into()).collect();
                 AcirType::Array(elements, *size)
             }
-            _ => unreachable!("The type {value}  cannot be represented in ACIR"),
+            _ => unreachable!("The type {value} cannot be represented in ACIR"),
         }
     }
 }
@@ -104,6 +96,8 @@ pub(crate) struct AcirContext {
     ///
     /// The vars object is an instance of the `TwoWayMap`, which provides a bidirectional mapping between `AcirVar` and `AcirVarData`.
     vars: HashMap<AcirVar, AcirVarData>,
+
+    constant_witnesses: HashMap<FieldElement, Witness>,
 
     /// An in-memory representation of ACIR.
     ///
@@ -120,7 +114,7 @@ impl AcirContext {
         self.acir_ir.current_witness_index()
     }
 
-    pub(crate) fn extract_witness(&self, inputs: &[AcirValue]) -> Vec<u32> {
+    pub(crate) fn extract_witness(&self, inputs: &[AcirValue]) -> Vec<Witness> {
         inputs
             .iter()
             .flat_map(|value| value.clone().flatten())
@@ -131,7 +125,6 @@ impl AcirContext {
                     .to_expression()
                     .to_witness()
                     .expect("ICE - cannot extract a witness")
-                    .0
             })
             .collect()
     }
@@ -236,7 +229,16 @@ impl AcirContext {
     /// Converts an [`AcirVar`] to a [`Witness`]
     fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, InternalError> {
         let expression = self.var_to_expression(var)?;
-        Ok(self.acir_ir.get_or_create_witness(&expression))
+        let witness = if let Some(constant) = expression.to_const() {
+            // Check if a witness has been assigned this value already, if so reuse it.
+            *self
+                .constant_witnesses
+                .entry(constant)
+                .or_insert_with(|| self.acir_ir.get_or_create_witness(&expression))
+        } else {
+            self.acir_ir.get_or_create_witness(&expression)
+        };
+        Ok(witness)
     }
 
     /// Converts an [`AcirVar`] to an [`Expression`]
@@ -256,6 +258,11 @@ impl AcirContext {
             AcirVarData::Const(field) => field.is_one(),
             _ => false,
         }
+    }
+
+    /// True if the given AcirVar refers to a constant value
+    pub(crate) fn is_constant(&self, var: &AcirVar) -> bool {
+        matches!(self.vars[var], AcirVarData::Const(_))
     }
 
     /// Adds a new Variable to context whose value will
@@ -285,7 +292,7 @@ impl AcirContext {
             let inverted_var = self.add_data(AcirVarData::Const(constant.inverse()));
 
             // Check that the inverted var is valid.
-            // This check prevents invalid divisons by zero.
+            // This check prevents invalid divisions by zero.
             let should_be_one = self.mul_var(inverted_var, var)?;
             self.maybe_eq_predicate(should_be_one, predicate)?;
 
@@ -294,33 +301,21 @@ impl AcirContext {
 
         // Compute the inverse with brillig code
         let inverse_code = brillig_directive::directive_invert();
-        let field_type = AcirType::NumericType(NumericType::NativeField);
 
         let results = self.brillig(
             predicate,
             inverse_code,
-            vec![AcirValue::Var(var, field_type.clone())],
-            vec![field_type],
+            vec![AcirValue::Var(var, AcirType::field())],
+            vec![AcirType::field()],
         )?;
         let inverted_var = Self::expect_one_var(results);
 
         // Check that the inverted var is valid.
-        // This check prevents invalid divisons by zero.
+        // This check prevents invalid divisions by zero.
         let should_be_one = self.mul_var(inverted_var, var)?;
         self.maybe_eq_predicate(should_be_one, predicate)?;
 
         Ok(inverted_var)
-    }
-
-    // Constrains `var` to be equal to the constant value `1`
-    pub(crate) fn assert_eq_one(
-        &mut self,
-        var: AcirVar,
-        assert_message: Option<String>,
-    ) -> Result<(), RuntimeError> {
-        let one = self.add_constant(FieldElement::one());
-        self.assert_eq_var(var, one, assert_message)?;
-        Ok(())
     }
 
     // Constrains `var` to be equal to predicate if the predicate is true
@@ -385,9 +380,15 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
-        let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-        let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
-        Ok(outputs[0])
+        let bit_size = typ.bit_size();
+        if bit_size == 1 {
+            // Operands are booleans.
+            self.mul_var(lhs, rhs)
+        } else {
+            let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
+            Ok(outputs[0])
+        }
     }
 
     /// Returns an `AcirVar` that is the OR result of `lhs` & `rhs`.
@@ -432,20 +433,10 @@ impl AcirContext {
         let diff_expr = &lhs_expr - &rhs_expr;
 
         // Check to see if equality can be determined at compile-time.
-        if diff_expr.is_const() {
-            if diff_expr.is_zero() {
-                // Constraint is always true - assertion is unnecessary.
-                self.mark_variables_equivalent(lhs, rhs)?;
-                return Ok(());
-            } else {
-                // Constraint is always false - this program is unprovable.
-                return Err(RuntimeError::FailedConstraint {
-                    lhs: Box::new(lhs_expr),
-                    rhs: Box::new(rhs_expr),
-                    call_stack: self.get_call_stack(),
-                    assert_message,
-                });
-            };
+        if diff_expr.is_zero() {
+            // Constraint is always true - assertion is unnecessary.
+            self.mark_variables_equivalent(lhs, rhs)?;
+            return Ok(());
         }
 
         self.acir_ir.assert_is_zero(diff_expr);
@@ -503,11 +494,11 @@ impl AcirContext {
             | (AcirVarData::Const(constant), AcirVarData::Witness(witness)) => {
                 let mut expr = Expression::default();
                 expr.push_addition_term(constant, witness);
-                self.add_data(AcirVarData::Expr(expr))
+                self.add_data(AcirVarData::from(expr))
             }
             (AcirVarData::Const(constant), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Const(constant)) => {
-                self.add_data(AcirVarData::Expr(&expr * constant))
+                self.add_data(AcirVarData::from(&expr * constant))
             }
             (AcirVarData::Witness(lhs_witness), AcirVarData::Witness(rhs_witness)) => {
                 let mut expr = Expression::default();
@@ -544,37 +535,26 @@ impl AcirContext {
         Ok(self.add_data(AcirVarData::from(sum_expr)))
     }
 
+    /// Adds a new Variable to context whose value will
+    /// be constrained to be the expression `lhs + k * rhs`
+    fn add_mul_var(
+        &mut self,
+        lhs: AcirVar,
+        k: FieldElement,
+        rhs: AcirVar,
+    ) -> Result<AcirVar, RuntimeError> {
+        let k_var = self.add_constant(k);
+
+        let intermediate = self.mul_var(k_var, rhs)?;
+        self.add_var(lhs, intermediate)
+    }
+
     /// Adds a new variable that is constrained to be the logical NOT of `x`.
     pub(crate) fn not_var(&mut self, x: AcirVar, typ: AcirType) -> Result<AcirVar, RuntimeError> {
         let bit_size = typ.bit_size();
         // Subtracting from max flips the bits
         let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
         self.sub_var(max, x)
-    }
-
-    /// Returns an `AcirVar` that is constrained to be `lhs << rhs`.
-    ///
-    /// We convert left shifts to multiplications, so this is equivalent to
-    /// `lhs * 2^rhs`.
-    ///
-    /// We currently require `rhs` to be a constant
-    /// however this can be extended, see #1478.
-    pub(crate) fn shift_left_var(
-        &mut self,
-        lhs: AcirVar,
-        rhs: AcirVar,
-        _typ: AcirType,
-    ) -> Result<AcirVar, RuntimeError> {
-        let rhs_data = &self.vars[&rhs];
-
-        // Compute 2^{rhs}
-        let two_pow_rhs = match rhs_data.as_constant() {
-            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
-            None => unimplemented!("rhs must be a constant when doing a right shift"),
-        };
-        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
-
-        self.mul_var(lhs, two_pow_rhs_var)
     }
 
     /// Returns the quotient and remainder such that lhs = rhs * quotient + remainder
@@ -585,37 +565,301 @@ impl AcirContext {
         bit_size: u32,
         predicate: AcirVar,
     ) -> Result<(AcirVar, AcirVar), RuntimeError> {
-        let lhs_expr = self.var_to_expression(lhs)?;
+        // lhs = rhs * q + r
+        //
+        // If predicate is zero, `q_witness` and `r_witness` will be 0
+        let zero = self.add_constant(FieldElement::zero());
+        if self.var_to_expression(predicate)?.is_zero() {
+            return Ok((zero, zero));
+        }
+
+        match (self.var_to_expression(lhs)?.to_const(), self.var_to_expression(rhs)?.to_const()) {
+            // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
+            // `rhs` must be non-zero.
+            (Some(lhs_const), Some(rhs_const)) if rhs_const != FieldElement::zero() => {
+                let quotient = lhs_const.to_u128() / rhs_const.to_u128();
+                let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
+
+                let quotient_var = self.add_constant(FieldElement::from(quotient));
+                let remainder_var = self.add_constant(FieldElement::from(remainder));
+                return Ok((quotient_var, remainder_var));
+            }
+
+            // If `rhs` is one then the division is a noop.
+            (_, Some(rhs_const)) if rhs_const == FieldElement::one() => {
+                return Ok((lhs, zero));
+            }
+
+            _ => (),
+        }
+
+        // Check that we the rhs is not zero.
+        // Otherwise, when executing the brillig quotient we may attempt to divide by zero, causing a VM panic.
+        //
+        // When the predicate is 0, the equation always passes.
+        // When the predicate is 1, the rhs must not be 0.
+        let one = self.add_constant(FieldElement::one());
+
         let rhs_expr = self.var_to_expression(rhs)?;
-        let predicate_expr = self.var_to_expression(predicate)?;
+        let rhs_is_nonzero_const = rhs_expr.is_const() && !rhs_expr.is_zero();
+        if !rhs_is_nonzero_const {
+            match self.var_to_expression(predicate)?.to_const() {
+                Some(predicate) if predicate.is_one() => {
+                    // If the predicate is known to be active, we simply assert that an inverse must exist.
+                    // This implies that `rhs != 0`.
+                    let _inverse = self.inv_var(rhs, one)?;
+                }
 
-        let (quotient, remainder) =
-            self.acir_ir.euclidean_division(&lhs_expr, &rhs_expr, bit_size, &predicate_expr)?;
+                _ => {
+                    // Otherwise we must handle both potential cases.
+                    let rhs_is_zero = self.eq_var(rhs, zero)?;
+                    let rhs_is_not_zero = self.mul_var(rhs_is_zero, predicate)?;
+                    self.assert_eq_var(rhs_is_not_zero, zero, None)?;
+                }
+            }
+        }
 
-        let quotient_var = self.add_data(AcirVarData::Witness(quotient));
-        let remainder_var = self.add_data(AcirVarData::Witness(remainder));
+        // maximum bit size for q and for [r and rhs]
+        let mut max_q_bits = bit_size;
+        let mut max_rhs_bits = bit_size;
+        // when rhs is constant, we can better estimate the maximum bit sizes
+        if let Some(rhs_const) = self.var_to_expression(rhs)?.to_const() {
+            max_rhs_bits = rhs_const.num_bits();
+            if max_rhs_bits != 0 {
+                if max_rhs_bits > bit_size {
+                    return Ok((zero, zero));
+                }
+                max_q_bits = bit_size - max_rhs_bits + 1;
+            }
+        }
+
+        // Avoids overflow: 'q*b+r < 2^max_q_bits*2^max_rhs_bits'
+        let mut avoid_overflow = false;
+        if max_q_bits + max_rhs_bits >= FieldElement::max_num_bits() - 1 {
+            // q*b+r can overflow; we avoid this when b is constant
+            if self.var_to_expression(rhs)?.is_const() {
+                avoid_overflow = true;
+            } else {
+                // we do not support unbounded division
+                unreachable!("overflow in unbounded division");
+            }
+        }
+
+        let [q_value, r_value]: [AcirValue; 2] = self
+            .brillig(
+                predicate,
+                brillig_directive::directive_quotient(bit_size + 1),
+                vec![
+                    AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
+                    AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
+                ],
+                vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
+            )?
+            .try_into()
+            .expect("quotient only returns two values");
+        let quotient_var = q_value.into_var()?;
+        let remainder_var = r_value.into_var()?;
+
+        // Constrain `q < 2^{max_q_bits}`.
+        self.range_constrain_var(
+            quotient_var,
+            &NumericType::Unsigned { bit_size: max_q_bits },
+            None,
+        )?;
+
+        // Constrain `r < 2^{max_rhs_bits}`.
+        //
+        // If `rhs` is a power of 2, then is just a looser version of the following bound constraint.
+        // In the case where `rhs` isn't a power of 2 then this range constraint is required
+        // as the bound constraint creates a new witness.
+        // This opcode will be optimized out if it is redundant so we always add it for safety.
+        self.range_constrain_var(
+            remainder_var,
+            &NumericType::Unsigned { bit_size: max_rhs_bits },
+            None,
+        )?;
+
+        // Constrain `r < rhs`.
+        self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits)?;
+
+        // a * predicate == (b * q + r) * predicate
+        // => predicate * (a - b * q - r) == 0
+        // When the predicate is 0, the equation always passes.
+        // When the predicate is 1, the euclidean division needs to be
+        // true.
+        let rhs_constraint = self.mul_var(rhs, quotient_var)?;
+        let rhs_constraint = self.add_var(rhs_constraint, remainder_var)?;
+        let rhs_constraint = self.mul_var(rhs_constraint, predicate)?;
+
+        let lhs_constraint = self.mul_var(lhs, predicate)?;
+        self.assert_eq_var(lhs_constraint, rhs_constraint, None)?;
+
+        if let Some(rhs_const) = self.var_to_expression(rhs)?.to_const() {
+            if avoid_overflow {
+                // we compute q0 = p/rhs
+                let rhs_big = BigUint::from_bytes_be(&rhs_const.to_be_bytes());
+                let q0_big = FieldElement::modulus() / &rhs_big;
+                let q0 = FieldElement::from_be_bytes_reduce(&q0_big.to_bytes_be());
+                let q0_var = self.add_constant(q0);
+                // when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
+
+                let size_predicate = self.eq_var(q0_var, quotient_var)?;
+                let predicate = self.mul_var(size_predicate, predicate)?;
+                // Ensure that there is no overflow, under q == q0 predicate
+                let max_r_big = FieldElement::modulus() - q0_big * rhs_big;
+                let max_r = FieldElement::from_be_bytes_reduce(&max_r_big.to_bytes_be());
+                let max_r_var = self.add_constant(max_r);
+
+                let max_r_predicate = self.mul_var(predicate, max_r_var)?;
+                let r_predicate = self.mul_var(remainder_var, predicate)?;
+                // Bound the remainder to be <p-q0*b, if the predicate is true.
+                self.bound_constraint_with_offset(
+                    r_predicate,
+                    max_r_predicate,
+                    predicate,
+                    rhs_const.num_bits(),
+                )?;
+            }
+        }
 
         Ok((quotient_var, remainder_var))
+    }
+
+    /// Generate constraints that are satisfied iff
+    /// lhs < rhs , when offset is 1, or
+    /// lhs <= rhs, when offset is 0
+    /// bits is the bit size of a and b (or an upper bound of the bit size)
+    ///
+    /// lhs<=rhs is done by constraining b-a to a bit size of 'bits':
+    /// if lhs<=rhs, 0 <= rhs-lhs <= b < 2^bits
+    /// if lhs>rhs, rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
+    /// n.b: we do NOT check here that lhs and rhs are indeed 'bits' size
+    /// lhs < rhs <=> a+1<=b
+    /// TODO: Consolidate this with bounds_check function.
+    pub(super) fn bound_constraint_with_offset(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        offset: AcirVar,
+        bits: u32,
+    ) -> Result<(), RuntimeError> {
+        const fn num_bits<T>() -> usize {
+            std::mem::size_of::<T>() * 8
+        }
+
+        fn bit_size_u128(a: u128) -> u32 where {
+            num_bits::<u128>() as u32 - a.leading_zeros()
+        }
+
+        assert!(
+            bits < FieldElement::max_num_bits(),
+            "range check with bit size of the prime field is not implemented yet"
+        );
+
+        let mut lhs_offset = self.add_var(lhs, offset)?;
+
+        // Optimization when rhs is const and fits within a u128
+        let rhs_expr = self.var_to_expression(rhs)?;
+        if rhs_expr.is_const() && rhs_expr.q_c.fits_in_u128() {
+            // We try to move the offset to rhs
+            let rhs_offset = if self.is_constant_one(&offset) && rhs_expr.q_c.to_u128() >= 1 {
+                lhs_offset = lhs;
+                rhs_expr.q_c.to_u128() - 1
+            } else {
+                rhs_expr.q_c.to_u128()
+            };
+            // we now have lhs+offset <= rhs <=> lhs_offset <= rhs_offset
+
+            let bit_size = bit_size_u128(rhs_offset);
+            // r = 2^bit_size - rhs_offset -1, is of bit size  'bit_size' by construction
+            let r = (1_u128 << bit_size) - rhs_offset - 1;
+            // however, since it is a constant, we can compute it's actual bit size
+            let r_bit_size = bit_size_u128(r);
+            // witness = lhs_offset + r
+            assert!(bits + r_bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
+
+            let r_var = self.add_constant(r.into());
+            let aor = self.add_var(lhs_offset, r_var)?;
+            // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
+            self.range_constrain_var(aor, &NumericType::Unsigned { bit_size }, None)?;
+            return Ok(());
+        }
+        // General case:  lhs_offset<=rhs <=> rhs-lhs_offset>=0 <=> rhs-lhs_offset is a 'bits' bit integer
+        let sub_expression = self.sub_var(rhs, lhs_offset)?; //rhs-lhs_offset
+        self.range_constrain_var(sub_expression, &NumericType::Unsigned { bit_size: bits }, None)?;
+
+        Ok(())
+    }
+
+    // Returns the 2-complement of lhs, using the provided sign bit in 'leading'
+    // if leading is zero, it returns lhs
+    // if leading is one, it returns 2^bit_size-lhs
+    fn two_complement(
+        &mut self,
+        lhs: AcirVar,
+        leading: AcirVar,
+        max_bit_size: u32,
+    ) -> Result<AcirVar, RuntimeError> {
+        let max_power_of_two = self.add_constant(
+            FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1)),
+        );
+
+        let intermediate = self.sub_var(max_power_of_two, lhs)?;
+        let intermediate = self.mul_var(intermediate, leading)?;
+
+        self.add_mul_var(lhs, FieldElement::from(2_i128), intermediate)
     }
 
     /// Returns the quotient and remainder such that lhs = rhs * quotient + remainder
     /// and |remainder| < |rhs|
     /// and remainder has the same sign than lhs
-    /// Note that this is not the euclidian division, where we have instead remainder < |rhs|
+    /// Note that this is not the euclidean division, where we have instead remainder < |rhs|
     fn signed_division_var(
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
     ) -> Result<(AcirVar, AcirVar), RuntimeError> {
-        let l_witness = self.var_to_witness(lhs)?;
-        let r_witness = self.var_to_witness(rhs)?;
+        // We derive the signed division from the unsigned euclidean division.
+        // note that this is not euclidean division!
+        // If `x` is a signed integer, then `sign(x)x >= 0`
+        // so if `a` and `b` are signed integers, we can do the unsigned division:
+        // `sign(a)a = q1*sign(b)b + r1`
+        // => `a = sign(a)sign(b)q1*b + sign(a)r1`
+        // => `a = qb+r`, with `|r|<|b|` and `a` and `r` have the same sign.
 
         assert_ne!(bit_size, 0, "signed integer should have at least one bit");
-        let (q, r) =
-            self.acir_ir.signed_division(&l_witness.into(), &r_witness.into(), bit_size)?;
 
-        Ok((self.add_data(q.into()), self.add_data(r.into())))
+        // 2^{max_bit size-1}
+        let max_power_of_two = self.add_constant(
+            FieldElement::from(2_i128).pow(&FieldElement::from(bit_size as i128 - 1)),
+        );
+        let one = self.add_constant(FieldElement::one());
+
+        // Get the sign bit of rhs by computing rhs / max_power_of_two
+        let (rhs_leading, _) = self.euclidean_division_var(rhs, max_power_of_two, bit_size, one)?;
+
+        // Get the sign bit of lhs by computing lhs / max_power_of_two
+        let (lhs_leading, _) = self.euclidean_division_var(lhs, max_power_of_two, bit_size, one)?;
+
+        // Signed to unsigned:
+        let unsigned_lhs = self.two_complement(lhs, lhs_leading, bit_size)?;
+        let unsigned_rhs = self.two_complement(rhs, rhs_leading, bit_size)?;
+
+        // Performs the division using the unsigned values of lhs and rhs
+        let (q1, r1) =
+            self.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size - 1, one)?;
+
+        // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
+        // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
+        let sign_sum = self.add_var(lhs_leading, rhs_leading)?;
+        let sign_prod = self.mul_var(lhs_leading, rhs_leading)?;
+        let q_sign = self.add_mul_var(sign_sum, -FieldElement::from(2_i128), sign_prod)?;
+
+        let quotient = self.two_complement(q1, q_sign, bit_size)?;
+        let remainder = self.two_complement(r1, lhs_leading, bit_size)?;
+
+        Ok((quotient, remainder))
     }
 
     /// Returns a variable which is constrained to be `lhs mod rhs`
@@ -628,35 +872,6 @@ impl AcirContext {
     ) -> Result<AcirVar, RuntimeError> {
         let (_, remainder) = self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
         Ok(remainder)
-    }
-
-    /// Returns an `AcirVar` that is constrained to be `lhs >> rhs`.
-    ///
-    /// We convert right shifts to divisions, so this is equivalent to
-    /// `lhs / 2^rhs`.
-    ///
-    /// We currently require `rhs` to be a constant
-    /// however this can be extended, see #1478.
-    ///
-    /// This code is doing a field division instead of an integer division,
-    /// see #1479 about how this is expected to change.
-    pub(crate) fn shift_right_var(
-        &mut self,
-        lhs: AcirVar,
-        rhs: AcirVar,
-        typ: AcirType,
-        predicate: AcirVar,
-    ) -> Result<AcirVar, RuntimeError> {
-        let rhs_data = &self.vars[&rhs];
-
-        // Compute 2^{rhs}
-        let two_pow_rhs = match rhs_data.as_constant() {
-            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
-            None => unimplemented!("rhs must be a constant when doing a right shift"),
-        };
-        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
-
-        self.div_var(lhs, two_pow_rhs_var, typ, predicate)
     }
 
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
@@ -672,11 +887,26 @@ impl AcirContext {
         &mut self,
         variable: AcirVar,
         numeric_type: &NumericType,
+        message: Option<String>,
     ) -> Result<AcirVar, RuntimeError> {
         match numeric_type {
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                let witness = self.var_to_witness(variable)?;
+                // If `variable` is constant then we don't need to add a constraint.
+                // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
+                if let Some(constant) = self.var_to_expression(variable)?.to_const() {
+                    if constant.num_bits() <= *bit_size {
+                        return Ok(variable);
+                    }
+                }
+
+                let witness_var = self.get_or_create_witness_var(variable)?;
+                let witness = self.var_to_witness(witness_var)?;
                 self.acir_ir.range_constraint(witness, *bit_size)?;
+                if let Some(message) = message {
+                    self.acir_ir
+                        .assert_messages
+                        .insert(self.acir_ir.last_acir_opcode_location(), message);
+                }
             }
             NumericType::NativeField => {
                 // Range constraining a Field is a no-op
@@ -686,7 +916,7 @@ impl AcirContext {
     }
 
     /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}
-    /// In order to do this, we 'simply' perform euclidian division of lhs by 2^{rhs}
+    /// In order to do this, we 'simply' perform euclidean division of lhs by 2^{rhs}
     /// The remainder of the division is then lhs mod 2^{rhs}
     pub(crate) fn truncate_var(
         &mut self,
@@ -695,19 +925,14 @@ impl AcirContext {
         max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
         // 2^{rhs}
-        let divisor = FieldElement::from(2_i128).pow(&FieldElement::from(rhs as i128));
+        let divisor =
+            self.add_constant(FieldElement::from(2_i128).pow(&FieldElement::from(rhs as i128)));
+        let one = self.add_constant(FieldElement::one());
 
-        let lhs_data = &self.vars[&lhs];
-        let lhs_expr = lhs_data.to_expression();
         //  Computes lhs = 2^{rhs} * q + r
-        let (_, remainder) = self.acir_ir.euclidean_division(
-            &lhs_expr,
-            &Expression::from_field(divisor),
-            max_bit_size,
-            &Expression::one(),
-        )?;
+        let (_, remainder) = self.euclidean_division_var(lhs, divisor, max_bit_size, one)?;
 
-        Ok(self.add_data(AcirVarData::from(remainder)))
+        Ok(remainder)
     }
 
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
@@ -716,17 +941,69 @@ impl AcirContext {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        bit_size: u32,
+        max_bits: u32,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        let lhs_expr = self.var_to_expression(lhs)?;
-        let rhs_expr = self.var_to_expression(rhs)?;
-        let predicate_expr = self.var_to_expression(predicate)?;
+        // Returns a `Witness` that is constrained to be:
+        // - `1` if lhs >= rhs
+        // - `0` otherwise
+        //
+        // We essentially computes the sign bit of `b-a`
+        // For this we sign-extend `b-a` with `c = 2^{max_bits} - (b - a)`, since both `a` and `b` are less than `2^{max_bits}`
+        // Then we get the bit sign of `c`, the 2-complement representation of `(b-a)`, which is a `max_bits+1` integer,
+        // by doing the euclidean division `c / 2^{max_bits}`
+        //
+        // To see why it really works;
+        // We first note that `c` is an integer of `(max_bits+1)` bits. Therefore,
+        // if `b-a>0`, then `c < 2^{max_bits}`, so the division by `2^{max_bits}` will give `0`
+        // If `b-a<=0`, then `c >= 2^{max_bits}`, so the division by `2^{max_bits}` will give `1`.
+        //
+        // In other words, `1` means `a >= b` and `0` means `b > a`.
+        // The important thing here is that `c` does not overflow nor underflow the field;
+        // - By construction we have `c >= 0`, so there is no underflow
+        // - We assert at the beginning that `2^{max_bits+1}` does not overflow the field, so neither c.
 
-        let is_greater_than_eq =
-            self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, bit_size, predicate_expr)?;
+        // Ensure that 2^{max_bits + 1} is less than the field size
+        //
+        // TODO: perhaps this should be a user error, instead of an assert
+        assert!(max_bits + 1 < FieldElement::max_num_bits());
+        let two_max_bits = self
+            .add_constant(FieldElement::from(2_i128).pow(&FieldElement::from(max_bits as i128)));
+        let diff = self.sub_var(lhs, rhs)?;
+        let comparison_evaluation = self.add_var(diff, two_max_bits)?;
 
-        Ok(self.add_data(AcirVarData::Witness(is_greater_than_eq)))
+        // Euclidean division by 2^{max_bits}  : 2^{max_bits} + a - b = q * 2^{max_bits} + r
+        //
+        // 2^{max_bits} is of max_bits+1 bit size
+        // If a>b, then a-b is less than 2^{max_bits} - 1, so 2^{max_bits} + a - b is less than 2^{max_bits} + 2^{max_bits} - 1 = 2^{max_bits+1} - 1
+        // If a <= b, then 2^{max_bits} + a - b is less than 2^{max_bits} <= 2^{max_bits+1} - 1
+        // This means that both operands of the division have at most max_bits+1 bit size.
+        //
+        // case: a == b
+        //
+        //   let k = 0;
+        // - 2^{max_bits} == q *  2^{max_bits} + r
+        // - This is only the case when q == 1 and r == 0 (assuming r is bounded to be less than 2^{max_bits})
+        //
+        // case: a > b
+        //
+        //   let k = a - b;
+        // - k + 2^{max_bits} == q * 2^{max_bits} + r
+        // - This is the case when q == 1 and r = k
+        //
+        // case: a < b
+        //
+        //   let k = b - a
+        // - 2^{max_bits} - k == q * 2^{max_bits} + r
+        // - This is only the case when q == 0 and r == 2^{max_bits} - k
+        //
+        let (q, _) = self.euclidean_division_var(
+            comparison_evaluation,
+            two_max_bits,
+            max_bits + 1,
+            predicate,
+        )?;
+        Ok(q)
     }
 
     /// Returns an `AcirVar` which will be `1` if lhs < rhs
@@ -756,7 +1033,7 @@ impl AcirContext {
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
         let constants = match name {
-            BlackBoxFunc::Pedersen => {
+            BlackBoxFunc::PedersenCommitment | BlackBoxFunc::PedersenHash => {
                 // The last argument of pedersen is the domain separator, which must be a constant
                 let domain_var = match inputs.pop() {
                     Some(domain_var) => domain_var.into_var()?,
@@ -812,7 +1089,8 @@ impl AcirContext {
                 // Intrinsics only accept Witnesses. This is not a limitation of the
                 // intrinsics, its just how we have defined things. Ideally, we allow
                 // constants too.
-                let witness = self.var_to_witness(input)?;
+                let witness_var = self.get_or_create_witness_var(input)?;
+                let witness = self.var_to_witness(witness_var)?;
                 let num_bits = typ.bit_size();
                 single_val_witnesses.push(FunctionInput { witness, num_bits });
             }
@@ -892,17 +1170,6 @@ impl AcirContext {
         self.radix_decompose(endian, input_var, two_var, limb_count_var, result_element_type)
     }
 
-    /// Flatten the given Vector of AcirValues into a single vector of only variables.
-    /// Each AcirValue::Array in the vector is recursively flattened, so each element
-    /// will flattened into the resulting Vec. E.g. flatten_values([1, [2, 3]) == [1, 2, 3].
-    fn flatten_values(values: Vec<AcirValue>) -> Vec<AcirVar> {
-        let mut acir_vars = Vec::with_capacity(values.len());
-        for value in values {
-            Self::flatten_value(&mut acir_vars, value);
-        }
-        acir_vars
-    }
-
     /// Recursive helper for flatten_values to flatten a single AcirValue into the result vector.
     pub(crate) fn flatten_value(acir_vars: &mut Vec<AcirVar>, value: AcirValue) {
         match value {
@@ -917,8 +1184,13 @@ impl AcirContext {
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
-    pub(crate) fn finish(mut self, inputs: Vec<u32>) -> GeneratedAcir {
-        self.acir_ir.input_witnesses = vecmap(inputs, Witness);
+    pub(crate) fn finish(
+        mut self,
+        inputs: Vec<Witness>,
+        warnings: Vec<SsaReport>,
+    ) -> GeneratedAcir {
+        self.acir_ir.input_witnesses = inputs;
+        self.acir_ir.warnings = warnings;
         self.acir_ir
     }
 
@@ -959,7 +1231,7 @@ impl AcirContext {
         // Optimistically try executing the brillig now, if we can complete execution they just return the results.
         // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
         if let Some(brillig_outputs) =
-            self.execute_brillig(generated_brillig.byte_code.clone(), &b_inputs, &outputs)
+            self.execute_brillig(&generated_brillig.byte_code, &b_inputs, &outputs)
         {
             return Ok(brillig_outputs);
         }
@@ -999,20 +1271,13 @@ impl AcirContext {
                     self.brillig_array_input(var_expressions, var)?;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
                 for i in 0..len {
                     // We generate witnesses corresponding to the array values
-                    let index = AcirValue::Var(
-                        self.add_constant(FieldElement::from(i as u128)),
-                        AcirType::NumericType(NumericType::NativeField),
-                    );
-                    let index_var = index.into_var()?;
+                    let index_var = self.add_constant(FieldElement::from(i as u128));
 
                     let value_read_var = self.read_from_memory(block_id, &index_var)?;
-                    let value_read = AcirValue::Var(
-                        value_read_var,
-                        AcirType::NumericType(NumericType::NativeField),
-                    );
+                    let value_read = AcirValue::Var(value_read_var, AcirType::field());
 
                     self.brillig_array_input(var_expressions, value_read)?;
                 }
@@ -1053,7 +1318,7 @@ impl AcirContext {
 
     fn execute_brillig(
         &mut self,
-        code: Vec<BrilligOpcode>,
+        code: &[BrilligOpcode],
         inputs: &[BrilligInputs],
         outputs_types: &[AcirType],
     ) -> Option<Vec<AcirValue>> {
@@ -1203,35 +1468,44 @@ impl AcirContext {
         &mut self,
         block_id: BlockId,
         len: usize,
-        optional_values: Option<&[AcirValue]>,
+        optional_value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
-        // If the optional values are supplied, then we fill the initialized
-        // array with those values. If not, then we fill it with zeros.
-        let mut nested = false;
-        let initialized_values = match optional_values {
+        let initialized_values = match optional_value {
             None => {
                 let zero = self.add_constant(FieldElement::zero());
                 let zero_witness = self.var_to_witness(zero)?;
                 vec![zero_witness; len]
             }
-            Some(optional_values) => {
+            Some(optional_value) => {
                 let mut values = Vec::new();
-                for value in optional_values {
-                    if let Ok(some_value) = value.clone().into_var() {
-                        values.push(self.var_to_witness(some_value)?);
-                    } else {
-                        nested = true;
-                        break;
-                    }
-                }
+                self.initialize_array_inner(&mut values, optional_value)?;
                 values
             }
         };
-        // we do not initialize nested arrays. This means that non-const indexes are not supported for nested arrays
-        if !nested {
-            self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
-        }
 
+        self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
+
+        Ok(())
+    }
+
+    fn initialize_array_inner(
+        &mut self,
+        witnesses: &mut Vec<Witness>,
+        input: AcirValue,
+    ) -> Result<(), InternalError> {
+        match input {
+            AcirValue::Var(var, _) => {
+                witnesses.push(self.var_to_witness(var)?);
+            }
+            AcirValue::Array(values) => {
+                for value in values {
+                    self.initialize_array_inner(witnesses, value)?;
+                }
+            }
+            AcirValue::DynamicArray(_) => {
+                unreachable!("Dynamic array should already be initialized");
+            }
+        }
         Ok(())
     }
 }
@@ -1317,7 +1591,7 @@ pub(crate) struct AcirVar(usize);
 ///
 /// Returns `None` if complete execution of the Brillig bytecode is not possible.
 fn execute_brillig(
-    code: Vec<BrilligOpcode>,
+    code: &[BrilligOpcode],
     inputs: &[BrilligInputs],
 ) -> Option<(Registers, Vec<Value>)> {
     struct NullBbSolver;
@@ -1332,12 +1606,19 @@ fn execute_brillig(
         ) -> Result<bool, BlackBoxResolutionError> {
             Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::SchnorrVerify))
         }
-        fn pedersen(
+        fn pedersen_commitment(
             &self,
             _inputs: &[FieldElement],
             _domain_separator: u32,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::Pedersen))
+            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::PedersenCommitment))
+        }
+        fn pedersen_hash(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<FieldElement, BlackBoxResolutionError> {
+            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::PedersenHash))
         }
         fn fixed_base_scalar_mul(
             &self,

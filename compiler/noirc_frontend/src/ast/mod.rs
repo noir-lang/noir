@@ -41,8 +41,13 @@ pub enum UnresolvedTypeData {
     FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
     Unit,
 
+    Parenthesized(Box<UnresolvedType>),
+
     /// A Named UnresolvedType can be a struct type or a type variable
     Named(Path, Vec<UnresolvedType>),
+
+    /// A Trait as return type or parameter of function, including its generics
+    TraitAsType(Path, Vec<UnresolvedType>),
 
     /// &mut T
     MutableReference(Box<UnresolvedType>),
@@ -112,6 +117,14 @@ impl std::fmt::Display for UnresolvedTypeData {
                     write!(f, "{}<{}>", s, args.join(", "))
                 }
             }
+            TraitAsType(s, args) => {
+                let args = vecmap(args, |arg| ToString::to_string(&arg.typ));
+                if args.is_empty() {
+                    write!(f, "impl {s}")
+                } else {
+                    write!(f, "impl {}<{}>", s, args.join(", "))
+                }
+            }
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
@@ -141,6 +154,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
+            Parenthesized(typ) => write!(f, "({typ})"),
         }
     }
 }
@@ -259,7 +273,15 @@ impl UnresolvedTypeExpression {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+/// Represents whether the function can be called outside its module/crate
+pub enum FunctionVisibility {
+    Public,
+    Private,
+    PublicCrate,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// Represents whether the parameter is public or known only to the prover.
 pub enum Visibility {
     Public,
@@ -277,7 +299,7 @@ impl std::fmt::Display for Visibility {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// Represents whether the return value should compromise of unique witness indices such that no
 /// index occurs within the program's abi more than once.
 ///

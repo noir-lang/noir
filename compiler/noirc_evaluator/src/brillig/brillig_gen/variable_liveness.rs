@@ -50,7 +50,7 @@ fn collect_variables_of_value(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<Val
         Value::Instruction { .. } | Value::Param { .. } => {
             vec![value_id]
         }
-        // Literal arrays are constants, but might use variable values to initialise.
+        // Literal arrays are constants, but might use variable values to initialize.
         Value::Array { array, .. } => {
             let mut value_ids = Vec::new();
 
@@ -332,7 +332,7 @@ mod test {
         let v0 = builder.add_parameter(Type::field());
         let v1 = builder.add_parameter(Type::field());
 
-        let v3 = builder.insert_allocate();
+        let v3 = builder.insert_allocate(Type::field());
 
         let zero = builder.numeric_constant(0u128, Type::field());
         builder.insert_store(v3, zero);
@@ -439,7 +439,7 @@ mod test {
         let v0 = builder.add_parameter(Type::field());
         let v1 = builder.add_parameter(Type::field());
 
-        let v3 = builder.insert_allocate();
+        let v3 = builder.insert_allocate(Type::field());
 
         let zero = builder.numeric_constant(0u128, Type::field());
         builder.insert_store(v3, zero);

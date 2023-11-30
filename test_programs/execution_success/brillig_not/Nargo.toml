@@ -1,0 +1,6 @@
+[package]
+name = "brillig_not"
+type = "bin"
+authors = [""]
+
+[dependencies]

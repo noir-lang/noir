@@ -70,7 +70,6 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
@@ -100,7 +99,6 @@ impl Ssa {
 struct PerFunctionContext<'f> {
     cfg: ControlFlowGraph,
     post_order: PostOrder,
-    dom_tree: DominatorTree,
 
     blocks: BTreeMap<BasicBlockId, Block>,
 
@@ -117,12 +115,10 @@ impl<'f> PerFunctionContext<'f> {
     fn new(function: &'f mut Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_function(function);
-        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
         PerFunctionContext {
             cfg,
             post_order,
-            dom_tree,
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: BTreeSet::new(),
@@ -330,7 +326,7 @@ impl<'f> PerFunctionContext<'f> {
         match typ {
             Type::Numeric(_) => false,
             Type::Function => false,
-            Type::Reference => true,
+            Type::Reference(_) => true,
             Type::Array(elements, _) | Type::Slice(elements) => {
                 elements.iter().any(Self::contains_references)
             }
@@ -389,7 +385,7 @@ impl<'f> PerFunctionContext<'f> {
                     }
                 }
             }
-            TerminatorInstruction::Return { return_values } => {
+            TerminatorInstruction::Return { return_values, .. } => {
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to ReferenceValue::Unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
@@ -431,7 +427,7 @@ mod tests {
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::Array(Rc::new(vec![Type::field()]), 2));
         let one = builder.field_constant(FieldElement::one());
         let two = builder.field_constant(FieldElement::one());
 
@@ -453,7 +449,7 @@ mod tests {
         assert_eq!(count_stores(block_id, &func.dfg), 0);
 
         let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
+            TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
         assert_eq!(func.dfg[*ret_val_id], func.dfg[two]);
@@ -472,7 +468,7 @@ mod tests {
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::field());
         let one = builder.field_constant(FieldElement::one());
         builder.insert_store(v0, one);
         let v1 = builder.insert_load(v0, Type::field());
@@ -489,7 +485,7 @@ mod tests {
         assert_eq!(count_stores(block_id, &func.dfg), 1);
 
         let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
+            TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
         assert_eq!(func.dfg[*ret_val_id], func.dfg[one]);
@@ -506,7 +502,7 @@ mod tests {
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::field());
         let const_one = builder.field_constant(FieldElement::one());
         builder.insert_store(v0, const_one);
         builder.terminate_with_return(vec![v0]);
@@ -522,14 +518,14 @@ mod tests {
         assert_eq!(instructions.len(), 2);
 
         let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => *return_values.first().unwrap(),
+            TerminatorInstruction::Return { return_values, .. } => *return_values.first().unwrap(),
             _ => unreachable!(),
         };
 
         // Since the mem2reg pass simplifies as it goes, the id of the allocate instruction result
         // is most likely no longer v0. We have to retrieve the new id here.
-        let alloca_id = func.dfg.instruction_results(instructions[0])[0];
-        assert_eq!(ret_val_id, alloca_id);
+        let allocate_id = func.dfg.instruction_results(instructions[0])[0];
+        assert_eq!(ret_val_id, allocate_id);
     }
 
     fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
@@ -566,7 +562,7 @@ mod tests {
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::field());
 
         let five = builder.field_constant(5u128);
         builder.insert_store(v0, five);
@@ -646,12 +642,12 @@ mod tests {
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::field());
 
         let zero = builder.field_constant(0u128);
         builder.insert_store(v0, zero);
 
-        let v2 = builder.insert_allocate();
+        let v2 = builder.insert_allocate(Type::Reference(Rc::new(Type::field())));
         builder.insert_store(v2, v0);
 
         let v3 = builder.insert_load(v2, Type::field());

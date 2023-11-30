@@ -44,6 +44,8 @@ pub(crate) enum Intrinsic {
     ToBits(Endian),
     ToRadix(Endian),
     BlackBox(BlackBoxFunc),
+    FromField,
+    AsField,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -64,6 +66,8 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
             Intrinsic::ToRadix(Endian::Little) => write!(f, "to_le_radix"),
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
+            Intrinsic::FromField => write!(f, "from_field"),
+            Intrinsic::AsField => write!(f, "as_field"),
         }
     }
 }
@@ -86,7 +90,9 @@ impl Intrinsic {
             | Intrinsic::SliceRemove
             | Intrinsic::StrAsBytes
             | Intrinsic::ToBits(_)
-            | Intrinsic::ToRadix(_) => false,
+            | Intrinsic::ToRadix(_)
+            | Intrinsic::FromField
+            | Intrinsic::AsField => false,
 
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
@@ -111,6 +117,8 @@ impl Intrinsic {
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
             "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
             "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
+            "from_field" => Some(Intrinsic::FromField),
+            "as_field" => Some(Intrinsic::AsField),
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }
@@ -142,6 +150,9 @@ pub(crate) enum Instruction {
     /// Constrains two values to be equal to one another.
     Constrain(ValueId, ValueId, Option<String>),
 
+    /// Range constrain `value` to `max_bit_size`
+    RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
+
     /// Performs a function call with a list of its arguments.
     Call { func: ValueId, arguments: Vec<ValueId> },
 
@@ -170,9 +181,14 @@ pub(crate) enum Instruction {
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array.
+    ArraySet { array: ValueId, index: ValueId, value: ValueId },
+
+    /// An instruction to increment the reference count of a value.
     ///
-    /// An optional length can be provided to enable handling of dynamic slice indices.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, length: Option<ValueId> },
+    /// This currently only has an effect in Brillig code where array sharing and copy on write is
+    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
+    /// IncrementRc instructions are ignored.
+    IncrementRc { value: ValueId },
 }
 
 impl Instruction {
@@ -186,17 +202,19 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
             Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
-            Instruction::Allocate { .. } => InstructionResultType::Known(Type::Reference),
             Instruction::Not(value) | Instruction::Truncate { value, .. } => {
                 InstructionResultType::Operand(*value)
             }
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(..)
             | Instruction::Store { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::RangeCheck { .. }
             | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
-            Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
-                InstructionResultType::Unknown
-            }
+            Instruction::Allocate { .. }
+            | Instruction::Load { .. }
+            | Instruction::ArrayGet { .. }
+            | Instruction::Call { .. } => InstructionResultType::Unknown,
         }
     }
 
@@ -220,9 +238,13 @@ impl Instruction {
             Truncate { .. } => false,
 
             // These either have side-effects or interact with memory
-            Constrain(..) | EnableSideEffects { .. } | Allocate | Load { .. } | Store { .. } => {
-                false
-            }
+            Constrain(..)
+            | EnableSideEffects { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | IncrementRc { .. }
+            | RangeCheck { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
@@ -233,10 +255,19 @@ impl Instruction {
 
     pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
-
         match self {
-            Binary(_)
-            | Cast(_, _)
+            Binary(binary) => {
+                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+                    if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
+                        rhs == FieldElement::zero()
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                }
+            }
+            Cast(_, _)
             | Not(_)
             | Truncate { .. }
             | Allocate
@@ -244,7 +275,11 @@ impl Instruction {
             | ArrayGet { .. }
             | ArraySet { .. } => false,
 
-            Constrain(..) | Store { .. } | EnableSideEffects { .. } => true,
+            Constrain(..)
+            | Store { .. }
+            | EnableSideEffects { .. }
+            | IncrementRc { .. }
+            | RangeCheck { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
@@ -298,12 +333,17 @@ impl Instruction {
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
-            Instruction::ArraySet { array, index, value, length } => Instruction::ArraySet {
-                array: f(*array),
-                index: f(*index),
-                value: f(*value),
-                length: length.map(f),
-            },
+            Instruction::ArraySet { array, index, value } => {
+                Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
+            }
+            Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+                Instruction::RangeCheck {
+                    value: f(*value),
+                    max_bit_size: *max_bit_size,
+                    assert_message: assert_message.clone(),
+                }
+            }
         }
     }
 
@@ -340,14 +380,16 @@ impl Instruction {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value, length } => {
+            Instruction::ArraySet { array, index, value } => {
                 f(*array);
                 f(*index);
                 f(*value);
-                length.map(&mut f);
             }
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);
+            }
+            Instruction::IncrementRc { value } | Instruction::RangeCheck { value, .. } => {
+                f(*value);
             }
         }
     }
@@ -357,7 +399,12 @@ impl Instruction {
     ///
     /// The `block` parameter indicates the block this new instruction will be inserted into
     /// after this call.
-    pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph, block: BasicBlockId) -> SimplifyResult {
+    pub(crate) fn simplify(
+        &self,
+        dfg: &mut DataFlowGraph,
+        block: BasicBlockId,
+        ctrl_typevars: Option<Vec<Type>>,
+    ) -> SimplifyResult {
         use SimplifyResult::*;
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
@@ -425,7 +472,9 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Call { func, arguments } => simplify_call(*func, arguments, dfg, block),
+            Instruction::Call { func, arguments } => {
+                simplify_call(*func, arguments, dfg, block, ctrl_typevars)
+            }
             Instruction::EnableSideEffects { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {
                     let last = &mut dfg[last];
@@ -439,6 +488,15 @@ impl Instruction {
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
+            Instruction::IncrementRc { .. } => None,
+            Instruction::RangeCheck { value, max_bit_size, .. } => {
+                if let Some(numeric_constant) = dfg.get_numeric_constant(*value) {
+                    if numeric_constant.num_bits() < *max_bit_size {
+                        return Remove;
+                    }
+                }
+                None
+            }
         }
     }
 }
@@ -462,7 +520,11 @@ fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> Sim
                 SimplifiedTo(dfg.make_constant(constant, dst_typ.clone()))
             }
             (
-                Type::Numeric(NumericType::NativeField | NumericType::Unsigned { .. }),
+                Type::Numeric(
+                    NumericType::NativeField
+                    | NumericType::Unsigned { .. }
+                    | NumericType::Signed { .. },
+                ),
                 Type::Numeric(NumericType::Unsigned { bit_size }),
             ) => {
                 // Field/Unsigned -> unsigned: truncate
@@ -527,7 +589,7 @@ pub(crate) enum TerminatorInstruction {
     /// unconditionally jump to a single exit block with the return values
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
-    Return { return_values: Vec<ValueId> },
+    Return { return_values: Vec<ValueId>, call_stack: CallStack },
 }
 
 impl TerminatorInstruction {
@@ -548,9 +610,10 @@ impl TerminatorInstruction {
                 arguments: vecmap(arguments, |value| f(*value)),
                 call_stack: call_stack.clone(),
             },
-            Return { return_values } => {
-                Return { return_values: vecmap(return_values, |value| f(*value)) }
-            }
+            Return { return_values, call_stack } => Return {
+                return_values: vecmap(return_values, |value| f(*value)),
+                call_stack: call_stack.clone(),
+            },
         }
     }
 
@@ -566,7 +629,7 @@ impl TerminatorInstruction {
                     *argument = f(*argument);
                 }
             }
-            Return { return_values } => {
+            Return { return_values, .. } => {
                 for return_value in return_values {
                     *return_value = f(*return_value);
                 }
@@ -586,7 +649,7 @@ impl TerminatorInstruction {
                     f(*argument);
                 }
             }
-            Return { return_values } => {
+            Return { return_values, .. } => {
                 for return_value in return_values {
                     f(*return_value);
                 }
@@ -637,15 +700,11 @@ impl Binary {
         let operand_type = dfg.type_of_value(self.lhs);
 
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-            // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
-            // Thus, we do not evaluate this divison as we want to avoid triggering a panic,
-            // and division by zero should be handled by laying down constraints during ACIR generation.
-            if matches!(self.operator, BinaryOp::Div | BinaryOp::Mod) && rhs == FieldElement::zero()
-            {
-                return SimplifyResult::None;
-            }
-            return match self.eval_constants(dfg, lhs, rhs, operand_type) {
-                Some(value) => SimplifyResult::SimplifiedTo(value),
+            return match eval_constant_binary_op(lhs, rhs, self.operator, operand_type) {
+                Some((result, result_type)) => {
+                    let value = dfg.make_constant(result, result_type);
+                    SimplifyResult::SimplifiedTo(value)
+                }
                 None => SimplifyResult::None,
             };
         }
@@ -766,47 +825,81 @@ impl Binary {
         }
         SimplifyResult::None
     }
+}
 
-    /// Evaluate the two constants with the operation specified by self.operator.
-    /// Pushes the resulting value to the given DataFlowGraph's constants and returns it.
-    fn eval_constants(
-        &self,
-        dfg: &mut DataFlowGraph,
-        lhs: FieldElement,
-        rhs: FieldElement,
-        mut operand_type: Type,
-    ) -> Option<Id<Value>> {
-        let value = match &operand_type {
-            Type::Numeric(NumericType::NativeField) => {
-                self.operator.get_field_function()?(lhs, rhs)
+/// Evaluate a binary operation with constant arguments.
+fn eval_constant_binary_op(
+    lhs: FieldElement,
+    rhs: FieldElement,
+    operator: BinaryOp,
+    mut operand_type: Type,
+) -> Option<(FieldElement, Type)> {
+    let value = match &operand_type {
+        Type::Numeric(NumericType::NativeField) => {
+            // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
+            // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+            // and the operation should be handled by ACIR generation.
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == FieldElement::zero() {
+                return None;
             }
-            Type::Numeric(NumericType::Unsigned { bit_size }) => {
-                let function = self.operator.get_u128_function();
-
-                let lhs = truncate(lhs.try_into_u128()?, *bit_size);
-                let rhs = truncate(rhs.try_into_u128()?, *bit_size);
-
-                // The divisor is being truncated into the type of the operand, which can potentially
-                // lead to the rhs being zero.
-                // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
-                // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
-                // and the operation should be handled by ACIR generation.
-                if matches!(self.operator, BinaryOp::Div) && rhs == 0 {
-                    return None;
-                }
-
-                let result = function(lhs, rhs);
-                truncate(result, *bit_size).into()
-            }
-            _ => return None,
-        };
-
-        if matches!(self.operator, BinaryOp::Eq | BinaryOp::Lt) {
-            operand_type = Type::bool();
+            operator.get_field_function()?(lhs, rhs)
         }
+        Type::Numeric(NumericType::Unsigned { bit_size }) => {
+            let function = operator.get_u128_function();
 
-        Some(dfg.make_constant(value, operand_type))
+            let lhs = truncate(lhs.try_into_u128()?, *bit_size);
+            let rhs = truncate(rhs.try_into_u128()?, *bit_size);
+
+            // The divisor is being truncated into the type of the operand, which can potentially
+            // lead to the rhs being zero.
+            // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
+            // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+            // and the operation should be handled by ACIR generation.
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == 0 {
+                return None;
+            }
+            let result = function(lhs, rhs)?;
+            // Check for overflow
+            if result >= 2u128.pow(*bit_size) {
+                return None;
+            }
+            result.into()
+        }
+        Type::Numeric(NumericType::Signed { bit_size }) => {
+            let function = operator.get_i128_function();
+
+            let lhs = truncate(lhs.try_into_u128()?, *bit_size);
+            let rhs = truncate(rhs.try_into_u128()?, *bit_size);
+            let l_pos = lhs < 2u128.pow(bit_size - 1);
+            let r_pos = rhs < 2u128.pow(bit_size - 1);
+            let lhs = if l_pos { lhs as i128 } else { -((2u128.pow(*bit_size) - lhs) as i128) };
+            let rhs = if r_pos { rhs as i128 } else { -((2u128.pow(*bit_size) - rhs) as i128) };
+            // The divisor is being truncated into the type of the operand, which can potentially
+            // lead to the rhs being zero.
+            // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
+            // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+            // and the operation should be handled by ACIR generation.
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == 0 {
+                return None;
+            }
+
+            let result = function(lhs, rhs)?;
+            // Check for overflow
+            if result >= 2i128.pow(*bit_size - 1) || result < -(2i128.pow(*bit_size - 1)) {
+                return None;
+            }
+            let result =
+                if result >= 0 { result as u128 } else { (2i128.pow(*bit_size) + result) as u128 };
+            result.into()
+        }
+        _ => return None,
+    };
+
+    if matches!(operator, BinaryOp::Eq | BinaryOp::Lt) {
+        operand_type = Type::bool();
     }
+
+    Some((value, operand_type))
 }
 
 fn truncate(int: u128, bit_size: u32) -> u128 {
@@ -831,18 +924,33 @@ impl BinaryOp {
         }
     }
 
-    fn get_u128_function(self) -> fn(u128, u128) -> u128 {
+    fn get_u128_function(self) -> fn(u128, u128) -> Option<u128> {
         match self {
-            BinaryOp::Add => u128::wrapping_add,
-            BinaryOp::Sub => u128::wrapping_sub,
-            BinaryOp::Mul => u128::wrapping_mul,
-            BinaryOp::Div => u128::wrapping_div,
-            BinaryOp::Mod => u128::wrapping_rem,
-            BinaryOp::And => |x, y| x & y,
-            BinaryOp::Or => |x, y| x | y,
-            BinaryOp::Xor => |x, y| x ^ y,
-            BinaryOp::Eq => |x, y| (x == y) as u128,
-            BinaryOp::Lt => |x, y| (x < y) as u128,
+            BinaryOp::Add => u128::checked_add,
+            BinaryOp::Sub => u128::checked_sub,
+            BinaryOp::Mul => u128::checked_mul,
+            BinaryOp::Div => u128::checked_div,
+            BinaryOp::Mod => u128::checked_rem,
+            BinaryOp::And => |x, y| Some(x & y),
+            BinaryOp::Or => |x, y| Some(x | y),
+            BinaryOp::Xor => |x, y| Some(x ^ y),
+            BinaryOp::Eq => |x, y| Some((x == y) as u128),
+            BinaryOp::Lt => |x, y| Some((x < y) as u128),
+        }
+    }
+
+    fn get_i128_function(self) -> fn(i128, i128) -> Option<i128> {
+        match self {
+            BinaryOp::Add => i128::checked_add,
+            BinaryOp::Sub => i128::checked_sub,
+            BinaryOp::Mul => i128::checked_mul,
+            BinaryOp::Div => i128::checked_div,
+            BinaryOp::Mod => i128::checked_rem,
+            BinaryOp::And => |x, y| Some(x & y),
+            BinaryOp::Or => |x, y| Some(x | y),
+            BinaryOp::Xor => |x, y| Some(x ^ y),
+            BinaryOp::Eq => |x, y| Some((x == y) as i128),
+            BinaryOp::Lt => |x, y| Some((x < y) as i128),
         }
     }
 }

@@ -1,0 +1,6 @@
+[package]
+name = "brillig_oracle"
+type = "bin"
+authors = [""]
+
+[dependencies]

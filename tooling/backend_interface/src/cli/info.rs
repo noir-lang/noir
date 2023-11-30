@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 
 use crate::{BackendError, BackendOpcodeSupport};
 
+use super::string_from_stderr;
+
 pub(crate) struct InfoCommand {
     pub(crate) crs_path: PathBuf,
 }
@@ -43,7 +45,7 @@ impl InfoCommand {
         let output = command.output()?;
 
         if !output.status.success() {
-            return Err(BackendError::CommandFailed(output.stderr));
+            return Err(BackendError::CommandFailed(string_from_stderr(&output.stderr)));
         }
 
         let backend_info: InfoResponse =

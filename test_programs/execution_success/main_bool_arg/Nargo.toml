@@ -1,0 +1,6 @@
+[package]
+name = "main_bool_arg"
+type = "bin"
+authors = [""]
+
+[dependencies]

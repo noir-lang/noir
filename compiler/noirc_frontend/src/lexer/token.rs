@@ -15,10 +15,13 @@ pub enum Token {
     Int(FieldElement),
     Bool(bool),
     Str(String),
+    RawStr(String, u8),
     FmtStr(String),
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
+    LineComment(String, Option<DocStyle>),
+    BlockComment(String, Option<DocStyle>),
     /// <
     Less,
     /// <=
@@ -86,6 +89,8 @@ pub enum Token {
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
+    Whitespace(String),
+
     /// An invalid character is one that is not in noir's language or grammar.
     ///
     /// We don't report invalid tokens in the source as errors until parsing to
@@ -93,6 +98,12 @@ pub enum Token {
     /// during parsing). Reporting during lexing then removing these from the token stream
     /// would not be equivalent as it would change the resulting parse.
     Invalid(char),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+pub enum DocStyle {
+    Outer,
+    Inner,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -147,8 +158,14 @@ impl fmt::Display for Token {
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b}"),
             Token::FmtStr(ref b) => write!(f, "f{b}"),
+            Token::RawStr(ref b, hashes) => {
+                let h: String = std::iter::once('#').cycle().take(hashes as usize).collect();
+                write!(f, "r{h}\"{b}\"{h}")
+            }
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
+            Token::LineComment(ref s, _style) => write!(f, "//{s}"),
+            Token::BlockComment(ref s, _style) => write!(f, "/*{s}*/"),
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -184,6 +201,7 @@ impl fmt::Display for Token {
             Token::Bang => write!(f, "!"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
+            Token::Whitespace(ref s) => write!(f, "{s}"),
         }
     }
 }
@@ -214,7 +232,11 @@ impl Token {
     pub fn kind(&self) -> TokenKind {
         match *self {
             Token::Ident(_) => TokenKind::Ident,
-            Token::Int(_) | Token::Bool(_) | Token::Str(_) | Token::FmtStr(_) => TokenKind::Literal,
+            Token::Int(_)
+            | Token::Bool(_)
+            | Token::Str(_)
+            | Token::RawStr(..)
+            | Token::FmtStr(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             Token::Attribute(_) => TokenKind::Attribute,
             ref tok => TokenKind::Token(tok.clone()),
@@ -302,7 +324,7 @@ impl IntType {
             Err(_) => return Ok(None),
         };
 
-        let max_bits = FieldElement::max_num_bits();
+        let max_bits = FieldElement::max_num_bits() / 2;
 
         if str_as_u32 > max_bits {
             return Err(LexerErrorKind::TooManyBits { span, max: max_bits, got: str_as_u32 });
@@ -364,14 +386,14 @@ impl fmt::Display for TestScope {
 // Calls to functions which have the foreign attribute are executed in the host language
 pub struct Attributes {
     // Each function can have a single Primary Attribute
-    pub primary: Option<PrimaryAttribute>,
+    pub function: Option<FunctionAttribute>,
     // Each function can have many Secondary Attributes
     pub secondary: Vec<SecondaryAttribute>,
 }
 
 impl Attributes {
     pub fn empty() -> Self {
-        Self { primary: None, secondary: Vec::new() }
+        Self { function: None, secondary: Vec::new() }
     }
 
     /// Returns true if one of the secondary attributes is `contract_library_method`
@@ -384,12 +406,32 @@ impl Attributes {
             .any(|attribute| attribute == &SecondaryAttribute::ContractLibraryMethod)
     }
 
+    pub fn is_test_function(&self) -> bool {
+        matches!(self.function, Some(FunctionAttribute::Test(_)))
+    }
+
+    /// True if these attributes mean the given function is an entry point function if it was
+    /// defined within a contract. Note that this does not check if the function is actually part
+    /// of a contract.
+    pub fn is_contract_entry_point(&self) -> bool {
+        !self.has_contract_library_method() && !self.is_test_function()
+    }
+
     /// Returns note if a deprecated secondary attribute is found
     pub fn get_deprecated_note(&self) -> Option<Option<String>> {
         self.secondary.iter().find_map(|attr| match attr {
             SecondaryAttribute::Deprecated(note) => Some(note.clone()),
             _ => None,
         })
+    }
+
+    pub fn get_field_attribute(&self) -> Option<String> {
+        for secondary in &self.secondary {
+            if let SecondaryAttribute::Field(field) = secondary {
+                return Some(field.to_lowercase());
+            }
+        }
+        None
     }
 }
 
@@ -398,15 +440,15 @@ impl Attributes {
 /// A secondary attribute has no effect and is either consumed by a library or used as a notice for the developer
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Attribute {
-    Primary(PrimaryAttribute),
+    Function(FunctionAttribute),
     Secondary(SecondaryAttribute),
 }
 
 impl fmt::Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Attribute::Primary(attribute) => write!(f, "{}", attribute),
-            Attribute::Secondary(attribute) => write!(f, "{}", attribute),
+            Attribute::Function(attribute) => write!(f, "{attribute}"),
+            Attribute::Secondary(attribute) => write!(f, "{attribute}"),
         }
     }
 }
@@ -432,6 +474,7 @@ impl Attribute {
                         || ch == '='
                         || ch == '"'
                         || ch == ' '
+                        || ch == '\''
                 })
                 .then_some(());
 
@@ -442,31 +485,36 @@ impl Attribute {
             // Primary Attributes
             ["foreign", name] => {
                 validate(name)?;
-                Attribute::Primary(PrimaryAttribute::Foreign(name.to_string()))
+                Attribute::Function(FunctionAttribute::Foreign(name.to_string()))
             }
             ["builtin", name] => {
                 validate(name)?;
-                Attribute::Primary(PrimaryAttribute::Builtin(name.to_string()))
+                Attribute::Function(FunctionAttribute::Builtin(name.to_string()))
             }
             ["oracle", name] => {
                 validate(name)?;
-                Attribute::Primary(PrimaryAttribute::Oracle(name.to_string()))
+                Attribute::Function(FunctionAttribute::Oracle(name.to_string()))
             }
-            ["test"] => Attribute::Primary(PrimaryAttribute::Test(TestScope::None)),
+            ["test"] => Attribute::Function(FunctionAttribute::Test(TestScope::None)),
             ["test", name] => {
                 validate(name)?;
                 let malformed_scope =
                     LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() };
                 match TestScope::lookup_str(name) {
-                    Some(scope) => Attribute::Primary(PrimaryAttribute::Test(scope)),
+                    Some(scope) => Attribute::Function(FunctionAttribute::Test(scope)),
                     None => return Err(malformed_scope),
                 }
+            }
+            ["field", name] => {
+                validate(name)?;
+                Attribute::Secondary(SecondaryAttribute::Field(name.to_string()))
             }
             // Secondary attributes
             ["deprecated"] => Attribute::Secondary(SecondaryAttribute::Deprecated(None)),
             ["contract_library_method"] => {
                 Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod)
             }
+            ["event"] => Attribute::Secondary(SecondaryAttribute::Event),
             ["deprecated", name] => {
                 if !name.starts_with('"') && !name.ends_with('"') {
                     return Err(LexerErrorKind::MalformedFuncAttribute {
@@ -492,44 +540,44 @@ impl Attribute {
 /// Primary Attributes are those which a function can only have one of.
 /// They change the FunctionKind and thus have direct impact on the IR output
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub enum PrimaryAttribute {
+pub enum FunctionAttribute {
     Foreign(String),
     Builtin(String),
     Oracle(String),
     Test(TestScope),
 }
 
-impl PrimaryAttribute {
+impl FunctionAttribute {
     pub fn builtin(self) -> Option<String> {
         match self {
-            PrimaryAttribute::Builtin(name) => Some(name),
+            FunctionAttribute::Builtin(name) => Some(name),
             _ => None,
         }
     }
 
     pub fn foreign(self) -> Option<String> {
         match self {
-            PrimaryAttribute::Foreign(name) => Some(name),
+            FunctionAttribute::Foreign(name) => Some(name),
             _ => None,
         }
     }
 
     pub fn is_foreign(&self) -> bool {
-        matches!(self, PrimaryAttribute::Foreign(_))
+        matches!(self, FunctionAttribute::Foreign(_))
     }
 
     pub fn is_low_level(&self) -> bool {
-        matches!(self, PrimaryAttribute::Foreign(_) | PrimaryAttribute::Builtin(_))
+        matches!(self, FunctionAttribute::Foreign(_) | FunctionAttribute::Builtin(_))
     }
 }
 
-impl fmt::Display for PrimaryAttribute {
+impl fmt::Display for FunctionAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PrimaryAttribute::Test(scope) => write!(f, "#[test{}]", scope),
-            PrimaryAttribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
-            PrimaryAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
-            PrimaryAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
+            FunctionAttribute::Test(scope) => write!(f, "#[test{scope}]"),
+            FunctionAttribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
+            FunctionAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
+            FunctionAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
         }
     }
 }
@@ -544,6 +592,8 @@ pub enum SecondaryAttribute {
     // is a helper method for a contract and should not be seen as
     // the entry point.
     ContractLibraryMethod,
+    Event,
+    Field(String),
     Custom(String),
 }
 
@@ -556,17 +606,19 @@ impl fmt::Display for SecondaryAttribute {
             }
             SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
             SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
+            SecondaryAttribute::Event => write!(f, "#[event]"),
+            SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
         }
     }
 }
 
-impl AsRef<str> for PrimaryAttribute {
+impl AsRef<str> for FunctionAttribute {
     fn as_ref(&self) -> &str {
         match self {
-            PrimaryAttribute::Foreign(string) => string,
-            PrimaryAttribute::Builtin(string) => string,
-            PrimaryAttribute::Oracle(string) => string,
-            PrimaryAttribute::Test { .. } => "",
+            FunctionAttribute::Foreign(string) => string,
+            FunctionAttribute::Builtin(string) => string,
+            FunctionAttribute::Oracle(string) => string,
+            FunctionAttribute::Test { .. } => "",
         }
     }
 }
@@ -576,8 +628,9 @@ impl AsRef<str> for SecondaryAttribute {
         match self {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
-            SecondaryAttribute::Custom(string) => string,
+            SecondaryAttribute::Custom(string) | SecondaryAttribute::Field(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
+            SecondaryAttribute::Event => "",
         }
     }
 }
@@ -726,7 +779,7 @@ mod keywords {
         for keyword in Keyword::iter() {
             let resolved_token =
                 Keyword::lookup_keyword(&format!("{keyword}")).unwrap_or_else(|| {
-                    panic!("Keyword::lookup_keyword couldn't find Keyword {}", keyword)
+                    panic!("Keyword::lookup_keyword couldn't find Keyword {keyword}")
                 });
 
             assert_eq!(

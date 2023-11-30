@@ -1,0 +1,6 @@
+[package]
+name = "field_attribute"
+type = "bin"
+authors = [""]
+
+[dependencies]

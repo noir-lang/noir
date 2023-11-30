@@ -1,0 +1,6 @@
+[package]
+name = "bit_shifts_runtime"
+type = "bin"
+authors = [""]
+
+[dependencies]

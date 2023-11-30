@@ -3,8 +3,8 @@ use std::fmt::Display;
 use noirc_errors::Span;
 
 use crate::{
-    token::{Attributes, PrimaryAttribute, SecondaryAttribute},
-    FunctionReturnType, Ident, Pattern, Visibility,
+    token::{Attributes, FunctionAttribute, SecondaryAttribute},
+    FunctionReturnType, Ident, Param, Visibility,
 };
 
 use super::{FunctionDefinition, UnresolvedType, UnresolvedTypeData};
@@ -45,6 +45,10 @@ impl NoirFunction {
         NoirFunction { kind: FunctionKind::Oracle, def }
     }
 
+    pub fn return_visibility(&self) -> Visibility {
+        self.def.return_visibility
+    }
+
     pub fn return_type(&self) -> UnresolvedType {
         match &self.def.return_type {
             FunctionReturnType::Default(_) => {
@@ -59,14 +63,14 @@ impl NoirFunction {
     pub fn name_ident(&self) -> &Ident {
         &self.def.name
     }
-    pub fn parameters(&self) -> &Vec<(Pattern, UnresolvedType, Visibility)> {
+    pub fn parameters(&self) -> &[Param] {
         &self.def.parameters
     }
     pub fn attributes(&self) -> &Attributes {
         &self.def.attributes
     }
-    pub fn primary_attribute(&self) -> Option<&PrimaryAttribute> {
-        self.def.attributes.primary.as_ref()
+    pub fn function_attribute(&self) -> Option<&FunctionAttribute> {
+        self.def.attributes.function.as_ref()
     }
     pub fn secondary_attributes(&self) -> &Vec<SecondaryAttribute> {
         self.def.attributes.secondary.as_ref()
@@ -89,19 +93,19 @@ impl NoirFunction {
             FunctionKind::LowLevel => {}
             _ => return None,
         }
-        assert!(self.primary_attribute().unwrap().is_foreign());
+        assert!(self.function_attribute().unwrap().is_foreign());
         Some(&self.def)
     }
 }
 
 impl From<FunctionDefinition> for NoirFunction {
     fn from(fd: FunctionDefinition) -> Self {
-        // The function type is determined by the existence of a primary attribute
-        let kind = match fd.attributes.primary {
-            Some(PrimaryAttribute::Builtin(_)) => FunctionKind::Builtin,
-            Some(PrimaryAttribute::Foreign(_)) => FunctionKind::LowLevel,
-            Some(PrimaryAttribute::Test { .. }) => FunctionKind::Normal,
-            Some(PrimaryAttribute::Oracle(_)) => FunctionKind::Oracle,
+        // The function type is determined by the existence of a function attribute
+        let kind = match fd.attributes.function {
+            Some(FunctionAttribute::Builtin(_)) => FunctionKind::Builtin,
+            Some(FunctionAttribute::Foreign(_)) => FunctionKind::LowLevel,
+            Some(FunctionAttribute::Test { .. }) => FunctionKind::Normal,
+            Some(FunctionAttribute::Oracle(_)) => FunctionKind::Oracle,
             None => FunctionKind::Normal,
         };
 

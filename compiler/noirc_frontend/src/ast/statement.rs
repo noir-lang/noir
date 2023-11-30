@@ -1,9 +1,14 @@
 use std::fmt::Display;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::lexer::token::SpannedToken;
 use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
-use crate::{Expression, ExpressionKind, IndexExpression, MemberAccessExpression, UnresolvedType};
+use crate::{
+    BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression,
+    MethodCallExpression, UnresolvedType,
+};
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
@@ -14,15 +19,22 @@ use noirc_errors::{Span, Spanned};
 /// for an identifier that already failed to parse.
 pub const ERROR_IDENT: &str = "$error";
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Statement {
+    pub kind: StatementKind,
+    pub span: Span,
+}
+
 /// Ast node for statements in noir. Statements are always within a block { }
 /// of some kind and are terminated via a Semicolon, except if the statement
 /// ends in a block, such as a Statement::Expression containing an if expression.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Statement {
+pub enum StatementKind {
     Let(LetStatement),
     Constrain(ConstrainStatement),
     Expression(Expression),
     Assign(AssignStatement),
+    For(ForLoopStatement),
     // This is an expression with a trailing semi-colon
     Semi(Expression),
     // This statement is the result of a recovered parse error.
@@ -31,62 +43,67 @@ pub enum Statement {
     Error,
 }
 
-impl Recoverable for Statement {
-    fn error(_: Span) -> Self {
-        Statement::Error
-    }
-}
-
 impl Statement {
-    pub fn new_let(
-        ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
-    ) -> Statement {
-        Statement::Let(LetStatement { pattern, r#type, expression })
-    }
-
     pub fn add_semicolon(
         self,
         semi: Option<Token>,
         span: Span,
         last_statement_in_block: bool,
         emit_error: &mut dyn FnMut(ParserError),
-    ) -> Statement {
+    ) -> Self {
         let missing_semicolon =
             ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, span);
-        match self {
-            Statement::Let(_)
-            | Statement::Constrain(_)
-            | Statement::Assign(_)
-            | Statement::Semi(_)
-            | Statement::Error => {
+
+        let kind = match self.kind {
+            StatementKind::Let(_)
+            | StatementKind::Constrain(_)
+            | StatementKind::Assign(_)
+            | StatementKind::Semi(_)
+            | StatementKind::Error => {
                 // To match rust, statements always require a semicolon, even at the end of a block
                 if semi.is_none() {
                     emit_error(missing_semicolon);
                 }
-                self
+                self.kind
             }
+            // A semicolon on a for loop is optional and does nothing
+            StatementKind::For(_) => self.kind,
 
-            Statement::Expression(expr) => {
+            StatementKind::Expression(expr) => {
                 match (&expr.kind, semi, last_statement_in_block) {
                     // Semicolons are optional for these expressions
-                    (ExpressionKind::Block(_), semi, _)
-                    | (ExpressionKind::For(_), semi, _)
-                    | (ExpressionKind::If(_), semi, _) => {
+                    (ExpressionKind::Block(_), semi, _) | (ExpressionKind::If(_), semi, _) => {
                         if semi.is_some() {
-                            Statement::Semi(expr)
+                            StatementKind::Semi(expr)
                         } else {
-                            Statement::Expression(expr)
+                            StatementKind::Expression(expr)
                         }
                     }
                     (_, None, false) => {
                         emit_error(missing_semicolon);
-                        Statement::Expression(expr)
+                        StatementKind::Expression(expr)
                     }
-                    (_, Some(_), _) => Statement::Semi(expr),
-                    (_, None, true) => Statement::Expression(expr),
+                    (_, Some(_), _) => StatementKind::Semi(expr),
+                    (_, None, true) => StatementKind::Expression(expr),
                 }
             }
-        }
+        };
+
+        Statement { kind, span: self.span }
+    }
+}
+
+impl Recoverable for StatementKind {
+    fn error(_: Span) -> Self {
+        StatementKind::Error
+    }
+}
+
+impl StatementKind {
+    pub fn new_let(
+        ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
+    ) -> StatementKind {
+        StatementKind::Let(LetStatement { pattern, r#type, expression })
     }
 
     /// Create a Statement::Assign value, desugaring any combined operators like += if needed.
@@ -95,7 +112,7 @@ impl Statement {
         operator: Token,
         mut expression: Expression,
         span: Span,
-    ) -> Statement {
+    ) -> StatementKind {
         // Desugar `a <op>= b` to `a = a <op> b`. This relies on the evaluation of `a` having no side effects,
         // which is currently enforced by the restricted syntax of LValues.
         if operator != Token::Assign {
@@ -110,7 +127,7 @@ impl Statement {
             expression = Expression::new(ExpressionKind::Infix(Box::new(infix)), span);
         }
 
-        Statement::Assign(AssignStatement { lvalue, expression })
+        StatementKind::Assign(AssignStatement { lvalue, expression })
     }
 }
 
@@ -181,7 +198,11 @@ impl From<Ident> for Expression {
     fn from(i: Ident) -> Expression {
         Expression {
             span: i.0.span(),
-            kind: ExpressionKind::Variable(Path { segments: vec![i], kind: PathKind::Plain }),
+            kind: ExpressionKind::Variable(Path {
+                span: i.span(),
+                segments: vec![i],
+                kind: PathKind::Plain,
+            }),
         }
     }
 }
@@ -294,6 +315,7 @@ impl UseTree {
 pub struct Path {
     pub segments: Vec<Ident>,
     pub kind: PathKind,
+    pub span: Span,
 }
 
 impl Path {
@@ -313,18 +335,11 @@ impl Path {
     }
 
     pub fn from_ident(name: Ident) -> Path {
-        Path { segments: vec![name], kind: PathKind::Plain }
+        Path { span: name.span(), segments: vec![name], kind: PathKind::Plain }
     }
 
     pub fn span(&self) -> Span {
-        let mut segments = self.segments.iter();
-        let first_segment = segments.next().expect("ice : cannot have an empty path");
-        let mut span = first_segment.0.span();
-
-        for segment in segments {
-            span = span.merge(segment.0.span());
-        }
-        span
+        self.span
     }
 
     pub fn last_segment(&self) -> Ident {
@@ -401,7 +416,14 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement(pub Expression, pub Option<String>);
+pub struct ConstrainStatement(pub Expression, pub Option<String>, pub ConstrainKind);
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum ConstrainKind {
+    Assert,
+    AssertEq,
+    Constrain,
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
@@ -412,6 +434,14 @@ pub enum Pattern {
 }
 
 impl Pattern {
+    pub fn span(&self) -> Span {
+        match self {
+            Pattern::Identifier(ident) => ident.span(),
+            Pattern::Mutable(_, span) | Pattern::Tuple(_, span) | Pattern::Struct(_, _, span) => {
+                *span
+            }
+        }
+    }
     pub fn name_ident(&self) -> &Ident {
         match self {
             Pattern::Identifier(name_ident) => name_ident,
@@ -459,15 +489,141 @@ impl LValue {
     }
 }
 
-impl Display for Statement {
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum ForRange {
+    Range(/*start:*/ Expression, /*end:*/ Expression),
+    Array(Expression),
+}
+
+impl ForRange {
+    /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
+    /// into the following if needed:
+    ///
+    /// {
+    ///     let fresh1 = array;
+    ///     for fresh2 in 0 .. std::array::len(fresh1) {
+    ///         let elem = fresh1[fresh2];
+    ///         ...
+    ///     }
+    /// }
+    pub(crate) fn into_for(
+        self,
+        identifier: Ident,
+        block: Expression,
+        for_loop_span: Span,
+    ) -> StatementKind {
+        /// Counter used to generate unique names when desugaring
+        /// code in the parser requires the creation of fresh variables.
+        /// The parser is stateless so this is a static global instead.
+        static UNIQUE_NAME_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+        match self {
+            ForRange::Range(..) => {
+                unreachable!()
+            }
+            ForRange::Array(array) => {
+                let array_span = array.span;
+                let start_range = ExpressionKind::integer(FieldElement::zero());
+                let start_range = Expression::new(start_range, array_span);
+
+                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let array_name = format!("$i{next_unique_id}");
+                let array_span = array.span;
+                let array_ident = Ident::new(array_name, array_span);
+
+                // let fresh1 = array;
+                let let_array = Statement {
+                    kind: StatementKind::Let(LetStatement {
+                        pattern: Pattern::Identifier(array_ident.clone()),
+                        r#type: UnresolvedType::unspecified(),
+                        expression: array,
+                    }),
+                    span: array_span,
+                };
+
+                // array.len()
+                let segments = vec![array_ident];
+                let array_ident = ExpressionKind::Variable(Path {
+                    segments,
+                    kind: PathKind::Plain,
+                    span: array_span,
+                });
+
+                let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: Expression::new(array_ident.clone(), array_span),
+                    method_name: Ident::new("len".to_string(), array_span),
+                    arguments: vec![],
+                }));
+                let end_range = Expression::new(end_range, array_span);
+
+                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let index_name = format!("$i{next_unique_id}");
+                let fresh_identifier = Ident::new(index_name.clone(), array_span);
+
+                // array[i]
+                let segments = vec![Ident::new(index_name, array_span)];
+                let index_ident = ExpressionKind::Variable(Path {
+                    segments,
+                    kind: PathKind::Plain,
+                    span: array_span,
+                });
+
+                let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
+                    collection: Expression::new(array_ident, array_span),
+                    index: Expression::new(index_ident, array_span),
+                }));
+
+                // let elem = array[i];
+                let let_elem = Statement {
+                    kind: StatementKind::Let(LetStatement {
+                        pattern: Pattern::Identifier(identifier),
+                        r#type: UnresolvedType::unspecified(),
+                        expression: Expression::new(loop_element, array_span),
+                    }),
+                    span: array_span,
+                };
+
+                let block_span = block.span;
+                let new_block = BlockExpression(vec![
+                    let_elem,
+                    Statement { kind: StatementKind::Expression(block), span: block_span },
+                ]);
+                let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
+                let for_loop = Statement {
+                    kind: StatementKind::For(ForLoopStatement {
+                        identifier: fresh_identifier,
+                        range: ForRange::Range(start_range, end_range),
+                        block: new_block,
+                        span: for_loop_span,
+                    }),
+                    span: for_loop_span,
+                };
+
+                let block = ExpressionKind::Block(BlockExpression(vec![let_array, for_loop]));
+                StatementKind::Expression(Expression::new(block, for_loop_span))
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ForLoopStatement {
+    pub identifier: Ident,
+    pub range: ForRange,
+    pub block: Expression,
+    pub span: Span,
+}
+
+impl Display for StatementKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Statement::Let(let_statement) => let_statement.fmt(f),
-            Statement::Constrain(constrain) => constrain.fmt(f),
-            Statement::Expression(expression) => expression.fmt(f),
-            Statement::Assign(assign) => assign.fmt(f),
-            Statement::Semi(semi) => write!(f, "{semi};"),
-            Statement::Error => write!(f, "Error"),
+            StatementKind::Let(let_statement) => let_statement.fmt(f),
+            StatementKind::Constrain(constrain) => constrain.fmt(f),
+            StatementKind::Expression(expression) => expression.fmt(f),
+            StatementKind::Assign(assign) => assign.fmt(f),
+            StatementKind::For(for_loop) => for_loop.fmt(f),
+            StatementKind::Semi(semi) => write!(f, "{semi};"),
+            StatementKind::Error => write!(f, "Error"),
         }
     }
 }
@@ -542,5 +698,16 @@ impl Display for Pattern {
                 write!(f, "{} {{ {} }}", typename, fields.join(", "))
             }
         }
+    }
+}
+
+impl Display for ForLoopStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let range = match &self.range {
+            ForRange::Range(start, end) => format!("{start}..{end}"),
+            ForRange::Array(expr) => expr.to_string(),
+        };
+
+        write!(f, "for {} in {range} {}", self.identifier, self.block)
     }
 }

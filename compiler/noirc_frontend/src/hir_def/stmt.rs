@@ -13,6 +13,7 @@ pub enum HirStatement {
     Let(HirLetStatement),
     Constrain(HirConstrainStatement),
     Assign(HirAssignStatement),
+    For(HirForStatement),
     Expression(ExprId),
     Semi(ExprId),
     Error,
@@ -34,6 +35,14 @@ impl HirLetStatement {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct HirForStatement {
+    pub identifier: HirIdent,
+    pub start_range: ExprId,
+    pub end_range: ExprId,
+    pub block: ExprId,
+}
+
 /// Corresponds to `lvalue = expression;` in the source code
 #[derive(Debug, Clone)]
 pub struct HirAssignStatement {
@@ -48,7 +57,7 @@ pub struct HirAssignStatement {
 #[derive(Debug, Clone)]
 pub struct HirConstrainStatement(pub ExprId, pub FileId, pub Option<String>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub enum HirPattern {
     Identifier(HirIdent),
     Mutable(Box<HirPattern>, Span),

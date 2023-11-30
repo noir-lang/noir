@@ -1,0 +1,6 @@
+[package]
+name = "cast_bool"
+type = "bin"
+authors = [""]
+
+[dependencies]

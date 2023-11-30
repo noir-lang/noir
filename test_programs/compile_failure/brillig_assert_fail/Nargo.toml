@@ -1,0 +1,6 @@
+[package]
+name = "brillig_assert_fail"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,6 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use nargo_toml::find_package_root;
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use std::path::PathBuf;
 
 use color_eyre::eyre;
@@ -13,7 +14,9 @@ mod backend_cmd;
 mod check_cmd;
 mod codegen_verifier_cmd;
 mod compile_cmd;
+mod debug_cmd;
 mod execute_cmd;
+mod fmt_cmd;
 mod info_cmd;
 mod init_cmd;
 mod lsp_cmd;
@@ -24,10 +27,15 @@ mod verify_cmd;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
 const IS_DIRTY: &str = env!("GIT_DIRTY");
-const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+const NARGO_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-static VERSION_STRING: &str =
-    formatcp!("{} (git version hash: {}, is dirty: {})", CARGO_PKG_VERSION, GIT_HASH, IS_DIRTY);
+static VERSION_STRING: &str = formatcp!(
+    "version = {}\nnoirc version = {}\n(git version hash: {}, is dirty: {})",
+    NARGO_VERSION,
+    NOIR_ARTIFACT_VERSION_STRING,
+    GIT_HASH,
+    IS_DIRTY
+);
 
 #[derive(Parser, Debug)]
 #[command(name="nargo", author, version=VERSION_STRING, about, long_about = None)]
@@ -52,12 +60,15 @@ pub(crate) struct NargoConfig {
 enum NargoCommand {
     Backend(backend_cmd::BackendCommand),
     Check(check_cmd::CheckCommand),
+    Fmt(fmt_cmd::FormatCommand),
     CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
     #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
     New(new_cmd::NewCommand),
     Init(init_cmd::InitCommand),
     Execute(execute_cmd::ExecuteCommand),
+    #[command(hide = true)] // Hidden while the feature is being built out
+    Debug(debug_cmd::DebugCommand),
     Prove(prove_cmd::ProveCommand),
     Verify(verify_cmd::VerifyCommand),
     Test(test_cmd::TestCommand),
@@ -92,6 +103,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Init(args) => init_cmd::run(&backend, args, config),
         NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
         NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
+        NargoCommand::Debug(args) => debug_cmd::run(&backend, args, config),
         NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
         NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
         NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
@@ -100,6 +112,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
         NargoCommand::Backend(args) => backend_cmd::run(args),
         NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
+        NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
     }?;
 
     Ok(())

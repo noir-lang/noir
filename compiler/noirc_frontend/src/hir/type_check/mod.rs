@@ -14,7 +14,7 @@ mod stmt;
 pub use errors::TypeCheckError;
 
 use crate::{
-    hir_def::{expr::HirExpression, stmt::HirStatement},
+    hir_def::{expr::HirExpression, stmt::HirStatement, traits::TraitConstraint},
     node_interner::{ExprId, FuncId, NodeInterner, StmtId},
     Type,
 };
@@ -27,6 +27,13 @@ pub struct TypeChecker<'interner> {
     delayed_type_checks: Vec<TypeCheckFn>,
     interner: &'interner mut NodeInterner,
     errors: Vec<TypeCheckError>,
+    current_function: Option<FuncId>,
+
+    /// Trait constraints are collected during type checking until they are
+    /// verified at the end of a function. This is because constraints arise
+    /// on each variable, but it is only until function calls when the types
+    /// needed for the trait constraint may become known.
+    trait_constraints: Vec<(TraitConstraint, ExprId)>,
 }
 
 /// Type checks a function and assigns the
@@ -40,6 +47,25 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let function_body_id = function_body.as_expr();
 
     let mut type_checker = TypeChecker::new(interner);
+    type_checker.current_function = Some(func_id);
+
+    let meta = type_checker.interner.function_meta(&func_id);
+    let mut errors = Vec::new();
+
+    // Temporarily add any impls in this function's `where` clause to scope
+    for constraint in &meta.trait_constraints {
+        let object = constraint.typ.clone();
+        let trait_id = constraint.trait_id;
+
+        if !type_checker.interner.add_assumed_trait_implementation(object, trait_id) {
+            if let Some(the_trait) = type_checker.interner.try_get_trait(trait_id) {
+                let trait_name = the_trait.name.to_string();
+                let typ = constraint.typ.clone();
+                let span = meta.name.location.span;
+                errors.push(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
+            }
+        }
+    }
 
     // Bind each parameter to its annotated type.
     // This is locally obvious, but it must be bound here so that the
@@ -48,7 +74,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         type_checker.bind_pattern(&param.0, param.1);
     }
 
-    let (function_last_type, delayed_type_check_functions, mut errors) =
+    let (function_last_type, delayed_type_check_functions) =
         type_checker.check_function_body(function_body_id);
 
     // Go through any delayed type checking errors to see if they are resolved, or error otherwise.
@@ -58,33 +84,56 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         }
     }
 
+    // Verify any remaining trait constraints arising from the function body
+    for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
+        let span = type_checker.interner.expr_span(&expr_id);
+        type_checker.verify_trait_constraint(&constraint.typ, constraint.trait_id, expr_id, span);
+    }
+
+    errors.append(&mut type_checker.errors);
+
+    // Now remove all the `where` clause constraints we added
+    for constraint in &meta.trait_constraints {
+        interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
+    }
+
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let (expr_span, empty_function) = function_info(interner, function_body_id);
-
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        function_last_type.unify_with_coercions(
-            &declared_return_type,
-            *function_body_id,
-            interner,
-            &mut errors,
-            || {
-                let mut error = TypeCheckError::TypeMismatchWithSource {
+        if let Type::TraitAsType(t) = &declared_return_type {
+            if interner.lookup_trait_implementation(&function_last_type, t.id).is_err() {
+                let error = TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
-                    actual: function_last_type.clone(),
+                    actual: function_last_type,
                     span: func_span,
                     source: Source::Return(meta.return_type, expr_span),
                 };
+                errors.push(error);
+            }
+        } else {
+            function_last_type.unify_with_coercions(
+                &declared_return_type,
+                *function_body_id,
+                interner,
+                &mut errors,
+                || {
+                    let mut error = TypeCheckError::TypeMismatchWithSource {
+                        expected: declared_return_type.clone(),
+                        actual: function_last_type.clone(),
+                        span: func_span,
+                        source: Source::Return(meta.return_type, expr_span),
+                    };
 
-                if empty_function {
-                    error = error.add_context(
+                    if empty_function {
+                        error = error.add_context(
                         "implicitly returns `()` as its body has no tail or `return` expression",
                     );
-                }
-
-                error
-            },
-        );
+                    }
+                    error
+                },
+            );
+        }
     }
 
     errors
@@ -111,23 +160,32 @@ fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_e
 
 impl<'interner> TypeChecker<'interner> {
     fn new(interner: &'interner mut NodeInterner) -> Self {
-        Self { delayed_type_checks: Vec::new(), interner, errors: vec![] }
+        Self {
+            delayed_type_checks: Vec::new(),
+            interner,
+            errors: Vec::new(),
+            trait_constraints: Vec::new(),
+            current_function: None,
+        }
     }
 
     pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
         self.delayed_type_checks.push(f);
     }
 
-    fn check_function_body(
-        mut self,
-        body: &ExprId,
-    ) -> (Type, Vec<TypeCheckFn>, Vec<TypeCheckError>) {
+    fn check_function_body(&mut self, body: &ExprId) -> (Type, Vec<TypeCheckFn>) {
         let body_type = self.check_expression(body);
-        (body_type, self.delayed_type_checks, self.errors)
+        (body_type, std::mem::take(&mut self.delayed_type_checks))
     }
 
     pub fn check_global(id: &StmtId, interner: &'interner mut NodeInterner) -> Vec<TypeCheckError> {
-        let mut this = Self { delayed_type_checks: Vec::new(), interner, errors: vec![] };
+        let mut this = Self {
+            delayed_type_checks: Vec::new(),
+            interner,
+            errors: Vec::new(),
+            trait_constraints: Vec::new(),
+            current_function: None,
+        };
         this.check_statement(id);
         this.errors
     }
@@ -184,7 +242,6 @@ mod test {
         stmt::HirStatement,
     };
     use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
-    use crate::token::Attributes;
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -254,12 +311,7 @@ mod test {
         let func_meta = FuncMeta {
             name,
             kind: FunctionKind::Normal,
-            module_id: ModuleId::dummy_id(),
-            attributes: Attributes::empty(),
             location,
-            contract_function_type: None,
-            is_internal: None,
-            is_unconstrained: false,
             typ: Type::Function(
                 vec![Type::FieldElement, Type::FieldElement],
                 Box::new(Type::Unit),
@@ -273,7 +325,9 @@ mod test {
             return_visibility: Visibility::Private,
             return_distinctness: Distinctness::DuplicationAllowed,
             has_body: true,
+            trait_impl: None,
             return_type: FunctionReturnType::Default(Span::default()),
+            trait_constraints: Vec::new(),
         };
         interner.push_fn_meta(func_meta, func_id);
 
@@ -323,18 +377,16 @@ mod test {
     fn basic_for_expr() {
         let src = r#"
             fn main(_x : Field) {
-                let _j = for _i in 0..10 {
+                for _i in 0..10 {
                     for _k in 0..100 {
 
                     }
-                };
+                }
             }
 
         "#;
 
-        // expect a deprecation warning since we are changing for-loop default type.
-        // There is a deprecation warning per for-loop.
-        let expected_num_errors = 2;
+        let expected_num_errors = 0;
         type_check_src_code_errors_expected(
             src,
             expected_num_errors,
@@ -419,14 +471,10 @@ mod test {
             errors
         );
 
-        let main_id = interner.push_fn(HirFunction::empty());
-        interner.push_function_definition("main".into(), main_id);
+        let main_id = interner.push_test_function_definition("main".into());
 
-        let func_ids = vecmap(&func_namespace, |name| {
-            let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(name.into(), id);
-            id
-        });
+        let func_ids =
+            vecmap(&func_namespace, |name| interner.push_test_function_definition(name.into()));
 
         let mut path_resolver = TestPathResolver(HashMap::new());
         for (name, id) in func_namespace.into_iter().zip(func_ids.clone()) {
@@ -450,10 +498,9 @@ mod test {
             },
         );
 
-        let func_meta = vecmap(program.functions, |nf| {
+        let func_meta = vecmap(program.into_sorted().functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, resolver_errors) =
-                resolver.resolve_function(nf, main_id, ModuleId::dummy_id());
+            let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
             assert_eq!(resolver_errors, vec![]);
             (hir_func, func_meta)
         });

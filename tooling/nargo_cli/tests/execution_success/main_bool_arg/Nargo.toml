@@ -1,7 +1,0 @@
-[package]
-name = "main_bool_arg"
-type = "bin"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

@@ -1,0 +1,5 @@
+[package]
+name = "brillig_nested_arrays"
+type = "bin"
+authors = [""]
+[dependencies]

@@ -1,0 +1,5 @@
+[package]
+name = "simple_print"
+type = "bin"
+authors = [""]
+[dependencies]

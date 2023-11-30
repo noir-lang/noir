@@ -1,0 +1,5 @@
+[package]
+name = "overlapping_generic_impls"
+type = "bin"
+authors = [""]
+[dependencies]

@@ -1,8 +1,11 @@
-use acvm::brillig_vm::brillig::{HeapArray, HeapVector, RegisterIndex, RegisterOrMemory};
+use acvm::brillig_vm::brillig::RegisterIndex;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
-    brillig::brillig_ir::{extract_register, BrilligContext},
+    brillig::brillig_ir::{
+        brillig_variable::{BrilligArray, BrilligVariable, BrilligVector},
+        BrilligContext,
+    },
     ssa::ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
@@ -16,17 +19,14 @@ use super::brillig_fn::FunctionContext;
 #[derive(Debug, Default)]
 pub(crate) struct BlockVariables {
     available_variables: HashSet<ValueId>,
-    available_constants: HashMap<ValueId, RegisterOrMemory>,
+    available_constants: HashMap<ValueId, BrilligVariable>,
 }
 
 impl BlockVariables {
     /// Creates a BlockVariables instance. It uses the variables that are live in to the block and the global available variables (block parameters)
     pub(crate) fn new(live_in: HashSet<ValueId>, all_block_parameters: HashSet<ValueId>) -> Self {
         BlockVariables {
-            available_variables: live_in
-                .into_iter()
-                .chain(all_block_parameters.into_iter())
-                .collect(),
+            available_variables: live_in.into_iter().chain(all_block_parameters).collect(),
             ..Default::default()
         }
     }
@@ -34,8 +34,8 @@ impl BlockVariables {
     /// Returns all non-constant variables that have not been removed at this point.
     pub(crate) fn get_available_variables(
         &self,
-        function_context: &mut FunctionContext,
-    ) -> Vec<RegisterOrMemory> {
+        function_context: &FunctionContext,
+    ) -> Vec<BrilligVariable> {
         self.available_variables
             .iter()
             .map(|value_id| {
@@ -55,7 +55,7 @@ impl BlockVariables {
         brillig_context: &mut BrilligContext,
         value_id: ValueId,
         dfg: &DataFlowGraph,
-    ) -> RegisterOrMemory {
+    ) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
         let variable = allocate_value(value_id, brillig_context, dfg);
 
@@ -77,7 +77,7 @@ impl BlockVariables {
         dfg: &DataFlowGraph,
     ) -> RegisterIndex {
         let variable = self.define_variable(function_context, brillig_context, value, dfg);
-        extract_register(variable)
+        variable.extract_register()
     }
 
     /// Removes a variable so it's not used anymore within this block.
@@ -91,15 +91,14 @@ impl BlockVariables {
         function_context: &FunctionContext,
         value_id: ValueId,
         dfg: &DataFlowGraph,
-    ) -> RegisterOrMemory {
+    ) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
         if let Some(constant) = self.available_constants.get(&value_id) {
             *constant
         } else {
             assert!(
                 self.available_variables.contains(&value_id),
-                "ICE: ValueId {:?} is not available",
-                value_id
+                "ICE: ValueId {value_id:?} is not available"
             );
 
             *function_context
@@ -116,7 +115,7 @@ impl BlockVariables {
         brillig_context: &mut BrilligContext,
         value_id: ValueId,
         dfg: &DataFlowGraph,
-    ) -> RegisterOrMemory {
+    ) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
         let constant = allocate_value(value_id, brillig_context, dfg);
         self.available_constants.insert(value_id, constant);
@@ -128,7 +127,7 @@ impl BlockVariables {
         &mut self,
         value_id: ValueId,
         dfg: &DataFlowGraph,
-    ) -> Option<RegisterOrMemory> {
+    ) -> Option<BrilligVariable> {
         let value_id = dfg.resolve(value_id);
         self.available_constants.get(&value_id).cloned()
     }
@@ -145,7 +144,7 @@ impl BlockVariables {
         block_id: BasicBlockId,
         value_id: ValueId,
         dfg: &DataFlowGraph,
-    ) -> RegisterOrMemory {
+    ) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
         assert!(
             function_context
@@ -170,25 +169,34 @@ pub(crate) fn allocate_value(
     value_id: ValueId,
     brillig_context: &mut BrilligContext,
     dfg: &DataFlowGraph,
-) -> RegisterOrMemory {
+) -> BrilligVariable {
     let typ = dfg.type_of_value(value_id);
 
     match typ {
-        Type::Numeric(_) | Type::Reference => {
+        Type::Numeric(_) | Type::Reference(_) => {
             let register = brillig_context.allocate_register();
-            RegisterOrMemory::RegisterIndex(register)
+            BrilligVariable::Simple(register)
         }
         Type::Array(item_typ, elem_count) => {
             let pointer_register = brillig_context.allocate_register();
+            let rc_register = brillig_context.allocate_register();
             let size = compute_array_length(&item_typ, elem_count);
-            RegisterOrMemory::HeapArray(HeapArray { pointer: pointer_register, size })
+
+            BrilligVariable::BrilligArray(BrilligArray {
+                pointer: pointer_register,
+                size,
+                rc: rc_register,
+            })
         }
         Type::Slice(_) => {
             let pointer_register = brillig_context.allocate_register();
             let size_register = brillig_context.allocate_register();
-            RegisterOrMemory::HeapVector(HeapVector {
+            let rc_register = brillig_context.allocate_register();
+
+            BrilligVariable::BrilligVector(BrilligVector {
                 pointer: pointer_register,
                 size: size_register,
+                rc: rc_register,
             })
         }
         Type::Function => {

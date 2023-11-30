@@ -1,6 +1,5 @@
 {
   "name": "release-tests",
-  "version": "0.0.0",
   "main": "index.js",
   "license": "(MIT OR Apache-2.0)",
   "private": true,

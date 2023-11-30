@@ -14,7 +14,10 @@ use noirc_printable_type::PrintableType;
 
 use crate::{node_interner::StructId, Ident, Signedness};
 
-use super::expr::{HirCallExpression, HirExpression, HirIdent};
+use super::{
+    expr::{HirCallExpression, HirExpression, HirIdent},
+    traits::Trait,
+};
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
@@ -62,6 +65,8 @@ pub enum Type {
     /// different argument types each time.
     TypeVariable(TypeVariable, TypeVariableKind),
 
+    TraitAsType(Trait),
+
     /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
     NamedGeneric(TypeVariable, Rc<String>),
@@ -96,6 +101,47 @@ pub enum Type {
     /// an invalid type would otherwise issue a new error each time it is called
     /// if not for this variant.
     Error,
+}
+
+impl Type {
+    /// Returns the number of field elements required to represent the type once encoded.
+    pub fn field_count(&self) -> u32 {
+        match self {
+            Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
+            Type::Array(size, typ) => {
+                let length = size
+                    .evaluate_to_u64()
+                    .expect("Cannot have variable sized arrays as a parameter to main");
+                let typ = typ.as_ref();
+                (length as u32) * typ.field_count()
+            }
+            Type::Struct(ref def, args) => {
+                let struct_type = def.borrow();
+                let fields = struct_type.get_fields(args);
+                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
+            }
+            Type::Tuple(fields) => {
+                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
+            }
+            Type::String(size) => {
+                let size = size
+                    .evaluate_to_u64()
+                    .expect("Cannot have variable sized strings as a parameter to main");
+                size as u32
+            }
+            Type::FmtString(_, _)
+            | Type::Unit
+            | Type::TypeVariable(_, _)
+            | Type::TraitAsType(_)
+            | Type::NamedGeneric(_, _)
+            | Type::Function(_, _, _)
+            | Type::MutableReference(_)
+            | Type::Forall(_, _)
+            | Type::Constant(_)
+            | Type::NotConstant
+            | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
+        }
+    }
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -410,6 +456,10 @@ impl Type {
         Type::FieldElement
     }
 
+    pub fn default_range_loop_type() -> Type {
+        Type::Integer(Signedness::Unsigned, 64)
+    }
+
     pub fn type_variable(id: TypeVariableId) -> Type {
         Type::TypeVariable(Shared::new(TypeBinding::Unbound(id)), TypeVariableKind::Normal)
     }
@@ -479,7 +529,8 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
-            | Type::Forall(_, _) => false,
+            | Type::Forall(_, _)
+            | Type::TraitAsType(_) => false,
 
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
@@ -509,6 +560,87 @@ impl Type {
                     || named_generic_id_matches_target(length)
             }
         }
+    }
+
+    /// True if this type can be used as a parameter to `main` or a contract function.
+    /// This is only false for unsized types like slices or slices that do not make sense
+    /// as a program input such as named generics or mutable references.
+    ///
+    /// This function should match the same check done in `create_value_from_type` in acir_gen.
+    /// If this function does not catch a case where a type should be valid, it will later lead to a
+    /// panic in that function instead of a user-facing compiler error message.
+    pub(crate) fn is_valid_for_program_input(&self) -> bool {
+        match self {
+            // Type::Error is allowed as usual since it indicates an error was already issued and
+            // we don't need to issue further errors about this likely unresolved type
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Constant(_)
+            | Type::Error => true,
+
+            Type::FmtString(_, _)
+            | Type::TypeVariable(_, _)
+            | Type::NamedGeneric(_, _)
+            | Type::Function(_, _, _)
+            | Type::MutableReference(_)
+            | Type::Forall(_, _)
+            | Type::TraitAsType(..)
+            | Type::NotConstant => false,
+
+            Type::Array(length, element) => {
+                length.is_valid_for_program_input() && element.is_valid_for_program_input()
+            }
+            Type::String(length) => length.is_valid_for_program_input(),
+            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_for_program_input()),
+            Type::Struct(definition, generics) => definition
+                .borrow()
+                .get_fields(generics)
+                .into_iter()
+                .all(|(_, field)| field.is_valid_for_program_input()),
+        }
+    }
+
+    /// Returns the number of `Forall`-quantified type variables on this type.
+    /// Returns 0 if this is not a Type::Forall
+    pub fn generic_count(&self) -> usize {
+        match self {
+            Type::Forall(generics, _) => generics.len(),
+            Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.generic_count(),
+                    TypeBinding::Unbound(_) => 0,
+                }
+            }
+            _ => 0,
+        }
+    }
+
+    /// Takes a monomorphic type and generalizes it over each of the given type variables.
+    pub(crate) fn generalize_from_variables(
+        self,
+        type_vars: HashMap<TypeVariableId, TypeVariable>,
+    ) -> Type {
+        let polymorphic_type_vars = vecmap(type_vars, |type_var| type_var);
+        Type::Forall(polymorphic_type_vars, Box::new(self))
+    }
+
+    /// Takes a monomorphic type and generalizes it over each of the type variables in the
+    /// given type bindings, ignoring what each type variable is bound to in the TypeBindings.
+    pub(crate) fn generalize_from_substitutions(self, type_bindings: TypeBindings) -> Type {
+        let polymorphic_type_vars = vecmap(type_bindings, |(id, (type_var, _))| (id, type_var));
+        Type::Forall(polymorphic_type_vars, Box::new(self))
+    }
+
+    /// Takes a monomorphic type and generalizes it over each type variable found within.
+    ///
+    /// Note that Noir's type system assumes any Type::Forall are only present at top-level,
+    /// and thus all type variable's within a type are free.
+    pub(crate) fn generalize(self) -> Type {
+        let mut type_variables = HashMap::new();
+        self.find_all_unbound_type_variables(&mut type_variables);
+        self.generalize_from_variables(type_variables)
     }
 }
 
@@ -555,6 +687,9 @@ impl std::fmt::Display for Type {
                 } else {
                     write!(f, "{}<{}>", s.borrow(), args.join(", "))
                 }
+            }
+            Type::TraitAsType(tr) => {
+                write!(f, "impl {}", tr.name)
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -671,9 +806,16 @@ impl Type {
                             *binding.borrow_mut() = TypeBinding::Bound(clone);
                             Ok(())
                         }
-                        TypeVariableKind::Constant(_) | TypeVariableKind::IntegerOrField => {
-                            Err(UnificationError)
+                        // The lengths don't match, but neither are set in stone so we can
+                        // just set them both to NotConstant. See issue 2370
+                        TypeVariableKind::Constant(_) => {
+                            // *length != target_length
+                            drop(borrow);
+                            *var.borrow_mut() = TypeBinding::Bound(Type::NotConstant);
+                            *binding.borrow_mut() = TypeBinding::Bound(Type::NotConstant);
+                            Ok(())
                         }
+                        TypeVariableKind::IntegerOrField => Err(UnificationError),
                     },
                 }
             }
@@ -778,7 +920,7 @@ impl Type {
 
     /// `try_unify` is a bit of a misnomer since although errors are not committed,
     /// any unified bindings are on success.
-    fn try_unify(&self, other: &Type) -> Result<(), UnificationError> {
+    pub fn try_unify(&self, other: &Type) -> Result<(), UnificationError> {
         use Type::*;
         use TypeVariableKind as Kind;
 
@@ -840,8 +982,8 @@ impl Type {
             // No recursive try_unify call for struct fields. Don't want
             // to mutate shared type variables within struct definitions.
             // This isn't possible currently but will be once noir gets generic types
-            (Struct(fields_a, args_a), Struct(fields_b, args_b)) => {
-                if fields_a == fields_b {
+            (Struct(id_a, args_a), Struct(id_b, args_b)) => {
+                if id_a == id_b && args_a.len() == args_b.len() {
                     for (a, b) in args_a.iter().zip(args_b) {
                         a.try_unify(b)?;
                     }
@@ -851,8 +993,24 @@ impl Type {
                 }
             }
 
+            (NamedGeneric(binding, _), other) if !binding.borrow().is_unbound() => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    link.try_unify(other)
+                } else {
+                    unreachable!("If guard ensures binding is bound")
+                }
+            }
+
+            (other, NamedGeneric(binding, _)) if !binding.borrow().is_unbound() => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    other.try_unify(link)
+                } else {
+                    unreachable!("If guard ensures binding is bound")
+                }
+            }
+
             (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
-                // Ensure NamedGenerics are never bound during type checking
+                // Unbound NamedGenerics are caught by the checks above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
 
@@ -991,7 +1149,7 @@ impl Type {
     /// Instantiate this type, replacing any type variables it is quantified
     /// over with fresh type variables. If this type is not a Type::Forall,
     /// it is unchanged.
-    pub fn instantiate(&self, interner: &mut NodeInterner) -> (Type, TypeBindings) {
+    pub fn instantiate(&self, interner: &NodeInterner) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
                 let replacements = typevars
@@ -1006,6 +1164,82 @@ impl Type {
                 (instantiated, replacements)
             }
             other => (other.clone(), HashMap::new()),
+        }
+    }
+
+    /// Replace each NamedGeneric (and TypeVariable) in this type with a fresh type variable
+    pub(crate) fn instantiate_type_variables(
+        &self,
+        interner: &NodeInterner,
+    ) -> (Type, TypeBindings) {
+        let mut type_variables = HashMap::new();
+        self.find_all_unbound_type_variables(&mut type_variables);
+
+        let substitutions = type_variables
+            .into_iter()
+            .map(|(id, type_var)| (id, (type_var, interner.next_type_variable())))
+            .collect();
+
+        (self.substitute(&substitutions), substitutions)
+    }
+
+    /// For each unbound type variable in the current type, add a type binding to the given list
+    /// to bind the unbound type variable to a fresh type variable.
+    fn find_all_unbound_type_variables(
+        &self,
+        type_variables: &mut HashMap<TypeVariableId, TypeVariable>,
+    ) {
+        match self {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::TraitAsType(_)
+            | Type::Constant(_)
+            | Type::NotConstant
+            | Type::Error => (),
+            Type::Array(length, elem) => {
+                length.find_all_unbound_type_variables(type_variables);
+                elem.find_all_unbound_type_variables(type_variables);
+            }
+            Type::String(length) => length.find_all_unbound_type_variables(type_variables),
+            Type::FmtString(length, env) => {
+                length.find_all_unbound_type_variables(type_variables);
+                env.find_all_unbound_type_variables(type_variables);
+            }
+            Type::Struct(_, generics) => {
+                for generic in generics {
+                    generic.find_all_unbound_type_variables(type_variables);
+                }
+            }
+            Type::Tuple(fields) => {
+                for field in fields {
+                    field.find_all_unbound_type_variables(type_variables);
+                }
+            }
+            Type::Function(args, ret, env) => {
+                for arg in args {
+                    arg.find_all_unbound_type_variables(type_variables);
+                }
+                ret.find_all_unbound_type_variables(type_variables);
+                env.find_all_unbound_type_variables(type_variables);
+            }
+            Type::MutableReference(elem) => {
+                elem.find_all_unbound_type_variables(type_variables);
+            }
+            Type::Forall(_, typ) => typ.find_all_unbound_type_variables(type_variables),
+            Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => {
+                        binding.find_all_unbound_type_variables(type_variables);
+                    }
+                    TypeBinding::Unbound(id) => {
+                        if !type_variables.contains_key(id) {
+                            type_variables.insert(*id, type_variable.clone());
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1053,6 +1287,7 @@ impl Type {
                 let fields = vecmap(fields, |field| field.substitute(type_bindings));
                 Type::Tuple(fields)
             }
+            Type::TraitAsType(_) => todo!(),
             Type::Forall(typevars, typ) => {
                 // Trying to substitute a variable defined within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
@@ -1092,6 +1327,7 @@ impl Type {
                 let field_occurs = fields.occurs(target_id);
                 len_occurs || field_occurs
             }
+            Type::TraitAsType(_) => todo!(),
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
@@ -1143,7 +1379,6 @@ impl Type {
                 Struct(def.clone(), args)
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
-
             TypeVariable(var, _) | NamedGeneric(var, _) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return typ.follow_bindings();
@@ -1162,10 +1397,14 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-
-            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Error | NotConstant => {
-                self.clone()
-            }
+            TraitAsType(_)
+            | FieldElement
+            | Integer(_, _)
+            | Bool
+            | Constant(_)
+            | Unit
+            | Error
+            | NotConstant => self.clone(),
         }
     }
 }
@@ -1266,6 +1505,7 @@ impl From<&Type> for PrintableType {
                 let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
                 PrintableType::Struct { fields, name: struct_type.name.to_string() }
             }
+            Type::TraitAsType(_) => unreachable!(),
             Type::Tuple(_) => todo!("printing tuple types is not yet implemented"),
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),

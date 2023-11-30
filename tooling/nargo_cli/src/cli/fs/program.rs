@@ -55,8 +55,19 @@ pub(crate) fn read_program_from_file<P: AsRef<Path>>(
 
     let input_string =
         std::fs::read(&file_path).map_err(|_| FilesystemError::PathNotValid(file_path))?;
+    let program = serde_json::from_slice(&input_string)
+        .map_err(|err| FilesystemError::ProgramSerializationError(err.to_string()))?;
 
-    let program = serde_json::from_slice(&input_string).expect("could not deserialize program");
+    Ok(program)
+}
+
+pub(crate) fn read_debug_artifact_from_file<P: AsRef<Path>>(
+    debug_artifact_path: P,
+) -> Result<DebugArtifact, FilesystemError> {
+    let input_string = std::fs::read(&debug_artifact_path)
+        .map_err(|_| FilesystemError::PathNotValid(debug_artifact_path.as_ref().into()))?;
+    let program = serde_json::from_slice(&input_string)
+        .map_err(|err| FilesystemError::ProgramSerializationError(err.to_string()))?;
 
     Ok(program)
 }

@@ -3,11 +3,11 @@ use std::collections::BTreeMap;
 
 use acvm::acir::circuit::Circuit;
 use fm::FileId;
-use noirc_abi::Abi;
+use noirc_abi::{Abi, ContractEvent};
 use noirc_errors::debug_info::DebugInfo;
+use noirc_evaluator::errors::SsaReport;
 
 use super::debug::DebugFile;
-use crate::program::{deserialize_circuit, serialize_circuit};
 
 /// Describes the types of smart contract functions that are allowed.
 /// Unlike the similar enum in noirc_frontend, 'open' and 'unconstrained'
@@ -28,13 +28,21 @@ pub enum ContractFunctionType {
 
 #[derive(Serialize, Deserialize)]
 pub struct CompiledContract {
+    pub noir_version: String,
+
     /// The name of the contract.
     pub name: String,
     /// Each of the contract's functions are compiled into a separate `CompiledProgram`
     /// stored in this `Vector`.
     pub functions: Vec<ContractFunction>,
 
+    /// All the events defined inside the contract scope.
+    /// An event is a struct value that can be emitted via oracles
+    /// by any contract function during execution.
+    pub events: Vec<ContractEvent>,
+
     pub file_map: BTreeMap<FileId, DebugFile>,
+    pub warnings: Vec<SsaReport>,
 }
 
 /// Each function in the contract will be compiled
@@ -53,7 +61,10 @@ pub struct ContractFunction {
 
     pub abi: Abi,
 
-    #[serde(serialize_with = "serialize_circuit", deserialize_with = "deserialize_circuit")]
+    #[serde(
+        serialize_with = "Circuit::serialize_circuit_base64",
+        deserialize_with = "Circuit::deserialize_circuit_base64"
+    )]
     pub bytecode: Circuit,
 
     pub debug: DebugInfo,

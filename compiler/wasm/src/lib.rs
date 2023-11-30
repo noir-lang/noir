@@ -1,19 +1,23 @@
-#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+// See Cargo.toml for explanation.
+use getrandom as _;
+
 use gloo_utils::format::JsValueSerdeExt;
 use log::Level;
+use noirc_driver::{GIT_COMMIT, GIT_DIRTY, NOIRC_VERSION};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
 
 mod circuit;
 mod compile;
+mod errors;
 
 pub use circuit::{acir_read_bytes, acir_write_bytes};
-pub use compile::{compile, WASMCompileOptions};
+pub use compile::compile;
 
 #[derive(Serialize, Deserialize)]
 pub struct BuildInfo {
@@ -34,11 +38,8 @@ pub fn init_log_level(level: String) {
     });
 }
 
-const BUILD_INFO: BuildInfo = BuildInfo {
-    git_hash: env!("GIT_COMMIT"),
-    version: env!("CARGO_PKG_VERSION"),
-    dirty: env!("GIT_DIRTY"),
-};
+const BUILD_INFO: BuildInfo =
+    BuildInfo { git_hash: GIT_COMMIT, version: NOIRC_VERSION, dirty: GIT_DIRTY };
 
 #[wasm_bindgen]
 pub fn build_info() -> JsValue {

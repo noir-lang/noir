@@ -1,0 +1,6 @@
+[package]
+name = "nested_array_dynamic"
+type = "bin"
+authors = [""]
+
+[dependencies]

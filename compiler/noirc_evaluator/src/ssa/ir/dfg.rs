@@ -4,7 +4,7 @@ use crate::ssa::ir::instruction::SimplifyResult;
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
-    function::{FunctionId, Signature},
+    function::FunctionId,
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
@@ -60,9 +60,6 @@ pub(crate) struct DataFlowGraph {
     /// This map is used to ensure that the ValueId for any given foreign functôn is always
     /// represented by only 1 ValueId within this function.
     foreign_functions: HashMap<String, ValueId>,
-
-    /// Function signatures of external methods
-    signatures: DenseMap<Signature>,
 
     /// All blocks in a function
     blocks: DenseMap<BasicBlock>,
@@ -161,7 +158,7 @@ impl DataFlowGraph {
         call_stack: CallStack,
     ) -> InsertInstructionResult {
         use InsertInstructionResult::*;
-        match instruction.simplify(self, block) {
+        match instruction.simplify(self, block, ctrl_typevars.clone()) {
             SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
             SimplifyResult::SimplifiedToMultiple(simplification) => {
                 SimplifiedToMultiple(simplification)
@@ -321,7 +318,7 @@ impl DataFlowGraph {
     /// True if the type of this value is Type::Reference.
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
-        matches!(self.values[value].get_type(), Type::Reference)
+        matches!(self.values[value].get_type(), Type::Reference(_))
     }
 
     /// Appends a result type to the instruction.
@@ -524,13 +521,13 @@ impl<'dfg> InsertInstructionResult<'dfg> {
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
-    use crate::ssa::ir::instruction::Instruction;
+    use crate::ssa::ir::{instruction::Instruction, types::Type};
 
     #[test]
     fn make_instruction() {
         let mut dfg = DataFlowGraph::default();
         let ins = Instruction::Allocate;
-        let ins_id = dfg.make_instruction(ins, None);
+        let ins_id = dfg.make_instruction(ins, Some(vec![Type::field()]));
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), 1);

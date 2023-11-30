@@ -4,7 +4,7 @@ description = "The definition of the backend CLI interface which Nargo uses for 
 version = "0.11.0"
 authors.workspace = true
 edition.workspace = true
-rust-version = "1.66"
+rust-version.workspace = true
 license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -22,7 +22,7 @@ tempfile = "3.6.0"
 ## bb binary downloading
 tar = "~0.4.15"
 flate2 = "~1.0.1"
-reqwest = { version = "0.11.16", default-features = false, features = [
+reqwest = { version = "0.11.20", default-features = false, features = [
     "rustls-tls",
     "blocking",
 ] }
@@ -32,4 +32,4 @@ test-binary = "3.0.1"
 
 [build-dependencies]
 build-target = "0.4.0"
-const_format = "0.2.30"
+const_format.workspace = true

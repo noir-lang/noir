@@ -36,10 +36,14 @@ result
 *.pk
 *.vk
 **/Verifier.toml
+**/contract
 **/target
-!tooling/nargo_cli/tests/acir_artifacts/*/target
-!tooling/nargo_cli/tests/acir_artifacts/*/target/witness.gz
+!test_programs/acir_artifacts/*/target
+!test_programs/acir_artifacts/*/target/witness.gz
 !compiler/wasm/noir-script/target
+
+gates_report.json
+
 # Github Actions scratch space
 # This gives a location to download artifacts into the repository in CI without making git dirty.
 libbarretenberg-wasm32
@@ -49,3 +53,10 @@ compiler/wasm/nodejs
 compiler/wasm/web
 tooling/noirc_abi_wasm/nodejs
 tooling/noirc_abi_wasm/web
+tooling/noir_js/lib
+
+**/package.tgz
+packages
+
+# docs autogen build
+/docs/docs/noir_js/reference/

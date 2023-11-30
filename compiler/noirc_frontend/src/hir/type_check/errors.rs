@@ -6,6 +6,7 @@ use thiserror::Error;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::types::Type;
+use crate::BinaryOpKind;
 use crate::FunctionReturnType;
 use crate::Signedness;
 
@@ -23,8 +24,8 @@ pub enum Source {
     StringLen,
     #[error("Comparison")]
     Comparison,
-    #[error("BinOp")]
-    BinOp,
+    #[error("{0}")]
+    BinOp(BinaryOpKind),
     #[error("Return")]
     Return(FunctionReturnType, Span),
 }
@@ -77,6 +78,8 @@ pub enum TypeCheckError {
     IntegerTypeMismatch { typ: Type, span: Span },
     #[error("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first")]
     IntegerAndFieldBinaryOperation { span: Span },
+    #[error("Cannot do modulo on Fields, try casting to an integer first")]
+    FieldModulo { span: Span },
     #[error("Fields cannot be compared, try casting to an integer first")]
     FieldComparison { span: Span },
     #[error("The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified")]
@@ -108,6 +111,10 @@ pub enum TypeCheckError {
         parameter_span: Span,
         parameter_index: usize,
     },
+    #[error("No matching impl found")]
+    NoMatchingImplFound { constraints: Vec<(Type, String)>, span: Span },
+    #[error("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope")]
+    UnneededTraitConstraint { trait_name: String, typ: Type, span: Span },
 }
 
 impl TypeCheckError {
@@ -194,7 +201,8 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldComparison { span, .. }
             | TypeCheckError::AmbiguousBitWidth { span, .. }
             | TypeCheckError::IntegerAndFieldBinaryOperation { span }
-            | TypeCheckError::OverflowingAssignment { span, .. } => {
+            | TypeCheckError::OverflowingAssignment { span, .. }
+            | TypeCheckError::FieldModulo { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
@@ -218,7 +226,7 @@ impl From<TypeCheckError> for Diagnostic {
                     Source::ArrayLen => format!("Can only compare arrays of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
                     Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
                     Source::Comparison => format!("Unsupported types for comparison: {expected} and {actual}"),
-                    Source::BinOp => format!("Unsupported types for binary operation: {expected} and {actual}"),
+                    Source::BinOp(kind) => format!("Unsupported types for operator `{kind}`: {expected} and {actual}"),
                     Source::Return(ret_ty, expr_span) => {
                         let ret_ty_span = match ret_ty.clone() {
                             FunctionReturnType::Default(span) => span,
@@ -246,11 +254,26 @@ impl From<TypeCheckError> for Diagnostic {
                 Diagnostic::simple_warning(primary_message, secondary_message, span)
             }
             TypeCheckError::UnusedResultError { expr_type, expr_span } => {
-                Diagnostic::simple_warning(
-                    format!("Unused expression result of type {expr_type}"),
-                    String::new(),
-                    expr_span,
-                )
+                let msg = format!("Unused expression result of type {expr_type}");
+                Diagnostic::simple_warning(msg, String::new(), expr_span)
+            }
+            TypeCheckError::NoMatchingImplFound { constraints, span } => {
+                assert!(!constraints.is_empty());
+                let msg = format!("No matching impl found for `{}: {}`", constraints[0].0, constraints[0].1);
+                let mut diagnostic = Diagnostic::from_message(&msg);
+
+                diagnostic.add_secondary(format!("No impl for `{}: {}`", constraints[0].0, constraints[0].1), span);
+
+                // These must be notes since secondaries are unordered
+                for (typ, trait_name) in &constraints[1..] {
+                    diagnostic.add_note(format!("Required by `{typ}: {trait_name}`"));
+                }
+
+                diagnostic
+            }
+            TypeCheckError::UnneededTraitConstraint { trait_name, typ, span } => {
+                let msg = format!("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope");
+                Diagnostic::simple_warning(msg, "Unnecessary trait constraint in where clause".into(), span)
             }
         }
     }

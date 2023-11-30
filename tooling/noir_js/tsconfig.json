@@ -2,13 +2,19 @@
   "compilerOptions": {
     "target": "esnext",
     "declaration": true,
-    "emitDeclarationOnly": false,
     "module": "ESNext",
     "moduleResolution": "node",
     "outDir": "./lib",
     "esModuleInterop": true,
-    "strict": true
+    "resolveJsonModule": true,
+    "strict": true,
+    "noImplicitAny": false,
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules"],
+  "references": [
+    {
+      "path": "../noir_js_types"
+    },
+  ]
 }

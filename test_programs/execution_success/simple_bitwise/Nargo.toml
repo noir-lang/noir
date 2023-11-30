@@ -1,0 +1,5 @@
+[package]
+name = "simple_bitwise"
+type = "bin"
+authors = [""]
+[dependencies]

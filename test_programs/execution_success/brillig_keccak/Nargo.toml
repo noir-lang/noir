@@ -1,0 +1,6 @@
+[package]
+name = "brillig_keccak"
+type = "bin"
+authors = [""]
+
+[dependencies]

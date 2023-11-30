@@ -1,3 +1,4 @@
+use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::Expression;
 use small_ord_set::SmallOrdSet;
@@ -27,18 +28,18 @@ pub enum ParserErrorReason {
     PatternInTraitFunctionParameter,
     #[error("comptime keyword is deprecated")]
     ComptimeDeprecated,
-    #[error("the default type of a for-loop range will be changing from a Field to a u64")]
-    ForLoopDefaultTypeChanging,
     #[error("{0} are experimental and aren't fully supported yet")]
     ExperimentalFeature(&'static str),
-    #[error("Where clauses are allowed only on functions with generic parameters")]
-    WhereClauseOnNonGenericFunction,
     #[error(
-        "Multiple primary attributes found. Only one primary attribute is allowed per function."
+        "Multiple primary attributes found. Only one function attribute is allowed per function"
     )]
-    MultiplePrimaryAttributesFound,
+    MultipleFunctionAttributesFound,
+    #[error("A function attribute cannot be placed on a struct")]
+    NoFunctionAttributesAllowedOnStruct,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
+    #[error("{0}")]
+    Lexer(LexerErrorKind),
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -92,6 +93,14 @@ impl ParserError {
     pub fn span(&self) -> Span {
         self.span
     }
+
+    pub fn reason(&self) -> Option<&ParserErrorReason> {
+        self.reason.as_ref()
+    }
+
+    pub fn is_warning(&self) -> bool {
+        matches!(self.reason(), Some(ParserErrorReason::ExperimentalFeature(_)))
+    }
 }
 
 impl std::fmt::Display for ParserError {
@@ -121,12 +130,12 @@ impl std::fmt::Display for ParserError {
 
 impl From<ParserError> for Diagnostic {
     fn from(error: ParserError) -> Diagnostic {
-        match &error.reason {
+        match error.reason {
             Some(reason) => {
                 match reason {
-                    ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_warning(
+                    ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_error(
                         "Use of deprecated keyword 'constrain'".into(),
-                        "The 'constrain' keyword has been deprecated. Please use the 'assert' function instead.".into(),
+                        "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
                         error.span,
                     ),
                     ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
@@ -134,21 +143,16 @@ impl From<ParserError> for Diagnostic {
                         "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
                         error.span,
                     ),
-                    ParserErrorReason::ForLoopDefaultTypeChanging => Diagnostic::simple_warning(
-                        "The default type for the incrementor in a for-loop will be changed.".into(),
-                        "The default type in a for-loop will be changing from Field to u64".into(),
-                        error.span,
-                    ),
                     ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(
                         reason.to_string(),
                         "".into(),
                         error.span,
                     ),
-                    reason @ ParserErrorReason::ExpectedPatternButFoundType(ty) => {
-                        Diagnostic::simple_error(reason.to_string(), format!("{ty} is a type and cannot be used as a variable name"), error.span)
+                    ParserErrorReason::ExpectedPatternButFoundType(ty) => {
+                        Diagnostic::simple_error("Expected a ; separating these two statements".into(), format!("{ty} is a type and cannot be used as a variable name"), error.span)
                     }
+                    ParserErrorReason::Lexer(error) => error.into(),
                     other => {
-
                         Diagnostic::simple_error(format!("{other}"), String::new(), error.span)
                     }
                 }

@@ -65,6 +65,10 @@ impl Span {
         Span::inclusive(start, start)
     }
 
+    pub fn empty(position: u32) -> Span {
+        Span::from(position..position)
+    }
+
     #[must_use]
     pub fn merge(self, other: Span) -> Span {
         Span(self.0.merge(other.0))
@@ -86,6 +90,12 @@ impl Span {
 impl From<Span> for Range<usize> {
     fn from(span: Span) -> Self {
         span.0.into()
+    }
+}
+
+impl From<Range<u32>> for Span {
+    fn from(Range { start, end }: Range<u32>) -> Self {
+        Self(ByteSpan::new(start, end))
     }
 }
 
@@ -118,5 +128,9 @@ pub struct Location {
 impl Location {
     pub fn new(span: Span, file: FileId) -> Self {
         Self { span, file }
+    }
+
+    pub fn dummy() -> Self {
+        Self { span: Span::single_char(0), file: FileId::dummy() }
     }
 }
