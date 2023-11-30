@@ -1776,6 +1776,7 @@ impl Context {
                 Ok(vec![AcirValue::Var(self.acir_context.add_constant(len), AcirType::field())])
             }
             Intrinsic::SlicePushBack => {
+                // arguments = [slice_length, slice_contents, ...elements_to_push]
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
                 let (slice_contents, slice_typ, _) =
                     self.check_array_is_initialized(arguments[1], dfg)?;
@@ -1850,6 +1851,7 @@ impl Context {
                 Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), result])
             }
             Intrinsic::SlicePushFront => {
+                // arguments = [slice_length, slice_contents, ...elements_to_push]
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
 
                 let (slice_contents, slice_typ, _) =
@@ -1923,6 +1925,7 @@ impl Context {
                 Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), result])
             }
             Intrinsic::SlicePopBack => {
+                // arguments = [slice_length, slice_contents]
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
 
                 let one = self.acir_context.add_constant(FieldElement::one());
@@ -1996,6 +1999,7 @@ impl Context {
                 Ok(results)
             }
             Intrinsic::SlicePopFront => {
+                // arguments = [slice_length, slice_contents]
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
 
                 let (slice_contents, slice_typ, block_id) =
@@ -2060,13 +2064,14 @@ impl Context {
                 Ok(popped_elements)
             }
             Intrinsic::SliceInsert => {
+                // arguments = [slice_length, slice_contents, insert_index, ...elements_to_insert]
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
 
                 let (slice_contents, slice_typ, block_id) =
                     self.check_array_is_initialized(arguments[1], dfg)?;
 
                 let slice = self.convert_value(slice_contents, dfg);
-                let index = self.convert_value(arguments[2], dfg).into_var()?;
+                let insert_index = self.convert_value(arguments[2], dfg).into_var()?;
 
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
@@ -2077,9 +2082,10 @@ impl Context {
                 let element_size = slice_typ.element_size();
                 let element_size_var =
                     self.acir_context.add_constant(FieldElement::from(element_size as u128));
-                let flat_user_index = self.acir_context.mul_var(index, element_size_var)?;
+                let flat_insert_index =
+                    self.acir_context.mul_var(insert_index, element_size_var)?;
                 let flat_user_index =
-                    self.get_flattened_index(&slice_typ, slice_contents, flat_user_index, dfg)?;
+                    self.get_flattened_index(&slice_typ, slice_contents, flat_insert_index, dfg)?;
 
                 let elements_to_insert = &arguments[3..];
                 // Determine the elements we need to write into our resulting dynamic array.
@@ -2201,13 +2207,14 @@ impl Context {
                 Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), result])
             }
             Intrinsic::SliceRemove => {
+                // arguments = [slice_length, slice_contents, remove_index]
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
 
                 let (slice_contents, slice_typ, block_id) =
                     self.check_array_is_initialized(arguments[1], dfg)?;
 
                 let slice = self.convert_value(slice_contents, dfg);
-                let index = self.convert_value(arguments[2], dfg).into_var()?;
+                let remove_index = self.convert_value(arguments[2], dfg).into_var()?;
 
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
@@ -2228,9 +2235,10 @@ impl Context {
                 let element_size = slice_typ.element_size();
                 let element_size_var =
                     self.acir_context.add_constant(FieldElement::from(element_size as u128));
-                let flat_user_index = self.acir_context.mul_var(index, element_size_var)?;
+                let flat_remove_index =
+                    self.acir_context.mul_var(remove_index, element_size_var)?;
                 let flat_user_index =
-                    self.get_flattened_index(&slice_typ, slice_contents, flat_user_index, dfg)?;
+                    self.get_flattened_index(&slice_typ, slice_contents, flat_remove_index, dfg)?;
 
                 // Fetch the values we are remove from the slice.
                 // In the case of non-nested slice the logic is simple as we do not
