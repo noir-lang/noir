@@ -926,7 +926,7 @@ impl AcirContext {
     ) -> Result<AcirVar, RuntimeError> {
         // 2^{rhs}
         let divisor =
-            self.add_constant(FieldElement::from(2_i128).pow(&FieldElement::from(rhs as i128)));
+            self.add_constant(FieldElement::from(2_u128).pow(&FieldElement::from(rhs as u128)));
         let one = self.add_constant(FieldElement::one());
 
         //  Computes lhs = 2^{rhs} * q + r
