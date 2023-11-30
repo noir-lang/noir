@@ -56,10 +56,10 @@ it(`smart contract can verify a recursive proof`, async () => {
 
   // Proof should not contain any public inputs so should be 2144 bytes long.
   expect(recursion_proof.proof.length).to.be.eq(2144);
-  // Circuit has 16 public inputs which each are 32 bytes.
+  // Circuit has 16 public inputs which each are 32 bytes (66 character hex string when including "0x").
   expect(recursion_proof.publicInputs.size).to.be.eq(16);
   for (const publicInput of recursion_proof.publicInputs.values()) {
-    expect(publicInput.length).to.be.eq(32);
+    expect(publicInput.length).to.be.eq(64);
   }
 
   // Smart contract verification
