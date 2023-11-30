@@ -304,10 +304,11 @@ TYPED_TEST(ECCVMTranscriptTests, ChallengeGenerationTest)
     constexpr uint32_t random_val{ 17 }; // arbitrary
     transcript.send_to_verifier("random val", random_val);
     // test more challenges
-    auto [a, b, c] = transcript.get_challenges("a", "b", "c");
+    auto [a, b, c] = challenges_to_field_elements<typename Flavor::FF>(transcript.get_challenges("a", "b", "c"));
+
     ASSERT_NE(a, 0) << "Challenge a is 0";
-    ASSERT_NE(b, 0) << "Challenge a is 0";
-    ASSERT_NE(b, 0) << "Challenge a is 0";
+    ASSERT_NE(b, 0) << "Challenge b is 0";
+    ASSERT_NE(c, 0) << "Challenge c is 0";
 }
 
 TYPED_TEST(ECCVMTranscriptTests, StructureTest)
@@ -333,7 +334,7 @@ TYPED_TEST(ECCVMTranscriptTests, StructureTest)
     EXPECT_TRUE(verifier.verify_proof(prover.export_proof())); // we have changed nothing so proof is still valid
 
     typename Flavor::Commitment one_group_val = Flavor::Commitment::one();
-    typename Flavor::FF rand_val = Flavor::FF::random_element();
+    auto rand_val = Flavor::FF::random_element();
     prover.transcript.transcript_Px_comm = one_group_val * rand_val; // choose random object to modify
     EXPECT_TRUE(verifier.verify_proof(
         prover.export_proof())); // we have not serialized it back to the proof so it should still be fine

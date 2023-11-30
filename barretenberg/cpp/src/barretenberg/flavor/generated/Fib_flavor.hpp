@@ -216,8 +216,7 @@ class FibFlavor {
         using Base = AllEntities<Commitment>;
 
       public:
-        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key,
-                            const BaseTranscript<FF>& transcript)
+        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key, const BaseTranscript& transcript)
         {
             static_cast<void>(transcript);
             Fibonacci_LAST = verification_key->Fibonacci_LAST;
@@ -225,7 +224,7 @@ class FibFlavor {
         }
     };
 
-    class Transcript : public BaseTranscript<FF> {
+    class Transcript : public BaseTranscript {
       public:
         uint32_t circuit_size;
 
@@ -241,7 +240,7 @@ class FibFlavor {
         Transcript() = default;
 
         Transcript(const std::vector<uint8_t>& proof)
-            : BaseTranscript<FF>(proof)
+            : BaseTranscript(proof)
         {}
 
         void deserialize_full_transcript()
@@ -250,16 +249,16 @@ class FibFlavor {
             circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_bytes_read);
             size_t log_n = numeric::get_msb(circuit_size);
 
-            Fibonacci_x = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            Fibonacci_y = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
+            Fibonacci_x = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            Fibonacci_y = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
 
             for (size_t i = 0; i < log_n; ++i) {
                 sumcheck_univariates.emplace_back(
                     deserialize_from_buffer<barretenberg::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(
-                        BaseTranscript<FF>::proof_data, num_bytes_read));
+                        BaseTranscript::proof_data, num_bytes_read));
             }
-            sumcheck_evaluations = deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(
-                BaseTranscript<FF>::proof_data, num_bytes_read);
+            sumcheck_evaluations =
+                deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(BaseTranscript::proof_data, num_bytes_read);
             for (size_t i = 0; i < log_n; ++i) {
                 zm_cq_comms.push_back(deserialize_from_buffer<Commitment>(proof_data, num_bytes_read));
             }
@@ -270,18 +269,18 @@ class FibFlavor {
         void serialize_full_transcript()
         {
             size_t old_proof_length = proof_data.size();
-            BaseTranscript<FF>::proof_data.clear();
+            BaseTranscript::proof_data.clear();
             size_t log_n = numeric::get_msb(circuit_size);
 
-            serialize_to_buffer(circuit_size, BaseTranscript<FF>::proof_data);
+            serialize_to_buffer(circuit_size, BaseTranscript::proof_data);
 
-            serialize_to_buffer<Commitment>(Fibonacci_x, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(Fibonacci_y, BaseTranscript<FF>::proof_data);
+            serialize_to_buffer<Commitment>(Fibonacci_x, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(Fibonacci_y, BaseTranscript::proof_data);
 
             for (size_t i = 0; i < log_n; ++i) {
-                serialize_to_buffer(sumcheck_univariates[i], BaseTranscript<FF>::proof_data);
+                serialize_to_buffer(sumcheck_univariates[i], BaseTranscript::proof_data);
             }
-            serialize_to_buffer(sumcheck_evaluations, BaseTranscript<FF>::proof_data);
+            serialize_to_buffer(sumcheck_evaluations, BaseTranscript::proof_data);
             for (size_t i = 0; i < log_n; ++i) {
                 serialize_to_buffer(zm_cq_comms[i], proof_data);
             }

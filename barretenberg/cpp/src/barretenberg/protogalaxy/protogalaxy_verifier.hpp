@@ -14,7 +14,7 @@ template <class VerifierInstances> class ProtoGalaxyVerifier_ {
     using Instance = typename VerifierInstances::Instance;
     using VerificationKey = typename Flavor::VerificationKey;
     VerifierInstances verifier_instances;
-    BaseTranscript<FF> transcript;
+    BaseTranscript transcript;
 
     ProtoGalaxyVerifier_(VerifierInstances insts)
         : verifier_instances(insts){};

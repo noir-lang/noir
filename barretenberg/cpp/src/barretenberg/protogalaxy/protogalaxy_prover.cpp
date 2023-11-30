@@ -23,8 +23,9 @@ template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::prepa
             transcript.send_to_verifier(domain_separator + "_public_input_" + std::to_string(i), public_input_i);
         }
 
-        auto [eta, beta, gamma] = transcript.get_challenges(
-            domain_separator + "_eta", domain_separator + "_beta", domain_separator + "_gamma");
+        auto [eta, beta, gamma] = challenges_to_field_elements<FF>(transcript.get_challenges(
+            domain_separator + "_eta", domain_separator + "_beta", domain_separator + "_gamma"));
+
         instance->compute_sorted_accumulator_polynomials(eta);
         instance->compute_grand_product_polynomials(beta, gamma);
         instance->alpha = transcript.get_challenge(domain_separator + "_alpha");
@@ -42,7 +43,7 @@ ProverFoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverI
     // TODO(#https://github.com/AztecProtocol/barretenberg/issues/740): Handle the case where we are folding for the
     // first time and accumulator is 0
     // TODO(#https://github.com/AztecProtocol/barretenberg/issues/763): Fold alpha
-    auto delta = transcript.get_challenge("delta");
+    FF delta = transcript.get_challenge("delta");
     auto accumulator = get_accumulator();
     auto instance_size = accumulator->prover_polynomials.get_polynomial_size();
     const auto log_instance_size = static_cast<size_t>(numeric::get_msb(instance_size));
@@ -53,7 +54,7 @@ ProverFoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverI
         transcript.send_to_verifier("perturbator_" + std::to_string(idx), perturbator[idx]);
     }
 
-    auto perturbator_challenge = transcript.get_challenge("perturbator_challenge");
+    FF perturbator_challenge = transcript.get_challenge("perturbator_challenge");
     auto compressed_perturbator = perturbator.evaluate(perturbator_challenge);
     std::vector<FF> betas_star(log_instance_size);
     betas_star[0] = 1;
@@ -69,7 +70,7 @@ ProverFoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverI
     for (size_t idx = ProverInstances::NUM; idx < combiner.size(); idx++) {
         transcript.send_to_verifier("combiner_quotient_" + std::to_string(idx), combiner_quotient.value_at(idx));
     }
-    auto combiner_challenge = transcript.get_challenge("combiner_quotient_challenge");
+    FF combiner_challenge = transcript.get_challenge("combiner_quotient_challenge");
     auto combiner_quotient_at_challenge = combiner_quotient.evaluate(combiner_challenge);
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/764): Generalize these formulas as well as computation

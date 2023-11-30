@@ -73,7 +73,7 @@ template <typename Flavor> class SumcheckProver {
                                  const proof_system::RelationParameters<FF>& relation_parameters,
                                  FF alpha) // pass by value, not by reference
     {
-        auto zeta = transcript.get_challenge("Sumcheck:zeta");
+        FF zeta = transcript.get_challenge("Sumcheck:zeta");
 
         barretenberg::PowUnivariate<FF> pow_univariate(zeta);
 
@@ -203,7 +203,7 @@ template <typename Flavor> class SumcheckVerifier {
     {
         bool verified(true);
 
-        auto zeta = transcript.get_challenge("Sumcheck:zeta");
+        FF zeta = transcript.get_challenge("Sumcheck:zeta");
 
         barretenberg::PowUnivariate<FF> pow_univariate(zeta);
         // All but final round.

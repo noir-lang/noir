@@ -381,7 +381,7 @@ template <typename BuilderType> class UltraRecursive_ {
      * @brief Derived class that defines proof structure for UltraRecursive proofs, as well as supporting functions.
      *
      */
-    class Transcript : public BaseTranscript<FF> {
+    class Transcript : public BaseTranscript {
       public:
         // Transcript objects defined as public member variables for easy access and modification
         uint32_t circuit_size;
@@ -405,7 +405,7 @@ template <typename BuilderType> class UltraRecursive_ {
 
         // Used by verifier to initialize the transcript
         Transcript(const std::vector<uint8_t>& proof)
-            : BaseTranscript<FF>(proof)
+            : BaseTranscript(proof)
         {}
 
         static Transcript prover_init_empty()
@@ -432,34 +432,33 @@ template <typename BuilderType> class UltraRecursive_ {
         {
             // take current proof and put them into the struct
             size_t num_bytes_read = 0;
-            circuit_size = deserialize_from_buffer<uint32_t>(BaseTranscript<FF>::proof_data, num_bytes_read);
+            circuit_size = deserialize_from_buffer<uint32_t>(BaseTranscript::proof_data, num_bytes_read);
             size_t log_n = numeric::get_msb(circuit_size);
 
-            public_input_size = deserialize_from_buffer<uint32_t>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            pub_inputs_offset = deserialize_from_buffer<uint32_t>(BaseTranscript<FF>::proof_data, num_bytes_read);
+            public_input_size = deserialize_from_buffer<uint32_t>(BaseTranscript::proof_data, num_bytes_read);
+            pub_inputs_offset = deserialize_from_buffer<uint32_t>(BaseTranscript::proof_data, num_bytes_read);
             for (size_t i = 0; i < public_input_size; ++i) {
-                public_inputs.push_back(deserialize_from_buffer<FF>(BaseTranscript<FF>::proof_data, num_bytes_read));
+                public_inputs.push_back(deserialize_from_buffer<FF>(BaseTranscript::proof_data, num_bytes_read));
             }
-            w_l_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            w_r_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            w_o_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            sorted_accum_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            w_4_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            z_perm_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            z_lookup_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
+            w_l_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            w_r_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            w_o_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            sorted_accum_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            w_4_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            z_perm_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            z_lookup_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
             for (size_t i = 0; i < log_n; ++i) {
                 sumcheck_univariates.push_back(
                     deserialize_from_buffer<barretenberg::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(
-                        BaseTranscript<FF>::proof_data, num_bytes_read));
+                        BaseTranscript::proof_data, num_bytes_read));
             }
-            sumcheck_evaluations = deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(
-                BaseTranscript<FF>::proof_data, num_bytes_read);
+            sumcheck_evaluations =
+                deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(BaseTranscript::proof_data, num_bytes_read);
             for (size_t i = 0; i < log_n; ++i) {
-                zm_cq_comms.push_back(
-                    deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read));
+                zm_cq_comms.push_back(deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read));
             }
-            zm_cq_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            zm_pi_comm = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
+            zm_cq_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            zm_pi_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
         }
         /**
          * @brief Serializes the structure variables into a FULL UltraRecursive proof. Should be called only if
@@ -468,34 +467,34 @@ template <typename BuilderType> class UltraRecursive_ {
          */
         void serialize_full_transcript()
         {
-            size_t old_proof_length = BaseTranscript<FF>::proof_data.size();
-            BaseTranscript<FF>::proof_data.clear(); // clear proof_data so the rest of the function can replace it
+            size_t old_proof_length = BaseTranscript::proof_data.size();
+            BaseTranscript::proof_data.clear(); // clear proof_data so the rest of the function can replace it
             size_t log_n = numeric::get_msb(circuit_size);
-            serialize_to_buffer(circuit_size, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer(public_input_size, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer(pub_inputs_offset, BaseTranscript<FF>::proof_data);
+            serialize_to_buffer(circuit_size, BaseTranscript::proof_data);
+            serialize_to_buffer(public_input_size, BaseTranscript::proof_data);
+            serialize_to_buffer(pub_inputs_offset, BaseTranscript::proof_data);
             for (size_t i = 0; i < public_input_size; ++i) {
-                serialize_to_buffer(public_inputs[i], BaseTranscript<FF>::proof_data);
+                serialize_to_buffer(public_inputs[i], BaseTranscript::proof_data);
             }
-            serialize_to_buffer(w_l_comm, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer(w_r_comm, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer(w_o_comm, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer(sorted_accum_comm, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer(w_4_comm, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer(z_perm_comm, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer(z_lookup_comm, BaseTranscript<FF>::proof_data);
+            serialize_to_buffer(w_l_comm, BaseTranscript::proof_data);
+            serialize_to_buffer(w_r_comm, BaseTranscript::proof_data);
+            serialize_to_buffer(w_o_comm, BaseTranscript::proof_data);
+            serialize_to_buffer(sorted_accum_comm, BaseTranscript::proof_data);
+            serialize_to_buffer(w_4_comm, BaseTranscript::proof_data);
+            serialize_to_buffer(z_perm_comm, BaseTranscript::proof_data);
+            serialize_to_buffer(z_lookup_comm, BaseTranscript::proof_data);
             for (size_t i = 0; i < log_n; ++i) {
-                serialize_to_buffer(sumcheck_univariates[i], BaseTranscript<FF>::proof_data);
+                serialize_to_buffer(sumcheck_univariates[i], BaseTranscript::proof_data);
             }
-            serialize_to_buffer(sumcheck_evaluations, BaseTranscript<FF>::proof_data);
+            serialize_to_buffer(sumcheck_evaluations, BaseTranscript::proof_data);
             for (size_t i = 0; i < log_n; ++i) {
-                serialize_to_buffer(zm_cq_comms[i], BaseTranscript<FF>::proof_data);
+                serialize_to_buffer(zm_cq_comms[i], BaseTranscript::proof_data);
             }
-            serialize_to_buffer(zm_cq_comm, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer(zm_pi_comm, BaseTranscript<FF>::proof_data);
+            serialize_to_buffer(zm_cq_comm, BaseTranscript::proof_data);
+            serialize_to_buffer(zm_pi_comm, BaseTranscript::proof_data);
 
             // sanity check to make sure we generate the same length of proof as before.
-            ASSERT(BaseTranscript<FF>::proof_data.size() == old_proof_length);
+            ASSERT(BaseTranscript::proof_data.size() == old_proof_length);
         }
     };
 };

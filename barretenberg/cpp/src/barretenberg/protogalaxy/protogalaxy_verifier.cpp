@@ -5,7 +5,7 @@ namespace proof_system::honk {
 template <class VerifierInstances>
 void ProtoGalaxyVerifier_<VerifierInstances>::prepare_for_folding(std::vector<uint8_t> fold_data)
 {
-    transcript = BaseTranscript<FF>{ fold_data };
+    transcript = BaseTranscript{ fold_data };
     auto index = 0;
     for (auto it = verifier_instances.begin(); it != verifier_instances.end(); it++, index++) {
         auto inst = *it;
@@ -21,8 +21,9 @@ void ProtoGalaxyVerifier_<VerifierInstances>::prepare_for_folding(std::vector<ui
                 transcript.template receive_from_prover<FF>(domain_separator + "_public_input_" + std::to_string(i));
             inst->public_inputs.emplace_back(public_input_i);
         }
-        auto [eta, beta, gamma] = transcript.get_challenges(
-            domain_separator + "_eta", domain_separator + "_beta", domain_separator + "_gamma");
+        auto [eta, beta, gamma] = challenges_to_field_elements<FF>(transcript.get_challenges(
+            domain_separator + "_eta", domain_separator + "_beta", domain_separator + "_gamma"));
+
         const FF public_input_delta = compute_public_input_delta<Flavor>(
             inst->public_inputs, beta, gamma, inst->instance_size, inst->pub_inputs_offset);
         const FF lookup_grand_product_delta = compute_lookup_grand_product_delta<FF>(beta, gamma, inst->instance_size);
@@ -39,7 +40,7 @@ VerifierFoldingResult<typename VerifierInstances::Flavor> ProtoGalaxyVerifier_<
     using Flavor = typename VerifierInstances::Flavor;
 
     prepare_for_folding(fold_data);
-    auto delta = transcript.get_challenge("delta");
+    FF delta = transcript.get_challenge("delta");
     auto accumulator = get_accumulator();
     auto log_instance_size = static_cast<size_t>(numeric::get_msb(accumulator->instance_size));
     auto deltas = compute_round_challenge_pows(log_instance_size, delta);
@@ -48,7 +49,7 @@ VerifierFoldingResult<typename VerifierInstances::Flavor> ProtoGalaxyVerifier_<
         perturbator_coeffs[idx] = transcript.template receive_from_prover<FF>("perturbator_" + std::to_string(idx));
     }
     auto perturbator = Polynomial<FF>(perturbator_coeffs);
-    auto perturbator_challenge = transcript.get_challenge("perturbator_challenge");
+    FF perturbator_challenge = transcript.get_challenge("perturbator_challenge");
     auto perturbator_at_challenge = perturbator.evaluate(perturbator_challenge);
 
     // Thed degree of K(X) is dk - k - 1 = k(d - 1) - 1. Hence we need  k(d - 1) evaluations to represent it.
@@ -59,7 +60,7 @@ VerifierFoldingResult<typename VerifierInstances::Flavor> ProtoGalaxyVerifier_<
     }
     Univariate<FF, VerifierInstances::BATCHED_EXTENDED_LENGTH, VerifierInstances::NUM> combiner_quotient(
         combiner_quotient_evals);
-    auto combiner_challenge = transcript.get_challenge("combiner_quotient_challenge");
+    FF combiner_challenge = transcript.get_challenge("combiner_quotient_challenge");
     auto combiner_quotient_at_challenge = combiner_quotient.evaluate(combiner_challenge);
 
     auto vanishing_polynomial_at_challenge = combiner_challenge * (combiner_challenge - FF(1));

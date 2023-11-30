@@ -25,7 +25,7 @@ template <typename Flavor> class MergeProver_ {
     using OpeningPair = typename pcs::OpeningPair<Curve>;
 
   public:
-    BaseTranscript<FF> transcript;
+    BaseTranscript transcript;
     std::shared_ptr<ECCOpQueue> op_queue;
     std::shared_ptr<CommitmentKey> pcs_commitment_key;
 

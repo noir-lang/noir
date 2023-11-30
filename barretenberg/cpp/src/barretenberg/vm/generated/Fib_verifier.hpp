@@ -26,7 +26,7 @@ class FibVerifier {
     std::shared_ptr<VerificationKey> key;
     std::map<std::string, Commitment> commitments;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
-    BaseTranscript<FF> transcript;
+    BaseTranscript transcript;
 };
 
 } // namespace proof_system::honk

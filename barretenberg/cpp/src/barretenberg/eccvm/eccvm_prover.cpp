@@ -168,7 +168,8 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_wire_commitment
 template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_log_derivative_commitments_round()
 {
     // Compute and add beta to relation parameters
-    auto [beta, gamma] = transcript.get_challenges("beta", "gamma");
+    auto [beta, gamma] = challenges_to_field_elements<FF>(transcript.get_challenges("beta", "gamma"));
+
     // TODO(#583)(@zac-williamson): fix Transcript to be able to generate more than 2 challenges per round! oof.
     auto beta_sqr = beta * beta;
     relation_parameters.gamma = gamma;
@@ -206,7 +207,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_relation_check_
     using Sumcheck = sumcheck::SumcheckProver<Flavor>;
 
     auto sumcheck = Sumcheck(key->circuit_size, transcript);
-    auto alpha = transcript.get_challenge("alpha");
+    FF alpha = transcript.get_challenge("alpha");
     sumcheck_output = sumcheck.prove(prover_polynomials, relation_parameters, alpha);
 }
 

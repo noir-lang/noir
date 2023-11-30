@@ -1212,7 +1212,7 @@ class GoblinTranslator {
     class VerifierCommitments : public AllEntities<Commitment> {
       public:
         VerifierCommitments([[maybe_unused]] std::shared_ptr<VerificationKey> verification_key,
-                            [[maybe_unused]] const BaseTranscript<FF>& transcript)
+                            [[maybe_unused]] const BaseTranscript& transcript)
         {
             this->lagrange_first = verification_key->lagrange_first;
             this->lagrange_last = verification_key->lagrange_last;
@@ -1225,7 +1225,7 @@ class GoblinTranslator {
         }
     };
 
-    using Transcript = BaseTranscript<FF>;
+    using Transcript = BaseTranscript;
 };
 } // namespace proof_system::honk::flavor
 

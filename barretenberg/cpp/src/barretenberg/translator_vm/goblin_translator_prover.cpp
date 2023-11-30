@@ -276,7 +276,7 @@ void GoblinTranslatorProver::execute_wire_and_sorted_constraints_commitments_rou
 void GoblinTranslatorProver::execute_grand_product_computation_round()
 {
     // Compute and store parameters required by relations in Sumcheck
-    auto [gamma] = transcript.get_challenges("gamma");
+    FF gamma = transcript.get_challenge("gamma");
     const size_t NUM_LIMB_BITS = Flavor::NUM_LIMB_BITS;
     relation_parameters.beta = 0;
     relation_parameters.gamma = gamma;
@@ -329,7 +329,7 @@ void GoblinTranslatorProver::execute_relation_check_rounds()
 
     auto sumcheck = Sumcheck(key->circuit_size, transcript);
 
-    auto alpha = transcript.get_challenge("alpha");
+    FF alpha = transcript.get_challenge("alpha");
     sumcheck_output = sumcheck.prove(prover_polynomials, relation_parameters, alpha);
 }
 

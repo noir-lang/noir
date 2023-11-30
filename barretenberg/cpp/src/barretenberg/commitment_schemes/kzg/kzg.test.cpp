@@ -39,11 +39,11 @@ TYPED_TEST(KZGTest, single)
     auto opening_pair = OpeningPair<TypeParam>{ challenge, evaluation };
     auto opening_claim = OpeningClaim<TypeParam>{ opening_pair, commitment };
 
-    auto prover_transcript = BaseTranscript<Fr>::prover_init_empty();
+    auto prover_transcript = BaseTranscript::prover_init_empty();
 
     KZG::compute_opening_proof(this->ck(), opening_pair, witness, prover_transcript);
 
-    auto verifier_transcript = BaseTranscript<Fr>::verifier_init_empty(prover_transcript);
+    auto verifier_transcript = BaseTranscript::verifier_init_empty(prover_transcript);
     bool verified = KZG::verify(this->vk(), opening_claim, verifier_transcript);
 
     EXPECT_EQ(verified, true);
@@ -109,7 +109,7 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
     batched_commitment_unshifted = commitment1 * rhos[0] + commitment2 * rhos[1];
     batched_commitment_to_be_shifted = commitment2 * rhos[2];
 
-    auto prover_transcript = BaseTranscript<Fr>::prover_init_empty();
+    auto prover_transcript = BaseTranscript::prover_init_empty();
 
     // Run the full prover PCS protocol:
 
@@ -154,7 +154,7 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
 
     // Run the full verifier PCS protocol with genuine opening claims (genuine commitment, genuine evaluation)
 
-    auto verifier_transcript = BaseTranscript<Fr>::verifier_init_empty(prover_transcript);
+    auto verifier_transcript = BaseTranscript::verifier_init_empty(prover_transcript);
 
     // Gemini verifier output:
     // - claim: d+1 commitments to Fold_{r}^(0), Fold_{-r}^(0), Fold^(l), d+1 evaluations a_0_pos, a_l, l = 0:d-1

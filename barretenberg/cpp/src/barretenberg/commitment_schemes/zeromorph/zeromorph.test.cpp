@@ -77,7 +77,7 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
         }
 
         // Initialize an empty BaseTranscript
-        auto prover_transcript = BaseTranscript<Fr>::prover_init_empty();
+        auto prover_transcript = BaseTranscript::prover_init_empty();
 
         // Execute Prover protocol
         ZeroMorphProver::prove(f_polynomials,
@@ -88,7 +88,7 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
                                this->commitment_key,
                                prover_transcript);
 
-        auto verifier_transcript = BaseTranscript<Fr>::verifier_init_empty(prover_transcript);
+        auto verifier_transcript = BaseTranscript::verifier_init_empty(prover_transcript);
 
         // Execute Verifier protocol
         auto pairing_points = ZeroMorphVerifier::verify(
@@ -223,7 +223,7 @@ template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentT
         }
 
         // Initialize an empty BaseTranscript
-        auto prover_transcript = BaseTranscript<Fr>::prover_init_empty();
+        auto prover_transcript = BaseTranscript::prover_init_empty();
 
         std::vector<std::span<Fr>> concatenated_polynomials_views;
         for (auto& poly : concatenated_polynomials) {
@@ -248,7 +248,7 @@ template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentT
                                c_evaluations,
                                to_vector_of_ref_vectors(concatenation_groups_views));
 
-        auto verifier_transcript = BaseTranscript<Fr>::verifier_init_empty(prover_transcript);
+        auto verifier_transcript = BaseTranscript::verifier_init_empty(prover_transcript);
 
         // Execute Verifier protocol
         auto pairing_points = ZeroMorphVerifier::verify(f_commitments, // unshifted

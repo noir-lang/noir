@@ -19,7 +19,7 @@ MergeVerifier_<Flavor>::MergeVerifier_(std::unique_ptr<VerifierCommitmentKey> ve
  */
 template <typename Flavor> bool MergeVerifier_<Flavor>::verify_proof(const plonk::proof& proof)
 {
-    transcript = BaseTranscript<FF>{ proof.proof_data };
+    transcript = BaseTranscript{ proof.proof_data };
 
     // Receive commitments [t_i^{shift}], [T_{i-1}], and [T_i]
     std::array<Commitment, Flavor::NUM_WIRES> C_T_prev;
@@ -57,7 +57,7 @@ template <typename Flavor> bool MergeVerifier_<Flavor>::verify_proof(const plonk
         identity_checked = identity_checked && (T_current_evals[idx] == T_prev_evals[idx] + t_shift_evals[idx]);
     }
 
-    auto alpha = transcript.get_challenge("alpha");
+    FF alpha = transcript.get_challenge("alpha");
 
     // Constuct batched commitment and evaluation from constituents
     auto batched_commitment = opening_claims[0].commitment;

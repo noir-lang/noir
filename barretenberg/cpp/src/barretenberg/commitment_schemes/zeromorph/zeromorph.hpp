@@ -2,6 +2,8 @@
 #include "barretenberg/common/ref_vector.hpp"
 #include "barretenberg/common/zip_view.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/transcript/transcript.hpp"
+
 namespace proof_system::honk::pcs::zeromorph {
 
 /**
@@ -396,7 +398,7 @@ template <typename Curve> class ZeroMorphProver_ {
         }
 
         // Get challenge y
-        auto y_challenge = transcript.get_challenge("ZM:y");
+        FF y_challenge = transcript.get_challenge("ZM:y");
 
         // Compute the batched, lifted-degree quotient \hat{q}
         auto batched_quotient = compute_batched_lifted_degree_quotient(quotients, y_challenge, N);
@@ -406,7 +408,7 @@ template <typename Curve> class ZeroMorphProver_ {
         transcript.send_to_verifier("ZM:C_q", q_commitment);
 
         // Get challenges x and z
-        auto [x_challenge, z_challenge] = transcript.get_challenges("ZM:x", "ZM:z");
+        auto [x_challenge, z_challenge] = challenges_to_field_elements<FF>(transcript.get_challenges("ZM:x", "ZM:z"));
 
         // Compute degree check polynomial \zeta partially evaluated at x
         auto zeta_x =
@@ -669,13 +671,13 @@ template <typename Curve> class ZeroMorphVerifier_ {
         }
 
         // Challenge y
-        auto y_challenge = transcript.get_challenge("ZM:y");
+        FF y_challenge = transcript.get_challenge("ZM:y");
 
         // Receive commitment C_{q}
         auto C_q = transcript.template receive_from_prover<Commitment>("ZM:C_q");
 
         // Challenges x, z
-        auto [x_challenge, z_challenge] = transcript.get_challenges("ZM:x", "ZM:z");
+        auto [x_challenge, z_challenge] = challenges_to_field_elements<FF>(transcript.get_challenges("ZM:x", "ZM:z"));
 
         // Compute commitment C_{\zeta_x}
         auto C_zeta_x = compute_C_zeta_x(C_q, C_q_k, y_challenge, x_challenge);

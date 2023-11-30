@@ -42,7 +42,7 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
 
     proof_system::RelationParameters<FF> relation_parameters;
 
-    transcript = BaseTranscript<FF>{ proof.proof_data };
+    transcript = BaseTranscript{ proof.proof_data };
 
     auto commitments = VerifierCommitments(key, transcript);
     auto commitment_labels = CommitmentLabels();
@@ -86,7 +86,7 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
     }
 
     // Get challenge for sorted list batching and wire four memory records
-    auto eta = transcript.get_challenge("eta");
+    FF eta = transcript.get_challenge("eta");
     relation_parameters.eta = eta;
 
     // Get commitments to sorted list accumulator and fourth wire
@@ -94,7 +94,7 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
     commitments.w_4 = transcript.template receive_from_prover<Commitment>(commitment_labels.w_4);
 
     // Get permutation challenges
-    auto [beta, gamma] = transcript.get_challenges("beta", "gamma");
+    auto [beta, gamma] = challenges_to_field_elements<FF>(transcript.get_challenges("beta", "gamma"));
 
     // If Goblin (i.e. using DataBus) receive commitments to log-deriv inverses polynomial
     if constexpr (IsGoblinFlavor<Flavor>) {
@@ -117,7 +117,7 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
 
     // Execute Sumcheck Verifier
     auto sumcheck = SumcheckVerifier<Flavor>(circuit_size);
-    auto alpha = transcript.get_challenge("alpha");
+    FF alpha = transcript.get_challenge("alpha");
     auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =
         sumcheck.verify(relation_parameters, alpha, transcript);
 

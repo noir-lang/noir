@@ -50,10 +50,8 @@ class TranscriptManifest {
 /**
  * @brief Common transcript class for both parties. Stores the data for the current round, as well as the
  * manifest.
- *
- * @tparam FF Field from which we sample challenges.
  */
-template <typename FF> class BaseTranscript {
+class BaseTranscript {
   public:
     BaseTranscript() = default;
 
@@ -67,11 +65,13 @@ template <typename FF> class BaseTranscript {
     {}
     static constexpr size_t HASH_OUTPUT_SIZE = 32;
 
+    std::ptrdiff_t proof_start = 0;
+    size_t num_bytes_written = 0; // the number of bytes written to proof_data by the prover or the verifier
+    size_t num_bytes_read = 0;    // the number of bytes read from proof_data by the verifier
+    size_t round_number = 0;      // current round for manifest
+
   private:
     static constexpr size_t MIN_BYTES_PER_CHALLENGE = 128 / 8; // 128 bit challenges
-
-    size_t num_bytes_read = 0;      // keeps track of number of bytes read from proof_data by the verifier
-    size_t round_number = 0;        // current round for manifest
     bool is_first_challenge = true; // indicates if this is the first challenge this transcript is generating
     std::array<uint8_t, HASH_OUTPUT_SIZE> previous_challenge_buffer{}; // default-initialized to zeros
     std::vector<uint8_t> current_round_data;
@@ -141,6 +141,8 @@ template <typename FF> class BaseTranscript {
         manifest.add_entry(round_number, label, element_bytes.size());
 
         current_round_data.insert(current_round_data.end(), element_bytes.begin(), element_bytes.end());
+
+        num_bytes_written += element_bytes.size();
     }
 
     /**
@@ -181,6 +183,25 @@ template <typename FF> class BaseTranscript {
   public:
     // Contains the raw data sent by the prover.
     std::vector<uint8_t> proof_data;
+
+    /**
+     * @brief Return the proof data starting at proof_start
+     * @details This is useful for when two different provers share a transcript.
+     */
+    std::vector<uint8_t> export_proof()
+    {
+        std::vector<uint8_t> result(num_bytes_written);
+        std::copy_n(proof_data.begin() + proof_start, num_bytes_written, result.begin());
+        proof_start += static_cast<std::ptrdiff_t>(num_bytes_written);
+        num_bytes_written = 0;
+        return result;
+    };
+
+    void load_proof(const std::vector<uint8_t>& proof)
+    {
+        std::copy(proof.begin(), proof.end(), std::back_inserter(proof_data));
+    }
+
     /**
      * @brief After all the prover messages have been sent, finalize the round by hashing all the data and then create
      * the number of requested challenges.
@@ -190,9 +211,9 @@ template <typename FF> class BaseTranscript {
      * multiple challenges.
      *
      * @param labels human-readable names for the challenges for the manifest
-     * @return std::array<FF, num_challenges> challenges for this round.
+     * @return std::array<uint256_t, num_challenges> challenges for this round.
      */
-    template <typename... Strings> std::array<FF, sizeof...(Strings)> get_challenges(const Strings&... labels)
+    template <typename... Strings> std::array<uint256_t, sizeof...(Strings)> get_challenges(const Strings&... labels)
     {
         constexpr size_t num_challenges = sizeof...(Strings);
 
@@ -202,19 +223,19 @@ template <typename FF> class BaseTranscript {
         // Compute the new challenge buffer from which we derive the challenges.
 
         // Create challenges from bytes.
-        std::array<FF, num_challenges> challenges{};
+        std::array<uint256_t, num_challenges> challenges{};
 
         // Generate the challenges by iteratively hashing over the previous challenge.
         for (size_t i = 0; i < num_challenges; i++) {
             auto next_challenge_buffer = get_next_challenge_buffer(); // get next challenge buffer
-            std::array<uint8_t, sizeof(FF)> field_element_buffer{};
+            std::array<uint8_t, sizeof(uint256_t)> field_element_buffer{};
             // copy half of the hash to lower 128 bits of challenge
             // Note: because of how read() from buffers to fields works (in field_declarations.hpp),
             // we use the later half of the buffer
             std::copy_n(next_challenge_buffer.begin(),
                         HASH_OUTPUT_SIZE / 2,
                         field_element_buffer.begin() + HASH_OUTPUT_SIZE / 2);
-            challenges[i] = from_buffer<FF>(field_element_buffer);
+            challenges[i] = from_buffer<uint256_t>(field_element_buffer);
         }
 
         // Prepare for next round.
@@ -245,7 +266,7 @@ template <typename FF> class BaseTranscript {
         auto element_bytes = to_buffer(element);
         proof_data.insert(proof_data.end(), element_bytes.begin(), element_bytes.end());
 
-        BaseTranscript<FF>::consume_prover_element_bytes(label, element_bytes);
+        BaseTranscript::consume_prover_element_bytes(label, element_bytes);
     }
 
     /**
@@ -262,7 +283,7 @@ template <typename FF> class BaseTranscript {
         auto element_bytes = std::span{ proof_data }.subspan(num_bytes_read, element_size);
         num_bytes_read += element_size;
 
-        BaseTranscript<FF>::consume_prover_element_bytes(label, element_bytes);
+        BaseTranscript::consume_prover_element_bytes(label, element_bytes);
 
         T element = from_buffer<T>(element_bytes);
 
@@ -275,9 +296,9 @@ template <typename FF> class BaseTranscript {
      *
      * @return BaseTranscript
      */
-    static BaseTranscript<FF> prover_init_empty()
+    static BaseTranscript prover_init_empty()
     {
-        BaseTranscript<FF> transcript;
+        BaseTranscript transcript;
         constexpr uint32_t init{ 42 }; // arbitrary
         transcript.send_to_verifier("Init", init);
         return transcript;
@@ -290,14 +311,14 @@ template <typename FF> class BaseTranscript {
      * @param transcript
      * @return BaseTranscript
      */
-    static BaseTranscript<FF> verifier_init_empty(const BaseTranscript<FF>& transcript)
+    static BaseTranscript verifier_init_empty(const BaseTranscript& transcript)
     {
-        BaseTranscript<FF> verifier_transcript{ transcript.proof_data };
+        BaseTranscript verifier_transcript{ transcript.proof_data };
         [[maybe_unused]] auto _ = verifier_transcript.template receive_from_prover<uint32_t>("Init");
         return verifier_transcript;
     };
 
-    FF get_challenge(const std::string& label) { return get_challenges(label)[0]; }
+    uint256_t get_challenge(const std::string& label) { return get_challenges(label)[0]; }
 
     [[nodiscard]] TranscriptManifest get_manifest() const { return manifest; };
 
@@ -317,4 +338,16 @@ template <typename FF> class BaseTranscript {
      */
     virtual void serialize_full_transcript() { throw_or_abort("Cannot serialize transcript"); }
 };
+
+/**
+ * @brief Convert an array of uint256_t's to an array of field elements
+ * @details The syntax `std::array<FF, 2> [a, b] = transcript.get_challenges("a", "b")` is unfortunately not allowed
+ * (structured bindings must be defined with auto return type), so we need a workaround.
+ */
+template <typename FF, typename T, size_t N> std::array<FF, N> challenges_to_field_elements(std::array<T, N>&& arr)
+{
+    std::array<FF, N> result;
+    std::move(arr.begin(), arr.end(), result.begin());
+    return result;
+}
 } // namespace proof_system::honk

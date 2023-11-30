@@ -356,7 +356,7 @@ class Ultra {
     class VerifierCommitments : public AllEntities<Commitment> {
       public:
         VerifierCommitments(std::shared_ptr<VerificationKey> verification_key,
-                            [[maybe_unused]] const BaseTranscript<FF>& transcript)
+                            [[maybe_unused]] const BaseTranscript& transcript)
         {
             static_cast<void>(transcript);
             q_m = verification_key->q_m;
@@ -397,7 +397,7 @@ class Ultra {
      * @brief Derived class that defines proof structure for Ultra proofs, as well as supporting functions.
      *
      */
-    class Transcript : public BaseTranscript<FF> {
+    class Transcript : public BaseTranscript {
       public:
         // Transcript objects defined as public member variables for easy access and modification
         uint32_t circuit_size;
@@ -421,7 +421,7 @@ class Ultra {
 
         // Used by verifier to initialize the transcript
         Transcript(const std::vector<uint8_t>& proof)
-            : BaseTranscript<FF>(proof)
+            : BaseTranscript(proof)
         {}
 
         static Transcript prover_init_empty()

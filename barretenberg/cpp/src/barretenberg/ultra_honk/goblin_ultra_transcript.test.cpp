@@ -200,10 +200,10 @@ TEST_F(GoblinUltraTranscriptTests, ChallengeGenerationTest)
     constexpr uint32_t random_val{ 17 }; // arbitrary
     transcript.send_to_verifier("random val", random_val);
     // test more challenges
-    auto [a, b, c] = transcript.get_challenges("a", "b", "c");
+    auto [a, b, c] = challenges_to_field_elements<FF>(transcript.get_challenges("a", "b", "c"));
     ASSERT_NE(a, 0) << "Challenge a is 0";
-    ASSERT_NE(b, 0) << "Challenge a is 0";
-    ASSERT_NE(b, 0) << "Challenge a is 0";
+    ASSERT_NE(b, 0) << "Challenge b is 0";
+    ASSERT_NE(c, 0) << "Challenge c is 0";
 }
 
 TEST_F(GoblinUltraTranscriptTests, StructureTest)

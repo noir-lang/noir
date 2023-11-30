@@ -14,7 +14,7 @@ using Builder = UltraCircuitBuilder;
 using UltraFlavor = ::proof_system::honk::flavor::Ultra;
 using UltraRecursiveFlavor = ::proof_system::honk::flavor::UltraRecursive_<Builder>;
 using FF = barretenberg::fr;
-using BaseTranscript = ::proof_system::honk::BaseTranscript<FF>;
+using BaseTranscript = ::proof_system::honk::BaseTranscript;
 
 /**
  * @brief Create some mock data; add it to the provided prover transcript in various mock rounds
@@ -172,7 +172,8 @@ TEST(RecursiveHonkTranscript, ReturnValuesMatch)
     for (size_t i = 0; i < LENGTH; ++i) {
         EXPECT_EQ(native_evaluations[i], stdlib_evaluations[i].get_value());
     }
-    EXPECT_EQ(native_alpha, stdlib_alpha.get_value());
-    EXPECT_EQ(native_beta, stdlib_beta.get_value());
+
+    EXPECT_EQ(static_cast<FF>(native_alpha), stdlib_alpha.get_value());
+    EXPECT_EQ(static_cast<FF>(native_beta), stdlib_beta.get_value());
 }
 } // namespace proof_system::plonk::stdlib::recursion::honk

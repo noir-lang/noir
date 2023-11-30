@@ -74,7 +74,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_wire_commitment
  */
 template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_accumulator_round()
 {
-    auto eta = transcript.get_challenge("eta");
+    FF eta = transcript.get_challenge("eta");
 
     instance->compute_sorted_accumulator_polynomials(eta);
 
@@ -93,7 +93,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_acc
 template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_log_derivative_inverse_round()
 {
     // Compute and store challenges beta and gamma
-    auto [beta, gamma] = transcript.get_challenges("beta", "gamma");
+    auto [beta, gamma] = challenges_to_field_elements<FF>(transcript.get_challenges("beta", "gamma"));
     relation_parameters.beta = beta;
     relation_parameters.gamma = gamma;
 

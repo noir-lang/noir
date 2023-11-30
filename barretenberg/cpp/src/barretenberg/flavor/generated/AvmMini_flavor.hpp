@@ -326,8 +326,7 @@ class AvmMiniFlavor {
         using Base = AllEntities<Commitment>;
 
       public:
-        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key,
-                            const BaseTranscript<FF>& transcript)
+        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key, const BaseTranscript& transcript)
         {
             static_cast<void>(transcript);
             avmMini_clk = verification_key->avmMini_clk;
@@ -335,7 +334,7 @@ class AvmMiniFlavor {
         }
     };
 
-    class Transcript : public BaseTranscript<FF> {
+    class Transcript : public BaseTranscript {
       public:
         uint32_t circuit_size;
 
@@ -369,7 +368,7 @@ class AvmMiniFlavor {
         Transcript() = default;
 
         Transcript(const std::vector<uint8_t>& proof)
-            : BaseTranscript<FF>(proof)
+            : BaseTranscript(proof)
         {}
 
         void deserialize_full_transcript()
@@ -378,34 +377,34 @@ class AvmMiniFlavor {
             circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_bytes_read);
             size_t log_n = numeric::get_msb(circuit_size);
 
-            memTrace_m_clk = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            memTrace_m_sub_clk = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            memTrace_m_addr = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            memTrace_m_val = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            memTrace_m_lastAccess = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            memTrace_m_rw = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_subop = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_ia = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_ib = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_ic = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_mem_op_a = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_mem_op_b = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_mem_op_c = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_rwa = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_rwb = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_rwc = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_mem_idx_a = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_mem_idx_b = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_mem_idx_c = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
-            avmMini_last = deserialize_from_buffer<Commitment>(BaseTranscript<FF>::proof_data, num_bytes_read);
+            memTrace_m_clk = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            memTrace_m_sub_clk = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            memTrace_m_addr = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            memTrace_m_val = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            memTrace_m_lastAccess = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            memTrace_m_rw = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_subop = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_ia = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_ib = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_ic = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_mem_op_a = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_mem_op_b = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_mem_op_c = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_rwa = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_rwb = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_rwc = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_mem_idx_a = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_mem_idx_b = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_mem_idx_c = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
+            avmMini_last = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
 
             for (size_t i = 0; i < log_n; ++i) {
                 sumcheck_univariates.emplace_back(
                     deserialize_from_buffer<barretenberg::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(
-                        BaseTranscript<FF>::proof_data, num_bytes_read));
+                        BaseTranscript::proof_data, num_bytes_read));
             }
-            sumcheck_evaluations = deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(
-                BaseTranscript<FF>::proof_data, num_bytes_read);
+            sumcheck_evaluations =
+                deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(BaseTranscript::proof_data, num_bytes_read);
             for (size_t i = 0; i < log_n; ++i) {
                 zm_cq_comms.push_back(deserialize_from_buffer<Commitment>(proof_data, num_bytes_read));
             }
@@ -416,36 +415,36 @@ class AvmMiniFlavor {
         void serialize_full_transcript()
         {
             size_t old_proof_length = proof_data.size();
-            BaseTranscript<FF>::proof_data.clear();
+            BaseTranscript::proof_data.clear();
             size_t log_n = numeric::get_msb(circuit_size);
 
-            serialize_to_buffer(circuit_size, BaseTranscript<FF>::proof_data);
+            serialize_to_buffer(circuit_size, BaseTranscript::proof_data);
 
-            serialize_to_buffer<Commitment>(memTrace_m_clk, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(memTrace_m_sub_clk, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(memTrace_m_addr, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(memTrace_m_val, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(memTrace_m_lastAccess, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(memTrace_m_rw, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_subop, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_ia, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_ib, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_ic, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_mem_op_a, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_mem_op_b, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_mem_op_c, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_rwa, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_rwb, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_rwc, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_mem_idx_a, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_mem_idx_b, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_mem_idx_c, BaseTranscript<FF>::proof_data);
-            serialize_to_buffer<Commitment>(avmMini_last, BaseTranscript<FF>::proof_data);
+            serialize_to_buffer<Commitment>(memTrace_m_clk, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(memTrace_m_sub_clk, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(memTrace_m_addr, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(memTrace_m_val, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(memTrace_m_lastAccess, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(memTrace_m_rw, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_subop, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_ia, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_ib, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_ic, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_mem_op_a, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_mem_op_b, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_mem_op_c, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_rwa, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_rwb, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_rwc, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_mem_idx_a, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_mem_idx_b, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_mem_idx_c, BaseTranscript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_last, BaseTranscript::proof_data);
 
             for (size_t i = 0; i < log_n; ++i) {
-                serialize_to_buffer(sumcheck_univariates[i], BaseTranscript<FF>::proof_data);
+                serialize_to_buffer(sumcheck_univariates[i], BaseTranscript::proof_data);
             }
-            serialize_to_buffer(sumcheck_evaluations, BaseTranscript<FF>::proof_data);
+            serialize_to_buffer(sumcheck_evaluations, BaseTranscript::proof_data);
             for (size_t i = 0; i < log_n; ++i) {
                 serialize_to_buffer(zm_cq_comms[i], proof_data);
             }

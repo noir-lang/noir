@@ -20,7 +20,7 @@ class GoblinTranslatorVerifier {
     std::map<std::string, Commitment> commitments;
     std::map<std::string, FF> pcs_fr_elements;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
-    BaseTranscript<FF> transcript;
+    BaseTranscript transcript;
     RelationParameters<FF> relation_parameters;
 
     explicit GoblinTranslatorVerifier(std::shared_ptr<VerificationKey> verifier_key = nullptr);

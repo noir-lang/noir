@@ -64,7 +64,7 @@ template <typename Flavor> plonk::proof& MergeProver_<Flavor>::construct_proof()
 
     // Compute evaluations T_i(\kappa), T_{i-1}(\kappa), t_i^{shift}(\kappa), add to transcript. For each polynomial
     // we add a univariate opening claim {p(X), (\kappa, p(\kappa))} to the set of claims to be checked via batched KZG.
-    auto kappa = transcript.get_challenge("kappa");
+    FF kappa = transcript.get_challenge("kappa");
 
     // Add univariate opening claims for each polynomial.
     std::vector<OpeningClaim> opening_claims;
@@ -89,7 +89,7 @@ template <typename Flavor> plonk::proof& MergeProver_<Flavor>::construct_proof()
         opening_claims.emplace_back(OpeningClaim{ polynomial, { kappa, evaluation } });
     }
 
-    auto alpha = transcript.get_challenge("alpha");
+    FF alpha = transcript.get_challenge("alpha");
 
     // Constuct batched polynomial to opened via KZG
     auto batched_polynomial = Polynomial(N);

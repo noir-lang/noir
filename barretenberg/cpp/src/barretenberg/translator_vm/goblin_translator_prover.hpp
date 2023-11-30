@@ -35,7 +35,7 @@ class GoblinTranslatorProver {
     plonk::proof& export_proof();
     plonk::proof& construct_proof();
 
-    BaseTranscript<FF> transcript;
+    BaseTranscript transcript;
 
     proof_system::RelationParameters<FF> relation_parameters;
 

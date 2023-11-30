@@ -435,7 +435,7 @@ class GoblinUltra {
     class VerifierCommitments : public AllEntities<Commitment> {
       public:
         VerifierCommitments(std::shared_ptr<VerificationKey> verification_key,
-                            [[maybe_unused]] const BaseTranscript<FF>& transcript)
+                            [[maybe_unused]] const BaseTranscript& transcript)
         {
             static_cast<void>(transcript);
             q_m = verification_key->q_m;
@@ -479,7 +479,7 @@ class GoblinUltra {
      * @brief Derived class that defines proof structure for GoblinUltra proofs, as well as supporting functions.
      *
      */
-    class Transcript : public BaseTranscript<FF> {
+    class Transcript : public BaseTranscript {
       public:
         uint32_t circuit_size;
         uint32_t public_input_size;
@@ -508,7 +508,7 @@ class GoblinUltra {
         Transcript() = default;
 
         Transcript(const std::vector<uint8_t>& proof)
-            : BaseTranscript<FF>(proof)
+            : BaseTranscript(proof)
         {}
 
         void deserialize_full_transcript() override

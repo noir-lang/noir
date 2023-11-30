@@ -43,7 +43,7 @@ bool AvmMiniVerifier::verify_proof(const plonk::proof& proof)
 
     RelationParameters<FF> relation_parameters;
 
-    transcript = BaseTranscript<FF>{ proof.proof_data };
+    transcript = BaseTranscript{ proof.proof_data };
 
     auto commitments = VerifierCommitments(key, transcript);
     auto commitment_labels = CommitmentLabels();

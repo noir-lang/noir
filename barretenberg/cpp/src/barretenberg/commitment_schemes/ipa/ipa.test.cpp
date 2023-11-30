@@ -70,11 +70,11 @@ TEST_F(IPATest, Open)
     const OpeningClaim<Curve> opening_claim{ opening_pair, commitment };
 
     // initialize empty prover transcript
-    BaseTranscript<Fr> prover_transcript;
+    BaseTranscript prover_transcript;
     IPA::compute_opening_proof(this->ck(), opening_pair, poly, prover_transcript);
 
     // initialize verifier transcript from proof data
-    BaseTranscript<Fr> verifier_transcript{ prover_transcript.proof_data };
+    BaseTranscript verifier_transcript{ prover_transcript.proof_data };
 
     auto result = IPA::verify(this->vk(), opening_claim, verifier_transcript);
     EXPECT_TRUE(result);
@@ -129,7 +129,7 @@ TEST_F(IPATest, GeminiShplonkIPAWithShift)
     batched_commitment_unshifted = commitment1 * rhos[0] + commitment2 * rhos[1];
     batched_commitment_to_be_shifted = commitment2 * rhos[2];
 
-    auto prover_transcript = BaseTranscript<Fr>::prover_init_empty();
+    auto prover_transcript = BaseTranscript::prover_init_empty();
 
     auto gemini_polynomials = GeminiProver::compute_gemini_polynomials(
         mle_opening_point, std::move(batched_unshifted), std::move(batched_to_be_shifted));
@@ -162,7 +162,7 @@ TEST_F(IPATest, GeminiShplonkIPAWithShift)
 
     IPA::compute_opening_proof(this->ck(), shplonk_opening_pair, shplonk_witness, prover_transcript);
 
-    auto verifier_transcript = BaseTranscript<Fr>::verifier_init_empty(prover_transcript);
+    auto verifier_transcript = BaseTranscript::verifier_init_empty(prover_transcript);
 
     auto gemini_verifier_claim = GeminiVerifier::reduce_verification(mle_opening_point,
                                                                      batched_evaluation,

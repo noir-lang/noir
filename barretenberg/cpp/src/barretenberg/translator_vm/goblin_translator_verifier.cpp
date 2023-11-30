@@ -65,7 +65,7 @@ void GoblinTranslatorVerifier::put_translation_data_in_relation_parameters(const
  */
 bool GoblinTranslatorVerifier::verify_proof(const plonk::proof& proof)
 {
-    transcript = BaseTranscript<FF>{ proof.proof_data };
+    transcript = BaseTranscript{ proof.proof_data };
 
     Flavor::VerifierCommitments commitments{ key, transcript };
     Flavor::CommitmentLabels commitment_labels;
@@ -230,7 +230,7 @@ bool GoblinTranslatorVerifier::verify_proof(const plonk::proof& proof)
     commitments.ordered_range_constraints_4 = receive_commitment(commitment_labels.ordered_range_constraints_4);
 
     // Get permutation challenges
-    auto [gamma] = transcript.get_challenges("gamma");
+    FF gamma = transcript.get_challenge("gamma");
 
     relation_parameters.beta = 0;
     relation_parameters.gamma = gamma;
@@ -243,7 +243,7 @@ bool GoblinTranslatorVerifier::verify_proof(const plonk::proof& proof)
     // Execute Sumcheck Verifier
     auto sumcheck = SumcheckVerifier<Flavor>(circuit_size);
 
-    auto alpha = transcript.get_challenge("alpha");
+    FF alpha = transcript.get_challenge("alpha");
     auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =
         sumcheck.verify(relation_parameters, alpha, transcript);
 

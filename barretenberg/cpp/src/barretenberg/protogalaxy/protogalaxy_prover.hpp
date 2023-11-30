@@ -41,7 +41,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     using RelationEvaluations = typename Flavor::TupleOfArraysOfValues;
 
     ProverInstances instances;
-    BaseTranscript<FF> transcript;
+    BaseTranscript transcript;
 
     ProtoGalaxyProver_() = default;
     ProtoGalaxyProver_(ProverInstances insts)

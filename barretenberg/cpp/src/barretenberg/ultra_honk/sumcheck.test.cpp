@@ -169,7 +169,7 @@ TEST_F(SumcheckTestsRealCircuit, Ultra)
     Flavor::Transcript verifier_transcript = Flavor::Transcript::verifier_init_empty(prover_transcript);
 
     auto sumcheck_verifier = SumcheckVerifier<Flavor>(circuit_size);
-    auto alpha = verifier_transcript.get_challenge("alpha");
+    FF alpha = verifier_transcript.get_challenge("alpha");
     auto verifier_output = sumcheck_verifier.verify(instance->relation_parameters, alpha, verifier_transcript);
 
     auto verified = verifier_output.verified.value();
