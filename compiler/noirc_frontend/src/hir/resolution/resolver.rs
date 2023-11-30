@@ -441,6 +441,7 @@ impl<'a> Resolver<'a> {
             MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
             }
+            Parenthesized(typ) => self.resolve_type_inner(*typ, new_variables),
         }
     }
 
@@ -1787,6 +1788,7 @@ impl<'a> Resolver<'a> {
                     self.verify_type_valid_for_program_input(element);
                 }
             }
+            UnresolvedTypeData::Parenthesized(typ) => self.verify_type_valid_for_program_input(typ),
         }
     }
 
