@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches:
-      - master
+      - kw/fix-release-dry-run
 
 jobs:
   release-please:
