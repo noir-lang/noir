@@ -36,6 +36,15 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Test image and push to GitHub Container Registry
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          tags: ${{ steps.prep.outputs.tags }}
+          target: test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Build image and push to GitHub Container Registry
         uses: docker/build-push-action@v5
         with:
