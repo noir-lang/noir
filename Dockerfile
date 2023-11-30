@@ -21,4 +21,4 @@ WORKDIR /usr/src/noir
 COPY . .
 RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD)
 RUN cargo build --features="noirc_driver/aztec" --release
-RUN cargo test RUST_BACKTRACE=1
+RUN cargo test --workspace --locked --release
