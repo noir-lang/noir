@@ -12,4 +12,4 @@ else
   export GIT_COMMIT=$(git rev-parse --verify HEAD)
 fi
 
-RUN cargo test --workspace --locked --release
+cargo test --workspace --locked --release
