@@ -2261,30 +2261,27 @@ impl Context {
                 for i in 0..slice_len {
                     let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
 
-                    let greater_eq_than_idx = self.acir_context.more_than_eq_var(
-                        index_var,
-                        var_index,
-                        64,
-                        self.current_side_effects_enabled_var,
-                    )?;
-
                     let read_var = if (i + popped_elements_size) >= slice_len {
                         index_var
                     } else {
                         self.acir_context
                             .add_constant(FieldElement::from((i + popped_elements_size) as u128))
                     };
-
+                    
+                    let value_index_var = self.acir_context.read_from_memory(block_id, &index_var)?;
                     let value_read_var = self.acir_context.read_from_memory(block_id, &read_var)?;
+
+                    let greater_eq_than_idx = self.acir_context.more_than_eq_var(
+                        index_var,
+                        var_index,
+                        64,
+                        self.current_side_effects_enabled_var,
+                    )?;
+                    let not_pred = self.acir_context.sub_var(one, greater_eq_than_idx)?;
 
                     let true_pred =
                         self.acir_context.mul_var(value_read_var, greater_eq_than_idx)?;
-
-                    let same_value_read_var =
-                        self.acir_context.read_from_memory(block_id, &index_var)?;
-
-                    let not_pred = self.acir_context.sub_var(one, greater_eq_than_idx)?;
-                    let false_pred = self.acir_context.mul_var(not_pred, same_value_read_var)?;
+                    let false_pred = self.acir_context.mul_var(not_pred, value_index_var)?;
 
                     let new_value = self.acir_context.add_var(true_pred, false_pred)?;
 
