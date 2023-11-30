@@ -1,5 +1,5 @@
 mod bn254; // Instantiations of Poseidon for prime field of the same order as BN254
-use crate::field::modulus_num_bits;
+use crate::field_element::modulus_num_bits;
 
 struct PoseidonConfig<M,N> {
     t: Field, // Width, i.e. state size
