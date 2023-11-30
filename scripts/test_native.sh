@@ -12,4 +12,4 @@ else
   export GIT_COMMIT=$(git rev-parse --verify HEAD)
 fi
 
-cargo test --workspace --locked --release
+cargo test --features="noirc_driver/aztec" --workspace --locked --release
