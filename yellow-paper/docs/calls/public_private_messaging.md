@@ -4,7 +4,7 @@ sidebar_position: 5
 
 # Inter-Layer Calls
 
-## Public<>Private messaging
+## Public-Private messaging
 
 :::info Disclaimer
 This is a draft. These requirements need to be considered by the wider team, and might change significantly before a mainnet release.
@@ -26,7 +26,7 @@ The figure below shows the order of function calls on the left-hand side, while 
 
 ![Public - Private Ordering](./images/calls/pvt_pub_ordering.png)
 
-## Private -> Public Messaging
+## Private to Public Messaging
 If a private function in an Aztec smart contract wants to call a public function, it gets pushed into a separate public call stack that is enqueued. The private kernel circuit which must prove the execution of the private function(s), then hashes each of the item in the call stack and returns that. The private kernel proof, the public inputs of the private kernel (which contain the hash of the each of the public call stack item) and other transaction data (like enqueued public function calls, new commitments, nullifiers etc) get passed along to the sequencer. Sequencer then picks up the public call stack item and executes each of the functions. The Public VM which executes the methods then verifies that the hash provided by the private kernel matches the current call stack item.
 
 This way, you can destroy your private state and create them in public within the same transaction or indirectly assert constraints on the execution of the private functions with latest data.
@@ -42,7 +42,7 @@ Specifically, when the call stack is passed to the kernel circuit, the kernel sh
 
 If the private part of the transaction reverts, then public calls are never enqueued. But if the public part of the transaction reverts, it should still revert the entire transaction i.e. the sequencer should drop the execution results of the private part of the transaction and not include those in the state transitioner smart contract. However, since the sequencer had to execute your transaction, appropriate fee will be charged. Reverting in public causing the whole transaction to be dropped enables existing paradigms of ethereum where your valid transaction can revert because of altered state e.g., trade incurring too much slippage.
 
-## Public -> Private Messaging
+## Public to Private Messaging
 Since public functions execute after private functions, it isn't possible for public to call a private function in the same transaction. Nevertheless, it is quite useful for public functions to have a message passing system to private. A public function could add messages to an append only merkle tree to save messages from a public function call, that can later be executed by a private function. Note, only a transaction coming after the one including the message from a public function can consume it. In practice this means that unless you are the sequencer it will not be within the same rollup.
 
 To elaborate, a public function may not have read access to encrypted private state in the note hash tree, but it can write to it. You could create a note in the public domain, compute it's note hash which gets passed to the inputs of the public VM which adds the hash to the note hash tree. The user who wants to redeem the note can add the note preimage to their PXE and then redeem/nullify the note in the private domain at a later time. 
