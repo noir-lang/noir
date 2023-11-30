@@ -2294,32 +2294,33 @@ impl Context {
                     let current_index =
                         self.acir_context.add_constant(FieldElement::from(i as u128));
 
-                    let shifted_index = if (i + popped_elements_size) >= slice_size {
-                        current_index
-                    } else {
-                        self.acir_context
-                            .add_constant(FieldElement::from((i + popped_elements_size) as u128))
-                    };
-
-                    let value_shifted_index =
-                        self.acir_context.read_from_memory(block_id, &shifted_index)?;
                     let value_current_index = new_slice[i].borrow_var()?;
 
-                    let use_shifted_value = self.acir_context.more_than_eq_var(
-                        current_index,
-                        flat_user_index,
-                        64,
-                        self.current_side_effects_enabled_var,
-                    )?;
+                    let new_value = if (i + popped_elements_size) >= slice_size {
+                        value_current_index
+                    } else {
+                        let shifted_index = self.acir_context
+                            .add_constant(FieldElement::from((i + popped_elements_size) as u128));
 
-                    let shifted_value_pred =
-                        self.acir_context.mul_var(value_shifted_index, use_shifted_value)?;
-                    let not_pred = self.acir_context.sub_var(one, use_shifted_value)?;
-                    let current_value_pred =
-                        self.acir_context.mul_var(not_pred, value_current_index)?;
-
-                    let new_value =
-                        self.acir_context.add_var(shifted_value_pred, current_value_pred)?;
+                        let value_shifted_index =
+                            self.acir_context.read_from_memory(block_id, &shifted_index)?;
+    
+                        let use_shifted_value = self.acir_context.more_than_eq_var(
+                            current_index,
+                            flat_user_index,
+                            64,
+                            self.current_side_effects_enabled_var,
+                        )?;
+    
+                        let shifted_value_pred =
+                            self.acir_context.mul_var(value_shifted_index, use_shifted_value)?;
+                        let not_pred = self.acir_context.sub_var(one, use_shifted_value)?;
+                        let current_value_pred =
+                            self.acir_context.mul_var(not_pred, value_current_index)?;
+    
+                        
+                        self.acir_context.add_var(shifted_value_pred, current_value_pred)?
+                    };
 
                     self.acir_context.write_to_memory(
                         result_block_id,
