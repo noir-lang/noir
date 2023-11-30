@@ -246,7 +246,7 @@ template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentT
                                prover_transcript,
                                concatenated_polynomials_views,
                                c_evaluations,
-                               concatenation_groups_views);
+                               to_vector_of_ref_vectors(concatenation_groups_views));
 
         auto verifier_transcript = BaseTranscript<Fr>::verifier_init_empty(prover_transcript);
 
@@ -257,7 +257,7 @@ template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentT
                                                         w_evaluations, // shifted
                                                         u_challenge,
                                                         verifier_transcript,
-                                                        concatenation_groups_commitments,
+                                                        to_vector_of_ref_vectors(concatenation_groups_commitments),
                                                         c_evaluations);
 
         verified = this->vk()->pairing_check(pairing_points[0], pairing_points[1]);

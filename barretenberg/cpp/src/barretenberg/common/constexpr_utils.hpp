@@ -12,8 +12,6 @@
  *
  * constexpr_for : loop over a range , where the size_t iterator `i` is a constexpr variable
  * constexpr_find : find if an element is in an array
- * concatenate_arrays : smoosh multiple std::array objects into a single std::array
- *
  */
 namespace barretenberg {
 
@@ -119,31 +117,6 @@ template <const auto& container, auto key> constexpr bool constexpr_find()
         }
     });
     return found;
-}
-
-/**
- * @brief merges multiple std::arrays into a single array.
- * Array lengths can be different but array type must match
- * Method is constexpr and should concat constexpr arrays at compile time
- *
- * @tparam Type the array type
- * @tparam sizes template parameter pack of size_t value params
- * @param arrays
- * @return constexpr auto
- *
- * @details template params should be autodeducted. Example use case:
- *
- * ```
- *   std::array<int, 2> a{1, 2};
- *   std::array<int, 3> b{1,3, 5};
- *   std::array<int, 5> c = concatenate(a, b);
- * ```
- */
-template <typename Type, std::size_t... sizes>
-constexpr auto concatenate_arrays(const std::array<Type, sizes>&... arrays)
-{
-    return std::apply([](auto... elems) -> std::array<Type, (sizes + ...)> { return { { elems... } }; },
-                      std::tuple_cat(std::tuple_cat(arrays)...));
 }
 
 /**

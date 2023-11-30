@@ -4,7 +4,7 @@
 
 #define ExtendedEdge(Flavor) Flavor::ExtendedEdges
 #define EvaluationEdge(Flavor) Flavor::AllValues
-#define EntityEdge(Flavor) Flavor::AllEntities<Flavor::FF, Flavor::FF>
+#define EntityEdge(Flavor) Flavor::AllEntities<Flavor::FF>
 
 #define ACCUMULATE(...) _ACCUMULATE(__VA_ARGS__)
 #define _ACCUMULATE(Preface, RelationImpl, Flavor, AccumulatorType, EdgeType)                                          \

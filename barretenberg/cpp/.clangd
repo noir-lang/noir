@@ -61,6 +61,10 @@ Diagnostics:
       - google-explicit-constructor
       # Not honouring.
       - cppcoreguidelines-owning-memory
+      # "This check is deprecated since it’s no longer part of the CERT standard. It will be removed in clang-tidy version 19."
+      - cert-dc21-cpp
+      # Noisy. As we don't need to return error types or raw allocations, really unlikely we'd cause problems by ignoring a return type.
+      - modernize-use-nodiscard
 
 --- # this divider is necessary
 # Disable some checks for Google Test/Bench

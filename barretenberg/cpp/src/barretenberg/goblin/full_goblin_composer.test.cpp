@@ -30,14 +30,9 @@ class FullGoblinComposerTests : public ::testing::Test {
     using Point = Curve::AffineElement;
     using CommitmentKey = pcs::CommitmentKey<Curve>;
     using OpQueue = proof_system::ECCOpQueue;
-    using GoblinUltraBuilder = proof_system::GoblinUltraCircuitBuilder;
     using ECCVMFlavor = flavor::ECCVM;
     using ECCVMBuilder = proof_system::ECCVMCircuitBuilder<ECCVMFlavor>;
     using ECCVMComposer = ECCVMComposer_<ECCVMFlavor>;
-    using TranslatorFlavor = flavor::GoblinTranslator;
-    using TranslatorBuilder = proof_system::GoblinTranslatorCircuitBuilder;
-    using TranslatorComposer = GoblinTranslatorComposer;
-    using TranslatorConsistencyData = barretenberg::TranslationEvaluations;
 
     static constexpr size_t NUM_OP_QUEUE_COLUMNS = flavor::GoblinUltra::NUM_WIRES;
 
@@ -46,7 +41,7 @@ class FullGoblinComposerTests : public ::testing::Test {
      *
      * @param builder
      */
-    static void generate_test_circuit(GoblinUltraBuilder& builder)
+    static void generate_test_circuit(proof_system::GoblinUltraCircuitBuilder& builder)
     {
         // Add some arbitrary ecc op gates
         for (size_t i = 0; i < 3; ++i) {
@@ -88,7 +83,7 @@ class FullGoblinComposerTests : public ::testing::Test {
     static void perform_op_queue_interactions_for_mock_first_circuit(
         std::shared_ptr<proof_system::ECCOpQueue>& op_queue)
     {
-        auto builder = GoblinUltraBuilder{ op_queue };
+        proof_system::GoblinUltraCircuitBuilder builder{ op_queue };
 
         // Add a mul accum op and an equality op
         auto point = Point::one() * FF::random_element();
@@ -114,7 +109,8 @@ class FullGoblinComposerTests : public ::testing::Test {
      * @brief Construct and a verify a Honk proof
      *
      */
-    static bool construct_and_verify_honk_proof(GoblinUltraComposer& composer, GoblinUltraBuilder& builder)
+    static bool construct_and_verify_honk_proof(GoblinUltraComposer& composer,
+                                                proof_system::GoblinUltraCircuitBuilder& builder)
     {
         auto instance = composer.create_instance(builder);
         auto prover = composer.create_prover(instance);
@@ -157,12 +153,12 @@ TEST_F(FullGoblinComposerTests, SimpleCircuit)
     // Construct a series of simple Goblin circuits; generate and verify their proofs
     size_t NUM_CIRCUITS = 3;
     for (size_t circuit_idx = 0; circuit_idx < NUM_CIRCUITS; ++circuit_idx) {
-        auto builder = GoblinUltraBuilder{ op_queue };
+        proof_system::GoblinUltraCircuitBuilder builder{ op_queue };
 
         generate_test_circuit(builder);
 
         // The same composer is used to manage Honk and Merge prover/verifier
-        auto composer = GoblinUltraComposer();
+        proof_system::honk::GoblinUltraComposer composer;
 
         // Construct and verify Ultra Goblin Honk proof
         bool honk_verified = construct_and_verify_honk_proof(composer, builder);
@@ -187,11 +183,11 @@ TEST_F(FullGoblinComposerTests, SimpleCircuit)
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/786) Properly derive batching_challenge
     auto batching_challenge = Fbase::random_element();
     auto evaluation_input = eccvm_prover.evaluation_challenge_x;
-    auto translator_builder = TranslatorBuilder(batching_challenge, evaluation_input, op_queue);
-    auto translator_composer = TranslatorComposer();
-    auto translator_prover = translator_composer.create_prover(translator_builder);
-    auto translator_verifier = translator_composer.create_verifier(translator_builder);
-    auto translator_proof = translator_prover.construct_proof();
+    proof_system::GoblinTranslatorCircuitBuilder translator_builder{ batching_challenge, evaluation_input, op_queue };
+    GoblinTranslatorComposer translator_composer;
+    GoblinTranslatorProver translator_prover = translator_composer.create_prover(translator_builder);
+    GoblinTranslatorVerifier translator_verifier = translator_composer.create_verifier(translator_builder);
+    proof_system::plonk::proof translator_proof = translator_prover.construct_proof();
     bool accumulator_construction_verified = translator_verifier.verify_proof(translator_proof);
     bool translation_verified = translator_verifier.verify_translation(eccvm_prover.translation_evaluations);
     EXPECT_TRUE(accumulator_construction_verified && translation_verified);

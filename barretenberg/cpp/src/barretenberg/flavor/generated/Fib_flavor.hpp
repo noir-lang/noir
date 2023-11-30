@@ -8,6 +8,7 @@
 #include "barretenberg/polynomials/univariate.hpp"
 
 #include "barretenberg/flavor/flavor.hpp"
+#include "barretenberg/flavor/flavor_macros.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/relations/generated/Fib.hpp"
@@ -57,15 +58,12 @@ class FibFlavor {
     static constexpr bool has_zero_row = true;
 
   private:
-    template <typename DataType, typename HandleType>
-    class PrecomputedEntities : public PrecomputedEntities_<DataType, HandleType, NUM_PRECOMPUTED_ENTITIES> {
+    template <typename DataType_> class PrecomputedEntities : public PrecomputedEntitiesBase {
       public:
-        DataType Fibonacci_LAST;
-        DataType Fibonacci_FIRST;
+        using DataType = DataType_;
+        DEFINE_FLAVOR_MEMBERS(DataType, Fibonacci_LAST, Fibonacci_FIRST)
 
-        DEFINE_POINTER_VIEW(NUM_PRECOMPUTED_ENTITIES, &Fibonacci_LAST, &Fibonacci_FIRST)
-
-        std::vector<HandleType> get_selectors() override
+        RefVector<DataType> get_selectors()
         {
             return {
                 Fibonacci_LAST,
@@ -73,20 +71,16 @@ class FibFlavor {
             };
         };
 
-        std::vector<HandleType> get_sigma_polynomials() override { return {}; };
-        std::vector<HandleType> get_id_polynomials() override { return {}; };
-        std::vector<HandleType> get_table_polynomials() { return {}; };
+        RefVector<DataType> get_sigma_polynomials() { return {}; };
+        RefVector<DataType> get_id_polynomials() { return {}; };
+        RefVector<DataType> get_table_polynomials() { return {}; };
     };
 
-    template <typename DataType, typename HandleType>
-    class WitnessEntities : public WitnessEntities_<DataType, HandleType, NUM_WITNESS_ENTITIES> {
+    template <typename DataType> class WitnessEntities {
       public:
-        DataType Fibonacci_x;
-        DataType Fibonacci_y;
+        DEFINE_FLAVOR_MEMBERS(DataType, Fibonacci_x, Fibonacci_y)
 
-        DEFINE_POINTER_VIEW(NUM_WITNESS_ENTITIES, &Fibonacci_x, &Fibonacci_y)
-
-        std::vector<HandleType> get_wires() override
+        RefVector<DataType> get_wires()
         {
             return {
                 Fibonacci_x,
@@ -95,30 +89,15 @@ class FibFlavor {
             };
         };
 
-        std::vector<HandleType> get_sorted_polynomials() { return {}; };
+        RefVector<DataType> get_sorted_polynomials() { return {}; };
     };
 
-    template <typename DataType, typename HandleType>
-    class AllEntities : public AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES> {
+    template <typename DataType> class AllEntities {
       public:
-        DataType Fibonacci_LAST;
-        DataType Fibonacci_FIRST;
+        DEFINE_FLAVOR_MEMBERS(
+            DataType, Fibonacci_LAST, Fibonacci_FIRST, Fibonacci_x, Fibonacci_y, Fibonacci_x_shift, Fibonacci_y_shift)
 
-        DataType Fibonacci_x;
-        DataType Fibonacci_y;
-
-        DataType Fibonacci_x_shift;
-        DataType Fibonacci_y_shift;
-
-        DEFINE_POINTER_VIEW(NUM_ALL_ENTITIES,
-                            &Fibonacci_LAST,
-                            &Fibonacci_FIRST,
-                            &Fibonacci_x,
-                            &Fibonacci_y,
-                            &Fibonacci_x_shift,
-                            &Fibonacci_y_shift)
-
-        std::vector<HandleType> get_wires() override
+        RefVector<DataType> get_wires()
         {
             return {
                 Fibonacci_LAST, Fibonacci_FIRST, Fibonacci_x, Fibonacci_y, Fibonacci_x_shift, Fibonacci_y_shift,
@@ -126,7 +105,7 @@ class FibFlavor {
             };
         };
 
-        std::vector<HandleType> get_unshifted() override
+        RefVector<DataType> get_unshifted()
         {
             return {
                 Fibonacci_LAST,
@@ -137,7 +116,7 @@ class FibFlavor {
             };
         };
 
-        std::vector<HandleType> get_to_be_shifted() override
+        RefVector<DataType> get_to_be_shifted()
         {
             return {
                 Fibonacci_x,
@@ -146,7 +125,7 @@ class FibFlavor {
             };
         };
 
-        std::vector<HandleType> get_shifted() override
+        RefVector<DataType> get_shifted()
         {
             return {
                 Fibonacci_x_shift,
@@ -157,31 +136,29 @@ class FibFlavor {
     };
 
   public:
-    class ProvingKey : public ProvingKey_<PrecomputedEntities<Polynomial, PolynomialHandle>,
-                                          WitnessEntities<Polynomial, PolynomialHandle>> {
+    class ProvingKey : public ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>> {
       public:
         // Expose constructors on the base class
-        using Base = ProvingKey_<PrecomputedEntities<Polynomial, PolynomialHandle>,
-                                 WitnessEntities<Polynomial, PolynomialHandle>>;
+        using Base = ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>>;
         using Base::Base;
 
         // The plookup wires that store plookup read data.
         std::array<PolynomialHandle, 0> get_table_column_wires() { return {}; };
     };
 
-    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment, CommitmentHandle>>;
+    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>>;
 
-    using ProverPolynomials = AllEntities<PolynomialHandle, PolynomialHandle>;
+    using ProverPolynomials = AllEntities<PolynomialHandle>;
 
-    using FoldedPolynomials = AllEntities<std::vector<FF>, PolynomialHandle>;
+    using FoldedPolynomials = AllEntities<std::vector<FF>>;
 
-    class AllValues : public AllEntities<FF, FF> {
+    class AllValues : public AllEntities<FF> {
       public:
-        using Base = AllEntities<FF, FF>;
+        using Base = AllEntities<FF>;
         using Base::Base;
     };
 
-    class AllPolynomials : public AllEntities<Polynomial, PolynomialHandle> {
+    class AllPolynomials : public AllEntities<Polynomial> {
       public:
         [[nodiscard]] size_t get_polynomial_size() const { return this->Fibonacci_LAST.size(); }
         [[nodiscard]] AllValues get_row(const size_t row_idx) const
@@ -194,9 +171,9 @@ class FibFlavor {
         }
     };
 
-    using RowPolynomials = AllEntities<FF, FF>;
+    using RowPolynomials = AllEntities<FF>;
 
-    class PartiallyEvaluatedMultivariates : public AllEntities<Polynomial, PolynomialHandle> {
+    class PartiallyEvaluatedMultivariates : public AllEntities<Polynomial> {
       public:
         PartiallyEvaluatedMultivariates() = default;
         PartiallyEvaluatedMultivariates(const size_t circuit_size)
@@ -212,21 +189,20 @@ class FibFlavor {
      * @brief A container for univariates used during Protogalaxy folding and sumcheck.
      * @details During folding and sumcheck, the prover evaluates the relations on these univariates.
      */
-    template <size_t LENGTH>
-    using ProverUnivariates = AllEntities<barretenberg::Univariate<FF, LENGTH>, barretenberg::Univariate<FF, LENGTH>>;
+    template <size_t LENGTH> using ProverUnivariates = AllEntities<barretenberg::Univariate<FF, LENGTH>>;
 
     /**
      * @brief A container for univariates produced during the hot loop in sumcheck.
      */
     using ExtendedEdges = ProverUnivariates<MAX_PARTIAL_RELATION_LENGTH>;
 
-    class CommitmentLabels : public AllEntities<std::string, std::string> {
+    class CommitmentLabels : public AllEntities<std::string> {
       private:
-        using Base = AllEntities<std::string, std::string>;
+        using Base = AllEntities<std::string>;
 
       public:
         CommitmentLabels()
-            : AllEntities<std::string, std::string>()
+            : AllEntities<std::string>()
         {
             Base::Fibonacci_LAST = "Fibonacci_LAST";
             Base::Fibonacci_FIRST = "Fibonacci_FIRST";
@@ -235,9 +211,9 @@ class FibFlavor {
         };
     };
 
-    class VerifierCommitments : public AllEntities<Commitment, CommitmentHandle> {
+    class VerifierCommitments : public AllEntities<Commitment> {
       private:
-        using Base = AllEntities<Commitment, CommitmentHandle>;
+        using Base = AllEntities<Commitment>;
 
       public:
         VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key,
@@ -268,7 +244,7 @@ class FibFlavor {
             : BaseTranscript<FF>(proof)
         {}
 
-        void deserialize_full_transcript() override
+        void deserialize_full_transcript()
         {
             size_t num_bytes_read = 0;
             circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_bytes_read);
@@ -291,7 +267,7 @@ class FibFlavor {
             zm_pi_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
         }
 
-        void serialize_full_transcript() override
+        void serialize_full_transcript()
         {
             size_t old_proof_length = proof_data.size();
             BaseTranscript<FF>::proof_data.clear();

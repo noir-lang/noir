@@ -20,9 +20,9 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
 
     constexpr affine_element(const Fq& a, const Fq& b) noexcept;
 
-    constexpr affine_element(const affine_element& other) noexcept;
+    constexpr affine_element(const affine_element& other) noexcept = default;
 
-    constexpr affine_element(affine_element&& other) noexcept;
+    constexpr affine_element(affine_element&& other) noexcept = default;
 
     static constexpr affine_element one() noexcept { return { Params::one_x, Params::one_y }; };
 
@@ -52,9 +52,9 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
               typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(1), void>>
     static constexpr std::array<affine_element, 2> from_compressed_unsafe(const uint256_t& compressed) noexcept;
 
-    constexpr affine_element& operator=(const affine_element& other) noexcept;
+    constexpr affine_element& operator=(const affine_element& other) noexcept = default;
 
-    constexpr affine_element& operator=(affine_element&& other) noexcept;
+    constexpr affine_element& operator=(affine_element&& other) noexcept = default;
 
     constexpr affine_element operator+(const affine_element& other) const noexcept;
 

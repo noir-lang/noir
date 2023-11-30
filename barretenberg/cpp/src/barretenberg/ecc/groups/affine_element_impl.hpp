@@ -11,18 +11,6 @@ constexpr affine_element<Fq, Fr, T>::affine_element(const Fq& a, const Fq& b) no
 {}
 
 template <class Fq, class Fr, class T>
-constexpr affine_element<Fq, Fr, T>::affine_element(const affine_element& other) noexcept
-    : x(other.x)
-    , y(other.y)
-{}
-
-template <class Fq, class Fr, class T>
-constexpr affine_element<Fq, Fr, T>::affine_element(affine_element&& other) noexcept
-    : x(other.x)
-    , y(other.y)
-{}
-
-template <class Fq, class Fr, class T>
 template <typename BaseField, typename CompileTimeEnabled>
 constexpr affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::from_compressed(const uint256_t& compressed) noexcept
 {
@@ -78,25 +66,6 @@ constexpr affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::operator+(
     const affine_element<Fq, Fr, T>& other) const noexcept
 {
     return affine_element(element<Fq, Fr, T>(*this) + element<Fq, Fr, T>(other));
-}
-
-template <class Fq, class Fr, class T>
-constexpr affine_element<Fq, Fr, T>& affine_element<Fq, Fr, T>::operator=(const affine_element& other) noexcept
-{
-    if (this == &other) {
-        return *this;
-    }
-    x = other.x;
-    y = other.y;
-    return *this;
-}
-
-template <class Fq, class Fr, class T>
-constexpr affine_element<Fq, Fr, T>& affine_element<Fq, Fr, T>::operator=(affine_element&& other) noexcept
-{
-    x = other.x;
-    y = other.y;
-    return *this;
 }
 
 template <class Fq, class Fr, class T>

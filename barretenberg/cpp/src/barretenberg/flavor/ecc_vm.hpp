@@ -2,9 +2,11 @@
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/commitment_schemes/ipa/ipa.hpp"
 #include "barretenberg/commitment_schemes/kzg/kzg.hpp"
+#include "barretenberg/common/std_array.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/flavor/flavor.hpp"
+#include "barretenberg/flavor/flavor_macros.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/relations/ecc_vm/ecc_lookup_relation.hpp"
 #include "barretenberg/relations/ecc_vm/ecc_msm_relation.hpp"
@@ -85,715 +87,238 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
      * @brief A base class labelling precomputed entities and (ordered) subsets of interest.
      * @details Used to build the proving key and verification key.
      */
-    template <typename DataType, typename HandleType>
-    class PrecomputedEntities : public PrecomputedEntities_<DataType, HandleType, NUM_PRECOMPUTED_ENTITIES> {
+    template <typename DataType_> class PrecomputedEntities : public PrecomputedEntitiesBase {
       public:
-        DataType lagrange_first;  // column 0
-        DataType lagrange_second; // column 1
-        DataType lagrange_last;   // column 2
+        using DataType = DataType_;
+        DEFINE_FLAVOR_MEMBERS(DataType,
+                              lagrange_first,  // column 0
+                              lagrange_second, // column 1
+                              lagrange_last);  // column 2
 
-        DEFINE_POINTER_VIEW(NUM_PRECOMPUTED_ENTITIES, &lagrange_first, &lagrange_second, &lagrange_last)
+        DataType get_selectors() { return get_all(); };
+        RefVector<DataType> get_sigma_polynomials() { return {}; };
+        RefVector<DataType> get_id_polynomials() { return {}; };
+        RefVector<DataType> get_table_polynomials() { return {}; };
+    };
 
-        std::vector<HandleType> get_selectors() override { return { lagrange_first, lagrange_second, lagrange_last }; };
-        std::vector<HandleType> get_sigma_polynomials() override { return {}; };
-        std::vector<HandleType> get_id_polynomials() override { return {}; };
-        std::vector<HandleType> get_table_polynomials() { return {}; };
+    /**
+     * @brief Container for all derived witness polynomials used/constructed by the prover.
+     * @details Shifts are not included here since they do not occupy their own memory.
+     */
+    template <typename DataType> struct DerivedWitnessEntities {
+        DEFINE_FLAVOR_MEMBERS(DataType,
+                              z_perm,           // column 0
+                              lookup_inverses); // column 1
     };
 
     /**
      * @brief Container for all witness polynomials used/constructed by the prover.
      * @details Shifts are not included here since they do not occupy their own memory.
      */
-    template <typename DataType, typename HandleType>
-    class WitnessEntities : public WitnessEntities_<DataType, HandleType, NUM_WITNESS_ENTITIES> {
+    template <typename DataType> class WireEntities {
       public:
-        DataType transcript_add;               // column 0
-        DataType transcript_mul;               // column 1
-        DataType transcript_eq;                // column 2
-        DataType transcript_collision_check;   // column 3
-        DataType transcript_msm_transition;    // column 4
-        DataType transcript_pc;                // column 5
-        DataType transcript_msm_count;         // column 6
-        DataType transcript_Px;                // column 7
-        DataType transcript_Py;                // column 8
-        DataType transcript_z1;                // column 9
-        DataType transcript_z2;                // column 10
-        DataType transcript_z1zero;            // column 11
-        DataType transcript_z2zero;            // column 12
-        DataType transcript_op;                // column 13
-        DataType transcript_accumulator_x;     // column 14
-        DataType transcript_accumulator_y;     // column 15
-        DataType transcript_msm_x;             // column 16
-        DataType transcript_msm_y;             // column 17
-        DataType precompute_pc;                // column 18
-        DataType precompute_point_transition;  // column 19
-        DataType precompute_round;             // column 20
-        DataType precompute_scalar_sum;        // column 21
-        DataType precompute_s1hi;              // column 22
-        DataType precompute_s1lo;              // column 23
-        DataType precompute_s2hi;              // column 24
-        DataType precompute_s2lo;              // column 25
-        DataType precompute_s3hi;              // column 26
-        DataType precompute_s3lo;              // column 27
-        DataType precompute_s4hi;              // column 28
-        DataType precompute_s4lo;              // column 29
-        DataType precompute_skew;              // column 30
-        DataType precompute_dx;                // column 31
-        DataType precompute_dy;                // column 32
-        DataType precompute_tx;                // column 33
-        DataType precompute_ty;                // column 34
-        DataType msm_transition;               // column 35
-        DataType msm_add;                      // column 36
-        DataType msm_double;                   // column 37
-        DataType msm_skew;                     // column 38
-        DataType msm_accumulator_x;            // column 39
-        DataType msm_accumulator_y;            // column 40
-        DataType msm_pc;                       // column 41
-        DataType msm_size_of_msm;              // column 42
-        DataType msm_count;                    // column 43
-        DataType msm_round;                    // column 44
-        DataType msm_add1;                     // column 45
-        DataType msm_add2;                     // column 46
-        DataType msm_add3;                     // column 47
-        DataType msm_add4;                     // column 48
-        DataType msm_x1;                       // column 49
-        DataType msm_y1;                       // column 50
-        DataType msm_x2;                       // column 51
-        DataType msm_y2;                       // column 52
-        DataType msm_x3;                       // column 53
-        DataType msm_y3;                       // column 54
-        DataType msm_x4;                       // column 55
-        DataType msm_y4;                       // column 56
-        DataType msm_collision_x1;             // column 57
-        DataType msm_collision_x2;             // column 58
-        DataType msm_collision_x3;             // column 59
-        DataType msm_collision_x4;             // column 60
-        DataType msm_lambda1;                  // column 61
-        DataType msm_lambda2;                  // column 62
-        DataType msm_lambda3;                  // column 63
-        DataType msm_lambda4;                  // column 64
-        DataType msm_slice1;                   // column 65
-        DataType msm_slice2;                   // column 66
-        DataType msm_slice3;                   // column 67
-        DataType msm_slice4;                   // column 68
-        DataType transcript_accumulator_empty; // column 69
-        DataType transcript_reset_accumulator; // column 70
-        DataType precompute_select;            // column 71
-        DataType lookup_read_counts_0;         // column 72
-        DataType lookup_read_counts_1;         // column 73
-        DataType z_perm;                       // column 74
-        DataType lookup_inverses;              // column 75
-
-        DEFINE_POINTER_VIEW(NUM_WITNESS_ENTITIES,
-                            &transcript_add,
-                            &transcript_mul,
-                            &transcript_eq,
-                            &transcript_collision_check,
-                            &transcript_msm_transition,
-                            &transcript_pc,
-                            &transcript_msm_count,
-                            &transcript_Px,
-                            &transcript_Py,
-                            &transcript_z1,
-                            &transcript_z2,
-                            &transcript_z1zero,
-                            &transcript_z2zero,
-                            &transcript_op,
-                            &transcript_accumulator_x,
-                            &transcript_accumulator_y,
-                            &transcript_msm_x,
-                            &transcript_msm_y,
-                            &precompute_pc,
-                            &precompute_point_transition,
-                            &precompute_round,
-                            &precompute_scalar_sum,
-                            &precompute_s1hi,
-                            &precompute_s1lo,
-                            &precompute_s2hi,
-                            &precompute_s2lo,
-                            &precompute_s3hi,
-                            &precompute_s3lo,
-                            &precompute_s4hi,
-                            &precompute_s4lo,
-                            &precompute_skew,
-                            &precompute_dx,
-                            &precompute_dy,
-                            &precompute_tx,
-                            &precompute_ty,
-                            &msm_transition,
-                            &msm_add,
-                            &msm_double,
-                            &msm_skew,
-                            &msm_accumulator_x,
-                            &msm_accumulator_y,
-                            &msm_pc,
-                            &msm_size_of_msm,
-                            &msm_count,
-                            &msm_round,
-                            &msm_add1,
-                            &msm_add2,
-                            &msm_add3,
-                            &msm_add4,
-                            &msm_x1,
-                            &msm_y1,
-                            &msm_x2,
-                            &msm_y2,
-                            &msm_x3,
-                            &msm_y3,
-                            &msm_x4,
-                            &msm_y4,
-                            &msm_collision_x1,
-                            &msm_collision_x2,
-                            &msm_collision_x3,
-                            &msm_collision_x4,
-                            &msm_lambda1,
-                            &msm_lambda2,
-                            &msm_lambda3,
-                            &msm_lambda4,
-                            &msm_slice1,
-                            &msm_slice2,
-                            &msm_slice3,
-                            &msm_slice4,
-                            &transcript_accumulator_empty,
-                            &transcript_reset_accumulator,
-                            &precompute_select,
-                            &lookup_read_counts_0,
-                            &lookup_read_counts_1,
-                            &z_perm,
-                            &lookup_inverses)
-        std::vector<HandleType> get_wires() override
-        {
-            return {
-                transcript_add,
-                transcript_mul,
-                transcript_eq,
-                transcript_collision_check,
-                transcript_msm_transition,
-                transcript_pc,
-                transcript_msm_count,
-                transcript_Px,
-                transcript_Py,
-                transcript_z1,
-                transcript_z2,
-                transcript_z1zero,
-                transcript_z2zero,
-                transcript_op,
-                transcript_accumulator_x,
-                transcript_accumulator_y,
-                transcript_msm_x,
-                transcript_msm_y,
-                precompute_pc,
-                precompute_point_transition,
-                precompute_round,
-                precompute_scalar_sum,
-                precompute_s1hi,
-                precompute_s1lo,
-                precompute_s2hi,
-                precompute_s2lo,
-                precompute_s3hi,
-                precompute_s3lo,
-                precompute_s4hi,
-                precompute_s4lo,
-                precompute_skew,
-                precompute_dx,
-                precompute_dy,
-                precompute_tx,
-                precompute_ty,
-                msm_transition,
-                msm_add,
-                msm_double,
-                msm_skew,
-                msm_accumulator_x,
-                msm_accumulator_y,
-                msm_pc,
-                msm_size_of_msm,
-                msm_count,
-                msm_round,
-                msm_add1,
-                msm_add2,
-                msm_add3,
-                msm_add4,
-                msm_x1,
-                msm_y1,
-                msm_x2,
-                msm_y2,
-                msm_x3,
-                msm_y3,
-                msm_x4,
-                msm_y4,
-                msm_collision_x1,
-                msm_collision_x2,
-                msm_collision_x3,
-                msm_collision_x4,
-                msm_lambda1,
-                msm_lambda2,
-                msm_lambda3,
-                msm_lambda4,
-                msm_slice1,
-                msm_slice2,
-                msm_slice3,
-                msm_slice4,
-                transcript_accumulator_empty,
-                transcript_reset_accumulator,
-                precompute_select,
-                lookup_read_counts_0,
-                lookup_read_counts_1,
-            };
-        };
-        // The sorted concatenations of table and witness data needed for plookup.
-        std::vector<HandleType> get_sorted_polynomials() { return {}; };
+        DEFINE_FLAVOR_MEMBERS(DataType,
+                              transcript_add,               // column 0
+                              transcript_mul,               // column 1
+                              transcript_eq,                // column 2
+                              transcript_collision_check,   // column 3
+                              transcript_msm_transition,    // column 4
+                              transcript_pc,                // column 5
+                              transcript_msm_count,         // column 6
+                              transcript_Px,                // column 7
+                              transcript_Py,                // column 8
+                              transcript_z1,                // column 9
+                              transcript_z2,                // column 10
+                              transcript_z1zero,            // column 11
+                              transcript_z2zero,            // column 12
+                              transcript_op,                // column 13
+                              transcript_accumulator_x,     // column 14
+                              transcript_accumulator_y,     // column 15
+                              transcript_msm_x,             // column 16
+                              transcript_msm_y,             // column 17
+                              precompute_pc,                // column 18
+                              precompute_point_transition,  // column 19
+                              precompute_round,             // column 20
+                              precompute_scalar_sum,        // column 21
+                              precompute_s1hi,              // column 22
+                              precompute_s1lo,              // column 23
+                              precompute_s2hi,              // column 24
+                              precompute_s2lo,              // column 25
+                              precompute_s3hi,              // column 26
+                              precompute_s3lo,              // column 27
+                              precompute_s4hi,              // column 28
+                              precompute_s4lo,              // column 29
+                              precompute_skew,              // column 30
+                              precompute_dx,                // column 31
+                              precompute_dy,                // column 32
+                              precompute_tx,                // column 33
+                              precompute_ty,                // column 34
+                              msm_transition,               // column 35
+                              msm_add,                      // column 36
+                              msm_double,                   // column 37
+                              msm_skew,                     // column 38
+                              msm_accumulator_x,            // column 39
+                              msm_accumulator_y,            // column 40
+                              msm_pc,                       // column 41
+                              msm_size_of_msm,              // column 42
+                              msm_count,                    // column 43
+                              msm_round,                    // column 44
+                              msm_add1,                     // column 45
+                              msm_add2,                     // column 46
+                              msm_add3,                     // column 47
+                              msm_add4,                     // column 48
+                              msm_x1,                       // column 49
+                              msm_y1,                       // column 50
+                              msm_x2,                       // column 51
+                              msm_y2,                       // column 52
+                              msm_x3,                       // column 53
+                              msm_y3,                       // column 54
+                              msm_x4,                       // column 55
+                              msm_y4,                       // column 56
+                              msm_collision_x1,             // column 57
+                              msm_collision_x2,             // column 58
+                              msm_collision_x3,             // column 59
+                              msm_collision_x4,             // column 60
+                              msm_lambda1,                  // column 61
+                              msm_lambda2,                  // column 62
+                              msm_lambda3,                  // column 63
+                              msm_lambda4,                  // column 64
+                              msm_slice1,                   // column 65
+                              msm_slice2,                   // column 66
+                              msm_slice3,                   // column 67
+                              msm_slice4,                   // column 68
+                              transcript_accumulator_empty, // column 69
+                              transcript_reset_accumulator, // column 70
+                              precompute_select,            // column 71
+                              lookup_read_counts_0,         // column 72
+                              lookup_read_counts_1);        // column 73
     };
 
+    /**
+     * @brief Container for all witness polynomials used/constructed by the prover.
+     * @details Shifts are not included here since they do not occupy their own memory.
+     */
+    template <typename DataType>
+    class WitnessEntities : public WireEntities<DataType>, public DerivedWitnessEntities<DataType> {
+      public:
+        DEFINE_COMPOUND_GET_ALL(WireEntities<DataType>::get_all(), DerivedWitnessEntities<DataType>::get_all())
+        DEFINE_COMPOUND_POINTER_VIEW(WireEntities<DataType>::pointer_view(),
+                                     DerivedWitnessEntities<DataType>::pointer_view())
+        RefVector<DataType> get_wires() { return WireEntities<DataType>::get_all(); };
+        // The sorted concatenations of table and witness data needed for plookup.
+        RefVector<DataType> get_sorted_polynomials() { return {}; };
+    };
+
+    /**
+     * @brief Represents polynomials shifted by 1 or their evaluations, defined relative to WitnessEntities.
+     */
+    template <typename DataType> class ShiftedEntities {
+      public:
+        DEFINE_FLAVOR_MEMBERS(DataType,
+                              transcript_mul_shift,               // column 0
+                              transcript_msm_count_shift,         // column 1
+                              transcript_accumulator_x_shift,     // column 2
+                              transcript_accumulator_y_shift,     // column 3
+                              precompute_scalar_sum_shift,        // column 4
+                              precompute_s1hi_shift,              // column 5
+                              precompute_dx_shift,                // column 6
+                              precompute_dy_shift,                // column 7
+                              precompute_tx_shift,                // column 8
+                              precompute_ty_shift,                // column 9
+                              msm_transition_shift,               // column 10
+                              msm_add_shift,                      // column 11
+                              msm_double_shift,                   // column 12
+                              msm_skew_shift,                     // column 13
+                              msm_accumulator_x_shift,            // column 14
+                              msm_accumulator_y_shift,            // column 15
+                              msm_count_shift,                    // column 16
+                              msm_round_shift,                    // column 17
+                              msm_add1_shift,                     // column 18
+                              msm_pc_shift,                       // column 19
+                              precompute_pc_shift,                // column 20
+                              transcript_pc_shift,                // column 21
+                              precompute_round_shift,             // column 22
+                              transcript_accumulator_empty_shift, // column 23
+                              precompute_select_shift,            // column 24
+                              z_perm_shift);                      // column 25
+    };
     /**
      * @brief A base class labelling all entities (for instance, all of the polynomials used by the prover during
      * sumcheck) in this Honk variant along with particular subsets of interest
      * @details Used to build containers for: the prover's polynomial during sumcheck; the sumcheck's folded
      * polynomials; the univariates consturcted during during sumcheck; the evaluations produced by sumcheck.
      *
-     * Symbolically we have: AllEntities = PrecomputedEntities + WitnessEntities + "ShiftedEntities". It could be
-     * implemented as such, but we have this now.
+     * Symbolically we have: AllEntities = PrecomputedEntities + WitnessEntities + ShiftedEntities.
+     * TODO(https://github.com/AztecProtocol/barretenberg/issues/788): Move to normal composition once comfortable
+     * updating usage sites.
      */
-    template <typename DataType, typename HandleType>
-    class AllEntities : public AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES> {
+    template <typename DataType>
+    class AllEntities : public PrecomputedEntities<DataType>,
+                        public WitnessEntities<DataType>,
+                        public ShiftedEntities<DataType> {
       public:
-        DataType lagrange_first;                     // column 0
-        DataType lagrange_second;                    // column 1
-        DataType lagrange_last;                      // column 2
-        DataType transcript_add;                     // column 3
-        DataType transcript_mul;                     // column 4
-        DataType transcript_eq;                      // column 5
-        DataType transcript_collision_check;         // column 6
-        DataType transcript_msm_transition;          // column 7
-        DataType transcript_pc;                      // column 8
-        DataType transcript_msm_count;               // column 9
-        DataType transcript_Px;                      // column 10
-        DataType transcript_Py;                      // column 11
-        DataType transcript_z1;                      // column 12
-        DataType transcript_z2;                      // column 13
-        DataType transcript_z1zero;                  // column 14
-        DataType transcript_z2zero;                  // column 15
-        DataType transcript_op;                      // column 16
-        DataType transcript_accumulator_x;           // column 17
-        DataType transcript_accumulator_y;           // column 18
-        DataType transcript_msm_x;                   // column 19
-        DataType transcript_msm_y;                   // column 20
-        DataType precompute_pc;                      // column 21
-        DataType precompute_point_transition;        // column 22
-        DataType precompute_round;                   // column 23
-        DataType precompute_scalar_sum;              // column 24
-        DataType precompute_s1hi;                    // column 25
-        DataType precompute_s1lo;                    // column 26
-        DataType precompute_s2hi;                    // column 27
-        DataType precompute_s2lo;                    // column 28
-        DataType precompute_s3hi;                    // column 29
-        DataType precompute_s3lo;                    // column 30
-        DataType precompute_s4hi;                    // column 31
-        DataType precompute_s4lo;                    // column 32
-        DataType precompute_skew;                    // column 33
-        DataType precompute_dx;                      // column 34
-        DataType precompute_dy;                      // column 35
-        DataType precompute_tx;                      // column 36
-        DataType precompute_ty;                      // column 37
-        DataType msm_transition;                     // column 38
-        DataType msm_add;                            // column 39
-        DataType msm_double;                         // column 40
-        DataType msm_skew;                           // column 41
-        DataType msm_accumulator_x;                  // column 42
-        DataType msm_accumulator_y;                  // column 43
-        DataType msm_pc;                             // column 44
-        DataType msm_size_of_msm;                    // column 45
-        DataType msm_count;                          // column 46
-        DataType msm_round;                          // column 47
-        DataType msm_add1;                           // column 48
-        DataType msm_add2;                           // column 49
-        DataType msm_add3;                           // column 50
-        DataType msm_add4;                           // column 51
-        DataType msm_x1;                             // column 52
-        DataType msm_y1;                             // column 53
-        DataType msm_x2;                             // column 54
-        DataType msm_y2;                             // column 55
-        DataType msm_x3;                             // column 56
-        DataType msm_y3;                             // column 57
-        DataType msm_x4;                             // column 58
-        DataType msm_y4;                             // column 59
-        DataType msm_collision_x1;                   // column 60
-        DataType msm_collision_x2;                   // column 61
-        DataType msm_collision_x3;                   // column 62
-        DataType msm_collision_x4;                   // column 63
-        DataType msm_lambda1;                        // column 64
-        DataType msm_lambda2;                        // column 65
-        DataType msm_lambda3;                        // column 66
-        DataType msm_lambda4;                        // column 67
-        DataType msm_slice1;                         // column 68
-        DataType msm_slice2;                         // column 69
-        DataType msm_slice3;                         // column 70
-        DataType msm_slice4;                         // column 71
-        DataType transcript_accumulator_empty;       // column 72
-        DataType transcript_reset_accumulator;       // column 73
-        DataType precompute_select;                  // column 74
-        DataType lookup_read_counts_0;               // column 75
-        DataType lookup_read_counts_1;               // column 76
-        DataType z_perm;                             // column 77
-        DataType lookup_inverses;                    // column 78
-        DataType transcript_mul_shift;               // column 79
-        DataType transcript_msm_count_shift;         // column 80
-        DataType transcript_accumulator_x_shift;     // column 81
-        DataType transcript_accumulator_y_shift;     // column 82
-        DataType precompute_scalar_sum_shift;        // column 83
-        DataType precompute_s1hi_shift;              // column 84
-        DataType precompute_dx_shift;                // column 85
-        DataType precompute_dy_shift;                // column 86
-        DataType precompute_tx_shift;                // column 87
-        DataType precompute_ty_shift;                // column 88
-        DataType msm_transition_shift;               // column 89
-        DataType msm_add_shift;                      // column 90
-        DataType msm_double_shift;                   // column 91
-        DataType msm_skew_shift;                     // column 92
-        DataType msm_accumulator_x_shift;            // column 93
-        DataType msm_accumulator_y_shift;            // column 94
-        DataType msm_count_shift;                    // column 95
-        DataType msm_round_shift;                    // column 96
-        DataType msm_add1_shift;                     // column 97
-        DataType msm_pc_shift;                       // column 98
-        DataType precompute_pc_shift;                // column 99
-        DataType transcript_pc_shift;                // column 100
-        DataType precompute_round_shift;             // column 101
-        DataType transcript_accumulator_empty_shift; // column 102
-        DataType precompute_select_shift;            // column 103
-        DataType z_perm_shift;                       // column 104
+        // Initialize members
+        AllEntities()
+            : PrecomputedEntities<DataType>{}
+            , WitnessEntities<DataType>{}
+            , ShiftedEntities<DataType>{}
+        {}
+        // get_wires is inherited
 
-        template <size_t index> [[nodiscard]] const DataType& lookup_read_counts() const
-        {
-            if constexpr (index == 0) {
-                return lookup_read_counts_0;
-            } else {
-                static_assert(index == 1);
-                return lookup_read_counts_1;
-            }
-        }
-
-        // defines a method pointer_view that returns the following, with const and non-const variants
-        DEFINE_POINTER_VIEW(NUM_ALL_ENTITIES,
-                            &lagrange_first,
-                            &lagrange_second,
-                            &lagrange_last,
-                            &transcript_add,
-                            &transcript_mul,
-                            &transcript_eq,
-                            &transcript_collision_check,
-                            &transcript_msm_transition,
-                            &transcript_pc,
-                            &transcript_msm_count,
-                            &transcript_Px,
-                            &transcript_Py,
-                            &transcript_z1,
-                            &transcript_z2,
-                            &transcript_z1zero,
-                            &transcript_z2zero,
-                            &transcript_op,
-                            &transcript_accumulator_x,
-                            &transcript_accumulator_y,
-                            &transcript_msm_x,
-                            &transcript_msm_y,
-                            &precompute_pc,
-                            &precompute_point_transition,
-                            &precompute_round,
-                            &precompute_scalar_sum,
-                            &precompute_s1hi,
-                            &precompute_s1lo,
-                            &precompute_s2hi,
-                            &precompute_s2lo,
-                            &precompute_s3hi,
-                            &precompute_s3lo,
-                            &precompute_s4hi,
-                            &precompute_s4lo,
-                            &precompute_skew,
-                            &precompute_dx,
-                            &precompute_dy,
-                            &precompute_tx,
-                            &precompute_ty,
-                            &msm_transition,
-                            &msm_add,
-                            &msm_double,
-                            &msm_skew,
-                            &msm_accumulator_x,
-                            &msm_accumulator_y,
-                            &msm_pc,
-                            &msm_size_of_msm,
-                            &msm_count,
-                            &msm_round,
-                            &msm_add1,
-                            &msm_add2,
-                            &msm_add3,
-                            &msm_add4,
-                            &msm_x1,
-                            &msm_y1,
-                            &msm_x2,
-                            &msm_y2,
-                            &msm_x3,
-                            &msm_y3,
-                            &msm_x4,
-                            &msm_y4,
-                            &msm_collision_x1,
-                            &msm_collision_x2,
-                            &msm_collision_x3,
-                            &msm_collision_x4,
-                            &msm_lambda1,
-                            &msm_lambda2,
-                            &msm_lambda3,
-                            &msm_lambda4,
-                            &msm_slice1,
-                            &msm_slice2,
-                            &msm_slice3,
-                            &msm_slice4,
-                            &transcript_accumulator_empty,
-                            &transcript_reset_accumulator,
-                            &precompute_select,
-                            &lookup_read_counts_0,
-                            &lookup_read_counts_1,
-                            &z_perm,
-                            &lookup_inverses,
-                            &transcript_mul_shift,
-                            &transcript_msm_count_shift,
-                            &transcript_accumulator_x_shift,
-                            &transcript_accumulator_y_shift,
-                            &precompute_scalar_sum_shift,
-                            &precompute_s1hi_shift,
-                            &precompute_dx_shift,
-                            &precompute_dy_shift,
-                            &precompute_tx_shift,
-                            &precompute_ty_shift,
-                            &msm_transition_shift,
-                            &msm_add_shift,
-                            &msm_double_shift,
-                            &msm_skew_shift,
-                            &msm_accumulator_x_shift,
-                            &msm_accumulator_y_shift,
-                            &msm_count_shift,
-                            &msm_round_shift,
-                            &msm_add1_shift,
-                            &msm_pc_shift,
-                            &precompute_pc_shift,
-                            &transcript_pc_shift,
-                            &precompute_round_shift,
-                            &transcript_accumulator_empty_shift,
-                            &precompute_select_shift,
-                            &z_perm_shift)
-        std::vector<HandleType> get_wires() override
-        {
-            return {
-                transcript_add,
-                transcript_mul,
-                transcript_eq,
-                transcript_collision_check,
-                transcript_msm_transition,
-                transcript_pc,
-                transcript_msm_count,
-                transcript_Px,
-                transcript_Py,
-                transcript_z1,
-                transcript_z2,
-                transcript_z1zero,
-                transcript_z2zero,
-                transcript_op,
-                transcript_accumulator_x,
-                transcript_accumulator_y,
-                transcript_msm_x,
-                transcript_msm_y,
-                precompute_pc,
-                precompute_point_transition,
-                precompute_round,
-                precompute_scalar_sum,
-                precompute_s1hi,
-                precompute_s1lo,
-                precompute_s2hi,
-                precompute_s2lo,
-                precompute_s3hi,
-                precompute_s3lo,
-                precompute_s4hi,
-                precompute_s4lo,
-                precompute_skew,
-                precompute_dx,
-                precompute_dy,
-                precompute_tx,
-                precompute_ty,
-                msm_transition,
-                msm_add,
-                msm_double,
-                msm_skew,
-                msm_accumulator_x,
-                msm_accumulator_y,
-                msm_pc,
-                msm_size_of_msm,
-                msm_count,
-                msm_round,
-                msm_add1,
-                msm_add2,
-                msm_add3,
-                msm_add4,
-                msm_x1,
-                msm_y1,
-                msm_x2,
-                msm_y2,
-                msm_x3,
-                msm_y3,
-                msm_x4,
-                msm_y4,
-                msm_collision_x1,
-                msm_collision_x2,
-                msm_collision_x3,
-                msm_collision_x4,
-                msm_lambda1,
-                msm_lambda2,
-                msm_lambda3,
-                msm_lambda4,
-                msm_slice1,
-                msm_slice2,
-                msm_slice3,
-                msm_slice4,
-                transcript_accumulator_empty,
-                transcript_reset_accumulator,
-                precompute_select,
-                lookup_read_counts_0,
-                lookup_read_counts_1,
-            };
-        };
+        DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>::get_all(),
+                                WitnessEntities<DataType>::get_all(),
+                                ShiftedEntities<DataType>::get_all())
+        DEFINE_COMPOUND_POINTER_VIEW(PrecomputedEntities<DataType>::pointer_view(),
+                                     WitnessEntities<DataType>::pointer_view(),
+                                     ShiftedEntities<DataType>::pointer_view())
         // Gemini-specific getters.
-        std::vector<HandleType> get_unshifted() override
+        RefVector<DataType> get_unshifted()
         {
-            return {
-                lagrange_first,
-                lagrange_second,
-                lagrange_last,
-                transcript_add,
-                transcript_eq,
-                transcript_collision_check,
-                transcript_msm_transition,
-                transcript_Px,
-                transcript_Py,
-                transcript_z1,
-                transcript_z2,
-                transcript_z1zero,
-                transcript_z2zero,
-                transcript_op,
-                transcript_msm_x,
-                transcript_msm_y,
-                precompute_point_transition,
-                precompute_s1hi,
-                precompute_s2hi,
-                precompute_s2lo,
-                precompute_s3hi,
-                precompute_s3lo,
-                precompute_s4hi,
-                precompute_s4lo,
-                precompute_skew,
-                msm_size_of_msm,
-                msm_add2,
-                msm_add3,
-                msm_add4,
-                msm_x1,
-                msm_y1,
-                msm_x2,
-                msm_y2,
-                msm_x3,
-                msm_y3,
-                msm_x4,
-                msm_y4,
-                msm_collision_x1,
-                msm_collision_x2,
-                msm_collision_x3,
-                msm_collision_x4,
-                msm_lambda1,
-                msm_lambda2,
-                msm_lambda3,
-                msm_lambda4,
-                msm_slice1,
-                msm_slice2,
-                msm_slice3,
-                msm_slice4,
-                transcript_reset_accumulator,
-                lookup_read_counts_0,
-                lookup_read_counts_1,
-                lookup_inverses,
-            };
+            return concatenate(PrecomputedEntities<DataType>::get_all(), WitnessEntities<DataType>::get_all());
         };
 
-        std::vector<HandleType> get_to_be_shifted() override
+        RefVector<DataType> get_to_be_shifted()
         {
-            return {
-                transcript_mul,
-                transcript_msm_count,
-                transcript_accumulator_x,
-                transcript_accumulator_y,
-                precompute_scalar_sum,
-                precompute_s1hi,
-                precompute_dx,
-                precompute_dy,
-                precompute_tx,
-                precompute_ty,
-                msm_transition,
-                msm_add,
-                msm_double,
-                msm_skew,
-                msm_accumulator_x,
-                msm_accumulator_y,
-                msm_count,
-                msm_round,
-                msm_add1,
-                msm_pc,
-                precompute_pc,
-                transcript_pc,
-                precompute_round,
-                transcript_accumulator_empty,
-                precompute_select,
-                z_perm,
-            };
-        };
-        std::vector<HandleType> get_shifted() override
-        {
-            return {
-                transcript_mul_shift,
-                transcript_msm_count_shift,
-                transcript_accumulator_x_shift,
-                transcript_accumulator_y_shift,
-                precompute_scalar_sum_shift,
-                precompute_s1hi_shift,
-                precompute_dx_shift,
-                precompute_dy_shift,
-                precompute_tx_shift,
-                precompute_ty_shift,
-                msm_transition_shift,
-                msm_add_shift,
-                msm_double_shift,
-                msm_skew_shift,
-                msm_accumulator_x_shift,
-                msm_accumulator_y_shift,
-                msm_count_shift,
-                msm_round_shift,
-                msm_add1_shift,
-                msm_pc_shift,
-                precompute_pc_shift,
-                transcript_pc_shift,
-                precompute_round_shift,
-                transcript_accumulator_empty_shift,
-                precompute_select_shift,
-                z_perm_shift,
-            };
-        };
+            return { this->transcript_mul,
+                     this->transcript_msm_count,
+                     this->transcript_accumulator_x,
+                     this->transcript_accumulator_y,
+                     this->precompute_scalar_sum,
+                     this->precompute_s1hi,
+                     this->precompute_dx,
+                     this->precompute_dy,
+                     this->precompute_tx,
+                     this->precompute_ty,
+                     this->msm_transition,
+                     this->msm_add,
+                     this->msm_double,
+                     this->msm_skew,
+                     this->msm_accumulator_x,
+                     this->msm_accumulator_y,
+                     this->msm_count,
+                     this->msm_round,
+                     this->msm_add1,
+                     this->msm_pc,
+                     this->precompute_pc,
+                     this->transcript_pc,
+                     this->precompute_round,
+                     this->transcript_accumulator_empty,
+                     this->precompute_select,
+                     this->z_perm };
+        }
+        RefVector<DataType> get_shifted() { return ShiftedEntities<DataType>::get_all(); };
     };
 
   public:
     /**
      * @brief The proving key is responsible for storing the polynomials used by the prover.
-     * @note TODO(Cody): Maybe multiple inheritance is the right thing here. In that case, nothing should eve inherit
-     * from ProvingKey.
+     * @note TODO(Cody): Maybe multiple inheritance is the right thing here. In that case, nothing should eve
+     * inherit from ProvingKey.
      */
-    class ProvingKey : public ProvingKey_<PrecomputedEntities<Polynomial, PolynomialHandle>,
-                                          WitnessEntities<Polynomial, PolynomialHandle>> {
+    class ProvingKey : public ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>> {
       public:
         // Expose constructors on the base class
-        using Base = ProvingKey_<PrecomputedEntities<Polynomial, PolynomialHandle>,
-                                 WitnessEntities<Polynomial, PolynomialHandle>>;
+        using Base = ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>>;
         using Base::Base;
 
         // The plookup wires that store plookup read data.
@@ -804,25 +329,25 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
      * @brief The verification key is responsible for storing the the commitments to the precomputed (non-witnessk)
      * polynomials used by the verifier.
      *
-     * @note Note the discrepancy with what sort of data is stored here vs in the proving key. We may want to resolve
-     * that, and split out separate PrecomputedPolynomials/Commitments data for clarity but also for portability of our
-     * circuits.
+     * @note Note the discrepancy with what sort of data is stored here vs in the proving key. We may want to
+     * resolve that, and split out separate PrecomputedPolynomials/Commitments data for clarity but also for
+     * portability of our circuits.
      */
-    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment, CommitmentHandle>>;
+    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>>;
 
     /**
      * @brief A container for polynomials produced after the first round of sumcheck.
      * @todo TODO(#394) Use polynomial classes for guaranteed memory alignment.
      */
-    using FoldedPolynomials = AllEntities<std::vector<FF>, PolynomialHandle>;
+    using FoldedPolynomials = AllEntities<std::vector<FF>>;
 
     /**
-     * @brief A field element for each entity of the flavor.  These entities represent the prover polynomials evaluated
-     * at one point.
+     * @brief A field element for each entity of the flavor.  These entities represent the prover polynomials
+     * evaluated at one point.
      */
-    class AllValues : public AllEntities<FF, FF> {
+    class AllValues : public AllEntities<FF> {
       public:
-        using Base = AllEntities<FF, FF>;
+        using Base = AllEntities<FF>;
         using Base::Base;
         AllValues(std::array<FF, NUM_ALL_ENTITIES> _data_in) { this->_data = _data_in; }
     };
@@ -830,15 +355,15 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     /**
      * @brief An owning container of polynomials.
      * @warning When this was introduced it broke some of our design principles.
-     *   - Execution trace builders don't handle "polynomials" because the interpretation of the execution trace columns
-     *     as polynomials is a detail of the proving system, and trace builders are (sometimes in practice, always in
-     *     principle) reusable for different proving protocols (e.g., Plonk and Honk).
+     *   - Execution trace builders don't handle "polynomials" because the interpretation of the execution trace
+     * columns as polynomials is a detail of the proving system, and trace builders are (sometimes in practice,
+     * always in principle) reusable for different proving protocols (e.g., Plonk and Honk).
      *   - Polynomial storage is handled by key classes. Polynomials aren't moved, but are accessed elsewhere by
      * std::spans.
      *
      *  We will consider revising this data model: TODO(https://github.com/AztecProtocol/barretenberg/issues/743)
      */
-    class AllPolynomials : public AllEntities<Polynomial, PolynomialHandle> {
+    class AllPolynomials : public AllEntities<Polynomial> {
       public:
         [[nodiscard]] size_t get_polynomial_size() const { return this->lagrange_first.size(); }
         AllValues get_row(const size_t row_idx) const
@@ -854,12 +379,12 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
      * @brief A container for polynomials produced after the first round of sumcheck.
      * @todo TODO(#394) Use polynomial classes for guaranteed memory alignment.
      */
-    using RowPolynomials = AllEntities<FF, FF>;
+    using RowPolynomials = AllEntities<FF>;
 
     /**
      * @brief A container for storing the partially evaluated multivariates produced by sumcheck.
      */
-    class PartiallyEvaluatedMultivariates : public AllEntities<Polynomial, PolynomialHandle> {
+    class PartiallyEvaluatedMultivariates : public AllEntities<Polynomial> {
 
       public:
         PartiallyEvaluatedMultivariates() = default;
@@ -875,8 +400,7 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     /**
      * @brief A container for univariates used during sumcheck.
      */
-    template <size_t LENGTH>
-    using ProverUnivariates = AllEntities<barretenberg::Univariate<FF, LENGTH>, barretenberg::Univariate<FF, LENGTH>>;
+    template <size_t LENGTH> using ProverUnivariates = AllEntities<barretenberg::Univariate<FF, LENGTH>>;
 
     /**
      * @brief A container for univariates produced during the hot loop in sumcheck.
@@ -886,7 +410,7 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     /**
      * @brief A container for the prover polynomials handles; only stores spans.
      */
-    class ProverPolynomials : public AllEntities<PolynomialHandle, PolynomialHandle> {
+    class ProverPolynomials : public AllEntities<PolynomialHandle> {
       public:
         /**
          * @brief Returns the evaluations of all prover polynomials at one point on the boolean hypercube, which
@@ -904,17 +428,17 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
 
     /**
      * @brief A container for commitment labels.
-     * @note It's debatable whether this should inherit from AllEntities. since most entries are not strictly needed. It
-     * has, however, been useful during debugging to have these labels available.
+     * @note It's debatable whether this should inherit from AllEntities. since most entries are not strictly
+     * needed. It has, however, been useful during debugging to have these labels available.
      *
      */
-    class CommitmentLabels : public AllEntities<std::string, std::string> {
+    class CommitmentLabels : public AllEntities<std::string> {
       private:
-        using Base = AllEntities<std::string, std::string>;
+        using Base = AllEntities<std::string>;
 
       public:
         CommitmentLabels()
-            : AllEntities<std::string, std::string>()
+            : AllEntities<std::string>()
         {
             Base::transcript_add = "TRANSCRIPT_ADD";
             Base::transcript_mul = "TRANSCRIPT_MUL";
@@ -999,9 +523,9 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
         };
     };
 
-    class VerifierCommitments : public AllEntities<Commitment, CommitmentHandle> {
+    class VerifierCommitments : public AllEntities<Commitment> {
       private:
-        using Base = AllEntities<Commitment, CommitmentHandle>;
+        using Base = AllEntities<Commitment>;
 
       public:
         VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key,
@@ -1115,7 +639,7 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
             : BaseTranscript<FF>(proof)
         {}
 
-        void deserialize_full_transcript() override
+        void deserialize_full_transcript()
         {
             // take current proof and put them into the struct
             size_t num_bytes_read = 0;
@@ -1312,7 +836,7 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
             }
         }
 
-        void serialize_full_transcript() override
+        void serialize_full_transcript()
         {
             size_t old_proof_length = BaseTranscript<FF>::proof_data.size();
             BaseTranscript<FF>::proof_data.clear();

@@ -24,7 +24,7 @@ template <typename Flavor, typename Relation> void execute_relation(::benchmark:
     auto params = proof_system::RelationParameters<FF>::get_random();
 
     // Extract an array containing all the polynomial evaluations at a given row i
-    AllValues new_value;
+    AllValues new_value{};
     // Define the appropriate SumcheckArrayOfValuesOverSubrelations type for this relation and initialize to zero
     SumcheckArrayOfValuesOverSubrelations accumulator;
     // Evaluate each constraint in the relation and check that each is satisfied

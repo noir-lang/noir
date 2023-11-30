@@ -25,8 +25,8 @@ using InputElements = typename Flavor::AllValues;
 InputElements get_random_input()
 {
     InputElements result;
-    for (FF* element : result.pointer_view()) {
-        *element = FF::random_element();
+    for (FF& element : result.get_all()) {
+        element = FF::random_element();
     }
     return result;
 }
@@ -35,9 +35,9 @@ InputElements get_special_input() // use non-random values
 {
     InputElements result;
     FF idx = 0;
-    for (FF* element : result.pointer_view()) {
+    for (FF& element : result.get_all()) {
         idx += FF(1);
-        *element = idx;
+        element = idx;
     }
     return result;
 }

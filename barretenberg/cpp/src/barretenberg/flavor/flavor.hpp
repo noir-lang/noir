@@ -64,6 +64,7 @@
  */
 
 #pragma once
+#include "barretenberg/common/std_array.hpp"
 #include "barretenberg/common/zip_view.hpp"
 #include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
@@ -75,63 +76,16 @@
 
 namespace proof_system::honk::flavor {
 
-#define DEFINE_POINTER_VIEW(ExpectedSize, ...)                                                                         \
-    [[nodiscard]] auto pointer_view()                                                                                  \
-    {                                                                                                                  \
-        std::array view{ __VA_ARGS__ };                                                                                \
-        static_assert(view.size() == ExpectedSize,                                                                     \
-                      "Expected array size to match given size (first parameter) in DEFINE_POINTER_VIEW");             \
-        return view;                                                                                                   \
-    }                                                                                                                  \
-    [[nodiscard]] auto pointer_view() const                                                                            \
-    {                                                                                                                  \
-        std::array view{ __VA_ARGS__ };                                                                                \
-        static_assert(view.size() == ExpectedSize,                                                                     \
-                      "Expected array size to match given size (first parameter) in DEFINE_POINTER_VIEW");             \
-        return view;                                                                                                   \
-    }
-
-/**
- * @brief Base data class template, a wrapper for std::array, from which every flavor class ultimately derives.
- *
- * @tparam T The underlying data type stored in the array
- * @tparam HandleType The type that will be used to
- * @tparam NUM_ENTITIES The size of the underlying array.
- */
-template <typename DataType, typename HandleType, size_t NUM_ENTITIES> class Entities_ {
-  public:
-    virtual ~Entities_() = default;
-
-    constexpr size_t size() { return NUM_ENTITIES; };
-};
-
 /**
  * @brief Base class template containing circuit-specifying data.
  *
  */
-template <typename DataType_, typename HandleType, size_t NUM_PRECOMPUTED_ENTITIES>
-class PrecomputedEntities_ : public Entities_<DataType_, HandleType, NUM_PRECOMPUTED_ENTITIES> {
+class PrecomputedEntitiesBase {
   public:
-    using DataType = DataType_;
-
     size_t circuit_size;
     size_t log_circuit_size;
     size_t num_public_inputs;
     CircuitType circuit_type; // TODO(#392)
-
-    virtual std::vector<HandleType> get_selectors() = 0;
-    virtual std::vector<HandleType> get_sigma_polynomials() = 0;
-    virtual std::vector<HandleType> get_id_polynomials() = 0;
-};
-
-/**
- * @brief Base class template containing witness (wires and derived witnesses).
- * @details Shifts are not included here since they do not occupy their own memory.
- */
-template <typename DataType, typename HandleType, size_t NUM_WITNESS_ENTITIES>
-class WitnessEntities_ : public Entities_<DataType, HandleType, NUM_WITNESS_ENTITIES> {
-  public:
-    virtual std::vector<HandleType> get_wires() = 0;
 };
 
 /**
@@ -186,27 +140,10 @@ template <typename PrecomputedCommitments> class VerificationKey_ : public Preco
     };
 };
 
-/**
- * @brief Base class containing all entities (or handles on these) in one place.
- *
- * @tparam PrecomputedEntities An instance of PrecomputedEntities_ with affine_element data type and handle type.
- */
-template <typename DataType, typename HandleType, size_t NUM_ALL_ENTITIES>
-class AllEntities_ : public Entities_<DataType, DataType, NUM_ALL_ENTITIES> {
-  public:
-    virtual std::vector<HandleType> get_wires() = 0;
-    virtual std::vector<HandleType> get_unshifted() = 0;
-    virtual std::vector<HandleType> get_to_be_shifted() = 0;
-    virtual std::vector<HandleType> get_shifted() = 0;
-
-    // Because of how Gemini is written, is importat to put the polynomials out in this order.
-    std::vector<HandleType> get_unshifted_then_shifted()
-    {
-        std::vector<HandleType> result{ get_unshifted() };
-        std::vector<HandleType> shifted{ get_shifted() };
-        result.insert(result.end(), shifted.begin(), shifted.end());
-        return result;
-    };
+// Because of how Gemini is written, is importat to put the polynomials out in this order.
+auto get_unshifted_then_shifted(const auto& all_entities)
+{
+    return concatenate(all_entities.get_unshifted(), all_entities.get_shifted());
 };
 
 /**

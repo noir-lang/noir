@@ -2,6 +2,7 @@
 #include "barretenberg/commitment_schemes/kzg/kzg.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/flavor/flavor.hpp"
+#include "barretenberg/flavor/flavor_macros.hpp"
 #include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
@@ -75,113 +76,74 @@ class Ultra {
     static constexpr bool has_zero_row = true;
 
   private:
-    template <typename DataType, typename HandleType>
     /**
      * @brief A base class labelling precomputed entities and (ordered) subsets of interest.
      * @details Used to build the proving key and verification key.
      */
-    class PrecomputedEntities : public PrecomputedEntities_<DataType, HandleType, NUM_PRECOMPUTED_ENTITIES> {
+    template <typename DataType_> class PrecomputedEntities : public PrecomputedEntitiesBase {
       public:
-        DataType q_m;            // column 0
-        DataType q_c;            // column 1
-        DataType q_l;            // column 2
-        DataType q_r;            // column 3
-        DataType q_o;            // column 4
-        DataType q_4;            // column 5
-        DataType q_arith;        // column 6
-        DataType q_sort;         // column 7
-        DataType q_elliptic;     // column 8
-        DataType q_aux;          // column 9
-        DataType q_lookup;       // column 10
-        DataType sigma_1;        // column 11
-        DataType sigma_2;        // column 12
-        DataType sigma_3;        // column 13
-        DataType sigma_4;        // column 14
-        DataType id_1;           // column 15
-        DataType id_2;           // column 16
-        DataType id_3;           // column 17
-        DataType id_4;           // column 18
-        DataType table_1;        // column 19
-        DataType table_2;        // column 20
-        DataType table_3;        // column 21
-        DataType table_4;        // column 22
-        DataType lagrange_first; // column 23
-        DataType lagrange_last;  // column 24
-
-        DEFINE_POINTER_VIEW(NUM_PRECOMPUTED_ENTITIES,
-                            &q_m,
-                            &q_c,
-                            &q_l,
-                            &q_r,
-                            &q_o,
-                            &q_4,
-                            &q_arith,
-                            &q_sort,
-                            &q_elliptic,
-                            &q_aux,
-                            &q_lookup,
-                            &sigma_1,
-                            &sigma_2,
-                            &sigma_3,
-                            &sigma_4,
-                            &id_1,
-                            &id_2,
-                            &id_3,
-                            &id_4,
-                            &table_1,
-                            &table_2,
-                            &table_3,
-                            &table_4,
-                            &lagrange_first,
-                            &lagrange_last)
+        using DataType = DataType_;
+        DEFINE_FLAVOR_MEMBERS(DataType,
+                              q_m,            // column 0
+                              q_c,            // column 1
+                              q_l,            // column 2
+                              q_r,            // column 3
+                              q_o,            // column 4
+                              q_4,            // column 5
+                              q_arith,        // column 6
+                              q_sort,         // column 7
+                              q_elliptic,     // column 8
+                              q_aux,          // column 9
+                              q_lookup,       // column 10
+                              sigma_1,        // column 11
+                              sigma_2,        // column 12
+                              sigma_3,        // column 13
+                              sigma_4,        // column 14
+                              id_1,           // column 15
+                              id_2,           // column 16
+                              id_3,           // column 17
+                              id_4,           // column 18
+                              table_1,        // column 19
+                              table_2,        // column 20
+                              table_3,        // column 21
+                              table_4,        // column 22
+                              lagrange_first, // column 23
+                              lagrange_last)  // column 24
 
         static constexpr CircuitType CIRCUIT_TYPE = CircuitBuilder::CIRCUIT_TYPE;
 
-        std::vector<HandleType> get_selectors() override
+        RefVector<DataType> get_selectors()
         {
             return { q_m, q_c, q_l, q_r, q_o, q_4, q_arith, q_sort, q_elliptic, q_aux, q_lookup };
         };
-        std::vector<HandleType> get_sigma_polynomials() override { return { sigma_1, sigma_2, sigma_3, sigma_4 }; };
-        std::vector<HandleType> get_id_polynomials() override { return { id_1, id_2, id_3, id_4 }; };
+        RefVector<DataType> get_sigma_polynomials() { return { sigma_1, sigma_2, sigma_3, sigma_4 }; };
+        RefVector<DataType> get_id_polynomials() { return { id_1, id_2, id_3, id_4 }; };
 
-        std::vector<HandleType> get_table_polynomials() { return { table_1, table_2, table_3, table_4 }; };
+        RefVector<DataType> get_table_polynomials() { return { table_1, table_2, table_3, table_4 }; };
     };
 
     /**
      * @brief Container for all witness polynomials used/constructed by the prover.
      * @details Shifts are not included here since they do not occupy their own memory.
      */
-    template <typename DataType, typename HandleType>
-    class WitnessEntities : public WitnessEntities_<DataType, HandleType, NUM_WITNESS_ENTITIES> {
+    template <typename DataType> class WitnessEntities {
       public:
-        DataType w_l;          // column 0
-        DataType w_r;          // column 1
-        DataType w_o;          // column 2
-        DataType w_4;          // column 3
-        DataType sorted_1;     // column 4
-        DataType sorted_2;     // column 5
-        DataType sorted_3;     // column 6
-        DataType sorted_4;     // column 7
-        DataType sorted_accum; // column 8
-        DataType z_perm;       // column 9
-        DataType z_lookup;     // column 10
+        DEFINE_FLAVOR_MEMBERS(DataType,
+                              w_l,          // column 0
+                              w_r,          // column 1
+                              w_o,          // column 2
+                              w_4,          // column 3
+                              sorted_1,     // column 4
+                              sorted_2,     // column 5
+                              sorted_3,     // column 6
+                              sorted_4,     // column 7
+                              sorted_accum, // column 8
+                              z_perm,       // column 9
+                              z_lookup)     // column 10
 
-        DEFINE_POINTER_VIEW(NUM_WITNESS_ENTITIES,
-                            &w_l,
-                            &w_r,
-                            &w_o,
-                            &w_4,
-                            &sorted_1,
-                            &sorted_2,
-                            &sorted_3,
-                            &sorted_4,
-                            &sorted_accum,
-                            &z_perm,
-                            &z_lookup)
-
-        std::vector<HandleType> get_wires() override { return { w_l, w_r, w_o, w_4 }; };
+        RefVector<DataType> get_wires() { return { w_l, w_r, w_o, w_4 }; };
         // The sorted concatenations of table and witness data needed for plookup.
-        std::vector<HandleType> get_sorted_polynomials() { return { sorted_1, sorted_2, sorted_3, sorted_4 }; };
+        RefVector<DataType> get_sorted_polynomials() { return { sorted_1, sorted_2, sorted_3, sorted_4 }; };
     };
 
     /**
@@ -193,101 +155,56 @@ class Ultra {
      * Symbolically we have: AllEntities = PrecomputedEntities + WitnessEntities + "ShiftedEntities". It could be
      * implemented as such, but we have this now.
      */
-    template <typename DataType, typename HandleType>
-    class AllEntities : public AllEntities_<DataType, HandleType, NUM_ALL_ENTITIES> {
+    template <typename DataType> class AllEntities {
       public:
-        DataType q_c;                // column 0
-        DataType q_l;                // column 1
-        DataType q_r;                // column 2
-        DataType q_o;                // column 3
-        DataType q_4;                // column 4
-        DataType q_m;                // column 5
-        DataType q_arith;            // column 6
-        DataType q_sort;             // column 7
-        DataType q_elliptic;         // column 8
-        DataType q_aux;              // column 9
-        DataType q_lookup;           // column 10
-        DataType sigma_1;            // column 11
-        DataType sigma_2;            // column 12
-        DataType sigma_3;            // column 13
-        DataType sigma_4;            // column 14
-        DataType id_1;               // column 15
-        DataType id_2;               // column 16
-        DataType id_3;               // column 17
-        DataType id_4;               // column 18
-        DataType table_1;            // column 19
-        DataType table_2;            // column 20
-        DataType table_3;            // column 21
-        DataType table_4;            // column 22
-        DataType lagrange_first;     // column 23
-        DataType lagrange_last;      // column 24
-        DataType w_l;                // column 25
-        DataType w_r;                // column 26
-        DataType w_o;                // column 27
-        DataType w_4;                // column 28
-        DataType sorted_accum;       // column 29
-        DataType z_perm;             // column 30
-        DataType z_lookup;           // column 31
-        DataType table_1_shift;      // column 32
-        DataType table_2_shift;      // column 33
-        DataType table_3_shift;      // column 34
-        DataType table_4_shift;      // column 35
-        DataType w_l_shift;          // column 36
-        DataType w_r_shift;          // column 37
-        DataType w_o_shift;          // column 38
-        DataType w_4_shift;          // column 39
-        DataType sorted_accum_shift; // column 40
-        DataType z_perm_shift;       // column 41
-        DataType z_lookup_shift;     // column 42
+        DEFINE_FLAVOR_MEMBERS(DataType,
+                              q_c,                // column 0
+                              q_l,                // column 1
+                              q_r,                // column 2
+                              q_o,                // column 3
+                              q_4,                // column 4
+                              q_m,                // column 5
+                              q_arith,            // column 6
+                              q_sort,             // column 7
+                              q_elliptic,         // column 8
+                              q_aux,              // column 9
+                              q_lookup,           // column 10
+                              sigma_1,            // column 11
+                              sigma_2,            // column 12
+                              sigma_3,            // column 13
+                              sigma_4,            // column 14
+                              id_1,               // column 15
+                              id_2,               // column 16
+                              id_3,               // column 17
+                              id_4,               // column 18
+                              table_1,            // column 19
+                              table_2,            // column 20
+                              table_3,            // column 21
+                              table_4,            // column 22
+                              lagrange_first,     // column 23
+                              lagrange_last,      // column 24
+                              w_l,                // column 25
+                              w_r,                // column 26
+                              w_o,                // column 27
+                              w_4,                // column 28
+                              sorted_accum,       // column 29
+                              z_perm,             // column 30
+                              z_lookup,           // column 31
+                              table_1_shift,      // column 32
+                              table_2_shift,      // column 33
+                              table_3_shift,      // column 34
+                              table_4_shift,      // column 35
+                              w_l_shift,          // column 36
+                              w_r_shift,          // column 37
+                              w_o_shift,          // column 38
+                              w_4_shift,          // column 39
+                              sorted_accum_shift, // column 40
+                              z_perm_shift,       // column 41
+                              z_lookup_shift)     // column 42
 
-        // defines a method pointer_view that returns the following, with const and non-const variants
-        DEFINE_POINTER_VIEW(NUM_ALL_ENTITIES,
-                            &q_c,
-                            &q_l,
-                            &q_r,
-                            &q_o,
-                            &q_4,
-                            &q_m,
-                            &q_arith,
-                            &q_sort,
-                            &q_elliptic,
-                            &q_aux,
-                            &q_lookup,
-                            &sigma_1,
-                            &sigma_2,
-                            &sigma_3,
-                            &sigma_4,
-                            &id_1,
-                            &id_2,
-                            &id_3,
-                            &id_4,
-                            &table_1,
-                            &table_2,
-                            &table_3,
-                            &table_4,
-                            &lagrange_first,
-                            &lagrange_last,
-                            &w_l,
-                            &w_r,
-                            &w_o,
-                            &w_4,
-                            &sorted_accum,
-                            &z_perm,
-                            &z_lookup,
-                            &table_1_shift,
-                            &table_2_shift,
-                            &table_3_shift,
-                            &table_4_shift,
-                            &w_l_shift,
-                            &w_r_shift,
-                            &w_o_shift,
-                            &w_4_shift,
-                            &sorted_accum_shift,
-                            &z_perm_shift,
-                            &z_lookup_shift);
-        std::vector<HandleType> get_wires() override { return { w_l, w_r, w_o, w_4 }; };
+        RefVector<DataType> get_wires() { return { w_l, w_r, w_o, w_4 }; };
         // Gemini-specific getters.
-        std::vector<HandleType> get_unshifted() override
+        RefVector<DataType> get_unshifted()
         {
             return { q_c,           q_l,   q_r,      q_o,     q_4,     q_m,          q_arith, q_sort,
                      q_elliptic,    q_aux, q_lookup, sigma_1, sigma_2, sigma_3,      sigma_4, id_1,
@@ -296,11 +213,11 @@ class Ultra {
 
             };
         };
-        std::vector<HandleType> get_to_be_shifted() override
+        RefVector<DataType> get_to_be_shifted()
         {
             return { table_1, table_2, table_3, table_4, w_l, w_r, w_o, w_4, sorted_accum, z_perm, z_lookup };
         };
-        std::vector<HandleType> get_shifted() override
+        RefVector<DataType> get_shifted()
         {
             return { table_1_shift, table_2_shift, table_3_shift,      table_4_shift, w_l_shift,     w_r_shift,
                      w_o_shift,     w_4_shift,     sorted_accum_shift, z_perm_shift,  z_lookup_shift };
@@ -313,12 +230,10 @@ class Ultra {
      * @note TODO(Cody): Maybe multiple inheritance is the right thing here. In that case, nothing should eve inherit
      * from ProvingKey.
      */
-    class ProvingKey : public ProvingKey_<PrecomputedEntities<Polynomial, PolynomialHandle>,
-                                          WitnessEntities<Polynomial, PolynomialHandle>> {
+    class ProvingKey : public ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>> {
       public:
         // Expose constructors on the base class
-        using Base = ProvingKey_<PrecomputedEntities<Polynomial, PolynomialHandle>,
-                                 WitnessEntities<Polynomial, PolynomialHandle>>;
+        using Base = ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>>;
         using Base::Base;
 
         std::vector<uint32_t> memory_read_records;
@@ -336,22 +251,22 @@ class Ultra {
      * that, and split out separate PrecomputedPolynomials/Commitments data for clarity but also for portability of our
      * circuits.
      */
-    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment, CommitmentHandle>>;
+    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>>;
 
     /**
      * @brief A field element for each entity of the flavor. These entities represent the prover polynomials evaluated
      * at one point.
      */
-    class AllValues : public AllEntities<FF, FF> {
+    class AllValues : public AllEntities<FF> {
       public:
-        using Base = AllEntities<FF, FF>;
+        using Base = AllEntities<FF>;
         using Base::Base;
     };
 
     /**
      * @brief A container for polynomials handles; only stores spans.
      */
-    class ProverPolynomials : public AllEntities<PolynomialHandle, PolynomialHandle> {
+    class ProverPolynomials : public AllEntities<PolynomialHandle> {
       public:
         [[nodiscard]] size_t get_polynomial_size() const { return q_c.size(); }
         [[nodiscard]] AllValues get_row(const size_t row_idx) const
@@ -367,7 +282,7 @@ class Ultra {
     /**
      * @brief A container for storing the partially evaluated multivariates produced by sumcheck.
      */
-    class PartiallyEvaluatedMultivariates : public AllEntities<Polynomial, PolynomialHandle> {
+    class PartiallyEvaluatedMultivariates : public AllEntities<Polynomial> {
 
       public:
         PartiallyEvaluatedMultivariates() = default;
@@ -384,8 +299,7 @@ class Ultra {
      * @brief A container for univariates used during Protogalaxy folding and sumcheck.
      * @details During folding and sumcheck, the prover evaluates the relations on these univariates.
      */
-    template <size_t LENGTH>
-    using ProverUnivariates = AllEntities<barretenberg::Univariate<FF, LENGTH>, barretenberg::Univariate<FF, LENGTH>>;
+    template <size_t LENGTH> using ProverUnivariates = AllEntities<barretenberg::Univariate<FF, LENGTH>>;
 
     /**
      * @brief A container for univariates produced during the hot loop in sumcheck.
@@ -398,7 +312,7 @@ class Ultra {
      * has, however, been useful during debugging to have these labels available.
      *
      */
-    class CommitmentLabels : public AllEntities<std::string, std::string> {
+    class CommitmentLabels : public AllEntities<std::string> {
       public:
         CommitmentLabels()
         {
@@ -439,7 +353,7 @@ class Ultra {
         };
     };
 
-    class VerifierCommitments : public AllEntities<Commitment, CommitmentHandle> {
+    class VerifierCommitments : public AllEntities<Commitment> {
       public:
         VerifierCommitments(std::shared_ptr<VerificationKey> verification_key,
                             [[maybe_unused]] const BaseTranscript<FF>& transcript)
@@ -530,7 +444,7 @@ class Ultra {
          * structure. Must be called in order to access the structure of the proof.
          *
          */
-        void deserialize_full_transcript() override
+        void deserialize_full_transcript()
         {
             // take current proof and put them into the struct
             size_t num_bytes_read = 0;
@@ -567,7 +481,7 @@ class Ultra {
          * deserialize_full_transcript() was called and some transcript variable was modified.
          *
          */
-        void serialize_full_transcript() override
+        void serialize_full_transcript()
         {
             size_t old_proof_length = proof_data.size();
             proof_data.clear(); // clear proof_data so the rest of the function can replace it
