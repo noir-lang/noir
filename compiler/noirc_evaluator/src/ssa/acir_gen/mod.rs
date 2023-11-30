@@ -2077,8 +2077,8 @@ impl Context {
                 let element_size = slice_typ.element_size();
                 let element_size_var =
                     self.acir_context.add_constant(FieldElement::from(element_size as u128));
-                let mut flat_user_index = self.acir_context.mul_var(index, element_size_var)?;
-                flat_user_index =
+                let flat_user_index = self.acir_context.mul_var(index, element_size_var)?;
+                let flat_user_index =
                     self.get_flattened_index(&slice_typ, slice_contents, flat_user_index, dfg)?;
 
                 let elements_to_insert = &arguments[3..];
