@@ -1996,7 +1996,7 @@ impl Context {
                 let slice_typ = dfg.type_of_value(arguments[1]);
                 let element_size = slice_typ.element_size();
 
-                let mut popped_elements = Vec::new();
+                let mut popped_elements: Vec<AcirValue> = Vec::new();
                 let mut popped_elements_size = 0;
                 let mut var_index = self.acir_context.add_constant(FieldElement::zero());
                 // Fetch the values we are popping off of the slice.
