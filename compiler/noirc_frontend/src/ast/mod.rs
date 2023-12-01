@@ -15,6 +15,7 @@ pub use expression::*;
 pub use function::*;
 
 use noirc_errors::Span;
+use serde::{Deserialize, Serialize};
 pub use statement::*;
 pub use structure::*;
 pub use traits::*;
@@ -281,7 +282,7 @@ pub enum FunctionVisibility {
     PublicCrate,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// Represents whether the parameter is public or known only to the prover.
 pub enum Visibility {
     Public,

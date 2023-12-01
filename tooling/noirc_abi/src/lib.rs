@@ -216,13 +216,18 @@ impl AbiParameter {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AbiReturnType {
+    pub abi_type: AbiType,
+    pub visibility: AbiVisibility,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Abi {
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
     /// A map from the ABI's parameters to the indices they are written to in the [`WitnessMap`].
     /// This defines how to convert between the [`InputMap`] and [`WitnessMap`].
     pub param_witnesses: BTreeMap<String, Vec<Range<Witness>>>,
-    pub return_type: Option<(AbiType, AbiVisibility)>,
+    pub return_type: Option<AbiReturnType>,
     pub return_witnesses: Vec<Witness>,
 }
 
@@ -330,7 +335,7 @@ impl Abi {
         // When encoding public inputs to be passed to the verifier, the user can must provide a return value
         // to be inserted into the witness map. This is not needed when generating a witness when proving the circuit.
         match (&self.return_type, return_value) {
-            (Some((return_type, _)), Some(return_value)) => {
+            (Some(AbiReturnType { abi_type: return_type, .. }), Some(return_value)) => {
                 if !return_value.matches_abi(return_type) {
                     return Err(AbiError::ReturnTypeMismatch {
                         return_type: return_type.clone(),
@@ -429,7 +434,7 @@ impl Abi {
                         .copied()
                 })
             {
-                Some(decode_value(&mut return_witness_values.into_iter(), &return_type.0)?)
+                Some(decode_value(&mut return_witness_values.into_iter(), &return_type.abi_type)?)
             } else {
                 // Unlike for the circuit inputs, we tolerate not being able to find the witness values for the return value.
                 // This is because the user may be decoding a partial witness map for which is hasn't been calculated yet.
@@ -549,7 +554,10 @@ mod test {
 
     use acvm::{acir::native_types::Witness, FieldElement};
 
-    use crate::{input_parser::InputValue, Abi, AbiParameter, AbiType, AbiVisibility, InputMap};
+    use crate::{
+        input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility,
+        InputMap,
+    };
 
     #[test]
     fn witness_encoding_roundtrip() {
@@ -571,7 +579,10 @@ mod test {
                 ("thing1".to_string(), vec![(Witness(1)..Witness(3))]),
                 ("thing2".to_string(), vec![(Witness(3)..Witness(4))]),
             ]),
-            return_type: Some((AbiType::Field, AbiVisibility::Public)),
+            return_type: Some(AbiReturnType {
+                abi_type: AbiType::Field,
+                visibility: AbiVisibility::Public,
+            }),
             return_witnesses: vec![Witness(3)],
         };
 
