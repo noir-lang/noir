@@ -1215,6 +1215,9 @@ impl NodeInterner {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
 
+    /// For given [Index] we return [Location] to which we resolved to
+    /// We currently return None for features not yet implemented
+    /// TODO(#3659): LSP goto def should error when Ident at Location could not resolve
     pub fn resolve_location(&self, index_id: &Index) -> Option<Location> {
         self.nodes.get(*index_id).and_then(|def| match def {
             Node::Function(func) => {
