@@ -150,6 +150,26 @@ export abstract class TreeBase implements MerkleTree {
     return this.getLatestValueAtIndex(this.depth, index, includeUncommitted);
   }
 
+  public getNode(level: number, index: bigint): Promise<Buffer | undefined> {
+    if (level < 0 || level > this.depth) {
+      throw Error('Invalid level: ' + level);
+    }
+
+    if (index < 0 || index >= 2n ** BigInt(level)) {
+      throw Error('Invalid index: ' + index);
+    }
+
+    return this.dbGet(indexToKeyHash(this.name, level, index));
+  }
+
+  public getZeroHash(level: number): Buffer {
+    if (level <= 0 || level > this.depth) {
+      throw new Error('Invalid level');
+    }
+
+    return this.zeroHashes[level - 1];
+  }
+
   /**
    * Clears the cache.
    */

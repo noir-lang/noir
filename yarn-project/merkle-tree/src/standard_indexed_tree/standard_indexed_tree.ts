@@ -4,6 +4,8 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { LeafData, SiblingPath } from '@aztec/types';
 
 import { BatchInsertionResult, IndexedTree } from '../interfaces/indexed_tree.js';
+import { IndexedTreeSnapshotBuilder } from '../snapshots/indexed_tree_snapshot.js';
+import { IndexedTreeSnapshot } from '../snapshots/snapshot_builder.js';
 import { TreeBase } from '../tree_base.js';
 
 const log = createDebugLogger('aztec:standard-indexed-tree');
@@ -54,15 +56,14 @@ function getEmptyLowLeafWitness<N extends number>(treeHeight: N): LowLeafWitness
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const encodeTreeValue = (leafData: LeafData) => {
+export const encodeTreeValue = (leafData: LeafData) => {
   const valueAsBuffer = toBufferBE(leafData.value, 32);
   const indexAsBuffer = toBufferBE(leafData.nextIndex, 32);
   const nextValueAsBuffer = toBufferBE(leafData.nextValue, 32);
   return Buffer.concat([valueAsBuffer, indexAsBuffer, nextValueAsBuffer]);
 };
 
-const decodeTreeValue = (buf: Buffer) => {
+export const decodeTreeValue = (buf: Buffer) => {
   const value = toBigIntBE(buf.subarray(0, 32));
   const nextIndex = toBigIntBE(buf.subarray(32, 64));
   const nextValue = toBigIntBE(buf.subarray(64, 96));
@@ -77,6 +78,8 @@ const decodeTreeValue = (buf: Buffer) => {
  * Indexed merkle tree.
  */
 export class StandardIndexedTree extends TreeBase implements IndexedTree {
+  #snapshotBuilder = new IndexedTreeSnapshotBuilder(this.db, this);
+
   protected leaves: LeafData[] = [];
   protected cachedLeaves: { [key: number]: LeafData } = {};
 
@@ -512,6 +515,14 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
 
     // Drop the first subtreeHeight items since we only care about the path to the subtree root
     return fullSiblingPath.getSubtreeSiblingPath(subtreeHeight);
+  }
+
+  snapshot(blockNumber: number): Promise<IndexedTreeSnapshot> {
+    return this.#snapshotBuilder.snapshot(blockNumber);
+  }
+
+  getSnapshot(block: number): Promise<IndexedTreeSnapshot> {
+    return this.#snapshotBuilder.getSnapshot(block);
   }
 
   /**

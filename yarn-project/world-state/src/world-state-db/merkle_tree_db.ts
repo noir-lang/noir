@@ -1,7 +1,7 @@
 import { MAX_NEW_NULLIFIERS_PER_TX } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { BatchInsertionResult } from '@aztec/merkle-tree';
+import { BatchInsertionResult, IndexedTreeSnapshot, TreeSnapshot } from '@aztec/merkle-tree';
 import { L2Block, LeafData, MerkleTreeId, SiblingPath } from '@aztec/types';
 
 /**
@@ -91,7 +91,13 @@ export type MerkleTreeDb = {
   [Property in keyof MerkleTreeOperations as Exclude<Property, MerkleTreeSetters>]: WithIncludeUncommitted<
     MerkleTreeOperations[Property]
   >;
-} & Pick<MerkleTreeOperations, MerkleTreeSetters>;
+} & Pick<MerkleTreeOperations, MerkleTreeSetters> & {
+    /**
+     * Returns a snapshot of the current state of the trees.
+     * @param block - The block number to take the snapshot at.
+     */
+    getSnapshot(block: number): Promise<ReadonlyArray<TreeSnapshot | IndexedTreeSnapshot>>;
+  };
 
 /**
  * Defines the interface for operations on a set of Merkle Trees.

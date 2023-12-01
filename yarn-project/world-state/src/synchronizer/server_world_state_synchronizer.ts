@@ -8,6 +8,7 @@ import { LevelUp } from 'levelup';
 
 import { HandleL2BlockResult, MerkleTreeOperations, MerkleTrees } from '../index.js';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
+import { MerkleTreeSnapshotOperationsFacade } from '../merkle-tree/merkle_tree_snapshot_operations_facade.js';
 import { WorldStateConfig } from './config.js';
 import { WorldStateRunningState, WorldStateStatus, WorldStateSynchronizer } from './world_state_synchronizer.js';
 
@@ -50,6 +51,10 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
 
   public getCommitted(): MerkleTreeOperations {
     return new MerkleTreeOperationsFacade(this.merkleTreeDb, false);
+  }
+
+  public getSnapshot(blockNumber: number): MerkleTreeOperations {
+    return new MerkleTreeSnapshotOperationsFacade(this.merkleTreeDb, blockNumber);
   }
 
   public static async new(

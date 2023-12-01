@@ -521,6 +521,16 @@ export class MerkleTrees implements MerkleTreeDb {
     this.latestGlobalVariablesHash.rollback();
   }
 
+  public getSnapshot(blockNumber: number) {
+    return Promise.all(this.trees.map(tree => tree.getSnapshot(blockNumber)));
+  }
+
+  private async _snapshot(blockNumber: number): Promise<void> {
+    for (const tree of this.trees) {
+      await tree.snapshot(blockNumber);
+    }
+  }
+
   /**
    * Handles a single L2 block (i.e. Inserts the new commitments into the merkle tree).
    * @param l2Block - The L2 block to handle.
@@ -598,6 +608,8 @@ export class MerkleTrees implements MerkleTreeDb {
         this.log(`Tree ${treeName} synched with size ${info.size} root ${rootStr}`);
       }
     }
+
+    await this._snapshot(l2Block.number);
 
     return { isBlockOurs: ourBlock };
   }

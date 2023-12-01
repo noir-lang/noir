@@ -63,4 +63,11 @@ export interface WorldStateSynchronizer {
    * @returns An instance of MerkleTreeOperations that will not include uncommitted data.
    */
   getCommitted(): MerkleTreeOperations;
+
+  /**
+   * Returns a readonly instance of MerkleTreeOperations where the state is as it was at the given block number
+   * @param block - The block number to look at
+   * @returns An instance of MerkleTreeOperations
+   */
+  getSnapshot(block: number): MerkleTreeOperations;
 }
