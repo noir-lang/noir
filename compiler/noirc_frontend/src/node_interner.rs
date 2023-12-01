@@ -455,7 +455,7 @@ impl NodeInterner {
     }
 
     /// Scans the interner for the item which is located at that [Location]
-    /// 
+    ///
     /// The [Location] may not necessarily point to the beginning of the item
     /// so we check if the location's span is contained within the start or end
     /// of each items [Span]
@@ -1221,7 +1221,7 @@ impl NodeInterner {
     /// For a given [Index] we return [Location] to which we resolved to
     /// We currently return None for features not yet implemented
     /// TODO(#3659): LSP goto def should error when Ident at Location could not resolve
-    pub fn resolve_location(&self, index_id: &Index) -> Option<Location> {
+    pub(crate) fn resolve_location(&self, index_id: &Index) -> Option<Location> {
         let node = self.nodes.get(*index_id)?;
 
         match node {
@@ -1232,7 +1232,7 @@ impl NodeInterner {
     }
 
     /// Resolves the [Location] of the definition for a given [HirExpression]
-    /// 
+    ///
     /// Note: current the code returns None because some expressions are not yet implemented.
     fn resolve_expression_location(&self, expression: &HirExpression) -> Option<Location> {
         match expression {
