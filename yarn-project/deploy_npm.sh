@@ -2,6 +2,12 @@
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
+# Check we're on a release flow.
+if [ -z "$COMMIT_TAG" ] && [ ! "$DRY_DEPLOY" -eq 1 ]; then
+  echo "Not on a release flow, skipping deploy."
+  exit 0
+fi
+
 extract_repo yarn-project /usr/src project
 cd project/src/yarn-project
 

@@ -991,7 +991,7 @@ jobs:
             deploy_dockerhub noir x86_64,arm64
             deploy_dockerhub aztec-sandbox x86_64,arm64
             deploy_dockerhub cli x86_64,arm64
-            deploy_dockerhub faucet x86_64,arm64
+            deploy_dockerhub aztec-faucet x86_64,arm64
             deploy_dockerhub mainnet-fork x86_64,arm64
             deploy_dockerhub l1-contracts x86_64,arm64
 
