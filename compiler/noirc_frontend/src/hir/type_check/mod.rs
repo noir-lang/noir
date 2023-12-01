@@ -58,10 +58,12 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         let trait_id = constraint.trait_id;
 
         if !type_checker.interner.add_assumed_trait_implementation(object, trait_id) {
-            let trait_name = type_checker.interner.get_trait(trait_id).name.to_string();
-            let typ = constraint.typ.clone();
-            let span = meta.name.location.span;
-            errors.push(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
+            if let Some(the_trait) = type_checker.interner.try_get_trait(trait_id) {
+                let trait_name = the_trait.name.to_string();
+                let typ = constraint.typ.clone();
+                let span = meta.name.location.span;
+                errors.push(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
+            }
         }
     }
 

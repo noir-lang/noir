@@ -152,7 +152,8 @@ impl<'a> FunctionContext<'a> {
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
-        let alloc = self.builder.insert_allocate();
+        let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
+        let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
         let typ = self.builder.type_of_value(value_to_store);
         Value::Mutable(alloc, typ)
@@ -177,7 +178,7 @@ impl<'a> FunctionContext<'a> {
             // A mutable reference wraps each element into a reference.
             // This can be multiple values if the element type is a tuple.
             ast::Type::MutableReference(element) => {
-                Self::map_type_helper(element, &mut |_| f(Type::Reference))
+                Self::map_type_helper(element, &mut |typ| f(Type::Reference(Rc::new(typ))))
             }
             ast::Type::FmtString(len, fields) => {
                 // A format string is represented by multiple values
@@ -231,8 +232,8 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
             ast::Type::MutableReference(element) => {
                 // Recursive call to panic if element is a tuple
-                Self::convert_non_tuple_type(element);
-                Type::Reference
+                let element = Self::convert_non_tuple_type(element);
+                Type::Reference(Rc::new(element))
             }
         }
     }
@@ -363,27 +364,46 @@ impl<'a> FunctionContext<'a> {
                     BinaryOpKind::ShiftLeft => "left shift",
                     _ => unreachable!("operator {} should not overflow", operator),
                 };
-                let message = format!("attempt to {} with overflow", op_name);
-                let range_constraint = Instruction::RangeCheck {
-                    value: result,
-                    max_bit_size: bit_size,
-                    assert_message: Some(message),
-                };
-                self.builder.set_location(location).insert_instruction(range_constraint, None);
+
                 if operator == BinaryOpKind::ShiftLeft {
-                    match result_type {
-                        Type::Numeric(NumericType::Signed { bit_size })
-                        | Type::Numeric(NumericType::Unsigned { bit_size }) => {
-                            self.builder.insert_truncate(result, bit_size, bit_size + 1)
-                        }
-                        _ => result,
-                    }
+                    self.check_left_shift_overflow(result, rhs, bit_size, location)
                 } else {
+                    let message = format!("attempt to {} with overflow", op_name);
+                    let range_constraint = Instruction::RangeCheck {
+                        value: result,
+                        max_bit_size: bit_size,
+                        assert_message: Some(message),
+                    };
+                    self.builder.set_location(location).insert_instruction(range_constraint, None);
                     result
                 }
             }
             _ => result,
         }
+    }
+
+    /// Overflow checks for shift-left
+    /// We use Rust behavior for shift left:
+    /// If rhs is more or equal than the bit size, then we overflow
+    /// If not, we do not overflow and shift left with 0 when bits are falling out of the bit size
+    fn check_left_shift_overflow(
+        &mut self,
+        result: ValueId,
+        rhs: ValueId,
+        bit_size: u32,
+        location: Location,
+    ) -> ValueId {
+        let max = self
+            .builder
+            .numeric_constant(FieldElement::from(bit_size as i128), Type::unsigned(bit_size));
+        let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
+        let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
+        self.builder.set_location(location).insert_constrain(
+            overflow,
+            one,
+            Some("attempt to left shift with overflow".to_owned()),
+        );
+        self.builder.insert_truncate(result, bit_size, bit_size + 1)
     }
 
     /// Insert constraints ensuring that the operation does not overflow the bit size of the result
@@ -486,7 +506,15 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> Values {
         let mut result = match operator {
-            BinaryOpKind::ShiftLeft => self.builder.insert_shift_left(lhs, rhs),
+            BinaryOpKind::ShiftLeft => {
+                let result_type = self.builder.current_function.dfg.type_of_value(lhs);
+                let bit_size = match result_type {
+                    Type::Numeric(NumericType::Signed { bit_size })
+                    | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
+                    _ => unreachable!("ICE: Truncation attempted on non-integer"),
+                };
+                self.builder.insert_wrapping_shift_left(lhs, rhs, bit_size)
+            }
             BinaryOpKind::ShiftRight => self.builder.insert_shift_right(lhs, rhs),
             BinaryOpKind::Equal | BinaryOpKind::NotEqual
                 if matches!(self.builder.type_of_value(lhs), Type::Array(..)) =>
@@ -573,7 +601,7 @@ impl<'a> FunctionContext<'a> {
         let loop_end = self.builder.insert_block();
 
         // pre-loop
-        let result_alloc = self.builder.set_location(location).insert_allocate();
+        let result_alloc = self.builder.set_location(location).insert_allocate(Type::bool());
         let true_value = self.builder.numeric_constant(1u128, Type::bool());
         self.builder.insert_store(result_alloc, true_value);
         let zero = self.builder.field_constant(0u128);

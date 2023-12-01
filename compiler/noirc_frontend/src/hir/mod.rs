@@ -4,9 +4,6 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
-#[cfg(feature = "aztec")]
-pub(crate) mod aztec_library;
-
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
@@ -29,10 +26,6 @@ pub struct Context {
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
     pub visited_files: BTreeMap<fm::FileId, Location>,
-
-    /// Maps a given (contract) module id to the next available storage slot
-    /// for that contract.
-    pub storage_slots: BTreeMap<def_map::ModuleId, StorageSlot>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -42,8 +35,6 @@ pub enum FunctionNameMatch<'a> {
     Contains(&'a str),
 }
 
-pub type StorageSlot = u32;
-
 impl Context {
     pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
         Context {
@@ -52,7 +43,6 @@ impl Context {
             visited_files: BTreeMap::new(),
             crate_graph,
             file_manager,
-            storage_slots: BTreeMap::new(),
         }
     }
 
@@ -199,17 +189,5 @@ impl Context {
 
     fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
         module_id.module(&self.def_maps)
-    }
-
-    /// Returns the next available storage slot in the given module.
-    /// Returns None if the given module is not a contract module.
-    fn next_storage_slot(&mut self, module_id: def_map::ModuleId) -> Option<StorageSlot> {
-        let module = self.module(module_id);
-
-        module.is_contract.then(|| {
-            let next_slot = self.storage_slots.entry(module_id).or_insert(0);
-            *next_slot += 1;
-            *next_slot
-        })
     }
 }

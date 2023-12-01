@@ -317,12 +317,19 @@ impl<'interner> TypeChecker<'interner> {
         match self.interner.lookup_trait_implementation(object_type, trait_id) {
             Ok(impl_kind) => self.interner.select_impl_for_ident(function_ident_id, impl_kind),
             Err(erroring_constraints) => {
-                let constraints = vecmap(erroring_constraints, |constraint| {
-                    let r#trait = self.interner.get_trait(constraint.trait_id);
-                    (constraint.typ, r#trait.name.to_string())
-                });
+                // Don't show any errors where try_get_trait returns None.
+                // This can happen if a trait is used that was never declared.
+                let constraints = erroring_constraints
+                    .into_iter()
+                    .map(|constraint| {
+                        let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
+                        Some((constraint.typ, r#trait.name.to_string()))
+                    })
+                    .collect::<Option<Vec<_>>>();
 
-                self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+                if let Some(constraints) = constraints {
+                    self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+                }
             }
         }
     }
@@ -902,13 +909,15 @@ impl<'interner> TypeChecker<'interner> {
 
                 for constraint in func_meta.trait_constraints {
                     if *object_type == constraint.typ {
-                        let the_trait = self.interner.get_trait(constraint.trait_id);
-
-                        for (method_index, method) in the_trait.methods.iter().enumerate() {
-                            if method.name.0.contents == method_name {
-                                let trait_method =
-                                    TraitMethodId { trait_id: constraint.trait_id, method_index };
-                                return Some(HirMethodReference::TraitMethodId(trait_method));
+                        if let Some(the_trait) = self.interner.try_get_trait(constraint.trait_id) {
+                            for (method_index, method) in the_trait.methods.iter().enumerate() {
+                                if method.name.0.contents == method_name {
+                                    let trait_method = TraitMethodId {
+                                        trait_id: constraint.trait_id,
+                                        method_index,
+                                    };
+                                    return Some(HirMethodReference::TraitMethodId(trait_method));
+                                }
                             }
                         }
                     }

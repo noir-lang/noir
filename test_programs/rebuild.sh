@@ -1,0 +1,72 @@
+#!/bin/bash
+set -e
+
+process_dir() {
+    local dir=$1
+    local current_dir=$2
+    local dir_name=$(basename "$dir")
+
+    if [[ ! -d "$current_dir/acir_artifacts/$dir_name" ]]; then
+      mkdir -p $current_dir/acir_artifacts/$dir_name
+    fi
+
+    cd $dir
+    if [ -d ./target/ ]; then
+      rm -r ./target/
+    fi
+    nargo compile && nargo execute witness
+
+    if [ -f ./target/witness.tr ]; then
+      mv ./target/witness.tr ./target/witness.gz
+    fi
+
+    if [ -f ./target/${dir_name}.json ]; then
+        jq -r '.bytecode' ./target/${dir_name}.json | base64 -d > ./target/acir.gz
+    fi
+
+    rm ./target/${dir_name}.json
+
+    if [ -d "$current_dir/acir_artifacts/$dir_name/target" ]; then
+      rm -r "$current_dir/acir_artifacts/$dir_name/target"
+    fi
+    mkdir $current_dir/acir_artifacts/$dir_name/target
+
+    mv ./target/*.gz $current_dir/acir_artifacts/$dir_name/target/
+
+    cd $current_dir
+}
+
+export -f process_dir
+
+excluded_dirs=("workspace" "workspace_default_member")
+current_dir=$(pwd)
+base_path="$current_dir/execution_success"
+
+rm -rf $current_dir/acir_artifacts
+mkdir -p $current_dir/acir_artifacts
+
+# Gather directories to process.
+dirs_to_process=()
+for dir in $base_path/*; do
+    if [[ ! -d $dir ]] || [[ " ${excluded_dirs[@]} " =~ " $(basename "$dir") " ]]; then
+        continue
+    fi
+    dirs_to_process+=("$dir")
+done
+
+# Process each directory in parallel
+pids=()
+for dir in "${dirs_to_process[@]}"; do
+    process_dir "$dir" "$current_dir" &
+    pids+=($!)
+done
+
+# Check the exit status of each background job.
+for pid in "${pids[@]}"; do
+    wait $pid || exit_status=$?
+done
+
+# Exit with a failure status if any job failed.
+if [ ! -z "$exit_status" ]; then
+    exit $exit_status
+fi

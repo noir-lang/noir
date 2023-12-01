@@ -36,9 +36,10 @@ result
 *.pk
 *.vk
 **/Verifier.toml
+**/contract
 **/target
-!tooling/nargo_cli/tests/acir_artifacts/*/target
-!tooling/nargo_cli/tests/acir_artifacts/*/target/witness.gz
+!test_programs/acir_artifacts/*/target
+!test_programs/acir_artifacts/*/target/witness.gz
 !compiler/wasm/noir-script/target
 
 gates_report.json
@@ -56,3 +57,9 @@ tooling/noir_js/lib
 
 # Doc-generator
 tooling/doc_generator/generated_doc
+
+**/package.tgz
+packages
+
+# docs autogen build
+/docs/docs/noir_js/reference/
