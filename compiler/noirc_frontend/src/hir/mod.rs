@@ -185,9 +185,7 @@ impl Context {
     pub fn get_definition_location_from(&self, location: Location) -> Option<Location> {
         let interner = &self.def_interner;
 
-        interner
-            .find_location_index(location)
-            .and_then(|index| interner.resolve_location(&index.into()))
+        interner.find_location_index(location).and_then(|index| interner.resolve_location(index))
     }
 
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain

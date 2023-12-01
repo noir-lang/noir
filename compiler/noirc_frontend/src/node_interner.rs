@@ -1221,11 +1221,11 @@ impl NodeInterner {
     /// For a given [Index] we return [Location] to which we resolved to
     /// We currently return None for features not yet implemented
     /// TODO(#3659): LSP goto def should error when Ident at Location could not resolve
-    pub(crate) fn resolve_location(&self, index_id: &Index) -> Option<Location> {
-        let node = self.nodes.get(*index_id)?;
+    pub(crate) fn resolve_location(&self, index: impl Into<Index>) -> Option<Location> {
+        let node = self.nodes.get(index.into())?;
 
         match node {
-            Node::Function(func) => self.resolve_location(&func.as_expr().into()),
+            Node::Function(func) => self.resolve_location(func.as_expr()),
             Node::Expression(expression) => self.resolve_expression_location(expression),
             _ => None,
         }
