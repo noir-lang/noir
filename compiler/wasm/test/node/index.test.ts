@@ -56,12 +56,17 @@ describe('noir wasm compilation', () => {
     });
 
     it('matching nargos compilation', async () => {
-      const wasmCircuit = await compile('/script/main.nr', false, {
-        root_dependencies: ['lib_a'],
-        library_dependencies: {
-          lib_a: ['lib_b'],
+      const wasmCircuit = await compile(
+        '/script/main.nr',
+        false,
+        {
+          root_dependencies: ['lib_a'],
+          library_dependencies: {
+            lib_a: ['lib_b'],
+          },
         },
-      },false);
+        false,
+      );
 
       const cliCircuit = await getPrecompiledSource(depsScriptExpectedArtifact);
 
