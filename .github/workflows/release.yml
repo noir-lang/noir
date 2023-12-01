@@ -77,8 +77,8 @@ jobs:
 
       - name: Configure git
         run: |
-          git config --local user.name 'signorecello'
-          git config --local user.email 'github@zepedro.me'
+          git config --local user.name 'kevaundray'
+          git config --local user.email 'kevtheappdev@gmail.com'
 
       - name: Commit new documentation version
         run: |
