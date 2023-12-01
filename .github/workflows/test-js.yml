@@ -1,4 +1,4 @@
-name: Test cargo
+name: Test JS
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Test cargo
+    name: Test JS
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -42,7 +42,7 @@ jobs:
           context: .
           file: Dockerfile
           tags: ${{ steps.prep.outputs.tags }}
-          target: test
+          target: test-js
           cache-from: type=gha
           cache-to: type=gha,mode=max
       # - name: Build image and push to GitHub Container Registry

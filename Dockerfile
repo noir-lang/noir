@@ -23,6 +23,25 @@ RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT
 RUN cargo build --features="noirc_driver/aztec" --release
 RUN cargo test --workspace --locked --release
 
+FROM rust:alpine3.17 as test-alpine
+RUN apk update \
+    && apk upgrade \
+    && apk add --no-cache \
+        build-base \
+        pkgconfig \
+        openssl-dev \
+        npm \
+        yarn \
+        bash \
+        jq \
+        git \
+        curl
+WORKDIR /usr/src/noir
+COPY . .
+RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD)
+RUN cargo build --features="noirc_driver/aztec" --release
+RUN cargo test --workspace --locked --release
+
 FROM rust:alpine3.17 as test-js
 RUN apk update \
     && apk upgrade \
