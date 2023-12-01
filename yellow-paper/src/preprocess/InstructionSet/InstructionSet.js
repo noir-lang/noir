@@ -9,6 +9,7 @@ const TOPICS_IN_SECTIONS = [
 
 const OP_TYPE_DESCRIPTION = "The [type/size](./Types) to check inputs against and tag the output with.";
 const DEST_TYPE_DESCRIPTION = "The [type/size](./Types) to tag the output with when different from `op-type`.";
+const INDIRECT_FLAG_DESCRIPTION = "Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.";
 
 const INSTRUCTION_SET_RAW = [
     {
@@ -16,6 +17,7 @@ const INSTRUCTION_SET_RAW = [
         "Name": "`ADD`",
         "Category": "arithmetic",
         "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
             {"name": "op-type", "description": OP_TYPE_DESCRIPTION},
         ],
         "#memreads": "2",
@@ -36,6 +38,7 @@ const INSTRUCTION_SET_RAW = [
         "Name": "`SUB`",
         "Category": "arithmetic",
         "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
             {"name": "op-type", "description": OP_TYPE_DESCRIPTION},
         ],
         "#memreads": "2",
@@ -56,6 +59,7 @@ const INSTRUCTION_SET_RAW = [
         "Name": "`DIV`",
         "Category": "arithmetic",
         "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
             {"name": "op-type", "description": OP_TYPE_DESCRIPTION},
         ],
         "#memreads": "2",
@@ -76,6 +80,7 @@ const INSTRUCTION_SET_RAW = [
         "Name": "`EQ`",
         "Category": "conditional",
         "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
             {"name": "op-type", "description": OP_TYPE_DESCRIPTION},
         ],
         "#memreads": "2",
@@ -96,6 +101,7 @@ const INSTRUCTION_SET_RAW = [
         "Name": "`LT`",
         "Category": "conditional",
         "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
             {"name": "op-type", "description": OP_TYPE_DESCRIPTION},
         ],
         "#memreads": "2",
@@ -116,6 +122,7 @@ const INSTRUCTION_SET_RAW = [
         "Name": "`LTE`",
         "Category": "conditional",
         "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
             {"name": "op-type", "description": OP_TYPE_DESCRIPTION},
         ],
         "#memreads": "2",
@@ -136,6 +143,7 @@ const INSTRUCTION_SET_RAW = [
         "Name": "`AND`",
         "Category": "bitwise",
         "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
             {"name": "op-type", "description": OP_TYPE_DESCRIPTION},
         ],
         "#memreads": "2",
@@ -156,6 +164,7 @@ const INSTRUCTION_SET_RAW = [
         "Name": "`OR`",
         "Category": "bitwise",
         "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
             {"name": "op-type", "description": OP_TYPE_DESCRIPTION},
         ],
         "#memreads": "2",
@@ -176,6 +185,7 @@ const INSTRUCTION_SET_RAW = [
         "Name": "`XOR`",
         "Category": "bitwise",
         "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
             {"name": "op-type", "description": OP_TYPE_DESCRIPTION},
         ],
         "#memreads": "2",
@@ -196,6 +206,7 @@ const INSTRUCTION_SET_RAW = [
         "Name": "`NOT`",
         "Category": "bitwise",
         "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
             {"name": "op-type", "description": OP_TYPE_DESCRIPTION},
         ],
         "#memreads": "1",
@@ -215,6 +226,7 @@ const INSTRUCTION_SET_RAW = [
         "Name": "`SHL`",
         "Category": "bitwise",
         "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
             {"name": "op-type", "description": OP_TYPE_DESCRIPTION},
         ],
         "#memreads": "2",
@@ -235,6 +247,7 @@ const INSTRUCTION_SET_RAW = [
         "Name": "`SHR`",
         "Category": "bitwise",
         "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
             {"name": "op-type", "description": OP_TYPE_DESCRIPTION},
         ],
         "#memreads": "2",
@@ -251,21 +264,42 @@ const INSTRUCTION_SET_RAW = [
         "Tag updates": "`T[dstOffset] = op-type`",
     },
     {
+        "id": "cast",
+        "Name": "`CAST`",
+        "Category": "types",
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+            {"name": "dest-type", "description": DEST_TYPE_DESCRIPTION},
+        ],
+        "#memreads": "1",
+        "#memwrites": "1",
+        "Args": [
+            {"name": "aOffset", "description": "memory offset of word to cast"},
+            {"name": "dstOffset", "description": "memory offset specifying where to store operation's result"},
+        ],
+        "Expression": "`M[dstOffset] = cast<dest-type>(M[aOffset])`",
+        "Summary": "Type cast",
+        "Details": "Cast a word in memory based on the `dest-type` specified in the bytecode. Truncates when casting to a smaller type, left-zero-pads when casting to a larger type.",
+        "Tag checks": "",
+        "Tag updates": "`T[dstOffset] = dest-type`",
+    },
+    {
         "id": "set",
         "Name": "`SET`",
         "Category": "memory",
         "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
             {"name": "op-type", "description": "The [type/size](./Types) to check inputs against and tag the output with. `field` type is NOT supported for SET."},
         ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
-            {"name": "const", "description": "a constant value from the bytecode to store in memory (any type except `field`)", "mode": "immediate"},
+            {"name": "const", "description": "an N-bit constant value from the bytecode to store in memory (any type except `field`)", "mode": "immediate"},
             {"name": "dstOffset", "description": "memory offset specifying where to store the constant"},
         ],
         "Expression": "`M[dstOffset] = const`",
         "Summary": "Set a memory word from a constant in the bytecode.",
-        "Details": "Set memory word at `dstOffset` to `const`'s immediate value. `const` _cannot be `field` type_!",
+        "Details": "Set memory word at `dstOffset` to `const`'s immediate value. `const`'s bit-size (N) can be 8, 16, 32, 64, or 128 based on `op-type`. It _cannot be 254 (`field` type)_!",
         "Tag checks": "",
         "Tag updates": "`T[dstOffset] = op-type`",
     },
@@ -273,7 +307,9 @@ const INSTRUCTION_SET_RAW = [
         "id": "mov",
         "Name": "`MOV`",
         "Category": "memory",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "1",
         "#memwrites": "1",
         "Args": [
@@ -290,7 +326,9 @@ const INSTRUCTION_SET_RAW = [
         "id": "cmov",
         "Name": "`CMOV`",
         "Category": "memory",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "3",
         "#memwrites": "1",
         "Args": [
@@ -306,29 +344,12 @@ const INSTRUCTION_SET_RAW = [
         "Tag updates": "`T[dstOffset] = M[condOffset] > 0 ? T[aOffset] : T[bOffset]`",
     },
     {
-        "id": "cast",
-        "Name": "`CAST`",
-        "Category": "types",
-        "Flags": [
-            {"name": "dest-type", "description": DEST_TYPE_DESCRIPTION},
-        ],
-        "#memreads": "1",
-        "#memwrites": "1",
-        "Args": [
-            {"name": "aOffset", "description": "memory offset of word to cast"},
-            {"name": "dstOffset", "description": "memory offset specifying where to store operation's result"},
-        ],
-        "Expression": "`M[dstOffset] = cast<dest-type>(M[aOffset])`",
-        "Summary": "Type cast",
-        "Details": "Cast a word in memory based on the `dest-type` specified in the bytecode. Truncates when casting to a smaller type, left-zero-pads when casting to a larger type.",
-        "Tag checks": "",
-        "Tag updates": "`T[dstOffset] = dest-type`",
-    },
-    {
         "id": "calldatacopy",
         "Name": "`CALLDATACOPY`",
         "Category": "contract calls",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "`s1`",
         "#memwrites": "`s1`",
         "Args": [
@@ -346,7 +367,9 @@ const INSTRUCTION_SET_RAW = [
         "id": "sload",
         "Name": "`SLOAD`",
         "Category": "storage & messaging",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "2",
         "#memwrites": "1",
         "Args": [
@@ -363,7 +386,9 @@ const INSTRUCTION_SET_RAW = [
         "id": "sstore",
         "Name": "`SSTORE`",
         "Category": "storage & messaging",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "2",
         "#memwrites": "0",
         "Args": [
@@ -377,58 +402,58 @@ const INSTRUCTION_SET_RAW = [
         "Tag updates": "",
     },
     {
-        "id": "l1l2msgload",
-        "Name": "`L1L2MSGLOAD`",
+        "id": "emitnotehash",
+        "Name": "`EMITNOTEHASH`",
         "Category": "storage & messaging",
-        "Flags": [],
-        "#memreads": "1",
-        "#memwrites": "1",
-        "Args": [
-            {"name": "keyOffset", "description": "memory offset of the message key"},
-            {"name": "dstMsgOffset", "description": "memory offset specifying where to store the `L1_TO_L2_MESSAGE_LENGTH` words of the retrieved message"},
-            {"name": "dstSibPathOffset", "description": "memory offset specifying where to store the `L1_TO_L2_MSG_TREE_HEIGHT` words of the retrieved message's sibling path"},
-            {"name": "dstLeafIndexOffset", "description": "memory offset specifying where to store the retrieved message's leaf index"},
-            {"name": "dstRootOffset", "description": "memory offset specifying where to store the retrieved message tree root"},
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
         ],
-        "Expression": `
-{
-    M[dstMsgOffset],
-    M[dstSibPathOffset],
-    M[dstLeafIndexOffset],
-    M[dstRootOffset]
-} = getL1ToL2Message(M[keyOffset])
-`,
-        "Summary": "Retrieve an L1-to-L2 message by key",
+        "#memreads": "1",
+        "#memwrites": "0",
+        "Args": [
+            {"name": "noteHashOffset", "description": "memory offset of the note hash"},
+        ],
+        "Expression": `emitNoteHash(M[contentOffset])`,
+        "Summary": "Emit a new note hash to be inserted into the notes tree",
         "Details": "",
         "Tag checks": "",
-        "Tag updates": "`T[dst*Offset] = field`",
+        "Tag updates": "",
+    },
+    {
+        "id": "emitnullifier",
+        "Name": "`EMITNULLIFIER`",
+        "Category": "storage & messaging",
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
+        "#memreads": "1",
+        "#memwrites": "0",
+        "Args": [
+            {"name": "nullifierOffset", "description": "memory offset of nullifier"},
+        ],
+        "Expression": `emitNullifier(M[nullifierOffset])`,
+        "Summary": "Emit a new nullifier to be inserted into the nullifier tree",
+        "Details": "",
+        "Tag checks": "",
+        "Tag updates": "",
     },
     {
         "id": "sendl2tol1msg",
-        "Name": "`SENDL1TOL2MSG`",
+        "Name": "`SENDL2TOL1MSG`",
         "Category": "storage & messaging",
-        "Flags": [],
-        "#memreads": "1",
-        "#memwrites": "1",
-        "Args": [
-            {"name": "keyOffset", "description": "memory offset of the message key"},
-            {"name": "dstMsgOffset", "description": "memory offset specifying where to store the `L1_TO_L2_MESSAGE_LENGTH` words of the retrieved message"},
-            {"name": "dstSibPathOffset", "description": "memory offset specifying where to store the `L1_TO_L2_MSG_TREE_HEIGHT` words of the retrieved message's sibling path"},
-            {"name": "dstLeafIndexOffset", "description": "memory offset specifying where to store the retrieved message's leaf index"},
-            {"name": "dstRootOffset", "description": "memory offset specifying where to store the retrieved message tree root"},
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
         ],
-        "Expression": `
-{
-    M[dstMsgOffset],
-    M[dstSibPathOffset],
-    M[dstLeafIndexOffset],
-    M[dstRootOffset]
-} = getL1ToL2Message(M[keyOffset])
-`,
-        "Summary": "Retrieve an L1-to-L2 message by key",
+        "#memreads": "1",
+        "#memwrites": "0",
+        "Args": [
+            {"name": "contentOffset", "description": "memory offset of the message content"},
+        ],
+        "Expression": `sendL2ToL1Message(M[contentOffset])`,
+        "Summary": "Send an L2-to-L1 message",
         "Details": "",
         "Tag checks": "",
-        "Tag updates": "`T[dst*Offset] = field`",
+        "Tag updates": "",
     },
     {
         "id": "jump",
@@ -450,7 +475,9 @@ const INSTRUCTION_SET_RAW = [
         "id": "jumpi",
         "Name": "`JUMPI`",
         "Category": "control",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "3",
         "#memwrites": "0",
         "Args": [
@@ -467,7 +494,9 @@ const INSTRUCTION_SET_RAW = [
         "id": "return",
         "Name": "`RETURN`",
         "Category": "contract calls",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "`s1`",
         "#memwrites": "0",
         "Args": [
@@ -484,7 +513,9 @@ const INSTRUCTION_SET_RAW = [
         "id": "revert",
         "Name": "`REVERT`",
         "Category": "contract calls",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "`s1`",
         "#memwrites": "0",
         "Args": [
@@ -492,7 +523,7 @@ const INSTRUCTION_SET_RAW = [
             {"name": "size", "description": "number of words to return", "mode": "immediate", "type": "u24"},
         ],
         "Expression": "`revert(M[offset:offset+size])`",
-        "Summary": "Halt execution with `failure`, optionally returning some data.",
+        "Summary": "Halt execution with `failure`, reverting state changes and optionally returning some data.",
         "Details": "Return control flow to the calling context/contract.",
         "Tag checks": "",
         "Tag updates": "",
@@ -501,7 +532,9 @@ const INSTRUCTION_SET_RAW = [
         "id": "call",
         "Name": "`CALL`",
         "Category": "contract calls",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "5",
         "#memwrites": "`1+retSize`",
         "Args": [
@@ -534,7 +567,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "staticcall",
         "Name": "`STATICCALL`",
         "Category": "contract calls",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "5",
         "#memwrites": "`1+retSize`",
         "Args": [
@@ -565,7 +600,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "ulog",
         "Name": "`ULOG`",
         "Category": "logging",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "`s1`",
         "#memwrites": "0",
         "Args": [
@@ -582,7 +619,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "chainid",
         "Name": "`CHAINID`",
         "Category": "block info",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -598,7 +637,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "version",
         "Name": "`VERSION`",
         "Category": "block info",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -614,7 +655,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "blocknumber",
         "Name": "`BLOCKNUMBER`",
         "Category": "block info",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -630,7 +673,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "timestamp",
         "Name": "`TIMESTAMP`",
         "Category": "block info",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -646,7 +691,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "coinbase",
         "Name": "`COINBASE`",
         "Category": "block info",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -662,7 +709,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "blockl1gaslimit",
         "Name": "`BLOCKL1GASLIMIT`",
         "Category": "block info",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -678,7 +727,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "blockl2gaslimit",
         "Name": "`BLOCKL2GASLIMIT`",
         "Category": "block info",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -694,7 +745,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "notesroot",
         "Name": "`NOTESROOT`",
         "Category": "historical access",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "1",
         "#memwrites": "1",
         "Args": [
@@ -711,7 +764,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "nullroot",
         "Name": "`NULLIFIERSROOT`",
         "Category": "historical access",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "1",
         "#memwrites": "1",
         "Args": [
@@ -728,7 +783,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "contractsroot",
         "Name": "`CONTRACTSROOT`",
         "Category": "historical access",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "1",
         "#memwrites": "1",
         "Args": [
@@ -745,7 +802,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "msgsroot",
         "Name": "`MSGSROOT`",
         "Category": "historical access",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "1",
         "#memwrites": "1",
         "Args": [
@@ -759,18 +818,20 @@ T[retOffset:retOffset+retSize] = field
         "Tag updates": "`T[dstOffset] = field`",
     },
     {
-        "id": "blocksroot",
-        "Name": "`BLOCKSROOT`",
+        "id": "notesroot",
+        "Name": "`NOTESROOT`",
         "Category": "historical access",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "1",
         "#memwrites": "1",
         "Args": [
             {"name": "blockNumOffset", "description": "memory offset of the block number input"},
             {"name": "dstOffset", "description": "memory offset specifying where to store operation's result"},
         ],
-        "Expression": "`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].blocks_tree_root`",
-        "Summary": "Get the historical blocks tree root as of the specified block number.",
+        "Expression": "`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].note_hash_tree_root`",
+        "Summary": "Get the historical note-hash tree root as of the specified block number.",
         "Details": "",
         "Tag checks": "",
         "Tag updates": "`T[dstOffset] = field`",
@@ -779,7 +840,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "publicdataroot",
         "Name": "`PUBLICDATAROOT`",
         "Category": "historical access",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "1",
         "#memwrites": "1",
         "Args": [
@@ -796,7 +859,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "globalshash",
         "Name": "`GLOBALSHASH`",
         "Category": "historical access",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "1",
         "#memwrites": "1",
         "Args": [
@@ -810,10 +875,50 @@ T[retOffset:retOffset+retSize] = field
         "Tag updates": "`T[dstOffset] = field`",
     },
     {
+        "id": "blocksroot",
+        "Name": "`BLOCKSROOT`",
+        "Category": "historical access",
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
+        "#memreads": "1",
+        "#memwrites": "1",
+        "Args": [
+            {"name": "blockNumOffset", "description": "memory offset of the block number input"},
+            {"name": "dstOffset", "description": "memory offset specifying where to store operation's result"},
+        ],
+        "Expression": "`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].blocks_tree_root`",
+        "Summary": "Get the historical blocks tree root as of the specified block number.",
+        "Details": "",
+        "Tag checks": "",
+        "Tag updates": "`T[dstOffset] = field`",
+    },
+    {
+        "id": "grandroot",
+        "Name": "`GRANDROOT`",
+        "Category": "historical access",
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
+        "#memreads": "1",
+        "#memwrites": "1",
+        "Args": [
+            {"name": "blockNumOffset", "description": "memory offset of the block number input"},
+            {"name": "dstOffset", "description": "memory offset specifying where to store operation's result"},
+        ],
+        "Expression": "`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].grandfather_tree_root`",
+        "Summary": "Get the historical grandfather tree root as of the specified block number.",
+        "Details": "",
+        "Tag checks": "",
+        "Tag updates": "`T[dstOffset] = field`",
+    },
+    {
         "id": "origin",
         "Name": "`ORIGIN`",
         "Category": "tx context",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -829,7 +934,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "refundee",
         "Name": "`REFUNDEE`",
         "Category": "tx context",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -845,7 +952,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "feeperl1gas",
         "Name": "`FEEPERL1GAS`",
         "Category": "tx context",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -861,7 +970,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "feeperl2gas",
         "Name": "`FEEPERL2GAS`",
         "Category": "tx context",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -877,7 +988,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "caller",
         "Name": "`CALLER`",
         "Category": "call context",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -893,7 +1006,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "address",
         "Name": "`ADDRESS`",
         "Category": "call context",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -909,7 +1024,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "portal",
         "Name": "`PORTAL`",
         "Category": "call context",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -925,7 +1042,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "calldepth",
         "Name": "`CALLDEPTH`",
         "Category": "call context",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -941,7 +1060,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "l1gas",
         "Name": "`L1GAS`",
         "Category": "latest context",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [
@@ -957,7 +1078,9 @@ T[retOffset:retOffset+retSize] = field
         "id": "l2gas",
         "Name": "`L2GAS`",
         "Category": "latest context",
-        "Flags": [],
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
         "#memreads": "0",
         "#memwrites": "1",
         "Args": [

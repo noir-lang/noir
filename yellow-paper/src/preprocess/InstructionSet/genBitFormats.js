@@ -8,7 +8,6 @@ function run() {
     for (let i = 0; i < INSTRUCTION_SET.length; i++) {
         const instr = INSTRUCTION_SET[i];
         const bitFormat = instructionBitFormat(instr, i);
-        console.log(JSON.stringify(bitFormat));
         formats.push(bitFormat);
     }
     fs.writeFileSync('./InstructionBitFormats.json', JSON.stringify(formats));

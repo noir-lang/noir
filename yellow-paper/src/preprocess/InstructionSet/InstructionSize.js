@@ -1,7 +1,5 @@
-const FIELD_SIZES = { // in bits
-    "Opcode": 8,
-    "Indirect": 8,
-};
+const OPCODE_SIZE = 8;
+const FLAG_SIZE = 8;
 
 const DEFAULT_OPERAND_SIZE = 24; // for direct/indirect memory offsets
 
@@ -33,7 +31,7 @@ function toOpcode(index) {
  * 1 byte for dest-type
  */
 function instructionSize(instr) {
-    let size = FIELD_SIZES['Opcode'] + FIELD_SIZES['Indirect'];
+    let size = OPCODE_SIZE;
     let numUntypedImmediates = 0;
     for (let arg of instr['Args']) {
         const aSize = argSize(arg);
@@ -44,8 +42,8 @@ function instructionSize(instr) {
         }
     }
     if (instr['Flags']) {
-        // assigns each flag a byte (op-type, dest-type)
-        size += instr['Flags'].length * 8;
+        // assigns each flag a byte (indirect, op-type, dest-type)
+        size += instr['Flags'].length * FLAG_SIZE;
     }
     let sizeStr = size.toString();
     if (numUntypedImmediates > 0) {
@@ -55,7 +53,15 @@ function instructionSize(instr) {
 }
 
 function instructionBitFormat(instr, index) {
-    let bitFormat = { 'Name': instr['Name'], 'Opcode': {'code': toOpcode(index), 'size': 8}, 'Indirect': 8, 'Args': [], 'Flags': [] };
+    let bitFormat = {
+        'Name': instr['Name'],
+        'Opcode': {
+            'code': toOpcode(index),
+            'size': OPCODE_SIZE,
+        },
+        'Args': [],
+        'Flags': [],
+    };
 
     //for (let arg of instr['Args']) {
     for (let a = 0; a < instr['Args'].length; a++) {
@@ -69,7 +75,7 @@ function instructionBitFormat(instr, index) {
     }
     for (let f = 0; f < instr['Flags'].length; f++) {
         const flag = instr['Flags'][f];
-        bitFormat['Flags'][f] = {"name": flag['name'], "size": 8};
+        bitFormat['Flags'][f] = {"name": flag['name'], "size": FLAG_SIZE};
     }
     return bitFormat;
 }

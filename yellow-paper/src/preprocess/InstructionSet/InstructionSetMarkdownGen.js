@@ -31,6 +31,7 @@ function toOpcode(index) {
 
 function htmlInstructionSetTable() {
     let table = "## Instructions Table\n";
+    table += "\nClick on an instruction name to jump to its section.\n";
     table += "\n<table>\n";
     let header = "<th>Opcode</th>";
     for (let t = 0; t < TOPICS_IN_TABLE.length; t++) {
