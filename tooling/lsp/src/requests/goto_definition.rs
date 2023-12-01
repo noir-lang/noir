@@ -68,20 +68,22 @@ fn find_definition_location(
         let _ = noirc_driver::check_crate(&mut context, crate_id, false);
 
         let files = context.file_manager.as_file_map();
-        let file_id = context.file_manager.name_to_id(file_path.clone()).unwrap();
+        let file_id = context.file_manager.name_to_id(file_path.clone());
 
-        let byte_index =
-            position_to_byte_index(files, file_id, &params.text_document_position_params.position);
-
-        if let Ok(byte_index) = byte_index {
-            let found_location = context.find_definition_location(
-                file_id,
-                &noirc_errors::Span::single_char(byte_index as u32),
-            );
-
-            if let Some(found_location) = found_location {
-                let file_id = found_location.file;
-                definition_position = to_lsp_location(files, file_id, found_location.span);
+        if let Some(file_id) = file_id {
+            let byte_index =
+                position_to_byte_index(files, file_id, &params.text_document_position_params.position);
+    
+            if let Ok(byte_index) = byte_index {
+                let found_location = context.find_definition_location(
+                    file_id,
+                    &noirc_errors::Span::single_char(byte_index as u32),
+                );
+    
+                if let Some(found_location) = found_location {
+                    let file_id = found_location.file;
+                    definition_position = to_lsp_location(files, file_id, found_location.span);
+                }
             }
         }
     }
@@ -103,17 +105,13 @@ fn to_lsp_location<'a, F>(
 where
     F: codespan_reporting::files::Files<'a> + ?Sized,
 {
-    let range = crate::byte_span_to_range(files, file_id, definition_span.into());
+    let range = crate::byte_span_to_range(files, file_id, definition_span.into())?;
+    let file_name = files.name(file_id).ok()?;
 
-    if let Some(range) = range {
-        let file_name = files.name(file_id).unwrap();
-        let path = file_name.to_string();
-        let uri = Url::from_file_path(path).unwrap();
-
-        Some(Location { uri, range })
-    } else {
-        None
-    }
+    let path = file_name.to_string();
+    let uri = Url::from_file_path(path).ok()?;
+    
+    Some(Location { uri, range })
 }
 
 pub(crate) fn position_to_byte_index<'a, F>(
@@ -127,12 +125,17 @@ where
     let source = files.source(file_id)?;
     let source = source.as_ref();
 
-    let line_span = files.line_range(file_id, position.line as usize).unwrap();
-    let line_str = source.get(line_span.clone()).unwrap();
+    let line_span = files.line_range(file_id, position.line as usize)?;
+    
+    let line_str = source.get(line_span.clone());
 
-    let byte_offset = character_to_line_offset(line_str, position.character)?;
-
-    Ok(line_span.start + byte_offset)
+    if let Some(line_str) = line_str  {
+        
+        let byte_offset = character_to_line_offset(line_str, position.character)?;
+        Ok(line_span.start + byte_offset)
+    } else {
+        Err(Error::InvalidCharBoundary { given: position.line as usize })
+    }
 }
 
 fn character_to_line_offset(line: &str, character: u32) -> Result<usize, Error> {
@@ -179,13 +182,15 @@ mod goto_definition_tests {
             .unwrap()
             .join("../nargo_cli/tests/execution_success/slice_struct_field")
             .canonicalize()
-            .unwrap();
+            .expect("Could not find root path");
+        let noir_text_document = Url::from_file_path(root_path.join("src/main.nr").as_path()).expect("Could not convert text document path to URI");
+        let root_uri = Some(Url::from_file_path(root_path.as_path()).expect("Could not convert root path to URI"));
         
         #[allow(deprecated)]
         let initialize_params = lsp_types::InitializeParams {
             process_id: Default::default(),
             root_path: None,
-            root_uri: Some(Url::from_file_path(root_path.as_path()).unwrap()),
+            root_uri,
             initialization_options: None,
             capabilities: Default::default(),
             trace: Some(lsp_types::TraceValue::Verbose),
@@ -194,12 +199,12 @@ mod goto_definition_tests {
             locale: None,
         };
         let _initialize_response =
-            crate::requests::on_initialize(&mut state, initialize_params).await.unwrap();
+            crate::requests::on_initialize(&mut state, initialize_params).await.expect("Could not initialize LSP server");
 
         let params = GotoDefinitionParams {
             text_document_position_params: lsp_types::TextDocumentPositionParams {
                 text_document: lsp_types::TextDocumentIdentifier {
-                    uri: Url::from_file_path(root_path.join("src/main.nr").as_path()).unwrap(),
+                    uri: noir_text_document,
                 },
                 position: Position { line: 122, character: 10 },
             },
@@ -207,7 +212,7 @@ mod goto_definition_tests {
             partial_result_params: Default::default(),
         };
 
-        let response = on_goto_definition_request(&mut state, params).await.unwrap();
+        let response = on_goto_definition_request(&mut state, params).await.expect("Could not find definition");
 
         assert!(&response.is_some());
     }

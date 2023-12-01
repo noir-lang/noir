@@ -10,6 +10,7 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
+use crate::hir_def::expr;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::traits::{Trait, TraitConstraint};
@@ -471,8 +472,10 @@ impl NodeInterner {
     pub fn find_location(&self, file: FileId, location_span: &Span) -> Option<(&Index, &Location)> {
         let mut location_candidate: Option<(&Index, &Location)> = None;
 
+        let mut possible_locations: Vec<(&Index, &Location)> = Vec::new();
         for (index, location) in self.id_to_location.iter() {
             if location.file == file && location.span.contains(location_span) {
+                possible_locations.push((index, location));
                 if let Some(current_location) = location_candidate {
                     if location.span.is_smaller(&current_location.1.span) {
                         location_candidate = Some((index, location));
@@ -482,6 +485,7 @@ impl NodeInterner {
                 }
             }
         }
+        eprintln!("Possible locations for span {location_span:?} are {possible_locations:?}");
         location_candidate
     }
 
@@ -1259,7 +1263,7 @@ impl NodeInterner {
                                     Some(location)
                                 } else {
                                     eprintln!(
-                                        "\n ---> Local Definition not found for {expression:?}\n"
+                                        "\n ---> Local Definition not found for {expression:?} and {definition_info:?}\n"
                                     );
                                     None
                                 }
@@ -1280,6 +1284,13 @@ impl NodeInterner {
                         let struct_type = &expr.r#type.borrow();
 
                         Some(Location::new(struct_type.span, struct_type.file_id))
+                    },
+                    HirExpression::MemberAccess(expr_member_access) => {
+                        let expr_lhs = expr_member_access.lhs;
+                        let resolved_lhs = self.resolve_location(file_id, &expr_lhs.0);
+                        eprintln!(" --> Member Access LHS: {expr_lhs:?}\nresolved to \n {resolved_lhs:?}");
+                        resolved_lhs
+                        
                     }
                     _ => {
                         eprintln!("\n --> Not Implemented for expression {expression:?}\n");
