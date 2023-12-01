@@ -423,7 +423,13 @@ impl TypeVariable {
 
     pub fn bind(&self, typ: Type) {
         let id = match &*self.0.borrow() {
-            TypeBinding::Bound(binding) => unreachable!("Expected unbound, found bound to {binding}"),
+            TypeBinding::Bound(binding) => {
+                if *binding == typ {
+                    return;
+                } else {
+                    unreachable!("TypeVariable::bind, cannot bind bound var {} to {}", binding, typ);
+                }
+            }
             TypeBinding::Unbound(id) => *id,
         };
 
@@ -798,14 +804,16 @@ impl Type {
             TypeBinding::Unbound(id) => *id,
         };
 
-        match self.substitute(bindings) {
-            Type::Constant(length) if length == target_length => {
-                assert!(!self.occurs(target_id));
-                bindings.insert(target_id, (var.clone(), self.clone()));
+        let this = self.substitute(bindings);
+
+        match &this {
+            Type::Constant(length) if *length == target_length => {
+                assert!(!this.occurs(target_id));
+                bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
             Type::NotConstant => {
-                assert!(!self.occurs(target_id));
+                assert!(!this.occurs(target_id));
                 bindings.insert(target_id, (var.clone(), Type::NotConstant));
                 Ok(())
             }
@@ -829,7 +837,7 @@ impl Type {
                             bindings.insert(*new_target_id, (new_var.clone(), clone));
                             Ok(())
                         }
-                        TypeVariableKind::Constant(length) if length == target_length => {
+                        TypeVariableKind::Constant(length) if *length == target_length => {
                             let clone = Type::TypeVariable(
                                 var.clone(),
                                 TypeVariableKind::Constant(target_length),
@@ -867,10 +875,12 @@ impl Type {
             TypeBinding::Unbound(id) => *id,
         };
 
-        match self.substitute(bindings) {
+        let this = self.substitute(bindings);
+
+        match &this {
             Type::FieldElement | Type::Integer(..) => {
-                assert!(!self.occurs(target_id));
-                bindings.insert(target_id, (var.clone(), self.clone()));
+                assert!(!this.occurs(target_id));
+                bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
             Type::TypeVariable(self_var, TypeVariableKind::IntegerOrField) => {
@@ -880,8 +890,8 @@ impl Type {
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => Ok(()),
                     TypeBinding::Unbound(_) => {
-                assert!(!self.occurs(target_id));
-                        bindings.insert(target_id, (var.clone(), self.clone()));
+                assert!(!this.occurs(target_id));
+                        bindings.insert(target_id, (var.clone(), this.clone()));
                         Ok(())
                     }
                 }

@@ -1007,6 +1007,8 @@ impl NodeInterner {
             return Err(vec![make_constraint()]);
         }
 
+        let object_type = object_type.substitute(type_bindings);
+
         let impls =
             self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
 
@@ -1051,6 +1053,7 @@ impl NodeInterner {
     ) -> Result<(), Vec<TraitConstraint>> {
         for constraint in where_clause {
             let constraint_type = constraint.typ.substitute(type_bindings);
+
             self.lookup_trait_implementation_helper(
                 &constraint_type,
                 constraint.trait_id,
