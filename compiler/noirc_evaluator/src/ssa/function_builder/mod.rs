@@ -172,8 +172,9 @@ impl FunctionBuilder {
     /// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
-    pub(crate) fn insert_allocate(&mut self) -> ValueId {
-        self.insert_instruction(Instruction::Allocate, None).first()
+    pub(crate) fn insert_allocate(&mut self, element_type: Type) -> ValueId {
+        let reference_type = Type::Reference(Rc::new(element_type));
+        self.insert_instruction(Instruction::Allocate, Some(vec![reference_type])).first()
     }
 
     pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
@@ -458,6 +459,27 @@ impl FunctionBuilder {
         match self.current_function.dfg[value] {
             Value::Intrinsic(intrinsic) => Some(intrinsic),
             _ => None,
+        }
+    }
+
+    /// Insert instructions to increment the reference count of any array(s) stored
+    /// within the given value. If the given value is not an array and does not contain
+    /// any arrays, this does nothing.
+    pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
+        match self.type_of_value(value) {
+            Type::Numeric(_) => (),
+            Type::Function => (),
+            Type::Reference(element) => {
+                if element.contains_an_array() {
+                    let value = self.insert_load(value, element.as_ref().clone());
+                    self.increment_array_reference_count(value);
+                }
+            }
+            Type::Array(..) | Type::Slice(..) => {
+                self.insert_instruction(Instruction::IncrementRc { value }, None);
+                // If there are nested arrays or slices, we wait until ArrayGet
+                // is issued to increment the count of that array.
+            }
         }
     }
 }

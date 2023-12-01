@@ -2,6 +2,7 @@ use crate::brillig::brillig_ir::ReservedRegisters;
 
 use super::{
     artifact::{BrilligArtifact, BrilligParameter},
+    brillig_variable::{BrilligArray, BrilligVariable},
     debug_show::DebugShow,
     registers::BrilligRegistersContext,
     BrilligContext,
@@ -20,6 +21,7 @@ impl BrilligContext {
             registers: BrilligRegistersContext::new(),
             context_label: String::default(),
             section_label: 0,
+            next_section: 1,
             debug_show: DebugShow::new(false),
         };
 
@@ -32,18 +34,39 @@ impl BrilligContext {
     }
 
     /// Adds the instructions needed to handle entry point parameters
-    ///
-    /// And sets the starting value of the reserved registers
+    /// The runtime will leave the parameters in the first `n` registers.
+    /// Arrays will be passed as pointers to the first element, with all the nested arrays flattened.
+    /// First, reserve the registers that contain the parameters.
+    /// This function also sets the starting value of the reserved registers
     fn entry_point_instruction(&mut self, arguments: Vec<BrilligParameter>) {
-        // Translate the inputs by the reserved registers offset
-        for i in (0..arguments.len()).rev() {
-            self.push_opcode(BrilligOpcode::Mov {
-                destination: ReservedRegisters::user_register_index(i),
-                source: RegisterIndex::from(i),
-            });
-            // Make sure we don't overwrite the arguments
-            self.allocate_register();
-        }
+        let preallocated_registers: Vec<_> =
+            arguments.iter().enumerate().map(|(i, _)| RegisterIndex::from(i)).collect();
+        self.set_allocated_registers(preallocated_registers.clone());
+
+        // Then allocate and initialize the variables that will hold the parameters
+        let argument_variables: Vec<_> = arguments
+            .iter()
+            .zip(preallocated_registers)
+            .map(|(argument, param_register)| match argument {
+                BrilligParameter::Simple => {
+                    let variable_register = self.allocate_register();
+                    self.mov_instruction(variable_register, param_register);
+                    BrilligVariable::Simple(variable_register)
+                }
+                BrilligParameter::Array(item_types, item_count) => {
+                    let pointer_register = self.allocate_register();
+                    let rc_register = self.allocate_register();
+                    self.mov_instruction(pointer_register, param_register);
+                    self.const_instruction(rc_register, 1_usize.into());
+                    BrilligVariable::BrilligArray(BrilligArray {
+                        pointer: pointer_register,
+                        size: item_types.len() * item_count,
+                        rc: rc_register,
+                    })
+                }
+                BrilligParameter::Slice(_) => unimplemented!("Unsupported slices as parameter"),
+            })
+            .collect();
 
         // Calculate the initial value for the stack pointer register
         let size_arguments_memory: usize = arguments
@@ -65,15 +88,23 @@ impl BrilligContext {
             value: 0_usize.into(),
         });
 
-        for (index, parameter) in arguments.iter().enumerate() {
+        // Deflatten the arrays
+        for (parameter, assigned_variable) in arguments.iter().zip(&argument_variables) {
             if let BrilligParameter::Array(item_type, item_count) = parameter {
                 if item_type.iter().any(|param| !matches!(param, BrilligParameter::Simple)) {
-                    let pointer_register = ReservedRegisters::user_register_index(index);
+                    let pointer_register = assigned_variable.extract_array().pointer;
                     let deflattened_register =
                         self.deflatten_array(item_type, *item_count, pointer_register);
                     self.mov_instruction(pointer_register, deflattened_register);
                 }
             }
+        }
+
+        // Move the parameters to the first user defined registers, to follow function call convention.
+        for (i, register) in
+            argument_variables.into_iter().flat_map(|arg| arg.extract_registers()).enumerate()
+        {
+            self.mov_instruction(ReservedRegisters::user_register_index(i), register);
         }
     }
 
@@ -92,6 +123,7 @@ impl BrilligContext {
     }
 
     /// Deflatten an array by recursively allocating nested arrays and copying the plain values.
+    /// Returns the pointer to the deflattened items.
     fn deflatten_array(
         &mut self,
         item_type: &[BrilligParameter],
@@ -139,13 +171,25 @@ impl BrilligContext {
                             *nested_array_item_count,
                             nested_array_pointer,
                         );
-                        self.array_set(
-                            deflattened_array_pointer,
-                            target_index,
-                            deflattened_nested_array_pointer,
+                        let reference = self.allocate_register();
+                        let rc = self.allocate_register();
+                        self.const_instruction(rc, 1_usize.into());
+
+                        self.allocate_array_reference_instruction(reference);
+                        self.store_variable_instruction(
+                            reference,
+                            BrilligVariable::BrilligArray(BrilligArray {
+                                pointer: deflattened_nested_array_pointer,
+                                size: nested_array_item_type.len() * nested_array_item_count,
+                                rc,
+                            }),
                         );
 
+                        self.array_set(deflattened_array_pointer, target_index, reference);
+
                         self.deallocate_register(nested_array_pointer);
+                        self.deallocate_register(reference);
+                        self.deallocate_register(rc);
 
                         source_offset += BrilligContext::flattened_size(subitem);
                     }
@@ -163,21 +207,36 @@ impl BrilligContext {
     }
 
     /// Adds the instructions needed to handle return parameters
+    /// The runtime expects the results in the first `n` registers.
+    /// Arrays are expected to be returned as pointers to the first element with all the nested arrays flattened.
+    /// However, the function called returns variables (that have extra data) and the returned arrays are unflattened.
     fn exit_point_instruction(&mut self, return_parameters: Vec<BrilligParameter>) {
-        // Make sure we don't overwrite the return parameters
-        return_parameters.iter().for_each(|_| {
-            self.allocate_register();
-        });
-
-        for (index, ret) in return_parameters.iter().enumerate() {
-            if let BrilligParameter::Array(item_type, item_count) = ret {
+        // First, we allocate the registers that hold the returned variables from the function call.
+        self.set_allocated_registers(vec![]);
+        let returned_variables: Vec<_> = return_parameters
+            .iter()
+            .map(|return_parameter| match return_parameter {
+                BrilligParameter::Simple => BrilligVariable::Simple(self.allocate_register()),
+                BrilligParameter::Array(item_types, item_count) => {
+                    BrilligVariable::BrilligArray(BrilligArray {
+                        pointer: self.allocate_register(),
+                        size: item_types.len() * item_count,
+                        rc: self.allocate_register(),
+                    })
+                }
+                BrilligParameter::Slice(..) => unreachable!("ICE: Cannot return slices"),
+            })
+            .collect();
+        // Now, we unflatten the returned arrays
+        for (return_param, returned_variable) in return_parameters.iter().zip(&returned_variables) {
+            if let BrilligParameter::Array(item_type, item_count) = return_param {
                 if item_type.iter().any(|item| !matches!(item, BrilligParameter::Simple)) {
-                    let returned_pointer = ReservedRegisters::user_register_index(index);
+                    let returned_pointer = returned_variable.extract_array().pointer;
                     let flattened_array_pointer = self.allocate_register();
 
                     self.allocate_fixed_length_array(
                         flattened_array_pointer,
-                        BrilligContext::flattened_size(ret),
+                        BrilligContext::flattened_size(return_param),
                     );
 
                     self.flatten_array(
@@ -191,16 +250,18 @@ impl BrilligContext {
                 }
             }
         }
-        // We want all functions to follow the calling convention of returning
+        // The VM expects us to follow the calling convention of returning
         // their results in the first `n` registers. So we to move the return values
         // to the first `n` registers once completed.
 
         // Move the results to registers 0..n
-        for i in 0..return_parameters.len() {
-            self.push_opcode(BrilligOpcode::Mov {
-                destination: i.into(),
-                source: ReservedRegisters::user_register_index(i),
-            });
+        for (i, returned_variable) in returned_variables.into_iter().enumerate() {
+            let register = match returned_variable {
+                BrilligVariable::Simple(register) => register,
+                BrilligVariable::BrilligArray(array) => array.pointer,
+                BrilligVariable::BrilligVector(vector) => vector.pointer,
+            };
+            self.push_opcode(BrilligOpcode::Mov { destination: i.into(), source: register });
         }
         self.push_opcode(BrilligOpcode::Stop);
     }
@@ -237,11 +298,22 @@ impl BrilligContext {
                         target_offset += 1;
                     }
                     BrilligParameter::Array(nested_array_item_type, nested_array_item_count) => {
-                        let nested_array_pointer = self.allocate_register();
+                        let nested_array_reference = self.allocate_register();
                         self.array_get(
                             deflattened_array_pointer,
                             source_index,
-                            nested_array_pointer,
+                            nested_array_reference,
+                        );
+
+                        let nested_array_variable = BrilligVariable::BrilligArray(BrilligArray {
+                            pointer: self.allocate_register(),
+                            size: nested_array_item_type.len() * nested_array_item_count,
+                            rc: self.allocate_register(),
+                        });
+
+                        self.load_variable_instruction(
+                            nested_array_variable,
+                            nested_array_reference,
                         );
 
                         let flattened_nested_array_pointer = self.allocate_register();
@@ -262,11 +334,15 @@ impl BrilligContext {
                             nested_array_item_type,
                             *nested_array_item_count,
                             flattened_nested_array_pointer,
-                            nested_array_pointer,
+                            nested_array_variable.extract_array().pointer,
                         );
 
-                        self.deallocate_register(nested_array_pointer);
+                        self.deallocate_register(nested_array_reference);
                         self.deallocate_register(flattened_nested_array_pointer);
+                        nested_array_variable
+                            .extract_registers()
+                            .into_iter()
+                            .for_each(|register| self.deallocate_register(register));
 
                         target_offset += BrilligContext::flattened_size(subitem);
                     }
@@ -288,6 +364,7 @@ mod tests {
 
     use crate::brillig::brillig_ir::{
         artifact::BrilligParameter,
+        brillig_variable::BrilligArray,
         tests::{create_and_run_vm, create_context, create_entry_point_bytecode},
     };
 
@@ -332,18 +409,24 @@ mod tests {
                 Value::from(4_usize),
                 Value::from(5_usize),
                 Value::from(6_usize),
-                // The pointer to the nested array of the first item
-                Value::from(10_usize),
-                Value::from(3_usize),
-                // The pointer to the nested array of the second item
+                // The pointer to the nested reference of the first item
                 Value::from(12_usize),
+                Value::from(3_usize),
+                // The pointer to the nested reference of the second item
+                Value::from(16_usize),
                 Value::from(6_usize),
                 // The nested array of the first item
                 Value::from(1_usize),
                 Value::from(2_usize),
+                // The nested reference of the first item
+                Value::from(10_usize),
+                Value::from(1_usize),
                 // The nested array of the second item
                 Value::from(4_usize),
                 Value::from(5_usize),
+                // The nested reference of the second item
+                Value::from(14_usize),
+                Value::from(1_usize),
             ]
         );
     }
@@ -358,34 +441,30 @@ mod tests {
             Value::from(5_usize),
             Value::from(6_usize),
         ];
-
         let array_param = BrilligParameter::Array(
             vec![
-                BrilligParameter::Simple,
                 BrilligParameter::Array(vec![BrilligParameter::Simple], 2),
+                BrilligParameter::Simple,
             ],
             2,
         );
-
         let arguments = vec![array_param.clone()];
         let returns = vec![array_param];
 
         let mut context = create_context();
 
         // Allocate the parameter
-        let array_pointer = context.allocate_register();
+        let brillig_array = BrilligArray {
+            pointer: context.allocate_register(),
+            size: 2,
+            rc: context.allocate_register(),
+        };
 
-        context.return_instruction(&[array_pointer]);
+        context.return_instruction(&brillig_array.extract_registers());
 
         let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
         let vm = create_and_run_vm(flattened_array.clone(), vec![Value::from(0_usize)], &bytecode);
         let memory = vm.get_memory();
-
-        assert_eq!(
-            vm.get_registers().get(RegisterIndex(0)),
-            // The returned value will be past the original array and the deflattened array
-            Value::from(flattened_array.len() + (flattened_array.len() + 2)),
-        );
 
         assert_eq!(
             memory,
@@ -397,19 +476,25 @@ mod tests {
                 Value::from(4_usize),
                 Value::from(5_usize),
                 Value::from(6_usize),
-                // The pointer to the nested array of the first item
-                Value::from(1_usize),
-                Value::from(10_usize),
-                // The pointer to the nested array of the second item
-                Value::from(4_usize),
+                // The pointer to the nested reference of the first item
                 Value::from(12_usize),
-                // The nested array of the first item
-                Value::from(2_usize),
                 Value::from(3_usize),
-                // The nested array of the second item
-                Value::from(5_usize),
+                // The pointer to the nested reference of the second item
+                Value::from(16_usize),
                 Value::from(6_usize),
-                // The values flattened again
+                // The nested array of the first item
+                Value::from(1_usize),
+                Value::from(2_usize),
+                // The nested reference of the first item
+                Value::from(10_usize),
+                Value::from(1_usize),
+                // The nested array of the second item
+                Value::from(4_usize),
+                Value::from(5_usize),
+                // The nested reference of the second item
+                Value::from(14_usize),
+                Value::from(1_usize),
+                // The original flattened again
                 Value::from(1_usize),
                 Value::from(2_usize),
                 Value::from(3_usize),
@@ -418,5 +503,6 @@ mod tests {
                 Value::from(6_usize),
             ]
         );
+        assert_eq!(vm.get_registers().get(RegisterIndex(0)), 18_usize.into());
     }
 }

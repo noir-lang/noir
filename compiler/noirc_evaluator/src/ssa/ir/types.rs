@@ -25,7 +25,7 @@ pub(crate) enum Type {
     Numeric(NumericType),
 
     /// A reference to some value, such as an array
-    Reference,
+    Reference(Rc<Type>),
 
     /// An immutable array value with the given element type and length
     Array(Rc<CompositeType>, usize),
@@ -86,7 +86,7 @@ impl Type {
             }
             Type::Slice(_) => true,
             Type::Numeric(_) => false,
-            Type::Reference => false,
+            Type::Reference(_) => false,
             Type::Function => false,
         }
     }
@@ -101,6 +101,23 @@ impl Type {
                 unimplemented!("ICE: cannot fetch flattened slice size");
             }
             _ => 1,
+        }
+    }
+
+    pub(crate) fn is_nested_slice(&self) -> bool {
+        if let Type::Slice(element_types) = self {
+            element_types.as_ref().iter().any(|typ| typ.contains_slice_element())
+        } else {
+            false
+        }
+    }
+
+    /// True if this type is an array (or slice) or internally contains an array (or slice)
+    pub(crate) fn contains_an_array(&self) -> bool {
+        match self {
+            Type::Numeric(_) | Type::Function => false,
+            Type::Array(_, _) | Type::Slice(_) => true,
+            Type::Reference(element) => element.contains_an_array(),
         }
     }
 }
@@ -134,7 +151,7 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Numeric(numeric) => numeric.fmt(f),
-            Type::Reference => write!(f, "reference"),
+            Type::Reference(element) => write!(f, "&mut {element}"),
             Type::Array(element, length) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
                 write!(f, "[{}; {length}]", elements.join(", "))

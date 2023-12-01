@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "start": "docusaurus start",
-    "build": "docusaurus build",
-    "setStable": "node ./scripts/setStable.js"
+    "build": "yarn version::stables && docusaurus build",
+    "version::stables": "node ./scripts/setStable.js"
   },
   "dependencies": {
     "@docusaurus/core": "^2.4.0",

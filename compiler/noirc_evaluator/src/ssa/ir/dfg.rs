@@ -320,7 +320,7 @@ impl DataFlowGraph {
     /// True if the type of this value is Type::Reference.
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
-        matches!(self.values[value].get_type(), Type::Reference)
+        matches!(self.values[value].get_type(), Type::Reference(_))
     }
 
     /// Appends a result type to the instruction.
@@ -523,13 +523,13 @@ impl<'dfg> InsertInstructionResult<'dfg> {
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
-    use crate::ssa::ir::instruction::Instruction;
+    use crate::ssa::ir::{instruction::Instruction, types::Type};
 
     #[test]
     fn make_instruction() {
         let mut dfg = DataFlowGraph::default();
         let ins = Instruction::Allocate;
-        let ins_id = dfg.make_instruction(ins, None);
+        let ins_id = dfg.make_instruction(ins, Some(vec![Type::field()]));
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), 1);
