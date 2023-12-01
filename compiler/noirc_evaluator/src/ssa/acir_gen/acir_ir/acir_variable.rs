@@ -364,6 +364,59 @@ impl AcirContext {
     /// Returns an `AcirVar` that is `1` if `var` equals `0` and
     /// 0 otherwise.
     fn eq_zero(&mut self, var: AcirVar) -> Result<AcirVar, RuntimeError> {
+        // Returns an `AcirVar` that is constrained to be:
+        // - `1` if `var == 0`
+        // - `0` otherwise
+        //
+        // # Proof
+        //
+        // First, let's create a new variable `y` which will be the Witness that we will ultimately
+        // return indicating whether `var == 0`.
+        // Note: During this process we need to apply constraints that ensure that it is a boolean.
+        // But right now with no constraints applied to it, it is essentially a free variable.
+        //
+        // Next we apply the following constraint `y * var == 0`.
+        // This implies that either `y` or `var` or both is `0`.
+        // - If `var == 0`, then by definition `var == 0`.
+        // - If `y == 0`, this does not mean anything at this point in time, due to it having no
+        // constraints.
+        //
+        // Naively, we could apply the following constraint: `y == 1 - var`.
+        // This along with the previous `y * var == 0` constraint means that
+        // `y` or `var` needs to be zero, but they both cannot be zero.
+        //
+        // This equation however falls short when `var != 0` because then `var`
+        // may not be `1`. If `var` is non-zero, then `y` is also non-zero due to
+        // `y == 1 - var` and the equation `y * var == 0` fails.
+        //
+        // To fix, we introduce another free variable called `z` and apply the following
+        // constraint instead: `y == 1 - var * z`.
+        //
+        // When `var == 0`, `y` is `1`.
+        // When `var != 0`, the prover can set `z = 1/var` which will make `y = 1 - var * 1/var = 0`.
+        //
+        // We now arrive at the conclusion that when `var == 0`, `y` is `1` and when
+        // `var != 0`, then `y` is `0`.
+        //
+        // Bringing it all together, We introduce two variables `y` and `z`,
+        // With the following equations:
+        // - `y == 1 - var * z` (`z` is a value that is chosen to be the inverse of `var` by the prover)
+        // - `y * var == 0`
+        //
+        // Lets convince ourselves that the prover cannot prove an untrue statement.
+        //
+        // ---
+        // Assume that `var == 0`, can the prover return `y == 0`?
+        //
+        // When `var == 0`, there is no way to make `y` be zero since `y = 1 - 0 * z = 1`.
+        //
+        // ---
+        // Assume that `var != 0`, can the prover return `y == 1`?
+        //
+        // By setting `z` to be `0`, we can make `y` equal to `1`.
+        // This is easily observed: `y = 1 - var * 0`
+        // Now since `y` is one, this means that `var` needs to be zero, or else `y * var == 0` will fail.
+
         // Check to see if equality can be determined at compile-time.
         let expr = self.var_to_expression(var)?;
         if let Some(constant) = expr.to_const() {
@@ -378,12 +431,12 @@ impl AcirContext {
 
         let y = self.add_variable();
 
-        // Add constraint y == 1 - tz => y + tz - 1 == 0
+        // Add constraint y == 1 - var * z => y + var * z - 1 == 0
         let y_is_boolean_constraint = self.mul_var(var, z)?;
         let y_is_boolean_constraint = self.add_var(y_is_boolean_constraint, y)?;
         self.assert_eq_var(y_is_boolean_constraint, one, None)?;
 
-        // Add constraint that y * t == 0;
+        // Add constraint that y * var == 0;
         let yt = self.mul_var(y, var)?;
         self.assert_eq_var(yt, zero, None)?;
 
