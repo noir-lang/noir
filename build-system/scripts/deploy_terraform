@@ -4,7 +4,7 @@ set -eu
 
 REPOSITORY=$1
 TF_DIR=$2
-TO_TAINT=${3}
+TO_TAINT=${3:-}
 
 if [ ! -d "$TF_DIR" ]; then
   echo "No terraform directory found at $TF_DIR. Skipping."
