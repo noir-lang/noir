@@ -455,12 +455,15 @@ impl NodeInterner {
     }
 
     /// Scans the interner for the item which is located at that [Location]
+    /// 
     /// The [Location] may not necessarily point to the beginning of the item
     /// so we check if the location's span is contained within the start or end
     /// of each items [Span]
     pub fn find_location_index(&self, location: Location) -> Option<impl Into<Index>> {
         let mut location_candidate: Option<(&Index, &Location)> = None;
 
+        // Note: we can modify this in the future to not do a linear
+        // scan by storing a separate map of the spans or by sorting the locations.
         for (index, interned_location) in self.id_to_location.iter() {
             if interned_location.contains(&location) {
                 if let Some(current_location) = location_candidate {
@@ -1215,42 +1218,35 @@ impl NodeInterner {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
 
-    /// For given [Index] we return [Location] to which we resolved to
+    /// For a given [Index] we return [Location] to which we resolved to
     /// We currently return None for features not yet implemented
     /// TODO(#3659): LSP goto def should error when Ident at Location could not resolve
     pub fn resolve_location(&self, index_id: &Index) -> Option<Location> {
-        self.nodes.get(*index_id).and_then(|def| match def {
-            Node::Function(func) => {
-                self.resolve_location(&func.as_expr().into())
-            }
-            Node::Expression(expression) => {
-                match expression {
-                    HirExpression::Ident(ident) => {
-                        let definition_info = self.definition(ident.id);
+        let node = self.nodes.get(*index_id)?;
 
-                        match definition_info.kind {
-                            DefinitionKind::Function(func_id) => {
-                                Some(self.function_meta(&func_id).location)
-                            }
-                            _ => {
-                                eprintln!(
-                                    "\n ---> Not Implemented for Ident, Definition Kind {expression:?} and {definition_info:?}\n"
-                                );
-                                None
-                            }
-                        }
-                    },
-                    _ => {
-                        eprintln!("\n --> Not Implemented for  {expression:?}\n");
-                        None
+        match node {
+            Node::Function(func) => self.resolve_location(&func.as_expr().into()),
+            Node::Expression(expression) => self.resolve_expression_location(expression),
+            _ => None,
+        }
+    }
+
+    /// Resolves the [Location] of the definition for a given [HirExpression]
+    /// 
+    /// Note: current the code returns None because some expressions are not yet implemented.
+    fn resolve_expression_location(&self, expression: &HirExpression) -> Option<Location> {
+        match expression {
+            HirExpression::Ident(ident) => {
+                let definition_info = self.definition(ident.id);
+                match definition_info.kind {
+                    DefinitionKind::Function(func_id) => {
+                        Some(self.function_meta(&func_id).location)
                     }
+                    _ => None,
                 }
-            },
-            _ => {
-                eprintln!("\n -> Not Implemented for {def:?}\n");
-                None
             }
-        })
+            _ => None,
+        }
     }
 }
 
