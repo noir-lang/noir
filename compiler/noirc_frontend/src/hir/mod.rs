@@ -9,7 +9,7 @@ use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use def_map::{Contract, CrateDefMap};
 use fm::{FileId, FileManager};
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 use std::collections::BTreeMap;
 
 use self::def_map::TestFunction;
@@ -180,10 +180,11 @@ impl Context {
             .collect()
     }
 
+    /// Returns the [Location] of the definition of the given Ident found at [Span].
     pub fn find_definition_location(
         &self,
         file: FileId,
-        query_location: &noirc_errors::Span,
+        query_location: &Span,
     ) -> Option<Location> {
         let interner = &self.def_interner;
 
