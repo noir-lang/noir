@@ -59,10 +59,10 @@ WORKDIR /usr/src/noir
 COPY . .
 RUN ./scripts/install_wasm-bindgen.sh
 RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD) && cargoExtraArgs="--features noirc_driver/aztec"
+
 RUN cargo build --features="noirc_driver/aztec" --release
 ENV PATH="${PATH}:/usr/src/noir/target/release/"
-RUN echo $PATH
-# RUN nargo
-RUN yarn && yarn build
-RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD) && cargoExtraArgs="--features noirc_driver/aztec"
+RUN yarn && yarn build && yarn add playwright && yarn playwright install
 RUN yarn test
+
+# RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD) && cargoExtraArgs="--features noirc_driver/aztec"
