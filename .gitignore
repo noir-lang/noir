@@ -56,7 +56,8 @@ tooling/noirc_abi_wasm/web
 tooling/noir_js/lib
 
 # Doc-generator
-tooling/doc_generator/generated_doc
+tooling/doc_generator/generated_doc/*
+!tooling/doc_generator/generated_doc/.gitkeep
 
 **/package.tgz
 packages
