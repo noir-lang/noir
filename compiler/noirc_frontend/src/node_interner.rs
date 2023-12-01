@@ -455,7 +455,7 @@ impl NodeInterner {
     }
 
     /// Scans the interner for the location which contains the span
-    pub fn find_location(&self, location: Location) -> Option<&Index> {
+    pub fn find_location_index(&self, location: Location) -> Option<&Index> {
         let mut location_candidate: Option<(&Index, &Location)> = None;
 
         for (index, interned_location) in self.id_to_location.iter() {
