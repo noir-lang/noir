@@ -226,7 +226,7 @@ resource "aws_ecs_service" "aztec_mainnet_fork" {
 }
 
 resource "aws_cloudwatch_log_group" "aztec_mainnet_fork_logs" {
-  name              = "/fargate/services/aztec_mainnet_fork"
+  name              = "/fargate/services/${var.DEPLOY_TAG}-mainnet_fork"
   retention_in_days = "14"
 }
 
