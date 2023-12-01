@@ -118,7 +118,7 @@ impl Implementation {
                                 right_impl = true;
                             }
                             signature.push_str(&tokens[i].to_string());
-                            signature.push_str(" ");
+                            signature.push(' ');
                             i += 1;
                         }
                         Token::LeftBrace => {
@@ -138,8 +138,8 @@ impl Implementation {
                                                     continue;
                                                 }
                                             };
-                                            let doc = doc(&tokens, i);
-                                            let sign = fn_signature(&tokens, i);
+                                            let doc = doc(tokens, i);
+                                            let sign = fn_signature(tokens, i);
 
                                             functions.push(Function {
                                                 name,
@@ -175,7 +175,7 @@ impl Implementation {
                         }
                         _ => {
                             signature.push_str(&tokens[i].to_string());
-                            signature.push_str(" ");
+                            signature.push(' ');
                             i += 1;
                         }
                     }

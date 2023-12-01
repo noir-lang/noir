@@ -122,7 +122,7 @@ pub(crate) fn fn_signature(tokens: &[Token], index: usize) -> String {
             }
             _ => {
                 res.push_str(&tokens[i].to_string());
-                res.push_str(" ");
+                res.push(' ');
                 i += 1;
             }
         };
@@ -144,16 +144,16 @@ pub(crate) fn struct_signature(tokens: &[Token], index: usize) -> String {
     loop {
         match &tokens[i] {
             Token::LeftBrace => {
-                res.push_str("{");
-                res.push_str("\n");
+                res.push('{');
+                res.push('\n');
                 loop {
                     match tokens[i] {
                         Token::RightBrace => {
                             if is_private {
                                 res.push_str("/* private fields */");
                             }
-                            res.push_str("\n");
-                            res.push_str("}");
+                            res.push('\n');
+                            res.push('}');
                             break;
                         }
                         Token::Keyword(Keyword::Pub) => {
@@ -162,7 +162,7 @@ pub(crate) fn struct_signature(tokens: &[Token], index: usize) -> String {
                                 match tokens[i] {
                                     Token::Comma => {
                                         if tokens[i + 1] == Token::RightBrace {
-                                            res.push_str(",");
+                                            res.push(',');
                                         } else {
                                             res.push_str(",\n");
                                         }
@@ -174,7 +174,7 @@ pub(crate) fn struct_signature(tokens: &[Token], index: usize) -> String {
                                     }
                                     _ => {
                                         res.push_str(&tokens[i].to_string());
-                                        res.push_str(" ");
+                                        res.push(' ');
                                         i += 1;
                                     }
                                 }
@@ -189,7 +189,7 @@ pub(crate) fn struct_signature(tokens: &[Token], index: usize) -> String {
             }
             _ => {
                 res.push_str(&tokens[i].to_string());
-                res.push_str(" ");
+                res.push(' ');
                 i += 1;
             }
         };
@@ -214,12 +214,12 @@ pub(crate) fn trait_info(tokens: &[Token], index: usize) -> (String, Vec<Functio
     loop {
         match &tokens[i + 1] {
             Token::LeftBrace => {
-                sign.push_str("{");
-                sign.push_str("\n");
+                sign.push('{');
+                sign.push('\n');
                 loop {
                     match tokens[i + 1] {
                         Token::RightBrace => {
-                            sign.push_str("}");
+                            sign.push('}');
                             break;
                         }
                         Token::Keyword(Keyword::Fn) => {
@@ -229,8 +229,8 @@ pub(crate) fn trait_info(tokens: &[Token], index: usize) -> (String, Vec<Functio
                                     break;
                                 }
                             };
-                            let doc = doc(&tokens, i + 1);
-                            let fn_sign = fn_signature(&tokens, i + 1);
+                            let doc = doc(tokens, i + 1);
+                            let fn_sign = fn_signature(tokens, i + 1);
 
                             loop {
                                 match tokens[i + 1] {
@@ -241,8 +241,8 @@ pub(crate) fn trait_info(tokens: &[Token], index: usize) -> (String, Vec<Functio
                                             signature: fn_sign,
                                             is_method: true,
                                         });
-                                        sign.push_str(";");
-                                        sign.push_str("\n");
+                                        sign.push(';');
+                                        sign.push('\n');
                                         break;
                                     }
                                     Token::LeftBrace => {
@@ -254,7 +254,7 @@ pub(crate) fn trait_info(tokens: &[Token], index: usize) -> (String, Vec<Functio
                                         });
                                         brace_counter = 1;
                                         sign.push_str("{ ... }");
-                                        sign.push_str("\n");
+                                        sign.push('\n');
                                         while brace_counter != 0 {
                                             i += 1;
                                             match tokens[i + 1] {
@@ -272,7 +272,7 @@ pub(crate) fn trait_info(tokens: &[Token], index: usize) -> (String, Vec<Functio
                                     }
                                     _ => {
                                         sign.push_str(&tokens[i + 1].to_string());
-                                        sign.push_str(" ");
+                                        sign.push(' ');
                                         i += 1;
                                     }
                                 }
@@ -287,7 +287,7 @@ pub(crate) fn trait_info(tokens: &[Token], index: usize) -> (String, Vec<Functio
             }
             _ => {
                 sign.push_str(&tokens[i + 1].to_string());
-                sign.push_str(" ");
+                sign.push(' ');
                 i += 1;
             }
         };
@@ -307,7 +307,7 @@ pub(crate) fn additional_doc(tokens: &[Token], index: usize) -> String {
     if index == 0 {
         return "".to_string();
     }
-    let res = match &tokens[index - 1] {
+    match &tokens[index - 1] {
         Token::LineComment(dc, Some(DocStyle::Inner))
         | Token::BlockComment(dc, Some(DocStyle::Inner)) => {
             let mut res = dc.to_string();
@@ -352,8 +352,7 @@ pub(crate) fn additional_doc(tokens: &[Token], index: usize) -> String {
             }
             res
         }
-    };
-    res
+    }
 }
 
 /// Extracts documentation comments for a code element from a list of tokens.
@@ -366,7 +365,7 @@ pub(crate) fn doc(tokens: &[Token], index: usize) -> String {
     if index == 0 {
         return String::new();
     }
-    let res = match &tokens[index - 1] {
+    match &tokens[index - 1] {
         Token::LineComment(dc, _) | Token::BlockComment(dc, _) => {
             let mut res = dc.to_string();
             let mut doc_end = true;
@@ -410,8 +409,7 @@ pub(crate) fn doc(tokens: &[Token], index: usize) -> String {
             }
             res
         }
-    };
-    res
+    }
 }
 
 /// Extracts an outer documentation comment associated with a code element from a list of tokens.
@@ -495,11 +493,9 @@ pub(crate) fn get_text(input_file: &str) -> Result<Vec<CodeLine>, crate::DocErro
     let file = File::open(input_file).map_err(|_| crate::DocError::FileEditError)?;
     let reader = BufReader::new(file);
     let mut code = Vec::new();
-    let mut i = 0;
 
-    for line in reader.lines() {
-        i += 1;
-        code.push(CodeLine { number: i, text: line.map_err(|_| crate::DocError::FileEditError)? });
+    for (line, number) in reader.lines().zip(0u32..) {
+        code.push(CodeLine { number, text: line.map_err(|_| crate::DocError::FileEditError)? });
     }
 
     Ok(code)
