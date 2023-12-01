@@ -61,7 +61,8 @@ resource "aws_cloudwatch_log_group" "aztec-bootstrap-log-group" {
 }
 
 resource "aws_service_discovery_service" "aztec-bootstrap" {
-  name = "${var.DEPLOY_TAG}-aztec-bootstrap-${count.index + 1}"
+  count = local.bootnode_count
+  name  = "${var.DEPLOY_TAG}-aztec-bootstrap-${count.index + 1}"
 
   health_check_custom_config {
     failure_threshold = 1
