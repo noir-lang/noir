@@ -454,7 +454,10 @@ impl NodeInterner {
         self.id_to_location.insert(expr_id.into(), Location::new(span, file));
     }
 
-    /// Scans the interner for the location which contains the span
+    /// Scans the interner for the item which is located at that [Location]
+    /// The [Location] may not necessarily point to the beginning of the item
+    /// so we check if the location's span is contained within the start or end
+    /// of each items [Span]
     pub fn find_location_index(&self, location: Location) -> Option<&Index> {
         let mut location_candidate: Option<(&Index, &Location)> = None;
 
