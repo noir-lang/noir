@@ -182,6 +182,13 @@ pub(crate) enum Instruction {
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array.
     ArraySet { array: ValueId, index: ValueId, value: ValueId },
+
+    /// An instruction to increment the reference count of a value.
+    ///
+    /// This currently only has an effect in Brillig code where array sharing and copy on write is
+    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
+    /// IncrementRc instructions are ignored.
+    IncrementRc { value: ValueId },
 }
 
 impl Instruction {
@@ -195,18 +202,19 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
             Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
-            Instruction::Allocate { .. } => InstructionResultType::Known(Type::Reference),
             Instruction::Not(value) | Instruction::Truncate { value, .. } => {
                 InstructionResultType::Operand(*value)
             }
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(..)
             | Instruction::Store { .. }
-            | Instruction::EnableSideEffects { .. }
-            | Instruction::RangeCheck { .. } => InstructionResultType::None,
-            Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
-                InstructionResultType::Unknown
-            }
+            | Instruction::IncrementRc { .. }
+            | Instruction::RangeCheck { .. }
+            | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
+            Instruction::Allocate { .. }
+            | Instruction::Load { .. }
+            | Instruction::ArrayGet { .. }
+            | Instruction::Call { .. } => InstructionResultType::Unknown,
         }
     }
 
@@ -224,7 +232,11 @@ impl Instruction {
         use Instruction::*;
 
         match self {
-            Binary(_) | Cast(_, _) | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
+            Binary(bin) => {
+                // In ACIR, a division with a false predicate outputs (0,0), so it cannot replace another instruction unless they have the same predicate
+                bin.operator != BinaryOp::Div
+            }
+            Cast(_, _) | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
 
             // Unclear why this instruction causes problems.
             Truncate { .. } => false,
@@ -235,6 +247,7 @@ impl Instruction {
             | Allocate
             | Load { .. }
             | Store { .. }
+            | IncrementRc { .. }
             | RangeCheck { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
@@ -266,7 +279,11 @@ impl Instruction {
             | ArrayGet { .. }
             | ArraySet { .. } => false,
 
-            Constrain(..) | Store { .. } | EnableSideEffects { .. } | RangeCheck { .. } => true,
+            Constrain(..)
+            | Store { .. }
+            | EnableSideEffects { .. }
+            | IncrementRc { .. }
+            | RangeCheck { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
@@ -323,6 +340,7 @@ impl Instruction {
             Instruction::ArraySet { array, index, value } => {
                 Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
             }
+            Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 Instruction::RangeCheck {
                     value: f(*value),
@@ -374,7 +392,7 @@ impl Instruction {
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);
             }
-            Instruction::RangeCheck { value, .. } => {
+            Instruction::IncrementRc { value } | Instruction::RangeCheck { value, .. } => {
                 f(*value);
             }
         }
@@ -474,6 +492,7 @@ impl Instruction {
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
+            Instruction::IncrementRc { .. } => None,
             Instruction::RangeCheck { value, max_bit_size, .. } => {
                 if let Some(numeric_constant) = dfg.get_numeric_constant(*value) {
                     if numeric_constant.num_bits() < *max_bit_size {

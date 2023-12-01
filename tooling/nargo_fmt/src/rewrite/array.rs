@@ -2,7 +2,7 @@ use noirc_frontend::{hir::resolution::errors::Span, token::Token, Expression};
 
 use crate::{
     utils::{Expr, FindToken},
-    visitor::FmtVisitor,
+    visitor::{expr::NewlineMode, FmtVisitor},
 };
 
 pub(crate) fn rewrite(mut visitor: FmtVisitor, array: Vec<Expression>, array_span: Span) -> String {
@@ -26,7 +26,7 @@ pub(crate) fn rewrite(mut visitor: FmtVisitor, array: Vec<Expression>, array_spa
         let end = item_span.start();
 
         let leading = visitor.slice(start..end).trim_matches(pattern);
-        let item = visitor.format_sub_expr(item);
+        let item = super::sub_expr(&visitor, visitor.shape(), item);
         let next_start = items.peek().map_or(end_position, |expr| expr.span.start());
         let trailing = visitor.slice(item_span.end()..next_start);
         let offset = trailing
@@ -80,6 +80,6 @@ pub(crate) fn rewrite(mut visitor: FmtVisitor, array: Vec<Expression>, array_spa
         items_str.trim().into(),
         nested_indent,
         visitor.shape(),
-        true,
+        NewlineMode::IfContainsNewLineAndWidth,
     )
 }

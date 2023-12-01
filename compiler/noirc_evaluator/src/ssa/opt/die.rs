@@ -7,7 +7,7 @@ use crate::ssa::{
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
         function::Function,
-        instruction::InstructionId,
+        instruction::{Instruction, InstructionId},
         post_order::PostOrder,
         value::{Value, ValueId},
     },
@@ -33,11 +33,17 @@ impl Ssa {
 /// of its instructions are needed elsewhere.
 fn dead_instruction_elimination(function: &mut Function) {
     let mut context = Context::default();
+    if let Some(call_data) = function.dfg.data_bus.call_data {
+        context.mark_used_instruction_results(&function.dfg, call_data);
+    }
+
     let blocks = PostOrder::with_function(function);
 
     for block in blocks.as_slice() {
         context.remove_unused_instructions_in_block(function, *block);
     }
+
+    context.remove_increment_rc_instructions(&mut function.dfg);
 }
 
 /// Per function context for tracking unused values and which instructions to remove.
@@ -45,6 +51,11 @@ fn dead_instruction_elimination(function: &mut Function) {
 struct Context {
     used_values: HashSet<ValueId>,
     instructions_to_remove: HashSet<InstructionId>,
+
+    /// IncrementRc instructions must be revisited after the main DIE pass since
+    /// they are technically side-effectful but we stil want to remove them if their
+    /// `value` parameter is not used elsewhere.
+    increment_rc_instructions: Vec<(InstructionId, BasicBlockId)>,
 }
 
 impl Context {
@@ -67,14 +78,19 @@ impl Context {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
-        for instruction in block.instructions().iter().rev() {
-            if self.is_unused(*instruction, function) {
-                self.instructions_to_remove.insert(*instruction);
+        for instruction_id in block.instructions().iter().rev() {
+            if self.is_unused(*instruction_id, function) {
+                self.instructions_to_remove.insert(*instruction_id);
             } else {
-                let instruction = &function.dfg[*instruction];
-                instruction.for_each_value(|value| {
-                    self.mark_used_instruction_results(&function.dfg, value);
-                });
+                let instruction = &function.dfg[*instruction_id];
+
+                if let Instruction::IncrementRc { .. } = instruction {
+                    self.increment_rc_instructions.push((*instruction_id, block_id));
+                } else {
+                    instruction.for_each_value(|value| {
+                        self.mark_used_instruction_results(&function.dfg, value);
+                    });
+                }
             }
         }
 
@@ -119,8 +135,25 @@ impl Context {
                     self.mark_used_instruction_results(dfg, *elem);
                 }
             }
+            Value::Param { .. } => {
+                self.used_values.insert(value_id);
+            }
             _ => {
                 // Does not comprise of any instruction results
+            }
+        }
+    }
+
+    fn remove_increment_rc_instructions(self, dfg: &mut DataFlowGraph) {
+        for (increment_rc, block) in self.increment_rc_instructions {
+            let value = match &dfg[increment_rc] {
+                Instruction::IncrementRc { value } => *value,
+                other => unreachable!("Expected IncrementRc instruction, found {other:?}"),
+            };
+
+            // This could be more efficient if we have to remove multiple IncrementRcs in a single block
+            if !self.used_values.contains(&value) {
+                dfg[block].instructions_mut().retain(|instruction| *instruction != increment_rc);
             }
         }
     }
@@ -176,10 +209,10 @@ mod test {
         builder.switch_to_block(b1);
         let _v3 = builder.add_block_parameter(b1, Type::field());
 
-        let v4 = builder.insert_allocate();
+        let v4 = builder.insert_allocate(Type::field());
         let _v5 = builder.insert_load(v4, Type::field());
 
-        let v6 = builder.insert_allocate();
+        let v6 = builder.insert_allocate(Type::field());
         builder.insert_store(v6, one);
         let v7 = builder.insert_load(v6, Type::field());
         let v8 = builder.insert_binary(v7, BinaryOp::Add, one);
