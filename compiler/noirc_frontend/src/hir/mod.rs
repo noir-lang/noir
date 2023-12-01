@@ -8,7 +8,7 @@ use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use def_map::{Contract, CrateDefMap};
-use fm::FileManager;
+use fm::{FileId, FileManager};
 use noirc_errors::Location;
 use std::collections::BTreeMap;
 
@@ -178,6 +178,18 @@ impl Context {
                 }
             })
             .collect()
+    }
+
+    pub fn find_definition_location(
+        &self,
+        file: FileId,
+        query_location: &noirc_errors::Span,
+    ) -> Option<Location> {
+        let interner = &self.def_interner;
+
+        interner
+            .find_location(file, query_location)
+            .and_then(|index| interner.resolve_location(index))
     }
 
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain

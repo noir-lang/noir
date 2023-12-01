@@ -174,6 +174,20 @@ impl CrateDefMap {
         })
     }
 
+    /// Go through all modules in this crate, and find all definition
+    /// matching Position
+    // pub fn get_definition_location<'a>(
+    //     &'a self,
+    //     interner: &'a NodeInterner,
+    // ) {
+    //     for (_, module_data) in self.modules.iter() {
+    //         println!("Module {:?}", module_data);
+    //         for definition in module_data.value_definitions() {
+    //             println!("Definition {:?}", definition);
+    //         }
+    //     }
+    // }
+
     /// Go through all modules in this crate, find all `contract ... { ... }` declarations,
     /// and collect them all into a Vec.
     pub fn get_all_contracts(&self, interner: &NodeInterner) -> Vec<Contract> {
