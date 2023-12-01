@@ -455,17 +455,17 @@ impl NodeInterner {
     }
 
     /// Scans the interner for the location which contains the span
-    pub fn find_location(&self, file: FileId, location_span: &Span) -> Option<&Index> {
+    pub fn find_location(&self, location: Location) -> Option<&Index> {
         let mut location_candidate: Option<(&Index, &Location)> = None;
 
-        for (index, location) in self.id_to_location.iter() {
-            if location.file == file && location.span.contains(location_span) {
+        for (index, interned_location) in self.id_to_location.iter() {
+            if interned_location.contains(&location) {
                 if let Some(current_location) = location_candidate {
-                    if location.span.is_smaller(&current_location.1.span) {
-                        location_candidate = Some((index, location));
+                    if interned_location.span.is_smaller(&current_location.1.span) {
+                        location_candidate = Some((index, interned_location));
                     }
                 } else {
-                    location_candidate = Some((index, location));
+                    location_candidate = Some((index, interned_location));
                 }
             }
         }

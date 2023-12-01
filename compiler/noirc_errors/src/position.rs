@@ -143,4 +143,8 @@ impl Location {
     pub fn dummy() -> Self {
         Self { span: Span::single_char(0), file: FileId::dummy() }
     }
+
+    pub fn contains(&self, other: &Location) -> bool {
+        self.file == other.file && self.span.contains(&other.span)
+    }
 }

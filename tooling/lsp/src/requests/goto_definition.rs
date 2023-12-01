@@ -69,10 +69,11 @@ fn on_goto_definition_inner(
             );
 
             if let Ok(byte_index) = byte_index {
-                let found_location = context.find_definition_location(
-                    file_id,
-                    &noirc_errors::Span::single_char(byte_index as u32),
-                );
+                let search_for_location = noirc_errors::Location {
+                    file: file_id,
+                    span: noirc_errors::Span::single_char(byte_index as u32),
+                };
+                let found_location = context.get_definition_location_from(search_for_location);
 
                 if let Some(found_location) = found_location {
                     let file_id = found_location.file;
