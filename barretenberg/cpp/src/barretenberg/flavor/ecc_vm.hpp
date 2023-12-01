@@ -519,17 +519,12 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     };
 
     class VerifierCommitments : public AllEntities<Commitment> {
-      private:
-        using Base = AllEntities<Commitment>;
-
       public:
-        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key,
-                            [[maybe_unused]] const BaseTranscript& transcript)
+        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key)
         {
-            static_cast<void>(transcript);
-            Base::lagrange_first = verification_key->lagrange_first;
-            Base::lagrange_second = verification_key->lagrange_second;
-            Base::lagrange_last = verification_key->lagrange_last;
+            this->lagrange_first = verification_key->lagrange_first;
+            this->lagrange_second = verification_key->lagrange_second;
+            this->lagrange_last = verification_key->lagrange_last;
         }
     };
 

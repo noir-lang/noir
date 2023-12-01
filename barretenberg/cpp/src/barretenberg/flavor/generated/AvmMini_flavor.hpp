@@ -326,9 +326,8 @@ class AvmMiniFlavor {
         using Base = AllEntities<Commitment>;
 
       public:
-        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key, const BaseTranscript& transcript)
+        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key)
         {
-            static_cast<void>(transcript);
             avmMini_clk = verification_key->avmMini_clk;
             avmMini_first = verification_key->avmMini_first;
         }

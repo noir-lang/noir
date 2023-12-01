@@ -32,8 +32,8 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
 
     transcript = Transcript<Builder>{ builder, proof.proof_data };
 
-    auto commitments = VerifierCommitments(key);
-    auto commitment_labels = CommitmentLabels();
+    VerifierCommitments commitments{ key };
+    CommitmentLabels commitment_labels;
 
     const auto circuit_size = transcript.template receive_from_prover<uint32_t>("circuit_size");
     const auto public_input_size = transcript.template receive_from_prover<uint32_t>("public_input_size");

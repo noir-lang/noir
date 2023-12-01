@@ -44,8 +44,8 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
 
     transcript = BaseTranscript{ proof.proof_data };
 
-    auto commitments = VerifierCommitments(key, transcript);
-    auto commitment_labels = CommitmentLabels();
+    VerifierCommitments commitments{ key };
+    CommitmentLabels commitment_labels;
 
     // TODO(Adrian): Change the initialization of the transcript to take the VK hash?
     const auto circuit_size = transcript.template receive_from_prover<uint32_t>("circuit_size");

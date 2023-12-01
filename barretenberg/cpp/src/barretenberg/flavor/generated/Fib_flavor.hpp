@@ -216,9 +216,8 @@ class FibFlavor {
         using Base = AllEntities<Commitment>;
 
       public:
-        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key, const BaseTranscript& transcript)
+        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key)
         {
-            static_cast<void>(transcript);
             Fibonacci_LAST = verification_key->Fibonacci_LAST;
             Fibonacci_FIRST = verification_key->Fibonacci_FIRST;
         }

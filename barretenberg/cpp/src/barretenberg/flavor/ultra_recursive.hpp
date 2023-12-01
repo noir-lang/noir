@@ -341,7 +341,7 @@ template <typename BuilderType> class UltraRecursive_ {
 
     class VerifierCommitments : public AllEntities<Commitment> {
       public:
-        VerifierCommitments(std::shared_ptr<VerificationKey> verification_key)
+        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key)
         {
             this->q_m = verification_key->q_m;
             this->q_l = verification_key->q_l;
