@@ -371,14 +371,14 @@ template <typename B, typename T> inline void read(B& it, std::optional<T>& opt_
 }
 
 template <typename T>
-concept HasPointerView = requires(T t) { t.pointer_view(); };
+concept HasGetAll = requires(T t) { t.get_all(); };
 
-// Write out a struct that defines pointer_view()
-template <typename B, HasPointerView T> inline void write(B& buf, T const& value)
+// Write out a struct that defines get_all()
+template <typename B, HasGetAll T> inline void write(B& buf, T const& value)
 {
     using serialize::write;
-    for (auto* pointer : value.pointer_view()) {
-        write(buf, *pointer);
+    for (auto& reference : value.get_all()) {
+        write(buf, reference);
     }
 }
 

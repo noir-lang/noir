@@ -202,8 +202,6 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     class WitnessEntities : public WireEntities<DataType>, public DerivedWitnessEntities<DataType> {
       public:
         DEFINE_COMPOUND_GET_ALL(WireEntities<DataType>::get_all(), DerivedWitnessEntities<DataType>::get_all())
-        DEFINE_COMPOUND_POINTER_VIEW(WireEntities<DataType>::pointer_view(),
-                                     DerivedWitnessEntities<DataType>::pointer_view())
         RefVector<DataType> get_wires() { return WireEntities<DataType>::get_all(); };
         // The sorted concatenations of table and witness data needed for plookup.
         RefVector<DataType> get_sorted_polynomials() { return {}; };
@@ -268,9 +266,6 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
         DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>::get_all(),
                                 WitnessEntities<DataType>::get_all(),
                                 ShiftedEntities<DataType>::get_all())
-        DEFINE_COMPOUND_POINTER_VIEW(PrecomputedEntities<DataType>::pointer_view(),
-                                     WitnessEntities<DataType>::pointer_view(),
-                                     ShiftedEntities<DataType>::pointer_view())
         // Gemini-specific getters.
         RefVector<DataType> get_unshifted()
         {
@@ -369,8 +364,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
         AllValues get_row(const size_t row_idx) const
         {
             AllValues result;
-            for (auto [result_field, polynomial] : zip_view(result.pointer_view(), this->pointer_view())) {
-                *result_field = (*polynomial)[row_idx];
+            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
+                result_field = polynomial[row_idx];
             }
             return result;
         }
@@ -391,8 +386,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
         PartiallyEvaluatedMultivariates(const size_t circuit_size)
         {
             // Storage is only needed after the first partial evaluation, hence polynomials of size (n / 2)
-            for (auto* poly : this->pointer_view()) {
-                *poly = Polynomial(circuit_size / 2);
+            for (auto& poly : this->get_all()) {
+                poly = Polynomial(circuit_size / 2);
             }
         }
     };
@@ -419,8 +414,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
         AllValues get_row(const size_t row_idx)
         {
             AllValues result;
-            for (auto [result_field, polynomial] : zip_view(result.pointer_view(), this->pointer_view())) {
-                *result_field = (*polynomial)[row_idx];
+            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
+                result_field = polynomial[row_idx];
             }
             return result;
         }

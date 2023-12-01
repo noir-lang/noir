@@ -40,8 +40,8 @@ void construct_selector_polynomials(const typename Flavor::CircuitBuilder& circu
 
     // TODO(#398): Loose coupling here! Would rather build up pk from arithmetization
     if constexpr (IsHonkFlavor<Flavor>) {
-        for (auto [poly_ptr, selector_values] :
-             zip_view(proving_key->precomputed_polynomials_pointer_view(), circuit_constructor.selectors.get())) {
+        for (auto [poly, selector_values] :
+             zip_view(proving_key->precomputed_polynomials_get_all(), circuit_constructor.selectors.get())) {
             ASSERT(proving_key->circuit_size >= selector_values.size());
 
             // Copy the selector values for all gates, keeping the rows at which we store public inputs as 0.
@@ -50,7 +50,7 @@ void construct_selector_polynomials(const typename Flavor::CircuitBuilder& circu
             for (size_t i = 0; i < selector_values.size(); ++i) {
                 selector_poly_lagrange[i + gate_offset] = selector_values[i];
             }
-            *poly_ptr = selector_poly_lagrange;
+            poly = selector_poly_lagrange;
         }
     } else if constexpr (IsPlonkFlavor<Flavor>) {
         size_t selector_idx = 0;

@@ -25,15 +25,11 @@ template <typename T, std::size_t N> class RefArray {
             storage[i++] = &elem;
         }
     }
-    RefArray(std::initializer_list<T&> init)
+    template <typename... Ts> RefArray(T& ref, Ts&... rest)
     {
-        if (init.size() != N) {
-            throw std::invalid_argument("Initializer list size does not match RefArray size");
-        }
-        std::size_t i = 0;
-        for (auto& elem : init) {
-            storage[i++] = &elem;
-        }
+        storage[0] = &ref;
+        int i = 1;
+        ((storage[i++] = &rest), ...);
     }
 
     T& operator[](std::size_t idx) const
@@ -82,6 +78,7 @@ template <typename T, std::size_t N> class RefArray {
         std::size_t pos;
     };
 
+    constexpr std::size_t size() const { return N; }
     /**
      * @brief Returns an iterator to the beginning of the RefArray.
      *

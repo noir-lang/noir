@@ -136,26 +136,21 @@ TEST_F(SumcheckTests, PolynomialNormalization)
     FF l_7 = (      u_0) * (      u_1) * (      u_2);
     // clang-format on
     FF hand_computed_value;
-    auto partially_evaluated_polynomials_array = sumcheck.partially_evaluated_polynomials.pointer_view();
-    size_t i = 0;
-    for (auto* full_polynomial_pointer : full_polynomials.pointer_view()) {
+    for (auto [full_poly, partial_eval_poly] :
+         zip_view(full_polynomials.get_all(), sumcheck.partially_evaluated_polynomials.get_all())) {
         // full_polynomials[0][0] = w_l[0], full_polynomials[1][1] = w_r[1], and so on.
-        hand_computed_value = l_0 * (*full_polynomial_pointer)[0] + l_1 * (*full_polynomial_pointer)[1] +
-                              l_2 * (*full_polynomial_pointer)[2] + l_3 * (*full_polynomial_pointer)[3] +
-                              l_4 * (*full_polynomial_pointer)[4] + l_5 * (*full_polynomial_pointer)[5] +
-                              l_6 * (*full_polynomial_pointer)[6] + l_7 * (*full_polynomial_pointer)[7];
-        EXPECT_EQ(hand_computed_value, (*partially_evaluated_polynomials_array[i])[0]);
-        i++;
+        hand_computed_value = l_0 * full_poly[0] + l_1 * full_poly[1] + l_2 * full_poly[2] + l_3 * full_poly[3] +
+                              l_4 * full_poly[4] + l_5 * full_poly[5] + l_6 * full_poly[6] + l_7 * full_poly[7];
+        EXPECT_EQ(hand_computed_value, partial_eval_poly[0]);
     }
 
     // We can also check the correctness of the multilinear evaluations produced by Sumcheck by directly evaluating the
     // full polynomials at challenge u via the evaluate_mle() function
     std::vector<FF> u_challenge = { u_0, u_1, u_2 };
-    for (auto [full_poly, claimed_eval] :
-         zip_view(full_polynomials.pointer_view(), output.claimed_evaluations.pointer_view())) {
-        barretenberg::Polynomial<FF> poly(*full_poly);
+    for (auto [full_poly, claimed_eval] : zip_view(full_polynomials.get_all(), output.claimed_evaluations.get_all())) {
+        barretenberg::Polynomial<FF> poly(full_poly);
         auto v_expected = poly.evaluate_mle(u_challenge);
-        EXPECT_EQ(v_expected, *claimed_eval);
+        EXPECT_EQ(v_expected, claimed_eval);
     }
 }
 
@@ -181,8 +176,8 @@ TEST_F(SumcheckTests, Prover)
     FF u_0 = output.challenge[0];
     FF u_1 = output.challenge[1];
     std::vector<FF> expected_values;
-    for (auto* polynomial_ptr : full_polynomials.pointer_view()) {
-        auto& polynomial = *polynomial_ptr;
+    for (auto& polynomial_ptr : full_polynomials.get_all()) {
+        auto& polynomial = polynomial_ptr;
         // using knowledge of inputs here to derive the evaluation
         FF expected_lo = polynomial[0] * (FF(1) - u_0) + polynomial[1] * u_0;
         expected_lo *= (FF(1) - u_1);
@@ -191,8 +186,8 @@ TEST_F(SumcheckTests, Prover)
         expected_values.emplace_back(expected_lo + expected_hi);
     }
 
-    for (auto [eval, expected] : zip_view(output.claimed_evaluations.pointer_view(), expected_values)) {
-        *eval = expected;
+    for (auto [eval, expected] : zip_view(output.claimed_evaluations.get_all(), expected_values)) {
+        eval = expected;
     }
 }
 

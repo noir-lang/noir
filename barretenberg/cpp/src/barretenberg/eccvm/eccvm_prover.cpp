@@ -1,6 +1,7 @@
 #include "eccvm_prover.hpp"
 #include "barretenberg/commitment_schemes/claim.hpp"
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
+#include "barretenberg/common/ref_array.hpp"
 #include "barretenberg/honk/proof_system/lookup_library.hpp"
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
 #include "barretenberg/honk/proof_system/power_polynomial.hpp"
@@ -345,18 +346,16 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_transcript_cons
     FF batching_challenge = transcript.get_challenge("Translation:batching_challenge");
 
     // Collect the polynomials and evaluations to be batched
-    const size_t NUM_UNIVARIATES = 6; // 5 transcript polynomials plus the constant hack poly
-    std::array<Polynomial*, NUM_UNIVARIATES> univariate_polynomials = { &key->transcript_op, &key->transcript_Px,
-                                                                        &key->transcript_Py, &key->transcript_z1,
-                                                                        &key->transcript_z2, &hack };
-    std::array<FF, NUM_UNIVARIATES> univariate_evaluations;
+    RefArray univariate_polynomials{ key->transcript_op, key->transcript_Px, key->transcript_Py,
+                                     key->transcript_z1, key->transcript_z2, hack };
+    std::array<FF, univariate_polynomials.size()> univariate_evaluations;
 
     // Constuct the batched polynomial and batched evaluation
     Polynomial batched_univariate{ key->circuit_size };
     FF batched_evaluation{ 0 };
     auto batching_scalar = FF(1);
-    for (auto [eval, polynomial] : zip_view(univariate_evaluations, univariate_polynomials)) {
-        batched_univariate.add_scaled(*polynomial, batching_scalar);
+    for (auto [polynomial, eval] : zip_view(univariate_polynomials, univariate_evaluations)) {
+        batched_univariate.add_scaled(polynomial, batching_scalar);
         batched_evaluation += eval * batching_scalar;
         batching_scalar *= batching_challenge;
     }

@@ -3,7 +3,7 @@
 // Macros for defining the flavor classes.
 // These are used to derive iterator methods along with the body of a 'flavor' class.
 // DEFINE_FLAVOR_MEMBERS lets you define a flavor entity as a collection of individual members, and derive an iterator.
-// while DEFINE_COMPOUND_GET_ALL and DEFINE_COMPOUND_POINTER_VIEW let you combine the iterators of substructures or base
+// while DEFINE_COMPOUND_GET_ALL lets you combine the iterators of substructures or base
 // classes.
 
 #include "barretenberg/common/ref_vector.hpp"
@@ -16,17 +16,6 @@ template <typename... Refs> auto _refs_to_pointer_array(Refs&... refs)
 {
     return std::array{ &refs... };
 }
-
-// @deprecated this was less natural than the ref view
-#define DEFINE_POINTER_VIEW(...)                                                                                       \
-    [[nodiscard]] auto pointer_view()                                                                                  \
-    {                                                                                                                  \
-        return _refs_to_pointer_array(__VA_ARGS__);                                                                    \
-    }                                                                                                                  \
-    [[nodiscard]] auto pointer_view() const                                                                            \
-    {                                                                                                                  \
-        return _refs_to_pointer_array(__VA_ARGS__);                                                                    \
-    }
 
 #define DEFINE_REF_VIEW(...)                                                                                           \
     [[nodiscard]] auto get_all()                                                                                       \
@@ -47,18 +36,7 @@ template <typename... Refs> auto _refs_to_pointer_array(Refs&... refs)
  */
 #define DEFINE_FLAVOR_MEMBERS(DataType, ...)                                                                           \
     DataType __VA_ARGS__;                                                                                              \
-    DEFINE_POINTER_VIEW(__VA_ARGS__)                                                                                   \
     DEFINE_REF_VIEW(__VA_ARGS__)
-
-#define DEFINE_COMPOUND_POINTER_VIEW(...)                                                                              \
-    [[nodiscard]] auto pointer_view()                                                                                  \
-    {                                                                                                                  \
-        return concatenate(__VA_ARGS__);                                                                               \
-    }                                                                                                                  \
-    [[nodiscard]] auto pointer_view() const                                                                            \
-    {                                                                                                                  \
-        return concatenate(__VA_ARGS__);                                                                               \
-    }
 
 #define DEFINE_COMPOUND_GET_ALL(...)                                                                                   \
     [[nodiscard]] auto get_all()                                                                                       \

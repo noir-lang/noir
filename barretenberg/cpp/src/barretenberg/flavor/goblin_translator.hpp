@@ -250,10 +250,6 @@ class GoblinTranslator {
                                 WireToBeShiftedEntities<DataType>::get_all(),
                                 DerivedWitnessEntities<DataType>::get_all(),
                                 ConcatenatedRangeConstraints<DataType>::get_all())
-        DEFINE_COMPOUND_POINTER_VIEW(WireNonshiftedEntities<DataType>::pointer_view(),
-                                     WireToBeShiftedEntities<DataType>::pointer_view(),
-                                     DerivedWitnessEntities<DataType>::pointer_view(),
-                                     ConcatenatedRangeConstraints<DataType>::pointer_view())
 
         RefVector<DataType> get_wires()
         {
@@ -654,9 +650,6 @@ class GoblinTranslator {
         DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>::get_all(),
                                 WitnessEntities<DataType>::get_all(),
                                 ShiftedEntities<DataType>::get_all())
-        DEFINE_COMPOUND_POINTER_VIEW(PrecomputedEntities<DataType>::pointer_view(),
-                                     WitnessEntities<DataType>::pointer_view(),
-                                     ShiftedEntities<DataType>::pointer_view())
         /**
          * @brief Get the polynomials that are concatenated for the permutation relation
          *
@@ -1036,8 +1029,8 @@ class GoblinTranslator {
         [[nodiscard]] AllValues get_row(size_t row_idx) const
         {
             AllValues result;
-            for (auto [result_field, polynomial] : zip_view(result.pointer_view(), this->pointer_view())) {
-                *result_field = (*polynomial)[row_idx];
+            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
+                result_field = polynomial[row_idx];
             }
             return result;
         }
@@ -1064,8 +1057,8 @@ class GoblinTranslator {
         [[nodiscard]] AllValues get_row(const size_t row_idx) const
         {
             AllValues result;
-            for (auto [result_field, polynomial] : zip_view(result.pointer_view(), this->pointer_view())) {
-                *result_field = (*polynomial)[row_idx];
+            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
+                result_field = polynomial[row_idx];
             }
             return result;
         }
@@ -1086,8 +1079,8 @@ class GoblinTranslator {
         PartiallyEvaluatedMultivariates(const size_t circuit_size)
         {
             // Storage is only needed after the first partial evaluation, hence polynomials of size (n / 2)
-            for (auto* poly : this->pointer_view()) {
-                *poly = Polynomial(circuit_size / 2);
+            for (auto& poly : this->get_all()) {
+                poly = Polynomial(circuit_size / 2);
             }
         }
     };

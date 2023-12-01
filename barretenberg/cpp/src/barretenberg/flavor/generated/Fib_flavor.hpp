@@ -164,8 +164,8 @@ class FibFlavor {
         [[nodiscard]] AllValues get_row(const size_t row_idx) const
         {
             AllValues result;
-            for (auto [result_field, polynomial] : zip_view(result.pointer_view(), pointer_view())) {
-                *result_field = (*polynomial)[row_idx];
+            for (auto [result_field, polynomial] : zip_view(result.get_all(), get_all())) {
+                result_field = polynomial[row_idx];
             }
             return result;
         }
@@ -179,8 +179,8 @@ class FibFlavor {
         PartiallyEvaluatedMultivariates(const size_t circuit_size)
         {
             // Storage is only needed after the first partial evaluation, hence polynomials of size (n / 2)
-            for (auto* poly : pointer_view()) {
-                *poly = Polynomial(circuit_size / 2);
+            for (auto& poly : get_all()) {
+                poly = Polynomial(circuit_size / 2);
             }
         }
     };

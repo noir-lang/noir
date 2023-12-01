@@ -135,8 +135,8 @@ TEST(Flavor, GetRow)
         return std::vector<FF>({ FF::random_element(), FF::random_element() });
     });
     Flavor::ProverPolynomials prover_polynomials;
-    for (auto [poly, entry] : zip_view(prover_polynomials.pointer_view(), data)) {
-        *poly = entry;
+    for (auto [poly, entry] : zip_view(prover_polynomials.get_all(), data)) {
+        poly = entry;
     }
     auto row0 = prover_polynomials.get_row(0);
     auto row1 = prover_polynomials.get_row(1);

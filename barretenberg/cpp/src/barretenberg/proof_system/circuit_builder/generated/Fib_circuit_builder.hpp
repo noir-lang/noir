@@ -36,8 +36,8 @@ class FibCircuitBuilder {
         AllPolynomials polys;
 
         // Allocate mem for each column
-        for (auto* poly : polys.pointer_view()) {
-            *poly = Polynomial(num_rows);
+        for (auto& poly : polys.get_all()) {
+            poly = Polynomial(num_rows);
         }
 
         for (size_t i = 0; i < rows.size(); i++) {

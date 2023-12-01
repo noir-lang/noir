@@ -84,7 +84,7 @@ template <typename T> class RefVector {
         std::size_t pos;
     };
 
-    [[nodiscard]] std::size_t size() const { return storage.size(); }
+    std::size_t size() const { return storage.size(); }
 
     void push_back(T& element) { storage.push_back(element); }
     iterator begin() const { return iterator(this, 0); }

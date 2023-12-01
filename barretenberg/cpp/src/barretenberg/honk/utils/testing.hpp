@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/common/zip_view.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 
 namespace proof_system::honk {
@@ -27,11 +28,8 @@ get_sequential_prover_polynomials(const size_t log_circuit_size, const size_t st
     }
 
     ProverPolynomials prover_polynomials;
-    auto prover_polynomials_pointers = prover_polynomials.pointer_view();
-    size_t poly_idx = 0;
-    for (auto& polynomial : storage) {
-        *prover_polynomials_pointers[poly_idx] = polynomial;
-        poly_idx++;
+    for (auto [prover_poly, storage_poly] : zip_view(prover_polynomials.get_all(), storage)) {
+        prover_poly = storage_poly;
     }
 
     return std::pair(std::move(storage), prover_polynomials);
@@ -56,11 +54,8 @@ get_zero_prover_polynomials(const size_t log_circuit_size)
     }
 
     ProverPolynomials prover_polynomials;
-    size_t poly_idx = 0;
-    auto prover_polynomial_pointers = prover_polynomials.pointer_view();
-    for (auto& polynomial : storage) {
-        *prover_polynomial_pointers[poly_idx] = polynomial;
-        poly_idx++;
+    for (auto [prover_poly, storage_poly] : zip_view(prover_polynomials.get_all(), storage)) {
+        prover_poly = storage_poly;
     }
 
     return std::pair(std::move(storage), prover_polynomials);
