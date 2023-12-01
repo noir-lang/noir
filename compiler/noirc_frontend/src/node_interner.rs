@@ -458,7 +458,7 @@ impl NodeInterner {
     /// The [Location] may not necessarily point to the beginning of the item
     /// so we check if the location's span is contained within the start or end
     /// of each items [Span]
-    pub fn find_location_index(&self, location: Location) -> Option<&Index> {
+    pub fn find_location_index(&self, location: Location) -> Option<impl Into<Index>> {
         let mut location_candidate: Option<(&Index, &Location)> = None;
 
         for (index, interned_location) in self.id_to_location.iter() {
@@ -472,7 +472,7 @@ impl NodeInterner {
                 }
             }
         }
-        location_candidate.map(|(index, _location)| index)
+        location_candidate.map(|(index, _location)| *index)
     }
 
     /// Interns a HIR Function.
