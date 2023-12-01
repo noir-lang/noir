@@ -45,4 +45,5 @@ ENV PATH="${PATH}:/usr/src/noir/target/release/"
 RUN echo $PATH
 # RUN nargo
 RUN yarn && yarn build
+RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD) && cargoExtraArgs="--features noirc_driver/aztec"
 RUN yarn test
