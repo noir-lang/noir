@@ -105,7 +105,17 @@ const sidebars = {
             id: "concepts/foundation/communication/main",
           },
           items: [
-            "concepts/foundation/communication/public_private_calls",
+            {
+              label: "Public <> Private Communication",
+              type: "category",
+              link: {
+                type: "doc",
+                id: "concepts/foundation/communication/public_private_calls/main",
+              },
+              items: [
+                "concepts/foundation/communication/public_private_calls/slow_updates_tree"
+              ]
+            },
             "concepts/foundation/communication/cross_chain_calls",
           ],
         },
@@ -320,6 +330,7 @@ const sidebars = {
             },
             "dev_docs/contracts/syntax/events",
             "dev_docs/contracts/syntax/functions",
+            "dev_docs/contracts/syntax/slow_updates_tree",
             "dev_docs/contracts/syntax/context",
             "dev_docs/contracts/syntax/globals",
           ],

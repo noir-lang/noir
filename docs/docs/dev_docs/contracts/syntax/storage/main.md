@@ -23,7 +23,7 @@ On this page, you’ll learn:
 
 Public state variables can be read by anyone, while private state variables can only be read by their owner (or people whom the owner has shared the decrypted data or note viewing key with).
 
-Public state follows the Ethereum style account model, where each contract has its own key-value datastore. Private state follows a UTXO model, where note contents (pre-images) are only known by the sender and those able to decrypt them - see ([state model](../../../../concepts/foundation/state_model/main.md) and [private/public execution](../../../../concepts/foundation/communication/public_private_calls.md)) for more background.
+Public state follows the Ethereum style account model, where each contract has its own key-value datastore. Private state follows a UTXO model, where note contents (pre-images) are only known by the sender and those able to decrypt them - see ([state model](../../../../concepts/foundation/state_model/main.md) and [private/public execution](../../../../concepts/foundation/communication/public_private_calls/main.md)) for more background.
 
 ## Storage struct
 
@@ -172,7 +172,7 @@ We know its verbose, and are working on making it less so.
 
 #### Mapping example
 
-Say we want to have a group of `minters` that are able to mint assets in our contract, and we want them in public storage, because [access control in private is quite cumbersome](../../../../concepts/foundation/communication/public_private_calls.md#a-note-on-l2-access-control). In the `Storage` struct we can add it as follows:
+Say we want to have a group of `minters` that are able to mint assets in our contract, and we want them in public storage, because [access control in private is quite cumbersome](../../../../concepts/foundation/communication/public_private_calls/main.md#a-note-on-l2-access-control). In the `Storage` struct we can add it as follows:
 
 #include_code storage_minters /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 

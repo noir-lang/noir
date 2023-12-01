@@ -119,7 +119,9 @@ CI takes up a significant amount of time. It gets its own section here, so we re
 
 ## Slow Updates tree?
 
-We _need_ a way to read mutable public data from a private function.
+We _need_ a way to read mutable public data from a private function. 
+
+Note: we just published the [Slow Updates Tree](../../concepts/foundation/communication/public_private_calls/slow_updates_tree.md).
 
 ## Contract classes and instances?
 

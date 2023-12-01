@@ -43,6 +43,7 @@ struct SlowUpdateInner<N> {
   sibling_path: [Field; N],
 }
 
+// docs:start:slow_update_proof
 // The slow update proof. Containing two merkle paths
 // One for the before and one for the after trees.
 // M = 2 * N + 4
@@ -52,6 +53,7 @@ struct SlowUpdateProof<N, M> {
   before: SlowUpdateInner<N>,
   after: SlowUpdateInner<N>,
 }
+// docs:end:slow_update_proof
 
 pub fn deserialize_slow_update_proof<N, M>(serialized: [Field; M]) -> SlowUpdateProof<N, M> {
     SlowUpdateProof::deserialize(serialized)
@@ -142,11 +144,14 @@ impl<N,M> SlowMap<N,M> {
     }
   }
 
+  // docs:start:read_leaf_at
   pub fn read_leaf_at(self: Self, key: Field) -> Leaf {
     let derived_storage_slot = pedersen_hash([self.storage_slot, key]);
     storage_read(derived_storage_slot, deserialize_leaf)
   }
+  // docs:end:read_leaf_at
 
+  // docs:start:read_at
   // Reads the "CURRENT" value of the leaf
   pub fn read_at(self: Self, key: Field) -> Field {
     let time = self.context.public.unwrap().timestamp() as u120;
@@ -157,6 +162,7 @@ impl<N,M> SlowMap<N,M> {
       leaf.after
     }
   }
+  // docs:end:read_at
 
   // Will update values in the "AFTER" tree
   // - updates the leaf and root to follow current values, moving from after to before if 

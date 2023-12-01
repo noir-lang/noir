@@ -4,7 +4,7 @@ title: Private <--> Public execution
 
 import Image from "@theme/IdealImage";
 
-import Disclaimer from "../../../misc/common/\_disclaimer.mdx";
+import Disclaimer from "../../../../misc/common/\_disclaimer.mdx";
 
 <Disclaimer/>
 
@@ -105,3 +105,5 @@ function onlyFresh(pub uint256 blockNumber) public {
 :::info
 This is not a perfect solution, as any functions using access control might end up doing a lot of public calls it could put a significant burden on sequencers and greatly increase the cost of the transaction for the user. We are investigating ways to improve.
 :::
+
+Using a dual-tree structure with a pending and a current tree, it is possible to update public data from a private function. The update is fulfilled when the pending tree becomes the current after the end of a specified epoch. It is also possible to read historical public data directly from a private function. This works perfectly for public data that is not updated often, such as a blacklist. This structure is called a slow updates tree, and you can read about how it works [in the next section](./slow_updates_tree.md).

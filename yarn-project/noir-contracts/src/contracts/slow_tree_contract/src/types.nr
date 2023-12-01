@@ -1,3 +1,4 @@
+// docs:start:membership_proof
 // A single inclusion proof.
 // M = N + 2
 struct MembershipProof<N, M> {
@@ -5,6 +6,7 @@ struct MembershipProof<N, M> {
     value: Field,
     sibling_path: [Field; N],
 }
+// docs:end:membership_proof
 
 fn deserialize_membership_proof<N, M>(serialized: [Field; M]) -> MembershipProof<N, M> {
     let mut sibling_path = [0; N];

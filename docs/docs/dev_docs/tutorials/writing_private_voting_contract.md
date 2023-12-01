@@ -105,7 +105,7 @@ This `init` function will be called every time we access `storage` in our functi
 
 The next step is to initialize the contract with a constructor. The constructor will take an address as a parameter and set the admin.
 
-All constructors must be private, and because the admin is in public storage, we cannot directly update it from the constructor. You can find more information about this [here](../../concepts/foundation/communication/public_private_calls.md).
+All constructors must be private, and because the admin is in public storage, we cannot directly update it from the constructor. You can find more information about this [here](../../concepts/foundation/communication/public_private_calls/main.md).
 
 Therefore our constructor must call a public function by using `context.call_public_function()`. Paste this under the `impl` storage block:
 

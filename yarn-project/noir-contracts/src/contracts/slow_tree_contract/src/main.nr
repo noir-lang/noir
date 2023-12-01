@@ -31,6 +31,7 @@ contract SlowTree {
     use crate::capsule::pop_capsule;
     use crate::types::{MembershipProof, deserialize_membership_proof};
 
+    // docs:start:constants_and_storage
     global TREE_HEIGHT: Field = 254;
     global MEMBERSHIP_SIZE: Field = 256; // TREE_HEIGHT + 2
     global UPDATE_SIZE: Field = 512; // TREE_HEIGHT * 2 + 4
@@ -40,6 +41,7 @@ contract SlowTree {
     struct Storage {
         trees: Map<SlowMap<TREE_HEIGHT, UPDATE_SIZE>>,
     }
+    // docs:end:constants_and_storage
 
     impl Storage {
         fn init(context: Context) -> pub Self {
@@ -60,22 +62,23 @@ contract SlowTree {
 
     #[aztec(private)]
     fn constructor() {}
-
+    // docs:start:initialize
     #[aztec(public)]
     fn initialize() {
         storage.trees.at(context.msg_sender()).initialize(EMPTY_ROOT);
     }
-
+    // docs:end:initialize
+    // docs:start:read_at_pub
     #[aztec(public)]
     fn read_at_pub(key: Field) -> Field {
         storage.trees.at(context.msg_sender()).read_at(key)
     }
-
+    // docs:end:read_at_pub
     #[aztec(public)]
     fn read_leaf_at_pub(key: Field) -> Leaf {
         storage.trees.at(context.msg_sender()).read_leaf_at(key)
     }
-
+    // docs:start:read_at_private
     #[aztec(private)]
     fn read_at(index: Field) -> Field {
         let fields = pop_capsule();
@@ -90,18 +93,22 @@ contract SlowTree {
 
         p.value
     }
-
+    // docs:end:read_at_private
+    // docs:start:assert_current_root
     #[aztec(public)]
     internal fn _assert_current_root(caller: Field, expected: Field) {
         let root = storage.trees.at(caller).current_root();
         assert(root == expected, "Root does not match expected");
     }
+    // docs:end:assert_current_root
 
+    // docs:start:update_at_pub
     #[aztec(public)]
     fn update_at_public(p: SlowUpdateProof<TREE_HEIGHT, UPDATE_SIZE>) {
         storage.trees.at(context.msg_sender()).update_at(p);
     }
-
+    // docs:end:update_at_pub
+    // docs:start:update_at_private
     #[aztec(private)]
     fn update_at_private(index: Field, new_value: Field) {
         let fields = pop_capsule();
@@ -126,7 +133,8 @@ contract SlowTree {
                 new_after_root
             ]);
     }
-
+    // docs:end:update_at_private
+    // docs:start:_update
     #[aztec(public)]
     internal fn _update(caller: Field, index: Field, new_value: Field, before: Field, after: Field, new_root: Field) {
         let current_root = storage.trees.at(caller).current_root();
@@ -137,7 +145,7 @@ contract SlowTree {
 
         storage.trees.at(caller).update_unsafe_at(index, new_value, new_root);
     }
-
+    // docs:end:_update
     unconstrained fn un_read_leaf_at(address: Field, key: Field) -> Leaf {
         storage.trees.at(address).read_leaf_at(key)
     }
