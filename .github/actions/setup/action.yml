@@ -14,4 +14,3 @@ runs:
     - name: Install
       run: yarn --immutable
       shell: bash
-      if: steps.node.outputs.cache-hit != 'true'
