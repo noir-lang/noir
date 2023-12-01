@@ -4,18 +4,21 @@
 //! be a single function remaining when the pass finishes.
 use std::collections::{BTreeSet, HashSet};
 
-use iter_extended::{btree_map, vecmap};
+use iter_extended::{try_btree_map, vecmap};
 
-use crate::ssa::{
-    function_builder::FunctionBuilder,
-    ir::{
-        basic_block::BasicBlockId,
-        dfg::{CallStack, InsertInstructionResult},
-        function::{Function, FunctionId, RuntimeType},
-        instruction::{Instruction, InstructionId, TerminatorInstruction},
-        value::{Value, ValueId},
+use crate::{
+    errors::RuntimeError,
+    ssa::{
+        function_builder::FunctionBuilder,
+        ir::{
+            basic_block::BasicBlockId,
+            dfg::{CallStack, InsertInstructionResult},
+            function::{Function, FunctionId, RuntimeType},
+            instruction::{Instruction, InstructionId, TerminatorInstruction},
+            value::{Value, ValueId},
+        },
+        ssa_gen::Ssa,
     },
-    ssa_gen::Ssa,
 };
 use fxhash::FxHashMap as HashMap;
 
@@ -36,13 +39,13 @@ impl Ssa {
     /// changes. This is because if the function's id later becomes known by a later
     /// pass, we would need to re-run all of inlining anyway to inline it, so we might
     /// as well save the work for later instead of performing it twice.
-    pub(crate) fn inline_functions(mut self) -> Ssa {
-        self.functions = btree_map(get_entry_point_functions(&self), |entry_point| {
-            let new_function = InlineContext::new(&self, entry_point).inline_all(&self);
-            (entry_point, new_function)
-        });
+    pub(crate) fn inline_functions(mut self) -> Result<Ssa, RuntimeError> {
+        self.functions = try_btree_map(get_entry_point_functions(&self), |entry_point| {
+            let new_function = InlineContext::new(&self, entry_point).inline_all(&self)?;
+            Ok::<(FunctionId, Function), RuntimeError>((entry_point, new_function))
+        })?;
 
-        self
+        Ok(self)
     }
 }
 
@@ -119,7 +122,7 @@ impl InlineContext {
     }
 
     /// Start inlining the entry point function and all functions reachable from it.
-    fn inline_all(mut self, ssa: &Ssa) -> Function {
+    fn inline_all(mut self, ssa: &Ssa) -> Result<Function, RuntimeError> {
         let entry_point = &ssa.functions[&self.entry_point];
 
         let mut context = PerFunctionContext::new(&mut self, entry_point);
@@ -138,12 +141,12 @@ impl InlineContext {
         }
 
         context.blocks.insert(context.source_function.entry_block(), entry_block);
-        context.inline_blocks(ssa);
+        context.inline_blocks(ssa)?;
 
         // Finally, we should have 1 function left representing the inlined version of the target function.
         let mut new_ssa = self.builder.finish();
         assert_eq!(new_ssa.functions.len(), 1);
-        new_ssa.functions.pop_first().unwrap().1
+        Ok(new_ssa.functions.pop_first().unwrap().1)
     }
 
     /// Inlines a function into the current function and returns the translated return values
@@ -153,7 +156,7 @@ impl InlineContext {
         ssa: &Ssa,
         id: FunctionId,
         arguments: &[ValueId],
-    ) -> Vec<ValueId> {
+    ) -> Result<Vec<ValueId>, RuntimeError> {
         self.recursion_level += 1;
 
         if self.recursion_level > RECURSION_LIMIT {
@@ -172,9 +175,9 @@ impl InlineContext {
         let current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);
 
-        let return_values = context.inline_blocks(ssa);
+        let return_values = context.inline_blocks(ssa)?;
         self.recursion_level -= 1;
-        return_values
+        Ok(return_values)
     }
 }
 
@@ -278,7 +281,7 @@ impl<'function> PerFunctionContext<'function> {
     }
 
     /// Inline all reachable blocks within the source_function into the destination function.
-    fn inline_blocks(&mut self, ssa: &Ssa) -> Vec<ValueId> {
+    fn inline_blocks(&mut self, ssa: &Ssa) -> Result<Vec<ValueId>, RuntimeError> {
         let mut seen_blocks = HashSet::new();
         let mut block_queue = vec![self.source_function.entry_block()];
 
@@ -294,7 +297,7 @@ impl<'function> PerFunctionContext<'function> {
             self.context.builder.switch_to_block(translated_block_id);
 
             seen_blocks.insert(source_block_id);
-            self.inline_block_instructions(ssa, source_block_id);
+            self.inline_block_instructions(ssa, source_block_id)?;
 
             if let Some((block, values)) =
                 self.handle_terminator_instruction(source_block_id, &mut block_queue)
@@ -303,7 +306,7 @@ impl<'function> PerFunctionContext<'function> {
             }
         }
 
-        self.handle_function_returns(function_returns)
+        Ok(self.handle_function_returns(function_returns))
     }
 
     /// Handle inlining a function's possibly multiple return instructions.
@@ -339,13 +342,17 @@ impl<'function> PerFunctionContext<'function> {
 
     /// Inline each instruction in the given block into the function being inlined into.
     /// This may recurse if it finds another function to inline if a call instruction is within this block.
-    fn inline_block_instructions(&mut self, ssa: &Ssa, block_id: BasicBlockId) {
+    fn inline_block_instructions(
+        &mut self,
+        ssa: &Ssa,
+        block_id: BasicBlockId,
+    ) -> Result<(), RuntimeError> {
         let block = &self.source_function.dfg[block_id];
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(function) => match ssa.functions[&function].runtime() {
-                        RuntimeType::Acir => self.inline_function(ssa, *id, function, arguments),
+                        RuntimeType::Acir => self.inline_function(ssa, *id, function, arguments)?,
                         RuntimeType::Brillig => self.push_instruction(*id),
                     },
                     None => self.push_instruction(*id),
@@ -353,6 +360,7 @@ impl<'function> PerFunctionContext<'function> {
                 _ => self.push_instruction(*id),
             }
         }
+        Ok(())
     }
 
     /// Inline a function call and remember the inlined return values in the values map
@@ -362,7 +370,7 @@ impl<'function> PerFunctionContext<'function> {
         call_id: InstructionId,
         function: FunctionId,
         arguments: &[ValueId],
-    ) {
+    ) -> Result<(), RuntimeError> {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
 
@@ -374,14 +382,32 @@ impl<'function> PerFunctionContext<'function> {
             self.context.call_stack.push_back(location);
         }
 
-        let new_results = self.context.inline_function(ssa, function, &arguments);
+        let c = self.context.call_stack.clone();
+
+        let new_results = self.context.inline_function(ssa, function, &arguments)?;
 
         if has_location {
             self.context.call_stack.pop_back();
         }
 
         let new_results = InsertInstructionResult::Results(call_id, &new_results);
+
+        if old_results.len() != new_results.len() {
+            println!(
+                "Function {} has {} results, but call site has {}",
+                self.source_function.name(),
+                new_results.len(),
+                old_results.len()
+            );
+
+            return Err(RuntimeError::UnInitialized {
+                name: "bad inlined function".into(),
+                call_stack: c,
+            });
+        }
+
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
+        Ok(())
     }
 
     /// Push the given instruction from the source_function into the current block of the
@@ -402,6 +428,11 @@ impl<'function> PerFunctionContext<'function> {
         self.context.builder.set_call_stack(call_stack);
 
         let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
+
+        if results.len() != new_results.len() {
+            println!("In function {}", self.source_function.name());
+        }
+
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
 
@@ -543,7 +574,7 @@ mod test {
         let ssa = builder.finish();
         assert_eq!(ssa.functions.len(), 2);
 
-        let inlined = ssa.inline_functions();
+        let inlined = ssa.inline_functions().unwrap();
         assert_eq!(inlined.functions.len(), 1);
     }
 
@@ -609,7 +640,7 @@ mod test {
         let ssa = builder.finish();
         assert_eq!(ssa.functions.len(), 4);
 
-        let inlined = ssa.inline_functions();
+        let inlined = ssa.inline_functions().unwrap();
         assert_eq!(inlined.functions.len(), 1);
     }
 
@@ -683,7 +714,7 @@ mod test {
         //   b6():
         //     return Field 120
         // }
-        let inlined = ssa.inline_functions();
+        let inlined = ssa.inline_functions().unwrap();
         assert_eq!(inlined.functions.len(), 1);
 
         let main = inlined.main();
@@ -766,7 +797,7 @@ mod test {
         builder.switch_to_block(join_block);
         builder.terminate_with_return(vec![join_param]);
 
-        let ssa = builder.finish().inline_functions();
+        let ssa = builder.finish().inline_functions().unwrap();
         // Expected result:
         // fn main f3 {
         //   b0(v0: u1):

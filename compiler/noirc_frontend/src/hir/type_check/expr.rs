@@ -11,7 +11,7 @@ use crate::{
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitMethodId},
-    BinaryOpKind, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
+    BinaryOpKind, Signedness, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -778,7 +778,11 @@ impl<'interner> TypeChecker<'interner> {
                     }));
                 }
 
-                if other.try_bind_to_polymorphic_int(int).is_ok() || other == &Type::Error {
+                let mut bindings = TypeBindings::new();
+                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
+                    || other == &Type::Error
+                {
+                    Type::apply_type_bindings(bindings);
                     Ok(Bool)
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
@@ -1009,7 +1013,7 @@ impl<'interner> TypeChecker<'interner> {
                 let env_type = self.interner.next_type_variable();
                 let expected = Type::Function(args, Box::new(ret.clone()), Box::new(env_type));
 
-                if let Err(error) = binding.borrow_mut().bind_to(expected, span) {
+                if let Err(error) = binding.try_bind(expected, span) {
                     self.errors.push(error);
                 }
                 ret
@@ -1077,7 +1081,11 @@ impl<'interner> TypeChecker<'interner> {
                     }));
                 }
 
-                if other.try_bind_to_polymorphic_int(int).is_ok() || other == &Type::Error {
+                let mut bindings = TypeBindings::new();
+                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
+                    || other == &Type::Error
+                {
+                    Type::apply_type_bindings(bindings);
                     Ok(other.clone())
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {

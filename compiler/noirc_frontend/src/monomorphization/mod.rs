@@ -215,7 +215,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
             let the_trait = self.interner.get_trait(trait_id);
-            *the_trait.self_type_typevar.borrow_mut() = TypeBinding::Bound(self_type);
+            the_trait.self_type_typevar.bind(self_type);
         }
 
         let meta = self.interner.function_meta(&f);
@@ -716,7 +716,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // like automatic solving of traits. It should be fine since it is strictly
                 // after type checking, but care should be taken that it doesn't change which
                 // impls are chosen.
-                *binding.borrow_mut() = TypeBinding::Bound(HirType::default_int_type());
+                binding.bind(HirType::default_int_type());
                 ast::Type::Field
             }
 
@@ -740,7 +740,7 @@ impl<'interner> Monomorphizer<'interner> {
                     };
 
                 let monomorphized_default = self.convert_type(&default);
-                *binding.borrow_mut() = TypeBinding::Bound(default);
+                binding.bind(default);
                 monomorphized_default
             }
 
@@ -830,6 +830,13 @@ impl<'interner> Monomorphizer<'interner> {
             node_interner::TraitImplKind::Assumed { object_type } => {
                 match self.interner.lookup_trait_implementation(&object_type, method.trait_id) {
                     Ok(TraitImplKind::Normal(impl_id)) => {
+                        let id = self.interner.get_trait_implementation(impl_id).borrow().methods
+                            [method.method_index];
+
+                        let name = self.interner.function_name(&id);
+
+                        println!("Looked up assumed trait impl for {}::{name}", object_type);
+
                         self.interner.get_trait_implementation(impl_id).borrow().methods
                             [method.method_index]
                     }
@@ -857,6 +864,8 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let the_trait = self.interner.get_trait(method.trait_id);
+
+        println!("Function type = {:?} => {}", function_type, self.convert_type(&function_type));
 
         ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(func_id),
@@ -1430,12 +1439,19 @@ fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
 
 fn perform_instantiation_bindings(bindings: &TypeBindings) {
     for (var, binding) in bindings.values() {
-        *var.borrow_mut() = TypeBinding::Bound(binding.clone());
+        let id = match &*var.borrow() {
+            TypeBinding::Bound(original) => {
+                panic!("Binding over already bound type! {} <- {}", original, binding)
+            }
+            TypeBinding::Unbound(id) => *id,
+        };
+        println!("  Applying {:?} <- {}", id, binding);
+        var.bind(binding.clone());
     }
 }
 
 fn undo_instantiation_bindings(bindings: TypeBindings) {
     for (id, (var, _)) in bindings {
-        *var.borrow_mut() = TypeBinding::Unbound(id);
+        var.unbind(id);
     }
 }

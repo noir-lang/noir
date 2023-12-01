@@ -415,7 +415,8 @@ pub(crate) fn check_methods_signatures(
     let self_type = resolver.get_self_type().expect("trait impl must have a Self type");
 
     // Temporarily bind the trait's Self type to self_type so we can type check
-    let _ = the_trait.self_type_typevar.borrow_mut().bind_to(self_type.clone(), the_trait.span);
+    the_trait.self_type_typevar.try_bind(self_type.clone(), the_trait.span)
+        .expect("Failed binding Self type of trait");
 
     for (file_id, func_id) in impl_methods {
         let impl_method = resolver.interner.function_meta(func_id);
@@ -494,5 +495,5 @@ pub(crate) fn check_methods_signatures(
         }
     }
 
-    the_trait.self_type_typevar.borrow_mut().unbind(the_trait.self_type_typevar_id);
+    the_trait.self_type_typevar.unbind(the_trait.self_type_typevar_id);
 }
