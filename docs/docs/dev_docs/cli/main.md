@@ -26,7 +26,7 @@ With the help of Aztec.js you will be able to:
 
 ## What's in the Sandbox?
 
-The sandbox contains a local Ethereum instance running [Anvil](https://book.getfoundry.sh/anvil/), a local instance of the Aztec rollup, an aztec private execution client for handling user transactions and state, and, if using Docker, an [Otterscan](https://github.com/otterscan/otterscan) block explorer for the local Ethereum network.
+The sandbox contains a local Ethereum instance running [Anvil](https://book.getfoundry.sh/anvil/), a local instance of the Aztec rollup and an aztec private execution client for handling user transactions and state.
 
 These provide a self contained environment which deploys Aztec on a local (empty) Ethereum network, creates 3 smart contract wallet accounts on the rollup, and allows transactions to be processed on the local Aztec sequencer.
 
