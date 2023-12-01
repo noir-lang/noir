@@ -22,3 +22,27 @@ COPY . .
 RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD)
 RUN cargo build --features="noirc_driver/aztec" --release
 RUN cargo test --workspace --locked --release
+
+FROM rust:alpine3.17 as test-js
+RUN apk update \
+    && apk upgrade \
+    && apk add --no-cache \
+        build-base \
+        pkgconfig \
+        openssl-dev \
+        npm \
+        yarn \
+        bash \
+        jq \
+        git
+# RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git openssl libc++-dev libncurses5 curl -y
+WORKDIR /usr/src/noir
+COPY . .
+RUN ./scripts/install_wasm-bindgen.sh
+RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD) && cargoExtraArgs="--features noirc_driver/aztec"
+RUN cargo build --features="noirc_driver/aztec" --release
+ENV PATH="${PATH}:/usr/src/noir/target/release/"
+RUN echo $PATH
+# RUN nargo
+RUN yarn && yarn build
+RUN yarn test
