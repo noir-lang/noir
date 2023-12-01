@@ -369,23 +369,23 @@ resource "aws_security_group_rule" "allow-node-tcp" {
 ## NLB listeners can't have a 'weight' property defined. You will see there isn't one here but that doesn't
 ## stop it trying to automatically specify one and giving an error
 
-resource "aws_lb_listener" "aztec-node-tcp-listener" {
-  count             = local.node_count
-  load_balancer_arn = data.terraform_remote_state.aztec-network_iac.outputs.nlb_arn
-  port              = var.NODE_TCP_PORT + count.index
-  protocol          = "TCP"
+# resource "aws_lb_listener" "aztec-node-tcp-listener" {
+#   count             = local.node_count
+#   load_balancer_arn = data.terraform_remote_state.aztec-network_iac.outputs.nlb_arn
+#   port              = var.NODE_TCP_PORT + count.index
+#   protocol          = "TCP"
 
-  tags = {
-    name = "aztec-node-${count.index}-tcp-listener"
-  }
+#   tags = {
+#     name = "aztec-node-${count.index}-tcp-listener"
+#   }
 
-  default_action {
-    type = "forward"
+#   default_action {
+#     type = "forward"
 
-    forward {
-      target_group {
-        arn = aws_lb_target_group.aztec-bootstrap-target-group[count.index].arn
-      }
-    }
-  }
-}
+#     forward {
+#       target_group {
+#         arn = aws_lb_target_group.aztec-bootstrap-target-group[count.index].arn
+#       }
+#     }
+#   }
+# }

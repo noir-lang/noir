@@ -224,23 +224,27 @@ resource "aws_security_group_rule" "allow-bootstrap-tcp" {
   security_group_id = data.terraform_remote_state.aztec-network_iac.outputs.p2p_security_group_id
 }
 
-resource "aws_lb_listener" "aztec-bootstrap-tcp-listener" {
-  count             = local.bootnode_count
-  load_balancer_arn = data.terraform_remote_state.aztec-network_iac.outputs.nlb_arn
-  port              = var.BOOTNODE_LISTEN_PORT + count.index
-  protocol          = "TCP"
+## Commented out here and setup manually as terraform (or the aws provider version we are using) has a bug
+## NLB listeners can't have a 'weight' property defined. You will see there isn't one here but that doesn't
+## stop it trying to automatically specify one and giving an error
 
-  tags = {
-    name = "aztec-bootstrap-${count.index}-target-group"
-  }
+# resource "aws_lb_listener" "aztec-bootstrap-tcp-listener" {
+#   count             = local.bootnode_count
+#   load_balancer_arn = data.terraform_remote_state.aztec-network_iac.outputs.nlb_arn
+#   port              = var.BOOTNODE_LISTEN_PORT + count.index
+#   protocol          = "TCP"
 
-  default_action {
-    type = "forward"
+#   tags = {
+#     name = "aztec-bootstrap-${count.index}-target-group"
+#   }
 
-    forward {
-      target_group {
-        arn = aws_lb_target_group.aztec-bootstrap-target-group[count.index].arn
-      }
-    }
-  }
-}
+#   default_action {
+#     type = "forward"
+
+#     forward {
+#       target_group {
+#         arn = aws_lb_target_group.aztec-bootstrap-target-group[count.index].arn
+#       }
+#     }
+#   }
+# }
