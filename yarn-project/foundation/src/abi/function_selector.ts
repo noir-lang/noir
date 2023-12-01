@@ -88,6 +88,10 @@ export class FunctionSelector {
    * @returns Function selector.
    */
   static fromSignature(signature: string): FunctionSelector {
+    // throw if signature contains whitespace
+    if (/\s/.test(signature)) {
+      throw new Error('Function Signature cannot contain whitespace');
+    }
     return FunctionSelector.fromBuffer(keccak(Buffer.from(signature)).subarray(0, FunctionSelector.SIZE));
   }
 
