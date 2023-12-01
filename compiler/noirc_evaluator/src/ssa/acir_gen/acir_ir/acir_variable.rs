@@ -877,7 +877,8 @@ impl AcirContext {
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
     /// `GeneratedAcir`'s return witnesses.
     pub(crate) fn return_var(&mut self, acir_var: AcirVar) -> Result<(), InternalError> {
-        let witness = self.var_to_witness(acir_var)?;
+        let return_var = self.get_or_create_witness_var(acir_var)?;
+        let witness = self.var_to_witness(return_var)?;
         self.acir_ir.push_return_witness(witness);
         Ok(())
     }
