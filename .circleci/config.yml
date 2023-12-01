@@ -454,6 +454,9 @@ jobs:
           command: |
             create_ecr_manifest aztec-sandbox x86_64,arm64
             create_ecr_manifest cli x86_64,arm64
+            create_ecr_manifest aztec-faucet x86_64
+            create_ecr_manifest mainnet-fork x86_64
+            create_ecr_manifest l1-contracts x86_64
 
   boxes-blank-react:
     machine:
@@ -991,9 +994,9 @@ jobs:
             deploy_dockerhub noir x86_64,arm64
             deploy_dockerhub aztec-sandbox x86_64,arm64
             deploy_dockerhub cli x86_64,arm64
-            deploy_dockerhub aztec-faucet x86_64,arm64
-            deploy_dockerhub mainnet-fork x86_64,arm64
-            deploy_dockerhub l1-contracts x86_64,arm64
+            deploy_dockerhub aztec-faucet x86_64
+            deploy_dockerhub mainnet-fork x86_64
+            deploy_dockerhub l1-contracts x86_64
 
   deploy-devnet:
     machine:
