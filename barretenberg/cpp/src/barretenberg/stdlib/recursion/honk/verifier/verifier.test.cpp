@@ -120,19 +120,18 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
         InnerComposer inner_composer;
         auto instance = inner_composer.create_instance(inner_circuit);
         auto prover = inner_composer.create_prover(instance); // A prerequisite for computing VK
-        const auto native_verification_key = instance->compute_verification_key();
 
         // Instantiate the recursive verification key from the native verification key
-        auto verification_key = std::make_shared<VerificationKey>(&outer_circuit, native_verification_key);
+        auto verification_key = std::make_shared<VerificationKey>(&outer_circuit, instance->verification_key);
 
         // Spot check some values in the recursive VK to ensure it was constructed correctly
-        EXPECT_EQ(verification_key->circuit_size, native_verification_key->circuit_size);
-        EXPECT_EQ(verification_key->log_circuit_size, native_verification_key->log_circuit_size);
-        EXPECT_EQ(verification_key->num_public_inputs, native_verification_key->num_public_inputs);
-        EXPECT_EQ(verification_key->q_m.get_value(), native_verification_key->q_m);
-        EXPECT_EQ(verification_key->q_r.get_value(), native_verification_key->q_r);
-        EXPECT_EQ(verification_key->sigma_1.get_value(), native_verification_key->sigma_1);
-        EXPECT_EQ(verification_key->id_3.get_value(), native_verification_key->id_3);
+        EXPECT_EQ(verification_key->circuit_size, instance->verification_key->circuit_size);
+        EXPECT_EQ(verification_key->log_circuit_size, instance->verification_key->log_circuit_size);
+        EXPECT_EQ(verification_key->num_public_inputs, instance->verification_key->num_public_inputs);
+        EXPECT_EQ(verification_key->q_m.get_value(), instance->verification_key->q_m);
+        EXPECT_EQ(verification_key->q_r.get_value(), instance->verification_key->q_r);
+        EXPECT_EQ(verification_key->sigma_1.get_value(), instance->verification_key->sigma_1);
+        EXPECT_EQ(verification_key->id_3.get_value(), instance->verification_key->id_3);
     }
 
     /**
@@ -150,11 +149,10 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
         auto instance = inner_composer.create_instance(inner_circuit);
         auto inner_prover = inner_composer.create_prover(instance);
         auto inner_proof = inner_prover.construct_proof();
-        const auto native_verification_key = instance->compute_verification_key();
 
         // Create a recursive verification circuit for the proof of the inner circuit
         OuterBuilder outer_circuit;
-        auto verification_key = std::make_shared<VerificationKey>(&outer_circuit, native_verification_key);
+        auto verification_key = std::make_shared<VerificationKey>(&outer_circuit, instance->verification_key);
         RecursiveVerifier verifier(&outer_circuit, verification_key);
         auto pairing_points = verifier.verify_proof(inner_proof);
 
@@ -198,7 +196,6 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
         auto instance = inner_composer.create_instance(inner_circuit);
         auto inner_prover = inner_composer.create_prover(instance);
         auto inner_proof = inner_prover.construct_proof();
-        const auto native_verification_key = instance->compute_verification_key();
 
         // Arbitrarily tamper with the proof to be verified
         inner_prover.transcript.deserialize_full_transcript();
@@ -208,7 +205,7 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
 
         // Create a recursive verification circuit for the proof of the inner circuit
         OuterBuilder outer_circuit;
-        auto verification_key = std::make_shared<VerificationKey>(&outer_circuit, native_verification_key);
+        auto verification_key = std::make_shared<VerificationKey>(&outer_circuit, instance->verification_key);
         RecursiveVerifier verifier(&outer_circuit, verification_key);
         verifier.verify_proof(inner_proof);
 

@@ -66,11 +66,10 @@ template <class Flavor> void ProverInstance_<Flavor>::compute_witness(Circuit& c
         construct_databus_polynomials(circuit);
     }
 
-    // Construct the sorted concatenated list polynomials for the lookup argument
-    polynomial s_1(dyadic_circuit_size);
-    polynomial s_2(dyadic_circuit_size);
-    polynomial s_3(dyadic_circuit_size);
-    polynomial s_4(dyadic_circuit_size);
+    // Initialise the sorted concatenated list polynomials for the lookup argument
+    for (auto& s_i : sorted_polynomials) {
+        s_i = Polynomial(dyadic_circuit_size);
+    }
 
     // The sorted list polynomials have (tables_size + lookups_size) populated entries. We define the index below so
     // that these entries are written into the last indices of the polynomials. The values on the first
@@ -116,20 +115,13 @@ template <class Flavor> void ProverInstance_<Flavor>::compute_witness(Circuit& c
 
         for (const auto& entry : lookup_gates) {
             const auto components = entry.to_sorted_list_components(table.use_twin_keys);
-            s_1[s_index] = components[0];
-            s_2[s_index] = components[1];
-            s_3[s_index] = components[2];
-            s_4[s_index] = table_index;
+            sorted_polynomials[0][s_index] = components[0];
+            sorted_polynomials[1][s_index] = components[1];
+            sorted_polynomials[2][s_index] = components[2];
+            sorted_polynomials[3][s_index] = table_index;
             ++s_index;
         }
     }
-
-    // Polynomial memory is zeroed out when constructed with size hint, so we don't have to initialize trailing
-    // space
-    proving_key->sorted_1 = s_1;
-    proving_key->sorted_2 = s_2;
-    proving_key->sorted_3 = s_3;
-    proving_key->sorted_4 = s_4;
 
     // Copy memory read/write record data into proving key. Prover needs to know which gates contain a read/write
     // 'record' witness on the 4th wire. This wire value can only be fully computed once the first 3 wire
@@ -392,8 +384,6 @@ template <class Flavor> void ProverInstance_<Flavor>::compute_sorted_list_accumu
 
     auto sorted_list_accumulator = Polynomial{ circuit_size };
 
-    auto sorted_polynomials = proving_key->get_sorted_polynomials();
-
     // Construct s via Horner, i.e. s = s_1 + η(s_2 + η(s_3 + η*s_4))
     for (size_t i = 0; i < circuit_size; ++i) {
         FF T0 = sorted_polynomials[3][i];
@@ -479,60 +469,6 @@ template <class Flavor> void ProverInstance_<Flavor>::compute_grand_product_poly
 
     // Compute permutation and lookup grand product polynomials
     grand_product_library::compute_grand_products<Flavor>(proving_key, prover_polynomials, relation_parameters);
-}
-
-/**
- * Compute verification key consisting of selector precommitments.
- *
- * @return Pointer to the resulting verification key of the Instance.
- * */
-template <class Flavor>
-std::shared_ptr<typename Flavor::VerificationKey> ProverInstance_<Flavor>::compute_verification_key()
-{
-    if (verification_key) {
-        return verification_key;
-    }
-
-    verification_key =
-        std::make_shared<typename Flavor::VerificationKey>(proving_key->circuit_size, proving_key->num_public_inputs);
-
-    // Compute and store commitments to all precomputed polynomials
-    verification_key->q_m = commitment_key->commit(proving_key->q_m);
-    verification_key->q_l = commitment_key->commit(proving_key->q_l);
-    verification_key->q_r = commitment_key->commit(proving_key->q_r);
-    verification_key->q_o = commitment_key->commit(proving_key->q_o);
-    verification_key->q_c = commitment_key->commit(proving_key->q_c);
-    verification_key->sigma_1 = commitment_key->commit(proving_key->sigma_1);
-    verification_key->sigma_2 = commitment_key->commit(proving_key->sigma_2);
-    verification_key->sigma_3 = commitment_key->commit(proving_key->sigma_3);
-    verification_key->id_1 = commitment_key->commit(proving_key->id_1);
-    verification_key->id_2 = commitment_key->commit(proving_key->id_2);
-    verification_key->id_3 = commitment_key->commit(proving_key->id_3);
-    verification_key->lagrange_first = commitment_key->commit(proving_key->lagrange_first);
-    verification_key->lagrange_last = commitment_key->commit(proving_key->lagrange_last);
-
-    verification_key->q_4 = commitment_key->commit(proving_key->q_4);
-    verification_key->q_arith = commitment_key->commit(proving_key->q_arith);
-    verification_key->q_sort = commitment_key->commit(proving_key->q_sort);
-    verification_key->q_elliptic = commitment_key->commit(proving_key->q_elliptic);
-    verification_key->q_aux = commitment_key->commit(proving_key->q_aux);
-    verification_key->q_lookup = commitment_key->commit(proving_key->q_lookup);
-    verification_key->sigma_4 = commitment_key->commit(proving_key->sigma_4);
-    verification_key->id_4 = commitment_key->commit(proving_key->id_4);
-    verification_key->table_1 = commitment_key->commit(proving_key->table_1);
-    verification_key->table_2 = commitment_key->commit(proving_key->table_2);
-    verification_key->table_3 = commitment_key->commit(proving_key->table_3);
-    verification_key->table_4 = commitment_key->commit(proving_key->table_4);
-
-    // TODO(luke): Similar to the lagrange_first/last polynomials, we dont really need to commit to these polynomials
-    // due to their simple structure.
-    if constexpr (IsGoblinFlavor<Flavor>) {
-        verification_key->lagrange_ecc_op = commitment_key->commit(proving_key->lagrange_ecc_op);
-        verification_key->q_busread = commitment_key->commit(proving_key->q_busread);
-        verification_key->databus_id = commitment_key->commit(proving_key->databus_id);
-    }
-
-    return verification_key;
 }
 
 template class ProverInstance_<honk::flavor::Ultra>;

@@ -23,7 +23,7 @@ template <UltraFlavor Flavor> class UltraProver_ {
     using Transcript = typename Flavor::Transcript;
 
   public:
-    explicit UltraProver_(std::shared_ptr<Instance>);
+    explicit UltraProver_(std::shared_ptr<Instance>, std::shared_ptr<CommitmentKey>);
     BBERG_PROFILE void execute_preamble_round();
     BBERG_PROFILE void execute_wire_commitments_round();
     BBERG_PROFILE void execute_sorted_list_accumulator_round();

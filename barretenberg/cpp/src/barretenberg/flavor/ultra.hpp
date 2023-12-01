@@ -41,7 +41,7 @@ class Ultra {
     // assignment of witnesses. We again choose a neutral name.
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 25;
     // The total number of witness entities not including shifts.
-    static constexpr size_t NUM_WITNESS_ENTITIES = 11;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 7;
 
     using GrandProductRelations =
         std::tuple<proof_system::UltraPermutationRelation<FF>, proof_system::LookupRelation<FF>>;
@@ -133,17 +133,11 @@ class Ultra {
                               w_r,          // column 1
                               w_o,          // column 2
                               w_4,          // column 3
-                              sorted_1,     // column 4
-                              sorted_2,     // column 5
-                              sorted_3,     // column 6
-                              sorted_4,     // column 7
-                              sorted_accum, // column 8
-                              z_perm,       // column 9
-                              z_lookup)     // column 10
+                              sorted_accum, // column 4
+                              z_perm,       // column 5
+                              z_lookup)     // column 6
 
         RefVector<DataType> get_wires() { return { w_l, w_r, w_o, w_4 }; };
-        // The sorted concatenations of table and witness data needed for plookup.
-        RefVector<DataType> get_sorted_polynomials() { return { sorted_1, sorted_2, sorted_3, sorted_4 }; };
     };
 
     /**
@@ -305,6 +299,11 @@ class Ultra {
      * @brief A container for univariates produced during the hot loop in sumcheck.
      */
     using ExtendedEdges = ProverUnivariates<MAX_PARTIAL_RELATION_LENGTH>;
+
+    /**
+     * @brief A container for the witness commitments.
+     */
+    using WitnessCommitments = WitnessEntities<Commitment>;
 
     /**
      * @brief A container for commitment labels.

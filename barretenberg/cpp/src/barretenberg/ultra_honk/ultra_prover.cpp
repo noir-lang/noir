@@ -12,9 +12,9 @@ namespace proof_system::honk {
  * @tparam a type of UltraFlavor
  * */
 template <UltraFlavor Flavor>
-UltraProver_<Flavor>::UltraProver_(std::shared_ptr<Instance> inst)
+UltraProver_<Flavor>::UltraProver_(std::shared_ptr<Instance> inst, std::shared_ptr<CommitmentKey> commitment_key)
     : instance(std::move(inst))
-    , commitment_key(instance->commitment_key)
+    , commitment_key(commitment_key)
 {
     instance->initialize_prover_polynomials();
 }
@@ -40,31 +40,46 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_preamble_round(
 }
 
 /**
- * @brief Compute commitments to the first three wire polynomials (and ECC op wires if using Goblin).
- *
+ * @brief Commit to the wire polynomials (part of the witness), with the exception of the fourth wire, which is
+ * only commited to after adding memory records. In the Goblin Flavor, we also commit to the ECC OP wires and the
+ * DataBus columns.
  */
 template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_wire_commitments_round()
 {
+    auto& witness_commitments = instance->witness_commitments;
+    auto& proving_key = instance->proving_key;
+
     // Commit to the first three wire polynomials
-    // We only commit to the fourth wire polynomial after adding memory records
-    auto wire_polys = instance->proving_key->get_wires();
+    // We only commit to the fourth wire polynomial after adding memory recordss
+    witness_commitments.w_l = commitment_key->commit(proving_key->w_l);
+    witness_commitments.w_r = commitment_key->commit(proving_key->w_r);
+    witness_commitments.w_o = commitment_key->commit(proving_key->w_o);
+
+    auto wire_comms = witness_commitments.get_wires();
     auto labels = commitment_labels.get_wires();
     for (size_t idx = 0; idx < 3; ++idx) {
-        transcript.send_to_verifier(labels[idx], commitment_key->commit(wire_polys[idx]));
+        transcript.send_to_verifier(labels[idx], wire_comms[idx]);
     }
 
     if constexpr (IsGoblinFlavor<Flavor>) {
         // Commit to Goblin ECC op wires
-        auto op_wire_polys = instance->proving_key->get_ecc_op_wires();
+        witness_commitments.ecc_op_wire_1 = commitment_key->commit(proving_key->ecc_op_wire_1);
+        witness_commitments.ecc_op_wire_2 = commitment_key->commit(proving_key->ecc_op_wire_2);
+        witness_commitments.ecc_op_wire_3 = commitment_key->commit(proving_key->ecc_op_wire_3);
+        witness_commitments.ecc_op_wire_4 = commitment_key->commit(proving_key->ecc_op_wire_4);
+
+        auto op_wire_comms = instance->witness_commitments.get_ecc_op_wires();
         auto labels = commitment_labels.get_ecc_op_wires();
         for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
-            transcript.send_to_verifier(labels[idx], commitment_key->commit(op_wire_polys[idx]));
+            transcript.send_to_verifier(labels[idx], op_wire_comms[idx]);
         }
+
         // Commit to DataBus columns
-        transcript.send_to_verifier(commitment_labels.calldata,
-                                    commitment_key->commit(instance->proving_key->calldata));
+        witness_commitments.calldata = commitment_key->commit(proving_key->calldata);
+        witness_commitments.calldata_read_counts = commitment_key->commit(proving_key->calldata_read_counts);
+        transcript.send_to_verifier(commitment_labels.calldata, instance->witness_commitments.calldata);
         transcript.send_to_verifier(commitment_labels.calldata_read_counts,
-                                    commitment_key->commit(instance->proving_key->calldata_read_counts));
+                                    instance->witness_commitments.calldata_read_counts);
     }
 }
 
@@ -78,12 +93,14 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_acc
 
     instance->compute_sorted_accumulator_polynomials(eta);
 
+    auto& witness_commitments = instance->witness_commitments;
     // Commit to the sorted withness-table accumulator and the finalized (i.e. with memory records) fourth wire
     // polynomial
-    auto sorted_accum_commitment = commitment_key->commit(instance->proving_key->sorted_accum);
-    auto w_4_commitment = commitment_key->commit(instance->proving_key->w_4);
-    transcript.send_to_verifier(commitment_labels.sorted_accum, sorted_accum_commitment);
-    transcript.send_to_verifier(commitment_labels.w_4, w_4_commitment);
+    witness_commitments.sorted_accum = commitment_key->commit(instance->prover_polynomials.sorted_accum);
+    witness_commitments.w_4 = commitment_key->commit(instance->prover_polynomials.w_4);
+
+    transcript.send_to_verifier(commitment_labels.sorted_accum, instance->witness_commitments.sorted_accum);
+    transcript.send_to_verifier(commitment_labels.w_4, instance->witness_commitments.w_4);
 }
 
 /**
@@ -99,9 +116,9 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_log_derivative_
 
     if constexpr (IsGoblinFlavor<Flavor>) {
         instance->compute_logderivative_inverse(beta, gamma);
-
-        auto lookup_inverses_commitment = commitment_key->commit(instance->proving_key->lookup_inverses);
-        transcript.send_to_verifier(commitment_labels.lookup_inverses, lookup_inverses_commitment);
+        instance->witness_commitments.lookup_inverses =
+            commitment_key->commit(instance->prover_polynomials.lookup_inverses);
+        transcript.send_to_verifier(commitment_labels.lookup_inverses, instance->witness_commitments.lookup_inverses);
     }
 }
 
@@ -114,10 +131,11 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_grand_product_c
 
     instance->compute_grand_product_polynomials(relation_parameters.beta, relation_parameters.gamma);
 
-    auto z_perm_commitment = commitment_key->commit(instance->proving_key->z_perm);
-    auto z_lookup_commitment = commitment_key->commit(instance->proving_key->z_lookup);
-    transcript.send_to_verifier(commitment_labels.z_perm, z_perm_commitment);
-    transcript.send_to_verifier(commitment_labels.z_lookup, z_lookup_commitment);
+    auto& witness_commitments = instance->witness_commitments;
+    witness_commitments.z_perm = commitment_key->commit(instance->prover_polynomials.z_perm);
+    witness_commitments.z_lookup = commitment_key->commit(instance->prover_polynomials.z_lookup);
+    transcript.send_to_verifier(commitment_labels.z_perm, instance->witness_commitments.z_perm);
+    transcript.send_to_verifier(commitment_labels.z_lookup, instance->witness_commitments.z_lookup);
 }
 
 /**

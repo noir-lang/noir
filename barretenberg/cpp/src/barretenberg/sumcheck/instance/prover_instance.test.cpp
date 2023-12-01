@@ -60,14 +60,7 @@ template <class Flavor> class InstanceTests : public testing::Test {
         // Get random challenge eta
         auto eta = FF::random_element();
 
-        // Construct mock sorted list polynomials.
-        std::vector<Polynomial> sorted_lists;
-        auto sorted_list_polynomials = instance.proving_key->get_sorted_polynomials();
-        for (auto& sorted_list_poly : sorted_list_polynomials) {
-            Polynomial random_polynomial = get_random_polynomial(instance.proving_key->circuit_size);
-            sorted_lists.emplace_back(random_polynomial);
-            populate_span(sorted_list_poly, random_polynomial);
-        }
+        auto sorted_list_polynomials = instance.sorted_polynomials;
 
         // Method 1: computed sorted list accumulator polynomial using prover library method
         instance.compute_sorted_list_accumulator(eta);
@@ -78,10 +71,11 @@ template <class Flavor> class InstanceTests : public testing::Test {
         const FF eta_cube = eta_sqr * eta;
 
         // Compute s = s_1 + η*s_2 + η²*s_3 + η³*s_4
-        Polynomial sorted_list_accumulator_expected{ sorted_lists[0] };
+        Polynomial sorted_list_accumulator_expected{ sorted_list_polynomials[0] };
         for (size_t i = 0; i < instance.proving_key->circuit_size; ++i) {
-            sorted_list_accumulator_expected[i] +=
-                sorted_lists[1][i] * eta + sorted_lists[2][i] * eta_sqr + sorted_lists[3][i] * eta_cube;
+            sorted_list_accumulator_expected[i] += sorted_list_polynomials[1][i] * eta +
+                                                   sorted_list_polynomials[2][i] * eta_sqr +
+                                                   sorted_list_polynomials[3][i] * eta_cube;
         }
 
         EXPECT_EQ(sorted_list_accumulator, sorted_list_accumulator_expected);
