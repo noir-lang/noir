@@ -421,18 +421,18 @@ class Ultra {
             : BaseTranscript(proof)
         {}
 
-        static Transcript prover_init_empty()
+        static std::shared_ptr<Transcript> prover_init_empty()
         {
-            Transcript transcript;
+            auto transcript = std::make_shared<Transcript>();
             constexpr uint32_t init{ 42 }; // arbitrary
-            transcript.send_to_verifier("Init", init);
+            transcript->send_to_verifier("Init", init);
             return transcript;
         };
 
-        static Transcript verifier_init_empty(const Transcript& transcript)
+        static std::shared_ptr<Transcript> verifier_init_empty(const std::shared_ptr<Transcript>& transcript)
         {
-            Transcript verifier_transcript{ transcript.proof_data };
-            [[maybe_unused]] auto _ = verifier_transcript.template receive_from_prover<uint32_t>("Init");
+            auto verifier_transcript = std::make_shared<Transcript>(transcript->proof_data);
+            [[maybe_unused]] auto _ = verifier_transcript->template receive_from_prover<uint32_t>("Init");
             return verifier_transcript;
         };
 

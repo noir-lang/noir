@@ -10,12 +10,14 @@
 namespace proof_system::honk {
 template <ECCVMFlavor Flavor> class ECCVMComposer_ {
   public:
+    using FF = typename Flavor::FF;
     using CircuitConstructor = ECCVMCircuitBuilder<Flavor>;
     using ProvingKey = typename Flavor::ProvingKey;
     using VerificationKey = typename Flavor::VerificationKey;
     using PCS = typename Flavor::PCS;
     using CommitmentKey = typename Flavor::CommitmentKey;
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
+    using Transcript = typename Flavor::Transcript;
 
     static constexpr std::string_view NAME_STRING = "ECCVM";
     static constexpr size_t NUM_RESERVED_GATES = 0; // equal to the number of multilinear evaluations leaked
@@ -59,8 +61,11 @@ template <ECCVMFlavor Flavor> class ECCVMComposer_ {
 
     void compute_witness(CircuitConstructor& circuit_constructor);
 
-    ECCVMProver_<Flavor> create_prover(CircuitConstructor& circuit_constructor);
-    ECCVMVerifier_<Flavor> create_verifier(CircuitConstructor& circuit_constructor);
+    ECCVMProver_<Flavor> create_prover(CircuitConstructor& circuit_constructor,
+                                       const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
+    ECCVMVerifier_<Flavor> create_verifier(
+        CircuitConstructor& circuit_constructor,
+        const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
     void add_table_column_selector_poly_to_proving_key(barretenberg::polynomial& small, const std::string& tag);
 

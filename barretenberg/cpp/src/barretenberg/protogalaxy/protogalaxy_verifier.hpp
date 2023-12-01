@@ -10,11 +10,13 @@ namespace proof_system::honk {
 template <class VerifierInstances> class ProtoGalaxyVerifier_ {
   public:
     using Flavor = typename VerifierInstances::Flavor;
+    using Transcript = typename Flavor::Transcript;
     using FF = typename Flavor::FF;
     using Instance = typename VerifierInstances::Instance;
     using VerificationKey = typename Flavor::VerificationKey;
+
     VerifierInstances verifier_instances;
-    BaseTranscript transcript;
+    std::shared_ptr<Transcript> transcript = std::make_shared<Transcript>();
 
     ProtoGalaxyVerifier_(VerifierInstances insts)
         : verifier_instances(insts){};

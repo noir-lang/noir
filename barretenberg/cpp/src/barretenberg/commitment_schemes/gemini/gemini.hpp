@@ -142,19 +142,19 @@ template <typename Curve> class GeminiVerifier_ {
         commitments.reserve(num_variables - 1);
         for (size_t i = 0; i < num_variables - 1; ++i) {
             auto commitment =
-                transcript.template receive_from_prover<Commitment>("Gemini:FOLD_" + std::to_string(i + 1));
+                transcript->template receive_from_prover<Commitment>("Gemini:FOLD_" + std::to_string(i + 1));
             commitments.emplace_back(commitment);
         }
 
         // compute vector of powers of random evaluation point r
-        const Fr r = transcript.get_challenge("Gemini:r");
+        const Fr r = transcript->get_challenge("Gemini:r");
         std::vector<Fr> r_squares = squares_of_r(r, num_variables);
 
         // Get evaluations a_i, i = 0,...,m-1 from transcript
         std::vector<Fr> evaluations;
         evaluations.reserve(num_variables);
         for (size_t i = 0; i < num_variables; ++i) {
-            auto eval = transcript.template receive_from_prover<Fr>("Gemini:a_" + std::to_string(i));
+            auto eval = transcript->template receive_from_prover<Fr>("Gemini:a_" + std::to_string(i));
             evaluations.emplace_back(eval);
         }
 

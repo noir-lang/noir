@@ -12,8 +12,11 @@ namespace proof_system::honk {
  * @tparam a type of UltraFlavor
  * */
 template <UltraFlavor Flavor>
-UltraProver_<Flavor>::UltraProver_(std::shared_ptr<Instance> inst, std::shared_ptr<CommitmentKey> commitment_key)
+UltraProver_<Flavor>::UltraProver_(const std::shared_ptr<Instance>& inst,
+                                   const std::shared_ptr<CommitmentKey>& commitment_key,
+                                   const std::shared_ptr<Transcript>& transcript)
     : instance(std::move(inst))
+    , transcript(transcript)
     , commitment_key(commitment_key)
 {
     instance->initialize_prover_polynomials();
@@ -29,13 +32,13 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_preamble_round(
     const auto circuit_size = static_cast<uint32_t>(proving_key->circuit_size);
     const auto num_public_inputs = static_cast<uint32_t>(proving_key->num_public_inputs);
 
-    transcript.send_to_verifier("circuit_size", circuit_size);
-    transcript.send_to_verifier("public_input_size", num_public_inputs);
-    transcript.send_to_verifier("pub_inputs_offset", static_cast<uint32_t>(instance->pub_inputs_offset));
+    transcript->send_to_verifier("circuit_size", circuit_size);
+    transcript->send_to_verifier("public_input_size", num_public_inputs);
+    transcript->send_to_verifier("pub_inputs_offset", static_cast<uint32_t>(instance->pub_inputs_offset));
 
     for (size_t i = 0; i < proving_key->num_public_inputs; ++i) {
         auto public_input_i = instance->public_inputs[i];
-        transcript.send_to_verifier("public_input_" + std::to_string(i), public_input_i);
+        transcript->send_to_verifier("public_input_" + std::to_string(i), public_input_i);
     }
 }
 
@@ -58,7 +61,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_wire_commitment
     auto wire_comms = witness_commitments.get_wires();
     auto labels = commitment_labels.get_wires();
     for (size_t idx = 0; idx < 3; ++idx) {
-        transcript.send_to_verifier(labels[idx], wire_comms[idx]);
+        transcript->send_to_verifier(labels[idx], wire_comms[idx]);
     }
 
     if constexpr (IsGoblinFlavor<Flavor>) {
@@ -71,15 +74,15 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_wire_commitment
         auto op_wire_comms = instance->witness_commitments.get_ecc_op_wires();
         auto labels = commitment_labels.get_ecc_op_wires();
         for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
-            transcript.send_to_verifier(labels[idx], op_wire_comms[idx]);
+            transcript->send_to_verifier(labels[idx], op_wire_comms[idx]);
         }
 
         // Commit to DataBus columns
         witness_commitments.calldata = commitment_key->commit(proving_key->calldata);
         witness_commitments.calldata_read_counts = commitment_key->commit(proving_key->calldata_read_counts);
-        transcript.send_to_verifier(commitment_labels.calldata, instance->witness_commitments.calldata);
-        transcript.send_to_verifier(commitment_labels.calldata_read_counts,
-                                    instance->witness_commitments.calldata_read_counts);
+        transcript->send_to_verifier(commitment_labels.calldata, instance->witness_commitments.calldata);
+        transcript->send_to_verifier(commitment_labels.calldata_read_counts,
+                                     instance->witness_commitments.calldata_read_counts);
     }
 }
 
@@ -89,7 +92,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_wire_commitment
  */
 template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_accumulator_round()
 {
-    FF eta = transcript.get_challenge("eta");
+    FF eta = transcript->get_challenge("eta");
 
     instance->compute_sorted_accumulator_polynomials(eta);
 
@@ -99,8 +102,8 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_acc
     witness_commitments.sorted_accum = commitment_key->commit(instance->prover_polynomials.sorted_accum);
     witness_commitments.w_4 = commitment_key->commit(instance->prover_polynomials.w_4);
 
-    transcript.send_to_verifier(commitment_labels.sorted_accum, instance->witness_commitments.sorted_accum);
-    transcript.send_to_verifier(commitment_labels.w_4, instance->witness_commitments.w_4);
+    transcript->send_to_verifier(commitment_labels.sorted_accum, instance->witness_commitments.sorted_accum);
+    transcript->send_to_verifier(commitment_labels.w_4, instance->witness_commitments.w_4);
 }
 
 /**
@@ -110,7 +113,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_acc
 template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_log_derivative_inverse_round()
 {
     // Compute and store challenges beta and gamma
-    auto [beta, gamma] = challenges_to_field_elements<FF>(transcript.get_challenges("beta", "gamma"));
+    auto [beta, gamma] = challenges_to_field_elements<FF>(transcript->get_challenges("beta", "gamma"));
     relation_parameters.beta = beta;
     relation_parameters.gamma = gamma;
 
@@ -118,7 +121,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_log_derivative_
         instance->compute_logderivative_inverse(beta, gamma);
         instance->witness_commitments.lookup_inverses =
             commitment_key->commit(instance->prover_polynomials.lookup_inverses);
-        transcript.send_to_verifier(commitment_labels.lookup_inverses, instance->witness_commitments.lookup_inverses);
+        transcript->send_to_verifier(commitment_labels.lookup_inverses, instance->witness_commitments.lookup_inverses);
     }
 }
 
@@ -134,8 +137,8 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_grand_product_c
     auto& witness_commitments = instance->witness_commitments;
     witness_commitments.z_perm = commitment_key->commit(instance->prover_polynomials.z_perm);
     witness_commitments.z_lookup = commitment_key->commit(instance->prover_polynomials.z_lookup);
-    transcript.send_to_verifier(commitment_labels.z_perm, instance->witness_commitments.z_perm);
-    transcript.send_to_verifier(commitment_labels.z_lookup, instance->witness_commitments.z_lookup);
+    transcript->send_to_verifier(commitment_labels.z_perm, instance->witness_commitments.z_perm);
+    transcript->send_to_verifier(commitment_labels.z_lookup, instance->witness_commitments.z_lookup);
 }
 
 /**
@@ -147,7 +150,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_relation_check_
     using Sumcheck = sumcheck::SumcheckProver<Flavor>;
 
     auto sumcheck = Sumcheck(instance->proving_key->circuit_size, transcript);
-    instance->alpha = transcript.get_challenge("alpha");
+    instance->alpha = transcript->get_challenge("alpha");
     sumcheck_output = sumcheck.prove(instance);
 }
 
@@ -169,13 +172,13 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_zeromorph_round
 
 template <UltraFlavor Flavor> plonk::proof& UltraProver_<Flavor>::export_proof()
 {
-    proof.proof_data = transcript.proof_data;
+    proof.proof_data = transcript->proof_data;
     return proof;
 }
 
 template <UltraFlavor Flavor> plonk::proof& UltraProver_<Flavor>::construct_proof()
 {
-    // Add circuit size public input size and public inputs to transcript.
+    // Add circuit size public input size and public inputs to transcript->
     execute_preamble_round();
 
     // Compute first three wire commitments

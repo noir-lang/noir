@@ -43,52 +43,52 @@ bool AvmMiniVerifier::verify_proof(const plonk::proof& proof)
 
     RelationParameters<FF> relation_parameters;
 
-    transcript = BaseTranscript{ proof.proof_data };
+    transcript = std::make_shared<Transcript>(proof.proof_data);
 
     VerifierCommitments commitments{ key };
     CommitmentLabels commitment_labels;
 
-    const auto circuit_size = transcript.template receive_from_prover<uint32_t>("circuit_size");
+    const auto circuit_size = transcript->template receive_from_prover<uint32_t>("circuit_size");
 
     if (circuit_size != key->circuit_size) {
         return false;
     }
 
     // Get commitments to VM wires
-    commitments.memTrace_m_clk = transcript.template receive_from_prover<Commitment>(commitment_labels.memTrace_m_clk);
+    commitments.memTrace_m_clk = transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_clk);
     commitments.memTrace_m_sub_clk =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.memTrace_m_sub_clk);
+        transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_sub_clk);
     commitments.memTrace_m_addr =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.memTrace_m_addr);
-    commitments.memTrace_m_val = transcript.template receive_from_prover<Commitment>(commitment_labels.memTrace_m_val);
+        transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_addr);
+    commitments.memTrace_m_val = transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_val);
     commitments.memTrace_m_lastAccess =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.memTrace_m_lastAccess);
-    commitments.memTrace_m_rw = transcript.template receive_from_prover<Commitment>(commitment_labels.memTrace_m_rw);
-    commitments.avmMini_subop = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_subop);
-    commitments.avmMini_ia = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_ia);
-    commitments.avmMini_ib = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_ib);
-    commitments.avmMini_ic = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_ic);
+        transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_lastAccess);
+    commitments.memTrace_m_rw = transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_rw);
+    commitments.avmMini_subop = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_subop);
+    commitments.avmMini_ia = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_ia);
+    commitments.avmMini_ib = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_ib);
+    commitments.avmMini_ic = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_ic);
     commitments.avmMini_mem_op_a =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_mem_op_a);
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_mem_op_a);
     commitments.avmMini_mem_op_b =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_mem_op_b);
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_mem_op_b);
     commitments.avmMini_mem_op_c =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_mem_op_c);
-    commitments.avmMini_rwa = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_rwa);
-    commitments.avmMini_rwb = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_rwb);
-    commitments.avmMini_rwc = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_rwc);
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_mem_op_c);
+    commitments.avmMini_rwa = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_rwa);
+    commitments.avmMini_rwb = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_rwb);
+    commitments.avmMini_rwc = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_rwc);
     commitments.avmMini_mem_idx_a =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_mem_idx_a);
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_mem_idx_a);
     commitments.avmMini_mem_idx_b =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_mem_idx_b);
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_mem_idx_b);
     commitments.avmMini_mem_idx_c =
-        transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_mem_idx_c);
-    commitments.avmMini_last = transcript.template receive_from_prover<Commitment>(commitment_labels.avmMini_last);
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_mem_idx_c);
+    commitments.avmMini_last = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_last);
 
     // Execute Sumcheck Verifier
     auto sumcheck = SumcheckVerifier<Flavor>(circuit_size);
 
-    auto alpha = transcript.get_challenge("alpha");
+    auto alpha = transcript->get_challenge("alpha");
     auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =
         sumcheck.verify(relation_parameters, alpha, transcript);
 

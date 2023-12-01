@@ -40,28 +40,29 @@ bool FibVerifier::verify_proof(const plonk::proof& proof)
     // using ZeroMorph = pcs::zeromorph::ZeroMorphVerifier_<Curve>;
     using VerifierCommitments = Flavor::VerifierCommitments;
     using CommitmentLabels = Flavor::CommitmentLabels;
+    using Transcript = Flavor::Transcript;
 
     RelationParameters<FF> relation_parameters;
 
-    transcript = BaseTranscript{ proof.proof_data };
+    transcript = std::make_shared<Transcript>(proof.proof_data);
 
     VerifierCommitments commitments{ key };
     CommitmentLabels commitment_labels;
 
-    const auto circuit_size = transcript.template receive_from_prover<uint32_t>("circuit_size");
+    const auto circuit_size = transcript->template receive_from_prover<uint32_t>("circuit_size");
 
     if (circuit_size != key->circuit_size) {
         return false;
     }
 
     // Get commitments to VM wires
-    commitments.Fibonacci_x = transcript.template receive_from_prover<Commitment>(commitment_labels.Fibonacci_x);
-    commitments.Fibonacci_y = transcript.template receive_from_prover<Commitment>(commitment_labels.Fibonacci_y);
+    commitments.Fibonacci_x = transcript->template receive_from_prover<Commitment>(commitment_labels.Fibonacci_x);
+    commitments.Fibonacci_y = transcript->template receive_from_prover<Commitment>(commitment_labels.Fibonacci_y);
 
     // Execute Sumcheck Verifier
     auto sumcheck = SumcheckVerifier<Flavor>(circuit_size);
 
-    auto alpha = transcript.get_challenge("alpha");
+    auto alpha = transcript->get_challenge("alpha");
     auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =
         sumcheck.verify(relation_parameters, alpha, transcript);
 

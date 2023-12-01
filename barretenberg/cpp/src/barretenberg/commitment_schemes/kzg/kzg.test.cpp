@@ -122,10 +122,10 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
     for (size_t l = 0; l < log_n - 1; ++l) {
         std::string label = "FOLD_" + std::to_string(l + 1);
         auto commitment = this->ck()->commit(gemini_polynomials[l + 2]);
-        prover_transcript.send_to_verifier(label, commitment);
+        prover_transcript->send_to_verifier(label, commitment);
     }
 
-    const Fr r_challenge = prover_transcript.get_challenge("Gemini:r");
+    const Fr r_challenge = prover_transcript->get_challenge("Gemini:r");
 
     const auto [gemini_opening_pairs, gemini_witnesses] = GeminiProver::compute_fold_polynomial_evaluations(
         mle_opening_point, std::move(gemini_polynomials), r_challenge);
@@ -133,18 +133,18 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
     for (size_t l = 0; l < log_n; ++l) {
         std::string label = "Gemini:a_" + std::to_string(l);
         const auto& evaluation = gemini_opening_pairs[l + 1].evaluation;
-        prover_transcript.send_to_verifier(label, evaluation);
+        prover_transcript->send_to_verifier(label, evaluation);
     }
 
     // Shplonk prover output:
     // - opening pair: (z_challenge, 0)
     // - witness: polynomial Q - Q_z
-    const Fr nu_challenge = prover_transcript.get_challenge("Shplonk:nu");
+    const Fr nu_challenge = prover_transcript->get_challenge("Shplonk:nu");
     auto batched_quotient_Q =
         ShplonkProver::compute_batched_quotient(gemini_opening_pairs, gemini_witnesses, nu_challenge);
-    prover_transcript.send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
+    prover_transcript->send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
 
-    const Fr z_challenge = prover_transcript.get_challenge("Shplonk:z");
+    const Fr z_challenge = prover_transcript->get_challenge("Shplonk:z");
     const auto [shplonk_opening_pair, shplonk_witness] = ShplonkProver::compute_partially_evaluated_batched_quotient(
         gemini_opening_pairs, gemini_witnesses, std::move(batched_quotient_Q), nu_challenge, z_challenge);
 

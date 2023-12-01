@@ -12,7 +12,7 @@ namespace proof_system::honk {
  * @return Pointer to the resulting verification key of the Instance.
  * */
 template <UltraFlavor Flavor>
-void UltraComposer_<Flavor>::compute_verification_key(std::shared_ptr<ProverInstance_<Flavor>> instance)
+void UltraComposer_<Flavor>::compute_verification_key(const std::shared_ptr<ProverInstance_<Flavor>>& instance)
 {
     if (instance->verification_key) {
         return;
@@ -75,19 +75,21 @@ std::shared_ptr<ProverInstance_<Flavor>> UltraComposer_<Flavor>::create_instance
 }
 
 template <UltraFlavor Flavor>
-UltraProver_<Flavor> UltraComposer_<Flavor>::create_prover(std::shared_ptr<Instance> instance)
+UltraProver_<Flavor> UltraComposer_<Flavor>::create_prover(const std::shared_ptr<Instance>& instance,
+                                                           const std::shared_ptr<Transcript>& transcript)
 {
-    UltraProver_<Flavor> output_state(instance, commitment_key);
+    UltraProver_<Flavor> output_state(instance, commitment_key, transcript);
 
     return output_state;
 }
 
 template <UltraFlavor Flavor>
-UltraVerifier_<Flavor> UltraComposer_<Flavor>::create_verifier(std::shared_ptr<Instance> instance)
+UltraVerifier_<Flavor> UltraComposer_<Flavor>::create_verifier(const std::shared_ptr<Instance>& instance,
+                                                               const std::shared_ptr<Transcript>& transcript)
 {
-    UltraVerifier_<Flavor> output_state(instance->verification_key);
-    auto pcs_verification_key =
-        std::make_unique<VerifierCommitmentKey>(instance->verification_key->circuit_size, crs_factory_);
+    auto& verification_key = instance->verification_key;
+    UltraVerifier_<Flavor> output_state(transcript, verification_key);
+    auto pcs_verification_key = std::make_unique<VerifierCommitmentKey>(verification_key->circuit_size, crs_factory_);
     output_state.pcs_verification_key = std::move(pcs_verification_key);
 
     return output_state;

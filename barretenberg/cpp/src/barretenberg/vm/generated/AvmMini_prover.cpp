@@ -76,7 +76,7 @@ void AvmMiniProver::execute_preamble_round()
 {
     const auto circuit_size = static_cast<uint32_t>(key->circuit_size);
 
-    transcript.send_to_verifier("circuit_size", circuit_size);
+    transcript->send_to_verifier("circuit_size", circuit_size);
 }
 
 /**
@@ -88,7 +88,7 @@ void AvmMiniProver::execute_wire_commitments_round()
     auto wire_polys = key->get_wires();
     auto labels = commitment_labels.get_wires();
     for (size_t idx = 0; idx < wire_polys.size(); ++idx) {
-        transcript.send_to_verifier(labels[idx], commitment_key->commit(wire_polys[idx]));
+        transcript->send_to_verifier(labels[idx], commitment_key->commit(wire_polys[idx]));
     }
 }
 
@@ -101,7 +101,7 @@ void AvmMiniProver::execute_relation_check_rounds()
     using Sumcheck = sumcheck::SumcheckProver<Flavor>;
 
     auto sumcheck = Sumcheck(key->circuit_size, transcript);
-    auto alpha = transcript.get_challenge("alpha");
+    auto alpha = transcript->get_challenge("alpha");
 
     sumcheck_output = sumcheck.prove(prover_polynomials, relation_parameters, alpha);
 }
@@ -124,13 +124,13 @@ void AvmMiniProver::execute_zeromorph_rounds()
 
 plonk::proof& AvmMiniProver::export_proof()
 {
-    proof.proof_data = transcript.proof_data;
+    proof.proof_data = transcript->proof_data;
     return proof;
 }
 
 plonk::proof& AvmMiniProver::construct_proof()
 {
-    // Add circuit size public input size and public inputs to transcript.
+    // Add circuit size public input size and public inputs to transcript->
     execute_preamble_round();
 
     // Compute wire commitments

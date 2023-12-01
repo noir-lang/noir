@@ -186,8 +186,8 @@ template <typename BuilderType> class GoblinRecursiveVerifierTest : public testi
 
         // Additional check 2: Ensure that the underlying native and recursive verification algorithms agree by ensuring
         // the manifests produced by each agree.
-        auto recursive_manifest = verifier.transcript.get_manifest();
-        auto native_manifest = native_verifier.transcript.get_manifest();
+        auto recursive_manifest = verifier.transcript->get_manifest();
+        auto native_manifest = native_verifier.transcript->get_manifest();
         // recursive_manifest.print();
         // native_manifest.print();
         for (size_t i = 0; i < recursive_manifest.size(); ++i) {
@@ -213,9 +213,9 @@ template <typename BuilderType> class GoblinRecursiveVerifierTest : public testi
         auto inner_proof = inner_prover.construct_proof();
 
         // Arbitrarily tamper with the proof to be verified
-        inner_prover.transcript.deserialize_full_transcript();
-        inner_prover.transcript.sorted_accum_comm = Flavor::Commitment::one() * Flavor::FF::random_element();
-        inner_prover.transcript.serialize_full_transcript();
+        inner_prover.transcript->deserialize_full_transcript();
+        inner_prover.transcript->sorted_accum_comm = Flavor::Commitment::one() * Flavor::FF::random_element();
+        inner_prover.transcript->serialize_full_transcript();
         inner_proof = inner_prover.export_proof();
 
         // Create a recursive verification circuit for the proof of the inner circuit

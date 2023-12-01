@@ -27,13 +27,14 @@ template <ECCVMFlavor Flavor> void ECCVMComposer_<Flavor>::compute_witness(Circu
 }
 
 template <ECCVMFlavor Flavor>
-ECCVMProver_<Flavor> ECCVMComposer_<Flavor>::create_prover(CircuitConstructor& circuit_constructor)
+ECCVMProver_<Flavor> ECCVMComposer_<Flavor>::create_prover(CircuitConstructor& circuit_constructor,
+                                                           const std::shared_ptr<Transcript>& transcript)
 {
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
     compute_commitment_key(proving_key->circuit_size);
 
-    ECCVMProver_<Flavor> output_state(proving_key, commitment_key);
+    ECCVMProver_<Flavor> output_state(proving_key, commitment_key, transcript);
 
     return output_state;
 }
@@ -45,7 +46,8 @@ ECCVMProver_<Flavor> ECCVMComposer_<Flavor>::create_prover(CircuitConstructor& c
  * @return The verifier.
  * */
 template <ECCVMFlavor Flavor>
-ECCVMVerifier_<Flavor> ECCVMComposer_<Flavor>::create_verifier(CircuitConstructor& circuit_constructor)
+ECCVMVerifier_<Flavor> ECCVMComposer_<Flavor>::create_verifier(CircuitConstructor& circuit_constructor,
+                                                               const std::shared_ptr<Transcript>& transcript)
 {
     auto verification_key = compute_verification_key(circuit_constructor);
 
@@ -54,6 +56,7 @@ ECCVMVerifier_<Flavor> ECCVMComposer_<Flavor>::create_verifier(CircuitConstructo
     auto pcs_verification_key = std::make_unique<VerifierCommitmentKey>(verification_key->circuit_size, crs_factory_);
 
     output_state.pcs_verification_key = std::move(pcs_verification_key);
+    output_state.transcript = transcript;
 
     return output_state;
 }

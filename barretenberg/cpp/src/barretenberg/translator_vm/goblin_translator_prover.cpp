@@ -17,9 +17,20 @@ namespace proof_system::honk {
  * @tparam settings Settings class.
  * */
 
-GoblinTranslatorProver::GoblinTranslatorProver(std::shared_ptr<typename Flavor::ProvingKey> input_key,
-                                               std::shared_ptr<CommitmentKey> commitment_key)
-    : key(input_key)
+/**
+ * Create GoblinTranslatorProver from proving key, witness and manifest.
+ *
+ * @param input_key Proving key.
+ * @param input_manifest Input manifest
+ *
+ * @tparam settings Settings class.
+ * */
+
+GoblinTranslatorProver::GoblinTranslatorProver(const std::shared_ptr<typename Flavor::ProvingKey>& input_key,
+                                               const std::shared_ptr<CommitmentKey>& commitment_key,
+                                               const std::shared_ptr<Transcript>& transcript)
+    : transcript(transcript)
+    , key(input_key)
     , commitment_key(commitment_key)
 {
     // Copy all polynomials from the proving key
@@ -249,10 +260,10 @@ void GoblinTranslatorProver::execute_preamble_round()
                                                         uint256_t(key->accumulators_binary_limbs_1[1]) * SHIFT +
                                                         uint256_t(key->accumulators_binary_limbs_2[1]) * SHIFTx2 +
                                                         uint256_t(key->accumulators_binary_limbs_3[1]) * SHIFTx3);
-    transcript.send_to_verifier("circuit_size", circuit_size);
-    transcript.send_to_verifier("evaluation_input_x", key->evaluation_input_x);
-    transcript.send_to_verifier("batching_challenge_v", key->batching_challenge_v);
-    transcript.send_to_verifier("accumulated_result", accumulated_result);
+    transcript->send_to_verifier("circuit_size", circuit_size);
+    transcript->send_to_verifier("evaluation_input_x", key->evaluation_input_x);
+    transcript->send_to_verifier("batching_challenge_v", key->batching_challenge_v);
+    transcript->send_to_verifier("accumulated_result", accumulated_result);
 }
 
 /**
@@ -265,7 +276,7 @@ void GoblinTranslatorProver::execute_wire_and_sorted_constraints_commitments_rou
     auto wire_polys = key->get_wires();
     auto labels = commitment_labels.get_wires();
     for (size_t idx = 0; idx < wire_polys.size(); ++idx) {
-        transcript.send_to_verifier(labels[idx], commitment_key->commit(wire_polys[idx]));
+        transcript->send_to_verifier(labels[idx], commitment_key->commit(wire_polys[idx]));
     }
 }
 
@@ -276,7 +287,7 @@ void GoblinTranslatorProver::execute_wire_and_sorted_constraints_commitments_rou
 void GoblinTranslatorProver::execute_grand_product_computation_round()
 {
     // Compute and store parameters required by relations in Sumcheck
-    FF gamma = transcript.get_challenge("gamma");
+    FF gamma = transcript->get_challenge("gamma");
     const size_t NUM_LIMB_BITS = Flavor::NUM_LIMB_BITS;
     relation_parameters.beta = 0;
     relation_parameters.gamma = gamma;
@@ -316,7 +327,7 @@ void GoblinTranslatorProver::execute_grand_product_computation_round()
     // Compute constraint permutation grand product
     grand_product_library::compute_grand_products<Flavor>(key, prover_polynomials, relation_parameters);
 
-    transcript.send_to_verifier(commitment_labels.z_perm, commitment_key->commit(key->z_perm));
+    transcript->send_to_verifier(commitment_labels.z_perm, commitment_key->commit(key->z_perm));
 }
 
 /**
@@ -329,7 +340,7 @@ void GoblinTranslatorProver::execute_relation_check_rounds()
 
     auto sumcheck = Sumcheck(key->circuit_size, transcript);
 
-    FF alpha = transcript.get_challenge("alpha");
+    FF alpha = transcript->get_challenge("alpha");
     sumcheck_output = sumcheck.prove(prover_polynomials, relation_parameters, alpha);
 }
 
@@ -355,7 +366,7 @@ void GoblinTranslatorProver::execute_zeromorph_rounds()
 
 plonk::proof& GoblinTranslatorProver::export_proof()
 {
-    proof.proof_data = transcript.proof_data;
+    proof.proof_data = transcript->proof_data;
     return proof;
 }
 

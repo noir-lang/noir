@@ -20,6 +20,8 @@ template <UltraFlavor Flavor> class UltraComposer_ {
     using CommitmentKey = typename Flavor::CommitmentKey;
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
     using Instance = ProverInstance_<Flavor>;
+    using FF = typename Flavor::FF;
+    using Transcript = typename Flavor::Transcript;
 
     static constexpr size_t NUM_FOLDING = 2;
     using ProverInstances = ProverInstances_<Flavor, NUM_FOLDING>;
@@ -55,8 +57,11 @@ template <UltraFlavor Flavor> class UltraComposer_ {
 
     std::shared_ptr<Instance> create_instance(CircuitBuilder& circuit);
 
-    UltraProver_<Flavor> create_prover(std::shared_ptr<Instance>);
-    UltraVerifier_<Flavor> create_verifier(std::shared_ptr<Instance>);
+    UltraProver_<Flavor> create_prover(const std::shared_ptr<Instance>&,
+                                       const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
+    UltraVerifier_<Flavor> create_verifier(
+        const std::shared_ptr<Instance>&,
+        const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
     /**
      * @brief Create Prover for Goblin ECC op queue merge protocol
@@ -64,14 +69,16 @@ template <UltraFlavor Flavor> class UltraComposer_ {
      * @param op_queue
      * @return MergeProver_<Flavor>
      */
-    MergeProver_<Flavor> create_merge_prover(std::shared_ptr<ECCOpQueue> op_queue)
+    MergeProver_<Flavor> create_merge_prover(
+        const std::shared_ptr<ECCOpQueue>& op_queue,
+        const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>())
     {
         // Store the previous aggregate op queue size and update the current one
         op_queue->set_size_data();
         // Merge requires a commitment key with size equal to that of the current op queue transcript T_i since the
         // shift of the current contribution t_i will be of degree equal to deg(T_i)
         auto commitment_key = compute_commitment_key(op_queue->get_current_size());
-        return MergeProver_<Flavor>(commitment_key, op_queue);
+        return MergeProver_<Flavor>(commitment_key, op_queue, transcript);
     }
 
     /**
@@ -80,20 +87,22 @@ template <UltraFlavor Flavor> class UltraComposer_ {
      * @param size Size of commitment key required to commit to shifted op queue contribution t_i
      * @return MergeVerifier_<Flavor>
      */
-    MergeVerifier_<Flavor> create_merge_verifier(size_t srs_size)
+    MergeVerifier_<Flavor> create_merge_verifier(
+        size_t srs_size, const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>())
     {
         auto pcs_verification_key = std::make_unique<VerifierCommitmentKey>(srs_size, crs_factory_);
-        return MergeVerifier_<Flavor>(std::move(pcs_verification_key));
+        return MergeVerifier_<Flavor>(std::move(pcs_verification_key), transcript);
     }
 
-    ProtoGalaxyProver_<ProverInstances> create_folding_prover(std::vector<std::shared_ptr<Instance>> instances)
+    ProtoGalaxyProver_<ProverInstances> create_folding_prover(const std::vector<std::shared_ptr<Instance>>& instances)
     {
         ProverInstances insts(instances);
         ProtoGalaxyProver_<ProverInstances> output_state(insts);
 
         return output_state;
     };
-    ProtoGalaxyVerifier_<VerifierInstances> create_folding_verifier(std::vector<std::shared_ptr<Instance>> instances)
+    ProtoGalaxyVerifier_<VerifierInstances> create_folding_verifier(
+        const std::vector<std::shared_ptr<Instance>>& instances)
     {
         std::vector<std::shared_ptr<VerificationKey>> vks;
         for (const auto& inst : instances) {
@@ -111,7 +120,7 @@ template <UltraFlavor Flavor> class UltraComposer_ {
      *
      * @param inst
      */
-    void compute_verification_key(std::shared_ptr<Instance>);
+    void compute_verification_key(const std::shared_ptr<Instance>&);
 };
 extern template class UltraComposer_<honk::flavor::Ultra>;
 extern template class UltraComposer_<honk::flavor::GoblinUltra>;

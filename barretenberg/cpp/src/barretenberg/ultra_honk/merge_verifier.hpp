@@ -24,13 +24,15 @@ template <typename Flavor> class MergeVerifier_ {
     using OpeningClaim = typename pcs::OpeningClaim<Curve>;
     using VerificationKey = typename Flavor::VerificationKey;
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
+    using Transcript = typename Flavor::Transcript;
 
   public:
-    BaseTranscript transcript;
+    std::shared_ptr<Transcript> transcript;
     std::shared_ptr<ECCOpQueue> op_queue;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
 
-    explicit MergeVerifier_(std::unique_ptr<VerifierCommitmentKey> verification_key);
+    explicit MergeVerifier_(std::unique_ptr<VerifierCommitmentKey> verification_key,
+                            const std::shared_ptr<Transcript>& transcript);
     bool verify_proof(const plonk::proof& proof);
 };
 

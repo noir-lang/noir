@@ -62,10 +62,10 @@ template <class Curve> class GeminiTest : public CommitmentTest<Curve> {
         for (size_t l = 0; l < log_n - 1; ++l) {
             std::string label = "FOLD_" + std::to_string(l + 1);
             auto commitment = this->ck()->commit(gemini_polynomials[l + 2]);
-            prover_transcript.send_to_verifier(label, commitment);
+            prover_transcript->send_to_verifier(label, commitment);
         }
 
-        const Fr r_challenge = prover_transcript.get_challenge("Gemini:r");
+        const Fr r_challenge = prover_transcript->get_challenge("Gemini:r");
 
         auto prover_output = GeminiProver::compute_fold_polynomial_evaluations(
             multilinear_evaluation_point, std::move(gemini_polynomials), r_challenge);
@@ -73,7 +73,7 @@ template <class Curve> class GeminiTest : public CommitmentTest<Curve> {
         for (size_t l = 0; l < log_n; ++l) {
             std::string label = "Gemini:a_" + std::to_string(l);
             const auto& evaluation = prover_output.opening_pairs[l + 1].evaluation;
-            prover_transcript.send_to_verifier(label, evaluation);
+            prover_transcript->send_to_verifier(label, evaluation);
         }
 
         // Check that the Fold polynomials have been evaluated correctly in the prover

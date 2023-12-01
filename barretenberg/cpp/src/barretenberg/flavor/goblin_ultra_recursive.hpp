@@ -2,14 +2,13 @@
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/commitment_schemes/kzg/kzg.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
-#include "barretenberg/polynomials/barycentric.hpp"
-#include "barretenberg/polynomials/univariate.hpp"
-
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/flavor/flavor_macros.hpp"
 #include "barretenberg/flavor/goblin_ultra.hpp"
+#include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/relations/auxiliary_relation.hpp"
 #include "barretenberg/relations/ecc_op_queue_relation.hpp"
@@ -29,6 +28,7 @@
 
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
 
 namespace proof_system::honk::flavor {
 
@@ -153,7 +153,7 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
     // Reuse the VerifierCommitments from GoblinUltra
     using VerifierCommitments = GoblinUltra::VerifierCommitments_<Commitment, VerificationKey>;
     // Reuse the transcript from GoblinUltra
-    using Transcript = GoblinUltra::Transcript_<Commitment>;
+    using Transcript = proof_system::plonk::stdlib::recursion::honk::Transcript<CircuitBuilder>;
 };
 
 } // namespace proof_system::honk::flavor

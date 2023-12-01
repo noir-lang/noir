@@ -23,13 +23,16 @@ template <typename Flavor> class MergeProver_ {
     using Curve = typename Flavor::Curve;
     using OpeningClaim = typename pcs::ProverOpeningClaim<Curve>;
     using OpeningPair = typename pcs::OpeningPair<Curve>;
+    using Transcript = BaseTranscript;
 
   public:
-    BaseTranscript transcript;
+    std::shared_ptr<Transcript> transcript;
     std::shared_ptr<ECCOpQueue> op_queue;
     std::shared_ptr<CommitmentKey> pcs_commitment_key;
 
-    explicit MergeProver_(std::shared_ptr<CommitmentKey>, std::shared_ptr<ECCOpQueue>);
+    explicit MergeProver_(const std::shared_ptr<CommitmentKey>&,
+                          const std::shared_ptr<ECCOpQueue>&,
+                          const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
     plonk::proof& construct_proof();
 
   private:

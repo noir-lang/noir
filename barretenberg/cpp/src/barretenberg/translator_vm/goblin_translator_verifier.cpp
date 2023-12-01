@@ -9,8 +9,11 @@ using namespace proof_system::honk::sumcheck;
 
 namespace proof_system::honk {
 
-GoblinTranslatorVerifier::GoblinTranslatorVerifier(std::shared_ptr<typename Flavor::VerificationKey> verifier_key)
+GoblinTranslatorVerifier::GoblinTranslatorVerifier(
+    const std::shared_ptr<typename Flavor::VerificationKey>& verifier_key,
+    const std::shared_ptr<Transcript>& transcript)
     : key(verifier_key)
+    , transcript(transcript)
 {}
 
 GoblinTranslatorVerifier::GoblinTranslatorVerifier(GoblinTranslatorVerifier&& other) noexcept
@@ -65,17 +68,19 @@ void GoblinTranslatorVerifier::put_translation_data_in_relation_parameters(const
  */
 bool GoblinTranslatorVerifier::verify_proof(const plonk::proof& proof)
 {
-    transcript = BaseTranscript{ proof.proof_data };
+    transcript = std::make_shared<BaseTranscript>(proof.proof_data);
+
+    transcript = std::make_shared<BaseTranscript>(proof.proof_data);
 
     Flavor::VerifierCommitments commitments{ key };
     Flavor::CommitmentLabels commitment_labels;
 
     // TODO(Adrian): Change the initialization of the transcript to take the VK hash?
-    const auto circuit_size = transcript.template receive_from_prover<uint32_t>("circuit_size");
-    evaluation_input_x = transcript.template receive_from_prover<BF>("evaluation_input_x");
-    batching_challenge_v = transcript.template receive_from_prover<BF>("batching_challenge_v");
+    const auto circuit_size = transcript->template receive_from_prover<uint32_t>("circuit_size");
+    evaluation_input_x = transcript->template receive_from_prover<BF>("evaluation_input_x");
+    batching_challenge_v = transcript->template receive_from_prover<BF>("batching_challenge_v");
 
-    const BF accumulated_result = transcript.template receive_from_prover<BF>("accumulated_result");
+    const BF accumulated_result = transcript->template receive_from_prover<BF>("accumulated_result");
 
     put_translation_data_in_relation_parameters(evaluation_input_x, batching_challenge_v, accumulated_result);
 
@@ -85,7 +90,7 @@ bool GoblinTranslatorVerifier::verify_proof(const plonk::proof& proof)
 
     // Get all the values of wires
     const auto receive_commitment = [&](const std::string& label) {
-        return transcript.template receive_from_prover<Commitment>(label);
+        return transcript->template receive_from_prover<Commitment>(label);
     };
 
     commitments.op = receive_commitment(commitment_labels.op);
@@ -230,7 +235,7 @@ bool GoblinTranslatorVerifier::verify_proof(const plonk::proof& proof)
     commitments.ordered_range_constraints_4 = receive_commitment(commitment_labels.ordered_range_constraints_4);
 
     // Get permutation challenges
-    FF gamma = transcript.get_challenge("gamma");
+    FF gamma = transcript->get_challenge("gamma");
 
     relation_parameters.beta = 0;
     relation_parameters.gamma = gamma;
@@ -243,7 +248,7 @@ bool GoblinTranslatorVerifier::verify_proof(const plonk::proof& proof)
     // Execute Sumcheck Verifier
     auto sumcheck = SumcheckVerifier<Flavor>(circuit_size);
 
-    FF alpha = transcript.get_challenge("alpha");
+    FF alpha = transcript->get_challenge("alpha");
     auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =
         sumcheck.verify(relation_parameters, alpha, transcript);
 

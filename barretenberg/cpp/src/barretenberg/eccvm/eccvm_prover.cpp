@@ -22,9 +22,11 @@ namespace proof_system::honk {
  * @tparam settings Settings class.
  * */
 template <ECCVMFlavor Flavor>
-ECCVMProver_<Flavor>::ECCVMProver_(std::shared_ptr<typename Flavor::ProvingKey> input_key,
-                                   std::shared_ptr<PCSCommitmentKey> commitment_key)
-    : key(input_key)
+ECCVMProver_<Flavor>::ECCVMProver_(const std::shared_ptr<typename Flavor::ProvingKey>& input_key,
+                                   const std::shared_ptr<PCSCommitmentKey>& commitment_key,
+                                   const std::shared_ptr<Transcript>& transcript)
+    : transcript(transcript)
+    , key(input_key)
     , commitment_key(commitment_key)
 {
 
@@ -146,7 +148,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_preamble_round(
 {
     const auto circuit_size = static_cast<uint32_t>(key->circuit_size);
 
-    transcript.send_to_verifier("circuit_size", circuit_size);
+    transcript->send_to_verifier("circuit_size", circuit_size);
 }
 
 /**
@@ -158,7 +160,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_wire_commitment
     auto wire_polys = key->get_wires();
     auto labels = commitment_labels.get_wires();
     for (size_t idx = 0; idx < wire_polys.size(); ++idx) {
-        transcript.send_to_verifier(labels[idx], commitment_key->commit(wire_polys[idx]));
+        transcript->send_to_verifier(labels[idx], commitment_key->commit(wire_polys[idx]));
     }
 }
 
@@ -169,7 +171,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_wire_commitment
 template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_log_derivative_commitments_round()
 {
     // Compute and add beta to relation parameters
-    auto [beta, gamma] = challenges_to_field_elements<FF>(transcript.get_challenges("beta", "gamma"));
+    auto [beta, gamma] = challenges_to_field_elements<FF>(transcript->get_challenges("beta", "gamma"));
 
     // TODO(#583)(@zac-williamson): fix Transcript to be able to generate more than 2 challenges per round! oof.
     auto beta_sqr = beta * beta;
@@ -183,7 +185,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_log_derivative_
     // Compute inverse polynomial for our logarithmic-derivative lookup method
     lookup_library::compute_logderivative_inverse<Flavor, typename Flavor::LookupRelation>(
         prover_polynomials, relation_parameters, key->circuit_size);
-    transcript.send_to_verifier(commitment_labels.lookup_inverses, commitment_key->commit(key->lookup_inverses));
+    transcript->send_to_verifier(commitment_labels.lookup_inverses, commitment_key->commit(key->lookup_inverses));
     prover_polynomials.lookup_inverses = key->lookup_inverses;
 }
 
@@ -196,7 +198,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_grand_product_c
     // Compute permutation grand product and their commitments
     permutation_library::compute_permutation_grand_products<Flavor>(key, prover_polynomials, relation_parameters);
 
-    transcript.send_to_verifier(commitment_labels.z_perm, commitment_key->commit(key->z_perm));
+    transcript->send_to_verifier(commitment_labels.z_perm, commitment_key->commit(key->z_perm));
 }
 
 /**
@@ -208,7 +210,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_relation_check_
     using Sumcheck = sumcheck::SumcheckProver<Flavor>;
 
     auto sumcheck = Sumcheck(key->circuit_size, transcript);
-    FF alpha = transcript.get_challenge("alpha");
+    FF alpha = transcript->get_challenge("alpha");
     sumcheck_output = sumcheck.prove(prover_polynomials, relation_parameters, alpha);
 }
 
@@ -222,7 +224,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_univariatizatio
     const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
 
     // Generate batching challenge ρ and powers 1,ρ,…,ρᵐ⁻¹
-    FF rho = transcript.get_challenge("rho");
+    FF rho = transcript->get_challenge("rho");
     std::vector<FF> rhos = pcs::gemini::powers_of_rho(rho, NUM_POLYNOMIALS);
 
     // Batch the unshifted polynomials and the to-be-shifted polynomials using ρ
@@ -249,8 +251,8 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_univariatizatio
 
     // Compute and add to trasnscript the commitments [Fold^(i)], i = 1, ..., d-1
     for (size_t l = 0; l < key->log_circuit_size - 1; ++l) {
-        transcript.send_to_verifier("Gemini:FOLD_" + std::to_string(l + 1),
-                                    commitment_key->commit(gemini_polynomials[l + 2]));
+        transcript->send_to_verifier("Gemini:FOLD_" + std::to_string(l + 1),
+                                     commitment_key->commit(gemini_polynomials[l + 2]));
     }
 }
 
@@ -262,14 +264,14 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_univariatizatio
  * */
 template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_pcs_evaluation_round()
 {
-    const FF r_challenge = transcript.get_challenge("Gemini:r");
+    const FF r_challenge = transcript->get_challenge("Gemini:r");
     gemini_output = Gemini::compute_fold_polynomial_evaluations(
         sumcheck_output.challenge, std::move(gemini_polynomials), r_challenge);
 
     for (size_t l = 0; l < key->log_circuit_size; ++l) {
         std::string label = "Gemini:a_" + std::to_string(l);
         const auto& evaluation = gemini_output.opening_pairs[l + 1].evaluation;
-        transcript.send_to_verifier(label, evaluation);
+        transcript->send_to_verifier(label, evaluation);
     }
 }
 
@@ -279,13 +281,13 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_pcs_evaluation_
  * */
 template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_shplonk_batched_quotient_round()
 {
-    nu_challenge = transcript.get_challenge("Shplonk:nu");
+    nu_challenge = transcript->get_challenge("Shplonk:nu");
 
     batched_quotient_Q =
         Shplonk::compute_batched_quotient(gemini_output.opening_pairs, gemini_output.witnesses, nu_challenge);
 
     // commit to Q(X) and add [Q] to the transcript
-    transcript.send_to_verifier("Shplonk:Q", commitment_key->commit(batched_quotient_Q));
+    transcript->send_to_verifier("Shplonk:Q", commitment_key->commit(batched_quotient_Q));
 }
 
 /**
@@ -294,7 +296,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_shplonk_batched
  * */
 template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_shplonk_partial_evaluation_round()
 {
-    const FF z_challenge = transcript.get_challenge("Shplonk:z");
+    const FF z_challenge = transcript->get_challenge("Shplonk:z");
 
     shplonk_output = Shplonk::compute_partially_evaluated_batched_quotient(
         gemini_output.opening_pairs, gemini_output.witnesses, std::move(batched_quotient_Q), nu_challenge, z_challenge);
@@ -323,10 +325,10 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_transcript_cons
     for (size_t idx = 0; idx < key->circuit_size; idx++) {
         hack[idx] = 1;
     }
-    transcript.send_to_verifier("Translation:hack_commitment", commitment_key->commit(hack));
+    transcript->send_to_verifier("Translation:hack_commitment", commitment_key->commit(hack));
 
     // Get the challenge at which we evaluate the polynomials as univariates
-    evaluation_challenge_x = transcript.get_challenge("Translation:evaluation_challenge_x");
+    evaluation_challenge_x = transcript->get_challenge("Translation:evaluation_challenge_x");
 
     translation_evaluations.op = key->transcript_op.evaluate(evaluation_challenge_x);
     translation_evaluations.Px = key->transcript_Px.evaluate(evaluation_challenge_x);
@@ -335,15 +337,15 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_transcript_cons
     translation_evaluations.z2 = key->transcript_z2.evaluate(evaluation_challenge_x);
 
     // Add the univariate evaluations to the transcript
-    transcript.send_to_verifier("Translation:op", translation_evaluations.op);
-    transcript.send_to_verifier("Translation:Px", translation_evaluations.Px);
-    transcript.send_to_verifier("Translation:Py", translation_evaluations.Py);
-    transcript.send_to_verifier("Translation:z1", translation_evaluations.z1);
-    transcript.send_to_verifier("Translation:z2", translation_evaluations.z2);
-    transcript.send_to_verifier("Translation:hack_evaluation", hack.evaluate(evaluation_challenge_x));
+    transcript->send_to_verifier("Translation:op", translation_evaluations.op);
+    transcript->send_to_verifier("Translation:Px", translation_evaluations.Px);
+    transcript->send_to_verifier("Translation:Py", translation_evaluations.Py);
+    transcript->send_to_verifier("Translation:z1", translation_evaluations.z1);
+    transcript->send_to_verifier("Translation:z2", translation_evaluations.z2);
+    transcript->send_to_verifier("Translation:hack_evaluation", hack.evaluate(evaluation_challenge_x));
 
     // Get another challenge for batching the univariate claims
-    FF batching_challenge = transcript.get_challenge("Translation:batching_challenge");
+    FF batching_challenge = transcript->get_challenge("Translation:batching_challenge");
 
     // Collect the polynomials and evaluations to be batched
     RefArray univariate_polynomials{ key->transcript_op, key->transcript_Px, key->transcript_Py,
@@ -367,7 +369,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_transcript_cons
 
 template <ECCVMFlavor Flavor> plonk::proof& ECCVMProver_<Flavor>::export_proof()
 {
-    proof.proof_data = transcript.proof_data;
+    proof.proof_data = transcript->proof_data;
     return proof;
 }
 

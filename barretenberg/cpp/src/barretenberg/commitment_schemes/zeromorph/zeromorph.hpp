@@ -321,14 +321,14 @@ template <typename Curve> class ZeroMorphProver_ {
                       auto&& g_shift_evaluations,
                       auto& multilinear_challenge,
                       auto& commitment_key,
-                      auto& transcript,
+                      auto transcript,
                       const std::vector<std::span<FF>>& concatenated_polynomials = {},
                       const std::vector<FF>& concatenated_evaluations = {},
                       // TODO(https://github.com/AztecProtocol/barretenberg/issues/743) remove span
                       const std::vector<RefVector<std::span<FF>>>& concatenation_groups = {})
     {
         // Generate batching challenge \rho and powers 1,...,\rho^{m-1}
-        FF rho = transcript.get_challenge("rho");
+        const FF rho = transcript->get_challenge("rho");
 
         // Extract multilinear challenge u and claimed multilinear evaluations from Sumcheck output
         std::span<FF> u_challenge = multilinear_challenge;
@@ -394,21 +394,21 @@ template <typename Curve> class ZeroMorphProver_ {
         for (size_t idx = 0; idx < log_N; ++idx) {
             q_k_commitments[idx] = commitment_key->commit(quotients[idx]);
             std::string label = "ZM:C_q_" + std::to_string(idx);
-            transcript.send_to_verifier(label, q_k_commitments[idx]);
+            transcript->send_to_verifier(label, q_k_commitments[idx]);
         }
 
         // Get challenge y
-        FF y_challenge = transcript.get_challenge("ZM:y");
+        FF y_challenge = transcript->get_challenge("ZM:y");
 
         // Compute the batched, lifted-degree quotient \hat{q}
         auto batched_quotient = compute_batched_lifted_degree_quotient(quotients, y_challenge, N);
 
         // Compute and send the commitment C_q = [\hat{q}]
         auto q_commitment = commitment_key->commit(batched_quotient);
-        transcript.send_to_verifier("ZM:C_q", q_commitment);
+        transcript->send_to_verifier("ZM:C_q", q_commitment);
 
         // Get challenges x and z
-        auto [x_challenge, z_challenge] = challenges_to_field_elements<FF>(transcript.get_challenges("ZM:x", "ZM:z"));
+        auto [x_challenge, z_challenge] = challenges_to_field_elements<FF>(transcript->get_challenges("ZM:x", "ZM:z"));
 
         // Compute degree check polynomial \zeta partially evaluated at x
         auto zeta_x =
@@ -429,7 +429,7 @@ template <typename Curve> class ZeroMorphProver_ {
 
         // Compute and send proof commitment pi
         auto pi_commitment = commitment_key->commit(pi_polynomial);
-        transcript.send_to_verifier("ZM:PI", pi_commitment);
+        transcript->send_to_verifier("ZM:PI", pi_commitment);
     }
 };
 
@@ -645,7 +645,7 @@ template <typename Curve> class ZeroMorphVerifier_ {
         const std::vector<FF>& concatenated_evaluations = {})
     {
         size_t log_N = multivariate_challenge.size();
-        FF rho = transcript.get_challenge("rho");
+        FF rho = transcript->get_challenge("rho");
 
         // Construct batched evaluation v = sum_{i=0}^{m-1}\rho^i*f_i(u) + sum_{i=0}^{l-1}\rho^{m+i}*h_i(u)
         FF batched_evaluation = FF(0);
@@ -667,17 +667,17 @@ template <typename Curve> class ZeroMorphVerifier_ {
         std::vector<Commitment> C_q_k;
         C_q_k.reserve(log_N);
         for (size_t i = 0; i < log_N; ++i) {
-            C_q_k.emplace_back(transcript.template receive_from_prover<Commitment>("ZM:C_q_" + std::to_string(i)));
+            C_q_k.emplace_back(transcript->template receive_from_prover<Commitment>("ZM:C_q_" + std::to_string(i)));
         }
 
         // Challenge y
-        FF y_challenge = transcript.get_challenge("ZM:y");
+        FF y_challenge = transcript->get_challenge("ZM:y");
 
         // Receive commitment C_{q}
-        auto C_q = transcript.template receive_from_prover<Commitment>("ZM:C_q");
+        auto C_q = transcript->template receive_from_prover<Commitment>("ZM:C_q");
 
         // Challenges x, z
-        auto [x_challenge, z_challenge] = challenges_to_field_elements<FF>(transcript.get_challenges("ZM:x", "ZM:z"));
+        auto [x_challenge, z_challenge] = challenges_to_field_elements<FF>(transcript->get_challenges("ZM:x", "ZM:z"));
 
         // Compute commitment C_{\zeta_x}
         auto C_zeta_x = compute_C_zeta_x(C_q, C_q_k, y_challenge, x_challenge);
@@ -696,7 +696,7 @@ template <typename Curve> class ZeroMorphVerifier_ {
         auto C_zeta_Z = C_zeta_x + C_Z_x * z_challenge;
 
         // Receive proof commitment \pi
-        auto C_pi = transcript.template receive_from_prover<Commitment>("ZM:PI");
+        auto C_pi = transcript->template receive_from_prover<Commitment>("ZM:PI");
 
         // Construct inputs and perform pairing check to verify claimed evaluation
         // Note: The pairing check (without the degree check component X^{N_max-N-1}) can be expressed naturally as

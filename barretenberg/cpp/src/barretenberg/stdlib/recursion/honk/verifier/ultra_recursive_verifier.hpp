@@ -33,7 +33,7 @@ template <typename Flavor> class UltraRecursiveVerifier_ {
     std::map<std::string, Commitment> commitments;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
     Builder* builder;
-    Transcript<Builder> transcript;
+    std::shared_ptr<Transcript<Builder>> transcript;
 };
 
 // Instance declarations for Ultra and Goblin-Ultra verifier circuits with both conventional Ultra and Goblin-Ultra

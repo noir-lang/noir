@@ -103,11 +103,10 @@ class ECCOpQueue {
     {
         // Add a single row of data to the op queue and commit to each column as [1] * FF(data)
         std::array<Point, 4> mock_op_queue_commitments;
-        size_t idx = 0;
-        for (auto& entry : this->ultra_ops) {
+        for (size_t idx = 0; idx < 4; idx++) {
             auto mock_data = Fr::random_element();
-            entry.emplace_back(mock_data);
-            mock_op_queue_commitments[idx++] = Point::one() * mock_data;
+            this->ultra_ops[idx].emplace_back(mock_data);
+            mock_op_queue_commitments[idx] = Point::one() * mock_data;
         }
         // Set some internal data based on the size of the op queue data
         this->set_size_data();

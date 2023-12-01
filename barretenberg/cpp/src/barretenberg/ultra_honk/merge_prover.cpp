@@ -7,8 +7,11 @@ namespace proof_system::honk {
  *
  */
 template <typename Flavor>
-MergeProver_<Flavor>::MergeProver_(std::shared_ptr<CommitmentKey> commitment_key, std::shared_ptr<ECCOpQueue> op_queue)
-    : op_queue(op_queue)
+MergeProver_<Flavor>::MergeProver_(const std::shared_ptr<CommitmentKey>& commitment_key,
+                                   const std::shared_ptr<ECCOpQueue>& op_queue,
+                                   const std::shared_ptr<Transcript>& transcript)
+    : transcript(transcript)
+    , op_queue(op_queue)
     , pcs_commitment_key(commitment_key)
 {}
 
@@ -54,9 +57,9 @@ template <typename Flavor> plonk::proof& MergeProver_<Flavor>::construct_proof()
         C_T_current[idx] = C_T_prev + C_t_shift;
 
         std::string suffix = std::to_string(idx + 1);
-        transcript.send_to_verifier("T_PREV_" + suffix, C_T_prev);
-        transcript.send_to_verifier("t_SHIFT_" + suffix, C_t_shift);
-        transcript.send_to_verifier("T_CURRENT_" + suffix, C_T_current[idx]);
+        transcript->send_to_verifier("T_PREV_" + suffix, C_T_prev);
+        transcript->send_to_verifier("t_SHIFT_" + suffix, C_t_shift);
+        transcript->send_to_verifier("T_CURRENT_" + suffix, C_T_current[idx]);
     }
 
     // Store the commitments [T_{i}] (to be used later in subsequent iterations as [T_{i-1}]).
@@ -64,7 +67,7 @@ template <typename Flavor> plonk::proof& MergeProver_<Flavor>::construct_proof()
 
     // Compute evaluations T_i(\kappa), T_{i-1}(\kappa), t_i^{shift}(\kappa), add to transcript. For each polynomial
     // we add a univariate opening claim {p(X), (\kappa, p(\kappa))} to the set of claims to be checked via batched KZG.
-    FF kappa = transcript.get_challenge("kappa");
+    FF kappa = transcript->get_challenge("kappa");
 
     // Add univariate opening claims for each polynomial.
     std::vector<OpeningClaim> opening_claims;
@@ -72,24 +75,24 @@ template <typename Flavor> plonk::proof& MergeProver_<Flavor>::construct_proof()
     for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
         auto polynomial = Polynomial(T_prev[idx]);
         auto evaluation = polynomial.evaluate(kappa);
-        transcript.send_to_verifier("T_prev_eval_" + std::to_string(idx + 1), evaluation);
+        transcript->send_to_verifier("T_prev_eval_" + std::to_string(idx + 1), evaluation);
         opening_claims.emplace_back(OpeningClaim{ polynomial, { kappa, evaluation } });
     }
     // Compute evaluation t_i^{shift}(\kappa)
     for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
         auto evaluation = t_shift[idx].evaluate(kappa);
-        transcript.send_to_verifier("t_shift_eval_" + std::to_string(idx + 1), evaluation);
+        transcript->send_to_verifier("t_shift_eval_" + std::to_string(idx + 1), evaluation);
         opening_claims.emplace_back(OpeningClaim{ t_shift[idx], { kappa, evaluation } });
     }
     // Compute evaluation T_i(\kappa)
     for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
         auto polynomial = Polynomial(T_current[idx]);
         auto evaluation = polynomial.evaluate(kappa);
-        transcript.send_to_verifier("T_current_eval_" + std::to_string(idx + 1), evaluation);
+        transcript->send_to_verifier("T_current_eval_" + std::to_string(idx + 1), evaluation);
         opening_claims.emplace_back(OpeningClaim{ polynomial, { kappa, evaluation } });
     }
 
-    FF alpha = transcript.get_challenge("alpha");
+    FF alpha = transcript->get_challenge("alpha");
 
     // Constuct batched polynomial to opened via KZG
     auto batched_polynomial = Polynomial(N);
@@ -107,9 +110,9 @@ template <typename Flavor> plonk::proof& MergeProver_<Flavor>::construct_proof()
     quotient.factor_roots(kappa);
 
     auto quotient_commitment = pcs_commitment_key->commit(quotient);
-    transcript.send_to_verifier("KZG:W", quotient_commitment);
+    transcript->send_to_verifier("KZG:W", quotient_commitment);
 
-    proof.proof_data = transcript.proof_data;
+    proof.proof_data = transcript->proof_data;
     return proof;
 }
 

@@ -5,23 +5,23 @@ namespace proof_system::honk {
 template <class VerifierInstances>
 void ProtoGalaxyVerifier_<VerifierInstances>::prepare_for_folding(std::vector<uint8_t> fold_data)
 {
-    transcript = BaseTranscript{ fold_data };
+    transcript = std::make_shared<Transcript>(fold_data);
     auto index = 0;
     for (auto it = verifier_instances.begin(); it != verifier_instances.end(); it++, index++) {
         auto inst = *it;
         auto domain_separator = std::to_string(index);
-        inst->instance_size = transcript.template receive_from_prover<uint32_t>(domain_separator + "_circuit_size");
+        inst->instance_size = transcript->template receive_from_prover<uint32_t>(domain_separator + "_circuit_size");
         inst->public_input_size =
-            transcript.template receive_from_prover<uint32_t>(domain_separator + "_public_input_size");
+            transcript->template receive_from_prover<uint32_t>(domain_separator + "_public_input_size");
         inst->pub_inputs_offset =
-            transcript.template receive_from_prover<uint32_t>(domain_separator + "_pub_inputs_offset");
+            transcript->template receive_from_prover<uint32_t>(domain_separator + "_pub_inputs_offset");
 
         for (size_t i = 0; i < inst->public_input_size; ++i) {
             auto public_input_i =
-                transcript.template receive_from_prover<FF>(domain_separator + "_public_input_" + std::to_string(i));
+                transcript->template receive_from_prover<FF>(domain_separator + "_public_input_" + std::to_string(i));
             inst->public_inputs.emplace_back(public_input_i);
         }
-        auto [eta, beta, gamma] = challenges_to_field_elements<FF>(transcript.get_challenges(
+        auto [eta, beta, gamma] = challenges_to_field_elements<FF>(transcript->get_challenges(
             domain_separator + "_eta", domain_separator + "_beta", domain_separator + "_gamma"));
 
         const FF public_input_delta = compute_public_input_delta<Flavor>(
@@ -29,7 +29,7 @@ void ProtoGalaxyVerifier_<VerifierInstances>::prepare_for_folding(std::vector<ui
         const FF lookup_grand_product_delta = compute_lookup_grand_product_delta<FF>(beta, gamma, inst->instance_size);
         inst->relation_parameters =
             RelationParameters<FF>{ eta, beta, gamma, public_input_delta, lookup_grand_product_delta };
-        inst->alpha = transcript.get_challenge(domain_separator + "_alpha");
+        inst->alpha = transcript->get_challenge(domain_separator + "_alpha");
     }
 }
 
@@ -40,27 +40,27 @@ VerifierFoldingResult<typename VerifierInstances::Flavor> ProtoGalaxyVerifier_<
     using Flavor = typename VerifierInstances::Flavor;
 
     prepare_for_folding(fold_data);
-    FF delta = transcript.get_challenge("delta");
+    FF delta = transcript->get_challenge("delta");
     auto accumulator = get_accumulator();
     auto log_instance_size = static_cast<size_t>(numeric::get_msb(accumulator->instance_size));
     auto deltas = compute_round_challenge_pows(log_instance_size, delta);
     std::vector<FF> perturbator_coeffs(log_instance_size + 1);
     for (size_t idx = 0; idx <= log_instance_size; idx++) {
-        perturbator_coeffs[idx] = transcript.template receive_from_prover<FF>("perturbator_" + std::to_string(idx));
+        perturbator_coeffs[idx] = transcript->template receive_from_prover<FF>("perturbator_" + std::to_string(idx));
     }
     auto perturbator = Polynomial<FF>(perturbator_coeffs);
-    FF perturbator_challenge = transcript.get_challenge("perturbator_challenge");
+    FF perturbator_challenge = transcript->get_challenge("perturbator_challenge");
     auto perturbator_at_challenge = perturbator.evaluate(perturbator_challenge);
 
     // Thed degree of K(X) is dk - k - 1 = k(d - 1) - 1. Hence we need  k(d - 1) evaluations to represent it.
     std::array<FF, VerifierInstances::BATCHED_EXTENDED_LENGTH - VerifierInstances::NUM> combiner_quotient_evals = {};
     for (size_t idx = 0; idx < VerifierInstances::BATCHED_EXTENDED_LENGTH - VerifierInstances::NUM; idx++) {
-        combiner_quotient_evals[idx] = transcript.template receive_from_prover<FF>(
+        combiner_quotient_evals[idx] = transcript->template receive_from_prover<FF>(
             "combiner_quotient_" + std::to_string(idx + VerifierInstances::NUM));
     }
     Univariate<FF, VerifierInstances::BATCHED_EXTENDED_LENGTH, VerifierInstances::NUM> combiner_quotient(
         combiner_quotient_evals);
-    FF combiner_challenge = transcript.get_challenge("combiner_quotient_challenge");
+    FF combiner_challenge = transcript->get_challenge("combiner_quotient_challenge");
     auto combiner_quotient_at_challenge = combiner_quotient.evaluate(combiner_challenge);
 
     auto vanishing_polynomial_at_challenge = combiner_challenge * (combiner_challenge - FF(1));

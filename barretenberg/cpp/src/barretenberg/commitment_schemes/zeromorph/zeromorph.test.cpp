@@ -97,7 +97,7 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
         verified = this->vk()->pairing_check(pairing_points[0], pairing_points[1]);
 
         // The prover and verifier manifests should agree
-        EXPECT_EQ(prover_transcript.get_manifest(), verifier_transcript.get_manifest());
+        EXPECT_EQ(prover_transcript->get_manifest(), verifier_transcript->get_manifest());
 
         return verified;
     }
@@ -263,7 +263,7 @@ template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentT
         verified = this->vk()->pairing_check(pairing_points[0], pairing_points[1]);
 
         // The prover and verifier manifests should agree
-        EXPECT_EQ(prover_transcript.get_manifest(), verifier_transcript.get_manifest());
+        EXPECT_EQ(prover_transcript->get_manifest(), verifier_transcript->get_manifest());
 
         return verified;
     }

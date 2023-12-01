@@ -34,7 +34,7 @@ class AvmMiniProver {
     plonk::proof& export_proof();
     plonk::proof& construct_proof();
 
-    Transcript transcript;
+    std::shared_ptr<Transcript> transcript = std::make_shared<Transcript>();
 
     std::vector<FF> public_inputs;
 

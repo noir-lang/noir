@@ -2,14 +2,13 @@
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/commitment_schemes/kzg/kzg.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
-#include "barretenberg/polynomials/barycentric.hpp"
-#include "barretenberg/polynomials/univariate.hpp"
-
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/flavor/flavor_macros.hpp"
 #include "barretenberg/flavor/ultra.hpp"
+#include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/relations/auxiliary_relation.hpp"
 #include "barretenberg/relations/elliptic_relation.hpp"
@@ -18,6 +17,7 @@
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
+#include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 #include <array>
@@ -371,126 +371,7 @@ template <typename BuilderType> class UltraRecursive_ {
         }
     };
 
-    /**
-     * @brief Derived class that defines proof structure for UltraRecursive proofs, as well as supporting functions.
-     *
-     */
-    class Transcript : public BaseTranscript {
-      public:
-        // Transcript objects defined as public member variables for easy access and modification
-        uint32_t circuit_size;
-        uint32_t public_input_size;
-        uint32_t pub_inputs_offset;
-        std::vector<FF> public_inputs;
-        Commitment w_l_comm;
-        Commitment w_r_comm;
-        Commitment w_o_comm;
-        Commitment sorted_accum_comm;
-        Commitment w_4_comm;
-        Commitment z_perm_comm;
-        Commitment z_lookup_comm;
-        std::vector<barretenberg::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>> sumcheck_univariates;
-        std::array<FF, NUM_ALL_ENTITIES> sumcheck_evaluations;
-        std::vector<Commitment> zm_cq_comms;
-        Commitment zm_cq_comm;
-        Commitment zm_pi_comm;
-
-        Transcript() = default;
-
-        // Used by verifier to initialize the transcript
-        Transcript(const std::vector<uint8_t>& proof)
-            : BaseTranscript(proof)
-        {}
-
-        static Transcript prover_init_empty()
-        {
-            Transcript transcript;
-            constexpr uint32_t init{ 42 }; // arbitrary
-            transcript.send_to_verifier("Init", init);
-            return transcript;
-        };
-
-        static Transcript verifier_init_empty(const Transcript& transcript)
-        {
-            Transcript verifier_transcript{ transcript.proof_data };
-            [[maybe_unused]] auto _ = verifier_transcript.template receive_from_prover<uint32_t>("Init");
-            return verifier_transcript;
-        };
-
-        /**
-         * @brief Takes a FULL UltraRecursive proof and deserializes it into the public member variables that compose
-         * the structure. Must be called in order to access the structure of the proof.
-         *
-         */
-        void deserialize_full_transcript()
-        {
-            // take current proof and put them into the struct
-            size_t num_bytes_read = 0;
-            circuit_size = deserialize_from_buffer<uint32_t>(BaseTranscript::proof_data, num_bytes_read);
-            size_t log_n = numeric::get_msb(circuit_size);
-
-            public_input_size = deserialize_from_buffer<uint32_t>(BaseTranscript::proof_data, num_bytes_read);
-            pub_inputs_offset = deserialize_from_buffer<uint32_t>(BaseTranscript::proof_data, num_bytes_read);
-            for (size_t i = 0; i < public_input_size; ++i) {
-                public_inputs.push_back(deserialize_from_buffer<FF>(BaseTranscript::proof_data, num_bytes_read));
-            }
-            w_l_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
-            w_r_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
-            w_o_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
-            sorted_accum_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
-            w_4_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
-            z_perm_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
-            z_lookup_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
-            for (size_t i = 0; i < log_n; ++i) {
-                sumcheck_univariates.push_back(
-                    deserialize_from_buffer<barretenberg::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(
-                        BaseTranscript::proof_data, num_bytes_read));
-            }
-            sumcheck_evaluations =
-                deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(BaseTranscript::proof_data, num_bytes_read);
-            for (size_t i = 0; i < log_n; ++i) {
-                zm_cq_comms.push_back(deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read));
-            }
-            zm_cq_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
-            zm_pi_comm = deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_bytes_read);
-        }
-        /**
-         * @brief Serializes the structure variables into a FULL UltraRecursive proof. Should be called only if
-         * deserialize_full_transcript() was called and some transcript variable was modified.
-         *
-         */
-        void serialize_full_transcript()
-        {
-            size_t old_proof_length = BaseTranscript::proof_data.size();
-            BaseTranscript::proof_data.clear(); // clear proof_data so the rest of the function can replace it
-            size_t log_n = numeric::get_msb(circuit_size);
-            serialize_to_buffer(circuit_size, BaseTranscript::proof_data);
-            serialize_to_buffer(public_input_size, BaseTranscript::proof_data);
-            serialize_to_buffer(pub_inputs_offset, BaseTranscript::proof_data);
-            for (size_t i = 0; i < public_input_size; ++i) {
-                serialize_to_buffer(public_inputs[i], BaseTranscript::proof_data);
-            }
-            serialize_to_buffer(w_l_comm, BaseTranscript::proof_data);
-            serialize_to_buffer(w_r_comm, BaseTranscript::proof_data);
-            serialize_to_buffer(w_o_comm, BaseTranscript::proof_data);
-            serialize_to_buffer(sorted_accum_comm, BaseTranscript::proof_data);
-            serialize_to_buffer(w_4_comm, BaseTranscript::proof_data);
-            serialize_to_buffer(z_perm_comm, BaseTranscript::proof_data);
-            serialize_to_buffer(z_lookup_comm, BaseTranscript::proof_data);
-            for (size_t i = 0; i < log_n; ++i) {
-                serialize_to_buffer(sumcheck_univariates[i], BaseTranscript::proof_data);
-            }
-            serialize_to_buffer(sumcheck_evaluations, BaseTranscript::proof_data);
-            for (size_t i = 0; i < log_n; ++i) {
-                serialize_to_buffer(zm_cq_comms[i], BaseTranscript::proof_data);
-            }
-            serialize_to_buffer(zm_cq_comm, BaseTranscript::proof_data);
-            serialize_to_buffer(zm_pi_comm, BaseTranscript::proof_data);
-
-            // sanity check to make sure we generate the same length of proof as before.
-            ASSERT(BaseTranscript::proof_data.size() == old_proof_length);
-        }
-    };
+    using Transcript = proof_system::plonk::stdlib::recursion::honk::Transcript<CircuitBuilder>;
 };
 
 } // namespace proof_system::honk::flavor

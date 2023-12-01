@@ -31,7 +31,7 @@ template <typename Curve> class KZG {
     static void compute_opening_proof(std::shared_ptr<CK> ck,
                                       const OpeningPair<Curve>& opening_pair,
                                       const Polynomial& polynomial,
-                                      BaseTranscript& prover_trancript)
+                                      const std::shared_ptr<BaseTranscript>& prover_trancript)
     {
         Polynomial quotient(polynomial);
         quotient[0] -= opening_pair.evaluation;
@@ -41,7 +41,7 @@ template <typename Curve> class KZG {
         // TODO(#479): for now we compute the KZG commitment directly to unify the KZG and IPA interfaces but in the
         // future we might need to adjust this to use the incoming alternative to work queue (i.e. variation of
         // pthreads) or even the work queue itself
-        prover_trancript.send_to_verifier("KZG:W", quotient_commitment);
+        prover_trancript->send_to_verifier("KZG:W", quotient_commitment);
     };
 
     /**
@@ -53,9 +53,11 @@ template <typename Curve> class KZG {
      *      - P₀ = C − v⋅[1]₁ + r⋅[x]₁
      *      - P₁ = [Q(x)]₁
      */
-    static bool verify(std::shared_ptr<VK> vk, const OpeningClaim<Curve>& claim, BaseTranscript& verifier_transcript)
+    static bool verify(const std::shared_ptr<VK>& vk,
+                       const OpeningClaim<Curve>& claim,
+                       const std::shared_ptr<BaseTranscript>& verifier_transcript)
     {
-        auto quotient_commitment = verifier_transcript.template receive_from_prover<Commitment>("KZG:W");
+        auto quotient_commitment = verifier_transcript->template receive_from_prover<Commitment>("KZG:W");
         auto lhs = claim.commitment - (GroupElement::one() * claim.opening_pair.evaluation) +
                    (quotient_commitment * claim.opening_pair.challenge);
         auto rhs = -quotient_commitment;
@@ -74,15 +76,15 @@ template <typename Curve> class KZG {
      *      - P₁ = [W(x)]₁
      */
     static std::array<GroupElement, 2> compute_pairing_points(const OpeningClaim<Curve>& claim,
-                                                              auto& verifier_transcript)
+                                                              const auto& verifier_transcript)
     {
-        auto quotient_commitment = verifier_transcript.template receive_from_prover<Commitment>("KZG:W");
+        auto quotient_commitment = verifier_transcript->template receive_from_prover<Commitment>("KZG:W");
 
         GroupElement P_0;
         // Note: In the recursive setting, we only add the contribution if it is not the point at infinity (i.e. if the
         // evaluation is not equal to zero).
         if constexpr (Curve::is_stdlib_type) {
-            auto builder = verifier_transcript.builder;
+            auto builder = verifier_transcript->builder;
             auto one = Fr(builder, 1);
             std::vector<GroupElement> commitments = { claim.commitment, quotient_commitment };
             std::vector<Fr> scalars = { one, claim.opening_pair.challenge };

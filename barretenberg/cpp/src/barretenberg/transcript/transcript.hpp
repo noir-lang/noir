@@ -53,6 +53,8 @@ class TranscriptManifest {
  */
 class BaseTranscript {
   public:
+    using Proof = std::vector<uint8_t>;
+
     BaseTranscript() = default;
 
     /**
@@ -60,7 +62,7 @@ class BaseTranscript {
      *
      * @param proof_data
      */
-    explicit BaseTranscript(const std::vector<uint8_t>& proof_data)
+    explicit BaseTranscript(const Proof& proof_data)
         : proof_data(proof_data.begin(), proof_data.end())
     {}
     static constexpr size_t HASH_OUTPUT_SIZE = 32;
@@ -153,7 +155,7 @@ class BaseTranscript {
      * @param element
      * @param proof_data
      */
-    template <typename T> void serialize_to_buffer(const T& element, std::vector<uint8_t>& proof_data)
+    template <typename T> void serialize_to_buffer(const T& element, Proof& proof_data)
     {
         auto element_bytes = to_buffer(element);
         proof_data.insert(proof_data.end(), element_bytes.begin(), element_bytes.end());
@@ -167,7 +169,7 @@ class BaseTranscript {
      * @param offset
      * @return T
      */
-    template <typename T> T deserialize_from_buffer(const std::vector<uint8_t>& proof_data, size_t& offset) const
+    template <typename T> T deserialize_from_buffer(const Proof& proof_data, size_t& offset) const
     {
         constexpr size_t element_size = sizeof(T);
         ASSERT(offset + element_size <= proof_data.size());
@@ -182,7 +184,7 @@ class BaseTranscript {
 
   public:
     // Contains the raw data sent by the prover.
-    std::vector<uint8_t> proof_data;
+    Proof proof_data;
 
     /**
      * @brief Return the proof data starting at proof_start
@@ -296,11 +298,11 @@ class BaseTranscript {
      *
      * @return BaseTranscript
      */
-    static BaseTranscript prover_init_empty()
+    static std::shared_ptr<BaseTranscript> prover_init_empty()
     {
-        BaseTranscript transcript;
+        auto transcript = std::make_shared<BaseTranscript>();
         constexpr uint32_t init{ 42 }; // arbitrary
-        transcript.send_to_verifier("Init", init);
+        transcript->send_to_verifier("Init", init);
         return transcript;
     };
 
@@ -311,10 +313,10 @@ class BaseTranscript {
      * @param transcript
      * @return BaseTranscript
      */
-    static BaseTranscript verifier_init_empty(const BaseTranscript& transcript)
+    static std::shared_ptr<BaseTranscript> verifier_init_empty(const std::shared_ptr<BaseTranscript>& transcript)
     {
-        BaseTranscript verifier_transcript{ transcript.proof_data };
-        [[maybe_unused]] auto _ = verifier_transcript.template receive_from_prover<uint32_t>("Init");
+        auto verifier_transcript = std::make_shared<BaseTranscript>(transcript->proof_data);
+        [[maybe_unused]] auto _ = verifier_transcript->template receive_from_prover<uint32_t>("Init");
         return verifier_transcript;
     };
 
@@ -323,20 +325,6 @@ class BaseTranscript {
     [[nodiscard]] TranscriptManifest get_manifest() const { return manifest; };
 
     void print() { manifest.print(); }
-
-    /**
-     * @brief Deserializes the FULL transcript into the struct defined by each flavor derivedclass.
-     * @details Not supported for base transcript class because it does not have a defined structure. The current
-     * proof_data object must represent the whole proof and not a partial proof or it will throw an error.
-     */
-    virtual void deserialize_full_transcript() { throw_or_abort("Cannot deserialize transcript"); }
-
-    /**
-     * @brief Serializes the FULL transcript from the defined derived class back into proof_data.
-     * @details Only works if the struct is populated (usually from a call to deserialize_full_transcript). Allows for
-     * modified transcript objects to be updated in the actual proof for testing purposes.
-     */
-    virtual void serialize_full_transcript() { throw_or_abort("Cannot serialize transcript"); }
 };
 
 /**

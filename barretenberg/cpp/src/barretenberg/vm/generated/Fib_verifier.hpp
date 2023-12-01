@@ -12,6 +12,7 @@ class FibVerifier {
     using Commitment = Flavor::Commitment;
     using VerificationKey = Flavor::VerificationKey;
     using VerifierCommitmentKey = Flavor::VerifierCommitmentKey;
+    using Transcript = Flavor::Transcript;
 
   public:
     explicit FibVerifier(std::shared_ptr<VerificationKey> verifier_key = nullptr);
@@ -26,7 +27,7 @@ class FibVerifier {
     std::shared_ptr<VerificationKey> key;
     std::map<std::string, Commitment> commitments;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
-    BaseTranscript transcript;
+    std::shared_ptr<Transcript> transcript;
 };
 
 } // namespace proof_system::honk

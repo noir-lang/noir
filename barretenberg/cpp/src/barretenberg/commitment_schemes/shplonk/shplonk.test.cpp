@@ -47,11 +47,11 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
     std::vector<Polynomial> polynomials = { poly1, poly2 };
 
     // Execute the shplonk prover functionality
-    const Fr nu_challenge = prover_transcript.get_challenge("Shplonk:nu");
+    const Fr nu_challenge = prover_transcript->get_challenge("Shplonk:nu");
     auto batched_quotient_Q = ShplonkProver::compute_batched_quotient(opening_pairs, polynomials, nu_challenge);
-    prover_transcript.send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
+    prover_transcript->send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
 
-    const Fr z_challenge = prover_transcript.get_challenge("Shplonk:z");
+    const Fr z_challenge = prover_transcript->get_challenge("Shplonk:z");
     const auto [prover_opening_pair, shplonk_prover_witness] =
         ShplonkProver::compute_partially_evaluated_batched_quotient(
             opening_pairs, polynomials, std::move(batched_quotient_Q), nu_challenge, z_challenge);

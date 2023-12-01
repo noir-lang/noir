@@ -23,7 +23,10 @@ template <UltraFlavor Flavor> class UltraProver_ {
     using Transcript = typename Flavor::Transcript;
 
   public:
-    explicit UltraProver_(std::shared_ptr<Instance>, std::shared_ptr<CommitmentKey>);
+    explicit UltraProver_(const std::shared_ptr<Instance>&,
+                          const std::shared_ptr<CommitmentKey>&,
+                          const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
+
     BBERG_PROFILE void execute_preamble_round();
     BBERG_PROFILE void execute_wire_commitments_round();
     BBERG_PROFILE void execute_sorted_list_accumulator_round();
@@ -35,7 +38,9 @@ template <UltraFlavor Flavor> class UltraProver_ {
     plonk::proof& export_proof();
     plonk::proof& construct_proof();
 
-    Transcript transcript;
+    std::shared_ptr<Instance> instance;
+
+    std::shared_ptr<Transcript> transcript;
 
     std::vector<FF> public_inputs;
     size_t pub_inputs_offset;
@@ -45,8 +50,6 @@ template <UltraFlavor Flavor> class UltraProver_ {
     CommitmentLabels commitment_labels;
 
     Polynomial quotient_W;
-
-    std::shared_ptr<Instance> instance;
 
     sumcheck::SumcheckOutput<Flavor> sumcheck_output;
 
