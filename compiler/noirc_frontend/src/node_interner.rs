@@ -363,15 +363,6 @@ impl DefinitionInfo {
     pub fn is_global(&self) -> bool {
         self.kind.is_global()
     }
-
-    pub fn get_index(&self) -> Option<Index> {
-        match self.kind {
-            DefinitionKind::Function(func_id) => Some(func_id.0),
-            DefinitionKind::Global(stmt_id) => Some(stmt_id.0),
-            DefinitionKind::Local(expr_id) => expr_id.map(|id| Some(id.0)).unwrap_or(None),
-            DefinitionKind::GenericType(_) => None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -1221,10 +1212,10 @@ impl NodeInterner {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
 
-    pub fn resolve_location(&self, index: &Index) -> Option<Location> {
-        self.nodes.get(*index).and_then(|def| match def {
+    pub fn resolve_location(&self, index_id: &Index) -> Option<Location> {
+        self.nodes.get(*index_id).and_then(|def| match def {
             Node::Function(func) => {
-                self.resolve_location(&func.as_expr().0)
+                self.resolve_location(&func.as_expr().into())
             }
             Node::Expression(expression) => {
                 match expression {

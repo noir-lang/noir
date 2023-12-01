@@ -181,7 +181,7 @@ impl Context {
     }
 
     /// Returns the [Location] of the definition of the given Ident found at [Span]
-    /// Return [None] when definition is not found.
+    /// Returns [None] when definition is not found.
     pub fn find_definition_location(
         &self,
         file: FileId,
