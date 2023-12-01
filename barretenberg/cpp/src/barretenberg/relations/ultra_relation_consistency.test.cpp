@@ -18,6 +18,8 @@
 #include "barretenberg/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/relations/lookup_relation.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
+#include "barretenberg/relations/poseidon2_external_relation.hpp"
+#include "barretenberg/relations/poseidon2_internal_relation.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
 #include <gtest/gtest.h>
@@ -28,7 +30,7 @@ namespace proof_system::ultra_relation_consistency_tests {
 
 using FF = barretenberg::fr;
 struct InputElements {
-    static constexpr size_t NUM_ELEMENTS = 43;
+    static constexpr size_t NUM_ELEMENTS = 45;
     std::array<FF, NUM_ELEMENTS> _data;
 
     static InputElements get_random()
@@ -60,38 +62,40 @@ struct InputElements {
     FF& q_elliptic = std::get<8>(_data);
     FF& q_aux = std::get<9>(_data);
     FF& q_lookup = std::get<10>(_data);
-    FF& sigma_1 = std::get<11>(_data);
-    FF& sigma_2 = std::get<12>(_data);
-    FF& sigma_3 = std::get<13>(_data);
-    FF& sigma_4 = std::get<14>(_data);
-    FF& id_1 = std::get<15>(_data);
-    FF& id_2 = std::get<16>(_data);
-    FF& id_3 = std::get<17>(_data);
-    FF& id_4 = std::get<18>(_data);
-    FF& table_1 = std::get<19>(_data);
-    FF& table_2 = std::get<20>(_data);
-    FF& table_3 = std::get<21>(_data);
-    FF& table_4 = std::get<22>(_data);
-    FF& lagrange_first = std::get<23>(_data);
-    FF& lagrange_last = std::get<24>(_data);
-    FF& w_l = std::get<25>(_data);
-    FF& w_r = std::get<26>(_data);
-    FF& w_o = std::get<27>(_data);
-    FF& w_4 = std::get<28>(_data);
-    FF& sorted_accum = std::get<29>(_data);
-    FF& z_perm = std::get<30>(_data);
-    FF& z_lookup = std::get<31>(_data);
-    FF& table_1_shift = std::get<32>(_data);
-    FF& table_2_shift = std::get<33>(_data);
-    FF& table_3_shift = std::get<34>(_data);
-    FF& table_4_shift = std::get<35>(_data);
-    FF& w_l_shift = std::get<36>(_data);
-    FF& w_r_shift = std::get<37>(_data);
-    FF& w_o_shift = std::get<38>(_data);
-    FF& w_4_shift = std::get<39>(_data);
-    FF& sorted_accum_shift = std::get<40>(_data);
-    FF& z_perm_shift = std::get<41>(_data);
-    FF& z_lookup_shift = std::get<42>(_data);
+    FF& q_poseidon2_external = std::get<11>(_data);
+    FF& q_poseidon2_internal = std::get<12>(_data);
+    FF& sigma_1 = std::get<13>(_data);
+    FF& sigma_2 = std::get<14>(_data);
+    FF& sigma_3 = std::get<15>(_data);
+    FF& sigma_4 = std::get<16>(_data);
+    FF& id_1 = std::get<17>(_data);
+    FF& id_2 = std::get<18>(_data);
+    FF& id_3 = std::get<19>(_data);
+    FF& id_4 = std::get<20>(_data);
+    FF& table_1 = std::get<21>(_data);
+    FF& table_2 = std::get<22>(_data);
+    FF& table_3 = std::get<23>(_data);
+    FF& table_4 = std::get<24>(_data);
+    FF& lagrange_first = std::get<25>(_data);
+    FF& lagrange_last = std::get<26>(_data);
+    FF& w_l = std::get<27>(_data);
+    FF& w_r = std::get<28>(_data);
+    FF& w_o = std::get<29>(_data);
+    FF& w_4 = std::get<30>(_data);
+    FF& sorted_accum = std::get<31>(_data);
+    FF& z_perm = std::get<32>(_data);
+    FF& z_lookup = std::get<33>(_data);
+    FF& table_1_shift = std::get<34>(_data);
+    FF& table_2_shift = std::get<35>(_data);
+    FF& table_3_shift = std::get<36>(_data);
+    FF& table_4_shift = std::get<37>(_data);
+    FF& w_l_shift = std::get<38>(_data);
+    FF& w_r_shift = std::get<39>(_data);
+    FF& w_o_shift = std::get<40>(_data);
+    FF& w_4_shift = std::get<41>(_data);
+    FF& sorted_accum_shift = std::get<42>(_data);
+    FF& z_perm_shift = std::get<43>(_data);
+    FF& z_lookup_shift = std::get<44>(_data);
 };
 
 class UltraRelationConsistency : public testing::Test {
@@ -546,6 +550,132 @@ TEST_F(UltraRelationConsistency, AuxiliaryRelation)
         expected_values[5] *= q_aux;
 
         validate_relation_execution<Relation>(expected_values, input_elements, parameters);
+    };
+    run_test(/*random_inputs=*/false);
+    run_test(/*random_inputs=*/true);
+};
+
+TEST_F(UltraRelationConsistency, Poseidon2ExternalRelation)
+{
+    const auto run_test = []([[maybe_unused]] bool random_inputs) {
+        using Relation = Poseidon2ExternalRelation<FF>;
+        using SumcheckArrayOfValuesOverSubrelations = typename Relation::SumcheckArrayOfValuesOverSubrelations;
+        const InputElements input_elements = random_inputs ? InputElements::get_random() : InputElements::get_special();
+
+        const auto& w_1 = input_elements.w_l;
+        const auto& w_2 = input_elements.w_r;
+        const auto& w_3 = input_elements.w_o;
+        const auto& w_4 = input_elements.w_4;
+        const auto& w_1_shift = input_elements.w_l_shift;
+        const auto& w_2_shift = input_elements.w_r_shift;
+        const auto& w_3_shift = input_elements.w_o_shift;
+        const auto& w_4_shift = input_elements.w_4_shift;
+        const auto& q_1 = input_elements.q_l;
+        const auto& q_2 = input_elements.q_r;
+        const auto& q_3 = input_elements.q_o;
+        const auto& q_4 = input_elements.q_4;
+        const auto& q_poseidon2_external = input_elements.q_poseidon2_external;
+        SumcheckArrayOfValuesOverSubrelations expected_values;
+
+        // add round constants
+        auto s1 = w_1 + q_1;
+        auto s2 = w_2 + q_2;
+        auto s3 = w_3 + q_3;
+        auto s4 = w_4 + q_4;
+
+        // apply s-box round
+        auto u1 = s1 * s1;
+        u1 *= u1;
+        u1 *= s1;
+        auto u2 = s2 * s2;
+        u2 *= u2;
+        u2 *= s2;
+        auto u3 = s3 * s3;
+        u3 *= u3;
+        u3 *= s3;
+        auto u4 = s4 * s4;
+        u4 *= u4;
+        u4 *= s4;
+
+        // matrix mul v = M_E * u with 14 additions
+        auto t0 = u1 + u2; // u_1 + u_2
+        auto t1 = u3 + u4; // u_3 + u_4
+        auto t2 = u2 + u2; // 2u_2
+        t2 += t1;          // 2u_2 + u_3 + u_4
+        auto t3 = u4 + u4; // 2u_4
+        t3 += t0;          // u_1 + u_2 + 2u_4
+        auto v4 = t1 + t1;
+        v4 += v4;
+        v4 += t3; // u_1 + u_2 + 4u_3 + 6u_4
+        auto v2 = t0 + t0;
+        v2 += v2;
+        v2 += t2;          // 4u_1 + 6u_2 + u_3 + u_4
+        auto v1 = t3 + v2; // 5u_1 + 7u_2 + u_3 + 3u_4
+        auto v3 = t2 + v4; // u_1 + 3u_2 + 5u_3 + 7u_4
+
+        // output is { v1, v2, v3, v4 }
+
+        expected_values[0] = q_poseidon2_external * (v1 - w_1_shift);
+        expected_values[1] = q_poseidon2_external * (v2 - w_2_shift);
+        expected_values[2] = q_poseidon2_external * (v3 - w_3_shift);
+        expected_values[3] = q_poseidon2_external * (v4 - w_4_shift);
+
+        const auto parameters = RelationParameters<FF>::get_random();
+        validate_relation_execution<Relation>(expected_values, input_elements, parameters);
+
+        // validate_relation_execution<Relation>(expected_values, input_elements, parameters);
+    };
+    run_test(/*random_inputs=*/false);
+    run_test(/*random_inputs=*/true);
+};
+
+TEST_F(UltraRelationConsistency, Poseidon2InternalRelation)
+{
+    const auto run_test = []([[maybe_unused]] bool random_inputs) {
+        using Relation = Poseidon2InternalRelation<FF>;
+        using SumcheckArrayOfValuesOverSubrelations = typename Relation::SumcheckArrayOfValuesOverSubrelations;
+        const InputElements input_elements = random_inputs ? InputElements::get_random() : InputElements::get_special();
+
+        const auto& w_1 = input_elements.w_l;
+        const auto& w_2 = input_elements.w_r;
+        const auto& w_3 = input_elements.w_o;
+        const auto& w_4 = input_elements.w_4;
+        const auto& w_1_shift = input_elements.w_l_shift;
+        const auto& w_2_shift = input_elements.w_r_shift;
+        const auto& w_3_shift = input_elements.w_o_shift;
+        const auto& w_4_shift = input_elements.w_4_shift;
+        const auto& q_1 = input_elements.q_l;
+        const auto& q_poseidon2_internal = input_elements.q_poseidon2_internal;
+        SumcheckArrayOfValuesOverSubrelations expected_values;
+
+        // add round constants on only first element
+        auto v1 = w_1 + q_1;
+
+        // apply s-box to only first element
+        auto u1 = v1 * v1;
+        u1 *= u1;
+        u1 *= v1;
+
+        // multiply with internal matrix
+        auto sum = u1 + w_2 + w_3 + w_4;
+        auto t0 = u1 * crypto::Poseidon2Bn254ScalarFieldParams::internal_matrix_diagonal[0];
+        t0 += sum;
+        auto t1 = w_2 * crypto::Poseidon2Bn254ScalarFieldParams::internal_matrix_diagonal[1];
+        t1 += sum;
+        auto t2 = w_3 * crypto::Poseidon2Bn254ScalarFieldParams::internal_matrix_diagonal[2];
+        t2 += sum;
+        auto t3 = w_4 * crypto::Poseidon2Bn254ScalarFieldParams::internal_matrix_diagonal[3];
+        t3 += sum;
+
+        expected_values[0] = q_poseidon2_internal * (t0 - w_1_shift);
+        expected_values[1] = q_poseidon2_internal * (t1 - w_2_shift);
+        expected_values[2] = q_poseidon2_internal * (t2 - w_3_shift);
+        expected_values[3] = q_poseidon2_internal * (t3 - w_4_shift);
+
+        const auto parameters = RelationParameters<FF>::get_random();
+        validate_relation_execution<Relation>(expected_values, input_elements, parameters);
+
+        // validate_relation_execution<Relation>(expected_values, input_elements, parameters);
     };
     run_test(/*random_inputs=*/false);
     run_test(/*random_inputs=*/true);
