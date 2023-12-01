@@ -109,6 +109,10 @@ impl FileManager {
 
         self.add_file(&candidate).ok_or_else(|| candidate.as_os_str().to_string_lossy().to_string())
     }
+
+    pub fn name_to_id(&self, file_name: PathBuf) -> Option<FileId> {
+        self.file_map.get_file_id(&PathString::from_path(file_name))
+    }
 }
 
 /// Returns true if a module's child module's are expected to be in the same directory.
