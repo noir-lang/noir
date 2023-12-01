@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.19.5](https://github.com/noir-lang/noir/compare/v0.19.4...v0.19.5) (2023-12-01)
+
+
+### Features
+
+* Add `FieldElement::from&lt;usize&gt;` implementation ([#3647](https://github.com/noir-lang/noir/issues/3647)) ([8b7c5aa](https://github.com/noir-lang/noir/commit/8b7c5aa5311f4e6811438f67bd552b641b13fc9a))
+* Add package version to Nargo.toml metadata ([#3427](https://github.com/noir-lang/noir/issues/3427)) ([9e1717c](https://github.com/noir-lang/noir/commit/9e1717c2d96a0b9e394e5cb2fb9e1d09b5259ca0))
+* Add special case for boolean AND in acir-gen ([#3615](https://github.com/noir-lang/noir/issues/3615)) ([824039b](https://github.com/noir-lang/noir/commit/824039bcc0a3275f333ea94aecc701d129f99fe5))
+* Aztec-packages ([#3599](https://github.com/noir-lang/noir/issues/3599)) ([2cd6dc3](https://github.com/noir-lang/noir/commit/2cd6dc39e3a956aa5dff721d47aaf1921f98fded))
+* Aztec-packages ([#3626](https://github.com/noir-lang/noir/issues/3626)) ([e0a96ea](https://github.com/noir-lang/noir/commit/e0a96ea70b17c8c898dd72ac929f3969a4cec1d3))
+* Complex slice inputs for dynamic slice builtins ([#3617](https://github.com/noir-lang/noir/issues/3617)) ([8b23b34](https://github.com/noir-lang/noir/commit/8b23b349ae15afa48f6cbe8962586bbe79e79890))
+* Copy on write optimization for brillig ([#3522](https://github.com/noir-lang/noir/issues/3522)) ([da29c02](https://github.com/noir-lang/noir/commit/da29c02327acb2f46f5a7a25c7404dfa44c82616))
+* Data bus ([#3508](https://github.com/noir-lang/noir/issues/3508)) ([6b0bdbc](https://github.com/noir-lang/noir/commit/6b0bdbced1bfe2c92e90dd7b70ca8f9e5ccb7c0d))
+* Implement integer printing ([#3577](https://github.com/noir-lang/noir/issues/3577)) ([6601408](https://github.com/noir-lang/noir/commit/6601408e378b2afe4fdfd8e04482c39311ccc7e9))
+* Implement raw string literals ([#3556](https://github.com/noir-lang/noir/issues/3556)) ([87a302f](https://github.com/noir-lang/noir/commit/87a302fbc26d5fd42694953935d95a7ccb3d50a0))
+* **lsp:** Add goto definition for functions ([#3656](https://github.com/noir-lang/noir/issues/3656)) ([7bb7356](https://github.com/noir-lang/noir/commit/7bb735662c86e6533ac58f448ad748e34f02edb7))
+* Reuse witnesses more when interacting with memory ([#3658](https://github.com/noir-lang/noir/issues/3658)) ([5a4a73d](https://github.com/noir-lang/noir/commit/5a4a73d24ddd7d2bb46c85714397ee6e031c97a6))
+
+
+### Bug Fixes
+
+* Corrected the formatting of error message parameters in index out of bounds error ([#3630](https://github.com/noir-lang/noir/issues/3630)) ([3bba386](https://github.com/noir-lang/noir/commit/3bba3862dc8703410681300be894bfd1ebca7336))
+* Do not simply divisions ([#3664](https://github.com/noir-lang/noir/issues/3664)) ([e5b981b](https://github.com/noir-lang/noir/commit/e5b981b08c2b345f00426acafe47b76d5262254d))
+* Docker builds ([#3620](https://github.com/noir-lang/noir/issues/3620)) ([f3eac52](https://github.com/noir-lang/noir/commit/f3eac5282860c1954ea2cee6a21633df5b1865fd))
+* Flatten public inputs according to their index in numerial rather than ascii order ([#3605](https://github.com/noir-lang/noir/issues/3605)) ([a1f6343](https://github.com/noir-lang/noir/commit/a1f6343b7df1b166b1be4db09527694a3df2738a))
+* Restrict fill_internal_slices pass to acir functions ([#3634](https://github.com/noir-lang/noir/issues/3634)) ([0cad9aa](https://github.com/noir-lang/noir/commit/0cad9aa9c19091b3679bdc6e7fe044194c5db7e0))
+
 ## [0.19.4](https://github.com/noir-lang/noir/compare/v0.19.3...v0.19.4) (2023-11-28)
 
 
