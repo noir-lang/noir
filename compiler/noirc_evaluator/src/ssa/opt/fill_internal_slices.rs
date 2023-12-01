@@ -174,6 +174,9 @@ impl<'f> Context<'f> {
                                 panic!("ICE: should have inner slice set for {slice_value}")
                             });
                             slice_sizes.insert(results[0], inner_slice.clone());
+                            if slice_value != results[0] {
+                                self.mapped_slice_values.insert(slice_value, results[0]);
+                            }
                         }
                     }
                 }
@@ -198,17 +201,11 @@ impl<'f> Context<'f> {
 
                     let inner_sizes = slice_sizes.get_mut(array).expect("ICE expected slice sizes");
                     inner_sizes.1.push(*value);
-
-                    let value_parent = self.resolve_slice_parent(*value);
-                    if slice_values.contains(&value_parent) {
-                        // Map the value parent to the current array in case nested slices
-                        // from the current array are set to larger values later in the program
-                        self.mapped_slice_values.insert(value_parent, *array);
-                    }
                 }
 
                 if let Some(inner_sizes) = slice_sizes.get_mut(array) {
                     let inner_sizes = inner_sizes.clone();
+
                     slice_sizes.insert(results[0], inner_sizes);
 
                     self.mapped_slice_values.insert(*array, results[0]);
@@ -224,14 +221,27 @@ impl<'f> Context<'f> {
                         | Intrinsic::SlicePopBack
                         | Intrinsic::SliceInsert
                         | Intrinsic::SliceRemove => (1, 1),
-                        Intrinsic::SlicePopFront => (1, 2),
+                        // `pop_front` returns the popped element, and then the respective slice.
+                        // This means in the case of a slice with structs, the result index of the popped slice
+                        // will change depending on the number of elements in the struct.
+                        // For example, a slice with four elements will look as such in SSA:
+                        // v3, v4, v5, v6, v7, v8 = call slice_pop_front(v1, v2)
+                        // where v7 is the slice length and v8 is the popped slice itself.
+                        Intrinsic::SlicePopFront => (1, results.len() - 1),
                         _ => return,
                     };
+                    let slice_contents = arguments[argument_index];
                     match intrinsic {
                         Intrinsic::SlicePushBack
                         | Intrinsic::SlicePushFront
                         | Intrinsic::SliceInsert => {
-                            let slice_contents = arguments[argument_index];
+                            for arg in &arguments[(argument_index + 1)..] {
+                                let element_typ = self.inserter.function.dfg.type_of_value(*arg);
+                                if element_typ.contains_slice_element() {
+                                    slice_values.push(*arg);
+                                    self.compute_slice_sizes(*arg, slice_sizes);
+                                }
+                            }
                             if let Some(inner_sizes) = slice_sizes.get_mut(&slice_contents) {
                                 inner_sizes.0 += 1;
 
@@ -240,12 +250,12 @@ impl<'f> Context<'f> {
 
                                 self.mapped_slice_values
                                     .insert(slice_contents, results[result_index]);
+                                self.slice_parents.insert(results[result_index], slice_contents);
                             }
                         }
                         Intrinsic::SlicePopBack
-                        | Intrinsic::SlicePopFront
-                        | Intrinsic::SliceRemove => {
-                            let slice_contents = arguments[argument_index];
+                        | Intrinsic::SliceRemove
+                        | Intrinsic::SlicePopFront => {
                             // We do not decrement the size on intrinsics that could remove values from a slice.
                             // This is because we could potentially go back to the smaller slice and not fill in dummies.
                             // This pass should be tracking the potential max that a slice ***could be***
@@ -255,6 +265,7 @@ impl<'f> Context<'f> {
 
                                 self.mapped_slice_values
                                     .insert(slice_contents, results[result_index]);
+                                self.slice_parents.insert(results[result_index], slice_contents);
                             }
                         }
                         _ => {}
@@ -277,7 +288,6 @@ impl<'f> Context<'f> {
                 if slice_values.contains(array) {
                     let (new_array_op_instr, call_stack) =
                         self.get_updated_array_op_instr(*array, slice_sizes, instruction);
-
                     self.inserter.push_instruction_value(
                         new_array_op_instr,
                         instruction,
@@ -286,6 +296,55 @@ impl<'f> Context<'f> {
                     );
                 } else {
                     self.inserter.push_instruction(instruction, block);
+                }
+            }
+            Instruction::Call { func: _, arguments } => {
+                let mut args_to_replace = Vec::new();
+                for (i, arg) in arguments.iter().enumerate() {
+                    let element_typ = self.inserter.function.dfg.type_of_value(*arg);
+                    if slice_values.contains(arg) && element_typ.contains_slice_element() {
+                        args_to_replace.push((i, *arg));
+                    }
+                }
+                if args_to_replace.is_empty() {
+                    self.inserter.push_instruction(instruction, block);
+                } else {
+                    // Using the original slice is ok to do as during collection of slice information
+                    // we guarantee that only the arguments to slice intrinsic calls can be replaced.
+                    let slice_contents = arguments[1];
+
+                    let element_typ = self.inserter.function.dfg.type_of_value(arguments[1]);
+                    let elem_depth = Self::compute_nested_slice_depth(&element_typ);
+
+                    let mut max_sizes = Vec::new();
+                    max_sizes.resize(elem_depth, 0);
+                    // We want the max for the parent of the argument
+                    let parent = self.resolve_slice_parent(slice_contents);
+                    self.compute_slice_max_sizes(parent, slice_sizes, &mut max_sizes, 0);
+
+                    for (index, arg) in args_to_replace {
+                        let element_typ = self.inserter.function.dfg.type_of_value(arg);
+                        max_sizes.remove(0);
+                        let new_array =
+                            self.attach_slice_dummies(&element_typ, Some(arg), false, &max_sizes);
+
+                        let instruction_id = instruction;
+                        let (instruction, call_stack) =
+                            self.inserter.map_instruction(instruction_id);
+                        let new_call_instr = match instruction {
+                            Instruction::Call { func, mut arguments } => {
+                                arguments[index] = new_array;
+                                Instruction::Call { func, arguments }
+                            }
+                            _ => panic!("Expected call instruction"),
+                        };
+                        self.inserter.push_instruction_value(
+                            new_call_instr,
+                            instruction_id,
+                            block,
+                            call_stack,
+                        );
+                    }
                 }
             }
             _ => {
@@ -314,6 +373,7 @@ impl<'f> Context<'f> {
         let typ = self.inserter.function.dfg.type_of_value(array_id);
         let depth = Self::compute_nested_slice_depth(&typ);
         max_sizes.resize(depth, 0);
+
         max_sizes[0] = *current_size;
         self.compute_slice_max_sizes(array_id, slice_sizes, &mut max_sizes, 1);
 
@@ -370,9 +430,12 @@ impl<'f> Context<'f> {
                 if let Some(value) = value {
                     let mut slice = im::Vector::new();
 
-                    let array = match self.inserter.function.dfg[value].clone() {
+                    let value = self.inserter.function.dfg[value].clone();
+                    let array = match value {
                         Value::Array { array, .. } => array,
-                        _ => panic!("Expected an array value"),
+                        _ => {
+                            panic!("Expected an array value");
+                        }
                     };
 
                     if is_parent_slice {
@@ -487,7 +550,6 @@ impl<'f> Context<'f> {
             self.compute_slice_max_sizes(*inner_slice, slice_sizes, max_sizes, depth + 1);
         }
 
-        max_sizes[depth] = max;
         if max > max_sizes[depth] {
             max_sizes[depth] = max;
         }
