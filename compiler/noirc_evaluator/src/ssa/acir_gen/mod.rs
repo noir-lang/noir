@@ -2150,9 +2150,9 @@ impl Context {
                     )?;
 
                     // Read from the original slice the value we want to insert into our new slice.
-                    // We need to make sure of two things:
-                    // 1. That we read the previous element for when we have an index greater than insertion index.
-                    // 2. That the index we are reading from is within the array bounds
+                    // We need to make sure that we read the previous element when our current index is greater than insertion index.
+                    // If the index for the previous element is out of the array bounds we can avoid the check for whether
+                    // the current index is over the insertion index.
                     let shifted_index = if i < inner_elem_size_usize {
                         current_index
                     } else {
@@ -2301,41 +2301,45 @@ impl Context {
                 //    can lead to a potential out of bounds error. In this case we just fetch from the original slice
                 //    at the current index. As we are decreasing the slice in length, this is a safe operation.
                 let result_block_id = self.block_id(&result_ids[1]);
-                self.initialize_array(result_block_id, slice_size, None)?;
+                self.initialize_array(
+                    result_block_id,
+                    slice_size,
+                    Some(AcirValue::Array(new_slice.clone())),
+                )?;
                 for i in 0..slice_size {
                     let current_index = self.acir_context.add_constant(i);
 
-                    let shifted_index = if (i + popped_elements_size) >= slice_size {
-                        current_index
-                    } else {
-                        self.acir_context.add_constant(i + popped_elements_size)
+                    let value_current_index = &new_slice[i].borrow_var()?;
+
+                    if slice_size > (i + popped_elements_size) {
+                        let shifted_index =
+                            self.acir_context.add_constant(i + popped_elements_size);
+
+                        let value_shifted_index =
+                            self.acir_context.read_from_memory(block_id, &shifted_index)?;
+
+                        let use_shifted_value = self.acir_context.more_than_eq_var(
+                            current_index,
+                            flat_user_index,
+                            64,
+                            self.current_side_effects_enabled_var,
+                        )?;
+
+                        let shifted_value_pred =
+                            self.acir_context.mul_var(value_shifted_index, use_shifted_value)?;
+                        let not_pred = self.acir_context.sub_var(one, use_shifted_value)?;
+                        let current_value_pred =
+                            self.acir_context.mul_var(not_pred, *value_current_index)?;
+
+                        let new_value =
+                            self.acir_context.add_var(shifted_value_pred, current_value_pred)?;
+
+                        self.acir_context.write_to_memory(
+                            result_block_id,
+                            &current_index,
+                            &new_value,
+                        )?;
                     };
-
-                    let value_shifted_index =
-                        self.acir_context.read_from_memory(block_id, &shifted_index)?;
-                    let value_current_index = new_slice[i].borrow_var()?;
-
-                    let use_shifted_value = self.acir_context.more_than_eq_var(
-                        current_index,
-                        flat_user_index,
-                        64,
-                        self.current_side_effects_enabled_var,
-                    )?;
-
-                    let shifted_value_pred =
-                        self.acir_context.mul_var(value_shifted_index, use_shifted_value)?;
-                    let not_pred = self.acir_context.sub_var(one, use_shifted_value)?;
-                    let current_value_pred =
-                        self.acir_context.mul_var(not_pred, value_current_index)?;
-
-                    let new_value =
-                        self.acir_context.add_var(shifted_value_pred, current_value_pred)?;
-
-                    self.acir_context.write_to_memory(
-                        result_block_id,
-                        &current_index,
-                        &new_value,
-                    )?;
                 }
 
                 let new_slice_val = AcirValue::Array(new_slice);
