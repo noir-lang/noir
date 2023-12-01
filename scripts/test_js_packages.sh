@@ -19,5 +19,10 @@ export cargoExtraArgs="--features noirc_driver/aztec"
 cargo build --features="noirc_driver/aztec" --release
 export PATH="${PATH}:/usr/src/noir/target/release/"
 
-yarn && yarn build && yarn add playwright && yarn playwright install
+yarn
+yarn build
+npx playwright install
+npx playwright install-deps
+
+./scripts/test.sh
 yarn test
