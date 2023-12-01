@@ -1,3 +1,8 @@
+#![forbid(unsafe_code)]
+#![warn(unused_crate_dependencies, unused_extern_crates)]
+#![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+
 mod getters;
 mod output;
 mod pages_generation;
