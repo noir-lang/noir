@@ -9,6 +9,6 @@ license.workspace = true
 
 [dependencies]
 askama = "0.12"
-thiserror = "1.0.21"
+thiserror.workspace = true
 clap.workspace = true
 noirc_frontend.workspace = true
