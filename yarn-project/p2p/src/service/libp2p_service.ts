@@ -39,7 +39,7 @@ const INITIAL_PEER_REFRESH_INTERVAL = 20000;
  * @returns The peer ID.
  */
 export async function createLibP2PPeerId(privateKey?: string) {
-  if (!privateKey) {
+  if (!privateKey?.length) {
     return await createSecp256k1PeerId();
   }
   const base64 = Buffer.from(privateKey, 'hex').toString('base64');

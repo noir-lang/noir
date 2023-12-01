@@ -1014,6 +1014,8 @@ jobs:
             export TF_VAR_BOOTNODE_2_PEER_ID=$BOOTNODE_2_PEER_ID
             export TF_VAR_BOOTNODE_1_PRIVATE_KEY=$BOOTNODE_1_PRIVATE_KEY
             export TF_VAR_BOOTNODE_2_PRIVATE_KEY=$BOOTNODE_2_PRIVATE_KEY
+            export TF_VAR_SEQ_1_PUBLISHER_PRIVATE_KEY=$SEQ_1_PUBLISHER_PRIVATE_KEY
+            export TF_VAR_SEQ_2_PUBLISHER_PRIVATE_KEY=$SEQ_2_PUBLISHER_PRIVATE_KEY
             deploy_terraform p2p-bootstrap yarn-project/p2p-bootstrap/terraform
             deploy_terraform aztec-node yarn-project/aztec-node/terraform
             deploy_terraform aztec-faucet yarn-project/aztec-faucet/terraform
