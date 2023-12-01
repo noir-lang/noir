@@ -2279,15 +2279,17 @@ impl Context {
                 //    can lead to a potential out of bounds error. In this case we just fetch from the original slice
                 //    at the current index. As we are decreasing the slice in length, this is a safe operation.
                 let result_block_id = self.block_id(&result_ids[1]);
-                self.initialize_array(result_block_id, slice_size, None)?;
+                self.initialize_array(
+                    result_block_id,
+                    slice_size,
+                    Some(AcirValue::Array(new_slice.clone())),
+                )?;
                 for i in 0..slice_size {
                     let current_index = self.acir_context.add_constant(i);
 
-                    let value_current_index = new_slice[i].borrow_var()?;
+                    let value_current_index = &new_slice[i].borrow_var()?;
 
-                    let new_value = if (i + popped_elements_size) >= slice_size {
-                        value_current_index
-                    } else {
+                    if slice_size > (i + popped_elements_size) {
                         let shifted_index =
                             self.acir_context.add_constant(i + popped_elements_size);
 
@@ -2305,16 +2307,17 @@ impl Context {
                             self.acir_context.mul_var(value_shifted_index, use_shifted_value)?;
                         let not_pred = self.acir_context.sub_var(one, use_shifted_value)?;
                         let current_value_pred =
-                            self.acir_context.mul_var(not_pred, value_current_index)?;
+                            self.acir_context.mul_var(not_pred, *value_current_index)?;
 
-                        self.acir_context.add_var(shifted_value_pred, current_value_pred)?
+                        let new_value =
+                            self.acir_context.add_var(shifted_value_pred, current_value_pred)?;
+
+                        self.acir_context.write_to_memory(
+                            result_block_id,
+                            &current_index,
+                            &new_value,
+                        )?;
                     };
-
-                    self.acir_context.write_to_memory(
-                        result_block_id,
-                        &current_index,
-                        &new_value,
-                    )?;
                 }
 
                 let new_slice_val = AcirValue::Array(new_slice);
