@@ -16,7 +16,7 @@ WORKDIR /project
 ENTRYPOINT ["/usr/src/noir/target/release/nargo"]
 
 FROM rust:1-slim-bookworm as test
-RUN apt-get update && apt-get upgrade -y && apt-get install git openssl libc++-dev libncurses5 -y
+RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git openssl libc++-dev libncurses5 curl -y
 WORKDIR /usr/src/noir
 COPY . .
 RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD)
