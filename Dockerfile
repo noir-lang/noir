@@ -16,7 +16,7 @@ WORKDIR /project
 ENTRYPOINT ["/usr/src/noir/target/release/nargo"]
 
 FROM rust:1-slim-bookworm as test
-RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git openssl libc++-dev libncurses5 curl -y
+RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git openssl libc++-dev libncurses5 curl jq -y
 WORKDIR /usr/src/noir
 COPY . .
 RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD)
@@ -42,27 +42,45 @@ RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT
 RUN cargo build --features="noirc_driver/aztec" --release
 RUN cargo test --workspace --locked --release
 
-FROM rust:alpine3.17 as test-js
-RUN apk update \
-    && apk upgrade \
-    && apk add --no-cache \
-        build-base \
-        pkgconfig \
-        openssl-dev \
-        npm \
-        yarn \
-        bash \
-        jq \
-        git
-# RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git openssl libc++-dev libncurses5 curl -y
+# FROM rust:alpine3.17 as test-js
+# RUN apk update \
+#     && apk upgrade \
+#     && apk add --no-cache \
+#         build-base \
+#         pkgconfig \
+#         openssl-dev \
+#         npm \
+#         yarn \
+#         bash \
+#         jq \
+#         git
+# # RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git openssl libc++-dev libncurses5 curl -y
+# WORKDIR /usr/src/noir
+# COPY . .
+# RUN ./scripts/install_wasm-bindgen.sh
+# RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD) && cargoExtraArgs="--features noirc_driver/aztec"
+
+# RUN cargo build --features="noirc_driver/aztec" --release
+# ENV PATH="${PATH}:/usr/src/noir/target/release/"
+# RUN yarn && yarn build && yarn add playwright && yarn playwright install
+# RUN yarn test
+
+FROM node:20-bookworm-slim as test-js
+RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git openssl libc++-dev libncurses5 curl jq libssl-dev pkg-config -y
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 WORKDIR /usr/src/noir
 COPY . .
-RUN ./scripts/install_wasm-bindgen.sh
-RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD) && cargoExtraArgs="--features noirc_driver/aztec"
+ENV PATH="${PATH}:/root/.cargo/bin/"
+RUN ./scripts/test_js_packages.sh
 
-RUN cargo build --features="noirc_driver/aztec" --release
-ENV PATH="${PATH}:/usr/src/noir/target/release/"
-RUN yarn && yarn build && yarn add playwright && yarn playwright install
-RUN yarn test
+# FROM rust:1-slim-bookworm as test-js
+# COPY --from=js-install /usr/local/bin /usr/local/bin
+# RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git openssl libc++-dev libncurses5 curl npm nodejs -y
+# WORKDIR /usr/src/noir
+# COPY . .
+# RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD)
+# RUN cargo build --features="noirc_driver/aztec" --release
+# RUN yarn && yarn build && yarn add playwright && yarn playwright install
+
 
 # RUN export SOURCE_DATE_EPOCH=$(date +%s) && GIT_DIRTY=false && export GIT_COMMIT=$(git rev-parse --verify HEAD) && cargoExtraArgs="--features noirc_driver/aztec"
