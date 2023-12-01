@@ -84,7 +84,7 @@ impl FunctionBuilder {
                 databus.values.push_back(value);
                 databus.index += 1;
             }
-            Type::Reference => unreachable!(),
+            Type::Reference(_) => unreachable!(),
             Type::Array(typ, len) => {
                 assert!(typ.len() == 1, "unsupported composite type");
                 databus.map.insert(value, databus.index);
