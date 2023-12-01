@@ -4,23 +4,16 @@
 set -eux
 
 # The following accounts and pks must match the ones exposed by the sandbox.
-# This test also requires that no other transactions have been sent to the sandbox
-# so the contract address hardcoded into $CONTRACT is correct. Otherwise, we'd need
-# to extract the deployed address from the cli `deploy` command.
 
 # docs:start:declare-accounts
-ALICE="0x29e53e3e43377c80c8a1e390ed90ddf1167f376c4c063844ec18f8a81516c1c0"
-BOB="0x2b66c968c3ae3b827b6614719141be12667bad86f13b401c667d64a7c56d911c"
+ALICE="0x06357cc85cb8fc561adbf741f63cd75efa26ffba1c80d431ec77d036d8edf022"
+BOB="0x1b18a972d54db0283a04abaace5f7b03c3fca5a4b2c0cf113b457de6ea4991e7"
 ALICE_PRIVATE_KEY="0x2153536ff6628eee01cf4024889ff977a18d9fa61d0e414422f7681cf085c281"
 # docs:end:declare-accounts
 
 # docs:start:deploy
-aztec-cli deploy \
-  TokenContractArtifact \
-  --salt 0 \
-  --args $ALICE
-
-CONTRACT="0x18a018014978f3a6b8f69548fbfc5fded6b829b36becea24dd7f7ee34927dff7"
+CONTRACT=$(aztec-cli deploy TokenContractArtifact --salt 0 --args $ALICE --json | jq -r '.address')
+echo "Deployed contract at $CONTRACT"
 aztec-cli check-deploy --contract-address $CONTRACT
 # docs:end:deploy
 

@@ -1,5 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
-import { Tuple } from '@aztec/foundation/serialize';
+import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
 import {
   CONTRACT_TREE_HEIGHT,
@@ -100,6 +100,27 @@ export class PrivateCallData {
   toBuffer(): Buffer {
     return serializeToBuffer(...PrivateCallData.getFields(this));
   }
+
+  /**
+   * Deserializes from a buffer or reader.
+   * @param buffer - Buffer or reader to read from.
+   * @returns The deserialized instance.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): PrivateCallData {
+    const reader = BufferReader.asReader(buffer);
+    return new PrivateCallData(
+      reader.readObject(PrivateCallStackItem),
+      reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, CallRequest),
+      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, CallRequest),
+      reader.readObject(Proof),
+      reader.readObject(VerificationKey),
+      reader.readObject(MembershipWitness.deserializer(FUNCTION_TREE_HEIGHT)),
+      reader.readObject(MembershipWitness.deserializer(CONTRACT_TREE_HEIGHT)),
+      reader.readArray(MAX_READ_REQUESTS_PER_CALL, ReadRequestMembershipWitness),
+      reader.readObject(Fr),
+      reader.readObject(Fr),
+    );
+  }
 }
 
 /**
@@ -147,6 +168,16 @@ export class PrivateKernelInputsInner {
    */
   toBuffer() {
     return serializeToBuffer(this.previousKernel, this.privateCall);
+  }
+
+  /**
+   * Deserializes from a buffer or reader.
+   * @param buffer - Buffer or reader to read from.
+   * @returns The deserialized instance.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): PrivateKernelInputsInner {
+    const reader = BufferReader.asReader(buffer);
+    return new PrivateKernelInputsInner(reader.readObject(PreviousKernelData), reader.readObject(PrivateCallData));
   }
 }
 

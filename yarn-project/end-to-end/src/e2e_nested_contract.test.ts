@@ -1,5 +1,8 @@
 import { AztecAddress, BatchCall, DebugLogger, Fr, PXE, Wallet, toBigIntBE } from '@aztec/aztec.js';
+import { getTestData, isGenerateTestDataEnabled } from '@aztec/foundation/testing';
 import { ChildContract, ImportTestContract, ParentContract, TestContract } from '@aztec/noir-contracts/types';
+
+import { writeFileSync } from 'fs';
 
 import { setup } from './fixtures/utils.js';
 
@@ -31,6 +34,15 @@ describe('e2e_nested_contract', () => {
         .entryPoint(childContract.address, childContract.methods.value.selector.toField())
         .send()
         .wait();
+
+      if (isGenerateTestDataEnabled()) {
+        const privateKernelInputs = getTestData('private-kernel-inputs-inner');
+        const nestedCallPrivateKernelInput = privateKernelInputs[privateKernelInputs.length - 1];
+        writeFileSync(
+          '../noir-protocol-circuits/src/fixtures/nested-call-private-kernel-inner.hex',
+          nestedCallPrivateKernelInput.toBuffer().toString('hex'),
+        );
+      }
     }, 100_000);
 
     it('fails simulation if calling a function not allowed to be called externally', async () => {

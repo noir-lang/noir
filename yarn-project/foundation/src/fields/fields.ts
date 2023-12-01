@@ -41,8 +41,13 @@ abstract class BaseField {
 
   protected constructor(value: number | bigint | boolean | BaseField | Buffer) {
     if (value instanceof Buffer) {
+      if (value.length > BaseField.SIZE_IN_BYTES) {
+        throw new Error(`Value length ${value.length} exceeds ${BaseField.SIZE_IN_BYTES}`);
+      }
       this.asBuffer =
-        value.length === 32 ? value : Buffer.concat([Buffer.alloc(BaseField.SIZE_IN_BYTES - value.length), value]);
+        value.length === BaseField.SIZE_IN_BYTES
+          ? value
+          : Buffer.concat([Buffer.alloc(BaseField.SIZE_IN_BYTES - value.length), value]);
     } else if (typeof value === 'bigint' || typeof value === 'number' || typeof value === 'boolean') {
       this.asBigInt = BigInt(value);
       if (this.asBigInt >= this.modulus()) {
@@ -104,7 +109,7 @@ abstract class BaseField {
   }
 
   toFriendlyJSON(): string {
-    return `0x${this.toBigInt().toString()}`;
+    return this.toString();
   }
 
   toField() {

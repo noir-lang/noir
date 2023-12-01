@@ -73,6 +73,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
 
   const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), '../package.json');
   const cliVersion: string = JSON.parse(readFileSync(packageJsonPath).toString()).version;
+  const logJson = (obj: object) => log(JSON.stringify(obj, null, 2));
 
   program.name('aztec-cli').description('CLI for interacting with Aztec.').version(cliVersion);
 
@@ -242,10 +243,11 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       'Optional deployment salt as a hex string for generating the deployment address.',
       parseSaltFromHexString,
     )
+    .option('--json', 'Emit output as json')
     // `options.wait` is default true. Passing `--no-wait` will set it to false.
     // https://github.com/tj/commander.js#other-option-types-negatable-boolean-and-booleanvalue
     .option('--no-wait', 'Skip waiting for the contract to be deployed. Print the hash of deployment transaction')
-    .action(async (artifactPath, { rpcUrl, publicKey, args: rawArgs, portalAddress, salt, wait }) => {
+    .action(async (artifactPath, { json, rpcUrl, publicKey, args: rawArgs, portalAddress, salt, wait }) => {
       const contractArtifact = await getContractArtifact(artifactPath, log);
       const constructorArtifact = contractArtifact.functions.find(({ name }) => name === 'constructor');
 
@@ -277,12 +279,26 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       debugLogger(`Deploy tx sent with hash ${txHash}`);
       if (wait) {
         const deployed = await tx.wait();
-        log(`\nContract deployed at ${deployed.contract.completeAddress.address.toString()}\n`);
-        log(`Contract partial address ${deployed.contract.completeAddress.partialAddress.toString()}\n`);
+        const { address, partialAddress } = deployed.contract.completeAddress;
+        if (json) {
+          logJson({ address: address.toString(), partialAddress: partialAddress.toString() });
+        } else {
+          log(`\nContract deployed at ${address.toString()}\n`);
+          log(`Contract partial address ${partialAddress.toString()}\n`);
+        }
       } else {
-        log(`\nContract Address: ${deploy.completeAddress?.address.toString() ?? 'N/A'}`);
-        log(`Contract Partial Address: ${deploy.completeAddress?.partialAddress.toString() ?? 'N/A'}`);
-        log(`Deployment transaction hash: ${txHash}\n`);
+        const { address, partialAddress } = deploy.completeAddress ?? {};
+        if (json) {
+          logJson({
+            address: address?.toString() ?? 'N/A',
+            partialAddress: partialAddress?.toString() ?? 'N/A',
+            txHash: txHash.toString(),
+          });
+        } else {
+          log(`\nContract Address: ${deploy.completeAddress?.address.toString() ?? 'N/A'}`);
+          log(`Contract Partial Address: ${deploy.completeAddress?.partialAddress.toString() ?? 'N/A'}`);
+          log(`Deployment transaction hash: ${txHash}\n`);
+        }
       }
     });
 

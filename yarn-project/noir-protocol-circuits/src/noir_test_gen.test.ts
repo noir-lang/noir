@@ -65,7 +65,7 @@ describe('Data generation for noir tests', () => {
     });
   });
 
-  test('Computes contract tree data for %s', async () => {
+  test('Computes contract tree data', async () => {
     const leaves = contracts.map(([contract]) => {
       const contractLeaf = computeContractLeaf(
         new NewContractData(contract.address, contract.portalContractAddress, contract.functionTreeRoot),

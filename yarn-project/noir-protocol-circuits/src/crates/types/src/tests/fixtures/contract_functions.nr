@@ -41,6 +41,7 @@ global default_private_function = ContractFunction {
             0x02996203377fc96b38fd41a1f65ddce2b26247fee321a12e58b457ee08621a14,
             0x0837a67313f4dbbd8d6971c0672f961f0a3b9e218c1395d327915209292acbbf,
             0x2e0ef36ddc5db29acb6ef904999046f835ce7c78a40c3f7a0edb03b2f917a765,
+            0x1a9fdb505152f9c2baaffe4a30ee80775b58ebf8c2dde76435835b085c6f70ca,
         ],
     },
 };
@@ -61,6 +62,7 @@ global default_internal_private_function = ContractFunction {
             0x02996203377fc96b38fd41a1f65ddce2b26247fee321a12e58b457ee08621a14,
             0x0837a67313f4dbbd8d6971c0672f961f0a3b9e218c1395d327915209292acbbf,
             0x2e0ef36ddc5db29acb6ef904999046f835ce7c78a40c3f7a0edb03b2f917a765,
+            0x1a9fdb505152f9c2baaffe4a30ee80775b58ebf8c2dde76435835b085c6f70ca,
         ],
     },
 };
@@ -81,6 +83,7 @@ global default_public_function = ContractFunction {
             0x1bed44f12632c0a6343cd886bd3e548bb5e8d2fd35fe9bc81f28defd4ed885b0,
             0x0837a67313f4dbbd8d6971c0672f961f0a3b9e218c1395d327915209292acbbf,
             0x2e0ef36ddc5db29acb6ef904999046f835ce7c78a40c3f7a0edb03b2f917a765,
+            0x1a9fdb505152f9c2baaffe4a30ee80775b58ebf8c2dde76435835b085c6f70ca,
         ],
     },
 };
@@ -101,6 +104,7 @@ global default_internal_public_function = ContractFunction {
             0x1bed44f12632c0a6343cd886bd3e548bb5e8d2fd35fe9bc81f28defd4ed885b0,
             0x0837a67313f4dbbd8d6971c0672f961f0a3b9e218c1395d327915209292acbbf,
             0x2e0ef36ddc5db29acb6ef904999046f835ce7c78a40c3f7a0edb03b2f917a765,
+            0x1a9fdb505152f9c2baaffe4a30ee80775b58ebf8c2dde76435835b085c6f70ca,
         ],
     },
 };

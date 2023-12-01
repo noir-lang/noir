@@ -98,7 +98,7 @@ constexpr size_t LOGS_HASHES_NUM_BYTES_PER_BASE_ROLLUP =
 
 // TREES RELATED CONSTANTS
 constexpr size_t VK_TREE_HEIGHT = 3;
-constexpr size_t FUNCTION_TREE_HEIGHT = 4;
+constexpr size_t FUNCTION_TREE_HEIGHT = 5;
 constexpr size_t CONTRACT_TREE_HEIGHT = 16;
 constexpr size_t NOTE_HASH_TREE_HEIGHT = 32;
 constexpr size_t PUBLIC_DATA_TREE_HEIGHT = 254;

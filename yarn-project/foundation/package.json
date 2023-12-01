@@ -34,7 +34,8 @@
     "./types": "./dest/types/index.js",
     "./url": "./dest/url/index.js",
     "./committable": "./dest/committable/index.js",
-    "./noir": "./dest/noir/index.js"
+    "./noir": "./dest/noir/index.js",
+    "./testing": "./dest/testing/index.js"
   },
   "scripts": {
     "build": "yarn clean && tsc -b",

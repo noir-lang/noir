@@ -1,4 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { BufferReader } from '@aztec/foundation/serialize';
 
 import { computePrivateCallStackItemHash, computePublicCallStackItemHash } from '../abis/abis.js';
 import { serializeToBuffer } from '../utils/serialize.js';
@@ -37,6 +38,21 @@ export class PrivateCallStackItem {
 
   toBuffer() {
     return serializeToBuffer(this.contractAddress, this.functionData, this.publicInputs, this.isExecutionRequest);
+  }
+
+  /**
+   * Deserializes from a buffer or reader.
+   * @param buffer - Buffer or reader to read from.
+   * @returns The deserialized instance.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): PrivateCallStackItem {
+    const reader = BufferReader.asReader(buffer);
+    return new PrivateCallStackItem(
+      reader.readObject(AztecAddress),
+      reader.readObject(FunctionData),
+      reader.readObject(PrivateCircuitPublicInputs),
+      reader.readBoolean(),
+    );
   }
 
   /**

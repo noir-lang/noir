@@ -1,6 +1,6 @@
 import { isArrayEmpty } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
-import { Tuple } from '@aztec/foundation/serialize';
+import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
 import {
   MAX_NEW_COMMITMENTS_PER_CALL,
@@ -106,6 +106,7 @@ export class PrivateCircuitPublicInputs {
      */
     public version: Fr,
   ) {}
+
   /**
    * Create PrivateCircuitPublicInputs from a fields dictionary.
    * @param fields - The dictionary.
@@ -113,6 +114,36 @@ export class PrivateCircuitPublicInputs {
    */
   static from(fields: FieldsOf<PrivateCircuitPublicInputs>): PrivateCircuitPublicInputs {
     return new PrivateCircuitPublicInputs(...PrivateCircuitPublicInputs.getFields(fields));
+  }
+
+  /**
+   * Deserializes from a buffer or reader.
+   * @param buffer - Buffer or reader to read from.
+   * @returns The deserialized instance.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): PrivateCircuitPublicInputs {
+    const reader = BufferReader.asReader(buffer);
+    return new PrivateCircuitPublicInputs(
+      reader.readObject(CallContext),
+      reader.readObject(Fr),
+      reader.readArray(RETURN_VALUES_LENGTH, Fr),
+      reader.readArray(MAX_READ_REQUESTS_PER_CALL, Fr),
+      reader.readArray(MAX_PENDING_READ_REQUESTS_PER_CALL, Fr),
+      reader.readArray(MAX_NEW_COMMITMENTS_PER_CALL, Fr),
+      reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, Fr),
+      reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, Fr),
+      reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, Fr),
+      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, Fr),
+      reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, Fr),
+      reader.readArray(NUM_FIELDS_PER_SHA256, Fr),
+      reader.readArray(NUM_FIELDS_PER_SHA256, Fr),
+      reader.readObject(Fr),
+      reader.readObject(Fr),
+      reader.readObject(BlockHeader),
+      reader.readObject(ContractDeploymentData),
+      reader.readObject(Fr),
+      reader.readObject(Fr),
+    );
   }
 
   /**

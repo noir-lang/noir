@@ -87,6 +87,22 @@ export class MembershipWitness<N extends number> {
     return this.fromBufferArray(leafIndex, siblingPath);
   }
 
+  /**
+   * Creates a deserializer object for a MembershipWitness with a given size.
+   * @param size - Expected size of the witness.
+   * @returns A deserializer object.
+   */
+  static deserializer<N extends number>(size: N): { fromBuffer(buffer: Buffer | BufferReader): MembershipWitness<N> } {
+    return {
+      fromBuffer: (buffer: Buffer | BufferReader) => {
+        const reader = BufferReader.asReader(buffer);
+        const leafIndex = toBigIntBE(reader.readBytes(32));
+        const siblingPath = reader.readArray(size, Fr);
+        return new MembershipWitness(size, leafIndex, siblingPath);
+      },
+    };
+  }
+
   // import { SiblingPath } from '@aztec/merkle-tree';
   //   static fromSiblingPath<N extends number>(leafIndex: bigint, siblingPath: SiblingPath<N>): MembershipWitness<N> {
   //     return new MembershipWitness<N>(siblingPath.pathSize, leafIndex, siblingPath.toFieldArray() as Tuple<Fr, N>);

@@ -126,7 +126,7 @@ export interface VerificationKey {}
 
 export interface FunctionLeafMembershipWitness {
   leaf_index: Field;
-  sibling_path: FixedLengthArray<Field, 4>;
+  sibling_path: FixedLengthArray<Field, 5>;
 }
 
 export interface ContractLeafMembershipWitness {

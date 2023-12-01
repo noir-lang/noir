@@ -44,7 +44,7 @@ library Constants {
   uint256 internal constant MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP = 32;
   uint256 internal constant MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP = 32;
   uint256 internal constant VK_TREE_HEIGHT = 3;
-  uint256 internal constant FUNCTION_TREE_HEIGHT = 4;
+  uint256 internal constant FUNCTION_TREE_HEIGHT = 5;
   uint256 internal constant CONTRACT_TREE_HEIGHT = 16;
   uint256 internal constant NOTE_HASH_TREE_HEIGHT = 32;
   uint256 internal constant PUBLIC_DATA_TREE_HEIGHT = 254;
