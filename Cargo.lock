@@ -1475,6 +1475,7 @@ dependencies = [
  "askama",
  "clap 3.2.25",
  "noirc_frontend",
+ "thiserror",
 ]
 
 [[package]]
