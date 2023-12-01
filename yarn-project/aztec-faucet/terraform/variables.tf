@@ -22,6 +22,6 @@ variable "PRIVATE_KEY" {
   type = string
 }
 
-variable "ECR_URL" {
+variable "DOCKERHUB_ACCOUNT" {
   type = string
 }

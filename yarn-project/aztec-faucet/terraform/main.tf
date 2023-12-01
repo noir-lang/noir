@@ -41,7 +41,7 @@ resource "aws_cloudwatch_log_group" "aztec-faucet" {
 }
 
 resource "aws_service_discovery_service" "aztec-faucet" {
-  name = "${var.DEPLOY_TAG}-aztec-faucet"
+  name = "${var.DEPLOY_TAG}-faucet"
 
   health_check_custom_config {
     failure_threshold = 1
@@ -72,7 +72,7 @@ resource "aws_service_discovery_service" "aztec-faucet" {
 
 # Define task definition and service.
 resource "aws_ecs_task_definition" "aztec-faucet" {
-  family                   = "${var.DEPLOY_TAG}-aztec-faucet"
+  family                   = "${var.DEPLOY_TAG}-faucet"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = "2048"
@@ -83,8 +83,8 @@ resource "aws_ecs_task_definition" "aztec-faucet" {
   container_definitions = <<DEFINITIONS
 [
   {
-    "name": "${var.DEPLOY_TAG}-aztec-faucet",
-    "image": "${var.ECR_URL}/aztec-faucet:aztec3-packages-prod",
+    "name": "${var.DEPLOY_TAG}-faucet",
+    "image": "${var.DOCKERHUB_ACCOUNT}/aztec-faucet:${var.DEPLOY_TAG}",
     "essential": true,
     "memoryReservation": 3776,
     "portMappings": [
@@ -166,13 +166,13 @@ resource "aws_ecs_service" "aztec-faucet" {
 
   load_balancer {
     target_group_arn = aws_alb_target_group.aztec-faucet.arn
-    container_name   = "${var.DEPLOY_TAG}-aztec-faucet"
+    container_name   = "${var.DEPLOY_TAG}-faucet"
     container_port   = 80
   }
 
   service_registries {
     registry_arn   = aws_service_discovery_service.aztec-faucet.arn
-    container_name = "${var.DEPLOY_TAG}-aztec-faucet"
+    container_name = "${var.DEPLOY_TAG}-faucet"
     container_port = 80
   }
 
@@ -181,7 +181,7 @@ resource "aws_ecs_service" "aztec-faucet" {
 
 # Configure ALB to route /aztec-faucet to server.
 resource "aws_alb_target_group" "aztec-faucet" {
-  name                 = "${var.DEPLOY_TAG}-aztec-faucet"
+  name                 = "${var.DEPLOY_TAG}-faucet"
   port                 = 80
   protocol             = "HTTP"
   target_type          = "ip"
@@ -198,7 +198,7 @@ resource "aws_alb_target_group" "aztec-faucet" {
   }
 
   tags = {
-    name = "${var.DEPLOY_TAG}-aztec-faucet"
+    name = "${var.DEPLOY_TAG}-faucet"
   }
 }
 

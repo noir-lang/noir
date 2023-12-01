@@ -1,7 +1,6 @@
 terraform {
   backend "s3" {
     bucket = "aztec-terraform"
-    key    = "aztec-network/mainnet-fork"
     region = "eu-west-2"
   }
   required_providers {
@@ -50,7 +49,7 @@ provider "aws" {
 }
 
 resource "aws_service_discovery_service" "aztec_mainnet_fork" {
-  name = "aztec-network-mainnet-fork"
+  name = "${var.DEPLOY_TAG}-mainnet-fork"
 
   health_check_custom_config {
     failure_threshold = 1
@@ -75,10 +74,10 @@ resource "aws_service_discovery_service" "aztec_mainnet_fork" {
 
 # EFS filesystem for mainnet fork
 resource "aws_efs_file_system" "aztec_mainnet_fork_data_store" {
-  creation_token = "aztec-network-mainnet-fork-data"
+  creation_token = "${var.DEPLOY_TAG}-mainnet-fork-data"
 
   tags = {
-    Name = "aztec-network-mainnet-fork-data"
+    Name = "${var.DEPLOY_TAG}-mainnet-fork-data"
   }
 
   lifecycle_policy {
@@ -100,7 +99,7 @@ resource "aws_efs_mount_target" "aztec_fork_private_az2" {
 
 # Define deployment task and service
 resource "aws_ecs_task_definition" "aztec_mainnet_fork" {
-  family                   = "aztec-network-mainnet-fork"
+  family                   = "${var.DEPLOY_TAG}-mainnet-fork"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = "2048"
@@ -117,13 +116,13 @@ resource "aws_ecs_task_definition" "aztec_mainnet_fork" {
   container_definitions = <<DEFINITION
 [
   {
-    "name": "aztec-network-mainnet-fork",
-    "image": "${var.ECR_URL}/aztec-mainnet-fork:aztec3-packages-prod",
+    "name": "${var.DEPLOY_TAG}-mainnet-fork",
+    "image": "${var.DOCKERHUB_ACCOUNT}/aztec-mainnet-fork:${var.DEPLOY_TAG}",
     "essential": true,
     "environment": [
       {
         "name": "API_KEY",
-        "value": "${var.FORK_API_KEY}"
+        "value": "${var.API_KEY}"
       },
       {
         "name": "MNEMONIC",
@@ -170,7 +169,7 @@ DEFINITION
 
 # ALB to to limit public requests to apikey routes
 resource "aws_alb_target_group" "mainnet_fork" {
-  name                 = "aztec-network-mainnet-fork"
+  name                 = "${var.DEPLOY_TAG}-mainnet-fork"
   port                 = "80"
   protocol             = "HTTP"
   target_type          = "ip"
@@ -181,7 +180,7 @@ resource "aws_alb_target_group" "mainnet_fork" {
   ]
 
   health_check {
-    path                = "/${var.FORK_API_KEY}"
+    path                = "/${var.API_KEY}"
     matcher             = "404,400"
     interval            = 300
     healthy_threshold   = 2
@@ -190,12 +189,12 @@ resource "aws_alb_target_group" "mainnet_fork" {
   }
 
   tags = {
-    name = "aztec-network-mainnet-fork"
+    name = "${var.DEPLOY_TAG}-mainnet-fork"
   }
 }
 
 resource "aws_ecs_service" "aztec_mainnet_fork" {
-  name                               = "aztec-network-mainnet-fork"
+  name                               = "${var.DEPLOY_TAG}-mainnet-fork"
   cluster                            = data.terraform_remote_state.setup_iac.outputs.ecs_cluster_id
   launch_type                        = "FARGATE"
   desired_count                      = 1
@@ -213,13 +212,13 @@ resource "aws_ecs_service" "aztec_mainnet_fork" {
 
   load_balancer {
     target_group_arn = aws_alb_target_group.mainnet_fork.arn
-    container_name   = "aztec-network-mainnet-fork"
+    container_name   = "${var.DEPLOY_TAG}-mainnet-fork"
     container_port   = 80
   }
 
   service_registries {
     registry_arn   = aws_service_discovery_service.aztec_mainnet_fork.arn
-    container_name = "aztec-network-mainnet-fork"
+    container_name = "${var.DEPLOY_TAG}-mainnet-fork"
     container_port = 80
   }
 
@@ -241,7 +240,7 @@ resource "aws_lb_listener_rule" "aztec_mainnet_fork_route" {
 
   condition {
     host_header {
-      values = ["aztec-network-mainnet-fork.aztec.network"]
+      values = ["${var.DEPLOY_TAG}-mainnet-fork.aztec.network"]
     }
   }
 }
@@ -249,7 +248,7 @@ resource "aws_lb_listener_rule" "aztec_mainnet_fork_route" {
 # mainnet-fork DNS entry.
 resource "aws_route53_record" "aztec_mainnet_fork" {
   zone_id = data.terraform_remote_state.aztec2_iac.outputs.aws_route53_zone_id
-  name    = "aztec-network-mainnet-fork"
+  name    = "${var.DEPLOY_TAG}-mainnet-fork"
   type    = "A"
   alias {
     name                   = data.aws_alb.aztec-network_alb.dns_name

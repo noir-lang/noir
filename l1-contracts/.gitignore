@@ -17,3 +17,6 @@ lcov.info
 
 # Yarn lockfile
 yarn.lock
+
+# 'deploy_contracts' script output
+serve/

@@ -20,7 +20,17 @@ function docker_or_dryrun {
 echo "Repo: $REPOSITORY"
 echo "Arch List: $ARCH_LIST"
 
-VERSION_TAG=$(extract_tag_version $REPOSITORY true)
+VERSION_TAG=$(extract_tag_version $REPOSITORY false)
+
+# if no version tag, check if we're on `master` branch
+if [[ -z "$VERSION_TAG" ]]; then
+  if [[ "$BRANCH" != "master" ]]; then
+    echo "No version tag found. Exiting" >&2
+    exit 1
+  fi
+  # if we're on master, use the DEPLOY_TAG as the version tag
+  VERSION_TAG=$DEPLOY_TAG
+fi
 
 MANIFEST_DEPLOY_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:$VERSION_TAG
 MANIFEST_DIST_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:$DIST_TAG
@@ -42,12 +52,17 @@ for ARCH in $ARCH_LIST; do
   echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_DEPLOY_URI..."
   docker_or_dryrun manifest create $MANIFEST_DEPLOY_URI --amend $IMAGE_DEPLOY_URI
 
-  echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_DIST_URI"
-  docker_or_dryrun manifest create $MANIFEST_DIST_URI --amend $IMAGE_DEPLOY_URI
+  # Add latest manifest if we're making a release.
+  if [[ "$VERSION_TAG" != $DEPLOY_TAG ]]; then
+    echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_DIST_URI"
+    docker_or_dryrun manifest create $MANIFEST_DIST_URI --amend $IMAGE_DEPLOY_URI
+  fi
 done
 
-echo "Tagging $MANIFEST_DEPLOY_URI as $VERSION_TAG..."
 docker_or_dryrun manifest push --purge $MANIFEST_DEPLOY_URI
-# Publish version as latest.
-echo "Tagging $MANIFEST_DEPLOY_URI as $DIST_TAG..."
-docker_or_dryrun manifest push --purge $MANIFEST_DIST_URI
+
+# Retag version as latest if we're making a release.
+if [[ "$VERSION_TAG" != "$DEPLOY_TAG" ]]; then
+  echo "Tagging $MANIFEST_DEPLOY_URI as $DIST_TAG..."
+  docker_or_dryrun manifest push --purge $MANIFEST_DIST_URI
+fi

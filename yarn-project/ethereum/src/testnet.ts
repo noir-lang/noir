@@ -2,6 +2,8 @@ import { Chain } from 'viem';
 
 import { EthereumChain } from './ethereum_chain.js';
 
+const { DEPLOY_TAG = 'aztec-dev' } = process.env;
+
 export const createTestnetChain = (apiKey: string) => {
   const chain: Chain = {
     id: 677868,
@@ -14,10 +16,10 @@ export const createTestnetChain = (apiKey: string) => {
     },
     rpcUrls: {
       default: {
-        http: [`https://aztec-connect-testnet-eth-host.aztec.network:8545/${apiKey}`],
+        http: [`https://${DEPLOY_TAG}-mainnet-fork.aztec.network:8545/${apiKey}`],
       },
       public: {
-        http: [`https://aztec-connect-testnet-eth-host.aztec.network:8545/${apiKey}`],
+        http: [`https://${DEPLOY_TAG}-mainnet-fork.aztec.network:8545/${apiKey}`],
       },
     },
   };

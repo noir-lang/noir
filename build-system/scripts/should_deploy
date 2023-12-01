@@ -1,7 +1,15 @@
 #!/bin/bash
-# Retuns success if we are expected to do a deploy.
-# At present this is only if we have a commit tag.
-# Once we are doing master deployments to devnet, we'll want to check if BRANCH is master.
+# Returns success if we are expected to do a deployment.
+# This is if we have a commit tag (release) or if we're on `master` branch (devnet deployment).
+
 set -eu
 
-[ -n "$COMMIT_TAG" ]
+# This is when we only want to deploy on master, not release with new COMMIT_TAG.
+# Specifically for deploying devnet.
+RELEASE=${1:-1}
+
+if [ -n "$COMMIT_TAG" ] && [ "$RELEASE" != "0" ] || [ "$BRANCH" = "master" ]; then
+  exit 0
+else
+  exit 1
+fi
