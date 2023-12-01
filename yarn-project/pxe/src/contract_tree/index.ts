@@ -146,12 +146,14 @@ export class ContractTree {
    * If the witness hasn't been previously computed, this function will request the contract node
    * to find the contract's index and path in order to create the membership witness.
    *
+   * @param blockNumber - The block number at which to get the data.
+   *
    * @returns A Promise that resolves to the MembershipWitness object for the given contract tree.
    */
-  public async getContractMembershipWitness() {
+  public async getContractMembershipWitness(blockNumber: number | 'latest' = 'latest') {
     const index = await this.getContractIndex();
 
-    const siblingPath = await this.stateInfoProvider.getContractSiblingPath(index);
+    const siblingPath = await this.stateInfoProvider.getContractSiblingPath(blockNumber, index);
     return new MembershipWitness<typeof CONTRACT_TREE_HEIGHT>(
       CONTRACT_TREE_HEIGHT,
       index,
@@ -226,7 +228,7 @@ export class ContractTree {
       const root = await this.getFunctionTreeRoot();
       const newContractData = new NewContractData(completeAddress.address, portalContract, root);
       const commitment = computeContractLeaf(newContractData);
-      this.contractIndex = await this.stateInfoProvider.findLeafIndex(MerkleTreeId.CONTRACT_TREE, commitment);
+      this.contractIndex = await this.stateInfoProvider.findLeafIndex('latest', MerkleTreeId.CONTRACT_TREE, commitment);
       if (this.contractIndex === undefined) {
         throw new Error(
           `Failed to find contract at ${completeAddress.address} with portal ${portalContract} resulting in commitment ${commitment}.`,

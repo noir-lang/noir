@@ -115,7 +115,7 @@ export class SimulatorOracle implements DBOracle {
     const messageAndIndex = await this.stateInfoProvider.getL1ToL2MessageAndIndex(msgKey);
     const message = messageAndIndex.message.toFieldArray();
     const index = messageAndIndex.index;
-    const siblingPath = await this.stateInfoProvider.getL1ToL2MessageSiblingPath(index);
+    const siblingPath = await this.stateInfoProvider.getL1ToL2MessageSiblingPath('latest', index);
     return {
       message,
       siblingPath: siblingPath.toFieldArray(),
@@ -129,32 +129,28 @@ export class SimulatorOracle implements DBOracle {
    * @returns - The index of the commitment. Undefined if it does not exist in the tree.
    */
   async getCommitmentIndex(commitment: Fr) {
-    return await this.stateInfoProvider.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, commitment);
+    return await this.stateInfoProvider.findLeafIndex('latest', MerkleTreeId.NOTE_HASH_TREE, commitment);
   }
 
   async getNullifierIndex(nullifier: Fr) {
-    return await this.stateInfoProvider.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier);
+    return await this.stateInfoProvider.findLeafIndex('latest', MerkleTreeId.NULLIFIER_TREE, nullifier);
   }
 
   public async findLeafIndex(blockNumber: number, treeId: MerkleTreeId, leafValue: Fr): Promise<bigint | undefined> {
-    this.log.warn('Block number ignored in SimulatorOracle.findLeafIndex because archival node is not yet implemented');
-    return await this.stateInfoProvider.findLeafIndex(treeId, leafValue);
+    return await this.stateInfoProvider.findLeafIndex(blockNumber, treeId, leafValue);
   }
 
   public async getSiblingPath(blockNumber: number, treeId: MerkleTreeId, leafIndex: bigint): Promise<Fr[]> {
-    this.log.warn(
-      'Block number ignored in SimulatorOracle.getSiblingPath because archival node is not yet implemented',
-    );
     // @todo Doing a nasty workaround here because of https://github.com/AztecProtocol/aztec-packages/issues/3414
     switch (treeId) {
       case MerkleTreeId.NULLIFIER_TREE:
-        return (await this.stateInfoProvider.getNullifierTreeSiblingPath(leafIndex)).toFieldArray();
+        return (await this.stateInfoProvider.getNullifierTreeSiblingPath(blockNumber, leafIndex)).toFieldArray();
       case MerkleTreeId.NOTE_HASH_TREE:
-        return (await this.stateInfoProvider.getNoteHashSiblingPath(leafIndex)).toFieldArray();
+        return (await this.stateInfoProvider.getNoteHashSiblingPath(blockNumber, leafIndex)).toFieldArray();
       case MerkleTreeId.BLOCKS_TREE:
-        return (await this.stateInfoProvider.getBlocksTreeSiblingPath(leafIndex)).toFieldArray();
+        return (await this.stateInfoProvider.getBlocksTreeSiblingPath(blockNumber, leafIndex)).toFieldArray();
       case MerkleTreeId.PUBLIC_DATA_TREE:
-        return (await this.stateInfoProvider.getPublicDataTreeSiblingPath(leafIndex)).toFieldArray();
+        return (await this.stateInfoProvider.getPublicDataTreeSiblingPath(blockNumber, leafIndex)).toFieldArray();
       default:
         throw new Error('Not implemented');
     }

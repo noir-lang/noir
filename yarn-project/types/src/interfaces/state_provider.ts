@@ -14,41 +14,57 @@ import { MerkleTreeId } from '../merkle_tree_id.js';
 import { SiblingPath } from '../sibling_path.js';
 import { NullifierMembershipWitness } from './nullifier_witness.js';
 
+/** Helper type for a specific L2 block number or the latest block number */
+type BlockNumber = number | 'latest';
+
 /**
  * Interface providing methods for retrieving information about content of the state trees.
  */
 export interface StateInfoProvider {
   /**
    * Find the index of the given leaf in the given tree.
+   * @param blockNumber - The block number at which to get the data or 'latest' for latest data
    * @param treeId - The tree to search in.
    * @param leafValue - The value to search for
    * @returns The index of the given leaf in the given tree or undefined if not found.
    */
-  findLeafIndex(treeId: MerkleTreeId, leafValue: Fr): Promise<bigint | undefined>;
+  findLeafIndex(blockNumber: BlockNumber, treeId: MerkleTreeId, leafValue: Fr): Promise<bigint | undefined>;
 
   /**
    * Returns a sibling path for the given index in the contract tree.
+   * @param blockNumber - The block number at which to get the data.
    * @param leafIndex - The index of the leaf for which the sibling path is required.
    * @returns The sibling path for the leaf index.
    * TODO: https://github.com/AztecProtocol/aztec-packages/issues/3414
    */
-  getContractSiblingPath(leafIndex: bigint): Promise<SiblingPath<typeof CONTRACT_TREE_HEIGHT>>;
+  getContractSiblingPath(
+    blockNumber: BlockNumber,
+    leafIndex: bigint,
+  ): Promise<SiblingPath<typeof CONTRACT_TREE_HEIGHT>>;
 
   /**
    * Returns a sibling path for the given index in the nullifier tree.
+   * @param blockNumber - The block number at which to get the data.
    * @param leafIndex - The index of the leaf for which the sibling path is required.
    * @returns The sibling path for the leaf index.
    * TODO: https://github.com/AztecProtocol/aztec-packages/issues/3414
    */
-  getNullifierTreeSiblingPath(leafIndex: bigint): Promise<SiblingPath<typeof NULLIFIER_TREE_HEIGHT>>;
+  getNullifierTreeSiblingPath(
+    blockNumber: BlockNumber,
+    leafIndex: bigint,
+  ): Promise<SiblingPath<typeof NULLIFIER_TREE_HEIGHT>>;
 
   /**
    * Returns a sibling path for the given index in the note hash tree.
+   * @param blockNumber - The block number at which to get the data.
    * @param leafIndex - The index of the leaf for which the sibling path is required.
    * @returns The sibling path for the leaf index.
    * TODO: https://github.com/AztecProtocol/aztec-packages/issues/3414
    */
-  getNoteHashSiblingPath(leafIndex: bigint): Promise<SiblingPath<typeof NOTE_HASH_TREE_HEIGHT>>;
+  getNoteHashSiblingPath(
+    blockNumber: BlockNumber,
+    leafIndex: bigint,
+  ): Promise<SiblingPath<typeof NOTE_HASH_TREE_HEIGHT>>;
 
   /**
    * Gets a confirmed/consumed L1 to L2 message for the given message key (throws if not found).
@@ -60,46 +76,64 @@ export interface StateInfoProvider {
 
   /**
    * Returns a sibling path for a leaf in the committed l1 to l2 data tree.
+   * @param blockNumber - The block number at which to get the data.
    * @param leafIndex - Index of the leaf in the tree.
    * @returns The sibling path.
    * TODO: https://github.com/AztecProtocol/aztec-packages/issues/3414
    */
-  getL1ToL2MessageSiblingPath(leafIndex: bigint): Promise<SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>>;
+  getL1ToL2MessageSiblingPath(
+    blockNumber: BlockNumber,
+    leafIndex: bigint,
+  ): Promise<SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>>;
 
   /**
    * Returns a sibling path for a leaf in the committed historic blocks tree.
+   * @param blockNumber - The block number at which to get the data.
    * @param leafIndex - Index of the leaf in the tree.
    * @returns The sibling path.
    * TODO: https://github.com/AztecProtocol/aztec-packages/issues/3414
    */
-  getBlocksTreeSiblingPath(leafIndex: bigint): Promise<SiblingPath<typeof BLOCKS_TREE_HEIGHT>>;
+  getBlocksTreeSiblingPath(
+    blockNumber: BlockNumber,
+    leafIndex: bigint,
+  ): Promise<SiblingPath<typeof BLOCKS_TREE_HEIGHT>>;
 
   /**
    * Returns a sibling path for a leaf in the committed public data tree.
+   * @param blockNumber - The block number at which to get the data.
    * @param leafIndex - Index of the leaf in the tree.
    * @returns The sibling path.
    * TODO: https://github.com/AztecProtocol/aztec-packages/issues/3414
    */
-  getPublicDataTreeSiblingPath(leafIndex: bigint): Promise<SiblingPath<typeof PUBLIC_DATA_TREE_HEIGHT>>;
+  getPublicDataTreeSiblingPath(
+    blockNumber: BlockNumber,
+    leafIndex: bigint,
+  ): Promise<SiblingPath<typeof PUBLIC_DATA_TREE_HEIGHT>>;
 
   /**
    * Returns a nullifier membership witness for a given nullifier at a given block.
-   * @param blockNumber - The block number at which to get the index.
+   * @param blockNumber - The block number at which to get the data.
    * @param nullifier - Nullifier we try to find witness for.
    * @returns The nullifier membership witness (if found).
    */
-  getNullifierMembershipWitness(blockNumber: number, nullifier: Fr): Promise<NullifierMembershipWitness | undefined>;
+  getNullifierMembershipWitness(
+    blockNumber: BlockNumber,
+    nullifier: Fr,
+  ): Promise<NullifierMembershipWitness | undefined>;
 
   /**
    * Returns a low nullifier membership witness for a given nullifier at a given block.
-   * @param blockNumber - The block number at which to get the index.
+   * @param blockNumber - The block number at which to get the data.
    * @param nullifier - Nullifier we try to find the low nullifier witness for.
    * @returns The low nullifier membership witness (if found).
    * @remarks Low nullifier witness can be used to perform a nullifier non-inclusion proof by leveraging the "linked
    * list structure" of leaves and proving that a lower nullifier is pointing to a bigger next value than the nullifier
    * we are trying to prove non-inclusion for.
    */
-  getLowNullifierMembershipWitness(blockNumber: number, nullifier: Fr): Promise<NullifierMembershipWitness | undefined>;
+  getLowNullifierMembershipWitness(
+    blockNumber: BlockNumber,
+    nullifier: Fr,
+  ): Promise<NullifierMembershipWitness | undefined>;
 
   /**
    * Get a block specified by its number.
