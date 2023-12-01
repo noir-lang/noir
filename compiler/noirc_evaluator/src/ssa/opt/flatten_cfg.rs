@@ -144,9 +144,9 @@ use crate::ssa::{
         dfg::{CallStack, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::Type,
-        value::ValueId,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -208,6 +208,8 @@ struct Context<'f> {
     /// condition. If we are under multiple conditions (a nested if), the topmost condition is
     /// the most recent condition combined with all previous conditions via `And` instructions.
     conditions: Vec<(BasicBlockId, ValueId)>,
+
+    slice_sizes: HashMap<ValueId, (usize, Vec<ValueId>)>,
 }
 
 pub(crate) struct Store {
@@ -239,6 +241,7 @@ fn flatten_function_cfg(function: &mut Function) {
         branch_ends,
         conditions: Vec::new(),
         outer_block_stores: HashMap::default(),
+        slice_sizes: HashMap::default(),
     };
     context.flatten();
 }
@@ -277,6 +280,15 @@ impl<'f> Context<'f> {
                 }
             }
         }
+        
+        let instructions = self.inserter.function.dfg[block].instructions().to_vec();
+
+        // let mut slice_sizes = std::mem::take(&mut self.slice_sizes);
+        // for instruction in instructions {
+        //     self.collect_slice_information(instruction, &mut slice_sizes);
+        // }
+        // std::mem::swap(&mut self.slice_sizes, &mut slice_sizes);
+        // dbg!(self.slice_sizes.clone());
 
         match self.inserter.function.dfg[block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
@@ -498,6 +510,7 @@ impl<'f> Context<'f> {
             block,
             Some(&self.store_values),
             Some(&self.outer_block_stores),
+            Some(&self.slice_sizes),
         );
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
@@ -547,6 +560,7 @@ impl<'f> Context<'f> {
             block,
             Some(&self.store_values),
             Some(&self.outer_block_stores),
+            Some(&self.slice_sizes),
         );
 
         // Merging must occur in a separate loop as we cannot borrow `self` as mutable while `value_merger` does
@@ -601,9 +615,19 @@ impl<'f> Context<'f> {
         // unnecessary, when removing it actually causes an aliasing/mutability error.
         let instructions = self.inserter.function.dfg[destination].instructions().to_vec();
 
-        for instruction in instructions {
-            self.push_instruction(instruction);
+        let mut slice_sizes = std::mem::take(&mut self.slice_sizes);
+        for instruction in instructions.iter() {
+            let results = self.push_instruction(*instruction);
+            // dbg!(results.clone());
+            self.collect_slice_information(*instruction, &mut slice_sizes, &results);
         }
+
+        // let mut slice_sizes = std::mem::take(&mut self.slice_sizes);
+        // for instruction in instructions {
+        //     self.collect_slice_information(instruction, &mut slice_sizes);
+        // }
+        std::mem::swap(&mut self.slice_sizes, &mut slice_sizes);
+        // dbg!(self.slice_sizes.clone());
 
         self.handle_terminator(destination)
     }
@@ -614,7 +638,7 @@ impl<'f> Context<'f> {
     /// As a result, the instruction that will be pushed will actually be a new instruction
     /// with a different InstructionId from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
-    fn push_instruction(&mut self, id: InstructionId) {
+    fn push_instruction(&mut self, id: InstructionId) -> Vec<ValueId> {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
         let is_allocate = matches!(instruction, Instruction::Allocate);
@@ -626,6 +650,219 @@ impl<'f> Context<'f> {
         // values across branches for it later.
         if is_allocate {
             self.local_allocations.insert(results.first());
+        }
+        // let results = results.results().into_owned();
+        // self.collect_slice_information(id, slice_sizes, &results);
+
+        results.results().into_owned()
+    }
+
+    /// Determine how the slice sizes map needs to be updated according to the provided instruction.
+    fn collect_slice_information(
+        &mut self,
+        instruction_id: InstructionId,
+        slice_sizes: &mut HashMap<ValueId, (usize, Vec<ValueId>)>,
+        results: &[ValueId],
+    ) {
+        let (instruction, _) = &self.inserter.map_instruction(instruction_id);
+        let old_results = self.inserter.function.dfg.instruction_results(instruction_id);
+        // dbg!(old_results.clone());
+        // dbg!(&self.inserter.function.dfg.resolve(results[0]));
+        // let resolved_results = results.into_iter().map(|res| &self.inserter.resolve(*res)).collect::<Vec<_>>();
+        match &instruction {
+            Instruction::ArrayGet { array, .. } => {
+                let array_typ = self.inserter.function.dfg.type_of_value(*array);
+                let array_value = &self.inserter.function.dfg[*array];
+                // If we have an SSA value containing nested slices we should mark it
+                // as a slice that potentially requires to be filled with dummy data.
+                if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
+                {
+                    // Initial insertion into the slice sizes map
+                    // Any other insertions should only occur if the value is already
+                    // a part of the map.
+                    self.compute_slice_sizes(*array, slice_sizes);
+                }
+
+                let res_typ = self.inserter.function.dfg.type_of_value(results[0]);
+                if res_typ.contains_slice_element() {
+                    // dbg!(array);
+                    if let Some(inner_sizes) = slice_sizes.get_mut(array) {
+                        // dbg!(array);
+                        // if array.to_usize() == 851 {
+                        //     dbg!("got 851");
+                        // }
+                        // Include the result in the parent array potential children
+                        // If the result has internal slices and is called in an array set
+                        // we could potentially have a new larger slice which we need to account for
+                        inner_sizes.1.push(results[0]);
+
+                        let inner_sizes_iter = inner_sizes.1.clone();
+                        for slice_value in inner_sizes_iter {
+                            let inner_slice = slice_sizes.get(&slice_value).unwrap_or_else(|| {
+                                panic!("ICE: should have inner slice set for {slice_value}")
+                            });
+                            slice_sizes.insert(results[0], inner_slice.clone());
+                        }
+                    }
+                }
+            }
+            Instruction::ArraySet { array, value, .. } => {
+                let array_typ = self.inserter.function.dfg.type_of_value(*array);
+                let array_value = &self.inserter.function.dfg[*array];
+                // If we have an SSA value containing nested slices we should mark it
+                // as a slice that potentially requires to be filled with dummy data.
+                if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
+                {
+                    // Initial insertion into the slice sizes map
+                    // Any other insertions should only occur if the value is already
+                    // a part of the map.
+                    self.compute_slice_sizes(*array, slice_sizes);
+                }
+
+                let value_typ = self.inserter.function.dfg.type_of_value(*value);
+                if value_typ.contains_slice_element() {
+                    self.compute_slice_sizes(*value, slice_sizes);
+                    let result = &self.inserter.function.dfg.resolve(results[0]);
+                    dbg!(result.clone());
+                    let inner_sizes = slice_sizes.get_mut(array).unwrap_or_else(|| {
+                        panic!("ICE: Expected slice sizes for ArraySet array {array} value {value} with results {results:?}")
+                    });
+                    inner_sizes.1.push(*value);
+                }
+
+                if let Some(inner_sizes) = slice_sizes.get_mut(array) {
+                    let inner_sizes = inner_sizes.clone();
+                    // if results[0].to_usize() == 866 {
+                    //     dbg!("GOT 866");
+                    // }
+                    // if results[0].to_usize() == 868 {
+                    //     dbg!("GOT 868");
+                    // }
+                    // dbg!(results[0]);
+                    slice_sizes.insert(results[0], inner_sizes);
+                }
+            }
+            Instruction::Call { func, arguments } => {
+                let func = &self.inserter.function.dfg[*func];
+                if let Value::Intrinsic(intrinsic) = func {
+                    let (argument_index, result_index) = match intrinsic {
+                        Intrinsic::SlicePushBack
+                        | Intrinsic::SlicePushFront
+                        | Intrinsic::SlicePopBack
+                        | Intrinsic::SliceInsert
+                        | Intrinsic::SliceRemove => (1, 1),
+                        // `pop_front` returns the the popped element the slice and then the respective slice
+                        // This means in the case of a slice with structs the result index of the popped slice
+                        // will change depending on the number of elements in the struct.
+                        // For example, a slice with four elements will look as such in SSA:
+                        // v3, v4, v5, v6, v7, v8 = call slice_pop_front(v1, v2)
+                        // where v7 is the slice length and v8 is the popped slice itself.
+                        Intrinsic::SlicePopFront => (1, results.len() - 1),
+                        _ => return,
+                    };
+                    let slice_contents = arguments[argument_index];
+                    match intrinsic {
+                        Intrinsic::SlicePushBack
+                        | Intrinsic::SlicePushFront
+                        | Intrinsic::SliceInsert => {
+                            for arg in &arguments[(argument_index + 1)..] {
+                                let element_typ = self.inserter.function.dfg.type_of_value(*arg);
+                                if element_typ.contains_slice_element() {
+                                    self.compute_slice_sizes(*arg, slice_sizes);
+                                }
+                            }
+                            if let Some(inner_sizes) = slice_sizes.get_mut(&slice_contents) {
+                                inner_sizes.0 += 1;
+
+                                let inner_sizes = inner_sizes.clone();
+                                slice_sizes.insert(results[result_index], inner_sizes);
+                            }
+                        }
+                        Intrinsic::SlicePopBack
+                        | Intrinsic::SliceRemove
+                        | Intrinsic::SlicePopFront => {
+                            // We do not decrement the size on intrinsics that could remove values from a slice.
+                            // This is because we could potentially go back to the smaller slice and not fill in dummies.
+                            // This pass should be tracking the potential max that a slice ***could be***
+                            if let Some(inner_sizes) = slice_sizes.get(&slice_contents) {
+                                let inner_sizes = inner_sizes.clone();
+                                slice_sizes.insert(results[result_index], inner_sizes);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Instruction::Store { address, value } => {
+                let value_typ = self.inserter.function.dfg.type_of_value(*value);
+                if value_typ.contains_slice_element() {
+                    dbg!(value);
+                    dbg!(address);
+                    self.compute_slice_sizes(*value, slice_sizes);
+
+                    if let Some(inner_sizes) = slice_sizes.get(value) {
+                        let inner_sizes = inner_sizes.clone();
+                        slice_sizes.insert(*address, inner_sizes);
+                    }
+                }
+            }
+            Instruction::Load { address } => {
+                // dbg!(address);
+                let load_typ = self.inserter.function.dfg.type_of_value(*address);
+                // if address.to_usize() == 661 {
+                //     dbg!(load_typ.clone());
+                // }
+                if load_typ.contains_slice_element() {
+                    // dbg!("got here");
+                    if let Some(inner_sizes) = slice_sizes.get(address) {
+                        let inner_sizes = inner_sizes.clone();
+                        slice_sizes.insert(results[0], inner_sizes);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // This methods computes a map representing a nested slice.
+    // The method also automatically computes the given max slice size
+    // at each depth of the recursive type.
+    // For example if we had a next slice
+    fn compute_slice_sizes(
+        &self,
+        array_id: ValueId,
+        slice_sizes: &mut HashMap<ValueId, (usize, Vec<ValueId>)>,
+    ) {
+        if let Value::Array { array, typ } = &self.inserter.function.dfg[array_id].clone() {
+            if let Type::Slice(_) = typ {
+                let element_size = typ.element_size();
+                let len = array.len() / element_size;
+                let mut slice_value = (len, vec![]);
+                for value in array {
+                    let typ = self.inserter.function.dfg.type_of_value(*value);
+                    if let Type::Slice(_) = typ {
+                        slice_value.1.push(*value);
+                        self.compute_slice_sizes(*value, slice_sizes);
+                    }
+                }
+                // Mark the correct max size based upon an array values internal structure
+                let mut max_size = 0;
+                for inner_value in slice_value.1.iter() {
+                    let inner_slice =
+                        slice_sizes.get(inner_value).expect("ICE: should have inner slice set");
+                    if inner_slice.0 > max_size {
+                        max_size = inner_slice.0;
+                    }
+                }
+                for inner_value in slice_value.1.iter() {
+                    let inner_slice =
+                        slice_sizes.get_mut(inner_value).expect("ICE: should have inner slice set");
+                    if inner_slice.0 < max_size {
+                        inner_slice.0 = max_size;
+                    }
+                }
+                slice_sizes.insert(array_id, slice_value);
+            }
         }
     }
 

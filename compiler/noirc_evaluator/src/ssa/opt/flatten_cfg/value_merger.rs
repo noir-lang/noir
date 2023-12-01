@@ -19,6 +19,7 @@ pub(crate) struct ValueMerger<'a> {
     slice_sizes: HashMap<ValueId, usize>,
     // Maps SSA array values to each nested slice size and the array id of its parent array
     inner_slice_sizes: HashMap<ValueId, Vec<(usize, Option<ValueId>)>>,
+    new_slice_sizes: Option<&'a HashMap<ValueId, (usize, Vec<ValueId>)>>,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -27,6 +28,7 @@ impl<'a> ValueMerger<'a> {
         block: BasicBlockId,
         store_values: Option<&'a HashMap<ValueId, Store>>,
         outer_block_stores: Option<&'a HashMap<ValueId, ValueId>>,
+        new_slice_sizes: Option<&'a HashMap<ValueId, (usize, Vec<ValueId>)>>,
     ) -> Self {
         ValueMerger {
             dfg,
@@ -35,6 +37,7 @@ impl<'a> ValueMerger<'a> {
             outer_block_stores,
             slice_sizes: HashMap::default(),
             inner_slice_sizes: HashMap::default(),
+            new_slice_sizes,
         }
     }
 
@@ -186,16 +189,37 @@ impl<'a> ValueMerger<'a> {
             Type::Slice(elements) => elements,
             _ => panic!("Expected slice type"),
         };
+        dbg!(then_value_id);
+        let new_slice_sizes = self.new_slice_sizes.expect("ICE: should have slice sizes");
+        // dbg!(new_slice_sizes.get(&then_value_id));
+        let then_len = if let Some(val) =  new_slice_sizes.get(&else_value_id) {
+            dbg!(val.0);
+            val.0
+        } else {
+            dbg!("got none");
+            let then_len = self.get_slice_length(then_value_id);
+            then_len
+        };
+        dbg!(else_value_id);
+        // dbg!(new_slice_sizes.get(&else_value_id));
+        let else_len = if let Some(val) =  new_slice_sizes.get(&else_value_id) {
+            dbg!(val.0);
+            val.0
+        } else {
+            dbg!("got none");
+            let else_len = self.get_slice_length(else_value_id);
+            else_len
+        };
 
-        let then_len = self.get_slice_length(then_value_id);
-        self.slice_sizes.insert(then_value_id, then_len);
+        // let then_len = self.get_slice_length(then_value_id);
+        // self.slice_sizes.insert(then_value_id, then_len);
 
-        let else_len = self.get_slice_length(else_value_id);
-        self.slice_sizes.insert(else_value_id, else_len);
+        // let else_len = self.get_slice_length(else_value_id);
+        // self.slice_sizes.insert(else_value_id, else_len);
 
         let len = then_len.max(else_len);
-        // dbg!(then_len);
-        // dbg!(else_len);
+        dbg!(then_len);
+        dbg!(else_len);
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
                 let index_usize = i * element_types.len() + element_index;
@@ -222,8 +246,10 @@ impl<'a> ValueMerger<'a> {
                     }
                 };
 
-                let then_element = get_element(then_value_id, typevars.clone(), then_len * element_types.len());
-                let else_element = get_element(else_value_id, typevars, else_len * element_types.len());
+                let then_element =
+                    get_element(then_value_id, typevars.clone(), then_len * element_types.len());
+                let else_element =
+                    get_element(else_value_id, typevars, else_len * element_types.len());
 
                 merged.push_back(self.merge_values(
                     then_condition,
@@ -233,6 +259,8 @@ impl<'a> ValueMerger<'a> {
                 ));
             }
         }
+
+        // dbg!(self.inner_slice_sizes.clone());
 
         self.dfg.make_array(merged, typ)
     }
@@ -263,7 +291,12 @@ impl<'a> ValueMerger<'a> {
                         // dbg!(self.slice_sizes.clone());
                         // dbg!(self.inner_slice_sizes.clone());
                         // dbg!(self.inner_slice_sizes.get(&array));
-                        let mut inner_sizes = self.inner_slice_sizes.get(&array).expect("ICE: should have slice sizes").clone();
+                        dbg!(array);
+                        let mut inner_sizes = self
+                            .inner_slice_sizes
+                            .get(&array)
+                            .expect("ICE: should have slice sizes")
+                            .clone();
                         inner_sizes.drain(0..1);
 
                         let current_slice_size = inner_sizes[0];
@@ -300,7 +333,13 @@ impl<'a> ValueMerger<'a> {
                         let array_typ = self.dfg.type_of_value(array);
                         let results = self.dfg.instruction_results(instruction_id);
                         if array_typ.contains_slice_element() {
-                            let slice_sizes = self.inner_slice_sizes.get(&array).expect("ICE: expeted slice sizes").clone();
+                            dbg!(array);
+
+                            let slice_sizes = self
+                                .inner_slice_sizes
+                                .get(&array)
+                                .expect("ICE: expeted slice sizes")
+                                .clone();
                             self.inner_slice_sizes.insert(results[0], slice_sizes);
                         }
 
@@ -381,8 +420,12 @@ impl<'a> ValueMerger<'a> {
                         let true_len = array.len() / element_size;
                         // dbg!(true_len);
                         if let Some(parent_array) = parent_array {
-                            let sizes_list = self.inner_slice_sizes.get_mut(&parent_array).expect("ICE: expected size list");
-                            let inner_parent_array = inner_parent_array.expect("ICE: expected inner_parent_array");
+                            let sizes_list = self
+                                .inner_slice_sizes
+                                .get_mut(&parent_array)
+                                .expect("ICE: expected size list");
+                            let inner_parent_array =
+                                inner_parent_array.expect("ICE: expected inner_parent_array");
                             sizes_list.push((true_len, Some(inner_parent_array)));
                             // self.new_slice_sizes.entry(parent_array).or_default().push(true_len)
                         } else {
@@ -394,12 +437,20 @@ impl<'a> ValueMerger<'a> {
                             match typ {
                                 Type::Slice(_) => {
                                     if parent_array.is_some() {
-                                        self.compute_inner_slice_sizes(*value, parent_array, Some(current_array_id));
+                                        self.compute_inner_slice_sizes(
+                                            *value,
+                                            parent_array,
+                                            Some(current_array_id),
+                                        );
                                     } else {
-                                        self.compute_inner_slice_sizes(*value, Some(current_array_id), Some(current_array_id));
+                                        self.compute_inner_slice_sizes(
+                                            *value,
+                                            Some(current_array_id),
+                                            Some(current_array_id),
+                                        );
                                     }
                                 }
-                                _ => ()
+                                _ => (),
                             }
                         }
                     }

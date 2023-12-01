@@ -1,4 +1,5 @@
 use std::{collections::VecDeque, rc::Rc};
+use fxhash::FxHashMap as HashMap;
 
 use acvm::{acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
 use iter_extended::vecmap;
@@ -305,7 +306,8 @@ fn simplify_slice_push_back(
         .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)
         .first();
 
-    let mut value_merger = ValueMerger::new(dfg, block, None, None);
+    let slice_sizes = HashMap::default();
+    let mut value_merger = ValueMerger::new(dfg, block, None, None, Some(&slice_sizes));
     let new_slice = value_merger.merge_values(
         len_not_equals_capacity,
         len_equals_capacity,
