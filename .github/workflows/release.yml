@@ -54,7 +54,7 @@ jobs:
   update-docs:
     name: Update docs
     needs: [release-please, update-lockfile]
-    if: ${{ needs.release-please.outputs.release-pr }}
+    if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout release branch
