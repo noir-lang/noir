@@ -1,7 +1,8 @@
 /* eslint-disable no-undef */
 /* eslint-disable @typescript-eslint/no-var-requires */
 const chai = require('chai');
-const assert_lt_json = require('./assert_lt.json');
+const assert_lt_json = require('../noir_compiled_examples/assert_lt/target/assert_lt.json');
+
 const { Noir } = require('@noir-lang/noir_js');
 
 it('generates witnesses successfully', async () => {

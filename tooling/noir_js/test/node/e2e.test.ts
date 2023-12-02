@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import assert_lt_json from './assert_lt.json' assert { type: 'json' };
+import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
 import { Noir } from '@noir-lang/noir_js';
 import { BarretenbergBackend as Backend } from '@noir-lang/backend_barretenberg';
 import { CompiledCircuit } from '@noir-lang/types';
