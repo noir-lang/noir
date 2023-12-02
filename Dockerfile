@@ -45,13 +45,15 @@ RUN yarn workspace @noir-lang/acvm_js test:browser
 RUN yarn workspace @noir-lang/noirc_abi test
 RUN yarn workspace @noir-lang/noirc_abi test:browser
 RUN yarn workspace @noir-lang/backend_barretenberg test
-RUN yarn workspace @noir-lang/noir_js test
-RUN yarn workspace @noir-lang/source-resolver test
-RUN ./scripts/test.sh
-RUN yarn workspace @noir-lang/noir_wasm test:node
-RUN yarn workspace @noir-lang/noir_wasm test:browser
-RUN ./scripts/test2.sh
-RUN rm -rf /usr/src/noir/tooling/noir_codegen/test/assert_lt/target/debug_assert_lt.json
-RUN yarn workspace @noir-lang/noir_codegen test
-RUN apt-get install -y libc++-dev
-RUN yarn test:integration
+RUN ./scripts/test3.sh
+RUN rm -rf /usr/src/noir/tooling/noir_js/test/noir_compiled_examples/assert_lt/target/debug_assert_lt.json
+# RUN yarn workspace @noir-lang/noir_js test
+# RUN yarn workspace @noir-lang/source-resolver test
+# RUN ./scripts/test.sh
+# RUN yarn workspace @noir-lang/noir_wasm test:node
+# RUN yarn workspace @noir-lang/noir_wasm test:browser
+# RUN ./scripts/test2.sh
+# RUN rm -rf /usr/src/noir/tooling/noir_codegen/test/assert_lt/target/debug_assert_lt.json
+# RUN yarn workspace @noir-lang/noir_codegen test
+# RUN apt-get install -y libc++-dev
+# RUN yarn test:integration
