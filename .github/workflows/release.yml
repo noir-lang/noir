@@ -49,7 +49,6 @@ jobs:
           git add Cargo.lock
           git commit -m 'chore: Update lockfile'
           git push
-
   
   update-docs:
     name: Update docs
