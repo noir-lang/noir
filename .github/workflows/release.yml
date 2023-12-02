@@ -52,7 +52,7 @@ jobs:
   
   update-lockfile:
     name: Update lockfile
-    needs: [release-please]
+    needs: [release-please,update-acvm-workspace-package-versions]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-latest
     steps:
