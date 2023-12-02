@@ -85,6 +85,16 @@ impl Span {
     pub fn end(&self) -> u32 {
         self.0.end().into()
     }
+
+    pub fn contains(&self, other: &Span) -> bool {
+        self.start() <= other.start() && self.end() >= other.end()
+    }
+
+    pub fn is_smaller(&self, other: &Span) -> bool {
+        let self_distance = self.end() - self.start();
+        let other_distance = other.end() - other.start();
+        self_distance < other_distance
+    }
 }
 
 impl From<Span> for Range<usize> {
@@ -132,5 +142,9 @@ impl Location {
 
     pub fn dummy() -> Self {
         Self { span: Span::single_char(0), file: FileId::dummy() }
+    }
+
+    pub fn contains(&self, other: &Location) -> bool {
+        self.file == other.file && self.span.contains(&other.span)
     }
 }

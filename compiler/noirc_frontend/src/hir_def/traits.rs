@@ -60,7 +60,7 @@ pub struct Trait {
     pub self_type_typevar_id: TypeVariableId,
     pub self_type_typevar: TypeVariable,
 }
-
+#[derive(Debug)]
 pub struct TraitImpl {
     pub ident: Ident,
     pub typ: Type,

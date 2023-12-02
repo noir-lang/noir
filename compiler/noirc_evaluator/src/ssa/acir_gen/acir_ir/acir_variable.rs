@@ -877,7 +877,8 @@ impl AcirContext {
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
     /// `GeneratedAcir`'s return witnesses.
     pub(crate) fn return_var(&mut self, acir_var: AcirVar) -> Result<(), InternalError> {
-        let witness = self.var_to_witness(acir_var)?;
+        let return_var = self.get_or_create_witness_var(acir_var)?;
+        let witness = self.var_to_witness(return_var)?;
         self.acir_ir.push_return_witness(witness);
         Ok(())
     }
@@ -1425,7 +1426,8 @@ impl AcirContext {
         index: &AcirVar,
     ) -> Result<AcirVar, InternalError> {
         // Fetch the witness corresponding to the index
-        let index_witness = self.var_to_witness(*index)?;
+        let index_var = self.get_or_create_witness_var(*index)?;
+        let index_witness = self.var_to_witness(index_var)?;
 
         // Create a Variable to hold the result of the read and extract the corresponding Witness
         let value_read_var = self.add_variable();
@@ -1446,11 +1448,12 @@ impl AcirContext {
         value: &AcirVar,
     ) -> Result<(), InternalError> {
         // Fetch the witness corresponding to the index
-        //
-        let index_witness = self.var_to_witness(*index)?;
+        let index_var = self.get_or_create_witness_var(*index)?;
+        let index_witness = self.var_to_witness(index_var)?;
 
         // Fetch the witness corresponding to the value to be written
-        let value_write_witness = self.var_to_witness(*value)?;
+        let value_write_var = self.get_or_create_witness_var(*value)?;
+        let value_write_witness = self.var_to_witness(value_write_var)?;
 
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
@@ -1492,6 +1495,7 @@ impl AcirContext {
     ) -> Result<(), InternalError> {
         match input {
             AcirValue::Var(var, _) => {
+                let var = self.get_or_create_witness_var(var)?;
                 witnesses.push(self.var_to_witness(var)?);
             }
             AcirValue::Array(values) => {

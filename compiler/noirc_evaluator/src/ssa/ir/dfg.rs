@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::ssa::ir::instruction::SimplifyResult;
+use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyResult};
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -80,6 +80,8 @@ pub(crate) struct DataFlowGraph {
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.
     locations: HashMap<InstructionId, CallStack>,
+
+    pub(crate) data_bus: DataBus,
 }
 
 pub(crate) type CallStack = im::Vector<Location>;
