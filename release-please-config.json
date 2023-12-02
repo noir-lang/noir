@@ -71,7 +71,6 @@
         "brillig/Cargo.toml",
         "brillig_vm/Cargo.toml",
         "stdlib/Cargo.toml",
-        "flake.nix",
         {
           "type": "json",
           "path": "acvm_js/package.json",
