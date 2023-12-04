@@ -572,6 +572,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/noir-compiler@workspace:noir-compiler"
   dependencies:
+    "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@jest/globals": ^29.5.0
     "@ltd/j-toml": ^1.38.0

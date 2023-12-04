@@ -45,6 +45,7 @@
     }
   },
   "dependencies": {
+    "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@ltd/j-toml": "^1.38.0",
     "@noir-lang/noir_wasm": "portal:../../noir/packages/noir_wasm",

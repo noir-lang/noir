@@ -1,3 +1,4 @@
+import { FUNCTION_TREE_HEIGHT } from '@aztec/circuits.js';
 import { ContractArtifact, DebugMetadata, FunctionArtifact, FunctionType } from '@aztec/foundation/abi';
 
 import { deflate } from 'pako';
@@ -88,6 +89,9 @@ export function generateContractArtifact(
   { contract, debug }: NoirContractCompilationArtifacts,
   aztecNrVersion?: string,
 ): ContractArtifact {
+  if (contract.functions.length > 2 ** FUNCTION_TREE_HEIGHT) {
+    throw new Error(`Contract can only have a maximum of ${2 ** FUNCTION_TREE_HEIGHT} functions`);
+  }
   const originalFunctions = contract.functions;
   // TODO why sort? we should have idempotent compilation so this should not be needed.
   const sortedFunctions = [...contract.functions].sort((fnA, fnB) => fnA.name.localeCompare(fnB.name));
