@@ -61,6 +61,9 @@ pub struct CompileOptions {
     /// Suppress warnings
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
+
+    #[arg(long)]
+    pub only_acir: bool,
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics

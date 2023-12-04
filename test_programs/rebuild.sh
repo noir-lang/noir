@@ -27,20 +27,7 @@ for dir in $base_path/*; do
       if [ -d ./target/ ]; then
         rm -r ./target/
       fi
-      nargo compile && nargo execute witness
-
-      # Rename witness.tr to witness.gz
-      if [ -f ./target/witness.tr ]; then
-        mv ./target/witness.tr ./target/witness.gz
-      fi
-
-      # Extract bytecode field from JSON, base64 decode it, and save it to the target directory
-      if [ -f ./target/${dir_name}.json ]; then
-          jq -r '.bytecode' ./target/${dir_name}.json | base64 -d > ./target/acir.gz
-      fi
-
-      # Delete the JSON file after extracting bytecode field
-      rm ./target/${dir_name}.json
+      cargo run compile --only-acir && cargo run execute witness
 
       # Clear the target directory in acir_artifacts
       if [ -d "$current_dir/acir_artifacts/$dir_name/target" ]; then
