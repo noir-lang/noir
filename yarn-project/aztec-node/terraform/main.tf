@@ -141,6 +141,10 @@ resource "aws_ecs_task_definition" "aztec-node" {
         "value": "${var.DEPLOY_TAG}"
       },
       {
+        "name": "DEPLOY_AZTEC_CONTRACTS",
+        "value": "false"
+      },
+      {
         "name": "AZTEC_NODE_PORT",
         "value": "80"
       },
@@ -150,7 +154,7 @@ resource "aws_ecs_task_definition" "aztec-node" {
       },
       {
         "name": "ETHEREUM_HOST",
-        "value": "testnet"
+        "value": "https://${var.DEPLOY_TAG}-mainnet-fork.aztec.network:8545/${var.API_KEY}"
       },
       {
         "name": "ARCHIVER_POLLING_INTERVAL",

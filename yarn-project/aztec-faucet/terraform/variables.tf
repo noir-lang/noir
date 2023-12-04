@@ -17,7 +17,8 @@ variable "API_PREFIX" {
 }
 
 variable "CHAIN_ID" {
-  type = string
+  type    = string
+  default = 31337
 }
 
 variable "FAUCET_PRIVATE_KEY" {
