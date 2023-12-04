@@ -42,9 +42,6 @@ template <UltraFlavor Flavor> class UltraProver_ {
 
     std::shared_ptr<Transcript> transcript;
 
-    std::vector<FF> public_inputs;
-    size_t pub_inputs_offset;
-
     proof_system::RelationParameters<FF> relation_parameters;
 
     CommitmentLabels commitment_labels;

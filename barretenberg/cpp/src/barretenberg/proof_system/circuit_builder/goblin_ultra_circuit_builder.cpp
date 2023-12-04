@@ -47,7 +47,7 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     this->w_l.emplace_back(public_calldata[read_idx]);        // populate with value of calldata at read index
     this->w_r.emplace_back(this->add_variable(FF(read_idx))); // populate with read index as witness
     calldata_read_counts[read_idx]++;                         // increment read count at read index
-    q_busread.emplace_back(1);                                // read selector on
+    q_busread().emplace_back(1);                              // read selector on
 
     // populate all other components with zero
     this->w_o.emplace_back(this->zero_idx);
@@ -84,7 +84,7 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     this->q_lookup_type.emplace_back(0);
     this->q_elliptic.emplace_back(0);
     this->q_aux.emplace_back(0);
-    this->q_busread.emplace_back(0);
+    this->q_busread().emplace_back(0);
     this->q_poseidon2_external.emplace_back(1);
     this->q_poseidon2_internal.emplace_back(1);
 
@@ -106,7 +106,7 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     this->q_lookup_type.emplace_back(0);
     this->q_elliptic.emplace_back(0);
     this->q_aux.emplace_back(0);
-    this->q_busread.emplace_back(0);
+    this->q_busread().emplace_back(0);
     this->q_poseidon2_external.emplace_back(0);
     this->q_poseidon2_internal.emplace_back(0);
 
@@ -264,7 +264,7 @@ void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_external_gate(const poseid
     this->q_lookup_type.emplace_back(0);
     this->q_elliptic.emplace_back(0);
     this->q_aux.emplace_back(0);
-    this->q_busread.emplace_back(0);
+    this->q_busread().emplace_back(0);
     this->q_poseidon2_external.emplace_back(1);
     this->q_poseidon2_internal.emplace_back(0);
     ++this->num_gates;
@@ -288,7 +288,7 @@ void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_internal_gate(const poseid
     this->q_lookup_type.emplace_back(0);
     this->q_elliptic.emplace_back(0);
     this->q_aux.emplace_back(0);
-    this->q_busread.emplace_back(0);
+    this->q_busread().emplace_back(0);
     this->q_poseidon2_external.emplace_back(0);
     this->q_poseidon2_internal.emplace_back(1);
     ++this->num_gates;

@@ -14,11 +14,12 @@ template <typename Flavor> class UltraRecursiveVerifier_ {
     using Commitment = typename Flavor::Commitment;
     using GroupElement = typename Flavor::GroupElement;
     using VerificationKey = typename Flavor::VerificationKey;
+    using NativeVerificationKey = typename Flavor::NativeVerificationKey;
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
     using Builder = typename Flavor::CircuitBuilder;
     using PairingPoints = std::array<GroupElement, 2>;
 
-    explicit UltraRecursiveVerifier_(Builder* builder, std::shared_ptr<VerificationKey> verifier_key = nullptr);
+    explicit UltraRecursiveVerifier_(Builder* builder, std::shared_ptr<NativeVerificationKey> native_verifier_key);
     UltraRecursiveVerifier_(UltraRecursiveVerifier_&& other) = delete;
     UltraRecursiveVerifier_(const UltraRecursiveVerifier_& other) = delete;
     UltraRecursiveVerifier_& operator=(const UltraRecursiveVerifier_& other) = delete;

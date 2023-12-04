@@ -9,8 +9,8 @@ namespace proof_system::plonk::stdlib::recursion::honk {
 
 template <typename Flavor>
 UltraRecursiveVerifier_<Flavor>::UltraRecursiveVerifier_(Builder* builder,
-                                                         std::shared_ptr<VerificationKey> verifier_key)
-    : key(verifier_key)
+                                                         std::shared_ptr<NativeVerificationKey> native_verifier_key)
+    : key(std::make_shared<VerificationKey>(builder, native_verifier_key))
     , builder(builder)
 {}
 

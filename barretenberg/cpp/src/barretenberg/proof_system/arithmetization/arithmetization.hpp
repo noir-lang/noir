@@ -137,7 +137,7 @@ template <typename FF_> class UltraHonk {
     SelectorType& q_elliptic() { return selectors[8]; };
     SelectorType& q_aux() { return selectors[9]; };
     SelectorType& q_lookup_type() { return selectors[10]; };
-    SelectorType& q_busread() { return this->selectors[11]; };
+    SelectorType& q_busread() { return selectors[11]; };
     SelectorType& q_poseidon2_external() { return this->selectors[12]; };
     SelectorType& q_poseidon2_internal() { return this->selectors[13]; };
 

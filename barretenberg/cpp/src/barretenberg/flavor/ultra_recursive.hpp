@@ -54,6 +54,7 @@ template <typename BuilderType> class UltraRecursive_ {
     using Commitment = typename Curve::Element;
     using CommitmentHandle = typename Curve::Element;
     using FF = typename Curve::ScalarField;
+    using NativeVerificationKey = flavor::Ultra::VerificationKey;
 
     // Note(luke): Eventually this may not be needed at all
     using VerifierCommitmentKey = pcs::VerifierCommitmentKey<Curve>;
@@ -250,7 +251,7 @@ template <typename BuilderType> class UltraRecursive_ {
          * @param builder
          * @param native_key Native verification key from which to extract the precomputed commitments
          */
-        VerificationKey(CircuitBuilder* builder, auto native_key)
+        VerificationKey(CircuitBuilder* builder, std::shared_ptr<NativeVerificationKey> native_key)
             : VerificationKey_<PrecomputedEntities<Commitment>>(native_key->circuit_size, native_key->num_public_inputs)
         {
             this->q_m = Commitment::from_witness(builder, native_key->q_m);
