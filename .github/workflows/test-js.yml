@@ -1,9 +1,10 @@
-name: Test JS
+name: Test JS packages
 
 on:
   push:
     branches:
       - 'feat-test-release'
+      - 'master'
 
 jobs:
   build:
@@ -45,28 +46,3 @@ jobs:
           target: test-js
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      # - name: Build image and push to GitHub Container Registry
-      #   uses: docker/build-push-action@v5
-      #   with:
-      #     context: .
-      #     file: Dockerfile
-      #     tags: ${{ steps.prep.outputs.tags }}
-      #     push: true
-      #     target: production
-      #     cache-from: type=gha
-      #     cache-to: type=gha,mode=max
-
-#Test cache
-      # - name: Create Release
-      #   id: create_release
-      #   uses: actions/create-release@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     tag_name: v${{ steps.date.outputs.date }}
-      #     release_name: Release v${{ steps.date.outputs.date }}
-      #     body_path: CHANGELOG.md
-      #     draft: false
-      #     prerelease: ${{ github.ref == 'refs/heads/stage' }}
-      # - name: Image digest
-      #   run: echo ${{ steps.docker_build.outputs.digest }}
