@@ -847,12 +847,9 @@ impl<'a> Resolver<'a> {
     }
 
     /// True if the 'pub' keyword is allowed on parameters in this function
+    /// 'pub' on function parameters is only allowed for entry point functions
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
-        if self.in_contract {
-            !func.def.is_unconstrained
-        } else {
-            func.name() == MAIN_FUNCTION
-        }
+        self.is_entry_point_function(func)
     }
 
     fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
