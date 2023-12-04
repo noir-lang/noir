@@ -121,14 +121,8 @@ impl DefaultForeignCallExecutor {
     }
 
     fn execute_print(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
-        let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
-
-        // The skip_newline parameter is the third to last, behind the format string.
-        // Since the type to print is generic, it may take up more than 1 argument
-        // so we need to count back from the end here instead of starting from the beginning.
-        let skip_newline = &foreign_call_inputs[foreign_call_inputs.len() - 3];
-        let skip_newline = skip_newline.unwrap_value().is_zero();
-
+        let skip_newline = foreign_call_inputs[0].unwrap_value().is_zero();
+        let display_values: PrintableValueDisplay = foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?.1.try_into()?;
         print!("{display_values}{}", if skip_newline { "" } else { "\n" });
         Ok(())
     }
