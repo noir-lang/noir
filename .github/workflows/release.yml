@@ -20,9 +20,39 @@ jobs:
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
           command: manifest
 
+  update-acvm-workspace-package-versions:
+    name: Update acvm workspace package versions
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.release-pr }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.65.0
+
+      - name: Update ACVM workspace root versions
+        run: |
+          ./scripts/update-acvm-workspace-versions.sh
+
+      - name: Configure git
+        run: |
+          git config user.name kevaundray
+          git config user.email kevtheappdev@gmail.com
+
+      - name: Commit updates
+        run: |
+          git add Cargo.toml
+          git commit -m 'chore: Update root workspace acvm versions'
+          git push
+  
   update-lockfile:
     name: Update lockfile
-    needs: [release-please]
+    needs: [release-please,update-acvm-workspace-package-versions]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-latest
     steps:
@@ -49,12 +79,11 @@ jobs:
           git add Cargo.lock
           git commit -m 'chore: Update lockfile'
           git push
-
   
   update-docs:
     name: Update docs
     needs: [release-please, update-lockfile]
-    if: ${{ needs.release-please.outputs.release-pr }}
+    if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout release branch
