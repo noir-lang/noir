@@ -32,7 +32,7 @@ export REGISTRY_CONTRACT_ADDRESS=$(deploy_contract ./src/core/messagebridge/Regi
 export INBOX_CONTRACT_ADDRESS=$(deploy_contract ./src/core/messagebridge/Inbox.sol:Inbox "$REGISTRY_CONTRACT_ADDRESS" | extract_deployed_to)
 export OUTBOX_CONTRACT_ADDRESS=$(deploy_contract ./src/core/messagebridge/Outbox.sol:Outbox "$REGISTRY_CONTRACT_ADDRESS" | extract_deployed_to)
 export ROLLUP_CONTRACT_ADDRESS=$(deploy_contract ./src/core/Rollup.sol:Rollup "$REGISTRY_CONTRACT_ADDRESS" | extract_deployed_to)
-export CONTRACT_DEPLOYMENT_EMITTER_ADDRESS=$(deploy_contract ./src/core/periphery/ContractDeploymentEmitter.sol:ContractDeploymentEmitter | extract_deployed_to)
+export CONTRACT_DEPLOYMENT_EMITTER_ADDRESS=$(deploy_contract ./src/periphery/ContractDeploymentEmitter.sol:ContractDeploymentEmitter | extract_deployed_to)
 
 # Store contract addresses in a JSON file
 jq -n \

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export ETHEREUM_HOST=$DEPLOY_TAG-mainnet-fork.aztec.network:8545/$FORK_API_KEY
+export ETHEREUM_HOST=https://$DEPLOY_TAG-mainnet-fork.aztec.network:8545/$FORK_API_KEY
 
 REPOSITORY="l1-contracts"
 
@@ -20,7 +20,7 @@ ecr_login
 mkdir -p serve
 # Contract addresses will be mounted in the serve directory
 docker run \
-  -v $(pwd)/serve:/usr/src/contracts/serve \
+  -v $(pwd)/serve:/usr/src/l1-contracts/serve \
   -e ETHEREUM_HOST=$ETHEREUM_HOST -e PRIVATE_KEY=$CONTRACT_PUBLISHER_PRIVATE_KEY \
   "$ECR_URL/l1-contracts:cache-$CONTENT_HASH"-x86_64 \
   ./scripts/deploy_contracts.sh
