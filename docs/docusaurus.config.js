@@ -158,6 +158,9 @@ const config = {
               react: path.resolve('../node_modules/react'),
             },
           },
+          optimization: {
+            innerGraph: false,
+          },
         };
       },
     }),
