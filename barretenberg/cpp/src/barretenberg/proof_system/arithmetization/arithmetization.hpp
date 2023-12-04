@@ -118,7 +118,7 @@ template <typename FF_> class Ultra {
 template <typename FF_> class UltraHonk {
   public:
     static constexpr size_t NUM_WIRES = 4;
-    static constexpr size_t NUM_SELECTORS = 12;
+    static constexpr size_t NUM_SELECTORS = 14;
     using FF = FF_;
     using SelectorType = std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>;
 
@@ -138,6 +138,8 @@ template <typename FF_> class UltraHonk {
     SelectorType& q_aux() { return selectors[9]; };
     SelectorType& q_lookup_type() { return selectors[10]; };
     SelectorType& q_busread() { return this->selectors[11]; };
+    SelectorType& q_poseidon2_external() { return this->selectors[12]; };
+    SelectorType& q_poseidon2_internal() { return this->selectors[13]; };
 
     const auto& get() const { return selectors; };
 
@@ -154,7 +156,12 @@ template <typename FF_> class UltraHonk {
      * Ultra arithmetization
      *
      */
-    void pad_additional() { q_busread().emplace_back(0); };
+    void pad_additional()
+    {
+        q_busread().emplace_back(0);
+        q_poseidon2_external().emplace_back(0);
+        q_poseidon2_internal().emplace_back(0);
+    };
 
     // Note: Unused. Needed only for consistency with Ultra arith (which is used by Plonk)
     inline static const std::vector<std::string> selector_names = {};

@@ -12,6 +12,8 @@
 #include "barretenberg/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/relations/lookup_relation.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
+#include "barretenberg/relations/poseidon2_external_relation.hpp"
+#include "barretenberg/relations/poseidon2_internal_relation.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/transcript/transcript.hpp"
@@ -37,10 +39,10 @@ class GoblinUltra {
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
     // need containers of this size to hold related data, so we choose a name more agnostic than `NUM_POLYNOMIALS`.
     // Note: this number does not include the individual sorted list polynomials.
-    static constexpr size_t NUM_ALL_ENTITIES = 53;
+    static constexpr size_t NUM_ALL_ENTITIES = 55;
     // The number of polynomials precomputed to describe a circuit and to aid a prover in constructing a satisfying
     // assignment of witnesses. We again choose a neutral name.
-    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 28;
+    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 30;
     // The total number of witness entities not including shifts.
     static constexpr size_t NUM_WITNESS_ENTITIES = 14;
 
@@ -57,7 +59,9 @@ class GoblinUltra {
                                   proof_system::EllipticRelation<FF>,
                                   proof_system::AuxiliaryRelation<FF>,
                                   proof_system::EccOpQueueRelation<FF>,
-                                  proof_system::DatabusLookupRelation<FF>>;
+                                  proof_system::DatabusLookupRelation<FF>,
+                                  proof_system::Poseidon2ExternalRelation<FF>,
+                                  proof_system::Poseidon2InternalRelation<FF>>;
     using Relations = Relations_<FF>;
 
     using LogDerivLookupRelation = proof_system::DatabusLookupRelation<FF>;
@@ -90,40 +94,56 @@ class GoblinUltra {
       public:
         using DataType = DataType_;
         DEFINE_FLAVOR_MEMBERS(DataType,
-                              q_m,             // column 0
-                              q_c,             // column 1
-                              q_l,             // column 2
-                              q_r,             // column 3
-                              q_o,             // column 4
-                              q_4,             // column 5
-                              q_arith,         // column 6
-                              q_sort,          // column 7
-                              q_elliptic,      // column 8
-                              q_aux,           // column 9
-                              q_lookup,        // column 10
-                              q_busread,       // column 11
-                              sigma_1,         // column 12
-                              sigma_2,         // column 13
-                              sigma_3,         // column 14
-                              sigma_4,         // column 15
-                              id_1,            // column 16
-                              id_2,            // column 17
-                              id_3,            // column 18
-                              id_4,            // column 19
-                              table_1,         // column 20
-                              table_2,         // column 21
-                              table_3,         // column 22
-                              table_4,         // column 23
-                              lagrange_first,  // column 24
-                              lagrange_last,   // column 25
-                              lagrange_ecc_op, // column 26 // indicator poly for ecc op gates
-                              databus_id)      // column 27 // id polynomial, i.e. id_i = i
+                              q_m,                  // column 0
+                              q_c,                  // column 1
+                              q_l,                  // column 2
+                              q_r,                  // column 3
+                              q_o,                  // column 4
+                              q_4,                  // column 5
+                              q_arith,              // column 6
+                              q_sort,               // column 7
+                              q_elliptic,           // column 8
+                              q_aux,                // column 9
+                              q_lookup,             // column 10
+                              q_busread,            // column 11
+                              q_poseidon2_external, // column 12
+                              q_poseidon2_internal, // column 13
+                              sigma_1,              // column 14
+                              sigma_2,              // column 15
+                              sigma_3,              // column 16
+                              sigma_4,              // column 17
+                              id_1,                 // column 18
+                              id_2,                 // column 19
+                              id_3,                 // column 20
+                              id_4,                 // column 21
+                              table_1,              // column 22
+                              table_2,              // column 23
+                              table_3,              // column 24
+                              table_4,              // column 25
+                              lagrange_first,       // column 26
+                              lagrange_last,        // column 27
+                              lagrange_ecc_op,      // column 28 // indicator poly for ecc op gates
+                              databus_id            // column 29 // id polynomial, i.e. id_i = i
+        )
 
         static constexpr CircuitType CIRCUIT_TYPE = CircuitBuilder::CIRCUIT_TYPE;
 
         RefVector<DataType> get_selectors()
         {
-            return { q_m, q_c, q_l, q_r, q_o, q_4, q_arith, q_sort, q_elliptic, q_aux, q_lookup, q_busread };
+            return { q_m,
+                     q_c,
+                     q_l,
+                     q_r,
+                     q_o,
+                     q_4,
+                     q_arith,
+                     q_sort,
+                     q_elliptic,
+                     q_aux,
+                     q_lookup,
+                     q_busread,
+                     q_poseidon2_external,
+                     q_poseidon2_internal };
         };
         RefVector<DataType> get_sigma_polynomials() { return { sigma_1, sigma_2, sigma_3, sigma_4 }; };
         RefVector<DataType> get_id_polynomials() { return { id_1, id_2, id_3, id_4 }; };
@@ -237,6 +257,8 @@ class GoblinUltra {
                      this->q_aux,
                      this->q_lookup,
                      this->q_busread,
+                     this->q_poseidon2_external,
+                     this->q_poseidon2_internal,
                      this->sigma_1,
                      this->sigma_2,
                      this->sigma_3,
@@ -402,6 +424,8 @@ class GoblinUltra {
             q_aux = "__Q_AUX";
             q_lookup = "__Q_LOOKUP";
             q_busread = "__Q_BUSREAD";
+            q_poseidon2_external = "__Q_POSEIDON2_EXTERNAL";
+            q_poseidon2_internal = "__Q_POSEIDON2_INTERNAL";
             sigma_1 = "__SIGMA_1";
             sigma_2 = "__SIGMA_2";
             sigma_3 = "__SIGMA_3";
@@ -440,6 +464,8 @@ class GoblinUltra {
             this->q_aux = verification_key->q_aux;
             this->q_lookup = verification_key->q_lookup;
             this->q_busread = verification_key->q_busread;
+            this->q_poseidon2_external = verification_key->q_poseidon2_external;
+            this->q_poseidon2_internal = verification_key->q_poseidon2_internal;
             this->sigma_1 = verification_key->sigma_1;
             this->sigma_2 = verification_key->sigma_2;
             this->sigma_3 = verification_key->sigma_3;

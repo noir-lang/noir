@@ -132,4 +132,20 @@ template <typename FF> struct ecc_dbl_gate_ {
     uint32_t x3;
     uint32_t y3;
 };
+
+template <typename FF> struct poseidon2_external_gate_ {
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    uint32_t d;
+    uint32_t round_idx;
+};
+
+template <typename FF> struct poseidon2_internal_gate_ {
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    uint32_t d;
+    uint32_t round_idx;
+};
 } // namespace proof_system

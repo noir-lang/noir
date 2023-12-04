@@ -3363,7 +3363,7 @@ template <typename Arithmetization> bool UltraCircuitBuilder_<Arithmetization>::
                                          alpha)
                  .is_zero()) {
 #ifndef FUZZING
-            info("Arithemtic identity fails at gate ", i);
+            info("Arithmetic identity fails at gate ", i);
 #endif
             result = false;
             break;

@@ -343,6 +343,8 @@ TEST_F(RelationCorrectnessTests, GoblinUltraRelationCorrectness)
     ensure_non_zero(proving_key->q_elliptic);
     ensure_non_zero(proving_key->q_aux);
     ensure_non_zero(proving_key->q_busread);
+    ensure_non_zero(proving_key->q_poseidon2_external);
+    ensure_non_zero(proving_key->q_poseidon2_internal);
 
     ensure_non_zero(proving_key->calldata);
     ensure_non_zero(proving_key->calldata_read_counts);

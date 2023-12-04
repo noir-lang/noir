@@ -708,7 +708,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
              *      circuit!
              *      this range constraint will increase the size of the 'sorted set' of range-constrained integers by 1.
              *      The 'non-sorted set' of range-constrained integers is a subset of the wire indices of all arithmetic
-             *      gates. No arithemtic gate => size imbalance between sorted and non-sorted sets. Checking for this
+             *      gates. No arithmetic gate => size imbalance between sorted and non-sorted sets. Checking for this
              *      and throwing an error would require a refactor of the Composer to catelog all 'orphan' variables not
              *      assigned to gates.
              *

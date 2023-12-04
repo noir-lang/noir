@@ -57,6 +57,8 @@ void UltraComposer_<Flavor>::compute_verification_key(const std::shared_ptr<Prov
         verification_key->lagrange_ecc_op = commitment_key->commit(proving_key->lagrange_ecc_op);
         verification_key->q_busread = commitment_key->commit(proving_key->q_busread);
         verification_key->databus_id = commitment_key->commit(proving_key->databus_id);
+        verification_key->q_poseidon2_external = commitment_key->commit(proving_key->q_poseidon2_external);
+        verification_key->q_poseidon2_internal = commitment_key->commit(proving_key->q_poseidon2_internal);
     }
 
     instance->verification_key = std::move(verification_key);

@@ -10,15 +10,7 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
-#include "barretenberg/relations/auxiliary_relation.hpp"
-#include "barretenberg/relations/ecc_op_queue_relation.hpp"
-#include "barretenberg/relations/elliptic_relation.hpp"
-#include "barretenberg/relations/gen_perm_sort_relation.hpp"
-#include "barretenberg/relations/lookup_relation.hpp"
-#include "barretenberg/relations/permutation_relation.hpp"
-#include "barretenberg/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
-#include "barretenberg/transcript/transcript.hpp"
 #include <array>
 #include <concepts>
 #include <span>
@@ -130,6 +122,8 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
             this->q_aux = Commitment::from_witness(builder, native_key->q_aux);
             this->q_lookup = Commitment::from_witness(builder, native_key->q_lookup);
             this->q_busread = Commitment::from_witness(builder, native_key->q_busread);
+            this->q_poseidon2_external = Commitment::from_witness(builder, native_key->q_poseidon2_external);
+            this->q_poseidon2_internal = Commitment::from_witness(builder, native_key->q_poseidon2_internal);
             this->sigma_1 = Commitment::from_witness(builder, native_key->sigma_1);
             this->sigma_2 = Commitment::from_witness(builder, native_key->sigma_2);
             this->sigma_3 = Commitment::from_witness(builder, native_key->sigma_3);

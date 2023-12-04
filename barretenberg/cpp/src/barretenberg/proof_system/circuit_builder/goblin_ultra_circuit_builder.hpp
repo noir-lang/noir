@@ -43,6 +43,8 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
     WireVector& ecc_op_wire_4 = std::get<3>(ecc_op_wires);
 
     SelectorVector& q_busread = this->selectors.q_busread();
+    SelectorVector& q_poseidon2_external = this->selectors.q_poseidon2_external();
+    SelectorVector& q_poseidon2_internal = this->selectors.q_poseidon2_internal();
 
     // DataBus call/return data arrays
     std::vector<uint32_t> public_calldata;
@@ -132,6 +134,39 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
         }
         public_calldata.emplace_back(witness_index);
     }
+    void create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in);
+    void create_poseidon2_internal_gate(const poseidon2_internal_gate_<FF>& in);
+
+    FF compute_poseidon2_external_identity(FF q_poseidon2_external_value,
+                                           FF q_1_value,
+                                           FF q_2_value,
+                                           FF q_3_value,
+                                           FF q_4_value,
+                                           FF w_1_value,
+                                           FF w_2_value,
+                                           FF w_3_value,
+                                           FF w_4_value,
+                                           FF w_1_shifted_value,
+                                           FF w_2_shifted_value,
+                                           FF w_3_shifted_value,
+                                           FF w_4_shifted_value,
+                                           FF alpha_base,
+                                           FF alpha) const;
+
+    FF compute_poseidon2_internal_identity(FF q_poseidon2_internal_value,
+                                           FF q_1_value,
+                                           FF w_1_value,
+                                           FF w_2_value,
+                                           FF w_3_value,
+                                           FF w_4_value,
+                                           FF w_1_shifted_value,
+                                           FF w_2_shifted_value,
+                                           FF w_3_shifted_value,
+                                           FF w_4_shifted_value,
+                                           FF alpha_base,
+                                           FF alpha) const;
+
+    bool check_circuit();
 };
 extern template class GoblinUltraCircuitBuilder_<barretenberg::fr>;
 using GoblinUltraCircuitBuilder = GoblinUltraCircuitBuilder_<barretenberg::fr>;

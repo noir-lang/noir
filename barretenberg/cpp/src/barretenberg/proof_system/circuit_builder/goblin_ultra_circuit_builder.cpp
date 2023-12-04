@@ -1,9 +1,12 @@
 #include "goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/crypto/poseidon2/poseidon2_params.hpp"
+#include "barretenberg/flavor/goblin_ultra.hpp"
 #include <barretenberg/plonk/proof_system/constants.hpp>
 #include <unordered_map>
 #include <unordered_set>
 
 using namespace barretenberg;
+using namespace crypto;
 
 namespace proof_system {
 
@@ -25,8 +28,8 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     // Most polynomials are handled via the conventional Ultra method
     UltraCircuitBuilder_<arithmetization::UltraHonk<FF>>::add_gates_to_ensure_all_polys_are_non_zero();
 
-    // All that remains is to handle databus related polynomials. In what follows we populate the calldata with some
-    // mock data then constuct a single calldata read gate
+    // All that remains is to handle databus related and poseidon2 related polynomials. In what follows we populate the
+    // calldata with some mock data then constuct a single calldata read gate
 
     // Populate the calldata with some data
     public_calldata.emplace_back(this->add_variable(FF(5)));
@@ -60,6 +63,52 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     this->q_lookup_type.emplace_back(0);
     this->q_elliptic.emplace_back(0);
     this->q_aux.emplace_back(0);
+    this->q_poseidon2_external.emplace_back(0);
+    this->q_poseidon2_internal.emplace_back(0);
+
+    ++this->num_gates;
+
+    // mock gates that use poseidon selectors, with all zeros as input
+    this->w_l.emplace_back(this->zero_idx);
+    this->w_r.emplace_back(this->zero_idx);
+    this->w_o.emplace_back(this->zero_idx);
+    this->w_4.emplace_back(this->zero_idx);
+    this->q_m.emplace_back(0);
+    this->q_1.emplace_back(0);
+    this->q_2.emplace_back(0);
+    this->q_3.emplace_back(0);
+    this->q_c.emplace_back(0);
+    this->q_arith.emplace_back(0);
+    this->q_4.emplace_back(0);
+    this->q_sort.emplace_back(0);
+    this->q_lookup_type.emplace_back(0);
+    this->q_elliptic.emplace_back(0);
+    this->q_aux.emplace_back(0);
+    this->q_busread.emplace_back(0);
+    this->q_poseidon2_external.emplace_back(1);
+    this->q_poseidon2_internal.emplace_back(1);
+
+    ++this->num_gates;
+
+    // second gate that stores the output of all zeros of the poseidon gates
+    this->w_l.emplace_back(this->zero_idx);
+    this->w_r.emplace_back(this->zero_idx);
+    this->w_o.emplace_back(this->zero_idx);
+    this->w_4.emplace_back(this->zero_idx);
+    this->q_m.emplace_back(0);
+    this->q_1.emplace_back(0);
+    this->q_2.emplace_back(0);
+    this->q_3.emplace_back(0);
+    this->q_c.emplace_back(0);
+    this->q_arith.emplace_back(0);
+    this->q_4.emplace_back(0);
+    this->q_sort.emplace_back(0);
+    this->q_lookup_type.emplace_back(0);
+    this->q_elliptic.emplace_back(0);
+    this->q_aux.emplace_back(0);
+    this->q_busread.emplace_back(0);
+    this->q_poseidon2_external.emplace_back(0);
+    this->q_poseidon2_internal.emplace_back(0);
 
     ++this->num_gates;
 }
@@ -196,6 +245,250 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::populate_ecc_op_wire
 
     num_ecc_op_gates += 2;
 };
+
+template <typename FF>
+void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in)
+{
+    this->w_l.emplace_back(in.a);
+    this->w_r.emplace_back(in.b);
+    this->w_o.emplace_back(in.c);
+    this->w_4.emplace_back(in.d);
+    this->q_m.emplace_back(0);
+    this->q_1.emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][0]);
+    this->q_2.emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][1]);
+    this->q_3.emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][2]);
+    this->q_c.emplace_back(0);
+    this->q_arith.emplace_back(0);
+    this->q_4.emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][3]);
+    this->q_sort.emplace_back(0);
+    this->q_lookup_type.emplace_back(0);
+    this->q_elliptic.emplace_back(0);
+    this->q_aux.emplace_back(0);
+    this->q_busread.emplace_back(0);
+    this->q_poseidon2_external.emplace_back(1);
+    this->q_poseidon2_internal.emplace_back(0);
+    ++this->num_gates;
+}
+
+template <typename FF>
+void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_internal_gate(const poseidon2_internal_gate_<FF>& in)
+{
+    this->w_l.emplace_back(in.a);
+    this->w_r.emplace_back(in.b);
+    this->w_o.emplace_back(in.c);
+    this->w_4.emplace_back(in.d);
+    this->q_m.emplace_back(0);
+    this->q_1.emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][0]);
+    this->q_2.emplace_back(0);
+    this->q_3.emplace_back(0);
+    this->q_c.emplace_back(0);
+    this->q_arith.emplace_back(0);
+    this->q_4.emplace_back(0);
+    this->q_sort.emplace_back(0);
+    this->q_lookup_type.emplace_back(0);
+    this->q_elliptic.emplace_back(0);
+    this->q_aux.emplace_back(0);
+    this->q_busread.emplace_back(0);
+    this->q_poseidon2_external.emplace_back(0);
+    this->q_poseidon2_internal.emplace_back(1);
+    ++this->num_gates;
+}
+
+template <typename FF>
+inline FF GoblinUltraCircuitBuilder_<FF>::compute_poseidon2_external_identity(FF q_poseidon2_external_value,
+                                                                              FF q_1_value,
+                                                                              FF q_2_value,
+                                                                              FF q_3_value,
+                                                                              FF q_4_value,
+                                                                              FF w_1_value,
+                                                                              FF w_2_value,
+                                                                              FF w_3_value,
+                                                                              FF w_4_value,
+                                                                              FF w_1_shifted_value,
+                                                                              FF w_2_shifted_value,
+                                                                              FF w_3_shifted_value,
+                                                                              FF w_4_shifted_value,
+                                                                              FF alpha_base,
+                                                                              FF alpha) const
+{
+    // Power of alpha to separate individual sub-relations
+    // TODO(kesha): This is a repeated computation which can be efficiently optimized
+    const FF alpha_a = alpha_base;
+    const FF alpha_b = alpha_a * alpha;
+    const FF alpha_c = alpha_b * alpha;
+    const FF alpha_d = alpha_c * alpha;
+
+    FF s1 = w_1_value + q_1_value;
+    FF s2 = w_2_value + q_2_value;
+    FF s3 = w_3_value + q_3_value;
+    FF s4 = w_4_value + q_4_value;
+
+    FF u1 = s1 * s1;
+    u1 *= u1;
+    u1 *= s1;
+    FF u2 = s2 * s2;
+    u2 *= u2;
+    u2 *= s2;
+    FF u3 = s3 * s3;
+    u3 *= u3;
+    u3 *= s3;
+    FF u4 = s4 * s4;
+    u4 *= u4;
+    u4 *= s4;
+
+    auto t0 = u1 + u2;
+    auto t1 = u3 + u4;
+    auto t2 = u2 + u2;
+    t2 += t1;
+    auto t3 = u4 + u4;
+    t3 += t0;
+    auto v4 = t1 + t1;
+    v4 += v4;
+    v4 += t3;
+    auto v2 = t0 + t0;
+    v2 += v2;
+    v2 += t2;
+    auto v1 = t3 + v2;
+    auto v3 = t2 + v4;
+
+    return q_poseidon2_external_value * (alpha_a * (v1 - w_1_shifted_value) + alpha_b * (v2 - w_2_shifted_value) +
+                                         alpha_c * (v3 - w_3_shifted_value) + alpha_d * (v4 - w_4_shifted_value));
+}
+
+template <typename FF>
+inline FF GoblinUltraCircuitBuilder_<FF>::compute_poseidon2_internal_identity(FF q_poseidon2_internal_value,
+                                                                              FF q_1_value,
+                                                                              FF w_1_value,
+                                                                              FF w_2_value,
+                                                                              FF w_3_value,
+                                                                              FF w_4_value,
+                                                                              FF w_1_shifted_value,
+                                                                              FF w_2_shifted_value,
+                                                                              FF w_3_shifted_value,
+                                                                              FF w_4_shifted_value,
+                                                                              FF alpha_base,
+                                                                              FF alpha) const
+{
+    // Power of alpha to separate individual sub-relations
+    // TODO(kesha): This is a repeated computation which can be efficiently optimized
+    const FF alpha_a = alpha_base;
+    const FF alpha_b = alpha_a * alpha;
+    const FF alpha_c = alpha_b * alpha;
+    const FF alpha_d = alpha_c * alpha;
+
+    auto s1 = w_1_value + q_1_value;
+
+    auto u1 = s1 * s1;
+    u1 *= u1;
+    u1 *= s1;
+
+    auto sum = u1 + w_2_value + w_3_value + w_4_value;
+    auto v1 = u1 * crypto::Poseidon2Bn254ScalarFieldParams::internal_matrix_diagonal[0];
+    v1 += sum;
+    auto v2 = w_2_value * crypto::Poseidon2Bn254ScalarFieldParams::internal_matrix_diagonal[1];
+    v2 += sum;
+    auto v3 = w_3_value * crypto::Poseidon2Bn254ScalarFieldParams::internal_matrix_diagonal[2];
+    v3 += sum;
+    auto v4 = w_4_value * crypto::Poseidon2Bn254ScalarFieldParams::internal_matrix_diagonal[3];
+    v4 += sum;
+
+    return q_poseidon2_internal_value * (alpha_a * (v1 - w_1_shifted_value) + alpha_b * (v2 - w_2_shifted_value) +
+                                         alpha_c * (v3 - w_3_shifted_value) + alpha_d * (v4 - w_4_shifted_value));
+}
+
+template <typename FF> bool GoblinUltraCircuitBuilder_<FF>::check_circuit()
+{
+    bool result = true;
+    if (!UltraCircuitBuilder_<arithmetization::UltraHonk<FF>>::check_circuit()) {
+        return false;
+    }
+
+    const FF poseidon2_external_base = FF::random_element();
+    const FF poseidon2_internal_base = FF::random_element();
+    const FF alpha = FF::random_element();
+
+    // For each gate
+    for (size_t i = 0; i < this->num_gates; i++) {
+        FF q_poseidon2_external_value;
+        FF q_poseidon2_internal_value;
+        FF q_1_value;
+        FF q_2_value;
+        FF q_3_value;
+        FF q_4_value;
+        FF w_1_value;
+        FF w_2_value;
+        FF w_3_value;
+        FF w_4_value;
+        // Get the values of selectors and wires and update tag products along the way
+        q_poseidon2_external_value = this->q_poseidon2_external[i];
+        q_poseidon2_internal_value = this->q_poseidon2_internal[i];
+        q_1_value = this->q_1[i];
+        q_2_value = this->q_2[i];
+        q_3_value = this->q_3[i];
+        q_4_value = this->q_4[i];
+        w_1_value = this->get_variable(this->w_l[i]);
+        w_2_value = this->get_variable(this->w_r[i]);
+        w_3_value = this->get_variable(this->w_o[i]);
+        w_4_value = this->get_variable(this->w_4[i]);
+        FF w_1_shifted_value;
+        FF w_2_shifted_value;
+        FF w_3_shifted_value;
+        FF w_4_shifted_value;
+        if (i < (this->num_gates - 1)) {
+            w_1_shifted_value = this->get_variable(this->w_l[i + 1]);
+            w_2_shifted_value = this->get_variable(this->w_r[i + 1]);
+            w_3_shifted_value = this->get_variable(this->w_o[i + 1]);
+            w_4_shifted_value = this->get_variable(this->w_4[i + 1]);
+        } else {
+            w_1_shifted_value = FF::zero();
+            w_2_shifted_value = FF::zero();
+            w_3_shifted_value = FF::zero();
+            w_4_shifted_value = FF::zero();
+        }
+        if (!compute_poseidon2_external_identity(q_poseidon2_external_value,
+                                                 q_1_value,
+                                                 q_2_value,
+                                                 q_3_value,
+                                                 q_4_value,
+                                                 w_1_value,
+                                                 w_2_value,
+                                                 w_3_value,
+                                                 w_4_value,
+                                                 w_1_shifted_value,
+                                                 w_2_shifted_value,
+                                                 w_3_shifted_value,
+                                                 w_4_shifted_value,
+                                                 poseidon2_external_base,
+                                                 alpha)
+                 .is_zero()) {
+#ifndef FUZZING
+            info("Poseidon2External identity fails at gate ", i);
+#endif
+            result = false;
+            break;
+        }
+        if (!compute_poseidon2_internal_identity(q_poseidon2_internal_value,
+                                                 q_1_value,
+                                                 w_1_value,
+                                                 w_2_value,
+                                                 w_3_value,
+                                                 w_4_value,
+                                                 w_1_shifted_value,
+                                                 w_2_shifted_value,
+                                                 w_3_shifted_value,
+                                                 w_4_shifted_value,
+                                                 poseidon2_internal_base,
+                                                 alpha)
+                 .is_zero()) {
+#ifndef FUZZING
+            info("Poseidon2Internal identity fails at gate ", i);
+#endif
+            result = false;
+            break;
+        }
+    }
+    return result;
+}
 
 template class GoblinUltraCircuitBuilder_<barretenberg::fr>;
 } // namespace proof_system

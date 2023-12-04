@@ -8,6 +8,15 @@ auto& engine = numeric::random::get_debug_engine();
 }
 namespace proof_system {
 
+TEST(GoblinUltraCircuitBuilder, BaseCase)
+{
+    GoblinUltraCircuitBuilder circuit_constructor = GoblinUltraCircuitBuilder();
+    fr a = fr::one();
+    circuit_constructor.add_public_variable(a);
+    bool result = circuit_constructor.check_circuit();
+    EXPECT_EQ(result, true);
+}
+
 /**
  * @brief Test the queueing of simple ecc ops via the Goblin builder
  * @details There are two things to check here: 1) When ecc ops are queued by the builder, the corresponding native
@@ -15,7 +24,7 @@ namespace proof_system {
  * encoded in the op_wires, i.e. the operands can be reconstructed as expected.
  *
  */
-TEST(UltraCircuitBuilder, GoblinSimple)
+TEST(GoblinUltraCircuitBuilder, GoblinSimple)
 {
     const size_t CHUNK_SIZE = plonk::NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2;
 
@@ -81,7 +90,7 @@ TEST(UltraCircuitBuilder, GoblinSimple)
  * @brief Check that the ultra ops are recorded correctly in the EccOpQueue
  *
  */
-TEST(UltraCircuitBuilder, GoblinEccOpQueueUltraOps)
+TEST(GoblinUltraCircuitBuilder, GoblinEccOpQueueUltraOps)
 {
     // Construct a simple circuit with op gates
     auto builder = GoblinUltraCircuitBuilder();
