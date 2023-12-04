@@ -76,15 +76,6 @@ impl RootRollupInputs {
             end_blocks_tree_snapshot : end_blocks_tree_snapshot,
             calldata_hash : components::compute_calldata_hash(self.previous_rollup_data),
             l1_to_l2_messages_hash : compute_messages_hash(self.new_l1_to_l2_messages),
-
-            // The cpp code was just not initializing these, so they would be zeroed out
-            // TODO(Lasse/Jean): add explanation for this. 
-            end_tree_of_historical_contract_tree_roots_snapshot : zeroed_out_snapshot,
-            end_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot : zeroed_out_snapshot,
-            end_tree_of_historical_note_hash_tree_roots_snapshot : zeroed_out_snapshot,
-            start_tree_of_historical_contract_tree_roots_snapshot : zeroed_out_snapshot,
-            start_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot : zeroed_out_snapshot,
-            start_tree_of_historical_note_hash_tree_roots_snapshot : zeroed_out_snapshot,
         }
     }
 }

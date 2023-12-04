@@ -1264,18 +1264,8 @@ export function mapRootRollupPublicInputsFromNoir(
     mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.end_contract_tree_snapshot),
     mapFieldFromNoir(rootRollupPublicInputs.start_public_data_tree_root),
     mapFieldFromNoir(rootRollupPublicInputs.end_public_data_tree_root),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.start_tree_of_historical_note_hash_tree_roots_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.end_tree_of_historical_note_hash_tree_roots_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.start_tree_of_historical_contract_tree_roots_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.end_tree_of_historical_contract_tree_roots_snapshot),
     mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.start_l1_to_l2_messages_tree_snapshot),
     mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.end_l1_to_l2_messages_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(
-      rootRollupPublicInputs.start_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot,
-    ),
-    mapAppendOnlyTreeSnapshotFromNoir(
-      rootRollupPublicInputs.end_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot,
-    ),
     mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.start_blocks_tree_snapshot),
     mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.end_blocks_tree_snapshot),
     mapTupleFromNoir(rootRollupPublicInputs.calldata_hash, 2, mapFieldFromNoir),
