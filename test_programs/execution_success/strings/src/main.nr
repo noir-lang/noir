@@ -62,8 +62,6 @@ fn test_prints_array() {
 }
 
 fn failed_constraint(hex_as_field: Field) {
-    // TODO(#2116): Note that `println` will not work if a failed constraint can be
-    // evaluated at compile time.
     // When this method is called from a test method or with constant values
     // a `Failed constraint` compile error will be caught before this `println`
     // is executed as the input will be a constant.
