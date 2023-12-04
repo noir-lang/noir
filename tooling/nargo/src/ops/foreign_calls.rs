@@ -122,7 +122,11 @@ impl DefaultForeignCallExecutor {
 
     fn execute_print(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
         let skip_newline = foreign_call_inputs[0].unwrap_value().is_zero();
-        let display_values: PrintableValueDisplay = foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?.1.try_into()?;
+        let display_values: PrintableValueDisplay = foreign_call_inputs
+            .split_first()
+            .ok_or(ForeignCallError::MissingForeignCallInputs)?
+            .1
+            .try_into()?;
         print!("{display_values}{}", if skip_newline { "" } else { "\n" });
         Ok(())
     }
