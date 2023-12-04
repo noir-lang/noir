@@ -203,7 +203,7 @@ resource "aws_alb_target_group" "aztec-faucet" {
 
 resource "aws_lb_listener_rule" "api-1" {
   listener_arn = data.terraform_remote_state.aztec2_iac.outputs.alb_listener_arn
-  priority     = 500
+  priority     = 600
 
   action {
     type             = "forward"
