@@ -950,6 +950,7 @@ impl Type {
             Err(UnificationError)
         } else {
                 assert!(!this.occurs(target_id));
+            println!("Binding {:?} {:?} <- {}", target_id, var, this);
             bindings.insert(target_id, (var.clone(), this.clone()));
             Ok(())
         }
@@ -1192,7 +1193,9 @@ impl Type {
     /// Apply the given type bindings, making them permanently visible for each
     /// clone of each type variable bound.
     pub fn apply_type_bindings(bindings: TypeBindings) {
+        // println!("apply_type_bindings {} bindings", bindings.len());
         for (id, (type_variable, binding)) in &bindings {
+        // println!("  {:?} {:?} <- {:?}", id, type_variable, binding);
             assert!(!binding.occurs(*id));
             type_variable.bind(binding.clone());
         }
