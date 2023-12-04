@@ -441,6 +441,7 @@ impl<'a> Resolver<'a> {
             MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
             }
+            Parenthesized(typ) => self.resolve_type_inner(*typ, new_variables),
         }
     }
 
@@ -793,7 +794,7 @@ impl<'a> Resolver<'a> {
         // 'pub' is required on return types for entry point functions
         if self.is_entry_point_function(func)
             && return_type.as_ref() != &Type::Unit
-            && func.def.return_visibility != Visibility::Public
+            && func.def.return_visibility == Visibility::Private
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
         }
@@ -1787,6 +1788,7 @@ impl<'a> Resolver<'a> {
                     self.verify_type_valid_for_program_input(element);
                 }
             }
+            UnresolvedTypeData::Parenthesized(typ) => self.verify_type_valid_for_program_input(typ),
         }
     }
 

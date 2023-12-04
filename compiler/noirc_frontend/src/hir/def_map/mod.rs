@@ -173,7 +173,6 @@ impl CrateDefMap {
             })
         })
     }
-
     /// Go through all modules in this crate, find all `contract ... { ... }` declarations,
     /// and collect them all into a Vec.
     pub fn get_all_contracts(&self, interner: &NodeInterner) -> Vec<Contract> {

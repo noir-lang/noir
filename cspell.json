@@ -82,6 +82,7 @@
         "nixpkgs",
         "noirc",
         "noirup",
+        "nomicfoundation",
         "pedersen",
         "peekable",
         "plonkc",
