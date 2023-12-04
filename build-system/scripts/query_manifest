@@ -126,4 +126,7 @@ case "$CMD" in
     if [ "$(git ls-tree HEAD $DIR | awk '{print $2}')" = "commit" ]; then
       git ls-tree HEAD $DIR | awk '{print $4}'
     fi
+    ;;
+  multiarch)
+    yq -r ".\"$REPO\".multiarch // false" $MANIFEST
 esac

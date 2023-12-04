@@ -3,66 +3,48 @@
 set -eu
 
 REPOSITORY=$1
-# TODO: Why even provide this? We can just figure it out by probing.
-ARCH_LIST=${2:-}
 
-# The tag to use for release images. Can be turned into an argument if needed, for now we only release 'latest'.
-DIST_TAG="latest"
-
-function docker_or_dryrun {
+function cmd_or_dryrun {
   if [ "$DRY_DEPLOY" -eq 1 ]; then
-    echo DRY RUN: docker $@
+    echo DRY RUN: $@
   else
-    retry docker $@
+    retry $@
   fi
 }
 
 echo "Repo: $REPOSITORY"
-echo "Arch List: $ARCH_LIST"
 
-VERSION_TAG=$(extract_tag_version $REPOSITORY false)
-
-# if no version tag, check if we're on `master` branch
-if [[ -z "$VERSION_TAG" ]]; then
-  if [[ "$BRANCH" != "master" ]]; then
-    echo "No version tag found. Exiting" >&2
-    exit 1
-  fi
-  # if we're on master, use the DEPLOY_TAG as the version tag
-  VERSION_TAG=$DEPLOY_TAG
+# Set tag to the commit tag (a version number) if we have one, otherwise branch name normalised to a tag format.
+if [ -n "$COMMIT_TAG" ]; then
+  TAG=$(extract_tag_version $REPOSITORY true)
+else
+  TAG=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9_.-]/_/g')
 fi
-
-MANIFEST_DEPLOY_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:$VERSION_TAG
-MANIFEST_DIST_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:$DIST_TAG
 
 # Login to dockerhub and ecr
 dockerhub_login
 ecr_login
 
-IFS=','
-for ARCH in $ARCH_LIST; do
-  IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY $ARCH)
-  retry docker pull $IMAGE_COMMIT_URI
+# Install skopeo, and immediately hack it to newer version.
+sudo apt install -y skopeo
+retry wget https://github.com/lework/skopeo-binary/releases/download/v1.13.3/skopeo-linux-amd64
+chmod +x ./skopeo-linux-amd64 && sudo mv ./skopeo-linux-amd64 /usr/bin/skopeo
 
-  # Retag and push image.
-  IMAGE_DEPLOY_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:$VERSION_TAG-$ARCH
-  docker tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_URI
-  docker_or_dryrun push $IMAGE_DEPLOY_URI
+# Publish with version or branch tag.
+SRC_URI=$(calculate_image_uri $REPOSITORY)
+DST_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:$TAG
+cmd_or_dryrun skopeo copy --all docker://$SRC_URI docker://$DST_URI
 
-  echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_DEPLOY_URI..."
-  docker_or_dryrun manifest create $MANIFEST_DEPLOY_URI --amend $IMAGE_DEPLOY_URI
+# If this was a versioned release, publish as latest.
+if [ -n "$COMMIT_TAG" ]; then
+  SRC_URI=$DST_URI
+  DST_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:latest
+  cmd_or_dryrun skopeo copy --all docker://$SRC_URI docker://$DST_URI
+fi
 
-  # Add latest manifest if we're making a release.
-  if [[ "$VERSION_TAG" != $DEPLOY_TAG ]]; then
-    echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_DIST_URI"
-    docker_or_dryrun manifest create $MANIFEST_DIST_URI --amend $IMAGE_DEPLOY_URI
-  fi
-done
-
-docker_or_dryrun manifest push --purge $MANIFEST_DEPLOY_URI
-
-# Retag version as latest if we're making a release.
-if [[ "$VERSION_TAG" != "$DEPLOY_TAG" ]]; then
-  echo "Tagging $MANIFEST_DEPLOY_URI as $DIST_TAG..."
-  docker_or_dryrun manifest push --purge $MANIFEST_DIST_URI
+# If this was a deployment, publish with the deploy tag.
+if [ -n "$DEPLOY_TAG" ]; then
+  SRC_URI=$DST_URI
+  DST_URI=$DOCKERHUB_ACCOUNT/$REPOSITORY:$DEPLOY_TAG
+  cmd_or_dryrun skopeo copy --all docker://$SRC_URI docker://$DST_URI
 fi

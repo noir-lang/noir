@@ -1,0 +1,22 @@
+# This productionifies the workspace, removing all developer dependencies and producing a final slim image from which
+# we then generate downstream multiarch containers to execute the specific projects.
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project AS yarn-project
+
+# Need new arch specific image.
+FROM node:18-alpine AS builder
+RUN apk add bash jq --no-cache
+COPY --from=yarn-project /usr/src /usr/src
+WORKDIR /usr/src/yarn-project
+ARG COMMIT_TAG=""
+RUN ./scripts/version_packages.sh
+# Productionify. See comment in yarn-project-base/Dockerfile.
+RUN yarn workspaces focus @aztec/cli @aztec/aztec-sandbox @aztec/aztec-faucet --production && \
+    yarn cache clean && \
+    rm -rf ./**/src
+
+# We no longer need nargo.
+RUN rm -rf /usr/src/noir/target
+
+# Create fresh minimal size image.
+FROM node:18-alpine
+COPY --from=builder /usr/src /usr/src

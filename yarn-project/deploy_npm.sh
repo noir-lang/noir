@@ -2,9 +2,8 @@
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
-# Check we're on a release flow.
-if [ -z "$COMMIT_TAG" ] && [ ! "$DRY_DEPLOY" -eq 1 ]; then
-  echo "Not on a release flow, skipping deploy."
+if [ -z "$COMMIT_TAG" ]; then
+  echo "No commit tag, not deploying to npm."
   exit 0
 fi
 

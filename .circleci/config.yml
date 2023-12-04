@@ -346,6 +346,17 @@ jobs:
           name: Build
           command: build yarn-project | add_timestamps
 
+  yarn-project-prod:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: Build
+          command: build yarn-project-prod | add_timestamps
+
   yarn-project-formatting:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -368,7 +379,7 @@ jobs:
           name: Test
           command: cond_spot_run_container yarn-project 64 test | add_timestamps
 
-  aztec-sandbox-x86_64:
+  aztec-sandbox:
     machine:
       image: ubuntu-2204:2023.07.2
     resource_class: large
@@ -379,22 +390,7 @@ jobs:
           name: "Build and test"
           command: build aztec-sandbox
 
-  aztec-sandbox-arm64:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: arm.large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          # We need to force not to use docker buildkit because for some reason on arm only, it ends up making a call
-          # out to eu-west2 despite the image being locally tagged, resulting in unauthorized 401. Weird docker bug?
-          command: |
-            echo "export DOCKER_BUILDKIT=" > $BASH_ENV
-            build aztec-sandbox
-
-  cli-x86_64:
+  cli:
     machine:
       image: ubuntu-2204:2023.07.2
     resource_class: large
@@ -404,21 +400,6 @@ jobs:
       - run:
           name: "Build and test"
           command: build cli
-
-  cli-arm64:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: arm.large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          # We need to force not to use docker buildkit because for some reason on arm only, it ends up making a call
-          # out to eu-west2 despite the image being locally tagged, resulting in unauthorized 401. Weird docker bug?
-          command: |
-            echo "export DOCKER_BUILDKIT=" > $BASH_ENV
-            build cli
 
   mainnet-fork:
     machine:
@@ -441,21 +422,6 @@ jobs:
       - run:
           name: "Build and test"
           command: build aztec-faucet | add_timestamps
-
-  ecr-manifest:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Create ECR manifest"
-          command: |
-            create_ecr_manifest aztec-sandbox x86_64,arm64
-            create_ecr_manifest cli x86_64,arm64
-            create_ecr_manifest aztec-faucet x86_64
-            create_ecr_manifest mainnet-fork x86_64
 
   boxes-blank-react:
     machine:
@@ -938,6 +904,37 @@ jobs:
           name: "Assemble benchmark summary from uploaded logs"
           command: ./scripts/ci/assemble_e2e_benchmark.sh
 
+  # Release jobs.
+  release-npm:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: medium
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "yarn-project"
+          command: |
+            should_release || exit 0
+            yarn-project/deploy_npm.sh latest
+
+  release-dockerhub:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: medium
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Release to dockerhub"
+          command: |
+            should_release || exit 0
+            deploy_dockerhub noir
+            deploy_dockerhub aztec-sandbox
+            deploy_dockerhub cli
+            deploy_dockerhub aztec-faucet
+            deploy_dockerhub mainnet-fork
+
   # Deploy jobs.
   deploy-mainnet-fork:
     machine:
@@ -965,36 +962,6 @@ jobs:
           command: |
             should_deploy || exit 0
             ./scripts/ci_deploy_contracts.sh
-
-  deploy-npm:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: medium
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "yarn-project"
-          command: |
-            should_deploy || exit 0
-            yarn-project/deploy_npm.sh latest
-
-  deploy-dockerhub:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: medium
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Deploy to dockerhub"
-          command: |
-            should_deploy || exit 0
-            deploy_dockerhub noir x86_64,arm64
-            deploy_dockerhub aztec-sandbox x86_64,arm64
-            deploy_dockerhub cli x86_64,arm64
-            deploy_dockerhub aztec-faucet x86_64
-            deploy_dockerhub mainnet-fork x86_64
 
   deploy-devnet:
     machine:
@@ -1034,6 +1001,11 @@ defaults: &defaults
 defaults_yarn_project: &defaults_yarn_project
   requires:
     - yarn-project
+  <<: *defaults
+
+defaults_yarn_project_prod: &defaults_yarn_project_prod
+  requires:
+    - yarn-project-prod
   <<: *defaults
 
 defaults_deploy: &defaults_deploy
@@ -1122,42 +1094,37 @@ workflows:
           requires:
             - yarn-project-base
           <<: *defaults
+      - yarn-project-prod: *defaults_yarn_project
       - yarn-project-formatting: *defaults_yarn_project
       - yarn-project-tests: *defaults_yarn_project
       - end-to-end: *defaults_yarn_project
       - build-docs: *defaults_yarn_project
-      - aztec-sandbox-x86_64: *defaults_yarn_project
-      - aztec-sandbox-arm64: *defaults_yarn_project
-      - cli-x86_64: *defaults_yarn_project
-      - cli-arm64: *defaults_yarn_project
-      - aztec-faucet: *defaults_yarn_project
-      - ecr-manifest:
-          requires:
-            - aztec-sandbox-x86_64
-            - aztec-sandbox-arm64
-            - cli-x86_64
-            - cli-arm64
-          <<: *defaults
+
+      # Artifacts
+      - aztec-sandbox: *defaults_yarn_project_prod
+      - cli: *defaults_yarn_project_prod
+      - aztec-faucet: *defaults_yarn_project_prod
 
       # Boxes.
       - boxes-blank-react:
           requires:
-            - aztec-sandbox-x86_64
+            - aztec-sandbox
           <<: *defaults
       - boxes-blank:
           requires:
-            - aztec-sandbox-x86_64
+            - aztec-sandbox
           <<: *defaults
       - boxes-token:
           requires:
-            - aztec-sandbox-x86_64
+            - aztec-sandbox
           <<: *defaults
 
       # End to end tests.
       - e2e-join:
           requires:
             - end-to-end
-            - ecr-manifest
+            - aztec-sandbox
+            - cli
           <<: *defaults
       - e2e-2-pxes: *e2e_test
       - e2e-deploy-contract: *e2e_test
@@ -1240,12 +1207,14 @@ workflows:
             - bench-process-history
           <<: *defaults
 
-      # Production deployment
-      - deploy-dockerhub: *defaults_deploy
-      - deploy-npm: *defaults_deploy
+      # Production releases.
+      - release-dockerhub: *defaults_deploy
+      - release-npm: *defaults_deploy
+
+      # Production deployment.
       - deploy-mainnet-fork:
           requires:
-            - deploy-dockerhub
+            - release-dockerhub
           <<: *defaults_deploy
       - deploy-contracts:
           requires:
@@ -1255,4 +1224,3 @@ workflows:
           requires:
             - deploy-contracts
           <<: *defaults_deploy
-

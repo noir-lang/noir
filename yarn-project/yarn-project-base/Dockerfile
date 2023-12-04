@@ -66,7 +66,9 @@ RUN mkdir /usr/src/noir/compiler && mv /usr/src/noir/packages/source-resolver /u
 # We install a symlink to yarn-project's node_modules at a location that all portalled packages can find as they
 # walk up the tree as part of module resolution. The supposedly idiomatic way of supporting module resolution
 # correctly for portalled packages, is to use --preserve-symlinks when running node.
-# This does work, but jest doesn't honor it correctly, so this seems like a neat workaround.
+# This does kind of work, but jest doesn't honor it correctly, so this seems like a neat workaround.
+# Also, --preserve-symlinks causes duplication of portalled instances such as bb.js, and breaks the singleton logic
+# by initialising the module more than once. So at present I don't see a viable alternative.
 RUN ln -s /usr/src/yarn-project/node_modules /usr/src/node_modules
 
 WORKDIR /usr/src/yarn-project

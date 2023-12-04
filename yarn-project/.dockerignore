@@ -10,7 +10,7 @@
 **/*.tsbuildinfo
 **/Dockerfile*
 **/node_modules
-Dockerfile
+Dockerfile*
 
 noir-contracts/src/types
 noir-contracts/src/artifacts

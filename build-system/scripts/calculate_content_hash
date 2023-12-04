@@ -1,21 +1,8 @@
 #!/bin/bash
-
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
-set -eu
+set -euo pipefail
 
-REPOSITORY=$1
-COMMIT_HASH=${2:-${COMMIT_HASH:-$(git rev-parse HEAD)}}
-
-# Get list of rebuild patterns, concat them with regex 'or' (|), and double escape \ for awk -v.
-AWK_PATTERN=$(query_manifest rebuildPatterns $REPOSITORY | tr '\n' '|' | sed 's/\\/\\\\/g')
-# Remove the trailing '|'.
-AWK_PATTERN=${AWK_PATTERN%|}
-
-cd "$(git rev-parse --show-toplevel)"
-
-# an example line is
+# An example line is:
 #   100644 da9ae2e020ea7fe3505488bbafb39adc7191559b 0       yarn-project/world-state/tsconfig.json
-# this format is beneficial as it grabs the hashes from git efficiently
-# we will next filter by our rebuild patterns
-# then we pipe the hash portion of each file to git hash-object to produce our content hash
-git ls-tree -r $COMMIT_HASH | awk -v pattern="($AWK_PATTERN)" '$4 ~ pattern {print $3}' | git hash-object --stdin
+# Extract the hashes and pipe the hash portion of each file to git hash-object to produce our content hash.
+calculate_rebuild_files "$@" | awk '{print $3}' | git hash-object --stdin

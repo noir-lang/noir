@@ -19,6 +19,9 @@ BASH_ENV=${BASH_ENV:-}
 BUILD_SYSTEM_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 PROJECT=$(cat PROJECT)
 COMMIT_MESSAGE=$(git log -n 1 --pretty=format:"%s" $COMMIT_HASH)
+PATH=$PATH:$BUILD_SYSTEM_PATH/scripts
+
+export BRANCH
 
 echo "COMMIT_HASH=$COMMIT_HASH"
 echo "COMMIT_TAG=$COMMIT_TAG"
@@ -33,25 +36,29 @@ if [[ "$COMMIT_MESSAGE" == *"[ci dry-deploy]"* ]]; then
   DRY_DEPLOY=1
 fi
 
-if [ -n "${COMMIT_TAG:-}" ]; then
-  # Extract the deploy env from the commit tag, if it has one, e.g. testnet.
-  # If we have one, we look something like v2.1.123-testnet.0. This is a "non production" release.
-  if [[ "$COMMIT_TAG" == *"-"* ]]; then
-    # Strips the trailing '.XX' from the end of the commit tag
-    TEMP=${COMMIT_TAG%.*}
-    # Strips the 'vX.Y.ZZZ-' from the front of the commit tag, leaving the e.g. 'testnet'
-    DEPLOY_ENV=${TEMP##*-}
+if should_deploy; then
+  if [ -n "${COMMIT_TAG:-}" ]; then
+    # Extract the deploy env from the commit tag, if it has one, e.g. testnet.
+    # If we have one, we look something like v2.1.123-testnet.0. This is a "non production" release.
+    if [[ "$COMMIT_TAG" == *"-"* ]]; then
+      # Strips the trailing '.XX' from the end of the commit tag
+      TEMP=${COMMIT_TAG%.*}
+      # Strips the 'vX.Y.ZZZ-' from the front of the commit tag, leaving the e.g. 'testnet'
+      DEPLOY_ENV=${TEMP##*-}
+    else
+      DEPLOY_ENV=prod
+    fi
   else
-    DEPLOY_ENV=prod
+    # If we're on master, this is our devnet.
+    DEPLOY_ENV="dev"
   fi
-else
-  # We have no commit tag, this is our devnet.
-  DEPLOY_ENV="dev"
 fi
 
 # - The deploy tag (used in api paths, subdomains), is a concatenation of the project name and deploy environment,
 #   e.g. aztec-dev, aztec-testnet, or aztec-prod
-DEPLOY_TAG=$PROJECT-$DEPLOY_ENV
+if [ -n "${DEPLOY_ENV:-}" ]; then
+  DEPLOY_TAG=$PROJECT-$DEPLOY_ENV
+fi
 
 if [ -z "$BASH_ENV" ]; then
   BASH_ENV=$(mktemp)
@@ -77,8 +84,8 @@ echo export COMMIT_TAG=$COMMIT_TAG >> $BASH_ENV
 echo "export COMMIT_MESSAGE='${COMMIT_MESSAGE//\'/\'\\\'\'}'" >> $BASH_ENV
 echo export JOB_NAME=$JOB_NAME >> $BASH_ENV
 echo export GIT_REPOSITORY_URL=$GIT_REPOSITORY_URL >> $BASH_ENV
-echo export DEPLOY_ENV=$DEPLOY_ENV >> $BASH_ENV
-echo export DEPLOY_TAG=$DEPLOY_TAG >> $BASH_ENV
+echo export DEPLOY_ENV=${DEPLOY_ENV:-} >> $BASH_ENV
+echo export DEPLOY_TAG=${DEPLOY_TAG:-} >> $BASH_ENV
 echo export BRANCH=$BRANCH >> $BASH_ENV
 echo export PULL_REQUEST=$PULL_REQUEST >> $BASH_ENV
 echo export DRY_DEPLOY=${DRY_DEPLOY:-0} >> $BASH_ENV

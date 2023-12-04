@@ -1,0 +1,9 @@
+#!/bin/bash
+# Returns true if we are expected to proceed with a release job.
+# Specifically if we have a commit tag, are master, or are being forced to release.
+# This script should be used at the start of all release steps to early out PR runs.
+# Later release steps may early out regardless, e.g. npm releases only run for tagged commits.
+# Dockerhub publishing will publish for master, or PR's run with force-release, but only tag latest on tagged commits.
+set -eu
+
+[[ -n "$COMMIT_TAG" || "$BRANCH" == "master" || "$COMMIT_MESSAGE" == *"[ci force-release]"* ]]

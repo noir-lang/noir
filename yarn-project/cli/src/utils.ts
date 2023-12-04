@@ -17,7 +17,7 @@ import {
 import { LogId } from '@aztec/types';
 
 import { CommanderError, InvalidArgumentError } from 'commander';
-import fs from 'fs';
+import { readFile, rename, writeFile } from 'fs/promises';
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 
 import { encodeArgs } from './encoding.js';
@@ -107,7 +107,7 @@ export async function getContractArtifact(fileDir: string, log: LogFn) {
   }
 
   try {
-    contents = fs.readFileSync(fileDir, 'utf8');
+    contents = await readFile(fileDir, 'utf8');
   } catch {
     throw Error(`Contract ${fileDir} not found`);
   }
@@ -412,11 +412,11 @@ export function parseFields(fields: string[]): Fr[] {
 export async function atomicUpdateFile(filePath: string, contents: string) {
   const tmpFilepath = filePath + '.tmp';
   try {
-    await fs.promises.writeFile(tmpFilepath, contents, {
+    await writeFile(tmpFilepath, contents, {
       // let's crash if the tmp file already exists
       flag: 'wx',
     });
-    await fs.promises.rename(tmpFilepath, filePath);
+    await rename(tmpFilepath, filePath);
   } catch (e) {
     if (e instanceof Error && 'code' in e && e.code === 'EEXIST') {
       const commanderError = new CommanderError(

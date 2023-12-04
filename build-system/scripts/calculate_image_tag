@@ -1,9 +1,23 @@
 #!/bin/bash
+# Return a repositories build cache image tag based on content hash.
+# If the second argument is set:
+#   It's used to suffix the tag with the given unique arch descriptor.
+#   Unless it's "host" in which case use the host machines arch as the arch descriptor.
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
 REPOSITORY=$1
-ARCH=${2:-$(uname -m)}
-[ "$ARCH" == "aarch64" ] && ARCH=arm64
+ARCH=${2:-}
+
 CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
-echo "cache-$CONTENT_HASH-$ARCH"
+
+if [ -z "$ARCH" ]; then
+  echo "cache-$CONTENT_HASH"
+else
+  if [ "$ARCH" == "host" ]; then
+    ARCH=$(uname -m)
+  fi
+  # Normalise.
+  [ "$ARCH" == "aarch64" ] && ARCH=arm64
+  echo "cache-$CONTENT_HASH-$ARCH"
+fi

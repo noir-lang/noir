@@ -98,7 +98,7 @@ for E in "${PROJECTS[@]}"; do
     echo -e "${YELLOW}Project or dependency has local modifications! Building...${RESET}"
     docker build ${ADDITIONAL_ARGS:-} --build-arg ARG_COMMIT_HASH=$COMMIT_HASH -f $DOCKERFILE -t $DEPLOY_IMAGE_URI .
   else
-    if [ -z "$NO_CACHE" ] && docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -q -w $CACHE_IMAGE_URI; then
+    if [ -z "$NO_CACHE" ] && docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -q -w "$CACHE_IMAGE_URI$"; then
       echo -e "${GREEN}Image exists locally. Tagging as $DEPLOY_IMAGE_URI${RESET}"
       docker tag $CACHE_IMAGE_URI $DEPLOY_IMAGE_URI
     else

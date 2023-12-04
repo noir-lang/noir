@@ -19,8 +19,7 @@ CPUS=$2
 ARCH=$3
 shift 3
 
-# If the CPUS have a specific architecture assigned, we need to use that to build the success tag.
-BASE_TAG=$(calculate_image_tag $REPOSITORY $ARCH)
+BASE_TAG=$(calculate_image_tag $REPOSITORY)
 SUCCESS_TAG=$BASE_TAG
 
 if [ -n "${TAG_POSTFIX:-}" ]; then
