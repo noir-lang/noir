@@ -27,9 +27,9 @@ test("prints version", async () => {
 });
 
 
-// test("reports a clean commit", async () => {
-//   const processOutput = (await $`${NARGO_BIN} --version`).toString();
-//   assert.not.match(processOutput, /is dirty: true/)
-// });
+test("reports a clean commit", async () => {
+  const processOutput = (await $`${NARGO_BIN} --version`).toString();
+  assert.not.match(processOutput, /is dirty: true/)
+});
 
 test.run();
