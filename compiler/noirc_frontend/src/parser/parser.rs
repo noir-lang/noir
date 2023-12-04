@@ -726,21 +726,21 @@ fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
 
 fn path() -> impl NoirParser<Path> {
     let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(1);
-    let make_path = |kind| move |segments| Path { segments, kind };
+    let make_path = |kind| move |segments, span| Path { segments, kind, span };
 
     let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
-    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map(make_path(kind));
+    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map_with_span(make_path(kind));
 
     choice((
         path_kind(Keyword::Crate, PathKind::Crate),
         path_kind(Keyword::Dep, PathKind::Dep),
-        idents().map(make_path(PathKind::Plain)),
+        idents().map_with_span(make_path(PathKind::Plain)),
     ))
 }
 
 fn empty_path() -> impl NoirParser<Path> {
-    let make_path = |kind| move |_| Path { segments: Vec::new(), kind };
-    let path_kind = |key, kind| keyword(key).map(make_path(kind));
+    let make_path = |kind| move |_, span| Path { segments: Vec::new(), kind, span };
+    let path_kind = |key, kind| keyword(key).map_with_span(make_path(kind));
 
     choice((path_kind(Keyword::Crate, PathKind::Crate), path_kind(Keyword::Dep, PathKind::Dep)))
 }
@@ -1015,18 +1015,37 @@ fn parse_type_inner(
         named_type(recursive_type_parser.clone()),
         named_trait(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
-        recursive_type_parser.clone().delimited_by(just(Token::LeftParen), just(Token::RightParen)),
+        parenthesized_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser.clone()),
         mutable_reference_type(recursive_type_parser),
     ))
 }
 
+fn parenthesized_type(
+    recursive_type_parser: impl NoirParser<UnresolvedType>,
+) -> impl NoirParser<UnresolvedType> {
+    recursive_type_parser
+        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+        .map_with_span(|typ, span| UnresolvedType {
+            typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
+            span: span.into(),
+        })
+}
+
 fn optional_visibility() -> impl NoirParser<Visibility> {
-    keyword(Keyword::Pub).or_not().map(|opt| match opt {
-        Some(_) => Visibility::Public,
-        None => Visibility::Private,
-    })
+    keyword(Keyword::Pub)
+        .or(keyword(Keyword::CallData))
+        .or(keyword(Keyword::ReturnData))
+        .or_not()
+        .map(|opt| match opt {
+            Some(Token::Keyword(Keyword::Pub)) => Visibility::Public,
+            Some(Token::Keyword(Keyword::CallData)) | Some(Token::Keyword(Keyword::ReturnData)) => {
+                Visibility::DataBus
+            }
+            None => Visibility::Private,
+            _ => unreachable!("unexpected token found"),
+        })
 }
 
 fn optional_distinctness() -> impl NoirParser<Distinctness> {
@@ -1177,7 +1196,9 @@ where
         .ignore_then(type_parser.clone())
         .then_ignore(just(Token::RightBracket))
         .or_not()
-        .map_with_span(|t, span| t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(span)));
+        .map_with_span(|t, span| {
+            t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(Span::empty(span.end())))
+        });
 
     keyword(Keyword::Fn)
         .ignore_then(env)

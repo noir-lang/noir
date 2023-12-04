@@ -48,6 +48,11 @@
           "type": "json",
           "path": "tooling/noirc_abi_wasm/package.json",
           "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "docs/docs/package.json",
+          "jsonpath": "$.version"
         }
       ]
     },
@@ -66,7 +71,11 @@
         "brillig/Cargo.toml",
         "brillig_vm/Cargo.toml",
         "stdlib/Cargo.toml",
-        "flake.nix",
+        {
+          "type": "json",
+          "path": "acvm_js/package.json",
+          "jsonpath": "$.version"
+        },
         {
           "type": "json",
           "path": "acvm_js/package.json",
