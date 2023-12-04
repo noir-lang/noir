@@ -124,7 +124,7 @@ resource "aws_ecs_task_definition" "aztec-node" {
         "containerPort": 80
       },
       {
-        "containerPort": ${var.NODE_TCP_PORT + count.index + 1}
+        "containerPort": ${var.NODE_TCP_PORT + count.index}
       }
     ],
     "environment": [
