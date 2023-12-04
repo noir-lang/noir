@@ -122,7 +122,8 @@ impl DefaultForeignCallExecutor {
 
     fn execute_print(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
         let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
-        let skip_newline = foreign_call_inputs[1].unwrap_value().is_zero();
+        let last_input = foreign_call_inputs.last().expect("print expected at least 1 argument");
+        let skip_newline = last_input.unwrap_value().is_zero();
         print!("{display_values}{}", if skip_newline { "" } else { "\n" });
 
         Ok(())
