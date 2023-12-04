@@ -830,13 +830,6 @@ impl<'interner> Monomorphizer<'interner> {
             node_interner::TraitImplKind::Assumed { object_type } => {
                 match self.interner.lookup_trait_implementation(&object_type, method.trait_id) {
                     Ok(TraitImplKind::Normal(impl_id)) => {
-                        let id = self.interner.get_trait_implementation(impl_id).borrow().methods
-                            [method.method_index];
-
-                        let name = self.interner.function_name(&id);
-
-                        println!("Looked up assumed trait impl for {}::{name}", object_type);
-
                         self.interner.get_trait_implementation(impl_id).borrow().methods
                             [method.method_index]
                     }
@@ -864,8 +857,6 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let the_trait = self.interner.get_trait(method.trait_id);
-
-        println!("Function type = {:?} => {}", function_type, self.convert_type(&function_type));
 
         ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(func_id),
@@ -1439,13 +1430,6 @@ fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
 
 fn perform_instantiation_bindings(bindings: &TypeBindings) {
     for (var, binding) in bindings.values() {
-        let id = match &*var.borrow() {
-            TypeBinding::Bound(original) => {
-                panic!("Binding over already bound type! {} <- {}", original, binding)
-            }
-            TypeBinding::Unbound(id) => *id,
-        };
-        println!("  Applying {:?} <- {}", id, binding);
         var.bind(binding.clone());
     }
 }

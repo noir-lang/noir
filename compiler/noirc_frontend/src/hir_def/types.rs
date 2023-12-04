@@ -1154,6 +1154,8 @@ impl Type {
             if !self.try_array_to_slice_coercion(expected, expression, interner) {
                 errors.push(make_error());
             }
+        } else {
+            Type::apply_type_bindings(bindings);
         }
     }
 
