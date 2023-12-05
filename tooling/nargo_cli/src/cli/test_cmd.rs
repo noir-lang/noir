@@ -96,9 +96,13 @@ fn run_tests<S: BlackBoxFunctionSolver>(
     )?;
 
     let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, test_name);
+    let count_all = test_functions.len();
+    if count_all == 0 {
+        return Err(CliError::Generic(format!("[{}] Found 0 tests matching input", package.name)));
+    }
 
-    println!("[{}] Running {} test functions", package.name, test_functions.len());
-    let mut failing = 0;
+    println!("[{}] Running {count_all} test functions", package.name);
+    let mut count_failed = 0;
 
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
@@ -131,7 +135,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                         compile_options.silence_warnings,
                     );
                 }
-                failing += 1;
+                count_failed += 1;
             }
             TestStatus::CompileError(err) => {
                 noirc_errors::reporter::report_all(
@@ -140,21 +144,39 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
                 );
-                failing += 1;
+                count_failed += 1;
             }
         }
         writer.reset().expect("Failed to reset writer");
     }
 
-    if failing == 0 {
-        write!(writer, "[{}] ", package.name).expect("Failed to write to stdout");
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
-        writeln!(writer, "All tests passed").expect("Failed to write to stdout");
-    } else {
-        let plural = if failing == 1 { "" } else { "s" };
-        return Err(CliError::Generic(format!("[{}] {failing} test{plural} failed", package.name)));
-    }
+    write!(writer, "[{}] ", package.name).expect("Failed to write to stdout");
 
-    writer.reset().expect("Failed to reset writer");
-    Ok(())
+    if count_failed == 0 {
+        let plural = if count_all == 1 { "" } else { "s" };
+
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
+        writeln!(writer, "{count_all} test{plural} passed").expect("Failed to write to stdout");
+        writer.reset().expect("Failed to reset writer");
+
+        Ok(())
+    } else {
+        let count_passed = count_all - count_failed;
+        let plural_failed = if count_failed == 1 { "" } else { "s" };
+        let plural_passed = if count_passed == 1 { "" } else { "s" };
+
+        if count_passed != 0 {
+            writer
+                .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
+                .expect("Failed to set color");
+            write!(writer, "{count_passed} test{plural_passed} passed, ",)
+                .expect("Failed to write to stdout");
+        }
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).expect("Failed to set color");
+        write!(writer, "{count_failed} test{plural_failed} failed")
+            .expect("Failed to write to stdout");
+        writer.reset().expect("Failed to reset writer");
+
+        Err(CliError::Generic(String::new()))
+    }
 }
