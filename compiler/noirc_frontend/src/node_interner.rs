@@ -1087,6 +1087,8 @@ impl NodeInterner {
             self.lookup_trait_implementation_helper(
                 &constraint_type,
                 constraint.trait_id,
+                // Use a fresh set of type bindings here since the constraint_type originates from
+                // our impl list, which we don't want to bind to.
                 &mut TypeBindings::new(),
                 recursion_limit - 1,
             )?;
