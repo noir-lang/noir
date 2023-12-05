@@ -1199,7 +1199,7 @@ impl<'a> Resolver<'a> {
 
                     HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length })
                 }
-                Literal::Integer(integer) => HirLiteral::Integer(integer),
+                Literal::Integer(integer, sign) => HirLiteral::Integer(integer, sign),
                 Literal::Str(str) => HirLiteral::Str(str),
                 Literal::RawStr(str, _) => HirLiteral::Str(str),
                 Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),
@@ -1688,7 +1688,7 @@ impl<'a> Resolver<'a> {
         span: Span,
     ) -> Result<u128, Option<ResolverError>> {
         match self.interner.expression(&rhs) {
-            HirExpression::Literal(HirLiteral::Integer(int)) => {
+            HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
