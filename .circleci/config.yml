@@ -917,6 +917,10 @@ jobs:
           command: |
             should_release || exit 0
             yarn-project/deploy_npm.sh latest
+      - run:
+          name: "l1-contracts"
+          command: |
+            should_release || exit 0
             deploy_npm l1-contracts
 
   release-dockerhub:
