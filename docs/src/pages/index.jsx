@@ -44,7 +44,7 @@ export default function Landing() {
 
           {tryIt && (
             <Suspense fallback={<Spinner />}>
-              <Link to="/docs">
+              <Link to="/docs" target="_blank" rel="noopener noreferrer">
                 <button className="cta-button button button--primary button--lg homepage_cta">Read the Docs</button>
               </Link>
               <NoirEditor style={{ width: '100%', height: '300px' }} baseUrl="https://play.noir-lang.org" />
@@ -53,7 +53,7 @@ export default function Landing() {
 
           {!tryIt && (
             <div className="homepage_cta_container">
-              <Link to="/docs">
+              <Link to="/docs" target="_blank" rel="noopener noreferrer">
                 <button className="cta-button button button--primary button--lg homepage_cta">Read the Docs</button>
               </Link>
               <button
