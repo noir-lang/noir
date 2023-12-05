@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.16.3](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.16.2...aztec-packages-v0.16.3) (2023-12-05)
+
+
+### Bug Fixes
+
+* Npm release of l1-contracts ([#3571](https://github.com/AztecProtocol/aztec-packages/issues/3571)) ([487419b](https://github.com/AztecProtocol/aztec-packages/commit/487419be549903a3d42b1232cce02139b2ac556f))
+
+
+### Miscellaneous
+
+* CLI's startup time was pushing almost 2s. This gets the basic 'help' down to 0.16. ([#3529](https://github.com/AztecProtocol/aztec-packages/issues/3529)) ([396df13](https://github.com/AztecProtocol/aztec-packages/commit/396df13389cdcb8b8b0d5a92a4b3d1c2bffcb7a7))
+
+
+### Documentation
+
+* Documenting issue with `context.block_header` ([#3565](https://github.com/AztecProtocol/aztec-packages/issues/3565)) ([1237e26](https://github.com/AztecProtocol/aztec-packages/commit/1237e2658d90114c03a6b838cbab80005aa3a661))
+
 ## [0.16.2](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.16.1...aztec-packages-v0.16.2) (2023-12-05)
 
 
