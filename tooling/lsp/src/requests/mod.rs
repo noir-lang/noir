@@ -21,14 +21,14 @@ use crate::{
 // and params passed in.
 
 mod code_lens_request;
-mod profile_run;
 mod goto_definition;
+mod profile_run;
 mod test_run;
 mod tests;
 
 pub(crate) use {
-    code_lens_request::on_code_lens_request, profile_run::on_profile_run_request,
-    test_run::on_test_run_request, tests::on_tests_request, goto_definition::on_goto_definition_request,
+    code_lens_request::on_code_lens_request, goto_definition::on_goto_definition_request,
+    profile_run::on_profile_run_request, test_run::on_test_run_request, tests::on_tests_request,
 };
 
 pub(crate) fn on_initialize(

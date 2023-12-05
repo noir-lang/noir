@@ -9,8 +9,7 @@ use crate::ast::Ident;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
-use crate::hir::StorageSlot;
-use crate::hir_def::expr;
+
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::traits::{Trait, TraitConstraint};
@@ -411,10 +410,6 @@ impl DefinitionKind {
 pub struct GlobalInfo {
     pub ident: Ident,
     pub local_id: LocalModuleId,
-
-    /// Global definitions have an associated storage slot if they are defined within
-    /// a contract. If they're defined elsewhere, this value is None.
-    pub storage_slot: Option<StorageSlot>,
 }
 
 impl Default for NodeInterner {
@@ -468,25 +463,28 @@ impl NodeInterner {
         self.id_to_location.insert(expr_id.into(), Location::new(span, file));
     }
 
-    /// Scans the interner for the location which contains the span
-    pub fn find_location(&self, file: FileId, location_span: &Span) -> Option<(&Index, &Location)> {
+    /// Scans the interner for the item which is located at that [Location]
+    ///
+    /// The [Location] may not necessarily point to the beginning of the item
+    /// so we check if the location's span is contained within the start or end
+    /// of each items [Span]
+    pub fn find_location_index(&self, location: Location) -> Option<impl Into<Index>> {
         let mut location_candidate: Option<(&Index, &Location)> = None;
 
-        let mut possible_locations: Vec<(&Index, &Location)> = Vec::new();
-        for (index, location) in self.id_to_location.iter() {
-            if location.file == file && location.span.contains(location_span) {
-                possible_locations.push((index, location));
+        // Note: we can modify this in the future to not do a linear
+        // scan by storing a separate map of the spans or by sorting the locations.
+        for (index, interned_location) in self.id_to_location.iter() {
+            if interned_location.contains(&location) {
                 if let Some(current_location) = location_candidate {
-                    if location.span.is_smaller(&current_location.1.span) {
-                        location_candidate = Some((index, location));
+                    if interned_location.span.is_smaller(&current_location.1.span) {
+                        location_candidate = Some((index, interned_location));
                     }
                 } else {
-                    location_candidate = Some((index, location));
+                    location_candidate = Some((index, interned_location));
                 }
             }
         }
-        eprintln!("Possible locations for span {location_span:?} are {possible_locations:?}");
-        location_candidate
+        location_candidate.map(|(index, _location)| *index)
     }
 
     /// Interns a HIR Function.
@@ -613,14 +611,8 @@ impl NodeInterner {
         self.id_to_type.insert(definition_id.into(), typ);
     }
 
-    pub fn push_global(
-        &mut self,
-        stmt_id: StmtId,
-        ident: Ident,
-        local_id: LocalModuleId,
-        storage_slot: Option<StorageSlot>,
-    ) {
-        self.globals.insert(stmt_id, GlobalInfo { ident, local_id, storage_slot });
+    pub fn push_global(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
+        self.globals.insert(stmt_id, GlobalInfo { ident, local_id });
     }
 
     /// Intern an empty global stmt. Used for collecting globals
@@ -1237,68 +1229,51 @@ impl NodeInterner {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
 
-    pub fn resolve_location(&self, file_id: FileId, index: &Index) -> Option<Location> {
-        self.nodes.get(*index).and_then(|def| match def {
+    /// For a given [Index] we return [Location] to which we resolved to
+    /// We currently return None for features not yet implemented
+    /// TODO(#3659): LSP goto def should error when Ident at Location could not resolve
+    pub(crate) fn resolve_location(&self, index: impl Into<Index>) -> Option<Location> {
+        let node = self.nodes.get(index.into())?;
+
+        match node {
             Node::Statement(stmt) => {
                 eprintln!("\n -> Resolve Location {:?}\n", stmt);
                 None
             }
-            Node::Function(func) => {
-                eprintln!("\n -> Resolve Location: {:?}\n", func);
-                self.resolve_location(file_id, &func.as_expr().0)
-            }
-            Node::Expression(expression) => {
-                eprintln!("\n -> Resolve Location: {:?}\n", expression);
-                match expression {
-                    HirExpression::Ident(ident) => {
-                        let definition_info = self.definition(ident.id);
+            Node::Function(func) => self.resolve_location(func.as_expr()),
+            Node::Expression(expression) => self.resolve_expression_location(expression),
+    
+        }
+    }
 
-                        match definition_info.kind {
-                            DefinitionKind::Function(func_id) => {
-                                Some(self.function_meta(&func_id).location)
-                            }
-                            DefinitionKind::Local(local_id) => {
-                                if let Some(local_id) = local_id {
-                                    let location = self.expr_location(&local_id);
-                                    Some(location)
-                                } else {
-                                    eprintln!(
-                                        "\n ---> Local Definition not found for {expression:?} and {definition_info:?}\n"
-                                    );
-                                    None
-                                }
-                            }
-                            DefinitionKind::Global(global_id) => {
-                                let location = self.expr_location(&global_id);
-                                Some(location)
-                            }
-                            _ => {
-                                eprintln!(
-                                    "\n ---> Not Implemented for Ident, Definition Kind {expression:?}\n"
-                                );
-                                None
-                            }
-                        }
+    /// Resolves the [Location] of the definition for a given [HirExpression]
+    ///
+    /// Note: current the code returns None because some expressions are not yet implemented.
+    fn resolve_expression_location(&self, expression: &HirExpression) -> Option<Location> {
+        match expression {
+            HirExpression::Ident(ident) => {
+                let definition_info = self.definition(ident.id);
+                match definition_info.kind {
+                    DefinitionKind::Function(func_id) => {
+                        Some(self.function_meta(&func_id).location)
                     }
-                    HirExpression::Constructor(expr) => {
-                        let struct_type = &expr.r#type.borrow();
-
-                        Some(Location::new(struct_type.span, struct_type.file_id))
-                    },
-                    HirExpression::MemberAccess(expr_member_access) => {
-                        let expr_lhs = expr_member_access.lhs;
-                        let resolved_lhs = self.resolve_location(file_id, &expr_lhs.0);
-                        eprintln!(" --> Member Access LHS: {expr_lhs:?}\nresolved to \n {resolved_lhs:?}");
-                        resolved_lhs
-                        
-                    }
-                    _ => {
-                        eprintln!("\n --> Not Implemented for expression {expression:?}\n");
-                        None
-                    }
+                    _ => None,
                 }
-            }
-        })
+            },
+            HirExpression::Constructor(expr) => {
+                let struct_type = &expr.r#type.borrow();
+
+                Some(Location::new(struct_type.span, struct_type.file_id))
+            },
+            // HirExpression::MemberAccess(expr_member_access) => {
+            //     let expr_lhs = expr_member_access.lhs;
+            //     let resolved_lhs = self.resolve_location(file_id, &expr_lhs.0);
+            //     eprintln!(" --> Member Access LHS: {expr_lhs:?}\nresolved to \n {resolved_lhs:?}");
+            //     resolved_lhs
+                
+            // },
+            _ => None,
+        }
     }
 }
 

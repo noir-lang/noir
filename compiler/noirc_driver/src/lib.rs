@@ -13,6 +13,7 @@ use noirc_evaluator::errors::RuntimeError;
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
+use noirc_frontend::macros_api::MacroProcessor;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
@@ -121,8 +122,13 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
 ) -> CompilationResult<()> {
+    #[cfg(not(feature = "aztec"))]
+    let macros: Vec<&dyn MacroProcessor> = Vec::new();
+    #[cfg(feature = "aztec")]
+    let macros = vec![&aztec_macros::AztecMacro as &dyn MacroProcessor];
+
     let mut errors = vec![];
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic: CustomDiagnostic = error.into();
         diagnostic.in_file(file_id)
@@ -340,11 +346,12 @@ pub fn compile_no_check(
     if !force_compile && hashes_match {
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
-
+    let visibility = program.return_visibility;
     let (circuit, debug, input_witnesses, return_witnesses, warnings) =
         create_circuit(program, options.show_ssa, options.show_brillig)?;
 
-    let abi = abi_gen::gen_abi(context, &main_function, input_witnesses, return_witnesses);
+    let abi =
+        abi_gen::gen_abi(context, &main_function, input_witnesses, return_witnesses, visibility);
     let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
 
     Ok(CompiledProgram {

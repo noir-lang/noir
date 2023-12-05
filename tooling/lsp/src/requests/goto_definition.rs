@@ -1,23 +1,18 @@
-use std::{
-    future::{self, Future},
-    path::Path,
-};
-
-use async_lsp::{ErrorCode, ResponseError};
-use codespan_reporting::files::Error;
-use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location};
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use std::future::{self, Future};
 
 use crate::{types::GotoDefinitionResult, LspState};
+use async_lsp::{ErrorCode, LanguageClient, ResponseError};
+use codespan_reporting::files::Error;
+use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location};
 use lsp_types::{Position, Url};
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 
 pub(crate) fn on_goto_definition_request(
     state: &mut LspState,
     params: GotoDefinitionParams,
 ) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> {
     let result = on_goto_definition_inner(state, params);
-    eprintln!("Result {result:?}");
     future::ready(result)
 }
 
@@ -29,13 +24,6 @@ fn on_goto_definition_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find project root")
     })?;
 
-    find_definition_location(root_path, params)
-}
-
-fn find_definition_location(
-    root_path: &Path,
-    params: GotoDefinitionParams,
-) -> Result<GotoDefinitionResult, ResponseError> {
     let file_path =
         params.text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
@@ -44,7 +32,10 @@ fn find_definition_location(
     let toml_path = match find_package_manifest(root_path, &file_path) {
         Ok(toml_path) => toml_path,
         Err(err) => {
-            eprintln!("Could not find Package manifest {err:?}");
+            let _ = state.client.log_message(lsp_types::LogMessageParams {
+                typ: lsp_types::MessageType::WARNING,
+                message: err.to_string(),
+            });
             return Ok(None);
         }
     };
@@ -71,15 +62,19 @@ fn find_definition_location(
         let file_id = context.file_manager.name_to_id(file_path.clone());
 
         if let Some(file_id) = file_id {
-            let byte_index =
-                position_to_byte_index(files, file_id, &params.text_document_position_params.position);
-    
+            let byte_index = position_to_byte_index(
+                files,
+                file_id,
+                &params.text_document_position_params.position,
+            );
+
             if let Ok(byte_index) = byte_index {
-                let found_location = context.find_definition_location(
-                    file_id,
-                    &noirc_errors::Span::single_char(byte_index as u32),
-                );
-    
+                let search_for_location = noirc_errors::Location {
+                    file: file_id,
+                    span: noirc_errors::Span::single_char(byte_index as u32),
+                };
+                let found_location = context.get_definition_location_from(search_for_location);
+
                 if let Some(found_location) = found_location {
                     let file_id = found_location.file;
                     definition_position = to_lsp_location(files, file_id, found_location.span);
@@ -110,7 +105,6 @@ where
 
     let path = file_name.to_string();
     let uri = Url::from_file_path(path).ok()?;
-    
     Some(Location { uri, range })
 }
 
@@ -126,11 +120,10 @@ where
     let source = source.as_ref();
 
     let line_span = files.line_range(file_id, position.line as usize)?;
-    
+
     let line_str = source.get(line_span.clone());
 
-    if let Some(line_str) = line_str  {
-        
+    if let Some(line_str) = line_str {
         let byte_offset = character_to_line_offset(line_str, position.character)?;
         Ok(line_span.start + byte_offset)
     } else {
@@ -180,12 +173,15 @@ mod goto_definition_tests {
 
         let root_path = std::env::current_dir()
             .unwrap()
-            .join("../nargo_cli/tests/execution_success/slice_struct_field")
+            .join("../../test_programs/execution_success/7_function")
             .canonicalize()
-            .expect("Could not find root path");
-        let noir_text_document = Url::from_file_path(root_path.join("src/main.nr").as_path()).expect("Could not convert text document path to URI");
-        let root_uri = Some(Url::from_file_path(root_path.as_path()).expect("Could not convert root path to URI"));
-        
+            .expect("Could not resolve root path");
+        let noir_text_document = Url::from_file_path(root_path.join("src/main.nr").as_path())
+            .expect("Could not convert text document path to URI");
+        let root_uri = Some(
+            Url::from_file_path(root_path.as_path()).expect("Could not convert root path to URI"),
+        );
+
         #[allow(deprecated)]
         let initialize_params = lsp_types::InitializeParams {
             process_id: Default::default(),
@@ -198,21 +194,22 @@ mod goto_definition_tests {
             client_info: None,
             locale: None,
         };
-        let _initialize_response =
-            crate::requests::on_initialize(&mut state, initialize_params).await.expect("Could not initialize LSP server");
+        let _initialize_response = crate::requests::on_initialize(&mut state, initialize_params)
+            .await
+            .expect("Could not initialize LSP server");
 
         let params = GotoDefinitionParams {
             text_document_position_params: lsp_types::TextDocumentPositionParams {
-                text_document: lsp_types::TextDocumentIdentifier {
-                    uri: noir_text_document,
-                },
-                position: Position { line: 122, character: 10 },
+                text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
+                position: Position { line: 95, character: 5 },
             },
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         };
 
-        let response = on_goto_definition_request(&mut state, params).await.expect("Could not find definition");
+        let response = on_goto_definition_request(&mut state, params)
+            .await
+            .expect("Could execute on_goto_definition_request");
 
         assert!(&response.is_some());
     }

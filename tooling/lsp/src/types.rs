@@ -25,7 +25,9 @@ pub(crate) mod request {
     };
 
     // Re-providing lsp_types that we don't need to override
-    pub(crate) use lsp_types::request::{CodeLensRequest as CodeLens, GotoDefinition, Formatting, Shutdown};
+    pub(crate) use lsp_types::request::{
+        CodeLensRequest as CodeLens, Formatting, GotoDefinition, Shutdown,
+    };
 
     #[derive(Debug)]
     pub(crate) struct Initialize;
@@ -112,7 +114,6 @@ pub(crate) struct ServerCapabilities {
     /// The server provides goto definition support.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) definition_provider: Option<OneOf<bool, DefinitionOptions>>,
-    
     /// The server provides code lens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) code_lens_provider: Option<CodeLensOptions>,

@@ -1,7 +1,8 @@
 use codespan_reporting::files::{Error, Files, SimpleFile, SimpleFiles};
 use serde::{Deserialize, Serialize};
-use std::{ops::Range, path::PathBuf};
 use std::collections::HashMap;
+use std::{ops::Range, path::PathBuf};
+
 
 // XXX: File and FileMap serve as opaque types, so that the rest of the library does not need to import the dependency
 // or worry about when we change the dep

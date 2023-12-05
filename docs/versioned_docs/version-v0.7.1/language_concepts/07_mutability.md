@@ -37,7 +37,7 @@ Note that mutability in noir is local and everything is passed by value, so if a
 mutates its parameters then the parent function will keep the old value of the parameters.
 
 ```rust
-fn main() -> Field {
+fn main() -> pub Field {
     let x = 3;
     helper(x);
     x // x is still 3
