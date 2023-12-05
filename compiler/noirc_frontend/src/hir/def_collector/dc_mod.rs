@@ -2,7 +2,7 @@ use std::vec;
 
 use acvm::acir::acir_field::FieldOptions;
 use fm::FileId;
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 
 use crate::{
     graph::CrateId,
@@ -10,7 +10,7 @@ use crate::{
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
+    NoirTypeAlias, Path, PathKind, TraitImplItem, TraitItem, TypeImpl,
 };
 
 use super::{
@@ -44,6 +44,26 @@ pub fn collect_defs(
 ) -> Vec<(CompilationError, FileId)> {
     let mut collector = ModCollector { def_collector, file_id, module_id };
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
+
+    if !crate_id.is_stdlib() {
+        let head: Vec<_> = "std::prelude"
+            .split("::")
+            .map(|segment| Ident::new(segment.into(), Span::default()))
+            .collect();
+
+        for tail in ["Vec", "Option"] {
+            let mut segments = head.clone();
+            segments.push(Ident::new(tail.into(), Span::default()));
+
+            collector.def_collector.collected_imports.push(ImportDirective {
+                module_id: collector.module_id,
+                path: Path { segments, kind: PathKind::Dep, span: Span::default() },
+                alias: None,
+                is_prelude: true,
+            });
+        }
+    }
+
     // First resolve the module declarations
     for decl in ast.module_decls {
         errors.extend(collector.parse_module_declaration(context, &decl, crate_id));
@@ -57,6 +77,7 @@ pub fn collect_defs(
             module_id: collector.module_id,
             path: import.path,
             alias: import.alias,
+            is_prelude: false,
         });
     }
 

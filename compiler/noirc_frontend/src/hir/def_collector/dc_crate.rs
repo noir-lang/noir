@@ -264,10 +264,15 @@ impl DefCollector {
         for resolved_import in resolved {
             let name = resolved_import.name;
             for ns in resolved_import.resolved_namespace.iter_defs() {
-                let result = current_def_map.modules[resolved_import.module_scope.0]
-                    .import(name.clone(), ns);
+                let result = current_def_map.modules[resolved_import.module_scope.0].import(
+                    name.clone(),
+                    ns,
+                    resolved_import.is_prelude,
+                );
 
                 if let Err((first_def, second_def)) = result {
+                    dbg!((&first_def, &second_def));
+
                     let err = DefCollectorErrorKind::Duplicate {
                         typ: DuplicateType::Import,
                         first_def,
