@@ -316,21 +316,22 @@ impl<'interner> Monomorphizer<'interner> {
                 ))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
-            HirExpression::Literal(HirLiteral::Integer(value)) => {
-                let typ = self.convert_type(&self.interner.id_type(expr));
-                let location = self.interner.id_location(expr);
-                Literal(Integer(value, typ, location))
-            }
-            HirExpression::Literal(HirLiteral::NegativeInteger(value)) => {
-                let typ = self.convert_type(&self.interner.id_type(expr));
-                let location = self.interner.id_location(expr);
-                match typ {
-                    ast::Type::Field => Literal(Integer(-value, typ, location)),
-                    ast::Type::Integer(_, bit_size) => {
-                        let base = 1_u128 << bit_size;
-                        Literal(Integer(FieldElement::from(base) - value, typ, location))
+            HirExpression::Literal(HirLiteral::Integer(value, sign)) => {
+                if sign {
+                    let typ = self.convert_type(&self.interner.id_type(expr));
+                    let location = self.interner.id_location(expr);
+                    match typ {
+                        ast::Type::Field => Literal(Integer(-value, typ, location)),
+                        ast::Type::Integer(_, bit_size) => {
+                            let base = 1_u128 << bit_size;
+                            Literal(Integer(FieldElement::from(base) - value, typ, location))
+                        }
+                        _ => unreachable!("Integer literal must be numeric"),
                     }
-                    _ => unreachable!("Integer literal must be numeric"),
+                } else {
+                    let typ = self.convert_type(&self.interner.id_type(expr));
+                    let location = self.interner.id_location(expr);
+                    Literal(Integer(value, typ, location))
                 }
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
