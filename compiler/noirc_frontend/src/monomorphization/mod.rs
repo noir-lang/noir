@@ -215,7 +215,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
             let the_trait = self.interner.get_trait(trait_id);
-            the_trait.self_type_typevar.bind(self_type);
+            the_trait.self_type_typevar.force_bind(self_type);
         }
 
         let meta = self.interner.function_meta(&f);
@@ -712,10 +712,6 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                // NOTE: Make sure to review this if there is ever type-directed dispatch,
-                // like automatic solving of traits. It should be fine since it is strictly
-                // after type checking, but care should be taken that it doesn't change which
-                // impls are chosen.
                 binding.bind(HirType::default_int_type());
                 ast::Type::Field
             }
@@ -728,10 +724,6 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                // NOTE: Make sure to review this if there is ever type-directed dispatch,
-                // like automatic solving of traits. It should be fine since it is strictly
-                // after type checking, but care should be taken that it doesn't change which
-                // impls are chosen.
                 let default =
                     if self.is_range_loop && matches!(kind, TypeVariableKind::IntegerOrField) {
                         Type::default_range_loop_type()
@@ -1430,7 +1422,7 @@ fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
 
 fn perform_instantiation_bindings(bindings: &TypeBindings) {
     for (var, binding) in bindings.values() {
-        var.bind(binding.clone());
+        var.force_bind(binding.clone());
     }
 }
 

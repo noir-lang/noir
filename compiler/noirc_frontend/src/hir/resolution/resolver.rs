@@ -927,10 +927,7 @@ impl<'a> Resolver<'a> {
         found.into_iter().collect()
     }
 
-    fn find_numeric_generics_in_type(
-        typ: &Type,
-        found: &mut BTreeMap<String, TypeVariable>,
-    ) {
+    fn find_numeric_generics_in_type(typ: &Type, found: &mut BTreeMap<String, TypeVariable>) {
         match typ {
             Type::FieldElement
             | Type::Integer(_, _)

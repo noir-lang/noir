@@ -1013,22 +1013,14 @@ impl NodeInterner {
             self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
 
         for (existing_object_type, impl_kind) in impls {
-            let (existing_object_type, mut instantiation_bindings) =
+            let (existing_object_type, instantiation_bindings) =
                 existing_object_type.instantiate(self);
 
             let mut fresh_bindings = TypeBindings::new();
 
-            println!("try_unify {:?}", object_type);
-            println!("       == {:?}", existing_object_type);
-
             if object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_ok() {
-                println!("fresh_bindings len = {}", fresh_bindings.len());
-                println!("insta_bindings len = {}", instantiation_bindings.len());
-                println!("");
-
                 // The unification was successful so we can append fresh_bindings to our bindings list
                 type_bindings.extend(fresh_bindings);
-                type_bindings.extend(instantiation_bindings.clone());
 
                 if let TraitImplKind::Normal(impl_id) = impl_kind {
                     let trait_impl = self.get_trait_implementation(*impl_id);
@@ -1037,7 +1029,7 @@ impl NodeInterner {
                     if let Err(mut errors) = self.validate_where_clause(
                         &trait_impl.where_clause,
                         type_bindings,
-                        &mut instantiation_bindings,
+                        &instantiation_bindings,
                         recursion_limit,
                     ) {
                         errors.push(make_constraint());
@@ -1046,8 +1038,6 @@ impl NodeInterner {
                 }
 
                 return Ok(impl_kind.clone());
-            } else {
-                println!("try_unify failed");
             }
         }
 
@@ -1060,16 +1050,17 @@ impl NodeInterner {
         &self,
         where_clause: &[TraitConstraint],
         type_bindings: &mut TypeBindings,
-        type_bindings2: &mut TypeBindings,
+        instantiation_bindings: &TypeBindings,
         recursion_limit: u32,
     ) -> Result<(), Vec<TraitConstraint>> {
         for constraint in where_clause {
-            let constraint_type = constraint.typ.substitute(type_bindings2);
+            let constraint_type = constraint.typ.substitute(instantiation_bindings);
+            let constraint_type = constraint_type.substitute(type_bindings);
 
             self.lookup_trait_implementation_helper(
                 &constraint_type,
                 constraint.trait_id,
-                type_bindings,
+                &mut TypeBindings::new(),
                 recursion_limit - 1,
             )?;
         }

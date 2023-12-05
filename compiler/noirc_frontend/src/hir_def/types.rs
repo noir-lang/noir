@@ -421,13 +421,21 @@ impl TypeVariable {
         TypeVariable(Shared::new(TypeBinding::Unbound(id)))
     }
 
+    /// Bind this type variable to a value.
+    ///
+    /// Panics if this TypeVariable is already Bound.
+    /// Also Panics if the ID of this TypeVariable occurs within the given
+    /// binding, as that would cause an infinitely recursive type.
     pub fn bind(&self, typ: Type) {
         let id = match &*self.0.borrow() {
             TypeBinding::Bound(binding) => {
                 if *binding == typ {
                     return;
                 } else {
-                    unreachable!("TypeVariable::bind, cannot bind bound var {} to {}", binding, typ);
+                    unreachable!(
+                        "TypeVariable::bind, cannot bind bound var {} to {}",
+                        binding, typ
+                    );
                 }
             }
             TypeBinding::Unbound(id) => *id,
@@ -439,7 +447,9 @@ impl TypeVariable {
 
     pub fn try_bind(&self, binding: Type, span: Span) -> Result<(), TypeCheckError> {
         let id = match &*self.0.borrow() {
-            TypeBinding::Bound(binding) => unreachable!("Expected unbound, found bound to {binding}"),
+            TypeBinding::Bound(binding) => {
+                unreachable!("Expected unbound, found bound to {binding}")
+            }
             TypeBinding::Unbound(id) => *id,
         };
 
@@ -451,12 +461,23 @@ impl TypeVariable {
         }
     }
 
+    /// Borrows this TypeVariable to (e.g.) manually match on the inner TypeBinding.
+    pub fn borrow(&self) -> std::cell::Ref<TypeBinding> {
+        self.0.borrow()
+    }
+
+    /// Unbind this type variable, setting it to Unbound(id).
+    ///
+    /// This is generally a logic error to use outside of monomorphization.
     pub fn unbind(&self, id: TypeVariableId) {
         *self.0.borrow_mut() = TypeBinding::Unbound(id);
     }
 
-    pub fn borrow(&self) -> std::cell::Ref<TypeBinding> {
-        self.0.borrow()
+    /// Forcibly bind a type variable to a new type - even if the type
+    /// variable is already bound to a different type. This generally
+    /// a logic error to use outside of monomorphization.
+    pub fn force_bind(&self, typ: Type) {
+        *self.0.borrow_mut() = TypeBinding::Bound(typ);
     }
 }
 
@@ -808,12 +829,10 @@ impl Type {
 
         match &this {
             Type::Constant(length) if *length == target_length => {
-                assert!(!this.occurs(target_id));
                 bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
             Type::NotConstant => {
-                assert!(!this.occurs(target_id));
                 bindings.insert(target_id, (var.clone(), Type::NotConstant));
                 Ok(())
             }
@@ -833,7 +852,6 @@ impl Type {
                                 var.clone(),
                                 TypeVariableKind::Constant(target_length),
                             );
-                assert!(!clone.occurs(*new_target_id));
                             bindings.insert(*new_target_id, (new_var.clone(), clone));
                             Ok(())
                         }
@@ -842,7 +860,6 @@ impl Type {
                                 var.clone(),
                                 TypeVariableKind::Constant(target_length),
                             );
-                assert!(!clone.occurs(*new_target_id));
                             bindings.insert(*new_target_id, (new_var.clone(), clone));
                             Ok(())
                         }
@@ -879,7 +896,6 @@ impl Type {
 
         match &this {
             Type::FieldElement | Type::Integer(..) => {
-                assert!(!this.occurs(target_id));
                 bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
@@ -890,7 +906,6 @@ impl Type {
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => Ok(()),
                     TypeBinding::Unbound(_) => {
-                assert!(!this.occurs(target_id));
                         bindings.insert(target_id, (var.clone(), this.clone()));
                         Ok(())
                     }
@@ -907,7 +922,6 @@ impl Type {
                         // variable to IntegerOrField instead.
                         let clone =
                             Type::TypeVariable(var.clone(), TypeVariableKind::IntegerOrField);
-                assert!(!clone.occurs(*new_target_id));
                         bindings.insert(*new_target_id, (binding.clone(), clone));
                         Ok(())
                     }
@@ -949,8 +963,6 @@ impl Type {
         if this.occurs(target_id) {
             Err(UnificationError)
         } else {
-                assert!(!this.occurs(target_id));
-            println!("Binding {:?} {:?} <- {}", target_id, var, this);
             bindings.insert(target_id, (var.clone(), this.clone()));
             Ok(())
         }
@@ -1053,7 +1065,9 @@ impl Type {
                 }
             }
 
-            (NamedGeneric(binding, _), other) if !binding.0.borrow().is_unbound() => {
+            (NamedGeneric(binding, _), other) | (other, NamedGeneric(binding, _))
+                if !binding.0.borrow().is_unbound() =>
+            {
                 if let TypeBinding::Bound(link) = &*binding.0.borrow() {
                     link.try_unify(other, bindings)
                 } else {
@@ -1061,16 +1075,8 @@ impl Type {
                 }
             }
 
-            (other, NamedGeneric(binding, _)) if !binding.0.borrow().is_unbound() => {
-                if let TypeBinding::Bound(link) = &*binding.0.borrow() {
-                    other.try_unify(link, bindings)
-                } else {
-                    unreachable!("If guard ensures binding is bound")
-                }
-            }
-
             (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
-                // Unbound NamedGenerics are caught by the checks above
+                // Bound NamedGenerics are caught by the check above
                 assert!(binding_a.0.borrow().is_unbound());
                 assert!(binding_b.0.borrow().is_unbound());
 
@@ -1193,10 +1199,7 @@ impl Type {
     /// Apply the given type bindings, making them permanently visible for each
     /// clone of each type variable bound.
     pub fn apply_type_bindings(bindings: TypeBindings) {
-        // println!("apply_type_bindings {} bindings", bindings.len());
-        for (id, (type_variable, binding)) in &bindings {
-        // println!("  {:?} {:?} <- {:?}", id, type_variable, binding);
-            assert!(!binding.occurs(*id));
+        for (type_variable, binding) in bindings.values() {
             type_variable.bind(binding.clone());
         }
     }
