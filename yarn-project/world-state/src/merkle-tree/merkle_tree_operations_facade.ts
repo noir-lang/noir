@@ -124,13 +124,12 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
   }
 
   /**
-   * Inserts into the roots trees (CONTRACT_TREE_ROOTS_TREE, NOTE_HASH_TREE_ROOTS_TREE)
-   * the current roots of the corresponding trees (CONTRACT_TREE, NOTE_HASH_TREE).
-   * @param globalVariablesHash - The hash of the current global variables to include in the block hash.
-   * @returns Empty promise.
+   * Inserts the new block hash into the archive.
+   * This includes all of the current roots of all of the data trees and the current blocks global vars.
+   * @param globalVariablesHash - The global variables hash to insert into the block hash.
    */
-  public updateBlocksTree(globalVariablesHash: Fr): Promise<void> {
-    return this.trees.updateBlocksTree(globalVariablesHash, this.includeUncommitted);
+  public updateArchive(globalVariablesHash: Fr): Promise<void> {
+    return this.trees.updateArchive(globalVariablesHash, this.includeUncommitted);
   }
 
   /**

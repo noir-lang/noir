@@ -104,7 +104,7 @@ constexpr size_t NOTE_HASH_TREE_HEIGHT = 32;
 constexpr size_t PUBLIC_DATA_TREE_HEIGHT = 254;
 constexpr size_t NULLIFIER_TREE_HEIGHT = 20;
 constexpr size_t L1_TO_L2_MSG_TREE_HEIGHT = 16;
-constexpr size_t BLOCKS_TREE_HEIGHT = 16;
+constexpr size_t ARCHIVE_HEIGHT = 16;
 constexpr size_t ROLLUP_VK_TREE_HEIGHT = 8;  // TODO: update
 
 

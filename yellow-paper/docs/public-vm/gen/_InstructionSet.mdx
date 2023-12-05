@@ -362,7 +362,7 @@ Click on an instruction name to jump to its section.
 	<td><Markdown>Get the historical blocks tree root as of the specified block number.</Markdown></td>
 	<td><Markdown>64</Markdown></td>
 	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].blocks_tree_root`
+		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].archive_root`
 	}</CodeBlock></td>
 </tr>
 <tr>
@@ -1266,7 +1266,7 @@ Get the historical blocks tree root as of the specified block number.
 - **Args**: 
 	- **blockNumOffset**: memory offset of the block number input
 	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].blocks_tree_root`
+- **Expression**: `M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].archive_root`
 - **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 64
 

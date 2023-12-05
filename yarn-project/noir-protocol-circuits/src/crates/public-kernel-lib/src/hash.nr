@@ -2,7 +2,6 @@ use dep::types::address::Address;
 use dep::aztec::{
     constants_gen,
     constants_gen::{GENERATOR_INDEX__PUBLIC_LEAF_INDEX},
-    hash::sha256_to_field,
 };
 
 pub fn compute_public_data_tree_index(contract_address: Address, storage_slot: Field) -> Field {

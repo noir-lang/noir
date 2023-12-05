@@ -37,7 +37,7 @@ impl RootRollupInputs {
         );
 
         // Build the block hash for this iteration from the tree roots and global variables
-        // Then insert the block into the blocks tree
+        // Then insert the block into the archive tree
         let block_hash = compute_block_hash_with_globals(left.constants.global_variables,
                                                       right.end_note_hash_tree_snapshot.root,
                                                       right.end_nullifier_tree_snapshot.root,
@@ -45,10 +45,10 @@ impl RootRollupInputs {
                                                       new_l1_to_l2_messages_tree_snapshot.root,
                                                       right.end_public_data_tree_root);
 
-        // Update the blocks tree
-        let end_blocks_tree_snapshot = components::insert_subtree_to_snapshot_tree(
-            self.start_blocks_tree_snapshot,
-            self.new_blocks_tree_sibling_path,
+        // Update the archive
+        let end_archive_snapshot = components::insert_subtree_to_snapshot_tree(
+            self.start_archive_snapshot,
+            self.new_archive_sibling_path,
             0,
             block_hash,
             0
@@ -72,8 +72,8 @@ impl RootRollupInputs {
             end_public_data_tree_root : right.end_public_data_tree_root,
             start_l1_to_l2_messages_tree_snapshot : self.start_l1_to_l2_messages_tree_snapshot,
             end_l1_to_l2_messages_tree_snapshot : new_l1_to_l2_messages_tree_snapshot,
-            start_blocks_tree_snapshot : self.start_blocks_tree_snapshot,
-            end_blocks_tree_snapshot : end_blocks_tree_snapshot,
+            start_archive_snapshot : self.start_archive_snapshot,
+            end_archive_snapshot : end_archive_snapshot,
             calldata_hash : components::compute_calldata_hash(self.previous_rollup_data),
             l1_to_l2_messages_hash : compute_messages_hash(self.new_l1_to_l2_messages),
         }

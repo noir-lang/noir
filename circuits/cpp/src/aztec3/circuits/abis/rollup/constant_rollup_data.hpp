@@ -11,7 +11,7 @@ template <typename NCT> struct ConstantRollupData {
     using fr = typename NCT::fr;
 
     // The very latest roots as at the very beginning of the entire rollup:
-    AppendOnlyTreeSnapshot<NCT> start_blocks_tree_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> start_archive_snapshot{};
 
     // Some members of this struct tbd:
     fr private_kernel_vk_tree_root = 0;
@@ -21,7 +21,7 @@ template <typename NCT> struct ConstantRollupData {
 
     GlobalVariables<NCT> global_variables{};
 
-    MSGPACK_FIELDS(start_blocks_tree_snapshot,
+    MSGPACK_FIELDS(start_archive_snapshot,
                    private_kernel_vk_tree_root,
                    public_kernel_vk_tree_root,
                    base_rollup_vk_hash,

@@ -43,8 +43,8 @@ template <typename NCT> struct RootRollupPublicInputs {
     AppendOnlyTreeSnapshot<NCT> start_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot{};
     AppendOnlyTreeSnapshot<NCT> end_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot{};
 
-    AppendOnlyTreeSnapshot<NCT> start_blocks_tree_snapshot{};
-    AppendOnlyTreeSnapshot<NCT> end_blocks_tree_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> start_archive_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> end_archive_snapshot{};
 
     std::array<fr, NUM_FIELDS_PER_SHA256> calldata_hash{};
     std::array<fr, NUM_FIELDS_PER_SHA256> l1_to_l2_messages_hash{};
@@ -68,8 +68,8 @@ template <typename NCT> struct RootRollupPublicInputs {
                    end_l1_to_l2_messages_tree_snapshot,
                    start_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot,
                    end_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot,
-                   start_blocks_tree_snapshot,
-                   end_blocks_tree_snapshot,
+                   start_archive_snapshot,
+                   end_archive_snapshot,
                    calldata_hash,
                    l1_to_l2_messages_hash);
 
@@ -88,7 +88,7 @@ template <typename NCT> struct RootRollupPublicInputs {
         write(buf, start_public_data_tree_root);
         write(buf, start_l1_to_l2_messages_tree_snapshot);
         write(buf, start_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot);
-        write(buf, start_blocks_tree_snapshot);
+        write(buf, start_archive_snapshot);
         write(buf, end_note_hash_tree_snapshot);
         write(buf, end_nullifier_tree_snapshot);
         write(buf, end_contract_tree_snapshot);
@@ -97,7 +97,7 @@ template <typename NCT> struct RootRollupPublicInputs {
         write(buf, end_public_data_tree_root);
         write(buf, end_l1_to_l2_messages_tree_snapshot);
         write(buf, end_tree_of_historical_l1_to_l2_messages_tree_roots_snapshot);
-        write(buf, end_blocks_tree_snapshot);
+        write(buf, end_archive_snapshot);
 
         // Stitching calldata hash together
         auto high_buffer = calldata_hash[0].to_buffer();

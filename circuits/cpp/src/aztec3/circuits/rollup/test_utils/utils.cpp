@@ -86,8 +86,8 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
 {
     // @todo Look at the starting points for all of these.
     // By supporting as inputs we can make very generic tests, where it is trivial to try new setups.
-    MemoryStore blocks_tree_store;
-    MerkleTree blocks_tree = MerkleTree(blocks_tree_store, BLOCKS_TREE_HEIGHT);
+    MemoryStore archive_store;
+    MerkleTree archive = MerkleTree(archive_store, ARCHIVE_HEIGHT);
 
 
     BaseRollupInputs baseRollupInputs = { .kernel_data = kernel_data,
@@ -161,10 +161,10 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
                                              contract_tree.root(),
                                              l1_to_l2_msg_tree.root(),
                                              public_data_tree.root());
-    blocks_tree.update_element(0, block_hash);
+    archive.update_element(0, block_hash);
 
-    ConstantRollupData const constantRollupData = { .start_blocks_tree_snapshot = {
-                                                        .root = blocks_tree.root(),
+    ConstantRollupData const constantRollupData = { .start_archive_snapshot = {
+                                                        .root = archive.root(),
                                                         .next_available_leaf_index = 1,
                                                     } };
     baseRollupInputs.constants = constantRollupData;
@@ -176,7 +176,7 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
         kernel_data[i].public_inputs.constants.block_header.nullifier_tree_root = nullifier_tree.root();
         kernel_data[i].public_inputs.constants.block_header.contract_tree_root = contract_tree.root();
         kernel_data[i].public_inputs.constants.block_header.l1_to_l2_messages_tree_root = l1_to_l2_msg_tree.root();
-        kernel_data[i].public_inputs.constants.block_header.blocks_tree_root = blocks_tree.root();
+        kernel_data[i].public_inputs.constants.block_header.archive_root = archive.root();
         kernel_data[i].public_inputs.constants.block_header.public_data_tree_root = public_data_tree.root();
         kernel_data[i].public_inputs.constants.block_header.global_variables_hash = prev_global_variables_hash;
     }
@@ -208,12 +208,11 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
     }
 
     // Get historical_root sibling paths
-    baseRollupInputs.blocks_tree_root_membership_witnesses[0] = {
+    baseRollupInputs.archive_root_membership_witnesses[0] = {
         .leaf_index = 0,
-        .sibling_path = get_sibling_path<BLOCKS_TREE_HEIGHT>(blocks_tree, 0, 0),
+        .sibling_path = get_sibling_path<ARCHIVE_HEIGHT>(archive, 0, 0),
     };
-    baseRollupInputs.blocks_tree_root_membership_witnesses[1] =
-        baseRollupInputs.blocks_tree_root_membership_witnesses[0];
+    baseRollupInputs.archive_root_membership_witnesses[1] = baseRollupInputs.archive_root_membership_witnesses[0];
 
     baseRollupInputs.kernel_data = kernel_data;
 
@@ -378,8 +377,8 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyBuilder& builder,
     MemoryStore public_data_tree_store;
     MerkleTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
 
-    MemoryStore blocks_tree_store;
-    MerkleTree blocks_tree(blocks_tree_store, BLOCKS_TREE_HEIGHT);
+    MemoryStore archive_store;
+    MerkleTree archive(archive_store, ARCHIVE_HEIGHT);
 
     // Start blocks tree
     auto block_hash = compute_block_hash_with_globals(globals,
@@ -388,16 +387,16 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyBuilder& builder,
                                                       contract_tree.root(),
                                                       l1_to_l2_msg_tree.root(),
                                                       public_data_tree.root());
-    blocks_tree.update_element(0, block_hash);
+    archive.update_element(0, block_hash);
 
     // Blocks tree snapshots
-    AppendOnlyTreeSnapshot const start_blocks_tree_snapshot = {
-        .root = blocks_tree.root(),
+    AppendOnlyTreeSnapshot const start_archive_snapshot = {
+        .root = archive.root(),
         .next_available_leaf_index = 1,
     };
 
     // Blocks tree
-    auto blocks_tree_sibling_path = get_sibling_path<BLOCKS_TREE_HEIGHT>(blocks_tree, 1, 0);
+    auto archive_sibling_path = get_sibling_path<ARCHIVE_HEIGHT>(archive, 1, 0);
 
     // l1 to l2 tree
     auto l1_to_l2_tree_sibling_path =
@@ -414,8 +413,8 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyBuilder& builder,
         .new_l1_to_l2_messages = l1_to_l2_messages,
         .new_l1_to_l2_messages_tree_root_sibling_path = l1_to_l2_tree_sibling_path,
         .start_l1_to_l2_messages_tree_snapshot = start_l1_to_l2_msg_tree_snapshot,
-        .start_blocks_tree_snapshot = start_blocks_tree_snapshot,
-        .new_blocks_tree_sibling_path = blocks_tree_sibling_path,
+        .start_archive_snapshot = start_archive_snapshot,
+        .new_archive_sibling_path = archive_sibling_path,
     };
     return rootRollupInputs;
 }

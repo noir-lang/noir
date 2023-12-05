@@ -147,7 +147,7 @@ struct BlockHeader {
     nullifier_tree_root : Field,
     contract_tree_root : Field,
     l1_to_l2_messages_tree_root : Field,
-    blocks_tree_root: Field,
+    archive_root: Field,
     public_data_tree_root: Field,
     global_variables_hash: Field,
 }
@@ -161,7 +161,7 @@ impl BlockHeader {
             self.nullifier_tree_root,
             self.contract_tree_root,
             self.l1_to_l2_messages_tree_root,
-            self.blocks_tree_root,
+            self.archive_root,
             self.public_data_tree_root,
             self.global_variables_hash,
         ]
@@ -173,14 +173,14 @@ impl BlockHeader {
             nullifier_tree_root: deserialized[1],
             contract_tree_root: deserialized[2],
             l1_to_l2_messages_tree_root: deserialized[3],
-            blocks_tree_root: deserialized[4],
+            archive_root: deserialized[4],
             public_data_tree_root: deserialized[5],
             global_variables_hash: deserialized[6],
         }
     }
 
     pub fn empty() -> Self {
-        Self { note_hash_tree_root: 0, nullifier_tree_root: 0, contract_tree_root: 0, l1_to_l2_messages_tree_root: 0, blocks_tree_root: 0, public_data_tree_root: 0, global_variables_hash: 0 }
+        Self { note_hash_tree_root: 0, nullifier_tree_root: 0, contract_tree_root: 0, l1_to_l2_messages_tree_root: 0, archive_root: 0, public_data_tree_root: 0, global_variables_hash: 0 }
     }
 
     pub fn block_hash(self) -> Field {

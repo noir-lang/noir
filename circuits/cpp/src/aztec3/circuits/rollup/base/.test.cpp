@@ -628,7 +628,7 @@ TEST_F(base_rollup_tests, native_calldata_hash)
     // run_cbind(inputs, outputs);
 }
 
-TEST_F(base_rollup_tests, native_compute_membership_blocks_tree_negative)
+TEST_F(base_rollup_tests, native_compute_membership_archive_negative)
 {
     // WRITE a negative test that will fail the inclusion proof
 
@@ -639,15 +639,15 @@ TEST_F(base_rollup_tests, native_compute_membership_blocks_tree_negative)
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels(kernel_data);
 
     MemoryStore blocks_store;
-    auto blocks_tree = MerkleTree(blocks_store, BLOCKS_TREE_HEIGHT);
+    auto archive = MerkleTree(blocks_store, ARCHIVE_HEIGHT);
 
     // Create an INCORRECT sibling path for the note hash tree root in the historical tree roots.
-    auto hash_path = blocks_tree.get_sibling_path(0);
-    std::array<NT::fr, BLOCKS_TREE_HEIGHT> sibling_path{};
-    for (size_t i = 0; i < BLOCKS_TREE_HEIGHT; ++i) {
+    auto hash_path = archive.get_sibling_path(0);
+    std::array<NT::fr, ARCHIVE_HEIGHT> sibling_path{};
+    for (size_t i = 0; i < ARCHIVE_HEIGHT; ++i) {
         sibling_path[i] = hash_path[i] + 1;
     }
-    inputs.blocks_tree_root_membership_witnesses[0] = {
+    inputs.archive_root_membership_witnesses[0] = {
         .leaf_index = 0,
         .sibling_path = sibling_path,
     };

@@ -176,8 +176,8 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     // Create initial nullifier tree with 32 initial nullifiers
     auto nullifier_tree = get_initial_nullifier_tree_empty();
 
-    MemoryStore blocks_tree_store;
-    MerkleTree blocks_tree(blocks_tree_store, BLOCKS_TREE_HEIGHT);
+    MemoryStore archive_store;
+    MerkleTree archive(archive_store, ARCHIVE_HEIGHT);
 
     std::array<KernelData, 4> kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
@@ -192,9 +192,8 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
                                                             contract_tree.root(),
                                                             l1_to_l2_messages_tree.root(),
                                                             public_data_tree.root());
-    blocks_tree.update_element(0, start_block_hash);
-    AppendOnlyTreeSnapshot<NT> start_blocks_tree_snapshot = { .root = blocks_tree.root(),
-                                                              .next_available_leaf_index = 1 };
+    archive.update_element(0, start_block_hash);
+    AppendOnlyTreeSnapshot<NT> start_archive_snapshot = { .root = archive.root(), .next_available_leaf_index = 1 };
 
     // Create commitments
     for (size_t kernel_j = 0; kernel_j < 4; kernel_j++) {
@@ -243,9 +242,8 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
                                                           contract_tree.root(),
                                                           l1_to_l2_messages_tree.root(),
                                                           public_data_tree.root());
-    blocks_tree.update_element(1, end_block_hash);
-    AppendOnlyTreeSnapshot<NT> end_blocks_tree_snapshot = { .root = blocks_tree.root(),
-                                                            .next_available_leaf_index = 2 };
+    archive.update_element(1, end_block_hash);
+    AppendOnlyTreeSnapshot<NT> end_archive_snapshot = { .root = archive.root(), .next_available_leaf_index = 2 };
 
     // Compute the end snapshot
     AppendOnlyTreeSnapshot<NT> const end_l1_to_l2_messages_tree_snapshot = { .root = l1_to_l2_messages_tree.root(),
@@ -292,8 +290,8 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
               rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_contract_tree_snapshot);
     ASSERT_EQ(outputs.end_l1_to_l2_messages_tree_snapshot, end_l1_to_l2_messages_tree_snapshot);
 
-    ASSERT_EQ(outputs.start_blocks_tree_snapshot, start_blocks_tree_snapshot);
-    ASSERT_EQ(outputs.end_blocks_tree_snapshot, end_blocks_tree_snapshot);
+    ASSERT_EQ(outputs.start_archive_snapshot, start_archive_snapshot);
+    ASSERT_EQ(outputs.end_archive_snapshot, end_archive_snapshot);
 
     // Compute the expected calldata hash for the root rollup (including the l2 -> l1 messages)
     auto left = components::compute_kernels_calldata_hash({ kernels[0], kernels[1] });

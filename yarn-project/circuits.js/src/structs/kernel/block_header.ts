@@ -31,9 +31,9 @@ export class BlockHeader {
      */
     public l1ToL2MessagesTreeRoot: Fr,
     /**
-     * Root of the blocks tree at the time of when this information was assembled.
+     * Root of the state roots tree (archive) at the block prior to when this information was assembled.
      */
-    public blocksTreeRoot: Fr,
+    public archiveRoot: Fr,
     /**
      * Root of the private kernel vk tree at the time of when this information was assembled.
      */
@@ -71,7 +71,7 @@ export class BlockHeader {
       fields.nullifierTreeRoot,
       fields.contractTreeRoot,
       fields.l1ToL2MessagesTreeRoot,
-      fields.blocksTreeRoot,
+      fields.archiveRoot,
       fields.privateKernelVkTreeRoot,
       fields.publicDataTreeRoot,
       fields.globalVariablesHash,
@@ -97,7 +97,7 @@ export class BlockHeader {
       this.nullifierTreeRoot,
       this.contractTreeRoot,
       this.l1ToL2MessagesTreeRoot,
-      this.blocksTreeRoot, // TODO(#3441) Note private_kernel_vk_tree_root, is not included yet as
+      this.archiveRoot, // TODO(#3441) Note private_kernel_vk_tree_root, is not included yet as
       // it is not present in noir,
       this.publicDataTreeRoot,
       this.globalVariablesHash,
@@ -128,7 +128,7 @@ export class BlockHeader {
       this.nullifierTreeRoot.isZero() &&
       this.contractTreeRoot.isZero() &&
       this.l1ToL2MessagesTreeRoot.isZero() &&
-      this.blocksTreeRoot.isZero() &&
+      this.archiveRoot.isZero() &&
       this.privateKernelVkTreeRoot.isZero() &&
       this.publicDataTreeRoot.isZero() &&
       this.globalVariablesHash.isZero()

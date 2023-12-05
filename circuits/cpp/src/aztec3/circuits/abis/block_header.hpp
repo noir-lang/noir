@@ -26,7 +26,7 @@ template <typename NCT> struct BlockHeader {
     fr nullifier_tree_root = 0;
     fr contract_tree_root = 0;
     fr l1_to_l2_messages_tree_root = 0;
-    fr blocks_tree_root = 0;
+    fr archive_root = 0;
     fr private_kernel_vk_tree_root = 0;  // TODO: future enhancement
 
     // Public data
@@ -38,7 +38,7 @@ template <typename NCT> struct BlockHeader {
                    nullifier_tree_root,
                    contract_tree_root,
                    l1_to_l2_messages_tree_root,
-                   blocks_tree_root,
+                   archive_root,
                    private_kernel_vk_tree_root,
                    public_data_tree_root,
                    global_variables_hash);
@@ -47,8 +47,7 @@ template <typename NCT> struct BlockHeader {
     {
         return note_hash_tree_root == other.note_hash_tree_root && nullifier_tree_root == other.nullifier_tree_root &&
                contract_tree_root == other.contract_tree_root &&
-               l1_to_l2_messages_tree_root == other.l1_to_l2_messages_tree_root &&
-               blocks_tree_root == other.blocks_tree_root &&
+               l1_to_l2_messages_tree_root == other.l1_to_l2_messages_tree_root && archive_root == other.archive_root &&
                private_kernel_vk_tree_root == other.private_kernel_vk_tree_root &&
                public_data_tree_root == other.public_data_tree_root &&
                global_variables_hash == other.global_variables_hash;
@@ -62,7 +61,7 @@ template <typename NCT> struct BlockHeader {
         nullifier_tree_root.assert_is_zero();
         contract_tree_root.assert_is_zero();
         l1_to_l2_messages_tree_root.assert_is_zero();
-        blocks_tree_root.assert_is_zero();
+        archive_root.assert_is_zero();
         private_kernel_vk_tree_root.assert_is_zero();
         public_data_tree_root.assert_is_zero();
         global_variables_hash.assert_is_zero();
@@ -77,7 +76,7 @@ template <typename NCT> struct BlockHeader {
 
         BlockHeader<CircuitTypes<Builder>> data = {
             to_ct(note_hash_tree_root),         to_ct(nullifier_tree_root),   to_ct(contract_tree_root),
-            to_ct(l1_to_l2_messages_tree_root), to_ct(blocks_tree_root),      to_ct(private_kernel_vk_tree_root),
+            to_ct(l1_to_l2_messages_tree_root), to_ct(archive_root),          to_ct(private_kernel_vk_tree_root),
             to_ct(public_data_tree_root),       to_ct(global_variables_hash),
         };
 
@@ -91,7 +90,7 @@ template <typename NCT> struct BlockHeader {
 
         BlockHeader<NativeTypes> data = {
             to_nt(note_hash_tree_root),         to_nt(nullifier_tree_root),   to_nt(contract_tree_root),
-            to_nt(l1_to_l2_messages_tree_root), to_nt(blocks_tree_root),      to_nt(private_kernel_vk_tree_root),
+            to_nt(l1_to_l2_messages_tree_root), to_nt(archive_root),          to_nt(private_kernel_vk_tree_root),
             to_nt(public_data_tree_root),       to_nt(global_variables_hash),
         };
 
@@ -106,7 +105,7 @@ template <typename NCT> struct BlockHeader {
         nullifier_tree_root.set_public();
         contract_tree_root.set_public();
         l1_to_l2_messages_tree_root.set_public();
-        blocks_tree_root.set_public();
+        archive_root.set_public();
         private_kernel_vk_tree_root.set_public();
         public_data_tree_root.set_public();
         global_variables_hash.set_public();
@@ -118,8 +117,8 @@ template <typename NCT> struct BlockHeader {
                  nullifier_tree_root,
                  contract_tree_root,
                  l1_to_l2_messages_tree_root,
-                 blocks_tree_root,  // TODO(#3441) Note private_kernel_vk_tree_root, is not included yet as
-                                    // it is not present in noir,
+                 archive_root,  // TODO(#3441) Note private_kernel_vk_tree_root, is not included yet as
+                                // it is not present in noir,
                  public_data_tree_root,
                  global_variables_hash };
     }

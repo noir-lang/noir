@@ -104,7 +104,7 @@ exports[`Private kernel Executes private kernel init circuit for a contract depl
 KernelCircuitPublicInputs {
   "constants": CombinedConstantData {
     "blockHeader": BlockHeader {
-      "blocksTreeRoot": Fr {
+      "archiveRoot": Fr {
         "asBigInt": 10561895175368852737061915973188839857007468377789560793687187642867659280638n,
         "asBuffer": {
           "data": [
@@ -25720,7 +25720,7 @@ exports[`Private kernel Executes private kernel inner for a nested call 1`] = `
 KernelCircuitPublicInputs {
   "constants": CombinedConstantData {
     "blockHeader": BlockHeader {
-      "blocksTreeRoot": Fr {
+      "archiveRoot": Fr {
         "asBigInt": 4141256197271035428567950264296887925803599654022881395228888440470800002298n,
         "asBuffer": {
           "data": [
@@ -51336,7 +51336,7 @@ exports[`Private kernel Executes private kernel ordering after a deployment 1`] 
 KernelCircuitPublicInputsFinal {
   "constants": CombinedConstantData {
     "blockHeader": BlockHeader {
-      "blocksTreeRoot": Fr {
+      "archiveRoot": Fr {
         "asBigInt": 10561895175368852737061915973188839857007468377789560793687187642867659280638n,
         "asBuffer": {
           "data": [

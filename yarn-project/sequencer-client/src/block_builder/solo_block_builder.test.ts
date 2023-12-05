@@ -143,7 +143,7 @@ describe('sequencer/solo_block_builder', () => {
     await expectsDb.appendLeaves(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, asBuffer);
   };
 
-  const updateBlocksTree = async () => {
+  const updateArchive = async () => {
     const blockHash = computeBlockHashWithGlobals(
       globalVariables,
       rootRollupOutput.endNoteHashTreeSnapshot.root,
@@ -152,7 +152,7 @@ describe('sequencer/solo_block_builder', () => {
       rootRollupOutput.endL1ToL2MessagesTreeSnapshot.root,
       rootRollupOutput.endPublicDataTreeRoot,
     );
-    await expectsDb.appendLeaves(MerkleTreeId.BLOCKS_TREE, [blockHash.toBuffer()]);
+    await expectsDb.appendLeaves(MerkleTreeId.ARCHIVE, [blockHash.toBuffer()]);
   };
 
   const getTreeSnapshot = async (tree: MerkleTreeId) => {
@@ -204,8 +204,8 @@ describe('sequencer/solo_block_builder', () => {
 
     // Calculate block hash
     rootRollupOutput.globalVariables = globalVariables;
-    await updateBlocksTree();
-    rootRollupOutput.endBlocksTreeSnapshot = await getTreeSnapshot(MerkleTreeId.BLOCKS_TREE);
+    await updateArchive();
+    rootRollupOutput.endArchiveSnapshot = await getTreeSnapshot(MerkleTreeId.ARCHIVE);
 
     const txs = [...txsLeft, ...txsRight];
 
@@ -235,8 +235,8 @@ describe('sequencer/solo_block_builder', () => {
       endPublicDataTreeRoot: rootRollupOutput.endPublicDataTreeRoot,
       startL1ToL2MessagesTreeSnapshot: rootRollupOutput.startL1ToL2MessagesTreeSnapshot,
       endL1ToL2MessagesTreeSnapshot: rootRollupOutput.endL1ToL2MessagesTreeSnapshot,
-      startBlocksTreeSnapshot: rootRollupOutput.startBlocksTreeSnapshot,
-      endBlocksTreeSnapshot: rootRollupOutput.endBlocksTreeSnapshot,
+      startArchiveSnapshot: rootRollupOutput.startArchiveSnapshot,
+      endArchiveSnapshot: rootRollupOutput.endArchiveSnapshot,
       newCommitments,
       newNullifiers,
       newContracts,

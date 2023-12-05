@@ -45,7 +45,7 @@ Output of the last iteration of the private kernel circuit. Includes _accumulate
 | nullifierTreeRoot | Field | Root of the nullifier tree at the time of when this information was assembled. |
 | contractTreeRoot | Field | Root of the contract tree at the time of when this information was assembled. |
 | l1ToL2MessagesTreeRoot | Field | Root of the L1 to L2 messages tree at the time of when this information was assembled. |
-| blocksTreeRoot | Field | Root of the historic blocks tree at the time of when this information was assembled. |
+| archiveRoot | Field | Root of the archive at the time of when this information was assembled. |
 | privateKernelVkTreeRoot | Field | Root of the private kernel VK tree at the time of when this information was assembled (future enhancement). |
 | publicDataTreeRoot | Field | Current public state tree hash. |
 | globalVariablesHash | Field | Previous globals hash, this value is used to recalculate the block hash. |

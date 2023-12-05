@@ -59,7 +59,7 @@ struct ConstantsPacker {
                  NOTE_HASH_SUBTREE_HEIGHT,
                  NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
                  NULLIFIER_SUBTREE_HEIGHT,
-                 BLOCKS_TREE_HEIGHT,
+                 ARCHIVE_HEIGHT,
                  NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
                  L1_TO_L2_MSG_SUBTREE_HEIGHT),
              NVP(L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,

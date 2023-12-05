@@ -1,7 +1,7 @@
 use crate::block::Block;
 
 struct BlockHeader {
-    blocks_tree_root : Field,
+    archive_root : Field,
     block : Block,
     // Private data
     // This is marked in the cpp code as an enhancement
@@ -24,7 +24,7 @@ impl BlockHeader {
             self.block.nullifier_tree_root,
             self.block.contract_tree_root,
             self.block.l1_to_l2_messages_tree_root,
-            self.blocks_tree_root,
+            self.archive_root,
             self.block.public_data_tree_root,
             self.block.global_variables_hash
         ]

@@ -206,7 +206,7 @@ export class Synchronizer {
       block.endNullifierTreeSnapshot.root,
       block.endContractTreeSnapshot.root,
       block.endL1ToL2MessagesTreeSnapshot.root,
-      block.endBlocksTreeSnapshot.root,
+      block.endArchiveSnapshot.root,
       Fr.ZERO, // todo: private kernel vk tree root
       block.endPublicDataTreeRoot,
       globalsHash,

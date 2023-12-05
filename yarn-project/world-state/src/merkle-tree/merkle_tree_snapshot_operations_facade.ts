@@ -90,11 +90,11 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
       this.#getTreeSnapshot(MerkleTreeId.NOTE_HASH_TREE),
       this.#getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE),
       this.#getTreeSnapshot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE),
-      this.#getTreeSnapshot(MerkleTreeId.BLOCKS_TREE),
+      this.#getTreeSnapshot(MerkleTreeId.ARCHIVE),
     ]);
 
     return {
-      blocksTreeRoot: snapshots[MerkleTreeId.BLOCKS_TREE].getRoot(),
+      archiveRoot: snapshots[MerkleTreeId.ARCHIVE].getRoot(),
       contractDataTreeRoot: snapshots[MerkleTreeId.CONTRACT_TREE].getRoot(),
       l1Tol2MessagesTreeRoot: snapshots[MerkleTreeId.L1_TO_L2_MESSAGES_TREE].getRoot(),
       noteHashTreeRoot: snapshots[MerkleTreeId.NOTE_HASH_TREE].getRoot(),
@@ -113,7 +113,7 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
     return Promise.reject(new Error('Tree snapshot operations are read-only'));
   }
 
-  updateBlocksTree(): Promise<void> {
+  updateArchive(): Promise<void> {
     return Promise.reject(new Error('Tree snapshot operations are read-only'));
   }
 
@@ -129,7 +129,7 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
     return Promise.reject(new Error('Tree snapshot operations are read-only'));
   }
 
-  updateHistoricBlocksTree(): Promise<void> {
+  updateHistoricArchive(): Promise<void> {
     return Promise.reject(new Error('Tree snapshot operations are read-only'));
   }
 

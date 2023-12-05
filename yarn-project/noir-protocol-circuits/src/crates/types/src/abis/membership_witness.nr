@@ -5,7 +5,7 @@ use dep::aztec::constants_gen::{
     NULLIFIER_TREE_HEIGHT,
     NOTE_HASH_TREE_HEIGHT,
     ROLLUP_VK_TREE_HEIGHT,
-    BLOCKS_TREE_HEIGHT,
+    ARCHIVE_HEIGHT,
 };
 
 struct MembershipWitness<N> {
@@ -37,9 +37,9 @@ struct NullifierMembershipWitness{
     sibling_path: [Field; NULLIFIER_TREE_HEIGHT]
 }
 
-struct BlocksTreeRootMembershipWitness{
+struct ArchiveRootMembershipWitness{
     leaf_index: Field,
-    sibling_path: [Field; BLOCKS_TREE_HEIGHT]
+    sibling_path: [Field; ARCHIVE_HEIGHT]
 }
 
 struct ReadRequestMembershipWitness {

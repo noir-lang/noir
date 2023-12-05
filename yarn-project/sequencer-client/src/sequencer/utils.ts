@@ -17,7 +17,7 @@ export async function getBlockHeader(
     Fr.fromBuffer(roots.nullifierTreeRoot),
     Fr.fromBuffer(roots.contractDataTreeRoot),
     Fr.fromBuffer(roots.l1Tol2MessagesTreeRoot),
-    Fr.fromBuffer(roots.blocksTreeRoot),
+    Fr.fromBuffer(roots.archiveRoot),
     Fr.ZERO,
     Fr.fromBuffer(roots.publicDataTreeRoot),
     prevGlobalsHash,

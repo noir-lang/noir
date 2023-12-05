@@ -97,7 +97,7 @@ export interface Block {
 }
 
 export interface BlockHeader {
-  blocks_tree_root: Field;
+  archive_root: Field;
   block: Block;
   private_kernel_vk_tree_root: Field;
 }

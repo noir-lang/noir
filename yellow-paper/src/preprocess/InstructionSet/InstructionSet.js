@@ -887,7 +887,7 @@ T[retOffset:retOffset+retSize] = field
             {"name": "blockNumOffset", "description": "memory offset of the block number input"},
             {"name": "dstOffset", "description": "memory offset specifying where to store operation's result"},
         ],
-        "Expression": "`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].blocks_tree_root`",
+        "Expression": "`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].archive_root`",
         "Summary": "Get the historical blocks tree root as of the specified block number.",
         "Details": "",
         "Tag checks": "",

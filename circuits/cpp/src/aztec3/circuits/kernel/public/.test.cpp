@@ -333,7 +333,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         .nullifier_tree_root = ++seed,
         .contract_tree_root = ++seed,
         .l1_to_l2_messages_tree_root = ++seed,
-        .blocks_tree_root = ++seed,
+        .archive_root = ++seed,
         .private_kernel_vk_tree_root = ++seed,
         .public_data_tree_root = ++seed,
         .global_variables_hash = ++seed,

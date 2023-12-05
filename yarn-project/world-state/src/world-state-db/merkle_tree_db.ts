@@ -74,8 +74,8 @@ export type CurrentTreeRoots = {
   l1Tol2MessagesTreeRoot: Buffer;
   /** Nullifier data tree root. */
   nullifierTreeRoot: Buffer;
-  /** Blocks tree root. */
-  blocksTreeRoot: Buffer;
+  /** Archive root. */
+  archiveRoot: Buffer;
   /** Public data tree root */
   publicDataTreeRoot: Buffer;
 };
@@ -181,11 +181,11 @@ export interface MerkleTreeOperations {
   getLeafValue(treeId: MerkleTreeId, index: bigint): Promise<Buffer | undefined>;
 
   /**
-   * Inserts the new block hash into the new block hashes tree.
+   * Inserts the new block hash into the archive.
    * This includes all of the current roots of all of the data trees and the current blocks global vars.
    * @param globalVariablesHash - The global variables hash to insert into the block hash.
    */
-  updateBlocksTree(globalVariablesHash: Fr): Promise<void>;
+  updateArchive(globalVariablesHash: Fr): Promise<void>;
 
   /**
    * Updates the latest global variables hash

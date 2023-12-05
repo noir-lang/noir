@@ -1,5 +1,5 @@
 import {
-  BLOCKS_TREE_HEIGHT,
+  ARCHIVE_HEIGHT,
   CONTRACT_TREE_HEIGHT,
   Fr,
   L1_TO_L2_MSG_TREE_HEIGHT,
@@ -93,10 +93,7 @@ export interface StateInfoProvider {
    * @returns The sibling path.
    * TODO: https://github.com/AztecProtocol/aztec-packages/issues/3414
    */
-  getBlocksTreeSiblingPath(
-    blockNumber: BlockNumber,
-    leafIndex: bigint,
-  ): Promise<SiblingPath<typeof BLOCKS_TREE_HEIGHT>>;
+  getArchiveSiblingPath(blockNumber: BlockNumber, leafIndex: bigint): Promise<SiblingPath<typeof ARCHIVE_HEIGHT>>;
 
   /**
    * Returns a sibling path for a leaf in the committed public data tree.

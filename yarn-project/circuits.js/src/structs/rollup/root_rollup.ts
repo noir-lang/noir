@@ -2,7 +2,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
 import {
-  BLOCKS_TREE_HEIGHT,
+  ARCHIVE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
 } from '../../constants.gen.js';
@@ -39,11 +39,11 @@ export class RootRollupInputs {
     /**
      * Snapshot of the historical block roots tree at the start of the rollup.
      */
-    public startBlocksTreeSnapshot: AppendOnlyTreeSnapshot,
+    public startArchiveSnapshot: AppendOnlyTreeSnapshot,
     /**
      * Sibling path of the new block tree root.
      */
-    public newBlocksTreeSiblingPath: Tuple<Fr, typeof BLOCKS_TREE_HEIGHT>,
+    public newArchiveSiblingPath: Tuple<Fr, typeof ARCHIVE_HEIGHT>,
   ) {}
 
   toBuffer() {
@@ -60,8 +60,8 @@ export class RootRollupInputs {
       fields.newL1ToL2Messages,
       fields.newL1ToL2MessagesTreeRootSiblingPath,
       fields.startL1ToL2MessagesTreeSnapshot,
-      fields.startBlocksTreeSnapshot,
-      fields.newBlocksTreeSiblingPath,
+      fields.startArchiveSnapshot,
+      fields.newArchiveSiblingPath,
     ] as const;
   }
 }
@@ -131,11 +131,11 @@ export class RootRollupPublicInputs {
     /**
      * Snapshot of the blocks tree roots tree at the start of the rollup.
      */
-    public startBlocksTreeSnapshot: AppendOnlyTreeSnapshot,
+    public startArchiveSnapshot: AppendOnlyTreeSnapshot,
     /**
      * Snapshot of the blocks tree roots tree at the end of the rollup.
      */
-    public endBlocksTreeSnapshot: AppendOnlyTreeSnapshot,
+    public endArchiveSnapshot: AppendOnlyTreeSnapshot,
 
     /**
      * Hash of the calldata.
@@ -161,8 +161,8 @@ export class RootRollupPublicInputs {
       fields.endPublicDataTreeRoot,
       fields.startL1ToL2MessagesTreeSnapshot,
       fields.endL1ToL2MessagesTreeSnapshot,
-      fields.startBlocksTreeSnapshot,
-      fields.endBlocksTreeSnapshot,
+      fields.startArchiveSnapshot,
+      fields.endArchiveSnapshot,
       fields.calldataHash,
       fields.l1ToL2MessagesHash,
     ] as const;

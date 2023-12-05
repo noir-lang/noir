@@ -33,7 +33,7 @@ use dep::aztec::constants_gen::{
 };
 use dep::types::abis::previous_kernel_data::PreviousKernelData;
 use dep::types::abis::membership_witness::{NullifierMembershipWitness, MembershipWitness};
-use dep::types::abis::membership_witness::BlocksTreeRootMembershipWitness;
+use dep::types::abis::membership_witness::ArchiveRootMembershipWitness;
 
 struct BaseRollupInputs {
     kernel_data: [PreviousKernelData; KERNELS_PER_BASE_ROLLUP],
@@ -41,7 +41,7 @@ struct BaseRollupInputs {
     start_nullifier_tree_snapshot: AppendOnlyTreeSnapshot,
     start_contract_tree_snapshot: AppendOnlyTreeSnapshot,
     start_public_data_tree_root: Field,
-    start_blocks_tree_snapshot: AppendOnlyTreeSnapshot,
+    archive_snapshot: AppendOnlyTreeSnapshot,
 
     sorted_new_nullifiers: [Field; MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP],
     sorted_new_nullifiers_indexes: [u32; MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP],
@@ -56,7 +56,7 @@ struct BaseRollupInputs {
     new_public_data_update_requests_sibling_paths: [[Field; PUBLIC_DATA_TREE_HEIGHT]; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP],
     new_public_data_reads_sibling_paths: [[Field; PUBLIC_DATA_TREE_HEIGHT]; MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP],
     
-    blocks_tree_root_membership_witnesses: [BlocksTreeRootMembershipWitness; KERNELS_PER_BASE_ROLLUP],
+    archive_root_membership_witnesses: [ArchiveRootMembershipWitness; KERNELS_PER_BASE_ROLLUP],
     
     constants: ConstantRollupData,
 }
@@ -113,7 +113,7 @@ impl BaseRollupInputs {
         let calldata_hash = BaseRollupInputs::components_compute_kernel_calldata_hash(self.kernel_data);
         
         // Perform membership checks that the notes provided exist within the historical trees data
-        self.perform_blocks_tree_membership_checks();
+        self.perform_archive_membership_checks();
 
         let aggregation_object = self.aggregate_proofs();
 
@@ -375,24 +375,24 @@ impl BaseRollupInputs {
 
     // Check that the block header used by each kernel is a member of the blocks tree --> since the block header
     // contains roots of all the trees this is sufficient to verify that the tree roots used by kernels are correct
-    fn perform_blocks_tree_membership_checks(self) {
+    fn perform_archive_membership_checks(self) {
         // For each of the block header (their block hashes), we need to do an inclusion proof
         // against the blocks tree root from the beginning of a rollup provided in the rollup constants
-        let blocks_treee_root = self.constants.start_blocks_tree_snapshot.root;
+        let archive_root = self.constants.archive_snapshot.root;
 
         for i in 0..KERNELS_PER_BASE_ROLLUP {
             // Rebuild the block hash
             let block_header = self.kernel_data[i].public_inputs.constants.block_header;
             let previous_block_hash = block_header.block.hash();
 
-            let previous_block_hash_witness = self.blocks_tree_root_membership_witnesses[i];
+            let previous_block_hash_witness = self.archive_root_membership_witnesses[i];
 
             // Now check that the previous block hash is in the blocks tree from the beginning of the rollup
             components::assert_check_membership(
                 previous_block_hash,
                 previous_block_hash_witness.leaf_index,
                 previous_block_hash_witness.sibling_path,
-                blocks_treee_root
+                archive_root
             );
         }
     }
@@ -542,7 +542,7 @@ mod tests {
         CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
         CONTRACT_TREE_HEIGHT,
         CONTRACT_SUBTREE_HEIGHT,
-        BLOCKS_TREE_HEIGHT,
+        ARCHIVE_HEIGHT,
         KERNELS_PER_BASE_ROLLUP,
         MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
         MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP,
@@ -556,7 +556,7 @@ mod tests {
         PUBLIC_DATA_TREE_HEIGHT,
     };
     use dep::types::{
-        abis::membership_witness::BlocksTreeRootMembershipWitness,
+        abis::membership_witness::ArchiveRootMembershipWitness,
         abis::membership_witness::NullifierMembershipWitness,
         abis::new_contract_data::NewContractData,
         abis::public_data_read::PublicDataRead,
@@ -731,13 +731,13 @@ mod tests {
             let mut start_public_data_tree = NonEmptyMerkleTree::new(self.pre_existing_public_data, [0; PUBLIC_DATA_TREE_HEIGHT], [0; PUBLIC_DATA_TREE_HEIGHT - 5], [0; 5]);
             let start_public_data_tree_root = start_public_data_tree.get_root();
 
-            let start_blocks_tree = NonEmptyMerkleTree::new(self.pre_existing_blocks, [0; BLOCKS_TREE_HEIGHT], [0; BLOCKS_TREE_HEIGHT - 1], [0; 1]);
-            let start_blocks_tree_snapshot = AppendOnlyTreeSnapshot {
-                root: start_blocks_tree.get_root(),
-                next_available_leaf_index: start_blocks_tree.get_next_available_index() as u32,
+            let start_archive = NonEmptyMerkleTree::new(self.pre_existing_blocks, [0; ARCHIVE_HEIGHT], [0; ARCHIVE_HEIGHT - 1], [0; 1]);
+            let archive_snapshot = AppendOnlyTreeSnapshot {
+                root: start_archive.get_root(),
+                next_available_leaf_index: start_archive.get_next_available_index() as u32,
             };
 
-            self.constants.start_blocks_tree_snapshot = start_blocks_tree_snapshot;
+            self.constants.archive_snapshot = archive_snapshot;
 
             let mut new_public_data_reads_sibling_paths: [[Field; PUBLIC_DATA_TREE_HEIGHT]; MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP] = dep::std::unsafe::zeroed();
 
@@ -786,7 +786,7 @@ mod tests {
                 start_nullifier_tree_snapshot,
                 start_contract_tree_snapshot,
                 start_public_data_tree_root,
-                start_blocks_tree_snapshot,
+                archive_snapshot,
 
                 sorted_new_nullifiers,
                 sorted_new_nullifiers_indexes,
@@ -800,14 +800,14 @@ mod tests {
                 new_public_data_update_requests_sibling_paths,  
                 new_public_data_reads_sibling_paths,  
 
-                blocks_tree_root_membership_witnesses: [
-                    BlocksTreeRootMembershipWitness {
+                archive_root_membership_witnesses: [
+                    ArchiveRootMembershipWitness {
                         leaf_index: 0,
-                        sibling_path: start_blocks_tree.get_sibling_path(0)
+                        sibling_path: start_archive.get_sibling_path(0)
                     },
-                    BlocksTreeRootMembershipWitness {
+                    ArchiveRootMembershipWitness {
                         leaf_index: 1,
-                        sibling_path: start_blocks_tree.get_sibling_path(1)
+                        sibling_path: start_archive.get_sibling_path(1)
                     },
                 ],
 
@@ -1144,10 +1144,10 @@ mod tests {
     }
 
     #[test(should_fail_with = "membership check failed")]
-    unconstrained fn compute_membership_blocks_tree_negative() {
+    unconstrained fn compute_membership_archive_negative() {
         let mut inputs = BaseRollupInputsBuilder::new().build_inputs();
 
-        inputs.blocks_tree_root_membership_witnesses[0].sibling_path[0] = 27;
+        inputs.archive_root_membership_witnesses[0].sibling_path[0] = 27;
 
         let _output = inputs.base_rollup_circuit();
     }

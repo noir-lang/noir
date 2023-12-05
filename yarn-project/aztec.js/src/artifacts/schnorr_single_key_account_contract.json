@@ -318,7 +318,7 @@
                     }
                   },
                   {
-                    "name": "blocks_tree_root",
+                    "name": "archive_root",
                     "type": {
                       "kind": "field"
                     }
@@ -585,7 +585,7 @@
                     }
                   },
                   {
-                    "name": "blocks_tree_root",
+                    "name": "archive_root",
                     "type": {
                       "kind": "field"
                     }

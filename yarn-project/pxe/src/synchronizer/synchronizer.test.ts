@@ -24,7 +24,7 @@ describe('Synchronizer', () => {
       [MerkleTreeId.NULLIFIER_TREE]: blockHeader.nullifierTreeRoot,
       [MerkleTreeId.PUBLIC_DATA_TREE]: blockHeader.publicDataTreeRoot,
       [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: blockHeader.l1ToL2MessagesTreeRoot,
-      [MerkleTreeId.BLOCKS_TREE]: blockHeader.blocksTreeRoot,
+      [MerkleTreeId.ARCHIVE]: blockHeader.archiveRoot,
     };
 
     aztecNode = mock<AztecNode>();

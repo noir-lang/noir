@@ -132,11 +132,11 @@ NT::fr calculate_commitments_subtree(DummyBuilder& builder, BaseRollupInputs con
  * @param constantBaseRollupData
  * @param baseRollupInputs
  */
-void perform_blocks_tree_membership_checks(DummyBuilder& builder, BaseRollupInputs const& baseRollupInputs)
+void perform_archive_membership_checks(DummyBuilder& builder, BaseRollupInputs const& baseRollupInputs)
 {
     // For each of the historical_note_hash_tree_membership_checks, we need to do an inclusion proof
     // against the historical root provided in the rollup constants
-    auto historical_root = baseRollupInputs.constants.start_blocks_tree_snapshot.root;
+    auto historical_root = baseRollupInputs.constants.start_archive_snapshot.root;
 
     for (size_t i = 0; i < 2; i++) {
         // Rebuild the block hash
@@ -155,8 +155,8 @@ void perform_blocks_tree_membership_checks(DummyBuilder& builder, BaseRollupInpu
                                                           l1_to_l2_messages_tree_root,
                                                           public_data_tree_root);
 
-        abis::MembershipWitness<NT, BLOCKS_TREE_HEIGHT> const historical_root_witness =
-            baseRollupInputs.blocks_tree_root_membership_witnesses[i];
+        abis::MembershipWitness<NT, ARCHIVE_HEIGHT> const historical_root_witness =
+            baseRollupInputs.archive_root_membership_witnesses[i];
 
         check_membership<NT>(builder,
                              previous_block_hash,
@@ -524,7 +524,7 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyBuilder& builder, BaseRol
         components::compute_kernels_calldata_hash(baseRollupInputs.kernel_data);
 
     // Perform membership checks that the notes provided exist within the historical trees data
-    perform_blocks_tree_membership_checks(builder, baseRollupInputs);
+    perform_archive_membership_checks(builder, baseRollupInputs);
 
     AggregationObject const aggregation_object = aggregate_proofs(baseRollupInputs);
 

@@ -111,7 +111,7 @@ export function toACVMBlockHeader(blockHeader: BlockHeader): ACVMField[] {
     toACVMField(blockHeader.nullifierTreeRoot),
     toACVMField(blockHeader.contractTreeRoot),
     toACVMField(blockHeader.l1ToL2MessagesTreeRoot),
-    toACVMField(blockHeader.blocksTreeRoot),
+    toACVMField(blockHeader.archiveRoot),
     toACVMField(blockHeader.publicDataTreeRoot),
     toACVMField(blockHeader.globalVariablesHash),
   ];
