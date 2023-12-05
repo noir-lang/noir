@@ -75,7 +75,6 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build docs
-        working-directory: docs
         run: 
           yarn workspaces foreach -Rt run build
 
