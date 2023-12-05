@@ -889,10 +889,11 @@ impl<'interner> Monomorphizer<'interner> {
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
             if let Definition::Oracle(name) = &ident.definition {
-                if name.as_str() == "println" {
+                if name.as_str() == "print" {
                     // Oracle calls are required to be wrapped in an unconstrained function
-                    // Thus, the only argument to the `println` oracle is expected to always be an ident
-                    self.append_printable_type_info(&hir_arguments[0], &mut arguments);
+                    // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
+                    // The second argument is expected to always be an ident
+                    self.append_printable_type_info(&hir_arguments[1], &mut arguments);
                 }
             }
         }
