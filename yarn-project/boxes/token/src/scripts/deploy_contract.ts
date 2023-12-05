@@ -1,6 +1,4 @@
-import { AztecAddress, CompleteAddress, DeployMethod, Fr } from '@aztec/aztec.js';
-import { ContractArtifact } from '@aztec/foundation/abi';
-import { PXE } from '@aztec/types';
+import { AztecAddress, CompleteAddress, ContractArtifact, DeployMethod, Fr, PXE } from '@aztec/aztec.js';
 
 export async function deployContract(
   activeWallet: CompleteAddress,

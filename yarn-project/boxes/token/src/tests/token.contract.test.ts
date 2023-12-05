@@ -2,6 +2,9 @@ import { TokenContract } from '../artifacts/Token.js';
 import { TokenSimulator } from './token_simulator.js';
 import {
   AccountWallet,
+  CompleteAddress,
+  DebugLogger,
+  ExtendedNote,
   Fr,
   Note,
   PXE,
@@ -9,13 +12,11 @@ import {
   TxStatus,
   computeAuthWitMessageHash,
   computeMessageSecretHash,
+  createDebugLogger,
   createPXEClient,
   getSandboxAccountsWallets,
   waitForSandbox,
 } from '@aztec/aztec.js';
-import { CompleteAddress } from '@aztec/circuits.js';
-import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { ExtendedNote } from '@aztec/types';
 import { afterEach, beforeAll, expect, jest } from '@jest/globals';
 
 // assumes sandbox is running locally, which this script does not trigger

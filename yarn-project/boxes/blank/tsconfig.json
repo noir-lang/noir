@@ -26,11 +26,5 @@
     {
       "path": "../../aztec.js"
     },
-    {
-      "path": "../../circuits.js"
-    },
-    {
-      "path": "../../foundation"
-    }
   ]
 }

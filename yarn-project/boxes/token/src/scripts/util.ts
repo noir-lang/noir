@@ -1,6 +1,12 @@
-import { AccountWallet, Fr, getSandboxAccountsWallets } from '@aztec/aztec.js';
-import { FunctionArtifact, encodeArguments } from '@aztec/foundation/abi';
-import { CompleteAddress, PXE } from '@aztec/types';
+import {
+  AccountWallet,
+  CompleteAddress,
+  Fr,
+  FunctionArtifact,
+  PXE,
+  encodeArguments,
+  getSandboxAccountsWallets,
+} from '@aztec/aztec.js';
 
 function convertBasicArg(paramType: string, value: any) {
   switch (paramType) {

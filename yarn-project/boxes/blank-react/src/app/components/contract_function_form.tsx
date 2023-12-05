@@ -3,8 +3,7 @@ import { callContractFunction, deployContract, viewContractFunction } from '../.
 import { convertArgs } from '../../scripts/util.js';
 import styles from './contract_function_form.module.scss';
 import { Button, Loader } from '@aztec/aztec-ui';
-import { AztecAddress, CompleteAddress, Fr } from '@aztec/aztec.js';
-import { ContractArtifact, FunctionArtifact } from '@aztec/foundation/abi';
+import { AztecAddress, CompleteAddress, ContractArtifact, Fr, FunctionArtifact } from '@aztec/aztec.js';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 

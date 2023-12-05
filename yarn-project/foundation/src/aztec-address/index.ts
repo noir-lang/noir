@@ -10,7 +10,7 @@ import { Fr } from '../fields/index.js';
 export class AztecAddress extends Fr {
   constructor(buffer: Buffer) {
     if (buffer.length !== 32) {
-      throw new Error(`Invalid length ${buffer.length}.`);
+      throw new Error(`Invalid AztecAddress length ${buffer.length}.`);
     }
     super(buffer);
   }

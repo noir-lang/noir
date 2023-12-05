@@ -9,10 +9,10 @@ import {
   PXE,
   TxStatus,
   Wallet,
+  createDebugLogger,
   createPXEClient,
   waitForSandbox,
 } from '@aztec/aztec.js';
-import { createDebugLogger } from '@aztec/foundation/log';
 
 const logger = createDebugLogger('aztec:http-pxe-client');
 

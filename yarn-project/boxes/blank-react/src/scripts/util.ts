@@ -1,6 +1,12 @@
-import { AccountWallet, Fr, getSandboxAccountsWallets } from '@aztec/aztec.js';
-import { FunctionArtifact, encodeArguments } from '@aztec/foundation/abi';
-import { PXE, CompleteAddress } from '@aztec/types';
+import {
+  AccountWallet,
+  CompleteAddress,
+  Fr,
+  FunctionArtifact,
+  PXE,
+  encodeArguments,
+  getSandboxAccountsWallets,
+} from '@aztec/aztec.js';
 
 export function convertArgs(functionAbi: FunctionArtifact, args: any): Fr[] {
   const untypedArgs = functionAbi.parameters.map(param => {
