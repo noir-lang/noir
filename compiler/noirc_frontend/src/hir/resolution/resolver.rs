@@ -791,8 +791,8 @@ impl<'a> Resolver<'a> {
             });
         }
 
-        // 'pub_allowed' also implies 'pub' is required on return types
-        if self.pub_allowed(func)
+        // 'pub' is required on return types for entry point functions
+        if self.is_entry_point_function(func)
             && return_type.as_ref() != &Type::Unit
             && func.def.return_visibility == Visibility::Private
         {
@@ -847,12 +847,9 @@ impl<'a> Resolver<'a> {
     }
 
     /// True if the 'pub' keyword is allowed on parameters in this function
+    /// 'pub' on function parameters is only allowed for entry point functions
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
-        if self.in_contract {
-            !func.def.is_unconstrained
-        } else {
-            func.name() == MAIN_FUNCTION
-        }
+        self.is_entry_point_function(func)
     }
 
     fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
