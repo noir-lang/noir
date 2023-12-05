@@ -320,7 +320,7 @@ impl UnaryOp {
 pub enum Literal {
     Array(ArrayLiteral),
     Bool(bool),
-    Integer(FieldElement, /*sign*/ bool),   // false for positive integer and true for negative
+    Integer(FieldElement, /*sign*/ bool), // false for positive integer and true for negative
     Str(String),
     RawStr(String, u8),
     FmtStr(String),
