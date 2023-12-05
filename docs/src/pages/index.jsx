@@ -51,17 +51,19 @@ export default function Landing() {
             </Suspense>
           )}
 
-          <div className="homepage_cta_container">
-            <Link to="/docs">
-              <button className="cta-button button button--primary button--lg homepage_cta">Read the Docs</button>
-            </Link>
-            <button
-              onClick={(e) => setTryIt(!tryIt)}
-              className="cta-button button button--secondary button--lg homepage_cta"
-            >
-              Try it now!
-            </button>
-          </div>
+          {!tryIt && (
+            <div className="homepage_cta_container">
+              <Link to="/docs">
+                <button className="cta-button button button--primary button--lg homepage_cta">Read the Docs</button>
+              </Link>
+              <button
+                onClick={(e) => setTryIt(!tryIt)}
+                className="cta-button button button--secondary button--lg homepage_cta"
+              >
+                Try it now!
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </Layout>

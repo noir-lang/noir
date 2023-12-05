@@ -116,3 +116,10 @@ html[data-theme='dark'] {
   justify-content: end;
   text-align: right;
 }
+
+*,
+::before,
+::after {
+  border-width: 0;
+  border-style: solid;
+}
