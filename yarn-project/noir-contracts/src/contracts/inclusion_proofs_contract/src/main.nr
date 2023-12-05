@@ -103,6 +103,7 @@ contract InclusionProofs {
         // TODO: assert that block number is less than the block number of context.block_header
         // --> This will either require a new oracle method that returns block_header.global_variables_hash preimage
         //     or modifying the private context so that we somehow expose it.
+        // Blocked by #3564
 
         // 1) Get block header from oracle and ensure that the block hash is included in the current blocks tree
         //    root.
@@ -146,6 +147,7 @@ contract InclusionProofs {
         // TODO: assert that block number is less than the block number of context.block_header
         // --> This will either require a new oracle method that returns block_header.global_variables_hash preimage
         //     or modifying the private context so that we somehow expose it.
+        // Blocked by #3564
 
         // 1) Get block header from oracle and ensure that the block hash is included in the current blocks tree
         //    root.
@@ -217,6 +219,7 @@ contract InclusionProofs {
         // TODO: assert that block number is less than the block number of context.block_header
         // --> This will either require a new oracle method that returns block_header.global_variables_hash preimage
         //     or modifying the private context so that we somehow expose it.
+        // Blocked by #3564
 
         // 1) Get block header from oracle and ensure that the block hash is included in the current blocks tree
         //    root.
@@ -249,6 +252,7 @@ contract InclusionProofs {
         // TODO: assert that block number is less than the block number of context.block_header
         // --> This will either require a new oracle method that returns block_header.global_variables_hash preimage
         //     or modifying the private context so that we somehow expose it.
+        // Blocked by #3564
 
         // 1) Get block header from oracle and ensure that the block hash is included in the current blocks tree
         //    root.

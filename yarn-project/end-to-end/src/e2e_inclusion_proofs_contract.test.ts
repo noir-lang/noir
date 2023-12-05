@@ -46,7 +46,8 @@ describe('e2e_inclusion_proofs_contract', () => {
 
     {
       // Prove note inclusion in a given block.
-      // We prove the note existence at current block number because we don't currently have historical data
+      // TODO: Use here note block number from the creation note tx to test archival node. This is currently not
+      // possible because of issue #3564
       const blockNumber = await pxe.getBlockNumber();
       const ignoredCommitment = 0; // Not ignored only when the note doesn't exist
       await contract.methods.proveNoteInclusion(owner, blockNumber, ignoredCommitment).send().wait();
@@ -54,7 +55,8 @@ describe('e2e_inclusion_proofs_contract', () => {
 
     {
       // Prove that the note has not been nullified
-      // We prove the note existence at current block number because we don't currently have historical data
+      // TODO: Use here note block number from the creation note tx to test archival node. This is currently not
+      // possible because of issue #3564
       const blockNumber = await pxe.getBlockNumber();
       const ignoredNullifier = 0; // Not ignored only when the note doesn't exist
       await contract.methods.proveNullifierNonInclusion(owner, blockNumber, ignoredNullifier).send().wait();
