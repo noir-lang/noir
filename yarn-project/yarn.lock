@@ -277,9 +277,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/bb.js@portal:../barretenberg/ts/package::locator=%40aztec%2Faztec3-packages%40workspace%3A.":
+"@aztec/bb.js@portal:../barretenberg/ts::locator=%40aztec%2Faztec3-packages%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/bb.js@portal:../barretenberg/ts/package::locator=%40aztec%2Faztec3-packages%40workspace%3A."
+  resolution: "@aztec/bb.js@portal:../barretenberg/ts::locator=%40aztec%2Faztec3-packages%40workspace%3A."
   dependencies:
     comlink: ^4.4.1
     commander: ^10.0.1

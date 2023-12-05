@@ -7,10 +7,9 @@
 
 */data*
 **/dest
-**/*.tsbuildinfo
-**/Dockerfile*
 **/node_modules
-Dockerfile*
+**/Dockerfile*
+**/*.tsbuildinfo
 
 noir-contracts/src/types
 noir-contracts/src/artifacts

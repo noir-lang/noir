@@ -1,7 +1,6 @@
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { LogFn } from '@aztec/foundation/log';
 
-import { Command } from 'commander';
 import { mkdirSync, writeFileSync } from 'fs';
 import { mkdirpSync } from 'fs-extra';
 import path, { resolve } from 'path';
@@ -34,32 +33,21 @@ interface Options {
  * @param log - Optional logging function.
  * @returns The program with the command registered.
  */
-export function compileNoir(program: Command, name = 'compile', log: LogFn = () => {}): Command {
-  return program
-    .command(name)
-    .argument('<project-path>', 'Path to the bin or Aztec.nr project to compile')
-    .option('-o, --outdir <path>', 'Output folder for the binary artifacts, relative to the project path', 'target')
-    .option('-ts, --typescript <path>', 'Optional output folder for generating typescript wrappers', undefined)
-    .option('-i, --interface <path>', 'Optional output folder for generating an Aztec.nr contract interface', undefined)
-    .option('-c --compiler <string>', 'Which compiler to use. Either nargo or wasm. Defaults to nargo', 'wasm')
-    .description('Compiles the Noir Source in the target project')
+export async function compileNoir(projectPath: string, options: Options, log: LogFn = () => {}) {
+  const { compiler } = options;
+  if (typeof projectPath !== 'string') {
+    throw new Error(`Missing project path argument`);
+  }
+  if (compiler !== 'nargo' && compiler !== 'wasm') {
+    throw new Error(`Invalid compiler: ${compiler}`);
+  }
 
-    .action(async (projectPath: string, options: Options) => {
-      const { compiler } = options;
-      if (typeof projectPath !== 'string') {
-        throw new Error(`Missing project path argument`);
-      }
-      if (compiler !== 'nargo' && compiler !== 'wasm') {
-        throw new Error(`Invalid compiler: ${compiler}`);
-      }
-
-      const compile = compiler === 'wasm' ? compileUsingNoirWasm : compileUsingNargo;
-      log(`Compiling ${projectPath} with ${compiler} backend...`);
-      const results = await compile(projectPath, { log });
-      for (const result of results) {
-        generateOutput(projectPath, result, options, log);
-      }
-    });
+  const compile = compiler === 'wasm' ? compileUsingNoirWasm : compileUsingNargo;
+  log(`Compiling ${projectPath} with ${compiler} backend...`);
+  const results = await compile(projectPath, { log });
+  for (const result of results) {
+    generateOutput(projectPath, result, options, log);
+  }
 }
 
 /**

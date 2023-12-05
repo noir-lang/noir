@@ -1,3 +1,5 @@
+import { init } from '@aztec/foundation/crypto';
+
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 
 import { Aes128 } from './index.js';
@@ -5,7 +7,8 @@ import { Aes128 } from './index.js';
 describe('aes128', () => {
   let aes128!: Aes128;
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    await init();
     aes128 = new Aes128();
   });
 

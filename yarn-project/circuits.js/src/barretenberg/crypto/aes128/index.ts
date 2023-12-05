@@ -2,10 +2,6 @@ import { BarretenbergSync, RawBuffer } from '@aztec/bb.js';
 
 import { Buffer } from 'buffer';
 
-// Get the singleton. This constructs (if not already) the barretenberg sync api within bb.js itself.
-// This can be called from multiple other modules as needed, and it ensures it's only constructed once.
-const api = await BarretenbergSync.getSingleton();
-
 /**
  * AES-128-CBC encryption/decryption.
  */
@@ -28,6 +24,7 @@ export class Aes128 {
     }
     const input = Buffer.concat([data, paddingBuffer]);
 
+    const api = BarretenbergSync.getSingleton();
     return Buffer.from(
       api.aesEncryptBufferCbc(new RawBuffer(input), new RawBuffer(iv), new RawBuffer(key), input.length),
     );
@@ -41,6 +38,7 @@ export class Aes128 {
    * @returns Decrypted data.
    */
   public decryptBufferCBC(data: Uint8Array, iv: Uint8Array, key: Uint8Array) {
+    const api = BarretenbergSync.getSingleton();
     return Buffer.from(
       api.aesDecryptBufferCbc(new RawBuffer(data), new RawBuffer(iv), new RawBuffer(key), data.length),
     );

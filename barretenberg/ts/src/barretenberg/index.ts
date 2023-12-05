@@ -41,7 +41,8 @@ export class Barretenberg extends BarretenbergApi {
   }
 }
 
-let barretenbergSyncSingleton: Promise<BarretenbergSync>;
+let barretenbergSyncSingleton: BarretenbergSync;
+let barretenbergSyncSingletonPromise: Promise<BarretenbergSync>;
 
 export class BarretenbergSync extends BarretenbergApiSync {
   private constructor(wasm: BarretenbergWasmMain) {
@@ -55,9 +56,16 @@ export class BarretenbergSync extends BarretenbergApiSync {
     return new BarretenbergSync(wasm);
   }
 
+  static initSingleton() {
+    if (!barretenbergSyncSingletonPromise) {
+      barretenbergSyncSingletonPromise = BarretenbergSync.new().then(s => (barretenbergSyncSingleton = s));
+    }
+    return barretenbergSyncSingletonPromise;
+  }
+
   static getSingleton() {
     if (!barretenbergSyncSingleton) {
-      barretenbergSyncSingleton = BarretenbergSync.new();
+      throw new Error('Initialise first via initSingleton().');
     }
     return barretenbergSyncSingleton;
   }
@@ -65,4 +73,12 @@ export class BarretenbergSync extends BarretenbergApiSync {
   getWasm() {
     return this.wasm;
   }
+}
+
+// If we're loading this module in a test environment, just init the singleton immediately for convienience.
+if (process.env.NODE_ENV === 'test') {
+  // Need to ignore for cjs build.
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  await BarretenbergSync.initSingleton();
 }

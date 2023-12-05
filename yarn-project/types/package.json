@@ -5,7 +5,10 @@
   "exports": {
     ".": "./dest/index.js",
     "./stats": "./dest/stats/index.js",
-    "./jest": "./dest/jest/index.js"
+    "./jest": "./dest/jest/index.js",
+    "./interfaces": "./dest/interfaces/index.js",
+    "./log_id": "./dest/logs/log_id.js",
+    "./tx_hash": "./dest/tx/tx_hash.js"
   },
   "typedocOptions": {
     "entryPoints": [

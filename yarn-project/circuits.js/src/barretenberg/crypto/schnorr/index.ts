@@ -1,27 +1,27 @@
 import { BarretenbergSync } from '@aztec/bb.js';
+import { Point } from '@aztec/foundation/fields';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
 
-import { GrumpkinPrivateKey, Point, PublicKey } from '../../../index.js';
+import { GrumpkinPrivateKey, PublicKey } from '../../../types/index.js';
 import { SchnorrSignature } from './signature.js';
 
 export * from './signature.js';
-
-const api = await BarretenbergSync.getSingleton();
-const wasm = api.getWasm();
 
 /**
  * Schnorr signature construction and helper operations.
  */
 export class Schnorr {
+  private wasm = BarretenbergSync.getSingleton().getWasm();
+
   /**
    * Computes a grumpkin public key from a private key.
    * @param privateKey - The private key.
    * @returns A grumpkin public key.
    */
   public computePublicKey(privateKey: GrumpkinPrivateKey): PublicKey {
-    wasm.writeMemory(0, privateKey.toBuffer());
-    wasm.call('schnorr_compute_public_key', 0, 32);
-    return Point.fromBuffer(Buffer.from(wasm.getMemorySlice(32, 96)));
+    this.wasm.writeMemory(0, privateKey.toBuffer());
+    this.wasm.call('schnorr_compute_public_key', 0, 32);
+    return Point.fromBuffer(Buffer.from(this.wasm.getMemorySlice(32, 96)));
   }
 
   /**
@@ -31,12 +31,12 @@ export class Schnorr {
    * @returns A Schnorr signature of the form (s, e).
    */
   public constructSignature(msg: Uint8Array, privateKey: GrumpkinPrivateKey) {
-    const mem = wasm.call('bbmalloc', msg.length + 4);
-    wasm.writeMemory(0, privateKey.toBuffer());
-    wasm.writeMemory(mem, Buffer.concat([numToUInt32BE(msg.length), msg]));
-    wasm.call('schnorr_construct_signature', mem, 0, 32, 64);
+    const mem = this.wasm.call('bbmalloc', msg.length + 4);
+    this.wasm.writeMemory(0, privateKey.toBuffer());
+    this.wasm.writeMemory(mem, Buffer.concat([numToUInt32BE(msg.length), msg]));
+    this.wasm.call('schnorr_construct_signature', mem, 0, 32, 64);
 
-    return new SchnorrSignature(Buffer.from(wasm.getMemorySlice(32, 96)));
+    return new SchnorrSignature(Buffer.from(this.wasm.getMemorySlice(32, 96)));
   }
 
   /**
@@ -47,13 +47,13 @@ export class Schnorr {
    * @returns True or false.
    */
   public verifySignature(msg: Uint8Array, pubKey: PublicKey, sig: SchnorrSignature) {
-    const mem = wasm.call('bbmalloc', msg.length + 4);
-    wasm.writeMemory(0, pubKey.toBuffer());
-    wasm.writeMemory(64, sig.s);
-    wasm.writeMemory(96, sig.e);
-    wasm.writeMemory(mem, Buffer.concat([numToUInt32BE(msg.length), msg]));
-    wasm.call('schnorr_verify_signature', mem, 0, 64, 96, 128);
-    const result = wasm.getMemorySlice(128, 129);
+    const mem = this.wasm.call('bbmalloc', msg.length + 4);
+    this.wasm.writeMemory(0, pubKey.toBuffer());
+    this.wasm.writeMemory(64, sig.s);
+    this.wasm.writeMemory(96, sig.e);
+    this.wasm.writeMemory(mem, Buffer.concat([numToUInt32BE(msg.length), msg]));
+    this.wasm.call('schnorr_verify_signature', mem, 0, 64, 96, 128);
+    const result = this.wasm.getMemorySlice(128, 129);
     return !Buffer.alloc(1, 0).equals(result);
   }
 }

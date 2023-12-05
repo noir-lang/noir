@@ -1,7 +1,6 @@
-import { AztecAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
+import { AztecAddress, CompleteAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
 import {
   AuthWitness,
-  CompleteAddress,
   ContractData,
   ExtendedContractData,
   ExtendedNote,

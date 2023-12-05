@@ -19,4 +19,4 @@ build() {
 export -f build
 
 # run 4 builds at a time
-echo "$@" | xargs -n 1 -P 4 bash -c 'build "$0"'
+echo "$@" | xargs -n 1 -P $(nproc) bash -c 'build "$0"'

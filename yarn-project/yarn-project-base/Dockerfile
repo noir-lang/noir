@@ -53,7 +53,7 @@ RUN apk update && apk add --no-cache bash jq curl
 # Copy L1 contracts.
 COPY --from=contracts /usr/src/l1-contracts /usr/src/l1-contracts
 # Copy in bb.js
-COPY --from=bb.js /usr/src/barretenberg/ts/package /usr/src/barretenberg/ts/package
+COPY --from=bb.js /usr/src/barretenberg/ts /usr/src/barretenberg/ts
 # Copy in nargo
 COPY --from=noir /usr/src/noir/target/release/nargo /usr/src/noir/target/release/nargo
 # Copy in noir packages
@@ -75,15 +75,19 @@ WORKDIR /usr/src/yarn-project
 # The dockerignore file ensures the context only contains package.json and tsconfig.json files.
 COPY . .
 
+# List all included files and hash for debugging.
+RUN echo "Context files: " && find . -type f | sort && \
+    echo -n "Context hash: " && find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum
+
 # Install packages and rebuild the global cache with hard links.
 # TODO: Puppeteer is adding ~300MB to this image due to chrome download (part of e2e).
 #       Switch to using puppeteer-core then it won't download chrome. For now just erase.
 RUN yarn --immutable && rm -rf /root/.cache/puppeteer && /bin/bash -c '\
-  rm -rf /root/.yarn/berry/cache/* && \
-  cd .yarn/cache && \
-  for F in *; do \
-    [[ $F =~ (.*-) ]] && ln $F /root/.yarn/berry/cache/${BASH_REMATCH[1]}8.zip; \
-  done'
+      rm -rf /root/.yarn/berry/cache/* && \
+      cd .yarn/cache && \
+      for F in *; do \
+        [[ $F =~ (.*-) ]] && ln $F /root/.yarn/berry/cache/${BASH_REMATCH[1]}8.zip; \
+      done'
 
 # If everything's worked properly, we should no longer need access to the network.
 RUN echo "enableNetwork: false" >> .yarnrc.yml

@@ -1,0 +1,2 @@
+# Used to augment the prompt when using start_interactive and zsh.
+echo "b "

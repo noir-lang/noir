@@ -16,8 +16,9 @@ BRANCH=${5:-}
 PULL_REQUEST=${6:-}
 
 BASH_ENV=${BASH_ENV:-}
+ROOT_PATH=$(git rev-parse --show-toplevel)
 BUILD_SYSTEM_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-PROJECT=$(cat PROJECT)
+PROJECT=$(cat $ROOT_PATH/PROJECT)
 COMMIT_MESSAGE=$(git log -n 1 --pretty=format:"%s" $COMMIT_HASH)
 PATH=$PATH:$BUILD_SYSTEM_PATH/scripts
 
@@ -64,7 +65,7 @@ if [ -z "$BASH_ENV" ]; then
   BASH_ENV=$(mktemp)
 fi
 
-echo export ROOT_PATH=$PWD >> $BASH_ENV
+echo export ROOT_PATH=$ROOT_PATH >> $BASH_ENV
 echo export BUILD_SYSTEM_PATH=$BUILD_SYSTEM_PATH >> $BASH_ENV
 echo export DOCKER_BUILDKIT=${DOCKER_BUILDKIT:-1} >> $BASH_ENV
 echo export BUILDKIT_PROGRESS=plain >> $BASH_ENV

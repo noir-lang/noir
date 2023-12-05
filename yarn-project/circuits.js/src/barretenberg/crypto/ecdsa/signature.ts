@@ -4,7 +4,7 @@ import { mapTuple } from '@aztec/foundation/serialize';
 
 import { randomBytes } from 'crypto';
 
-import { Signature } from '../index.js';
+import { Signature } from '../signature/index.js';
 
 /**
  * ECDSA signature used for transactions.

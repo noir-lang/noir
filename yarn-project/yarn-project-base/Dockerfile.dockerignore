@@ -6,7 +6,9 @@
 .*
 README.md
 bootstrap.sh
-Dockerfile
+Dockerfile*
+*.tsbuildinfo
+node_modules
 
 # This is a sticking point, due to the project being under it's own dir.
 # Need to unexclude the dir and then exclude it's files.
@@ -17,10 +19,12 @@ Dockerfile
 !boxes/blank
 !boxes/blank-react
 boxes/*/*
+!boxes/*/package.json
+!boxes/*/tsconfig.json
 
 # Unexclude package.json and yarn.lock files, for detecting any dependency changes.
-!**/package.json
-!**/package.*.json
+!*/package.json
+!*/package.*.json
 !yarn.lock
 
 # Unexclude parts of yarn related config as this also affects how dependencies are installed.
@@ -30,7 +34,7 @@ boxes/*/*
 !.yarn/patches
 
 # Unexclude tsconfig files for running project reference checks.
-!**/tsconfig.json
+!*/tsconfig.json
 
 # Unexclude scripts we use in the Dockerfile.
 !yarn-project-base/scripts

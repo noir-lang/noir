@@ -4,9 +4,20 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    "node": "./dest/index.js",
-    "import": "./dest/index.js",
-    "default": "./dest/main.js"
+    ".": {
+      "node": "./dest/index.js",
+      "import": "./dest/index.js",
+      "default": "./dest/main.js"
+    },
+    "./interfaces/pxe": "./dest/api/interfaces/pxe.js",
+    "./abi": "./dest/api/abi.js",
+    "./aztec_address": "./dest/api/aztec_address.js",
+    "./eth_address": "./dest/api/eth_address.js",
+    "./ethereum": "./dest/api/ethereum.js",
+    "./fields": "./dest/api/fields.js",
+    "./init": "./dest/api/init.js",
+    "./log_id": "./dest/api/log_id.js",
+    "./tx_hash": "./dest/api/tx_hash.js"
   },
   "typedocOptions": {
     "entryPoints": [

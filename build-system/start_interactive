@@ -1,0 +1,6 @@
+#!/bin/bash
+# Starts an interactive shell with the build system initialised.
+# Good for playing around with build system on development machines.
+
+source $(dirname "$0")/scripts/setup_env '' '' mainframe_$USER > /dev/null
+PROMPT_LEAN_LEFT=augment_prompt $SHELL

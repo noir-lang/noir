@@ -1,50 +1,16 @@
-import {
-  AztecAddress,
-  Contract,
-  ContractDeployer,
-  EthAddress,
-  Fr,
-  GrumpkinScalar,
-  Note,
-  generatePublicKey,
-  getSchnorrAccount,
-  isContractDeployed,
-} from '@aztec/aztec.js';
-import {
-  FunctionSelector,
-  StructType,
-  decodeFunctionSignature,
-  decodeFunctionSignatureWithParameterNames,
-} from '@aztec/foundation/abi';
-import { JsonStringify } from '@aztec/foundation/json-rpc';
+import { initAztecJs } from '@aztec/aztec.js/init';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
-import { sleep } from '@aztec/foundation/sleep';
 import { fileURLToPath } from '@aztec/foundation/url';
-import { compileNoir, generateNoirInterface, generateTypescriptInterface } from '@aztec/noir-compiler/cli';
-import { CompleteAddress, ContractData, ExtendedNote, LogFilter } from '@aztec/types';
+import { addNoirCompilerCommanderActions } from '@aztec/noir-compiler/cli';
 
-import { createSecp256k1PeerId } from '@libp2p/peer-id-factory';
 import { Command, Option } from 'commander';
 import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
-import { format } from 'util';
-import { mnemonicToAccount } from 'viem/accounts';
 
-import { createCompatibleClient } from './client.js';
-import { encodeArgs, parseStructString } from './encoding.js';
-import { GITHUB_TAG_PREFIX } from './github.js';
-import { unboxContract } from './unbox.js';
-import { update } from './update/update.js';
 import {
-  deployAztecContracts,
-  getContractArtifact,
-  getExampleContractArtifacts,
-  getFunctionArtifact,
-  getTxSender,
   parseAztecAddress,
   parseEthereumAddress,
   parseField,
-  parseFields,
   parseOptionalAztecAddress,
   parseOptionalInteger,
   parseOptionalLogId,
@@ -55,10 +21,7 @@ import {
   parsePublicKey,
   parseSaltFromHexString,
   parseTxHash,
-  prepTx,
 } from './utils.js';
-
-const accountCreationSalt = Fr.ZERO;
 
 const { ETHEREUM_HOST = 'http://localhost:8545', PRIVATE_KEY, API_KEY } = process.env;
 
@@ -88,6 +51,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       .argParser(parsePrivateKey)
       .makeOptionMandatory(mandatory);
 
+  program.hook('preAction', initAztecJs);
+
   program
     .command('deploy-l1-contracts')
     .description('Deploys all necessary Ethereum contracts for Aztec.')
@@ -104,20 +69,15 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       'test test test test test test test test test test test junk',
     )
     .action(async options => {
-      const { l1ContractAddresses } = await deployAztecContracts(
+      const { deployL1Contracts } = await import('./cmds/deploy_l1_contracts.js');
+      await deployL1Contracts(
         options.rpcUrl,
         options.apiKey ?? '',
         options.privateKey,
         options.mnemonic,
+        log,
         debugLogger,
       );
-      log('\n');
-      log(`Rollup Address: ${l1ContractAddresses.rollupAddress.toString()}`);
-      log(`Registry Address: ${l1ContractAddresses.registryAddress.toString()}`);
-      log(`L1 -> L2 Inbox Address: ${l1ContractAddresses.inboxAddress.toString()}`);
-      log(`L2 -> L1 Outbox address: ${l1ContractAddresses.outboxAddress.toString()}`);
-      log(`Contract Deployment Emitter Address: ${l1ContractAddresses.contractDeploymentEmitterAddress.toString()}`);
-      log('\n');
     });
 
   program
@@ -130,20 +90,9 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       '-m, --mnemonic',
       'An optional mnemonic string used for the private key generation. If not provided, random private key will be generated.',
     )
-    .action(options => {
-      let privKey;
-      let publicKey;
-      if (options.mnemonic) {
-        const acc = mnemonicToAccount(options.mnemonic);
-        // TODO(#2052): This reduction is not secure enough. TACKLE THIS ISSUE BEFORE MAINNET.
-        const key = GrumpkinScalar.fromBufferReduce(Buffer.from(acc.getHdKey().privateKey!));
-        publicKey = generatePublicKey(key);
-      } else {
-        const key = GrumpkinScalar.random();
-        privKey = key.toString();
-        publicKey = generatePublicKey(key);
-      }
-      log(`\nPrivate Key: ${privKey}\nPublic Key: ${publicKey.toString()}\n`);
+    .action(async options => {
+      const { generatePrivateKey } = await import('./cmds/generate_private_key.js');
+      generatePrivateKey(options.mnemonic, log);
     });
 
   program
@@ -151,10 +100,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .summary('Generates a LibP2P peer private key.')
     .description('Generates a private key that can be used for running a node on a LibP2P network.')
     .action(async () => {
-      const peerId = await createSecp256k1PeerId();
-      const exportedPeerId = Buffer.from(peerId.privateKey!).toString('hex');
-      log(`Private key: ${exportedPeerId}`);
-      log(`Peer Id: ${peerId}`);
+      const { generateP2PPrivateKey } = await import('./cmds/generate_p2p_private_key.js');
+      await generateP2PPrivateKey(log);
     });
 
   program
@@ -171,28 +118,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     // https://github.com/tj/commander.js#other-option-types-negatable-boolean-and-booleanvalue
     .option('--no-wait', 'Skip waiting for the contract to be deployed. Print the hash of deployment transaction')
     .action(async ({ rpcUrl, privateKey, wait }) => {
-      const client = await createCompatibleClient(rpcUrl, debugLogger);
-      const actualPrivateKey = privateKey ?? GrumpkinScalar.random();
-
-      const account = getSchnorrAccount(client, actualPrivateKey, actualPrivateKey, accountCreationSalt);
-      const { address, publicKey, partialAddress } = account.getCompleteAddress();
-      const tx = await account.deploy();
-      const txHash = await tx.getTxHash();
-      debugLogger(`Account contract tx sent with hash ${txHash}`);
-      if (wait) {
-        log(`\nWaiting for account contract deployment...`);
-        await tx.wait();
-      } else {
-        log(`\nAccount deployment transaction hash: ${txHash}\n`);
-      }
-
-      log(`\nNew account:\n`);
-      log(`Address:         ${address.toString()}`);
-      log(`Public key:      ${publicKey.toString()}`);
-      if (!privateKey) {
-        log(`Private key:     ${actualPrivateKey.toString()}`);
-      }
-      log(`Partial address: ${partialAddress.toString()}`);
+      const { createAccount } = await import('./cmds/create_account.js');
+      await createAccount(rpcUrl, privateKey, wait, debugLogger, log);
     });
 
   program
@@ -209,14 +136,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     )
     .addOption(pxeOption)
     .action(async ({ rpcUrl, privateKey, partialAddress }) => {
-      const client = await createCompatibleClient(rpcUrl, debugLogger);
-
-      const { address, publicKey } = await client.registerAccount(privateKey, partialAddress);
-
-      log(`\nRegistered account:\n`);
-      log(`Address:         ${address.toString()}`);
-      log(`Public key:      ${publicKey.toString()}`);
-      log(`Partial address: ${partialAddress.toString()}`);
+      const { registerAccount } = await import('./cmds/register_account.js');
+      await registerAccount(rpcUrl, privateKey, partialAddress, debugLogger, log);
     });
 
   program
@@ -248,58 +169,20 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     // https://github.com/tj/commander.js#other-option-types-negatable-boolean-and-booleanvalue
     .option('--no-wait', 'Skip waiting for the contract to be deployed. Print the hash of deployment transaction')
     .action(async (artifactPath, { json, rpcUrl, publicKey, args: rawArgs, portalAddress, salt, wait }) => {
-      const contractArtifact = await getContractArtifact(artifactPath, log);
-      const constructorArtifact = contractArtifact.functions.find(({ name }) => name === 'constructor');
-
-      const client = await createCompatibleClient(rpcUrl, debugLogger);
-      const nodeInfo = await client.getNodeInfo();
-      const expectedAztecNrVersion = `${GITHUB_TAG_PREFIX}-v${nodeInfo.sandboxVersion}`;
-      if (contractArtifact.aztecNrVersion && contractArtifact.aztecNrVersion !== expectedAztecNrVersion) {
-        log(
-          `\nWarning: Contract was compiled with a different version of Aztec.nr: ${contractArtifact.aztecNrVersion}. Consider updating Aztec.nr to ${expectedAztecNrVersion}\n`,
-        );
-      }
-
-      const deployer = new ContractDeployer(contractArtifact, client, publicKey);
-
-      const constructor = getFunctionArtifact(contractArtifact, 'constructor');
-      if (!constructor) {
-        throw new Error(`Constructor not found in contract ABI`);
-      }
-
-      debugLogger(`Input arguments: ${rawArgs.map((x: any) => `"${x}"`).join(', ')}`);
-      const args = encodeArgs(rawArgs, constructorArtifact!.parameters);
-      debugLogger(`Encoded arguments: ${args.join(', ')}`);
-
-      const deploy = deployer.deploy(...args);
-
-      await deploy.create({ contractAddressSalt: salt, portalContract: portalAddress });
-      const tx = deploy.send({ contractAddressSalt: salt, portalContract: portalAddress });
-      const txHash = await tx.getTxHash();
-      debugLogger(`Deploy tx sent with hash ${txHash}`);
-      if (wait) {
-        const deployed = await tx.wait();
-        const { address, partialAddress } = deployed.contract.completeAddress;
-        if (json) {
-          logJson({ address: address.toString(), partialAddress: partialAddress.toString() });
-        } else {
-          log(`\nContract deployed at ${address.toString()}\n`);
-          log(`Contract partial address ${partialAddress.toString()}\n`);
-        }
-      } else {
-        const { address, partialAddress } = deploy.completeAddress ?? {};
-        if (json) {
-          logJson({
-            address: address?.toString() ?? 'N/A',
-            partialAddress: partialAddress?.toString() ?? 'N/A',
-            txHash: txHash.toString(),
-          });
-        } else {
-          log(`\nContract Address: ${deploy.completeAddress?.address.toString() ?? 'N/A'}`);
-          log(`Contract Partial Address: ${deploy.completeAddress?.partialAddress.toString() ?? 'N/A'}`);
-          log(`Deployment transaction hash: ${txHash}\n`);
-        }
-      }
+      const { deploy } = await import('./cmds/deploy.js');
+      await deploy(
+        artifactPath,
+        json,
+        rpcUrl,
+        publicKey,
+        rawArgs,
+        portalAddress,
+        salt,
+        wait,
+        debugLogger,
+        log,
+        logJson,
+      );
     });
 
   program
@@ -312,14 +195,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     )
     .addOption(pxeOption)
     .action(async options => {
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const address = options.contractAddress;
-      const isDeployed = await isContractDeployed(client, address);
-      if (isDeployed) {
-        log(`\nContract found at ${address.toString()}\n`);
-      } else {
-        log(`\nNo contract found at ${address.toString()}\n`);
-      }
+      const { checkDeploy } = await import('./cmds/check_deploy.js');
+      await checkDeploy(options.rpcUrl, options.contractAddress, debugLogger, log);
     });
 
   program
@@ -337,32 +214,27 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .option('--portal-address <address>', 'Optional address to a portal contract on L1', parseEthereumAddress)
     .addOption(pxeOption)
     .action(async options => {
-      const artifact = await getContractArtifact(options.contractArtifact, log);
-      const contractAddress: AztecAddress = options.contractAddress;
-      const completeAddress = new CompleteAddress(
-        contractAddress,
-        options.publicKey ?? Fr.ZERO,
+      const { addContract } = await import('./cmds/add_contract.js');
+      await addContract(
+        options.rpcUrl,
+        options.contractArtifact,
+        options.contractAddress,
         options.partialAddress,
+        options.publicKey,
+        options.portalContract,
+        debugLogger,
+        log,
       );
-      const portalContract: EthAddress = options.portalContract ?? EthAddress.ZERO;
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-
-      await client.addContracts([{ artifact, completeAddress, portalContract }]);
-      log(`\nContract added to PXE at ${contractAddress.toString()}\n`);
     });
+
   program
     .command('get-tx-receipt')
     .description('Gets the receipt for the specified transaction hash.')
     .argument('<txHash>', 'A transaction hash to get the receipt for.', parseTxHash)
     .addOption(pxeOption)
     .action(async (txHash, options) => {
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const receipt = await client.getTxReceipt(txHash);
-      if (!receipt) {
-        log(`No receipt found for transaction hash ${txHash.toString()}`);
-      } else {
-        log(`\nTransaction receipt: \n${JsonStringify(receipt, true)}\n`);
-      }
+      const { getTxReceipt } = await import('./cmds/get_tx_receipt.js');
+      await getTxReceipt(options.rpcUrl, txHash, debugLogger, log);
     });
 
   program
@@ -372,28 +244,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .addOption(pxeOption)
     .option('-b, --include-bytecode <boolean>', "Include the contract's public function bytecode, if any.", false)
     .action(async (contractAddress, options) => {
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const contractDataWithOrWithoutBytecode = options.includeBytecode
-        ? await client.getExtendedContractData(contractAddress)
-        : await client.getContractData(contractAddress);
-
-      if (!contractDataWithOrWithoutBytecode) {
-        log(`No contract data found at ${contractAddress}`);
-        return;
-      }
-      let contractData: ContractData;
-
-      if ('contractData' in contractDataWithOrWithoutBytecode) {
-        contractData = contractDataWithOrWithoutBytecode.contractData;
-      } else {
-        contractData = contractDataWithOrWithoutBytecode;
-      }
-      log(`\nContract Data: \nAddress: ${contractData.contractAddress.toString()}`);
-      log(`Portal:  ${contractData.portalContractAddress.toString()}`);
-      if ('bytecode' in contractDataWithOrWithoutBytecode) {
-        log(`Bytecode: ${contractDataWithOrWithoutBytecode.bytecode}`);
-      }
-      log('\n');
+      const { getContractData } = await import('./cmds/get_contract_data.js');
+      await getContractData(options.rpcUrl, contractAddress, options.includeBytecode, debugLogger, log);
     });
 
   program
@@ -412,55 +264,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .addOption(pxeOption)
     .option('--follow', 'If set, will keep polling for new logs until interrupted.')
     .action(async ({ txHash, fromBlock, toBlock, afterLog, contractAddress, selector, rpcUrl, follow }) => {
-      const pxe = await createCompatibleClient(rpcUrl, debugLogger);
-
-      if (follow) {
-        if (txHash) {
-          throw Error('Cannot use --follow with --tx-hash');
-        }
-        if (toBlock) {
-          throw Error('Cannot use --follow with --to-block');
-        }
-      }
-
-      const filter: LogFilter = { txHash, fromBlock, toBlock, afterLog, contractAddress, selector };
-
-      const fetchLogs = async () => {
-        const response = await pxe.getUnencryptedLogs(filter);
-        const logs = response.logs;
-
-        if (!logs.length) {
-          const filterOptions = Object.entries(filter)
-            .filter(([, value]) => value !== undefined)
-            .map(([key, value]) => `${key}: ${value}`)
-            .join(', ');
-          if (!follow) {
-            log(`No logs found for filter: {${filterOptions}}`);
-          }
-        } else {
-          if (!follow && !filter.afterLog) {
-            log('Logs found: \n');
-          }
-          logs.forEach(unencryptedLog => log(unencryptedLog.toHumanReadable()));
-          // Set the continuation parameter for the following requests
-          filter.afterLog = logs[logs.length - 1].id;
-        }
-        return response.maxLogsHit;
-      };
-
-      if (follow) {
-        log('Fetching logs...');
-        while (true) {
-          const maxLogsHit = await fetchLogs();
-          if (!maxLogsHit) {
-            await sleep(1000);
-          }
-        }
-      } else {
-        while (await fetchLogs()) {
-          // Keep fetching logs until we reach the end.
-        }
-      }
+      const { getLogs } = await import('./cmds/get_logs.js');
+      await getLogs(txHash, fromBlock, toBlock, afterLog, contractAddress, selector, rpcUrl, follow, debugLogger, log);
     });
 
   program
@@ -475,9 +280,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     )
     .addOption(pxeOption)
     .action(async ({ address, publicKey, partialAddress, rpcUrl }) => {
-      const client = await createCompatibleClient(rpcUrl, debugLogger);
-      await client.registerRecipient(CompleteAddress.create(address, publicKey, partialAddress));
-      log(`\nRegistered details for account with address: ${address}\n`);
+      const { registerRecipient } = await import('./cmds/register_recipient.js');
+      await registerRecipient(address, publicKey, partialAddress, rpcUrl, debugLogger, log);
     });
 
   program
@@ -485,16 +289,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .description('Gets all the Aztec accounts stored in the PXE.')
     .addOption(pxeOption)
     .action(async (options: any) => {
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const accounts = await client.getRegisteredAccounts();
-      if (!accounts.length) {
-        log('No accounts found.');
-      } else {
-        log(`Accounts found: \n`);
-        for (const account of accounts) {
-          log(account.toReadableString());
-        }
-      }
+      const { getAccounts } = await import('./cmds/get_accounts.js');
+      await getAccounts(options.rpcUrl, debugLogger, log);
     });
 
   program
@@ -503,14 +299,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .argument('<address>', 'The Aztec address to get account for', parseAztecAddress)
     .addOption(pxeOption)
     .action(async (address, options) => {
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const account = await client.getRegisteredAccount(address);
-
-      if (!account) {
-        log(`Unknown account ${address.toString()}`);
-      } else {
-        log(account.toReadableString());
-      }
+      const { getAccount } = await import('./cmds/get_account.js');
+      await getAccount(address, options.rpcUrl, debugLogger, log);
     });
 
   program
@@ -518,16 +308,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .description('Gets all the recipients stored in the PXE.')
     .addOption(pxeOption)
     .action(async (options: any) => {
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const recipients = await client.getRecipients();
-      if (!recipients.length) {
-        log('No recipients found.');
-      } else {
-        log(`Recipients found: \n`);
-        for (const recipient of recipients) {
-          log(recipient.toReadableString());
-        }
-      }
+      const { getRecipients } = await import('./cmds/get_recipients.js');
+      await getRecipients(options.rpcUrl, debugLogger, log);
     });
 
   program
@@ -536,14 +318,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .argument('<address>', 'The Aztec address to get recipient for', parseAztecAddress)
     .addOption(pxeOption)
     .action(async (address, options) => {
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const recipient = await client.getRecipient(address);
-
-      if (!recipient) {
-        log(`Unknown recipient ${address.toString()}`);
-      } else {
-        log(recipient.toReadableString());
-      }
+      const { getRecipient } = await import('./cmds/get_recipient.js');
+      await getRecipient(address, options.rpcUrl, debugLogger, log);
     });
 
   program
@@ -560,31 +336,18 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .addOption(pxeOption)
     .option('--no-wait', 'Print transaction hash without waiting for it to be mined')
     .action(async (functionName, options) => {
-      const { functionArgs, contractArtifact } = await prepTx(
-        options.contractArtifact,
+      const { send } = await import('./cmds/send.js');
+      await send(
         functionName,
         options.args,
+        options.contractArtifact,
+        options.contractAddress,
+        options.privateKey,
+        options.rpcUrl,
+        !options.noWait,
+        debugLogger,
         log,
       );
-      const { contractAddress, privateKey } = options;
-
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const wallet = await getSchnorrAccount(client, privateKey, privateKey, accountCreationSalt).getWallet();
-      const contract = await Contract.at(contractAddress, contractArtifact, wallet);
-      const tx = contract.methods[functionName](...functionArgs).send();
-      log(`\nTransaction hash: ${(await tx.getTxHash()).toString()}`);
-      if (options.wait) {
-        await tx.wait();
-
-        log('Transaction has been mined');
-
-        const receipt = await tx.getReceipt();
-        log(`Status: ${receipt.status}\n`);
-        log(`Block number: ${receipt.blockNumber}`);
-        log(`Block hash: ${receipt.blockHash?.toString('hex')}`);
-      } else {
-        log('Transaction pending. Check status with get-tx-receipt');
-      }
     });
 
   program
@@ -602,23 +365,17 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .option('-f, --from <string>', 'Aztec address of the caller. If empty, will use the first account from RPC.')
     .addOption(pxeOption)
     .action(async (functionName, options) => {
-      const { functionArgs, contractArtifact } = await prepTx(
-        options.contractArtifact,
+      const { call } = await import('./cmds/call.js');
+      await call(
         functionName,
         options.args,
+        options.contractArtifact,
+        options.contractAddress,
+        options.from,
+        options.rpcUrl,
+        debugLogger,
         log,
       );
-
-      const fnArtifact = getFunctionArtifact(contractArtifact, functionName);
-      if (fnArtifact.parameters.length !== options.args.length) {
-        throw Error(
-          `Invalid number of args passed. Expected ${fnArtifact.parameters.length}; Received: ${options.args.length}`,
-        );
-      }
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const from = await getTxSender(client, options.from);
-      const result = await client.viewTx(functionName, functionArgs, options.contractAddress, from);
-      log(format('\nView result: ', result, '\n'));
     });
 
   program
@@ -631,10 +388,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .requiredOption('-n, --note [note...]', 'The members of a Note serialized as hex strings.', [])
     .addOption(pxeOption)
     .action(async (address, contractAddress, storageSlot, txHash, options) => {
-      const note = new Note(parseFields(options.note));
-      const extendedNote = new ExtendedNote(note, address, contractAddress, storageSlot, txHash);
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      await client.addNote(extendedNote);
+      const { addNote } = await import('./cmds/add_note.js');
+      await addNote(address, contractAddress, storageSlot, txHash, options.note, options.rpcUrl, debugLogger);
     });
 
   // Helper for users to decode hex strings into structs if needed.
@@ -648,17 +403,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     )
     .requiredOption('-p, --parameter <parameterName>', 'The name of the struct parameter to decode into')
     .action(async (encodedString, options) => {
-      const contractArtifact = await getContractArtifact(options.contractArtifact, log);
-      const parameterAbitype = contractArtifact.functions
-        .map(({ parameters }) => parameters)
-        .flat()
-        .find(({ name, type }) => name === options.parameter && type.kind === 'struct');
-      if (!parameterAbitype) {
-        log(`No struct parameter found with name ${options.parameter}`);
-        return;
-      }
-      const data = parseStructString(encodedString, parameterAbitype.type as StructType);
-      log(`\nStruct Data: \n${JsonStringify(data, true)}\n`);
+      const { parseParameterStruct } = await import('./cmds/parse_parameter_struct.js');
+      await parseParameterStruct(encodedString, options.contractArtifact, options.parameter, log);
     });
 
   program
@@ -666,18 +412,16 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .description('Gets the current Aztec L2 block number.')
     .addOption(pxeOption)
     .action(async (options: any) => {
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const num = await client.getBlockNumber();
-      log(`${num}\n`);
+      const { blockNumber } = await import('./cmds/block_number.js');
+      await blockNumber(options.rpcUrl, debugLogger, log);
     });
 
   program
     .command('example-contracts')
     .description('Lists the example contracts available to deploy from @aztec/noir-contracts')
     .action(async () => {
-      const abisList = await getExampleContractArtifacts();
-      const names = Object.keys(abisList);
-      names.forEach(name => log(name));
+      const { exampleContracts } = await import('./cmds/example_contracts.js');
+      await exampleContracts(log);
     });
 
   program
@@ -691,8 +435,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       'Local directory to unbox source folder to (relative or absolute), optional - defaults to `<contractName>/`',
     )
     .action(async (contractName, localDirectory) => {
-      const unboxTo: string = localDirectory ? localDirectory : contractName;
-      await unboxContract(contractName, unboxTo, cliVersion, log);
+      const { unbox } = await import('./cmds/unbox.js');
+      await unbox(contractName, localDirectory, cliVersion, log);
     });
 
   program
@@ -700,14 +444,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .description('Gets the information of an aztec node at a URL.')
     .addOption(pxeOption)
     .action(async options => {
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const info = await client.getNodeInfo();
-      log(`\nNode Info:\n`);
-      log(`Sandbox Version: ${info.sandboxVersion}\n`);
-      log(`Compatible Nargo Version: ${info.compatibleNargoVersion}\n`);
-      log(`Chain Id: ${info.chainId}\n`);
-      log(`Protocol Version: ${info.protocolVersion}\n`);
-      log(`Rollup Address: ${info.l1ContractAddresses.rollupAddress.toString()}`);
+      const { getNodeInfo } = await import('./cmds/get_node_info.js');
+      await getNodeInfo(options.rpcUrl, debugLogger, log);
     });
 
   program
@@ -718,30 +456,17 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       `A compiled Noir contract's artifact in JSON format or name of a contract artifact exported by @aztec/noir-contracts`,
     )
     .action(async (contractArtifactFile: string) => {
-      const contractArtifact = await getContractArtifact(contractArtifactFile, debugLogger);
-      const contractFns = contractArtifact.functions.filter(
-        f => !f.isInternal && f.name !== 'compute_note_hash_and_nullifier',
-      );
-      if (contractFns.length === 0) {
-        log(`No external functions found for contract ${contractArtifact.name}`);
-      }
-      for (const fn of contractFns) {
-        const signatureWithParameterNames = decodeFunctionSignatureWithParameterNames(fn.name, fn.parameters);
-        const signature = decodeFunctionSignature(fn.name, fn.parameters);
-        const selector = FunctionSelector.fromSignature(signature);
-        log(
-          `${fn.functionType} ${signatureWithParameterNames} \n\tfunction signature: ${signature}\n\tselector: ${selector}`,
-        );
-      }
+      const { inspectContract } = await import('./cmds/inspect_contract.js');
+      await inspectContract(contractArtifactFile, debugLogger, log);
     });
 
   program
     .command('compute-selector')
     .description('Given a function signature, it computes a selector')
     .argument('<functionSignature>', 'Function signature to compute selector for e.g. foo(Field)')
-    .action((functionSignature: string) => {
-      const selector = FunctionSelector.fromSignature(functionSignature);
-      log(`${selector}`);
+    .action(async (functionSignature: string) => {
+      const { computeSelector } = await import('./cmds/compute_selector.js');
+      computeSelector(functionSignature, log);
     });
 
   program
@@ -752,13 +477,11 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .option('--sandbox-version <semver>', 'The sandbox version to update to. Defaults to latest', 'latest')
     .addOption(pxeOption)
     .action(async (projectPath: string, options) => {
-      const { contract } = options;
-      await update(projectPath, contract, options.rpcUrl, options.sandboxVersion, log, debugLogger);
+      const { update } = await import('./update/update.js');
+      await update(projectPath, options.contract, options.rpcUrl, options.sandboxVersion, log, debugLogger);
     });
 
-  compileNoir(program, 'compile', log);
-  generateTypescriptInterface(program, 'generate-typescript', log);
-  generateNoirInterface(program, 'generate-noir-interface', log);
+  addNoirCompilerCommanderActions(program, log);
 
   return program;
 }

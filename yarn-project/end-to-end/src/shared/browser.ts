@@ -84,8 +84,9 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
     });
 
     it('Loads Aztec.js in the browser', async () => {
-      const generatePublicKeyExists = await page.evaluate(() => {
-        const { generatePublicKey } = window.AztecJs;
+      const generatePublicKeyExists = await page.evaluate(async () => {
+        const { generatePublicKey, init } = window.AztecJs;
+        await init();
         return typeof generatePublicKey === 'function';
       });
       expect(generatePublicKeyExists).toBe(true);

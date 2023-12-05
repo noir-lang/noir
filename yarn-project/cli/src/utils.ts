@@ -1,24 +1,15 @@
-import { AztecAddress, EthAddress, Fr, FunctionSelector, GrumpkinScalar, PXE, Point, TxHash } from '@aztec/aztec.js';
-import { L1ContractArtifactsForDeployment, createEthereumChain, deployL1Contracts } from '@aztec/ethereum';
-import { ContractArtifact } from '@aztec/foundation/abi';
+import { type ContractArtifact, type FunctionArtifact, FunctionSelector } from '@aztec/aztec.js/abi';
+import { AztecAddress } from '@aztec/aztec.js/aztec_address';
+import { EthAddress } from '@aztec/aztec.js/eth_address';
+import { type L1ContractArtifactsForDeployment } from '@aztec/aztec.js/ethereum';
+import { Fr, GrumpkinScalar, Point } from '@aztec/aztec.js/fields';
+import { type PXE } from '@aztec/aztec.js/interfaces/pxe';
+import { LogId } from '@aztec/aztec.js/log_id';
+import { TxHash } from '@aztec/aztec.js/tx_hash';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
-import {
-  ContractDeploymentEmitterAbi,
-  ContractDeploymentEmitterBytecode,
-  InboxAbi,
-  InboxBytecode,
-  OutboxAbi,
-  OutboxBytecode,
-  RegistryAbi,
-  RegistryBytecode,
-  RollupAbi,
-  RollupBytecode,
-} from '@aztec/l1-artifacts';
-import { LogId } from '@aztec/types';
 
 import { CommanderError, InvalidArgumentError } from 'commander';
 import { readFile, rename, writeFile } from 'fs/promises';
-import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 
 import { encodeArgs } from './encoding.js';
 
@@ -35,7 +26,7 @@ interface ArtifactsType {
  * @param fnName - Function name to be found.
  * @returns The function's ABI.
  */
-export function getFunctionArtifact(artifact: ContractArtifact, fnName: string) {
+export function getFunctionArtifact(artifact: ContractArtifact, fnName: string): FunctionArtifact {
   const fn = artifact.functions.find(({ name }) => name === fnName);
   if (!fn) {
     throw Error(`Function ${fnName} not found in contract ABI.`);
@@ -57,6 +48,21 @@ export async function deployAztecContracts(
   mnemonic: string,
   debugLogger: DebugLogger,
 ) {
+  const {
+    ContractDeploymentEmitterAbi,
+    ContractDeploymentEmitterBytecode,
+    InboxAbi,
+    InboxBytecode,
+    OutboxAbi,
+    OutboxBytecode,
+    RegistryAbi,
+    RegistryBytecode,
+    RollupAbi,
+    RollupBytecode,
+  } = await import('@aztec/l1-artifacts');
+  const { createEthereumChain, deployL1Contracts } = await import('@aztec/ethereum');
+  const { mnemonicToAccount, privateKeyToAccount } = await import('viem/accounts');
+
   const account = !privateKey ? mnemonicToAccount(mnemonic!) : privateKeyToAccount(`0x${privateKey}`);
   const chain = createEthereumChain(rpcUrl, apiKey);
   const l1Artifacts: L1ContractArtifactsForDeployment = {

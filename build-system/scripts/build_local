@@ -114,6 +114,9 @@ for E in "${PROJECTS[@]}"; do
   # Retag for aztecprotocol dockerhub.
   docker tag $DEPLOY_IMAGE_URI aztecprotocol/$REPO:latest
 
+  echo -e "${BOLD}Tagged${RESET}: aztecprotocol/$REPO:latest"
+  echo -e "${BOLD}SHA256${RESET}: $(docker inspect --format='{{.Id}}' $DEPLOY_IMAGE_URI)"
+
   if [ "$PROJECT_DIR_NAME" = "$TARGET_PROJECT" ]; then
     if [ -n "$LAUNCH" ]; then
       docker run -ti --rm aztecprotocol/$REPO:latest

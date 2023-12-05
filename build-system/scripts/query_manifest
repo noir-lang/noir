@@ -4,7 +4,7 @@ set -eu
 CMD=$1
 REPO=$2
 
-ROOT_PATH=${ROOT_PATH:-$PWD}
+ROOT_PATH=${ROOT_PATH:-$(git rev-parse --show-toplevel)}
 MANIFEST=$ROOT_PATH/build_manifest.yml
 
 if [ $(yq "has(\"$REPO\")" $MANIFEST) == "false" ]; then
