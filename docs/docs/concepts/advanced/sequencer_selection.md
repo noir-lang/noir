@@ -40,7 +40,7 @@ During the initial proposal phase, proposers submit to L1 a **block commitment**
 - Identifier of the previous block in the chain.
 - The output of the VRF for this sequencer.
 
-At the end of the proposal phase, the sequencer with the highest score submitted becomes the leader for this cycle, and has exclusive rights to deciding the contents of the block. Note that this plays nicely with private mempools, since having exclusive rights allows the leader to disclose private transaction data in the reveal phase.
+At the end of the proposal phase, the sequencer with the highest score submitted becomes the leader for this cycle, and has exclusive rights to decide the contents of the block. Note that this plays nicely with private mempools, since having exclusive rights allows the leader to disclose private transaction data in the reveal phase.
 
 > _In the original version of Fernet, multiple competing proposals could enter the proving phase. Read more about the rationale for this change [here](https://hackmd.io/0cI_xVsaSVi7PToCJ9A2Ew?both#Mitigation-Elect-single-leader-after-proposal-phase)._
 
@@ -79,15 +79,15 @@ The only way to trigger an L2 reorg (without an L1 one) is if block N is reveale
 
 ![](https://hackmd.io/_uploads/HkMDHxxC2.png)
 
-To mitigate the effect of wasted effort by all sequencers from block N+1 until the reorg, we could implement uncle rewards for these sequencers. And if we are comfortable with slashing, take those rewards out of the pocket of the sequencer that failed to finalise their block.
+To mitigate the effect of wasted effort by all sequencers from block N+1 until the reorg, we could implement uncle rewards for these sequencers. And if we are comfortable with slashing, take those rewards out of the pocket of the sequencer that failed to finalize their block.
 
 ## Batching
 
 > _Read more approaches to batching [here](https://hackmd.io/0cI_xVsaSVi7PToCJ9A2Ew?both#Batching)._
 
-As an extension to the protocol, we can bake in batching of multiple blocks. Rather than creating one proof per block, we can aggregate multiple blocks into a single proof, in order to amortise the cost of verifying the root rollup ZKP on L1, thus reducing fees.
+As an extension to the protocol, we can bake in batching of multiple blocks. Rather than creating one proof per block, we can aggregate multiple blocks into a single proof, in order to amortize the cost of verifying the root rollup ZKP on L1, thus reducing fees.
 
-The tradeoff in batching is delayed finalisation: if we are not posting proofs to L1 for every block, then the network needs to wait until the batch proof is submitted for finalisation. This can also lead to deeper L2 reorgs.
+The tradeoff in batching is delayed finalization: if we are not posting proofs to L1 for every block, then the network needs to wait until the batch proof is submitted for finalization. This can also lead to deeper L2 reorgs.
 
 In a batching model, proving for each block happens immediately as the block is revealed, same as usual. But the resulting proof is not submitted to L1: instead, it is aggregated into the proof of the next block.
 

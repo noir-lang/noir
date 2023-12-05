@@ -69,7 +69,7 @@ It verifies a _verifier circuit_ that verifies a public function proof!
 
 Why? Modularity, ease of development, backwards compatibility support.
 
-Proceed with following development phases:
+Proceed with the following development phases:
 
 #### Phase 0: Full Proverless
 

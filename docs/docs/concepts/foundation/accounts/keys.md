@@ -65,7 +65,7 @@ A side effect of enshrining and encoding privacy keys into the account address i
 
 ### Encryption keys
 
-The privacy master key is used to derive encryption keys. Encryption keys, as their name imply, are used for encrypting private notes for a recipient, where the public key is used for encryption and the corresponding private key used for decryption. 
+The privacy master key is used to derive encryption keys. Encryption keys, as their name implies, are used for encrypting private notes for a recipient, where the public key is used for encryption and the corresponding private key used for decryption. 
 
 In a future version, encryption keys will be differentiated between incoming and outgoing. When sending a note to another user, the sender will use the recipient's incoming encryption key for encrypting the data for them, and will optionally use their own outgoing encryption key for encrypting any data about the destination of that note. This is useful for reconstructing transaction history from on-chain data. For example, during a token transfer, the token contract may dictate that the sender encrypts the note with value with the recipient's incoming key, but also records the transfer with its own outgoing key for bookkeeping purposes.
 

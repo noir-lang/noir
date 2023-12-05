@@ -14,7 +14,7 @@ This page will answer:
 - How indexed merkle trees work
 - How they can be used for membership exclusion proofs
 - How they can leverage batch insertions
-- Tradoffs of using indexed merkle trees
+- Tradeoffs of using indexed merkle trees
 
 The content was also covered in a presentation for the [Privacy + Scaling Explorations team at the Ethereum Foundation](https://pse.dev/).
 
@@ -34,7 +34,7 @@ A sparse merkle tree (not every leaf stores a value):
 
 <Image img={require("/img/indexed-merkle-tree/sparse-merkle-tree.png")} />
 
-In order to spend / modify a note in the private state tree, one must create a nullifier for it, and prove that the nullifier does not already exist in the nullifier tree. As nullifier trees are modelled as sparse merkle trees, non membership checks are (conceptually) trivial.
+In order to spend / modify a note in the private state tree, one must create a nullifier for it, and prove that the nullifier does not already exist in the nullifier tree. As nullifier trees are modeled as sparse merkle trees, non membership checks are (conceptually) trivial.
 
 Data is stored at the leaf index corresponding to its value. E.g. if I have a sparse tree that can contain $2^{256}$ values and want to prove non membership of the value $2^{128}$. I can prove via a merkle membership proof that $tree\_values[2^{128}] = 0$, conversely if I can prove that $tree\_values[2^{128}] == 1$ I can prove that the item exists.
 
@@ -155,8 +155,8 @@ Suppose we want to show that the value `20` doesn't exist in the tree. We just r
     - Special case, the low leaf is at the very end, so the new_value must be higher than all values in the tree:
     - $assert(low\_nullifier_{\textsf{value}} < new\_value_{\textsf{value}})$
   - Else:
-    - $assert(low\_nullifier_{\textsf{value}} < low\_nullifier_{\textsf{value}})$
-    - $assert(low\_nullifier_{\textsf{next\_value}} > low\_nullifier_{\textsf{value}})$
+    - $assert(low\_nullifier_{\textsf{value}} < new\_value_{\textsf{value}})$
+    - $assert(low\_nullifier_{\textsf{next\_value}} > new\_value_{\textsf{value}})$
 
 This is already a massive performance improvement, however we can go further, as this tree is not sparse. We can perform batch insertions.
 
@@ -282,7 +282,7 @@ From looking at the code above we can probably deduce why we need pending insert
 
 To perform batched insertions, our circuit must keep track of all values that are pending insertion.
 
-- If the `low_nullifier_membership_witness` is identified to be nonsense ( all zeros, or has a leaf index of -1 ) we will know that this is an pending low nullifier read request and we will have to look within our pending subtree for the nearest low nullifier.
+- If the `low_nullifier_membership_witness` is identified to be nonsense ( all zeros, or has a leaf index of -1 ) we will know that this is a pending low nullifier read request and we will have to look within our pending subtree for the nearest low nullifier.
   - Loop back through all "pending_insertions"
     - If the pending insertion value is lower than the nullifier we are trying to insert
     - If the pending insertion value is NOT found, then out circuit is invalid and should self abort.

@@ -53,7 +53,7 @@ Where the `map_slot` is the slot specified in `Storage::init`, recall:
 
 #include_code storage_balances_init yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
-And `to` is the actor who receives the note, `amount` of the note and `randomness` is the randomness used to make the note hiding. Without the `randomness` the note could could just as well be plaintext (computational cost of a preimage attack would be trivial in such a case).
+And `to` is the actor who receives the note, `amount` of the note and `randomness` is the randomness used to make the note hiding. Without the `randomness` the note could just as well be plaintext (computational cost of a preimage attack would be trivial in such a case).
 
 :::info
 Beware that this hash computation is what the aztec.nr library is doing, and not strictly required by the network (only the kernel computation is).

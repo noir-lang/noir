@@ -79,7 +79,7 @@ Let's say you have some storage in public and want to move them into the private
 
 So you have to create a custom note in the public domain that is not encrypted by some owner - we call such notes a "TransparentNote" since it is created in public, anyone can see the amount and the note is not encrypted by some owner.
 
-This pattern discussed in detail in [writing a token contract section in the shield() method](../../../tutorials/writing_token_contract.md#shield) and [redeem_shield() method](../../../tutorials/writing_token_contract.md#redeem_shield).
+This pattern is discussed in detail in [writing a token contract section in the shield() method](../../../tutorials/writing_token_contract.md#shield) and [redeem_shield() method](../../../tutorials/writing_token_contract.md#redeem_shield).
 
 ### Discovering my notes
 When you send someone a note, the note hash gets added to the [note hash tree](../../../../concepts/advanced/data_structures/trees#note-hash-tree). To spend the note, the receiver needs to get the note itself (the note hash preimage). There are two ways you can get a hold of your notes:

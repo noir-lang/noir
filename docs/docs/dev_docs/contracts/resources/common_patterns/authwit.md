@@ -114,7 +114,7 @@ This function computes the message hash, and then forwards the call to the more 
 
 ### Utilities for public calls
 
-Very similar to above, we have variations that work in the public domain. These functions are wrapped to give a similar flow for both cases, but behind the scenes the logic of the account contracts is slightly different since they cannot use the oracle as they are not in the private domain.
+Very similar to the above, we have variations that work in the public domain. These functions are wrapped to give a similar flow for both cases, but behind the scenes the logic of the account contracts is slightly different since they cannot use the oracle as they are not in the private domain.
 
 #### Example
 

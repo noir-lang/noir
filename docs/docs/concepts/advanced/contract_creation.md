@@ -155,14 +155,14 @@ The contract address is calculated by the contract deployer, deterministically, 
 
 - `deployerAddress` is included to prevent frontrunning of deployment requests, but it does reveal who is deploying the contract. To remain private a user would have to use a burner address, or deploy a contract _through_ a private contract which can deploy contracts.
 - :question: Why does CREATE2 include a deployerAddress?
-- :exclamation: So that contracts can deploy contracts to deterministic addresses. Original goal was to enable pre-funding contracts before they were deployed. Not v. relevant for us though
+- :exclamation: So that contracts can deploy contracts to deterministic addresses. The original goal was to enable pre-funding contracts before they were deployed. Not v. relevant for us though
 - `salt` gives the deployer some 'choice' over the eventual contract address; they can loop through salts until they find an address they like.
 - `functionTreeRoot` is like the bytecode without constructors or constructor arguments. This allows people to validate the functions of the contract.
 - `constructorHash = hash(privateConstructorPublicInputsHash, publicConstructorPublicInputsHash, privateConstructorVKHash, publicConstructorVKHash)` - this allows people to validate the initial states of the contract. (Note: this is similar to how the `bytecode` in create2 includes an encoding of the constructor arguments).
 
 To prevent duplicate contract addresses existing, a 'nullifier' is submitted when each new contract is deployed. `newContractAddressNullifier = hash(newContractAddress)`.
 
-In order to link a `contractAddress`, with with a leafIndex in the `contractTree`, we reserve the storageSlot `0` of each contract's public data tree storage to store that leafIndex.
+In order to link a `contractAddress`, with a leafIndex in the `contractTree`, we reserve the storageSlot `0` of each contract's public data tree storage to store that leafIndex.
 
 The `contractAddress` is stored within the contract's leaf of the `contractTree`, so that the private kernel circuit may validate contract address <--> vk relationships.
 

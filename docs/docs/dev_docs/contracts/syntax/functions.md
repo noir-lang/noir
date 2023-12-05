@@ -286,10 +286,10 @@ The kernel can then check that all of the values passed to each circuit in a fun
 **Returning the context to the kernel.**
 #include_code context-example-return /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
-Just as the kernel passes information into the the app circuits, the application must return information about the executed app back to the kernel. This is done through a rigid structure we call the `PrivateCircuitPublicInputs`.
+Just as the kernel passes information into the app circuits, the application must return information about the executed app back to the kernel. This is done through a rigid structure we call the `PrivateCircuitPublicInputs`.
 
 > _Why is it called the `PrivateCircuitPublicInputs`_  
-> It is commonly asked why the return values of a function in a circuit are labelled as the `Public Inputs`. Common intuition from other programming paradigms suggests that the return values and public inputs should be distinct.  
+> It is commonly asked why the return values of a function in a circuit are labeled as the `Public Inputs`. Common intuition from other programming paradigms suggests that the return values and public inputs should be distinct.  
 > However; In the eyes of the circuit, anything that is publicly viewable (or checkable) is a public input. Hence in this case, the return values are also public inputs.
 
 This structure contains a host of information about the executed program. It will contain any newly created nullifiers, any messages to be sent to l2 and most importantly it will contain the actual return values of the function!

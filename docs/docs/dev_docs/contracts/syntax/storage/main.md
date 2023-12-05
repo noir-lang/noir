@@ -286,7 +286,7 @@ As part of the initialization of the `Storage` struct, the `Singleton` is create
 
 ### `initialize`
 
-As mention, the Singleton is initialized to create the first note and value.
+As mentioned, the Singleton is initialized to create the first note and value.
 
 When this function is called, a nullifier of the storage slot is created, preventing this Singleton from being initialized again. If an `owner` is specified, the nullifier will be hashed with the owner's secret key. It's crucial to provide an owner if the Singleton is associated with an account. Initializing it without an owner may inadvertently reveal important information about the owner's intention.
 

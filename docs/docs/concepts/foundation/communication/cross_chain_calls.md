@@ -73,7 +73,7 @@ In a logical sense, a Message Box functions as a one-way message passing mechani
 - At some point, a rollup will be executed, in this step messages are "moved" from pending on Domain A, to ready on Domain B. Note that consuming the message is "pulling & deleting" (or nullifying). The action is atomic, so a message that is consumed from the pending set MUST be added to the ready set, or the state transition should fail. A further constraint on moving messages along the way, is that only messages where the `sender` and `recipient` pair exists in a leaf in the contracts tree are allowed!
 - When the message have been added to the ready set, the `recipient` can consume the message as part of a function call.
 
-Something that might seem weird when comparing to other cross-chain setups, is that we are "pulling" messages, and that the message don't need to be calldata for a function call. For _Arbitrum_ and the like, execution is happening FROM the "message bridge", which then calls the L1 contract. For us, you call the L1 contract, and it should then consume messages from the message box.
+Something that might seem weird when compared to other cross-chain setups, is that we are "pulling" messages, and that the message don't need to be calldata for a function call. For _Arbitrum_ and the like, execution is happening FROM the "message bridge", which then calls the L1 contract. For us, you call the L1 contract, and it should then consume messages from the message box.
 Why? _Privacy_! When pushing, we would be needing full `calldata`. Which for functions with private inputs is not really something we want as that calldata for L1 -> L2 transactions are committed to on L1, e.g., publicly sharing the inputs to a private function.
 
 By instead pulling, we can have the "message" be something that is derived from the arguments instead. This way, a private function to perform second half of a deposit, could leak the "value" deposited and "who" made the deposit (as this is done on L1), but the new owner can be hidden on L2.
@@ -107,7 +107,7 @@ For the sake of cross-chain messages, this means inserting and nullifying L1 $\r
 
 ### Messages
 
-While a message could theoretically be arbitrary long, we want to limit the cost of the insertion on L1 as much as possible. Therefore, we allow the users to send 32 bytes of "content" between L1 and L2. If 32 suffices, no packing required. If the 32 is too "small" for the message directly, the sender should simply pass along a `sha256(content)` instead of the content directly (note that this hash should fit in a field element which is ~254 bits. More info on this below). The content can then either be emitted as an event on L2 or kept by the sender, who should then be the only entity that can "unpack" the message.
+While a message could theoretically be arbitrarily long, we want to limit the cost of the insertion on L1 as much as possible. Therefore, we allow the users to send 32 bytes of "content" between L1 and L2. If 32 suffices, no packing required. If the 32 is too "small" for the message directly, the sender should simply pass along a `sha256(content)` instead of the content directly (note that this hash should fit in a field element which is ~254 bits. More info on this below). The content can then either be emitted as an event on L2 or kept by the sender, who should then be the only entity that can "unpack" the message.
 In this manner, there is some way to "unpack" the content on the receiving domain.
 
 The message that is passed along, require the `sender/recipient` pair to be communicated as well (we need to know who should receive the message and be able to check). By having the pending messages be a contract on L1, we can ensure that the `sender = msg.sender` and let only `content` and `recipient` be provided by the caller. Summing up, we can use the struct's seen below, and only store the commitment (`sha256(LxToLyMsg)`) on chain or in the trees, this way, we need only update a single storage slot per message.
@@ -159,7 +159,7 @@ The following diagram shows the overall architecture, combining the earlier sect
 
 As mentioned earlier, there will be a link between L1 and L2 contracts (with the L1 part of the link being the portal contract), this link is created at "birth" when the contract leaf is inserted. However, the specific requirements of the link is not yet fully decided. And we will outline a few options below.
 
-The reasoning behind having a link, comes from the difficulty of L2 access control (see "A note on L2 access control"). By having a link that only allows 1 contract (specified at deployment) to send messages to the L2 contract makes this issue "go away" from the application developers point of view as the message could only come from the specified contract. The complexity is moved to the protocol layer, that must now ensure that messages to the L2 contract are only sent from the specified L1 contract.
+The reasoning behind having a link, comes from the difficulty of L2 access control (see "A note on L2 access control"). By having a link that only allows 1 contract (specified at deployment) to send messages to the L2 contract makes this issue "go away" from the application developers point of view as the message could only come from the specified contract. The complexity is moved to the protocol layer, which must now ensure that messages to the L2 contract are only sent from the specified L1 contract.
 
 :::info
 The design space for linking L1 and L2 contracts is still open, and we are looking into making access control more efficient to use in the models.
@@ -179,7 +179,7 @@ From the L2 contract receiving messages, this model is very similar to the 1:1, 
 
 When the L1 contract can itself handle where messages are coming from (it could before as well but useless as only 1 address could send), we don't need to worry about it being in only a single pair. The circuits can therefore simply insert the contract leafs without requiring it to ensure that neither have been used before.
 
-With many L2's reading from the same L1, we can also more easily setup generic bridges (with many assets) living in a single L1 contract but minting multiple L2 assets, as the L1 contract can handle the access control and the L2's simply point to it as the portal. This reduces complexity of the L2 contracts as all access control is handled by the L1 contract.
+With many L2's reading from the same L1, we can also more easily setup generic bridges (with many assets) living in a single L1 contract but minting multiple L2 assets, as the L1 contract can handle the access control and the L2's simply point to it as the portal. This reduces the complexity of the L2 contracts as all access control is handled by the L1 contract.
 
 ## Open Questions
 

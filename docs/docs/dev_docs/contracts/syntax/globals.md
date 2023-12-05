@@ -39,7 +39,7 @@ context.timestamp();
 ```
 
 ### Block Number
-The block number is an sequential identifier that labels each individual block of the network. This value will be the block number of the block the accessing transaction is included in.
+The block number is a sequential identifier that labels each individual block of the network. This value will be the block number of the block the accessing transaction is included in.
 The block number of the genesis block will be 1, with the number increasing by 1 for every block after.
 
 ```rust
