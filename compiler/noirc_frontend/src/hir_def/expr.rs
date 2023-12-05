@@ -79,6 +79,7 @@ pub enum HirLiteral {
     Array(HirArrayLiteral),
     Bool(bool),
     Integer(FieldElement),
+    NegativeInteger(FieldElement),
     Str(String),
     FmtStr(String, Vec<ExprId>),
     Unit,

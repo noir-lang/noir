@@ -111,6 +111,7 @@ pub(crate) fn rewrite(
         ),
         ExpressionKind::Literal(literal) => match literal {
             Literal::Integer(_)
+            | Literal::NegativeInteger(_)
             | Literal::Bool(_)
             | Literal::Str(_)
             | Literal::RawStr(..)

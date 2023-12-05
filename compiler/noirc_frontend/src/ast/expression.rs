@@ -50,7 +50,15 @@ impl ExpressionKind {
     }
 
     pub fn prefix(operator: UnaryOp, rhs: Expression) -> ExpressionKind {
-        ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }))
+        match (operator, &rhs) {
+            (
+                UnaryOp::Minus,
+                Expression { kind: ExpressionKind::Literal(Literal::Integer(field)), .. },
+            ) => {
+                ExpressionKind::Literal(Literal::NegativeInteger(*field))
+            }
+            _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
+        }
     }
 
     pub fn array(contents: Vec<Expression>) -> ExpressionKind {
@@ -65,6 +73,7 @@ impl ExpressionKind {
     }
 
     pub fn integer(contents: FieldElement) -> ExpressionKind {
+        // todo!();
         ExpressionKind::Literal(Literal::Integer(contents))
     }
 
@@ -315,6 +324,7 @@ pub enum Literal {
     Array(ArrayLiteral),
     Bool(bool),
     Integer(FieldElement),
+    NegativeInteger(FieldElement),
     Str(String),
     RawStr(String, u8),
     FmtStr(String),
@@ -519,6 +529,7 @@ impl Display for Literal {
             }
             Literal::FmtStr(string) => write!(f, "f\"{string}\""),
             Literal::Unit => write!(f, "()"),
+            Literal::NegativeInteger(integer) => write!(f, "-{}", integer.to_u128()),
         }
     }
 }

@@ -1203,6 +1203,7 @@ impl<'a> Resolver<'a> {
                     HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length })
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
+                Literal::NegativeInteger(integer) => HirLiteral::NegativeInteger(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
                 Literal::RawStr(str, _) => HirLiteral::Str(str),
                 Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),

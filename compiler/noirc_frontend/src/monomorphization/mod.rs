@@ -321,6 +321,18 @@ impl<'interner> Monomorphizer<'interner> {
                 let location = self.interner.id_location(expr);
                 Literal(Integer(value, typ, location))
             }
+            HirExpression::Literal(HirLiteral::NegativeInteger(value)) => {
+                let typ = self.convert_type(&self.interner.id_type(expr));
+                let location = self.interner.id_location(expr);
+                match typ {
+                    ast::Type::Field => Literal(Integer(-value, typ, location)),
+                    ast::Type::Integer(_, bit_size) => {
+                        let base = 1_u128 << bit_size;
+                        Literal(Integer(FieldElement::from(base) - value, typ, location))
+                    }
+                    _ => unreachable!("Integer literal must be numeric"),
+                }
+            }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array),
                 HirArrayLiteral::Repeated { repeated_element, length } => {
