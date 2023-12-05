@@ -377,8 +377,6 @@ impl<'function> PerFunctionContext<'function> {
             self.context.call_stack.push_back(location);
         }
 
-        let c = self.context.call_stack.clone();
-
         let new_results = self.context.inline_function(ssa, function, &arguments);
 
         if has_location {
