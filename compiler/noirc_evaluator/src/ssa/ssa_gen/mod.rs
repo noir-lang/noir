@@ -224,8 +224,9 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_string(&mut self, string: &str) -> Values {
-        let elements =
-            vecmap(string.as_bytes(), |byte| self.builder.field_constant(*byte as u128).into());
+        let elements = vecmap(string.as_bytes(), |byte| {
+            self.builder.numeric_constant(*byte as u128, Type::unsigned(8)).into()
+        });
         let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u64));
         self.codegen_array(elements, typ)
     }
