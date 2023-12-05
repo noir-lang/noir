@@ -71,7 +71,6 @@ impl ExpressionKind {
     }
 
     pub fn integer(contents: FieldElement) -> ExpressionKind {
-        // todo!();
         ExpressionKind::Literal(Literal::Integer(contents))
     }
 
