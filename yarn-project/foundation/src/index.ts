@@ -21,6 +21,7 @@ export * as serialize from './serialize/index.js';
 export * as sleep from './sleep/index.js';
 export * as timer from './timer/index.js';
 export * as transport from './transport/index.js';
+export * as trees from './trees/index.js';
 export * as types from './types/index.js';
 export * as url from './url/index.js';
 export * as wasm from './wasm/index.js';

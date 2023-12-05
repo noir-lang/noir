@@ -1,6 +1,8 @@
+import { NullifierLeafPreimage } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
+import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { BatchInsertionResult } from '@aztec/merkle-tree';
-import { L2Block, LeafData, MerkleTreeId, SiblingPath } from '@aztec/types';
+import { L2Block, MerkleTreeId, SiblingPath } from '@aztec/types';
 
 import { CurrentTreeRoots, HandleL2BlockResult, MerkleTreeDb, MerkleTreeOperations, TreeInfo } from '../index.js';
 
@@ -59,16 +61,19 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
   getPreviousValueIndex(
     treeId: MerkleTreeId.NULLIFIER_TREE,
     value: bigint,
-  ): Promise<{
-    /**
-     * The index of the found leaf.
-     */
-    index: number;
-    /**
-     * A flag indicating if the corresponding leaf's value is equal to `newValue`.
-     */
-    alreadyPresent: boolean;
-  }> {
+  ): Promise<
+    | {
+        /**
+         * The index of the found leaf.
+         */
+        index: bigint;
+        /**
+         * A flag indicating if the corresponding leaf's value is equal to `newValue`.
+         */
+        alreadyPresent: boolean;
+      }
+    | undefined
+  > {
     return this.trees.getPreviousValueIndex(treeId, value, this.includeUncommitted);
   }
 
@@ -79,7 +84,7 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
    * @param index - The index to insert into.
    * @returns Empty promise.
    */
-  updateLeaf(treeId: MerkleTreeId.NULLIFIER_TREE, leaf: LeafData, index: bigint): Promise<void> {
+  updateLeaf(treeId: MerkleTreeId.NULLIFIER_TREE, leaf: NullifierLeafPreimage, index: bigint): Promise<void> {
     return this.trees.updateLeaf(treeId, leaf, index);
   }
 
@@ -87,10 +92,14 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
    * Gets the leaf data at a given index and tree.
    * @param treeId - The ID of the tree get the leaf from.
    * @param index - The index of the leaf to get.
-   * @returns Leaf data.
+   * @returns Leaf preimage.
    */
-  getLeafData(treeId: MerkleTreeId.NULLIFIER_TREE, index: number): Promise<LeafData | undefined> {
-    return this.trees.getLeafData(treeId, index, this.includeUncommitted);
+  async getLeafPreimage(
+    treeId: MerkleTreeId.NULLIFIER_TREE,
+    index: bigint,
+  ): Promise<IndexedTreeLeafPreimage | undefined> {
+    const preimage = await this.trees.getLeafPreimage(treeId, index, this.includeUncommitted);
+    return preimage as IndexedTreeLeafPreimage | undefined;
   }
 
   /**

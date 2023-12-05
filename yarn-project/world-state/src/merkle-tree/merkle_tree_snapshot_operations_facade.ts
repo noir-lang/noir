@@ -1,6 +1,7 @@
 import { Fr } from '@aztec/circuits.js';
+import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { BatchInsertionResult, IndexedTreeSnapshot, TreeSnapshot } from '@aztec/merkle-tree';
-import { LeafData, MerkleTreeId, SiblingPath } from '@aztec/types';
+import { MerkleTreeId, SiblingPath } from '@aztec/types';
 
 import { CurrentTreeRoots, HandleL2BlockResult, MerkleTreeDb, MerkleTreeOperations, TreeInfo } from '../index.js';
 
@@ -28,23 +29,19 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
 
   async findLeafIndex(treeId: MerkleTreeId, value: Buffer): Promise<bigint | undefined> {
     const tree = await this.#getTreeSnapshot(treeId);
-    const numLeaves = tree.getNumLeaves();
-    for (let i = 0n; i < numLeaves; i++) {
-      const currentValue = await tree.getLeafValue(i);
-      if (currentValue && currentValue.equals(value)) {
-        return i;
-      }
-    }
-    return undefined;
+    return tree.findLeafIndex(value);
   }
 
   getLatestGlobalVariablesHash(): Promise<Fr> {
     return Promise.reject(new Error('not implemented'));
   }
 
-  async getLeafData(treeId: MerkleTreeId.NULLIFIER_TREE, index: number): Promise<LeafData | undefined> {
+  async getLeafPreimage(
+    treeId: MerkleTreeId.NULLIFIER_TREE,
+    index: bigint,
+  ): Promise<IndexedTreeLeafPreimage | undefined> {
     const snapshot = (await this.#getTreeSnapshot(treeId)) as IndexedTreeSnapshot;
-    return snapshot.getLatestLeafDataCopy(BigInt(index));
+    return snapshot.getLatestLeafPreimageCopy(BigInt(index));
   }
 
   async getLeafValue(treeId: MerkleTreeId, index: bigint): Promise<Buffer | undefined> {
@@ -55,16 +52,19 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
   getPreviousValueIndex(
     _treeId: MerkleTreeId.NULLIFIER_TREE,
     _value: bigint,
-  ): Promise<{
-    /**
-     * The index of the found leaf.
-     */
-    index: number;
-    /**
-     * A flag indicating if the corresponding leaf's value is equal to `newValue`.
-     */
-    alreadyPresent: boolean;
-  }> {
+  ): Promise<
+    | {
+        /**
+         * The index of the found leaf.
+         */
+        index: bigint;
+        /**
+         * A flag indicating if the corresponding leaf's value is equal to `newValue`.
+         */
+        alreadyPresent: boolean;
+      }
+    | undefined
+  > {
     return Promise.reject(new Error('not implemented'));
   }
 

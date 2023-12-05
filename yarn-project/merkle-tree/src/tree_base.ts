@@ -242,13 +242,6 @@ export abstract class TreeBase implements MerkleTree {
   }
 
   /**
-   * Initializes the tree from the database.
-   */
-  public async initFromDb(): Promise<void> {
-    // Implemented only by Indexed Tree to populate the leaf cache.
-  }
-
-  /**
    * Writes meta data to the provided batch.
    * @param batch - The batch to which to write the meta data.
    */
@@ -307,4 +300,12 @@ export abstract class TreeBase implements MerkleTree {
     }
     this.cachedSize = numLeaves + BigInt(leaves.length);
   }
+
+  /**
+   * Returns the index of a leaf given its value, or undefined if no leaf with that value is found.
+   * @param value - The leaf value to look for.
+   * @param includeUncommitted - Indicates whether to include uncommitted data.
+   * @returns The index of the first leaf found with a given value (undefined if not found).
+   */
+  abstract findLeafIndex(value: Buffer, includeUncommitted: boolean): Promise<bigint | undefined>;
 }

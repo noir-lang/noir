@@ -1,7 +1,25 @@
-import { LeafData, SiblingPath } from '@aztec/types';
+import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
+import { SiblingPath } from '@aztec/types';
 
-import { LowLeafWitnessData } from '../index.js';
 import { AppendOnlyTree } from './append_only_tree.js';
+
+/**
+ * All of the data to be return during batch insertion.
+ */
+export interface LowLeafWitnessData<N extends number> {
+  /**
+   * Preimage of the low nullifier that proves non membership.
+   */
+  leafPreimage: IndexedTreeLeafPreimage;
+  /**
+   * Sibling path to prove membership of low nullifier.
+   */
+  siblingPath: SiblingPath<N>;
+  /**
+   * The index of low nullifier.
+   */
+  index: bigint;
+}
 
 /**
  * The result of a batch insertion in an indexed merkle tree.
@@ -35,27 +53,30 @@ export interface IndexedTree extends AppendOnlyTree {
    * @param includeUncommitted - If true, the uncommitted changes are included in the search.
    * @returns The found leaf index and a flag indicating if the corresponding leaf's value is equal to `newValue`.
    */
-  findIndexOfPreviousValue(
+  findIndexOfPreviousKey(
     newValue: bigint,
     includeUncommitted: boolean,
-  ): {
-    /**
-     * The index of the found leaf.
-     */
-    index: number;
-    /**
-     * A flag indicating if the corresponding leaf's value is equal to `newValue`.
-     */
-    alreadyPresent: boolean;
-  };
+  ): Promise<
+    | {
+        /**
+         * The index of the found leaf.
+         */
+        index: bigint;
+        /**
+         * A flag indicating if the corresponding leaf's value is equal to `newValue`.
+         */
+        alreadyPresent: boolean;
+      }
+    | undefined
+  >;
 
   /**
-   * Gets the latest LeafData copy.
-   * @param index - Index of the leaf of which to obtain the LeafData copy.
+   * Gets the latest LeafPreimage copy.
+   * @param index - Index of the leaf of which to obtain the LeafPreimage copy.
    * @param includeUncommitted - If true, the uncommitted changes are included in the search.
-   * @returns A copy of the leaf data at the given index or undefined if the leaf was not found.
+   * @returns A copy of the leaf preimage at the given index or undefined if the leaf was not found.
    */
-  getLatestLeafDataCopy(index: number, includeUncommitted: boolean): LeafData | undefined;
+  getLatestLeafPreimageCopy(index: bigint, includeUncommitted: boolean): Promise<IndexedTreeLeafPreimage | undefined>;
 
   /**
    * Batch insert multiple leaves into the tree.

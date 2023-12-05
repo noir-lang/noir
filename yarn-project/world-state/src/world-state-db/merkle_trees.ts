@@ -7,12 +7,15 @@ import {
   NOTE_HASH_TREE_HEIGHT,
   NULLIFIER_SUBTREE_HEIGHT,
   NULLIFIER_TREE_HEIGHT,
+  NullifierLeaf,
+  NullifierLeafPreimage,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { computeBlockHash, computeGlobalsHash } from '@aztec/circuits.js/abis';
 import { Committable } from '@aztec/foundation/committable';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import {
   AppendOnlyTree,
   BatchInsertionResult,
@@ -25,7 +28,7 @@ import {
   loadTree,
   newTree,
 } from '@aztec/merkle-tree';
-import { L2Block, LeafData, MerkleTreeId, SiblingPath } from '@aztec/types';
+import { Hasher, L2Block, MerkleTreeId, SiblingPath } from '@aztec/types';
 
 import { default as levelup } from 'levelup';
 
@@ -52,6 +55,15 @@ interface FromDbOptions {
 }
 
 const LAST_GLOBAL_VARS_HASH = 'lastGlobalVarsHash';
+
+/**
+ * The nullifier tree is an indexed tree.
+ */
+class NullifierTree extends StandardIndexedTree {
+  constructor(db: levelup.LevelUp, hasher: Hasher, name: string, depth: number, size: bigint = 0n, root?: Buffer) {
+    super(db, hasher, name, depth, size, NullifierLeafPreimage, NullifierLeaf, root);
+  }
+}
 
 /**
  * A convenience class for managing multiple merkle trees.
@@ -82,7 +94,7 @@ export class MerkleTrees implements MerkleTreeDb {
       CONTRACT_TREE_HEIGHT,
     );
     const nullifierTree = await initializeTree(
-      StandardIndexedTree,
+      NullifierTree,
       this.db,
       hasher,
       `${MerkleTreeId[MerkleTreeId.NULLIFIER_TREE]}`,
@@ -310,19 +322,20 @@ export class MerkleTrees implements MerkleTreeDb {
     treeId: IndexedTreeId,
     value: bigint,
     includeUncommitted: boolean,
-  ): Promise<{
-    /**
-     * The index of the found leaf.
-     */
-    index: number;
-    /**
-     * A flag indicating if the corresponding leaf's value is equal to `newValue`.
-     */
-    alreadyPresent: boolean;
-  }> {
-    return await this.synchronize(() =>
-      Promise.resolve(this._getIndexedTree(treeId).findIndexOfPreviousValue(value, includeUncommitted)),
-    );
+  ): Promise<
+    | {
+        /**
+         * The index of the found leaf.
+         */
+        index: bigint;
+        /**
+         * A flag indicating if the corresponding leaf's value is equal to `newValue`.
+         */
+        alreadyPresent: boolean;
+      }
+    | undefined
+  > {
+    return await this.synchronize(() => this._getIndexedTree(treeId).findIndexOfPreviousKey(value, includeUncommitted));
   }
 
   /**
@@ -330,15 +343,15 @@ export class MerkleTrees implements MerkleTreeDb {
    * @param treeId - The ID of the tree get the leaf from.
    * @param index - The index of the leaf to get.
    * @param includeUncommitted - Indicates whether to include uncommitted data.
-   * @returns Leaf data.
+   * @returns Leaf preimage.
    */
-  public async getLeafData(
+  public async getLeafPreimage(
     treeId: IndexedTreeId,
-    index: number,
+    index: bigint,
     includeUncommitted: boolean,
-  ): Promise<LeafData | undefined> {
+  ): Promise<IndexedTreeLeafPreimage | undefined> {
     return await this.synchronize(() =>
-      Promise.resolve(this._getIndexedTree(treeId).getLatestLeafDataCopy(index, includeUncommitted)),
+      this._getIndexedTree(treeId).getLatestLeafPreimageCopy(index, includeUncommitted),
     );
   }
 
@@ -356,13 +369,7 @@ export class MerkleTrees implements MerkleTreeDb {
   ): Promise<bigint | undefined> {
     return await this.synchronize(async () => {
       const tree = this.trees[treeId];
-      for (let i = 0n; i < tree.getNumLeaves(includeUncommitted); i++) {
-        const currentValue = await tree.getLeafValue(i, includeUncommitted);
-        if (currentValue && currentValue.equals(value)) {
-          return i;
-        }
-      }
-      return undefined;
+      return await tree.findLeafIndex(value, includeUncommitted);
     });
   }
 
@@ -373,7 +380,7 @@ export class MerkleTrees implements MerkleTreeDb {
    * @param index - The index to insert into.
    * @returns Empty promise.
    */
-  public async updateLeaf(treeId: IndexedTreeId | PublicTreeId, leaf: LeafData | Buffer, index: bigint): Promise<void> {
+  public async updateLeaf(treeId: IndexedTreeId | PublicTreeId, leaf: Buffer, index: bigint): Promise<void> {
     return await this.synchronize(() => this._updateLeaf(treeId, leaf, index));
   }
 
@@ -486,11 +493,7 @@ export class MerkleTrees implements MerkleTreeDb {
     return await tree.appendLeaves(leaves);
   }
 
-  private async _updateLeaf(
-    treeId: IndexedTreeId | PublicTreeId,
-    leaf: LeafData | Buffer,
-    index: bigint,
-  ): Promise<void> {
+  private async _updateLeaf(treeId: IndexedTreeId | PublicTreeId, leaf: Buffer, index: bigint): Promise<void> {
     const tree = this.trees[treeId];
     if (!('updateLeaf' in tree)) {
       throw new Error('Tree does not support `updateLeaf` method');

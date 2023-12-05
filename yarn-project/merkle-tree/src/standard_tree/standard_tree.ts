@@ -24,4 +24,14 @@ export class StandardTree extends TreeBase implements AppendOnlyTree {
   public getSnapshot(block: number): Promise<TreeSnapshot> {
     return this.#snapshotBuilder.getSnapshot(block);
   }
+
+  public async findLeafIndex(value: Buffer, includeUncommitted: boolean): Promise<bigint | undefined> {
+    for (let i = 0n; i < this.getNumLeaves(includeUncommitted); i++) {
+      const currentValue = await this.getLeafValue(i, includeUncommitted);
+      if (currentValue && currentValue.equals(value)) {
+        return i;
+      }
+    }
+    return undefined;
+  }
 }

@@ -12,7 +12,7 @@ import { L1ToL2MessageAndIndex } from '../l1_to_l2_message.js';
 import { L2Block } from '../l2_block.js';
 import { MerkleTreeId } from '../merkle_tree_id.js';
 import { SiblingPath } from '../sibling_path.js';
-import { NullifierMembershipWitness } from './nullifier_witness.js';
+import { NullifierMembershipWitness } from './nullifier_tree.js';
 
 /** Helper type for a specific L2 block number or the latest block number */
 type BlockNumber = number | 'latest';

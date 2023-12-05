@@ -1,4 +1,5 @@
-import { LeafData, SiblingPath } from '@aztec/types';
+import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
+import { SiblingPath } from '@aztec/types';
 
 /**
  * An interface for a tree that can record snapshots of its contents.
@@ -47,6 +48,14 @@ export interface TreeSnapshot {
    * @param index - The index of the leaf for which a sibling path is required.
    */
   getSiblingPath<N extends number>(index: bigint): Promise<SiblingPath<N>>;
+
+  /**
+   * Returns the index of a leaf given its value, or undefined if no leaf with that value is found.
+   * @param treeId - The ID of the tree.
+   * @param value - The leaf value to look for.
+   * @returns The index of the first leaf found with a given value (undefined if not found).
+   */
+  findLeafIndex(value: Buffer): Promise<bigint | undefined>;
 }
 
 /** A snapshot of an indexed tree */
@@ -55,18 +64,18 @@ export interface IndexedTreeSnapshot extends TreeSnapshot {
    * Gets the historical data for a leaf
    * @param index - The index of the leaf to get the data for
    */
-  getLatestLeafDataCopy(index: bigint): Promise<LeafData | undefined>;
+  getLatestLeafPreimageCopy(index: bigint): Promise<IndexedTreeLeafPreimage | undefined>;
 
   /**
    * Finds the index of the largest leaf whose value is less than or equal to the provided value.
    * @param newValue - The new value to be inserted into the tree.
    * @returns The found leaf index and a flag indicating if the corresponding leaf's value is equal to `newValue`.
    */
-  findIndexOfPreviousValue(newValue: bigint): Promise<{
+  findIndexOfPreviousKey(newValue: bigint): Promise<{
     /**
      * The index of the found leaf.
      */
-    index: number;
+    index: bigint;
     /**
      * A flag indicating if the corresponding leaf's value is equal to `newValue`.
      */

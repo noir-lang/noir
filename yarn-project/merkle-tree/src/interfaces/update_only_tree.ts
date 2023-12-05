@@ -1,5 +1,3 @@
-import { LeafData } from '@aztec/types';
-
 import { TreeSnapshotBuilder } from '../snapshots/snapshot_builder.js';
 import { MerkleTree } from './merkle_tree.js';
 
@@ -12,6 +10,5 @@ export interface UpdateOnlyTree extends MerkleTree, TreeSnapshotBuilder {
    * @param leaf - The leaf value to be updated.
    * @param index - The leaf to be updated.
    */
-  // TODO: Make this strictly a Buffer
-  updateLeaf(leaf: Buffer | LeafData, index: bigint): Promise<void>;
+  updateLeaf(leaf: Buffer, index: bigint): Promise<void>;
 }

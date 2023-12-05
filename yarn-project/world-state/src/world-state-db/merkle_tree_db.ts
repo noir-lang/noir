@@ -1,8 +1,9 @@
-import { MAX_NEW_NULLIFIERS_PER_TX } from '@aztec/circuits.js';
+import { MAX_NEW_NULLIFIERS_PER_TX, NullifierLeafPreimage } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { BatchInsertionResult, IndexedTreeSnapshot, TreeSnapshot } from '@aztec/merkle-tree';
-import { L2Block, LeafData, MerkleTreeId, SiblingPath } from '@aztec/types';
+import { L2Block, MerkleTreeId, SiblingPath } from '@aztec/types';
 
 /**
  * Type alias for the nullifier tree ID.
@@ -136,23 +137,26 @@ export interface MerkleTreeOperations {
   getPreviousValueIndex(
     treeId: IndexedTreeId,
     value: bigint,
-  ): Promise<{
-    /**
-     * The index of the found leaf.
-     */
-    index: number;
-    /**
-     * A flag indicating if the corresponding leaf's value is equal to `newValue`.
-     */
-    alreadyPresent: boolean;
-  }>;
+  ): Promise<
+    | {
+        /**
+         * The index of the found leaf.
+         */
+        index: bigint;
+        /**
+         * A flag indicating if the corresponding leaf's value is equal to `newValue`.
+         */
+        alreadyPresent: boolean;
+      }
+    | undefined
+  >;
 
   /**
    * Returns the data at a specific leaf.
    * @param treeId - The tree for which leaf data should be returned.
    * @param index - The index of the leaf required.
    */
-  getLeafData(treeId: IndexedTreeId, index: number): Promise<LeafData | undefined>;
+  getLeafPreimage(treeId: IndexedTreeId, index: bigint): Promise<IndexedTreeLeafPreimage | undefined>;
 
   /**
    * Update the leaf data at the given index.
@@ -160,7 +164,7 @@ export interface MerkleTreeOperations {
    * @param leaf - The updated leaf value.
    * @param index - The index of the leaf to be updated.
    */
-  updateLeaf(treeId: IndexedTreeId | PublicTreeId, leaf: LeafData | Buffer, index: bigint): Promise<void>;
+  updateLeaf(treeId: IndexedTreeId | PublicTreeId, leaf: NullifierLeafPreimage | Buffer, index: bigint): Promise<void>;
 
   /**
    * Returns the index containing a leaf value.

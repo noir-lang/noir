@@ -65,7 +65,7 @@ export abstract class BaseFullTreeSnapshotBuilder<T extends TreeBase, S extends 
       if (level + 1 > depth) {
         // short circuit if we've reached the leaf level
         // otherwise getNode might throw if we ask for the children of a leaf
-        this.handleLeaf(i, node, batch);
+        await this.handleLeaf(i, node, batch);
         continue;
       }
 
@@ -98,7 +98,7 @@ export abstract class BaseFullTreeSnapshotBuilder<T extends TreeBase, S extends 
   }
 
   protected handleLeaf(_index: bigint, _node: Buffer, _batch: LevelUpChain) {
-    return;
+    return Promise.resolve();
   }
 
   async getSnapshot(version: number): Promise<S> {
@@ -217,5 +217,16 @@ export class BaseFullTreeSnapshot implements TreeSnapshot {
 
     path.reverse();
     return path;
+  }
+
+  async findLeafIndex(value: Buffer): Promise<bigint | undefined> {
+    const numLeaves = this.getNumLeaves();
+    for (let i = 0n; i < numLeaves; i++) {
+      const currentValue = await this.getLeafValue(i);
+      if (currentValue && currentValue.equals(value)) {
+        return i;
+      }
+    }
+    return undefined;
   }
 }

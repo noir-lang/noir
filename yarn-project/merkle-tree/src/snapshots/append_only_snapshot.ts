@@ -229,4 +229,15 @@ class AppendOnlySnapshot implements TreeSnapshot {
       return undefined;
     }
   }
+
+  async findLeafIndex(value: Buffer): Promise<bigint | undefined> {
+    const numLeaves = this.getNumLeaves();
+    for (let i = 0n; i < numLeaves; i++) {
+      const currentValue = await this.getLeafValue(i);
+      if (currentValue && currentValue.equals(value)) {
+        return i;
+      }
+    }
+    return undefined;
+  }
 }

@@ -49,4 +49,12 @@ export interface MerkleTree extends SiblingPathSource {
    * @param includeUncommitted - Set to true to include uncommitted updates in the data set.
    */
   getLeafValue(index: bigint, includeUncommitted: boolean): Promise<Buffer | undefined>;
+
+  /**
+   * Returns the index of a leaf given its value, or undefined if no leaf with that value is found.
+   * @param leaf - The leaf value to look for.
+   * @param includeUncommitted - Indicates whether to include uncommitted data.
+   * @returns The index of the first leaf found with a given value (undefined if not found).
+   */
+  findLeafIndex(leaf: Buffer, includeUncommitted: boolean): Promise<bigint | undefined>;
 }

@@ -55,7 +55,5 @@
       "path": "../world-state"
     }
   ],
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

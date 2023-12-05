@@ -1293,9 +1293,9 @@ export function mapNullifierLeafPreimageToNoir(
   nullifierLeafPreimage: NullifierLeafPreimage,
 ): NullifierLeafPreimageNoir {
   return {
-    leaf_value: mapFieldToNoir(nullifierLeafPreimage.leafValue),
-    next_value: mapFieldToNoir(nullifierLeafPreimage.nextValue),
-    next_index: mapFieldToNoir(new Fr(nullifierLeafPreimage.nextIndex)),
+    leaf_value: mapFieldToNoir(nullifierLeafPreimage.nullifier),
+    next_value: mapFieldToNoir(nullifierLeafPreimage.nextNullifier),
+    next_index: mapNumberToNoir(Number(nullifierLeafPreimage.nextIndex)),
   };
 }
 

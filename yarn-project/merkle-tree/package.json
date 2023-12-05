@@ -40,6 +40,7 @@
     "tslib": "^2.4.0"
   },
   "devDependencies": {
+    "@aztec/circuits.js": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@types/jest": "^29.5.0",
     "@types/levelup": "^5.1.2",
