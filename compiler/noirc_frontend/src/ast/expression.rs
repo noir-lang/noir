@@ -54,9 +54,7 @@ impl ExpressionKind {
             (
                 UnaryOp::Minus,
                 Expression { kind: ExpressionKind::Literal(Literal::Integer(field)), .. },
-            ) => {
-                ExpressionKind::Literal(Literal::NegativeInteger(*field))
-            }
+            ) => ExpressionKind::Literal(Literal::NegativeInteger(*field)),
             _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
     }
