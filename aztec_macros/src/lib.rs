@@ -914,9 +914,10 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     // `for i in 0..{ident}.len()`
     make_statement(StatementKind::For(ForLoopStatement {
         range: ForRange::Range(
-            expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(i128::from(
-                0,
-            ))))),
+            expression(ExpressionKind::Literal(Literal::Integer(
+                FieldElement::from(i128::from(0)),
+                false,
+            ))),
             end_range_expression,
         ),
         identifier: ident("i"),
