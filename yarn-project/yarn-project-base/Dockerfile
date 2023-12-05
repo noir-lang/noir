@@ -47,7 +47,7 @@ FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/bb.js as bb.js
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir as noir
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir-packages as noir-packages
 
-FROM node:18-alpine
+FROM node:18.19.0-alpine
 RUN apk update && apk add --no-cache bash jq curl
 
 # Copy L1 contracts.

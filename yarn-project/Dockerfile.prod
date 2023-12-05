@@ -3,7 +3,7 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project AS yarn-project
 
 # Need new arch specific image.
-FROM node:18-alpine AS builder
+FROM node:18.19.0-alpine AS builder
 RUN apk add bash jq --no-cache
 COPY --from=yarn-project /usr/src /usr/src
 WORKDIR /usr/src/yarn-project
@@ -18,5 +18,5 @@ RUN yarn workspaces focus @aztec/cli @aztec/aztec-sandbox @aztec/aztec-faucet --
 RUN rm -rf /usr/src/noir/target
 
 # Create fresh minimal size image.
-FROM node:18-alpine
+FROM node:18.19.0-alpine
 COPY --from=builder /usr/src /usr/src

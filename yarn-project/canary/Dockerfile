@@ -1,4 +1,4 @@
-FROM node:18-alpine AS builder
+FROM node:18.19.0-alpine AS builder
 
 RUN apk update && apk add --no-cache bash jq curl
 
@@ -20,7 +20,7 @@ WORKDIR /usr/src/canary
 RUN ./scripts/update_packages.sh canary ../end-to-end/
 RUN yarn && yarn build
 
-FROM node:18-alpine
+FROM node:18.19.0-alpine
 RUN apk update && apk add --no-cache udev ttf-freefont chromium bash
 ENV CHROME_BIN="/usr/bin/chromium-browser" PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true"
 

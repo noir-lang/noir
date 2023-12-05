@@ -1,5 +1,5 @@
 # Linting requires node.
-FROM node:18-alpine
+FROM node:18.19.0-alpine
 RUN apk update && apk add --no-cache build-base git python3 curl bash jq
 WORKDIR /usr/src/l1-contracts
 COPY . .

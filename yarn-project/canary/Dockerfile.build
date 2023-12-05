@@ -3,7 +3,7 @@ WORKDIR /usr/src/yarn-project/canary
 # Productionify. See comment in yarn-project-base/Dockerfile.
 RUN yarn cache clean && yarn workspaces focus --production
 
-FROM node:18-alpine
+FROM node:18.19.0-alpine
 COPY --from=builder /usr/src /usr/src
 WORKDIR /usr/src/yarn-project/canary
 ENTRYPOINT ["yarn", "test"]

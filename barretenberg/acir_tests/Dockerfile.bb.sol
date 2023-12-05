@@ -2,7 +2,7 @@ FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/barretenberg-x86_64-linux-clan
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/barretenberg-x86_64-linux-clang-sol
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir-acir-tests as noir-acir-tests
 
-FROM node:18-alpine
+FROM node:18.19.0-alpine
 RUN apk update && apk add git bash curl jq
 COPY --from=0 /usr/src/barretenberg/cpp/build /usr/src/barretenberg/cpp/build
 COPY --from=1 /usr/src/barretenberg/sol/src/ultra/BaseUltraVerifier.sol /usr/src/barretenberg/sol/src/ultra/BaseUltraVerifier.sol
