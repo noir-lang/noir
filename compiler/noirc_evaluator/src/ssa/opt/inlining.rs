@@ -38,7 +38,8 @@ impl Ssa {
     /// as well save the work for later instead of performing it twice.
     pub(crate) fn inline_functions(mut self) -> Ssa {
         self.functions = btree_map(get_entry_point_functions(&self), |entry_point| {
-            (entry_point, InlineContext::new(&self, entry_point).inline_all(&self))
+            let new_function = InlineContext::new(&self, entry_point).inline_all(&self);
+            (entry_point, new_function)
         });
 
         self
@@ -405,11 +406,6 @@ impl<'function> PerFunctionContext<'function> {
         self.context.builder.set_call_stack(call_stack);
 
         let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
-
-        if results.len() != new_results.len() {
-            println!("In function {}", self.source_function.name());
-        }
-
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
 
