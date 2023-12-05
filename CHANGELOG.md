@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.4](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.16.3...aztec-packages-v0.16.4) (2023-12-05)
+
+
+### Bug Fixes
+
+* **ci:** Separate step for l1-contracts npm release ([#3581](https://github.com/AztecProtocol/aztec-packages/issues/3581)) ([7745975](https://github.com/AztecProtocol/aztec-packages/commit/7745975731a009c9010291b9174d321941754760))
+
 ## [0.16.3](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.16.2...aztec-packages-v0.16.3) (2023-12-05)
 
 
