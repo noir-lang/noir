@@ -5,6 +5,8 @@ use crate::{
 };
 use std::collections::{hash_map::Entry, HashMap};
 
+type Scope = HashMap<Option<TraitId>, (ModuleDefId, Visibility, bool /*is_prelude*/)>;
+
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Visibility {
     Public,
@@ -12,9 +14,8 @@ pub enum Visibility {
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct ItemScope {
-    types: HashMap<Ident, HashMap<Option<TraitId>, (ModuleDefId, Visibility, bool /*is_prelude*/)>>,
-    values:
-        HashMap<Ident, HashMap<Option<TraitId>, (ModuleDefId, Visibility, bool /*is_prelude*/)>>,
+    types: HashMap<Ident, Scope>,
+    values: HashMap<Ident, Scope>,
 
     defs: Vec<ModuleDefId>,
 }
@@ -41,14 +42,11 @@ impl ItemScope {
         trait_id: Option<TraitId>,
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
-        let add_item = |map: &mut HashMap<
-            Ident,
-            HashMap<Option<TraitId>, (ModuleDefId, Visibility, bool)>,
-        >| {
+        let add_item = |map: &mut HashMap<Ident, Scope>| {
             if let Entry::Occupied(mut o) = map.entry(name.clone()) {
                 let trait_hashmap = o.get_mut();
-                if let Entry::Occupied(n) = trait_hashmap.entry(trait_id) {
-                    let is_prelude = n.get().2;
+                if let Entry::Occupied(mut n) = trait_hashmap.entry(trait_id) {
+                    let is_prelude = std::mem::take(&mut n.get_mut().2);
                     let old_ident = o.key();
 
                     if is_prelude {
@@ -125,20 +123,19 @@ impl ItemScope {
     pub fn find_name(&self, name: &Ident) -> PerNs {
         // Names, not associated with traits are searched first. If not found, we search for name, coming from a trait.
         // If we find only one name from trait, we return it. If there are multiple traits, providing the same name, we return None.
-        let find_name_in =
-            |a: &HashMap<Ident, HashMap<Option<TraitId>, (ModuleDefId, Visibility, bool)>>| {
-                if let Some(t) = a.get(name) {
-                    if let Some(tt) = t.get(&None) {
-                        Some(*tt)
-                    } else if t.len() == 1 {
-                        t.values().last().cloned()
-                    } else {
-                        None
-                    }
+        let find_name_in = |a: &HashMap<Ident, Scope>| {
+            if let Some(t) = a.get(name) {
+                if let Some(tt) = t.get(&None) {
+                    Some(*tt)
+                } else if t.len() == 1 {
+                    t.values().last().cloned()
                 } else {
                     None
                 }
-            };
+            } else {
+                None
+            }
+        };
 
         PerNs { types: find_name_in(&self.types), values: find_name_in(&self.values) }
     }
@@ -158,15 +155,11 @@ impl ItemScope {
         self.defs.clone()
     }
 
-    pub fn types(
-        &self,
-    ) -> &HashMap<Ident, HashMap<Option<TraitId>, (ModuleDefId, Visibility, bool)>> {
+    pub fn types(&self) -> &HashMap<Ident, Scope> {
         &self.types
     }
 
-    pub fn values(
-        &self,
-    ) -> &HashMap<Ident, HashMap<Option<TraitId>, (ModuleDefId, Visibility, bool)>> {
+    pub fn values(&self) -> &HashMap<Ident, Scope> {
         &self.values
     }
 

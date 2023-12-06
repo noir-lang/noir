@@ -271,8 +271,6 @@ impl DefCollector {
                 );
 
                 if let Err((first_def, second_def)) = result {
-                    dbg!((&first_def, &second_def));
-
                     let err = DefCollectorErrorKind::Duplicate {
                         typ: DuplicateType::Import,
                         first_def,
