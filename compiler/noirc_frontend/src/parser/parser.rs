@@ -2264,7 +2264,7 @@ mod test {
         let hex = parse_with(literal(), "0x05").unwrap();
 
         match (expr_to_lit(int), expr_to_lit(hex)) {
-            (Literal::Integer(int), Literal::Integer(hex)) => assert_eq!(int, hex),
+            (Literal::Integer(int, false), Literal::Integer(hex, false)) => assert_eq!(int, hex),
             _ => unreachable!(),
         }
     }

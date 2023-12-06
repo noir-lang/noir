@@ -37,10 +37,6 @@ const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CompileCommand {
-    /// Include Proving and Verification keys in the build artifacts.
-    #[arg(long)]
-    include_keys: bool,
-
     /// The name of the package to compile
     #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,

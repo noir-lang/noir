@@ -114,7 +114,7 @@ impl<'interner> TypeChecker<'interner> {
                         Type::Array(Box::new(length), Box::new(elem_type))
                     }
                     HirLiteral::Bool(_) => Type::Bool,
-                    HirLiteral::Integer(_) => Type::polymorphic_integer(self.interner),
+                    HirLiteral::Integer(_, _) => Type::polymorphic_integer(self.interner),
                     HirLiteral::Str(string) => {
                         let len = Type::Constant(string.len() as u64);
                         Type::String(Box::new(len))
