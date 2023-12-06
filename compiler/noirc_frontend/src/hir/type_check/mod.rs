@@ -259,20 +259,20 @@ mod test {
         // let z = x + y;
         //
         // Push x variable
-        let x_id = interner.push_definition("x".into(), false, DefinitionKind::Local(None));
-
-        // Safety: The FileId in a location isn't used for tests
         let file = FileId::default();
         let location = Location::new(Span::default(), file);
+        let x_id = interner.push_definition("x".into(), false, DefinitionKind::Local(None), location);
+
+        // Safety: The FileId in a location isn't used for tests
 
         let x = HirIdent { id: x_id, location };
 
         // Push y variable
-        let y_id = interner.push_definition("y".into(), false, DefinitionKind::Local(None));
+        let y_id = interner.push_definition("y".into(), false, DefinitionKind::Local(None), location);
         let y = HirIdent { id: y_id, location };
 
         // Push z variable
-        let z_id = interner.push_definition("z".into(), false, DefinitionKind::Local(None));
+        let z_id = interner.push_definition("z".into(), false, DefinitionKind::Local(None), location);
         let z = HirIdent { id: z_id, location };
 
         // Push x and y as expressions
@@ -304,7 +304,7 @@ mod test {
 
         let name = HirIdent {
             location,
-            id: interner.push_definition("test_func".into(), false, DefinitionKind::Local(None)),
+            id: interner.push_definition("test_func".into(), false, DefinitionKind::Local(None), location),
         };
 
         // Add function meta
@@ -471,10 +471,10 @@ mod test {
             errors
         );
 
-        let main_id = interner.push_test_function_definition("main".into());
+        let main_id = interner.push_test_function_definition("main".into(), Location::dummy());
 
         let func_ids =
-            vecmap(&func_namespace, |name| interner.push_test_function_definition(name.into()));
+            vecmap(&func_namespace, |name| interner.push_test_function_definition(name.into(), Location::dummy()));
 
         let mut path_resolver = TestPathResolver(HashMap::new());
         for (name, id) in func_namespace.into_iter().zip(func_ids.clone()) {

@@ -241,6 +241,7 @@ impl<'a> Resolver<'a> {
         allow_shadowing: bool,
         definition: DefinitionKind,
     ) -> HirIdent {
+        eprintln!("Adding variable decl {name:?}, mutable: {mutable}, allow_shadowing: {allow_shadowing}, definition: {definition:?}");
         self.add_variable_decl_inner(name, mutable, allow_shadowing, true, definition)
     }
 
@@ -256,8 +257,8 @@ impl<'a> Resolver<'a> {
             return self.add_global_variable_decl(name, definition);
         }
 
-        let id = self.interner.push_definition(name.0.contents.clone(), mutable, definition);
         let location = Location::new(name.span(), self.file);
+        let id = self.interner.push_definition(name.0.contents.clone(), mutable, definition, location);
         let ident = HirIdent { location, id };
         let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
 
@@ -300,8 +301,8 @@ impl<'a> Resolver<'a> {
             ident = hir_let_stmt.ident();
             resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
         } else {
-            let id = self.interner.push_definition(name.0.contents.clone(), false, definition);
             let location = Location::new(name.span(), self.file);
+            let id = self.interner.push_definition(name.0.contents.clone(), false, definition, location);
             ident = HirIdent { location, id };
             resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
         }
@@ -340,6 +341,7 @@ impl<'a> Resolver<'a> {
 
         let location = Location::new(name.span(), self.file);
         if let Some((variable_found, scope)) = variable {
+            eprintln!("Found variable {name:?} in scope {scope} and location {location:?}", name = name.0.contents);
             variable_found.num_times_used += 1;
             let id = variable_found.ident.id;
             Ok((HirIdent { location, id }, scope))
@@ -1071,6 +1073,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
+        eprintln!("Resolving lvalue: {:?}", lvalue);
         match lvalue {
             LValue::Ident(ident) => {
                 let ident = self.find_variable_or_default(&ident);
@@ -1181,6 +1184,7 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn resolve_expression(&mut self, expr: Expression) -> ExprId {
+        let copy_expr = expr.clone();
         let hir_expr = match expr.kind {
             ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
                 Literal::Bool(b) => HirLiteral::Bool(b),
@@ -1209,6 +1213,7 @@ impl<'a> Resolver<'a> {
                 Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
+                eprintln!("Resolving variable: {:?}", path);
                 if let Some((hir_expr, object_type)) = self.resolve_trait_generic_path(&path) {
                     let expr_id = self.interner.push_expr(hir_expr);
                     self.interner.push_expr_location(expr_id, expr.span, self.file);
@@ -1376,9 +1381,13 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Parenthesized(sub_expr) => return self.resolve_expression(*sub_expr),
         };
 
+        let copy_hirexpr = hir_expr.clone();
         // If these lines are ever changed, make sure to change the early return
         // in the ExpressionKind::Variable case as well
         let expr_id = self.interner.push_expr(hir_expr);
+        if expr.span.start() == 236 {
+            eprintln!("Resolved expression: {:?}, {:?}, {file:?}", copy_hirexpr, copy_expr, file = self.file);
+        }
         self.interner.push_expr_location(expr_id, expr.span, self.file);
         expr_id
     }

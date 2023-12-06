@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use acvm::acir::native_types::Expression;
 use arena::{Arena, Index};
 use fm::FileId;
 use iter_extended::vecmap;
@@ -10,6 +11,7 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
+use crate::hir_def::expr::HirConstructorExpression;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::traits::{Trait, TraitConstraint};
@@ -355,6 +357,7 @@ pub struct DefinitionInfo {
     pub name: String,
     pub mutable: bool,
     pub kind: DefinitionKind,
+    pub location: Location,
 }
 
 impl DefinitionInfo {
@@ -471,6 +474,7 @@ impl NodeInterner {
     pub fn find_location_index(&self, location: Location) -> Option<impl Into<Index>> {
         let mut location_candidate: Option<(&Index, &Location)> = None;
 
+        let mut candidate_vec = Vec::new();
         // Note: we can modify this in the future to not do a linear
         // scan by storing a separate map of the spans or by sorting the locations.
         for (index, interned_location) in self.id_to_location.iter() {
@@ -482,8 +486,10 @@ impl NodeInterner {
                 } else {
                     location_candidate = Some((index, interned_location));
                 }
+                candidate_vec.push((index, interned_location));
             }
         }
+        eprintln!("Candidate vec is {:?}", candidate_vec);
         location_candidate.map(|(index, _location)| *index)
     }
 
@@ -552,8 +558,8 @@ impl NodeInterner {
 
     pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias) -> TypeAliasId {
         let type_id = TypeAliasId(self.type_aliases.len());
-
-        self.type_aliases.push(TypeAliasType::new(
+        
+        let type_alias = TypeAliasType::new(
             type_id,
             typ.type_alias_def.name.clone(),
             typ.type_alias_def.span,
@@ -562,12 +568,15 @@ impl NodeInterner {
                 let id = TypeVariableId(0);
                 (id, Shared::new(TypeBinding::Unbound(id)))
             }),
-        ));
+        );
+        eprintln!("Pushing type alias {:?}", type_alias);
+        self.type_aliases.push(type_alias);
 
         type_id
     }
 
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
+        
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value);
     }
@@ -673,24 +682,26 @@ impl NodeInterner {
         name: String,
         mutable: bool,
         definition: DefinitionKind,
+        location: Location,
     ) -> DefinitionId {
         let id = DefinitionId(self.definitions.len());
         if let DefinitionKind::Function(func_id) = definition {
             self.function_definition_ids.insert(func_id, id);
         }
 
-        self.definitions.push(DefinitionInfo { name, mutable, kind: definition });
+        eprintln!("Pushing definition id({id:?}) name({name:?}), {mutable:?}, {definition:?}");
+        self.definitions.push(DefinitionInfo { name, mutable, kind: definition, location });
         id
     }
 
     /// Push a function with the default modifiers and [`ModuleId`] for testing
     #[cfg(test)]
-    pub fn push_test_function_definition(&mut self, name: String) -> FuncId {
+    pub fn push_test_function_definition(&mut self, name: String, location: Location) -> FuncId {
         let id = self.push_fn(HirFunction::empty());
         let mut modifiers = FunctionModifiers::new();
         modifiers.name = name;
         let module = ModuleId::dummy_id();
-        self.push_function_definition(id, modifiers, module);
+        self.push_function_definition(id, modifiers, module, location);
         id
     }
 
@@ -699,6 +710,7 @@ impl NodeInterner {
         id: FuncId,
         function: &FunctionDefinition,
         module: ModuleId,
+        location: Location,
     ) -> DefinitionId {
         use ContractFunctionType::*;
 
@@ -712,7 +724,7 @@ impl NodeInterner {
             contract_function_type: Some(if function.is_open { Open } else { Secret }),
             is_internal: Some(function.is_internal),
         };
-        self.push_function_definition(id, modifiers, module)
+        self.push_function_definition(id, modifiers, module, location)
     }
 
     pub fn push_function_definition(
@@ -720,11 +732,12 @@ impl NodeInterner {
         func: FuncId,
         modifiers: FunctionModifiers,
         module: ModuleId,
+        location: Location,
     ) -> DefinitionId {
         let name = modifiers.name.clone();
         self.function_modifiers.insert(func, modifiers);
         self.function_modules.insert(func, module);
-        self.push_definition(name, false, DefinitionKind::Function(func))
+        self.push_definition(name, false, DefinitionKind::Function(func), location)
     }
 
     pub fn set_function_trait(&mut self, func: FuncId, self_type: Type, trait_id: TraitId) {
@@ -1235,14 +1248,14 @@ impl NodeInterner {
     pub(crate) fn resolve_location(&self, index: impl Into<Index>) -> Option<Location> {
         let node = self.nodes.get(index.into())?;
 
+        eprintln!(" ---------> Looking up\n {node:?}\n");
         match node {
             Node::Statement(stmt) => {
-                eprintln!("\n -> Resolve Location {:?}\n", stmt);
+                eprintln!("\n -> Resolve Location {stmt:?}\n");
                 None
             }
             Node::Function(func) => self.resolve_location(func.as_expr()),
             Node::Expression(expression) => self.resolve_expression_location(expression),
-    
         }
     }
 
@@ -1257,24 +1270,79 @@ impl NodeInterner {
                     DefinitionKind::Function(func_id) => {
                         Some(self.function_meta(&func_id).location)
                     }
-                    _ => None,
+                    DefinitionKind::Local(local_id) => {
+                        if let Some(local_id) = local_id {
+                            eprintln!("\n --> Resolving Local Ident for {expression:?} and {definition_info:?}\n and {local_id:?}\n");
+                            
+                            // eprintln!("Debug Expr Span {:?} for {:?}\n", definition_info.location, debug_expr_span);
+                            // let local = self.resolve_location(local_id)?;
+                            eprintln!("\t\t\n --> Resolved Local Ident for {expression:?} and {definition_info:?}\n and {local_id:?}\n");
+                            Some(definition_info.location)
+                        } else {
+                            eprintln!("\n --> No Local id while Resolving Local Ident for {expression:?} and {definition_info:?}\n and {local_id:?}\n");
+                            None
+                        }
+                    }
+                    _ => {
+                        eprintln!(
+                            "\n --> Resolve Ident for {expression:?} and {definition_info:?}\n"
+                        );
+                        None
+                    }
                 }
-            },
+            }
             HirExpression::Constructor(expr) => {
                 let struct_type = &expr.r#type.borrow();
 
+                eprintln!("\n -> Resolve Constructor {struct_type:?}\n");
+
                 Some(Location::new(struct_type.span, struct_type.file_id))
-            },
-            // HirExpression::MemberAccess(expr_member_access) => {
-            //     let expr_lhs = expr_member_access.lhs;
-            //     let resolved_lhs = self.resolve_location(file_id, &expr_lhs.0);
-            //     eprintln!(" --> Member Access LHS: {expr_lhs:?}\nresolved to \n {resolved_lhs:?}");
-            //     resolved_lhs
-                
-            // },
-            _ => None,
+            }
+            HirExpression::MemberAccess(expr_member_access) => {
+                self.resolve_struct_member_access(expr_member_access)
+            }
+            HirExpression::Call(expr_call) => {
+                let func = expr_call.func;
+                self.resolve_location(func)
+            }
+            _ => {
+                eprintln!("\n --> Resolve expression for {expression:?}\n");
+                None
+            }
         }
     }
+
+    fn resolve_struct_member_access(&self, expr_member_access: &crate::hir_def::expr::HirMemberAccess) -> Option<Location> {
+        let expr_lhs = &expr_member_access.lhs;
+        let expr_rhs = &expr_member_access.rhs;
+
+        let found_ident = self.nodes.get(expr_lhs.into())?;
+
+        if let Node::Expression(expression) = found_ident {
+            if let HirExpression::Ident(ident) = expression {
+                let definition_info = self.definition(ident.id);
+                if let DefinitionKind::Local(local_id) = definition_info.kind {
+                    if let Some(local_id) = local_id {
+                        if let Some(found_node) = self.nodes.get(local_id.into()) {
+                            if let Node::Expression(expression) = found_node {
+                                if let HirExpression::Constructor(constructor_expression) = expression {
+                                    let struct_type = constructor_expression.r#type.borrow();
+                                    let field_names = struct_type.field_names();
+                                    if let Some(found) = field_names.iter().find(|field_name| field_name.0 == expr_rhs.0) {
+                                        return Some(Location::new(found.span(), struct_type.file_id));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // let resolved_lhs = self.resolve_location(expr_lhs);
+        None
+    }
+
 }
 
 impl Methods {
