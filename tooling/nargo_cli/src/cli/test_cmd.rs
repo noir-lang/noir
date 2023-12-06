@@ -127,14 +127,14 @@ fn run_tests<S: BlackBoxFunctionSolver>(
 
         match run_test(blackbox_solver, &context, test_function, show_output, compile_options) {
             TestStatus::Pass { .. } => {
-                writer.set_color(ColorSpec::new()
-                    .set_fg(Some(Color::Green)))
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
                     .expect("Failed to set color");
                 writeln!(writer, "ok").expect("Failed to write to stdout");
             }
             TestStatus::Fail { message, error_diagnostic } => {
-                writer.set_color(ColorSpec::new()
-                    .set_fg(Some(Color::Red)))
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
                     .expect("Failed to set color");
                 writeln!(writer, "{message}\n").expect("Failed to write to stdout");
                 if let Some(diag) = error_diagnostic {
