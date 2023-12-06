@@ -433,12 +433,51 @@ impl Instruction {
                     _ => None,
                 }
             }
-            Instruction::Constrain(lhs, rhs, ..) => {
+            Instruction::Constrain(lhs, rhs, msg) => {
                 if dfg.resolve(*lhs) == dfg.resolve(*rhs) {
                     // Remove trivial case `assert_eq(x, x)`
                     SimplifyResult::Remove
                 } else {
-                    SimplifyResult::None
+                    // Replace an explicit two step equality assertion
+                    //
+                    // v2 = eq v0, u32 v1
+                    // constrain v2 == u1 1
+                    //
+                    // with a direct assertion of equality between the two values
+                    //
+                    // v2 = eq v0, u32 v1
+                    // constrain v0 == v1
+                    //
+                    // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
+                    // will likely be removed through dead instruction elimination.
+
+                    match (&dfg[dfg.resolve(*lhs)], &dfg[dfg.resolve(*rhs)]) {
+                        (
+                            Value::NumericConstant { constant, typ },
+                            Value::Instruction { instruction, .. },
+                        )
+                        | (
+                            Value::Instruction { instruction, .. },
+                            Value::NumericConstant { constant, typ },
+                        ) if constant.is_one() && *typ == Type::bool() => {
+                            if let Instruction::Binary(Binary {
+                                lhs,
+                                rhs,
+                                operator: BinaryOp::Eq,
+                            }) = &dfg[*instruction]
+                            {
+                                SimplifiedToInstruction(Instruction::Constrain(
+                                    *lhs,
+                                    *rhs,
+                                    msg.clone(),
+                                ))
+                            } else {
+                                None
+                            }
+                        }
+
+                        _ => None,
+                    }
                 }
             }
             Instruction::ArrayGet { array, index } => {
@@ -783,10 +822,19 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
-                if operand_type.is_unsigned() && rhs_is_zero {
-                    // Unsigned values cannot be less than zero.
-                    let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
-                    return SimplifyResult::SimplifiedTo(zero);
+                if operand_type.is_unsigned() {
+                    if rhs_is_zero {
+                        // Unsigned values cannot be less than zero.
+                        let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                        return SimplifyResult::SimplifiedTo(zero);
+                    } else if rhs_is_one {
+                        let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                        return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+                            BinaryOp::Eq,
+                            self.lhs,
+                            zero,
+                        ));
+                    }
                 }
             }
             BinaryOp::And => {
