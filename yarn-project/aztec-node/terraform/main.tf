@@ -63,7 +63,6 @@ locals {
   ]
   combined_bootnodes = join(",", local.bootnodes)
   data_dir           = "/usr/src/yarn-project/aztec-sandbox/data"
-  api_prefix         = "/${var.DEPLOY_TAG}/aztec-node-${count.index + 1}"
 }
 
 resource "aws_cloudwatch_log_group" "aztec-node-log-group" {
@@ -245,7 +244,7 @@ resource "aws_ecs_task_definition" "aztec-node" {
       },
       {
         "name": "API_PREFIX",
-        "value": ${local.api_prefix}
+        "value": "/${var.DEPLOY_TAG}/aztec-node-${count.index + 1}"
       },
       {
         "name": "P2P_TCP_LISTEN_PORT",
@@ -359,7 +358,7 @@ resource "aws_alb_target_group" "aztec-node" {
   deregistration_delay = 5
 
   health_check {
-    path                = "${local.api_prefix}/status"
+    path                = "/${var.DEPLOY_TAG}/aztec-node-${count.index + 1}/status"
     matcher             = "200"
     interval            = 10
     healthy_threshold   = 2
@@ -384,7 +383,7 @@ resource "aws_lb_listener_rule" "api" {
 
   condition {
     path_pattern {
-      values = ["${local.api_prefix}*"]
+      values = ["/${var.DEPLOY_TAG}/aztec-node-${count.index + 1}*"]
     }
   }
 }
