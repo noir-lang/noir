@@ -12,8 +12,8 @@ import { AztecNodeConfig } from './config.js';
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 export const createLevelDown = (path: string) => (leveldown as any)(path) as LevelDown;
 
-const DB_SUBDIR = 'aztec-node';
-const WORLD_STATE_SUBDIR = 'aztec-world-state';
+const DB_SUBDIR = 'aztec-node-db';
+const WORLD_STATE_SUBDIR = 'aztec-world-state-db';
 const NODE_METADATA_KEY = '@@aztec_node_metadata';
 
 /**

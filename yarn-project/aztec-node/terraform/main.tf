@@ -62,6 +62,7 @@ locals {
     "/dns4/${var.DEPLOY_TAG}-aztec-bootstrap-${i + 1}.local/tcp/${var.BOOTNODE_LISTEN_PORT + i}/p2p/${local.bootnode_ids[i]}"
   ]
   combined_bootnodes = join(",", local.bootnodes)
+  data_dir           = "/usr/src/yarn-project/aztec-sandbox/data"
 }
 
 resource "aws_cloudwatch_log_group" "aztec-node-log-group" {
@@ -101,9 +102,37 @@ resource "aws_service_discovery_service" "aztec-node" {
   }
 }
 
+# Configure an EFS filesystem.
+resource "aws_efs_file_system" "node_data_store" {
+  count                           = local.node_count
+  creation_token                  = "${var.DEPLOY_TAG}-node-${count.index + 1}-data"
+  throughput_mode                 = "provisioned"
+  provisioned_throughput_in_mibps = 20
+
+  tags = {
+    Name = "${var.DEPLOY_TAG}-node-data"
+  }
+
+  lifecycle_policy {
+    transition_to_ia = "AFTER_14_DAYS"
+  }
+}
+
+resource "aws_efs_mount_target" "private_az1" {
+  count           = local.node_count
+  file_system_id  = aws_efs_file_system.node_data_store[count.index].id
+  subnet_id       = data.terraform_remote_state.setup_iac.outputs.subnet_az1_private_id
+  security_groups = [data.terraform_remote_state.setup_iac.outputs.security_group_private_id]
+}
+
+resource "aws_efs_mount_target" "private_az2" {
+  file_system_id  = aws_efs_file_system.node_data_store[count.index].id
+  subnet_id       = data.terraform_remote_state.setup_iac.outputs.subnet_az2_private_id
+  security_groups = [data.terraform_remote_state.setup_iac.outputs.security_group_private_id]
+}
+
 # Define task definitions for each node.
 resource "aws_ecs_task_definition" "aztec-node" {
-  # for_each                 = var.node_keys
   count                    = local.node_count
   family                   = "${var.DEPLOY_TAG}-aztec-node-${count.index + 1}"
   requires_compatibilities = ["FARGATE"]
@@ -112,7 +141,15 @@ resource "aws_ecs_task_definition" "aztec-node" {
   memory                   = "4096"
   execution_role_arn       = data.terraform_remote_state.setup_iac.outputs.ecs_task_execution_role_arn
   task_role_arn            = data.terraform_remote_state.aztec2_iac.outputs.cloudwatch_logging_ecs_role_arn
-  container_definitions    = <<DEFINITIONS
+
+  volume {
+    name = "efs-data-store"
+    efs_volume_configuration {
+      file_system_id = aws_efs_file_system.node_data_store[count.index].id
+    }
+  }
+
+  container_definitions = <<DEFINITIONS
 [
   {
     "name": "${var.DEPLOY_TAG}-aztec-node-${count.index + 1}",
@@ -157,6 +194,10 @@ resource "aws_ecs_task_definition" "aztec-node" {
         "value": "https://${var.DEPLOY_TAG}-mainnet-fork.aztec.network:8545/${var.API_KEY}"
       },
       {
+        "name": "DATA_DIRECTORY",
+        "value": "${local.data_dir}"
+      },
+      {
         "name": "ARCHIVER_POLLING_INTERVAL",
         "value": "10000"
       },
@@ -187,6 +228,10 @@ resource "aws_ecs_task_definition" "aztec-node" {
       {
         "name": "INBOX_CONTRACT_ADDRESS",
         "value": "${data.terraform_remote_state.l1_contracts.outputs.inbox_contract_address}"
+      },
+      {
+        "name": "OUTBOX_CONTRACT_ADDRESS",
+        "value": "${data.terraform_remote_state.l1_contracts.outputs.outbox_contract_address}"
       },
       {
         "name": "REGISTRY_CONTRACT_ADDRESS",
@@ -239,6 +284,12 @@ resource "aws_ecs_task_definition" "aztec-node" {
       {
         "name": "P2P_MAX_PEERS",
         "value": "${var.P2P_MAX_PEERS}"
+      }
+    ],
+    "mountPoints": [
+      {
+        "containerPath": "${local.data_dir}",
+        "sourceVolume": "efs-data-store"
       }
     ],
     "logConfiguration": {
