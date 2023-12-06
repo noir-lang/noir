@@ -367,6 +367,7 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<barretenberg::f
         feed_ecc_op_queue_into_circuit(op_queue);
     }
 
+    GoblinTranslatorCircuitBuilder() = default;
     GoblinTranslatorCircuitBuilder(const GoblinTranslatorCircuitBuilder& other) = delete;
     GoblinTranslatorCircuitBuilder(GoblinTranslatorCircuitBuilder&& other) noexcept
         : CircuitBuilderBase(std::move(other)){};

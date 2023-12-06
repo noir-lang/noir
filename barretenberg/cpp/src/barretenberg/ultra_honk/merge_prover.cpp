@@ -94,7 +94,7 @@ template <typename Flavor> plonk::proof& MergeProver_<Flavor>::construct_proof()
 
     FF alpha = transcript->get_challenge("alpha");
 
-    // Constuct batched polynomial to opened via KZG
+    // Construct batched polynomial to opened via KZG
     auto batched_polynomial = Polynomial(N);
     auto batched_eval = FF(0);
     auto alpha_pow = FF(1);

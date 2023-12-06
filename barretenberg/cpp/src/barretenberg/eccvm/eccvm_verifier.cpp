@@ -253,16 +253,17 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const plonk
             transcript->template receive_from_prover<FF>("Translation:hack_evaluation")
         };
 
-        FF batching_challenge = transcript->get_challenge("Translation:batching_challenge");
+        // Get another challenge for batching the univariate claims
+        FF ipa_batching_challenge = transcript->get_challenge("Translation:ipa_batching_challenge");
 
-        // Constuct batched commitment and batched evaluation
+        // Construct batched commitment and batched evaluation
         auto batched_commitment = transcript_commitments[0];
         auto batched_transcript_eval = transcript_evaluations[0];
-        auto batching_scalar = batching_challenge;
+        auto batching_scalar = ipa_batching_challenge;
         for (size_t idx = 1; idx < transcript_commitments.size(); ++idx) {
             batched_commitment = batched_commitment + transcript_commitments[idx] * batching_scalar;
             batched_transcript_eval += batching_scalar * transcript_evaluations[idx];
-            batching_scalar *= batching_challenge;
+            batching_scalar *= ipa_batching_challenge;
         }
 
         // Construct and verify batched opening claim

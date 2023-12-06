@@ -345,31 +345,34 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_transcript_cons
     transcript->send_to_verifier("Translation:hack_evaluation", hack.evaluate(evaluation_challenge_x));
 
     // Get another challenge for batching the univariate claims
-    FF batching_challenge = transcript->get_challenge("Translation:batching_challenge");
+    FF ipa_batching_challenge = transcript->get_challenge("Translation:ipa_batching_challenge");
 
     // Collect the polynomials and evaluations to be batched
     RefArray univariate_polynomials{ key->transcript_op, key->transcript_Px, key->transcript_Py,
                                      key->transcript_z1, key->transcript_z2, hack };
     std::array<FF, univariate_polynomials.size()> univariate_evaluations;
 
-    // Constuct the batched polynomial and batched evaluation
+    // Construct the batched polynomial and batched evaluation
     Polynomial batched_univariate{ key->circuit_size };
     FF batched_evaluation{ 0 };
     auto batching_scalar = FF(1);
     for (auto [polynomial, eval] : zip_view(univariate_polynomials, univariate_evaluations)) {
         batched_univariate.add_scaled(polynomial, batching_scalar);
         batched_evaluation += eval * batching_scalar;
-        batching_scalar *= batching_challenge;
+        batching_scalar *= ipa_batching_challenge;
     }
 
     // Compute a proof for the batched univariate opening
     PCS::compute_opening_proof(
         commitment_key, { evaluation_challenge_x, batched_evaluation }, batched_univariate, transcript);
+
+    // Get another challenge for batching the univariate claims
+    translation_batching_challenge_v = transcript->get_challenge("Translation:batching_challenge");
 }
 
 template <ECCVMFlavor Flavor> plonk::proof& ECCVMProver_<Flavor>::export_proof()
 {
-    proof.proof_data = transcript->proof_data;
+    proof.proof_data = transcript->export_proof();
     return proof;
 }
 

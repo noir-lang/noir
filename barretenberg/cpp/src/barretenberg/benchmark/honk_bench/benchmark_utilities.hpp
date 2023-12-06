@@ -218,7 +218,7 @@ void construct_proof_with_specified_num_iterations(
     Composer composer;
 
     for (auto _ : state) {
-        // Constuct circuit and prover; don't include this part in measurement
+        // Construct circuit and prover; don't include this part in measurement
         state.PauseTiming();
         auto prover = get_prover(composer, test_circuit_function, num_iterations);
         state.ResumeTiming();

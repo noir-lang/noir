@@ -68,9 +68,8 @@ void GoblinTranslatorVerifier::put_translation_data_in_relation_parameters(const
  */
 bool GoblinTranslatorVerifier::verify_proof(const plonk::proof& proof)
 {
-    transcript = std::make_shared<BaseTranscript>(proof.proof_data);
-
-    transcript = std::make_shared<BaseTranscript>(proof.proof_data);
+    batching_challenge_v = transcript->get_challenge("Translation:batching_challenge");
+    transcript->load_proof(proof.proof_data);
 
     Flavor::VerifierCommitments commitments{ key };
     Flavor::CommitmentLabels commitment_labels;
@@ -78,7 +77,6 @@ bool GoblinTranslatorVerifier::verify_proof(const plonk::proof& proof)
     // TODO(Adrian): Change the initialization of the transcript to take the VK hash?
     const auto circuit_size = transcript->template receive_from_prover<uint32_t>("circuit_size");
     evaluation_input_x = transcript->template receive_from_prover<BF>("evaluation_input_x");
-    batching_challenge_v = transcript->template receive_from_prover<BF>("batching_challenge_v");
 
     const BF accumulated_result = transcript->template receive_from_prover<BF>("accumulated_result");
 

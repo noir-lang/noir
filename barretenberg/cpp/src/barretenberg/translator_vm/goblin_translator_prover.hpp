@@ -12,6 +12,7 @@ class GoblinTranslatorProver {
 
     using Flavor = honk::flavor::GoblinTranslator;
     using FF = typename Flavor::FF;
+    using BF = typename Flavor::BF;
     using Commitment = typename Flavor::Commitment;
     using CommitmentKey = typename Flavor::CommitmentKey;
     using ProvingKey = typename Flavor::ProvingKey;

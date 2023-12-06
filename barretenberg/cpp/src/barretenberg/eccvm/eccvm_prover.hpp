@@ -69,6 +69,7 @@ template <ECCVMFlavor Flavor> class ECCVMProver_ {
     Polynomial quotient_W;
 
     FF evaluation_challenge_x;
+    FF translation_batching_challenge_v; // to be rederived by the translator verifier
 
     sumcheck::SumcheckOutput<Flavor> sumcheck_output;
     pcs::gemini::ProverOutput<Curve> gemini_output;

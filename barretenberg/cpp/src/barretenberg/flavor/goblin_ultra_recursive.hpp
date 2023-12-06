@@ -107,7 +107,7 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
          * @param builder
          * @param native_key Native verification key from which to extract the precomputed commitments
          */
-        VerificationKey(CircuitBuilder* builder, std::shared_ptr<NativeVerificationKey> native_key)
+        VerificationKey(CircuitBuilder* builder, const std::shared_ptr<NativeVerificationKey>& native_key)
             : VerificationKey_<GoblinUltra::PrecomputedEntities<Commitment>>(native_key->circuit_size,
                                                                              native_key->num_public_inputs)
         {

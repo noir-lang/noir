@@ -19,7 +19,8 @@ template <typename Flavor> class UltraRecursiveVerifier_ {
     using Builder = typename Flavor::CircuitBuilder;
     using PairingPoints = std::array<GroupElement, 2>;
 
-    explicit UltraRecursiveVerifier_(Builder* builder, std::shared_ptr<NativeVerificationKey> native_verifier_key);
+    explicit UltraRecursiveVerifier_(Builder* builder,
+                                     const std::shared_ptr<NativeVerificationKey>& native_verifier_key);
     UltraRecursiveVerifier_(UltraRecursiveVerifier_&& other) = delete;
     UltraRecursiveVerifier_(const UltraRecursiveVerifier_& other) = delete;
     UltraRecursiveVerifier_& operator=(const UltraRecursiveVerifier_& other) = delete;

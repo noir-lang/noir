@@ -256,13 +256,13 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
         num_threads = num_threads > 0 ? num_threads : 1;                     // ensure num threads is >= 1
         size_t iterations_per_thread = common_circuit_size / num_threads;    // actual iterations per thread
 
-        // Constuct univariate accumulator containers; one per thread
+        // Construct univariate accumulator containers; one per thread
         std::vector<TupleOfTuplesOfUnivariates> thread_univariate_accumulators(num_threads);
         for (auto& accum : thread_univariate_accumulators) {
             Utils::zero_univariates(accum);
         }
 
-        // Constuct extended univariates containers; one per thread
+        // Construct extended univariates containers; one per thread
         std::vector<ExtendedUnivariates> extended_univariates;
         extended_univariates.resize(num_threads);
 

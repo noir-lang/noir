@@ -123,13 +123,13 @@ template <typename Flavor> class SumcheckProverRound {
             barretenberg::thread_utils::calculate_num_threads_pow2(round_size, min_iterations_per_thread);
         size_t iterations_per_thread = round_size / num_threads; // actual iterations per thread
 
-        // Constuct univariate accumulator containers; one per thread
+        // Construct univariate accumulator containers; one per thread
         std::vector<SumcheckTupleOfTuplesOfUnivariates> thread_univariate_accumulators(num_threads);
         for (auto& accum : thread_univariate_accumulators) {
             Utils::zero_univariates(accum);
         }
 
-        // Constuct extended edge containers; one per thread
+        // Construct extended edge containers; one per thread
         std::vector<ExtendedEdges> extended_edges;
         extended_edges.resize(num_threads);
 

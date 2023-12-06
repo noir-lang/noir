@@ -256,13 +256,12 @@ void GoblinTranslatorProver::execute_preamble_round()
     const auto SHIFT = uint256_t(1) << Flavor::NUM_LIMB_BITS;
     const auto SHIFTx2 = uint256_t(1) << (Flavor::NUM_LIMB_BITS * 2);
     const auto SHIFTx3 = uint256_t(1) << (Flavor::NUM_LIMB_BITS * 3);
-    const auto accumulated_result = typename Flavor::BF(uint256_t(key->accumulators_binary_limbs_0[1]) +
-                                                        uint256_t(key->accumulators_binary_limbs_1[1]) * SHIFT +
-                                                        uint256_t(key->accumulators_binary_limbs_2[1]) * SHIFTx2 +
-                                                        uint256_t(key->accumulators_binary_limbs_3[1]) * SHIFTx3);
+    const auto accumulated_result =
+        BF(uint256_t(key->accumulators_binary_limbs_0[1]) + uint256_t(key->accumulators_binary_limbs_1[1]) * SHIFT +
+           uint256_t(key->accumulators_binary_limbs_2[1]) * SHIFTx2 +
+           uint256_t(key->accumulators_binary_limbs_3[1]) * SHIFTx3);
     transcript->send_to_verifier("circuit_size", circuit_size);
     transcript->send_to_verifier("evaluation_input_x", key->evaluation_input_x);
-    transcript->send_to_verifier("batching_challenge_v", key->batching_challenge_v);
     transcript->send_to_verifier("accumulated_result", accumulated_result);
 }
 
@@ -366,7 +365,7 @@ void GoblinTranslatorProver::execute_zeromorph_rounds()
 
 plonk::proof& GoblinTranslatorProver::export_proof()
 {
-    proof.proof_data = transcript->proof_data;
+    proof.proof_data = transcript->export_proof();
     return proof;
 }
 

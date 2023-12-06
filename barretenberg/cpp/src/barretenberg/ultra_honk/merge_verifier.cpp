@@ -62,7 +62,7 @@ template <typename Flavor> bool MergeVerifier_<Flavor>::verify_proof(const plonk
 
     FF alpha = transcript->get_challenge("alpha");
 
-    // Constuct batched commitment and evaluation from constituents
+    // Construct batched commitment and evaluation from constituents
     auto batched_commitment = opening_claims[0].commitment;
     auto batched_eval = opening_claims[0].opening_pair.evaluation;
     auto alpha_pow = alpha;
