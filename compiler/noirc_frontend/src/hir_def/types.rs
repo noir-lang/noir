@@ -75,7 +75,7 @@ pub enum Type {
     /// the environment should be `Unit` by default,
     /// for closures it should contain a `Tuple` type with the captured
     /// variable types.
-    Function(Vec<Type>, Box<Type>, Box<Type>),
+    Function(Vec<Type>, /*return_type:*/ Box<Type>, /*environment:*/ Box<Type>),
 
     /// &mut T
     MutableReference(Box<Type>),
@@ -668,30 +668,11 @@ impl Type {
         }
     }
 
-    /// Takes a monomorphic type and generalizes it over each of the given type variables.
-    pub(crate) fn generalize_from_variables(
-        self,
-        type_vars: HashMap<TypeVariableId, TypeVariable>,
-    ) -> Type {
-        let polymorphic_type_vars = vecmap(type_vars, |type_var| type_var);
-        Type::Forall(polymorphic_type_vars, Box::new(self))
-    }
-
     /// Takes a monomorphic type and generalizes it over each of the type variables in the
     /// given type bindings, ignoring what each type variable is bound to in the TypeBindings.
     pub(crate) fn generalize_from_substitutions(self, type_bindings: TypeBindings) -> Type {
         let polymorphic_type_vars = vecmap(type_bindings, |(id, (type_var, _))| (id, type_var));
         Type::Forall(polymorphic_type_vars, Box::new(self))
-    }
-
-    /// Takes a monomorphic type and generalizes it over each type variable found within.
-    ///
-    /// Note that Noir's type system assumes any Type::Forall are only present at top-level,
-    /// and thus all type variable's within a type are free.
-    pub(crate) fn generalize(self) -> Type {
-        let mut type_variables = HashMap::new();
-        self.find_all_unbound_type_variables(&mut type_variables);
-        self.generalize_from_variables(type_variables)
     }
 }
 

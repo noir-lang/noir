@@ -289,14 +289,7 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::TraitMethodReference(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
-                let method = &the_trait.methods[method.method_index];
-
-                let typ = Type::Function(
-                    method.arguments.clone(),
-                    Box::new(method.return_type.clone()),
-                    Box::new(Type::Unit),
-                );
-
+                let typ = &the_trait.methods[method.method_index].typ;
                 let (typ, bindings) = typ.instantiate(self.interner);
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
                 typ
@@ -546,7 +539,7 @@ impl<'interner> TypeChecker<'interner> {
             HirMethodReference::TraitMethodId(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
-                (method.get_type(), method.arguments.len())
+                (method.typ.clone(), method.arguments().len())
             }
         };
 

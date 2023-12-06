@@ -886,7 +886,6 @@ impl<'interner> Monomorphizer<'interner> {
         let original_func = Box::new(self.expr(call.func));
         let mut arguments = vecmap(&call.arguments, |id| self.expr(*id));
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
-        let func: Box<ast::Expression>;
         let return_type = self.interner.id_type(id);
         let return_type = self.convert_type(&return_type);
 
@@ -907,7 +906,8 @@ impl<'interner> Monomorphizer<'interner> {
         let func_type = self.interner.id_type(call.func);
         let func_type = self.convert_type(&func_type);
         let is_closure = self.is_function_closure(func_type);
-        if is_closure {
+
+        let func = if is_closure {
             let local_id = self.next_local_id();
 
             // store the function in a temporary variable before calling it
@@ -929,14 +929,13 @@ impl<'interner> Monomorphizer<'interner> {
                 typ: self.convert_type(&self.interner.id_type(call.func)),
             });
 
-            func = Box::new(ast::Expression::ExtractTupleField(
-                Box::new(extracted_func.clone()),
-                1usize,
-            ));
-            let env_argument = ast::Expression::ExtractTupleField(Box::new(extracted_func), 0usize);
+            let env_argument =
+                ast::Expression::ExtractTupleField(Box::new(extracted_func.clone()), 0usize);
             arguments.insert(0, env_argument);
+
+            Box::new(ast::Expression::ExtractTupleField(Box::new(extracted_func), 1usize))
         } else {
-            func = original_func.clone();
+            original_func.clone()
         };
 
         let call = self
