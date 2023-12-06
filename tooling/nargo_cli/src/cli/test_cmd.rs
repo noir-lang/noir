@@ -82,7 +82,7 @@ pub(crate) fn run(
 fn run_tests<S: BlackBoxFunctionSolver>(
     blackbox_solver: &S,
     package: &Package,
-    test_name: FunctionNameMatch,
+    fn_name: FunctionNameMatch,
     show_output: bool,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
@@ -95,13 +95,26 @@ fn run_tests<S: BlackBoxFunctionSolver>(
         compile_options.silence_warnings,
     )?;
 
-    let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, test_name);
+    let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, fn_name);
     let count_all = test_functions.len();
     if count_all == 0 {
-        return Err(CliError::Generic(format!("[{}] Found 0 tests matching input", package.name)));
+        return match &fn_name {
+            FunctionNameMatch::Anything => {
+                Err(CliError::Generic(format!("[{}] Found 0 tests.", package.name)))
+            }
+            FunctionNameMatch::Exact(pattern) => Err(CliError::Generic(format!(
+                "[{}] Found 0 tests matching input '{pattern}'.",
+                package.name
+            ))),
+            FunctionNameMatch::Contains(pattern) => Err(CliError::Generic(format!(
+                "[{}] Found 0 tests containing '{pattern}'.",
+                package.name
+            ))),
+        };
     }
 
-    println!("[{}] Running {count_all} test functions", package.name);
+    let plural = if count_all == 1 { "" } else { "s" };
+    println!("[{}] Running {count_all} test function{plural}", package.name);
     let mut count_failed = 0;
 
     let writer = StandardStream::stderr(ColorChoice::Always);
@@ -114,19 +127,16 @@ fn run_tests<S: BlackBoxFunctionSolver>(
 
         match run_test(blackbox_solver, &context, test_function, show_output, compile_options) {
             TestStatus::Pass { .. } => {
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
+                writer.set_color(ColorSpec::new()
+                    .set_fg(Some(Color::Green)))
                     .expect("Failed to set color");
                 writeln!(writer, "ok").expect("Failed to write to stdout");
             }
             TestStatus::Fail { message, error_diagnostic } => {
-                let writer = StandardStream::stderr(ColorChoice::Always);
-                let mut writer = writer.lock();
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+                writer.set_color(ColorSpec::new()
+                    .set_fg(Some(Color::Red)))
                     .expect("Failed to set color");
-                writeln!(writer, "{message}").expect("Failed to write to stdout");
-                writer.reset().expect("Failed to reset writer");
+                writeln!(writer, "{message}\n").expect("Failed to write to stdout");
                 if let Some(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(
                         context.file_manager.as_file_map(),
@@ -153,8 +163,6 @@ fn run_tests<S: BlackBoxFunctionSolver>(
     write!(writer, "[{}] ", package.name).expect("Failed to write to stdout");
 
     if count_failed == 0 {
-        let plural = if count_all == 1 { "" } else { "s" };
-
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
         writeln!(writer, "{count_all} test{plural} passed").expect("Failed to write to stdout");
         writer.reset().expect("Failed to reset writer");
@@ -173,7 +181,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                 .expect("Failed to write to stdout");
         }
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).expect("Failed to set color");
-        write!(writer, "{count_failed} test{plural_failed} failed")
+        writeln!(writer, "{count_failed} test{plural_failed} failed")
             .expect("Failed to write to stdout");
         writer.reset().expect("Failed to reset writer");
 
