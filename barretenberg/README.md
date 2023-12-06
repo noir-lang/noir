@@ -46,12 +46,13 @@ Ignores proving key construction.
 - Ninja (used by the presets as the default generator)
 - clang >= 16 or gcc >= 10
 - clang-format
+- libstdc++ >= 12
 - libomp (if multithreading is required. Multithreading can be disabled using the compiler flag `-DMULTITHREADING 0`)
 
 To install on Ubuntu, run:
 
 ```
-sudo apt-get install cmake clang clang-format ninja-build
+sudo apt-get install cmake clang clang-format ninja-build libstdc++-12-dev
 ```
 
 ### Installing openMP (Linux)
