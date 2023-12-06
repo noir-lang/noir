@@ -1,6 +1,6 @@
 use dep::std::option::Option;
 use crate::types::vec::BoundedVec;
-use crate::constants_gen::MAX_READ_REQUESTS_PER_CALL;
+use dep::protocol_types::constants::MAX_READ_REQUESTS_PER_CALL;
 
 struct Select {
     field_index: u8,

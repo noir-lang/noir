@@ -26,12 +26,10 @@ use crate::{
         bounded_vec::BoundedVec,
     },
 };
-use dep::aztec::{
-    constants_gen::{
+use crate::constants::{
         MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
         MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
         MAX_READ_REQUESTS_PER_CALL,
-    },
 };
 
 struct PrivateCallDataBuilder {

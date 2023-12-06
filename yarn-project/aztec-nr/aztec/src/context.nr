@@ -1,4 +1,4 @@
-use crate::constants_gen::{
+use dep::protocol_types::constants::{
     EMPTY_NULLIFIED_COMMITMENT,
     MAX_NEW_COMMITMENTS_PER_CALL,
     MAX_NEW_L2_TO_L1_MSGS_PER_CALL,

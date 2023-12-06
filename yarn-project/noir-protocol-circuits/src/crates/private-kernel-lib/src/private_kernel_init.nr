@@ -1,5 +1,4 @@
 use crate::common;
-use dep::aztec::constants_gen::EMPTY_NULLIFIED_COMMITMENT;
 use dep::std::unsafe;
 use dep::types::{
     abis::{
@@ -7,6 +6,7 @@ use dep::types::{
         private_kernel::private_call_data::PrivateCallData,
         kernel_circuit_public_inputs::{KernelCircuitPublicInputs, KernelCircuitPublicInputsBuilder},
     },
+    constants::EMPTY_NULLIFIED_COMMITMENT,
     mocked::{Proof, verify_previous_kernel_state},
     transaction::request::TxRequest,
     utils::arrays::is_empty_array,
@@ -117,7 +117,7 @@ impl PrivateKernelInputsInit {
 
 mod tests {
     use crate::private_kernel_init::PrivateKernelInputsInit;
-    use dep::aztec::constants_gen::{
+    use dep::types::constants::{
         MAX_READ_REQUESTS_PER_CALL,
     };
     use dep::types::{

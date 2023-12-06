@@ -1,4 +1,4 @@
-use crate::constants_gen::CALL_PRIVATE_FUNCTION_RETURN_SIZE;
+use dep::protocol_types::constants::CALL_PRIVATE_FUNCTION_RETURN_SIZE;
 
 #[oracle(callPrivateFunction)]
 fn call_private_function_oracle(_contract_address: Field, _function_selector: Field, _args_hash: Field) -> [Field; CALL_PRIVATE_FUNCTION_RETURN_SIZE] {}

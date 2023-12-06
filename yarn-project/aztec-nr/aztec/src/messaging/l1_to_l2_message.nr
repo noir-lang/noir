@@ -1,4 +1,4 @@
-use crate::constants_gen::{
+use dep::protocol_types::constants::{
     L1_TO_L2_MESSAGE_LENGTH,
     GENERATOR_INDEX__NULLIFIER,
     GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET,

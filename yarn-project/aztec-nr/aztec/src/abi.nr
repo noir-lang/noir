@@ -1,4 +1,4 @@
-use crate::constants_gen::{
+use dep::protocol_types::constants::{
     RETURN_VALUES_LENGTH,
     MAX_READ_REQUESTS_PER_CALL,
     MAX_PENDING_READ_REQUESTS_PER_CALL,

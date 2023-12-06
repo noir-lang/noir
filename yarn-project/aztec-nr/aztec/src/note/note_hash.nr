@@ -1,5 +1,5 @@
 use crate::hash::pedersen_hash;
-use crate::constants_gen::{GENERATOR_INDEX__UNIQUE_COMMITMENT, GENERATOR_INDEX__SILOED_COMMITMENT};
+use dep::protocol_types::constants::{GENERATOR_INDEX__UNIQUE_COMMITMENT, GENERATOR_INDEX__SILOED_COMMITMENT};
 
 pub fn compute_inner_hash(storage_slot: Field, note_hash: Field) -> Field {
     // TODO(#1205) Do we need a generator index here?

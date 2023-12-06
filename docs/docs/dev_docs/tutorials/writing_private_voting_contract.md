@@ -75,7 +75,7 @@ We are using various utils within the Aztec library:
 * `state_vars::{ map::Map, public_state::PublicState, }` - we will use a Map to store the votes (key = voteId, value = number of votes), and PublicState to hold our public values that we mentioned earlier
 * `types::type_serialization::{..}` - various serialization methods for defining how to use these types
 * `types::address::{AztecAddress},` - our admin will be held as an address
-* `constants_gen::EMPTY_NULLIFIED_COMMITMENT,` - this will come in useful when creating our nullifier
+* `constants::EMPTY_NULLIFIED_COMMITMENT,` - this will come in useful when creating our nullifier
 
 ## Set up storage
 

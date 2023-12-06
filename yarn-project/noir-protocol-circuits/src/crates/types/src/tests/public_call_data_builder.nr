@@ -19,7 +19,7 @@ use crate::{
     },
     utils::bounded_vec::BoundedVec,
 };
-use dep::aztec::constants_gen::{
+use crate::constants::{
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
     MAX_PUBLIC_DATA_READS_PER_CALL,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,

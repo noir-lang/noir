@@ -1,6 +1,6 @@
 use crate::abi::FunctionData;
 use crate::abi::PrivateCircuitPublicInputs;
-use crate::constants_gen::GENERATOR_INDEX__CALL_STACK_ITEM;
+use dep::protocol_types::constants::GENERATOR_INDEX__CALL_STACK_ITEM;
 use crate::hash::pedersen_hash;
 
 struct PrivateCallStackItem {

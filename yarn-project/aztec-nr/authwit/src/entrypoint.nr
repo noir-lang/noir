@@ -4,7 +4,7 @@ use dep::aztec::hash::pedersen_hash;
 use dep::aztec::context::PrivateContext;
 use dep::aztec::private_call_stack_item::PrivateCallStackItem;
 use dep::aztec::public_call_stack_item::PublicCallStackItem;
-use dep::aztec::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
+use dep::protocol_types::constants::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
 
 global ACCOUNT_MAX_CALLS: Field = 4;
 // 1 (ARGS_HASH) + 1 (FUNCTION_SELECTOR) + 1 (TARGET_ADDRESS) + 1 (IS_PUBLIC)

@@ -1,5 +1,5 @@
 use dep::std::option::Option;
-use dep::aztec::constants_gen::MAX_READ_REQUESTS_PER_CALL;
+use dep::protocol_types::constants::MAX_READ_REQUESTS_PER_CALL;
 use crate::value_note::ValueNote;
 
 pub fn filter_notes_min_sum(notes: [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL], min_sum: Field) -> [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL] {

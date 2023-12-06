@@ -13,7 +13,7 @@ use crate::{
     tests::fixtures,
     utils::bounded_vec::BoundedVec,
 };
-use dep::aztec::constants_gen::{
+use crate::constants::{
     MAX_NEW_COMMITMENTS_PER_CALL,
     MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
     MAX_NEW_NULLIFIERS_PER_CALL,

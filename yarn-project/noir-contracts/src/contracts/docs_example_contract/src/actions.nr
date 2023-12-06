@@ -1,4 +1,4 @@
-use dep::aztec::constants_gen::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL};
+use dep::protocol_types::constants::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL};
 use dep::aztec::note::{
     note_getter_options::NoteGetterOptions, note_viewer_options::NoteViewerOptions,
 };

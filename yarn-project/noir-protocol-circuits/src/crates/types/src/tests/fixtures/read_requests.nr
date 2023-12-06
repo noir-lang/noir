@@ -1,10 +1,8 @@
 use crate::abis::membership_witness::ReadRequestMembershipWitness;
 use crate::tests::fixtures;
 use crate::utils::bounded_vec::BoundedVec;
-use dep::aztec::{
-    constants_gen::{
+use crate::constants::{
         MAX_READ_REQUESTS_PER_CALL,
-    },
 };
 
 pub fn generate_read_requests(how_many: Field) -> (

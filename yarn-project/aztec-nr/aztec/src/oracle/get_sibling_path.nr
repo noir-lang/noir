@@ -1,4 +1,4 @@
-use crate::constants_gen::NOTE_HASH_TREE_HEIGHT;
+use dep::protocol_types::constants::NOTE_HASH_TREE_HEIGHT;
 use crate::utils::arr_copy_slice;
 
 #[oracle(getSiblingPath)]

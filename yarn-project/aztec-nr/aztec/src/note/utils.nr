@@ -1,5 +1,5 @@
+use dep::protocol_types::constants::GENERATOR_INDEX__OUTER_NULLIFIER;
 use crate::{
-    constants_gen::GENERATOR_INDEX__OUTER_NULLIFIER,
     note::{
         note_hash::{compute_inner_hash, compute_siloed_hash, compute_unique_hash},
         note_header::NoteHeader,

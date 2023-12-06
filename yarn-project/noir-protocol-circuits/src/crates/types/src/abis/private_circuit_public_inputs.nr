@@ -7,9 +7,7 @@ use crate::{
     hash::NUM_FIELDS_PER_SHA256,
     utils::bounded_vec::BoundedVec,
 };
-use dep::aztec::{
-    constants_gen,
-    constants_gen::{
+use crate::constants::{
         MAX_READ_REQUESTS_PER_CALL,
         MAX_NEW_COMMITMENTS_PER_CALL,
         MAX_NEW_NULLIFIERS_PER_CALL,
@@ -18,7 +16,8 @@ use dep::aztec::{
         MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
         MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
         RETURN_VALUES_LENGTH,
-    }
+        PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,
+        GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS,
 };
 
 struct PrivateCircuitPublicInputs {
@@ -57,7 +56,7 @@ struct PrivateCircuitPublicInputs {
 impl PrivateCircuitPublicInputs {
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3059) : Reuse aztec-nr
     fn hash(self) -> Field {        
-        let mut fields: BoundedVec<Field, constants_gen::PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH> = BoundedVec::new(0); 
+        let mut fields: BoundedVec<Field, PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH> = BoundedVec::new(0); 
         fields.push(self.call_context.hash());
         fields.push(self.args_hash);
         fields.push_array(self.return_values);
@@ -78,8 +77,8 @@ impl PrivateCircuitPublicInputs {
         fields.push(self.chain_id);
         fields.push(self.version);
 
-        assert_eq(fields.len(), constants_gen::PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH, "Incorrect number of input fields when hashing PrivateCircuitPublicInputs");
+        assert_eq(fields.len(), PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH, "Incorrect number of input fields when hashing PrivateCircuitPublicInputs");
 
-        dep::std::hash::pedersen_hash_with_separator(fields.storage, constants_gen::GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS)
+        dep::std::hash::pedersen_hash_with_separator(fields.storage, GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS)
     }
 }

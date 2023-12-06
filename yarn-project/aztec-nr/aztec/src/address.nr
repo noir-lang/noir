@@ -1,4 +1,4 @@
-use crate::constants_gen::GENERATOR_INDEX__CONTRACT_ADDRESS;
+use dep::protocol_types::constants::GENERATOR_INDEX__CONTRACT_ADDRESS;
 use crate::hash::pedersen_hash;
 
 pub fn compute_address(pub_key_x: Field, pub_key_y: Field, partial_address: Field) -> Field {

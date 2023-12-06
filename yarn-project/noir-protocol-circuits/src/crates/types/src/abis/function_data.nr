@@ -1,5 +1,5 @@
 use crate::abis::function_selector::FunctionSelector;
-use dep::aztec::constants_gen;
+use crate::constants::GENERATOR_INDEX__FUNCTION_DATA;
 
 struct FunctionData {
     // First four bytes of the abi encoding 
@@ -21,6 +21,6 @@ impl FunctionData {
             self.is_internal as Field,
             self.is_private as Field,
             self.is_constructor as Field,
-        ], constants_gen::GENERATOR_INDEX__FUNCTION_DATA)
+        ], GENERATOR_INDEX__FUNCTION_DATA)
     }
 }

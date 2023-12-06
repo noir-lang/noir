@@ -1,8 +1,8 @@
 use dep::std::option::Option;
 use dep::safe_math::SafeU120;
+use dep::protocol_types::constants::MAX_READ_REQUESTS_PER_CALL;
 use dep::aztec::{
   context::Context,
-  constants_gen::MAX_READ_REQUESTS_PER_CALL,
   state_vars::set::Set,
   types::address::AztecAddress,
 };

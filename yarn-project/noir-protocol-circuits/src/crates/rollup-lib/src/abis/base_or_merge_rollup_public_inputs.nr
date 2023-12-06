@@ -1,5 +1,5 @@
 // TODO(Kev): This constant is also defined in private-kernel-lib
-use dep::aztec::constants_gen::NUM_FIELDS_PER_SHA256;
+use dep::types::constants::NUM_FIELDS_PER_SHA256;
 use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
 use crate::abis::constant_rollup_data::ConstantRollupData;
 use dep::types::mocked::AggregationObject;

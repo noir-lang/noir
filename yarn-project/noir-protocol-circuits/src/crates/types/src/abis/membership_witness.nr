@@ -1,4 +1,4 @@
-use dep::aztec::constants_gen::{
+use crate::constants::{
     CONTRACT_TREE_HEIGHT,
     FUNCTION_TREE_HEIGHT,
     KERNELS_PER_BASE_ROLLUP,

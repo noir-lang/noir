@@ -1,4 +1,4 @@
-use dep::aztec::constants_gen;
+use crate::constants::GENERATOR_INDEX__PUBLIC_DATA_READ;
 
 struct StorageRead{
     storage_slot: Field,
@@ -17,7 +17,7 @@ impl StorageRead {
         dep::std::hash::pedersen_hash_with_separator([
             self.storage_slot,
             self.current_value,
-        ], constants_gen::GENERATOR_INDEX__PUBLIC_DATA_READ)
+        ], GENERATOR_INDEX__PUBLIC_DATA_READ)
     }
 
     pub fn is_empty(self) -> bool {

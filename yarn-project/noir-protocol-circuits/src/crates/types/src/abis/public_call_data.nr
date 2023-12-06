@@ -6,7 +6,7 @@ use crate::{
     address::EthAddress,
     mocked::Proof,
 };
-use dep::aztec::constants_gen::MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL;
+use crate::constants::MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL;
 
 struct PublicCallData {
     call_stack_item: PublicCallStackItem,

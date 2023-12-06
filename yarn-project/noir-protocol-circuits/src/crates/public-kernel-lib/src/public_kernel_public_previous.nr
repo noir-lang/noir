@@ -76,7 +76,7 @@ mod tests {
             arrays::array_eq,
         },
     };
-    use dep::aztec::constants_gen::{
+    use dep::types::constants::{
         MAX_PUBLIC_DATA_READS_PER_CALL,
         MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
     };

@@ -2,7 +2,7 @@
   
 use dep::std;
 use dep::aztec::context::{ PrivateContext, PublicContext };
-use dep::aztec::constants_gen::RETURN_VALUES_LENGTH;
+use dep::protocol_types::constants::RETURN_VALUES_LENGTH;
 
 struct AStructTestCodeGenStruct {
   amount: Field,

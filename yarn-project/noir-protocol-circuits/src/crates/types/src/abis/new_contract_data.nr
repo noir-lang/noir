@@ -1,5 +1,5 @@
 use crate::address::{Address, EthAddress};
-use dep::aztec::constants_gen;
+use crate::constants::GENERATOR_INDEX__CONTRACT_LEAF;
 
 struct NewContractData {
     contract_address: Address,
@@ -36,7 +36,7 @@ impl NewContractData {
                 self.contract_address.to_field(),
                 self.portal_contract_address.to_field(),
                 self.function_tree_root,
-            ], constants_gen::GENERATOR_INDEX__CONTRACT_LEAF)
+            ], GENERATOR_INDEX__CONTRACT_LEAF)
         }
     }
 }

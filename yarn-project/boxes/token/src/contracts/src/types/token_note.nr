@@ -1,3 +1,4 @@
+use dep::protocol_types::constants::MAX_READ_REQUESTS_PER_CALL;
 use dep::aztec::{
     note::{
         note_header::NoteHeader,
@@ -6,7 +7,6 @@ use dep::aztec::{
     },
     hash::pedersen_hash,
     context::PrivateContext,
-    constants_gen::MAX_READ_REQUESTS_PER_CALL,
     state_vars::set::Set,
     log::emit_encrypted_log,
 };

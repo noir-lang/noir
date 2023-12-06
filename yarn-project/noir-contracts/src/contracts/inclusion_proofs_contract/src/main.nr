@@ -2,6 +2,11 @@ mod utils;
 
 // A demonstration of inclusion and non-inclusion proofs.
 contract InclusionProofs {
+    use dep::protocol_types::constants::{
+        NOTE_HASH_TREE_HEIGHT,
+        PUBLIC_DATA_TREE_HEIGHT,
+        GENERATOR_INDEX__PUBLIC_LEAF_INDEX,
+    };
     use dep::std::merkle::compute_merkle_root;
     use dep::aztec::{
         state_vars::{
@@ -20,11 +25,7 @@ contract InclusionProofs {
             note_header::NoteHeader,
             utils as note_utils,
         },
-        constants_gen::{
-            NOTE_HASH_TREE_HEIGHT,
-            PUBLIC_DATA_TREE_HEIGHT,
-            GENERATOR_INDEX__PUBLIC_LEAF_INDEX,
-        },
+        
         oracle::{
             get_membership_witness::{
                 get_membership_witness,

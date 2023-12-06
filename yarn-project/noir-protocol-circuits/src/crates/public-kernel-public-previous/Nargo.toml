@@ -7,4 +7,3 @@ compiler_version = ">=0.18.0"
 [dependencies]
 types = { path = "../types" }
 public_kernel_lib = { path = "../public-kernel-lib" }
-aztec = { path = "../../../../aztec-nr/aztec" }

@@ -47,7 +47,7 @@ exports[`noir-compiler using nargo generates Aztec.nr external interface 1`] = `
   
 use dep::std;
 use dep::aztec::context::{ PrivateContext, PublicContext };
-use dep::aztec::constants_gen::RETURN_VALUES_LENGTH;
+use dep::protocol_types::constants::RETURN_VALUES_LENGTH;
 
 
 
@@ -240,7 +240,7 @@ exports[`noir-compiler using wasm binary generates Aztec.nr external interface 1
   
 use dep::std;
 use dep::aztec::context::{ PrivateContext, PublicContext };
-use dep::aztec::constants_gen::RETURN_VALUES_LENGTH;
+use dep::protocol_types::constants::RETURN_VALUES_LENGTH;
 
 
 

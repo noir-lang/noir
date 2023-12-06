@@ -1,4 +1,4 @@
-use crate::constants_gen::NOTE_HASH_TREE_HEIGHT;
+use dep::protocol_types::constants::NOTE_HASH_TREE_HEIGHT;
 use crate::utils::arr_copy_slice;
 
 // Note: We have M here because we need to somehow set it when calling get_membership_witness function and one way to

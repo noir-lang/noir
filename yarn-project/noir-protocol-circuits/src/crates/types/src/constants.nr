@@ -82,6 +82,9 @@ global L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH: Field = 12;
 global FUNCTION_SELECTOR_NUM_BYTES: Field = 4;
 global MAPPING_SLOT_PEDERSEN_SEPARATOR: Field = 4;
 global NUM_FIELDS_PER_SHA256: Field = 2;
+global ARGS_HASH_CHUNK_LENGTH: u32 = 32;
+global ARGS_HASH_CHUNK_COUNT: u32 = 16;
+
 
 // NOIR CONSTANTS - constants used only in yarn-packages/noir-contracts
 // Some are defined here because Noir doesn't yet support globals referencing other globals yet.

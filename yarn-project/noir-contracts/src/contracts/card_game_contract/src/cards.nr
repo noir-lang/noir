@@ -1,6 +1,6 @@
+use dep::protocol_types::constants::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL};
 use dep::aztec::{
     context::{PrivateContext, PublicContext, Context},
-    constants_gen::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL},
     note::{
         note_getter_options::NoteGetterOptions,
         note_viewer_options::NoteViewerOptions,

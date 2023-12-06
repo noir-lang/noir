@@ -1,6 +1,6 @@
 use crate::address::EthAddress;
 use crate::point::Point;
-use dep::aztec::constants_gen;
+use crate::constants::GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA;
 
 struct ContractDeploymentData {
     deployer_public_key : Point,
@@ -27,6 +27,6 @@ impl ContractDeploymentData {
             self.function_tree_root,
             self.contract_address_salt,
             self.portal_contract_address.to_field()
-        ], constants_gen::GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA)
+        ], GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA)
     }
 }

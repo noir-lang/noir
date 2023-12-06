@@ -1,4 +1,4 @@
-use dep::aztec::constants_gen::GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST;
+use crate::constants::GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST;
 
 struct PublicDataUpdateRequest {
     leaf_index : Field,

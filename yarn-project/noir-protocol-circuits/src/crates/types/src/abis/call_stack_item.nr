@@ -4,7 +4,7 @@ use crate::abis::{
     public_circuit_public_inputs::PublicCircuitPublicInputs,
 };
 use crate::address::Address;
-use dep::aztec::constants_gen::{
+use crate::constants::{
     GENERATOR_INDEX__CALL_STACK_ITEM,
 };
 

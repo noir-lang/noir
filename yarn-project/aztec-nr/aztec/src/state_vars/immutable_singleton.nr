@@ -1,5 +1,5 @@
 use dep::std::option::Option;
-use crate::constants_gen::EMPTY_NULLIFIED_COMMITMENT;
+use dep::protocol_types::constants::EMPTY_NULLIFIED_COMMITMENT;
 use crate::context::{PrivateContext, Context};
 use crate::note::{
     lifecycle::create_note,

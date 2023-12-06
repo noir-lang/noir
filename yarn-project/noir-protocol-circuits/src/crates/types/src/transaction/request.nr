@@ -1,4 +1,4 @@
-use dep::aztec::constants_gen;
+use crate::constants::GENERATOR_INDEX__TX_REQUEST;
 use crate::address::Address;
 use crate::transaction::context::TxContext;
 use crate::abis::function_data::FunctionData;
@@ -17,6 +17,6 @@ impl TxRequest {
             self.function_data.hash(),
             self.args_hash,
             self.tx_context.hash(),
-        ], constants_gen::GENERATOR_INDEX__TX_REQUEST)
+        ], GENERATOR_INDEX__TX_REQUEST)
     }
 }

@@ -1,5 +1,5 @@
 use dep::std::option::Option;
-use crate::constants_gen::{
+use dep::protocol_types::constants::{
     MAX_READ_REQUESTS_PER_CALL,
     GET_NOTE_ORACLE_RETURN_LENGTH,
     GET_NOTES_ORACLE_RETURN_LENGTH,

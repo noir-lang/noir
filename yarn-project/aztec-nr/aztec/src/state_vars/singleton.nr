@@ -1,5 +1,5 @@
 use dep::std::option::Option;
-use crate::constants_gen::{EMPTY_NULLIFIED_COMMITMENT, GENERATOR_INDEX__INITIALIZATION_NULLIFIER};
+use dep::protocol_types::constants::{EMPTY_NULLIFIED_COMMITMENT, GENERATOR_INDEX__INITIALIZATION_NULLIFIER};
 use crate::context::{PrivateContext, PublicContext, Context};
 use crate::note::{
     lifecycle::{create_note, destroy_note},

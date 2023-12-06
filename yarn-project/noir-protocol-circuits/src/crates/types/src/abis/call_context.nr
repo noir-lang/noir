@@ -1,6 +1,6 @@
 use crate::abis::function_selector::FunctionSelector;
 use crate::address::{EthAddress,Address};
-use dep::aztec::constants_gen;
+use crate::constants::GENERATOR_INDEX__CALL_CONTEXT;
 
 struct CallContext{
     msg_sender : Address,
@@ -24,7 +24,7 @@ impl CallContext {
             self.is_delegate_call as Field,
             self.is_static_call as Field,
             self.is_contract_deployment as Field,
-        ], constants_gen::GENERATOR_INDEX__CALL_CONTEXT)
+        ], GENERATOR_INDEX__CALL_CONTEXT)
     }
 
     fn assert_is_zero(self) {

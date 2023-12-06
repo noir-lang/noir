@@ -1,6 +1,6 @@
+use dep::protocol_types::constants::{EMPTY_NULLIFIED_COMMITMENT, GENERATOR_INDEX__SIGNATURE_PAYLOAD};
 use dep::aztec::{
   context::{PrivateContext, PublicContext, Context},
-  constants_gen::{EMPTY_NULLIFIED_COMMITMENT, GENERATOR_INDEX__SIGNATURE_PAYLOAD},
   types::address::AztecAddress,
   abi::hash_args,
   hash::pedersen_hash,

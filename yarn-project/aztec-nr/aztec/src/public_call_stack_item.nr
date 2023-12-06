@@ -6,7 +6,7 @@ use crate::{
         FunctionData,
     },
 };
-use crate::constants_gen::{
+use dep::protocol_types::constants::{
     RETURN_VALUES_LENGTH,
     GENERATOR_INDEX__CALL_STACK_ITEM,
 };

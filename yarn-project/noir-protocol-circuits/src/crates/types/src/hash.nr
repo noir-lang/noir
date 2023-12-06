@@ -8,12 +8,69 @@ use crate::abis::function_data::FunctionData;
 use crate::utils::uint128::U128;
 use crate::utils::uint256::U256;
 use crate::utils::bounded_vec::BoundedVec;
-
-use dep::aztec::{
-    constants_gen,
-    constants_gen::{CONTRACT_TREE_HEIGHT, FUNCTION_TREE_HEIGHT, NOTE_HASH_TREE_HEIGHT},
-    hash::sha256_to_field,
+use crate::constants::{
+        ARGS_HASH_CHUNK_COUNT,
+        ARGS_HASH_CHUNK_LENGTH,
+        CONTRACT_TREE_HEIGHT, 
+        FUNCTION_TREE_HEIGHT, 
+        NOTE_HASH_TREE_HEIGHT,
+        GENERATOR_INDEX__SILOED_COMMITMENT,
+        GENERATOR_INDEX__OUTER_NULLIFIER,
+        GENERATOR_INDEX__VK,
+        GENERATOR_INDEX__CONSTRUCTOR,
+        GENERATOR_INDEX__PARTIAL_ADDRESS,
+        GENERATOR_INDEX__CONTRACT_ADDRESS,
+        GENERATOR_INDEX__COMMITMENT_NONCE,
+        GENERATOR_INDEX__UNIQUE_COMMITMENT,
+        GENERATOR_INDEX__FUNCTION_ARGS,
 };
+
+use dep::std::hash::sha256;
+
+pub fn sha256_to_field<N>(bytes_to_hash: [u8; N]) -> Field {
+    let sha256_hashed = sha256(bytes_to_hash);
+
+    // Convert it to a field element
+    let mut v = 1;
+    let mut high = 0 as Field;
+    let mut low = 0 as Field;
+
+    for i in 0..16 {
+        high = high + (sha256_hashed[15 - i] as Field) * v;
+        low = low + (sha256_hashed[16 + 15 - i] as Field) * v;
+        v = v * 256;
+    }
+
+    // Abuse that a % p + b % p = (a + b) % p and that low < p
+    let hash_in_a_field = low + high * v;
+
+    hash_in_a_field
+}
+
+pub fn hash_args<N>(args: [Field; N]) -> Field {
+    if args.len() == 0 {
+        0
+    } else {
+        let mut chunks_hashes = [0; ARGS_HASH_CHUNK_COUNT];
+        for i in 0..ARGS_HASH_CHUNK_COUNT {
+            let mut chunk_hash = 0;
+            let start_chunk_index = i * ARGS_HASH_CHUNK_LENGTH;
+            if start_chunk_index < (args.len() as u32) {
+                let mut chunk_args = [0; ARGS_HASH_CHUNK_LENGTH];
+                for j in 0..ARGS_HASH_CHUNK_LENGTH {
+                    let item_index = i * ARGS_HASH_CHUNK_LENGTH + j;
+                    if item_index < (args.len() as u32) {
+                        chunk_args[j] = args[item_index];
+                    }
+                }
+                chunk_hash = dep::std::hash::pedersen_hash_with_separator(chunk_args, GENERATOR_INDEX__FUNCTION_ARGS);
+            }
+            chunks_hashes[i] = chunk_hash;
+        }
+        dep::std::hash::pedersen_hash_with_separator(chunks_hashes, GENERATOR_INDEX__FUNCTION_ARGS)
+    }
+}
+
 
 // Checks that `value` is a member of a merkle tree with root `root` at position `index`
 // The witness being the `sibling_path`
@@ -94,14 +151,14 @@ pub fn silo_commitment(address : Address, inner_commitment : Field) -> Field {
     dep::std::hash::pedersen_hash_with_separator([
         address.to_field(),
         inner_commitment,
-    ], constants_gen::GENERATOR_INDEX__SILOED_COMMITMENT)
+    ], GENERATOR_INDEX__SILOED_COMMITMENT)
 }
 
 pub fn silo_nullifier(address : Address, nullifier : Field) -> Field {
     dep::std::hash::pedersen_hash_with_separator([
         address.to_field(),
         nullifier,
-    ], constants_gen::GENERATOR_INDEX__OUTER_NULLIFIER)
+    ], GENERATOR_INDEX__OUTER_NULLIFIER)
 }
 
 fn merkle_hash(left : Field, right : Field) -> Field {
@@ -112,7 +169,7 @@ pub fn stdlib_recursion_verification_key_compress_native_vk(_vk : VerificationKe
     // Original cpp code
     // stdlib::recursion::verification_key<CT::bn254>::compress_native(private_call.vk, GeneratorIndex::VK);
     // The above cpp method is only ever called on verification key, so it has been special cased here
-    let _hash_index = constants_gen::GENERATOR_INDEX__VK;
+    let _hash_index = GENERATOR_INDEX__VK;
     0
 }
 
@@ -143,7 +200,7 @@ pub fn compute_constructor_hash(function_data : FunctionData, args_hash : Field,
         function_data_hash,
         args_hash,
         constructor_vk_hash
-    ], constants_gen::GENERATOR_INDEX__CONSTRUCTOR)
+    ], GENERATOR_INDEX__CONSTRUCTOR)
 }
 
 // sha256 hash is stored in two fields to accommodate all 256-bits of the hash
@@ -201,7 +258,7 @@ pub fn compute_partial_address(contract_address_salt : Field, function_tree_root
         contract_address_salt,
         function_tree_root,
         constructor_hash
-    ],constants_gen::GENERATOR_INDEX__PARTIAL_ADDRESS)
+    ], GENERATOR_INDEX__PARTIAL_ADDRESS)
 }
 
 pub fn compute_contract_address_from_partial(point : Point, partial_address : Field) -> Address {
@@ -209,7 +266,7 @@ pub fn compute_contract_address_from_partial(point : Point, partial_address : Fi
         point.x,
         point.y,
         partial_address
-    ],constants_gen::GENERATOR_INDEX__CONTRACT_ADDRESS);
+    ], GENERATOR_INDEX__CONTRACT_ADDRESS);
     Address::from_field(field)
 }
 
@@ -217,14 +274,14 @@ pub fn compute_commitment_nonce(first_nullifier : Field, commitment_index : Fiel
     dep::std::hash::pedersen_hash_with_separator([
         first_nullifier,
         commitment_index
-    ], constants_gen::GENERATOR_INDEX__COMMITMENT_NONCE)
+    ], GENERATOR_INDEX__COMMITMENT_NONCE)
 }
 
 pub fn compute_unique_siloed_commitment(nonce: Field, siloed_commitment: Field) -> Field {
     dep::std::hash::pedersen_hash_with_separator([
         nonce,
         siloed_commitment
-    ], constants_gen::GENERATOR_INDEX__UNIQUE_COMMITMENT)
+    ], GENERATOR_INDEX__UNIQUE_COMMITMENT)
 }
 
 pub fn compute_unique_siloed_commitments<N>(first_nullifier: Field, siloed_commitments: [Field; N]) -> [Field; N] {

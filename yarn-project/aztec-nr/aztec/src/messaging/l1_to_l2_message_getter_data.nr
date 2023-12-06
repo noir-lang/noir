@@ -1,5 +1,5 @@
 use crate::messaging::l1_to_l2_message::L1ToL2Message;
-use crate::constants_gen::{
+use dep::protocol_types::constants::{
     L1_TO_L2_MSG_TREE_HEIGHT,
     L1_TO_L2_MESSAGE_LENGTH,
 };

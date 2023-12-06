@@ -4,7 +4,7 @@ mod root_rollup_public_inputs;
 use root_rollup_public_inputs::RootRollupPublicInputs;
 use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
 use dep::types::utils::uint256::U256;
-use dep::aztec::constants_gen::{NUM_FIELDS_PER_SHA256,NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,L1_TO_L2_MSG_SUBTREE_HEIGHT};
+use dep::types::constants::{NUM_FIELDS_PER_SHA256,NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,L1_TO_L2_MSG_SUBTREE_HEIGHT};
 use crate::{components, hash::compute_block_hash_with_globals};
 use crate::merkle_tree::{calculate_subtree, calculate_empty_tree_root};
 

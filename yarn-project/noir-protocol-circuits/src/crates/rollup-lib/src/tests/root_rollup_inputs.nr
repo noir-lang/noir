@@ -3,7 +3,7 @@ use crate::{
         root_rollup_inputs::RootRollupInputs,
     },
 };
-use dep::aztec::constants_gen::{
+use dep::types::constants::{
     L1_TO_L2_MSG_TREE_HEIGHT,
     L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
     L1_TO_L2_MSG_SUBTREE_HEIGHT,

@@ -81,7 +81,7 @@ impl PrivateKernelInputsInner {
 
 mod tests {
     use crate::private_kernel_inner::PrivateKernelInputsInner;
-    use dep::aztec::constants_gen::{
+    use dep::types::constants::{
         EMPTY_NULLIFIED_COMMITMENT,
         MAX_READ_REQUESTS_PER_CALL,
         MAX_NEW_COMMITMENTS_PER_TX,

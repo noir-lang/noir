@@ -1,11 +1,3 @@
-use dep::aztec::constants_gen::{
-    EMPTY_NULLIFIED_COMMITMENT,
-    MAX_NEW_NULLIFIERS_PER_CALL,
-    MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
-    MAX_NEW_COMMITMENTS_PER_CALL,
-    MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
-    MAX_READ_REQUESTS_PER_CALL,
-};
 use dep::types::{
     abis::{
         call_request::CallRequest,
@@ -21,6 +13,14 @@ use dep::types::{
     },
     address::{Address, EthAddress},
     contrakt::deployment_data::ContractDeploymentData,
+    constants::{
+        EMPTY_NULLIFIED_COMMITMENT,
+        MAX_NEW_NULLIFIERS_PER_CALL,
+        MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
+        MAX_NEW_COMMITMENTS_PER_CALL,
+        MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
+        MAX_READ_REQUESTS_PER_CALL,
+    },
     hash::{
         compute_constructor_hash,
         compute_l2_to_l1_hash,

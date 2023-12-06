@@ -19,15 +19,13 @@ use crate::{
     },
     transaction::context::TxContext,
 };
-use dep::aztec::{
-    constants_gen::{
+use crate::constants::{
         EMPTY_NULLIFIED_COMMITMENT,
         MAX_NEW_COMMITMENTS_PER_TX,
         MAX_NEW_NULLIFIERS_PER_TX,
         MAX_PUBLIC_DATA_READS_PER_TX,
         MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
         VK_TREE_HEIGHT,
-    },
 };
 
 struct PreviousKernelDataBuilder {

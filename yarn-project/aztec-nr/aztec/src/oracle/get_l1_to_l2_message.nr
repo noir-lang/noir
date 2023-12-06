@@ -1,4 +1,4 @@
-use crate::constants_gen::L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH;
+use dep::protocol_types::constants::L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH;
 
 // Checks if a msg is within the l1ToL2Msg tree
 #[oracle(getL1ToL2Message)]

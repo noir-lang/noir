@@ -1,5 +1,6 @@
 contract EasyPrivateVoting {
     // docs:start:imports
+    use dep::protocol_types::constants::EMPTY_NULLIFIED_COMMITMENT;
     use dep::aztec::{
 	context::{PrivateContext, Context},
     oracle::get_secret_key::get_secret_key, // used to compute nullifier
@@ -11,7 +12,6 @@ contract EasyPrivateVoting {
         field_serialization::{ FieldSerializationMethods, FIELD_SERIALIZED_LEN},
 	}, 
     types::address::{AztecAddress},
-    constants_gen::EMPTY_NULLIFIED_COMMITMENT,
     };
     // docs:end:imports
     // docs:start:storage_struct

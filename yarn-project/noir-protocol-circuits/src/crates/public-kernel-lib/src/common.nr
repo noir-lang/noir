@@ -17,6 +17,16 @@ use dep::types::{
         storage_read::StorageRead,
         storage_update_request::StorageUpdateRequest,
     },
+    constants::{
+        EMPTY_NULLIFIED_COMMITMENT,
+        MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
+        MAX_NEW_COMMITMENTS_PER_CALL,
+        MAX_NEW_NULLIFIERS_PER_CALL,
+        MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
+        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+        MAX_PUBLIC_DATA_READS_PER_CALL,
+        MAX_READ_REQUESTS_PER_CALL,
+    },
     hash::{silo_commitment, silo_nullifier, compute_l2_to_l1_hash, accumulate_sha256},
     utils::{
         arrays::{array_length, array_to_bounded_vec, is_empty_array, struct_array_length, struct_array_to_bounded_vec},
@@ -25,17 +35,6 @@ use dep::types::{
     },
 };
 use crate::hash::{compute_public_data_tree_index, compute_public_data_tree_value};
-
-use dep::aztec::constants_gen::{
-    EMPTY_NULLIFIED_COMMITMENT,
-    MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
-    MAX_NEW_COMMITMENTS_PER_CALL,
-    MAX_NEW_NULLIFIERS_PER_CALL,
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    MAX_PUBLIC_DATA_READS_PER_CALL,
-    MAX_READ_REQUESTS_PER_CALL,
-};
 
 // Validates inputs to the kernel circuit that are common to all invocation scenarios.
 pub fn validate_inputs(public_call: PublicCallData){

@@ -1,4 +1,4 @@
-use dep::aztec::constants_gen;
+use dep::types::constants::GENERATOR_INDEX__GLOBAL_VARIABLES;
 
 struct GlobalVariables {
     chain_id : Field,
@@ -16,7 +16,7 @@ impl GlobalVariables {
             self.block_number, 
             self.timestamp
             ],
-            constants_gen::GENERATOR_INDEX__GLOBAL_VARIABLES,
+            GENERATOR_INDEX__GLOBAL_VARIABLES,
             )
     }
 

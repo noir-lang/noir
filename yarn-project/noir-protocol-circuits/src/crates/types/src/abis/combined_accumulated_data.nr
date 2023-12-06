@@ -10,7 +10,7 @@ use crate::{
     mocked::AggregationObject,
     utils::bounded_vec::BoundedVec,
 };
-use dep::aztec::constants_gen::{
+use crate::constants::{
     MAX_READ_REQUESTS_PER_TX,
     MAX_NEW_COMMITMENTS_PER_TX,
     MAX_NEW_NULLIFIERS_PER_TX,

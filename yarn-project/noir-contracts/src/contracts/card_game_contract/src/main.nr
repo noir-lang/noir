@@ -2,6 +2,7 @@ mod cards;
 mod game;
 
 contract CardGame {
+    use dep::protocol_types::constants::MAX_NOTES_PER_PAGE;
     use dep::aztec::{
         context::Context,
         hash::pedersen_hash,
@@ -22,7 +23,6 @@ contract CardGame {
 
     use dep::aztec::{
         abi,
-        constants_gen::{MAX_NOTES_PER_PAGE},
         abi::{
             Hasher, PrivateContextInputs,
         },

@@ -1,7 +1,7 @@
 // A contract used for testing a random hodgepodge of small features from simulator and end-to-end tests.
 contract Test {
     use dep::std::option::Option;
-
+    use dep::protocol_types::constants::EMPTY_NULLIFIED_COMMITMENT;
     // docs:start:unencrypted_import
     use dep::aztec::log::emit_unencrypted_log;
     // docs:end:unencrypted_import
@@ -24,7 +24,6 @@ contract Test {
         state_vars::immutable_singleton::ImmutableSingleton,
         log::emit_unencrypted_log_from_private,
         types::vec::BoundedVec,
-        constants_gen::EMPTY_NULLIFIED_COMMITMENT,
     };
     use dep::token_portal_content_hash_lib::{get_mint_private_content_hash, get_mint_public_content_hash};
     use dep::field_note::field_note::{FieldNote, FieldNoteMethods, FIELD_NOTE_LEN};

@@ -1,4 +1,4 @@
-use dep::aztec::constants_gen;
+use crate::constants::GENERATOR_INDEX__TX_CONTEXT;
 use crate::contrakt::deployment_data::ContractDeploymentData;
 
 struct TxContext {
@@ -12,7 +12,6 @@ struct TxContext {
     version : Field,
 }
 
-
 impl TxContext {
     fn hash(self) -> Field {
         dep::std::hash::pedersen_hash_with_separator([
@@ -22,6 +21,6 @@ impl TxContext {
             self.contract_deployment_data.hash(),
             self.chain_id,
             self.version,
-        ], constants_gen::GENERATOR_INDEX__TX_CONTEXT)
+        ], GENERATOR_INDEX__TX_CONTEXT)
     }
 }

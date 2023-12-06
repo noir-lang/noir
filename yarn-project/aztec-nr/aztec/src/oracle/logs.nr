@@ -1,5 +1,5 @@
 use crate::types::point::Point;
-use crate::constants_gen::NUM_FIELDS_PER_SHA256;
+use dep::protocol_types::constants::NUM_FIELDS_PER_SHA256;
 
 // TODO: Should take encrypted data.
 #[oracle(emitEncryptedLog)]

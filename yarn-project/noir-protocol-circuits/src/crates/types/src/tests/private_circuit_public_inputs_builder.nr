@@ -6,16 +6,14 @@ use crate::{
         private_circuit_public_inputs::PrivateCircuitPublicInputs,
     },
     contrakt::deployment_data::ContractDeploymentData,
-    hash::{compute_constructor_hash, NUM_FIELDS_PER_SHA256},
+    hash::{compute_constructor_hash, NUM_FIELDS_PER_SHA256, hash_args},
     tests::{
         fixtures,
         testing_harness::build_contract_deployment_data,
     },
     utils::bounded_vec::BoundedVec,
 };
-use dep::aztec::{
-    abi::hash_args,
-    constants_gen::{
+use crate::constants::{
         MAX_READ_REQUESTS_PER_CALL,
         MAX_NEW_COMMITMENTS_PER_CALL,
         MAX_NEW_NULLIFIERS_PER_CALL,
@@ -24,7 +22,6 @@ use dep::aztec::{
         MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
         MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
         RETURN_VALUES_LENGTH,
-    }
 };
 
 struct PrivateCircuitPublicInputsBuilder {

@@ -1,4 +1,4 @@
-use crate::constants_gen::RETURN_VALUES_LENGTH;
+use dep::protocol_types::constants::RETURN_VALUES_LENGTH;
 
 #[oracle(callPublicFunction)]
 fn call_public_function_oracle(_contract_address: Field, _function_selector: Field, _args_hash: Field) -> [Field; RETURN_VALUES_LENGTH] {}

@@ -1,4 +1,4 @@
-use dep::aztec::constants_gen;
+use crate::constants::GENERATOR_INDEX__BLOCK_HASH;
 
 // This is not in the cpp code.
 struct Block {
@@ -31,6 +31,6 @@ impl Block {
             self.contract_tree_root,
             self.l1_to_l2_messages_tree_root,
             self.public_data_tree_root,
-        ], constants_gen::GENERATOR_INDEX__BLOCK_HASH)
+        ], GENERATOR_INDEX__BLOCK_HASH)
     }
 }

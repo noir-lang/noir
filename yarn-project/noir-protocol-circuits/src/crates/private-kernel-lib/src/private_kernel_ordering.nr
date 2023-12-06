@@ -1,10 +1,4 @@
 use crate::common;
-use dep::aztec::constants_gen::{
-    EMPTY_NULLIFIED_COMMITMENT,
-    MAX_NEW_COMMITMENTS_PER_TX,
-    MAX_NEW_NULLIFIERS_PER_TX,
-    MAX_READ_REQUESTS_PER_TX,
-};
 use dep::std::unsafe;
 use dep::types::{
     abis::{
@@ -14,6 +8,12 @@ use dep::types::{
             KernelCircuitPublicInputsBuilder, 
             KernelCircuitPublicInputsFinal,
         },
+    },
+    constants::{
+        EMPTY_NULLIFIED_COMMITMENT,
+        MAX_NEW_COMMITMENTS_PER_TX,
+        MAX_NEW_NULLIFIERS_PER_TX,
+        MAX_READ_REQUESTS_PER_TX,
     },
     hash::{
         compute_commitment_nonce,
@@ -160,7 +160,7 @@ impl PrivateKernelInputsOrdering {
 
 mod tests {
     use crate::private_kernel_ordering::PrivateKernelInputsOrdering;
-    use dep::aztec::constants_gen::{
+    use dep::types::constants::{
         MAX_READ_REQUESTS_PER_TX,
         MAX_NEW_COMMITMENTS_PER_TX,
         MAX_NEW_NULLIFIERS_PER_TX,

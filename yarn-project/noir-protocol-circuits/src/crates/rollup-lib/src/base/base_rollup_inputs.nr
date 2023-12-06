@@ -8,7 +8,7 @@ use dep::types::utils::uint256::U256;
 use dep::types::abis::public_data_update_request::PublicDataUpdateRequest;
 use dep::types::abis::public_data_read::PublicDataRead;
 use dep::types::mocked::{AggregationObject, Proof};
-use dep::aztec::constants_gen::{
+use dep::types::constants::{
     MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
     NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
     NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
@@ -538,7 +538,7 @@ mod tests {
         tests::merkle_tree_utils::{NonEmptyMerkleTree, compute_zero_hashes},
         components,
     };
-    use dep::aztec::constants_gen::{
+    use dep::types::constants::{
         CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
         CONTRACT_TREE_HEIGHT,
         CONTRACT_SUBTREE_HEIGHT,
@@ -554,6 +554,7 @@ mod tests {
         NULLIFIER_TREE_HEIGHT,
         NULLIFIER_SUBTREE_HEIGHT,
         PUBLIC_DATA_TREE_HEIGHT,
+        NUM_FIELDS_PER_SHA256,
     };
     use dep::types::{
         abis::membership_witness::ArchiveRootMembershipWitness,

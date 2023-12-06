@@ -1,5 +1,5 @@
 use dep::std::hash::{pedersen_hash_with_separator, sha256};
-use crate::constants_gen::{
+use dep::protocol_types::constants::{
   GENERATOR_INDEX__SIGNATURE_PAYLOAD,
   GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET,
 };

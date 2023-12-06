@@ -9,7 +9,7 @@ use crate::note::{
     utils::compute_inner_note_hash,
 };
 use crate::oracle::notes::{notify_created_note, notify_nullified_note};
-use crate::constants_gen::EMPTY_NULLIFIED_COMMITMENT;
+use dep::protocol_types::constants::EMPTY_NULLIFIED_COMMITMENT;
 
 pub fn create_note<Note, N>(
     context: &mut PrivateContext,

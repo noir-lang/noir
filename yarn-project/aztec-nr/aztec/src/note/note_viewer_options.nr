@@ -1,5 +1,5 @@
 use dep::std::option::Option;
-use crate::constants_gen::MAX_NOTES_PER_PAGE;
+use dep::protocol_types::constants::MAX_NOTES_PER_PAGE;
 use crate::note::note_getter_options::{Select, Sort};
 use crate::types::vec::BoundedVec;
 

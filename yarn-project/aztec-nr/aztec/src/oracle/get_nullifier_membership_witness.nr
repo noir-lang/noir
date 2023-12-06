@@ -1,4 +1,4 @@
-use crate::constants_gen::NULLIFIER_TREE_HEIGHT;
+use dep::protocol_types::constants::NULLIFIER_TREE_HEIGHT;
 use crate::utils::arr_copy_slice;
 use crate::hash::pedersen_hash;
 

@@ -4,7 +4,7 @@ use dep::aztec::context::{
 };
 
 use crate::asset::Asset;
-use dep::aztec::constants_gen::RETURN_VALUES_LENGTH;
+use dep::protocol_types::constants::RETURN_VALUES_LENGTH;
 use dep::aztec::selector::compute_selector;
 
 struct PriceFeed {

@@ -1,6 +1,5 @@
 mod abi;
 mod address;
-mod constants_gen;
 mod context;
 mod hash;
 mod log;

@@ -2,7 +2,7 @@ use crate::abis::base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInpu
 use dep::types::mocked::AggregationObject;
 use dep::types::hash::{accumulate_sha256, assert_check_membership, root_from_sibling_path};
 use dep::types::utils::uint128::U128;
-use dep::aztec::constants_gen::NUM_FIELDS_PER_SHA256;
+use dep::types::constants::NUM_FIELDS_PER_SHA256;
 use crate::abis::previous_rollup_data::PreviousRollupData;
 use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
 
