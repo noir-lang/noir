@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.16.7](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.16.6...aztec-packages-v0.16.7) (2023-12-06)
+
+
+### Features
+
+* Encapsulated Goblin ([#3524](https://github.com/AztecProtocol/aztec-packages/issues/3524)) ([2f08423](https://github.com/AztecProtocol/aztec-packages/commit/2f08423e37942f991634fe6c45de52feb1f159cf))
+
+
+### Bug Fixes
+
+* Extract whole archive instead of subset ([#3604](https://github.com/AztecProtocol/aztec-packages/issues/3604)) ([cb000d8](https://github.com/AztecProtocol/aztec-packages/commit/cb000d828dcea0ec5025bceadd322b1d260c0111))
+
+
+### Documentation
+
+* **yellow-paper:** Note hash, nullifier, and public data trees ([#3518](https://github.com/AztecProtocol/aztec-packages/issues/3518)) ([0e2db8b](https://github.com/AztecProtocol/aztec-packages/commit/0e2db8b0a819dfe44dd5c76ff89aaa1f403d2071))
+
 ## [0.16.6](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.16.5...aztec-packages-v0.16.6) (2023-12-06)
 
 
