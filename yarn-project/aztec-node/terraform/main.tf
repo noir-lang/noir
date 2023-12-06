@@ -126,6 +126,7 @@ resource "aws_efs_mount_target" "private_az1" {
 }
 
 resource "aws_efs_mount_target" "private_az2" {
+  count           = local.node_count
   file_system_id  = aws_efs_file_system.node_data_store[count.index].id
   subnet_id       = data.terraform_remote_state.setup_iac.outputs.subnet_az2_private_id
   security_groups = [data.terraform_remote_state.setup_iac.outputs.security_group_private_id]
