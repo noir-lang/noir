@@ -37,6 +37,7 @@ const {
   MODE = 'sandbox',
   TEST_ACCOUNTS = 'true',
   DEPLOY_AZTEC_CONTRACTS = 'true',
+  API_PREFIX = '',
 } = process.env;
 
 const logger = createDebugLogger(`aztec:${MODE}`);
@@ -150,7 +151,7 @@ async function main() {
     const app = nodeRpcServer.getApp();
 
     // Add a /status endpoint
-    const statusRouter = createStatusRouter();
+    const statusRouter = createStatusRouter(API_PREFIX);
     app.use(statusRouter.routes());
     app.use(statusRouter.allowedMethods());
 
@@ -158,7 +159,7 @@ async function main() {
     const httpServer = http.createServer(app.callback());
     httpServer.listen(port);
 
-    logStrings.push(`Aztec Node v${version} (noir ${NoirCommit}) is now ready for use in port ${AZTEC_NODE_PORT}!`);
+    logStrings.push(`Aztec Node v${version} (noir ${NoirCommit}) is now ready for use in port ${port}!`);
   } else if (mode === SandboxMode.PXE) {
     // Code path for starting PXE only
 
