@@ -1,5 +1,6 @@
 import { FunctionSelector } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
 import { JsonRpcServer } from '@aztec/foundation/json-rpc/server';
 import {
@@ -23,8 +24,6 @@ import {
 
 import http from 'http';
 import { foundry } from 'viem/chains';
-
-import { EthAddress } from '../index.js';
 
 export const localAnvil = foundry;
 

@@ -2,8 +2,6 @@
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import http from 'http';
-import Koa from 'koa';
-import Router from 'koa-router';
 
 import { AztecNodeConfig, AztecNodeService, createAztecNodeRpcServer, getConfigEnvVars } from '../index.js';
 
@@ -18,19 +16,6 @@ async function createAndDeployAztecNode() {
   const aztecNodeConfig: AztecNodeConfig = { ...getConfigEnvVars() };
 
   return await AztecNodeService.createAndSync(aztecNodeConfig);
-}
-
-/**
- * Creates a router for helper API endpoints of the Private eXecution Environment (PXE).
- * @param apiPrefix - The prefix to use for all api requests
- * @returns - The router for handling status requests.
- */
-export function createStatusRouter(apiPrefix: string) {
-  const router = new Router({ prefix: `${apiPrefix}` });
-  router.get('/status', (ctx: Koa.Context) => {
-    ctx.status = 200;
-  });
-  return router;
 }
 
 /**
@@ -52,9 +37,6 @@ async function main() {
 
   const rpcServer = createAztecNodeRpcServer(aztecNode);
   const app = rpcServer.getApp(API_PREFIX);
-  const apiRouter = createStatusRouter(API_PREFIX);
-  app.use(apiRouter.routes());
-  app.use(apiRouter.allowedMethods());
 
   const httpServer = http.createServer(app.callback());
   httpServer.listen(+AZTEC_NODE_PORT);

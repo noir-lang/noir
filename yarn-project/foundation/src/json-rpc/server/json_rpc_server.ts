@@ -188,3 +188,16 @@ export class JsonRpcServer {
     httpServer.listen(port);
   }
 }
+
+/**
+ * Creates a router for handling a plain status request that will return 200 status when running.
+ * @param apiPrefix - The prefix to use for all api requests
+ * @returns - The router for handling status requests.
+ */
+export function createStatusRouter(apiPrefix = '') {
+  const router = new Router({ prefix: `${apiPrefix}` });
+  router.get('/status', (ctx: Koa.Context) => {
+    ctx.status = 200;
+  });
+  return router;
+}
