@@ -1,6 +1,6 @@
 import { NoirDependencyConfig } from '@aztec/foundation/noir';
 
-import { resolve } from 'path';
+import { isAbsolute, join } from 'path';
 
 import { FileManager } from '../file-manager/file-manager.js';
 import { NoirPackage } from '../package.js';
@@ -16,12 +16,14 @@ export class LocalDependencyResolver implements NoirDependencyResolver {
     this.#fm = fm;
   }
 
-  resolveDependency(pkg: NoirPackage, config: NoirDependencyConfig): Promise<NoirDependency | null> {
+  resolveDependency(parent: NoirPackage, config: NoirDependencyConfig): Promise<NoirDependency | null> {
     if ('path' in config) {
+      const parentPath = parent.getPackagePath();
+      const dependencyPath = isAbsolute(config.path) ? config.path : join(parentPath, config.path);
       return Promise.resolve({
         // unknown version, Nargo.toml doesn't have a version field
         version: undefined,
-        package: NoirPackage.open(resolve(pkg.getPackagePath(), config.path), this.#fm),
+        package: NoirPackage.open(dependencyPath, this.#fm),
       });
     } else {
       return Promise.resolve(null);

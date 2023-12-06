@@ -71,8 +71,11 @@ export class GithubDependencyResolver implements NoirDependencyResolver {
 
   async #extractZip(dependency: NoirGitDependencyConfig, archivePath: string): Promise<string> {
     const gitUrl = new URL(dependency.git);
+    // extract the archive to this location
     const extractLocation = join('libs', safeFilename(gitUrl.pathname + '@' + (dependency.tag ?? 'HEAD')));
-    const tmpExtractLocation = extractLocation + '.tmp';
+
+    // where we expect to find this package after extraction
+    // it might already exist if the archive got unzipped previously
     const packagePath = join(extractLocation, dependency.directory ?? '');
 
     if (this.#fm.hasFileSync(packagePath)) {
@@ -82,24 +85,21 @@ export class GithubDependencyResolver implements NoirDependencyResolver {
 
     const { entries } = await unzip(this.#fm.readFileSync(archivePath));
 
+    // extract to a temporary directory, then move it to the final location
+    // TODO empty the temp directory first
+    const tmpExtractLocation = extractLocation + '.tmp';
     for (const entry of Object.values(entries)) {
       if (entry.isDirectory) {
         continue;
       }
 
+      // remove the first path segment, because it'll be the archive name
       const name = stripSegments(entry.name, 1);
-      if (dependency.directory && !name.startsWith(dependency.directory)) {
-        continue;
-      }
       const path = join(tmpExtractLocation, name);
       await this.#fm.writeFile(path, (await entry.blob()).stream());
     }
 
-    if (dependency.directory) {
-      this.#fm.moveFileSync(join(tmpExtractLocation, dependency.directory), packagePath);
-    } else {
-      this.#fm.moveFileSync(tmpExtractLocation, packagePath);
-    }
+    this.#fm.moveFileSync(tmpExtractLocation, extractLocation);
 
     return packagePath;
   }
