@@ -64,9 +64,14 @@ impl Ssa {
         for function in self.functions.values_mut() {
             // This pass is only necessary for generating ACIR and thus we should not
             // process Brillig functions.
+            // The pass is also currently only setup to handle a function with a single flattened block.
+            // For complex Brillig functions we can expect this pass to panic.
             if function.runtime() == RuntimeType::Acir {
+                let databus = function.dfg.data_bus.clone();
                 let mut context = Context::new(function);
                 context.process_blocks();
+                // update the databus with the new array instructions
+                function.dfg.data_bus = databus.map_values(|t| context.inserter.resolve(t));
             }
         }
         self
@@ -224,8 +229,8 @@ impl<'f> Context<'f> {
                         | Intrinsic::SlicePopBack
                         | Intrinsic::SliceInsert
                         | Intrinsic::SliceRemove => (1, 1),
-                        // `pop_front` returns the the popped element the slice and then the respective slice
-                        // This means in the case of a slice with structs the result index of the popped slice
+                        // `pop_front` returns the popped element, and then the respective slice.
+                        // This means in the case of a slice with structs, the result index of the popped slice
                         // will change depending on the number of elements in the struct.
                         // For example, a slice with four elements will look as such in SSA:
                         // v3, v4, v5, v6, v7, v8 = call slice_pop_front(v1, v2)

@@ -191,41 +191,19 @@ impl<'a> ValueMerger<'a> {
             Type::Slice(elements) => elements,
             _ => panic!("Expected slice type"),
         };
-        // dbg!(then_value_id);
-        // let new_slice_sizes = self.new_slice_sizes("ICE: should have slice sizes");
-        // dbg!(new_slice_sizes.get(&then_value_id));
+
         let then_len = if let Some(val) = self.new_slice_sizes.get(&then_value_id) {
-            // dbg!(val.0);
-            // dbg!(self.dfg.get_slice_size(then_value_id));
-            // dbg!(self.dfg.get_slice_sizes().clone());
             val.0
         } else {
             dbg!(then_value_id);
-            dbg!(self.dfg.resolve(then_value_id));
             panic!("got none");
-            dbg!(&self.dfg[then_value_id]);
-            // dbg!(self.dfg.get_slice_size(then_value_id));
-            let then_len = self.get_slice_length(then_value_id);
-            dbg!(then_len);
-            self.new_slice_sizes.insert(then_value_id, (then_len, vec![]));
-            then_len
         };
-        // dbg!(else_value_id);
-        // dbg!(new_slice_sizes.get(&else_value_id));
+
         let else_len = if let Some(val) =  self.new_slice_sizes.get(&else_value_id) {
-            // dbg!(val.0);
-            // dbg!(self.dfg.get_slice_size(else_value_id));
             val.0
         } else {
             dbg!(else_value_id);
-            // dbg!(self.dfg.resolve(else_value_id));
             panic!("got none");
-            dbg!(&self.dfg[else_value_id]);
-            // dbg!(self.dfg.get_slice_size(else_value_id));
-            let else_len = self.get_slice_length(else_value_id);
-            dbg!(else_len);
-            self.new_slice_sizes.insert(else_value_id, (else_len, vec![]));
-            else_len
         };
 
         // let then_len = self.get_slice_length(then_value_id);
@@ -235,13 +213,11 @@ impl<'a> ValueMerger<'a> {
         // self.slice_sizes.insert(else_value_id, else_len);
 
         let len = then_len.max(else_len);
-        // dbg!(then_len);
-        // dbg!(else_len);
+
         if len == 0 {
             dbg!(then_value_id);
             dbg!(else_value_id);
         }
-        dbg!(len);
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
                 let index_usize = i * element_types.len() + element_index;
@@ -268,15 +244,9 @@ impl<'a> ValueMerger<'a> {
                                 CallStack::new(),
                             )
                             .first();
-
-                        // self.new_slice_sizes
                         
                         match element_type {
                             Type::Slice(_) => {
-                                // dbg!(array);
-                                // dbg!(res);
-                                let res_sizes = self.new_slice_sizes.get(&res);
-                                dbg!(res_sizes.is_none());
                                 let inner_sizes = self.new_slice_sizes.get(&array).unwrap_or_else(|| panic!("should have slice sizes"));
                                 // self.new_slice_sizes.insert(res, v);
                                 let inner_sizes_iter = inner_sizes.1.clone();
@@ -300,13 +270,11 @@ impl<'a> ValueMerger<'a> {
                                     } else {
                                         self.new_slice_sizes.insert(res, inner_slice.clone());
                                     }
-                                    // self.new_slice_sizes.insert(res, inner_slice.clone());
 
                                 }
                             }
                             _ => {}
                         }
-                        // dbg!(self.new_slice_sizes.get(&res));
                         res
                     }
                 };
@@ -325,138 +293,9 @@ impl<'a> ValueMerger<'a> {
             }
         }
 
-        // dbg!(self.inner_slice_sizes.clone());
-
         let merged = self.dfg.make_array(merged, typ);
-        dbg!(merged);
-        self.new_slice_sizes.insert(merged, (len, vec![]));
+        // self.new_slice_sizes.insert(merged, (len, vec![]));
         merged
-    }
-
-    fn get_slice_length(
-        &mut self, 
-        value_id: ValueId,
-        // slice_sizes: &HashMap<ValueId, (usize, Vec<ValueId>)>,
-    ) -> usize {
-        // dbg!(value_id);
-        let value = &self.dfg[value_id];
-        match value.clone() {
-            Value::Array { array, typ } => {
-                // self.compute_inner_slice_sizes(value_id, None, None);
-                let element_size = typ.element_size();
-                array.len() / element_size
-            }
-            Value::Instruction { instruction: instruction_id, .. } => {
-                let instruction = &self.dfg[instruction_id];
-                // dbg!(instruction.clone());
-                match instruction {
-                    // TODO(#3188): A slice can be the result of an ArrayGet when it is the
-                    // fetched from a slice of slices or as a struct field.
-                    // However, we need to incorporate nested slice support in flattening
-                    // in order for this to be valid
-
-                    // Instruction::ArrayGet { array, .. } => {
-                    //     dbg!("GOT ARRAY GET");
-                    //     // If the index is dynamic I do not know which value I am fetching
-                    //     // and thus its size. Thus I need to find the max of the internal slices and use that
-                    //     // This is not correct we want the size of the children
-                    //     let x = self.new_slice_sizes.get(array).unwrap_or_else(|| panic!("should have slice sizes for {array}")).clone();
-                    //     let mut max = 0;
-                    //     // let mut new_inner_size = (max, vec![]);
-                    //     for value in x.1.iter() {
-                    //         let inner_size = self.new_slice_sizes.get(value).expect("ah");
-                    //         // dbg!(inner_size);
-                    //         if inner_size.0 > max {
-                    //             max = inner_size.0;
-                    //             // self.new_slice_sizes.insert(value_id, inner_size.clone());
-                    //             // new_inner_size = inner_size.clone();
-                    //         }
-                    //     }
-                    //     dbg!(x.0);
-                    //     dbg!(x.1.len());
-                    //     if x.1.len() == 0 {
-                    //         dbg!(value_id);
-                    //         dbg!(array);
-                    //         // dbg!(self.dfg.type_of_value(*array));
-                    //         // dbg!()
-                    //     }
-                    //     return max;
-                    // }
-                    
-                    // Instruction::ArraySet { .. } => { dbg!("got array set"); return 0; }
-
-                    // Instruction::ArraySet { array, .. } => {
-                    //     let array = *array;
-                    //     let len = self.get_slice_length(array, slice_sizes);
-                    //     let array_typ = self.dfg.type_of_value(array);
-                    //     let results = self.dfg.instruction_results(instruction_id);
-                    //     if array_typ.contains_slice_element() {
-                    //         dbg!(array);
-                    //         let slice_sizes = self
-                    //             .inner_slice_sizes
-                    //             .get(&array)
-                    //             .expect("ICE: expeted slice sizes")
-                    //             .clone();
-                    //         self.inner_slice_sizes.insert(results[0], slice_sizes);
-                    //     }
-                    //     self.slice_sizes.insert(array, len);
-                    //     len
-                    // }
-
-                    // Instruction::Load { address } => {
-                    //     let outer_block_stores = self.outer_block_stores.expect("ICE: A map of previous stores is required in order to resolve a slice load");
-                    //     let store_values = self.store_values.expect("ICE: A map of previous stores is required in order to resolve a slice load");
-                    //     let store_value = outer_block_stores
-                    //         .get(address)
-                    //         .expect("ICE: load in merger should have store from outer block");
-                    //     if let Some(len) = self.slice_sizes.get(store_value) {
-                    //         return *len;
-                    //     }
-                    //     let store_value = if let Some(store) = store_values.get(address) {
-                    //         if let Some(len) = self.slice_sizes.get(&store.new_value) {
-                    //             return *len;
-                    //         }
-                    //         store.new_value
-                    //     } else {
-                    //         *store_value
-                    //     };
-                    //     self.get_slice_length(store_value, slice_sizes)
-                    // }
-
-                    // Instruction::Call { func, arguments } => {
-                    //     let slice_contents = arguments[1];
-                    //     let func = &self.dfg[*func];
-                    //     match func {
-                    //         Value::Intrinsic(intrinsic) => match intrinsic {
-                    //             Intrinsic::SlicePushBack
-                    //             | Intrinsic::SlicePushFront
-                    //             | Intrinsic::SliceInsert => {
-                    //                 // `get_slice_length` needs to be called here as it is borrows self as mutable
-                    //                 let initial_len = self.get_slice_length(slice_contents, slice_sizes);
-                    //                 self.slice_sizes.insert(slice_contents, initial_len);
-                    //                 initial_len + 1
-                    //             }
-                    //             Intrinsic::SlicePopBack
-                    //             | Intrinsic::SlicePopFront
-                    //             | Intrinsic::SliceRemove => {
-                    //                 // `get_slice_length` needs to be called here as it is borrows self as mutable
-                    //                 let initial_len = self.get_slice_length(slice_contents, slice_sizes);
-                    //                 self.slice_sizes.insert(slice_contents, initial_len);
-                    //                 initial_len - 1
-                    //             }
-                    //             _ => {
-                    //                 unreachable!("ICE: Intrinsic not supported, got {intrinsic:?}")
-                    //             }
-                    //         },
-                    //         _ => unreachable!("ICE: Expected intrinsic value but got {func:?}"),
-                    //     }
-                    // }
-                    
-                    _ => unreachable!("ICE: Got unexpected instruction: {instruction:?}"),
-                }
-            }
-            _ => unreachable!("ICE: Got unexpected value when resolving slice length {value:?}"),
-        }
     }
 
     fn compute_inner_slice_sizes(

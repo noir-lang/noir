@@ -575,16 +575,6 @@ impl<'f> Context<'f> {
             let value = new_values[address];
             let address = *address;
             self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
-            dbg!(value);
-            dbg!(address);
-            dbg!(old_value);
-            // match self.inserter.function.dfg.type_of_value(address) {
-            //     Type::Slice(_) => {
-            //         dbg!("Got a slice in this store");
-            //         self.collect_slice_information(instruction_id, slice_sizes, results)
-            //     }
-            //     _ => {},
-            // }
 
             if let Some(store) = self.store_values.get_mut(&address) {
                 store.new_value = value;
@@ -896,7 +886,6 @@ impl<'f> Context<'f> {
                     Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {
-                    dbg!(value);
                     self.remember_store(address, value);
                     Instruction::Store { address, value }
                 }

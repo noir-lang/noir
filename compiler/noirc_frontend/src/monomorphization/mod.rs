@@ -105,8 +105,14 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
     }
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    let FuncMeta { return_distinctness, .. } = interner.function_meta(&main);
-    Program::new(functions, function_sig, return_distinctness, monomorphizer.return_location)
+    let FuncMeta { return_distinctness, return_visibility, .. } = interner.function_meta(&main);
+    Program::new(
+        functions,
+        function_sig,
+        return_distinctness,
+        monomorphizer.return_location,
+        return_visibility,
+    )
 }
 
 impl<'interner> Monomorphizer<'interner> {
@@ -310,10 +316,23 @@ impl<'interner> Monomorphizer<'interner> {
                 ))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
-            HirExpression::Literal(HirLiteral::Integer(value)) => {
-                let typ = self.convert_type(&self.interner.id_type(expr));
-                let location = self.interner.id_location(expr);
-                Literal(Integer(value, typ, location))
+            HirExpression::Literal(HirLiteral::Integer(value, sign)) => {
+                if sign {
+                    let typ = self.convert_type(&self.interner.id_type(expr));
+                    let location = self.interner.id_location(expr);
+                    match typ {
+                        ast::Type::Field => Literal(Integer(-value, typ, location)),
+                        ast::Type::Integer(_, bit_size) => {
+                            let base = 1_u128 << bit_size;
+                            Literal(Integer(FieldElement::from(base) - value, typ, location))
+                        }
+                        _ => unreachable!("Integer literal must be numeric"),
+                    }
+                } else {
+                    let typ = self.convert_type(&self.interner.id_type(expr));
+                    let location = self.interner.id_location(expr);
+                    Literal(Integer(value, typ, location))
+                }
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array),
@@ -883,10 +902,11 @@ impl<'interner> Monomorphizer<'interner> {
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
             if let Definition::Oracle(name) = &ident.definition {
-                if name.as_str() == "println" {
+                if name.as_str() == "print" {
                     // Oracle calls are required to be wrapped in an unconstrained function
-                    // Thus, the only argument to the `println` oracle is expected to always be an ident
-                    self.append_printable_type_info(&hir_arguments[0], &mut arguments);
+                    // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
+                    // The second argument is expected to always be an ident
+                    self.append_printable_type_info(&hir_arguments[1], &mut arguments);
                 }
             }
         }

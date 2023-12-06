@@ -1,3 +1,5 @@
+pub(crate) mod data_bus;
+
 use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;

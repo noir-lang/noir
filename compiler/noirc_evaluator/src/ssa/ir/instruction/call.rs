@@ -313,7 +313,6 @@ fn simplify_slice_push_back(
     slice_sizes.insert(new_slice, (slice_size / element_size, vec![]));
 
     let mut value_merger = ValueMerger::new(dfg, block, None, None, &mut slice_sizes);
-    dbg!("about to merge in simplify_call");
     let new_slice = value_merger.merge_values(
         len_not_equals_capacity,
         len_equals_capacity,

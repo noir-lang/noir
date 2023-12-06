@@ -441,6 +441,7 @@ impl<'a> Resolver<'a> {
             MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
             }
+            Parenthesized(typ) => self.resolve_type_inner(*typ, new_variables),
         }
     }
 
@@ -790,10 +791,10 @@ impl<'a> Resolver<'a> {
             });
         }
 
-        // 'pub_allowed' also implies 'pub' is required on return types
-        if self.pub_allowed(func)
+        // 'pub' is required on return types for entry point functions
+        if self.is_entry_point_function(func)
             && return_type.as_ref() != &Type::Unit
-            && func.def.return_visibility != Visibility::Public
+            && func.def.return_visibility == Visibility::Private
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
         }
@@ -846,12 +847,9 @@ impl<'a> Resolver<'a> {
     }
 
     /// True if the 'pub' keyword is allowed on parameters in this function
+    /// 'pub' on function parameters is only allowed for entry point functions
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
-        if self.in_contract {
-            !func.def.is_unconstrained
-        } else {
-            func.name() == MAIN_FUNCTION
-        }
+        self.is_entry_point_function(func)
     }
 
     fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
@@ -1201,8 +1199,9 @@ impl<'a> Resolver<'a> {
 
                     HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length })
                 }
-                Literal::Integer(integer) => HirLiteral::Integer(integer),
+                Literal::Integer(integer, sign) => HirLiteral::Integer(integer, sign),
                 Literal::Str(str) => HirLiteral::Str(str),
+                Literal::RawStr(str, _) => HirLiteral::Str(str),
                 Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),
                 Literal::Unit => HirLiteral::Unit,
             }),
@@ -1689,7 +1688,7 @@ impl<'a> Resolver<'a> {
         span: Span,
     ) -> Result<u128, Option<ResolverError>> {
         match self.interner.expression(&rhs) {
-            HirExpression::Literal(HirLiteral::Integer(int)) => {
+            HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
@@ -1786,6 +1785,7 @@ impl<'a> Resolver<'a> {
                     self.verify_type_valid_for_program_input(element);
                 }
             }
+            UnresolvedTypeData::Parenthesized(typ) => self.verify_type_valid_for_program_input(typ),
         }
     }
 

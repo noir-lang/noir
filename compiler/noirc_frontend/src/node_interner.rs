@@ -9,6 +9,7 @@ use crate::ast::Ident;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::traits::{Trait, TraitConstraint};
@@ -36,6 +37,7 @@ type StructAttributes = Vec<SecondaryAttribute>;
 /// each definition or struct, etc. Because it is used on the Hir, the NodeInterner is
 /// useful in passes where the Hir is used - name resolution, type checking, and
 /// monomorphization - and it is not useful afterward.
+#[derive(Debug)]
 pub struct NodeInterner {
     nodes: Arena<Node>,
     func_meta: HashMap<FuncId, FuncMeta>,
@@ -156,7 +158,7 @@ pub enum TraitImplKind {
 ///
 /// Additionally, types can define specialized impls with methods of the same name
 /// as long as these specialized impls do not overlap. E.g. `impl Struct<u32>` and `impl Struct<u64>`
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Methods {
     direct: Vec<FuncId>,
     trait_impl_methods: Vec<FuncId>,
@@ -165,6 +167,7 @@ pub struct Methods {
 /// All the information from a function that is filled out during definition collection rather than
 /// name resolution. As a result, if information about a function is needed during name resolution,
 /// this is the only place where it is safe to retrieve it (where all fields are guaranteed to be initialized).
+#[derive(Debug, Clone)]
 pub struct FunctionModifiers {
     pub name: String,
 
@@ -449,6 +452,30 @@ impl NodeInterner {
     /// Stores the span for an interned expression.
     pub fn push_expr_location(&mut self, expr_id: ExprId, span: Span, file: FileId) {
         self.id_to_location.insert(expr_id.into(), Location::new(span, file));
+    }
+
+    /// Scans the interner for the item which is located at that [Location]
+    ///
+    /// The [Location] may not necessarily point to the beginning of the item
+    /// so we check if the location's span is contained within the start or end
+    /// of each items [Span]
+    pub fn find_location_index(&self, location: Location) -> Option<impl Into<Index>> {
+        let mut location_candidate: Option<(&Index, &Location)> = None;
+
+        // Note: we can modify this in the future to not do a linear
+        // scan by storing a separate map of the spans or by sorting the locations.
+        for (index, interned_location) in self.id_to_location.iter() {
+            if interned_location.contains(&location) {
+                if let Some(current_location) = location_candidate {
+                    if interned_location.span.is_smaller(&current_location.1.span) {
+                        location_candidate = Some((index, interned_location));
+                    }
+                } else {
+                    location_candidate = Some((index, interned_location));
+                }
+            }
+        }
+        location_candidate.map(|(index, _location)| *index)
     }
 
     /// Interns a HIR Function.
@@ -1190,6 +1217,37 @@ impl NodeInterner {
     pub fn get_selected_impl_for_ident(&self, ident_id: ExprId) -> Option<TraitImplKind> {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
+
+    /// For a given [Index] we return [Location] to which we resolved to
+    /// We currently return None for features not yet implemented
+    /// TODO(#3659): LSP goto def should error when Ident at Location could not resolve
+    pub(crate) fn resolve_location(&self, index: impl Into<Index>) -> Option<Location> {
+        let node = self.nodes.get(index.into())?;
+
+        match node {
+            Node::Function(func) => self.resolve_location(func.as_expr()),
+            Node::Expression(expression) => self.resolve_expression_location(expression),
+            _ => None,
+        }
+    }
+
+    /// Resolves the [Location] of the definition for a given [HirExpression]
+    ///
+    /// Note: current the code returns None because some expressions are not yet implemented.
+    fn resolve_expression_location(&self, expression: &HirExpression) -> Option<Location> {
+        match expression {
+            HirExpression::Ident(ident) => {
+                let definition_info = self.definition(ident.id);
+                match definition_info.kind {
+                    DefinitionKind::Function(func_id) => {
+                        Some(self.function_meta(&func_id).location)
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
 }
 
 impl Methods {
@@ -1242,7 +1300,7 @@ impl Methods {
 }
 
 /// These are the primitive type variants that we support adding methods to
-#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
 enum TypeMethodKey {
     /// Fields and integers share methods for ease of use. These methods may still
     /// accept only fields or integers, it is just that their names may not clash.
