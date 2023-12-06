@@ -17,6 +17,7 @@ use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use noirc_errors::Location;
+use serde::de::value;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -80,6 +81,8 @@ pub(crate) struct DataFlowGraph {
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.
     locations: HashMap<InstructionId, CallStack>,
+
+    slice_sizes: HashMap<ValueId, (usize, Vec<ValueId>)>,
 }
 
 pub(crate) type CallStack = im::Vector<Location>;
@@ -158,7 +161,7 @@ impl DataFlowGraph {
         call_stack: CallStack,
     ) -> InsertInstructionResult {
         use InsertInstructionResult::*;
-        match instruction.simplify(self, block, ctrl_typevars.clone()) {
+        let results = match instruction.simplify(self, block, ctrl_typevars.clone()) {
             SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
             SimplifyResult::SimplifiedToMultiple(simplification) => {
                 SimplifiedToMultiple(simplification)
@@ -169,9 +172,17 @@ impl DataFlowGraph {
                 let id = self.make_instruction(instruction, ctrl_typevars);
                 self.blocks[block].insert_instruction(id);
                 self.locations.insert(id, call_stack);
+                // let results = self.instruction_results(id).to_vec();
+                // let x = &self.instructions[id].clone();
+                // let mut slice_sizes = HashMap::default();
+                // self.collect_slice_information(x, &mut slice_sizes, &results);
                 InsertInstructionResult::Results(id, self.instruction_results(id))
             }
-        }
+        };
+
+        // let results_vec = results.results();
+        
+        results
     }
 
     /// Insert a value into the dfg's storage and return an id to reference it.
@@ -436,6 +447,235 @@ impl DataFlowGraph {
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
         !matches!(&self[self.resolve(argument)], Value::Instruction { .. } | Value::Param { .. })
     }
+
+    pub(crate) fn get_slice_size(&self, value: ValueId) -> Option<&(usize, Vec<ValueId>)> {
+        self.slice_sizes.get(&value)
+    }
+
+    pub(crate) fn get_slice_sizes(&self) -> HashMap<ValueId, (usize, Vec<ValueId>)> {
+        self.slice_sizes.clone()
+    }
+
+    /// Determine how the slice sizes map needs to be updated according to the provided instruction.
+    fn collect_slice_information(
+        &mut self,
+        instruction: &Instruction,
+        slice_sizes: &mut HashMap<ValueId, (usize, Vec<ValueId>)>,
+        results: &[ValueId],
+    ) {
+            // let (instruction, _) = &self.map_instruction(instruction_id);
+            // let old_results = self.instruction_results(instruction_id);
+            // dbg!(old_results.clone());
+            // dbg!(&self.inserter.function.dfg.resolve(results[0]));
+            // let resolved_results = results.into_iter().map(|res| &self.inserter.resolve(*res)).collect::<Vec<_>>();
+            match instruction {
+                Instruction::ArrayGet { array, .. } => {
+                    let array_typ = self.type_of_value(*array);
+                    let array_value = &self[*array];
+                    // If we have an SSA value containing nested slices we should mark it
+                    // as a slice that potentially requires to be filled with dummy data.
+                    if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
+                    {
+                        // Initial insertion into the slice sizes map
+                        // Any other insertions should only occur if the value is already
+                        // a part of the map.
+                        self.compute_slice_sizes(*array, slice_sizes);
+                    }
+    
+                    let res_typ = self.type_of_value(results[0]);
+                    if res_typ.contains_slice_element() {
+                        // dbg!(array);
+                        if let Some(inner_sizes) = self.slice_sizes.get_mut(array) {
+                            // dbg!(array);
+                            // if array.to_usize() == 851 {
+                            //     dbg!("got 851");
+                            // }
+                            // Include the result in the parent array potential children
+                            // If the result has internal slices and is called in an array set
+                            // we could potentially have a new larger slice which we need to account for
+                            inner_sizes.1.push(results[0]);
+    
+                            let inner_sizes_iter = inner_sizes.1.clone();
+                            for slice_value in inner_sizes_iter {
+                                let inner_slice = slice_sizes.get(&slice_value).unwrap_or_else(|| {
+                                    panic!("ICE: should have inner slice set for {slice_value}")
+                                });
+                                self.slice_sizes.insert(results[0], inner_slice.clone());
+
+                                // self.slice_sizes.insert(results[0], inner_slice.clone());
+                            }
+                        }
+                    }
+                }
+                Instruction::ArraySet { array, value, .. } => {
+                    let array_typ = self.type_of_value(*array);
+                    let array_value = &self[*array];
+                    // If we have an SSA value containing nested slices we should mark it
+                    // as a slice that potentially requires to be filled with dummy data.
+                    if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
+                    {
+                        // Initial insertion into the slice sizes map
+                        // Any other insertions should only occur if the value is already
+                        // a part of the map.
+                        self.compute_slice_sizes(*array, slice_sizes);
+                    }
+    
+                    let value_typ = self.type_of_value(*value);
+                    if value_typ.contains_slice_element() {
+                        self.compute_slice_sizes(*value, slice_sizes);
+                        let result = &self.resolve(results[0]);
+                        dbg!(result.clone());
+                        let inner_sizes = self.slice_sizes.get_mut(array).unwrap_or_else(|| {
+                            panic!("ICE: Expected slice sizes for ArraySet array {array} value {value} with results {results:?}")
+                        });
+                        inner_sizes.1.push(*value);
+                    }
+    
+                    if let Some(inner_sizes) = slice_sizes.get_mut(array) {
+                        let inner_sizes = inner_sizes.clone();
+                        // if results[0].to_usize() == 866 {
+                        //     dbg!("GOT 866");
+                        // }
+                        // if results[0].to_usize() == 868 {
+                        //     dbg!("GOT 868");
+                        // }
+                        // dbg!(results[0]);
+                        self.slice_sizes.insert(results[0], inner_sizes);
+                    }
+                }
+                Instruction::Call { func, arguments } => {
+                    let func = &self[*func];
+                    if let Value::Intrinsic(intrinsic) = func {
+                        let (argument_index, result_index) = match intrinsic {
+                            Intrinsic::SlicePushBack
+                            | Intrinsic::SlicePushFront
+                            | Intrinsic::SlicePopBack
+                            | Intrinsic::SliceInsert
+                            | Intrinsic::SliceRemove => (1, 1),
+                            // `pop_front` returns the the popped element the slice and then the respective slice
+                            // This means in the case of a slice with structs the result index of the popped slice
+                            // will change depending on the number of elements in the struct.
+                            // For example, a slice with four elements will look as such in SSA:
+                            // v3, v4, v5, v6, v7, v8 = call slice_pop_front(v1, v2)
+                            // where v7 is the slice length and v8 is the popped slice itself.
+                            Intrinsic::SlicePopFront => (1, results.len() - 1),
+                            _ => return,
+                        };
+                        let slice_contents = arguments[argument_index];
+                        match intrinsic {
+                            Intrinsic::SlicePushBack
+                            | Intrinsic::SlicePushFront
+                            | Intrinsic::SliceInsert => {
+                                for arg in &arguments[(argument_index + 1)..] {
+                                    let element_typ = self.type_of_value(*arg);
+                                    if element_typ.contains_slice_element() {
+                                        self.compute_slice_sizes(*arg, slice_sizes);
+                                    }
+                                }
+                                if let Some(inner_sizes) = self.slice_sizes.get_mut(&slice_contents) {
+                                    inner_sizes.0 += 1;
+    
+                                    let inner_sizes = inner_sizes.clone();
+                                    self.slice_sizes.insert(results[result_index], inner_sizes);
+                                }
+                            }
+                            Intrinsic::SlicePopBack
+                            | Intrinsic::SliceRemove
+                            | Intrinsic::SlicePopFront => {
+                                // We do not decrement the size on intrinsics that could remove values from a slice.
+                                // This is because we could potentially go back to the smaller slice and not fill in dummies.
+                                // This pass should be tracking the potential max that a slice ***could be***
+                                if let Some(inner_sizes) = self.slice_sizes.get(&slice_contents) {
+                                    let inner_sizes = inner_sizes.clone();
+                                    self.slice_sizes.insert(results[result_index], inner_sizes);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                Instruction::Store { address, value } => {
+                    let value_typ = self.type_of_value(*value);
+                    if value_typ.contains_slice_element() {
+                        dbg!(value);
+                        dbg!(address);
+                        // dbg!(self.inserter.function.dfg.resolve(*address));
+                        self.compute_slice_sizes(*value, slice_sizes);
+    
+                        if let Some(inner_sizes) = self.slice_sizes.get(value) {
+                            let inner_sizes = inner_sizes.clone();
+                            self.slice_sizes.insert(*address, inner_sizes);
+                        }
+                    }
+                }
+                Instruction::Load { address } => {
+                    let load_typ = self.type_of_value(*address);
+                    if load_typ.contains_slice_element() {
+                        // dbg!("got here");
+                        if let Some(inner_sizes) = self.slice_sizes.get(address) {
+                            let inner_sizes = inner_sizes.clone();
+                            self.slice_sizes.insert(results[0], inner_sizes);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    
+        // This methods computes a map representing a nested slice.
+        // The method also automatically computes the given max slice size
+        // at each depth of the recursive type.
+        // For example if we had a next slice
+        fn compute_slice_sizes(
+            &mut self,
+            array_id: ValueId,
+            slice_sizes: &mut HashMap<ValueId, (usize, Vec<ValueId>)>,
+        ) {
+            dbg!(array_id);
+            if let Value::Array { array, typ } = &self[array_id].clone() {
+                if array_id.to_usize() == 14 {
+                    dbg!(array.clone());
+                    dbg!(typ.clone());
+                }
+                if let Type::Slice(_) = typ {
+                    let element_size = typ.element_size();
+                    let len = array.len() / element_size;
+                    let mut slice_value = (len, vec![]);
+                    for value in array {
+                        let typ = self.type_of_value(*value);
+                        if matches!(typ, Type::Slice(_)) && matches!(&self[*value], Value::Array { .. }) {
+                            slice_value.1.push(*value);
+                            dbg!(value);
+                            self.compute_slice_sizes(*value, slice_sizes);
+                        }
+                    }
+                    dbg!(self.slice_sizes.clone());
+
+                    // Mark the correct max size based upon an array values internal structure
+                    let mut max_size = 0;
+                    for inner_value in slice_value.1.iter() {
+                        let inner_slice =
+                            self.slice_sizes.get(inner_value).unwrap_or_else(|| {
+                                panic!("ICE: should have inner slice set for {inner_value}")
+                            });
+                        if inner_slice.0 > max_size {
+                            max_size = inner_slice.0;
+                        }
+                    }
+                    for inner_value in slice_value.1.iter() {
+                        let inner_slice =
+                            self.slice_sizes.get_mut(inner_value).expect("ICE: should have inner slice set");
+                        if inner_slice.0 < max_size {
+                            inner_slice.0 = max_size;
+                        }
+                    }
+                    // slice_sizes.insert(array_id, slice_value);
+                    dbg!(array_id);
+                    self.slice_sizes.insert(array_id, slice_value);
+                }
+            }
+        }
+
 }
 
 impl std::ops::Index<InstructionId> for DataFlowGraph {

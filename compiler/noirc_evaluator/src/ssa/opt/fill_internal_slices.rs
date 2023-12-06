@@ -125,7 +125,7 @@ impl<'f> Context<'f> {
         for instruction in instructions.iter() {
             self.collect_slice_information(*instruction, &mut slice_values, &mut slice_sizes);
         }
-
+        // dbg!(slice_values.clone());
         // Add back every instruction with the updated nested slices.
         for instruction in instructions {
             self.push_updated_instruction(instruction, &slice_values, &slice_sizes, block);
@@ -135,6 +135,7 @@ impl<'f> Context<'f> {
     }
 
     /// Determine how the slice sizes map needs to be updated according to the provided instruction.
+    /// TODO: need to rewrite this so I can reuse it in flattening 
     fn collect_slice_information(
         &mut self,
         instruction: InstructionId,
@@ -143,9 +144,13 @@ impl<'f> Context<'f> {
     ) {
         let results = self.inserter.function.dfg.instruction_results(instruction);
         match &self.inserter.function.dfg[instruction] {
-            Instruction::ArrayGet { array, .. } => {
+            Instruction::ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let array_value = &self.inserter.function.dfg[*array];
+                if index.to_usize() == 3452 || index.to_usize() == 3454  {
+                    // dbg!(array_value.clone())
+                    dbg!(array);
+                }
                 // If we have an SSA value containing nested slices we should mark it
                 // as a slice that potentially requires to be filled with dummy data.
                 if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
@@ -374,7 +379,7 @@ impl<'f> Context<'f> {
 
         max_sizes[0] = *current_size;
         self.compute_slice_max_sizes(array_id, slice_sizes, &mut max_sizes, 1);
-
+        // dbg!(max_sizes.clone());
         let new_array = self.attach_slice_dummies(&typ, Some(array_id), true, &max_sizes);
 
         let instruction_id = instruction;

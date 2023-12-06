@@ -771,7 +771,11 @@ impl Context {
                 // We must setup the dummy value to match the type of the value we wish to store
                 let slice_sizes = if store_type.contains_slice_element() {
                     self.compute_slice_sizes(store, None, dfg);
+
                     self.slice_sizes.get(&store).cloned().ok_or_else(|| {
+                        dbg!(dfg.type_of_value(store));
+                        dbg!(&dfg[store]);
+                        dbg!(store);
                         InternalError::UnExpected {
                             expected: "Store value should have slice sizes computed".to_owned(),
                             found: "Missing key in slice sizes map".to_owned(),
@@ -1039,6 +1043,22 @@ impl Context {
                 let results = dfg.instruction_results(instruction);
                 self.slice_sizes.insert(results[0], slice_sizes);
             }
+        }
+        // let results = dfg.instruction_results(instruction);
+        // if results[0].to_usize() == 3739 {
+        //     dbg!("got here");
+        //     dbg!(array_typ.is_nested_slice());
+        // }
+        if array_typ.contains_slice_element() {
+            let slice_sizes = self
+                    .slice_sizes
+                    .get(&array_id)
+                    .expect(
+                        "ICE: Expected array with internal slices to have associated slice sizes",
+                    )
+                    .clone();
+            let results = dfg.instruction_results(instruction);
+            self.slice_sizes.insert(results[0], slice_sizes);
         }
 
         let element_type_sizes = if !can_omit_element_sizes_array(&array_typ) {

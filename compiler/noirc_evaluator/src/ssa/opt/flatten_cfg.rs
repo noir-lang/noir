@@ -281,8 +281,7 @@ impl<'f> Context<'f> {
             }
         }
         
-        let instructions = self.inserter.function.dfg[block].instructions().to_vec();
-
+        // let instructions = self.inserter.function.dfg[block].instructions().to_vec();
         // let mut slice_sizes = std::mem::take(&mut self.slice_sizes);
         // for instruction in instructions {
         //     self.collect_slice_information(instruction, &mut slice_sizes);
@@ -510,7 +509,7 @@ impl<'f> Context<'f> {
             block,
             Some(&self.store_values),
             Some(&self.outer_block_stores),
-            Some(&self.slice_sizes),
+            &mut self.slice_sizes,
         );
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
@@ -560,7 +559,7 @@ impl<'f> Context<'f> {
             block,
             Some(&self.store_values),
             Some(&self.outer_block_stores),
-            Some(&self.slice_sizes),
+            &mut self.slice_sizes,
         );
 
         // Merging must occur in a separate loop as we cannot borrow `self` as mutable while `value_merger` does
@@ -576,6 +575,16 @@ impl<'f> Context<'f> {
             let value = new_values[address];
             let address = *address;
             self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
+            dbg!(value);
+            dbg!(address);
+            dbg!(old_value);
+            // match self.inserter.function.dfg.type_of_value(address) {
+            //     Type::Slice(_) => {
+            //         dbg!("Got a slice in this store");
+            //         self.collect_slice_information(instruction_id, slice_sizes, results)
+            //     }
+            //     _ => {},
+            // }
 
             if let Some(store) = self.store_values.get_mut(&address) {
                 store.new_value = value;
@@ -651,21 +660,19 @@ impl<'f> Context<'f> {
         if is_allocate {
             self.local_allocations.insert(results.first());
         }
-        // let results = results.results().into_owned();
-        // self.collect_slice_information(id, slice_sizes, &results);
 
         results.results().into_owned()
     }
 
     /// Determine how the slice sizes map needs to be updated according to the provided instruction.
-    fn collect_slice_information(
+    pub(crate) fn collect_slice_information(
         &mut self,
         instruction_id: InstructionId,
         slice_sizes: &mut HashMap<ValueId, (usize, Vec<ValueId>)>,
         results: &[ValueId],
     ) {
         let (instruction, _) = &self.inserter.map_instruction(instruction_id);
-        let old_results = self.inserter.function.dfg.instruction_results(instruction_id);
+        // let old_results = self.inserter.function.dfg.instruction_results(instruction_id);
         // dbg!(old_results.clone());
         // dbg!(&self.inserter.function.dfg.resolve(results[0]));
         // let resolved_results = results.into_iter().map(|res| &self.inserter.resolve(*res)).collect::<Vec<_>>();
@@ -723,7 +730,7 @@ impl<'f> Context<'f> {
                 if value_typ.contains_slice_element() {
                     self.compute_slice_sizes(*value, slice_sizes);
                     let result = &self.inserter.function.dfg.resolve(results[0]);
-                    dbg!(result.clone());
+                    // dbg!(result.clone());
                     let inner_sizes = slice_sizes.get_mut(array).unwrap_or_else(|| {
                         panic!("ICE: Expected slice sizes for ArraySet array {array} value {value} with results {results:?}")
                     });
@@ -796,8 +803,6 @@ impl<'f> Context<'f> {
             Instruction::Store { address, value } => {
                 let value_typ = self.inserter.function.dfg.type_of_value(*value);
                 if value_typ.contains_slice_element() {
-                    dbg!(value);
-                    dbg!(address);
                     self.compute_slice_sizes(*value, slice_sizes);
 
                     if let Some(inner_sizes) = slice_sizes.get(value) {
@@ -807,13 +812,8 @@ impl<'f> Context<'f> {
                 }
             }
             Instruction::Load { address } => {
-                // dbg!(address);
                 let load_typ = self.inserter.function.dfg.type_of_value(*address);
-                // if address.to_usize() == 661 {
-                //     dbg!(load_typ.clone());
-                // }
                 if load_typ.contains_slice_element() {
-                    // dbg!("got here");
                     if let Some(inner_sizes) = slice_sizes.get(address) {
                         let inner_sizes = inner_sizes.clone();
                         slice_sizes.insert(results[0], inner_sizes);
@@ -896,6 +896,7 @@ impl<'f> Context<'f> {
                     Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {
+                    dbg!(value);
                     self.remember_store(address, value);
                     Instruction::Store { address, value }
                 }
