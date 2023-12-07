@@ -51,6 +51,8 @@ proving system and smart contract language has been pre-defined). In order for y
 your blockchain, a proving system backend and a smart contract interface
 must be implemented for it.
 
+![Imagen3](@site/static/img/imagen3.png)
+
 ## What's new about Noir?
 
 Noir is simple and flexible in its design, as it does not compile immediately to a fixed
