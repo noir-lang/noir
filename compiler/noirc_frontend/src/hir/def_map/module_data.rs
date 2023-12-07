@@ -41,6 +41,10 @@ impl ModuleData {
         }
     }
 
+    pub(crate) fn scope(&self) -> &ItemScope {
+        &self.scope
+    }
+
     fn declare(
         &mut self,
         name: Ident,
