@@ -221,7 +221,7 @@ impl<'a> ModCollector<'a> {
 
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
-            let location = Location { span: function.span(), file: self.file_id };
+            let location = Location::new(function.span(), self.file_id);
             context.def_interner.push_function(func_id, &function.def, module, location);
 
             // Now link this func_id to a crate level map with the noir function and the module id
