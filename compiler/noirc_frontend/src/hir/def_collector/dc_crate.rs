@@ -384,8 +384,6 @@ fn inject_prelude(
             ModuleId { krate: crate_id, local_id: crate_root },
             path,
         ) {
-            // let imports = Vec::new();
-
             let module_id = module_def.as_module().expect("std::prelude is module");
             let prelude = context.module(module_id).scope().types().keys();
 
@@ -393,12 +391,15 @@ fn inject_prelude(
                 let mut segments = segments.clone();
                 segments.push(Ident::new(path.to_string(), Span::default()));
 
-                collected_imports.push(ImportDirective {
-                    module_id: crate_root,
-                    path: Path { segments, kind: PathKind::Dep, span: Span::default() },
-                    alias: None,
-                    is_prelude: true,
-                });
+                collected_imports.insert(
+                    0,
+                    ImportDirective {
+                        module_id: crate_root,
+                        path: Path { segments, kind: PathKind::Dep, span: Span::default() },
+                        alias: None,
+                        is_prelude: true,
+                    },
+                );
             }
         }
     }

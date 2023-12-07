@@ -46,7 +46,7 @@ impl ItemScope {
             if let Entry::Occupied(mut o) = map.entry(name.clone()) {
                 let trait_hashmap = o.get_mut();
                 if let Entry::Occupied(mut n) = trait_hashmap.entry(trait_id) {
-                    let is_prelude = std::mem::take(&mut n.get_mut().2);
+                    let is_prelude = std::mem::replace(&mut n.get_mut().2, is_prelude);
                     let old_ident = o.key();
 
                     if is_prelude {
