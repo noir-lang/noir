@@ -279,7 +279,7 @@ const INSTRUCTION_SET_RAW = [
         ],
         "Expression": "`M[dstOffset] = cast<dst-tag>(M[aOffset])`",
         "Summary": "Type cast",
-        "Details": "Cast a word in memory based on the `dst-tag` specified in the bytecode. Truncates when casting to a smaller type, left-zero-pads when casting to a larger type. See [here](./state-model#cast-and-tag-conversions) for more details.",
+        "Details": "Cast a word in memory based on the `dst-tag` specified in the bytecode. Truncates (`M[dstOffset] = M[aOffset] mod 2^dstsize`) when casting to a smaller type, left-zero-pads when casting to a larger type. See [here](./state-model#cast-and-tag-conversions) for more details.",
         "Tag checks": "",
         "Tag updates": "`T[dstOffset] = dst-tag`",
     },
