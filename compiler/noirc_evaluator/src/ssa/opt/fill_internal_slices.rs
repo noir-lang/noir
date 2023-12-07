@@ -59,6 +59,10 @@ use crate::ssa::{
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 
+use self::capacity_tracker::SliceCapacityTracker;
+
+pub(crate) mod capacity_tracker;
+
 impl Ssa {
     pub(crate) fn fill_internal_slices(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -92,6 +96,9 @@ struct Context<'f> {
     /// values being used in array operations.
     /// Maps result -> original value
     slice_parents: HashMap<ValueId, ValueId>,
+
+    // Values containing nested slices to be replaced
+    slice_values: Vec<ValueId>,
 }
 
 impl<'f> Context<'f> {
@@ -104,6 +111,7 @@ impl<'f> Context<'f> {
             inserter,
             mapped_slice_values: HashMap::default(),
             slice_parents: HashMap::default(),
+            slice_values: Vec::new(),
         }
     }
 
@@ -119,21 +127,25 @@ impl<'f> Context<'f> {
         // Fetch SSA values potentially with internal slices
         let instructions = self.inserter.function.dfg[block].take_instructions();
 
-        // Values containing nested slices to be replaced
-        let mut slice_values = Vec::new();
         // Maps SSA array ID representing slice contents to its length and a list of its potential internal slices
         // This map is constructed once for an array constant and is then updated
         // according to the rules in `collect_slice_information`.
         let mut slice_sizes: HashMap<ValueId, (usize, Vec<ValueId>)> = HashMap::default();
 
+        let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
         // Update the slice sizes map to help find the potential max size of each nested slice.
         for instruction in instructions.iter() {
-            self.collect_slice_information(*instruction, &mut slice_values, &mut slice_sizes);
+            let results = self.inserter.function.dfg.instruction_results(*instruction).to_vec();
+            let instruction = &self.inserter.function.dfg[*instruction];
+            capacity_tracker.collect_slice_information(instruction, &mut slice_sizes, results);
         }
-        // dbg!(slice_values.clone());
+
+        self.slice_values = capacity_tracker.constant_nested_slices();
+        self.mapped_slice_values = capacity_tracker.slice_values_map();
+        self.slice_parents = capacity_tracker.slice_parents_map();
         // Add back every instruction with the updated nested slices.
         for instruction in instructions {
-            self.push_updated_instruction(instruction, &slice_values, &slice_sizes, block);
+            self.push_updated_instruction(instruction, &slice_sizes, block);
         }
 
         self.inserter.map_terminator_in_place(block);
@@ -143,24 +155,22 @@ impl<'f> Context<'f> {
     /// TODO: need to rewrite this so I can reuse it in flattening 
     fn collect_slice_information(
         &mut self,
-        instruction: InstructionId,
-        slice_values: &mut Vec<ValueId>,
+        instruction: &Instruction,
         slice_sizes: &mut HashMap<ValueId, (usize, Vec<ValueId>)>,
+        results: Vec<ValueId>,
     ) {
-        let results = self.inserter.function.dfg.instruction_results(instruction);
-        match &self.inserter.function.dfg[instruction] {
-            Instruction::ArrayGet { array, index } => {
+        // let (instruction, _) = self.inserter.map_instruction(instruction_id);
+        // let results = self.inserter.function.dfg.instruction_results(instruction_id);
+        // let instruction = &self.inserter.function.dfg[instruction_id];
+        match instruction {
+            Instruction::ArrayGet { array, .. } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let array_value = &self.inserter.function.dfg[*array];
-                if index.to_usize() == 3452 || index.to_usize() == 3454  {
-                    // dbg!(array_value.clone())
-                    dbg!(array);
-                }
                 // If we have an SSA value containing nested slices we should mark it
                 // as a slice that potentially requires to be filled with dummy data.
                 if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
                 {
-                    slice_values.push(*array);
+                    self.slice_values.push(*array);
                     // Initial insertion into the slice sizes map
                     // Any other insertions should only occur if the value is already
                     // a part of the map.
@@ -196,7 +206,7 @@ impl<'f> Context<'f> {
                 // as a slice that potentially requires to be filled with dummy data.
                 if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
                 {
-                    slice_values.push(*array);
+                    self.slice_values.push(*array);
                     // Initial insertion into the slice sizes map
                     // Any other insertions should only occur if the value is already
                     // a part of the map.
@@ -246,7 +256,7 @@ impl<'f> Context<'f> {
                             for arg in &arguments[(argument_index + 1)..] {
                                 let element_typ = self.inserter.function.dfg.type_of_value(*arg);
                                 if element_typ.contains_slice_element() {
-                                    slice_values.push(*arg);
+                                    self.slice_values.push(*arg);
                                     self.compute_slice_sizes(*arg, slice_sizes);
                                 }
                             }
@@ -287,13 +297,12 @@ impl<'f> Context<'f> {
     fn push_updated_instruction(
         &mut self,
         instruction: InstructionId,
-        slice_values: &[ValueId],
         slice_sizes: &HashMap<ValueId, (usize, Vec<ValueId>)>,
         block: BasicBlockId,
     ) {
         match &self.inserter.function.dfg[instruction] {
             Instruction::ArrayGet { array, .. } | Instruction::ArraySet { array, .. } => {
-                if slice_values.contains(array) {
+                if self.slice_values.contains(array) {
                     let (new_array_op_instr, call_stack) =
                         self.get_updated_array_op_instr(*array, slice_sizes, instruction);
                     self.inserter.push_instruction_value(
@@ -310,7 +319,7 @@ impl<'f> Context<'f> {
                 let mut args_to_replace = Vec::new();
                 for (i, arg) in arguments.iter().enumerate() {
                     let element_typ = self.inserter.function.dfg.type_of_value(*arg);
-                    if slice_values.contains(arg) && element_typ.contains_slice_element() {
+                    if self.slice_values.contains(arg) && element_typ.contains_slice_element() {
                         args_to_replace.push((i, *arg));
                     }
                 }

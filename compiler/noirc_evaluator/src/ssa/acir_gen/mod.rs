@@ -1075,11 +1075,7 @@ impl Context {
                 self.slice_sizes.insert(results[0], slice_sizes);
             }
         }
-        // let results = dfg.instruction_results(instruction);
-        // if results[0].to_usize() == 3739 {
-        //     dbg!("got here");
-        //     dbg!(array_typ.is_nested_slice());
-        // }
+
         if array_typ.contains_slice_element() {
             let slice_sizes = self
                     .slice_sizes

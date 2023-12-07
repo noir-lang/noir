@@ -1,45 +1,31 @@
-use std::hash::Hash;
-
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::{CallStack, DataFlowGraph},
-    instruction::{BinaryOp, Instruction, Intrinsic},
+    instruction::{BinaryOp, Instruction},
     types::Type,
-    value::{Value, ValueId},
+    value::ValueId,
 };
-
-use crate::ssa::opt::flatten_cfg::Store;
 
 pub(crate) struct ValueMerger<'a> {
     dfg: &'a mut DataFlowGraph,
     block: BasicBlockId,
-    store_values: Option<&'a HashMap<ValueId, Store>>,
-    outer_block_stores: Option<&'a HashMap<ValueId, ValueId>>,
-    slice_sizes: HashMap<ValueId, usize>,
-    // Maps SSA array values to each nested slice size and the array id of its parent array
-    inner_slice_sizes: HashMap<ValueId, Vec<(usize, Option<ValueId>)>>,
-    new_slice_sizes: &'a mut HashMap<ValueId, (usize, Vec<ValueId>)>,
+    // Maps SSA array values to their size and any respective nested slice children it may have
+    slice_sizes: &'a mut HashMap<ValueId, (usize, Vec<ValueId>)>,
 }
 
 impl<'a> ValueMerger<'a> {
     pub(crate) fn new(
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
-        store_values: Option<&'a HashMap<ValueId, Store>>,
-        outer_block_stores: Option<&'a HashMap<ValueId, ValueId>>,
-        new_slice_sizes: &'a mut HashMap<ValueId, (usize, Vec<ValueId>)>,
+        slice_sizes: &'a mut HashMap<ValueId, (usize, Vec<ValueId>)>,
     ) -> Self {
         ValueMerger {
             dfg,
             block,
-            store_values,
-            outer_block_stores,
-            slice_sizes: HashMap::default(),
-            inner_slice_sizes: HashMap::default(),
-            new_slice_sizes,
+            slice_sizes,
         }
     }
 
@@ -192,32 +178,17 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected slice type"),
         };
 
-        let then_len = if let Some(val) = self.new_slice_sizes.get(&then_value_id) {
-            val.0
-        } else {
-            dbg!(then_value_id);
-            panic!("got none");
-        };
+        let then_len = self.slice_sizes.get(&then_value_id).unwrap_or_else(||
+            panic!("ICE: Merging values during flattening encountered a slice without a preset size")
+        ).0; 
 
-        let else_len = if let Some(val) =  self.new_slice_sizes.get(&else_value_id) {
-            val.0
-        } else {
-            dbg!(else_value_id);
-            panic!("got none");
-        };
 
-        // let then_len = self.get_slice_length(then_value_id);
-        // self.slice_sizes.insert(then_value_id, then_len);
-
-        // let else_len = self.get_slice_length(else_value_id);
-        // self.slice_sizes.insert(else_value_id, else_len);
+        let else_len = self.slice_sizes.get(&else_value_id).unwrap_or_else(||
+            panic!("ICE: Merging values during flattening encountered a slice without a preset size")
+        ).0; 
 
         let len = then_len.max(else_len);
 
-        if len == 0 {
-            dbg!(then_value_id);
-            dbg!(else_value_id);
-        }
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
                 let index_usize = i * element_types.len() + element_index;
@@ -229,10 +200,7 @@ impl<'a> ValueMerger<'a> {
                 let mut get_element = |array, typevars, len| {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
-
-                    // NOTE: if we use the max size of the two rather than the actualy one 
                     if len <= index_usize {
-                        dbg!("len is less than or equal to index");
                         self.make_slice_dummy_data(element_type)
                     } else {
                         let get = Instruction::ArrayGet { array, index };
@@ -247,28 +215,19 @@ impl<'a> ValueMerger<'a> {
                         
                         match element_type {
                             Type::Slice(_) => {
-                                let inner_sizes = self.new_slice_sizes.get(&array).unwrap_or_else(|| panic!("should have slice sizes"));
-                                // self.new_slice_sizes.insert(res, v);
+                                let inner_sizes = self.slice_sizes.get(&array).unwrap_or_else(|| panic!("should have slice sizes"));
                                 let inner_sizes_iter = inner_sizes.1.clone();
                                 for slice_value in inner_sizes_iter {
-                                    let inner_slice = self.new_slice_sizes.get(&slice_value).unwrap_or_else(|| {
+                                    let inner_slice = self.slice_sizes.get(&slice_value).unwrap_or_else(|| {
                                         panic!("ICE: should have inner slice set for {slice_value}")
                                     });
-                                    // dbg!(inner_slice.0);
-                                    // if let Some(previous_res_size) = self.new_slice_sizes.get(&res) {
-                                    //     if inner_slice.0 > previous_res_size.0 {
-                                    //         // self.new_slice_sizes.insert(res, inner_slice.clone());
-                                    //     }
-                                    //     // let mut x = inner_slice.1;
-                                    //     // previous_res_size.1.append(&mut x);
-                                    // }
-                                    let previous_res_size = self.new_slice_sizes.get(&res);
+                                    let previous_res_size = self.slice_sizes.get(&res);
                                     if let Some(previous_res_size) = previous_res_size {
                                         if inner_slice.0 > previous_res_size.0 {
-                                            self.new_slice_sizes.insert(res, inner_slice.clone());
+                                            self.slice_sizes.insert(res, inner_slice.clone());
                                         }
                                     } else {
-                                        self.new_slice_sizes.insert(res, inner_slice.clone());
+                                        self.slice_sizes.insert(res, inner_slice.clone());
                                     }
 
                                 }
@@ -296,63 +255,6 @@ impl<'a> ValueMerger<'a> {
         let merged = self.dfg.make_array(merged, typ);
         // self.new_slice_sizes.insert(merged, (len, vec![]));
         merged
-    }
-
-    fn compute_inner_slice_sizes(
-        &mut self,
-        current_array_id: ValueId,
-        parent_array: Option<ValueId>,
-        inner_parent_array: Option<ValueId>,
-    ) {
-        // annoying try and get rid of this clone
-        match &self.dfg[current_array_id].clone() {
-            Value::Array { array, typ } => {
-                match typ {
-                    Type::Slice(_) => {
-                        // dbg!(array.len());
-                        let element_size = typ.element_size();
-                        let true_len = array.len() / element_size;
-                        // dbg!(true_len);
-                        if let Some(parent_array) = parent_array {
-                            let sizes_list = self
-                                .inner_slice_sizes
-                                .get_mut(&parent_array)
-                                .expect("ICE: expected size list");
-                            let inner_parent_array =
-                                inner_parent_array.expect("ICE: expected inner_parent_array");
-                            sizes_list.push((true_len, Some(inner_parent_array)));
-                            // self.new_slice_sizes.entry(parent_array).or_default().push(true_len)
-                        } else {
-                            // This means the current_array_id is the parent as well as the inner parent id
-                            self.inner_slice_sizes.insert(current_array_id, vec![(true_len, None)]);
-                        }
-                        for (i, value) in array.iter().enumerate() {
-                            let typ = self.dfg.type_of_value(*value);
-                            match typ {
-                                Type::Slice(_) => {
-                                    if parent_array.is_some() {
-                                        self.compute_inner_slice_sizes(
-                                            *value,
-                                            parent_array,
-                                            Some(current_array_id),
-                                        );
-                                    } else {
-                                        self.compute_inner_slice_sizes(
-                                            *value,
-                                            Some(current_array_id),
-                                            Some(current_array_id),
-                                        );
-                                    }
-                                }
-                                _ => (),
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            _ => {}
-        }
     }
 
     /// Construct a dummy value to be attached to the smaller of two slices being merged.

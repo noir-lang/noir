@@ -149,6 +149,7 @@ use crate::ssa::{
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
+    opt::fill_internal_slices::capacity_tracker::SliceCapacityTracker
 };
 
 mod branch_analysis;
@@ -182,17 +183,6 @@ struct Context<'f> {
     /// These only hold stores for one block at a time and is cleared
     /// between inlining of branches.
     store_values: HashMap<ValueId, Store>,
-
-    /// Maps an address to the old and new value of the element at that address
-    /// The difference between this map and store_values is that this stores
-    /// the old and new value of an element from the outer block whose jmpif
-    /// terminator is being flattened.
-    ///
-    /// This map persists throughout the flattening process, where addresses
-    /// are overwritten as new stores are found. This overwriting is the desired behavior,
-    /// as we want the most update to date value to be stored at a given address as
-    /// we walk through blocks to flatten.
-    outer_block_stores: HashMap<ValueId, ValueId>,
 
     /// Stores all allocations local to the current branch.
     /// Since these branches are local to the current branch (ie. only defined within one branch of
@@ -240,7 +230,6 @@ fn flatten_function_cfg(function: &mut Function) {
         local_allocations: HashSet::new(),
         branch_ends,
         conditions: Vec::new(),
-        outer_block_stores: HashMap::default(),
         slice_sizes: HashMap::default(),
     };
     context.flatten();
@@ -264,31 +253,6 @@ impl<'f> Context<'f> {
     /// Returns the last block to be inlined. This is either the return block of the function or,
     /// if self.conditions is not empty, the end block of the most recent condition.
     fn handle_terminator(&mut self, block: BasicBlockId) -> BasicBlockId {
-        if let TerminatorInstruction::JmpIf { .. } =
-            self.inserter.function.dfg[block].unwrap_terminator()
-        {
-            // Find stores in the outer block and insert into the `outer_block_stores` map.
-            // Not using this map can lead to issues when attempting to merge slices.
-            // When inlining a branch end, only the then branch and the else branch are checked for stores.
-            // However, there are cases where we want to load a value that comes from the outer block
-            // that we are handling the terminator for here.
-            let instructions = self.inserter.function.dfg[block].instructions().to_vec();
-            for instruction in instructions {
-                let (instruction, _) = self.inserter.map_instruction(instruction);
-                if let Instruction::Store { address, value } = instruction {
-                    self.outer_block_stores.insert(address, value);
-                }
-            }
-        }
-        
-        // let instructions = self.inserter.function.dfg[block].instructions().to_vec();
-        // let mut slice_sizes = std::mem::take(&mut self.slice_sizes);
-        // for instruction in instructions {
-        //     self.collect_slice_information(instruction, &mut slice_sizes);
-        // }
-        // std::mem::swap(&mut self.slice_sizes, &mut slice_sizes);
-        // dbg!(self.slice_sizes.clone());
-
         match self.inserter.function.dfg[block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let old_condition = *condition;
@@ -507,8 +471,6 @@ impl<'f> Context<'f> {
         let mut value_merger = ValueMerger::new(
             &mut self.inserter.function.dfg,
             block,
-            Some(&self.store_values),
-            Some(&self.outer_block_stores),
             &mut self.slice_sizes,
         );
 
@@ -557,8 +519,6 @@ impl<'f> Context<'f> {
         let mut value_merger = ValueMerger::new(
             &mut self.inserter.function.dfg,
             block,
-            Some(&self.store_values),
-            Some(&self.outer_block_stores),
             &mut self.slice_sizes,
         );
 
@@ -617,16 +577,12 @@ impl<'f> Context<'f> {
         let mut slice_sizes = std::mem::take(&mut self.slice_sizes);
         for instruction in instructions.iter() {
             let results = self.push_instruction(*instruction);
-            // dbg!(results.clone());
-            self.collect_slice_information(*instruction, &mut slice_sizes, &results);
+            let (instruction, _) = self.inserter.map_instruction(*instruction);
+            let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+            capacity_tracker.collect_slice_information(&instruction, &mut slice_sizes, results);
         }
 
-        // let mut slice_sizes = std::mem::take(&mut self.slice_sizes);
-        // for instruction in instructions {
-        //     self.collect_slice_information(instruction, &mut slice_sizes);
-        // }
         std::mem::swap(&mut self.slice_sizes, &mut slice_sizes);
-        // dbg!(self.slice_sizes.clone());
 
         self.handle_terminator(destination)
     }
@@ -659,9 +615,9 @@ impl<'f> Context<'f> {
         &mut self,
         instruction_id: InstructionId,
         slice_sizes: &mut HashMap<ValueId, (usize, Vec<ValueId>)>,
-        results: &[ValueId],
+        results: Vec<ValueId>,
     ) {
-        let (instruction, _) = &self.inserter.map_instruction(instruction_id);
+        let (instruction, _) = self.inserter.map_instruction(instruction_id);
         // let old_results = self.inserter.function.dfg.instruction_results(instruction_id);
         // dbg!(old_results.clone());
         // dbg!(&self.inserter.function.dfg.resolve(results[0]));
@@ -684,10 +640,6 @@ impl<'f> Context<'f> {
                 if res_typ.contains_slice_element() {
                     // dbg!(array);
                     if let Some(inner_sizes) = slice_sizes.get_mut(array) {
-                        // dbg!(array);
-                        // if array.to_usize() == 851 {
-                        //     dbg!("got 851");
-                        // }
                         // Include the result in the parent array potential children
                         // If the result has internal slices and is called in an array set
                         // we could potentially have a new larger slice which we need to account for
@@ -719,8 +671,7 @@ impl<'f> Context<'f> {
                 let value_typ = self.inserter.function.dfg.type_of_value(*value);
                 if value_typ.contains_slice_element() {
                     self.compute_slice_sizes(*value, slice_sizes);
-                    let result = &self.inserter.function.dfg.resolve(results[0]);
-                    // dbg!(result.clone());
+
                     let inner_sizes = slice_sizes.get_mut(array).unwrap_or_else(|| {
                         panic!("ICE: Expected slice sizes for ArraySet array {array} value {value} with results {results:?}")
                     });
@@ -819,7 +770,7 @@ impl<'f> Context<'f> {
     // at each depth of the recursive type.
     // For example if we had a next slice
     fn compute_slice_sizes(
-        &self,
+        &mut self,
         array_id: ValueId,
         slice_sizes: &mut HashMap<ValueId, (usize, Vec<ValueId>)>,
     ) {
