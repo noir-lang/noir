@@ -37,7 +37,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile
+          file: Dockerfile.ci
           tags: ${{ steps.prep.outputs.tags }}
           target: test-cargo
           cache-from: type=gha
