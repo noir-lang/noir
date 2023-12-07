@@ -7,7 +7,7 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/flavor/ecc_vm.hpp"
-#include "barretenberg/honk/proof_system/lookup_library.hpp"
+#include "barretenberg/honk/proof_system/logderivative_library.hpp"
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
 #include "barretenberg/proof_system/op_queue/ecc_op_queue.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
@@ -505,9 +505,9 @@ template <typename Flavor> class ECCVMCircuitBuilder {
 
         auto polynomials = compute_polynomials();
         const size_t num_rows = polynomials.get_polynomial_size();
-        proof_system::honk::lookup_library::compute_logderivative_inverse<Flavor,
-                                                                          honk::sumcheck::ECCVMLookupRelation<FF>>(
-            polynomials, params, num_rows);
+        proof_system::honk::logderivative_library::
+            compute_logderivative_inverse<Flavor, honk::sumcheck::ECCVMLookupRelation<FF>>(
+                polynomials, params, num_rows);
 
         honk::permutation_library::compute_permutation_grand_product<Flavor, honk::sumcheck::ECCVMSetRelation<FF>>(
             num_rows, polynomials, params);

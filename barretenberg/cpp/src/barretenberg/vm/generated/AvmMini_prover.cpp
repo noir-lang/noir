@@ -3,7 +3,7 @@
 #include "AvmMini_prover.hpp"
 #include "barretenberg/commitment_schemes/claim.hpp"
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
-#include "barretenberg/honk/proof_system/lookup_library.hpp"
+#include "barretenberg/honk/proof_system/logderivative_library.hpp"
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
 #include "barretenberg/honk/proof_system/power_polynomial.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"

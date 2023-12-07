@@ -2,7 +2,7 @@
 #include "barretenberg/commitment_schemes/claim.hpp"
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/common/ref_array.hpp"
-#include "barretenberg/honk/proof_system/lookup_library.hpp"
+#include "barretenberg/honk/proof_system/logderivative_library.hpp"
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
 #include "barretenberg/honk/proof_system/power_polynomial.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
@@ -183,7 +183,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_log_derivative_
         gamma * (gamma + beta_sqr) * (gamma + beta_sqr + beta_sqr) * (gamma + beta_sqr + beta_sqr + beta_sqr);
     relation_parameters.eccvm_set_permutation_delta = relation_parameters.eccvm_set_permutation_delta.invert();
     // Compute inverse polynomial for our logarithmic-derivative lookup method
-    lookup_library::compute_logderivative_inverse<Flavor, typename Flavor::LookupRelation>(
+    logderivative_library::compute_logderivative_inverse<Flavor, typename Flavor::LookupRelation>(
         prover_polynomials, relation_parameters, key->circuit_size);
     transcript->send_to_verifier(commitment_labels.lookup_inverses, commitment_key->commit(key->lookup_inverses));
     prover_polynomials.lookup_inverses = key->lookup_inverses;

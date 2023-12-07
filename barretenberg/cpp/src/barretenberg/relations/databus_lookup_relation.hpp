@@ -3,7 +3,7 @@
 #include <tuple>
 
 #include "barretenberg/common/constexpr_utils.hpp"
-#include "barretenberg/honk/proof_system/lookup_library.hpp"
+#include "barretenberg/honk/proof_system/logderivative_library.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/relations/relation_types.hpp"
@@ -37,11 +37,19 @@ template <typename FF_> class DatabusLookupRelationImpl {
      * @return true
      * @return false
      */
-    template <typename AllValues> static bool lookup_exists_at_row(const AllValues& row)
+    template <typename AllValues> static bool operation_exists_at_row(const AllValues& row)
     {
         return (row.q_busread == 1 || row.calldata_read_counts > 0);
     }
 
+    /**
+     * @brief Get the lookup inverse polynomial
+     *
+     * @tparam AllEntities
+     * @param in
+     * @return auto&
+     */
+    template <typename AllEntities> static auto& get_inverse_polynomial(AllEntities& in) { return in.lookup_inverses; }
     /**
      * @brief Compute the Accumulator whose values indicate whether the inverse is computed or not
      * @details This is needed for efficiency since we don't need to compute the inverse unless the log derivative
@@ -154,7 +162,7 @@ template <typename FF_> class DatabusLookupRelationImpl {
 
     /**
      * @brief Accumulate the contribution from two surelations for the log derivative databus lookup argument
-     * @details See lookup_library.hpp for details of the generic log-derivative lookup argument
+     * @details See logderivative_library.hpp for details of the generic log-derivative lookup argument
      *
      * @param accumulator transformed to `evals + C(in(X)...)*scaling_factor`
      * @param in an std::array containing the fully extended Accumulator edges.
@@ -167,9 +175,9 @@ template <typename FF_> class DatabusLookupRelationImpl {
                            const Parameters& params,
                            const FF& scaling_factor)
     {
-        honk::lookup_library::accumulate_logderivative_lookup_subrelation_contributions<FF,
-                                                                                        DatabusLookupRelationImpl<FF>>(
-            accumulator, in, params, scaling_factor);
+        honk::logderivative_library::
+            accumulate_logderivative_lookup_subrelation_contributions<FF, DatabusLookupRelationImpl<FF>>(
+                accumulator, in, params, scaling_factor);
     }
 };
 
