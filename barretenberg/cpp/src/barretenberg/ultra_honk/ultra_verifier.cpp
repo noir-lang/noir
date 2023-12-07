@@ -15,6 +15,19 @@ UltraVerifier_<Flavor>::UltraVerifier_(const std::shared_ptr<Transcript>& transc
     , transcript(transcript)
 {}
 
+/**
+ * @brief Construct an UltraVerifier directly from a verification key
+ *
+ * @tparam Flavor
+ * @param verifier_key
+ */
+template <typename Flavor>
+UltraVerifier_<Flavor>::UltraVerifier_(const std::shared_ptr<VerificationKey>& verifier_key)
+    : key(verifier_key)
+    , pcs_verification_key(std::make_unique<VerifierCommitmentKey>(0, barretenberg::srs::get_crs_factory()))
+    , transcript(std::make_shared<Transcript>())
+{}
+
 template <typename Flavor>
 UltraVerifier_<Flavor>::UltraVerifier_(UltraVerifier_&& other)
     : key(std::move(other.key))

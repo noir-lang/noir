@@ -24,10 +24,6 @@ class GoblinRecursionTests : public ::testing::Test {
 
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
-    using Fbase = Curve::BaseField;
-    using Point = Curve::AffineElement;
-    using CommitmentKey = pcs::CommitmentKey<Curve>;
-    using OpQueue = proof_system::ECCOpQueue;
     using GoblinUltraBuilder = proof_system::GoblinUltraCircuitBuilder;
     using ECCVMFlavor = flavor::ECCVM;
     using ECCVMBuilder = proof_system::ECCVMCircuitBuilder<ECCVMFlavor>;
@@ -36,11 +32,11 @@ class GoblinRecursionTests : public ::testing::Test {
     using TranslatorBuilder = proof_system::GoblinTranslatorCircuitBuilder;
     using TranslatorComposer = GoblinTranslatorComposer;
     using TranslatorConsistencyData = barretenberg::TranslationEvaluations;
-    using Proof = proof_system::plonk::proof;
-    using NativeVerificationKey = flavor::GoblinUltra::VerificationKey;
     using RecursiveFlavor = flavor::GoblinUltraRecursive_<GoblinUltraBuilder>;
     using RecursiveVerifier = proof_system::plonk::stdlib::recursion::honk::UltraRecursiveVerifier_<RecursiveFlavor>;
+    using Goblin = barretenberg::Goblin;
     using KernelInput = Goblin::AccumulationOutput;
+    using UltraVerifier = UltraVerifier_<flavor::GoblinUltra>;
 
     /**
      * @brief Construct a mock kernel circuit
@@ -58,8 +54,11 @@ class GoblinRecursionTests : public ::testing::Test {
         // Execute recursive aggregation of previous kernel proof
         RecursiveVerifier verifier{ &builder, kernel_input.verification_key };
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/801): Aggregation
-        auto pairing_points = verifier.verify_proof(kernel_input.proof); // app function proof
-        pairing_points = verifier.verify_proof(kernel_input.proof);      // previous kernel proof
+        auto pairing_points = verifier.verify_proof(kernel_input.proof); // previous kernel proof
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/803): Mock app circuit. In the absence of a mocked
+        // app circuit proof, we simply perform another recursive verification for the previous kernel proof to
+        // approximate the work done for the app proof.
+        pairing_points = verifier.verify_proof(kernel_input.proof);
     }
 };
 
@@ -69,11 +68,12 @@ class GoblinRecursionTests : public ::testing::Test {
  */
 TEST_F(GoblinRecursionTests, Pseudo)
 {
-    barretenberg::Goblin goblin;
+    Goblin goblin;
 
     // Construct an initial circuit; its proof will be recursively verified by the first kernel
     GoblinUltraBuilder initial_circuit{ goblin.op_queue };
     GoblinTestingUtils::construct_simple_initial_circuit(initial_circuit);
+
     KernelInput kernel_input = goblin.accumulate(initial_circuit);
 
     // Construct a series of simple Goblin circuits; generate and verify their proofs
@@ -88,8 +88,12 @@ TEST_F(GoblinRecursionTests, Pseudo)
     }
 
     Goblin::Proof proof = goblin.prove();
+    // Verify the final ultra proof
+    UltraVerifier ultra_verifier{ kernel_input.verification_key };
+    bool ultra_verified = ultra_verifier.verify_proof(kernel_input.proof);
+    // Verify the goblin proof (eccvm, translator, merge)
     bool verified = goblin.verify(proof);
-    EXPECT_TRUE(verified);
+    EXPECT_TRUE(ultra_verified && verified);
 }
 
 // TODO(https://github.com/AztecProtocol/barretenberg/issues/787) Expand these tests.

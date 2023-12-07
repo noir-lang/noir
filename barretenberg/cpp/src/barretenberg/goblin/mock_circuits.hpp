@@ -1,12 +1,7 @@
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
-#include "barretenberg/eccvm/eccvm_composer.hpp"
-#include "barretenberg/goblin/goblin.hpp"
-#include "barretenberg/goblin/translation_evaluations.hpp"
-#include "barretenberg/proof_system/circuit_builder/eccvm/eccvm_circuit_builder.hpp"
+#include "barretenberg/flavor/goblin_ultra.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
-#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
-#include "barretenberg/translator_vm/goblin_translator_composer.hpp"
-#include "barretenberg/ultra_honk/ultra_composer.hpp"
+#include "barretenberg/srs/global_crs.hpp"
 
 namespace barretenberg {
 class GoblinTestingUtils {

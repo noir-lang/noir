@@ -5,6 +5,7 @@
 #include "barretenberg/flavor/ultra.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/proof_system/op_queue/ecc_op_queue.hpp"
+#include "barretenberg/srs/global_crs.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 namespace proof_system::honk {
@@ -31,8 +32,7 @@ template <typename Flavor> class MergeVerifier_ {
     std::shared_ptr<ECCOpQueue> op_queue;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
 
-    explicit MergeVerifier_(std::unique_ptr<VerifierCommitmentKey> verification_key,
-                            const std::shared_ptr<Transcript>& transcript);
+    explicit MergeVerifier_();
     bool verify_proof(const plonk::proof& proof);
 };
 

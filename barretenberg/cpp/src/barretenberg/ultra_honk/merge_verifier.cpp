@@ -3,10 +3,9 @@
 namespace proof_system::honk {
 
 template <typename Flavor>
-MergeVerifier_<Flavor>::MergeVerifier_(std::unique_ptr<VerifierCommitmentKey> verification_key,
-                                       const std::shared_ptr<Transcript>& transcript)
-    : transcript(transcript)
-    , pcs_verification_key(std::move(verification_key)){};
+MergeVerifier_<Flavor>::MergeVerifier_()
+    : transcript(std::make_shared<Transcript>())
+    , pcs_verification_key(std::make_unique<VerifierCommitmentKey>(0, barretenberg::srs::get_crs_factory())){};
 
 /**
  * @brief Verify proper construction of the aggregate Goblin ECC op queue polynomials T_i^(j), j = 1,2,3,4.

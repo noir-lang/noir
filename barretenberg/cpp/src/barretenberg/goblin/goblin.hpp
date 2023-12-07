@@ -4,6 +4,7 @@
 #include "barretenberg/proof_system/circuit_builder/eccvm/eccvm_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_translator_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib/recursion/honk/verifier/merge_recursive_verifier.hpp"
 #include "barretenberg/translator_vm/goblin_translator_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 
@@ -24,6 +25,7 @@ class Goblin {
     };
 
     struct Proof {
+        HonkProof merge_proof;
         HonkProof eccvm_proof;
         HonkProof translator_proof;
         TranslationEvaluations translation_evaluations;
@@ -41,8 +43,16 @@ class Goblin {
     using ECCVMComposer = proof_system::honk::ECCVMComposer;
     using TranslatorBuilder = proof_system::GoblinTranslatorCircuitBuilder;
     using TranslatorComposer = proof_system::honk::GoblinTranslatorComposer;
+    using RecursiveMergeVerifier =
+        proof_system::plonk::stdlib::recursion::goblin::MergeRecursiveVerifier_<GoblinUltraCircuitBuilder>;
+    using MergeVerifier = proof_system::honk::MergeVerifier_<proof_system::honk::flavor::GoblinUltra>;
 
     std::shared_ptr<OpQueue> op_queue = std::make_shared<OpQueue>();
+
+    HonkProof merge_proof;
+
+    // on the first call to accumulate there is no merge proof to verify
+    bool merge_proof_exists{ false };
 
   private:
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/798) unique_ptr use is a hack
@@ -59,16 +69,25 @@ class Goblin {
      */
     AccumulationOutput accumulate(GoblinUltraCircuitBuilder& circuit_builder)
     {
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/797) Complete the "kernel" logic by recursively
-        // verifying previous merge proof
+        // Complete the circuit logic by recursively verifying previous merge proof if it exists
+        if (merge_proof_exists) {
+            RecursiveMergeVerifier merge_verifier{ &circuit_builder };
+            [[maybe_unused]] auto pairing_points = merge_verifier.verify_proof(merge_proof);
+        }
 
+        // Construct a Honk proof for the main circuit
         GoblinUltraComposer composer;
         auto instance = composer.create_instance(circuit_builder);
         auto prover = composer.create_prover(instance);
         auto ultra_proof = prover.construct_proof();
 
+        // Construct and store the merge proof to be recursively verified on the next call to accumulate
         auto merge_prover = composer.create_merge_prover(op_queue);
-        [[maybe_unused]] auto merge_proof = merge_prover.construct_proof();
+        merge_proof = merge_prover.construct_proof();
+
+        if (!merge_proof_exists) {
+            merge_proof_exists = true;
+        }
 
         return { ultra_proof, instance->verification_key };
     };
@@ -76,6 +95,9 @@ class Goblin {
     Proof prove()
     {
         Proof proof;
+
+        proof.merge_proof = std::move(merge_proof);
+
         eccvm_builder = std::make_unique<ECCVMBuilder>(op_queue);
         eccvm_composer = std::make_unique<ECCVMComposer>();
         auto eccvm_prover = eccvm_composer->create_prover(*eccvm_builder);
@@ -87,11 +109,15 @@ class Goblin {
         translator_composer = std::make_unique<TranslatorComposer>();
         auto translator_prover = translator_composer->create_prover(*translator_builder, eccvm_prover.transcript);
         proof.translator_proof = translator_prover.construct_proof();
+
         return proof;
     };
 
     bool verify(const Proof& proof)
     {
+        MergeVerifier merge_verifier;
+        bool merge_verified = merge_verifier.verify_proof(proof.merge_proof);
+
         auto eccvm_verifier = eccvm_composer->create_verifier(*eccvm_builder);
         bool eccvm_verified = eccvm_verifier.verify_proof(proof.eccvm_proof);
 
@@ -100,7 +126,8 @@ class Goblin {
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/799):
         //   Ensure translation_evaluations are passed correctly
         bool translation_verified = translator_verifier.verify_translation(proof.translation_evaluations);
-        return eccvm_verified && accumulator_construction_verified && translation_verified;
+
+        return merge_verified && eccvm_verified && accumulator_construction_verified && translation_verified;
     };
 };
 } // namespace barretenberg

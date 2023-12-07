@@ -81,16 +81,15 @@ template <typename Curve> class KZG {
         auto quotient_commitment = verifier_transcript->template receive_from_prover<Commitment>("KZG:W");
 
         GroupElement P_0;
-        // Note: In the recursive setting, we only add the contribution if it is not the point at infinity (i.e. if the
-        // evaluation is not equal to zero).
         if constexpr (Curve::is_stdlib_type) {
             auto builder = verifier_transcript->builder;
             auto one = Fr(builder, 1);
-            std::vector<GroupElement> commitments = { claim.commitment, quotient_commitment };
-            std::vector<Fr> scalars = { one, claim.opening_pair.challenge };
+            std::vector<GroupElement> commitments = { claim.commitment,
+                                                      quotient_commitment,
+                                                      GroupElement::one(builder) };
+            std::vector<Fr> scalars = { one, claim.opening_pair.challenge, -claim.opening_pair.evaluation };
             P_0 = GroupElement::batch_mul(commitments, scalars);
-            // Note: This implementation assumes the evaluation is zero (as is the case for shplonk).
-            ASSERT(claim.opening_pair.evaluation.get_value() == 0);
+
         } else {
             P_0 = claim.commitment;
             P_0 += quotient_commitment * claim.opening_pair.challenge;

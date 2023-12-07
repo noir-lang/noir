@@ -77,7 +77,7 @@ class GoblinUltraHonkComposerTests : public ::testing::Test {
     bool construct_and_verify_merge_proof(auto& composer, auto& op_queue)
     {
         auto merge_prover = composer.create_merge_prover(op_queue);
-        auto merge_verifier = composer.create_merge_verifier(10);
+        auto merge_verifier = composer.create_merge_verifier();
         auto merge_proof = merge_prover.construct_proof();
         bool verified = merge_verifier.verify_proof(merge_proof);
 

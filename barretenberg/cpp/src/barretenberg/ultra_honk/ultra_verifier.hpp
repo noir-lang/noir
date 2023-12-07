@@ -2,6 +2,7 @@
 #include "barretenberg/flavor/goblin_ultra.hpp"
 #include "barretenberg/flavor/ultra.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
+#include "barretenberg/srs/global_crs.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
 namespace proof_system::honk {
@@ -15,6 +16,7 @@ template <typename Flavor> class UltraVerifier_ {
   public:
     explicit UltraVerifier_(const std::shared_ptr<Transcript>& transcript,
                             const std::shared_ptr<VerificationKey>& verifier_key = nullptr);
+    explicit UltraVerifier_(const std::shared_ptr<VerificationKey>& verifier_key);
     UltraVerifier_(UltraVerifier_&& other);
 
     UltraVerifier_& operator=(const UltraVerifier_& other) = delete;
