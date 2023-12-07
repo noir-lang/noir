@@ -1,5 +1,5 @@
 ---
-title: Introducing Noir
+title: Noir
 description:
   Learn about the public alpha release of Noir, a domain specific language heavily influenced by
   Rust that compiles to an intermediate language which can be compiled to an arithmetic circuit or a
@@ -67,7 +67,7 @@ Compiler:
 - For expressions
 - Arrays
 - Bit Operations
-- Binary operations (<, <=, >, >=, +, -, \*, /, %) [See documentation for an extensive list]
+- Binary operations (\<, \<=, >, >=, +, -, \*, /, %) [See documentation for an extensive list]
 - Unsigned integers
 - If statements
 - Structures and Tuples
