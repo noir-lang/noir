@@ -1276,11 +1276,11 @@ impl NodeInterner {
                             
                             // eprintln!("Debug Expr Span {:?} for {:?}\n", definition_info.location, debug_expr_span);
                             // let local = self.resolve_location(local_id)?;
-                            eprintln!("\t\t\n --> Resolved Local Ident for {expression:?} and {definition_info:?}\n and {local_id:?}\n");
+                            eprintln!("\n\t\t --> Resolved Local Ident for {expression:?} and {definition_info:?}\n and {local_id:?}\n");
                             Some(definition_info.location)
                         } else {
-                            eprintln!("\n --> No Local id while Resolving Local Ident for {expression:?} and {definition_info:?}\n and {local_id:?}\n");
-                            None
+                            eprintln!("\n\t --> No Local id while Resolving Local Ident for {expression:?} and {definition_info:?}\n and {local_id:?}\n");
+                            Some(definition_info.location)
                         }
                     }
                     _ => {
