@@ -1,4 +1,4 @@
-const {generateInstructionSet} = require('./InstructionSet/InstructionSetMarkdownGen');
+const {generateInstructionSet} = require('./InstructionSet/genMarkdown');
 
 async function run() {
     await generateInstructionSet();

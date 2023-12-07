@@ -14,7 +14,7 @@ The intention is for sub-operations to be implementable as independent VM circui
 
 # Control flow
 
-![](./gen/images/control-flow/avm-control-flow.png)
+![](./images/avm-control-flow.png)
 
 > Notation note: whenever the VM "sends a signal" to one or more VM components, this is analogous to defining a boolean column in the execution trace that toggles on/off specific functionality
 

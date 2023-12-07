@@ -10,6 +10,7 @@ function run() {
         const bitFormat = instructionBitFormat(instr, i);
         formats.push(bitFormat);
     }
+    console.log(`Writing ${formats.length} bit formats to InstructionBitFormats.json`);
     fs.writeFileSync('./InstructionBitFormats.json', JSON.stringify(formats));
 }
 run();

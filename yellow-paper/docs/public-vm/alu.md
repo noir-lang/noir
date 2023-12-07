@@ -6,7 +6,7 @@ This component of the VM circuit evaluates both base-2 arithmetic operations and
 
 The following block diagram maps out an draft of the internal components of the "ALU"
 
-![](./gen/images/alu/alu.png)
+![](./images/alu.png)
 
 Notes:
 

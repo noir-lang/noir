@@ -1,7 +1,8 @@
 const OPCODE_SIZE = 8;
 const FLAG_SIZE = 8;
+const RESERVED_SIZE = 8;
 
-const DEFAULT_OPERAND_SIZE = 24; // for direct/indirect memory offsets
+const DEFAULT_OPERAND_SIZE = 32; // for direct/indirect memory offsets
 
 function argSize(arg) {
     if (arg['mode'] && arg['mode'] == 'immediate') {
@@ -31,7 +32,7 @@ function toOpcode(index) {
  * 1 byte for dest-type
  */
 function instructionSize(instr) {
-    let size = OPCODE_SIZE;
+    let size = OPCODE_SIZE + RESERVED_SIZE;
     let numUntypedImmediates = 0;
     for (let arg of instr['Args']) {
         const aSize = argSize(arg);
@@ -58,6 +59,9 @@ function instructionBitFormat(instr, index) {
         'Opcode': {
             'code': toOpcode(index),
             'size': OPCODE_SIZE,
+        },
+        'Reserved': {
+            'size': RESERVED_SIZE,
         },
         'Args': [],
         'Flags': [],
