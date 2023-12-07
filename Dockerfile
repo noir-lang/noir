@@ -26,7 +26,6 @@ FROM test-base as test-cargo
 RUN apt-get install -y curl libc++-dev
 RUN ./scripts/test_native.sh
 
-# openssl libc++-dev libncurses5 curl jq npm nodejs
 FROM test-base as test-js
 RUN apt-get install pkg-config libssl-dev -y
 RUN ./scripts/install_wasm-bindgen.sh

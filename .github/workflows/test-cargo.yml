@@ -3,7 +3,6 @@ name: Test cargo
 on:
   push:
     branches:
-      - 'feat-test-release'
       - 'master'
 
 jobs:
@@ -25,9 +24,6 @@ jobs:
           TAGS="${IMAGE}:${{ github.sha }}"
           TAGS="${TAGS},${IMAGE}:latest,${IMAGE}:v${{ steps.date.outputs.date }}"
           echo ::set-output name=tags::${TAGS}
-      # setup Docker buld action
-      - run: sudo chown runner:docker /var/run/docker.sock
-        if: ${{ env.ACT }}
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v3
