@@ -69,9 +69,6 @@ pub enum ManifestError {
 
     #[error(transparent)]
     SemverError(SemverError),
-
-    #[error("Cyclic package dependency found when processing {toml}")]
-    CyclicDependency { toml: PathBuf },
 }
 
 #[allow(clippy::enum_variant_names)]
