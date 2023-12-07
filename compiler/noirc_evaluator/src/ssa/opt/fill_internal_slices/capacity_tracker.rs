@@ -1,4 +1,9 @@
-use crate::ssa::ir::{dfg::DataFlowGraph, value::{ValueId, Value}, instruction::{Intrinsic, Instruction, InstructionId}, types::Type};
+use crate::ssa::ir::{
+    dfg::DataFlowGraph,
+    instruction::{Instruction, InstructionId, Intrinsic},
+    types::Type,
+    value::{Value, ValueId},
+};
 
 use fxhash::FxHashMap as HashMap;
 
@@ -20,9 +25,7 @@ pub(crate) struct SliceCapacityTracker<'a> {
 }
 
 impl<'a> SliceCapacityTracker<'a> {
-    pub(crate) fn new(
-        dfg: &'a DataFlowGraph,
-    ) -> Self {
+    pub(crate) fn new(dfg: &'a DataFlowGraph) -> Self {
         SliceCapacityTracker {
             dfg,
             mapped_slice_values: HashMap::default(),
@@ -246,5 +249,4 @@ impl<'a> SliceCapacityTracker<'a> {
     pub(crate) fn slice_values_map(&mut self) -> HashMap<ValueId, ValueId> {
         std::mem::take(&mut self.mapped_slice_values)
     }
-
 }

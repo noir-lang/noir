@@ -22,11 +22,7 @@ impl<'a> ValueMerger<'a> {
         block: BasicBlockId,
         slice_sizes: &'a mut HashMap<ValueId, (usize, Vec<ValueId>)>,
     ) -> Self {
-        ValueMerger {
-            dfg,
-            block,
-            slice_sizes,
-        }
+        ValueMerger { dfg, block, slice_sizes }
     }
 
     /// Merge two values a and b from separate basic blocks to a single value.
@@ -180,12 +176,11 @@ impl<'a> ValueMerger<'a> {
 
         let then_len = self.slice_sizes.get(&then_value_id).unwrap_or_else(||
             panic!("ICE: Merging values during flattening encountered a slice without a preset size")
-        ).0; 
-
+        ).0;
 
         let else_len = self.slice_sizes.get(&else_value_id).unwrap_or_else(||
             panic!("ICE: Merging values during flattening encountered a slice without a preset size")
-        ).0; 
+        ).0;
 
         let len = then_len.max(else_len);
 
@@ -204,7 +199,8 @@ impl<'a> ValueMerger<'a> {
                         self.make_slice_dummy_data(element_type)
                     } else {
                         let get = Instruction::ArrayGet { array, index };
-                        let res = self.dfg
+                        let res = self
+                            .dfg
                             .insert_instruction_and_results(
                                 get,
                                 self.block,
@@ -212,10 +208,13 @@ impl<'a> ValueMerger<'a> {
                                 CallStack::new(),
                             )
                             .first();
-                        
+
                         match element_type {
                             Type::Slice(_) => {
-                                let inner_sizes = self.slice_sizes.get(&array).unwrap_or_else(|| panic!("should have slice sizes"));
+                                let inner_sizes = self
+                                    .slice_sizes
+                                    .get(&array)
+                                    .unwrap_or_else(|| panic!("should have slice sizes"));
                                 let inner_sizes_iter = inner_sizes.1.clone();
                                 for slice_value in inner_sizes_iter {
                                     let inner_slice = self.slice_sizes.get(&slice_value).unwrap_or_else(|| {
@@ -229,7 +228,6 @@ impl<'a> ValueMerger<'a> {
                                     } else {
                                         self.slice_sizes.insert(res, inner_slice.clone());
                                     }
-
                                 }
                             }
                             _ => {}

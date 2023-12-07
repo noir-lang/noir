@@ -148,8 +148,8 @@ use crate::ssa::{
         types::Type,
         value::{Value, ValueId},
     },
+    opt::fill_internal_slices::capacity_tracker::SliceCapacityTracker,
     ssa_gen::Ssa,
-    opt::fill_internal_slices::capacity_tracker::SliceCapacityTracker
 };
 
 mod branch_analysis;
@@ -468,11 +468,8 @@ impl<'f> Context<'f> {
         });
 
         let block = self.inserter.function.entry_block();
-        let mut value_merger = ValueMerger::new(
-            &mut self.inserter.function.dfg,
-            block,
-            &mut self.slice_sizes,
-        );
+        let mut value_merger =
+            ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
@@ -516,11 +513,8 @@ impl<'f> Context<'f> {
 
         let block = self.inserter.function.entry_block();
 
-        let mut value_merger = ValueMerger::new(
-            &mut self.inserter.function.dfg,
-            block,
-            &mut self.slice_sizes,
-        );
+        let mut value_merger =
+            ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
 
         // Merging must occur in a separate loop as we cannot borrow `self` as mutable while `value_merger` does
         let mut new_values = HashMap::default();

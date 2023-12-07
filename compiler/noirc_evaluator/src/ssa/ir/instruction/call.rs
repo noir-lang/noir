@@ -1,5 +1,5 @@
-use std::{collections::VecDeque, rc::Rc};
 use fxhash::FxHashMap as HashMap;
+use std::{collections::VecDeque, rc::Rc};
 
 use acvm::{acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
 use iter_extended::vecmap;

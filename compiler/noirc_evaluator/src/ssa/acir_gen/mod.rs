@@ -1078,12 +1078,10 @@ impl Context {
 
         if array_typ.contains_slice_element() {
             let slice_sizes = self
-                    .slice_sizes
-                    .get(&array_id)
-                    .expect(
-                        "ICE: Expected array with internal slices to have associated slice sizes",
-                    )
-                    .clone();
+                .slice_sizes
+                .get(&array_id)
+                .expect("ICE: Expected array with internal slices to have associated slice sizes")
+                .clone();
             let results = dfg.instruction_results(instruction);
             self.slice_sizes.insert(results[0], slice_sizes);
         }
