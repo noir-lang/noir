@@ -4,7 +4,7 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::BTreeMap,
     path::{Component, Path, PathBuf},
 };
 
@@ -99,11 +99,7 @@ struct PackageConfig {
 }
 
 impl PackageConfig {
-    fn resolve_to_package(
-        &self,
-        root_dir: &Path,
-        resolved: &mut HashSet<String>,
-    ) -> Result<Package, ManifestError> {
+    fn resolve_to_package(&self, root_dir: &Path) -> Result<Package, ManifestError> {
         let name: CrateName = if let Some(name) = &self.package.name {
             name.parse().map_err(|_| ManifestError::InvalidPackageName {
                 toml: root_dir.join("Nargo.toml"),
@@ -119,7 +115,7 @@ impl PackageConfig {
                 toml: root_dir.join("Nargo.toml"),
                 name: name.into(),
             })?;
-            let resolved_dep = dep_config.resolve_to_dependency(root_dir, resolved)?;
+            let resolved_dep = dep_config.resolve_to_dependency(root_dir)?;
 
             dependencies.insert(name, resolved_dep);
         }
@@ -267,11 +263,7 @@ enum DependencyConfig {
 }
 
 impl DependencyConfig {
-    fn resolve_to_dependency(
-        &self,
-        pkg_root: &Path,
-        resolved: &mut HashSet<String>,
-    ) -> Result<Dependency, ManifestError> {
+    fn resolve_to_dependency(&self, pkg_root: &Path) -> Result<Dependency, ManifestError> {
         let dep = match self {
             Self::Github { git, tag, directory } => {
                 let dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
@@ -288,13 +280,13 @@ impl DependencyConfig {
                     dir_path
                 };
                 let toml_path = project_path.join("Nargo.toml");
-                let package = resolve_package_from_toml(&toml_path, resolved)?;
+                let package = resolve_package_from_toml(&toml_path)?;
                 Dependency::Remote { package }
             }
             Self::Path { path } => {
                 let dir_path = pkg_root.join(path);
                 let toml_path = dir_path.join("Nargo.toml");
-                let package = resolve_package_from_toml(&toml_path, resolved)?;
+                let package = resolve_package_from_toml(&toml_path)?;
                 Dependency::Local { package }
             }
         };
@@ -313,10 +305,9 @@ fn toml_to_workspace(
     nargo_toml: NargoToml,
     package_selection: PackageSelection,
 ) -> Result<Workspace, ManifestError> {
-    let mut resolved = HashSet::new();
     let workspace = match nargo_toml.config {
         Config::Package { package_config } => {
-            let member = package_config.resolve_to_package(&nargo_toml.root_dir, &mut resolved)?;
+            let member = package_config.resolve_to_package(&nargo_toml.root_dir)?;
             match &package_selection {
                 PackageSelection::Selected(selected_name) if selected_name != &member.name => {
                     return Err(ManifestError::MissingSelectedPackage(member.name))
@@ -334,7 +325,7 @@ fn toml_to_workspace(
             for (index, member_path) in workspace_config.members.into_iter().enumerate() {
                 let package_root_dir = nargo_toml.root_dir.join(&member_path);
                 let package_toml_path = package_root_dir.join("Nargo.toml");
-                let member = resolve_package_from_toml(&package_toml_path, &mut resolved)?;
+                let member = resolve_package_from_toml(&package_toml_path)?;
 
                 match &package_selection {
                     PackageSelection::Selected(selected_name) => {
@@ -391,24 +382,12 @@ fn read_toml(toml_path: &Path) -> Result<NargoToml, ManifestError> {
 }
 
 /// Resolves a Nargo.toml file into a `Package` struct as defined by our `nargo` core.
-fn resolve_package_from_toml(
-    toml_path: &Path,
-    resolved: &mut HashSet<String>,
-) -> Result<Package, ManifestError> {
-    // Checks for cyclic dependencies
-    if resolved.contains(toml_path.to_str().unwrap()) {
-        return Err(ManifestError::CyclicDependency { toml: toml_path.to_path_buf() });
-    }
-    // Adds the package to the set of resolved packages
-    if let Some(str) = toml_path.to_str() {
-        resolved.insert(str.to_string());
-    }
-
+fn resolve_package_from_toml(toml_path: &Path) -> Result<Package, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
 
     match nargo_toml.config {
         Config::Package { package_config } => {
-            package_config.resolve_to_package(&nargo_toml.root_dir, resolved)
+            package_config.resolve_to_package(&nargo_toml.root_dir)
         }
         Config::Workspace { .. } => {
             Err(ManifestError::UnexpectedWorkspace(toml_path.to_path_buf()))
