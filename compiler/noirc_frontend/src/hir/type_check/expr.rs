@@ -114,7 +114,7 @@ impl<'interner> TypeChecker<'interner> {
                         Type::Array(Box::new(length), Box::new(elem_type))
                     }
                     HirLiteral::Bool(_) => Type::Bool,
-                    HirLiteral::Integer(_) => Type::polymorphic_integer(self.interner),
+                    HirLiteral::Integer(_, _) => Type::polymorphic_integer(self.interner),
                     HirLiteral::Str(string) => {
                         let len = Type::Constant(string.len() as u64);
                         Type::String(Box::new(len))
@@ -1167,6 +1167,10 @@ impl<'interner> TypeChecker<'interner> {
 
         match op {
             crate::UnaryOp::Minus => {
+                if rhs_type.is_unsigned() {
+                    self.errors
+                        .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
+                }
                 let expected = Type::polymorphic_integer(self.interner);
                 rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
                     kind: rhs_type.to_string(),
