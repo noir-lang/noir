@@ -1,7 +1,7 @@
 {
   "extension": [
-    "ts"
+    "cjs",
+    "mjs"
   ],
-  "spec": "test/node/**/*.test.ts",
-  "require": "ts-node/register"
+  "spec": "test/**/*.test.*js"
 }

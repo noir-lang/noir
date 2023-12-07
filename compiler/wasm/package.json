@@ -5,23 +5,18 @@
   ],
   "version": "0.20.0",
   "license": "(MIT OR Apache-2.0)",
-  "main": "./nodejs/noir_wasm.js",
-  "types": "./web/noir_wasm.d.ts",
-  "module": "./web/noir_wasm.js",
-  "files": [
-    "nodejs",
-    "web",
-    "package.json"
-  ],
-  "sideEffects": false,
+  "main": "dist/index.js",
+  "types": "dist/types",
   "repository": {
     "type": "git",
     "url": "https://github.com/noir-lang/noir.git"
   },
   "scripts": {
-    "build": "bash ./build.sh",
-    "test": "yarn test:node && yarn test:browser",
-    "test:node": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\"}' mocha",
+    "wasm": "wasm-pack build ./noir_wasm --target nodejs",
+    "serve": "webpack serve",
+    "build": "webpack",
+    "test": "yarn test:node",
+    "test:node": "mocha",
     "test:browser": "web-test-runner",
     "clean": "chmod u+w web nodejs || true && rm -rf ./nodejs ./web ./target ./result",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
@@ -35,9 +30,19 @@
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",
+    "@types/node": "^20.10.0",
+    "@types/path-browserify": "^1",
+    "@wasm-tool/wasm-pack-plugin": "1.5.0",
     "@web/dev-server-esbuild": "^0.3.6",
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",
-    "mocha": "^10.2.0"
+    "html-webpack-plugin": "^5.3.2",
+    "mocha": "^10.2.0",
+    "path-browserify": "^1.0.1",
+    "text-encoding": "^0.7.0",
+    "typescript": "~5.2.2",
+    "webpack": "^5.49.0",
+    "webpack-cli": "^4.7.2",
+    "webpack-dev-server": "^4.15.1"
   }
 }
