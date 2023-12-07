@@ -7,10 +7,9 @@ description:
 keywords: [Nargo, command line tool, Noir programs, installation guide, how to use Nargo]
 ---
 
-`nargo` is a command line tool for interacting with Noir programs (e.g. compiling, proving,
-verifying and more).
+Welcome to `nargo`! 
 
-Alternatively, the interactions can also be performed in [NoirJS](../noir_js/noir_js.md).
+This command-line tool streamlines interaction with Noir programs, enabling tasks such as compilation, proving, verification, and more. You can also perform these actions alternatively using [NoirJS](https://noir-lang.org/noir_js/).
 
 ### UltraPlonk
 
