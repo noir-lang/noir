@@ -256,8 +256,8 @@ impl<'a> Resolver<'a> {
             return self.add_global_variable_decl(name, definition);
         }
 
-        let id = self.interner.push_definition(name.0.contents.clone(), mutable, definition);
         let location = Location::new(name.span(), self.file);
+        let id = self.interner.push_definition(name.0.contents.clone(), mutable, definition, location);
         let ident = HirIdent { location, id };
         let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
 
@@ -300,8 +300,8 @@ impl<'a> Resolver<'a> {
             ident = hir_let_stmt.ident();
             resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
         } else {
-            let id = self.interner.push_definition(name.0.contents.clone(), false, definition);
             let location = Location::new(name.span(), self.file);
+            let id = self.interner.push_definition(name.0.contents.clone(), false, definition, location);
             ident = HirIdent { location, id };
             resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
         }
