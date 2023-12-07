@@ -153,7 +153,7 @@ impl<'a> ModCollector<'a> {
 
             for (_, func_id, noir_function) in &mut unresolved_functions.functions {
                 noir_function.def.where_clause.append(&mut trait_impl.where_clause.clone());
-                let location = Location { span: noir_function.def.span, file: self.file_id };
+                let location = Location::new(noir_function.def.span, self.file_id);
                 context.def_interner.push_function(*func_id, &noir_function.def, module, location);
             }
 
