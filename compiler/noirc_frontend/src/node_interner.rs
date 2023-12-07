@@ -535,7 +535,7 @@ impl NodeInterner {
             (id, Shared::new(TypeBinding::Unbound(id)))
         });
 
-        let location = Location { span: typ.struct_def.span, file: file_id };
+        let location = Location::new(typ.struct_def.span, file_id);
         let new_struct = StructType::new(struct_id, name, location, no_fields, generics);
         self.structs.insert(struct_id, Shared::new(new_struct));
         self.struct_attributes.insert(struct_id, typ.struct_def.attributes.clone());
