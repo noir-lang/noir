@@ -23,13 +23,16 @@ slug: /
 
 ## What is Noir?
 
-Noir is a Domain Specific Language for SNARK proving systems. It has been designed to use any ACIR compatible proving system.
+Noir is a Domain-Specific Language (DSL) specifically designed for Zero-Knowledge Proof systems (SNARKs). This language is characterized by its versatility, as it is compatible with any proof system adhering to the Argument-Compressed Interactive Oracle (ACIR) standards.
 
-It's design choices are influenced heavily by Rust and focuses on a simple, familiar syntax.
+Inspired by the robust design choices of Rust, Noir stands out for its simple and familiar syntax, facilitating ease of implementation and usage.
 
 ## Who is Noir for?
 
-Noir can be used for a variety of purposes.
+- **SNARK Developers:** Tailored for developers working with Zero-Knowledge Proof systems (SNARKs) and ACIR-compatible proof systems.
+- **Rust Enthusiasts:** Appeals to developers who appreciate Rust's design principles, providing a familiar and accessible syntax.
+- **Blockchain Professionals:** Ideal for those in blockchain and smart contract development, offering applications in zero-knowledge proof verification and privacy enhancement.
+- **Privacy-Focused Developers:** A valuable tool for any developer interested in bolstering privacy within their applications, regardless of the specific domain.
 
 ### Solidity Developers
 
@@ -50,6 +53,8 @@ As a blockchain developer, you will be constrained by parameters set by your blo
 proving system and smart contract language has been pre-defined). In order for you to use Noir in
 your blockchain, a proving system backend and a smart contract interface
 must be implemented for it.
+
+![Imagen3](@site/static/img/imagen3.png)
 
 ## What's new about Noir?
 
