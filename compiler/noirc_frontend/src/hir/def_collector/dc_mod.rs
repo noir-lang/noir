@@ -187,7 +187,7 @@ impl<'a> ModCollector<'a> {
         for item in &trait_impl.items {
             if let TraitImplItem::Function(impl_method) = item {
                 let func_id = context.def_interner.push_empty_fn();
-                let location = Location { span: impl_method.span(), file: self.file_id };
+                let location = Location::new(impl_method.span(), self.file_id);
                 context.def_interner.push_function(func_id, &impl_method.def, module, location);
                 unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
             }
