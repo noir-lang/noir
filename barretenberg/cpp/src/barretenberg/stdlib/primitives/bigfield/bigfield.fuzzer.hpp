@@ -266,7 +266,7 @@ template <typename Builder> class BigFieldBase {
                 mask = (uint256_t(1) << mask_size) - 1;
                 // Choose the bit range
                 // Return instruction
-                return { .id = instruction_opcode, .arguments.element = Element(temp & mask) };
+                return { .id = instruction_opcode, .arguments.element = Element(static_cast<uint64_t>(temp & mask)) };
 
                 break;
             case OPCODE::RANDOMSEED:
