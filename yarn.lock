@@ -6332,17 +6332,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react@npm:^18.2.29":
-  version: 18.2.42
-  resolution: "@types/react@npm:18.2.42"
-  dependencies:
-    "@types/prop-types": "*"
-    "@types/scheduler": "*"
-    csstype: ^3.0.2
-  checksum: d2019afdf48303a3a598a97cc9dd2284e3c04b369e791f6ba3c33232b7f8645daff97b093a19f8b3ce75ac8a261b47552cb4513226ab16d843eb9443b0f91844
-  languageName: node
-  linkType: hard
-
 "@types/readable-stream@npm:^2.3.13":
   version: 2.3.15
   resolution: "@types/readable-stream@npm:2.3.15"
@@ -9993,7 +9982,6 @@ __metadata:
     "@mdx-js/react": ^3.0.0
     "@noir-lang/noir_js": "workspace:*"
     "@types/prettier": ^3
-    "@types/react": ^18.2.29
     axios: ^1.4.0
     clsx: ^1.2.1
     docusaurus-plugin-typedoc: 1.0.0-next.18
