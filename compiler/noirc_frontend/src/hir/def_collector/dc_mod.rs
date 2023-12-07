@@ -270,7 +270,9 @@ impl<'a> ModCollector<'a> {
 
             // Create the corresponding module for the struct namespace
             let id = match self.push_child_module(&name, self.file_id, false, false) {
-                Ok(local_id) => context.def_interner.new_struct(&unresolved, krate, local_id, self.file_id),
+                Ok(local_id) => {
+                    context.def_interner.new_struct(&unresolved, krate, local_id, self.file_id)
+                }
                 Err(error) => {
                     definition_errors.push((error.into(), self.file_id));
                     continue;
@@ -396,7 +398,9 @@ impl<'a> ModCollector<'a> {
                         };
 
                         let location = Location::new(name.span(), self.file_id);
-                        context.def_interner.push_function_definition(func_id, modifiers, id.0, location);
+                        context
+                            .def_interner
+                            .push_function_definition(func_id, modifiers, id.0, location);
 
                         match self.def_collector.def_map.modules[id.0.local_id.0]
                             .declare_function(name.clone(), func_id)

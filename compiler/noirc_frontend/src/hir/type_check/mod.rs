@@ -263,17 +263,19 @@ mod test {
         // let z = x + y;
         //
         // Push x variable
-        let x_id = interner.push_definition("x".into(), false, DefinitionKind::Local(None), location);
-
+        let x_id =
+            interner.push_definition("x".into(), false, DefinitionKind::Local(None), location);
 
         let x = HirIdent { id: x_id, location };
 
         // Push y variable
-        let y_id = interner.push_definition("y".into(), false, DefinitionKind::Local(None), location);
+        let y_id =
+            interner.push_definition("y".into(), false, DefinitionKind::Local(None), location);
         let y = HirIdent { id: y_id, location };
 
         // Push z variable
-        let z_id = interner.push_definition("z".into(), false, DefinitionKind::Local(None), location);
+        let z_id =
+            interner.push_definition("z".into(), false, DefinitionKind::Local(None), location);
         let z = HirIdent { id: z_id, location };
 
         // Push x and y as expressions
@@ -305,7 +307,12 @@ mod test {
 
         let name = HirIdent {
             location,
-            id: interner.push_definition("test_func".into(), false, DefinitionKind::Local(None), location),
+            id: interner.push_definition(
+                "test_func".into(),
+                false,
+                DefinitionKind::Local(None),
+                location,
+            ),
         };
 
         // Add function meta

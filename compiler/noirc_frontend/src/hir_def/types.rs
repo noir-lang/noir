@@ -9,7 +9,7 @@ use crate::{
     node_interner::{ExprId, NodeInterner, TypeAliasId},
 };
 use iter_extended::vecmap;
-use noirc_errors::{Span, Location};
+use noirc_errors::{Location, Span};
 use noirc_printable_type::PrintableType;
 
 use crate::{node_interner::StructId, Ident, Signedness};
@@ -192,7 +192,6 @@ impl StructType {
         id: StructId,
         name: Ident,
 
-        
         location: Location,
         fields: Vec<(Ident, Type)>,
         generics: Generics,

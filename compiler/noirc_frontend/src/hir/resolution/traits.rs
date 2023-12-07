@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Span, Location};
+use noirc_errors::{Location, Span};
 
 use crate::{
     graph::CrateId,
