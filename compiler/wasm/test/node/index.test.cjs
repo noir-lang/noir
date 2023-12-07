@@ -1,4 +1,13 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable no-undef */
 const { expect } = require('chai');
+const { readFileSync } = require('fs');
+const { join, resolve } = require('path');
+const { initializeResolver } = require('@noir-lang/source-resolver');
+const shared = require('../shared.cjs');
+
+const { compile } = require('../../dist/node/main.js');
+
 const {
   depsScriptSourcePath,
   depsScriptExpectedArtifact,
@@ -6,13 +15,10 @@ const {
   libBSourcePath,
   simpleScriptSourcePath,
   simpleScriptExpectedArtifact,
-} = require('../shared.js');
-const { readFileSync } = require('fs');
-const { join, resolve } = require('path');
-const compile = require('../../dist/index.js');
-const { initializeResolver } = require('@noir-lang/source-resolver');
+} = shared;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const { describe, it } = require('mocha');
+
 async function getPrecompiledSource(path) {
   const compiledData = readFileSync(resolve(__dirname, path)).toString();
   return JSON.parse(compiledData);
@@ -21,7 +27,6 @@ async function getPrecompiledSource(path) {
 describe('noir wasm compilation', () => {
   describe('can compile simple scripts', () => {
     it('matching nargos compilation', async () => {
-      console.log(compile);
       const wasmCircuit = await compile(join(__dirname, simpleScriptSourcePath));
       const cliCircuit = await getPrecompiledSource(simpleScriptExpectedArtifact);
 

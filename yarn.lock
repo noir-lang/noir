@@ -3504,20 +3504,19 @@ __metadata:
     "@esm-bundle/chai": ^4.3.4-fix.0
     "@types/node": ^20.10.0
     "@types/path-browserify": ^1
-    "@wasm-tool/wasm-pack-plugin": 1.5.0
+    "@wasm-tool/wasm-pack-plugin": ^1.7.0
     "@web/dev-server-esbuild": ^0.3.6
     "@web/test-runner": ^0.15.3
     "@web/test-runner-playwright": ^0.10.0
-    html-webpack-plugin: ^5.3.2
+    html-webpack-plugin: ^5.5.4
     mocha: ^10.2.0
     path-browserify: ^1.0.1
     text-encoding: ^0.7.0
+    ts-node: ^10.9.1
     typescript: ~5.2.2
     webpack: ^5.49.0
     webpack-cli: ^4.7.2
     webpack-dev-server: ^4.15.1
-  peerDependencies:
-    "@noir-lang/source-resolver": "workspace:*"
   languageName: unknown
   linkType: soft
 
@@ -5187,15 +5186,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@wasm-tool/wasm-pack-plugin@npm:1.5.0":
-  version: 1.5.0
-  resolution: "@wasm-tool/wasm-pack-plugin@npm:1.5.0"
+"@wasm-tool/wasm-pack-plugin@npm:^1.7.0":
+  version: 1.7.0
+  resolution: "@wasm-tool/wasm-pack-plugin@npm:1.7.0"
   dependencies:
     chalk: ^2.4.1
     command-exists: ^1.2.7
     watchpack: ^2.1.1
     which: ^2.0.2
-  checksum: 1488456f9fbd926eb9459d519ec004d8dd326cbbe5b06880164133f7a0b01b44a720a9fe9f14196532d77de40aa14d25c63ca5f0b9da995385b6256a3f806bf3
+  checksum: b0a09f70827b262c4b4689296aae712cc7d9fb742e32eb7e7b720a5b45be1d256864c84c37c8f97de4c762cdae9c35be4a37cdea6832281056921edf4944aea4
   languageName: node
   linkType: hard
 
@@ -10510,7 +10509,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"html-webpack-plugin@npm:^5.3.2, html-webpack-plugin@npm:^5.5.0":
+"html-webpack-plugin@npm:^5.5.0":
   version: 5.5.3
   resolution: "html-webpack-plugin@npm:5.5.3"
   dependencies:
@@ -10522,6 +10521,21 @@ __metadata:
   peerDependencies:
     webpack: ^5.20.0
   checksum: ccf685195739c372ad641bbd0c9100a847904f34eedc7aff3ece7856cd6c78fd3746d2d615af1bb71e5727993fe711b89e9b744f033ed3fde646540bf5d5e954
+  languageName: node
+  linkType: hard
+
+"html-webpack-plugin@npm:^5.5.4":
+  version: 5.5.4
+  resolution: "html-webpack-plugin@npm:5.5.4"
+  dependencies:
+    "@types/html-minifier-terser": ^6.0.0
+    html-minifier-terser: ^6.0.2
+    lodash: ^4.17.21
+    pretty-error: ^4.0.0
+    tapable: ^2.0.0
+  peerDependencies:
+    webpack: ^5.20.0
+  checksum: b49befb73d67a3716fd0e6f7776b108d2b0b7050fb8221f05cd114cbae13c03150a13b7cdf5e76170be040ce7936a1cf76f7a4bfd9ebe1552b72d7889a74c374
   languageName: node
   linkType: hard
 

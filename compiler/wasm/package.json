@@ -5,8 +5,14 @@
   ],
   "version": "0.20.0",
   "license": "(MIT OR Apache-2.0)",
-  "main": "dist/index.js",
+  "main": "dist/main.js",
   "types": "dist/types",
+  "exports": {
+    "node": "./dist/node/main.js",
+    "default": "./dist/web/main.js",
+    "import": "./dist/web/main.js",
+    "require": "./dist/node/main.js"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/noir-lang/noir.git"
@@ -25,21 +31,19 @@
     "build:nix": "nix build -L .#noir_wasm",
     "install:from:nix": "yarn clean && yarn build:nix && cp -rL ./result/noir_wasm/nodejs ./ && cp -rL ./result/noir_wasm/web ./"
   },
-  "peerDependencies": {
-    "@noir-lang/source-resolver": "workspace:*"
-  },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",
     "@types/node": "^20.10.0",
     "@types/path-browserify": "^1",
-    "@wasm-tool/wasm-pack-plugin": "1.5.0",
+    "@wasm-tool/wasm-pack-plugin": "^1.7.0",
     "@web/dev-server-esbuild": "^0.3.6",
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",
-    "html-webpack-plugin": "^5.3.2",
+    "html-webpack-plugin": "^5.5.4",
     "mocha": "^10.2.0",
     "path-browserify": "^1.0.1",
     "text-encoding": "^0.7.0",
+    "ts-node": "^10.9.1",
     "typescript": "~5.2.2",
     "webpack": "^5.49.0",
     "webpack-cli": "^4.7.2",
