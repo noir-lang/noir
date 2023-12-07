@@ -429,14 +429,7 @@ impl TypeVariable {
     pub fn bind(&self, typ: Type) {
         let id = match &*self.0.borrow() {
             TypeBinding::Bound(binding) => {
-                if *binding == typ {
-                    return;
-                } else {
-                    unreachable!(
-                        "TypeVariable::bind, cannot bind bound var {} to {}",
-                        binding, typ
-                    );
-                }
+                unreachable!("TypeVariable::bind, cannot bind bound var {} to {}", binding, typ)
             }
             TypeBinding::Unbound(id) => *id,
         };
