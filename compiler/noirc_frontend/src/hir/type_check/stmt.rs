@@ -8,7 +8,6 @@ use crate::hir_def::stmt::{
 };
 use crate::hir_def::types::Type;
 use crate::node_interner::{DefinitionId, ExprId, StmtId};
-use crate::{Shared, TypeBinding, TypeVariableKind};
 
 use super::errors::{Source, TypeCheckError};
 use super::TypeChecker;
@@ -71,9 +70,7 @@ impl<'interner> TypeChecker<'interner> {
             expr_span: range_span,
         });
 
-        let fresh_id = self.interner.next_type_variable_id();
-        let type_variable = Shared::new(TypeBinding::Unbound(fresh_id));
-        let expected_type = Type::TypeVariable(type_variable, TypeVariableKind::IntegerOrField);
+        let expected_type = Type::polymorphic_integer(self.interner);
 
         self.unify(&start_range_type, &expected_type, || {
             TypeCheckError::TypeCannotBeUsed {
