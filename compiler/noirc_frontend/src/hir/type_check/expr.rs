@@ -1168,6 +1168,10 @@ impl<'interner> TypeChecker<'interner> {
 
         match op {
             crate::UnaryOp::Minus => {
+                if rhs_type.is_unsigned() {
+                    self.errors
+                        .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
+                }
                 let expected = Type::polymorphic_integer(self.interner);
                 rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
                     kind: rhs_type.to_string(),
