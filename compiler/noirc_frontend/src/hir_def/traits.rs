@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
@@ -42,6 +44,13 @@ pub struct Trait {
     pub crate_id: CrateId,
 
     pub methods: Vec<TraitFunction>,
+
+    /// Maps method_name -> method id.
+    /// This map is separate from methods since TraitFunction ids
+    /// are created during collection where we don't yet have all
+    /// the information needed to create the full TraitFunction.
+    pub method_ids: HashMap<String, FuncId>,
+
     pub constants: Vec<TraitConstant>,
     pub types: Vec<TraitType>,
 
@@ -112,6 +121,7 @@ impl Trait {
             crate_id,
             span,
             methods: Vec::new(),
+            method_ids: HashMap::new(),
             constants: Vec::new(),
             types: Vec::new(),
             generics,
@@ -124,9 +134,9 @@ impl Trait {
         self.methods = methods;
     }
 
-    pub fn find_method(&self, name: Ident) -> Option<TraitMethodId> {
+    pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {
         for (idx, method) in self.methods.iter().enumerate() {
-            if method.name == name {
+            if &method.name == name {
                 return Some(TraitMethodId { trait_id: self.id, method_index: idx });
             }
         }

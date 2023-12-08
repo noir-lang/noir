@@ -200,6 +200,28 @@ impl<'a> Resolver<'a> {
         (hir_func, func_meta, self.errors)
     }
 
+    pub fn resolve_trait_function(
+        mut self,
+        func: NoirFunction,
+        func_id: FuncId,
+    ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
+        self.scopes.start_function();
+
+        // Check whether the function has globals in the local module and add them to the scope
+        self.resolve_local_globals();
+
+        self.add_generics(&func.def.generics);
+        self.trait_bounds = func.def.where_clause.clone();
+
+        let (hir_func, func_meta) = self.intern_function(func, func_id);
+        let func_scope_tree = self.scopes.end_function();
+
+        self.check_for_unused_variables_in_scope_tree(func_scope_tree);
+
+        self.trait_bounds.clear();
+        (hir_func, func_meta, self.errors)
+    }
+
     fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: ScopeTree) {
         let mut unused_vars = Vec::new();
         for scope in scope_decls.0.into_iter() {
@@ -523,7 +545,7 @@ impl<'a> Resolver<'a> {
         _new_variables: &mut Generics,
     ) -> Type {
         if let Some(t) = self.lookup_trait_or_error(path) {
-            Type::TraitAsType(t)
+            Type::TraitAsType(t.id, Rc::new(t.name.to_string()))
         } else {
             Type::Error
         }
@@ -938,7 +960,7 @@ impl<'a> Resolver<'a> {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
-            | Type::TraitAsType(_)
+            | Type::TraitAsType(..)
             | Type::Forall(_, _) => (),
 
             Type::Array(length, element_type) => {
@@ -1498,8 +1520,8 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    pub fn get_trait(&self, trait_id: TraitId) -> Trait {
-        self.interner.get_trait(trait_id)
+    pub fn get_trait_mut(&mut self, trait_id: TraitId) -> &mut Trait {
+        self.interner.get_trait_mut(trait_id)
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
@@ -1542,9 +1564,9 @@ impl<'a> Resolver<'a> {
     }
 
     /// Lookup a given trait by name/path.
-    fn lookup_trait_or_error(&mut self, path: Path) -> Option<Trait> {
+    fn lookup_trait_or_error(&mut self, path: Path) -> Option<&mut Trait> {
         match self.lookup(path) {
-            Ok(trait_id) => Some(self.get_trait(trait_id)),
+            Ok(trait_id) => Some(self.get_trait_mut(trait_id)),
             Err(error) => {
                 self.push_err(error);
                 None
@@ -1592,9 +1614,9 @@ impl<'a> Resolver<'a> {
                 if name == SELF_TYPE_NAME {
                     let the_trait = self.interner.get_trait(trait_id);
 
-                    if let Some(method) = the_trait.find_method(method.clone()) {
+                    if let Some(method) = the_trait.find_method(method.0.contents.as_str()) {
                         let self_type = Type::TypeVariable(
-                            the_trait.self_type_typevar,
+                            the_trait.self_type_typevar.clone(),
                             crate::TypeVariableKind::Normal,
                         );
                         return Some((HirExpression::TraitMethodReference(method), self_type));
@@ -1628,7 +1650,7 @@ impl<'a> Resolver<'a> {
                 {
                     let the_trait = self.interner.get_trait(trait_id);
                     if let Some(method) =
-                        the_trait.find_method(path.segments.last().unwrap().clone())
+                        the_trait.find_method(path.segments.last().unwrap().0.contents.as_str())
                     {
                         let self_type = self.resolve_type(typ.clone());
                         return Some((HirExpression::TraitMethodReference(method), self_type));

@@ -757,6 +757,9 @@ impl NodeInterner {
 
     /// Returns the interned meta data corresponding to `func_id`
     pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
+        if !self.func_meta.contains_key(func_id) {
+            eprintln!("No entry for key {:?}", func_id);
+        }
         self.func_meta.get(func_id).cloned().expect("ice: all function ids should have metadata")
     }
 
@@ -863,12 +866,16 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_trait(&self, id: TraitId) -> Trait {
-        self.traits[&id].clone()
+    pub fn get_trait(&self, id: TraitId) -> &Trait {
+        &self.traits[&id]
     }
 
-    pub fn try_get_trait(&self, id: TraitId) -> Option<Trait> {
-        self.traits.get(&id).cloned()
+    pub fn get_trait_mut(&mut self, id: TraitId) -> &mut Trait {
+        self.traits.get_mut(&id).expect("get_trait_mut given invalid TraitId")
+    }
+
+    pub fn try_get_trait(&self, id: TraitId) -> Option<&Trait> {
+        self.traits.get(&id)
     }
 
     pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
@@ -892,7 +899,7 @@ impl NodeInterner {
         let typ = self.id_type(def_id);
         if let Type::Function(args, ret, env) = &typ {
             let def = self.definition(def_id);
-            if let Type::TraitAsType(_trait) = ret.as_ref() {
+            if let Type::TraitAsType(..) = ret.as_ref() {
                 if let DefinitionKind::Function(func_id) = def.kind {
                     let f = self.function(&func_id);
                     let func_body = f.as_expr();
@@ -1382,6 +1389,6 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Error
         | Type::NotConstant
         | Type::Struct(_, _)
-        | Type::TraitAsType(_) => None,
+        | Type::TraitAsType(..) => None,
     }
 }
