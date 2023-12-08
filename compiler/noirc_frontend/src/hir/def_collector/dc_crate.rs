@@ -244,10 +244,19 @@ impl DefCollector {
             context,
         ));
 
+        let submodules = vecmap(def_collector.def_map.modules().iter(), |(index, _)| index);
         // Add the current crate to the collection of DefMaps
         context.def_maps.insert(crate_id, def_collector.def_map);
 
         inject_prelude(crate_id, context, crate_root, &mut def_collector.collected_imports);
+        for submodule in submodules {
+            inject_prelude(
+                crate_id,
+                context,
+                LocalModuleId(submodule),
+                &mut def_collector.collected_imports,
+            );
+        }
 
         // Resolve unresolved imports collected from the crate
         let (resolved, unresolved_imports) =
