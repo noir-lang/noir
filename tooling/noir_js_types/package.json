@@ -4,7 +4,7 @@
     "The Noir Team <team@noir-lang.org>"
   ],
   "packageManager": "yarn@3.5.1",
-  "version": "0.19.2",
+  "version": "0.20.0",
   "license": "(MIT OR Apache-2.0)",
   "files": [
     "lib",
@@ -19,7 +19,8 @@
     "build": "yarn run build:cjs && yarn run build:esm",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
     "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
-    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
+    "clean": "rm -rf ./lib"
   },
   "exports": {
     ".": {

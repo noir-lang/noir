@@ -8,6 +8,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
+use errors::SemverError;
 use fm::{NormalizePath, FILE_EXTENSION};
 use nargo::{
     package::{Dependency, Package, PackageType},
@@ -99,7 +100,7 @@ struct PackageConfig {
 
 impl PackageConfig {
     fn resolve_to_package(&self, root_dir: &Path) -> Result<Package, ManifestError> {
-        let name = if let Some(name) = &self.package.name {
+        let name: CrateName = if let Some(name) = &self.package.name {
             name.parse().map_err(|_| ManifestError::InvalidPackageName {
                 toml: root_dir.join("Nargo.toml"),
                 name: name.into(),
@@ -163,7 +164,18 @@ impl PackageConfig {
             }
         };
 
+        // If there is a package version, ensure that it is semver compatible
+        if let Some(version) = &self.package.version {
+            semver::parse_semver_compatible_version(version).map_err(|err| {
+                ManifestError::SemverError(SemverError::CouldNotParsePackageVersion {
+                    package_name: name.to_string(),
+                    error: err.to_string(),
+                })
+            })?;
+        }
+
         Ok(Package {
+            version: self.package.version.clone(),
             compiler_required_version: self.package.compiler_version.clone(),
             root_dir: root_dir.to_path_buf(),
             entry_path,
@@ -225,6 +237,7 @@ struct WorkspaceConfig {
 #[derive(Default, Debug, Deserialize, Clone)]
 struct PackageMetadata {
     name: Option<String>,
+    version: Option<String>,
     #[serde(alias = "type")]
     package_type: Option<String>,
     entry: Option<PathBuf>,

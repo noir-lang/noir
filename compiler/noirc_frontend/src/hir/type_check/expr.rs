@@ -11,7 +11,7 @@ use crate::{
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitMethodId},
-    BinaryOpKind, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
+    BinaryOpKind, Signedness, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -114,7 +114,7 @@ impl<'interner> TypeChecker<'interner> {
                         Type::Array(Box::new(length), Box::new(elem_type))
                     }
                     HirLiteral::Bool(_) => Type::Bool,
-                    HirLiteral::Integer(_) => Type::polymorphic_integer(self.interner),
+                    HirLiteral::Integer(_, _) => Type::polymorphic_integer(self.interner),
                     HirLiteral::Str(string) => {
                         let len = Type::Constant(string.len() as u64);
                         Type::String(Box::new(len))
@@ -289,14 +289,7 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::TraitMethodReference(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
-                let method = &the_trait.methods[method.method_index];
-
-                let typ = Type::Function(
-                    method.arguments.clone(),
-                    Box::new(method.return_type.clone()),
-                    Box::new(Type::Unit),
-                );
-
+                let typ = &the_trait.methods[method.method_index].typ;
                 let (typ, bindings) = typ.instantiate(self.interner);
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
                 typ
@@ -317,12 +310,19 @@ impl<'interner> TypeChecker<'interner> {
         match self.interner.lookup_trait_implementation(object_type, trait_id) {
             Ok(impl_kind) => self.interner.select_impl_for_ident(function_ident_id, impl_kind),
             Err(erroring_constraints) => {
-                let constraints = vecmap(erroring_constraints, |constraint| {
-                    let r#trait = self.interner.get_trait(constraint.trait_id);
-                    (constraint.typ, r#trait.name.to_string())
-                });
+                // Don't show any errors where try_get_trait returns None.
+                // This can happen if a trait is used that was never declared.
+                let constraints = erroring_constraints
+                    .into_iter()
+                    .map(|constraint| {
+                        let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
+                        Some((constraint.typ, r#trait.name.to_string()))
+                    })
+                    .collect::<Option<Vec<_>>>();
 
-                self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+                if let Some(constraints) = constraints {
+                    self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+                }
             }
         }
     }
@@ -539,7 +539,7 @@ impl<'interner> TypeChecker<'interner> {
             HirMethodReference::TraitMethodId(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
-                (method.get_type(), method.arguments.len())
+                (method.typ.clone(), method.arguments().len())
             }
         };
 
@@ -771,7 +771,11 @@ impl<'interner> TypeChecker<'interner> {
                     }));
                 }
 
-                if other.try_bind_to_polymorphic_int(int).is_ok() || other == &Type::Error {
+                let mut bindings = TypeBindings::new();
+                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
+                    || other == &Type::Error
+                {
+                    Type::apply_type_bindings(bindings);
                     Ok(Bool)
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
@@ -902,13 +906,15 @@ impl<'interner> TypeChecker<'interner> {
 
                 for constraint in func_meta.trait_constraints {
                     if *object_type == constraint.typ {
-                        let the_trait = self.interner.get_trait(constraint.trait_id);
-
-                        for (method_index, method) in the_trait.methods.iter().enumerate() {
-                            if method.name.0.contents == method_name {
-                                let trait_method =
-                                    TraitMethodId { trait_id: constraint.trait_id, method_index };
-                                return Some(HirMethodReference::TraitMethodId(trait_method));
+                        if let Some(the_trait) = self.interner.try_get_trait(constraint.trait_id) {
+                            for (method_index, method) in the_trait.methods.iter().enumerate() {
+                                if method.name.0.contents == method_name {
+                                    let trait_method = TraitMethodId {
+                                        trait_id: constraint.trait_id,
+                                        method_index,
+                                    };
+                                    return Some(HirMethodReference::TraitMethodId(trait_method));
+                                }
                             }
                         }
                     }
@@ -1000,7 +1006,7 @@ impl<'interner> TypeChecker<'interner> {
                 let env_type = self.interner.next_type_variable();
                 let expected = Type::Function(args, Box::new(ret.clone()), Box::new(env_type));
 
-                if let Err(error) = binding.borrow_mut().bind_to(expected, span) {
+                if let Err(error) = binding.try_bind(expected, span) {
                     self.errors.push(error);
                 }
                 ret
@@ -1068,7 +1074,11 @@ impl<'interner> TypeChecker<'interner> {
                     }));
                 }
 
-                if other.try_bind_to_polymorphic_int(int).is_ok() || other == &Type::Error {
+                let mut bindings = TypeBindings::new();
+                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
+                    || other == &Type::Error
+                {
+                    Type::apply_type_bindings(bindings);
                     Ok(other.clone())
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
@@ -1158,6 +1168,10 @@ impl<'interner> TypeChecker<'interner> {
 
         match op {
             crate::UnaryOp::Minus => {
+                if rhs_type.is_unsigned() {
+                    self.errors
+                        .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
+                }
                 let expected = Type::polymorphic_integer(self.interner);
                 rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
                     kind: rhs_type.to_string(),

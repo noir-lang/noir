@@ -97,6 +97,10 @@ impl ParserError {
     pub fn reason(&self) -> Option<&ParserErrorReason> {
         self.reason.as_ref()
     }
+
+    pub fn is_warning(&self) -> bool {
+        matches!(self.reason(), Some(ParserErrorReason::ExperimentalFeature(_)))
+    }
 }
 
 impl std::fmt::Display for ParserError {

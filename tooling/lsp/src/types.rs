@@ -1,5 +1,11 @@
+use fm::FileId;
+use lsp_types::{DefinitionOptions, OneOf};
+use noirc_driver::DebugFile;
+use noirc_errors::{debug_info::OpCodesCount, Location};
 use noirc_frontend::graph::CrateName;
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
+use std::collections::{BTreeMap, HashMap};
 
 // Re-providing lsp_types that we don't need to override
 pub(crate) use lsp_types::{
@@ -7,19 +13,21 @@ pub(crate) use lsp_types::{
     DidChangeConfigurationParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, InitializeParams, InitializedParams,
     LogMessageParams, MessageType, Position, PublishDiagnosticsParams, Range, ServerInfo,
-    TextDocumentSyncCapability, TextDocumentSyncOptions, Url,
+    TextDocumentSyncCapability, Url,
 };
 
 pub(crate) mod request {
     use lsp_types::{request::Request, InitializeParams};
 
     use super::{
-        InitializeResult, NargoTestRunParams, NargoTestRunResult, NargoTestsParams,
-        NargoTestsResult,
+        InitializeResult, NargoProfileRunParams, NargoProfileRunResult, NargoTestRunParams,
+        NargoTestRunResult, NargoTestsParams, NargoTestsResult,
     };
 
     // Re-providing lsp_types that we don't need to override
-    pub(crate) use lsp_types::request::{CodeLensRequest as CodeLens, Shutdown};
+    pub(crate) use lsp_types::request::{
+        CodeLensRequest as CodeLens, Formatting, GotoDefinition, Shutdown,
+    };
 
     #[derive(Debug)]
     pub(crate) struct Initialize;
@@ -43,6 +51,14 @@ pub(crate) mod request {
         type Params = NargoTestsParams;
         type Result = NargoTestsResult;
         const METHOD: &'static str = "nargo/tests";
+    }
+
+    #[derive(Debug)]
+    pub(crate) struct NargoProfileRun;
+    impl Request for NargoProfileRun {
+        type Params = NargoProfileRunParams;
+        type Result = NargoProfileRunResult;
+        const METHOD: &'static str = "nargo/profile/run";
     }
 }
 
@@ -95,9 +111,16 @@ pub(crate) struct ServerCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) text_document_sync: Option<TextDocumentSyncCapability>,
 
+    /// The server provides goto definition support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) definition_provider: Option<OneOf<bool, DefinitionOptions>>,
+
     /// The server provides code lens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) code_lens_provider: Option<CodeLensOptions>,
+
+    /// The server provides document formatting.
+    pub(crate) document_formatting_provider: bool,
 
     /// The server handles and provides custom nargo messages.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -186,5 +209,17 @@ pub(crate) struct NargoTestRunResult {
     pub(crate) result: String,
     pub(crate) message: Option<String>,
 }
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct NargoProfileRunParams {
+    pub(crate) package: CrateName,
+}
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct NargoProfileRunResult {
+    pub(crate) file_map: BTreeMap<FileId, DebugFile>,
+    #[serde_as(as = "Vec<(_, _)>")]
+    pub(crate) opcodes_counts: HashMap<Location, OpCodesCount>,
+}
 
 pub(crate) type CodeLensResult = Option<Vec<CodeLens>>;
+pub(crate) type GotoDefinitionResult = Option<lsp_types::GotoDefinitionResponse>;

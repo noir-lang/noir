@@ -245,9 +245,6 @@ pub(super) fn simplify_call(
             let instruction = Instruction::Cast(arguments[0], ctrl_typevars.unwrap().remove(0));
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
-        Intrinsic::WrappingShiftLeft => {
-            unreachable!("ICE - wrapping shift left should have been proccessed before")
-        }
     }
 }
 

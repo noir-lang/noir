@@ -91,6 +91,7 @@ impl Ssa {
             let mut context = PerFunctionContext::new(function);
             context.mem2reg();
             context.remove_instructions();
+            context.update_data_bus();
         }
         self
     }
@@ -326,7 +327,7 @@ impl<'f> PerFunctionContext<'f> {
         match typ {
             Type::Numeric(_) => false,
             Type::Function => false,
-            Type::Reference => true,
+            Type::Reference(_) => true,
             Type::Array(elements, _) | Type::Slice(elements) => {
                 elements.iter().any(Self::contains_references)
             }
@@ -360,6 +361,11 @@ impl<'f> PerFunctionContext<'f> {
                 .instructions_mut()
                 .retain(|instruction| !self.instructions_to_remove.contains(instruction));
         }
+    }
+
+    fn update_data_bus(&mut self) {
+        let databus = self.inserter.function.dfg.data_bus.clone();
+        self.inserter.function.dfg.data_bus = databus.map_values(|t| self.inserter.resolve(t));
     }
 
     fn handle_terminator(&mut self, block: BasicBlockId, references: &mut Block) {
@@ -427,7 +433,7 @@ mod tests {
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::Array(Rc::new(vec![Type::field()]), 2));
         let one = builder.field_constant(FieldElement::one());
         let two = builder.field_constant(FieldElement::one());
 
@@ -468,7 +474,7 @@ mod tests {
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::field());
         let one = builder.field_constant(FieldElement::one());
         builder.insert_store(v0, one);
         let v1 = builder.insert_load(v0, Type::field());
@@ -502,7 +508,7 @@ mod tests {
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::field());
         let const_one = builder.field_constant(FieldElement::one());
         builder.insert_store(v0, const_one);
         builder.terminate_with_return(vec![v0]);
@@ -562,7 +568,7 @@ mod tests {
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::field());
 
         let five = builder.field_constant(5u128);
         builder.insert_store(v0, five);
@@ -642,12 +648,12 @@ mod tests {
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::field());
 
         let zero = builder.field_constant(0u128);
         builder.insert_store(v0, zero);
 
-        let v2 = builder.insert_allocate();
+        let v2 = builder.insert_allocate(Type::Reference(Rc::new(Type::field())));
         builder.insert_store(v2, v0);
 
         let v3 = builder.insert_load(v2, Type::field());

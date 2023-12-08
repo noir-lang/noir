@@ -67,7 +67,7 @@ pub(crate) fn run(
         .cloned()
         .partition(|package| package.is_binary());
 
-    let (np_language, opcode_support) = backend.get_backend_info()?;
+    let (np_language, opcode_support) = backend.get_backend_info_or_default();
     let (compiled_programs, compiled_contracts) = compile_workspace(
         &workspace,
         &binary_packages,
@@ -81,7 +81,7 @@ pub(crate) fn run(
         for compiled_program in &compiled_programs {
             let span_opcodes = compiled_program.debug.count_span_opcodes();
             let debug_artifact: DebugArtifact = compiled_program.clone().into();
-            print_span_opcodes(&span_opcodes, &debug_artifact);
+            print_span_opcodes(span_opcodes, &debug_artifact);
         }
 
         for compiled_contract in &compiled_contracts {
@@ -89,7 +89,7 @@ pub(crate) fn run(
             let functions = &compiled_contract.functions;
             for contract_function in functions {
                 let span_opcodes = contract_function.debug.count_span_opcodes();
-                print_span_opcodes(&span_opcodes, &debug_artifact);
+                print_span_opcodes(span_opcodes, &debug_artifact);
             }
         }
     }
@@ -149,10 +149,10 @@ pub(crate) fn run(
 /// Number of OpCodes in relation to Noir source file
 /// and line number information
 fn print_span_opcodes(
-    span_opcodes_map: &HashMap<&Location, OpCodesCount>,
+    span_opcodes_map: HashMap<Location, OpCodesCount>,
     debug_artifact: &DebugArtifact,
 ) {
-    let mut pairs: Vec<(&&Location, &OpCodesCount)> = span_opcodes_map.iter().collect();
+    let mut pairs: Vec<(&Location, &OpCodesCount)> = span_opcodes_map.iter().collect();
 
     pairs.sort_by(|a, b| {
         a.1.acir_size.cmp(&b.1.acir_size).then_with(|| a.1.brillig_size.cmp(&b.1.brillig_size))
@@ -165,7 +165,7 @@ fn print_span_opcodes(
         let end_byte = byte_index(&debug_file.source, location.span.end() + 1);
         let range = start_byte..end_byte;
         let span_content = &debug_file.source[range];
-        let line = debug_artifact.location_line_index(**location).unwrap() + 1;
+        let line = debug_artifact.location_line_index(*location).unwrap() + 1;
         println!(
             "Ln. {}: {} (ACIR:{}, Brillig:{} opcode|s) in file: {}",
             line,

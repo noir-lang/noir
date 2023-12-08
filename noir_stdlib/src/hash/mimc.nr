@@ -3,20 +3,19 @@
 // You must use constants generated for the native field
 // Rounds number should be ~ log(p)/log(exp)
 // For 254 bit primes, exponent 7 and 91 rounds seems to be recommended
-fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field {
+fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp: Field) -> Field {
     //round 0
     let mut t = x + k;
     let mut h = t.pow_32(exp);
     //next rounds
-    for i in 1 .. constants.len() {
+    for i in 1..constants.len() {
         t = h + k + constants[i];
         h = t.pow_32(exp);
-    };
+    }
     h + k
 }
 
 global MIMC_BN254_ROUNDS = 91;
-
 //mimc implementation with hardcoded parameters for BN254 curve.
 #[field(bn254)]
 pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
@@ -24,7 +23,7 @@ pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
     let exponent = 7;
     //generated from seed "mimc" using keccak256 
     let constants: [Field; MIMC_BN254_ROUNDS] = [
-        0, 
+        0,
         20888961410941983456478427210666206549300505294776164667214940546594746570981,
         15265126113435022738560151911929040668591755459209400716467504685752745317193,
         8334177627492981984476504167502758309043212251641796197711684499645635709656,
@@ -114,7 +113,7 @@ pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
         4212716923652881254737947578600828255798948993302968210248673545442808456151,
         7594017890037021425366623750593200398174488805473151513558919864633711506220,
         18979889247746272055963929241596362599320706910852082477600815822482192194401,
-        13602139229813231349386885113156901793661719180900395818909719758150455500533,
+        13602139229813231349386885113156901793661719180900395818909719758150455500533
     ];
 
     let mut r = 0;

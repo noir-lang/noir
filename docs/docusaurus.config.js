@@ -6,6 +6,7 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 
 const math = require('remark-math');
 const katex = require('rehype-katex');
+const path = require('path');
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -37,7 +38,7 @@ const config = {
         //         },
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
-          routeBasePath: '/',
+          routeBasePath: '/docs',
           remarkPlugins: [math],
           rehypePlugins: [katex],
           versions: {
@@ -70,7 +71,7 @@ const config = {
         },
         items: [
           {
-            href: 'https://github.com/noir-lang/docs',
+            href: 'https://github.com/noir-lang/noir/tree/master/docs',
             label: 'GitHub',
             position: 'right',
           },
@@ -147,6 +148,22 @@ const config = {
       },
     },
   plugins: [
+    () => ({
+      name: 'resolve-react',
+      configureWebpack() {
+        return {
+          resolve: {
+            alias: {
+              // assuming root node_modules is up from "./packages/<your-docusaurus>
+              react: path.resolve('../node_modules/react'),
+            },
+          },
+          optimization: {
+            innerGraph: false,
+          },
+        };
+      },
+    }),
     [
       'docusaurus-plugin-typedoc',
       {
@@ -207,6 +224,21 @@ const config = {
         outputFileStrategy: 'members',
         memberPageTitle: '{name}',
         membersWithOwnFile: ['Interface', 'Class', 'TypeAlias'],
+      },
+    ],
+    [
+      '@docusaurus/plugin-content-pages',
+      {
+        id: 'pages',
+        path: 'src/pages',
+        routeBasePath: '/',
+        include: ['**/*.{js,jsx,ts,tsx,md,mdx}'],
+        exclude: ['**/_*.{js,jsx,ts,tsx,md,mdx}', '**/_*/**', '**/*.test.{js,jsx,ts,tsx}', '**/__tests__/**'],
+        mdxPageComponent: '@theme/MDXPage',
+        remarkPlugins: [require('remark-math')],
+        rehypePlugins: [],
+        beforeDefaultRemarkPlugins: [],
+        beforeDefaultRehypePlugins: [],
       },
     ],
   ],

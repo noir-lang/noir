@@ -11,5 +11,4 @@ pub mod ssa;
 
 pub mod brillig;
 
-pub use ssa::abi_gen::into_abi_params;
 pub use ssa::create_circuit;
