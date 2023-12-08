@@ -27,7 +27,7 @@
   "types": "lib/index.d.ts",
   "scripts": {
     "dev": "tsc-multi --watch",
-    "build": "tsc-multi",
+    "build": "tsc-multi && cd test/noir_compiled_examples/assert_lt && nargo compile",
     "test": "yarn test:node:esm && yarn test:node:cjs",
     "test:node:esm": "mocha --timeout 25000 --exit --config ./.mocharc.json",
     "test:node:cjs": "mocha --timeout 25000 --exit --config ./.mocharc.cjs.json",
