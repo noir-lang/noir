@@ -200,28 +200,6 @@ impl<'a> Resolver<'a> {
         (hir_func, func_meta, self.errors)
     }
 
-    pub fn resolve_trait_function(
-        mut self,
-        func: NoirFunction,
-        func_id: FuncId,
-    ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
-        self.scopes.start_function();
-
-        // Check whether the function has globals in the local module and add them to the scope
-        self.resolve_local_globals();
-
-        self.add_generics(&func.def.generics);
-        self.trait_bounds = func.def.where_clause.clone();
-
-        let (hir_func, func_meta) = self.intern_function(func, func_id);
-        let func_scope_tree = self.scopes.end_function();
-
-        self.check_for_unused_variables_in_scope_tree(func_scope_tree);
-
-        self.trait_bounds.clear();
-        (hir_func, func_meta, self.errors)
-    }
-
     fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: ScopeTree) {
         let mut unused_vars = Vec::new();
         for scope in scope_decls.0.into_iter() {

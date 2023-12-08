@@ -757,9 +757,6 @@ impl NodeInterner {
 
     /// Returns the interned meta data corresponding to `func_id`
     pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
-        if !self.func_meta.contains_key(func_id) {
-            eprintln!("No entry for key {:?}", func_id);
-        }
         self.func_meta.get(func_id).cloned().expect("ice: all function ids should have metadata")
     }
 
