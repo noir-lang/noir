@@ -19,7 +19,7 @@ use crate::hir_def::expr::{
 };
 
 use crate::hir_def::traits::{Trait, TraitConstraint};
-use crate::token::FunctionAttribute;
+use crate::token::{FunctionAttribute, Attributes};
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
@@ -41,7 +41,7 @@ use crate::{
     LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern, Shared, StructType, Type,
     TypeAliasType, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-    Visibility, ERROR_IDENT,
+    Visibility, ERROR_IDENT, FunctionReturnType, FunctionDefinition,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -201,25 +201,49 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn resolve_trait_function(
-        mut self,
-        func: NoirFunction,
+        &mut self,
+        name: &Ident,
+        parameters: &[(Ident, UnresolvedType)],
+        return_type: &FunctionReturnType,
+        where_clause: &Vec<UnresolvedTraitConstraint>,
         func_id: FuncId,
-    ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
+    ) -> (HirFunction, FuncMeta) {
         self.scopes.start_function();
 
         // Check whether the function has globals in the local module and add them to the scope
         self.resolve_local_globals();
 
-        self.add_generics(&func.def.generics);
-        self.trait_bounds = func.def.where_clause.clone();
+        self.trait_bounds = where_clause.clone();
 
-        let (hir_func, func_meta) = self.intern_function(func, func_id);
+        let kind = FunctionKind::Normal;
+        let def = FunctionDefinition {
+            name: name.clone(),
+            attributes: Attributes::empty(),
+            is_open: false,
+            is_internal: false,
+            is_unconstrained: false,
+            visibility: FunctionVisibility::Public, // Trait functions are always public
+            generics: Vec::new(), // self.generics should already be set
+            parameters: vecmap(parameters, |(name, typ)| Param {
+                visibility: Visibility::Private,
+                pattern: Pattern::Identifier(name.clone()),
+                typ: typ.clone(),
+                span: name.span(),
+            }),
+            body: BlockExpression(Vec::new()),
+            span: name.span(),
+            where_clause: where_clause.clone(),
+            return_type: return_type.clone(),
+            return_visibility: Visibility::Private,
+            return_distinctness: Distinctness::DuplicationAllowed,
+        };
+
+        let (hir_func, func_meta) = self.intern_function(NoirFunction { kind, def }, func_id);
         let func_scope_tree = self.scopes.end_function();
-
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
 
         self.trait_bounds.clear();
-        (hir_func, func_meta, self.errors)
+        (hir_func, func_meta)
     }
 
     fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: ScopeTree) {

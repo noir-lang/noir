@@ -489,28 +489,31 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
-    pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
+    pub fn push_empty_trait(&mut self, type_id: TraitId, unresolved_trait: &UnresolvedTrait) {
         let self_type_typevar_id = self.next_type_variable_id();
 
-        self.traits.insert(
-            type_id,
-            Trait::new(
-                type_id,
-                typ.trait_def.name.clone(),
-                typ.crate_id,
-                typ.trait_def.span,
-                vecmap(&typ.trait_def.generics, |_| {
-                    // Temporary type variable ids before the trait is resolved to its actual ids.
-                    // This lets us record how many arguments the type expects so that other types
-                    // can refer to it with generic arguments before the generic parameters themselves
-                    // are resolved.
-                    let id = TypeVariableId(0);
-                    (id, TypeVariable::unbound(id))
-                }),
-                self_type_typevar_id,
-                TypeVariable::unbound(self_type_typevar_id),
-            ),
-        );
+        let new_trait = Trait {
+            id: type_id,
+            name: unresolved_trait.trait_def.name.clone(),
+            crate_id: unresolved_trait.crate_id,
+            span: unresolved_trait.trait_def.span,
+            generics: vecmap(&unresolved_trait.trait_def.generics, |_| {
+                // Temporary type variable ids before the trait is resolved to its actual ids.
+                // This lets us record how many arguments the type expects so that other types
+                // can refer to it with generic arguments before the generic parameters themselves
+                // are resolved.
+                let id = TypeVariableId(0);
+                (id, TypeVariable::unbound(id))
+            }),
+            self_type_typevar_id,
+            self_type_typevar: TypeVariable::unbound(self_type_typevar_id),
+            methods: Vec::new(),
+            method_ids: unresolved_trait.method_ids.clone(),
+            constants: Vec::new(),
+            types: Vec::new(),
+        };
+
+        self.traits.insert(type_id, new_trait);
     }
 
     pub fn new_struct(
@@ -757,9 +760,6 @@ impl NodeInterner {
 
     /// Returns the interned meta data corresponding to `func_id`
     pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
-        if !self.func_meta.contains_key(func_id) {
-            eprintln!("No entry for key {:?}", func_id);
-        }
         self.func_meta.get(func_id).cloned().expect("ice: all function ids should have metadata")
     }
 

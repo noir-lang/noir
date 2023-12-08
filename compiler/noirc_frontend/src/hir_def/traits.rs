@@ -106,30 +106,6 @@ impl PartialEq for Trait {
 }
 
 impl Trait {
-    pub fn new(
-        id: TraitId,
-        name: Ident,
-        crate_id: CrateId,
-        span: Span,
-        generics: Generics,
-        self_type_typevar_id: TypeVariableId,
-        self_type_typevar: TypeVariable,
-    ) -> Trait {
-        Trait {
-            id,
-            name,
-            crate_id,
-            span,
-            methods: Vec::new(),
-            method_ids: HashMap::new(),
-            constants: Vec::new(),
-            types: Vec::new(),
-            generics,
-            self_type_typevar_id,
-            self_type_typevar,
-        }
-    }
-
     pub fn set_methods(&mut self, methods: Vec<TraitFunction>) {
         self.methods = methods;
     }

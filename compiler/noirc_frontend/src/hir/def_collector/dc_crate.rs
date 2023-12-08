@@ -81,6 +81,7 @@ pub struct UnresolvedTrait {
     pub module_id: LocalModuleId,
     pub crate_id: CrateId,
     pub trait_def: NoirTrait,
+    pub method_ids: HashMap<String, FuncId>,
     pub fns_with_default_impl: UnresolvedFunctions,
 }
 
