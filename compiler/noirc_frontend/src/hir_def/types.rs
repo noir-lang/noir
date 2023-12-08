@@ -9,7 +9,7 @@ use crate::{
     node_interner::{ExprId, NodeInterner, TypeAliasId},
 };
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 use noirc_printable_type::PrintableType;
 
 use crate::{node_interner::StructId, Ident, Signedness};
@@ -166,7 +166,7 @@ pub struct StructType {
     fields: Vec<(Ident, Type)>,
 
     pub generics: Generics,
-    pub span: Span,
+    pub location: Location,
 }
 
 /// Corresponds to generic lists such as `<T, U>` in the source
@@ -191,11 +191,12 @@ impl StructType {
     pub fn new(
         id: StructId,
         name: Ident,
-        span: Span,
+
+        location: Location,
         fields: Vec<(Ident, Type)>,
         generics: Generics,
     ) -> StructType {
-        StructType { id, fields, name, span, generics }
+        StructType { id, fields, name, location, generics }
     }
 
     /// To account for cyclic references between structs, a struct's

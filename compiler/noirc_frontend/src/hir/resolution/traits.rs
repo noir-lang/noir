@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::{
     graph::CrateId,
@@ -187,7 +187,8 @@ fn collect_trait_impl_methods(
             if let Some(default_impl) = &method.default_impl {
                 let func_id = interner.push_empty_fn();
                 let module = ModuleId { local_id: trait_impl.module_id, krate: crate_id };
-                interner.push_function(func_id, &default_impl.def, module);
+                let location = Location::new(default_impl.def.span, trait_impl.file_id);
+                interner.push_function(func_id, &default_impl.def, module, location);
                 func_ids_in_trait.insert(func_id);
                 ordered_methods.push((
                     method.default_impl_module_id,

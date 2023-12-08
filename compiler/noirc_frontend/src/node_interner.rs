@@ -355,6 +355,7 @@ pub struct DefinitionInfo {
     pub name: String,
     pub mutable: bool,
     pub kind: DefinitionKind,
+    pub location: Location,
 }
 
 impl DefinitionInfo {
@@ -517,6 +518,7 @@ impl NodeInterner {
         typ: &UnresolvedStruct,
         krate: CrateId,
         local_id: LocalModuleId,
+        file_id: FileId,
     ) -> StructId {
         let struct_id = StructId(ModuleId { krate, local_id });
         let name = typ.struct_def.name.clone();
@@ -532,7 +534,8 @@ impl NodeInterner {
             (id, TypeVariable::unbound(id))
         });
 
-        let new_struct = StructType::new(struct_id, name, typ.struct_def.span, no_fields, generics);
+        let location = Location::new(typ.struct_def.span, file_id);
+        let new_struct = StructType::new(struct_id, name, location, no_fields, generics);
         self.structs.insert(struct_id, Shared::new(new_struct));
         self.struct_attributes.insert(struct_id, typ.struct_def.attributes.clone());
         struct_id
@@ -661,13 +664,14 @@ impl NodeInterner {
         name: String,
         mutable: bool,
         definition: DefinitionKind,
+        location: Location,
     ) -> DefinitionId {
         let id = DefinitionId(self.definitions.len());
         if let DefinitionKind::Function(func_id) = definition {
             self.function_definition_ids.insert(func_id, id);
         }
 
-        self.definitions.push(DefinitionInfo { name, mutable, kind: definition });
+        self.definitions.push(DefinitionInfo { name, mutable, kind: definition, location });
         id
     }
 
@@ -678,7 +682,8 @@ impl NodeInterner {
         let mut modifiers = FunctionModifiers::new();
         modifiers.name = name;
         let module = ModuleId::dummy_id();
-        self.push_function_definition(id, modifiers, module);
+        let location = Location::dummy();
+        self.push_function_definition(id, modifiers, module, location);
         id
     }
 
@@ -687,6 +692,7 @@ impl NodeInterner {
         id: FuncId,
         function: &FunctionDefinition,
         module: ModuleId,
+        location: Location,
     ) -> DefinitionId {
         use ContractFunctionType::*;
 
@@ -700,7 +706,7 @@ impl NodeInterner {
             contract_function_type: Some(if function.is_open { Open } else { Secret }),
             is_internal: Some(function.is_internal),
         };
-        self.push_function_definition(id, modifiers, module)
+        self.push_function_definition(id, modifiers, module, location)
     }
 
     pub fn push_function_definition(
@@ -708,11 +714,12 @@ impl NodeInterner {
         func: FuncId,
         modifiers: FunctionModifiers,
         module: ModuleId,
+        location: Location,
     ) -> DefinitionId {
         let name = modifiers.name.clone();
         self.function_modifiers.insert(func, modifiers);
         self.function_modules.insert(func, module);
-        self.push_definition(name, false, DefinitionKind::Function(func))
+        self.push_definition(name, false, DefinitionKind::Function(func), location)
     }
 
     pub fn set_function_trait(&mut self, func: FuncId, self_type: Type, trait_id: TraitId) {
@@ -1275,6 +1282,7 @@ impl NodeInterner {
                     DefinitionKind::Function(func_id) => {
                         Some(self.function_meta(&func_id).location)
                     }
+                    DefinitionKind::Local(_local_id) => Some(definition_info.location),
                     _ => None,
                 }
             }
