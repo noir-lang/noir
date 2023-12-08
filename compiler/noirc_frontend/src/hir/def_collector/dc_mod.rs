@@ -402,6 +402,9 @@ impl<'a> ModCollector<'a> {
                             .def_interner
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
 
+                        let the_trait = context.def_interner.get_trait_mut(trait_id);
+                        the_trait.method_ids.insert(name.to_string(), func_id);
+
                         match self.def_collector.def_map.modules[trait_id.0.local_id.0]
                             .declare_function(name.clone(), func_id)
                         {
