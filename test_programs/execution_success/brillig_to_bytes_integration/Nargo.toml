@@ -1,6 +1,0 @@
-[package]
-name = "brillig_to_bytes_integration"
-type = "bin"
-authors = [""]
-
-[dependencies]

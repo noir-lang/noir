@@ -1,6 +1,0 @@
-[package]
-name = "simple_shift_left_right"
-type = "bin"
-authors = [""]
-
-[dependencies]

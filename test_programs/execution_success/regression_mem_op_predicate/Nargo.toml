@@ -1,6 +1,0 @@
-[package]
-name = "regression_mem_op_predicate"
-type = "bin"
-authors = [""]
-
-[dependencies]

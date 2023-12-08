@@ -1,6 +1,0 @@
-[package]
-name = "simple_range"
-type = "bin"
-authors = [""]
-
-[dependencies]

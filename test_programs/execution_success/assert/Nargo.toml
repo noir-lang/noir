@@ -1,6 +1,0 @@
-[package]
-name = "assert"
-type = "bin"
-authors = [""]
-
-[dependencies]

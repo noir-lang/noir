@@ -1,5 +1,0 @@
-[package]
-name = "simple_radix"
-type = "bin"
-authors = [""]
-[dependencies]

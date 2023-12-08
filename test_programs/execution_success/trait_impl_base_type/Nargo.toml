@@ -1,5 +1,0 @@
-[package]
-name = "trait_impl_base_type"
-type = "bin"
-authors = [""]
-[dependencies]

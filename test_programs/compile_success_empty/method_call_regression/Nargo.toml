@@ -1,7 +1,0 @@
-[package]
-name = "short"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.19.4"
-
-[dependencies]

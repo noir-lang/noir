@@ -1,6 +1,0 @@
-[package]
-name = "comptime_recursion_regression"
-type = "bin"
-authors = [""]
-
-[dependencies]

@@ -1,5 +1,0 @@
-[package]
-name = "str_as_bytes"
-type = "bin"
-authors = [""]
-[dependencies]

@@ -1,6 +1,0 @@
-[package]
-name = "trait_multi_module_test"
-type = "bin"
-authors = [""]
-
-[dependencies]

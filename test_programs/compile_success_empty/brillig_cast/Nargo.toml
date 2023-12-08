@@ -1,6 +1,0 @@
-[package]
-name = "brillig_cast"
-type = "bin"
-authors = [""]
-
-[dependencies]

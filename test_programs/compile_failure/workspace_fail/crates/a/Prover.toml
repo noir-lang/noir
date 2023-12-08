@@ -1,3 +1,0 @@
-# Deliberately setting these to fail to prove this is being executed
-x = "1"
-y = "2"

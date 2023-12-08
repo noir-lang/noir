@@ -1,5 +1,0 @@
-[package]
-name = "array_sort"
-type = "bin"
-authors = [""]
-[dependencies]

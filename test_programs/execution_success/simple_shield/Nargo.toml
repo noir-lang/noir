@@ -1,6 +1,0 @@
-[package]
-name = "simple_shield"
-type = "bin"
-authors = [""]
-
-[dependencies]

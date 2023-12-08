@@ -1,6 +1,0 @@
-[package]
-name = "if_else_chain"
-type = "bin"
-authors = [""]
-
-[dependencies]

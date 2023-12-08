@@ -1,6 +1,0 @@
-[package]
-name = "divide_by_zero"
-type = "bin"
-authors = [""]
-
-[dependencies]

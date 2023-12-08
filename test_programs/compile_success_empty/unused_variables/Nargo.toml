@@ -1,6 +1,0 @@
-[package]
-name = "unused_variables"
-type = "bin"
-authors = [""]
-
-[dependencies]

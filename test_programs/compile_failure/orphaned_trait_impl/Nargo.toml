@@ -1,7 +1,0 @@
-[package]
-name = "orphaned_trait_impl"
-type = "bin"
-authors = [""]
-[dependencies]
-crate1 = { path = "crate1" }
-crate2 = { path = "crate2" }

@@ -1,5 +1,0 @@
-[package]
-name = "option"
-type = "bin"
-authors = [""]
-[dependencies]

@@ -1,5 +1,0 @@
-[package]
-name = "tuple_inputs"
-type = "bin"
-authors = [""]
-[dependencies]

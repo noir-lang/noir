@@ -1,6 +1,0 @@
-[package]
-name = "constrain_typo"
-type = "bin"
-authors = [""]
-
-[dependencies]

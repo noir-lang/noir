@@ -1,5 +1,0 @@
-[package]
-name = "tuples"
-type = "bin"
-authors = [""]
-[dependencies]
