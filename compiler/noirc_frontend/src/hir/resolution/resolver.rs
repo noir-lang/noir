@@ -574,7 +574,7 @@ impl<'a> Resolver<'a> {
         match length {
             None => {
                 let id = self.interner.next_type_variable_id();
-                let typevar = Shared::new(TypeBinding::Unbound(id));
+                let typevar = TypeVariable::unbound(id);
                 new_variables.push((id, typevar.clone()));
 
                 // 'Named'Generic is a bit of a misnomer here, we want a type variable that
@@ -684,7 +684,7 @@ impl<'a> Resolver<'a> {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
-            let typevar = Shared::new(TypeBinding::Unbound(id));
+            let typevar = TypeVariable::unbound(id);
             let span = generic.0.span();
 
             // Check for name collisions of this generic
@@ -927,10 +927,7 @@ impl<'a> Resolver<'a> {
         found.into_iter().collect()
     }
 
-    fn find_numeric_generics_in_type(
-        typ: &Type,
-        found: &mut BTreeMap<String, Shared<TypeBinding>>,
-    ) {
+    fn find_numeric_generics_in_type(typ: &Type, found: &mut BTreeMap<String, TypeVariable>) {
         match typ {
             Type::FieldElement
             | Type::Integer(_, _)

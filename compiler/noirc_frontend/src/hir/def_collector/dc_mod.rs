@@ -153,7 +153,7 @@ impl<'a> ModCollector<'a> {
 
             for (_, func_id, noir_function) in &mut unresolved_functions.functions {
                 noir_function.def.where_clause.append(&mut trait_impl.where_clause.clone());
-                let location = Location { span: noir_function.def.span, file: self.file_id };
+                let location = Location::new(noir_function.def.span, self.file_id);
                 context.def_interner.push_function(*func_id, &noir_function.def, module, location);
             }
 
@@ -187,7 +187,7 @@ impl<'a> ModCollector<'a> {
         for item in &trait_impl.items {
             if let TraitImplItem::Function(impl_method) = item {
                 let func_id = context.def_interner.push_empty_fn();
-                let location = Location { span: impl_method.span(), file: self.file_id };
+                let location = Location::new(impl_method.span(), self.file_id);
                 context.def_interner.push_function(func_id, &impl_method.def, module, location);
                 unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
             }
@@ -221,7 +221,7 @@ impl<'a> ModCollector<'a> {
 
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
-            let location = Location { span: function.span(), file: self.file_id };
+            let location = Location::new(function.span(), self.file_id);
             context.def_interner.push_function(func_id, &function.def, module, location);
 
             // Now link this func_id to a crate level map with the noir function and the module id
