@@ -24,6 +24,11 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Relations = typename Flavor::Relations;
     using AlphaType = typename ProverInstances::AlphaType;
+    using VerificationKey = typename Flavor::VerificationKey;
+    using CommitmentKey = typename Flavor::CommitmentKey;
+    using WitnessCommitments = typename Flavor::WitnessCommitments;
+    using Commitment = typename Flavor::Commitment;
+    using AllPolynomials = typename Flavor::AllPolynomials;
 
     using BaseUnivariate = Univariate<FF, ProverInstances::NUM>;
     // The length of ExtendedUnivariate is the largest length (==max_relation_degree + 1) of a univariate polynomial
@@ -44,19 +49,48 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     ProverInstances instances;
     std::shared_ptr<Transcript> transcript = std::make_shared<Transcript>();
 
+    std::shared_ptr<CommitmentKey> commitment_key;
+
     ProtoGalaxyProver_() = default;
-    ProtoGalaxyProver_(ProverInstances insts)
-        : instances(insts){};
+    ProtoGalaxyProver_(const std::vector<std::shared_ptr<Instance>>& insts,
+                       const std::shared_ptr<CommitmentKey>& commitment_key)
+        : instances(ProverInstances(insts))
+        , commitment_key(std::move(commitment_key)){};
     ~ProtoGalaxyProver_() = default;
 
     /**
-     * @brief Prior to folding we need to add all the public inputs to the transcript, labelled by their corresponding
-     * instance index, compute all the instance's polynomials and record the relation parameters involved in computing
-     * these polynomials in the transcript.
-     *
+     * @brief Prior to folding, we need to finalize the given instances and add all their public data ϕ to the
+     * transcript, labelled by their corresponding instance index for domain separation.
+     * TODO(https://github.com/AztecProtocol/barretenberg/issues/795):The rounds prior to actual proving/folding are
+     * common between decider and folding verifier and could be somehow shared so we do not duplicate code so much.
      */
     void prepare_for_folding();
 
+    /**
+     * @brief Send the public data of an accumulator, i.e. a relaxed instance, to the verifier (ϕ in the paper).
+     *
+     *  @param domain_separator separates the same type of data coming from difference instances by instance
+     * index
+     */
+    void send_accumulator(std::shared_ptr<Instance>, const std::string& domain_separator);
+
+    /**
+     * @brief For each instance produced by a circuit, prior to folding, we need to complete the computation of its
+     * prover polynomials, commit to witnesses and generate the relation parameters as well as send the public data ϕ of
+     * an instance to the verifier.
+     *
+     * @param domain_separator  separates the same type of data coming from difference instances by instance
+     * index
+     */
+    void finalise_and_send_instance(std::shared_ptr<Instance>, const std::string& domain_separator);
+
+    /**
+     * @brief Run the folding prover protocol to produce a new accumulator and a folding proof to be verified by the
+     * folding verifier.
+     *
+     * TODO(https://github.com/AztecProtocol/barretenberg/issues/753): fold goblin polynomials
+     */
+    FoldingResult<Flavor> fold_instances();
     /**
      * @brief Given a vector \vec{\beta} of values, compute the pow polynomial on these values as defined in the paper.
      */
@@ -87,6 +121,20 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
             pows[i] = pows[i - 1].sqr();
         }
         return pows;
+    }
+
+    static std::vector<FF> update_gate_challenges(const FF perturbator_challenge,
+                                                  const std::vector<FF>& gate_challenges,
+                                                  const std::vector<FF>& round_challenges)
+    {
+        auto log_instance_size = gate_challenges.size();
+        std::vector<FF> next_gate_challenges(log_instance_size);
+        next_gate_challenges[0] = 1;
+
+        for (size_t idx = 1; idx < log_instance_size; idx++) {
+            next_gate_challenges[idx] = gate_challenges[idx] + perturbator_challenge * round_challenges[idx - 1];
+        }
+        return next_gate_challenges;
     }
 
     // Returns the accumulator, which is the first element in ProverInstances. The accumulator is assumed to have the
@@ -191,13 +239,11 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     {
         auto full_honk_evaluations = compute_full_honk_evaluations(
             accumulator->prover_polynomials, accumulator->alpha, accumulator->relation_parameters);
-        const auto betas = accumulator->folding_parameters.gate_separation_challenges;
+        const auto betas = accumulator->folding_parameters.gate_challenges;
         assert(betas.size() == deltas.size());
         auto coeffs = construct_perturbator_coefficients(betas, deltas, full_honk_evaluations);
         return Polynomial<FF>(coeffs);
     }
-
-    ProverFoldingResult<Flavor> fold_instances();
 
     TupleOfTuplesOfUnivariates univariate_accumulators;
 
@@ -243,7 +289,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     ExtendedUnivariateWithRandomization compute_combiner(const ProverInstances& instances,
                                                          const std::vector<FF>& pow_betas_star)
     {
-        size_t common_circuit_size = instances[0]->prover_polynomials.get_polynomial_size();
+        size_t common_instance_size = instances[0]->instance_size;
 
         // Determine number of threads for multithreading.
         // Note: Multithreading is "on" for every round but we reduce the number of threads from the max available based
@@ -251,14 +297,15 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
         // For now we use a power of 2 number of threads simply to ensure the round size is evenly divided.
         size_t max_num_threads = get_num_cpus_pow2(); // number of available threads (power of 2)
         size_t min_iterations_per_thread = 1 << 6; // min number of iterations for which we'll spin up a unique thread
-        size_t desired_num_threads = common_circuit_size / min_iterations_per_thread;
+        size_t desired_num_threads = common_instance_size / min_iterations_per_thread;
         size_t num_threads = std::min(desired_num_threads, max_num_threads); // fewer than max if justified
         num_threads = num_threads > 0 ? num_threads : 1;                     // ensure num threads is >= 1
-        size_t iterations_per_thread = common_circuit_size / num_threads;    // actual iterations per thread
+        size_t iterations_per_thread = common_instance_size / num_threads;   // actual iterations per thread
 
         // Construct univariate accumulator containers; one per thread
         std::vector<TupleOfTuplesOfUnivariates> thread_univariate_accumulators(num_threads);
         for (auto& accum : thread_univariate_accumulators) {
+            // just normal relation lengths
             Utils::zero_univariates(accum);
         }
 
@@ -341,21 +388,21 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     }
 
     /**
-     * @brief Create folded (univariate) relation parameters.
+     * @brief Combine each relation parameter, in part, from all the instances into univariates, used in the computation
+     * of combiner.
      * @details For a given relation parameter type, extract that parameter from each instance, place the values in a
      * univariate (i.e., sum them against an appropriate univariate Lagrange basis) and then extended as needed during
      * the constuction of the combiner.
      */
-    static void fold_relation_parameters(ProverInstances& instances)
+    static void combine_relation_parameters(ProverInstances& instances)
     {
         // array of parameters to be computed
-        auto& folded_parameters = instances.relation_parameters.to_fold;
         size_t param_idx = 0;
-        for (auto& folded_parameter : folded_parameters) {
+        for (auto& folded_parameter : instances.relation_parameters.to_fold) {
             Univariate<FF, ProverInstances::NUM> tmp(0);
             size_t instance_idx = 0;
             for (auto& instance : instances) {
-                tmp.value_at(instance_idx) = instance->relation_parameters.to_fold[param_idx];
+                tmp.value_at(instance_idx) = instance->relation_parameters.to_fold[param_idx].get();
                 instance_idx++;
             }
             folded_parameter.get() = tmp.template extend_to<ProverInstances::EXTENDED_LENGTH>();
@@ -364,14 +411,15 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     }
 
     /**
-     * @brief Create folded univariate for the relation batching parameter (alpha).
+     * @brief Combine the relation batching parameter (named alpha) from each instance into a univariate, used in the
+     * computation of combiner.
      *
      */
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/772): At the moment we have a single α per Instance, we
     // fold them and then we use the unique folded_α for each folded subrelation that is batched in the combiner. This
     // is obviously insecure. We need to generate α_i for each subrelation_i, fold them and then use folded_α_i when
     // batching the i-th folded subrelation in the combiner.
-    static void fold_alpha(ProverInstances& instances)
+    static void combine_alpha(ProverInstances& instances)
     {
         Univariate<FF, ProverInstances::NUM> accumulated_alpha;
         size_t instance_idx = 0;
@@ -381,6 +429,24 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
         }
         instances.alpha = accumulated_alpha.template extend_to<ProverInstances::BATCHED_EXTENDED_LENGTH>();
     }
+
+    /**
+     * @brief Compute the next accumulator (ϕ*, ω*\vec{\beta*}, e*), send the public data ϕ*  and the folding parameters
+     * (\vec{\beta*}, e*) to the verifier and return the complete accumulator
+     *
+     * @details At this stage, we assume that the instances have the same size and the same number of public parameter.s
+     * @param instances
+     * @param combiner_quotient polynomial K in the paper
+     * @param challenge
+     * @param compressed_perturbator
+     *
+     * TODO(https://github.com/AztecProtocol/barretenberg/issues/796): optimise the construction of the new accumulator
+     */
+    std::shared_ptr<Instance> compute_next_accumulator(
+        ProverInstances& instances,
+        Univariate<FF, ProverInstances::BATCHED_EXTENDED_LENGTH, ProverInstances::NUM>& combiner_quotient,
+        const FF& challenge,
+        const FF& compressed_perturbator);
 };
 
 extern template class ProtoGalaxyProver_<ProverInstances_<honk::flavor::Ultra, 2>>;

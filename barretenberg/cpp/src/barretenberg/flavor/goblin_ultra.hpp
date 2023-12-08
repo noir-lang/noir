@@ -194,11 +194,6 @@ class GoblinUltra {
         {
             return { this->ecc_op_wire_1, this->ecc_op_wire_2, this->ecc_op_wire_3, this->ecc_op_wire_4 };
         }
-        // The sorted concatenations of table and witness data needed for plookup.
-        RefVector<DataType> get_sorted_polynomials()
-        {
-            return { this->sorted_1, this->sorted_2, this->sorted_3, this->sorted_4 };
-        };
     };
 
     template <typename DataType> class ShiftedEntities {
@@ -290,11 +285,60 @@ class GoblinUltra {
                      this->calldata_read_counts,
                      this->lookup_inverses };
         };
+
+        RefVector<DataType> get_witness()
+        {
+            return { this->w_l,
+                     this->w_r,
+                     this->w_o,
+                     this->w_4,
+                     this->sorted_accum,
+                     this->z_perm,
+                     this->z_lookup,
+                     this->ecc_op_wire_1,
+                     this->ecc_op_wire_2,
+                     this->ecc_op_wire_3,
+                     this->ecc_op_wire_4,
+                     this->calldata,
+                     this->calldata_read_counts,
+                     this->lookup_inverses };
+        };
         RefVector<DataType> get_to_be_shifted()
         {
             return { this->table_1, this->table_2, this->table_3,      this->table_4, this->w_l,     this->w_r,
                      this->w_o,     this->w_4,     this->sorted_accum, this->z_perm,  this->z_lookup };
         };
+        RefVector<DataType> get_precomputed()
+        {
+            return { this->q_m,
+                     this->q_c,
+                     this->q_l,
+                     this->q_r,
+                     this->q_o,
+                     this->q_4,
+                     this->q_arith,
+                     this->q_sort,
+                     this->q_elliptic,
+                     this->q_aux,
+                     this->q_lookup,
+                     this->q_busread,
+                     this->sigma_1,
+                     this->sigma_2,
+                     this->sigma_3,
+                     this->sigma_4,
+                     this->id_1,
+                     this->id_2,
+                     this->id_3,
+                     this->id_4,
+                     this->table_1,
+                     this->table_2,
+                     this->table_3,
+                     this->table_4,
+                     this->lagrange_first,
+                     this->lagrange_last,
+                     this->lagrange_ecc_op,
+                     this->databus_id };
+        }
         RefVector<DataType> get_shifted() { return ShiftedEntities<DataType>::get_all(); };
     };
 
@@ -372,6 +416,29 @@ class GoblinUltra {
       public:
         [[nodiscard]] size_t get_polynomial_size() const { return q_c.size(); }
         [[nodiscard]] AllValues get_row(size_t row_idx) const
+        {
+            AllValues result;
+            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
+                result_field = polynomial[row_idx];
+            }
+            return result;
+        }
+    };
+
+    /**
+     * @brief An owning container of polynomials.
+     * @warning When this was introduced it broke some of our design principles.
+     *   - Execution trace builders don't handle "polynomials" because the interpretation of the execution trace
+     * columns as polynomials is a detail of the proving system, and trace builders are (sometimes in practice,
+     * always in principle) reusable for different proving protocols (e.g., Plonk and Honk).
+     *   - Polynomial storage is handled by key classes. Polynomials aren't moved, but are accessed elsewhere by
+     * std::spans.
+     *
+     *  We will consider revising this data model: TODO(https://github.com/AztecProtocol/barretenberg/issues/743)
+     */
+    class AllPolynomials : public AllEntities<Polynomial> {
+      public:
+        [[nodiscard]] AllValues get_row(const size_t row_idx) const
         {
             AllValues result;
             for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
@@ -488,7 +555,7 @@ class GoblinUltra {
     using VerifierCommitments = VerifierCommitments_<Commitment, VerificationKey>;
     class FoldingParameters {
       public:
-        std::vector<FF> gate_separation_challenges;
+        std::vector<FF> gate_challenges;
         FF target_sum;
     };
 

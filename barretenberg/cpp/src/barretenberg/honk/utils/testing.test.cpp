@@ -10,8 +10,8 @@ TEST(HonkTestingUtils, ProverPolynomials)
     auto [storage, prover_polynomials] =
         proof_system::honk::get_sequential_prover_polynomials<Flavor>(/*log_circuit_size=*/2, /*starting_value=*/0);
     auto& first_polynomial = prover_polynomials.get_all()[0];
-    EXPECT_EQ(storage[0][0], first_polynomial[0]);
-    EXPECT_EQ(storage[0][1], first_polynomial[1]);
+    EXPECT_EQ(storage.get_all()[0][0], first_polynomial[0]);
+    EXPECT_EQ(storage.get_all()[0][1], first_polynomial[1]);
 };
 
 } // namespace barretenberg::test_testing_utils

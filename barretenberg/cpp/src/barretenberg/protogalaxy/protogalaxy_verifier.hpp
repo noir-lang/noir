@@ -12,17 +12,23 @@ template <class VerifierInstances> class ProtoGalaxyVerifier_ {
     using Flavor = typename VerifierInstances::Flavor;
     using Transcript = typename Flavor::Transcript;
     using FF = typename Flavor::FF;
+    using Commitment = typename Flavor::Commitment;
     using Instance = typename VerifierInstances::Instance;
     using VerificationKey = typename Flavor::VerificationKey;
+    using WitnessCommitments = typename Flavor::WitnessCommitments;
+    using CommitmentLabels = typename Flavor::CommitmentLabels;
 
-    VerifierInstances verifier_instances;
+    VerifierInstances instances;
+
     std::shared_ptr<Transcript> transcript = std::make_shared<Transcript>();
 
+    CommitmentLabels commitment_labels;
+
     ProtoGalaxyVerifier_(VerifierInstances insts)
-        : verifier_instances(insts){};
+        : instances(insts){};
     ~ProtoGalaxyVerifier_() = default;
     /**
-     * @brief For a new round challenge δ at each iteration of the ProtoGalaxy protocol, compute the vector
+     * @brief Given a new round challenge δ for each iteration of the full ProtoGalaxy protocol, compute the vector
      * [δ, δ^2,..., δ^t] where t = logn and n is the size of the instance.
      */
     static std::vector<FF> compute_round_challenge_pows(size_t log_instance_size, FF round_challenge)
@@ -35,21 +41,47 @@ template <class VerifierInstances> class ProtoGalaxyVerifier_ {
         return pows;
     }
 
-    std::shared_ptr<Instance> get_accumulator() { return verifier_instances[0]; }
+    static std::vector<FF> update_gate_challenges(const FF perturbator_challenge,
+                                                  const std::vector<FF>& gate_challenges,
+                                                  const std::vector<FF>& round_challenges)
+    {
+        auto log_instance_size = gate_challenges.size();
+        std::vector<FF> next_gate_challenges(log_instance_size);
+        next_gate_challenges[0] = 1;
+
+        for (size_t idx = 1; idx < log_instance_size; idx++) {
+            next_gate_challenges[idx] = gate_challenges[idx] + perturbator_challenge * round_challenges[idx - 1];
+        }
+        return next_gate_challenges;
+    }
+
+    std::shared_ptr<Instance> get_accumulator() { return instances[0]; }
 
     /**
-     * @brief Instatiate the VerifierInstances and the VerifierTranscript.
+     * @brief Instatiate the instances and the transcript.
      *
      * @param fold_data The data transmitted via the transcript by the prover.
      */
-    void prepare_for_folding(std::vector<uint8_t> fold_data);
+    void prepare_for_folding(const std::vector<uint8_t>&);
 
     /**
-     * @brief Run the folding protocol on the verifier side.
+     * @brief Instantiatied the accumulator (i.e. the relaxed instance) from the transcript.
      *
-     * TODO(https://github.com/AztecProtocol/barretenberg/issues/690): finalise the implementation of this function
      */
-    VerifierFoldingResult<Flavor> fold_public_parameters(std::vector<uint8_t> fold_data);
+    void receive_accumulator(const std::shared_ptr<Instance>&, const std::string&);
+
+    /**
+     * @brief Process the public data ϕ for the Instances to be folded.
+     *
+     */
+    void receive_and_finalise_instance(const std::shared_ptr<Instance>&, const std::string&);
+
+    /**
+     * @brief Run the folding protocol on the verifier side to establish whether the public data ϕ of the new
+     * accumulator, received from the prover is the same as that produced by the verifier.
+     *
+     */
+    bool verify_folding_proof(std::vector<uint8_t>);
 };
 
 extern template class ProtoGalaxyVerifier_<VerifierInstances_<honk::flavor::Ultra, 2>>;

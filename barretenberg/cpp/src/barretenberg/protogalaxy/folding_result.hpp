@@ -1,39 +1,18 @@
 #pragma once
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
+#include "barretenberg/sumcheck/instance/prover_instance.hpp"
 namespace proof_system::honk {
-template <class Flavor> struct ProverFoldingResult {
-  public:
-    using ProverPolynomials = typename Flavor::ProverPolynomials;
-    using FoldingParameters = typename Flavor::FoldingParameters;
-    ProverPolynomials folded_prover_polynomials;
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/656): turn folding data into a struct
-    std::vector<uint8_t> folding_data;
-    FoldingParameters params;
-};
-
-template <class Flavor> struct VerifierFoldingResult {
-    using FF = typename Flavor::FF;
-    using VerificationKey = typename Flavor::VerificationKey;
-    using FoldingParameters = typename Flavor::FoldingParameters;
-    std::vector<FF> folded_public_inputs;
-    std::shared_ptr<VerificationKey> folded_verification_key;
-    FoldingParameters parameters;
-};
-
 /**
- * @brief The aggregated result from the prover and verifier after a round of folding, used to create a new Instance.
+ * @brief The result of running the Protogalaxy prover containing a new accumulator (relaxed instance) as well as the
+ * proof data to instantiate the verifier transcript.
  *
  * @tparam Flavor
  */
 template <class Flavor> struct FoldingResult {
-    using FF = typename Flavor::FF;
-    using ProverPolynomials = typename Flavor::ProverPolynomials;
-    using VerificationKey = typename Flavor::VerificationKey;
-    using FoldingParameters = typename Flavor::FoldingParameters;
-    ProverPolynomials folded_prover_polynomials;
-    std::vector<FF> folded_public_inputs;
-    std::shared_ptr<VerificationKey> verification_key;
-    FoldingParameters folding_parameters;
+  public:
+    std::shared_ptr<ProverInstance_<Flavor>> accumulator;
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/656): turn folding data into a struct
+    std::vector<uint8_t> folding_data;
 };
 } // namespace proof_system::honk

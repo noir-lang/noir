@@ -90,21 +90,17 @@ template <UltraFlavor Flavor> class UltraComposer_ {
      */
     MergeVerifier_<Flavor> create_merge_verifier() { return MergeVerifier_<Flavor>(); }
 
-    ProtoGalaxyProver_<ProverInstances> create_folding_prover(const std::vector<std::shared_ptr<Instance>>& instances)
+    ProtoGalaxyProver_<ProverInstances> create_folding_prover(const std::vector<std::shared_ptr<Instance>>& instances,
+                                                              const std::shared_ptr<CommitmentKey>& commitment_key)
     {
-        ProverInstances insts(instances);
-        ProtoGalaxyProver_<ProverInstances> output_state(insts);
+        ProtoGalaxyProver_<ProverInstances> output_state(instances, commitment_key);
 
         return output_state;
     };
-    ProtoGalaxyVerifier_<VerifierInstances> create_folding_verifier(
-        const std::vector<std::shared_ptr<Instance>>& instances)
+    ProtoGalaxyVerifier_<VerifierInstances> create_folding_verifier()
     {
-        std::vector<std::shared_ptr<VerificationKey>> vks;
-        for (const auto& inst : instances) {
-            vks.emplace_back(inst->verification_key);
-        }
-        VerifierInstances insts(vks);
+
+        auto insts = VerifierInstances();
         ProtoGalaxyVerifier_<VerifierInstances> output_state(insts);
 
         return output_state;

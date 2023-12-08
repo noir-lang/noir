@@ -9,18 +9,17 @@ namespace proof_system::honk {
  * function returns an array of data pointed to by the ProverPolynomials.
  */
 template <typename Flavor>
-std::pair<std::array<barretenberg::Polynomial<typename Flavor::FF>, Flavor::NUM_ALL_ENTITIES>,
-          typename Flavor::ProverPolynomials>
-get_sequential_prover_polynomials(const size_t log_circuit_size, const size_t starting_value)
+std::pair<typename Flavor::AllPolynomials, typename Flavor::ProverPolynomials> get_sequential_prover_polynomials(
+    const size_t log_circuit_size, const size_t starting_value)
 {
     using FF = typename Flavor::FF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Polynomial = typename Flavor::Polynomial;
 
-    std::array<barretenberg::Polynomial<typename Flavor::FF>, Flavor::NUM_ALL_ENTITIES> storage;
+    typename Flavor::AllPolynomials storage;
     size_t circuit_size = 1 << log_circuit_size;
     size_t value_idx = starting_value;
-    for (auto& polynomial : storage) {
+    for (auto& polynomial : storage.get_all()) {
         polynomial = Polynomial(circuit_size);
         for (auto& value : polynomial) {
             value = FF(value_idx++);
@@ -28,7 +27,7 @@ get_sequential_prover_polynomials(const size_t log_circuit_size, const size_t st
     }
 
     ProverPolynomials prover_polynomials;
-    for (auto [prover_poly, storage_poly] : zip_view(prover_polynomials.get_all(), storage)) {
+    for (auto [prover_poly, storage_poly] : zip_view(prover_polynomials.get_all(), storage.get_all())) {
         prover_poly = storage_poly;
     }
 
@@ -36,17 +35,16 @@ get_sequential_prover_polynomials(const size_t log_circuit_size, const size_t st
 }
 
 template <typename Flavor>
-std::pair<std::array<barretenberg::Polynomial<typename Flavor::FF>, Flavor::NUM_ALL_ENTITIES>,
-          typename Flavor::ProverPolynomials>
-get_zero_prover_polynomials(const size_t log_circuit_size)
+std::pair<typename Flavor::AllPolynomials, typename Flavor::ProverPolynomials> get_zero_prover_polynomials(
+    const size_t log_circuit_size)
 {
     using FF = typename Flavor::FF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Polynomial = typename Flavor::Polynomial;
 
-    std::array<barretenberg::Polynomial<typename Flavor::FF>, Flavor::NUM_ALL_ENTITIES> storage;
+    typename Flavor::AllPolynomials storage;
     size_t circuit_size = 1 << log_circuit_size;
-    for (auto& polynomial : storage) {
+    for (auto& polynomial : storage.get_all()) {
         polynomial = Polynomial(circuit_size);
         for (auto& value : polynomial) {
             value = FF(0);
@@ -54,7 +52,7 @@ get_zero_prover_polynomials(const size_t log_circuit_size)
     }
 
     ProverPolynomials prover_polynomials;
-    for (auto [prover_poly, storage_poly] : zip_view(prover_polynomials.get_all(), storage)) {
+    for (auto [prover_poly, storage_poly] : zip_view(prover_polynomials.get_all(), storage.get_all())) {
         prover_poly = storage_poly;
     }
 

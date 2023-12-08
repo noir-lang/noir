@@ -33,9 +33,11 @@ TEST(Protogalaxy, CombinerOn2Instances)
     };
 
     auto run_test = [&](bool is_random_input) {
+        // Combiner test on prover polynomisls containing random values, restricted to only the standard arithmetic
+        // relation.
         if (is_random_input) {
             std::vector<std::shared_ptr<ProverInstance>> instance_data(NUM_INSTANCES);
-            std::array<std::array<Polynomial, Flavor::NUM_ALL_ENTITIES>, NUM_INSTANCES> storage_arrays;
+            std::array<typename Flavor::AllPolynomials, NUM_INSTANCES> storage_arrays;
             ProtoGalaxyProver prover;
             std::vector<FF> pow_betas = { FF(1), FF(2) };
 
@@ -46,6 +48,7 @@ TEST(Protogalaxy, CombinerOn2Instances)
                 restrict_to_standard_arithmetic_relation(prover_polynomials);
                 storage_arrays[idx] = std::move(storage);
                 instance->prover_polynomials = prover_polynomials;
+                instance->instance_size = 2;
                 instance_data[idx] = instance;
             }
 
@@ -70,7 +73,7 @@ TEST(Protogalaxy, CombinerOn2Instances)
             EXPECT_EQ(result, expected_result);
         } else {
             std::vector<std::shared_ptr<ProverInstance>> instance_data(NUM_INSTANCES);
-            std::array<std::array<Polynomial, Flavor::NUM_ALL_ENTITIES>, NUM_INSTANCES> storage_arrays;
+            std::array<typename Flavor::AllPolynomials, NUM_INSTANCES> storage_arrays;
             ProtoGalaxyProver prover;
             std::vector<FF> pow_betas = { FF(1), FF(2) };
 
@@ -81,6 +84,7 @@ TEST(Protogalaxy, CombinerOn2Instances)
                 restrict_to_standard_arithmetic_relation(prover_polynomials);
                 storage_arrays[idx] = std::move(storage);
                 instance->prover_polynomials = prover_polynomials;
+                instance->instance_size = 2;
                 instance_data[idx] = instance;
             }
 
@@ -162,7 +166,7 @@ TEST(Protogalaxy, CombinerOn4Instances)
 
     auto run_test = [&]() {
         std::vector<std::shared_ptr<ProverInstance>> instance_data(NUM_INSTANCES);
-        std::array<std::array<Polynomial, Flavor::NUM_ALL_ENTITIES>, NUM_INSTANCES> storage_arrays;
+        std::array<typename Flavor::AllPolynomials, NUM_INSTANCES> storage_arrays;
         ProtoGalaxyProver prover;
         std::vector<FF> pow_betas = { FF(1), FF(2) };
 
@@ -172,6 +176,7 @@ TEST(Protogalaxy, CombinerOn4Instances)
                 /*log_circuit_size=*/1);
             storage_arrays[idx] = std::move(storage);
             instance->prover_polynomials = prover_polynomials;
+            instance->instance_size = 2;
             instance_data[idx] = instance;
         }
 
