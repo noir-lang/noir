@@ -10,6 +10,7 @@ import { NoirCommit } from '@aztec/noir-compiler/versions';
 import { BootstrapNode, getP2PConfigEnvVars } from '@aztec/p2p';
 import { GrumpkinScalar, PXEService, createPXERpcServer } from '@aztec/pxe';
 
+import { resolve as dnsResolve } from 'dns';
 import { readFileSync } from 'fs';
 import http from 'http';
 import { dirname, resolve } from 'path';
@@ -30,8 +31,19 @@ enum SandboxMode {
   P2PBootstrap = 'p2p-bootstrap',
 }
 
+/**
+ * If we can successfully resolve 'host.docker.internal', then we are running in a container, and we should treat
+ * localhost as being host.docker.internal.
+ */
+function getLocalhost() {
+  return new Promise(resolve =>
+    dnsResolve('host.docker.internal', err => (err ? resolve('localhost') : resolve('host.docker.internal'))),
+  );
+}
+
+const LOCALHOST = await getLocalhost();
 const {
-  AZTEC_NODE_URL = 'http://localhost:8079',
+  AZTEC_NODE_URL = `http://${LOCALHOST}:8079`,
   AZTEC_NODE_PORT = 8079,
   PXE_PORT = 8080,
   MODE = 'sandbox',

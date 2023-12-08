@@ -4,6 +4,7 @@ import { fileURLToPath } from '@aztec/foundation/url';
 import { addNoirCompilerCommanderActions } from '@aztec/noir-compiler/cli';
 
 import { Command, Option } from 'commander';
+import { resolve as dnsResolve } from 'dns';
 import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 
@@ -23,7 +24,18 @@ import {
   parseTxHash,
 } from './utils.js';
 
-const { ETHEREUM_HOST = 'http://localhost:8545', PRIVATE_KEY, API_KEY } = process.env;
+/**
+ * If we can successfully resolve 'host.docker.internal', then we are running in a container, and we should treat
+ * localhost as being host.docker.internal.
+ */
+function getLocalhost() {
+  return new Promise(resolve =>
+    dnsResolve('host.docker.internal', err => (err ? resolve('localhost') : resolve('host.docker.internal'))),
+  );
+}
+
+const LOCALHOST = await getLocalhost();
+const { ETHEREUM_HOST = `http://${LOCALHOST}:8545`, PRIVATE_KEY, API_KEY } = process.env;
 
 /**
  * Returns commander program that defines the CLI.
@@ -42,7 +54,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
 
   const pxeOption = new Option('-u, --rpc-url <string>', 'URL of the PXE')
     .env('PXE_URL')
-    .default('http://localhost:8080')
+    .default(`http://${LOCALHOST}:8080`)
     .makeOptionMandatory(true);
 
   const createPrivateKeyOption = (description: string, mandatory: boolean) =>
