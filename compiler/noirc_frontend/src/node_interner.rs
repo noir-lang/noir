@@ -1245,16 +1245,57 @@ impl NodeInterner {
         match expression {
             HirExpression::Ident(ident) => {
                 let definition_info = self.definition(ident.id);
-                match definition_info.kind {
-                    DefinitionKind::Function(func_id) => {
-                        Some(self.function_meta(&func_id).location)
-                    }
+                match &definition_info.kind {
+                    DefinitionKind::Function(func_id) => Some(self.function_meta(func_id).location),
                     DefinitionKind::Local(_local_id) => Some(definition_info.location),
                     _ => None,
                 }
             }
+            HirExpression::Constructor(expr) => {
+                let struct_type = &expr.r#type.borrow();
+
+                eprintln!("\n -> Resolve Constructor {struct_type:?}\n");
+
+                Some(struct_type.location)
+            }
+            HirExpression::MemberAccess(expr_member_access) => {
+                self.resolve_struct_member_access(expr_member_access)
+            }
+            HirExpression::Call(expr_call) => {
+                let func = expr_call.func;
+                self.resolve_location(func)
+            }
+
             _ => None,
         }
+    }
+
+    fn resolve_struct_member_access(
+        &self,
+        expr_member_access: &crate::hir_def::expr::HirMemberAccess,
+    ) -> Option<Location> {
+        let expr_lhs = &expr_member_access.lhs;
+        let expr_rhs = &expr_member_access.rhs;
+
+        let found_ident = self.nodes.get(expr_lhs.into())?;
+
+        if let Node::Expression(HirExpression::Ident(ident)) = found_ident {
+            let definition_info = self.definition(ident.id);
+            if let DefinitionKind::Local(Some(local_id)) = definition_info.kind {
+                if let Some(Node::Expression(HirExpression::Constructor(constructor_expression))) =
+                    self.nodes.get(local_id.into())
+                {
+                    let struct_type = constructor_expression.r#type.borrow();
+                    let field_names = struct_type.field_names();
+                    if let Some(found) =
+                        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0)
+                    {
+                        return Some(Location::new(found.span(), struct_type.location.file));
+                    }
+                }
+            }
+        }
+        None
     }
 }
 
