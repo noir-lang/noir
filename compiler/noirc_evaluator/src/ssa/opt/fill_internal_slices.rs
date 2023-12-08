@@ -15,7 +15,7 @@
 //! array_get [Field 3, [Field 1, Field 1, Field 1, Field 0], Field 4, [Field 2, Field 2, Field 2, Field 2]], index Field v0
 //!
 //!
-//! TODO(#3188): Currently the pass only works on a single flattened block. This should be updated in followup work.
+//! Currently the pass only works on a single flattened block and should only come at the end of SSA right before ACIR generation.
 //! The steps of the pass are as follows:
 //! - Process each instruction of the block to collect relevant slice size information. We want to find the maximum size that a nested slice
 //! potentially could be. Slices can potentially be set to larger array values or used in intrinsics that increase or shorten their size.

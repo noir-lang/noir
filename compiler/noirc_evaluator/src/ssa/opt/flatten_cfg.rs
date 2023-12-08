@@ -568,15 +568,15 @@ impl<'f> Context<'f> {
         // unnecessary, when removing it actually causes an aliasing/mutability error.
         let instructions = self.inserter.function.dfg[destination].instructions().to_vec();
 
-        let mut slice_sizes = std::mem::take(&mut self.slice_sizes);
+        // let mut slice_sizes = std::mem::take(&mut self.slice_sizes);
         for instruction in instructions.iter() {
             let results = self.push_instruction(*instruction);
             let (instruction, _) = self.inserter.map_instruction(*instruction);
             let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
-            capacity_tracker.collect_slice_information(&instruction, &mut slice_sizes, results);
+            capacity_tracker.collect_slice_information(&instruction, &mut self.slice_sizes, results);
         }
 
-        std::mem::swap(&mut self.slice_sizes, &mut slice_sizes);
+        // std::mem::swap(&mut self.slice_sizes, &mut slice_sizes);
 
         self.handle_terminator(destination)
     }
@@ -618,6 +618,9 @@ impl<'f> Context<'f> {
 
                     // Condition needs to be cast to argument type in order to multiply them together.
                     let argument_type = self.inserter.function.dfg.type_of_value(lhs);
+                    dbg!(argument_type.clone());
+                    let argument_type_rhs = self.inserter.function.dfg.type_of_value(rhs);
+                    dbg!(argument_type_rhs.clone());
                     let casted_condition = self.insert_instruction(
                         Instruction::Cast(condition, argument_type),
                         call_stack.clone(),
@@ -642,6 +645,7 @@ impl<'f> Context<'f> {
 
                     // Condition needs to be cast to argument type in order to multiply them together.
                     let argument_type = self.inserter.function.dfg.type_of_value(value);
+                    dbg!(argument_type.clone());
                     let casted_condition = self.insert_instruction(
                         Instruction::Cast(condition, argument_type),
                         call_stack.clone(),

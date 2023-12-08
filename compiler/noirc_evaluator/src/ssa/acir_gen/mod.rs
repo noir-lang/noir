@@ -1663,7 +1663,7 @@ impl Context {
         };
         let target_numeric = match typ {
             Type::Numeric(numeric) => numeric,
-            _ => unreachable!("Can only cast to a numeric"),
+            _ => unreachable!("Can only cast to a numeric, got {typ} instead"),
         };
         match target_numeric {
             NumericType::NativeField => {

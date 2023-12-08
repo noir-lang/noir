@@ -40,11 +40,22 @@ impl<'a> ValueMerger<'a> {
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
+        // dbg!(self.dfg.type_of_value(then_value));
+        // dbg!(self.dfg.type_of_value(else_value));
+
+        let then_type = self.dfg.type_of_value(then_value);
+        let else_type = self.dfg.type_of_value(else_value);
+        assert_eq!(
+            then_type, else_type,
+            "Expected values merged to be of the same type but found {then_type} and {else_type}"
+        );
+
         match self.dfg.type_of_value(then_value) {
             Type::Numeric(_) => {
                 self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
             }
             typ @ Type::Array(_, _) => {
+                dbg!(typ.clone());
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
             typ @ Type::Slice(_) => {
@@ -70,7 +81,8 @@ impl<'a> ValueMerger<'a> {
             then_type, else_type,
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
         );
-
+        dbg!(then_type.clone());
+        dbg!(else_type.clone());
         let then_call_stack = self.dfg.get_value_call_stack(then_value);
         let else_call_stack = self.dfg.get_value_call_stack(else_value);
 
@@ -195,6 +207,8 @@ impl<'a> ValueMerger<'a> {
                 let mut get_element = |array, typevars, len| {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
+                    dbg!(len);
+                    dbg!(index_usize);
                     if len <= index_usize {
                         self.make_slice_dummy_data(element_type)
                     } else {
@@ -235,7 +249,7 @@ impl<'a> ValueMerger<'a> {
                         res
                     }
                 };
-
+                dbg!(typevars.clone());
                 let then_element =
                     get_element(then_value_id, typevars.clone(), then_len * element_types.len());
                 let else_element =

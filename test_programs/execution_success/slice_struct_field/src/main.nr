@@ -91,15 +91,7 @@ fn main(y: pub Field) {
     let foo_parent_two = FooParent { parent_arr: [3, 4, 5], foos: q };
     let mut foo_parents = [foo_parent_one];
     foo_parents = foo_parents.push_back(foo_parent_two);
-    // TODO: make a separate test for entirely compile time
-    // foo_parents[1].foos.push_back(foo_four);
-    // TODO: Merging nested slices is broken
-    // if y == 3 {
-    //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
-    // } else {
-    //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 1000;
-    // }
-
+    
     assert(foo_parents[y - 2].foos[y - 2].b[y - 1] == 21);
     foo_parents[y - 2].foos[y - 2].b[y - 1] = 5000;
     assert(foo_parents[y - 2].foos[y - 2].b[y - 1] == 5000);

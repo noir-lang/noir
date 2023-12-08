@@ -1,0 +1,7 @@
+[package]
+name = "slices_nested_merge"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.20.0"
+
+[dependencies]
