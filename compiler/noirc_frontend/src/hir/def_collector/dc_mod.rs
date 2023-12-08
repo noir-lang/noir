@@ -1,4 +1,4 @@
-use std::{vec, collections::HashMap};
+use std::{collections::HashMap, vec};
 
 use acvm::acir::acir_field::FieldOptions;
 use fm::FileId;

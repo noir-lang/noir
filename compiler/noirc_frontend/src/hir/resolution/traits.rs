@@ -110,7 +110,13 @@ fn resolve_trait_methods(
             resolver.set_self_type(Some(self_type));
 
             let func_id = unresolved_trait.method_ids[&name.0.contents];
-            let (_, func_meta) = resolver.resolve_trait_function(name, parameters, return_type, where_clause, func_id);
+            let (_, func_meta) = resolver.resolve_trait_function(
+                name,
+                parameters,
+                return_type,
+                where_clause,
+                func_id,
+            );
             resolver.interner.push_fn_meta(func_meta, func_id);
 
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
@@ -154,9 +160,12 @@ fn resolve_trait_methods(
                 default_impl_module_id: unresolved_trait.module_id,
             };
             functions.push(f);
-            resolver_errors.extend(resolver.take_errors()
-                .into_iter()
-                .map(|resolution_error| (resolution_error.into(), file)))
+            resolver_errors.extend(
+                resolver
+                    .take_errors()
+                    .into_iter()
+                    .map(|resolution_error| (resolution_error.into(), file)),
+            )
         }
     }
     (functions, resolver_errors)

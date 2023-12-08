@@ -19,7 +19,7 @@ use crate::hir_def::expr::{
 };
 
 use crate::hir_def::traits::{Trait, TraitConstraint};
-use crate::token::{FunctionAttribute, Attributes};
+use crate::token::{Attributes, FunctionAttribute};
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
@@ -37,11 +37,11 @@ use crate::{
     StatementKind,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionVisibility, Generics,
-    LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern, Shared, StructType, Type,
-    TypeAliasType, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics,
-    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-    Visibility, ERROR_IDENT, FunctionReturnType, FunctionDefinition,
+    ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionDefinition,
+    FunctionReturnType, FunctionVisibility, Generics, LValue, NoirStruct, NoirTypeAlias, Param,
+    Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable,
+    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -223,7 +223,7 @@ impl<'a> Resolver<'a> {
             is_internal: false,
             is_unconstrained: false,
             visibility: FunctionVisibility::Public, // Trait functions are always public
-            generics: Vec::new(), // self.generics should already be set
+            generics: Vec::new(),                   // self.generics should already be set
             parameters: vecmap(parameters, |(name, typ)| Param {
                 visibility: Visibility::Private,
                 pattern: Pattern::Identifier(name.clone()),
@@ -1651,6 +1651,24 @@ impl<'a> Resolver<'a> {
         None
     }
 
+    // this resolves TraitName::some_static_method
+    fn resolve_trait_static_method(&mut self, path: &Path) -> Option<(HirExpression, Type)> {
+        if path.kind == PathKind::Plain && path.segments.len() == 2 {
+            let method = &path.segments[1];
+
+            let mut trait_path = path.clone();
+            trait_path.pop();
+            let trait_id = self.lookup(trait_path).ok()?;
+            let the_trait = self.interner.get_trait(trait_id);
+
+            if let Some(method) = the_trait.find_method(method.0.contents.as_str()) {
+                let self_type = self.interner.next_type_variable();
+                return Some((HirExpression::TraitMethodReference(method), self_type));
+            }
+        }
+        None
+    }
+
     // this resolves a static trait method T::trait_method by iterating over the where clause
     fn resolve_trait_method_by_named_generic(
         &mut self,
@@ -1687,6 +1705,7 @@ impl<'a> Resolver<'a> {
 
     fn resolve_trait_generic_path(&mut self, path: &Path) -> Option<(HirExpression, Type)> {
         self.resolve_trait_static_method_by_self(path)
+            .or_else(|| self.resolve_trait_static_method(path))
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
 
