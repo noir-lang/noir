@@ -234,10 +234,13 @@ impl UnresolvedTypeExpression {
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int)) => match int.try_to_u64() {
-                Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
-                None => Err(expr),
-            },
+            ExpressionKind::Literal(Literal::Integer(int, sign)) => {
+                assert!(!sign, "Negative literal is not allowed here");
+                match int.try_to_u64() {
+                    Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
+                    None => Err(expr),
+                }
+            }
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(0, expr.span));
