@@ -94,7 +94,7 @@ void AvmMiniTraceBuilder::insertInMemTrace(uint32_t m_clk, uint32_t m_sub_clk, u
  */
 void AvmMiniTraceBuilder::loadAInMemTrace(uint32_t addr, FF val)
 {
-    insertInMemTrace(static_cast<uint32_t>(mainTrace.size()), SubClkLoadA, addr, val, false);
+    insertInMemTrace(static_cast<uint32_t>(mainTrace.size()), SUB_CLK_LOAD_A, addr, val, false);
 }
 
 /**
@@ -106,7 +106,7 @@ void AvmMiniTraceBuilder::loadAInMemTrace(uint32_t addr, FF val)
  */
 void AvmMiniTraceBuilder::loadBInMemTrace(uint32_t addr, FF val)
 {
-    insertInMemTrace(static_cast<uint32_t>(mainTrace.size()), SubClkLoadB, addr, val, false);
+    insertInMemTrace(static_cast<uint32_t>(mainTrace.size()), SUB_CLK_LOAD_B, addr, val, false);
 }
 
 /**
@@ -118,7 +118,7 @@ void AvmMiniTraceBuilder::loadBInMemTrace(uint32_t addr, FF val)
  */
 void AvmMiniTraceBuilder::loadCInMemTrace(uint32_t addr, FF val)
 {
-    insertInMemTrace(static_cast<uint32_t>(mainTrace.size()), SubClkLoadC, addr, val, false);
+    insertInMemTrace(static_cast<uint32_t>(mainTrace.size()), SUB_CLK_LOAD_C, addr, val, false);
 }
 
 /**
@@ -130,7 +130,7 @@ void AvmMiniTraceBuilder::loadCInMemTrace(uint32_t addr, FF val)
  */
 void AvmMiniTraceBuilder::storeAInMemTrace(uint32_t addr, FF val)
 {
-    insertInMemTrace(static_cast<uint32_t>(mainTrace.size()), SubClkStoreA, addr, val, true);
+    insertInMemTrace(static_cast<uint32_t>(mainTrace.size()), SUB_CLK_STORE_A, addr, val, true);
 }
 
 /**
@@ -142,7 +142,7 @@ void AvmMiniTraceBuilder::storeAInMemTrace(uint32_t addr, FF val)
  */
 void AvmMiniTraceBuilder::storeBInMemTrace(uint32_t addr, FF val)
 {
-    insertInMemTrace(static_cast<uint32_t>(mainTrace.size()), SubClkStoreB, addr, val, true);
+    insertInMemTrace(static_cast<uint32_t>(mainTrace.size()), SUB_CLK_STORE_B, addr, val, true);
 }
 
 /**
@@ -154,38 +154,38 @@ void AvmMiniTraceBuilder::storeBInMemTrace(uint32_t addr, FF val)
  */
 void AvmMiniTraceBuilder::storeCInMemTrace(uint32_t addr, FF val)
 {
-    insertInMemTrace(static_cast<uint32_t>(mainTrace.size()), SubClkStoreC, addr, val, true);
+    insertInMemTrace(static_cast<uint32_t>(mainTrace.size()), SUB_CLK_STORE_C, addr, val, true);
 }
 
 /**
  * @brief Addition over finite field with direct memory access.
  *
- * @param s0 An index in ffMemory pointing to the first operand of the addition.
- * @param s1 An index in ffMemory pointing to the second operand of the addition.
- * @param d0 An index in ffMemory pointing to the output of the addition.
+ * @param aOffset An index in ffMemory pointing to the first operand of the addition.
+ * @param bOffset An index in ffMemory pointing to the second operand of the addition.
+ * @param dstOffset An index in ffMemory pointing to the output of the addition.
  */
-void AvmMiniTraceBuilder::add(uint32_t s0, uint32_t s1, uint32_t d0)
+void AvmMiniTraceBuilder::add(uint32_t aOffset, uint32_t bOffset, uint32_t dstOffset)
 {
     // a + b = c
-    FF a = ffMemory.at(s0);
-    FF b = ffMemory.at(s1);
+    FF a = ffMemory.at(aOffset);
+    FF b = ffMemory.at(bOffset);
     FF c = a + b;
-    ffMemory.at(d0) = c;
+    ffMemory.at(dstOffset) = c;
 
     auto clk = mainTrace.size();
 
     // Loading into Ia
-    loadAInMemTrace(s0, a);
+    loadAInMemTrace(aOffset, a);
 
     // Loading into Ib
-    loadBInMemTrace(s1, b);
+    loadBInMemTrace(bOffset, b);
 
     // Storing from Ic
-    storeCInMemTrace(d0, c);
+    storeCInMemTrace(dstOffset, c);
 
     mainTrace.push_back(Row{
         .avmMini_clk = clk,
-        .avmMini_subop = FF(1),
+        .avmMini_sel_op_add = FF(1),
         .avmMini_ia = a,
         .avmMini_ib = b,
         .avmMini_ic = c,
@@ -193,15 +193,157 @@ void AvmMiniTraceBuilder::add(uint32_t s0, uint32_t s1, uint32_t d0)
         .avmMini_mem_op_b = FF(1),
         .avmMini_mem_op_c = FF(1),
         .avmMini_rwc = FF(1),
-        .avmMini_mem_idx_a = FF(s0),
-        .avmMini_mem_idx_b = FF(s1),
-        .avmMini_mem_idx_c = FF(d0),
+        .avmMini_mem_idx_a = FF(aOffset),
+        .avmMini_mem_idx_b = FF(bOffset),
+        .avmMini_mem_idx_c = FF(dstOffset),
     });
 };
 
 /**
+ * @brief Subtraction over finite field with direct memory access.
+ *
+ * @param aOffset An index in ffMemory pointing to the first operand of the subtraction.
+ * @param bOffset An index in ffMemory pointing to the second operand of the subtraction.
+ * @param dstOffset An index in ffMemory pointing to the output of the subtraction.
+ */
+void AvmMiniTraceBuilder::sub(uint32_t aOffset, uint32_t bOffset, uint32_t dstOffset)
+{
+    // a - b = c
+    FF a = ffMemory.at(aOffset);
+    FF b = ffMemory.at(bOffset);
+    FF c = a - b;
+    ffMemory.at(dstOffset) = c;
+
+    auto clk = mainTrace.size();
+
+    // Loading into Ia
+    loadAInMemTrace(aOffset, a);
+
+    // Loading into Ib
+    loadBInMemTrace(bOffset, b);
+
+    // Storing from Ic
+    storeCInMemTrace(dstOffset, c);
+
+    mainTrace.push_back(Row{
+        .avmMini_clk = clk,
+        .avmMini_sel_op_sub = FF(1),
+        .avmMini_ia = a,
+        .avmMini_ib = b,
+        .avmMini_ic = c,
+        .avmMini_mem_op_a = FF(1),
+        .avmMini_mem_op_b = FF(1),
+        .avmMini_mem_op_c = FF(1),
+        .avmMini_rwc = FF(1),
+        .avmMini_mem_idx_a = FF(aOffset),
+        .avmMini_mem_idx_b = FF(bOffset),
+        .avmMini_mem_idx_c = FF(dstOffset),
+    });
+};
+
+/**
+ * @brief Multiplication over finite field with direct memory access.
+ *
+ * @param aOffset An index in ffMemory pointing to the first operand of the multiplication.
+ * @param bOffset An index in ffMemory pointing to the second operand of the multiplication.
+ * @param dstOffset An index in ffMemory pointing to the output of the multiplication.
+ */
+void AvmMiniTraceBuilder::mul(uint32_t aOffset, uint32_t bOffset, uint32_t dstOffset)
+{
+    // a * b = c
+    FF a = ffMemory.at(aOffset);
+    FF b = ffMemory.at(bOffset);
+    FF c = a * b;
+    ffMemory.at(dstOffset) = c;
+
+    auto clk = mainTrace.size();
+
+    // Loading into Ia
+    loadAInMemTrace(aOffset, a);
+
+    // Loading into Ib
+    loadBInMemTrace(bOffset, b);
+
+    // Storing from Ic
+    storeCInMemTrace(dstOffset, c);
+
+    mainTrace.push_back(Row{
+        .avmMini_clk = clk,
+        .avmMini_sel_op_mul = FF(1),
+        .avmMini_ia = a,
+        .avmMini_ib = b,
+        .avmMini_ic = c,
+        .avmMini_mem_op_a = FF(1),
+        .avmMini_mem_op_b = FF(1),
+        .avmMini_mem_op_c = FF(1),
+        .avmMini_rwc = FF(1),
+        .avmMini_mem_idx_a = FF(aOffset),
+        .avmMini_mem_idx_b = FF(bOffset),
+        .avmMini_mem_idx_c = FF(dstOffset),
+    });
+}
+
+/**
+ * @brief Division over finite field with direct memory access.
+ *
+ * @param aOffset An index in ffMemory pointing to the first operand of the division.
+ * @param bOffset An index in ffMemory pointing to the second operand of the division.
+ * @param dstOffset An index in ffMemory pointing to the output of the division.
+ */
+void AvmMiniTraceBuilder::div(uint32_t aOffset, uint32_t bOffset, uint32_t dstOffset)
+{
+    // a * b^(-1) = c
+    FF a = ffMemory.at(aOffset);
+    FF b = ffMemory.at(bOffset);
+    FF c;
+    FF inv;
+    FF error;
+
+    if (!b.is_zero()) {
+
+        inv = b.invert();
+        c = a * inv;
+        error = 0;
+    } else {
+        inv = 1;
+        c = 0;
+        error = 1;
+    }
+
+    ffMemory.at(dstOffset) = c;
+
+    auto clk = mainTrace.size();
+
+    // Loading into Ia
+    loadAInMemTrace(aOffset, a);
+
+    // Loading into Ib
+    loadBInMemTrace(bOffset, b);
+
+    // Storing from Ic
+    storeCInMemTrace(dstOffset, c);
+
+    mainTrace.push_back(Row{
+        .avmMini_clk = clk,
+        .avmMini_sel_op_div = FF(1),
+        .avmMini_op_err = error,
+        .avmMini_inv = inv,
+        .avmMini_ia = a,
+        .avmMini_ib = b,
+        .avmMini_ic = c,
+        .avmMini_mem_op_a = FF(1),
+        .avmMini_mem_op_b = FF(1),
+        .avmMini_mem_op_c = FF(1),
+        .avmMini_rwc = FF(1),
+        .avmMini_mem_idx_a = FF(aOffset),
+        .avmMini_mem_idx_b = FF(bOffset),
+        .avmMini_mem_idx_c = FF(dstOffset),
+    });
+}
+
+/**
  * @brief CALLDATACOPY opcode with direct memory access, i.e.,
- *        M_F[d0:d0+s1] = M_calldata[s0:s0+s1]
+ *        M[dstOffset:dstOffset+copySize] = calldata[cdOffset:cdOffset+copySize]
  *        Simplified version with exclusively memory store operations and
  *        values from M_calldata passed by an array and loaded into
  *        intermediate registers.
@@ -211,22 +353,26 @@ void AvmMiniTraceBuilder::add(uint32_t s0, uint32_t s1, uint32_t d0)
  *        TODO: taking care of intermediate register values consistency and propagating their
  *        values to the next row when not overwritten.
  *
- * @param s0 The starting index of the region in calldata to be copied.
- * @param s1 The number of finite field elements to be copied into memory.
- * @param d0 The starting index of memory where calldata will be copied to.
+ * @param cdOffset The starting index of the region in calldata to be copied.
+ * @param copySize The number of finite field elements to be copied into memory.
+ * @param dstOffset The starting index of memory where calldata will be copied to.
  * @param callDataMem The vector containing calldata.
  */
-void AvmMiniTraceBuilder::callDataCopy(uint32_t s0, uint32_t s1, uint32_t d0, std::vector<FF> const& callDataMem)
+void AvmMiniTraceBuilder::callDataCopy(uint32_t cdOffset,
+                                       uint32_t copySize,
+                                       uint32_t dstOffset,
+                                       std::vector<FF> const& callDataMem)
 {
     // We parallelize storing memory operations in chunk of 3, i.e., 1 per intermediate register.
-    // This offset points to the first storing operation (pertaining to intermediate register Ia).
-    // s0 + offset:       Ia memory store operation
-    // s0 + offset + 1:   Ib memory store operation
-    // s0 + offset + 2:   Ic memory store operation
+    // The variable pos is an index pointing to the first storing operation (pertaining to intermediate
+    // register Ia) relative to cdOffset:
+    // cdOffset + pos:       Ia memory store operation
+    // cdOffset + pos + 1:   Ib memory store operation
+    // cdOffset + pos + 2:   Ic memory store operation
 
-    uint32_t offset = 0;
+    uint32_t pos = 0;
 
-    while (offset < s1) {
+    while (pos < copySize) {
         FF ib(0);
         FF ic(0);
         uint32_t mem_op_b(0);
@@ -237,19 +383,19 @@ void AvmMiniTraceBuilder::callDataCopy(uint32_t s0, uint32_t s1, uint32_t d0, st
         uint32_t rwc(0);
         auto clk = mainTrace.size();
 
-        FF ia = callDataMem.at(s0 + offset);
+        FF ia = callDataMem.at(cdOffset + pos);
         uint32_t mem_op_a(1);
-        uint32_t mem_idx_a = d0 + offset;
+        uint32_t mem_idx_a = dstOffset + pos;
         uint32_t rwa = 1;
 
         // Storing from Ia
         ffMemory.at(mem_idx_a) = ia;
         storeAInMemTrace(mem_idx_a, ia);
 
-        if (s1 - offset > 1) {
-            ib = callDataMem.at(s0 + offset + 1);
+        if (copySize - pos > 1) {
+            ib = callDataMem.at(cdOffset + pos + 1);
             mem_op_b = 1;
-            mem_idx_b = d0 + offset + 1;
+            mem_idx_b = dstOffset + pos + 1;
             rwb = 1;
 
             // Storing from Ib
@@ -257,10 +403,10 @@ void AvmMiniTraceBuilder::callDataCopy(uint32_t s0, uint32_t s1, uint32_t d0, st
             storeBInMemTrace(mem_idx_b, ib);
         }
 
-        if (s1 - offset > 2) {
-            ic = callDataMem.at(s0 + offset + 2);
+        if (copySize - pos > 2) {
+            ic = callDataMem.at(cdOffset + pos + 2);
             mem_op_c = 1;
-            mem_idx_c = d0 + offset + 2;
+            mem_idx_c = dstOffset + pos + 2;
             rwc = 1;
 
             // Storing from Ic
@@ -284,39 +430,40 @@ void AvmMiniTraceBuilder::callDataCopy(uint32_t s0, uint32_t s1, uint32_t d0, st
             .avmMini_mem_idx_c = FF(mem_idx_c),
         });
 
-        if (s1 - offset > 2) { // Guard to prevent overflow if s1 is close to uint32_t maximum value.
-            offset += 3;
+        if (copySize - pos > 2) { // Guard to prevent overflow if copySize is close to uint32_t maximum value.
+            pos += 3;
         } else {
-            offset = s1;
+            pos = copySize;
         }
     }
 }
 
 /**
  * @brief RETURN opcode with direct memory access, i.e.,
- *        return M_F[s0:s0+s1]
+ *        return(M[retOffset:retOffset+retSize])
  *        Simplified version with exclusively memory load operations into
  *        intermediate registers and then values are copied to the returned vector.
  *        TODO: Implement the indirect memory version (maybe not required)
  *        TODO: taking care of flagging this row as the last one? Special STOP flag?
  *
- * @param s0 The starting index of the memory region to be returned.
- * @param s1 The number of elements to be returned.
+ * @param retOffset The starting index of the memory region to be returned.
+ * @param retSize The number of elements to be returned.
  * @return The returned memory region as a std::vector.
  */
 
-std::vector<FF> AvmMiniTraceBuilder::returnOP(uint32_t s0, uint32_t s1)
+std::vector<FF> AvmMiniTraceBuilder::returnOP(uint32_t retOffset, uint32_t retSize)
 {
     // We parallelize loading memory operations in chunk of 3, i.e., 1 per intermediate register.
-    // This offset points to the first loading operation (pertaining to intermediate register Ia).
-    // s0 + offset:       Ia memory load operation
-    // s0 + offset + 1:   Ib memory load operation
-    // s0 + offset + 2:   Ic memory load operation
+    // The variable pos is an index pointing to the first storing operation (pertaining to intermediate
+    // register Ia) relative to retOffset:
+    // retOffset + pos:       Ia memory load operation
+    // retOffset + pos + 1:   Ib memory load operation
+    // retOffset + pos + 2:   Ic memory load operation
 
-    uint32_t offset = 0;
+    uint32_t pos = 0;
     std::vector<FF> returnMem;
 
-    while (offset < s1) {
+    while (pos < retSize) {
         FF ib(0);
         FF ic(0);
         uint32_t mem_op_b(0);
@@ -326,16 +473,16 @@ std::vector<FF> AvmMiniTraceBuilder::returnOP(uint32_t s0, uint32_t s1)
         auto clk = mainTrace.size();
 
         uint32_t mem_op_a(1);
-        uint32_t mem_idx_a = s0 + offset;
+        uint32_t mem_idx_a = retOffset + pos;
         FF ia = ffMemory.at(mem_idx_a);
 
         // Loading from Ia
         returnMem.push_back(ia);
         loadAInMemTrace(mem_idx_a, ia);
 
-        if (s1 - offset > 1) {
+        if (retSize - pos > 1) {
             mem_op_b = 1;
-            mem_idx_b = s0 + offset + 1;
+            mem_idx_b = retOffset + pos + 1;
             ib = ffMemory.at(mem_idx_b);
 
             // Loading from Ib
@@ -343,9 +490,9 @@ std::vector<FF> AvmMiniTraceBuilder::returnOP(uint32_t s0, uint32_t s1)
             loadBInMemTrace(mem_idx_b, ib);
         }
 
-        if (s1 - offset > 2) {
+        if (retSize - pos > 2) {
             mem_op_c = 1;
-            mem_idx_c = s0 + offset + 2;
+            mem_idx_c = retOffset + pos + 2;
             ic = ffMemory.at(mem_idx_c);
 
             // Loading from Ic
@@ -366,10 +513,10 @@ std::vector<FF> AvmMiniTraceBuilder::returnOP(uint32_t s0, uint32_t s1)
             .avmMini_mem_idx_c = FF(mem_idx_c),
         });
 
-        if (s1 - offset > 2) { // Guard to prevent overflow if s1 is close to uint32_t maximum value.
-            offset += 3;
+        if (retSize - pos > 2) { // Guard to prevent overflow if retSize is close to uint32_t maximum value.
+            pos += 3;
         } else {
-            offset = s1;
+            pos = retSize;
         }
     }
     return returnMem;

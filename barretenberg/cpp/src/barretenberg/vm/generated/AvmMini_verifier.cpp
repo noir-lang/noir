@@ -64,7 +64,16 @@ bool AvmMiniVerifier::verify_proof(const plonk::proof& proof)
     commitments.memTrace_m_lastAccess =
         transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_lastAccess);
     commitments.memTrace_m_rw = transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_rw);
-    commitments.avmMini_subop = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_subop);
+    commitments.avmMini_sel_op_add =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_op_add);
+    commitments.avmMini_sel_op_sub =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_op_sub);
+    commitments.avmMini_sel_op_mul =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_op_mul);
+    commitments.avmMini_sel_op_div =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_op_div);
+    commitments.avmMini_op_err = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_op_err);
+    commitments.avmMini_inv = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_inv);
     commitments.avmMini_ia = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_ia);
     commitments.avmMini_ib = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_ib);
     commitments.avmMini_ic = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_ic);

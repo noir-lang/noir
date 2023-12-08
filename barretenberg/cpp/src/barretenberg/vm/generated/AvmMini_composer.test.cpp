@@ -35,29 +35,36 @@ TEST_F(AvmMiniTests, basic)
 
     trace_builder.callDataCopy(0, 3, 2, std::vector<FF>{ 45, 23, 12 });
 
-    trace_builder.add(2, 3, 4);
-    trace_builder.add(4, 5, 5);
-    trace_builder.add(5, 5, 5);
-    trace_builder.add(5, 6, 7);
+    //           Memory layout:    [0,0,45,23,12,0,0,0,....]
+    trace_builder.add(2, 3, 4); // [0,0,45,23,68,0,0,0,....]
+    trace_builder.add(4, 5, 5); // [0,0,45,23,68,68,0,0,....]
+    trace_builder.add(5, 5, 5); // [0,0,45,23,68,136,0,0,....]
+    trace_builder.add(5, 6, 7); // [0,0,45,23,68,136,0,136,0....]
+    trace_builder.sub(7, 6, 8); // [0,0,45,23,68,136,0,136,136,0....]
+    trace_builder.mul(8, 8, 8); // [0,0,45,23,68,136,0,136,136^2,0....]
+    trace_builder.div(3, 5, 1); // [0,23*136^(-1),45,23,68,136,0,136,136^2,0....]
+    trace_builder.div(1, 1, 9); // [0,23*136^(-1),45,23,68,136,0,136,136^2,1,0....]
+    trace_builder.div(9, 0, 4); // [0,23*136^(-1),45,23,1/0,136,0,136,136^2,1,0....] Error: division by 0
 
     trace_builder.returnOP(1, 8);
 
     auto trace = trace_builder.finalize();
     circuit_builder.set_trace(std::move(trace));
 
-    ASSERT_TRUE(circuit_builder.check_circuit());
+    EXPECT_TRUE(circuit_builder.check_circuit());
 
     auto composer = AvmMiniComposer();
     auto prover = composer.create_prover(circuit_builder);
     auto proof = prover.construct_proof();
+
     auto verifier = composer.create_verifier(circuit_builder);
     bool verified = verifier.verify_proof(proof);
-
-    ASSERT_TRUE(verified);
 
     if (!verified) {
         proof_system::log_avmMini_trace(circuit_builder.rows, 0, 10);
     }
+
+    EXPECT_TRUE(verified);
 }
 
 } // namespace example_relation_honk_composer

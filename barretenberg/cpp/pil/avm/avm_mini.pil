@@ -9,11 +9,25 @@ namespace avmMini(256);
                                      // only in first element of shifted polynomials.
     
     //===== TABLE SUBOP-TR ========================================================
-    // Enum over sub operations
-    // 0: VOID
-    // 1: ADD
-    pol commit subop;
-    
+    // Boolean selectors for (sub-)operations. Only one operation is activated at
+    // a time.
+
+    // ADD
+    pol commit sel_op_add;
+    // SUB
+    pol commit sel_op_sub;
+    // MUL
+    pol commit sel_op_mul;
+    // DIV
+    pol commit sel_op_div;
+
+    // Error boolean flag pertaining to an operation
+    pol commit op_err;
+
+    // A helper witness being the inverse of some value
+    // to show a non-zero equality
+    pol commit inv;
+
     // Intermediate register values
     pol commit ia;
     pol commit ib;
@@ -42,15 +56,56 @@ namespace avmMini(256);
     pol commit last;
     
     // Relations on type constraints
-    subop * (1 - subop) = 0;
+
+    sel_op_add * (1 - sel_op_add) = 0;
+    sel_op_sub * (1 - sel_op_sub) = 0;
+    sel_op_mul * (1 - sel_op_mul) = 0;
+    sel_op_div * (1 - sel_op_div) = 0;
+
+    op_err * (1 - op_err) = 0;
+
     mem_op_a * (1 - mem_op_a) = 0;
     mem_op_b * (1 - mem_op_b) = 0;
     mem_op_c * (1 - mem_op_c) = 0;
+
     rwa * (1 - rwa) = 0;
     rwb * (1 - rwb) = 0;
     rwc * (1 - rwc) = 0;
     
     // Relation for addition over the finite field
-    subop * (ia + ib - ic) = 0;
+    sel_op_add * (ia + ib - ic) = 0;
     
-    
+    // Relation for subtraction over the finite field
+    sel_op_sub * (ia - ib - ic) = 0;
+
+    // Relation for multiplication over the finite field
+    sel_op_mul * (ia * ib - ic) = 0;
+
+    // Relation for division over the finite field
+    sel_op_div * (1 - op_err) * (ic * ib - ia) = 0;
+
+    // When sel_op_div == 1, we want ib == 0 <==> op_err == 1
+    // This can be achieved with the 2 following relations.
+    // inv is an extra witness to show that we can invert ib, i.e., inv = ib^(-1)
+    // If ib == 0, we have to set inv = 1 to satisfy the second relation.
+    sel_op_div * (ib * inv - 1 + op_err) = 0;
+    sel_op_div * op_err * (1 - inv) = 0;
+
+    // op_err cannot be maliciously activated for a non-relevant
+    // operation selector, i.e., op_err == 1 ==> sel_op_div || sel_op_XXX || ...
+    // op_err * (sel_op_div + sel_op_XXX + ... - 1) == 0
+    // Note that the above is even a stronger constraint, as it shows
+    // that exactly one sel_op_XXX must be true.
+    // At this time, we have only division producing an error.
+    op_err * (sel_op_div - 1) = 0;
+
+    // TODO: constraint that we stop execution at the first error
+    // An error can only happen at the last sub-operation row.
+
+    // OPEN/POTENTIAL OPTIMIZATION: Dedicated error per relevant operation?
+    // For the division, we could lower the degree from 4 to 3
+    // (sel_op_div - op_div_err) * (ic * ib - ia) = 0;
+    // Same for the relations related to the error activation:
+    // (ib * inv - 1 + op_div_err) = 0 && op_err * (1 - inv) = 0 
+    // This works in combination with op_div_err * (sel_op_div - 1) = 0;
+    // Drawback is the need to paralllelize the latter.
