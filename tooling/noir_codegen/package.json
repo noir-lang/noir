@@ -25,7 +25,7 @@
   },
   "scripts": {
     "dev": "tsc-multi --watch",
-    "build": "tsc && cd test/assert_lt && nargo compile",
+    "build": "bash ./compile_noir_code.sh && tsc",
     "test": "yarn test:codegen && yarn test:node && yarn test:clean",
     "test:codegen": "tsx src/main.ts ./test/assert_lt/target/** --out-dir ./test/codegen",
     "test:node": "mocha --timeout 25000 --exit --config ./.mocharc.json",
