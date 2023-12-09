@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use acvm::acir::circuit::opcodes::BlackBoxFuncCall;
 use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use backend_interface::BackendOpcodeSupport;
