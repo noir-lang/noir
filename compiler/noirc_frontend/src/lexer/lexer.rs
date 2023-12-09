@@ -633,15 +633,18 @@ mod tests {
     }
 
     #[test]
-    fn test_attribute_with_apostrophe() {
-        let input = r#"#[test(should_fail_with = "the eagle's feathers")]"#;
+    fn test_attribute_with_common_punctuation() {
+        let input =
+            r#"#[test(should_fail_with = "stmt. q? exclaim! & symbols, 1% shouldn't fail")]"#;
         let mut lexer = Lexer::new(input);
 
         let token = lexer.next_token().unwrap().token().clone();
         assert_eq!(
             token,
             Token::Attribute(Attribute::Function(FunctionAttribute::Test(
-                TestScope::ShouldFailWith { reason: "the eagle's feathers".to_owned().into() }
+                TestScope::ShouldFailWith {
+                    reason: "stmt. q? exclaim! & symbols, 1% shouldn't fail".to_owned().into()
+                }
             )))
         );
     }
