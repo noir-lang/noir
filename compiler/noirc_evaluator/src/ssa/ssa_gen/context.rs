@@ -366,7 +366,7 @@ impl<'a> FunctionContext<'a> {
                 };
 
                 if operator == BinaryOpKind::Multiply && bit_size == 1 {
-                    results
+                    result
                 } else if operator == BinaryOpKind::ShiftLeft {
                     self.check_left_shift_overflow(result, rhs, bit_size, location)
                 } else {
