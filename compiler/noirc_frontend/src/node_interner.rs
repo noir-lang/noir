@@ -1314,23 +1314,32 @@ impl NodeInterner {
 
         let found_ident = self.nodes.get(expr_lhs.into())?;
 
-        if let Node::Expression(HirExpression::Ident(ident)) = found_ident {
-            let definition_info = self.definition(ident.id);
-            if let DefinitionKind::Local(Some(local_id)) = definition_info.kind {
-                if let Some(Node::Expression(HirExpression::Constructor(constructor_expression))) =
-                    self.nodes.get(local_id.into())
-                {
-                    let struct_type = constructor_expression.r#type.borrow();
-                    let field_names = struct_type.field_names();
-                    if let Some(found) =
-                        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0)
-                    {
-                        return Some(Location::new(found.span(), struct_type.location.file));
-                    }
-                }
+        let ident = match found_ident {
+            Node::Expression(HirExpression::Ident(ident)) => ident,
+            _ => return None,
+        };
+
+        let definition_info = self.definition(ident.id);
+
+        let local_id = match definition_info.kind {
+            DefinitionKind::Local(Some(local_id)) => local_id,
+            _ => return None,
+        };
+
+        let constructor_expression = match self.nodes.get(local_id.into()) {
+            Some(Node::Expression(HirExpression::Constructor(constructor_expression))) => {
+                constructor_expression
             }
+            _ => return None,
+        };
+
+        let struct_type = constructor_expression.r#type.borrow();
+        let field_names = struct_type.field_names();
+
+        match field_names.iter().find(|field_name| field_name.0 == expr_rhs.0) {
+            Some(found) => Some(Location::new(found.span(), struct_type.location.file)),
+            None => None,
         }
-        None
     }
 }
 
