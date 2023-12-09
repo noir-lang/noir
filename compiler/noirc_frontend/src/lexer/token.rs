@@ -468,13 +468,8 @@ impl Attribute {
                 .all(|ch| {
                     ch.is_ascii_alphabetic()
                         || ch.is_numeric()
-                        || ch == '_'
-                        || ch == '('
-                        || ch == ')'
-                        || ch == '='
-                        || ch == '"'
+                        || ch.is_ascii_punctuation()
                         || ch == ' '
-                        || ch == '\''
                 })
                 .then_some(());
 
