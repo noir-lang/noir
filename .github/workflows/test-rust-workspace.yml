@@ -41,5 +41,8 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
+      - name: Install next-test
+        run: curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
+  
       - name: Run tests
-        run: cargo test --workspace --locked --release
+        run: cargo nextest run
