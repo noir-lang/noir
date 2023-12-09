@@ -960,7 +960,6 @@ mod tests {
         for (input, expected_token) in test_cases {
             let mut lexer = Lexer::new(input);
             let got = lexer.next_token().unwrap();
-            assert_eq!(got, token);
             assert_eq!(got.token(), &expected_token);
         }
     }
