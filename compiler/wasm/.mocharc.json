@@ -1,7 +1,6 @@
 {
   "extension": [
-    "cjs",
-    "mjs"
+    "cjs"
   ],
-  "spec": "test/**/*.test.*js"
+  "spec": "test/**/*.test.cjs"
 }

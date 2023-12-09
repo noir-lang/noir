@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "outDir": "../dist/types",
+    "strict": true,
+    "baseUrl": ".",
+    "experimentalDecorators": true,
+    "noImplicitAny": true,
+    "removeComments": false,
+    "preserveConstEnums": true,
+    "sourceMap": true,
+    "importHelpers": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+  },
+  "include": ["**/*.*ts"]
+}

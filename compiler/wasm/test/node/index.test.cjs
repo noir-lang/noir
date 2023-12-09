@@ -19,6 +19,8 @@ const {
 
 const { describe, it } = require('mocha');
 
+const projectPath = join(__dirname, '../../fixtures/simple/noir-script');
+
 async function getPrecompiledSource(path) {
   const compiledData = readFileSync(resolve(__dirname, path)).toString();
   return JSON.parse(compiledData);
