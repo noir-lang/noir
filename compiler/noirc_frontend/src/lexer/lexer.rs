@@ -948,11 +948,13 @@ mod tests {
     }
 
     #[test]
-    fn test_eat_hex_int() {
+    fn test_eat_integer_literals() {
         let test_cases: Vec<(&str, Token)> = vec![
             ("0x05", Token::Int(5_i128.into())),
+            ("5", Token::Int(5_i128.into())),
             ("0x1234_5678", Token::Int(0x1234_5678_u128.into())),
             ("0x_01", Token::Int(0x1_u128.into())),
+            ("1_000_000", Token::Int(1_000_000_u128.into())),
         ];
 
         for (input, expected_token) in test_cases {
