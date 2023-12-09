@@ -19,7 +19,7 @@
     "url": "https://github.com/noir-lang/noir.git"
   },
   "scripts": {
-    "build": "bash ./build.sh",
+    "build": "bash ./nargo_compile_wasm_fixtures.sh && bash ./build.sh",
     "test": "yarn test:node && yarn test:browser",
     "test:node": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\"}' mocha",
     "test:browser": "web-test-runner",

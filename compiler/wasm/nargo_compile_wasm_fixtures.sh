@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd ./compiler/wasm/fixtures
+cd ./fixtures
 for dir in $(ls -d */); do
     pushd $dir/noir-script
     nargo compile
