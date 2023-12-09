@@ -213,18 +213,9 @@ fn compile_program(
         }
     };
 
-    // TODO: we say that pedersen hashing is supported by all backends for now
-    let is_opcode_supported_pedersen_hash = |opcode: &Opcode| -> bool {
-        if let Opcode::BlackBoxFuncCall(BlackBoxFuncCall::PedersenHash { .. }) = opcode {
-            true
-        } else {
-            is_opcode_supported(opcode)
-        }
-    };
-
     // Apply backend specific optimizations.
     let optimized_program =
-        nargo::ops::optimize_program(program, np_language, &is_opcode_supported_pedersen_hash)
+        nargo::ops::optimize_program(program, np_language, is_opcode_supported)
             .expect("Backend does not support an opcode that is in the IR");
 
     save_program(optimized_program.clone(), package, &workspace.target_directory_path());
