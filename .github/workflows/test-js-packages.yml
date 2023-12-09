@@ -230,7 +230,7 @@ jobs:
           yarn workspace @noir-lang/backend_barretenberg test
 
   test-noir-js:
-    needs: [build-acvm-js, build-noirc-abi]
+    needs: [build-acvm-js, build-noirc-abi, build-nargo]
     name: Noir JS
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -250,6 +250,17 @@ jobs:
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v3
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Add Nargo to $PATH
+        run: |
+          chmod +x ${{ github.workspace }}/nargo/nargo
+          echo "${{ github.workspace }}/nargo" >> $GITHUB_PATH
       
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
@@ -302,17 +313,6 @@ jobs:
           name: nargo
           path: ./nargo
 
-      - name: Compile fixtures with Nargo CLI
-        working-directory: ./compiler/wasm/fixtures
-        run: |
-          nargo_binary=${{ github.workspace }}/nargo/nargo
-          chmod +x $nargo_binary
-          for dir in $(ls -d */); do
-            pushd $dir/noir-script
-            $nargo_binary compile
-            popd
-          done
-
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
@@ -330,12 +330,23 @@ jobs:
         run: yarn workspace @noir-lang/noir_wasm test:browser
 
   test-noir-codegen:
-    needs: [build-acvm-js, build-noirc-abi]
+    needs: [build-acvm-js, build-noirc-abi, build-nargo]
     name: noir_codegen
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v3
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Add Nargo to $PATH
+        run: |
+          chmod +x ${{ github.workspace }}/nargo/nargo
+          echo "${{ github.workspace }}/nargo" >> $GITHUB_PATH
 
       - name: Download acvm_js package artifact
         uses: actions/download-artifact@v3
