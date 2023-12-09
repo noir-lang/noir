@@ -22,7 +22,7 @@ use crate::hir_def::{
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
     ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared, TypeAliasType,
-    TypeBinding, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -355,6 +355,7 @@ pub struct DefinitionInfo {
     pub name: String,
     pub mutable: bool,
     pub kind: DefinitionKind,
+    pub location: Location,
 }
 
 impl DefinitionInfo {
@@ -490,7 +491,6 @@ impl NodeInterner {
 
     pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
         let self_type_typevar_id = self.next_type_variable_id();
-        let self_type_typevar = Shared::new(TypeBinding::Unbound(self_type_typevar_id));
 
         self.traits.insert(
             type_id,
@@ -505,10 +505,10 @@ impl NodeInterner {
                     // can refer to it with generic arguments before the generic parameters themselves
                     // are resolved.
                     let id = TypeVariableId(0);
-                    (id, Shared::new(TypeBinding::Unbound(id)))
+                    (id, TypeVariable::unbound(id))
                 }),
                 self_type_typevar_id,
-                self_type_typevar,
+                TypeVariable::unbound(self_type_typevar_id),
             ),
         );
     }
@@ -518,6 +518,7 @@ impl NodeInterner {
         typ: &UnresolvedStruct,
         krate: CrateId,
         local_id: LocalModuleId,
+        file_id: FileId,
     ) -> StructId {
         let struct_id = StructId(ModuleId { krate, local_id });
         let name = typ.struct_def.name.clone();
@@ -530,10 +531,11 @@ impl NodeInterner {
             // can refer to it with generic arguments before the generic parameters themselves
             // are resolved.
             let id = TypeVariableId(0);
-            (id, Shared::new(TypeBinding::Unbound(id)))
+            (id, TypeVariable::unbound(id))
         });
 
-        let new_struct = StructType::new(struct_id, name, typ.struct_def.span, no_fields, generics);
+        let location = Location::new(typ.struct_def.span, file_id);
+        let new_struct = StructType::new(struct_id, name, location, no_fields, generics);
         self.structs.insert(struct_id, Shared::new(new_struct));
         self.struct_attributes.insert(struct_id, typ.struct_def.attributes.clone());
         struct_id
@@ -549,7 +551,7 @@ impl NodeInterner {
             Type::Error,
             vecmap(&typ.type_alias_def.generics, |_| {
                 let id = TypeVariableId(0);
-                (id, Shared::new(TypeBinding::Unbound(id)))
+                (id, TypeVariable::unbound(id))
             }),
         ));
 
@@ -662,13 +664,14 @@ impl NodeInterner {
         name: String,
         mutable: bool,
         definition: DefinitionKind,
+        location: Location,
     ) -> DefinitionId {
         let id = DefinitionId(self.definitions.len());
         if let DefinitionKind::Function(func_id) = definition {
             self.function_definition_ids.insert(func_id, id);
         }
 
-        self.definitions.push(DefinitionInfo { name, mutable, kind: definition });
+        self.definitions.push(DefinitionInfo { name, mutable, kind: definition, location });
         id
     }
 
@@ -679,7 +682,8 @@ impl NodeInterner {
         let mut modifiers = FunctionModifiers::new();
         modifiers.name = name;
         let module = ModuleId::dummy_id();
-        self.push_function_definition(id, modifiers, module);
+        let location = Location::dummy();
+        self.push_function_definition(id, modifiers, module, location);
         id
     }
 
@@ -688,6 +692,7 @@ impl NodeInterner {
         id: FuncId,
         function: &FunctionDefinition,
         module: ModuleId,
+        location: Location,
     ) -> DefinitionId {
         use ContractFunctionType::*;
 
@@ -701,7 +706,7 @@ impl NodeInterner {
             contract_function_type: Some(if function.is_open { Open } else { Secret }),
             is_internal: Some(function.is_internal),
         };
-        self.push_function_definition(id, modifiers, module)
+        self.push_function_definition(id, modifiers, module, location)
     }
 
     pub fn push_function_definition(
@@ -709,11 +714,12 @@ impl NodeInterner {
         func: FuncId,
         modifiers: FunctionModifiers,
         module: ModuleId,
+        location: Location,
     ) -> DefinitionId {
         let name = modifiers.name.clone();
         self.function_modifiers.insert(func, modifiers);
         self.function_modules.insert(func, module);
-        self.push_definition(name, false, DefinitionKind::Function(func))
+        self.push_definition(name, false, DefinitionKind::Function(func), location)
     }
 
     pub fn set_function_trait(&mut self, func: FuncId, self_type: Type, trait_id: TraitId) {
@@ -1000,13 +1006,32 @@ impl NodeInterner {
         object_type: &Type,
         trait_id: TraitId,
     ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
-        self.lookup_trait_implementation_helper(object_type, trait_id, IMPL_SEARCH_RECURSION_LIMIT)
+        let (impl_kind, bindings) = self.try_lookup_trait_implementation(object_type, trait_id)?;
+        Type::apply_type_bindings(bindings);
+        Ok(impl_kind)
+    }
+
+    /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
+    pub fn try_lookup_trait_implementation(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+    ) -> Result<(TraitImplKind, TypeBindings), Vec<TraitConstraint>> {
+        let mut bindings = TypeBindings::new();
+        let impl_kind = self.lookup_trait_implementation_helper(
+            object_type,
+            trait_id,
+            &mut bindings,
+            IMPL_SEARCH_RECURSION_LIMIT,
+        )?;
+        Ok((impl_kind, bindings))
     }
 
     fn lookup_trait_implementation_helper(
         &self,
         object_type: &Type,
         trait_id: TraitId,
+        type_bindings: &mut TypeBindings,
         recursion_limit: u32,
     ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
         let make_constraint = || TraitConstraint::new(object_type.clone(), trait_id);
@@ -1016,20 +1041,29 @@ impl NodeInterner {
             return Err(vec![make_constraint()]);
         }
 
+        let object_type = object_type.substitute(type_bindings);
+
         let impls =
             self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
 
         for (existing_object_type, impl_kind) in impls {
-            let (existing_object_type, type_bindings) = existing_object_type.instantiate(self);
+            let (existing_object_type, instantiation_bindings) =
+                existing_object_type.instantiate(self);
 
-            if object_type.try_unify(&existing_object_type).is_ok() {
+            let mut fresh_bindings = TypeBindings::new();
+
+            if object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_ok() {
+                // The unification was successful so we can append fresh_bindings to our bindings list
+                type_bindings.extend(fresh_bindings);
+
                 if let TraitImplKind::Normal(impl_id) = impl_kind {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();
 
                     if let Err(mut errors) = self.validate_where_clause(
                         &trait_impl.where_clause,
-                        &type_bindings,
+                        type_bindings,
+                        &instantiation_bindings,
                         recursion_limit,
                     ) {
                         errors.push(make_constraint());
@@ -1049,14 +1083,20 @@ impl NodeInterner {
     fn validate_where_clause(
         &self,
         where_clause: &[TraitConstraint],
-        type_bindings: &TypeBindings,
+        type_bindings: &mut TypeBindings,
+        instantiation_bindings: &TypeBindings,
         recursion_limit: u32,
     ) -> Result<(), Vec<TraitConstraint>> {
         for constraint in where_clause {
-            let constraint_type = constraint.typ.substitute(type_bindings);
+            let constraint_type = constraint.typ.substitute(instantiation_bindings);
+            let constraint_type = constraint_type.substitute(type_bindings);
+
             self.lookup_trait_implementation_helper(
                 &constraint_type,
                 constraint.trait_id,
+                // Use a fresh set of type bindings here since the constraint_type originates from
+                // our impl list, which we don't want to bind to.
+                &mut TypeBindings::new(),
                 recursion_limit - 1,
             )?;
         }
@@ -1077,7 +1117,7 @@ impl NodeInterner {
         trait_id: TraitId,
     ) -> bool {
         // Make sure there are no overlapping impls
-        if self.lookup_trait_implementation(&object_type, trait_id).is_ok() {
+        if self.try_lookup_trait_implementation(&object_type, trait_id).is_ok() {
             return false;
         }
 
@@ -1105,8 +1145,8 @@ impl NodeInterner {
         let (instantiated_object_type, substitutions) =
             object_type.instantiate_type_variables(self);
 
-        if let Ok(TraitImplKind::Normal(existing)) =
-            self.lookup_trait_implementation(&instantiated_object_type, trait_id)
+        if let Ok((TraitImplKind::Normal(existing), _)) =
+            self.try_lookup_trait_implementation(&instantiated_object_type, trait_id)
         {
             let existing_impl = self.get_trait_implementation(existing);
             let existing_impl = existing_impl.borrow();
@@ -1242,6 +1282,7 @@ impl NodeInterner {
                     DefinitionKind::Function(func_id) => {
                         Some(self.function_meta(&func_id).location)
                     }
+                    DefinitionKind::Local(_local_id) => Some(definition_info.location),
                     _ => None,
                 }
             }
@@ -1285,8 +1326,10 @@ impl Methods {
             match interner.function_meta(&method).typ.instantiate(interner).0 {
                 Type::Function(args, _, _) => {
                     if let Some(object) = args.get(0) {
-                        // TODO #3089: This is dangerous! try_unify may commit type bindings even on failure
-                        if object.try_unify(typ).is_ok() {
+                        let mut bindings = TypeBindings::new();
+
+                        if object.try_unify(typ, &mut bindings).is_ok() {
+                            Type::apply_type_bindings(bindings);
                             return Some(method);
                         }
                     }
