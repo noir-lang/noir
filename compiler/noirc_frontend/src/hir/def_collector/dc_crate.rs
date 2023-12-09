@@ -471,7 +471,7 @@ pub(crate) fn check_methods_signatures(
     let self_type = resolver.get_self_type().expect("trait impl must have a Self type");
 
     // Temporarily bind the trait's Self type to self_type so we can type check
-    let _ = the_trait.self_type_typevar.borrow_mut().bind_to(self_type.clone(), the_trait.span);
+    the_trait.self_type_typevar.bind(self_type.clone());
 
     for (file_id, func_id) in impl_methods {
         let impl_method = resolver.interner.function_meta(func_id);
@@ -489,7 +489,10 @@ pub(crate) fn check_methods_signatures(
 
             let impl_method_generic_count =
                 impl_method.typ.generic_count() - trait_impl_generic_count;
-            let trait_method_generic_count = trait_method.generics.len();
+
+            // We subtract 1 here to account for the implicit generic `Self` type that is on all
+            // traits (and thus trait methods) but is not required (or allowed) for users to specify.
+            let trait_method_generic_count = trait_method.generics().len() - 1;
 
             if impl_method_generic_count != trait_method_generic_count {
                 let error = DefCollectorErrorKind::MismatchTraitImplementationNumGenerics {
@@ -503,9 +506,9 @@ pub(crate) fn check_methods_signatures(
             }
 
             if let Type::Function(impl_params, _, _) = impl_function_type.0 {
-                if trait_method.arguments.len() == impl_params.len() {
+                if trait_method.arguments().len() == impl_params.len() {
                     // Check the parameters of the impl method against the parameters of the trait method
-                    let args = trait_method.arguments.iter();
+                    let args = trait_method.arguments().iter();
                     let args_and_params = args.zip(&impl_params).zip(&impl_method.parameters.0);
 
                     for (parameter_index, ((expected, actual), (hir_pattern, _, _))) in
@@ -524,7 +527,7 @@ pub(crate) fn check_methods_signatures(
                 } else {
                     let error = DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
                         actual_num_parameters: impl_method.parameters.0.len(),
-                        expected_num_parameters: trait_method.arguments.len(),
+                        expected_num_parameters: trait_method.arguments().len(),
                         trait_name: the_trait.name.to_string(),
                         method_name: func_name.to_string(),
                         span: impl_method.location.span,
@@ -537,11 +540,12 @@ pub(crate) fn check_methods_signatures(
             let resolved_return_type =
                 resolver.resolve_type(impl_method.return_type.get_type().into_owned());
 
-            trait_method.return_type.unify(&resolved_return_type, &mut typecheck_errors, || {
+            // TODO: This is not right since it may bind generic return types
+            trait_method.return_type().unify(&resolved_return_type, &mut typecheck_errors, || {
                 let ret_type_span = impl_method.return_type.get_type().span;
                 let expr_span = ret_type_span.expect("return type must always have a span");
 
-                let expected_typ = trait_method.return_type.to_string();
+                let expected_typ = trait_method.return_type().to_string();
                 let expr_typ = impl_method.return_type().to_string();
                 TypeCheckError::TypeMismatch { expr_typ, expected_typ, expr_span }
             });
@@ -550,5 +554,5 @@ pub(crate) fn check_methods_signatures(
         }
     }
 
-    the_trait.self_type_typevar.borrow_mut().unbind(the_trait.self_type_typevar_id);
+    the_trait.self_type_typevar.unbind(the_trait.self_type_typevar_id);
 }
