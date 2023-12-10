@@ -76,7 +76,7 @@ impl FileManager {
     // TODO: this will become the default strategy for adding files. Possibly with file_reader.
     // TODO: we are still migrating to this strategy, so we keep the old one for now.
     // TODO: For the stdlib crate, we need to do this preemptively due to the way we special handle it
-    pub fn add_file_with_source(&mut self, file_name: &Path, source : String) -> Option<FileId> {
+    pub fn add_file_with_source(&mut self, file_name: &Path, source: String) -> Option<FileId> {
         // Check that the file name already exists in the file map, if it is, we return it.
         if let Some(file_id) = self.path_to_id.get(file_name) {
             return Some(*file_id);
@@ -126,7 +126,8 @@ impl FileManager {
             anchor_path.join(format!("{mod_name}.{FILE_EXTENSION}"))
         };
 
-        self.name_to_id(candidate.clone()).ok_or_else(|| candidate.as_os_str().to_string_lossy().to_string())
+        self.name_to_id(candidate.clone())
+            .ok_or_else(|| candidate.as_os_str().to_string_lossy().to_string())
     }
 
     // TODO: This should accept a &Path instead of a PathBuf
@@ -135,7 +136,7 @@ impl FileManager {
     }
 }
 
-// TODO: This should not be here because the file manager should not know about the 
+// TODO: This should not be here because the file manager should not know about the
 // TODO: rust modules. See comment on `find_module``
 // TODO: Moreover, the check for main, lib, mod should ideally not be done here
 /// Returns true if a module's child module's are expected to be in the same directory.

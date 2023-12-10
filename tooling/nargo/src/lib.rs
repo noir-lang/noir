@@ -46,13 +46,16 @@ pub fn prepare_dependencies(
 // This is so that we can avoid having to read from disk when we are compiling
 //
 // This does not require parsing because we are interested in the files under the src directory
-// it may turn out that we do not need to include some Noir files that we add to the file 
+// it may turn out that we do not need to include some Noir files that we add to the file
 // manager
-pub fn insert_all_files_for_package_into_file_manager(package : &Package, file_manager : &mut FileManager) {
+pub fn insert_all_files_for_package_into_file_manager(
+    package: &Package,
+    file_manager: &mut FileManager,
+) {
     // Start off at the root directory of the package and add all of the files located
     // in that directory.
     let root_path = package.root_dir.clone();
-    
+
     // Get all files in the package and add them to the file manager
     let paths = get_all_paths_in_dir(&root_path).expect("could not get all paths in the package");
     for path in paths {
@@ -104,9 +107,12 @@ fn get_all_paths_in_dir(dir: &std::path::Path) -> std::io::Result<Vec<std::path:
 }
 
 #[cfg(test)]
- mod tests {
+mod tests {
     use crate::get_all_paths_in_dir;
-    use std::{fs::{self, File}, path::Path};
+    use std::{
+        fs::{self, File},
+        path::Path,
+    };
     use tempfile::tempdir;
 
     fn create_test_dir_structure(temp_dir: &Path) -> std::io::Result<()> {
@@ -121,9 +127,11 @@ fn get_all_paths_in_dir(dir: &std::path::Path) -> std::io::Result<Vec<std::path:
     #[test]
     fn test_get_all_paths_in_dir() {
         let temp_dir = tempdir().expect("could not create a temporary directory");
-        create_test_dir_structure(temp_dir.path()).expect("could not create test directory structure");
+        create_test_dir_structure(temp_dir.path())
+            .expect("could not create test directory structure");
 
-        let paths = get_all_paths_in_dir(temp_dir.path()).expect("could not get all paths in the test directory");
+        let paths = get_all_paths_in_dir(temp_dir.path())
+            .expect("could not get all paths in the test directory");
 
         // This should be the paths to all of the files in the directory and the subdirectory
         let expected_paths = vec![
@@ -137,5 +145,4 @@ fn get_all_paths_in_dir(dir: &std::path::Path) -> std::io::Result<Vec<std::path:
             assert!(paths.contains(&path));
         }
     }
-
- }
+}

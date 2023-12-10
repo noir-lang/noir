@@ -38,8 +38,8 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
     for package in &workspace {
         let mut file_manager =
             FileManager::new(&package.root_dir, Box::new(|path| std::fs::read_to_string(path)));
-            insert_all_files_for_package_into_file_manager(package, &mut file_manager);
-            
+        insert_all_files_for_package_into_file_manager(package, &mut file_manager);
+
         visit_noir_files(&package.root_dir.join("src"), &mut |entry| {
             let file_id = file_manager.name_to_id(entry.path().to_path_buf()).expect("The file should exist since we added all files in the package into the file manager");
             let (parsed_module, errors) = parse_file(&file_manager, file_id);
