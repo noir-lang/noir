@@ -65,7 +65,7 @@ export class BarretenbergSync extends BarretenbergApiSync {
 
   static getSingleton() {
     if (!barretenbergSyncSingleton) {
-      throw new Error('Initialise first via initSingleton().');
+      throw new Error('First call BarretenbergSync.initSingleton() on @aztec/bb.js module.');
     }
     return barretenbergSyncSingleton;
   }
@@ -75,10 +75,8 @@ export class BarretenbergSync extends BarretenbergApiSync {
   }
 }
 
-// If we're loading this module in a test environment, just init the singleton immediately for convienience.
-if (process.env.NODE_ENV === 'test') {
-  // Need to ignore for cjs build.
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  await BarretenbergSync.initSingleton();
-}
+// If we're in ESM environment, use top level await. CJS users need to call it manually.
+// Need to ignore for cjs build.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+await BarretenbergSync.initSingleton(); // POSTPROCESS ESM ONLY

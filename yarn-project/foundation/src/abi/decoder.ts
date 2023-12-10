@@ -1,5 +1,5 @@
-import { ABIParameter, ABIType, ABIVariable, FunctionArtifact } from '@aztec/foundation/abi';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr } from '../fields/index.js';
+import { ABIParameter, type ABIType, ABIVariable, FunctionArtifact } from './abi.js';
 
 /**
  * The type of our decoded ABI.

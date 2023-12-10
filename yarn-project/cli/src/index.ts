@@ -1,4 +1,3 @@
-import { initAztecJs } from '@aztec/aztec.js/init';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
 import { addNoirCompilerCommanderActions } from '@aztec/noir-compiler/cli';
@@ -22,7 +21,7 @@ import {
   parsePublicKey,
   parseSaltFromHexString,
   parseTxHash,
-} from './utils.js';
+} from './parse_args.js';
 
 /**
  * If we can successfully resolve 'host.docker.internal', then we are running in a container, and we should treat
@@ -62,8 +61,6 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       .env('PRIVATE_KEY')
       .argParser(parsePrivateKey)
       .makeOptionMandatory(mandatory);
-
-  program.hook('preAction', initAztecJs);
 
   program
     .command('deploy-l1-contracts')

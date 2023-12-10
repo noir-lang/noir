@@ -1,4 +1,4 @@
-import { ABIType } from '@aztec/foundation/abi';
+import { type ABIType } from './abi.js';
 
 /**
  * Get the size of an ABI type in field elements.

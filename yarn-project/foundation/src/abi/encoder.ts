@@ -1,6 +1,6 @@
-import { ABIType, FunctionAbi, isAddressStruct } from '@aztec/foundation/abi';
-
 import { Fr } from '../fields/index.js';
+import { ABIType, FunctionAbi } from './abi.js';
+import { isAddressStruct } from './utils.js';
 
 /**
  * Encodes arguments for a function call.

@@ -1,4 +1,3 @@
-import { assertMemberLength } from '@aztec/circuits.js';
 import { deserializeBigInt, serializeBigInt } from '@aztec/foundation/serialize';
 
 /**
@@ -21,7 +20,9 @@ export class TxHash {
      */
     public buffer: Buffer,
   ) {
-    assertMemberLength(this, 'buffer', TxHash.SIZE);
+    if (buffer.length !== TxHash.SIZE) {
+      throw new Error(`Expected buffer to have length ${TxHash.SIZE} but was ${buffer.length}`);
+    }
   }
 
   /**
