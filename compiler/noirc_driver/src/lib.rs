@@ -77,6 +77,11 @@ pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
     let std_file_id = context.file_manager.add_file(&path_to_std_lib_file).unwrap();
+    
+    // Add the stdlib contents to the file manager, since every package automatically has a dependency
+    // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file 
+    // contents to the file manager. However since the dependency on the stdlib is implicit, we need
+    // to manually add it here.
     let stdlib_paths_with_source = stdlib::stdlib_paths_with_source();
     for (path, source) in stdlib_paths_with_source {
         context.file_manager.add_file_with_source(Path::new(&path), source);
