@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::{
     graph::CrateId,
@@ -18,7 +18,7 @@ use crate::{
     },
     hir_def::traits::{Trait, TraitConstant, TraitFunction, TraitImpl, TraitType},
     node_interner::{FuncId, NodeInterner, TraitId},
-    Path, Shared, TraitItem, Type, TypeVariableKind,
+    Path, Shared, TraitItem, Type, TypeBinding, TypeVariableKind,
 };
 
 use super::{
@@ -111,8 +111,17 @@ fn resolve_trait_methods(
             resolver.set_self_type(Some(self_type));
 
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
-            let resolved_return_type = resolver.resolve_type(return_type.get_type().into_owned());
-            let generics = resolver.get_generics().to_vec();
+            let return_type = resolver.resolve_type(return_type.get_type().into_owned());
+
+            let mut generics = vecmap(resolver.get_generics(), |(_, type_var, _)| match &*type_var
+                .borrow()
+            {
+                TypeBinding::Unbound(id) => (*id, type_var.clone()),
+                TypeBinding::Bound(binding) => unreachable!("Trait generic was bound to {binding}"),
+            });
+
+            // Ensure the trait is generic over the Self type as well
+            generics.push((the_trait.self_type_typevar_id, the_trait.self_type_typevar));
 
             let name = name.clone();
             let span: Span = name.span();
@@ -128,11 +137,13 @@ fn resolve_trait_methods(
                 None
             };
 
+            let no_environment = Box::new(Type::Unit);
+            let function_type = Type::Function(arguments, Box::new(return_type), no_environment);
+            let typ = Type::Forall(generics, Box::new(function_type));
+
             let f = TraitFunction {
                 name,
-                generics,
-                arguments,
-                return_type: resolved_return_type,
+                typ,
                 span,
                 default_impl,
                 default_impl_file_id: unresolved_trait.file_id,
@@ -176,7 +187,8 @@ fn collect_trait_impl_methods(
             if let Some(default_impl) = &method.default_impl {
                 let func_id = interner.push_empty_fn();
                 let module = ModuleId { local_id: trait_impl.module_id, krate: crate_id };
-                interner.push_function(func_id, &default_impl.def, module);
+                let location = Location::new(default_impl.def.span, trait_impl.file_id);
+                interner.push_function(func_id, &default_impl.def, module, location);
                 func_ids_in_trait.insert(func_id);
                 ordered_methods.push((
                     method.default_impl_module_id,

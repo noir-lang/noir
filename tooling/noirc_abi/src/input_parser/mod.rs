@@ -130,7 +130,8 @@ mod serialization_tests {
     use strum::IntoEnumIterator;
 
     use crate::{
-        input_parser::InputValue, Abi, AbiParameter, AbiType, AbiVisibility, Sign, MAIN_RETURN_NAME,
+        input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, Sign,
+        MAIN_RETURN_NAME,
     };
 
     use super::Format;
@@ -159,7 +160,10 @@ mod serialization_tests {
                     visibility: AbiVisibility::Private,
                 },
             ],
-            return_type: Some(AbiType::String { length: 5 }),
+            return_type: Some(AbiReturnType {
+                abi_type: AbiType::String { length: 5 },
+                visibility: AbiVisibility::Public,
+            }),
             // These two fields are unused when serializing/deserializing to file.
             param_witnesses: BTreeMap::new(),
             return_witnesses: Vec::new(),

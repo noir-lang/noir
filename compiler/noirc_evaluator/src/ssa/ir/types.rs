@@ -104,6 +104,14 @@ impl Type {
         }
     }
 
+    pub(crate) fn is_nested_slice(&self) -> bool {
+        if let Type::Slice(element_types) = self {
+            element_types.as_ref().iter().any(|typ| typ.contains_slice_element())
+        } else {
+            false
+        }
+    }
+
     /// True if this type is an array (or slice) or internally contains an array (or slice)
     pub(crate) fn contains_an_array(&self) -> bool {
         match self {
@@ -119,13 +127,7 @@ impl NumericType {
     /// for the current NumericType.
     pub(crate) fn value_is_within_limits(self, field: FieldElement) -> bool {
         match self {
-            NumericType::Signed { bit_size } => {
-                let min = -(2i128.pow(bit_size - 1));
-                let max = 2u128.pow(bit_size - 1) - 1;
-                // Signed integers are odd since they will overflow the field value
-                field <= max.into() || field >= min.into()
-            }
-            NumericType::Unsigned { bit_size } => {
+            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                 let max = 2u128.pow(bit_size) - 1;
                 field <= max.into()
             }

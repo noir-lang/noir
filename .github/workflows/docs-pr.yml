@@ -74,14 +74,7 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Remove pre-releases
-        working-directory: docs
-        env: 
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn setStable
-    
       - name: Build docs
-        working-directory: docs
         run: 
           yarn workspaces foreach -Rt run build
 
