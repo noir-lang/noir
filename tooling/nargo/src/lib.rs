@@ -80,7 +80,7 @@ pub fn prepare_package(package: &Package, file_reader: Box<FileReader>) -> (Cont
 // Panics: If the path is not a path to a directory.
 //
 // TODO: Along with prepare_package, this function is an abstraction leak
-// TODO given that this crate should not know about the file manager.
+// TODO: given that this crate should not know about the file manager.
 // TODO: We can clean this up in a future refactor
 fn get_all_paths_in_dir(dir: &std::path::Path) -> std::io::Result<Vec<std::path::PathBuf>> {
     assert!(dir.is_dir(), "directory {dir:?} is not a path to a directory");
