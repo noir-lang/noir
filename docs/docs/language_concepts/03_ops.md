@@ -62,7 +62,7 @@ fn main(x : Field) {
 
 Noir has no support for the logical operators `||` and `&&`. This is because encoding the
 short-circuiting that these operators require can be inefficient for Noir's backend. Instead you can
-use the bitwise operators `|` and `&` which operate indentically for booleans, just without the
+use the bitwise operators `|` and `&` which operate identically for booleans, just without the
 short-circuiting.
 
 ```rust
