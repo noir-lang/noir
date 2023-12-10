@@ -61,6 +61,24 @@ pub fn insert_all_files_for_package_into_file_manager(
     for path in paths {
         file_manager.add_file(path.as_path());
     }
+
+    insert_all_files_for_packages_dependencies_into_file_manager(package, file_manager);
+}
+
+// Inserts all files for the dependencies of the package into the file manager
+// too
+fn insert_all_files_for_packages_dependencies_into_file_manager(
+    package: &Package,
+    file_manager: &mut FileManager,
+) {
+    for (_, dep) in package.dependencies.iter() {
+        match dep {
+            Dependency::Local { package } | Dependency::Remote { package } => {
+                insert_all_files_for_package_into_file_manager(package, file_manager);
+                insert_all_files_for_packages_dependencies_into_file_manager(package, file_manager);
+            }
+        }
+    }
 }
 
 pub fn prepare_package(package: &Package, file_reader: Box<FileReader>) -> (Context, CrateId) {
