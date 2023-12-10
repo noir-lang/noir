@@ -110,8 +110,8 @@ pub const CHARACTER_BLACK_LIST: [char; 1] = ['-'];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateData {
-    pub root_file_id: FileId,
-    pub dependencies: Vec<Dependency>,
+    root_file_id: FileId,
+    dependencies: Vec<Dependency>,
 }
 
 /// A dependency is a crate name and a crate_id
@@ -134,6 +134,31 @@ impl CrateGraph {
             .keys()
             .find(|crate_id| crate_id.is_root())
             .expect("ICE: A root crate should exist in the CrateGraph")
+    }
+
+    // Returns the root file id for a given crate id.
+    //
+    // Every crate has a root file which defines its module dependency graph.
+    //
+    // Note: Since there is a 1-1 link between the root file id and the crate id,
+    // the root file id can also be seen as an identifier for a crate.
+    //
+    // This method is especially needed when parsing a crate and figuring out
+    // where to start parsing from.
+    //
+    // Only the files that are indirectly or directly referenced by the root file
+    // will be parsed.
+    pub fn root_file_id(&self, crate_id: CrateId) -> FileId {
+        self[crate_id].root_file_id
+    }
+
+    // Returns all of the dependencies for a given crate id
+    //
+    // This is needed for dependency resolution;
+    // when compiling a crate, its dependencies must be resolved 
+    // and compiled first.
+    pub fn dependencies(&self, crate_id: CrateId) -> &[Dependency] {
+        &self[crate_id].dependencies
     }
 
     pub fn stdlib_crate_id(&self) -> &CrateId {
