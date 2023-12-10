@@ -5,6 +5,11 @@ use std::path::Path;
 // Based on the environment, we either read files using the rust standard library or we
 // read files using the javascript host function
 
+// TODO: DO NOT MERGE PR WITH THIS TODO
+// TODO: We have duplicated this logic in noirc_driver. For now, we leave this here
+// TODO: until we make the breaking change to the API which will allow us to remove this
+// TODO: file.
+
 pub type FileReader = dyn Fn(&Path) -> std::io::Result<String> + Send;
 
 #[derive(RustEmbed)]
