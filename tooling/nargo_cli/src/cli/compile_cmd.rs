@@ -213,9 +213,8 @@ fn compile_program(
     };
 
     // Apply backend specific optimizations.
-    let optimized_program =
-        nargo::ops::optimize_program(program, np_language, is_opcode_supported)
-            .expect("Backend does not support an opcode that is in the IR");
+    let optimized_program = nargo::ops::optimize_program(program, np_language, is_opcode_supported)
+        .expect("Backend does not support an opcode that is in the IR");
 
     save_program(optimized_program.clone(), package, &workspace.target_directory_path());
 

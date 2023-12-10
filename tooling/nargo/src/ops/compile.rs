@@ -85,12 +85,9 @@ pub fn compile_program(
             }
         };
 
-
-
     // Apply backend specific optimizations.
-    let optimized_program =
-        crate::ops::optimize_program(program, np_language, is_opcode_supported)
-            .expect("Backend does not support an opcode that is in the IR");
+    let optimized_program = crate::ops::optimize_program(program, np_language, is_opcode_supported)
+        .expect("Backend does not support an opcode that is in the IR");
 
     (context.file_manager, Ok((optimized_program, warnings)))
 }
