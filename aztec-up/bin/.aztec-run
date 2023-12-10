@@ -30,6 +30,7 @@ fi
 
 if [[ $PWD != ${HOME}* ]]; then
   warn "Due to how we containerize our applications, we require your working directory to be somewhere within $HOME."
+  exit 1
 fi
 
 # Set up host.docker.internal alias on Linux, just like it is on mac.

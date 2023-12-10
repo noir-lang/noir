@@ -29,8 +29,8 @@ function title() {
   echo -e "Welcome to the ${bold}${b}Aztec${r} installer! Your journey into blockchain privacy begins... ${bold}${p}now${r}."
   echo -e "We presently leverage docker to simplify releases of our complex project."
   echo -e "Please ensure it's installed for your platform: https://docs.docker.com/engine/install"
+  echo
   if [ "$(uname -s)" == "Darwin" ]; then
-    echo
     echo -e "${y}WARNING: For best performance we recommend adjusting your default docker settings:"
     echo -e     "         - Under general, enable VirtioFS."
     echo -e     "         - Under resources, set CPUs to ~80-100% your maximum."
