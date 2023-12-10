@@ -240,9 +240,11 @@ mod tests {
     use super::*;
     use tempfile::{tempdir, TempDir};
 
-    fn create_dummy_file(dir: &TempDir, file_name: &Path) {
+    // Returns the absolute path to the file
+    fn create_dummy_file(dir: &TempDir, file_name: &Path) -> PathBuf {
         let file_path = dir.path().join(file_name);
-        let _file = std::fs::File::create(file_path).unwrap();
+        let _file = std::fs::File::create(&file_path).unwrap();
+        file_path
     }
 
     #[test]
@@ -281,30 +283,30 @@ mod tests {
 
         // Create a lib.nr file at the root.
         // we now have dir/lib.nr
-        let file_name = Path::new("lib.nr");
-        create_dummy_file(&dir, file_name);
-
-        let file_id = fm.add_file(file_name).unwrap();
-
+        let lib_nr_path = create_dummy_file(&dir, Path::new("lib.nr"));
+        let file_id = fm.add_file(lib_nr_path.as_path()).expect("could not add file to file manager and obtain a FileId");
+        
         // Create a sub directory
         // we now have:
         // - dir/lib.nr
         // - dir/sub_dir
         let sub_dir = TempDir::new_in(&dir).unwrap();
         let sub_dir_name = sub_dir.path().file_name().unwrap().to_str().unwrap();
-
+        
         // Add foo.nr to the subdirectory
         // we no have:
         // - dir/lib.nr
         // - dir/sub_dir/foo.nr
-        create_dummy_file(&sub_dir, Path::new("foo.nr"));
-
+        let foo_nr_path =create_dummy_file(&sub_dir, Path::new("foo.nr"));
+        fm.add_file(foo_nr_path.as_path());
+        
         // Add a parent module for the sub_dir
         // we no have:
         // - dir/lib.nr
         // - dir/sub_dir.nr
         // - dir/sub_dir/foo.nr
-        create_dummy_file(&dir, Path::new(&format!("{sub_dir_name}.nr")));
+        let sub_dir_nr_path = create_dummy_file(&dir, Path::new(&format!("{sub_dir_name}.nr")));
+        fm.add_file(sub_dir_nr_path.as_path());
 
         // First check for the sub_dir.nr file and add it to the FileManager
         let sub_dir_file_id = fm.find_module(file_id, sub_dir_name).unwrap();
