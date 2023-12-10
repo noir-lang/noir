@@ -431,14 +431,14 @@ impl AcirContext {
 
         let y = self.add_variable();
 
-        // Add constraint y == 1 - var * z => y + var * z - 1 == 0
-        let y_is_boolean_constraint = self.mul_var(var, z)?;
-        let y_is_boolean_constraint = self.add_var(y_is_boolean_constraint, y)?;
-        self.assert_eq_var(y_is_boolean_constraint, one, None)?;
+        // Add constraint y == 1 - var * z
+        let var_z = self.mul_var(var, z)?;
+        let one_sub_var_mul_z = self.sub_var(one, var_z)?;
+        self.assert_eq_var(y, one_sub_var_mul_z, None)?;
 
         // Add constraint that y * var == 0;
-        let yt = self.mul_var(y, var)?;
-        self.assert_eq_var(yt, zero, None)?;
+        let y_mul_var = self.mul_var(y, var)?;
+        self.assert_eq_var(y_mul_var, zero, None)?;
 
         Ok(y)
     }
