@@ -78,7 +78,7 @@ pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     let std_file_id = context.file_manager.add_file(&path_to_std_lib_file).unwrap();
     let std_crate_id = context.crate_graph.add_stdlib(std_file_id);
 
-    let root_file_id = context.file_manager.add_file(file_name).unwrap();
+    let root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap();
 
     let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
@@ -89,7 +89,7 @@ pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
 
 // Adds the file from the file system at `Path` to the crate graph
 pub fn prepare_dependency(context: &mut Context, file_name: &Path) -> CrateId {
-    let root_file_id = context.file_manager.add_file(file_name).unwrap();
+    let root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).expect("files are expected to be added to the FileManager before reaching the compiler");
 
     let crate_id = context.crate_graph.add_crate(root_file_id);
 
