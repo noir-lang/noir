@@ -155,7 +155,7 @@ impl CrateGraph {
     // Returns all of the dependencies for a given crate id
     //
     // This is needed for dependency resolution;
-    // when compiling a crate, its dependencies must be resolved 
+    // when compiling a crate, its dependencies must be resolved
     // and compiled first.
     pub fn dependencies(&self, crate_id: CrateId) -> &[Dependency] {
         &self[crate_id].dependencies
