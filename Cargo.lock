@@ -2627,6 +2627,7 @@ dependencies = [
  "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
+ "rust-embed",
  "serde",
 ]
 
