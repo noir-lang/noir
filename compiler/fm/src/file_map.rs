@@ -44,7 +44,7 @@ pub struct FileId(usize);
 
 impl FileId {
     //XXX: find a way to remove the need for this. Errors do not need to attach their FileIds immediately!
-    pub fn as_usize(&self) -> usize {
+    fn as_usize(&self) -> usize {
         self.0
     }
 

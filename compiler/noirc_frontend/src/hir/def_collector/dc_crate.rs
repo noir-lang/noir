@@ -208,9 +208,9 @@ impl DefCollector {
         // Dependencies are fetched from the crate graph
         // Then added these to the context of DefMaps once they are resolved
         //
-        let crate_graph = &context.crate_graph[crate_id];
+        let crate_dependencies = context.crate_graph.dependencies(crate_id).to_vec();
 
-        for dep in crate_graph.dependencies.clone() {
+        for dep in crate_dependencies {
             errors.extend(CrateDefMap::collect_defs(
                 dep.crate_id,
                 context,

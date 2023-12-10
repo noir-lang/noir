@@ -238,12 +238,14 @@ fn check_for_aztec_dependency(
     crate_id: &CrateId,
     context: &HirContext,
 ) -> Result<(), (MacroError, FileId)> {
-    let crate_graph = &context.crate_graph[crate_id];
-    let has_aztec_dependency = crate_graph.dependencies.iter().any(|dep| dep.as_name() == "aztec");
+    let crate_root_file_id = &context.crate_graph.root_file_id(*crate_id);
+    let crate_dependencies = &context.crate_graph.dependencies(*crate_id);
+
+    let has_aztec_dependency = crate_dependencies.iter().any(|dep| dep.as_name() == "aztec");
     if has_aztec_dependency {
         Ok(())
     } else {
-        Err((AztecMacroError::AztecNotFound.into(), crate_graph.root_file_id))
+        Err((AztecMacroError::AztecNotFound.into(), *crate_root_file_id))
     }
 }
 
@@ -306,11 +308,11 @@ fn transform_module(
     let storage_defined = check_for_storage_definition(module);
 
     if storage_defined && !check_for_compute_note_hash_and_nullifier_definition(module) {
-        let crate_graph = &context.crate_graph[crate_id];
+        let root_file_id = context.crate_graph.root_file_id(*crate_id);
         return Err((
             AztecMacroError::AztecComputeNoteHashAndNullifierNotFound { span: Span::default() }
                 .into(),
-            crate_graph.root_file_id,
+            root_file_id,
         ));
     }
 

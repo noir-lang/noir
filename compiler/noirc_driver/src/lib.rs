@@ -90,7 +90,6 @@ pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
 // Adds the file from the file system at `Path` to the crate graph
 pub fn prepare_dependency(context: &mut Context, file_name: &Path) -> CrateId {
     let root_file_id = context.file_manager.add_file(file_name).unwrap();
-
     let crate_id = context.crate_graph.add_crate(root_file_id);
 
     // Every dependency has access to stdlib

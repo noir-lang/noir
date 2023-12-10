@@ -85,7 +85,7 @@ impl CrateDefMap {
         }
 
         // First parse the root file.
-        let root_file_id = context.crate_graph[crate_id].root_file_id;
+        let root_file_id = context.crate_graph.root_file_id(crate_id);
         let (ast, parsing_errors) = parse_file(&context.file_manager, root_file_id);
         let mut ast = ast.into_sorted();
 

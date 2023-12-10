@@ -126,7 +126,7 @@ impl Context {
         crate_id: &CrateId,
         target_crate_id: &CrateId,
     ) -> Option<Vec<String>> {
-        for dep in &self.crate_graph[crate_id].dependencies {
+        for dep in self.crate_graph.dependencies(*crate_id) {
             if &dep.crate_id == target_crate_id {
                 return Some(vec![dep.name.to_string()]);
             }
