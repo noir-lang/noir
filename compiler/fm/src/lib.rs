@@ -73,6 +73,22 @@ impl FileManager {
         Some(file_id)
     }
 
+    // TODO: this will become the default strategy for adding files. Possibly with file_reader.
+    // TODO: we are still migrating to this strategy, so we keep the old one for now.
+    // TODO: For the stdlib crate, we need to do this preemptively due to the way we special handle it
+    pub fn add_file_with_source(&mut self, file_name: &Path, source : String) -> Option<FileId> {
+        // Check that the file name already exists in the file map, if it is, we return it.
+        if let Some(file_id) = self.path_to_id.get(file_name) {
+            return Some(*file_id);
+        }
+        let file_name_path_buf = file_name.to_path_buf();
+
+        // Otherwise we add the file
+        let file_id = self.file_map.add_file(file_name_path_buf.clone().into(), source);
+        self.register_path(file_id, file_name_path_buf);
+        Some(file_id)
+    }
+
     fn register_path(&mut self, file_id: FileId, path: PathBuf) {
         let old_value = self.id_to_path.insert(file_id, path.clone());
         assert!(
@@ -94,6 +110,9 @@ impl FileManager {
         self.id_to_path.get(&file_id).unwrap().as_path()
     }
 
+    // TODO: This should also ideally not be here, so that the file manager
+    // TODO: does not know about rust modules.
+    // TODO: Ideally this is moved to def_collector_mod and we make this method accept a FileManager
     pub fn find_module(&self, anchor: FileId, mod_name: &str) -> Result<FileId, String> {
         let anchor_path = self.path(anchor).with_extension("");
         let anchor_dir = anchor_path.parent().unwrap();
@@ -116,6 +135,9 @@ impl FileManager {
     }
 }
 
+// TODO: This should not be here because the file manager should not know about the 
+// TODO: rust modules. See comment on `find_module``
+// TODO: Moreover, the check for main, lib, mod should ideally not be done here
 /// Returns true if a module's child module's are expected to be in the same directory.
 /// Returns false if they are expected to be in a subdirectory matching the name of the module.
 fn should_check_siblings_for_module(module_path: &Path, parent_path: &Path) -> bool {
