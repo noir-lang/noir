@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Starts an interactive shell with the build system initialised.
 # Good for playing around with build system on development machines.
 

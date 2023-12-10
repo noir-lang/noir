@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Builds the PROJECTS in the given order.
 # Will terminate build at TARGET_PROJECT (if given).
 # Will only build TARGET_PROJECT if ONLY_TARGET given.

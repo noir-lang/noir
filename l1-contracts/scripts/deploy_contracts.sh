@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eu
 
 # Sets up defaults then runs the E2E Setup script to perform contract deployments

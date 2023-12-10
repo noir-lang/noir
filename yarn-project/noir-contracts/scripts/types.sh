@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Example:
 # - this script will automatically be run when running `yarn noir:build`

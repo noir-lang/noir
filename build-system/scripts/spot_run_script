@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Runs a test script on a remote spot instance. Arguments are:
 # 1. NAME: Used to identify spot jobs.
 # 2. CPUS: Number of cpus on spot request.

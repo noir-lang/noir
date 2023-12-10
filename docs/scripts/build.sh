@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eo pipefail
 
 # Helper function for building packages in yarn project
@@ -10,7 +10,7 @@ build_package() {
   (cd "yarn-project/$package_name" && $build_command)
 }
 
-# Build script. If run on Netlify, first it needs to compile all yarn-projects 
+# Build script. If run on Netlify, first it needs to compile all yarn-projects
 # that are involved in typedoc in order to generate their type information.
 if [ -n "$NETLIFY" ]; then
   # Move to project root

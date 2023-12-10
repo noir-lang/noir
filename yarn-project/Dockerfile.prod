@@ -3,8 +3,8 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project AS yarn-project
 
 # Need new arch specific image.
-FROM node:18.19.0-alpine AS builder
-RUN apk add bash jq --no-cache
+FROM node:18.19.0 AS builder
+RUN apt update && apt install -y jq && rm -rf /var/lib/apt/lists/* && apt-get clean
 COPY --from=yarn-project /usr/src /usr/src
 WORKDIR /usr/src/yarn-project
 ARG COMMIT_TAG=""
@@ -18,5 +18,32 @@ RUN yarn workspaces focus @aztec/cli @aztec/aztec-sandbox @aztec/aztec-faucet --
 RUN rm -rf /usr/src/noir/target
 
 # Create fresh minimal size image.
-FROM node:18.19.0-alpine
+# Installs our specific version of node, stripping out the unnecessary.
+# We could probably just apt install nodejs, but it's both a different version, and seemingly a bit slower.
+# We could also use distroless, to get us about 20mb off, but meh. It's actually useful to shell into containers.
+#FROM gcr.io/distroless/nodejs18-debian12
+FROM ubuntu:lunar
+# RUN apt update && apt install -y nodejs && rm -rf /var/lib/apt/lists/* && apt-get clean
+RUN apt update && apt install -y curl && rm -rf /var/lib/apt/lists/* && apt-get clean
+ENV NODE_VERSION=18.19.0
+RUN ARCH= && \
+    dpkgArch="$(dpkg --print-architecture)" && \
+    case "${dpkgArch##*-}" in \
+        amd64) ARCH='x64';; \
+        arm64) ARCH='arm64';; \
+        *) echo "unsupported architecture"; exit 1 ;; \
+    esac && \
+    curl -fsSLO --compressed "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-$ARCH.tar.gz" && \
+    tar zxf "node-v$NODE_VERSION-linux-$ARCH.tar.gz" -C /usr --strip-components=1 --no-same-owner \
+    --exclude "*/share/*" \
+    --exclude "*/bin/corepack" \
+    --exclude "*/bin/npx" \
+    --exclude "*/bin/npm" \
+    --exclude "*/corepack/*" \
+    --exclude "*/npm/man/*" \
+    --exclude "*/npm/docs/*" \
+    --exclude "*/include/*" && \
+    rm "node-v$NODE_VERSION-linux-$ARCH.tar.gz" && \
+    node --version
 COPY --from=builder /usr/src /usr/src
+ENTRYPOINT ["/usr/bin/node"]

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Env var overrides:
 #   BIN: to specify a different binary to test with (e.g. bb.js or bb.js-dev).
 set -eu

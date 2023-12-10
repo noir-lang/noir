@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This script sets up the global build environment. This should be called before any other build scripts,
 # as the other build scripts assume these global variables are set. The global variables are written to
 # the file in $BASH_ENV, which means that any new bash shells launched within the lifetime of the machine

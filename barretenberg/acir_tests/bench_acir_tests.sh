@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 TEST_NAMES=("$@")
 THREADS=(1 4 16 32 64)

@@ -6,8 +6,6 @@
 # Any subsequent build steps needed to support downstream containers should be done in those containers build files.
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base as builder
 
-RUN apk add bash perl
-
 # Copy in the entire workspace.
 COPY . .
 

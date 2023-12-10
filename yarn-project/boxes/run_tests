@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This script is used to run an e2e type test in CI (see .circleci/config.yml).
 # It pulls images and runs docker-compose, which has the test as the entrypoint.
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace

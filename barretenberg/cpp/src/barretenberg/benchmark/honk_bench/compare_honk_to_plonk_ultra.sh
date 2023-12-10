@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script is used to compare the results of honk_bench between baseline (master) and
-# the branch from which the script is run. Simply check out the branch of interest, ensure 
+# the branch from which the script is run. Simply check out the branch of interest, ensure
 # it is up to date with local master, and run the script.
 
 echo -e '\nComparing Ultra Plonk/Honk benchmarks.'
@@ -19,21 +19,21 @@ pip3 install --user -r $BUILD_DIR/_deps/benchmark-src/requirements.txt
 cd $BASE_DIR
 mkdir $BENCH_RESULTS_DIR
 
-# 
+#
 echo -e '\nBuilding and running Standard benchmarks..'
 # rm -rf $BUILD_DIR
-cmake --preset bench > /dev/null && cmake --build --preset bench --target ultra_plonk_bench 
+cmake --preset bench > /dev/null && cmake --build --preset bench --target ultra_plonk_bench
 cd build-bench
 PLONK_BENCH_RESULTS="$BENCH_RESULTS_DIR/plonk_bench.json"
 ./bin/ultra_plonk_bench --benchmark_format=json > $PLONK_BENCH_RESULTS
 
 cd ..
-cmake --preset bench > /dev/null && cmake --build --preset bench --target ultra_honk_bench 
+cmake --preset bench > /dev/null && cmake --build --preset bench --target ultra_honk_bench
 cd build-bench
 HONK_BENCH_RESULTS="$BENCH_RESULTS_DIR/honk_bench.json"
 ./bin/ultra_honk_bench --benchmark_format=json > $HONK_BENCH_RESULTS
 
-# Call compare.py on the results (json) to get high level statistics. 
+# Call compare.py on the results (json) to get high level statistics.
 # See docs at https://github.com/google/benchmark/blob/main/docs/tools.md for more details.
 $BENCH_TOOLS_DIR/compare.py benchmarks $PLONK_BENCH_RESULTS $HONK_BENCH_RESULTS
 

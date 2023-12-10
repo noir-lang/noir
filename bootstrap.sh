@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Usage:
 # Bootstraps the repo. End to end tests should be runnable after a bootstrap:
 #   ./bootstrap.sh

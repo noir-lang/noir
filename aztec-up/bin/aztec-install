@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 # Colors
@@ -29,7 +29,16 @@ function title() {
   echo -e "Welcome to the ${bold}${b}Aztec${r} installer! Your journey into blockchain privacy begins... ${bold}${p}now${r}."
   echo -e "We presently leverage docker to simplify releases of our complex project."
   echo -e "Please ensure it's installed for your platform: https://docs.docker.com/engine/install"
-  echo
+  if [ "$(uname -s)" == "Darwin" ]; then
+    echo
+    echo -e "${y}WARNING: For best performance we recommend adjusting your default docker settings:"
+    echo -e     "         - Under general, enable VirtioFS."
+    echo -e     "         - Under resources, set CPUs to ~80-100% your maximum."
+    echo -e     "         - Under resources, set Memory to ~80% your maximum."
+    echo -e     "You may receive a warning about your home directory being mounted into a container."
+    echo -e     "This is requested so we can read and write project files, that is all."
+    echo -e "${r}"
+  fi
   echo -e "This will install the following scripts and update your PATH if necessary:"
   echo -e "  ${bold}${g}aztec${r}         - launches various infrastructure subsystems (sequencer, prover, pxe, etc)."
   echo -e "  ${bold}${g}aztec-cli${r}     - a command line tool for interfacing and experimenting with infrastructure."
@@ -91,10 +100,12 @@ function pull_container {
   fi
 }
 
-info "Pulling aztec version $VERSION..."
-pull_container aztec-sandbox
-pull_container cli
-pull_container noir
+if [ -z "${SKIP_PULL:-}" ]; then
+  info "Pulling aztec version $VERSION..."
+  pull_container aztec-sandbox
+  pull_container cli
+  pull_container noir
+fi
 
 # Download the Docker Compose file. Used by aztec-start.
 curl -fsSL http://$INSTALL_HOST/docker-compose.yml -o $BIN_PATH/docker-compose.yml

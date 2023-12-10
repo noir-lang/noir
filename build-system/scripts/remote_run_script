@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copies the runner script to the remote instance, runs it giving it script and args to run.
 # The runner script checks out the repository first and runs setup-env.
 #

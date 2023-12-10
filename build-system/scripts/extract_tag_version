@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This script takes a repository name as variable,
 # then checks if the commit tag variable (if any)
 # is a valid semver & echoes that valid semver.
@@ -28,7 +28,7 @@ if [[ "$COMMIT_TAG" == *"/"* ]]; then
   COMMIT_TAG_VERSION="${COMMIT_TAG#*/}"
   echo "Tag was made for: $REPO_NAME" >&2
   echo "Version: $COMMIT_TAG_VERSION" >&2
-  
+
   # Check if REPO_NAME is equal to REPOSITORY
   if [[ "$REPO_NAME" != "$REPOSITORY" ]]; then
     echo "REPO_NAME ($REPO_NAME) does not match REPOSITORY ($REPOSITORY). Exiting..." >&2

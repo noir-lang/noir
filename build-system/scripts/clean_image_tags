@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -e
 
@@ -20,7 +20,7 @@ fi
 
 # Collect all the commits ids in the repository and remove the remote for faster lookups
 # See warning in https://github.blog/2020-12-21-get-up-to-speed-with-partial-clone-and-shallow-clone/
-git config fetch.recurseSubmodules false 
+git config fetch.recurseSubmodules false
 git fetch --filter=tree:0 origin
 ORIGIN_URL=$(git remote get-url origin)
 git remote remove origin
@@ -29,7 +29,7 @@ git remote remove origin
 # This happens for all commits tagged for PRs that then get squashed and merged
 IFS=$'\n'
 for TAG in $IMAGE_TAGS; do
-    if [[ $TAG =~ ^cache-[0-9a-fA-F]+-builder$ ]]; then      
+    if [[ $TAG =~ ^cache-[0-9a-fA-F]+-builder$ ]]; then
       TAG_COMMIT=$(echo "$TAG" | cut -d '-' -f 2)
       if git cat-file -e $TAG_COMMIT; then
         echo "Commit for $TAG found"

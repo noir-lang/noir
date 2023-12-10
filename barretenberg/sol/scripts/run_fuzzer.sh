@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 PLONK_FLAVOUR=${1:-"ultra"}
 CIRCUIT_FLAVOUR=${2:-"blake"}

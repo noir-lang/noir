@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Script to install noirup and the latest nargo
 set -eu
 

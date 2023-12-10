@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script is used to compare a suite of benchmarks between baseline (default: master) and
-# the branch from which the script is run. Simply check out the branch of interest, ensure 
+# the branch from which the script is run. Simply check out the branch of interest, ensure
 # it is up to date with local master, and run the script.
 
 # Specify the benchmark suite and the "baseline" branch against which to compare
@@ -43,7 +43,7 @@ BASELINE_RESULTS="$BENCH_RESULTS_DIR/results_baseline.json"
 echo -e "\nRunning $BENCH_TARGET in master.."
 bin/$BENCH_TARGET --benchmark_format=json > $BASELINE_RESULTS
 
-# Call compare.py on the results (json) to get high level statistics. 
+# Call compare.py on the results (json) to get high level statistics.
 # See docs at https://github.com/google/benchmark/blob/main/docs/tools.md for more details.
 $BENCH_TOOLS_DIR/compare.py benchmarks $BASELINE_RESULTS $BRANCH_RESULTS
 

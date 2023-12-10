@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # If this script fails (nonzero exit), then the caller should rebuild.
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -euo pipefail

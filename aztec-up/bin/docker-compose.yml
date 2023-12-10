@@ -1,27 +1,28 @@
-version: '3'
+version: "3"
 services:
   ethereum:
     image: ghcr.io/foundry-rs/foundry@sha256:29ba6e34379e79c342ec02d437beb7929c9e254261e8032b17e187be71a2609f
-    entrypoint: >
-      sh -c '
-      if [ -n "$FORK_BLOCK_NUMBER" ] && [ -n "$FORK_URL" ]; then
-        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --silent --fork-url "$FORK_URL" --fork-block-number "$FORK_BLOCK_NUMBER"
-      elif [ -n "$FORK_URL" ]; then
-        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --silent --fork-url "$FORK_URL"
-      else
-        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --silent
-      fi'
+    command: >
+      '
+      [ -n "$$FORK_URL" ] && ARGS="$$ARGS --fork-url $$FORK_URL";
+      [ -n "$$FORK_BLOCK_NUMBER" ] && ARGS="$$ARGS --fork-block-number $$FORK_BLOCK_NUMBER";
+      echo anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --silent $$ARGS;
+      anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --silent $$ARGS
+      '
     ports:
-      - '${SANDBOX_ANVIL_PORT:-8545}:8545'
+      - "${SANDBOX_ANVIL_PORT:-8545}:8545"
+    environment:
+      FORK_URL:
+      FORK_BLOCK_NUMBER:
 
   aztec:
-    image: 'aztecprotocol/aztec-sandbox'
+    image: "aztecprotocol/aztec-sandbox"
     ports:
-      - '${SANDBOX_AZTEC_NODE_PORT:-8079}:8079'
-      - '${SANDBOX_PXE_PORT:-8080}:8080'
+      - "${SANDBOX_AZTEC_NODE_PORT:-8079}:8079"
+      - "${SANDBOX_PXE_PORT:-8080}:8080"
     environment:
       DEBUG: # Loaded from the user shell if explicitly set
-      HOST_WORKDIR: '${PWD}' # Loaded from the user shell to show log files absolute path in host
+      HOST_WORKDIR: "${PWD}" # Loaded from the user shell to show log files absolute path in host
       ETHEREUM_HOST: http://ethereum:8545
       CHAIN_ID: 31337
       ARCHIVER_POLLING_INTERVAL_MS: 50

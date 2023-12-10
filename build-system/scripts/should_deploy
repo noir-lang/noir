@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Returns success if we are expected to do a deployment.
 # Right now, that's only if we're master.
 set -eu
