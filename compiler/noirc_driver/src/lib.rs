@@ -79,8 +79,7 @@ pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     let std_file_id = context.file_manager.add_file(&path_to_std_lib_file).unwrap();
     let stdlib_paths_with_source = stdlib::stdlib_paths_with_source();
     for (path, source) in stdlib_paths_with_source {
-        let path_buf = std::path::Path::new(&path);
-        context.file_manager.add_file_with_source(path_buf, source);
+        context.file_manager.add_file_with_source(Path::new(&path), source);
     }
 
     let std_crate_id = context.crate_graph.add_stdlib(std_file_id);
