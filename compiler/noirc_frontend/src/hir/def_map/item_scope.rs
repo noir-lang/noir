@@ -151,6 +151,10 @@ impl ItemScope {
         }
     }
 
+    pub fn names(&self) -> impl Iterator<Item = &Ident> {
+        self.types.keys().chain(self.values.keys())
+    }
+
     pub fn definitions(&self) -> Vec<ModuleDefId> {
         self.defs.clone()
     }

@@ -394,7 +394,7 @@ fn inject_prelude(
             path,
         ) {
             let module_id = module_def.as_module().expect("std::prelude is module");
-            let prelude = context.module(module_id).scope().types().keys();
+            let prelude = context.module(module_id).scope().names();
 
             for path in prelude {
                 let mut segments = segments.clone();
