@@ -20,12 +20,16 @@ mod option;
 mod string;
 mod test;
 // Oracle calls are required to be wrapped in an unconstrained function
-// Thus, the only argument to the `println` oracle is expected to always be an ident 
-#[oracle(println)]
-unconstrained fn println_oracle<T>(_input: T) {}
+// Thus, the only argument to the `println` oracle is expected to always be an ident
+#[oracle(print)]
+unconstrained fn print_oracle<T>(_with_newline: bool, _input: T) {}
+
+unconstrained pub fn print<T>(input: T) {
+    print_oracle(false, input);
+}
 
 unconstrained pub fn println<T>(input: T) {
-    println_oracle(input);
+    print_oracle(true, input);
 }
 
 #[foreign(recursive_aggregation)]
@@ -61,7 +65,3 @@ pub fn wrapping_sub<T>(x: T, y: T) -> T {
 pub fn wrapping_mul<T>(x: T, y: T) -> T {
     crate::from_field(crate::as_field(x) * crate::as_field(y))
 }
-/// Shift-left x by y bits
-/// If the result overflow the bitsize; it does not fail and returns 0 instead
-#[builtin(wrapping_shift_left)]
-pub fn wrapping_shift_left<T>(_x: T, _y: T) -> T {}

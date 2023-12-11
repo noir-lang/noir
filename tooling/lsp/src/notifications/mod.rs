@@ -30,23 +30,27 @@ pub(super) fn on_did_change_configuration(
 }
 
 pub(super) fn on_did_open_text_document(
-    _state: &mut LspState,
-    _params: DidOpenTextDocumentParams,
+    state: &mut LspState,
+    params: DidOpenTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
+    state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
     ControlFlow::Continue(())
 }
 
 pub(super) fn on_did_change_text_document(
-    _state: &mut LspState,
-    _params: DidChangeTextDocumentParams,
+    state: &mut LspState,
+    params: DidChangeTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
+    let text = params.content_changes.into_iter().next().unwrap().text;
+    state.input_files.insert(params.text_document.uri.to_string(), text);
     ControlFlow::Continue(())
 }
 
 pub(super) fn on_did_close_text_document(
-    _state: &mut LspState,
-    _params: DidCloseTextDocumentParams,
+    state: &mut LspState,
+    params: DidCloseTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
+    state.input_files.remove(&params.text_document.uri.to_string());
     ControlFlow::Continue(())
 }
 

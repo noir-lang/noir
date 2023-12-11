@@ -1,10 +1,9 @@
 use noirc_frontend::{
-    hir::resolution::errors::Span, lexer::Lexer, token::Token, ArrayLiteral, BlockExpression,
-    ConstructorExpression, Expression, ExpressionKind, IfExpression, Literal, Statement,
-    StatementKind, UnaryOp,
+    hir::resolution::errors::Span, lexer::Lexer, token::Token, BlockExpression,
+    ConstructorExpression, Expression, ExpressionKind, IfExpression, Statement, StatementKind,
 };
 
-use super::{ExpressionType, FmtVisitor, Indent, Shape};
+use super::{ExpressionType, FmtVisitor, Shape};
 use crate::{
     rewrite,
     utils::{self, first_line_width, Expr, FindToken, Item},
@@ -14,7 +13,7 @@ use crate::{
 impl FmtVisitor<'_> {
     pub(crate) fn visit_expr(&mut self, expr: Expression, expr_type: ExpressionType) {
         let span = expr.span;
-        let rewrite = self.format_expr(expr, expr_type);
+        let rewrite = rewrite::expr(self, expr, expr_type, self.shape());
         self.push_rewrite(rewrite, span);
         self.last_position = span.end();
     }
@@ -207,8 +206,8 @@ impl FmtVisitor<'_> {
     }
 
     fn format_if(&self, if_expr: IfExpression) -> String {
-        let condition_str = self.format_sub_expr(if_expr.condition);
-        let consequence_str = self.format_sub_expr(if_expr.consequence);
+        let condition_str = rewrite::sub_expr(self, self.shape(), if_expr.condition);
+        let consequence_str = rewrite::sub_expr(self, self.shape(), if_expr.consequence);
 
         let mut result = format!("if {condition_str} {consequence_str}");
 
@@ -218,7 +217,7 @@ impl FmtVisitor<'_> {
             {
                 self.format_if(*if_expr)
             } else {
-                self.format_expr(alternative, ExpressionType::Statement)
+                rewrite::expr(self, alternative, ExpressionType::Statement, self.shape())
             };
 
             result.push_str(" else ");
@@ -228,9 +227,10 @@ impl FmtVisitor<'_> {
         result
     }
 
-    fn format_if_single_line(&self, if_expr: IfExpression) -> Option<String> {
-        let condition_str = self.format_sub_expr(if_expr.condition);
-        let consequence_str = self.format_sub_expr(extract_simple_expr(if_expr.consequence)?);
+    pub(crate) fn format_if_single_line(&self, if_expr: IfExpression) -> Option<String> {
+        let condition_str = rewrite::sub_expr(self, self.shape(), if_expr.condition);
+        let consequence_str =
+            rewrite::sub_expr(self, self.shape(), extract_simple_expr(if_expr.consequence)?);
 
         let if_str = if let Some(alternative) = if_expr.alternative {
             let alternative_str = if let Some(ExpressionKind::If(_)) =
@@ -238,7 +238,12 @@ impl FmtVisitor<'_> {
             {
                 return None;
             } else {
-                self.format_expr(extract_simple_expr(alternative)?, ExpressionType::Statement)
+                rewrite::expr(
+                    self,
+                    extract_simple_expr(alternative)?,
+                    ExpressionType::Statement,
+                    self.shape(),
+                )
             };
 
             format!("if {} {{ {} }} else {{ {} }}", condition_str, consequence_str, alternative_str)
@@ -249,7 +254,7 @@ impl FmtVisitor<'_> {
         (if_str.len() <= self.config.single_line_if_else_max_width).then_some(if_str)
     }
 
-    fn format_struct_lit(
+    pub(crate) fn format_struct_lit(
         &self,
         type_name: &str,
         fields_span: Span,
@@ -263,13 +268,15 @@ impl FmtVisitor<'_> {
 
             let nested_indent = visitor.shape();
             let exprs: Vec<_> =
-                utils::Exprs::new(&visitor, fields_span, constructor.fields).collect();
+                utils::Exprs::new(&visitor, nested_indent, fields_span, constructor.fields)
+                    .collect();
             let exprs = format_exprs(
                 visitor.config,
                 Tactic::HorizontalVertical,
                 false,
                 exprs,
                 nested_indent,
+                true,
             );
 
             visitor.indent.block_unindent(visitor.config);
@@ -367,29 +374,32 @@ impl FmtVisitor<'_> {
     }
 }
 
+// TODO: fixme
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn format_seq<T: Item>(
+    shape: Shape,
     prefix: &str,
     suffix: &str,
-    mut visitor: FmtVisitor,
+    visitor: FmtVisitor,
     trailing_comma: bool,
     exprs: Vec<T>,
     span: Span,
     tactic: Tactic,
-    soft_newline: bool,
+    mode: NewlineMode,
+    reduce: bool,
 ) -> String {
-    visitor.indent.block_indent(visitor.config);
+    let mut nested_indent = shape;
+    let shape = shape;
 
-    let nested_indent = visitor.shape();
-    let exprs: Vec<_> = utils::Exprs::new(&visitor, span, exprs).collect();
-    let exprs = format_exprs(visitor.config, tactic, trailing_comma, exprs, nested_indent);
+    nested_indent.indent.block_indent(visitor.config);
 
-    visitor.indent.block_unindent(visitor.config);
+    let exprs: Vec<_> = utils::Exprs::new(&visitor, nested_indent, span, exprs).collect();
+    let exprs = format_exprs(visitor.config, tactic, trailing_comma, exprs, nested_indent, reduce);
 
-    wrap_exprs(prefix, suffix, exprs, nested_indent, visitor.shape(), soft_newline)
+    wrap_exprs(prefix, suffix, exprs, nested_indent, shape, mode)
 }
 
-fn format_brackets(
+pub(crate) fn format_brackets(
     visitor: FmtVisitor,
     trailing_comma: bool,
     exprs: Vec<Expression>,
@@ -397,6 +407,7 @@ fn format_brackets(
 ) -> String {
     let array_width = visitor.config.array_width;
     format_seq(
+        visitor.shape(),
         "[",
         "]",
         visitor,
@@ -404,19 +415,25 @@ fn format_brackets(
         exprs,
         span,
         Tactic::LimitedHorizontalVertical(array_width),
+        NewlineMode::Normal,
         false,
     )
 }
 
-fn format_parens(
+// TODO: fixme
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn format_parens(
     max_width: Option<usize>,
     visitor: FmtVisitor,
+    shape: Shape,
     trailing_comma: bool,
     exprs: Vec<Expression>,
     span: Span,
+    reduce: bool,
+    mode: NewlineMode,
 ) -> String {
     let tactic = max_width.map(Tactic::LimitedHorizontalVertical).unwrap_or(Tactic::Horizontal);
-    format_seq("(", ")", visitor, trailing_comma, exprs, span, tactic, false)
+    format_seq(shape, "(", ")", visitor, trailing_comma, exprs, span, tactic, mode, reduce)
 }
 
 fn format_exprs(
@@ -425,11 +442,12 @@ fn format_exprs(
     trailing_comma: bool,
     exprs: Vec<Expr>,
     shape: Shape,
+    reduce: bool,
 ) -> String {
     let mut result = String::new();
     let indent_str = shape.indent.to_string();
 
-    let tactic = tactic.definitive(&exprs, config.short_array_element_width_threshold);
+    let tactic = tactic.definitive(&exprs, config.short_array_element_width_threshold, reduce);
     let mut exprs = exprs.into_iter().enumerate().peekable();
     let mut line_len = 0;
     let mut prev_expr_trailing_comment = false;
@@ -502,18 +520,34 @@ fn format_exprs(
     result
 }
 
+#[derive(PartialEq, Eq)]
+pub(crate) enum NewlineMode {
+    IfContainsNewLine,
+    IfContainsNewLineAndWidth,
+    Normal,
+}
+
 pub(crate) fn wrap_exprs(
     prefix: &str,
     suffix: &str,
     exprs: String,
     nested_shape: Shape,
     shape: Shape,
-    soft_newline: bool,
+    newline_mode: NewlineMode,
 ) -> String {
-    let first_line_width = first_line_width(&exprs);
+    let mut force_one_line = if newline_mode == NewlineMode::IfContainsNewLine {
+        true
+    } else {
+        first_line_width(&exprs) <= shape.width
+    };
 
-    let force_one_line =
-        if soft_newline { !exprs.contains('\n') } else { first_line_width <= shape.width };
+    if matches!(
+        newline_mode,
+        NewlineMode::IfContainsNewLine | NewlineMode::IfContainsNewLineAndWidth
+    ) && force_one_line
+    {
+        force_one_line = !exprs.contains('\n');
+    }
 
     if force_one_line {
         let allow_trailing_newline = exprs
@@ -550,7 +584,8 @@ impl Tactic {
     fn definitive(
         self,
         exprs: &[Expr],
-        short_array_element_width_threshold: usize,
+        short_width_threshold: usize,
+        reduce: bool,
     ) -> DefinitiveTactic {
         let tactic = || {
             let has_single_line_comment = exprs.iter().any(|item| {
@@ -584,7 +619,12 @@ impl Tactic {
             }
         };
 
-        tactic().reduce(exprs, short_array_element_width_threshold)
+        let definitive_tactic = tactic();
+        if reduce {
+            definitive_tactic.reduce(exprs, short_width_threshold)
+        } else {
+            definitive_tactic
+        }
     }
 }
 

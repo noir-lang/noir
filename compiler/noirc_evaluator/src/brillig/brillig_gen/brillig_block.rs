@@ -1,6 +1,6 @@
+use crate::brillig::brillig_ir::brillig_variable::{BrilligArray, BrilligVariable, BrilligVector};
 use crate::brillig::brillig_ir::{
-    extract_heap_array, extract_register, extract_registers, BrilligBinaryOp, BrilligContext,
-    BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+    BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::{
@@ -13,7 +13,7 @@ use crate::ssa::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig::{BinaryFieldOp, BinaryIntOp, HeapArray, RegisterIndex, RegisterOrMemory};
+use acvm::acir::brillig::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterOrMemory};
 use acvm::brillig_vm::brillig::HeapVector;
 use acvm::FieldElement;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -53,7 +53,7 @@ impl<'block> BrilligBlock<'block> {
             variables
                 .get_available_variables(function_context)
                 .into_iter()
-                .flat_map(extract_registers)
+                .flat_map(|variable| variable.extract_registers())
                 .collect(),
         );
         let last_uses = function_context.liveness.get_last_uses(&block_id).clone();
@@ -159,7 +159,7 @@ impl<'block> BrilligBlock<'block> {
                     .iter()
                     .flat_map(|value_id| {
                         let return_variable = self.convert_ssa_value(*value_id, dfg);
-                        extract_registers(return_variable)
+                        return_variable.extract_registers()
                     })
                     .collect();
                 self.brillig_context.return_instruction(&return_registers);
@@ -168,32 +168,44 @@ impl<'block> BrilligBlock<'block> {
     }
 
     /// Passes an arbitrary variable from the registers of the source to the registers of the destination
-    fn pass_variable(&mut self, source: RegisterOrMemory, destination: RegisterOrMemory) {
+    fn pass_variable(&mut self, source: BrilligVariable, destination: BrilligVariable) {
         match (source, destination) {
             (
-                RegisterOrMemory::RegisterIndex(source_register),
-                RegisterOrMemory::RegisterIndex(destination_register),
+                BrilligVariable::Simple(source_register),
+                BrilligVariable::Simple(destination_register),
             ) => {
                 self.brillig_context.mov_instruction(destination_register, source_register);
             }
             (
-                RegisterOrMemory::HeapArray(HeapArray { pointer: source_pointer, .. }),
-                RegisterOrMemory::HeapArray(HeapArray { pointer: destination_pointer, .. }),
+                BrilligVariable::BrilligArray(BrilligArray {
+                    pointer: source_pointer,
+                    size: _,
+                    rc: source_rc,
+                }),
+                BrilligVariable::BrilligArray(BrilligArray {
+                    pointer: destination_pointer,
+                    size: _,
+                    rc: destination_rc,
+                }),
             ) => {
                 self.brillig_context.mov_instruction(destination_pointer, source_pointer);
+                self.brillig_context.mov_instruction(destination_rc, source_rc);
             }
             (
-                RegisterOrMemory::HeapVector(HeapVector {
+                BrilligVariable::BrilligVector(BrilligVector {
                     pointer: source_pointer,
                     size: source_size,
+                    rc: source_rc,
                 }),
-                RegisterOrMemory::HeapVector(HeapVector {
+                BrilligVariable::BrilligVector(BrilligVector {
                     pointer: destination_pointer,
                     size: destination_size,
+                    rc: destination_rc,
                 }),
             ) => {
                 self.brillig_context.mov_instruction(destination_pointer, source_pointer);
                 self.brillig_context.mov_instruction(destination_size, source_size);
+                self.brillig_context.mov_instruction(destination_rc, source_rc);
             }
             (_, _) => {
                 unreachable!("ICE: Cannot pass value from {:?} to {:?}", source, destination);
@@ -214,7 +226,7 @@ impl<'block> BrilligBlock<'block> {
                 // In the case of arrays, the values should already be in memory and the register should
                 // Be a valid pointer to the array.
                 // For slices, two registers are passed, the pointer to the data and a register holding the size of the slice.
-                Type::Numeric(_) | Type::Array(..) | Type::Slice(..) | Type::Reference => {
+                Type::Numeric(_) | Type::Array(..) | Type::Slice(..) | Type::Reference(_) => {
                     self.variables.get_block_param(
                         self.function_context,
                         self.block_id,
@@ -264,7 +276,25 @@ impl<'block> BrilligBlock<'block> {
                     result_value,
                     dfg,
                 );
-                self.brillig_context.allocate_variable_instruction(address_register);
+                match dfg.type_of_value(result_value) {
+                    Type::Reference(element) => match *element {
+                        Type::Array(..) => {
+                            self.brillig_context
+                                .allocate_array_reference_instruction(address_register);
+                        }
+                        Type::Slice(..) => {
+                            self.brillig_context
+                                .allocate_vector_reference_instruction(address_register);
+                        }
+                        _ => {
+                            self.brillig_context
+                                .allocate_simple_reference_instruction(address_register);
+                        }
+                    },
+                    _ => {
+                        unreachable!("ICE: Allocate on non-reference type")
+                    }
+                }
             }
             Instruction::Store { address, value } => {
                 let address_register = self.convert_ssa_register_value(*address, dfg);
@@ -299,10 +329,11 @@ impl<'block> BrilligBlock<'block> {
                 Value::ForeignFunction(func_name) => {
                     let result_ids = dfg.instruction_results(instruction_id);
 
-                    let input_registers =
-                        vecmap(arguments, |value_id| self.convert_ssa_value(*value_id, dfg));
+                    let input_registers = vecmap(arguments, |value_id| {
+                        self.convert_ssa_value(*value_id, dfg).to_register_or_memory()
+                    });
                     let output_registers = vecmap(result_ids, |value_id| {
-                        self.allocate_external_call_result(*value_id, dfg)
+                        self.allocate_external_call_result(*value_id, dfg).to_register_or_memory()
                     });
                     self.brillig_context.foreign_call_instruction(
                         func_name.to_owned(),
@@ -388,7 +419,7 @@ impl<'block> BrilligBlock<'block> {
                     // or an array in the case of an array.
                     if let Type::Numeric(_) = dfg.type_of_value(param_id) {
                         let len_variable = self.convert_ssa_value(arguments[0], dfg);
-                        let len_register_index = extract_register(len_variable);
+                        let len_register_index = len_variable.extract_register();
                         self.brillig_context.mov_instruction(result_register, len_register_index);
                     } else {
                         self.convert_ssa_array_len(arguments[0], result_register, dfg);
@@ -416,29 +447,29 @@ impl<'block> BrilligBlock<'block> {
 
                     let results = dfg.instruction_results(instruction_id);
 
-                    let target_len_variable = self.variables.define_variable(
+                    let target_len = self.variables.define_register_variable(
                         self.function_context,
                         self.brillig_context,
                         results[0],
                         dfg,
                     );
-                    let target_len = extract_register(target_len_variable);
 
-                    let target_slice = self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        results[1],
-                        dfg,
-                    );
-
-                    let heap_vec = self.brillig_context.extract_heap_vector(target_slice);
+                    let target_vector = self
+                        .variables
+                        .define_variable(
+                            self.function_context,
+                            self.brillig_context,
+                            results[1],
+                            dfg,
+                        )
+                        .extract_vector();
 
                     // Update the user-facing slice length
                     self.brillig_context.mov_instruction(target_len, limb_count);
 
                     self.brillig_context.radix_instruction(
                         source,
-                        heap_vec,
+                        target_vector,
                         radix,
                         limb_count,
                         matches!(endianness, Endian::Big),
@@ -456,24 +487,29 @@ impl<'block> BrilligBlock<'block> {
                         results[0],
                         dfg,
                     );
-                    let target_len = extract_register(target_len_variable);
+                    let target_len = target_len_variable.extract_register();
 
-                    let target_slice = self.variables.define_variable(
+                    let target_vector = match self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
                         results[1],
                         dfg,
-                    );
+                    ) {
+                        BrilligVariable::BrilligArray(array) => {
+                            self.brillig_context.array_to_vector(&array)
+                        }
+                        BrilligVariable::BrilligVector(vector) => vector,
+                        BrilligVariable::Simple(..) => unreachable!("ICE: ToBits on non-array"),
+                    };
 
                     let radix = self.brillig_context.make_constant(2_usize.into());
-                    let heap_vec = self.brillig_context.extract_heap_vector(target_slice);
 
                     // Update the user-facing slice length
                     self.brillig_context.mov_instruction(target_len, limb_count);
 
                     self.brillig_context.radix_instruction(
                         source,
-                        heap_vec,
+                        target_vector,
                         radix,
                         limb_count,
                         matches!(endianness, Endian::Big),
@@ -523,8 +559,8 @@ impl<'block> BrilligBlock<'block> {
 
                 let array_variable = self.convert_ssa_value(*array, dfg);
                 let array_pointer = match array_variable {
-                    RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => pointer,
-                    RegisterOrMemory::HeapVector(HeapVector { pointer, .. }) => pointer,
+                    BrilligVariable::BrilligArray(BrilligArray { pointer, .. }) => pointer,
+                    BrilligVariable::BrilligVector(BrilligVector { pointer, .. }) => pointer,
                     _ => unreachable!("ICE: array get on non-array"),
                 };
 
@@ -574,6 +610,14 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.deallocate_register(condition);
                 self.brillig_context.deallocate_register(right);
             }
+            Instruction::IncrementRc { value } => {
+                let rc_register = match self.convert_ssa_value(*value, dfg) {
+                    BrilligVariable::BrilligArray(BrilligArray { rc, .. })
+                    | BrilligVariable::BrilligVector(BrilligVector { rc, .. }) => rc,
+                    _ => unreachable!("ICE: increment rc on non-array"),
+                };
+                self.brillig_context.usize_op_in_place(rc_register, BinaryIntOp::Add, 1);
+            }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
 
@@ -598,10 +642,7 @@ impl<'block> BrilligBlock<'block> {
         // Convert the arguments to registers casting those to the types of the receiving function
         let argument_registers: Vec<RegisterIndex> = arguments
             .iter()
-            .flat_map(|argument_id| {
-                let variable_to_pass = self.convert_ssa_value(*argument_id, dfg);
-                extract_registers(variable_to_pass)
-            })
+            .flat_map(|argument_id| self.convert_ssa_value(*argument_id, dfg).extract_registers())
             .collect();
 
         let result_ids = dfg.instruction_results(instruction_id);
@@ -637,7 +678,7 @@ impl<'block> BrilligBlock<'block> {
         // Collect the registers that should have been returned
         let returned_registers: Vec<RegisterIndex> = variables_assigned_to
             .iter()
-            .flat_map(|returned_variable| extract_registers(*returned_variable))
+            .flat_map(|returned_variable| returned_variable.extract_registers())
             .collect();
 
         assert!(
@@ -654,17 +695,13 @@ impl<'block> BrilligBlock<'block> {
         &mut self,
         array_pointer: RegisterIndex,
         index_register: RegisterIndex,
-        destination_variable: RegisterOrMemory,
+        destination_variable: BrilligVariable,
     ) {
         match destination_variable {
-            RegisterOrMemory::RegisterIndex(destination_register) => {
+            BrilligVariable::Simple(destination_register) => {
                 self.brillig_context.array_get(array_pointer, index_register, destination_register);
             }
-            RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => {
-                self.brillig_context.array_get(array_pointer, index_register, pointer);
-            }
-            RegisterOrMemory::HeapVector(..) => {
-                // Vectors are stored as references inside arrays to be able to match SSA indexes
+            BrilligVariable::BrilligArray(..) | BrilligVariable::BrilligVector(..) => {
                 let reference = self.brillig_context.allocate_register();
                 self.brillig_context.array_get(array_pointer, index_register, reference);
                 self.brillig_context.load_variable_instruction(destination_variable, reference);
@@ -677,25 +714,30 @@ impl<'block> BrilligBlock<'block> {
     /// With a specific value changed.
     fn convert_ssa_array_set(
         &mut self,
-        source_variable: RegisterOrMemory,
-        destination_variable: RegisterOrMemory,
+        source_variable: BrilligVariable,
+        destination_variable: BrilligVariable,
         index_register: RegisterIndex,
-        value_variable: RegisterOrMemory,
+        value_variable: BrilligVariable,
     ) {
         let destination_pointer = match destination_variable {
-            RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => pointer,
-            RegisterOrMemory::HeapVector(HeapVector { pointer, .. }) => pointer,
+            BrilligVariable::BrilligArray(BrilligArray { pointer, .. }) => pointer,
+            BrilligVariable::BrilligVector(BrilligVector { pointer, .. }) => pointer,
             _ => unreachable!("ICE: array set returns non-array"),
         };
 
-        // First issue a array copy to the destination
+        let reference_count = match source_variable {
+            BrilligVariable::BrilligArray(BrilligArray { rc, .. })
+            | BrilligVariable::BrilligVector(BrilligVector { rc, .. }) => rc,
+            _ => unreachable!("ICE: array set on non-array"),
+        };
+
         let (source_pointer, source_size_as_register) = match source_variable {
-            RegisterOrMemory::HeapArray(HeapArray { size, pointer }) => {
+            BrilligVariable::BrilligArray(BrilligArray { size, pointer, rc: _ }) => {
                 let source_size_register = self.brillig_context.allocate_register();
                 self.brillig_context.const_instruction(source_size_register, size.into());
                 (pointer, source_size_register)
             }
-            RegisterOrMemory::HeapVector(HeapVector { size, pointer }) => {
+            BrilligVariable::BrilligVector(BrilligVector { size, pointer, rc: _ }) => {
                 let source_size_register = self.brillig_context.allocate_register();
                 self.brillig_context.mov_instruction(source_size_register, size);
                 (pointer, source_size_register)
@@ -703,49 +745,94 @@ impl<'block> BrilligBlock<'block> {
             _ => unreachable!("ICE: array set on non-array"),
         };
 
-        self.brillig_context
-            .allocate_array_instruction(destination_pointer, source_size_as_register);
+        let one = self.brillig_context.make_constant(1_usize.into());
+        let condition = self.brillig_context.allocate_register();
 
-        self.brillig_context.copy_array_instruction(
-            source_pointer,
-            destination_pointer,
-            source_size_as_register,
+        self.brillig_context.binary_instruction(
+            reference_count,
+            one,
+            condition,
+            BrilligBinaryOp::Field { op: BinaryFieldOp::Equals },
         );
 
-        if let RegisterOrMemory::HeapVector(HeapVector { size: target_size, .. }) =
-            destination_variable
-        {
-            self.brillig_context.mov_instruction(target_size, source_size_as_register);
+        self.brillig_context.branch_instruction(condition, |ctx, cond| {
+            if cond {
+                // Reference count is 1, we can mutate the array directly
+                ctx.mov_instruction(destination_pointer, source_pointer);
+            } else {
+                // First issue a array copy to the destination
+                ctx.allocate_array_instruction(destination_pointer, source_size_as_register);
+
+                ctx.copy_array_instruction(
+                    source_pointer,
+                    destination_pointer,
+                    source_size_as_register,
+                );
+            }
+        });
+
+        match destination_variable {
+            BrilligVariable::BrilligArray(BrilligArray { rc: target_rc, .. }) => {
+                self.brillig_context.const_instruction(target_rc, 1_usize.into());
+            }
+            BrilligVariable::BrilligVector(BrilligVector {
+                size: target_size,
+                rc: target_rc,
+                ..
+            }) => {
+                self.brillig_context.mov_instruction(target_size, source_size_as_register);
+                self.brillig_context.const_instruction(target_rc, 1_usize.into());
+            }
+            _ => unreachable!("ICE: array set on non-array"),
         }
 
         // Then set the value in the newly created array
         self.store_variable_in_array(destination_pointer, index_register, value_variable);
 
         self.brillig_context.deallocate_register(source_size_as_register);
+        self.brillig_context.deallocate_register(one);
+        self.brillig_context.deallocate_register(condition);
+    }
+
+    pub(crate) fn store_variable_in_array_with_ctx(
+        ctx: &mut BrilligContext,
+        destination_pointer: RegisterIndex,
+        index_register: RegisterIndex,
+        value_variable: BrilligVariable,
+    ) {
+        match value_variable {
+            BrilligVariable::Simple(value_register) => {
+                ctx.array_set(destination_pointer, index_register, value_register);
+            }
+            BrilligVariable::BrilligArray(_) => {
+                let reference: RegisterIndex = ctx.allocate_register();
+                ctx.allocate_array_reference_instruction(reference);
+                ctx.store_variable_instruction(reference, value_variable);
+                ctx.array_set(destination_pointer, index_register, reference);
+                ctx.deallocate_register(reference);
+            }
+            BrilligVariable::BrilligVector(_) => {
+                let reference = ctx.allocate_register();
+                ctx.allocate_vector_reference_instruction(reference);
+                ctx.store_variable_instruction(reference, value_variable);
+                ctx.array_set(destination_pointer, index_register, reference);
+                ctx.deallocate_register(reference);
+            }
+        }
     }
 
     pub(crate) fn store_variable_in_array(
         &mut self,
         destination_pointer: RegisterIndex,
         index_register: RegisterIndex,
-        value_variable: RegisterOrMemory,
+        value_variable: BrilligVariable,
     ) {
-        match value_variable {
-            RegisterOrMemory::RegisterIndex(value_register) => {
-                self.brillig_context.array_set(destination_pointer, index_register, value_register);
-            }
-            RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => {
-                self.brillig_context.array_set(destination_pointer, index_register, pointer);
-            }
-            RegisterOrMemory::HeapVector(_) => {
-                // Vectors are stored as references inside arrays to be able to match SSA indexes
-                let reference = self.brillig_context.allocate_register();
-                self.brillig_context.allocate_variable_instruction(reference);
-                self.brillig_context.store_variable_instruction(reference, value_variable);
-                self.brillig_context.array_set(destination_pointer, index_register, reference);
-                self.brillig_context.deallocate_register(reference);
-            }
-        }
+        Self::store_variable_in_array_with_ctx(
+            self.brillig_context,
+            destination_pointer,
+            index_register,
+            value_variable,
+        );
     }
 
     /// Convert the SSA slice operations to brillig slice operations
@@ -770,7 +857,7 @@ impl<'block> BrilligBlock<'block> {
                     results[0],
                     dfg,
                 ) {
-                    RegisterOrMemory::RegisterIndex(register_index) => register_index,
+                    BrilligVariable::Simple(register_index) => register_index,
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
@@ -781,7 +868,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
 
-                let target_vector = self.brillig_context.extract_heap_vector(target_variable);
+                let target_vector = target_variable.extract_vector();
                 let item_values = vecmap(&arguments[2..element_size + 2], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
@@ -797,7 +884,7 @@ impl<'block> BrilligBlock<'block> {
                     results[0],
                     dfg,
                 ) {
-                    RegisterOrMemory::RegisterIndex(register_index) => register_index,
+                    BrilligVariable::Simple(register_index) => register_index,
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
@@ -807,7 +894,7 @@ impl<'block> BrilligBlock<'block> {
                     results[1],
                     dfg,
                 );
-                let target_vector = self.brillig_context.extract_heap_vector(target_variable);
+                let target_vector = target_variable.extract_vector();
                 let item_values = vecmap(&arguments[2..element_size + 2], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
@@ -823,7 +910,7 @@ impl<'block> BrilligBlock<'block> {
                     results[0],
                     dfg,
                 ) {
-                    RegisterOrMemory::RegisterIndex(register_index) => register_index,
+                    BrilligVariable::Simple(register_index) => register_index,
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
@@ -834,7 +921,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
 
-                let target_vector = self.brillig_context.extract_heap_vector(target_variable);
+                let target_vector = target_variable.extract_vector();
 
                 let pop_variables = vecmap(&results[2..element_size + 2], |result| {
                     self.variables.define_variable(
@@ -856,7 +943,7 @@ impl<'block> BrilligBlock<'block> {
                     results[element_size],
                     dfg,
                 ) {
-                    RegisterOrMemory::RegisterIndex(register_index) => register_index,
+                    BrilligVariable::Simple(register_index) => register_index,
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
@@ -875,7 +962,7 @@ impl<'block> BrilligBlock<'block> {
                     results[element_size + 1],
                     dfg,
                 );
-                let target_vector = self.brillig_context.extract_heap_vector(target_variable);
+                let target_vector = target_variable.extract_vector();
 
                 self.update_slice_length(target_len, arguments[0], dfg, BinaryIntOp::Sub);
 
@@ -888,7 +975,7 @@ impl<'block> BrilligBlock<'block> {
                     results[0],
                     dfg,
                 ) {
-                    RegisterOrMemory::RegisterIndex(register_index) => register_index,
+                    BrilligVariable::Simple(register_index) => register_index,
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
@@ -900,7 +987,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
 
-                let target_vector = self.brillig_context.extract_heap_vector(target_variable);
+                let target_vector = target_variable.extract_vector();
 
                 // Remove if indexing in insert is changed to flattened indexing
                 // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
@@ -931,7 +1018,7 @@ impl<'block> BrilligBlock<'block> {
                     results[0],
                     dfg,
                 ) {
-                    RegisterOrMemory::RegisterIndex(register_index) => register_index,
+                    BrilligVariable::Simple(register_index) => register_index,
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
@@ -943,7 +1030,7 @@ impl<'block> BrilligBlock<'block> {
                     target_id,
                     dfg,
                 );
-                let target_vector = self.brillig_context.extract_heap_vector(target_variable);
+                let target_vector = target_variable.extract_vector();
 
                 // Remove if indexing in remove is changed to flattened indexing
                 // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
@@ -998,7 +1085,7 @@ impl<'block> BrilligBlock<'block> {
         binary_op: BinaryIntOp,
     ) {
         let source_len_variable = self.convert_ssa_value(source_value, dfg);
-        let source_len = extract_register(source_len_variable);
+        let source_len = source_len_variable.extract_register();
 
         self.brillig_context.usize_op(source_len, target_len, binary_op, 1);
     }
@@ -1064,7 +1151,7 @@ impl<'block> BrilligBlock<'block> {
     }
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
-    fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> RegisterOrMemory {
+    fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
 
@@ -1082,7 +1169,7 @@ impl<'block> BrilligBlock<'block> {
                 } else {
                     let new_variable =
                         self.variables.allocate_constant(self.brillig_context, value_id, dfg);
-                    let register_index = extract_register(new_variable);
+                    let register_index = new_variable.extract_register();
 
                     self.brillig_context.const_instruction(register_index, (*constant).into());
                     new_variable
@@ -1097,19 +1184,21 @@ impl<'block> BrilligBlock<'block> {
 
                     // Initialize the variable
                     let pointer = match new_variable {
-                        RegisterOrMemory::HeapArray(heap_array) => {
+                        BrilligVariable::BrilligArray(brillig_array) => {
                             self.brillig_context
-                                .allocate_fixed_length_array(heap_array.pointer, array.len());
+                                .allocate_fixed_length_array(brillig_array.pointer, array.len());
+                            self.brillig_context
+                                .const_instruction(brillig_array.rc, 1_usize.into());
 
-                            heap_array.pointer
+                            brillig_array.pointer
                         }
-                        RegisterOrMemory::HeapVector(heap_vector) => {
+                        BrilligVariable::BrilligVector(vector) => {
+                            self.brillig_context.const_instruction(vector.size, array.len().into());
                             self.brillig_context
-                                .const_instruction(heap_vector.size, array.len().into());
-                            self.brillig_context
-                                .allocate_array_instruction(heap_vector.pointer, heap_vector.size);
+                                .allocate_array_instruction(vector.pointer, vector.size);
+                            self.brillig_context.const_instruction(vector.rc, 1_usize.into());
 
-                            heap_vector.pointer
+                            vector.pointer
                         }
                         _ => unreachable!(
                             "ICE: Cannot initialize array value created as {new_variable:?}"
@@ -1138,7 +1227,7 @@ impl<'block> BrilligBlock<'block> {
                     new_variable
                 }
             }
-            _ => {
+            Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => {
                 todo!("ICE: Cannot convert value {value:?}")
             }
         }
@@ -1151,14 +1240,14 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
     ) -> RegisterIndex {
         let variable = self.convert_ssa_value(value_id, dfg);
-        extract_register(variable)
+        variable.extract_register()
     }
 
     fn allocate_external_call_result(
         &mut self,
         result: ValueId,
         dfg: &DataFlowGraph,
-    ) -> RegisterOrMemory {
+    ) -> BrilligVariable {
         let typ = dfg[result].get_type();
         match typ {
             Type::Numeric(_) => self.variables.define_variable(
@@ -1175,8 +1264,10 @@ impl<'block> BrilligBlock<'block> {
                     result,
                     dfg,
                 );
-                let array = extract_heap_array(variable);
+                let array = variable.extract_array();
                 self.brillig_context.allocate_fixed_length_array(array.pointer, array.size);
+                self.brillig_context.const_instruction(array.rc, 1_usize.into());
+
                 variable
             }
             Type::Slice(_) => {
@@ -1186,12 +1277,14 @@ impl<'block> BrilligBlock<'block> {
                     result,
                     dfg,
                 );
-                let vector = self.brillig_context.extract_heap_vector(variable);
+                let vector = variable.extract_vector();
 
                 // Set the pointer to the current stack frame
                 // The stack pointer will then be updated by the caller of this method
                 // once the external call is resolved and the array size is known
                 self.brillig_context.set_array_pointer(vector.pointer);
+                self.brillig_context.const_instruction(vector.rc, 1_usize.into());
+
                 variable
             }
             _ => {
@@ -1201,7 +1294,7 @@ impl<'block> BrilligBlock<'block> {
     }
 
     /// Gets the "user-facing" length of an array.
-    /// An array of structs with two fields would be stored as an 2 * array.len() heap array/heap vector.
+    /// An array of structs with two fields would be stored as an 2 * array.len() array/vector.
     /// So we divide the length by the number of subitems in an item to get the user-facing length.
     fn convert_ssa_array_len(
         &mut self,
@@ -1213,11 +1306,11 @@ impl<'block> BrilligBlock<'block> {
         let element_size = dfg.type_of_value(array_id).element_size();
 
         match array_variable {
-            RegisterOrMemory::HeapArray(HeapArray { size, .. }) => {
+            BrilligVariable::BrilligArray(BrilligArray { size, .. }) => {
                 self.brillig_context
                     .const_instruction(result_register, (size / element_size).into());
             }
-            RegisterOrMemory::HeapVector(HeapVector { size, .. }) => {
+            BrilligVariable::BrilligVector(BrilligVector { size, .. }) => {
                 self.brillig_context.usize_op(
                     size,
                     result_register,
@@ -1240,7 +1333,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
         (_, Type::Function) | (Type::Function, _) => {
             unreachable!("Functions are invalid in binary operations")
         }
-        (_, Type::Reference) | (Type::Reference, _) => {
+        (_, Type::Reference(_)) | (Type::Reference(_), _) => {
             unreachable!("References are invalid in binary operations")
         }
         (_, Type::Array(..)) | (Type::Array(..), _) => {

@@ -33,7 +33,7 @@ jobs:
       - name: Enable aztec features
         if: ${{ inputs.npm-tag == 'aztec' }}
         run: |
-          echo $'\n'"default = [\"aztec\"]"$'\n' >> compiler/noirc_frontend/Cargo.toml
+          echo $'\n'"default = [\"aztec\"]"$'\n' >> compiler/noirc_driver/Cargo.toml
 
       - name: Build wasm package
         run: |

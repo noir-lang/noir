@@ -125,7 +125,7 @@ impl<'interner> TypeChecker<'interner> {
                         Type::Array(Box::new(length), Box::new(elem_type))
                     }
                     HirLiteral::Bool(_) => Type::Bool,
-                    HirLiteral::Integer(_) => Type::polymorphic_integer(self.interner),
+                    HirLiteral::Integer(_, _) => Type::polymorphic_integer(self.interner),
                     HirLiteral::Str(string) => {
                         let len = Type::Constant(string.len() as u64);
                         Type::String(Box::new(len))
@@ -298,14 +298,7 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::TraitMethodReference(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
-                let method = &the_trait.methods[method.method_index];
-
-                let typ = Type::Function(
-                    method.arguments.clone(),
-                    Box::new(method.return_type.clone()),
-                    Box::new(Type::Unit),
-                );
-
+                let typ = &the_trait.methods[method.method_index].typ;
                 let (typ, bindings) = typ.instantiate(self.interner);
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
                 typ
@@ -558,7 +551,7 @@ impl<'interner> TypeChecker<'interner> {
             HirMethodReference::TraitMethodId(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
-                (method.get_type(), method.arguments.len(), method.generics.len())
+                (method.typ.clone(), method.arguments().len(), method.generics().len())
             }
         };
 
@@ -815,7 +808,11 @@ impl<'interner> TypeChecker<'interner> {
                     }));
                 }
 
-                if other.try_bind_to_polymorphic_int(int).is_ok() || other == &Type::Error {
+                let mut bindings = TypeBindings::new();
+                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
+                    || other == &Type::Error
+                {
+                    Type::apply_type_bindings(bindings);
                     Ok(Bool)
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
@@ -1046,7 +1043,7 @@ impl<'interner> TypeChecker<'interner> {
                 let env_type = self.interner.next_type_variable();
                 let expected = Type::Function(args, Box::new(ret.clone()), Box::new(env_type));
 
-                if let Err(error) = binding.borrow_mut().bind_to(expected, span) {
+                if let Err(error) = binding.try_bind(expected, span) {
                     self.errors.push(error);
                 }
                 ret
@@ -1114,7 +1111,11 @@ impl<'interner> TypeChecker<'interner> {
                     }));
                 }
 
-                if other.try_bind_to_polymorphic_int(int).is_ok() || other == &Type::Error {
+                let mut bindings = TypeBindings::new();
+                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
+                    || other == &Type::Error
+                {
+                    Type::apply_type_bindings(bindings);
                     Ok(other.clone())
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
@@ -1204,6 +1205,10 @@ impl<'interner> TypeChecker<'interner> {
 
         match op {
             crate::UnaryOp::Minus => {
+                if rhs_type.is_unsigned() {
+                    self.errors
+                        .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
+                }
                 let expected = Type::polymorphic_integer(self.interner);
                 rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
                     kind: rhs_type.to_string(),

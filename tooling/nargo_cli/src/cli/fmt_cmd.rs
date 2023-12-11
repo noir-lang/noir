@@ -11,10 +11,17 @@ use crate::errors::CliError;
 
 use super::NargoConfig;
 
+/// Format the Noir files in a workspace
 #[derive(Debug, Clone, Args)]
-pub(crate) struct FormatCommand {}
+pub(crate) struct FormatCommand {
+    /// Run noirfmt in check mode
+    #[arg(long)]
+    check: bool,
+}
 
-pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliError> {
+    let check_mode = args.check;
+
     let toml_path = get_package_manifest(&config.program_dir)?;
     let workspace = resolve_workspace_from_toml(
         &toml_path,
@@ -24,6 +31,8 @@ pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliEr
 
     let config = nargo_fmt::Config::read(&config.program_dir)
         .map_err(|err| CliError::Generic(err.to_string()))?;
+
+    let mut check_exit_code_one = false;
 
     for package in &workspace {
         let mut file_manager =
@@ -52,16 +61,40 @@ pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliEr
                 return Ok(());
             }
 
-            let source = nargo_fmt::format(
-                file_manager.fetch_file(file_id).source(),
-                parsed_module,
-                &config,
-            );
+            let original = file_manager.fetch_file(file_id).source();
+            let formatted = nargo_fmt::format(original, parsed_module, &config);
 
-            std::fs::write(entry.path(), source)
+            if check_mode {
+                let diff = similar_asserts::SimpleDiff::from_str(
+                    original,
+                    &formatted,
+                    "original",
+                    "formatted",
+                )
+                .to_string();
+
+                if !diff.lines().next().is_some_and(|line| line.contains("Invisible differences")) {
+                    if !check_exit_code_one {
+                        check_exit_code_one = true;
+                    }
+
+                    println!("{diff}");
+                }
+
+                Ok(())
+            } else {
+                std::fs::write(entry.path(), formatted)
+            }
         })
         .map_err(|error| CliError::Generic(error.to_string()))?;
     }
+
+    if check_exit_code_one {
+        std::process::exit(1);
+    } else if check_mode {
+        println!("No formatting changes were detected");
+    }
+
     Ok(())
 }
 

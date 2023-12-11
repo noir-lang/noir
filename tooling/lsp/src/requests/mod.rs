@@ -1,7 +1,9 @@
 use std::future::Future;
 
-use crate::types::{CodeLensOptions, InitializeParams, TextDocumentSyncOptions};
+use crate::types::{CodeLensOptions, InitializeParams};
 use async_lsp::ResponseError;
+use lsp_types::{Position, TextDocumentSyncCapability, TextDocumentSyncKind};
+use nargo_fmt::Config;
 
 use crate::{
     types::{InitializeResult, NargoCapability, NargoTestsOptions, ServerCapabilities},
@@ -19,13 +21,14 @@ use crate::{
 // and params passed in.
 
 mod code_lens_request;
+mod goto_definition;
 mod profile_run;
 mod test_run;
 mod tests;
 
 pub(crate) use {
-    code_lens_request::on_code_lens_request, profile_run::on_profile_run_request,
-    test_run::on_test_run_request, tests::on_tests_request,
+    code_lens_request::on_code_lens_request, goto_definition::on_goto_definition_request,
+    profile_run::on_profile_run_request, test_run::on_test_run_request, tests::on_tests_request,
 };
 
 pub(crate) fn on_initialize(
@@ -35,8 +38,7 @@ pub(crate) fn on_initialize(
     state.root_path = params.root_uri.and_then(|root_uri| root_uri.to_file_path().ok());
 
     async {
-        let text_document_sync =
-            TextDocumentSyncOptions { save: Some(true.into()), ..Default::default() };
+        let text_document_sync = TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL);
 
         let code_lens = CodeLensOptions { resolve_provider: Some(false) };
 
@@ -50,12 +52,50 @@ pub(crate) fn on_initialize(
 
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
-                text_document_sync: Some(text_document_sync.into()),
+                text_document_sync: Some(text_document_sync),
                 code_lens_provider: Some(code_lens),
+                document_formatting_provider: true,
                 nargo: Some(nargo),
+                definition_provider: Some(lsp_types::OneOf::Left(true)),
             },
             server_info: None,
         })
+    }
+}
+
+pub(crate) fn on_formatting(
+    state: &mut LspState,
+    params: lsp_types::DocumentFormattingParams,
+) -> impl Future<Output = Result<Option<Vec<lsp_types::TextEdit>>, ResponseError>> {
+    std::future::ready(on_formatting_inner(state, params))
+}
+
+fn on_formatting_inner(
+    state: &LspState,
+    params: lsp_types::DocumentFormattingParams,
+) -> Result<Option<Vec<lsp_types::TextEdit>>, ResponseError> {
+    let path = params.text_document.uri.to_string();
+
+    if let Some(source) = state.input_files.get(&path) {
+        let (module, errors) = noirc_frontend::parse_program(source);
+        if !errors.is_empty() {
+            return Ok(None);
+        }
+
+        let new_text = nargo_fmt::format(source, module, &Config::default());
+
+        let start_position = Position { line: 0, character: 0 };
+        let end_position = Position {
+            line: source.lines().count() as u32,
+            character: source.chars().count() as u32,
+        };
+
+        Ok(Some(vec![lsp_types::TextEdit {
+            range: lsp_types::Range::new(start_position, end_position),
+            new_text,
+        }]))
+    } else {
+        Ok(None)
     }
 }
 
@@ -70,7 +110,7 @@ pub(crate) fn on_shutdown(
 mod initialization {
     use async_lsp::ClientSocket;
     use lsp_types::{
-        CodeLensOptions, InitializeParams, TextDocumentSyncCapability, TextDocumentSyncOptions,
+        CodeLensOptions, InitializeParams, TextDocumentSyncCapability, TextDocumentSyncKind,
     };
     use tokio::test;
 
@@ -88,10 +128,11 @@ mod initialization {
         assert!(matches!(
             response.capabilities,
             ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Options(
-                    TextDocumentSyncOptions { save: Some(_), .. }
+                text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                    TextDocumentSyncKind::FULL
                 )),
                 code_lens_provider: Some(CodeLensOptions { resolve_provider: Some(false) }),
+                document_formatting_provider: true,
                 ..
             }
         ));

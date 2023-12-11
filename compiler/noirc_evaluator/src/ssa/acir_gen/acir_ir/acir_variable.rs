@@ -23,7 +23,6 @@ use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use num_bigint::BigUint;
-use std::ops::RangeInclusive;
 use std::{borrow::Cow, hash::Hash};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -115,7 +114,7 @@ impl AcirContext {
         self.acir_ir.current_witness_index()
     }
 
-    pub(crate) fn extract_witness(&self, inputs: &[AcirValue]) -> Vec<u32> {
+    pub(crate) fn extract_witness(&self, inputs: &[AcirValue]) -> Vec<Witness> {
         inputs
             .iter()
             .flat_map(|value| value.clone().flatten())
@@ -126,14 +125,13 @@ impl AcirContext {
                     .to_expression()
                     .to_witness()
                     .expect("ICE - cannot extract a witness")
-                    .0
             })
             .collect()
     }
 
     /// Adds a constant to the context and assigns a Variable to represent it
-    pub(crate) fn add_constant(&mut self, constant: FieldElement) -> AcirVar {
-        let constant_data = AcirVarData::Const(constant);
+    pub(crate) fn add_constant(&mut self, constant: impl Into<FieldElement>) -> AcirVar {
+        let constant_data = AcirVarData::Const(constant.into());
         self.add_data(constant_data)
     }
 
@@ -355,7 +353,7 @@ impl AcirContext {
 
         // Check to see if equality can be determined at compile-time.
         if diff_expr.is_const() {
-            return Ok(self.add_constant(diff_expr.is_zero().into()));
+            return Ok(self.add_constant(diff_expr.is_zero()));
         }
 
         let is_equal_witness = self.acir_ir.is_equal(&lhs_expr, &rhs_expr);
@@ -382,9 +380,15 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
-        let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-        let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
-        Ok(outputs[0])
+        let bit_size = typ.bit_size();
+        if bit_size == 1 {
+            // Operands are booleans.
+            self.mul_var(lhs, rhs)
+        } else {
+            let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
+            Ok(outputs[0])
+        }
     }
 
     /// Returns an `AcirVar` that is the OR result of `lhs` & `rhs`.
@@ -406,7 +410,7 @@ impl AcirContext {
             // max - ((max - a) AND (max -b))
             // Subtracting from max flips the bits, so this is effectively:
             // (NOT a) NAND (NOT b)
-            let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
+            let max = self.add_constant((1_u128 << bit_size) - 1);
             let a = self.sub_var(max, lhs)?;
             let b = self.sub_var(max, rhs)?;
             let inputs = vec![AcirValue::Var(a, typ.clone()), AcirValue::Var(b, typ)];
@@ -549,7 +553,7 @@ impl AcirContext {
     pub(crate) fn not_var(&mut self, x: AcirVar, typ: AcirType) -> Result<AcirVar, RuntimeError> {
         let bit_size = typ.bit_size();
         // Subtracting from max flips the bits
-        let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
+        let max = self.add_constant((1_u128 << bit_size) - 1);
         self.sub_var(max, x)
     }
 
@@ -576,8 +580,8 @@ impl AcirContext {
                 let quotient = lhs_const.to_u128() / rhs_const.to_u128();
                 let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
 
-                let quotient_var = self.add_constant(FieldElement::from(quotient));
-                let remainder_var = self.add_constant(FieldElement::from(remainder));
+                let quotient_var = self.add_constant(quotient);
+                let remainder_var = self.add_constant(remainder);
                 return Ok((quotient_var, remainder_var));
             }
 
@@ -774,7 +778,7 @@ impl AcirContext {
             // witness = lhs_offset + r
             assert!(bits + r_bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
 
-            let r_var = self.add_constant(r.into());
+            let r_var = self.add_constant(r);
             let aor = self.add_var(lhs_offset, r_var)?;
             // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
             self.range_constrain_var(aor, &NumericType::Unsigned { bit_size }, None)?;
@@ -873,7 +877,8 @@ impl AcirContext {
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
     /// `GeneratedAcir`'s return witnesses.
     pub(crate) fn return_var(&mut self, acir_var: AcirVar) -> Result<(), InternalError> {
-        let witness = self.var_to_witness(acir_var)?;
+        let return_var = self.get_or_create_witness_var(acir_var)?;
+        let witness = self.var_to_witness(return_var)?;
         self.acir_ir.push_return_witness(witness);
         Ok(())
     }
@@ -922,7 +927,7 @@ impl AcirContext {
     ) -> Result<AcirVar, RuntimeError> {
         // 2^{rhs}
         let divisor =
-            self.add_constant(FieldElement::from(2_i128).pow(&FieldElement::from(rhs as i128)));
+            self.add_constant(FieldElement::from(2_u128).pow(&FieldElement::from(rhs as u128)));
         let one = self.add_constant(FieldElement::one());
 
         //  Computes lhs = 2^{rhs} * q + r
@@ -933,7 +938,7 @@ impl AcirContext {
 
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
     /// and `0` otherwise.
-    fn more_than_eq_var(
+    pub(crate) fn more_than_eq_var(
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
@@ -1146,10 +1151,7 @@ impl AcirContext {
         // `Intrinsic::ToRadix` returns slices which are represented
         // by tuples with the structure (length, slice contents)
         Ok(vec![
-            AcirValue::Var(
-                self.add_constant(FieldElement::from(limb_vars.len() as u128)),
-                AcirType::field(),
-            ),
+            AcirValue::Var(self.add_constant(limb_vars.len()), AcirType::field()),
             AcirValue::Array(limb_vars.into()),
         ])
     }
@@ -1162,7 +1164,7 @@ impl AcirContext {
         limb_count_var: AcirVar,
         result_element_type: AcirType,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
-        let two_var = self.add_constant(FieldElement::from(2_u128));
+        let two_var = self.add_constant(2_u128);
         self.radix_decompose(endian, input_var, two_var, limb_count_var, result_element_type)
     }
 
@@ -1182,27 +1184,10 @@ impl AcirContext {
     /// Terminates the context and takes the resulting `GeneratedAcir`
     pub(crate) fn finish(
         mut self,
-        inputs: Vec<RangeInclusive<u32>>,
+        inputs: Vec<Witness>,
         warnings: Vec<SsaReport>,
     ) -> GeneratedAcir {
-        let mut current_range = 0..0;
-        for range in inputs {
-            if current_range.end == *range.start() {
-                current_range.end = range.end() + 1;
-            } else {
-                if current_range.end != 0 {
-                    self.acir_ir
-                        .input_witnesses
-                        .push(Witness(current_range.start)..Witness(current_range.end));
-                }
-                current_range = *range.start()..range.end() + 1;
-            }
-        }
-        if current_range.end != 0 {
-            self.acir_ir
-                .input_witnesses
-                .push(Witness(current_range.start)..Witness(current_range.end));
-        }
+        self.acir_ir.input_witnesses = inputs;
         self.acir_ir.warnings = warnings;
         self.acir_ir
     }
@@ -1287,7 +1272,7 @@ impl AcirContext {
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
                 for i in 0..len {
                     // We generate witnesses corresponding to the array values
-                    let index_var = self.add_constant(FieldElement::from(i as u128));
+                    let index_var = self.add_constant(i);
 
                     let value_read_var = self.read_from_memory(block_id, &index_var)?;
                     let value_read = AcirValue::Var(value_read_var, AcirType::field());
@@ -1441,7 +1426,8 @@ impl AcirContext {
         index: &AcirVar,
     ) -> Result<AcirVar, InternalError> {
         // Fetch the witness corresponding to the index
-        let index_witness = self.var_to_witness(*index)?;
+        let index_var = self.get_or_create_witness_var(*index)?;
+        let index_witness = self.var_to_witness(index_var)?;
 
         // Create a Variable to hold the result of the read and extract the corresponding Witness
         let value_read_var = self.add_variable();
@@ -1462,11 +1448,12 @@ impl AcirContext {
         value: &AcirVar,
     ) -> Result<(), InternalError> {
         // Fetch the witness corresponding to the index
-        //
-        let index_witness = self.var_to_witness(*index)?;
+        let index_var = self.get_or_create_witness_var(*index)?;
+        let index_witness = self.var_to_witness(index_var)?;
 
         // Fetch the witness corresponding to the value to be written
-        let value_write_witness = self.var_to_witness(*value)?;
+        let value_write_var = self.get_or_create_witness_var(*value)?;
+        let value_write_witness = self.var_to_witness(value_write_var)?;
 
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
@@ -1508,6 +1495,7 @@ impl AcirContext {
     ) -> Result<(), InternalError> {
         match input {
             AcirValue::Var(var, _) => {
+                let var = self.get_or_create_witness_var(var)?;
                 witnesses.push(self.var_to_witness(var)?);
             }
             AcirValue::Array(values) => {

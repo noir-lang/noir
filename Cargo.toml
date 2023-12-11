@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "aztec_macros",
     "compiler/noirc_evaluator",
     "compiler/noirc_frontend",
     "compiler/noirc_errors",
@@ -38,7 +39,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.19.2"
+version = "0.20.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
@@ -49,14 +50,14 @@ repository = "https://github.com/noir-lang/noir/"
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir = { path = "acvm-repo/acir", default-features = false }
-acvm = { path = "acvm-repo/acvm" }
-acir_field = { path = "acvm-repo/acir_field", default-features = false }
-stdlib = { package = "acvm_stdlib", path = "acvm-repo/stdlib", default-features = false }
-brillig = { path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { path = "acvm-repo/blackbox_solver", default-features = false }
-barretenberg_blackbox_solver = { path = "acvm-repo/barretenberg_blackbox_solver", default-features = false }
+acir_field = { version = "0.37.0", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "0.37.0", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "0.37.0", path = "acvm-repo/acvm" }
+stdlib = { version = "0.37.0", package = "acvm_stdlib", path = "acvm-repo/stdlib", default-features = false }
+brillig = { version = "0.37.0", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "0.37.0", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "0.37.0", path = "acvm-repo/blackbox_solver", default-features = false }
+barretenberg_blackbox_solver = { version = "0.37.0", path = "acvm-repo/barretenberg_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 arena = { path = "compiler/utils/arena" }
@@ -118,8 +119,22 @@ hex = "0.4.2"
 const_format = "0.2.30"
 num-bigint = "0.4"
 num-traits = "0.2"
+similar-asserts = "1.5.0"
 
 [profile.dev]
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.
 # See https://ritik-mishra.medium.com/resolving-the-wasm-pack-error-locals-exceed-maximum-ec3a9d96685b
 opt-level = 1
+
+
+[profile.size]
+inherits = "release"
+lto = true
+opt-level = "z"
+
+[profile.size-aggressive]
+inherits = "release"
+strip = true
+lto = true
+panic = "abort"
+opt-level = "z"
