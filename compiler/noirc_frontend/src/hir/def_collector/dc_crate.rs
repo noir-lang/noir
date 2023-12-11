@@ -375,7 +375,7 @@ impl DefCollector {
 
 fn inject_prelude(
     crate_id: CrateId,
-    context: &mut Context,
+    context: &Context,
     crate_root: LocalModuleId,
     collected_imports: &mut Vec<ImportDirective>,
 ) {
