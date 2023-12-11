@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/AztecProtocol/build-system
 	branch = master
-	commit = 4e1ea3fc2cdbbfdb97d21b0920eb681ede20c333
-	parent = 379b5adc259ac69b01e61b852172cdfc87cf9350
+	commit = 1f7b38d90be36c46b46ac52c5d63ce7a0d627ecf
+	parent = 9c5443651faaed3dcb9fae36727337a34ce5922b
 	method = merge
 	cmdver = 0.4.6
