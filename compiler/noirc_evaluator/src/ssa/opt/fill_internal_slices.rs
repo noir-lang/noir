@@ -67,8 +67,11 @@ impl Ssa {
             // The pass is also currently only setup to handle a function with a single flattened block.
             // For complex Brillig functions we can expect this pass to panic.
             if function.runtime() == RuntimeType::Acir {
+                let databus = function.dfg.data_bus.clone();
                 let mut context = Context::new(function);
                 context.process_blocks();
+                // update the databus with the new array instructions
+                function.dfg.data_bus = databus.map_values(|t| context.inserter.resolve(t));
             }
         }
         self

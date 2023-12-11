@@ -19,7 +19,7 @@ pub const FILE_EXTENSION: &str = "nr";
 
 pub struct FileManager {
     root: PathBuf,
-    file_map: file_map::FileMap,
+    file_map: FileMap,
     id_to_path: HashMap<FileId, PathBuf>,
     path_to_id: HashMap<PathBuf, FileId>,
     file_reader: Box<FileReader>,
@@ -108,6 +108,10 @@ impl FileManager {
         };
 
         self.add_file(&candidate).ok_or_else(|| candidate.as_os_str().to_string_lossy().to_string())
+    }
+
+    pub fn name_to_id(&self, file_name: PathBuf) -> Option<FileId> {
+        self.file_map.get_file_id(&PathString::from_path(file_name))
     }
 }
 
