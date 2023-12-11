@@ -47,7 +47,7 @@ impl FileManager {
     }
 
     pub fn add_file_with_source(&mut self, file_name: &Path, source: String) -> Option<FileId> {
-        let file_name = self.root.join(file_name).normalize();
+        let file_name = self.root.join(file_name);
         self.add_file_with_source_canonical_path(&file_name, source)
     }
 
