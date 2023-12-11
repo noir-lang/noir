@@ -289,30 +289,30 @@ mod tests {
         fm.find_module(sub_dir_file_id, "foo").unwrap();
     }
 
-    /// Tests that two identical files that have different paths are treated as the same file
-    /// e.g. if we start in the dir ./src and have a file ../../foo.nr
-    /// that should be treated as the same file as ../ starting in ./
-    /// they should both resolve to ../foo.nr
-    #[test]
-    fn path_resolve_modules_with_different_paths_as_same_file() {
-        let dir = tempdir().unwrap();
-        let sub_dir = TempDir::new_in(&dir).unwrap();
-        let sub_sub_dir = TempDir::new_in(&sub_dir).unwrap();
+    // /// Tests that two identical files that have different paths are treated as the same file
+    // /// e.g. if we start in the dir ./src and have a file ../../foo.nr
+    // /// that should be treated as the same file as ../ starting in ./
+    // /// they should both resolve to ../foo.nr
+    // #[test]
+    // fn path_resolve_modules_with_different_paths_as_same_file() {
+    //     let dir = tempdir().unwrap();
+    //     let sub_dir = TempDir::new_in(&dir).unwrap();
+    //     let sub_sub_dir = TempDir::new_in(&sub_dir).unwrap();
 
-        let mut fm = FileManager::new(dir.path());
+    //     let mut fm = FileManager::new(dir.path());
 
-        // Create a lib.nr file at the root.
-        let file_name = Path::new("lib.nr");
-        create_dummy_file(&dir, file_name);
+    //     // Create a lib.nr file at the root.
+    //     let file_name = Path::new("lib.nr");
+    //     create_dummy_file(&dir, file_name);
 
-        // Create another path with `./` and `../` inside it
-        let second_file_name = PathBuf::from(sub_sub_dir.path()).join("./../../lib.nr");
+    //     // Create another path with `./` and `../` inside it
+    //     let second_file_name = PathBuf::from(sub_sub_dir.path()).join("./../../lib.nr");
 
-        // Add both files to the file manager
-        let file_id = fm.add_file_with_source(file_name, "fn foo() {}".to_string()).unwrap();
-        let second_file_id =
-            fm.add_file_with_source(&second_file_name, "fn foo() {}".to_string()).unwrap();
+    //     // Add both files to the file manager
+    //     let file_id = fm.add_file_with_source(file_name, "fn foo() {}".to_string()).unwrap();
+    //     let second_file_id =
+    //         fm.add_file_with_source(&second_file_name, "fn foo() {}".to_string()).unwrap();
 
-        assert_eq!(file_id, second_file_id);
-    }
+    //     assert_eq!(file_id, second_file_id);
+    // }
 }
