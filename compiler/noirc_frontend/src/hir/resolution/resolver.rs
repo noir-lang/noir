@@ -205,7 +205,7 @@ impl<'a> Resolver<'a> {
         name: &Ident,
         parameters: &[(Ident, UnresolvedType)],
         return_type: &FunctionReturnType,
-        where_clause: &Vec<UnresolvedTraitConstraint>,
+        where_clause: &[UnresolvedTraitConstraint],
         func_id: FuncId,
     ) -> (HirFunction, FuncMeta) {
         self.scopes.start_function();
@@ -213,7 +213,7 @@ impl<'a> Resolver<'a> {
         // Check whether the function has globals in the local module and add them to the scope
         self.resolve_local_globals();
 
-        self.trait_bounds = where_clause.clone();
+        self.trait_bounds = where_clause.to_vec();
 
         let kind = FunctionKind::Normal;
         let def = FunctionDefinition {
@@ -232,7 +232,7 @@ impl<'a> Resolver<'a> {
             }),
             body: BlockExpression(Vec::new()),
             span: name.span(),
-            where_clause: where_clause.clone(),
+            where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
             return_visibility: Visibility::Private,
             return_distinctness: Distinctness::DuplicationAllowed,
@@ -1662,7 +1662,7 @@ impl<'a> Resolver<'a> {
             let the_trait = self.interner.get_trait(trait_id);
 
             if let Some(method) = the_trait.find_method(method.0.contents.as_str()) {
-                let self_type = self.interner.next_type_variable();
+                let self_type = Type::type_variable(the_trait.self_type_typevar_id);
                 return Some((HirExpression::TraitMethodReference(method), self_type));
             }
         }

@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::{
     graph::CrateId,
@@ -133,14 +133,13 @@ fn resolve_trait_methods(
             let the_trait = resolver.interner.get_trait(trait_id);
             generics.push((the_trait.self_type_typevar_id, the_trait.self_type_typevar.clone()));
 
-            let name = name.clone();
-            let span: Span = name.span();
             let default_impl_list: Vec<_> = unresolved_trait
                 .fns_with_default_impl
                 .functions
                 .iter()
                 .filter(|(_, _, q)| q.name() == name.0.contents)
                 .collect();
+
             let default_impl = if default_impl_list.len() == 1 {
                 Some(Box::new(default_impl_list[0].2.clone()))
             } else {
@@ -149,23 +148,18 @@ fn resolve_trait_methods(
 
             let no_environment = Box::new(Type::Unit);
             let function_type = Type::Function(arguments, Box::new(return_type), no_environment);
-            let typ = Type::Forall(generics, Box::new(function_type));
 
-            let f = TraitFunction {
-                name,
-                typ,
-                span,
+            functions.push(TraitFunction {
+                name: name.clone(),
+                typ: Type::Forall(generics, Box::new(function_type)),
+                span: name.span(),
                 default_impl,
                 default_impl_file_id: unresolved_trait.file_id,
                 default_impl_module_id: unresolved_trait.module_id,
-            };
-            functions.push(f);
-            resolver_errors.extend(
-                resolver
-                    .take_errors()
-                    .into_iter()
-                    .map(|resolution_error| (resolution_error.into(), file)),
-            )
+            });
+
+            let errors = resolver.take_errors().into_iter();
+            resolver_errors.extend(errors.map(|resolution_error| (resolution_error.into(), file)));
         }
     }
     (functions, resolver_errors)

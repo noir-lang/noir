@@ -1258,11 +1258,19 @@ impl NodeInterner {
         self.selected_trait_implementations.insert(ident_id, trait_impl);
     }
 
-    /// Tags the given identifier with the selected trait_impl so that monomorphization
-    /// can later recover which impl was selected, or alternatively see if it needs to
-    /// decide which (because the impl was Assumed).
+    /// Retrieves the impl selected for a given IdentId during name resolution.
+    /// From type checking and on, the "ident" referred to is changed to a TraitMethodReference node.
     pub fn get_selected_impl_for_ident(&self, ident_id: ExprId) -> Option<TraitImplKind> {
         self.selected_trait_implementations.get(&ident_id).cloned()
+    }
+
+    /// Retrieves a mutable reference to the impl selected for a given IdentId during name resolution.
+    /// From type checking and on, the "ident" referred to is changed to a TraitMethodReference node.
+    pub fn get_selected_impl_for_ident_mut(
+        &mut self,
+        ident_id: ExprId,
+    ) -> Option<&mut TraitImplKind> {
+        self.selected_trait_implementations.get_mut(&ident_id)
     }
 
     /// For a given [Index] we return [Location] to which we resolved to

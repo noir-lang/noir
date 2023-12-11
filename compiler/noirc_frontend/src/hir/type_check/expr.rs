@@ -10,7 +10,7 @@ use crate::{
         },
         types::Type,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitMethodId},
+    node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitImplKind, TraitMethodId},
     BinaryOpKind, Signedness, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
 };
 
@@ -291,6 +291,14 @@ impl<'interner> TypeChecker<'interner> {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let typ = &the_trait.methods[method.method_index].typ;
                 let (typ, bindings) = typ.instantiate(self.interner);
+
+                // We must also remember to apply these substitutions to the object_type
+                // referenced by the selected trait impl, if one has yet to be selected.
+                let impl_kind = self.interner.get_selected_impl_for_ident_mut(*expr_id);
+                if let Some(TraitImplKind::Assumed { object_type }) = impl_kind {
+                    *object_type = object_type.substitute(&bindings);
+                }
+
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
                 typ
             }
