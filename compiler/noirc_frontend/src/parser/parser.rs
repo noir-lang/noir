@@ -1684,10 +1684,22 @@ fn literal() -> impl NoirParser<ExpressionKind> {
     })
 }
 
+fn literal_with_sign() -> impl NoirParser<ExpressionKind> {
+    choice((
+        literal(),
+        just(Token::Minus).then(literal()).map(|(_, exp)| match exp {
+            ExpressionKind::Literal(Literal::Integer(value, sign)) => {
+                ExpressionKind::Literal(Literal::Integer(value, !sign))
+            }
+            _ => unreachable!(),
+        }),
+    ))
+}
+
 fn literal_or_collection<'a>(
     expr_parser: impl ExprParser + 'a,
 ) -> impl NoirParser<ExpressionKind> + 'a {
-    choice((literal(), constructor(expr_parser.clone()), array_expr(expr_parser)))
+    choice((literal_with_sign(), constructor(expr_parser.clone()), array_expr(expr_parser)))
 }
 
 #[cfg(test)]
@@ -2264,7 +2276,7 @@ mod test {
         let hex = parse_with(literal(), "0x05").unwrap();
 
         match (expr_to_lit(int), expr_to_lit(hex)) {
-            (Literal::Integer(int), Literal::Integer(hex)) => assert_eq!(int, hex),
+            (Literal::Integer(int, false), Literal::Integer(hex, false)) => assert_eq!(int, hex),
             _ => unreachable!(),
         }
     }
