@@ -81,7 +81,7 @@ pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     // to manually add it here.
     let stdlib_paths_with_source = stdlib::stdlib_paths_with_source();
     for (path, source) in stdlib_paths_with_source {
-        context.file_manager.add_file_with_source(Path::new(&path), source);
+        context.file_manager.add_file_with_source_canonical_path(Path::new(&path), source);
     }
 
     let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");

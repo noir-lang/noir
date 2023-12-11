@@ -235,7 +235,7 @@ pub fn compile(
 // For all intents and purposes, the file manager being returned
 // should be considered as immutable.
 fn file_manager_with_source_map(source_map: PathToFileSourceMap) -> FileManager {
-    let root = Path::new("/");
+    let root = Path::new("");
     let mut fm = FileManager::new(root);
 
     for (path, source) in source_map.0 {
