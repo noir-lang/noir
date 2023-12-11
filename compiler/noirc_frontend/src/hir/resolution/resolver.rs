@@ -256,8 +256,9 @@ impl<'a> Resolver<'a> {
             return self.add_global_variable_decl(name, definition);
         }
 
-        let id = self.interner.push_definition(name.0.contents.clone(), mutable, definition);
         let location = Location::new(name.span(), self.file);
+        let id =
+            self.interner.push_definition(name.0.contents.clone(), mutable, definition, location);
         let ident = HirIdent { location, id };
         let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
 
@@ -300,8 +301,9 @@ impl<'a> Resolver<'a> {
             ident = hir_let_stmt.ident();
             resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
         } else {
-            let id = self.interner.push_definition(name.0.contents.clone(), false, definition);
             let location = Location::new(name.span(), self.file);
+            let id =
+                self.interner.push_definition(name.0.contents.clone(), false, definition, location);
             ident = HirIdent { location, id };
             resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
         }
@@ -441,6 +443,7 @@ impl<'a> Resolver<'a> {
             MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
             }
+            Parenthesized(typ) => self.resolve_type_inner(*typ, new_variables),
         }
     }
 
@@ -520,7 +523,7 @@ impl<'a> Resolver<'a> {
         _new_variables: &mut Generics,
     ) -> Type {
         if let Some(t) = self.lookup_trait_or_error(path) {
-            Type::TraitAsType(t)
+            Type::TraitAsType(t.id, Rc::new(t.name.to_string()))
         } else {
             Type::Error
         }
@@ -571,7 +574,7 @@ impl<'a> Resolver<'a> {
         match length {
             None => {
                 let id = self.interner.next_type_variable_id();
-                let typevar = Shared::new(TypeBinding::Unbound(id));
+                let typevar = TypeVariable::unbound(id);
                 new_variables.push((id, typevar.clone()));
 
                 // 'Named'Generic is a bit of a misnomer here, we want a type variable that
@@ -681,7 +684,7 @@ impl<'a> Resolver<'a> {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
-            let typevar = Shared::new(TypeBinding::Unbound(id));
+            let typevar = TypeVariable::unbound(id);
             let span = generic.0.span();
 
             // Check for name collisions of this generic
@@ -790,10 +793,10 @@ impl<'a> Resolver<'a> {
             });
         }
 
-        // 'pub_allowed' also implies 'pub' is required on return types
-        if self.pub_allowed(func)
+        // 'pub' is required on return types for entry point functions
+        if self.is_entry_point_function(func)
             && return_type.as_ref() != &Type::Unit
-            && func.def.return_visibility != Visibility::Public
+            && func.def.return_visibility == Visibility::Private
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
         }
@@ -846,12 +849,9 @@ impl<'a> Resolver<'a> {
     }
 
     /// True if the 'pub' keyword is allowed on parameters in this function
+    /// 'pub' on function parameters is only allowed for entry point functions
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
-        if self.in_contract {
-            !func.def.is_unconstrained
-        } else {
-            func.name() == MAIN_FUNCTION
-        }
+        self.is_entry_point_function(func)
     }
 
     fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
@@ -927,10 +927,7 @@ impl<'a> Resolver<'a> {
         found.into_iter().collect()
     }
 
-    fn find_numeric_generics_in_type(
-        typ: &Type,
-        found: &mut BTreeMap<String, Shared<TypeBinding>>,
-    ) {
+    fn find_numeric_generics_in_type(typ: &Type, found: &mut BTreeMap<String, TypeVariable>) {
         match typ {
             Type::FieldElement
             | Type::Integer(_, _)
@@ -941,7 +938,7 @@ impl<'a> Resolver<'a> {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
-            | Type::TraitAsType(_)
+            | Type::TraitAsType(..)
             | Type::Forall(_, _) => (),
 
             Type::Array(length, element_type) => {
@@ -1201,8 +1198,9 @@ impl<'a> Resolver<'a> {
 
                     HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length })
                 }
-                Literal::Integer(integer) => HirLiteral::Integer(integer),
+                Literal::Integer(integer, sign) => HirLiteral::Integer(integer, sign),
                 Literal::Str(str) => HirLiteral::Str(str),
+                Literal::RawStr(str, _) => HirLiteral::Str(str),
                 Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),
                 Literal::Unit => HirLiteral::Unit,
             }),
@@ -1500,8 +1498,8 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    pub fn get_trait(&self, trait_id: TraitId) -> Trait {
-        self.interner.get_trait(trait_id)
+    pub fn get_trait_mut(&mut self, trait_id: TraitId) -> &mut Trait {
+        self.interner.get_trait_mut(trait_id)
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
@@ -1544,9 +1542,9 @@ impl<'a> Resolver<'a> {
     }
 
     /// Lookup a given trait by name/path.
-    fn lookup_trait_or_error(&mut self, path: Path) -> Option<Trait> {
+    fn lookup_trait_or_error(&mut self, path: Path) -> Option<&mut Trait> {
         match self.lookup(path) {
-            Ok(trait_id) => Some(self.get_trait(trait_id)),
+            Ok(trait_id) => Some(self.get_trait_mut(trait_id)),
             Err(error) => {
                 self.push_err(error);
                 None
@@ -1594,9 +1592,9 @@ impl<'a> Resolver<'a> {
                 if name == SELF_TYPE_NAME {
                     let the_trait = self.interner.get_trait(trait_id);
 
-                    if let Some(method) = the_trait.find_method(method.clone()) {
+                    if let Some(method) = the_trait.find_method(method.0.contents.as_str()) {
                         let self_type = Type::TypeVariable(
-                            the_trait.self_type_typevar,
+                            the_trait.self_type_typevar.clone(),
                             crate::TypeVariableKind::Normal,
                         );
                         return Some((HirExpression::TraitMethodReference(method), self_type));
@@ -1630,7 +1628,7 @@ impl<'a> Resolver<'a> {
                 {
                     let the_trait = self.interner.get_trait(trait_id);
                     if let Some(method) =
-                        the_trait.find_method(path.segments.last().unwrap().clone())
+                        the_trait.find_method(path.segments.last().unwrap().0.contents.as_str())
                     {
                         let self_type = self.resolve_type(typ.clone());
                         return Some((HirExpression::TraitMethodReference(method), self_type));
@@ -1664,10 +1662,7 @@ impl<'a> Resolver<'a> {
     fn eval_global_as_array_length(&mut self, global: StmtId) -> u64 {
         let stmt = match self.interner.statement(&global) {
             HirStatement::Let(let_expr) => let_expr,
-            other => {
-                dbg!(other);
-                return 0;
-            }
+            _ => return 0,
         };
 
         let length = stmt.expression;
@@ -1689,7 +1684,7 @@ impl<'a> Resolver<'a> {
         span: Span,
     ) -> Result<u128, Option<ResolverError>> {
         match self.interner.expression(&rhs) {
-            HirExpression::Literal(HirLiteral::Integer(int)) => {
+            HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
@@ -1786,6 +1781,7 @@ impl<'a> Resolver<'a> {
                     self.verify_type_valid_for_program_input(element);
                 }
             }
+            UnresolvedTypeData::Parenthesized(typ) => self.verify_type_valid_for_program_input(typ),
         }
     }
 

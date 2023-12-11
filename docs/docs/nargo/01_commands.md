@@ -100,7 +100,6 @@ You can also use "build" as an alias for compile (e.g. `nargo build`).
 
 | Option                | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
-| `--include-keys`      | Include Proving and Verification keys in the build artifacts |
 | `--package <PACKAGE>` | The name of the package to compile                           |
 | `--workspace`         | Compile all packages in the workspace                        |
 | `--print-acir`        | Display the ACIR for compiled circuit                        |

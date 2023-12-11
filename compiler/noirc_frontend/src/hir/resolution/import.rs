@@ -1,5 +1,5 @@
 use iter_extended::partition_results;
-use noirc_errors::CustomDiagnostic;
+use noirc_errors::{CustomDiagnostic, Span};
 
 use crate::graph::CrateId;
 use std::collections::BTreeMap;
@@ -202,7 +202,11 @@ fn resolve_external_dep(
     // Create an import directive for the dependency crate
     let path_without_crate_name = &path[1..]; // XXX: This will panic if the path is of the form `use dep::std` Ideal algorithm will not distinguish between crate and module
 
-    let path = Path { segments: path_without_crate_name.to_vec(), kind: PathKind::Plain };
+    let path = Path {
+        segments: path_without_crate_name.to_vec(),
+        kind: PathKind::Plain,
+        span: Span::default(),
+    };
     let dep_directive =
         ImportDirective { module_id: dep_module.local_id, path, alias: directive.alias.clone() };
 
