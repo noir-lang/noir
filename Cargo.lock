@@ -431,6 +431,7 @@ dependencies = [
  "const_format",
  "dirs",
  "flate2",
+ "log",
  "reqwest",
  "serde",
  "serde_json",
