@@ -9180,6 +9180,7 @@ __metadata:
     prism-react-renderer: ^2.1.0
     react: ^18.2.0
     react-dom: ^18.2.0
+    react-spinners: ^0.13.8
     rehype-katex: ^7.0.0
     remark-math: ^6.0.0
     ts-node: ^10.9.1
@@ -16798,6 +16799,16 @@ __metadata:
   peerDependencies:
     react: ">=15"
   checksum: 892d4e274a23bf4f39abc2efca54472fb646d3aed4b584020cf49654d2f50d09a2bacebe7c92b4ec7cb8925077376dfcd0664bad6442a73604397cefec9f01f9
+  languageName: node
+  linkType: hard
+
+"react-spinners@npm:^0.13.8":
+  version: 0.13.8
+  resolution: "react-spinners@npm:0.13.8"
+  peerDependencies:
+    react: ^16.0.0 || ^17.0.0 || ^18.0.0
+    react-dom: ^16.0.0 || ^17.0.0 || ^18.0.0
+  checksum: cb58f916bbf00c4f7fc33c1a75a8c0f91a98a42af26944340a0e29e4b3a97937a03f0292bc444eb5f5f0bea099344b580f9c04a81524246dadbf0571bdb57e62
   languageName: node
   linkType: hard
 
