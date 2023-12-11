@@ -7,6 +7,12 @@ mod file_map;
 
 pub use file_map::{File, FileId, FileMap, PathString};
 
+// Re-export for the lsp
+pub use codespan_reporting::files as codespan_files;
+
+use file_reader::is_stdlib_asset;
+pub use file_reader::FileReader;
+
 use std::{
     collections::HashMap,
     path::{Component, Path, PathBuf},
@@ -16,7 +22,7 @@ pub const FILE_EXTENSION: &str = "nr";
 
 pub struct FileManager {
     root: PathBuf,
-    file_map: file_map::FileMap,
+    file_map: FileMap,
     id_to_path: HashMap<FileId, PathBuf>,
     path_to_id: HashMap<PathBuf, FileId>,
 }

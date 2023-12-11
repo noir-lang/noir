@@ -2,7 +2,7 @@ use std::future::{self, Future};
 
 use crate::{types::GotoDefinitionResult, LspState};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use codespan_reporting::files::Error;
+use fm::codespan_files::Error;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location};
 use lsp_types::{Position, Url};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -97,7 +97,7 @@ fn to_lsp_location<'a, F>(
     definition_span: noirc_errors::Span,
 ) -> Option<Location>
 where
-    F: codespan_reporting::files::Files<'a> + ?Sized,
+    F: fm::codespan_files::Files<'a> + ?Sized,
 {
     let range = crate::byte_span_to_range(files, file_id, definition_span.into())?;
     let file_name = files.name(file_id).ok()?;
@@ -114,7 +114,7 @@ pub(crate) fn position_to_byte_index<'a, F>(
     position: &Position,
 ) -> Result<usize, Error>
 where
-    F: codespan_reporting::files::Files<'a> + ?Sized,
+    F: fm::codespan_files::Files<'a> + ?Sized,
 {
     let source = files.source(file_id)?;
     let source = source.as_ref();

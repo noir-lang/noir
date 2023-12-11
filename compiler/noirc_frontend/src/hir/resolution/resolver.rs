@@ -1662,10 +1662,7 @@ impl<'a> Resolver<'a> {
     fn eval_global_as_array_length(&mut self, global: StmtId) -> u64 {
         let stmt = match self.interner.statement(&global) {
             HirStatement::Let(let_expr) => let_expr,
-            other => {
-                dbg!(other);
-                return 0;
-            }
+            _ => return 0,
         };
 
         let length = stmt.expression;

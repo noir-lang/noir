@@ -17,7 +17,7 @@ use async_lsp::{
     router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService,
     ResponseError,
 };
-use codespan_reporting::files;
+use fm::codespan_files as files;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::{Context, FunctionNameMatch},

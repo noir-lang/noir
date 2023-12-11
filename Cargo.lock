@@ -2537,7 +2537,6 @@ dependencies = [
  "acvm",
  "async-lsp",
  "codespan-lsp",
- "codespan-reporting",
  "fm",
  "lsp-types 0.94.1",
  "nargo",
