@@ -62,7 +62,7 @@ pub struct CompileOptions {
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
 
-    /// Output ACIR gzipped bytecode, instead of the json atrefact
+    /// Output ACIR gzipped bytecode instead of the JSON artefact
     #[arg(long)]
     pub only_acir: bool,
 }
