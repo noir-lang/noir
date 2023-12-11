@@ -38,6 +38,7 @@
     "@web/dev-server-esbuild": "^0.3.6",
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",
-    "mocha": "^10.2.0"
+    "mocha": "^10.2.0",
+    "tsx": "^4.6.2"
   }
 }
