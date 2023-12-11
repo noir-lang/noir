@@ -20,12 +20,12 @@ async function getPrecompiledSource(path: string): Promise<any> {
 describe('noir wasm compilation', () => {
   describe('can compile simple scripts', () => {
     it('matching nargos compilation', async () => {
-      const sourceFileMap = new PathToFileSourceMap();
-      sourceFileMap.add_source_code(
+      const sourceMap = new PathToFileSourceMap();
+      sourceMap.add_source_code(
         join(__dirname, simpleScriptSourcePath),
         readFileSync(join(__dirname, simpleScriptSourcePath), 'utf-8'),
       );
-      const wasmCircuit = await compile(join(__dirname, simpleScriptSourcePath), undefined, undefined, sourceFileMap);
+      const wasmCircuit = await compile(join(__dirname, simpleScriptSourcePath), undefined, undefined, sourceMap);
       const cliCircuit = await getPrecompiledSource(simpleScriptExpectedArtifact);
 
       if (!('program' in wasmCircuit)) {
@@ -40,14 +40,11 @@ describe('noir wasm compilation', () => {
   });
 
   describe('can compile scripts with dependencies', () => {
-    let map: PathToFileSourceMap;
+    const sourceMap: PathToFileSourceMap = new PathToFileSourceMap();
     beforeEach(() => {
-      // this test requires a custom resolver in order to correctly resolve dependencies
-
-      map = new PathToFileSourceMap();
-      map.add_source_code('script/main.nr', readFileSync(join(__dirname, depsScriptSourcePath), 'utf-8'));
-      map.add_source_code('lib_a/lib.nr', readFileSync(join(__dirname, libASourcePath), 'utf-8'));
-      map.add_source_code('lib_b/lib.nr', readFileSync(join(__dirname, libBSourcePath), 'utf-8'));
+      sourceMap.add_source_code('script/main.nr', readFileSync(join(__dirname, depsScriptSourcePath), 'utf-8'));
+      sourceMap.add_source_code('lib_a/lib.nr', readFileSync(join(__dirname, libASourcePath), 'utf-8'));
+      sourceMap.add_source_code('lib_b/lib.nr', readFileSync(join(__dirname, libBSourcePath), 'utf-8'));
     });
 
     it('matching nargos compilation', async () => {
@@ -60,7 +57,7 @@ describe('noir wasm compilation', () => {
             lib_a: ['lib_b'],
           },
         },
-        map,
+        sourceMap,
       );
 
       const cliCircuit = await getPrecompiledSource(depsScriptExpectedArtifact);
