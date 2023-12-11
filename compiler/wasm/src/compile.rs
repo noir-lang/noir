@@ -236,7 +236,7 @@ pub fn compile(
 // should be considered as immutable.
 fn file_manager_with_source_map(source_map: PathToFileSourceMap) -> FileManager {
     let root = Path::new("/");
-    let mut fm = FileManager::new(root, Box::new(get_non_stdlib_asset));
+    let mut fm = FileManager::new(root);
 
     for (path, source) in source_map.0 {
         fm.add_file_with_source(path.as_path(), source);
@@ -330,38 +330,6 @@ fn preprocess_contract(contract: CompiledContract) -> CompileResult {
     CompileResult::Contract { contract: preprocessed_contract, debug: debug_artifact }
 }
 
-// TODO: This is no longer needed because we are passing in a map from every path
-// TODO: to the source file.
-// TODO: how things get resolved are now the responsibility of the caller
-// TODO: We will have future PRs which make this resolution nicer by taking in a Nargo.toml
-// TODO: and producing paths with source files, though for now, I think this API is okay
-//
-// TODO: We will also be able to remove the file_reader being a parameter to FileManager but
-// TODO will stay until we have this working so we don't break the API too much.
-cfg_if::cfg_if! {
-    if #[cfg(target_os = "wasi")] {
-        fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
-            std::fs::read_to_string(path_to_file)
-        }
-    } else {
-        use std::io::{Error, ErrorKind};
-
-        #[wasm_bindgen(module = "@noir-lang/source-resolver")]
-        extern "C" {
-            #[wasm_bindgen(catch)]
-            fn read_file(path: &str) -> Result<String, JsValue>;
-        }
-
-        fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
-            let path_str = path_to_file.to_str().unwrap();
-            match read_file(path_str) {
-                Ok(buffer) => Ok(buffer),
-                Err(_) => Err(Error::new(ErrorKind::Other, "could not read file using wasm")),
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use noirc_driver::prepare_crate;
@@ -374,10 +342,6 @@ mod test {
 
     use super::{file_manager_with_source_map, process_dependency_graph, DependencyGraph};
     use std::{collections::HashMap, path::Path};
-
-    fn mock_get_non_stdlib_asset(_path_to_file: &Path) -> std::io::Result<String> {
-        Ok("".to_string())
-    }
 
     fn setup_test_context(source_map: PathToFileSourceMap) -> Context {
         let mut fm = file_manager_with_source_map(source_map);

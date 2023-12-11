@@ -52,8 +52,7 @@ fn on_goto_definition_inner(
     let mut definition_position = None;
 
     for package in &workspace {
-        let (mut context, crate_id) =
-            nargo::prepare_package(package, Box::new(crate::get_non_stdlib_asset));
+        let (mut context, crate_id) = nargo::prepare_package(package);
 
         // We ignore the warnings and errors produced by compilation while resolving the definition
         let _ = noirc_driver::check_crate(&mut context, crate_id, false);
