@@ -26,9 +26,9 @@ wasm-bindgen-futures.workspace = true
 console_error_panic_hook.workspace = true
 gloo-utils.workspace = true
 js-sys.workspace = true
+log.workspace = true
 
 serde = { version = "1.0.136", features = ["derive"] }
-log = "0.4.17"
 wasm-logger = "0.2.0"
 const-str = "0.5.5"
 
