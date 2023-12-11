@@ -126,6 +126,31 @@ struct DependencyGraph {
     library_dependencies: HashMap<CrateName, Vec<CrateName>>,
 }
 
+#[wasm_bindgen]
+// This is a map containing the paths of all of the files in the entry-point crate and
+// the transitive dependencies of the entry-point crate.
+//
+// This is for all intents and purposes the file system that the compiler will use to resolve/compile
+// files in the crate being compiled and its dependencies.
+#[derive(Deserialize, Default)]
+pub struct PathToFileSourceMap(HashMap<std::path::PathBuf, String>);
+
+#[wasm_bindgen]
+impl PathToFileSourceMap {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> PathToFileSourceMap {
+        PathToFileSourceMap::default()
+    }
+    // Inserts a path and its source code into the map.
+    //
+    // Returns true, if there was already source code in the map for the given path
+    pub fn add_source_code(&mut self, path: String, source_code: String) -> bool {
+        let path_buf = Path::new(&path).to_path_buf();
+        let old_value = self.0.insert(path_buf, source_code);
+        old_value.is_some()
+    }
+}
+
 pub enum CompileResult {
     Contract { contract: PreprocessedContract, debug: DebugArtifact },
     Program { program: PreprocessedProgram, debug: DebugArtifact },
@@ -136,6 +161,7 @@ pub fn compile(
     entry_point: String,
     contracts: Option<bool>,
     dependency_graph: Option<JsDependencyGraph>,
+    file_source_map: PathToFileSourceMap,
 ) -> Result<JsCompileResult, JsCompileError> {
     console_error_panic_hook::set_once();
 
@@ -154,7 +180,7 @@ pub fn compile(
     let path = Path::new(&entry_point);
     let crate_id = prepare_crate(&mut context, path);
 
-    process_dependency_graph(&mut context, dependency_graph);
+    process_dependency_graph(&mut context, dependency_graph, file_source_map);
 
     let compile_options = CompileOptions::default();
 
@@ -204,10 +230,19 @@ pub fn compile(
 // These will be in the Nargo.toml of the package being compiled.
 //
 // Library dependencies are transitive dependencies; for example, if the entry-point relies
-// upon some library `lib1`. Then the packages that `lib1` depend upon will be placed in the 
+// upon some library `lib1`. Then the packages that `lib1` depend upon will be placed in the
 // `library_dependencies` list and the `lib1` will be placed in the `root_dependencies` list.
-fn process_dependency_graph(context: &mut Context, dependency_graph: DependencyGraph) {
+fn process_dependency_graph(
+    context: &mut Context,
+    dependency_graph: DependencyGraph,
+    file_source_map: PathToFileSourceMap,
+) {
     let mut crate_names: HashMap<&CrateName, CrateId> = HashMap::new();
+
+    // Add all files from the file_source_map into the file manager
+    for (path, source) in file_source_map.0 {
+        context.file_manager.add_file_with_source(path.as_path(), source);
+    }
 
     for lib in &dependency_graph.root_dependencies {
         let crate_id = add_noir_lib(context, lib);
@@ -285,6 +320,14 @@ fn preprocess_contract(contract: CompiledContract) -> CompileResult {
     CompileResult::Contract { contract: preprocessed_contract, debug: debug_artifact }
 }
 
+// TODO: This is no longer needed because we are passing in a map from every path
+// TODO: to the source file.
+// TODO: how things get resolved are now the responsibility of the caller
+// TODO: We will have future PRs which make this resolution nicer by taking in a Nargo.toml
+// TODO: and producing paths with source files, though for now, I think this API is okay
+//
+// TODO: We will also be able to remove the file_reader being a parameter to FileManager but
+// TODO will stay until we have this working so we don't break the API too much.
 cfg_if::cfg_if! {
     if #[cfg(target_os = "wasi")] {
         fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
@@ -318,6 +361,8 @@ mod test {
         hir::Context,
     };
 
+    use crate::compile::PathToFileSourceMap;
+
     use super::{process_dependency_graph, DependencyGraph};
     use std::{collections::HashMap, path::Path};
 
@@ -345,7 +390,7 @@ mod test {
         let dependency_graph =
             DependencyGraph { root_dependencies: vec![], library_dependencies: HashMap::new() };
 
-        process_dependency_graph(&mut context, dependency_graph);
+        process_dependency_graph(&mut context, dependency_graph, PathToFileSourceMap::default());
 
         // one stdlib + one root crate
         assert_eq!(context.crate_graph.number_of_crates(), 2);
@@ -359,7 +404,13 @@ mod test {
             library_dependencies: HashMap::new(),
         };
 
-        process_dependency_graph(&mut context, dependency_graph);
+        let path_to_source_map = PathToFileSourceMap(
+            vec![(Path::new("/lib1/lib.nr").to_path_buf(), "fn foo() {}".to_string())]
+                .into_iter()
+                .collect(),
+        );
+
+        process_dependency_graph(&mut context, dependency_graph, path_to_source_map);
 
         assert_eq!(context.crate_graph.number_of_crates(), 3);
     }
@@ -372,7 +423,12 @@ mod test {
             library_dependencies: HashMap::new(),
         };
 
-        process_dependency_graph(&mut context, dependency_graph);
+        let path_to_source_map = PathToFileSourceMap(
+            vec![(Path::new("lib1/lib.nr").to_path_buf(), "fn foo() {}".to_string())]
+                .into_iter()
+                .collect(),
+        );
+        process_dependency_graph(&mut context, dependency_graph, path_to_source_map);
 
         assert_eq!(context.crate_graph.number_of_crates(), 3);
     }
@@ -388,7 +444,17 @@ mod test {
             ]),
         };
 
-        process_dependency_graph(&mut context, dependency_graph);
+        let path_to_source_map = PathToFileSourceMap(
+            vec![
+                (Path::new("lib1/lib.nr").to_path_buf(), "fn foo() {}".to_string()),
+                (Path::new("lib2/lib.nr").to_path_buf(), "fn foo() {}".to_string()),
+                (Path::new("lib3/lib.nr").to_path_buf(), "fn foo() {}".to_string()),
+            ]
+            .into_iter()
+            .collect(),
+        );
+
+        process_dependency_graph(&mut context, dependency_graph, path_to_source_map);
 
         assert_eq!(context.crate_graph.number_of_crates(), 5);
     }
@@ -401,7 +467,16 @@ mod test {
             library_dependencies: HashMap::from([(crate_name("lib2"), vec![crate_name("lib3")])]),
         };
 
-        process_dependency_graph(&mut context, dependency_graph);
+        let path_to_source_map = PathToFileSourceMap(
+            vec![
+                (Path::new("lib1/lib.nr").to_path_buf(), "fn foo() {}".to_string()),
+                (Path::new("lib2/lib.nr").to_path_buf(), "fn foo() {}".to_string()),
+                (Path::new("lib3/lib.nr").to_path_buf(), "fn foo() {}".to_string()),
+            ]
+            .into_iter()
+            .collect(),
+        );
+        process_dependency_graph(&mut context, dependency_graph, path_to_source_map);
 
         assert_eq!(context.crate_graph.number_of_crates(), 5);
     }
