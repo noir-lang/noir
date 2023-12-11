@@ -172,15 +172,15 @@ pub fn compile(
         DependencyGraph { root_dependencies: vec![], library_dependencies: HashMap::new() }
     };
 
-    let root = Path::new("/");
-    let fm = FileManager::new(root, Box::new(get_non_stdlib_asset));
+    let fm = file_manager_with_source_map(file_source_map);
+
     let graph = CrateGraph::default();
     let mut context = Context::new(fm, graph);
 
     let path = Path::new(&entry_point);
     let crate_id = prepare_crate(&mut context, path);
 
-    process_dependency_graph(&mut context, dependency_graph, file_source_map);
+    process_dependency_graph(&mut context, dependency_graph);
 
     let compile_options = CompileOptions::default();
 
@@ -226,23 +226,33 @@ pub fn compile(
     }
 }
 
+// Create a new FileManager with the given source map
+//
+// Note: Use this method whenever initializing a new FileManager
+// to ensure that the file manager contains all of the files
+// that one intends the compiler to use.
+//
+// For all intents and purposes, the file manager being returned
+// should be considered as immutable.
+fn file_manager_with_source_map(source_map: PathToFileSourceMap) -> FileManager {
+    let root = Path::new("/");
+    let mut fm = FileManager::new(root, Box::new(get_non_stdlib_asset));
+
+    for (path, source) in source_map.0 {
+        fm.add_file_with_source(path.as_path(), source);
+    }
+
+    fm
+}
+
 // Root dependencies are dependencies which the entry-point package relies upon.
 // These will be in the Nargo.toml of the package being compiled.
 //
 // Library dependencies are transitive dependencies; for example, if the entry-point relies
 // upon some library `lib1`. Then the packages that `lib1` depend upon will be placed in the
 // `library_dependencies` list and the `lib1` will be placed in the `root_dependencies` list.
-fn process_dependency_graph(
-    context: &mut Context,
-    dependency_graph: DependencyGraph,
-    file_source_map: PathToFileSourceMap,
-) {
+fn process_dependency_graph(context: &mut Context, dependency_graph: DependencyGraph) {
     let mut crate_names: HashMap<&CrateName, CrateId> = HashMap::new();
-
-    // Add all files from the file_source_map into the file manager
-    for (path, source) in file_source_map.0 {
-        context.file_manager.add_file_with_source(path.as_path(), source);
-    }
 
     for lib in &dependency_graph.root_dependencies {
         let crate_id = add_noir_lib(context, lib);
@@ -354,7 +364,6 @@ cfg_if::cfg_if! {
 
 #[cfg(test)]
 mod test {
-    use fm::FileManager;
     use noirc_driver::prepare_crate;
     use noirc_frontend::{
         graph::{CrateGraph, CrateName},
@@ -363,16 +372,18 @@ mod test {
 
     use crate::compile::PathToFileSourceMap;
 
-    use super::{process_dependency_graph, DependencyGraph};
+    use super::{file_manager_with_source_map, process_dependency_graph, DependencyGraph};
     use std::{collections::HashMap, path::Path};
 
     fn mock_get_non_stdlib_asset(_path_to_file: &Path) -> std::io::Result<String> {
         Ok("".to_string())
     }
 
-    fn setup_test_context() -> Context {
-        let mut fm = FileManager::new(Path::new("/"), Box::new(mock_get_non_stdlib_asset));
-        fm.add_file_with_source(Path::new("/main.nr"), "stuff".to_string());
+    fn setup_test_context(source_map: PathToFileSourceMap) -> Context {
+        let mut fm = file_manager_with_source_map(source_map);
+        // Add this due to us calling prepare_crate on "/main.nr" below
+        fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());
+
         let graph = CrateGraph::default();
         let mut context = Context::new(fm, graph);
         prepare_crate(&mut context, Path::new("/main.nr"));
@@ -386,11 +397,13 @@ mod test {
 
     #[test]
     fn test_works_with_empty_dependency_graph() {
-        let mut context = setup_test_context();
         let dependency_graph =
             DependencyGraph { root_dependencies: vec![], library_dependencies: HashMap::new() };
 
-        process_dependency_graph(&mut context, dependency_graph, PathToFileSourceMap::default());
+        let source_map = PathToFileSourceMap::default();
+        let mut context = setup_test_context(source_map);
+
+        process_dependency_graph(&mut context, dependency_graph);
 
         // one stdlib + one root crate
         assert_eq!(context.crate_graph.number_of_crates(), 2);
@@ -398,44 +411,45 @@ mod test {
 
     #[test]
     fn test_works_with_root_dependencies() {
-        let mut context = setup_test_context();
         let dependency_graph = DependencyGraph {
             root_dependencies: vec![crate_name("lib1")],
             library_dependencies: HashMap::new(),
         };
 
-        let path_to_source_map = PathToFileSourceMap(
+        let source_map = PathToFileSourceMap(
             vec![(Path::new("lib1/lib.nr").to_path_buf(), "fn foo() {}".to_string())]
                 .into_iter()
                 .collect(),
         );
 
-        process_dependency_graph(&mut context, dependency_graph, path_to_source_map);
+        let mut context = setup_test_context(source_map);
+
+        process_dependency_graph(&mut context, dependency_graph);
 
         assert_eq!(context.crate_graph.number_of_crates(), 3);
     }
 
     #[test]
     fn test_works_with_duplicate_root_dependencies() {
-        let mut context = setup_test_context();
         let dependency_graph = DependencyGraph {
             root_dependencies: vec![crate_name("lib1"), crate_name("lib1")],
             library_dependencies: HashMap::new(),
         };
 
-        let path_to_source_map = PathToFileSourceMap(
+        let source_map = PathToFileSourceMap(
             vec![(Path::new("lib1/lib.nr").to_path_buf(), "fn foo() {}".to_string())]
                 .into_iter()
                 .collect(),
         );
-        process_dependency_graph(&mut context, dependency_graph, path_to_source_map);
+        let mut context = setup_test_context(source_map);
+
+        process_dependency_graph(&mut context, dependency_graph);
 
         assert_eq!(context.crate_graph.number_of_crates(), 3);
     }
 
     #[test]
     fn test_works_with_transitive_dependencies() {
-        let mut context = setup_test_context();
         let dependency_graph = DependencyGraph {
             root_dependencies: vec![crate_name("lib1")],
             library_dependencies: HashMap::from([
@@ -444,7 +458,7 @@ mod test {
             ]),
         };
 
-        let path_to_source_map = PathToFileSourceMap(
+        let source_map = PathToFileSourceMap(
             vec![
                 (Path::new("lib1/lib.nr").to_path_buf(), "fn foo() {}".to_string()),
                 (Path::new("lib2/lib.nr").to_path_buf(), "fn foo() {}".to_string()),
@@ -454,20 +468,20 @@ mod test {
             .collect(),
         );
 
-        process_dependency_graph(&mut context, dependency_graph, path_to_source_map);
+        let mut context = setup_test_context(source_map);
+        process_dependency_graph(&mut context, dependency_graph);
 
         assert_eq!(context.crate_graph.number_of_crates(), 5);
     }
 
     #[test]
     fn test_works_with_missing_dependencies() {
-        let mut context = setup_test_context();
         let dependency_graph = DependencyGraph {
             root_dependencies: vec![crate_name("lib1")],
             library_dependencies: HashMap::from([(crate_name("lib2"), vec![crate_name("lib3")])]),
         };
 
-        let path_to_source_map = PathToFileSourceMap(
+        let source_map = PathToFileSourceMap(
             vec![
                 (Path::new("lib1/lib.nr").to_path_buf(), "fn foo() {}".to_string()),
                 (Path::new("lib2/lib.nr").to_path_buf(), "fn foo() {}".to_string()),
@@ -476,7 +490,9 @@ mod test {
             .into_iter()
             .collect(),
         );
-        process_dependency_graph(&mut context, dependency_graph, path_to_source_map);
+
+        let mut context = setup_test_context(source_map);
+        process_dependency_graph(&mut context, dependency_graph);
 
         assert_eq!(context.crate_graph.number_of_crates(), 5);
     }
