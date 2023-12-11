@@ -411,7 +411,7 @@ pub fn resolve_workspace_from_toml(
     let nargo_toml = read_toml(toml_path)?;
     let workspace = toml_to_workspace(nargo_toml, package_selection)?;
     if let Some(current_compiler_version) = current_compiler_version {
-        semver::semver_check_workspace(workspace.clone(), current_compiler_version)?;
+        semver::semver_check_workspace(&workspace, current_compiler_version)?;
     }
     Ok(workspace)
 }

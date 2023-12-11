@@ -297,7 +297,6 @@ mod test {
     #[test]
     fn rejects_noncanonical_fields() {
         let noncanonical_field = FieldElement::modulus().to_string();
-        let parsed_field = parse_str_to_field(&noncanonical_field);
-        println!("{parsed_field:?}");
+        assert!(parse_str_to_field(&noncanonical_field).is_err());
     }
 }

@@ -418,11 +418,13 @@ jobs:
         run: |
           yarn test:integration
   
-  # This is a noop job which depends on all test jobs
+  # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:
     name: End
     runs-on: ubuntu-latest
+    # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
+    if: ${{ always() }}
     needs: 
       - test-acvm_js-node
       - test-acvm_js-browser
@@ -435,5 +437,13 @@ jobs:
       - test-integration
     
     steps:
-        - name: Noop
-          run: echo "noop"
+        - name: Report overall success
+          run: |
+            if [[ $FAIL == true ]]; then
+                exit 1
+            else
+                exit 0
+            fi
+          env:
+            # We treat any skipped or failing jobs as a failure for the workflow as a whole.
+            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'skipped') }}

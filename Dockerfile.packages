@@ -8,7 +8,9 @@ RUN apk update \
         npm \
         yarn \
         bash \
-        jq
+        jq \
+        git
+
 WORKDIR /usr/src/noir
 COPY . .
 RUN ./scripts/bootstrap_packages.sh
