@@ -256,8 +256,9 @@ impl<'a> Resolver<'a> {
             return self.add_global_variable_decl(name, definition);
         }
 
-        let id = self.interner.push_definition(name.0.contents.clone(), mutable, definition);
         let location = Location::new(name.span(), self.file);
+        let id =
+            self.interner.push_definition(name.0.contents.clone(), mutable, definition, location);
         let ident = HirIdent { location, id };
         let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
 
@@ -300,8 +301,9 @@ impl<'a> Resolver<'a> {
             ident = hir_let_stmt.ident();
             resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
         } else {
-            let id = self.interner.push_definition(name.0.contents.clone(), false, definition);
             let location = Location::new(name.span(), self.file);
+            let id =
+                self.interner.push_definition(name.0.contents.clone(), false, definition, location);
             ident = HirIdent { location, id };
             resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
         }
@@ -572,7 +574,7 @@ impl<'a> Resolver<'a> {
         match length {
             None => {
                 let id = self.interner.next_type_variable_id();
-                let typevar = Shared::new(TypeBinding::Unbound(id));
+                let typevar = TypeVariable::unbound(id);
                 new_variables.push((id, typevar.clone()));
 
                 // 'Named'Generic is a bit of a misnomer here, we want a type variable that
@@ -682,7 +684,7 @@ impl<'a> Resolver<'a> {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
-            let typevar = Shared::new(TypeBinding::Unbound(id));
+            let typevar = TypeVariable::unbound(id);
             let span = generic.0.span();
 
             // Check for name collisions of this generic
@@ -925,10 +927,7 @@ impl<'a> Resolver<'a> {
         found.into_iter().collect()
     }
 
-    fn find_numeric_generics_in_type(
-        typ: &Type,
-        found: &mut BTreeMap<String, Shared<TypeBinding>>,
-    ) {
+    fn find_numeric_generics_in_type(typ: &Type, found: &mut BTreeMap<String, TypeVariable>) {
         match typ {
             Type::FieldElement
             | Type::Integer(_, _)
@@ -1663,10 +1662,7 @@ impl<'a> Resolver<'a> {
     fn eval_global_as_array_length(&mut self, global: StmtId) -> u64 {
         let stmt = match self.interner.statement(&global) {
             HirStatement::Let(let_expr) => let_expr,
-            other => {
-                dbg!(other);
-                return 0;
-            }
+            _ => return 0,
         };
 
         let length = stmt.expression;
