@@ -200,6 +200,12 @@ pub fn compile(
     }
 }
 
+// Root dependencies are dependencies which the entry-point package relies upon.
+// These will be in the Nargo.toml of the package being compiled.
+//
+// Library dependencies are transitive dependencies; for example, if the entry-point relies
+// upon some library `lib1`. Then the packages that `lib1` depend upon will be placed in the 
+// `library_dependencies` list and the `lib1` will be placed in the `root_dependencies` list.
 fn process_dependency_graph(context: &mut Context, dependency_graph: DependencyGraph) {
     let mut crate_names: HashMap<&CrateName, CrateId> = HashMap::new();
 
@@ -320,10 +326,10 @@ mod test {
     }
 
     fn setup_test_context() -> Context {
-        let fm = FileManager::new(Path::new("/"), Box::new(mock_get_non_stdlib_asset));
+        let mut fm = FileManager::new(Path::new("/"), Box::new(mock_get_non_stdlib_asset));
+        fm.add_file_with_source(Path::new("/main.nr"), "stuff".to_string());
         let graph = CrateGraph::default();
         let mut context = Context::new(fm, graph);
-
         prepare_crate(&mut context, Path::new("/main.nr"));
 
         context
