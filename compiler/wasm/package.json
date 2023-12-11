@@ -19,7 +19,7 @@
   },
   "scripts": {
     "serve": "webpack serve",
-    "build": "webpack --config-name node",
+    "build": "webpack",
     "test": "yarn test:node",
     "test:node": "mocha",
     "test:browser": "web-test-runner",
@@ -49,7 +49,10 @@
     "@web/test-runner-playwright": "^0.10.0",
     "assert": "^2.1.0",
     "babel-loader": "^9.1.3",
+    "browserify-fs": "^1.0.0",
     "buffer": "^6.0.3",
+    "copy-webpack-plugin": "^11.0.0",
+    "file-loader": "^6.2.0",
     "html-webpack-plugin": "^5.5.4",
     "lodash.compact": "^3.0.1",
     "mocha": "^10.2.0",
@@ -69,6 +72,6 @@
     "webpack-dev-server": "^4.15.1"
   },
   "dependencies": {
-    "zod": "^3.22.4"
+    "@noir-lang/source-resolver": "workspace:*"
   }
 }

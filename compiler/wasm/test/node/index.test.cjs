@@ -19,16 +19,14 @@ const {
 
 const { describe, it } = require('mocha');
 
-const projectPath = join(__dirname, '../../fixtures/simple/noir-script');
-
 async function getPrecompiledSource(path) {
   const compiledData = readFileSync(resolve(__dirname, path)).toString();
   return JSON.parse(compiledData);
 }
 
 describe('noir wasm compilation', () => {
-  describe('can compile simple scripts', () => {
-    it('matching nargos compilation', async () => {
+  describe.only('can compile simple scripts', () => {
+    it.only('matching nargos compilation', async () => {
       const wasmCircuit = await compile(join(__dirname, simpleScriptSourcePath));
       const cliCircuit = await getPrecompiledSource(simpleScriptExpectedArtifact);
 

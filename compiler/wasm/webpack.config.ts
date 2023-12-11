@@ -1,10 +1,10 @@
 import path from 'path';
 import webpack from 'webpack';
-// in case you run into any typescript error when configuring `devServer`
 import 'webpack-dev-server';
 import WasmPackPlugin from '@wasm-tool/wasm-pack-plugin';
 
 import HtmlWebpackPlugin from 'html-webpack-plugin';
+import CopyWebpackPlugin from 'copy-webpack-plugin';
 
 const config: webpack.Configuration = {
   output: {
@@ -19,26 +19,24 @@ const config: webpack.Configuration = {
   optimization: {
     minimize: false,
   },
-  devServer: {
-    port: 9000,
-  },
   resolve: {
     extensions: ['.cts', '.mts', '.ts', '.js', '.json', '.wasm'],
     fallback: {
-      assert: require.resolve('assert'),
-      buffer: require.resolve('buffer'),
+      // assert: require.resolve('assert'),
+      // buffer: require.resolve('buffer'),
       path: require.resolve('path-browserify'),
-      process: require.resolve('process/browser'),
+      // process: require.resolve('process/browser'),
       stream: require.resolve('readable-stream'),
-      url: require.resolve('url'),
-      util: require.resolve('util'),
+      // url: require.resolve('url'),
+      // util: require.resolve('util'),
+      fs: require.resolve('browserify-fs'),
     },
   },
 };
 
 const webConfig: webpack.Configuration = {
   name: 'web',
-  entry: './noir_wasm/src/index.mts',
+  entry: './src/index.mts',
   ...config,
   output: {
     ...config.output,
@@ -49,35 +47,23 @@ const webConfig: webpack.Configuration = {
   },
   plugins: [
     new WasmPackPlugin({
-      crateDirectory: path.resolve(__dirname, './noir_wasm'),
-      outDir: path.resolve(__dirname, './noir_wasm/esm'),
+      crateDirectory: path.resolve(__dirname, './src'),
+      outDir: path.resolve(__dirname, './build/esm'),
+    }),
+    new CopyWebpackPlugin({
+      patterns: [{ from: path.resolve(__dirname, 'public'), to: path.resolve(__dirname, 'dist/web/public') }],
     }),
     new HtmlWebpackPlugin({
-      title: 'Noir Wasm',
+      title: 'Noir Wasm ESM',
     }),
     new webpack.DefinePlugin({
       'process.env.NODE_DEBUG': JSON.stringify(process.env.NODE_DEBUG),
     }),
   ],
-
-  externals: {
-    fs: 'window.fs',
-  },
   module: {
     rules: [
-      // {
-      //   test: /\.(shim\.)?[cmj]tsx?$/,
-      //   exclude: /node_modules/,
-      //   use: {
-      //     loader: 'ts-loader',
-      //     options: {
-      //       configFile: 'noir_wasm/tsconfig.esm.json', // or tsconfig.esm.json
-      //     },
-      //   },
-      // },
       {
         test: /\.(shim\.)?[cmjt]t?s?$/,
-        exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
           options: {
@@ -92,11 +78,20 @@ const webConfig: webpack.Configuration = {
       },
     ],
   },
+  devServer: {
+    static: path.join(__dirname, 'dist'),
+  },
+  resolve: {
+    ...config.resolve,
+    alias: {
+      fs: 'memfs',
+    },
+  },
 };
 
 const nodeConfig: webpack.Configuration = {
   name: 'node',
-  entry: './noir_wasm/src/index.cts',
+  entry: './src/index.cts',
   ...config,
   output: {
     ...config.output,
@@ -108,15 +103,14 @@ const nodeConfig: webpack.Configuration = {
   target: 'node',
   plugins: [
     new WasmPackPlugin({
-      crateDirectory: path.resolve(__dirname, './noir_wasm'),
-      outDir: path.resolve(__dirname, './noir_wasm/cjs'),
+      crateDirectory: path.resolve(__dirname, './src'),
+      outDir: path.resolve(__dirname, './build/cjs'),
     }),
   ],
   module: {
     rules: [
       {
         test: /\.(shim\.)?[cmjt]t?s?$/,
-        exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
           options: {

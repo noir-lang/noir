@@ -8,7 +8,7 @@ members = [
     "compiler/noirc_driver",
     "compiler/noirc_printable_type",
     "compiler/fm",
-    "compiler/wasm/noir_wasm",
+    "compiler/wasm",
     # Utility crates used by the Noir compiler
     "compiler/utils/arena",
     "compiler/utils/iter-extended",
