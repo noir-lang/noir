@@ -10,9 +10,6 @@ pub use file_map::{File, FileId, FileMap, PathString};
 // Re-export for the lsp
 pub use codespan_reporting::files as codespan_files;
 
-use file_reader::is_stdlib_asset;
-pub use file_reader::FileReader;
-
 use std::{
     collections::HashMap,
     path::{Component, Path, PathBuf},
