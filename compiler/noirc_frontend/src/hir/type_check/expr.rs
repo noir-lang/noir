@@ -891,7 +891,9 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 }
             }
-            Type::TraitAsType(_trait) => {
+            // TODO: We should allow method calls on `impl Trait`s eventually.
+            //       For now it is fine since they are only allowed on return types.
+            Type::TraitAsType(..) => {
                 self.errors.push(TypeCheckError::UnresolvedMethodCall {
                     method_name: method_name.to_string(),
                     object_type: object_type.clone(),

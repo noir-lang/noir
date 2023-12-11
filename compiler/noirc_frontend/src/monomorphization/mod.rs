@@ -231,7 +231,7 @@ impl<'interner> Monomorphizer<'interner> {
         let body_expr_id = *self.interner.function(&f).as_expr();
         let body_return_type = self.interner.id_type(body_expr_id);
         let return_type = self.convert_type(match meta.return_type() {
-            Type::TraitAsType(_) => &body_return_type,
+            Type::TraitAsType(..) => &body_return_type,
             _ => meta.return_type(),
         });
 
@@ -720,7 +720,7 @@ impl<'interner> Monomorphizer<'interner> {
                     ast::Type::Slice(element)
                 }
             }
-            HirType::TraitAsType(_) => {
+            HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
             HirType::NamedGeneric(binding, _) => {

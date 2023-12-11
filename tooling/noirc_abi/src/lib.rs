@@ -161,7 +161,7 @@ impl AbiType {
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
             Type::Constant(_) => unreachable!(),
-            Type::TraitAsType(_) => unreachable!(),
+            Type::TraitAsType(..) => unreachable!(),
             Type::Struct(def, ref args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
