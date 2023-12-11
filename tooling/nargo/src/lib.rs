@@ -16,7 +16,7 @@ pub mod workspace;
 
 use std::collections::BTreeMap;
 
-use fm::{FileManager, FileReader};
+use fm::FileManager;
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
 use noirc_frontend::{
     graph::{CrateGraph, CrateId, CrateName},
@@ -59,7 +59,9 @@ pub fn insert_all_files_for_package_into_file_manager(
     // Get all files in the package and add them to the file manager
     let paths = get_all_paths_in_dir(&root_path).expect("could not get all paths in the package");
     for path in paths {
-        file_manager.add_file(path.as_path());
+        let source = std::fs::read_to_string(path.as_path())
+            .unwrap_or_else(|_| panic!("could not read file {:?} into string", path));
+        file_manager.add_file_with_source(path.as_path(), source);
     }
 
     insert_all_files_for_packages_dependencies_into_file_manager(package, file_manager);
@@ -81,9 +83,9 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
     }
 }
 
-pub fn prepare_package(package: &Package, file_reader: Box<FileReader>) -> (Context, CrateId) {
+pub fn prepare_package(package: &Package) -> (Context, CrateId) {
     // TODO: FileManager continues to leak into various crates
-    let mut fm = FileManager::new(&package.root_dir, file_reader);
+    let mut fm = FileManager::new(&package.root_dir);
     insert_all_files_for_package_into_file_manager(package, &mut fm);
 
     let graph = CrateGraph::default();

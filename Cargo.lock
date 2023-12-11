@@ -1608,7 +1608,6 @@ version = "0.20.0"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
- "rust-embed",
  "serde",
  "tempfile",
 ]
@@ -2537,7 +2536,6 @@ version = "0.20.0"
 dependencies = [
  "acvm",
  "async-lsp",
- "cfg-if",
  "codespan-lsp",
  "codespan-reporting",
  "fm",
@@ -2562,7 +2560,6 @@ version = "0.20.0"
 dependencies = [
  "acvm",
  "build-data",
- "cfg-if",
  "console_error_panic_hook",
  "fm",
  "getrandom",

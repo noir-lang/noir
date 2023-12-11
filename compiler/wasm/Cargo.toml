@@ -21,7 +21,6 @@ noirc_errors.workspace = true
 wasm-bindgen.workspace = true
 serde.workspace = true
 js-sys.workspace = true
-cfg-if.workspace = true
 console_error_panic_hook.workspace = true
 gloo-utils.workspace = true
 

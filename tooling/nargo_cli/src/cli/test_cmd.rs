@@ -86,8 +86,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
     show_output: bool,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let (mut context, crate_id) =
-        prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
+    let (mut context, crate_id) = prepare_package(package);
     check_crate_and_report_errors(
         &mut context,
         crate_id,

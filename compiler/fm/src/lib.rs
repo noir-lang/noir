@@ -4,11 +4,8 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 mod file_map;
-mod file_reader;
 
 pub use file_map::{File, FileId, FileMap, PathString};
-use file_reader::is_stdlib_asset;
-pub use file_reader::FileReader;
 
 use std::{
     collections::HashMap,
@@ -22,7 +19,6 @@ pub struct FileManager {
     file_map: file_map::FileMap,
     id_to_path: HashMap<FileId, PathBuf>,
     path_to_id: HashMap<PathBuf, FileId>,
-    file_reader: Box<FileReader>,
 }
 
 impl std::fmt::Debug for FileManager {
@@ -37,13 +33,12 @@ impl std::fmt::Debug for FileManager {
 }
 
 impl FileManager {
-    pub fn new(root: &Path, file_reader: Box<FileReader>) -> Self {
+    pub fn new(root: &Path) -> Self {
         Self {
             root: root.normalize(),
             file_map: Default::default(),
             id_to_path: Default::default(),
             path_to_id: Default::default(),
-            file_reader,
         }
     }
 
@@ -51,34 +46,19 @@ impl FileManager {
         &self.file_map
     }
 
-    pub fn add_file(&mut self, file_name: &Path) -> Option<FileId> {
-        // Handle both relative file paths and std/lib virtual paths.
-        let resolved_path: PathBuf = if is_stdlib_asset(file_name) {
-            // Special case for stdlib where we want to read specifically the `std/` relative path
-            // TODO: The stdlib path should probably be an absolute path rooted in something people would never create
-            file_name.to_path_buf()
-        } else {
-            self.root.join(file_name).normalize()
-        };
-
-        // Check that the resolved path already exists in the file map, if it is, we return it.
-        if let Some(file_id) = self.path_to_id.get(&resolved_path) {
-            return Some(*file_id);
-        }
-
-        // Otherwise we add the file
-        let source = file_reader::read_file_to_string(&resolved_path, &self.file_reader).ok()?;
-        let file_id = self.file_map.add_file(resolved_path.clone().into(), source);
-        self.register_path(file_id, resolved_path);
-        Some(file_id)
+    pub fn add_file_with_source(&mut self, file_name: &Path, source: String) -> Option<FileId> {
+        let file_name = self.root.join(file_name).normalize();
+        self.add_file_with_source_canonical_path(&file_name, source)
     }
 
-    // TODO: this will become the default strategy for adding files. Possibly with file_reader.
-    // TODO: we are still migrating to this strategy, so we keep the old one for now.
-    // TODO: For the stdlib crate, we need to do this preemptively due to the way we special handle it
-    pub fn add_file_with_source(&mut self, file_name: &Path, source: String) -> Option<FileId> {
+    pub fn add_file_with_source_canonical_path(
+        &mut self,
+        file_name: &Path,
+        source: String,
+    ) -> Option<FileId> {
+        let file_name = file_name.normalize();
         // Check that the file name already exists in the file map, if it is, we return it.
-        if let Some(file_id) = self.path_to_id.get(file_name) {
+        if let Some(file_id) = self.path_to_id.get(&file_name) {
             return Some(*file_id);
         }
         let file_name_path_buf = file_name.to_path_buf();
@@ -254,9 +234,9 @@ mod tests {
         let entry_file_name = Path::new("my_dummy_file.nr");
         create_dummy_file(&dir, entry_file_name);
 
-        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
+        let mut fm = FileManager::new(dir.path());
 
-        let file_id = fm.add_file(entry_file_name).unwrap();
+        let file_id = fm.add_file_with_source(entry_file_name, "fn foo() {}".to_string()).unwrap();
 
         let dep_file_name = Path::new("foo.nr");
         create_dummy_file(&dir, dep_file_name);
@@ -269,9 +249,9 @@ mod tests {
         let file_name = Path::new("foo.nr");
         create_dummy_file(&dir, file_name);
 
-        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
+        let mut fm = FileManager::new(dir.path());
 
-        let file_id = fm.add_file(file_name).unwrap();
+        let file_id = fm.add_file_with_source(file_name, "fn foo() {}".to_string()).unwrap();
 
         assert!(fm.path(file_id).ends_with("foo.nr"));
     }
@@ -279,13 +259,13 @@ mod tests {
     #[test]
     fn path_resolve_sub_module() {
         let dir = tempdir().unwrap();
-        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
+        let mut fm = FileManager::new(dir.path());
 
         // Create a lib.nr file at the root.
         // we now have dir/lib.nr
         let lib_nr_path = create_dummy_file(&dir, Path::new("lib.nr"));
         let file_id = fm
-            .add_file(lib_nr_path.as_path())
+            .add_file_with_source(lib_nr_path.as_path(), "fn foo() {}".to_string())
             .expect("could not add file to file manager and obtain a FileId");
 
         // Create a sub directory
@@ -300,7 +280,7 @@ mod tests {
         // - dir/lib.nr
         // - dir/sub_dir/foo.nr
         let foo_nr_path = create_dummy_file(&sub_dir, Path::new("foo.nr"));
-        fm.add_file(foo_nr_path.as_path());
+        fm.add_file_with_source(foo_nr_path.as_path(), "fn foo() {}".to_string());
 
         // Add a parent module for the sub_dir
         // we no have:
@@ -308,7 +288,7 @@ mod tests {
         // - dir/sub_dir.nr
         // - dir/sub_dir/foo.nr
         let sub_dir_nr_path = create_dummy_file(&dir, Path::new(&format!("{sub_dir_name}.nr")));
-        fm.add_file(sub_dir_nr_path.as_path());
+        fm.add_file_with_source(sub_dir_nr_path.as_path(), "fn foo() {}".to_string());
 
         // First check for the sub_dir.nr file and add it to the FileManager
         let sub_dir_file_id = fm.find_module(file_id, sub_dir_name).unwrap();
@@ -327,7 +307,7 @@ mod tests {
         let sub_dir = TempDir::new_in(&dir).unwrap();
         let sub_sub_dir = TempDir::new_in(&sub_dir).unwrap();
 
-        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
+        let mut fm = FileManager::new(dir.path());
 
         // Create a lib.nr file at the root.
         let file_name = Path::new("lib.nr");
@@ -337,8 +317,9 @@ mod tests {
         let second_file_name = PathBuf::from(sub_sub_dir.path()).join("./../../lib.nr");
 
         // Add both files to the file manager
-        let file_id = fm.add_file(file_name).unwrap();
-        let second_file_id = fm.add_file(&second_file_name).unwrap();
+        let file_id = fm.add_file_with_source(file_name, "fn foo() {}".to_string()).unwrap();
+        let second_file_id =
+            fm.add_file_with_source(&second_file_name, "fn foo() {}".to_string()).unwrap();
 
         assert_eq!(file_id, second_file_id);
     }

@@ -8,7 +8,7 @@ use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
-    byte_span_to_range, get_non_stdlib_asset,
+    byte_span_to_range,
     types::{CodeLens, CodeLensParams, CodeLensResult, Command, LogMessageParams, MessageType},
     LspState,
 };
@@ -83,7 +83,7 @@ fn on_code_lens_request_inner(
     let mut lenses: Vec<CodeLens> = vec![];
 
     for package in &workspace {
-        let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
+        let (mut context, crate_id) = prepare_package(package);
         // We ignore the warnings and errors produced by compilation for producing code lenses
         // because we can still get the test functions even if compilation fails
         let _ = check_crate(&mut context, crate_id, false);

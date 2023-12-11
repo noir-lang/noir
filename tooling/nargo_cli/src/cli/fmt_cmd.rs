@@ -36,8 +36,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
     let mut check_exit_code_one = false;
 
     for package in &workspace {
-        let mut file_manager =
-            FileManager::new(&package.root_dir, Box::new(|path| std::fs::read_to_string(path)));
+        let mut file_manager = FileManager::new(&package.root_dir);
         insert_all_files_for_package_into_file_manager(package, &mut file_manager);
 
         visit_noir_files(&package.root_dir.join("src"), &mut |entry| {
