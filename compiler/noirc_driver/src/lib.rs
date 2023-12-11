@@ -89,7 +89,7 @@ pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
 
     let std_crate_id = context.crate_graph.add_stdlib(std_file_id);
 
-    let root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap();
+    let root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {file_name:?}"));
 
     let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
