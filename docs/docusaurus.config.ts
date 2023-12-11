@@ -26,7 +26,7 @@ export default {
       {
         docs: {
           sidebarPath: './sidebars.js',
-          routeBasePath: '/',
+          routeBasePath: '/docs',
           remarkPlugins: [math],
           rehypePlugins: [katex],
           versions: {
