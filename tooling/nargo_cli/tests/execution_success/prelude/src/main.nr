@@ -7,6 +7,7 @@ fn main(x: Field, y: pub Field) {
 }
 
 mod a {
+    // We don't want to give an error due to re-importing elements that are already in the prelude.
     use dep::std::collections::vec::Vec;
     use dep::std::option::Option;
 
