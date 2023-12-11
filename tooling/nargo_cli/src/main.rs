@@ -17,7 +17,7 @@ use env_logger::{Builder, Env};
 const PANIC_MESSAGE: &str = "This is a bug. We may have already fixed this in newer versions of Nargo so try searching for similar issues at https://github.com/noir-lang/noir/issues/.\nIf there isn't an open issue for this bug, consider opening one at https://github.com/noir-lang/noir/issues/new?labels=bug&template=bug_report.yml";
 
 fn main() {
-    let env = Env::default().filter_or("NOIR_LOG", "error"); // Default to 'error' if NOIR is not set
+    let env = Env::default().filter_or("NOIR_LOG", "error"); // Default to 'error' if NOIR_LOG is not set
     Builder::from_env(env).init();
 
     // Register a panic hook to display more readable panic messages to end-users
