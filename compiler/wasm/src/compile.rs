@@ -405,7 +405,7 @@ mod test {
         };
 
         let path_to_source_map = PathToFileSourceMap(
-            vec![(Path::new("/lib1/lib.nr").to_path_buf(), "fn foo() {}".to_string())]
+            vec![(Path::new("lib1/lib.nr").to_path_buf(), "fn foo() {}".to_string())]
                 .into_iter()
                 .collect(),
         );
