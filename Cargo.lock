@@ -2538,7 +2538,6 @@ dependencies = [
  "async-lsp",
  "cfg-if",
  "codespan-lsp",
- "codespan-reporting",
  "fm",
  "lsp-types 0.94.1",
  "nargo",
