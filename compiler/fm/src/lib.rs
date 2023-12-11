@@ -48,7 +48,7 @@ impl FileManager {
 
     // Adds a file to the file manager with its source code
     pub fn add_file_with_source(&mut self, file_name: &Path, source: String) -> Option<FileId> {
-        let file_name = self.root.join(file_name).normalize();
+        let file_name = file_name.normalize();
         // Check that the file name already exists in the file map, if it is, we return it.
         if let Some(file_id) = self.path_to_id.get(&file_name) {
             return Some(*file_id);
