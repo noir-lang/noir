@@ -11,7 +11,14 @@ mod a {
     use dep::std::collections::vec::Vec;
     use dep::std::option::Option;
 
-    fn main(x: Field, y: pub Field) {
+    fn main() {
+        let xs = Vec::new();
+        let option = Option::none();
+    }
+}
+
+mod b {
+    fn main() {
         let xs = Vec::new();
         let option = Option::none();
     }
