@@ -33,7 +33,7 @@ pub struct TraitType {
 /// Represents a trait in the type system. Each instance of this struct
 /// will be shared across all Type::Trait variants that represent
 /// the same trait.
-#[derive(Debug, Eq, Clone)]
+#[derive(Debug, Eq)]
 pub struct Trait {
     /// A unique id representing this trait type. Used to check if two
     /// struct traits are equal.
@@ -42,6 +42,7 @@ pub struct Trait {
     pub crate_id: CrateId,
 
     pub methods: Vec<TraitFunction>,
+
     pub constants: Vec<TraitConstant>,
     pub types: Vec<TraitType>,
 
@@ -124,9 +125,9 @@ impl Trait {
         self.methods = methods;
     }
 
-    pub fn find_method(&self, name: Ident) -> Option<TraitMethodId> {
+    pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {
         for (idx, method) in self.methods.iter().enumerate() {
-            if method.name == name {
+            if &method.name == name {
                 return Some(TraitMethodId { trait_id: self.id, method_index: idx });
             }
         }

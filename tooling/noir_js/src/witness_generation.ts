@@ -3,7 +3,14 @@ import { base64Decode } from './base64_decode.js';
 import { executeCircuit, WitnessMap, ForeignCallHandler, ForeignCallInput } from '@noir-lang/acvm_js';
 import { CompiledCircuit } from '@noir-lang/types';
 
-const defaultForeignCallHandler: ForeignCallHandler = (name: string, args: ForeignCallInput[]) => {
+const defaultForeignCallHandler: ForeignCallHandler = async (name: string, args: ForeignCallInput[]) => {
+  if (name == 'print') {
+    // By default we do not print anything for `print` foreign calls due to a need for formatting,
+    // however we provide an empty response in order to not halt execution.
+    //
+    // If a user needs to print values then they should provide a custom foreign call handler.
+    return [];
+  }
   throw Error(`Unexpected oracle during execution: ${name}(${args.join(', ')})`);
 };
 
