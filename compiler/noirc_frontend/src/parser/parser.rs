@@ -443,7 +443,10 @@ fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
         .then(optional_default_value())
         .then_ignore(just(Token::Semicolon))
         .validate(|((name, typ), default_value), span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Associated constants"), span));
+            emit(ParserError::with_reason(
+                ParserErrorReason::ExperimentalFeature("Associated constants"),
+                span,
+            ));
             TraitItem::Constant { name, typ, default_value }
         })
 }
@@ -552,13 +555,15 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
 
 /// trait_type_declaration: 'type' ident generics
 fn trait_type_declaration() -> impl NoirParser<TraitItem> {
-    keyword(Keyword::Type)
-        .ignore_then(ident())
-        .then_ignore(just(Token::Semicolon))
-        .validate(|name, span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Associated types"), span));
+    keyword(Keyword::Type).ignore_then(ident()).then_ignore(just(Token::Semicolon)).validate(
+        |name, span, emit| {
+            emit(ParserError::with_reason(
+                ParserErrorReason::ExperimentalFeature("Associated types"),
+                span,
+            ));
             TraitItem::Type { name }
-        })
+        },
+    )
 }
 
 /// Parses a non-trait implementation, adding a set of methods to a type.
