@@ -57,9 +57,9 @@ jobs:
       # - name: Copy cargo from from container
       #   run: sudo docker cp ${{ steps.prep.outputs.image }}:latest:/usr/local/cargo/ /cargo
       - name: test-dist
-        run: sudo tar -czvf /dist /dist.tar
+        run: sudo tar -czvf /dist.tar.gz /dist
       - name: test-cargo
-        run: sudo tar -czvf /cargo /cargo.tar
+        run: sudo tar -czvf /cargo.tar.gz /cargo
       - name: test-cache
         uses: actions/cache/save@v3
         with:
