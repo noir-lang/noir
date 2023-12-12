@@ -24,7 +24,9 @@ jobs:
           IMAGE=$(echo "$IMG" | tr '[:upper:]' '[:lower:]')
           TAGS="${IMAGE}:${{ github.sha }}"
           TAGS="${TAGS},${IMAGE}:latest,${IMAGE}:v${{ steps.date.outputs.date }}"
-          echo ::set-output name=tags::${TAGS}
+          # echo ::set-output name=tags::${TAGS}
+          echo "{tags}={${TAGS}}" >> $GITHUB_OUTPUT
+          echo "{image}={${IMAGE}}" >> $GITHUB_OUTPUT
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v3
@@ -44,9 +46,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Copy artifact from from container
-        run: sudo docker cp ${{ steps.prep.outputs.tags }}:/usr/src/noir/target /dist
+        run: sudo docker cp ${{ steps.prep.outputs.image }}:latest:/usr/src/noir/target /dist
       - name: Copy cargo from from container
-        run: sudo docker cp ${{ steps.prep.outputs.tags }}:/usr/local/cargo/ /cargo
+        run: sudo docker cp ${{ steps.prep.outputs.image }}:latest:/usr/local/cargo/ /cargo
       - name: test-dist
         run: sudo tar -czvf /dist /dist.tar
       - name: test-cargo
