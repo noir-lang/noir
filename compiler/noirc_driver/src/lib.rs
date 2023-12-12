@@ -122,8 +122,7 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
 ) -> CompilationResult<()> {
-    let mut macros: Vec<&dyn MacroProcessor> = Vec::new();
-    macros.push(&aztec_macros::AztecMacro as &dyn MacroProcessor);
+    let macros: Vec<&dyn MacroProcessor> = vec![&aztec_macros::AztecMacro as &dyn MacroProcessor];
 
     let mut errors = vec![];
     let diagnostics = CrateDefMap::collect_defs(crate_id, context, macros);

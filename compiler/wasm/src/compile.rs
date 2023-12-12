@@ -136,7 +136,6 @@ pub fn compile(
     entry_point: String,
     contracts: Option<bool>,
     dependency_graph: Option<JsDependencyGraph>,
-    enable_aztec_macro: bool,
 ) -> Result<JsCompileResult, JsCompileError> {
     console_error_panic_hook::set_once();
 
