@@ -393,7 +393,7 @@ fn inject_prelude(
             ModuleId { krate: crate_id, local_id: crate_root },
             path,
         ) {
-            let module_id = module_def.as_module().expect("std::prelude is module");
+            let module_id = module_def.as_module().expect("std::prelude should be a module");
             let prelude = context.module(module_id).scope().names();
 
             for path in prelude {
