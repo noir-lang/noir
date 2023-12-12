@@ -81,8 +81,7 @@ impl<'a> ValueMerger<'a> {
             then_type, else_type,
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
         );
-        dbg!(then_type.clone());
-        dbg!(else_type.clone());
+
         let then_call_stack = self.dfg.get_value_call_stack(then_value);
         let else_call_stack = self.dfg.get_value_call_stack(else_value);
 
@@ -207,8 +206,6 @@ impl<'a> ValueMerger<'a> {
                 let mut get_element = |array, typevars, len| {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
-                    dbg!(len);
-                    dbg!(index_usize);
                     if len <= index_usize {
                         self.make_slice_dummy_data(element_type)
                     } else {

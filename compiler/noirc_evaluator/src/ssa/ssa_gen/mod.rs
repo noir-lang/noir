@@ -591,7 +591,6 @@ impl<'a> FunctionContext<'a> {
         }
 
         self.codegen_intrinsic_call_checks(function, &arguments, call.location);
-
         Ok(self.insert_call(function, arguments, &call.return_type, call.location))
     }
 

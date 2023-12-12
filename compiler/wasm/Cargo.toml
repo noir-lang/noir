@@ -24,8 +24,8 @@ js-sys.workspace = true
 cfg-if.workspace = true
 console_error_panic_hook.workspace = true
 gloo-utils.workspace = true
+log.workspace = true
 
-log = "0.4.17"
 wasm-logger = "0.2.0"
 
 # This is an unused dependency, we are adding it
