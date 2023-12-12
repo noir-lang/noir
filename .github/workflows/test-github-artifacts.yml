@@ -45,7 +45,7 @@ jobs:
           target: test-base
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          push: true
+          load: true
       - name: Copy artifact from from container
         run: sudo docker cp ${{ steps.prep.outputs.image }}:latest:/usr/src/noir/target /dist
       - name: Copy cargo from from container
