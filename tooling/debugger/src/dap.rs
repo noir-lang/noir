@@ -91,6 +91,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             })
             .collect();
 
+        let mut result: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>> = BTreeMap::new();
         locations.iter().for_each(|(opcode_location, source_locations)| {
             if source_locations.is_empty() {
                 return;
@@ -127,7 +128,10 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         self.running = true;
 
         if matches!(self.context.get_current_source_location(), None) {
-            // FIXME: remove this?
+            // TODO: remove this? This is to ensure that the tool has a proper
+            // source location to show when first starting the debugger, but
+            // maybe the default behavior should be to start executing until the
+            // first breakpoint set.
             _ = self.context.next();
         }
 
@@ -195,7 +199,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     self.handle_continue(req)?;
                 }
                 Command::Scopes(_) => {
-                    // FIXME
+                    // FIXME: this needs a proper implementation when we can
+                    // show the parameters and variables
                     self.server.respond(
                         req.success(ResponseBody::Scopes(ScopesResponse { scopes: vec![] })),
                     )?;
@@ -455,7 +460,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         found.map(|iter| *iter.0)
     }
 
-    // FIXME: there are four possibilities for the return value of this function:
+    // TODO: there are four possibilities for the return value of this function:
     // 1. the source location is not found -> None
     // 2. an exact unique location is found -> Some(opcode_location)
     // 3. an exact but not unique location is found (ie. a source location may
@@ -503,7 +508,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                         ..Breakpoint::default()
                     };
                 };
-                // FIXME: line will not necessarily be the one requested; we
+                // TODO: line will not necessarily be the one requested; we
                 // should do the reverse mapping and retrieve the actual source
                 // code line number
                 if !self.context.is_valid_opcode_location(&location) {

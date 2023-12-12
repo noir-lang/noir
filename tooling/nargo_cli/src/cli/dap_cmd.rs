@@ -59,7 +59,10 @@ fn load_and_compile_project(
         find_workspace(project_folder, package).ok_or(LoadError("Cannot open workspace"))?;
     let (np_language, opcode_support) =
         backend.get_backend_info().map_err(|_| LoadError("Failed to get backend info"))?;
-    let package = workspace.into_iter().find(|p| p.is_binary()).ok_or(LoadError("No matching binary packages found in workspace"))?;
+    let package = workspace
+        .into_iter()
+        .find(|p| p.is_binary())
+        .ok_or(LoadError("No matching binary packages found in workspace"))?;
 
     let compiled_program = compile_bin_package(
         &workspace,
@@ -67,14 +70,12 @@ fn load_and_compile_project(
         &CompileOptions::default(),
         np_language,
         &opcode_support,
-    ).map_err(|_| LoadError("Failed to compile project"));
-    
-    let (inputs_map, _) = read_inputs_from_file(
-        &package.root_dir,
-        prover_name,
-        Format::Toml,
-        &compiled_program.abi,
-    ).map_err(|_| LoadError("Failed to read program inputs"))?;
+    )
+    .map_err(|_| LoadError("Failed to compile project"))?;
+
+    let (inputs_map, _) =
+        read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &compiled_program.abi)
+            .map_err(|_| LoadError("Failed to read program inputs"))?;
     let initial_witness = compiled_program
         .abi
         .encode(&inputs_map, None)
