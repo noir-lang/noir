@@ -1,8 +1,8 @@
 // Constants taken from __snapshots__/noir_test_gen.test.ts.snap
-global ROOT = 0x08ccb752b9e4f898ad6b87fb9ca1ed1f2b5e0b6cd67bf083e466ca6a31e21fae;
+global ROOT = 0x2d541f5813387a5f4b32d1b3b103447ae142927457a60d00c779a5eeaead471d;
 global SIBLING_PATHS = [
     [
-        0x141929db05c4a4803aebc2a4aea0fb2f09a15ae9862c4da49f245b7726f4088e,
+        0x0c58a1ae52142f3369f9c46e6717bbef5aa55f9fc0e901a7d8cc860d9467021e,
         0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed,
         0x21dbfd1d029bf447152fcf89e355c334610d1632436ba170f738107266a71550,
         0x0bcd1f91cf7bdd471d0a30c58c4706f3fdab3807a954b8f5b5e3bfec87d001bb,
@@ -20,7 +20,7 @@ global SIBLING_PATHS = [
         0x177b9a10bbee32f77c719c6f8d071a18476cbeb021e155c642bbf93c716ce943,
     ],
     [
-        0x0b5dfb998fbdce8e5804992d471c1fc8050642b7aba107e854052eb562944a01,
+        0x1ec6c50dc972349d72602ec6887f7accd3174d912ea58629447937865cb88a4d,
         0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed,
         0x21dbfd1d029bf447152fcf89e355c334610d1632436ba170f738107266a71550,
         0x0bcd1f91cf7bdd471d0a30c58c4706f3fdab3807a954b8f5b5e3bfec87d001bb,
