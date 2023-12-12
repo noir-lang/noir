@@ -14,8 +14,6 @@ else
   export GIT_COMMIT=$(git rev-parse --verify HEAD)
 fi
 
-export cargoExtraArgs="--features noirc_driver/aztec"
-
 yarn
 yarn build
 
