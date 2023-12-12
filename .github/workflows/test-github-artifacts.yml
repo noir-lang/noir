@@ -50,20 +50,16 @@ jobs:
         run: |
           id=$(docker create ${{ steps.prep.outputs.image }}:latest)
           sudo docker cp $id:/usr/src/noir/target /dist
-          sudo docker cp $id:/usr/local/cargo/ /cargo
+          sudo docker cp $id:/usr/local/cargo /cargo
           sudo docker rm -v $id
-      # - name: Copy artifact from from container
-      #   run: sudo docker cp ${{ steps.prep.outputs.image }}:latest:/usr/src/noir/target /dist
-      # - name: Copy cargo from from container
-      #   run: sudo docker cp ${{ steps.prep.outputs.image }}:latest:/usr/local/cargo/ /cargo
-      - name: test-dist
-        run: sudo tar -czvf /dist.tar.gz /dist
-      - name: test-cargo
-        run: sudo tar -czvf /cargo.tar.gz /cargo
+      - name: tar
+        run: |
+          sudo tar -czvf /dist.tar.gz /dist
+          sudo tar -czvf /cargo.tar.gz /cargo
       - name: test-cache
         uses: actions/cache/save@v3
         with:
           path: |
-            /dist.tar
-            /cargo.tar
+            /dist.tar.gz
+            /cargo.tar.gz
           key: ${{ runner.os }}-docker-artifact-cache
