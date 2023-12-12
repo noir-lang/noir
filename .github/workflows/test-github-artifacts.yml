@@ -56,9 +56,9 @@ jobs:
           path: /usr/local/cargo/
           destination: /cargo
       - name: test-dist
-        run: tar -czvf /dist /dist.tar
+        run: sudo tar -czvf /dist /dist.tar
       - name: test-cargo
-        run: tar -czvf /cargo /cargo.tar
+        run: sudo tar -czvf /cargo /cargo.tar
       - name: test-cache
         uses: actions/cache/save@v3
         with:
