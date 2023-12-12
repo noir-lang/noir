@@ -14,7 +14,7 @@ Alternatively, the interactions can also be performed in [TypeScript](../typescr
 
 ### UltraPlonk
 
-Nargo versions <0.5.0 of `aztec_backend` and `aztec_wasm_backend` are based on the TurboPlonk
+Nargo versions \<0.5.0 of `aztec_backend` and `aztec_wasm_backend` are based on the TurboPlonk
 version of Aztec Backend, which lacks efficient implementations of useful primitives (e.g. Keccak256 in 18k constraints, ECDSA verification in 36k constraints) that the UltraPlonk version offers.
 
 ## Installation
@@ -274,11 +274,4 @@ If you installed Noir with Nix or from source, you can remove the binary located
 rm ~/.nix-profile/bin/nargo
 ```
 
-[git]: https://git-scm.com/book/en/v2/Getting-Started-Installing-Git
-[rust]: https://www.rust-lang.org/tools/install
 [noir vs code extension]: https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir
-[homebrew]: https://brew.sh/
-[cmake]: https://cmake.org/install/
-[llvm]: https://llvm.org/docs/GettingStarted.html
-[openmp]: https://openmp.llvm.org/
-[barretenberg]: https://github.com/AztecProtocol/barretenberg
