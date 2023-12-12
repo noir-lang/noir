@@ -44,6 +44,7 @@ pub fn collect_defs(
 ) -> Vec<(CompilationError, FileId)> {
     let mut collector = ModCollector { def_collector, file_id, module_id };
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
+
     // First resolve the module declarations
     for decl in ast.module_decls {
         errors.extend(collector.parse_module_declaration(context, &decl, crate_id));
@@ -57,6 +58,7 @@ pub fn collect_defs(
             module_id: collector.module_id,
             path: import.path,
             alias: import.alias,
+            is_prelude: false,
         });
     }
 
