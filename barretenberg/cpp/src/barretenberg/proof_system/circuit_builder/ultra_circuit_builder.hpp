@@ -344,21 +344,21 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
             stored_state.real_variable_index = builder.real_variable_index;
             stored_state.real_variable_tags = builder.real_variable_tags;
             stored_state.constant_variable_indices = builder.constant_variable_indices;
-            stored_state.w_l = builder.w_l;
-            stored_state.w_r = builder.w_r;
-            stored_state.w_o = builder.w_o;
-            stored_state.w_4 = builder.w_4;
-            stored_state.q_m = builder.q_m;
-            stored_state.q_c = builder.q_c;
-            stored_state.q_1 = builder.q_1;
-            stored_state.q_2 = builder.q_2;
-            stored_state.q_3 = builder.q_3;
-            stored_state.q_4 = builder.q_4;
-            stored_state.q_arith = builder.q_arith;
-            stored_state.q_sort = builder.q_sort;
-            stored_state.q_elliptic = builder.q_elliptic;
-            stored_state.q_aux = builder.q_aux;
-            stored_state.q_lookup_type = builder.q_lookup_type;
+            stored_state.w_l = builder.w_l();
+            stored_state.w_r = builder.w_r();
+            stored_state.w_o = builder.w_o();
+            stored_state.w_4 = builder.w_4();
+            stored_state.q_m = builder.q_m();
+            stored_state.q_c = builder.q_c();
+            stored_state.q_1 = builder.q_1();
+            stored_state.q_2 = builder.q_2();
+            stored_state.q_3 = builder.q_3();
+            stored_state.q_4 = builder.q_4();
+            stored_state.q_arith = builder.q_arith();
+            stored_state.q_sort = builder.q_sort();
+            stored_state.q_elliptic = builder.q_elliptic();
+            stored_state.q_aux = builder.q_aux();
+            stored_state.q_lookup_type = builder.q_lookup_type();
             stored_state.current_tag = builder.current_tag;
             stored_state.tau = builder.tau;
 
@@ -443,21 +443,21 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
             builder->circuit_finalized = circuit_finalized;
             builder->num_gates = num_gates;
             builder->cached_partial_non_native_field_multiplications = cached_partial_non_native_field_multiplications;
-            builder->w_l.resize(num_gates);
-            builder->w_r.resize(num_gates);
-            builder->w_o.resize(num_gates);
-            builder->w_4.resize(num_gates);
-            builder->q_m.resize(num_gates);
-            builder->q_c.resize(num_gates);
-            builder->q_1.resize(num_gates);
-            builder->q_2.resize(num_gates);
-            builder->q_3.resize(num_gates);
-            builder->q_4.resize(num_gates);
-            builder->q_arith.resize(num_gates);
-            builder->q_sort.resize(num_gates);
-            builder->q_elliptic.resize(num_gates);
-            builder->q_aux.resize(num_gates);
-            builder->q_lookup_type.resize(num_gates);
+            builder->w_l().resize(num_gates);
+            builder->w_r().resize(num_gates);
+            builder->w_o().resize(num_gates);
+            builder->w_4().resize(num_gates);
+            builder->q_m().resize(num_gates);
+            builder->q_c().resize(num_gates);
+            builder->q_1().resize(num_gates);
+            builder->q_2().resize(num_gates);
+            builder->q_3().resize(num_gates);
+            builder->q_4().resize(num_gates);
+            builder->q_arith().resize(num_gates);
+            builder->q_sort().resize(num_gates);
+            builder->q_elliptic().resize(num_gates);
+            builder->q_aux().resize(num_gates);
+            builder->q_lookup_type().resize(num_gates);
         }
         /**
          * @brief Checks that the circuit state is the same as the stored circuit's one
@@ -489,49 +489,49 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
             if (!(constant_variable_indices == builder.constant_variable_indices)) {
                 return false;
             }
-            if (!(w_l == builder.w_l)) {
+            if (!(w_l == builder.w_l())) {
                 return false;
             }
-            if (!(w_r == builder.w_r)) {
+            if (!(w_r == builder.w_r())) {
                 return false;
             }
-            if (!(w_o == builder.w_o)) {
+            if (!(w_o == builder.w_o())) {
                 return false;
             }
-            if (!(w_4 == builder.w_4)) {
+            if (!(w_4 == builder.w_4())) {
                 return false;
             }
-            if (!(q_m == builder.q_m)) {
+            if (!(q_m == builder.q_m())) {
                 return false;
             }
-            if (!(q_c == builder.q_c)) {
+            if (!(q_c == builder.q_c())) {
                 return false;
             }
-            if (!(q_1 == builder.q_1)) {
+            if (!(q_1 == builder.q_1())) {
                 return false;
             }
-            if (!(q_2 == builder.q_2)) {
+            if (!(q_2 == builder.q_2())) {
                 return false;
             }
-            if (!(q_3 == builder.q_3)) {
+            if (!(q_3 == builder.q_3())) {
                 return false;
             }
-            if (!(q_4 == builder.q_4)) {
+            if (!(q_4 == builder.q_4())) {
                 return false;
             }
-            if (!(q_arith == builder.q_arith)) {
+            if (!(q_arith == builder.q_arith())) {
                 return false;
             }
-            if (!(q_sort == builder.q_sort)) {
+            if (!(q_sort == builder.q_sort())) {
                 return false;
             }
-            if (!(q_elliptic == builder.q_elliptic)) {
+            if (!(q_elliptic == builder.q_elliptic())) {
                 return false;
             }
-            if (!(q_aux == builder.q_aux)) {
+            if (!(q_aux == builder.q_aux())) {
                 return false;
             }
-            if (!(q_lookup_type == builder.q_lookup_type)) {
+            if (!(q_lookup_type == builder.q_lookup_type())) {
                 return false;
             }
             if (!(current_tag == builder.current_tag)) {
@@ -575,22 +575,39 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
     using WireVector = std::vector<uint32_t, ContainerSlabAllocator<uint32_t>>;
     using SelectorVector = std::vector<FF, ContainerSlabAllocator<FF>>;
 
-    WireVector& w_l = std::get<0>(wires);
-    WireVector& w_r = std::get<1>(wires);
-    WireVector& w_o = std::get<2>(wires);
-    WireVector& w_4 = std::get<3>(wires);
+    WireVector& w_l() { return std::get<0>(wires); };
+    WireVector& w_r() { return std::get<1>(wires); };
+    WireVector& w_o() { return std::get<2>(wires); };
+    WireVector& w_4() { return std::get<3>(wires); };
 
-    SelectorVector& q_m = selectors.q_m();
-    SelectorVector& q_c = selectors.q_c();
-    SelectorVector& q_1 = selectors.q_1();
-    SelectorVector& q_2 = selectors.q_2();
-    SelectorVector& q_3 = selectors.q_3();
-    SelectorVector& q_4 = selectors.q_4();
-    SelectorVector& q_arith = selectors.q_arith();
-    SelectorVector& q_sort = selectors.q_sort();
-    SelectorVector& q_elliptic = selectors.q_elliptic();
-    SelectorVector& q_aux = selectors.q_aux();
-    SelectorVector& q_lookup_type = selectors.q_lookup_type();
+    const WireVector& w_l() const { return std::get<0>(wires); };
+    const WireVector& w_r() const { return std::get<1>(wires); };
+    const WireVector& w_o() const { return std::get<2>(wires); };
+    const WireVector& w_4() const { return std::get<3>(wires); };
+
+    SelectorVector& q_m() { return selectors.q_m(); };
+    SelectorVector& q_c() { return selectors.q_c(); };
+    SelectorVector& q_1() { return selectors.q_1(); };
+    SelectorVector& q_2() { return selectors.q_2(); };
+    SelectorVector& q_3() { return selectors.q_3(); };
+    SelectorVector& q_4() { return selectors.q_4(); };
+    SelectorVector& q_arith() { return selectors.q_arith(); };
+    SelectorVector& q_sort() { return selectors.q_sort(); };
+    SelectorVector& q_elliptic() { return selectors.q_elliptic(); };
+    SelectorVector& q_aux() { return selectors.q_aux(); };
+    SelectorVector& q_lookup_type() { return selectors.q_lookup_type(); };
+
+    const SelectorVector& q_c() const { return selectors.q_c(); };
+    const SelectorVector& q_1() const { return selectors.q_1(); };
+    const SelectorVector& q_2() const { return selectors.q_2(); };
+    const SelectorVector& q_3() const { return selectors.q_3(); };
+    const SelectorVector& q_4() const { return selectors.q_4(); };
+    const SelectorVector& q_arith() const { return selectors.q_arith(); };
+    const SelectorVector& q_sort() const { return selectors.q_sort(); };
+    const SelectorVector& q_elliptic() const { return selectors.q_elliptic(); };
+    const SelectorVector& q_aux() const { return selectors.q_aux(); };
+    const SelectorVector& q_lookup_type() const { return selectors.q_lookup_type(); };
+    const SelectorVector& q_m() const { return selectors.q_m(); };
 
     // These are variables that we have used a gate on, to enforce that they are
     // equal to a defined value.
@@ -632,14 +649,14 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
         : CircuitBuilderBase<FF>(size_hint)
     {
         selectors.reserve(size_hint);
-        w_l.reserve(size_hint);
-        w_r.reserve(size_hint);
-        w_o.reserve(size_hint);
-        w_4.reserve(size_hint);
+        w_l().reserve(size_hint);
+        w_r().reserve(size_hint);
+        w_o().reserve(size_hint);
+        w_4().reserve(size_hint);
         this->zero_idx = put_constant_variable(FF::zero());
         this->tau.insert({ DUMMY_TAG, DUMMY_TAG }); // TODO(luke): explain this
     };
-    UltraCircuitBuilder_(const UltraCircuitBuilder_& other) = delete;
+    UltraCircuitBuilder_(const UltraCircuitBuilder_& other) = default;
     UltraCircuitBuilder_(UltraCircuitBuilder_&& other)
         : CircuitBuilderBase<FF>(std::move(other))
     {
@@ -657,7 +674,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
         cached_partial_non_native_field_multiplications = other.cached_partial_non_native_field_multiplications;
         circuit_finalized = other.circuit_finalized;
     };
-    UltraCircuitBuilder_& operator=(const UltraCircuitBuilder_& other) = delete;
+    UltraCircuitBuilder_& operator=(const UltraCircuitBuilder_& other) = default;
     UltraCircuitBuilder_& operator=(UltraCircuitBuilder_&& other)
     {
         CircuitBuilderBase<FF>::operator=(std::move(other));

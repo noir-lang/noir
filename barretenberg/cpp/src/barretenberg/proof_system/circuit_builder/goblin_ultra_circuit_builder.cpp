@@ -43,72 +43,72 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     }
 
     // Construct gate corresponding to a single calldata read
-    size_t read_idx = 1;                                      // index into calldata array at which we want to read
-    this->w_l.emplace_back(public_calldata[read_idx]);        // populate with value of calldata at read index
-    this->w_r.emplace_back(this->add_variable(FF(read_idx))); // populate with read index as witness
-    calldata_read_counts[read_idx]++;                         // increment read count at read index
-    q_busread().emplace_back(1);                              // read selector on
+    size_t read_idx = 1;                                        // index into calldata array at which we want to read
+    this->w_l().emplace_back(public_calldata[read_idx]);        // populate with value of calldata at read index
+    this->w_r().emplace_back(this->add_variable(FF(read_idx))); // populate with read index as witness
+    calldata_read_counts[read_idx]++;                           // increment read count at read index
+    q_busread().emplace_back(1);                                // read selector on
 
     // populate all other components with zero
-    this->w_o.emplace_back(this->zero_idx);
-    this->w_4.emplace_back(this->zero_idx);
-    this->q_m.emplace_back(0);
-    this->q_1.emplace_back(0);
-    this->q_2.emplace_back(0);
-    this->q_3.emplace_back(0);
-    this->q_c.emplace_back(0);
-    this->q_sort.emplace_back(0);
-    this->q_arith.emplace_back(0);
-    this->q_4.emplace_back(0);
-    this->q_lookup_type.emplace_back(0);
-    this->q_elliptic.emplace_back(0);
-    this->q_aux.emplace_back(0);
-    this->q_poseidon2_external.emplace_back(0);
-    this->q_poseidon2_internal.emplace_back(0);
+    this->w_o().emplace_back(this->zero_idx);
+    this->w_4().emplace_back(this->zero_idx);
+    this->q_m().emplace_back(0);
+    this->q_1().emplace_back(0);
+    this->q_2().emplace_back(0);
+    this->q_3().emplace_back(0);
+    this->q_c().emplace_back(0);
+    this->q_sort().emplace_back(0);
+    this->q_arith().emplace_back(0);
+    this->q_4().emplace_back(0);
+    this->q_lookup_type().emplace_back(0);
+    this->q_elliptic().emplace_back(0);
+    this->q_aux().emplace_back(0);
+    this->q_poseidon2_external().emplace_back(0);
+    this->q_poseidon2_internal().emplace_back(0);
 
     ++this->num_gates;
 
     // mock gates that use poseidon selectors, with all zeros as input
-    this->w_l.emplace_back(this->zero_idx);
-    this->w_r.emplace_back(this->zero_idx);
-    this->w_o.emplace_back(this->zero_idx);
-    this->w_4.emplace_back(this->zero_idx);
-    this->q_m.emplace_back(0);
-    this->q_1.emplace_back(0);
-    this->q_2.emplace_back(0);
-    this->q_3.emplace_back(0);
-    this->q_c.emplace_back(0);
-    this->q_arith.emplace_back(0);
-    this->q_4.emplace_back(0);
-    this->q_sort.emplace_back(0);
-    this->q_lookup_type.emplace_back(0);
-    this->q_elliptic.emplace_back(0);
-    this->q_aux.emplace_back(0);
+    this->w_l().emplace_back(this->zero_idx);
+    this->w_r().emplace_back(this->zero_idx);
+    this->w_o().emplace_back(this->zero_idx);
+    this->w_4().emplace_back(this->zero_idx);
+    this->q_m().emplace_back(0);
+    this->q_1().emplace_back(0);
+    this->q_2().emplace_back(0);
+    this->q_3().emplace_back(0);
+    this->q_c().emplace_back(0);
+    this->q_arith().emplace_back(0);
+    this->q_4().emplace_back(0);
+    this->q_sort().emplace_back(0);
+    this->q_lookup_type().emplace_back(0);
+    this->q_elliptic().emplace_back(0);
+    this->q_aux().emplace_back(0);
     this->q_busread().emplace_back(0);
-    this->q_poseidon2_external.emplace_back(1);
-    this->q_poseidon2_internal.emplace_back(1);
+    this->q_poseidon2_external().emplace_back(1);
+    this->q_poseidon2_internal().emplace_back(1);
 
     ++this->num_gates;
 
     // second gate that stores the output of all zeros of the poseidon gates
-    this->w_l.emplace_back(this->zero_idx);
-    this->w_r.emplace_back(this->zero_idx);
-    this->w_o.emplace_back(this->zero_idx);
-    this->w_4.emplace_back(this->zero_idx);
-    this->q_m.emplace_back(0);
-    this->q_1.emplace_back(0);
-    this->q_2.emplace_back(0);
-    this->q_3.emplace_back(0);
-    this->q_c.emplace_back(0);
-    this->q_arith.emplace_back(0);
-    this->q_4.emplace_back(0);
-    this->q_sort.emplace_back(0);
-    this->q_lookup_type.emplace_back(0);
-    this->q_elliptic.emplace_back(0);
-    this->q_aux.emplace_back(0);
+    this->w_l().emplace_back(this->zero_idx);
+    this->w_r().emplace_back(this->zero_idx);
+    this->w_o().emplace_back(this->zero_idx);
+    this->w_4().emplace_back(this->zero_idx);
+    this->q_m().emplace_back(0);
+    this->q_1().emplace_back(0);
+    this->q_2().emplace_back(0);
+    this->q_3().emplace_back(0);
+    this->q_c().emplace_back(0);
+    this->q_arith().emplace_back(0);
+    this->q_4().emplace_back(0);
+    this->q_sort().emplace_back(0);
+    this->q_lookup_type().emplace_back(0);
+    this->q_elliptic().emplace_back(0);
+    this->q_aux().emplace_back(0);
     this->q_busread().emplace_back(0);
-    this->q_poseidon2_external.emplace_back(0);
-    this->q_poseidon2_internal.emplace_back(0);
+    this->q_poseidon2_external().emplace_back(0);
+    this->q_poseidon2_internal().emplace_back(0);
 
     ++this->num_gates;
 }
@@ -233,15 +233,15 @@ ecc_op_tuple GoblinUltraCircuitBuilder_<FF>::decompose_ecc_operands(uint32_t op_
  */
 template <typename FF> void GoblinUltraCircuitBuilder_<FF>::populate_ecc_op_wires(const ecc_op_tuple& in)
 {
-    ecc_op_wire_1.emplace_back(in.op);
-    ecc_op_wire_2.emplace_back(in.x_lo);
-    ecc_op_wire_3.emplace_back(in.x_hi);
-    ecc_op_wire_4.emplace_back(in.y_lo);
+    ecc_op_wire_1().emplace_back(in.op);
+    ecc_op_wire_2().emplace_back(in.x_lo);
+    ecc_op_wire_3().emplace_back(in.x_hi);
+    ecc_op_wire_4().emplace_back(in.y_lo);
 
-    ecc_op_wire_1.emplace_back(this->zero_idx);
-    ecc_op_wire_2.emplace_back(in.y_hi);
-    ecc_op_wire_3.emplace_back(in.z_1);
-    ecc_op_wire_4.emplace_back(in.z_2);
+    ecc_op_wire_1().emplace_back(this->zero_idx);
+    ecc_op_wire_2().emplace_back(in.y_hi);
+    ecc_op_wire_3().emplace_back(in.z_1);
+    ecc_op_wire_4().emplace_back(in.z_2);
 
     num_ecc_op_gates += 2;
 };
@@ -249,48 +249,48 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::populate_ecc_op_wire
 template <typename FF>
 void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in)
 {
-    this->w_l.emplace_back(in.a);
-    this->w_r.emplace_back(in.b);
-    this->w_o.emplace_back(in.c);
-    this->w_4.emplace_back(in.d);
-    this->q_m.emplace_back(0);
-    this->q_1.emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][0]);
-    this->q_2.emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][1]);
-    this->q_3.emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][2]);
-    this->q_c.emplace_back(0);
-    this->q_arith.emplace_back(0);
-    this->q_4.emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][3]);
-    this->q_sort.emplace_back(0);
-    this->q_lookup_type.emplace_back(0);
-    this->q_elliptic.emplace_back(0);
-    this->q_aux.emplace_back(0);
+    this->w_l().emplace_back(in.a);
+    this->w_r().emplace_back(in.b);
+    this->w_o().emplace_back(in.c);
+    this->w_4().emplace_back(in.d);
+    this->q_m().emplace_back(0);
+    this->q_1().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][0]);
+    this->q_2().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][1]);
+    this->q_3().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][2]);
+    this->q_c().emplace_back(0);
+    this->q_arith().emplace_back(0);
+    this->q_4().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][3]);
+    this->q_sort().emplace_back(0);
+    this->q_lookup_type().emplace_back(0);
+    this->q_elliptic().emplace_back(0);
+    this->q_aux().emplace_back(0);
     this->q_busread().emplace_back(0);
-    this->q_poseidon2_external.emplace_back(1);
-    this->q_poseidon2_internal.emplace_back(0);
+    this->q_poseidon2_external().emplace_back(1);
+    this->q_poseidon2_internal().emplace_back(0);
     ++this->num_gates;
 }
 
 template <typename FF>
 void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_internal_gate(const poseidon2_internal_gate_<FF>& in)
 {
-    this->w_l.emplace_back(in.a);
-    this->w_r.emplace_back(in.b);
-    this->w_o.emplace_back(in.c);
-    this->w_4.emplace_back(in.d);
-    this->q_m.emplace_back(0);
-    this->q_1.emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][0]);
-    this->q_2.emplace_back(0);
-    this->q_3.emplace_back(0);
-    this->q_c.emplace_back(0);
-    this->q_arith.emplace_back(0);
-    this->q_4.emplace_back(0);
-    this->q_sort.emplace_back(0);
-    this->q_lookup_type.emplace_back(0);
-    this->q_elliptic.emplace_back(0);
-    this->q_aux.emplace_back(0);
+    this->w_l().emplace_back(in.a);
+    this->w_r().emplace_back(in.b);
+    this->w_o().emplace_back(in.c);
+    this->w_4().emplace_back(in.d);
+    this->q_m().emplace_back(0);
+    this->q_1().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][0]);
+    this->q_2().emplace_back(0);
+    this->q_3().emplace_back(0);
+    this->q_c().emplace_back(0);
+    this->q_arith().emplace_back(0);
+    this->q_4().emplace_back(0);
+    this->q_sort().emplace_back(0);
+    this->q_lookup_type().emplace_back(0);
+    this->q_elliptic().emplace_back(0);
+    this->q_aux().emplace_back(0);
     this->q_busread().emplace_back(0);
-    this->q_poseidon2_external.emplace_back(0);
-    this->q_poseidon2_internal.emplace_back(1);
+    this->q_poseidon2_external().emplace_back(0);
+    this->q_poseidon2_internal().emplace_back(1);
     ++this->num_gates;
 }
 
@@ -420,25 +420,25 @@ template <typename FF> bool GoblinUltraCircuitBuilder_<FF>::check_circuit()
         FF w_3_value;
         FF w_4_value;
         // Get the values of selectors and wires and update tag products along the way
-        q_poseidon2_external_value = this->q_poseidon2_external[i];
-        q_poseidon2_internal_value = this->q_poseidon2_internal[i];
-        q_1_value = this->q_1[i];
-        q_2_value = this->q_2[i];
-        q_3_value = this->q_3[i];
-        q_4_value = this->q_4[i];
-        w_1_value = this->get_variable(this->w_l[i]);
-        w_2_value = this->get_variable(this->w_r[i]);
-        w_3_value = this->get_variable(this->w_o[i]);
-        w_4_value = this->get_variable(this->w_4[i]);
+        q_poseidon2_external_value = this->q_poseidon2_external()[i];
+        q_poseidon2_internal_value = this->q_poseidon2_internal()[i];
+        q_1_value = this->q_1()[i];
+        q_2_value = this->q_2()[i];
+        q_3_value = this->q_3()[i];
+        q_4_value = this->q_4()[i];
+        w_1_value = this->get_variable(this->w_l()[i]);
+        w_2_value = this->get_variable(this->w_r()[i]);
+        w_3_value = this->get_variable(this->w_o()[i]);
+        w_4_value = this->get_variable(this->w_4()[i]);
         FF w_1_shifted_value;
         FF w_2_shifted_value;
         FF w_3_shifted_value;
         FF w_4_shifted_value;
         if (i < (this->num_gates - 1)) {
-            w_1_shifted_value = this->get_variable(this->w_l[i + 1]);
-            w_2_shifted_value = this->get_variable(this->w_r[i + 1]);
-            w_3_shifted_value = this->get_variable(this->w_o[i + 1]);
-            w_4_shifted_value = this->get_variable(this->w_4[i + 1]);
+            w_1_shifted_value = this->get_variable(this->w_l()[i + 1]);
+            w_2_shifted_value = this->get_variable(this->w_r()[i + 1]);
+            w_3_shifted_value = this->get_variable(this->w_o()[i + 1]);
+            w_4_shifted_value = this->get_variable(this->w_4()[i + 1]);
         } else {
             w_1_shifted_value = FF::zero();
             w_2_shifted_value = FF::zero();

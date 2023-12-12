@@ -15,20 +15,20 @@ namespace proof_system {
  * Create an addition gate.
  *
  * @param in An add_triple containing the indexes of variables to be placed into the
- * wires w_l, w_r, w_o and addition coefficients to be placed into q_1, q_2, q_3, q_c.
+ * wires w_l, w_r, w_o and addition coefficients to be placed into q_1, q_2, q_3, q_c().
  */
 template <typename FF> void StandardCircuitBuilder_<FF>::create_add_gate(const add_triple_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
-    w_l.emplace_back(in.a);
-    w_r.emplace_back(in.b);
-    w_o.emplace_back(in.c);
-    q_m.emplace_back(FF::zero());
-    q_1.emplace_back(in.a_scaling);
-    q_2.emplace_back(in.b_scaling);
-    q_3.emplace_back(in.c_scaling);
-    q_c.emplace_back(in.const_scaling);
+    w_l().emplace_back(in.a);
+    w_r().emplace_back(in.b);
+    w_o().emplace_back(in.c);
+    q_m().emplace_back(FF::zero());
+    q_1().emplace_back(in.a_scaling);
+    q_2().emplace_back(in.b_scaling);
+    q_3().emplace_back(in.c_scaling);
+    q_c().emplace_back(in.const_scaling);
 
     ++this->num_gates;
 }
@@ -72,25 +72,25 @@ template <typename FF> void StandardCircuitBuilder_<FF>::create_balanced_add_gat
     FF temp = t0 + t1;
     uint32_t temp_idx = this->add_variable(temp);
 
-    w_l.emplace_back(in.a);
-    w_r.emplace_back(in.b);
-    w_o.emplace_back(temp_idx);
-    q_m.emplace_back(FF::zero());
-    q_1.emplace_back(in.a_scaling);
-    q_2.emplace_back(in.b_scaling);
-    q_3.emplace_back(FF::neg_one());
-    q_c.emplace_back(FF::zero());
+    w_l().emplace_back(in.a);
+    w_r().emplace_back(in.b);
+    w_o().emplace_back(temp_idx);
+    q_m().emplace_back(FF::zero());
+    q_1().emplace_back(in.a_scaling);
+    q_2().emplace_back(in.b_scaling);
+    q_3().emplace_back(FF::neg_one());
+    q_c().emplace_back(FF::zero());
 
     ++this->num_gates;
 
-    w_l.emplace_back(temp_idx);
-    w_r.emplace_back(in.c);
-    w_o.emplace_back(in.d);
-    q_m.emplace_back(FF::zero());
-    q_1.emplace_back(FF::one());
-    q_2.emplace_back(in.c_scaling);
-    q_3.emplace_back(in.d_scaling);
-    q_c.emplace_back(in.const_scaling);
+    w_l().emplace_back(temp_idx);
+    w_r().emplace_back(in.c);
+    w_o().emplace_back(in.d);
+    q_m().emplace_back(FF::zero());
+    q_1().emplace_back(FF::one());
+    q_2().emplace_back(in.c_scaling);
+    q_3().emplace_back(in.d_scaling);
+    q_c().emplace_back(in.const_scaling);
 
     ++this->num_gates;
 
@@ -98,26 +98,26 @@ template <typename FF> void StandardCircuitBuilder_<FF>::create_balanced_add_gat
     // i.e. in.d * (in.d - 1) * (in.d - 2) = 0
     FF temp_2 = this->get_variable(in.d).sqr() - this->get_variable(in.d);
     uint32_t temp_2_idx = this->add_variable(temp_2);
-    w_l.emplace_back(in.d);
-    w_r.emplace_back(in.d);
-    w_o.emplace_back(temp_2_idx);
-    q_m.emplace_back(FF::one());
-    q_1.emplace_back(FF::neg_one());
-    q_2.emplace_back(FF::zero());
-    q_3.emplace_back(FF::neg_one());
-    q_c.emplace_back(FF::zero());
+    w_l().emplace_back(in.d);
+    w_r().emplace_back(in.d);
+    w_o().emplace_back(temp_2_idx);
+    q_m().emplace_back(FF::one());
+    q_1().emplace_back(FF::neg_one());
+    q_2().emplace_back(FF::zero());
+    q_3().emplace_back(FF::neg_one());
+    q_c().emplace_back(FF::zero());
 
     ++this->num_gates;
 
     constexpr FF neg_two = -FF(2);
-    w_l.emplace_back(temp_2_idx);
-    w_r.emplace_back(in.d);
-    w_o.emplace_back(this->zero_idx);
-    q_m.emplace_back(FF::one());
-    q_1.emplace_back(neg_two);
-    q_2.emplace_back(FF::zero());
-    q_3.emplace_back(FF::zero());
-    q_c.emplace_back(FF::zero());
+    w_l().emplace_back(temp_2_idx);
+    w_r().emplace_back(in.d);
+    w_o().emplace_back(this->zero_idx);
+    q_m().emplace_back(FF::one());
+    q_1().emplace_back(neg_two);
+    q_2().emplace_back(FF::zero());
+    q_3().emplace_back(FF::zero());
+    q_c().emplace_back(FF::zero());
 
     ++this->num_gates;
 }
@@ -181,20 +181,20 @@ template <typename FF> void StandardCircuitBuilder_<FF>::create_big_mul_gate(con
  * Create a multiplication gate.
  *
  * @param in A mul_tripple containing the indexes of variables to be placed into the
- * wires w_l, w_r, w_o and scaling coefficients to be placed into q_m, q_3, q_c.
+ * wires w_l, w_r, w_o and scaling coefficients to be placed into q_m, q_3, q_c().
  */
 template <typename FF> void StandardCircuitBuilder_<FF>::create_mul_gate(const mul_triple_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
-    w_l.emplace_back(in.a);
-    w_r.emplace_back(in.b);
-    w_o.emplace_back(in.c);
-    q_m.emplace_back(in.mul_scaling);
-    q_1.emplace_back(FF::zero());
-    q_2.emplace_back(FF::zero());
-    q_3.emplace_back(in.c_scaling);
-    q_c.emplace_back(in.const_scaling);
+    w_l().emplace_back(in.a);
+    w_r().emplace_back(in.b);
+    w_o().emplace_back(in.c);
+    q_m().emplace_back(in.mul_scaling);
+    q_1().emplace_back(FF::zero());
+    q_2().emplace_back(FF::zero());
+    q_3().emplace_back(in.c_scaling);
+    q_c().emplace_back(in.const_scaling);
 
     ++this->num_gates;
 }
@@ -209,15 +209,15 @@ template <typename FF> void StandardCircuitBuilder_<FF>::create_bool_gate(const 
 {
     this->assert_valid_variables({ variable_index });
 
-    w_l.emplace_back(variable_index);
-    w_r.emplace_back(variable_index);
-    w_o.emplace_back(variable_index);
+    w_l().emplace_back(variable_index);
+    w_r().emplace_back(variable_index);
+    w_o().emplace_back(variable_index);
 
-    q_m.emplace_back(FF::one());
-    q_1.emplace_back(FF::zero());
-    q_2.emplace_back(FF::zero());
-    q_3.emplace_back(FF::neg_one());
-    q_c.emplace_back(FF::zero());
+    q_m().emplace_back(FF::one());
+    q_1().emplace_back(FF::zero());
+    q_2().emplace_back(FF::zero());
+    q_3().emplace_back(FF::neg_one());
+    q_c().emplace_back(FF::zero());
 
     ++this->num_gates;
 }
@@ -231,14 +231,14 @@ template <typename FF> void StandardCircuitBuilder_<FF>::create_poly_gate(const 
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
-    w_l.emplace_back(in.a);
-    w_r.emplace_back(in.b);
-    w_o.emplace_back(in.c);
-    q_m.emplace_back(in.q_m);
-    q_1.emplace_back(in.q_l);
-    q_2.emplace_back(in.q_r);
-    q_3.emplace_back(in.q_o);
-    q_c.emplace_back(in.q_c);
+    w_l().emplace_back(in.a);
+    w_r().emplace_back(in.b);
+    w_o().emplace_back(in.c);
+    q_m().emplace_back(in.q_m);
+    q_1().emplace_back(in.q_l);
+    q_2().emplace_back(in.q_r);
+    q_3().emplace_back(in.q_o);
+    q_c().emplace_back(in.q_c);
 
     ++this->num_gates;
 }
@@ -435,14 +435,14 @@ void StandardCircuitBuilder_<FF>::fix_witness(const uint32_t witness_index, cons
 {
     this->assert_valid_variables({ witness_index });
 
-    w_l.emplace_back(witness_index);
-    w_r.emplace_back(this->zero_idx);
-    w_o.emplace_back(this->zero_idx);
-    q_m.emplace_back(FF::zero());
-    q_1.emplace_back(FF::one());
-    q_2.emplace_back(FF::zero());
-    q_3.emplace_back(FF::zero());
-    q_c.emplace_back(-witness_value);
+    w_l().emplace_back(witness_index);
+    w_r().emplace_back(this->zero_idx);
+    w_o().emplace_back(this->zero_idx);
+    q_m().emplace_back(FF::zero());
+    q_1().emplace_back(FF::one());
+    q_2().emplace_back(FF::zero());
+    q_3().emplace_back(FF::zero());
+    q_c().emplace_back(-witness_value);
     ++this->num_gates;
 }
 
@@ -499,10 +499,10 @@ template <typename FF> bool StandardCircuitBuilder_<FF>::check_circuit()
     for (size_t i = 0; i < this->num_gates; i++) {
 
         gate_sum = FF::zero();
-        left = this->get_variable(w_l[i]);
-        right = this->get_variable(w_r[i]);
-        output = this->get_variable(w_o[i]);
-        gate_sum = q_m[i] * left * right + q_1[i] * left + q_2[i] * right + q_3[i] * output + q_c[i];
+        left = this->get_variable(w_l()[i]);
+        right = this->get_variable(w_r()[i]);
+        output = this->get_variable(w_o()[i]);
+        gate_sum = q_m()[i] * left * right + q_1()[i] * left + q_2()[i] * right + q_3()[i] * output + q_c()[i];
         if (!gate_sum.is_zero()) {
             info("gate number", i);
             return false;
@@ -543,11 +543,11 @@ template <typename FF> msgpack::sbuffer StandardCircuitBuilder_<FF>::export_circ
     }
 
     for (size_t i = 0; i < this->num_gates; i++) {
-        std::vector<FF> tmp_sel = { q_m[i], q_1[i], q_2[i], q_3[i], q_c[i] };
+        std::vector<FF> tmp_sel = { q_m()[i], q_1()[i], q_2()[i], q_3()[i], q_c()[i] };
         std::vector<uint32_t> tmp_w = {
-            this->real_variable_index[w_l[i]],
-            this->real_variable_index[w_r[i]],
-            this->real_variable_index[w_o[i]],
+            this->real_variable_index[w_l()[i]],
+            this->real_variable_index[w_r()[i]],
+            this->real_variable_index[w_o()[i]],
         };
         cir.selectors.push_back(tmp_sel);
         cir.wires.push_back(tmp_w);

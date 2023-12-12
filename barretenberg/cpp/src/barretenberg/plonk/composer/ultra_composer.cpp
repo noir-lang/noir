@@ -43,10 +43,10 @@ void UltraComposer::compute_witness(CircuitBuilder& circuit_constructor)
     // Note: the remaining NUM_RESERVED_GATES indices are padded with zeros within `compute_witness_base` (called
     // next).
     for (size_t i = filled_gates; i < total_num_gates; ++i) {
-        circuit_constructor.w_l.emplace_back(circuit_constructor.zero_idx);
-        circuit_constructor.w_r.emplace_back(circuit_constructor.zero_idx);
-        circuit_constructor.w_o.emplace_back(circuit_constructor.zero_idx);
-        circuit_constructor.w_4.emplace_back(circuit_constructor.zero_idx);
+        circuit_constructor.w_l().emplace_back(circuit_constructor.zero_idx);
+        circuit_constructor.w_r().emplace_back(circuit_constructor.zero_idx);
+        circuit_constructor.w_o().emplace_back(circuit_constructor.zero_idx);
+        circuit_constructor.w_4().emplace_back(circuit_constructor.zero_idx);
     }
 
     auto wire_polynomial_evaluations = construct_wire_polynomials_base<Flavor>(circuit_constructor, subgroup_size);
