@@ -1,4 +1,3 @@
-use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::str::FromStr;
@@ -73,22 +72,24 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     }
 
     /// Builds a map from FileId to an ordered vector of tuples with line
-    /// numbers and opcode locations correspoding to those line numbers
+    /// numbers and opcode locations corresponding to those line numbers
     fn build_source_to_opcode_debug_mappings(
         debug_artifact: &'a DebugArtifact,
     ) -> BTreeMap<FileId, Vec<(usize, OpcodeLocation)>> {
-        let mut result = BTreeMap::new();
         if debug_artifact.debug_symbols.is_empty() {
-            return result;
+            return BTreeMap::new();
         }
         let locations = &debug_artifact.debug_symbols[0].locations;
-        let mut simple_files = BTreeMap::new();
-        debug_artifact.file_map.iter().for_each(|(file_id, debug_file)| {
-            simple_files.insert(
-                file_id,
-                SimpleFile::new(debug_file.path.to_str().unwrap(), debug_file.source.as_str()),
-            );
-        });
+        let simple_files: BTreeMap<_, _> = debug_artifact
+            .file_map
+            .iter()
+            .map(|(file_id, debug_file)| {
+                (
+                    file_id,
+                    SimpleFile::new(debug_file.path.to_str().unwrap(), debug_file.source.as_str()),
+                )
+            })
+            .collect();
 
         locations.iter().for_each(|(opcode_location, source_locations)| {
             if source_locations.is_empty() {
@@ -102,11 +103,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             };
             let line_number = line_index + 1;
 
-            if let Entry::Vacant(e) = result.entry(file_id) {
-                e.insert(vec![(line_number, *opcode_location)]);
-            } else {
-                result.get_mut(&file_id).unwrap().push((line_number, *opcode_location));
-            }
+            result.entry(file_id).or_default().push((line_number, *opcode_location));
         });
         result.iter_mut().for_each(|(_, file_locations)| file_locations.sort_by_key(|x| x.0));
         result
@@ -555,9 +552,9 @@ pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver>(
     initial_witness: WitnessMap,
 ) -> Result<(), ServerError> {
     let debug_artifact = DebugArtifact {
-        debug_symbols: vec![program.debug.clone()],
-        file_map: program.file_map.clone(),
-        warnings: program.warnings.clone(),
+        debug_symbols: vec![program.debug],
+        file_map: program.file_map,
+        warnings: program.warnings,
     };
     let mut session =
         DapSession::new(server, solver, &program.circuit, &debug_artifact, initial_witness);

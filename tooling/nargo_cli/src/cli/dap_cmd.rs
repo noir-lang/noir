@@ -55,36 +55,30 @@ fn load_and_compile_project(
     package: Option<&str>,
     prover_name: &str,
 ) -> Result<(CompiledProgram, WitnessMap), LoadError> {
-    let Some(workspace) = find_workspace(project_folder, package) else {
-        return Err(LoadError("Cannot open workspace"));
-    };
-    let Ok((np_language, opcode_support)) = backend.get_backend_info() else {
-        return Err(LoadError("Failed to get backend info"));
-    };
-    let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
-        return Err(LoadError("No matching binary packages found in workspace"));
-    };
+    let workspace =
+        find_workspace(project_folder, package).ok_or(LoadError("Cannot open workspace"))?;
+    let (np_language, opcode_support) =
+        backend.get_backend_info().map_err(|_| LoadError("Failed to get backend info"))?;
+    let package = workspace.into_iter().find(|p| p.is_binary()).ok_or(LoadError("No matching binary packages found in workspace"))?;
 
-    let Ok(compiled_program) = compile_bin_package(
+    let compiled_program = compile_bin_package(
         &workspace,
         package,
         &CompileOptions::default(),
         np_language,
         &opcode_support,
-    ) else {
-        return Err(LoadError("Failed to compile project"));
-    };
-    let Ok((inputs_map, _)) = read_inputs_from_file(
+    ).map_err(|_| LoadError("Failed to compile project"));
+    
+    let (inputs_map, _) = read_inputs_from_file(
         &package.root_dir,
         prover_name,
         Format::Toml,
         &compiled_program.abi,
-    ) else {
-        return Err(LoadError("Failed to read program inputs"));
-    };
-    let Ok(initial_witness) = compiled_program.abi.encode(&inputs_map, None) else {
-        return Err(LoadError("Failed to encode inputs"));
-    };
+    ).map_err(|_| LoadError("Failed to read program inputs"))?;
+    let initial_witness = compiled_program
+        .abi
+        .encode(&inputs_map, None)
+        .map_err(|_| LoadError("Failed to encode inputs"))?;
 
     Ok((compiled_program, initial_witness))
 }
