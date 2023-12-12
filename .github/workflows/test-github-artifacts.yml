@@ -25,8 +25,8 @@ jobs:
           TAGS="${IMAGE}:${{ github.sha }}"
           TAGS="${TAGS},${IMAGE}:latest,${IMAGE}:v${{ steps.date.outputs.date }}"
           # echo ::set-output name=tags::${TAGS}
-          echo "{tags}={${TAGS}}" >> $GITHUB_OUTPUT
-          echo "{image}={${IMAGE}}" >> $GITHUB_OUTPUT
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v3
