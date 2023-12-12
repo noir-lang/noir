@@ -122,7 +122,7 @@ mod initialization {
     async fn test_on_initialize() {
         let client = ClientSocket::new_closed();
         let solver = MockBackend;
-        let mut state = LspState::new(&client, solver, false);
+        let mut state = LspState::new(&client, solver);
         let params = InitializeParams::default();
         let response = on_initialize(&mut state, params).await.unwrap();
         assert!(matches!(

@@ -157,7 +157,7 @@ pub fn compile(
 
     process_dependency_graph(&mut context, dependency_graph);
 
-    let compile_options = CompileOptions { aztec_macro: enable_aztec_macro, ..Default::default() };
+    let compile_options = CompileOptions { ..Default::default() };
 
     // For now we default to plonk width = 3, though we can add it as a parameter
     let np_language = acvm::Language::PLONKCSat { width: 3 };

@@ -62,7 +62,6 @@ fn check_package(package: &Package, compile_options: &CompileOptions) -> Result<
         crate_id,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
-        compile_options.aztec_macro,
     )?;
 
     if package.is_library() || package.is_contract() {
@@ -184,9 +183,8 @@ pub(crate) fn check_crate_and_report_errors(
     crate_id: CrateId,
     deny_warnings: bool,
     silence_warnings: bool,
-    enable_aztec_macro: bool,
 ) -> Result<(), CompileError> {
-    let result = check_crate(context, crate_id, deny_warnings, enable_aztec_macro);
+    let result = check_crate(context, crate_id, deny_warnings);
     super::compile_cmd::report_errors(
         result,
         &context.file_manager,

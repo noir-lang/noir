@@ -52,7 +52,7 @@ fn on_test_run_request_inner(
     match workspace.into_iter().next() {
         Some(package) => {
             let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
-            if check_crate(&mut context, crate_id, false, state.enable_aztec_macro).is_err() {
+            if check_crate(&mut context, crate_id, false).is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),
                     result: "error".to_string(),

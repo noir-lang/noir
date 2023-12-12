@@ -56,7 +56,7 @@ fn on_tests_request_inner(
             let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
             // We ignore the warnings and errors produced by compilation for producing tests
             // because we can still get the test functions even if compilation fails
-            let _ = check_crate(&mut context, crate_id, false, state.enable_aztec_macro);
+            let _ = check_crate(&mut context, crate_id, false);
 
             // We don't add test headings for a package if it contains no `#[test]` functions
             get_package_tests_in_crate(&context, &crate_id, &package.name)
