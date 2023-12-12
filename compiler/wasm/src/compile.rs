@@ -156,7 +156,7 @@ pub fn compile(
 
     process_dependency_graph(&mut context, dependency_graph);
 
-    let compile_options = CompileOptions { ..Default::default() };
+    let compile_options = CompileOptions::default();
 
     // For now we default to plonk width = 3, though we can add it as a parameter
     let np_language = acvm::Language::PLONKCSat { width: 3 };

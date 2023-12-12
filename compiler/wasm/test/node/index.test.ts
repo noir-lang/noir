@@ -21,7 +21,7 @@ async function getPrecompiledSource(path: string): Promise<any> {
 describe('noir wasm compilation', () => {
   describe('can compile simple scripts', () => {
     it('matching nargos compilation', async () => {
-      const wasmCircuit = await compile(join(__dirname, simpleScriptSourcePath), undefined, undefined, false);
+      const wasmCircuit = await compile(join(__dirname, simpleScriptSourcePath));
       const cliCircuit = await getPrecompiledSource(simpleScriptExpectedArtifact);
 
       if (!('program' in wasmCircuit)) {
@@ -56,17 +56,12 @@ describe('noir wasm compilation', () => {
     });
 
     it('matching nargos compilation', async () => {
-      const wasmCircuit = await compile(
-        '/script/main.nr',
-        false,
-        {
-          root_dependencies: ['lib_a'],
-          library_dependencies: {
-            lib_a: ['lib_b'],
-          },
+      const wasmCircuit = await compile('/script/main.nr', false, {
+        root_dependencies: ['lib_a'],
+        library_dependencies: {
+          lib_a: ['lib_b'],
         },
-        false,
-      );
+      });
 
       const cliCircuit = await getPrecompiledSource(depsScriptExpectedArtifact);
 
