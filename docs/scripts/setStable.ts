@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 
 const IGNORE_VERSIONS = ['0.16.0'];
-const NUMBER_OF_VERSIONS_TO_SHOW = 4;
+const NUMBER_OF_VERSIONS_TO_SHOW = 3;
 
 async function main() {
   const versionsFile = path.resolve('../versions.json');
@@ -17,22 +18,29 @@ async function main() {
 
   const { data } = await axios.get('https://api.github.com/repos/noir-lang/noir/releases', axiosOpts);
 
-  const all = data.map((release) => release.tag_name);
-  console.log('All versions: ', all);
-  const aztecs = data.filter((release) => release.tag_name.includes('aztec')).map((release) => release.tag_name);
-  console.log('Removing aztecs: ', aztecs);
-  const prereleases = data.filter((release) => !release.prerelease).map((release) => release.tag_name);
-  console.log('Removing prereleases: ', prereleases);
-
   const stables = data
-    .filter((release) => !release.prerelease && !release.tag_name.includes('aztec'))
+    .filter(
+      (release) => !release.prerelease && !release.tag_name.includes('aztec') && !release.tag_name.includes('aztec'),
+    )
     .filter((release) => !IGNORE_VERSIONS.includes(release.tag_name.replace('v', '')))
     .map((release) => release.tag_name)
     .slice(0, NUMBER_OF_VERSIONS_TO_SHOW);
 
-  console.log('Stables: ', stables);
+  console.log('Filtered down to stables: ', stables);
 
-  fs.writeFileSync(versionsFile, JSON.stringify(stables, null, 2));
+  const onlyLatestPatches = [];
+  const minorsSet = new Set(stables.map((el) => el.split('.')[1]));
+  for (const minor of minorsSet) {
+    const minorVersions = stables.filter((el) => el.split('.')[1] === minor);
+    const max = minorVersions.reduce((prev, current) => {
+      return prev > current ? prev : current;
+    });
+    onlyLatestPatches.push(max);
+  }
+
+  console.log('Only latest patches: ', onlyLatestPatches);
+
+  fs.writeFileSync(versionsFile, JSON.stringify(onlyLatestPatches, null, 2));
 }
 
 main();
