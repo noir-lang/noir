@@ -36,6 +36,11 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # - name: test-cache
+      #   uses: actions/cache/restore@v3
+      #   with:
+      #     key: cache-${{ hashFiles('**/lockfiles') }}
+      #     path: /dist
       - name: Test cargo
         uses: docker/build-push-action@v5
         with:
@@ -49,17 +54,17 @@ jobs:
       - name: run image
         run: |
           id=$(docker create ${{ steps.prep.outputs.image }}:latest)
-          sudo docker cp $id:/usr/src/noir/target /dist
+          sudo docker cp $id:/usr/src/noir/target /target
           sudo docker cp $id:/usr/local/cargo /cargo
           sudo docker rm -v $id
       - name: tar
         run: |
-          sudo tar -czvf /dist.tar.gz /dist
-          sudo tar -czvf /cargo.tar.gz /cargo
+          sudo mkdir /dist
+          sudo tar -czvf /target.tar.gz /dist/target
+          sudo tar -czvf /cargo.tar.gz /dist/cargo
+          mkdir 
       - name: test-cache
         uses: actions/cache/save@v3
         with:
-          path: |
-            /dist.tar.gz
-            /cargo.tar.gz
-          key: ${{ runner.os }}-docker-artifact-cache
+          path: /dist
+          key: ${{ runner.os }}-noir-base-docker-artifact-cache
