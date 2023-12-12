@@ -33,7 +33,7 @@ function title() {
   if [ "$(uname -s)" == "Darwin" ]; then
     echo -e "${y}WARNING: For best performance we recommend adjusting your default docker settings:"
     echo -e     "         - Under general, enable VirtioFS."
-    echo -e     "         - Under resources, set CPUs to ~80-100% your maximum."
+    echo -e     "         - Under resources, set CPUs to ~80% your maximum."
     echo -e     "         - Under resources, set Memory to ~80% your maximum."
     echo -e     "You may receive a warning about your home directory being mounted into a container."
     echo -e     "This is requested so we can read and write project files, that is all."
@@ -100,6 +100,8 @@ function pull_container {
   fi
 }
 
+export DOCKER_CLI_HINTS=false
+
 if [ -z "${SKIP_PULL:-}" ]; then
   info "Pulling aztec version $VERSION..."
   pull_container aztec-sandbox
@@ -149,7 +151,7 @@ function update_path_env_var {
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
       # Add the target directory to the user's PATH in their profile.
-      echo "export PATH=\$PATH:$TARGET_DIR" >> "$SHELL_PROFILE"
+      echo "export PATH=\"\$PATH:$TARGET_DIR\"" >> "$SHELL_PROFILE"
       info "Done! Starting fresh shell..."
       $SHELL
     else

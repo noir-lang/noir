@@ -13,7 +13,7 @@ VERSION=${VERSION:-"latest"}
 DOCKER_HOST_BINDS=""
 
 # Volumes to pass to the container.
-DOCKER_VOLUME="-v $HOME:/root"
+DOCKER_VOLUME="-v $HOME:$HOME"
 
 # Colors.
 y="\033[33m"
@@ -35,7 +35,7 @@ fi
 
 # Set up host.docker.internal alias on Linux, just like it is on mac.
 UNAME=$(uname -s)
-if [ "$UNAME" == "Linux" ]; then
+if [[ -z "${SKIP_NET:-}" && "$UNAME" == "Linux" ]]; then
   if docker info 2>/dev/null | grep -q rootless; then
     # We're in rootless docker. Probe for the host ip and use that.
     ip=$(hostname -I | head | tr -d ' ')
@@ -58,7 +58,7 @@ done
 # If so, warn and exit.
 for i in "${!args[@]}"; do
     arg=${args[$i]}
-    if [[ -f "$arg" || -d "$arg" && $(realpath $arg) != ${HOME}* ]]; then
+    if [[ -f "$arg" || -d "$arg" ]] && [[ $(realpath $arg) != ${HOME}* ]]; then
       warn "Due to how we containerize our applications, paths outside of $HOME cannot be referenced."
       exit 1
     fi
@@ -77,7 +77,7 @@ DOCKER_VOLUME="$DOCKER_VOLUME -v cache:/cache"
 docker run \
   -ti \
   --rm \
-  --workdir "${PWD/$HOME/\/root}" \
+  --workdir "$PWD" \
   $DOCKER_HOST_BINDS \
   $DOCKER_ENV \
   $DOCKER_VOLUME \
