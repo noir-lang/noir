@@ -3,7 +3,8 @@ name: Test cargo
 on:
   push:
     branches:
-      - 'master'
+      # - 'master'
+      - 'cache-docker-artifacts'
 
 jobs:
   build:
@@ -42,3 +43,19 @@ jobs:
           target: test-cargo
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Copy artifact from from container
+        uses: shrink/actions-docker-extract@v3
+        with:
+          image: ${{ steps.prep.outputs.tags }}
+          path: /usr/src/noir/target
+          destination: /dist
+      - name: Copy .cargo from container
+        uses: shrink/actions-docker-extract@v3
+        with:
+          image: ${{ steps.prep.outputs.tags }}
+          path: /usr/local/cargo/
+          destination: /cargo
+      - name: test-dist
+        run: tar -czvf /dist /dist.tar
+      - name: test-cargo
+        run: tar -czvf /cargo /cargo.tar
