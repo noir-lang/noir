@@ -1,13 +1,14 @@
-name: Test cargo
+name: Test github artifacts
 
 on:
   push:
     branches:
-      - 'master'
+      # - 'master'
+      - 'cache-docker-artifacts'
 
 jobs:
   build:
-    name: Test cargo
+    name: Test github artifacts
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -39,6 +40,29 @@ jobs:
           context: .
           file: Dockerfile.ci
           tags: ${{ steps.prep.outputs.tags }}
-          target: test-cargo
+          target: test-base
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Copy artifact from from container
+        uses: shrink/actions-docker-extract@v3
+        with:
+          image: ${{ steps.prep.outputs.tags }}
+          path: /usr/src/noir/target
+          destination: /dist
+      - name: Copy .cargo from container
+        uses: shrink/actions-docker-extract@v3
+        with:
+          image: ${{ steps.prep.outputs.tags }}
+          path: /usr/local/cargo/
+          destination: /cargo
+      - name: test-dist
+        run: tar -czvf /dist /dist.tar
+      - name: test-cargo
+        run: tar -czvf /cargo /cargo.tar
+      - name: test-cache
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            /dist.tar
+            /cargo.tar
+          key: ${{ runner.os }}-docker-artifact-cache
