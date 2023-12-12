@@ -159,4 +159,10 @@ export interface DBOracle extends CommitmentsDB {
    * @returns - The block corresponding to the given block number. Undefined if it does not exist.
    */
   getBlock(blockNumber: number): Promise<L2Block | undefined>;
+
+  /**
+   * Fetches the current block number.
+   * @returns The block number.
+   */
+  getBlockNumber(): Promise<number>;
 }

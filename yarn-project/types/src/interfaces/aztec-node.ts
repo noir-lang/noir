@@ -39,12 +39,6 @@ export interface AztecNode extends StateInfoProvider {
   getBlocks(from: number, limit: number): Promise<L2Block[]>;
 
   /**
-   * Fetches the current block number.
-   * @returns The block number.
-   */
-  getBlockNumber(): Promise<number>;
-
-  /**
    * Method to fetch the version of the rollup the node is connected to.
    * @returns The rollup version.
    */

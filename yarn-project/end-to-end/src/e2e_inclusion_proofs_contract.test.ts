@@ -19,12 +19,15 @@ describe('e2e_inclusion_proofs_contract', () => {
   let accounts: CompleteAddress[];
 
   let contract: InclusionProofsContract;
+  let deploymentBlockNumber: number;
   const publicValue = 236n;
 
   beforeAll(async () => {
     ({ pxe, teardown, wallets, accounts } = await setup(1));
 
-    contract = await InclusionProofsContract.deploy(wallets[0], publicValue).send().deployed();
+    const receipt = await InclusionProofsContract.deploy(wallets[0], publicValue).send().wait();
+    contract = receipt.contract;
+    deploymentBlockNumber = receipt.blockNumber!;
   }, 100_000);
 
   afterAll(() => teardown());
@@ -32,11 +35,15 @@ describe('e2e_inclusion_proofs_contract', () => {
   it('proves note existence and its nullifier non-existence and nullifier non-existence failure case', async () => {
     // Owner of a note
     const owner = accounts[0].address;
+    let noteCreationBlockNumber: number;
     {
       // Create a note
       const value = 100n;
       const receipt = await contract.methods.create_note(owner, value).send().wait({ debug: true });
+
+      noteCreationBlockNumber = receipt.blockNumber!;
       const { newCommitments, visibleNotes } = receipt.debugInfo!;
+
       expect(newCommitments.length).toBe(1);
       expect(visibleNotes.length).toBe(1);
       const [receivedValue, receivedOwner, _randomness] = visibleNotes[0].note.items;
@@ -46,17 +53,14 @@ describe('e2e_inclusion_proofs_contract', () => {
 
     {
       // Prove note inclusion in a given block.
-      // TODO: Use here note block number from the creation note tx to test archival node. This is currently not
-      // possible because of issue #3564
-      const blockNumber = await pxe.getBlockNumber();
       const ignoredCommitment = 0; // Not ignored only when the note doesn't exist
-      await contract.methods.proveNoteInclusion(owner, blockNumber, ignoredCommitment).send().wait();
+      await contract.methods.proveNoteInclusion(owner, noteCreationBlockNumber, ignoredCommitment).send().wait();
     }
 
     {
       // Prove that the note has not been nullified
-      // TODO: Use here note block number from the creation note tx to test archival node. This is currently not
-      // possible because of issue #3564
+      // TODO(#3535): Prove the nullifier non-inclusion at older block to test archival node. This is currently not
+      // possible because of issue https://github.com/AztecProtocol/aztec-packages/issues/3535
       const blockNumber = await pxe.getBlockNumber();
       const ignoredNullifier = 0; // Not ignored only when the note doesn't exist
       await contract.methods.proveNullifierNonInclusion(owner, blockNumber, ignoredNullifier).send().wait();
@@ -93,12 +97,16 @@ describe('e2e_inclusion_proofs_contract', () => {
   });
 
   it('proves an existence of a public value in private context', async () => {
-    const blockNumber = await pxe.getBlockNumber();
+    // Chose random block number between deployment and current block number to test archival node
+    const blockNumber = await getRandomBlockNumberSinceDeployment();
+
     await contract.methods.provePublicValueInclusion(publicValue, blockNumber).send().wait();
   });
 
   it('public value existence failure case', async () => {
-    const blockNumber = await pxe.getBlockNumber();
+    // Chose random block number between deployment and current block number to test archival node
+    const blockNumber = await getRandomBlockNumberSinceDeployment();
+
     const randomPublicValue = Fr.random();
     await expect(
       contract.methods.provePublicValueInclusion(randomPublicValue, blockNumber).send().wait(),
@@ -106,6 +114,8 @@ describe('e2e_inclusion_proofs_contract', () => {
   });
 
   it('proves existence of a nullifier in private context', async () => {
+    // TODO(#3535): Test this at "random" block to test archival node. This is currently not possible because of
+    // issue https://github.com/AztecProtocol/aztec-packages/issues/3535
     const blockNumber = await pxe.getBlockNumber();
     const block = await pxe.getBlock(blockNumber);
     const nullifier = block?.newNullifiers[0];
@@ -114,6 +124,8 @@ describe('e2e_inclusion_proofs_contract', () => {
   });
 
   it('nullifier existence failure case', async () => {
+    // TODO(#3535): Test this at "random" block to test archival node. This is currently not possible because of
+    // issue https://github.com/AztecProtocol/aztec-packages/issues/3535
     const blockNumber = await pxe.getBlockNumber();
     const randomNullifier = Fr.random();
 
@@ -121,4 +133,9 @@ describe('e2e_inclusion_proofs_contract', () => {
       /Low nullifier witness not found for nullifier 0x[0-9a-fA-F]+ at block/,
     );
   });
+
+  const getRandomBlockNumberSinceDeployment = async () => {
+    const currentBlockNumber = await pxe.getBlockNumber();
+    return deploymentBlockNumber + Math.floor(Math.random() * (currentBlockNumber - deploymentBlockNumber));
+  };
 });

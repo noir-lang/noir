@@ -65,7 +65,7 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
       }
     | undefined
   > {
-    return Promise.reject(new Error('not implemented'));
+    return Promise.reject(new Error('Snapshots not implemented for nullifier tree'));
   }
 
   async getSiblingPath<N extends number>(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath<N>> {

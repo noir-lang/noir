@@ -3,7 +3,14 @@ import { computeGlobalsHash, siloNullifier } from '@aztec/circuits.js/abis';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AuthWitness, AztecNode, CompleteAddress, MerkleTreeId, NullifierMembershipWitness } from '@aztec/types';
+import {
+  AuthWitness,
+  AztecNode,
+  CompleteAddress,
+  INITIAL_L2_BLOCK_NUM,
+  MerkleTreeId,
+  NullifierMembershipWitness,
+} from '@aztec/types';
 
 import { NoteData, TypedOracle } from '../acvm/index.js';
 import { DBOracle } from './db_oracle.js';
@@ -111,6 +118,30 @@ export class ViewDataOracle extends TypedOracle {
       block.endPublicDataTreeRoot,
       computeGlobalsHash(block.globalVariables),
     );
+  }
+
+  /**
+   * Gets number of a block in which a given nullifier tree root was included.
+   * @param nullifierTreeRoot - The nullifier tree root to get the block number for.
+   * @returns The block number.
+   *
+   * TODO(#3564) - Nuke this oracle and inject the number directly to context
+   */
+  public async getNullifierRootBlockNumber(nullifierTreeRoot: Fr): Promise<number | undefined> {
+    const currentBlockNumber = await this.db.getBlockNumber();
+    for (let i = currentBlockNumber; i >= INITIAL_L2_BLOCK_NUM; i -= 2) {
+      const block = await this.db.getBlock(i);
+      if (!block) {
+        throw new Error(`Block ${i} not found`);
+      }
+      if (block.endNullifierTreeSnapshot.root.equals(nullifierTreeRoot)) {
+        return i;
+      }
+      if (block.startNullifierTreeSnapshot.root.equals(nullifierTreeRoot)) {
+        return i - 1;
+      }
+    }
+    throw new Error(`Failed to find block containing nullifier tree root ${nullifierTreeRoot}`);
   }
 
   /**

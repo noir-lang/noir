@@ -129,7 +129,7 @@ impl PrivateContext {
         self.inputs.call_context.function_selector
     }
 
-    pub fn get_block_header(self, block_number: Field) -> BlockHeader {
+    pub fn get_block_header(self, block_number: u32) -> BlockHeader {
         get_block_header(block_number, self)
     }
 

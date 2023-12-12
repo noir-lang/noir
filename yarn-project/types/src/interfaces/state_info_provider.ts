@@ -138,4 +138,10 @@ export interface StateInfoProvider {
    * @returns The requested block.
    */
   getBlock(number: number): Promise<L2Block | undefined>;
+
+  /**
+   * Fetches the current block number.
+   * @returns The block number.
+   */
+  getBlockNumber(): Promise<number>;
 }

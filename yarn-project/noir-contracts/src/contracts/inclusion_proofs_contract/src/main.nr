@@ -98,14 +98,9 @@ contract InclusionProofs {
     #[aztec(private)]
     fn proveNoteInclusion(
         owner: AztecAddress,
-        block_number: Field, // The block at which we'll prove that the note exists
+        block_number: u32, // The block at which we'll prove that the note exists
         spare_commitment: Field, // This is only used when the note is not found --> used to test the failure case
     ) {
-        // TODO: assert that block number is less than the block number of context.block_header
-        // --> This will either require a new oracle method that returns block_header.global_variables_hash preimage
-        //     or modifying the private context so that we somehow expose it.
-        // Blocked by #3564
-
         // 1) Get block header from oracle and ensure that the block hash is included in the current blocks tree
         //    root.
         let block_header = context.get_block_header(block_number);
@@ -142,14 +137,9 @@ contract InclusionProofs {
     #[aztec(private)]
     fn proveNullifierNonInclusion(
         owner: AztecAddress,
-        block_number: Field, // The block at which we'll prove that the nullifier does not exists
+        block_number: u32, // The block at which we'll prove that the nullifier does not exists
         spare_nullifier: Field, // This is only used when the note is not found --> used to test the failure case
     ) {
-        // TODO: assert that block number is less than the block number of context.block_header
-        // --> This will either require a new oracle method that returns block_header.global_variables_hash preimage
-        //     or modifying the private context so that we somehow expose it.
-        // Blocked by #3564
-
         // 1) Get block header from oracle and ensure that the block hash is included in the current blocks tree
         //    root.
         let block_header = context.get_block_header(block_number);
@@ -215,13 +205,8 @@ contract InclusionProofs {
     #[aztec(private)]
     fn proveNullifierInclusion(
         nullifier: Field,
-        block_number: Field, // The block at which we'll prove that the nullifier not exists in the tree
+        block_number: u32, // The block at which we'll prove that the nullifier not exists in the tree
     ) {
-        // TODO: assert that block number is less than the block number of context.block_header
-        // --> This will either require a new oracle method that returns block_header.global_variables_hash preimage
-        //     or modifying the private context so that we somehow expose it.
-        // Blocked by #3564
-
         // 1) Get block header from oracle and ensure that the block hash is included in the current blocks tree
         //    root.
         let block_header = context.get_block_header(block_number);
@@ -248,13 +233,8 @@ contract InclusionProofs {
     #[aztec(private)]
     fn provePublicValueInclusion(
         public_value: Field,
-        block_number: Field, // The block at which we'll prove that the public value exists
+        block_number: u32, // The block at which we'll prove that the public value exists
     ) {
-        // TODO: assert that block number is less than the block number of context.block_header
-        // --> This will either require a new oracle method that returns block_header.global_variables_hash preimage
-        //     or modifying the private context so that we somehow expose it.
-        // Blocked by #3564
-
         // 1) Get block header from oracle and ensure that the block hash is included in the current blocks tree
         //    root.
         let block_header = context.get_block_header(block_number);

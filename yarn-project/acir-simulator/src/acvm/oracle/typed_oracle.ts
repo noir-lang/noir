@@ -106,6 +106,11 @@ export abstract class TypedOracle {
     throw new Error('Not available.');
   }
 
+  // TODO(#3564) - Nuke this oracle and inject the number directly to context
+  getNullifierRootBlockNumber(_nullifierTreeRoot: Fr): Promise<number | undefined> {
+    throw new Error('Not available.');
+  }
+
   getCompleteAddress(_address: AztecAddress): Promise<CompleteAddress> {
     throw new Error('Not available.');
   }
