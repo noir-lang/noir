@@ -19,7 +19,7 @@ pub(crate) fn save_program_to_file<P: AsRef<Path>>(
     save_build_artifact_to_file(compiled_program, &circuit_name, circuit_dir)
 }
 
-/// Writes the bytecode as acir.gz (without uuencoding)
+/// Writes the bytecode as acir.gz
 pub(crate) fn only_acir<P: AsRef<Path>>(
     compiled_program: &PreprocessedProgram,
     circuit_dir: P,
