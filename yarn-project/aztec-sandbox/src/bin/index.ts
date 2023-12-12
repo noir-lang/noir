@@ -160,7 +160,7 @@ async function main() {
 
     const port = process.env.AZTEC_NODE_PORT || 8080; // Use standard 8080 when no PXE is running
     const nodeRpcServer = createAztecNodeRpcServer(node);
-    const app = nodeRpcServer.getApp();
+    const app = nodeRpcServer.getApp(API_PREFIX);
 
     // Add a /status endpoint
     const statusRouter = createStatusRouter(API_PREFIX);
