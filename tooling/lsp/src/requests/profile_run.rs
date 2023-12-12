@@ -61,14 +61,13 @@ fn on_profile_run_request_inner(
             let is_opcode_supported = |_opcode: &Opcode| true;
             let np_language = Language::PLONKCSat { width: 3 };
 
-            let compile_options = CompileOptions { ..Default::default() };
             let (compiled_programs, compiled_contracts) = nargo::ops::compile_workspace(
                 &workspace,
                 &binary_packages,
                 &contract_packages,
                 np_language,
                 is_opcode_supported,
-                &compile_options,
+                &CompileOptions::default(),
             )
             .map_err(|err| ResponseError::new(ErrorCode::REQUEST_FAILED, err))?;
 
