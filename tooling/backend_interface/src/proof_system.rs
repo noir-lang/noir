@@ -43,7 +43,7 @@ impl Backend {
         if let Ok(backend_info) = self.get_backend_info() {
             (backend_info.0, backend_info.1)
         } else {
-            println!("No valid backend found, defaulting to Plonk with width 3 and all opcodes supported");
+            log::warn!("No valid backend found, defaulting to Plonk with width 3 and all opcodes supported");
             (Language::PLONKCSat { width: 3 }, BackendOpcodeSupport::all())
         }
     }

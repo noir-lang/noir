@@ -113,7 +113,7 @@ pub(super) fn on_did_save_text_document(
         .flat_map(|package| -> Vec<Diagnostic> {
             let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
 
-            let file_diagnostics = match check_crate(&mut context, crate_id, false) {
+            let file_diagnostics = match check_crate(&mut context, crate_id, false, false) {
                 Ok(((), warnings)) => warnings,
                 Err(errors_and_warnings) => errors_and_warnings,
             };
