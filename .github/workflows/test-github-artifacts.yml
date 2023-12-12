@@ -46,10 +46,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           load: true
-      - name: Copy artifact from from container
-        run: sudo docker cp ${{ steps.prep.outputs.image }}:latest:/usr/src/noir/target /dist
-      - name: Copy cargo from from container
-        run: sudo docker cp ${{ steps.prep.outputs.image }}:latest:/usr/local/cargo/ /cargo
+      - name: run image
+        run: |
+          id=$(docker create ${{ steps.prep.outputs.image }}:latest)
+          sudo docker cp $id:/usr/src/noir/target /dist
+          sudo docker cp $id:/usr/local/cargo/ /cargo
+          sudo docker rm -v $id
+      # - name: Copy artifact from from container
+      #   run: sudo docker cp ${{ steps.prep.outputs.image }}:latest:/usr/src/noir/target /dist
+      # - name: Copy cargo from from container
+      #   run: sudo docker cp ${{ steps.prep.outputs.image }}:latest:/usr/local/cargo/ /cargo
       - name: test-dist
         run: sudo tar -czvf /dist /dist.tar
       - name: test-cargo
