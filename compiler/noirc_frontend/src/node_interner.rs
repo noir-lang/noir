@@ -1264,15 +1264,6 @@ impl NodeInterner {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
 
-    /// Retrieves a mutable reference to the impl selected for a given IdentId during name resolution.
-    /// From type checking and on, the "ident" referred to is changed to a TraitMethodReference node.
-    pub fn get_selected_impl_for_ident_mut(
-        &mut self,
-        ident_id: ExprId,
-    ) -> Option<&mut TraitImplKind> {
-        self.selected_trait_implementations.get_mut(&ident_id)
-    }
-
     /// For a given [Index] we return [Location] to which we resolved to
     /// We currently return None for features not yet implemented
     /// TODO(#3659): LSP goto def should error when Ident at Location could not resolve
