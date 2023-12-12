@@ -483,11 +483,12 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .description('Updates Nodejs and Noir dependencies')
     .argument('[projectPath]', 'Path to the project directory', process.cwd())
     .option('--contract [paths...]', 'Paths to contracts to update dependencies', [])
-    .option('--sandbox-version <semver>', 'The sandbox version to update to. Defaults to latest', 'latest')
+    .option('--aztec-version <semver>', 'The version to update Aztec packages to. Defaults to latest', 'latest')
     .addOption(pxeOption)
     .action(async (projectPath: string, options) => {
       const { update } = await import('./update/update.js');
-      await update(projectPath, options.contract, options.rpcUrl, options.sandboxVersion, log, debugLogger);
+      const { contract, aztecVersion, rpcUrl } = options;
+      await update(projectPath, contract, rpcUrl, aztecVersion, log);
     });
 
   addNoirCompilerCommanderActions(program, log);
