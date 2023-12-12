@@ -289,14 +289,21 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::TraitMethodReference(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
-                let typ = &the_trait.methods[method.method_index].typ;
-                let (typ, bindings) = typ.instantiate(self.interner);
+                let typ2 = &the_trait.methods[method.method_index].typ;
+                let (typ, mut bindings) = typ2.instantiate(self.interner);
 
                 // We must also remember to apply these substitutions to the object_type
                 // referenced by the selected trait impl, if one has yet to be selected.
-                let impl_kind = self.interner.get_selected_impl_for_ident_mut(*expr_id);
+                let impl_kind = self.interner.get_selected_impl_for_ident(*expr_id);
                 if let Some(TraitImplKind::Assumed { object_type }) = impl_kind {
-                    *object_type = object_type.substitute(&bindings);
+                    let the_trait = self.interner.get_trait(method.trait_id);
+                    let object_type = object_type.substitute(&bindings);
+                    bindings.insert(
+                        the_trait.self_type_typevar_id,
+                        (the_trait.self_type_typevar.clone(), object_type.clone()),
+                    );
+                    self.interner
+                        .select_impl_for_ident(*expr_id, TraitImplKind::Assumed { object_type });
                 }
 
                 self.interner.store_instantiation_bindings(*expr_id, bindings);

@@ -1630,22 +1630,17 @@ impl<'a> Resolver<'a> {
         &mut self,
         path: &Path,
     ) -> Option<(HirExpression, Type)> {
-        if let Some(trait_id) = self.trait_id {
-            if path.kind == PathKind::Plain && path.segments.len() == 2 {
-                let name = &path.segments[0].0.contents;
-                let method = &path.segments[1];
+        let trait_id = self.trait_id?;
 
-                if name == SELF_TYPE_NAME {
-                    let the_trait = self.interner.get_trait(trait_id);
+        if path.kind == PathKind::Plain && path.segments.len() == 2 {
+            let name = &path.segments[0].0.contents;
+            let method = &path.segments[1];
 
-                    if let Some(method) = the_trait.find_method(method.0.contents.as_str()) {
-                        let self_type = Type::TypeVariable(
-                            the_trait.self_type_typevar.clone(),
-                            crate::TypeVariableKind::Normal,
-                        );
-                        return Some((HirExpression::TraitMethodReference(method), self_type));
-                    }
-                }
+            if name == SELF_TYPE_NAME {
+                let the_trait = self.interner.get_trait(trait_id);
+                let method = the_trait.find_method(method.0.contents.as_str())?;
+                let self_type = self.self_type.clone()?;
+                return Some((HirExpression::TraitMethodReference(method), self_type));
             }
         }
         None
@@ -1661,10 +1656,9 @@ impl<'a> Resolver<'a> {
             let trait_id = self.lookup(trait_path).ok()?;
             let the_trait = self.interner.get_trait(trait_id);
 
-            if let Some(method) = the_trait.find_method(method.0.contents.as_str()) {
-                let self_type = Type::type_variable(the_trait.self_type_typevar_id);
-                return Some((HirExpression::TraitMethodReference(method), self_type));
-            }
+            let method = the_trait.find_method(method.0.contents.as_str())?;
+            let self_type = Type::type_variable(the_trait.self_type_typevar_id);
+            return Some((HirExpression::TraitMethodReference(method), self_type));
         }
         None
     }
