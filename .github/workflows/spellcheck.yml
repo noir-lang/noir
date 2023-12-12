@@ -10,4 +10,4 @@ concurrency:
 jobs:
   spellcheck:
     name: Spellcheck
-    uses: noir-lang/.github/.github/workflows/spellcheck.yml@main
+    uses: noir-lang/.github/workflows/spellcheck.yml@main
