@@ -92,6 +92,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
         &mut context,
         crate_id,
         compile_options.deny_warnings,
+        compile_options.disable_macros,
         compile_options.silence_warnings,
     )?;
 
