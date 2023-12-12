@@ -44,17 +44,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Copy artifact from from container
-        uses: shrink/actions-docker-extract@v3
-        with:
-          image: ${{ steps.prep.outputs.tags }}
-          path: /usr/src/noir/target
-          destination: /dist
-      - name: Copy .cargo from container
-        uses: shrink/actions-docker-extract@v3
-        with:
-          image: ${{ steps.prep.outputs.tags }}
-          path: /usr/local/cargo/
-          destination: /cargo
+        run: sudo docker cp ${{ steps.prep.outputs.tags }}:/usr/src/noir/target /dist
+      - name: Copy cargo from from container
+        run: sudo docker cp ${{ steps.prep.outputs.tags }}:/usr/local/cargo/ /cargo
       - name: test-dist
         run: sudo tar -czvf /dist /dist.tar
       - name: test-cargo
