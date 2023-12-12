@@ -89,6 +89,10 @@ export function generateContractArtifact(
   { contract, debug }: NoirContractCompilationArtifacts,
   aztecNrVersion?: string,
 ): ContractArtifact {
+  const constructorArtifact = contract.functions.find(({ name }) => name === 'constructor');
+  if (constructorArtifact === undefined) {
+    throw new Error('Contract must have a constructor function');
+  }
   if (contract.functions.length > 2 ** FUNCTION_TREE_HEIGHT) {
     throw new Error(`Contract can only have a maximum of ${2 ** FUNCTION_TREE_HEIGHT} functions`);
   }
