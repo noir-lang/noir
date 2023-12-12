@@ -410,12 +410,15 @@ pub(crate) fn check_methods_signatures(
     trait_impl_generic_count: usize,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) {
-    let the_trait = resolver.interner.get_trait(trait_id);
-
-    let self_type = resolver.get_self_type().expect("trait impl must have a Self type");
+    let self_type = resolver.get_self_type().expect("trait impl must have a Self type").clone();
 
     // Temporarily bind the trait's Self type to self_type so we can type check
-    the_trait.self_type_typevar.bind(self_type.clone());
+    let the_trait = resolver.interner.get_trait_mut(trait_id);
+    the_trait.self_type_typevar.bind(self_type);
+
+    // Temporarily take the trait's methods so we can use both them and a mutable reference
+    // to the interner within the loop.
+    let trait_methods = std::mem::take(&mut the_trait.methods);
 
     for (file_id, func_id) in impl_methods {
         let impl_method = resolver.interner.function_meta(func_id);
@@ -427,7 +430,7 @@ pub(crate) fn check_methods_signatures(
         // If that's the case, a `MethodNotInTrait` error has already been thrown, and we can ignore
         // the impl method, since there's nothing in the trait to match its signature against.
         if let Some(trait_method) =
-            the_trait.methods.iter().find(|method| method.name.0.contents == func_name)
+            trait_methods.iter().find(|method| method.name.0.contents == func_name)
         {
             let impl_function_type = impl_method.typ.instantiate(resolver.interner);
 
@@ -442,7 +445,7 @@ pub(crate) fn check_methods_signatures(
                 let error = DefCollectorErrorKind::MismatchTraitImplementationNumGenerics {
                     impl_method_generic_count,
                     trait_method_generic_count,
-                    trait_name: the_trait.name.to_string(),
+                    trait_name: resolver.interner.get_trait(trait_id).name.to_string(),
                     method_name: func_name.to_string(),
                     span: impl_method.location.span,
                 };
@@ -472,7 +475,7 @@ pub(crate) fn check_methods_signatures(
                     let error = DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
                         actual_num_parameters: impl_method.parameters.0.len(),
                         expected_num_parameters: trait_method.arguments().len(),
-                        trait_name: the_trait.name.to_string(),
+                        trait_name: resolver.interner.get_trait(trait_id).name.to_string(),
                         method_name: func_name.to_string(),
                         span: impl_method.location.span,
                     };
@@ -498,5 +501,7 @@ pub(crate) fn check_methods_signatures(
         }
     }
 
+    let the_trait = resolver.interner.get_trait_mut(trait_id);
+    the_trait.set_methods(trait_methods);
     the_trait.self_type_typevar.unbind(the_trait.self_type_typevar_id);
 }

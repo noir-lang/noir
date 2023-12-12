@@ -1006,7 +1006,6 @@ mod test {
         // }
         let ssa = ssa.flatten_cfg();
         let main = ssa.main();
-        println!("{ssa}");
         assert_eq!(main.reachable_blocks().len(), 1);
 
         let store_count = count_instruction(main, |ins| matches!(ins, Instruction::Store { .. }));

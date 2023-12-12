@@ -467,11 +467,23 @@ impl Instruction {
                 }
                 None
             }
-            Instruction::Truncate { value, bit_size, .. } => {
+            Instruction::Truncate { value, bit_size, max_bit_size } => {
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
                     let integer_modulus = 2_u128.pow(*bit_size);
                     let truncated = numeric_constant.to_u128() % integer_modulus;
                     SimplifiedTo(dfg.make_constant(truncated.into(), typ))
+                } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
+                    if let Instruction::Truncate { bit_size: src_bit_size, .. } = &dfg[*instruction]
+                    {
+                        // If we're truncating the value to fit into the same or larger bit size then this is a noop.
+                        if src_bit_size <= bit_size && src_bit_size <= max_bit_size {
+                            SimplifiedTo(*value)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
