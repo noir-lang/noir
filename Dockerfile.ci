@@ -1,9 +1,23 @@
-FROM rust:1-slim-bookworm as test-base
+FROM rust:1-slim-bookworm as base
 RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git -y
-WORKDIR /usr/src/noir
+RUN cargo install cargo-chef
+
+FROM base AS planner
 COPY . .
-RUN ./scripts/bootstrap_native.sh
-ENV PATH="${PATH}:/usr/src/noir/target/release/"
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM base AS test-base
+WORKDIR /usr/src/noir
+COPY --from=planner recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+COPY . .
+# RUN cargo build --release --bin app
+
+# FROM rust:1-slim-bookworm as test-base
+# WORKDIR /usr/src/noir
+# COPY . .
+# # RUN ./scripts/bootstrap_native.sh
+# ENV PATH="${PATH}:/usr/src/noir/target/release/"
 
 FROM test-base as test-cargo
 RUN apt-get install -y curl libc++-dev
