@@ -100,7 +100,7 @@ You can also use "build" as an alias for compile (e.g. `nargo build`).
 ### Options
 
 | Option                | Description                                                                 |
-| --------------------- | ----------------------------------------------------------------------------|
+| --------------------- | ------------------------------------------------------------ |
 | `--package <PACKAGE>` | The name of the package to compile                                          |
 | `--workspace`         | Compile all packages in the workspace                                       |
 | `--print-acir`        | Display the ACIR for compiled circuit                                       |
