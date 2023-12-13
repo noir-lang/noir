@@ -45,7 +45,9 @@ jobs:
       - name: Cache was hit
         if: steps.cache-restore.outputs.cache-hit == 'true'
         run: |
-          sudo tar -xzvf dist/target.tar.gz -C /target
+          mkdir -p target
+          mkdir -p /usr/local/cargo
+          sudo tar -xzvf dist/target.tar.gz -C target
           sudo tar -xzvf dist/cargo.tar.gz -C /usr/local/cargo
       - name: Build cargo
         uses: docker/build-push-action@v5
