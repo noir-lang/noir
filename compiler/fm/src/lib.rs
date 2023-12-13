@@ -49,11 +49,17 @@ impl FileManager {
         &self.file_map
     }
 
+    /// Adds a source file to the [`FileManager`].
+    ///
+    /// The `file_name` is expected to be relative to the [`FileManager`]'s root directory.
     pub fn add_file_with_source(&mut self, file_name: &Path, source: String) -> Option<FileId> {
         let file_name = self.root.join(file_name);
         self.add_file_with_source_canonical_path(&file_name, source)
     }
 
+    /// Adds a source file to the [`FileManager`] using a path which is not appended to the root path.
+    ///
+    /// This should only be used for the stdlib as these files do not exist on the user's filesystem.
     pub fn add_file_with_source_canonical_path(
         &mut self,
         file_name: &Path,
