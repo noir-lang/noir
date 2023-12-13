@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use crate::types::{CodeLensOptions, InitializeParams};
+use crate::types::InitializeParams;
 use async_lsp::ResponseError;
 use lsp_types::{Position, TextDocumentSyncCapability, TextDocumentSyncKind};
 use nargo_fmt::Config;
@@ -39,8 +39,6 @@ pub(crate) fn on_initialize(
 
     async {
         let text_document_sync = TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL);
-
-        let code_lens = CodeLensOptions { resolve_provider: Some(false) };
 
         let nargo = NargoCapability {
             tests: Some(NargoTestsOptions {
