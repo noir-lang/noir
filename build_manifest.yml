@@ -157,20 +157,20 @@ cli:
   multiarch: buildx
 
 boxes-blank-react:
-  buildDir: yarn-project
-  projectDir: yarn-project/boxes/blank-react
+  buildDir: boxes
+  projectDir: boxes/blank-react
   dependencies:
     - aztec-sandbox
 
 boxes-blank:
-  buildDir: yarn-project
-  projectDir: yarn-project/boxes/blank
+  buildDir: boxes
+  projectDir: boxes/blank
   dependencies:
     - aztec-sandbox
 
 boxes-token:
-  buildDir: yarn-project
-  projectDir: yarn-project/boxes/token
+  buildDir: boxes
+  projectDir: boxes/token
   dependencies:
     - aztec-sandbox
 

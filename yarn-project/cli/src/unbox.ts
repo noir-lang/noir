@@ -16,7 +16,7 @@ import * as path from 'path';
 
 import { GITHUB_OWNER, GITHUB_REPO, GITHUB_TAG_PREFIX } from './github.js';
 
-const BOXES_PATH = 'yarn-project/boxes';
+const BOXES_PATH = 'boxes';
 
 /**
  * If the box contains the noir contract source code, we don't need to download it from github.
@@ -102,9 +102,10 @@ async function downloadContractAndBoxFromGithub(
   // small string conversion, in the ABI the contract name looks like PrivateToken
   // but in the repository it looks like private_token
 
-  log(`Downloading @aztec/boxes/${contractName}/ to ${outputPath}...`);
+  log(`Downloading @aztec-protocol/boxes/${contractName}/ to ${outputPath}...`);
   // Step 1: Fetch the monorepo ZIP from GitHub, matching the CLI version
   const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/archive/refs/tags/${tag}.zip`;
+  log(`Downloading from ${url}`);
   const response = await fetch(url);
   const buffer = await response.arrayBuffer();
 
@@ -230,7 +231,9 @@ async function updatePackageJsonVersions(packageVersion: string, outputPath: str
   // Check and replace "workspace^" pins in dependencies, which are monorepo yarn workspace references
   if (packageData.dependencies) {
     for (const [key, value] of Object.entries(packageData.dependencies)) {
-      if (value === 'workspace:^') {
+      const packageVersion: string = value as string;
+      if (packageVersion.startsWith('portal:')) {
+        // portal: dependency used in monorepo when we moved boxes out of the workspace
         packageData.dependencies[key] = `^${packageVersion}`;
       }
     }
@@ -246,6 +249,13 @@ async function updatePackageJsonVersions(packageVersion: string, outputPath: str
       }
     }
   }
+
+  // now that boxes are out of the workspace, remove the "resolution" hint in the package.json that is used
+  // to resolve the transitive workspace dependencies in the monorepo
+  if (packageData.resolutions) {
+    delete packageData.resolutions;
+  }
+
   // read the `noir-version.json`, grab the expected noir version, and patch the noir install script
   const noirVersionPath = path.join(outputPath, 'noir-version.json');
   const noirVersionContent = await fs.readFile(noirVersionPath, 'utf-8');
@@ -319,7 +329,7 @@ export async function unboxContract(
 
   if (!contractNames.includes(contractName)) {
     log(
-      `The noir contract named "${contractName}" was not found in "@aztec/boxes" package.  Valid options are:
+      `The noir contract named "${contractName}" was not found in "aztec-packages/boxes" directory.  Valid options are:
         ${contractNames.join('\n\t')}
       We recommend "token" as a default.`,
     );

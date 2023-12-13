@@ -1,5 +1,5 @@
-import { BlankContractArtifact } from './artifacts/Blank.js';
 import { ContractArtifact, PXE, createPXEClient } from '@aztec/aztec.js';
+import { BlankContractArtifact } from './artifacts/Blank.js';
 
 // update this if using a different contract
 

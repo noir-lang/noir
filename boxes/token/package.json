@@ -1,5 +1,5 @@
 {
-  "name": "blank-contract-react",
+  "name": "token",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@aztec/aztec-ui": "^0.1.14",
-    "@aztec/aztec.js": "workspace:^",
+    "@aztec/aztec.js": "portal:../../yarn-project/aztec.js",
     "classnames": "^2.3.2",
     "formik": "^2.4.3",
     "node-sass": "^9.0.0",
@@ -46,7 +46,14 @@
     "serve": "^14.2.1",
     "yup": "^1.2.0"
   },
+  "resolutions": {
+    "@aztec/circuits.js": "portal:../../yarn-project/circuits.js",
+    "@aztec/foundation": "portal:../../yarn-project/foundation",
+    "@aztec/types": "portal:../../yarn-project/types",
+    "@aztec/ethereum": "portal:../../yarn-project/ethereum"
+  },
   "devDependencies": {
+    "@jest/globals": "^29.6.4",
     "@types/jest": "^29.5.0",
     "@types/mocha": "^10.0.3",
     "@types/node": "^20.5.9",
@@ -58,8 +65,10 @@
     "copy-webpack-plugin": "^11.0.0",
     "css-loader": "^6.8.1",
     "eslint": "^8.21.0",
+    "eslint-config-prettier": "^9.0.0",
     "eslint-import-resolver-typescript": "^3.5.5",
     "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-prettier": "^5.0.1",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
     "jest": "^29.6.4",
@@ -96,5 +105,6 @@
     "src",
     "!*.test.*"
   ],
-  "types": "./dest/index.d.ts"
+  "types": "./dest/index.d.ts",
+  "packageManager": "yarn@4.0.2"
 }

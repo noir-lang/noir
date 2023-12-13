@@ -432,7 +432,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test via adhoc script"
-          command: ./yarn-project/boxes/run_tests blank-react
+          command: ./boxes/run_tests blank-react
 
   boxes-blank:
     machine:
@@ -443,7 +443,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test via adhoc script"
-          command: ./yarn-project/boxes/run_tests blank
+          command: ./boxes/run_tests blank
 
   boxes-token:
     machine:
@@ -454,7 +454,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test via adhoc script"
-          command: ./yarn-project/boxes/run_tests token
+          command: ./boxes/run_tests token
 
   end-to-end:
     machine:

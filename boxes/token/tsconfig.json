@@ -24,7 +24,7 @@
   "include": ["src", "src/**/*.json"],
   "references": [
     {
-      "path": "../../aztec.js"
+      "path": "../../yarn-project/aztec.js"
     },
   ]
 }
