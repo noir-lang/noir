@@ -63,9 +63,9 @@ jobs:
           sudo docker rm -v $id
       - name: tar
         run: |
-          sudo mkdir /dist
-          sudo tar -czvf /dist/target.tar.gz /target
-          sudo tar -czvf /dist/cargo.tar.gz /cargo
+          sudo mkdir dist
+          sudo tar -czvf dist/target.tar.gz /target
+          sudo tar -czvf dist/cargo.tar.gz /cargo
       - name: test-cache-save
         uses: actions/cache/save@v3
         with:
