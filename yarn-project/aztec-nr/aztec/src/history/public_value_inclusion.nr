@@ -1,15 +1,12 @@
 use dep::protocol_types::{
-    constants::{
-        PUBLIC_DATA_TREE_HEIGHT,
-        GENERATOR_INDEX__PUBLIC_LEAF_INDEX,
-    },
+    constants::GENERATOR_INDEX__PUBLIC_LEAF_INDEX,
     hash::pedersen_hash,
 };
 use dep::std::merkle::compute_merkle_root;
 
 use crate::{
     context::PrivateContext,
-    oracle::get_sibling_path::get_sibling_path,
+    oracle::get_sibling_path::get_public_data_sibling_path,
 };
 
 pub fn prove_public_value_inclusion(
@@ -31,9 +28,7 @@ pub fn prove_public_value_inclusion(
     );
 
     // 3) Get the sibling path of the value leaf index in the public data tree at block `block_number`.
-    let public_data_tree_id = 3; // TODO(#3443)
-    let path: [Field; PUBLIC_DATA_TREE_HEIGHT] =
-        get_sibling_path(block_number, public_data_tree_id, value_leaf_index);
+    let path = get_public_data_sibling_path(block_number, value_leaf_index);
 
     // 4) Prove that the value provided on input is in the public data tree at the given storage slot.
     assert(
