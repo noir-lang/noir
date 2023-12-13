@@ -40,8 +40,6 @@ pub(crate) fn on_initialize(
     async {
         let text_document_sync = TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL);
 
-        let code_lens = CodeLensOptions { resolve_provider: Some(false) };
-
         let nargo = NargoCapability {
             tests: Some(NargoTestsOptions {
                 fetch: Some(true),
