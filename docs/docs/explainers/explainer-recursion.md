@@ -62,7 +62,7 @@ Alice and Bob are friends, and they like guessing games. They want to play a gue
 
 So, they use zero-knowledge proofs. Alice tries to guess Bob's number, and Bob will generate a ZK proof stating whether she succeeded or failed.
 
-This ZK proof can go on a smart contract, revealing the winner and even giving prizes. However, this means every turn needs to be verified on-chain. This incurs in some cost and waiting times that may simply turn the game too expensive or time-consuming to be worth it.
+This ZK proof can go on a smart contract, revealing the winner and even giving prizes. However, this means every turn needs to be verified on-chain. This incurs some cost and waiting time that may simply make the game too expensive or time-consuming to be worth it.
 
 So, Alice started thinking: "what if Bob generates his proof, and instead of sending it on-chain, I verify it *within* my own proof before playing my own turn?". She can then generate a proof that she verified his proof, and so on.
 
