@@ -22,7 +22,7 @@ use crate::hir_def::{
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
     ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared, TypeAliasType,
-    TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind, BinaryOpKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -109,6 +109,9 @@ pub struct NodeInterner {
     /// an Assumed (but verified) impl. In this case the monomorphizer should have
     /// the context to get the concrete type of the object and select the correct impl itself.
     selected_trait_implementations: HashMap<ExprId, TraitImplKind>,
+
+    /// Holds the trait ids of the traits used for operator overloading
+    operator_traits: HashMap<BinaryOpKind, TraitId>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -423,6 +426,7 @@ impl Default for NodeInterner {
             trait_implementations: Vec::new(),
             trait_implementation_map: HashMap::new(),
             selected_trait_implementations: HashMap::new(),
+            operator_traits: HashMap::new(),
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: std::cell::Cell::new(0),
@@ -1349,6 +1353,34 @@ impl NodeInterner {
         match field_names.iter().find(|field_name| field_name.0 == expr_rhs.0) {
             Some(found) => Some(Location::new(found.span(), struct_type.location.file)),
             None => None,
+        }
+    }
+
+    /// Retrieves the trait id for a given binary operator.
+    /// All binary operators correspond to a trait - although multiple may correspond
+    /// to the same trait (such as `==` and `!=`).
+    /// `self.operator_traits` is expected to be filled before name resolution,
+    /// during definition collection.
+    pub fn get_operator_trait(&self, operator: BinaryOpKind) -> TraitId {
+        self.operator_traits[&operator]
+    }
+
+    /// Registers a trait as an operator trait used for operator overloading.
+    /// This should only be used for the correct traits defined in `std::ops`.
+    pub fn add_operator_trait(&mut self, operator: BinaryOpKind, id: TraitId) {
+        self.operator_traits.insert(operator, id);
+
+        // Some operators also require we insert a matching entry for related operators
+        match operator {
+            BinaryOpKind::Equal => {
+                self.operator_traits.insert(BinaryOpKind::NotEqual, id);
+            },
+            BinaryOpKind::Less => {
+                self.operator_traits.insert(BinaryOpKind::LessEqual, id);
+                self.operator_traits.insert(BinaryOpKind::Greater, id);
+                self.operator_traits.insert(BinaryOpKind::GreaterEqual, id);
+            },
+            _ => (),
         }
     }
 }

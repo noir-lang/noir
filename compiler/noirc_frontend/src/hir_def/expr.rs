@@ -2,7 +2,7 @@ use acvm::FieldElement;
 use fm::FileId;
 use noirc_errors::Location;
 
-use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
+use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId, TraitId};
 use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
 
 use super::stmt::HirPattern;
@@ -101,6 +101,10 @@ pub struct HirInfixExpression {
     pub lhs: ExprId,
     pub operator: HirBinaryOp,
     pub rhs: ExprId,
+
+    /// The trait id for the operator trait that corresponds to this operator.
+    /// For derived operators like `!=`, this will lead to the derived trait (Eq in this case).
+    pub trait_id: TraitId,
 }
 
 /// This is always a struct field access `my_struct.field`

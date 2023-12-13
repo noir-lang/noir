@@ -136,6 +136,8 @@ impl<'interner> TypeChecker<'interner> {
                 let rhs_span = self.interner.expr_span(&infix_expr.rhs);
                 let span = lhs_span.merge(rhs_span);
 
+                self.verify_trait_constraint(&lhs_type, infix_expr.trait_id, *expr_id, span);
+
                 self.infix_operand_type_rules(&lhs_type, &infix_expr.operator, &rhs_type, span)
                     .unwrap_or_else(|error| {
                         self.errors.push(error);

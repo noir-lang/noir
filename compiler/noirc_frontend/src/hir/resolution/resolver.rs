@@ -1314,10 +1314,12 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Infix(infix) => {
                 let lhs = self.resolve_expression(infix.lhs);
                 let rhs = self.resolve_expression(infix.rhs);
+                let trait_id = self.interner.get_operator_trait(infix.operator.contents);
 
                 HirExpression::Infix(HirInfixExpression {
                     lhs,
                     operator: HirBinaryOp::new(infix.operator, self.file),
+                    trait_id,
                     rhs,
                 })
             }
