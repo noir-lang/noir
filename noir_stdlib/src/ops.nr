@@ -79,11 +79,11 @@ impl Eq for i16 { fn eq(self, other: i16) -> bool { self == other } }
 impl Eq for i32 { fn eq(self, other: i32) -> bool { self == other } }
 impl Eq for i64 { fn eq(self, other: i64) -> bool { self == other } }
 
-impl Eq for () { fn eq(self, other: ()) -> () { true } }
-impl Eq for bool { fn eq(self, other: u8) -> bool { self == other } }
+impl Eq for () { fn eq(self, other: ()) -> bool { true } }
+impl Eq for bool { fn eq(self, other: bool) -> bool { self == other } }
 
 impl<T, N> Eq for [T; N] where T: Eq {
-    fn eq(self, other: u8) -> [T; N] {
+    fn eq(self, other: [T; N]) -> bool {
         let mut result = true;
         for i in 0 .. self.len() {
             result &= self[i].eq(other[i]);
@@ -93,25 +93,25 @@ impl<T, N> Eq for [T; N] where T: Eq {
 }
 
 impl<A, B> Eq for (A, B) where A: Eq, B: Eq {
-    fn eq(self, other: u8) -> (A, B) {
+    fn eq(self, other: (A, B)) -> bool {
         self.0.eq(other.0) & self.1.eq(other.1)
     }
 }
 
 impl<A, B, C> Eq for (A, B, C) where A: Eq, B: Eq, C: Eq {
-    fn eq(self, other: u8) -> (A, B, C) {
+    fn eq(self, other: (A, B, C)) -> bool {
         self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2)
     }
 }
 
 impl<A, B, C, D> Eq for (A, B, C, D) where A: Eq, B: Eq, C: Eq, D: Eq {
-    fn eq(self, other: u8) -> (A, B, C, D) {
+    fn eq(self, other: (A, B, C, D)) -> bool {
         self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2) & self.3.eq(other.3)
     }
 }
 
 impl<A, B, C, D, E> Eq for (A, B, C, D, E) where A: Eq, B: Eq, C: Eq, D: Eq, E: Eq {
-    fn eq(self, other: u8) -> (A, B, C, D, E) {
+    fn eq(self, other: (A, B, C, D, E)) -> bool {
         self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2) & self.3.eq(other.3) & self.4.eq(other.4)
     }
 }
