@@ -1290,7 +1290,63 @@ impl NodeInterner {
                     _ => None,
                 }
             }
+            HirExpression::Constructor(expr) => {
+                let struct_type = &expr.r#type.borrow();
+
+                eprintln!("\n -> Resolve Constructor {struct_type:?}\n");
+
+                Some(struct_type.location)
+            }
+            HirExpression::MemberAccess(expr_member_access) => {
+                self.resolve_struct_member_access(expr_member_access)
+            }
+            HirExpression::Call(expr_call) => {
+                let func = expr_call.func;
+                self.resolve_location(func)
+            }
+
             _ => None,
+        }
+    }
+
+    /// Resolves the [Location] of the definition for a given [crate::hir_def::expr::HirMemberAccess]
+    /// This is used to resolve the location of a struct member access.
+    /// For example, in the expression `foo.bar` we want to resolve the location of `bar`
+    /// to the location of the definition of `bar` in the struct `foo`.
+    fn resolve_struct_member_access(
+        &self,
+        expr_member_access: &crate::hir_def::expr::HirMemberAccess,
+    ) -> Option<Location> {
+        let expr_lhs = &expr_member_access.lhs;
+        let expr_rhs = &expr_member_access.rhs;
+
+        let found_ident = self.nodes.get(expr_lhs.into())?;
+
+        let ident = match found_ident {
+            Node::Expression(HirExpression::Ident(ident)) => ident,
+            _ => return None,
+        };
+
+        let definition_info = self.definition(ident.id);
+
+        let local_id = match definition_info.kind {
+            DefinitionKind::Local(Some(local_id)) => local_id,
+            _ => return None,
+        };
+
+        let constructor_expression = match self.nodes.get(local_id.into()) {
+            Some(Node::Expression(HirExpression::Constructor(constructor_expression))) => {
+                constructor_expression
+            }
+            _ => return None,
+        };
+
+        let struct_type = constructor_expression.r#type.borrow();
+        let field_names = struct_type.field_names();
+
+        match field_names.iter().find(|field_name| field_name.0 == expr_rhs.0) {
+            Some(found) => Some(Location::new(found.span(), struct_type.location.file)),
+            None => None,
         }
     }
 }
