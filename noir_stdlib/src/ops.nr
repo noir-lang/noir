@@ -79,7 +79,7 @@ impl Eq for i16 { fn eq(self, other: i16) -> bool { self == other } }
 impl Eq for i32 { fn eq(self, other: i32) -> bool { self == other } }
 impl Eq for i64 { fn eq(self, other: i64) -> bool { self == other } }
 
-impl Eq for () { fn eq(self, _other: ()) -> bool { true } }
+impl Eq for () { fn eq(_self: Self, _other: ()) -> bool { true } }
 impl Eq for bool { fn eq(self, other: bool) -> bool { self == other } }
 
 impl<T, N> Eq for [T; N] where T: Eq {
