@@ -115,10 +115,6 @@ pub(crate) struct ServerCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) definition_provider: Option<OneOf<bool, DefinitionOptions>>,
 
-    /// The server provides code lens.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) code_lens_provider: Option<CodeLensOptions>,
-
     /// The server provides document formatting.
     pub(crate) document_formatting_provider: bool,
 

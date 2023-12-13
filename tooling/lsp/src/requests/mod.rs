@@ -53,7 +53,6 @@ pub(crate) fn on_initialize(
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(text_document_sync),
-                code_lens_provider: Some(code_lens),
                 document_formatting_provider: true,
                 nargo: Some(nargo),
                 definition_provider: Some(lsp_types::OneOf::Left(true)),
