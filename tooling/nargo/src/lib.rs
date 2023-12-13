@@ -61,7 +61,7 @@ pub fn insert_all_files_for_package_into_file_manager(
 
     // Get all files in the package and add them to the file manager
     let paths =
-        get_all_paths_in_dir(&entry_path_parent).expect("could not get all paths in the package");
+        get_all_paths_in_dir(entry_path_parent).expect("could not get all paths in the package");
     for path in paths {
         let source = std::fs::read_to_string(path.as_path())
             .unwrap_or_else(|_| panic!("could not read file {:?} into string", path));
