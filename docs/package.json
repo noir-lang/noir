@@ -5,7 +5,7 @@
   "scripts": {
     "start": "docusaurus start",
     "build": "yarn version::stables && docusaurus build",
-    "version::stables": "ts-node ./scripts/setStable.ts
+    "version::stables": "ts-node ./scripts/setStable.ts",
     "serve": "serve build"
   },
   "dependencies": {
