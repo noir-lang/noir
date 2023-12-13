@@ -54,7 +54,7 @@ describe('e2e_inclusion_proofs_contract', () => {
     {
       // Prove note inclusion in a given block.
       const ignoredCommitment = 0; // Not ignored only when the note doesn't exist
-      await contract.methods.proveNoteInclusion(owner, noteCreationBlockNumber, ignoredCommitment).send().wait();
+      await contract.methods.test_note_inclusion_proof(owner, noteCreationBlockNumber, ignoredCommitment).send().wait();
     }
 
     {
@@ -63,12 +63,12 @@ describe('e2e_inclusion_proofs_contract', () => {
       // possible because of issue https://github.com/AztecProtocol/aztec-packages/issues/3535
       const blockNumber = await pxe.getBlockNumber();
       const ignoredNullifier = 0; // Not ignored only when the note doesn't exist
-      await contract.methods.proveNullifierNonInclusion(owner, blockNumber, ignoredNullifier).send().wait();
+      await contract.methods.test_nullifier_non_inclusion_proof(owner, blockNumber, ignoredNullifier).send().wait();
     }
 
     {
       // We test the failure case now --> The proof should fail when the nullifier already exists
-      const receipt = await contract.methods.nullifyNote(owner).send().wait({ debug: true });
+      const receipt = await contract.methods.nullify_note(owner).send().wait({ debug: true });
       const { newNullifiers } = receipt.debugInfo!;
       expect(newNullifiers.length).toBe(2);
 
@@ -78,10 +78,35 @@ describe('e2e_inclusion_proofs_contract', () => {
       // the low nullifier when the nullifier already exists in the tree and for this reason the execution fails
       // on low_nullifier.value < nullifier.value check.
       await expect(
-        contract.methods.proveNullifierNonInclusion(owner, blockNumber, nullifier).send().wait(),
+        contract.methods.test_nullifier_non_inclusion_proof(owner, blockNumber, nullifier).send().wait(),
       ).rejects.toThrowError(
         /Proving nullifier non-inclusion failed: low_nullifier.value < nullifier.value check failed/,
       );
+    }
+  });
+
+  it('proves note validity (note commitment inclusion and nullifier non-inclusion)', async () => {
+    // Owner of a note
+    const owner = accounts[0].address;
+    let noteCreationBlockNumber: number;
+    {
+      // Create a note
+      const value = 100n;
+      const receipt = await contract.methods.create_note(owner, value).send().wait({ debug: true });
+
+      noteCreationBlockNumber = receipt.blockNumber!;
+      const { newCommitments, visibleNotes } = receipt.debugInfo!;
+
+      expect(newCommitments.length).toBe(1);
+      expect(visibleNotes.length).toBe(1);
+      const [receivedValue, receivedOwner, _randomness] = visibleNotes[0].note.items;
+      expect(receivedValue.toBigInt()).toBe(value);
+      expect(receivedOwner).toEqual(owner.toField());
+    }
+
+    {
+      // Prove note validity
+      await contract.methods.test_note_validity_proof(owner, noteCreationBlockNumber).send().wait();
     }
   });
 
@@ -92,7 +117,7 @@ describe('e2e_inclusion_proofs_contract', () => {
     const blockNumber = await pxe.getBlockNumber();
     const randomNoteCommitment = Fr.random();
     await expect(
-      contract.methods.proveNoteInclusion(owner, blockNumber, randomNoteCommitment).send().wait(),
+      contract.methods.test_note_inclusion_proof(owner, blockNumber, randomNoteCommitment).send().wait(),
     ).rejects.toThrow(/Leaf value: 0x[0-9a-fA-F]+ not found in NOTE_HASH_TREE/);
   });
 
@@ -100,7 +125,7 @@ describe('e2e_inclusion_proofs_contract', () => {
     // Chose random block number between deployment and current block number to test archival node
     const blockNumber = await getRandomBlockNumberSinceDeployment();
 
-    await contract.methods.provePublicValueInclusion(publicValue, blockNumber).send().wait();
+    await contract.methods.test_public_value_inclusion_proof(publicValue, blockNumber).send().wait();
   });
 
   it('public value existence failure case', async () => {
@@ -109,7 +134,7 @@ describe('e2e_inclusion_proofs_contract', () => {
 
     const randomPublicValue = Fr.random();
     await expect(
-      contract.methods.provePublicValueInclusion(randomPublicValue, blockNumber).send().wait(),
+      contract.methods.test_public_value_inclusion_proof(randomPublicValue, blockNumber).send().wait(),
     ).rejects.toThrow(/Proving public value inclusion failed/);
   });
 
@@ -120,7 +145,7 @@ describe('e2e_inclusion_proofs_contract', () => {
     const block = await pxe.getBlock(blockNumber);
     const nullifier = block?.newNullifiers[0];
 
-    await contract.methods.proveNullifierInclusion(nullifier!, blockNumber).send().wait();
+    await contract.methods.test_nullifier_inclusion_proof(nullifier!, blockNumber).send().wait();
   });
 
   it('nullifier existence failure case', async () => {
@@ -129,9 +154,9 @@ describe('e2e_inclusion_proofs_contract', () => {
     const blockNumber = await pxe.getBlockNumber();
     const randomNullifier = Fr.random();
 
-    await expect(contract.methods.proveNullifierInclusion(randomNullifier, blockNumber).send().wait()).rejects.toThrow(
-      /Low nullifier witness not found for nullifier 0x[0-9a-fA-F]+ at block/,
-    );
+    await expect(
+      contract.methods.test_nullifier_inclusion_proof(randomNullifier, blockNumber).send().wait(),
+    ).rejects.toThrow(/Low nullifier witness not found for nullifier 0x[0-9a-fA-F]+ at block/);
   });
 
   const getRandomBlockNumberSinceDeployment = async () => {

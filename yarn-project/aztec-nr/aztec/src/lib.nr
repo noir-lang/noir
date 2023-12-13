@@ -2,6 +2,7 @@ mod abi;
 mod address;
 mod context;
 mod hash;
+mod history;
 mod log;
 mod messaging;
 mod note;
