@@ -125,7 +125,6 @@ struct DependencyGraph {
     root_dependencies: Vec<CrateName>,
     library_dependencies: HashMap<CrateName, Vec<CrateName>>,
 }
-
 #[wasm_bindgen]
 // This is a map containing the paths of all of the files in the entry-point crate and
 // the transitive dependencies of the entry-point crate.
@@ -133,7 +132,7 @@ struct DependencyGraph {
 // This is for all intents and purposes the file system that the compiler will use to resolve/compile
 // files in the crate being compiled and its dependencies.
 #[derive(Deserialize, Default)]
-pub struct PathToFileSourceMap(HashMap<std::path::PathBuf, String>);
+pub struct PathToFileSourceMap(pub(crate) HashMap<std::path::PathBuf, String>);
 
 #[wasm_bindgen]
 impl PathToFileSourceMap {
@@ -234,7 +233,7 @@ pub fn compile(
 //
 // For all intents and purposes, the file manager being returned
 // should be considered as immutable.
-fn file_manager_with_source_map(source_map: PathToFileSourceMap) -> FileManager {
+pub(crate) fn file_manager_with_source_map(source_map: PathToFileSourceMap) -> FileManager {
     let root = Path::new("");
     let mut fm = FileManager::new(root);
 
@@ -283,7 +282,7 @@ fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
     prepare_dependency(context, &path_to_lib)
 }
 
-fn preprocess_program(program: CompiledProgram) -> CompileResult {
+pub(crate) fn preprocess_program(program: CompiledProgram) -> CompileResult {
     let debug_artifact = DebugArtifact {
         debug_symbols: vec![program.debug],
         file_map: program.file_map,
@@ -301,7 +300,8 @@ fn preprocess_program(program: CompiledProgram) -> CompileResult {
     CompileResult::Program { program: preprocessed_program, debug: debug_artifact }
 }
 
-fn preprocess_contract(contract: CompiledContract) -> CompileResult {
+// TODO: This method should not be doing so much, most of this should be done in nargo or the driver
+pub(crate) fn preprocess_contract(contract: CompiledContract) -> CompileResult {
     let debug_artifact = DebugArtifact {
         debug_symbols: contract.functions.iter().map(|function| function.debug.clone()).collect(),
         file_map: contract.file_map,
