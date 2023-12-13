@@ -20,6 +20,9 @@ mod errors;
 pub use circuit::{acir_read_bytes, acir_write_bytes};
 pub use compile::compile;
 
+// Expose the new Context-Centric API
+pub use compile_new::{ContextWrapper, CrateIDWrapper};
+
 #[derive(Serialize, Deserialize)]
 pub struct BuildInfo {
     git_hash: &'static str,
