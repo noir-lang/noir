@@ -54,7 +54,7 @@ jobs:
         with:
           context: .
           build-contexts: |
-            /usr/local/cargo
+            cargo=/usr/local/cargo
           file: Dockerfile.ci
           tags: ${{ steps.prep.outputs.tags }}
           target: test-base
