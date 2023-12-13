@@ -86,7 +86,7 @@ fn on_code_lens_request_inner(
         let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
         // We ignore the warnings and errors produced by compilation for producing code lenses
         // because we can still get the test functions even if compilation fails
-        let _ = check_crate(&mut context, crate_id, false);
+        let _ = check_crate(&mut context, crate_id, false, false);
 
         let fm = &context.file_manager;
         let files = fm.as_file_map();

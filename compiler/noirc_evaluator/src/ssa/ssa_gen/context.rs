@@ -341,7 +341,9 @@ impl<'a> FunctionContext<'a> {
                     _ => unreachable!("operator {} should not overflow", operator),
                 };
 
-                if operator == BinaryOpKind::ShiftLeft {
+                if operator == BinaryOpKind::Multiply && bit_size == 1 {
+                    result
+                } else if operator == BinaryOpKind::ShiftLeft {
                     self.check_left_shift_overflow(result, rhs, bit_size, location)
                 } else {
                     let message = format!("attempt to {} with overflow", op_name);
