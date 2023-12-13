@@ -55,7 +55,7 @@ fn on_goto_definition_inner(
         let (mut context, crate_id) = nargo::prepare_package(package);
 
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false);
 
         let files = context.file_manager.as_file_map();
         let file_id = context.file_manager.name_to_id(file_path.clone());

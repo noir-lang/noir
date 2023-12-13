@@ -7,8 +7,8 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::import::{resolve_imports, ImportDirective};
 use crate::hir::resolution::resolver::Resolver;
 use crate::hir::resolution::{
-    collect_impls, collect_trait_impls, resolve_free_functions, resolve_globals, resolve_impls,
-    resolve_structs, resolve_trait_by_path, resolve_trait_impls, resolve_traits,
+    collect_impls, collect_trait_impls, path_resolver, resolve_free_functions, resolve_globals,
+    resolve_impls, resolve_structs, resolve_trait_by_path, resolve_trait_impls, resolve_traits,
     resolve_type_aliases,
 };
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
@@ -19,8 +19,9 @@ use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, Type
 
 use crate::parser::{ParserError, SortedModule};
 use crate::{
-    ExpressionKind, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias,
-    Path, Type, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
+    NoirTypeAlias, Path, PathKind, Type, UnresolvedGenerics, UnresolvedTraitConstraint,
+    UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -81,6 +82,7 @@ pub struct UnresolvedTrait {
     pub module_id: LocalModuleId,
     pub crate_id: CrateId,
     pub trait_def: NoirTrait,
+    pub method_ids: HashMap<String, FuncId>,
     pub fns_with_default_impl: UnresolvedFunctions,
 }
 
@@ -243,8 +245,19 @@ impl DefCollector {
             context,
         ));
 
+        let submodules = vecmap(def_collector.def_map.modules().iter(), |(index, _)| index);
         // Add the current crate to the collection of DefMaps
         context.def_maps.insert(crate_id, def_collector.def_map);
+
+        inject_prelude(crate_id, context, crate_root, &mut def_collector.collected_imports);
+        for submodule in submodules {
+            inject_prelude(
+                crate_id,
+                context,
+                LocalModuleId(submodule),
+                &mut def_collector.collected_imports,
+            );
+        }
 
         // Resolve unresolved imports collected from the crate
         let (resolved, unresolved_imports) =
@@ -264,8 +277,11 @@ impl DefCollector {
         for resolved_import in resolved {
             let name = resolved_import.name;
             for ns in resolved_import.resolved_namespace.iter_defs() {
-                let result = current_def_map.modules[resolved_import.module_scope.0]
-                    .import(name.clone(), ns);
+                let result = current_def_map.modules[resolved_import.module_scope.0].import(
+                    name.clone(),
+                    ns,
+                    resolved_import.is_prelude,
+                );
 
                 if let Err((first_def, second_def)) = result {
                     let err = DefCollectorErrorKind::Duplicate {
@@ -355,6 +371,47 @@ impl DefCollector {
         errors.extend(type_check_functions(&mut context.def_interner, file_method_ids));
         errors.extend(type_check_functions(&mut context.def_interner, file_trait_impls_ids));
         errors
+    }
+}
+
+fn inject_prelude(
+    crate_id: CrateId,
+    context: &Context,
+    crate_root: LocalModuleId,
+    collected_imports: &mut Vec<ImportDirective>,
+) {
+    let segments: Vec<_> = "std::prelude"
+        .split("::")
+        .map(|segment| crate::Ident::new(segment.into(), Span::default()))
+        .collect();
+
+    let path =
+        Path { segments: segments.clone(), kind: crate::PathKind::Dep, span: Span::default() };
+
+    if !crate_id.is_stdlib() {
+        if let Ok(module_def) = path_resolver::resolve_path(
+            &context.def_maps,
+            ModuleId { krate: crate_id, local_id: crate_root },
+            path,
+        ) {
+            let module_id = module_def.as_module().expect("std::prelude should be a module");
+            let prelude = context.module(module_id).scope().names();
+
+            for path in prelude {
+                let mut segments = segments.clone();
+                segments.push(Ident::new(path.to_string(), Span::default()));
+
+                collected_imports.insert(
+                    0,
+                    ImportDirective {
+                        module_id: crate_root,
+                        path: Path { segments, kind: PathKind::Dep, span: Span::default() },
+                        alias: None,
+                        is_prelude: true,
+                    },
+                );
+            }
+        }
     }
 }
 

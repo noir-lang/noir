@@ -23,6 +23,7 @@ use clap::Args;
 use crate::backends::Backend;
 use crate::errors::CliError;
 
+use super::fs::program::only_acir;
 use super::fs::program::{
     read_debug_artifact_from_file, read_program_from_file, save_contract_to_file,
     save_debug_artifact_to_file, save_program_to_file,
@@ -214,8 +215,8 @@ fn compile_program(
     // Apply backend specific optimizations.
     let optimized_program = nargo::ops::optimize_program(program, np_language, is_opcode_supported)
         .expect("Backend does not support an opcode that is in the IR");
-
-    save_program(optimized_program.clone(), package, &workspace.target_directory_path());
+    let only_acir = compile_options.only_acir;
+    save_program(optimized_program.clone(), package, &workspace.target_directory_path(), only_acir);
 
     (context.file_manager, Ok((optimized_program, warnings)))
 }
@@ -242,7 +243,12 @@ fn compile_contract(
     (context.file_manager, Ok((optimized_contract, warnings)))
 }
 
-fn save_program(program: CompiledProgram, package: &Package, circuit_dir: &Path) {
+fn save_program(
+    program: CompiledProgram,
+    package: &Package,
+    circuit_dir: &Path,
+    only_acir_opt: bool,
+) {
     let preprocessed_program = PreprocessedProgram {
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
@@ -250,8 +256,11 @@ fn save_program(program: CompiledProgram, package: &Package, circuit_dir: &Path)
         noir_version: program.noir_version,
         bytecode: program.circuit,
     };
-
-    save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
+    if only_acir_opt {
+        only_acir(&preprocessed_program, circuit_dir);
+    } else {
+        save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
+    }
 
     let debug_artifact = DebugArtifact {
         debug_symbols: vec![program.debug],
