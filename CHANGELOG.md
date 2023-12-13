@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.9](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.16.8...aztec-packages-v0.16.9) (2023-12-13)
+
+
+### Bug Fixes
+
+* **ci:** Deploy_npm script ([#3678](https://github.com/AztecProtocol/aztec-packages/issues/3678)) ([9d7c58d](https://github.com/AztecProtocol/aztec-packages/commit/9d7c58d4fe0f91c453c47d6be813325cff08907b))
+
 ## [0.16.8](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.16.7...aztec-packages-v0.16.8) (2023-12-13)
 
 
