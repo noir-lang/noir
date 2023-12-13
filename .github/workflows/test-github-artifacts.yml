@@ -41,8 +41,8 @@ jobs:
         uses: actions/cache/restore@v3
         with:
           path: dist
-          key: ${{ runner.os }}-${{ runner.arch}}-noir-base-docker-artifact-cache
-      - name: Install Dependencies
+          key: noir-base-docker-artifact-cache
+      - name: Cache was hit
         if: steps.cache-restore.outputs.cache-hit == 'true'
         run: echo hihi
       - name: Build cargo
@@ -69,5 +69,5 @@ jobs:
       - name: test-cache-save
         uses: actions/cache/save@v3
         with:
-          path: /dist
-          key: ${{ runner.os }}-${{ runner.arch}}-noir-base-docker-artifact-cache
+          path: dist
+          key: noir-base-docker-artifact-cache
