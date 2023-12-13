@@ -290,32 +290,6 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/canary@workspace:canary":
-  version: 0.0.0-use.local
-  resolution: "@aztec/canary@workspace:canary"
-  dependencies:
-    "@aztec/aztec.js": "workspace:^"
-    "@aztec/cli": "workspace:^"
-    "@aztec/end-to-end": "workspace:^"
-    "@aztec/ethereum": "workspace:^"
-    "@aztec/l1-artifacts": "workspace:^"
-    "@aztec/noir-contracts": "workspace:^"
-    "@jest/globals": ^29.5.0
-    "@types/jest": ^29.5.0
-    "@types/koa-static": ^4.0.2
-    "@types/node": ^18.7.23
-    abitype: ^0.9.8
-    jest: ^29.5.0
-    koa: ^2.14.2
-    koa-static: ^5.0.0
-    ts-jest: ^29.1.0
-    ts-node: ^10.9.1
-    tslib: ^2.4.0
-    typescript: ^5.0.4
-    viem: ^1.2.5
-  languageName: unknown
-  linkType: soft
-
 "@aztec/circuits.js@workspace:^, @aztec/circuits.js@workspace:circuits.js":
   version: 0.0.0-use.local
   resolution: "@aztec/circuits.js@workspace:circuits.js"
@@ -382,7 +356,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/end-to-end@workspace:^, @aztec/end-to-end@workspace:end-to-end":
+"@aztec/end-to-end@workspace:end-to-end":
   version: 0.0.0-use.local
   resolution: "@aztec/end-to-end@workspace:end-to-end"
   dependencies:
@@ -6467,21 +6441,6 @@ __metadata:
     zod:
       optional: true
   checksum: 94e6ad5d3d3851f68ea54d090312d35e38aa15d19b65d25f02d8c54400b184a87b121adb23e930f2e92d597e9290e8ca4f2ff70751e6dada4e8f1440948e0c44
-  languageName: node
-  linkType: hard
-
-"abitype@npm:^0.9.8":
-  version: 0.9.8
-  resolution: "abitype@npm:0.9.8"
-  peerDependencies:
-    typescript: ">=5.0.4"
-    zod: ^3 >=3.19.1
-  peerDependenciesMeta:
-    typescript:
-      optional: true
-    zod:
-      optional: true
-  checksum: d7d887f29d6821e3f7a400de9620511b80ead3f85c5c87308aaec97965d3493e6687ed816e88722b4f512249bd66dee9e69231b49af0e1db8f69400a62c87cf6
   languageName: node
   linkType: hard
 

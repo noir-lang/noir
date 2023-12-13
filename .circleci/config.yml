@@ -904,26 +904,8 @@ jobs:
           name: "Assemble benchmark summary from uploaded logs"
           command: ./scripts/ci/assemble_e2e_benchmark.sh
 
-  # Release jobs.
-  release-npm:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: medium
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "yarn-project"
-          command: |
-            should_release || exit 0
-            yarn-project/deploy_npm.sh latest
-      - run:
-          name: "l1-contracts"
-          command: |
-            should_release || exit 0
-            deploy_npm l1-contracts
-
-  release-dockerhub:
+  # Deploy & release jobs.
+  deploy-and-release:
     machine:
       image: ubuntu-2204:2023.07.2
     resource_class: medium
@@ -939,42 +921,37 @@ jobs:
             deploy_dockerhub cli
             deploy_dockerhub aztec-faucet
             deploy_dockerhub mainnet-fork
-
-  # Deploy jobs.
-  deploy-mainnet-fork:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: medium
-    steps:
-      - *checkout
-      - *setup_env
+      - run:
+          name: "Release canary to NPM: yarn-project"
+          command: |
+            should_release || exit 0
+            yarn-project/deploy_npm.sh canary
+      - run:
+          name: "Release latest to NPM: yarn-project"
+          command: |
+            should_release || exit 0
+            yarn-project/deploy_npm.sh latest
+      - run:
+          name: "Release canary to NPM: l1-contracts"
+          command: |
+            should_release || exit 0
+            deploy_npm l1-contracts canary
+      - run:
+          name: "Release latest to NPM: l1-contracts"
+          command: |
+            should_release || exit 0
+            deploy_npm l1-contracts latest
       - run:
           name: "Deploy mainnet fork"
           command: |
             should_deploy || exit 0
             deploy mainnet-fork
-
-  deploy-contracts:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: medium
-    steps:
-      - *checkout
-      - *setup_env
       - run:
           name: "Deploy L1 contracts to mainnet fork"
           working_directory: l1-contracts
           command: |
             should_deploy || exit 0
             ./scripts/ci_deploy_contracts.sh
-
-  deploy-devnet:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: medium
-    steps:
-      - *checkout
-      - *setup_env
       - run:
           name: "Deploy devnet to AWS"
           command: |
@@ -1213,19 +1190,4 @@ workflows:
           <<: *defaults
 
       # Production releases.
-      - release-dockerhub: *defaults_deploy
-      - release-npm: *defaults_deploy
-
-      # Production deployment.
-      - deploy-mainnet-fork:
-          requires:
-            - release-dockerhub
-          <<: *defaults_deploy
-      - deploy-contracts:
-          requires:
-            - deploy-mainnet-fork
-          <<: *defaults_deploy
-      - deploy-devnet:
-          requires:
-            - deploy-contracts
-          <<: *defaults_deploy
+      - deploy-and-release: *defaults_deploy

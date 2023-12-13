@@ -1,9 +1,0 @@
-version: '3'
-services:
-  canary:
-    image: aztecprotocol/canary:latest
-    environment:
-      ETHEREUM_HOST: http://ethereum:8545
-      CHAIN_ID: 31337
-      PXE_URL: http://aztec:8080
-    command: ${TEST:-./src/cli.test.ts}
