@@ -14,8 +14,8 @@ use wasm_bindgen::prelude::*;
 
 mod circuit;
 mod compile;
-mod errors;
 mod compile_new;
+mod errors;
 
 pub use circuit::{acir_read_bytes, acir_write_bytes};
 pub use compile::compile;

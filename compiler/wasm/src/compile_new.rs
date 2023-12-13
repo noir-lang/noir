@@ -135,16 +135,12 @@ impl ContextWrapper {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use noirc_driver::prepare_crate;
-    use noirc_frontend::{
-        graph::CrateGraph,
-        hir::Context,
-    };
+    use noirc_frontend::{graph::CrateGraph, hir::Context};
 
-    use crate::compile::{PathToFileSourceMap, file_manager_with_source_map};
+    use crate::compile::{file_manager_with_source_map, PathToFileSourceMap};
 
     use std::path::Path;
 
@@ -159,7 +155,7 @@ mod test {
         let mut context = Context::new(fm, graph);
         prepare_crate(&mut context, Path::new("/main.nr"));
 
-        ContextWrapper{context}
+        ContextWrapper { context }
     }
 
     #[test]
@@ -173,16 +169,14 @@ mod test {
 
     #[test]
     fn test_works_with_root_dependencies() {
-        
         let source_map = PathToFileSourceMap(
             vec![(Path::new("lib1/lib.nr").to_path_buf(), "fn foo() {}".to_string())]
-            .into_iter()
-            .collect(),
+                .into_iter()
+                .collect(),
         );
 
         let mut context = setup_test_context(source_map);
         context.process_dependency_crate("lib1/lib.nr".to_string());
-
 
         assert_eq!(context.crate_graph().number_of_crates(), 3);
     }
@@ -196,7 +190,7 @@ mod test {
         );
         let mut context = setup_test_context(source_map);
 
-        let lib1_crate_id = context.process_dependency_crate("lib1/lib.nr".to_string());  
+        let lib1_crate_id = context.process_dependency_crate("lib1/lib.nr".to_string());
         let root_crate_id = context.root_crate_id();
 
         context.add_dependency_edge("lib1".to_string(), root_crate_id, lib1_crate_id);
@@ -218,10 +212,10 @@ mod test {
         );
 
         let mut context = setup_test_context(source_map);
-        
-        let lib1_crate_id = context.process_dependency_crate("lib1/lib.nr".to_string());  
-        let lib2_crate_id = context.process_dependency_crate("lib2/lib.nr".to_string());  
-        let lib3_crate_id = context.process_dependency_crate("lib3/lib.nr".to_string());  
+
+        let lib1_crate_id = context.process_dependency_crate("lib1/lib.nr".to_string());
+        let lib2_crate_id = context.process_dependency_crate("lib2/lib.nr".to_string());
+        let lib3_crate_id = context.process_dependency_crate("lib3/lib.nr".to_string());
         let root_crate_id = context.root_crate_id();
 
         context.add_dependency_edge("lib1".to_string(), root_crate_id, lib1_crate_id);
@@ -243,10 +237,10 @@ mod test {
             .collect(),
         );
         let mut context = setup_test_context(source_map);
-        
-        let lib1_crate_id = context.process_dependency_crate("lib1/lib.nr".to_string());  
-        let lib2_crate_id = context.process_dependency_crate("lib2/lib.nr".to_string());  
-        let lib3_crate_id = context.process_dependency_crate("lib3/lib.nr".to_string());  
+
+        let lib1_crate_id = context.process_dependency_crate("lib1/lib.nr".to_string());
+        let lib2_crate_id = context.process_dependency_crate("lib2/lib.nr".to_string());
+        let lib3_crate_id = context.process_dependency_crate("lib3/lib.nr".to_string());
         let root_crate_id = context.root_crate_id();
 
         context.add_dependency_edge("lib1".to_string(), root_crate_id, lib1_crate_id);
@@ -255,4 +249,3 @@ mod test {
         assert_eq!(context.crate_graph().number_of_crates(), 5);
     }
 }
-
