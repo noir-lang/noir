@@ -9,11 +9,10 @@ use std::collections::{BTreeMap, HashMap};
 
 // Re-providing lsp_types that we don't need to override
 pub(crate) use lsp_types::{
-    CodeLens, CodeLensOptions, CodeLensParams, Command, Diagnostic, DiagnosticSeverity,
-    DidChangeConfigurationParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DidSaveTextDocumentParams, InitializeParams, InitializedParams,
-    LogMessageParams, MessageType, Position, PublishDiagnosticsParams, Range, ServerInfo,
-    TextDocumentSyncCapability, Url,
+    Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    InitializeParams, InitializedParams, LogMessageParams, MessageType, Position,
+    PublishDiagnosticsParams, Range, ServerInfo, TextDocumentSyncCapability, Url,
 };
 
 pub(crate) mod request {
@@ -25,9 +24,7 @@ pub(crate) mod request {
     };
 
     // Re-providing lsp_types that we don't need to override
-    pub(crate) use lsp_types::request::{
-        CodeLensRequest as CodeLens, Formatting, GotoDefinition, Shutdown,
-    };
+    pub(crate) use lsp_types::request::{Formatting, GotoDefinition, Shutdown};
 
     #[derive(Debug)]
     pub(crate) struct Initialize;
@@ -217,5 +214,4 @@ pub(crate) struct NargoProfileRunResult {
     pub(crate) opcodes_counts: HashMap<Location, OpCodesCount>,
 }
 
-pub(crate) type CodeLensResult = Option<Vec<CodeLens>>;
 pub(crate) type GotoDefinitionResult = Option<lsp_types::GotoDefinitionResponse>;

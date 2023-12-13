@@ -20,15 +20,14 @@ use crate::{
 // They are not attached to the `NargoLspService` struct so they can be unit tested with only `LspState`
 // and params passed in.
 
-mod code_lens_request;
 mod goto_definition;
 mod profile_run;
 mod test_run;
 mod tests;
 
 pub(crate) use {
-    code_lens_request::on_code_lens_request, goto_definition::on_goto_definition_request,
-    profile_run::on_profile_run_request, test_run::on_test_run_request, tests::on_tests_request,
+    goto_definition::on_goto_definition_request, profile_run::on_profile_run_request,
+    test_run::on_test_run_request, tests::on_tests_request,
 };
 
 pub(crate) fn on_initialize(
@@ -128,7 +127,6 @@ mod initialization {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::FULL
                 )),
-                code_lens_provider: Some(CodeLensOptions { resolve_provider: Some(false) }),
                 document_formatting_provider: true,
                 ..
             }
