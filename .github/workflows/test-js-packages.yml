@@ -393,7 +393,7 @@ jobs:
         run: |
           # Note the lack of spaces between package names.
           PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/backend_barretenberg,@noir-lang/noir_js"
-          yarn workspaces foreach -vp --from "{$PACKAGES_TO_BUILD}" run build
+          yarn workspaces foreach -vtp --from "{$PACKAGES_TO_BUILD}" run build
 
       - name: Run `integration-tests`
         run: |
