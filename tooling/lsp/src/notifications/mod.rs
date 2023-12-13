@@ -161,9 +161,6 @@ pub(super) fn on_did_save_text_document(
         })
         .collect();
 
-    // We need to refresh lenses when we compile since that's the only time they can be accurately reflected
-    std::mem::drop(state.client.code_lens_refresh(()));
-
     let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
         uri: params.text_document.uri,
         version: None,
