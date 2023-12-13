@@ -44,7 +44,7 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch}}-noir-base-docker-artifact-cache
       - name: Install Dependencies
         if: steps.cache-restore.outputs.cache-hit == 'true'
-        run: echo hi
+        run: echo hihi
       - name: Build cargo
         uses: docker/build-push-action@v5
         with:
