@@ -169,7 +169,7 @@ export function extractPrivateCircuitPublicInputs(
     witnessReader.readField(),
     witnessReader.readField(),
     witnessReader.readField(),
-    Fr.ZERO,
+    Fr.ZERO, // TODO(#3441)
     witnessReader.readField(),
     witnessReader.readField(),
   );
@@ -261,7 +261,7 @@ export function extractPublicCircuitPublicInputs(partialWitness: ACVMWitness, ac
     witnessReader.readField(),
     witnessReader.readField(),
     witnessReader.readField(),
-    Fr.ZERO,
+    Fr.ZERO, // TODO(#3441)
     witnessReader.readField(),
     witnessReader.readField(),
   );

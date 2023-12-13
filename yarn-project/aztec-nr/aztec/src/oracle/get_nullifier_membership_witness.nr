@@ -1,6 +1,8 @@
-use dep::protocol_types::constants::NULLIFIER_TREE_HEIGHT;
+use dep::protocol_types::{
+    constants::NULLIFIER_TREE_HEIGHT,
+    hash::pedersen_hash,
+};
 use crate::utils::arr_copy_slice;
-use crate::hash::pedersen_hash;
 
 global LEAF_DATA_LENGTH: Field = 3;
 // TODO: move this to constants.hpp so that it gets computed as INDEX_LENGTH + LEAF_DATA_LENGTH + NULLIFIER_TREE_HEIGHT

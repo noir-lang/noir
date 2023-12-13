@@ -10,7 +10,7 @@ use crate::{
         public_data_read::PublicDataRead,
         public_data_update_request::PublicDataUpdateRequest,
     },
-    address::{Address, EthAddress},
+    address::{AztecAddress, EthAddress},
     hash::NUM_FIELDS_PER_SHA256,
     mocked::{Proof, VerificationKey},
     tests::{
@@ -29,7 +29,7 @@ use crate::constants::{
 };
 
 struct PreviousKernelDataBuilder {
-    contract_address: Address,
+    contract_address: AztecAddress,
     portal_contract_address: EthAddress,
     end: CombinedAccumulatedDataBuilder,
     block_header: BlockHeader,

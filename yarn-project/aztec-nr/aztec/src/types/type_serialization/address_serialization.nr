@@ -1,17 +1,22 @@
 use crate::types::type_serialization::TypeSerializationInterface;
-use crate::types::address::AztecAddress;
+use dep::protocol_types::{
+    address::{
+        AztecAddress,
+        EthAddress
+    },
+};
 
 global AZTEC_ADDRESS_SERIALIZED_LEN: Field = 1;
 
 fn deserialize(fields: [Field; AZTEC_ADDRESS_SERIALIZED_LEN]) -> AztecAddress {
-    AztecAddress::new(fields[0])
+    AztecAddress::from_field(fields[0])
 }
 
 fn serialize(value: AztecAddress) -> [Field; AZTEC_ADDRESS_SERIALIZED_LEN] {
-    [value.address]
+    [value.to_field()]
 }
 
-global AztecAddressSerializationMethods = TypeSerializationInterface {
+global AddressSerializationMethods = TypeSerializationInterface {
     deserialize,
     serialize,
 };

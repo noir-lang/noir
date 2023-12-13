@@ -1,16 +1,16 @@
+use dep::protocol_types::address::AztecAddress;
 use dep::aztec::{
   context::{ PrivateContext, PublicContext, Context },
   selector::compute_selector,
-  types::address::AztecAddress,
 };
 
 struct SlowMap {
-  address: Field,
+  address: AztecAddress,
 }
 
 impl SlowMap {
   pub fn at(address: AztecAddress) -> Self {
-    Self { address: address.address }
+    Self { address: address }
   }
 
   pub fn initialize(self: Self, context: PublicContext) {

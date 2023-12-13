@@ -240,17 +240,21 @@ exports[`noir-compiler using wasm binary generates Aztec.nr external interface 1
   
 use dep::std;
 use dep::aztec::context::{ PrivateContext, PublicContext };
-use dep::protocol_types::constants::RETURN_VALUES_LENGTH;
+use dep::protocol_types::{
+  address::AztecAddress,
+  abis::function_selector::FunctionSelector,
+  constants::RETURN_VALUES_LENGTH,
+};
 
 
 
 // Interface for calling TestContract functions from a private context
 struct TestContractPrivateContextInterface {
-  address: Field,
+  address: AztecAddress,
 }
 
 impl TestContractPrivateContextInterface {
-  pub fn at(address: Field) -> Self {
+  pub fn at(address: AztecAddress) -> Self {
       Self {
           address,
       }
@@ -262,7 +266,7 @@ impl TestContractPrivateContextInterface {
   ) {
     let mut serialized_args = [0; 0];
 
-    context.call_public_function(self.address, 0x46be982e, serialized_args)
+    context.call_public_function(self.address, FunctionSelector::from_field(0x46be982e), serialized_args)
   }
   
 }
@@ -272,11 +276,11 @@ impl TestContractPrivateContextInterface {
 
 // Interface for calling TestContract functions from a public context
 struct TestContractPublicContextInterface {
-  address: Field,
+  address: AztecAddress,
 }
 
 impl TestContractPublicContextInterface {
-  pub fn at(address: Field) -> Self {
+  pub fn at(address: AztecAddress) -> Self {
       Self {
           address,
       }
@@ -288,7 +292,7 @@ impl TestContractPublicContextInterface {
   ) -> [Field; RETURN_VALUES_LENGTH] {
     let mut serialized_args = [0; 0];
 
-    context.call_public_function(self.address, 0x46be982e, serialized_args)
+    context.call_public_function(self.address, FunctionSelector::from_field(0x46be982e), serialized_args)
   }
   
 }
@@ -316,6 +320,7 @@ import {
   EthAddressLike,
   FieldLike,
   Fr,
+  FunctionSelectorLike,
   Point,
   PublicKey,
   Wallet,

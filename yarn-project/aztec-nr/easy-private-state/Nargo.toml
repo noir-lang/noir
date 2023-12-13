@@ -7,3 +7,4 @@ type = "lib"
 [dependencies]
 aztec = { path = "../aztec" }
 value_note = { path = "../value-note" }
+protocol_types = { path = "../../../../noir-protocol-circuits/src/crates/types" }

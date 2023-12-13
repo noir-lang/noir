@@ -1,5 +1,6 @@
 // A contract used for testing a random hodgepodge of small features from simulator and end-to-end tests.
 contract StatefulTest {
+    use dep::protocol_types::address::AztecAddress;
     use dep::std::option::Option;
     use dep::value_note::{
         balance_utils,
@@ -24,7 +25,7 @@ contract StatefulTest {
     }
 
     impl Storage {
-        fn init(context: Context) -> pub Self {
+        fn init(context: Context) -> Self {
             Storage {
                 notes: Map::new(
                     context,
@@ -49,39 +50,40 @@ contract StatefulTest {
     }
 
     #[aztec(private)]
-    fn constructor(owner: Field, value: Field) {
-        let loc = storage.notes.at(owner);
+    fn constructor(owner: AztecAddress, value: Field) {
+        let loc = storage.notes.at(owner.to_field());
         increment(loc, value, owner);
     }
 
     #[aztec(private)]
-    fn create_note(owner: Field, value: Field) {
+    fn create_note(owner: AztecAddress, value: Field) {
         if (value != 0) {
-            let loc = storage.notes.at(owner);
+            let loc = storage.notes.at(owner.to_field());
             increment(loc, value, owner);
         }
     }
 
     #[aztec(private)]
-    fn destroy_and_create(recipient: Field, amount: Field) {
+    fn destroy_and_create(recipient: AztecAddress, amount: Field) {
         let sender = context.msg_sender();
 
-        let sender_notes = storage.notes.at(sender);
+        let sender_notes = storage.notes.at(sender.to_field());
         decrement(sender_notes, amount, sender);
 
-        let recipient_notes = storage.notes.at(recipient);
+        let recipient_notes = storage.notes.at(recipient.to_field());
         increment(recipient_notes, amount, recipient);
     }
 
-    unconstrained fn summed_values(owner: Field) -> Field {
-        let owner_balance = storage.notes.at(owner);
+    unconstrained fn summed_values(owner: AztecAddress) -> Field {
+        let owner_balance = storage.notes.at(owner.to_field());
 
         // Return the sum of all notes in the set.
         balance_utils::get_balance(owner_balance)
     }
 
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+        let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
+        let note_header = NoteHeader::new(_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)
     }
 }

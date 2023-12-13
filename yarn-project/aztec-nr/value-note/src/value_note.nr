@@ -1,3 +1,4 @@
+use dep::protocol_types::address::AztecAddress;
 use dep::aztec::{
     note::{
         note_header::NoteHeader,
@@ -19,14 +20,14 @@ global VALUE_NOTE_LEN: Field = 3; // 3 plus a header.
 // docs:start:value-note-def
 struct ValueNote {
     value: Field,
-    owner: Field,
+    owner: AztecAddress,
     randomness: Field,
     header: NoteHeader,
 }
 // docs:end:value-note-def
 
 impl ValueNote {
-    pub fn new(value: Field, owner: Field) -> Self {
+    pub fn new(value: Field, owner: AztecAddress) -> Self {
         let randomness = rand();
         let header = NoteHeader::empty();
         ValueNote {
@@ -38,13 +39,13 @@ impl ValueNote {
     }
 
     pub fn serialize(self) -> [Field; VALUE_NOTE_LEN] {
-        [self.value, self.owner, self.randomness]
+        [self.value, self.owner.to_field(), self.randomness]
     }
 
     pub fn deserialize(serialized_note: [Field; VALUE_NOTE_LEN]) -> Self {
         ValueNote {
             value: serialized_note[0],
-            owner: serialized_note[1],
+            owner: AztecAddress::from_field(serialized_note[1]),
             randomness: serialized_note[2],
             header: NoteHeader::empty(),
         }

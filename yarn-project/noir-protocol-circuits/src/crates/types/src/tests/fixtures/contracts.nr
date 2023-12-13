@@ -1,10 +1,10 @@
 use crate::abis::membership_witness::ContractLeafMembershipWitness;
-use crate::address::{Address, EthAddress};
+use crate::address::{AztecAddress, EthAddress};
 use crate::tests::fixtures;
 
 struct ContractData {
     contract_address_salt: Field,
-    address: Address,
+    address: AztecAddress,
     portal_contract_address: EthAddress,
     membership_witness: ContractLeafMembershipWitness,
     function_tree_root: Field,
@@ -12,7 +12,7 @@ struct ContractData {
 
 global default_contract = ContractData {
     contract_address_salt: 34567,
-    address: Address { inner: 12345 },
+    address: AztecAddress { inner: 12345 },
     portal_contract_address: EthAddress { inner: 23456 },
     membership_witness: ContractLeafMembershipWitness {
         leaf_index: 0,
@@ -23,7 +23,7 @@ global default_contract = ContractData {
 
 global parent_contract = ContractData {
     contract_address_salt: 11111,
-    address: Address { inner: 667788 },
+    address: AztecAddress { inner: 667788 },
     portal_contract_address: EthAddress { inner: 990011 },
     membership_witness: ContractLeafMembershipWitness {
         leaf_index: 1,

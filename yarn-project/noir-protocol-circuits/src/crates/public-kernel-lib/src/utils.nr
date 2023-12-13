@@ -6,7 +6,7 @@ use dep::types::{
         public_data_read::PublicDataRead,
         public_data_update_request::PublicDataUpdateRequest,
     },
-    address::Address,
+    address::AztecAddress,
     contrakt::{
         storage_read::StorageRead,
         storage_update_request::StorageUpdateRequest,
@@ -16,7 +16,7 @@ use dep::types::{
     },
 };
 
-pub fn compute_public_data_reads<N>(contract_address: Address, read_requests: [StorageRead; N]) -> [PublicDataRead; N] {
+pub fn compute_public_data_reads<N>(contract_address: AztecAddress, read_requests: [StorageRead; N]) -> [PublicDataRead; N] {
     let mut public_data_reads = [PublicDataRead::empty(); N];
     for i in 0..N {
         let read_request = read_requests[i];
@@ -43,7 +43,7 @@ pub fn assert_eq_call_requests<N, S>(
 }
 
 pub fn compute_public_data_update_requests<N>(
-    contract_address: Address,
+    contract_address: AztecAddress,
     update_requests: [StorageUpdateRequest; N],
 ) -> [PublicDataUpdateRequest; N] {
     let mut public_data_update_requests = [PublicDataUpdateRequest::empty(); N];

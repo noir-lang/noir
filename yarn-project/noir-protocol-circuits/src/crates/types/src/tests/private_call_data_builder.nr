@@ -11,7 +11,7 @@ use crate::{
         private_circuit_public_inputs::{PrivateCircuitPublicInputs},
         private_kernel::private_call_data::PrivateCallData,
     },
-    address::{Address, EthAddress},
+    address::{AztecAddress, EthAddress},
     hash::NUM_FIELDS_PER_SHA256,
     mocked::{Proof, VerificationKey},
     tests::{
@@ -34,7 +34,7 @@ use crate::constants::{
 
 struct PrivateCallDataBuilder {
     // Values of PrivateCallStackItem.
-    contract_address: Address,
+    contract_address: AztecAddress,
     public_inputs: PrivateCircuitPublicInputsBuilder,
     is_execution_request: bool,
     function_data: FunctionData,

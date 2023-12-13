@@ -1,8 +1,9 @@
+use dep::protocol_types::address::AztecAddress;
 use dep::aztec::types::type_serialization::TypeSerializationInterface;
 
 // docs:start:state_vars-CustomStruct
 struct Queen {
-    account: Field,
+    account: AztecAddress,
     points: u8,
 }
 // docs:end:state_vars-CustomStruct
@@ -11,11 +12,11 @@ struct Queen {
 global QUEEN_SERIALIZED_LEN: Field = 2;
 
 fn deserialize(fields: [Field; QUEEN_SERIALIZED_LEN]) -> Queen {
-    Queen { account: fields[0], points: fields[1] as u8 }
+    Queen { account: AztecAddress::from_field(fields[0]), points: fields[1] as u8 }
 }
 
 fn serialize(queen: Queen) -> [Field; QUEEN_SERIALIZED_LEN] {
-    [queen.account, queen.points as Field]
+    [queen.account.to_field(), queen.points as Field]
 }
 
 global QueenSerializationMethods = TypeSerializationInterface {

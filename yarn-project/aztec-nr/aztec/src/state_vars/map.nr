@@ -1,6 +1,6 @@
 use crate::context::{PrivateContext, PublicContext, Context};
 use dep::std::option::Option;
-use crate::hash::pedersen_hash;
+use dep::protocol_types::hash::pedersen_hash;
 
 // docs:start:map
 struct Map<V> {

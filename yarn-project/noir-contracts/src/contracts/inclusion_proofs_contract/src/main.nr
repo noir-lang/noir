@@ -1,5 +1,6 @@
 // A demonstration of inclusion and non-inclusion proofs.
 contract InclusionProofs {
+    use dep::protocol_types::address::AztecAddress;
     use dep::aztec::{
         state_vars::{
             map::Map,
@@ -8,7 +9,6 @@ contract InclusionProofs {
         },
         selector::compute_selector,
         types::{
-            address::AztecAddress,
             type_serialization::field_serialization::FieldSerializationMethods,
         },
         context::Context,
@@ -81,8 +81,8 @@ contract InclusionProofs {
         owner: AztecAddress,
         value: Field,
     ) {
-        let owner_private_values = storage.private_values.at(owner.address);
-        let mut note = ValueNote::new(value, owner.address);
+        let owner_private_values = storage.private_values.at(owner.to_field());
+        let mut note = ValueNote::new(value, owner);
         owner_private_values.insert(&mut note, true);
     }
 
@@ -95,8 +95,8 @@ contract InclusionProofs {
         spare_commitment: Field, // This is only used when the note is not found --> used to test the failure case
     ) {
         // 1) Get the note from PXE.
-        let private_values = storage.private_values.at(owner.address);
-        let options = NoteGetterOptions::new().select(1, owner.address).set_limit(1);
+        let private_values = storage.private_values.at(owner.to_field());
+        let options = NoteGetterOptions::new().select(1, owner.to_field()).set_limit(1);
         let notes = private_values.get_notes(options);
         let maybe_note = notes[0];
 
@@ -117,8 +117,8 @@ contract InclusionProofs {
         spare_nullifier: Field, // This is only used when the note is not found --> used to test the failure case
     ) {
         // 2) Get the note from PXE
-        let private_values = storage.private_values.at(owner.address);
-        let options = NoteGetterOptions::new().select(1, owner.address).set_limit(1);
+        let private_values = storage.private_values.at(owner.to_field());
+        let options = NoteGetterOptions::new().select(1, owner.to_field()).set_limit(1);
         let notes = private_values.get_notes(options);
         let maybe_note = notes[0];
 
@@ -137,8 +137,8 @@ contract InclusionProofs {
         block_number: u32, // The block at which we'll prove that the note exists and is not nullified
     ) {
         // 1) Get the note from PXE.
-        let private_values = storage.private_values.at(owner.address);
-        let options = NoteGetterOptions::new().select(1, owner.address).set_limit(1);
+        let private_values = storage.private_values.at(owner.to_field());
+        let options = NoteGetterOptions::new().select(1, owner.to_field()).set_limit(1);
         let notes = private_values.get_notes(options);
         let note = notes[0].unwrap();
 
@@ -150,8 +150,8 @@ contract InclusionProofs {
     fn nullify_note(
         owner: AztecAddress,
     ) {
-        let private_values = storage.private_values.at(owner.address);
-        let options = NoteGetterOptions::new().select(1, owner.address).set_limit(1);
+        let private_values = storage.private_values.at(owner.to_field());
+        let options = NoteGetterOptions::new().select(1, owner.to_field()).set_limit(1);
         let notes = private_values.get_notes(options);
         let note = notes[0].unwrap();
 
@@ -181,7 +181,8 @@ contract InclusionProofs {
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+        let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
+        let note_header = NoteHeader::new(_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)
     }
 }

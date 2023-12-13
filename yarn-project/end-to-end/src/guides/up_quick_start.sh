@@ -6,8 +6,8 @@ set -eux
 # The following accounts and pks must match the ones exposed by the sandbox.
 
 # docs:start:declare-accounts
-ALICE="0x06357cc85cb8fc561adbf741f63cd75efa26ffba1c80d431ec77d036d8edf022"
-BOB="0x1b18a972d54db0283a04abaace5f7b03c3fca5a4b2c0cf113b457de6ea4991e7"
+ALICE="0x26fc40ccf8622e4ac4bb1132762cb3917933b1b556155b1964bbbfdd3071ff5c"
+BOB="0x2a0f32c34c5b948a7f9766f0c1aad70a86c0ee649f56208e936be4324d49b0b9"
 ALICE_PRIVATE_KEY="0x2153536ff6628eee01cf4024889ff977a18d9fa61d0e414422f7681cf085c281"
 # docs:end:declare-accounts
 

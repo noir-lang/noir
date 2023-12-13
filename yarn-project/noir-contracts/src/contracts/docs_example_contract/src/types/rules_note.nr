@@ -1,3 +1,4 @@
+use dep::protocol_types::address::AztecAddress;
 use dep::std::option::Option;
 use dep::aztec::{
     note::{
@@ -15,12 +16,12 @@ global RULES_NOTE_LEN: Field = 2;
 struct RulesNote {
     min_points: u8,
     max_points: u8,
-    maybe_owner: Option<Field>,
+    maybe_owner: Option<AztecAddress>,
     header: NoteHeader,
 }
 
 impl RulesNote {
-    pub fn new(min_points: u8, max_points: u8, maybe_owner: Option<Field>) -> Self {
+    pub fn new(min_points: u8, max_points: u8, maybe_owner: Option<AztecAddress>) -> Self {
         RulesNote {
             min_points,
             max_points,
@@ -58,7 +59,7 @@ impl RulesNote {
         self.header = header;
     }
 
-    pub fn set_owner(&mut self, owner: Field) {
+    pub fn set_owner(&mut self, owner: AztecAddress) {
         self.maybe_owner = Option::some(owner);
     }
 

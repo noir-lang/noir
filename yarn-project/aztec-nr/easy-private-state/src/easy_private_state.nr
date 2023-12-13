@@ -1,3 +1,4 @@
+use dep::protocol_types::address::AztecAddress;
 use dep::aztec::{
     context::Context,
     note::note_getter_options::NoteGetterOptions,
@@ -33,7 +34,7 @@ impl EasyPrivateUint {
     }
 
     // Very similar to `value_note::utils::increment`.
-    pub fn add(self, addend: u120, owner: Field) {
+    pub fn add(self, addend: u120, owner: AztecAddress) {
         // Creates new note for the owner.
         let mut addend_note = ValueNote::new(addend as Field, owner);
 
@@ -44,7 +45,7 @@ impl EasyPrivateUint {
     }
 
     // Very similar to `value_note::utils::decrement`.
-    pub fn sub(self, subtrahend: u120, owner: Field) {
+    pub fn sub(self, subtrahend: u120, owner: AztecAddress) {
         // docs:start:get_notes
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, subtrahend as Field);
         let maybe_notes = self.set.get_notes(options);
@@ -57,7 +58,7 @@ impl EasyPrivateUint {
 
                 // Ensure the notes are actually owned by the owner (to prevent user from generating a valid proof while
                 // spending someone else's notes).
-                assert(note.owner == owner);
+                assert(note.owner.eq(owner));
 
                 // Removes the note from the owner's set of notes.
                 // docs:start:remove

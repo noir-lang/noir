@@ -7,7 +7,6 @@ mod point;
 mod contrakt;
 mod transaction;
 mod abis;
-mod block;
 mod constants;
 
 mod mocked;

@@ -1,4 +1,7 @@
-use dep::protocol_types::constants::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL};
+use dep::protocol_types::{
+    address::AztecAddress,
+    constants::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL},
+};
 use dep::aztec::note::{
     note_getter_options::NoteGetterOptions, note_viewer_options::NoteViewerOptions,
 };
@@ -115,8 +118,8 @@ unconstrained pub fn view_cards(state_var: Set<CardNote, CARD_NOTE_LEN>, options
 }
 // docs:end:state_vars-SetView
 
-unconstrained pub fn get_total_points(state_var: Set<CardNote, CARD_NOTE_LEN>, account: Field, offset: u32) -> u8 {
-    let options = NoteViewerOptions::new().select(2, account).set_offset(offset);
+unconstrained pub fn get_total_points(state_var: Set<CardNote, CARD_NOTE_LEN>, account: AztecAddress, offset: u32) -> u8 {
+    let options = NoteViewerOptions::new().select(2, account.to_field()).set_offset(offset);
     let mut total_points = 0;
     let notes = view_cards(state_var, options);
     for i in 0..notes.len() {
@@ -131,13 +134,13 @@ unconstrained pub fn get_total_points(state_var: Set<CardNote, CARD_NOTE_LEN>, a
 }
 
 // docs:start:state_vars-MapAtSingletonInit
-pub fn add_new_profile(state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>, account: Field, profile: &mut ProfileNote) {
-    state_var.at(account).initialize(profile, Option::some(account), true);
+pub fn add_new_profile(state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>, account: AztecAddress, profile: &mut ProfileNote) {
+    state_var.at(account.to_field()).initialize(profile, Option::some(account), true);
 }
 // docs:end:state_vars-MapAtSingletonInit
 
 // docs:start:state_vars-MapAtSingletonGet
-pub fn get_profile(state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>, account: Field) -> ProfileNote {
-    state_var.at(account).get_note(true)
+pub fn get_profile(state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>, account: AztecAddress) -> ProfileNote {
+    state_var.at(account.to_field()).get_note(true)
 }
 // docs:end:state_vars-MapAtSingletonGet

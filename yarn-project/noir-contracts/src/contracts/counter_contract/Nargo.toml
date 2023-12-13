@@ -8,3 +8,4 @@ type = "contract"
 aztec = { path = "../../../../aztec-nr/aztec" }
 value_note = { path = "../../../../aztec-nr/value-note" }
 easy_private_state = { path = "../../../../aztec-nr/easy-private-state"}
+protocol_types = { path = "../../../../noir-protocol-circuits/src/crates/types" }

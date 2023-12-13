@@ -7,3 +7,4 @@ type = "contract"
 [dependencies]
 aztec = { path = "../../../../aztec-nr/aztec" }
 token_portal_content_hash_lib = { path = "../token_portal_content_hash_lib" }
+protocol_types = { path = "../../../../noir-protocol-circuits/src/crates/types" }

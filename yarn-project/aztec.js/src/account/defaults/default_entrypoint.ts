@@ -66,13 +66,33 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
                       {
                         name: 'function_selector',
                         type: {
-                          kind: 'field',
+                          kind: 'struct',
+                          path: 'aztec::protocol_types::abis::function_selector::FunctionSelector',
+                          fields: [
+                            {
+                              name: 'inner',
+                              type: {
+                                kind: 'integer',
+                                sign: 'unsigned',
+                                width: 32,
+                              },
+                            },
+                          ],
                         },
                       },
                       {
                         name: 'target_address',
                         type: {
-                          kind: 'field',
+                          kind: 'struct',
+                          path: 'aztec::protocol_types::address::AztecAddress',
+                          fields: [
+                            {
+                              name: 'inner',
+                              type: {
+                                kind: 'field',
+                              },
+                            },
+                          ],
                         },
                       },
                       {

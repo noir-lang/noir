@@ -5,6 +5,8 @@ use crate::note::{
 };
 use crate::utils::arr_copy_slice;
 
+use dep::protocol_types::address::AztecAddress;
+
 #[oracle(notifyCreatedNote)]
 fn notify_created_note_oracle<N>(_storage_slot: Field, _serialized_note: [Field; N], _inner_note_hash: Field) -> Field {}
 
@@ -80,7 +82,7 @@ unconstrained pub fn get_notes<Note, N, M, S, NS>(
         offset,
         placeholder_fields);
     let num_notes = fields[0] as u32;
-    let contract_address = fields[1];
+    let contract_address = AztecAddress::from_field(fields[1]);
     let deserialize = note_interface.deserialize;
     let set_header = note_interface.set_header;
     for i in 0..placeholder_opt_notes.len() {

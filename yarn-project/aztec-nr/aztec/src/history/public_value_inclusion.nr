@@ -1,12 +1,14 @@
-use dep::protocol_types::constants::{
-    PUBLIC_DATA_TREE_HEIGHT,
-    GENERATOR_INDEX__PUBLIC_LEAF_INDEX,
+use dep::protocol_types::{
+    constants::{
+        PUBLIC_DATA_TREE_HEIGHT,
+        GENERATOR_INDEX__PUBLIC_LEAF_INDEX,
+    },
+    hash::pedersen_hash,
 };
 use dep::std::merkle::compute_merkle_root;
 
 use crate::{
     context::PrivateContext,
-    hash::pedersen_hash,
     oracle::get_sibling_path::get_sibling_path,
 };
 
@@ -24,7 +26,7 @@ pub fn prove_public_value_inclusion(
     // not siloed with contract address so an oracle could cheat and give us a membership witness for arbitrary
     // value in the public data tree.
     let value_leaf_index = pedersen_hash(
-        [context.this_address(), storage_slot],
+        [context.this_address().to_field(), storage_slot],
         GENERATOR_INDEX__PUBLIC_LEAF_INDEX
     );
 

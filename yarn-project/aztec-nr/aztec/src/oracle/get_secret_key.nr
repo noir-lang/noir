@@ -1,5 +1,6 @@
 use crate::oracle::get_public_key::get_public_key;
 use crate::types::point::Point;
+use dep::protocol_types::address::AztecAddress;
 
 #[oracle(getSecretKey)]
 fn get_secret_key_oracle(_owner: Point) -> [Field; dep::std::grumpkin_scalar::GRUMPKIN_SCALAR_SERIALIZED_LEN] {}
@@ -8,7 +9,7 @@ unconstrained fn get_secret_key_internal(owner_public_key: Point) -> dep::std::g
     dep::std::grumpkin_scalar::deserialize_grumpkin_scalar(get_secret_key_oracle(owner_public_key))
 }
 
-pub fn get_secret_key(owner: Field) -> dep::std::grumpkin_scalar::GrumpkinScalar {
+pub fn get_secret_key(owner: AztecAddress) -> dep::std::grumpkin_scalar::GrumpkinScalar {
     let owner_public_key = get_public_key(owner);
     let secret = get_secret_key_internal(owner_public_key);
 

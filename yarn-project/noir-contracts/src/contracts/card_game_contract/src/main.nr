@@ -2,7 +2,10 @@ mod cards;
 mod game;
 
 contract CardGame {
-    use dep::protocol_types::constants::MAX_NOTES_PER_PAGE;
+    use dep::protocol_types::{
+        address::AztecAddress,
+        constants::MAX_NOTES_PER_PAGE,
+    };
     use dep::aztec::{
         context::Context,
         hash::pedersen_hash,
@@ -59,7 +62,7 @@ contract CardGame {
     impl Storage {
         fn init(
             context: Context,
-        ) -> pub Self {
+        ) -> Self {
             Storage {
                 collections: Map::new(
                     context,
@@ -111,7 +114,7 @@ contract CardGame {
         let buyer = context.msg_sender();
         let mut cards = get_pack_cards(seed, buyer);
 
-        let mut collection = storage.collections.at(buyer);
+        let mut collection = storage.collections.at(buyer.to_field());
         let _inserted_cards = collection.add_cards(cards, buyer);
     }
 
@@ -121,19 +124,19 @@ contract CardGame {
 
         let player = context.msg_sender();
 
-        let mut collection = storage.collections.at(player);
+        let mut collection = storage.collections.at(player.to_field());
         collection.remove_cards(cards, player);
-        let mut game_deck = storage.game_decks.at(game as Field).at(player);
+        let mut game_deck = storage.game_decks.at(game as Field).at(player.to_field());
         let _added_to_game_deck = game_deck.add_cards(cards, player);
-        let selector = compute_selector("on_game_joined(u32,Field,u32)");
+        let selector = compute_selector("on_game_joined(u32,(Field),u32)");
         let strength = compute_deck_strength(cards);
         context.call_public_function(context.this_address(),
             selector,
-            [game as Field, player, strength]);
+            [game as Field, player.to_field(), strength]);
     }
 
     #[aztec(public)]
-    internal fn on_game_joined(game: u32, player: Field, deck_strength: u32) {
+    internal fn on_game_joined(game: u32, player: AztecAddress, deck_strength: u32) {
         let game_storage = storage.games.at(game as Field);
 
         let mut game_data = game_storage.read();
@@ -155,26 +158,26 @@ contract CardGame {
     fn play_card(game: u32, card: Card) {
         let player = context.msg_sender();
 
-        let mut game_deck = storage.game_decks.at(game as Field).at(player);
+        let mut game_deck = storage.game_decks.at(game as Field).at(player.to_field());
         game_deck.remove_cards([card], player);
 
-        let selector = compute_selector("on_card_played(u32,Field,Field)");
+        let selector = compute_selector("on_card_played(u32,(Field),Field)");
         // docs:start:call_public_function
         context.call_public_function(context.this_address(),
             selector,
-            [game as Field, player, card.to_field()]);
+            [game as Field, player.to_field(), card.to_field()]);
         // docs:end:call_public_function
     }
 
     #[aztec(public)]
-    internal fn on_card_played(game: u32, player: Field, card_as_field: Field) {
+    internal fn on_card_played(game: u32, player: AztecAddress, card_as_field: Field) {
         let game_storage = storage.games.at(game as Field);
 
         let mut game_data = game_storage.read();
 
         let card = Card::from_field(card_as_field);
         let current_player = game_data.current_player();
-        assert(current_player.address == player, "Not your turn");
+        assert(current_player.address.eq(player), "Not your turn");
         game_data.play_card(card);
 
         game_storage.write(game_data);
@@ -185,17 +188,17 @@ contract CardGame {
         let player = context.msg_sender();
         let cards = cards_fields.map(|card_field| Card::from_field(card_field));
 
-        let mut collection = storage.collections.at(player);
+        let mut collection = storage.collections.at(player.to_field());
         let _inserted_cards = collection.add_cards(cards, player);
 
-        let selector = compute_selector("on_cards_claimed(u32,Field,Field)");
+        let selector = compute_selector("on_cards_claimed(u32,(Field),Field)");
         context.call_public_function(context.this_address(),
             selector,
-            [game as Field, player, pedersen_hash(cards_fields, 0)]);
+            [game as Field, player.to_field(), pedersen_hash(cards_fields, 0)]);
     }
 
     #[aztec(public)]
-    internal fn on_cards_claimed(game: u32, player: Field, cards_hash: Field) {
+    internal fn on_cards_claimed(game: u32, player: AztecAddress, cards_hash: Field) {
         let game_storage = storage.games.at(game as Field);
         let mut game_data = game_storage.read();
 
@@ -205,19 +208,19 @@ contract CardGame {
         assert_eq(cards_hash, pedersen_hash(game_data.rounds_cards.map(|card: Card| card.to_field()), 0));
 
         let winner = game_data.winner();
-        assert_eq(player, winner.address, "Not the winner");
+        assert(player.eq(winner.address), "Not the winner");
 
         game_storage.write(game_data);
     }
 
-    unconstrained fn view_collection_cards(owner: Field, offset: u32) -> [Option<Card>; MAX_NOTES_PER_PAGE] {
-        let collection = storage.collections.at(owner);
+    unconstrained fn view_collection_cards(owner: AztecAddress, offset: u32) -> [Option<Card>; MAX_NOTES_PER_PAGE] {
+        let collection = storage.collections.at(owner.to_field());
 
         collection.view_cards(offset)
     }
 
-    unconstrained fn view_game_cards(game: u32, player: Field, offset: u32) -> [Option<Card>; MAX_NOTES_PER_PAGE] {
-        let game_deck = storage.game_decks.at(game as Field).at(player);
+    unconstrained fn view_game_cards(game: u32, player: AztecAddress, offset: u32) -> [Option<Card>; MAX_NOTES_PER_PAGE] {
+        let game_deck = storage.game_decks.at(game as Field).at(player.to_field());
 
         game_deck.view_cards(offset)
     }
@@ -230,7 +233,8 @@ contract CardGame {
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+        let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
+        let note_header = NoteHeader::new(_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)
     }
 }

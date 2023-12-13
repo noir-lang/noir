@@ -4,7 +4,7 @@ use crate::{
         block_header::BlockHeader,
         public_circuit_public_inputs::PublicCircuitPublicInputs,
     },
-    address::Address,
+    address::AztecAddress,
     contrakt::{
         storage_read::StorageRead,
         storage_update_request::StorageUpdateRequest,
@@ -36,7 +36,7 @@ struct PublicCircuitPublicInputsBuilder {
     unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
     unencrypted_log_preimages_length: Field,
     block_header: BlockHeader,
-    prover_address: Address,
+    prover_address: AztecAddress,
 }
 
 impl PublicCircuitPublicInputsBuilder {

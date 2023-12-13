@@ -20,7 +20,7 @@ fn check_note_header<Note, N>(context: PrivateContext, storage_slot: Field, note
     let get_header = note_interface.get_header;
     let header = get_header(note);
     let contract_address = context.this_address();
-    assert(header.contract_address == contract_address);
+    assert(header.contract_address.eq(contract_address));
     assert(header.storage_slot == storage_slot);
 }
 

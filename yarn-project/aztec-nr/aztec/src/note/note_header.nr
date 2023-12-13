@@ -1,5 +1,7 @@
+use dep::protocol_types::address::AztecAddress;
+
 struct NoteHeader {
-    contract_address: Field,
+    contract_address: AztecAddress,
     nonce: Field,
     storage_slot: Field,
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
@@ -8,11 +10,11 @@ struct NoteHeader {
 }
 
 impl NoteHeader {
-    pub fn new(contract_address: Field, nonce: Field, storage_slot: Field) -> Self {
+    pub fn new(contract_address: AztecAddress, nonce: Field, storage_slot: Field) -> Self {
         NoteHeader { contract_address, nonce, storage_slot, is_transient: false }
     }
 
     pub fn empty() -> Self {
-        NoteHeader { contract_address: 0, nonce: 0, storage_slot: 0, is_transient: false }
+        NoteHeader { contract_address: AztecAddress::zero(), nonce: 0, storage_slot: 0, is_transient: false }
     }
 }

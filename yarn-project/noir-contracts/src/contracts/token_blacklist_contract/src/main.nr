@@ -17,7 +17,7 @@ contract TokenBlacklist {
     use dep::std::option::Option;
 
     use dep::safe_math::SafeU120;
-
+    use dep::protocol_types::address::AztecAddress;
     use dep::aztec::{
         note::{
             note_getter_options::NoteGetterOptions,
@@ -30,9 +30,8 @@ contract TokenBlacklist {
         types::type_serialization::{
             field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
             bool_serialization::{BoolSerializationMethods, BOOL_SERIALIZED_LEN},
-            aztec_address_serialization::{AztecAddressSerializationMethods, AZTEC_ADDRESS_SERIALIZED_LEN},
+            address_serialization::{AddressSerializationMethods, AZTEC_ADDRESS_SERIALIZED_LEN},
         },
-        types::address::{AztecAddress},
         selector::compute_selector,
     };
 
@@ -72,7 +71,7 @@ contract TokenBlacklist {
                 admin: PublicState::new(
                     context,
                     1,
-                    AztecAddressSerializationMethods,
+                    AddressSerializationMethods,
                 ),
                 balances: BalancesMap::new(context, 3),
                 total_supply: PublicState::new(
@@ -98,7 +97,7 @@ contract TokenBlacklist {
                 public_slow_update: PublicState::new(
                     context,
                     8,
-                    AztecAddressSerializationMethods,
+                    AddressSerializationMethods,
                 ),
                 // docs:end:slow_updates_storage
 
@@ -108,16 +107,16 @@ contract TokenBlacklist {
     // docs:start:constructor
     #[aztec(private)]
     fn constructor(admin: AztecAddress, slow_updates_contract: AztecAddress) {
-        let mut slow_note = FieldNote::new(slow_updates_contract.address);
+        let mut slow_note = FieldNote::new(slow_updates_contract.to_field());
         storage.slow_update.initialize(&mut slow_note, Option::none(), false);
     // docs:end:constructor
         let selector = compute_selector("_initialize((Field),(Field))");
         context.call_public_function(context.this_address(),
             selector,
-            [admin.address, slow_updates_contract.address]);
+            [admin.to_field(), slow_updates_contract.to_field()]);
         // We cannot do the following atm
         // let roles = UserFlags{is_admin: true, is_minter: false, is_blacklisted: false}.get_value() as Field;
-        // SlowMap::at(slow_updates_contract).update_at_private(&mut context, admin.address, roles);
+        // SlowMap::at(slow_updates_contract).update_at_private(&mut context, admin.to_field(), roles);
     }
 
     ////////
@@ -127,12 +126,12 @@ contract TokenBlacklist {
     fn init_slow_tree(user: AztecAddress) {
         let roles = UserFlags { is_admin: true, is_minter: false, is_blacklisted: false }.get_value() as Field;
         // docs:start:get_and_update_private
-        let slow = SlowMap::at(AztecAddress::new(storage.slow_update.get_note().value));
-        slow.update_at_private(&mut context, user.address, roles);
+        let slow = SlowMap::at(AztecAddress::from_field(storage.slow_update.get_note().value));
+        slow.update_at_private(&mut context, user.to_field(), roles);
         // docs:end:get_and_update_private
         context.call_public_function(context.this_address(),
             compute_selector("_init_slow_tree((Field))"),
-            [context.msg_sender()]);
+            [context.msg_sender().to_field()]);
     }
 
     #[aztec(public)]
@@ -143,7 +142,7 @@ contract TokenBlacklist {
     ///////
     #[aztec(public)]
     internal fn _initialize(new_admin: AztecAddress, slow_updates_contract: AztecAddress) {
-        assert(new_admin.address != 0, "invalid admin");
+        assert(!new_admin.is_zero(), "invalid admin");
         storage.admin.write(new_admin);
         // docs:start:write_slow_update_public
         storage.public_slow_update.write(slow_updates_contract);
@@ -157,12 +156,12 @@ contract TokenBlacklist {
     #[aztec(private)]
     fn update_roles(user: AztecAddress, roles: Field) {
         // docs:start:slowmap_at
-        let slow = SlowMap::at(AztecAddress::new(storage.slow_update.get_note().value));
+        let slow = SlowMap::at(AztecAddress::from_field(storage.slow_update.get_note().value));
         // docs:end:slowmap_at
-        let caller_roles = UserFlags::new(slow.read_at(&mut context, context.msg_sender()) as u120);
+        let caller_roles = UserFlags::new(slow.read_at(&mut context, context.msg_sender().to_field()) as u120);
         assert(caller_roles.is_admin, "caller is not admin");
 
-        slow.update_at_private(&mut context, user.address, roles);
+        slow.update_at_private(&mut context, user.to_field(), roles);
     }
 
     #[aztec(public)]
@@ -171,25 +170,25 @@ contract TokenBlacklist {
         let slow = SlowMap::at(storage.public_slow_update.read());
         // docs:end:get_public
         // docs:start:read_at_pub
-        let to_roles = UserFlags::new(slow.read_at_pub(context, to.address) as u120);
+        let to_roles = UserFlags::new(slow.read_at_pub(context, to.to_field()) as u120);
          // docs:end:read_at_pub
         assert(!to_roles.is_blacklisted, "Blacklisted: Recipient");
 
-        let caller_roles = UserFlags::new(slow.read_at_pub(context, context.msg_sender()) as u120);
+        let caller_roles = UserFlags::new(slow.read_at_pub(context, context.msg_sender().to_field()) as u120);
         assert(caller_roles.is_minter, "caller is not minter");
 
         let amount = SafeU120::new(amount);
-        let new_balance = storage.public_balances.at(to.address).read().add(amount);
+        let new_balance = storage.public_balances.at(to.to_field()).read().add(amount);
         let supply = storage.total_supply.read().add(amount);
 
-        storage.public_balances.at(to.address).write(new_balance);
+        storage.public_balances.at(to.to_field()).write(new_balance);
         storage.total_supply.write(supply);
     }
 
     #[aztec(public)]
     fn mint_private(amount: Field, secret_hash: Field) {
         let slow = SlowMap::at(storage.public_slow_update.read());
-        let caller_roles = UserFlags::new(slow.read_at_pub(context, context.msg_sender()) as u120);
+        let caller_roles = UserFlags::new(slow.read_at_pub(context, context.msg_sender().to_field()) as u120);
         assert(caller_roles.is_minter, "caller is not minter");
 
         let pending_shields = storage.pending_shields;
@@ -203,10 +202,10 @@ contract TokenBlacklist {
     #[aztec(public)]
     fn shield(from: AztecAddress, amount: Field, secret_hash: Field, nonce: Field) {
         let slow = SlowMap::at(storage.public_slow_update.read());
-        let from_roles = UserFlags::new(slow.read_at_pub(context, from.address) as u120);
+        let from_roles = UserFlags::new(slow.read_at_pub(context, from.to_field()) as u120);
         assert(!from_roles.is_blacklisted, "Blacklisted: Sender");
 
-        if (from.address != context.msg_sender()) {
+        if (!from.eq(context.msg_sender())) {
             // The redeem is only spendable once, so we need to ensure that you cannot insert multiple shields from the same message.
             assert_current_call_valid_authwit_public(&mut context, from);
         } else {
@@ -214,52 +213,52 @@ contract TokenBlacklist {
         }
 
         let amount = SafeU120::new(amount);
-        let from_balance = storage.public_balances.at(from.address).read().sub(amount);
+        let from_balance = storage.public_balances.at(from.to_field()).read().sub(amount);
 
         let pending_shields = storage.pending_shields;
         let mut note = TransparentNote::new(amount.value as Field, secret_hash);
 
-        storage.public_balances.at(from.address).write(from_balance);
+        storage.public_balances.at(from.to_field()).write(from_balance);
         pending_shields.insert_from_public(&mut note);
     }
 
     #[aztec(public)]
     fn transfer_public(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) {
         let slow = SlowMap::at(storage.public_slow_update.read());
-        let from_roles = UserFlags::new(slow.read_at_pub(context, from.address) as u120);
+        let from_roles = UserFlags::new(slow.read_at_pub(context, from.to_field()) as u120);
         assert(!from_roles.is_blacklisted, "Blacklisted: Sender");
-        let to_roles = UserFlags::new(slow.read_at_pub(context, to.address) as u120);
+        let to_roles = UserFlags::new(slow.read_at_pub(context, to.to_field()) as u120);
         assert(!to_roles.is_blacklisted, "Blacklisted: Recipient");
 
-        if (from.address != context.msg_sender()) {
+        if (!from.eq(context.msg_sender())) {
             assert_current_call_valid_authwit_public(&mut context, from);
         } else {
             assert(nonce == 0, "invalid nonce");
         }
 
         let amount = SafeU120::new(amount);
-        let from_balance = storage.public_balances.at(from.address).read().sub(amount);
-        storage.public_balances.at(from.address).write(from_balance);
+        let from_balance = storage.public_balances.at(from.to_field()).read().sub(amount);
+        storage.public_balances.at(from.to_field()).write(from_balance);
 
-        let to_balance = storage.public_balances.at(to.address).read().add(amount);
-        storage.public_balances.at(to.address).write(to_balance);
+        let to_balance = storage.public_balances.at(to.to_field()).read().add(amount);
+        storage.public_balances.at(to.to_field()).write(to_balance);
     }
 
     #[aztec(public)]
     fn burn_public(from: AztecAddress, amount: Field, nonce: Field) {
         let slow = SlowMap::at(storage.public_slow_update.read());
-        let from_roles = UserFlags::new(slow.read_at_pub(context, from.address) as u120);
+        let from_roles = UserFlags::new(slow.read_at_pub(context, from.to_field()) as u120);
         assert(!from_roles.is_blacklisted, "Blacklisted: Sender");
 
-        if (from.address != context.msg_sender()) {
+        if (!from.eq(context.msg_sender())) {
             assert_current_call_valid_authwit_public(&mut context, from);
         } else {
             assert(nonce == 0, "invalid nonce");
         }
 
         let amount = SafeU120::new(amount);
-        let from_balance = storage.public_balances.at(from.address).read().sub(amount);
-        storage.public_balances.at(from.address).write(from_balance);
+        let from_balance = storage.public_balances.at(from.to_field()).read().sub(amount);
+        storage.public_balances.at(from.to_field()).write(from_balance);
 
         let new_supply = storage.total_supply.read().sub(amount);
         storage.total_supply.write(new_supply);
@@ -267,9 +266,9 @@ contract TokenBlacklist {
 
     #[aztec(private)]
     fn redeem_shield(to: AztecAddress, amount: Field, secret: Field) {
-        let slow = SlowMap::at(AztecAddress::new(storage.slow_update.get_note().value));
+        let slow = SlowMap::at(AztecAddress::from_field(storage.slow_update.get_note().value));
         // docs:start:slowmap_read_at
-        let to_roles = UserFlags::new(slow.read_at(&mut context, to.address) as u120);
+        let to_roles = UserFlags::new(slow.read_at(&mut context, to.to_field()) as u120);
         // docs:end:slowmap_read_at
         assert(!to_roles.is_blacklisted, "Blacklisted: Recipient");
 
@@ -289,13 +288,13 @@ contract TokenBlacklist {
 
     #[aztec(private)]
     fn unshield(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) {
-        let slow = SlowMap::at(AztecAddress::new(storage.slow_update.get_note().value));
-        let from_roles = UserFlags::new(slow.read_at(&mut context, from.address) as u120);
+        let slow = SlowMap::at(AztecAddress::from_field(storage.slow_update.get_note().value));
+        let from_roles = UserFlags::new(slow.read_at(&mut context, from.to_field()) as u120);
         assert(!from_roles.is_blacklisted, "Blacklisted: Sender");
-        let to_roles = UserFlags::new(slow.read_at(&mut context, to.address) as u120);
+        let to_roles = UserFlags::new(slow.read_at(&mut context, to.to_field()) as u120);
         assert(!to_roles.is_blacklisted, "Blacklisted: Recipient");
 
-        if (from.address != context.msg_sender()) {
+        if (!from.eq(context.msg_sender())) {
             assert_current_call_valid_authwit(&mut context, from);
         } else {
             assert(nonce == 0, "invalid nonce");
@@ -304,20 +303,20 @@ contract TokenBlacklist {
         storage.balances.at(from).sub(SafeU120::new(amount));
 
         let selector = compute_selector("_increase_public_balance((Field),Field)");
-        context.call_public_function(context.this_address(), selector, [to.address, amount]);
+        context.call_public_function(context.this_address(), selector, [to.to_field(), amount]);
     }
 
     // docs:start:transfer_private
     #[aztec(private)]
     fn transfer(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) {
-        let slow = SlowMap::at(AztecAddress::new(storage.slow_update.get_note().value));
-        let from_roles = UserFlags::new(slow.read_at(&mut context, from.address) as u120);
+        let slow = SlowMap::at(AztecAddress::from_field(storage.slow_update.get_note().value));
+        let from_roles = UserFlags::new(slow.read_at(&mut context, from.to_field()) as u120);
         assert(!from_roles.is_blacklisted, "Blacklisted: Sender");
-        let to_roles = UserFlags::new(slow.read_at(&mut context, to.address) as u120);
+        let to_roles = UserFlags::new(slow.read_at(&mut context, to.to_field()) as u120);
         assert(!to_roles.is_blacklisted, "Blacklisted: Recipient");
      // docs:end:transfer_private
 
-        if (from.address != context.msg_sender()) {
+        if (!from.eq(context.msg_sender())) {
             assert_current_call_valid_authwit(&mut context, from);
         } else {
             assert(nonce == 0, "invalid nonce");
@@ -330,11 +329,11 @@ contract TokenBlacklist {
 
     #[aztec(private)]
     fn burn(from: AztecAddress, amount: Field, nonce: Field) {
-        let slow = SlowMap::at(AztecAddress::new(storage.slow_update.get_note().value));
-        let from_roles = UserFlags::new(slow.read_at(&mut context, from.address) as u120);
+        let slow = SlowMap::at(AztecAddress::from_field(storage.slow_update.get_note().value));
+        let from_roles = UserFlags::new(slow.read_at(&mut context, from.to_field()) as u120);
         assert(!from_roles.is_blacklisted, "Blacklisted: Sender");
 
-        if (from.address != context.msg_sender()) {
+        if (!from.eq(context.msg_sender())) {
             assert_current_call_valid_authwit(&mut context, from);
         } else {
             assert(nonce == 0, "invalid nonce");
@@ -351,8 +350,8 @@ contract TokenBlacklist {
 
     #[aztec(public)]
     internal fn _increase_public_balance(to: AztecAddress, amount: Field) {
-        let new_balance = storage.public_balances.at(to.address).read().add(SafeU120::new(amount));
-        storage.public_balances.at(to.address).write(new_balance);
+        let new_balance = storage.public_balances.at(to.to_field()).read().add(SafeU120::new(amount));
+        storage.public_balances.at(to.to_field()).write(new_balance);
     }
 
     #[aztec(public)]
@@ -373,7 +372,7 @@ contract TokenBlacklist {
     }
 
     unconstrained fn balance_of_public(owner: AztecAddress) -> u120 {
-        storage.public_balances.at(owner.address).read().value
+        storage.public_balances.at(owner.to_field()).read().value
     }
 
     // Below this point is the stuff of nightmares.
@@ -383,7 +382,8 @@ contract TokenBlacklist {
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; TOKEN_NOTE_LEN]) -> [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+        let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
+        let note_header = NoteHeader::new(_address, nonce, storage_slot);
         if (storage_slot == 5) {
             note_utils::compute_note_hash_and_nullifier(TransparentNoteMethods, note_header, preimage)
         } else if (storage_slot == 7) {
