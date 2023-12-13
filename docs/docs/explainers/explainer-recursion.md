@@ -159,7 +159,7 @@ In some one-way interaction situations, one could shave off one of the recursive
 - A `first proof` recursive circuit meant to verify only the first `main` circuit
 - A `recursive` circuit meant to verify two proofs in one proof
 
-To give a practical example, a barman wouldn't need to verify a "proof-of-age" on-chain every time he serves alcohol to a costumer. These proofs would be made on the costumer's phones, and the barman would just verify them locally, aggregating them into a final proof sent on-chain at the end of the day. However, the very first costumer needs its own circuit, as there's only one proof to verify.
+To give a practical example, a barman wouldn't need to verify a "proof-of-age" on-chain every time he serves alcohol to a customer. These proofs would be made on the customer's phones, and the barman would just verify them locally, aggregating them into a final proof sent on-chain at the end of the day. However, the very first customer needs its own circuit, as there's only one proof to verify.
 
 ### Different logic
 
