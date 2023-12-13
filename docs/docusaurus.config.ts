@@ -133,6 +133,16 @@ export default {
     },
   },
   plugins: [
+    () => ({
+      name: 'resolve-react',
+      configureWebpack() {
+        return {
+          optimization: {
+            innerGraph: false,
+          },
+        };
+      },
+    }),
     [
       'docusaurus-plugin-typedoc',
       {
