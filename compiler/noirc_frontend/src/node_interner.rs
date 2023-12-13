@@ -1365,20 +1365,38 @@ impl NodeInterner {
         self.operator_traits[&operator]
     }
 
-    /// Registers a trait as an operator trait used for operator overloading.
-    /// This should only be used for the correct traits defined in `std::ops`.
-    pub fn add_operator_trait(&mut self, operator: BinaryOpKind, id: TraitId) {
-        self.operator_traits.insert(operator, id);
+    /// Add the given trait as an operator trait if its name matches one of the
+    /// operator trait names (Add, Sub, ...).
+    pub fn try_add_operator_trait(&mut self, trait_id: TraitId) {
+        let the_trait = self.get_trait(trait_id);
+
+        let operator = match the_trait.name.0.contents.as_str() {
+            "Add" => BinaryOpKind::Add,
+            "Sub" => BinaryOpKind::Subtract,
+            "Mul" => BinaryOpKind::Multiply,
+            "Div" => BinaryOpKind::Divide,
+            "Rem" => BinaryOpKind::Modulo,
+            "Eq" => BinaryOpKind::Equal,
+            "Ord" => BinaryOpKind::Less,
+            "BitAnd" => BinaryOpKind::And,
+            "BitOr" => BinaryOpKind::Or,
+            "BitXor" => BinaryOpKind::Xor,
+            "Shl" => BinaryOpKind::ShiftLeft,
+            "Shr" => BinaryOpKind::ShiftRight,
+            _ => return,
+        };
+
+        self.operator_traits.insert(operator, trait_id);
 
         // Some operators also require we insert a matching entry for related operators
         match operator {
             BinaryOpKind::Equal => {
-                self.operator_traits.insert(BinaryOpKind::NotEqual, id);
+                self.operator_traits.insert(BinaryOpKind::NotEqual, trait_id);
             },
             BinaryOpKind::Less => {
-                self.operator_traits.insert(BinaryOpKind::LessEqual, id);
-                self.operator_traits.insert(BinaryOpKind::Greater, id);
-                self.operator_traits.insert(BinaryOpKind::GreaterEqual, id);
+                self.operator_traits.insert(BinaryOpKind::LessEqual, trait_id);
+                self.operator_traits.insert(BinaryOpKind::Greater, trait_id);
+                self.operator_traits.insert(BinaryOpKind::GreaterEqual, trait_id);
             },
             _ => (),
         }

@@ -88,6 +88,10 @@ fn resolve_trait_methods(
     });
     let file = def_maps[&crate_id].file_id(unresolved_trait.module_id);
 
+    if crate_id.is_stdlib() {
+        interner.try_add_operator_trait(trait_id);
+    }
+
     let mut functions = vec![];
     let mut resolver_errors = vec![];
 
