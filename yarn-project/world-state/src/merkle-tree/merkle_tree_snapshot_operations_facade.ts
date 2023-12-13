@@ -49,9 +49,9 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
     return snapshot.getLeafValue(BigInt(index));
   }
 
-  getPreviousValueIndex(
-    _treeId: MerkleTreeId.NULLIFIER_TREE,
-    _value: bigint,
+  async getPreviousValueIndex(
+    treeId: MerkleTreeId.NULLIFIER_TREE,
+    value: bigint,
   ): Promise<
     | {
         /**
@@ -65,7 +65,8 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
       }
     | undefined
   > {
-    return Promise.reject(new Error('Snapshots not implemented for nullifier tree'));
+    const snapshot = (await this.#getTreeSnapshot(treeId)) as IndexedTreeSnapshot;
+    return snapshot.findIndexOfPreviousKey(value);
   }
 
   async getSiblingPath<N extends number>(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath<N>> {

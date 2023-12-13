@@ -1,4 +1,4 @@
-import { AccountWallet, AztecAddress, CompleteAddress, Fr, PXE } from '@aztec/aztec.js';
+import { AccountWallet, AztecAddress, CompleteAddress, Fr, INITIAL_L2_BLOCK_NUM, PXE } from '@aztec/aztec.js';
 import { InclusionProofsContract } from '@aztec/noir-contracts/types';
 
 import { jest } from '@jest/globals';
@@ -111,10 +111,12 @@ describe('e2e_inclusion_proofs_contract', () => {
   });
 
   it('note existence failure case', async () => {
-    // Owner of a note
+    // Owner of a note - ignored in the contract since the note won't be found and the spare random note commitment
+    // will be used instead
     const owner = AztecAddress.random();
 
-    const blockNumber = await pxe.getBlockNumber();
+    // Choose random block number between deployment and current block number to test archival node
+    const blockNumber = await getRandomBlockNumberSinceDeployment();
     const randomNoteCommitment = Fr.random();
     await expect(
       contract.methods.test_note_inclusion_proof(owner, blockNumber, randomNoteCommitment).send().wait(),
@@ -122,15 +124,15 @@ describe('e2e_inclusion_proofs_contract', () => {
   });
 
   it('proves an existence of a public value in private context', async () => {
-    // Chose random block number between deployment and current block number to test archival node
+    // Choose random block number between deployment and current block number to test archival node
     const blockNumber = await getRandomBlockNumberSinceDeployment();
 
     await contract.methods.test_public_value_inclusion_proof(publicValue, blockNumber).send().wait();
   });
 
   it('public value existence failure case', async () => {
-    // Chose random block number between deployment and current block number to test archival node
-    const blockNumber = await getRandomBlockNumberSinceDeployment();
+    // Choose random block number between first block and current block number to test archival node
+    const blockNumber = await getRandomBlockNumber();
 
     const randomPublicValue = Fr.random();
     await expect(
@@ -139,9 +141,8 @@ describe('e2e_inclusion_proofs_contract', () => {
   });
 
   it('proves existence of a nullifier in private context', async () => {
-    // TODO(#3535): Test this at "random" block to test archival node. This is currently not possible because of
-    // issue https://github.com/AztecProtocol/aztec-packages/issues/3535
-    const blockNumber = await pxe.getBlockNumber();
+    // Choose random block number between deployment and current block number to test archival node
+    const blockNumber = await getRandomBlockNumberSinceDeployment();
     const block = await pxe.getBlock(blockNumber);
     const nullifier = block?.newNullifiers[0];
 
@@ -149,9 +150,8 @@ describe('e2e_inclusion_proofs_contract', () => {
   });
 
   it('nullifier existence failure case', async () => {
-    // TODO(#3535): Test this at "random" block to test archival node. This is currently not possible because of
-    // issue https://github.com/AztecProtocol/aztec-packages/issues/3535
-    const blockNumber = await pxe.getBlockNumber();
+    // Choose random block number between first block and current block number to test archival node
+    const blockNumber = await getRandomBlockNumber();
     const randomNullifier = Fr.random();
 
     await expect(
@@ -162,5 +162,10 @@ describe('e2e_inclusion_proofs_contract', () => {
   const getRandomBlockNumberSinceDeployment = async () => {
     const currentBlockNumber = await pxe.getBlockNumber();
     return deploymentBlockNumber + Math.floor(Math.random() * (currentBlockNumber - deploymentBlockNumber));
+  };
+
+  const getRandomBlockNumber = async () => {
+    const currentBlockNumber = await pxe.getBlockNumber();
+    return deploymentBlockNumber + Math.floor(Math.random() * (currentBlockNumber - INITIAL_L2_BLOCK_NUM));
   };
 });
