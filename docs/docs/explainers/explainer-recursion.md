@@ -58,7 +58,7 @@ Let us look at some of these examples
 
 ### Alice and Bob - Guessing game
 
-Alice and Bob are friends, and they like guessing games. They want to play a guessing game online, but for that, they need an trusted third-party that knows both of their secrets and finishes the game once someone wins.
+Alice and Bob are friends, and they like guessing games. They want to play a guessing game online, but for that, they need a trusted third-party that knows both of their secrets and finishes the game once someone wins.
 
 So, they use zero-knowledge proofs. Alice tries to guess Bob's number, and Bob will generate a ZK proof stating whether she succeeded or failed.
 
