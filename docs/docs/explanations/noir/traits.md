@@ -114,7 +114,7 @@ fn foo(elements: [T], thing: U) where
 
 You can add generics to a trait implementation by adding the generic list after the `impl` keyword:
 
-```self
+```rust
 trait Second {
     fn second(self) -> Field;
 }
