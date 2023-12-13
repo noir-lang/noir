@@ -40,9 +40,9 @@ jobs:
         uses: actions/cache/restore@v3
         with:
           path: /dist
-          key: ${{ runner.os }}-noir-base-docker-artifact-cache-$GITHUB_REF-$GITHUB_SHA
+          key: ${{ runner.os }}-noir-base-docker-artifact-cache-${{ github.ref }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-noir-base-docker-artifact-cache-$GITHUB_REF-
+            ${{ runner.os }}-noir-base-docker-artifact-cache-${{ github.ref }}-
             ${{ runner.os }}-noir-base-docker-artifact-cache-
       - name: Build cargo
         uses: docker/build-push-action@v5
@@ -70,4 +70,4 @@ jobs:
         uses: actions/cache/save@v3
         with:
           path: /dist
-          key: ${{ runner.os }}-noir-base-docker-artifact-cache-$GITHUB_REF-$GITHUB_SHA
+          key: ${{ runner.os }}-noir-base-docker-artifact-cache--${{ github.ref }}-${{ github.sha }}
