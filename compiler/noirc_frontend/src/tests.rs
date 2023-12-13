@@ -41,10 +41,9 @@ mod test {
 
     pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, FileId)>) {
         errors.retain(|(error, _)| match error {
-            CompilationError::ParseError(error) => match error.reason() {
-                Some(ParserErrorReason::ExperimentalFeature(..)) => false,
-                _ => true,
-            },
+            CompilationError::ParseError(error) => {
+                !matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(..)))
+            }
             _ => true,
         });
     }
