@@ -113,7 +113,7 @@ pub(super) fn on_did_save_text_document(
         .flat_map(|package| -> Vec<Diagnostic> {
             let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
 
-            let file_diagnostics = match check_crate(&mut context, crate_id, false) {
+            let file_diagnostics = match check_crate(&mut context, crate_id, false, false) {
                 Ok(((), warnings)) => warnings,
                 Err(errors_and_warnings) => errors_and_warnings,
             };
@@ -160,9 +160,6 @@ pub(super) fn on_did_save_text_document(
                 .collect()
         })
         .collect();
-
-    // We need to refresh lenses when we compile since that's the only time they can be accurately reflected
-    std::mem::drop(state.client.code_lens_refresh(()));
 
     let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
         uri: params.text_document.uri,

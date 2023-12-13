@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use crate::types::{CodeLensOptions, InitializeParams};
+use crate::types::InitializeParams;
 use async_lsp::ResponseError;
 use lsp_types::{Position, TextDocumentSyncCapability, TextDocumentSyncKind};
 use nargo_fmt::Config;
@@ -20,15 +20,14 @@ use crate::{
 // They are not attached to the `NargoLspService` struct so they can be unit tested with only `LspState`
 // and params passed in.
 
-mod code_lens_request;
 mod goto_definition;
 mod profile_run;
 mod test_run;
 mod tests;
 
 pub(crate) use {
-    code_lens_request::on_code_lens_request, goto_definition::on_goto_definition_request,
-    profile_run::on_profile_run_request, test_run::on_test_run_request, tests::on_tests_request,
+    goto_definition::on_goto_definition_request, profile_run::on_profile_run_request,
+    test_run::on_test_run_request, tests::on_tests_request,
 };
 
 pub(crate) fn on_initialize(
@@ -39,8 +38,6 @@ pub(crate) fn on_initialize(
 
     async {
         let text_document_sync = TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL);
-
-        let code_lens = CodeLensOptions { resolve_provider: Some(false) };
 
         let nargo = NargoCapability {
             tests: Some(NargoTestsOptions {
@@ -53,7 +50,6 @@ pub(crate) fn on_initialize(
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(text_document_sync),
-                code_lens_provider: Some(code_lens),
                 document_formatting_provider: true,
                 nargo: Some(nargo),
                 definition_provider: Some(lsp_types::OneOf::Left(true)),
@@ -131,7 +127,6 @@ mod initialization {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::FULL
                 )),
-                code_lens_provider: Some(CodeLensOptions { resolve_provider: Some(false) }),
                 document_formatting_provider: true,
                 ..
             }

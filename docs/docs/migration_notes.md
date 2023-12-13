@@ -16,7 +16,7 @@ To update, please make sure this field in `Nargo.toml` matches the output of `na
 
 ## ≥0.14
 
-The index of the [for loops](@site/docs/explanations/00_noir/02_control_flow.md#loops) is now of type `u64` instead of `Field`. An example refactor would be:
+The index of the [for loops](@site/docs/explanations/noir/control_flow.md#loops) is now of type `u64` instead of `Field`. An example refactor would be:
 
 ```rust
 for i in 0..10 {
