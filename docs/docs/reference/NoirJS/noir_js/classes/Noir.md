@@ -75,7 +75,7 @@ async execute(inputs)
 ### generateFinalProof()
 
 ```ts
-generateFinalProof(inputs): Promise<ProofData>
+generateFinalProof(inputs, foreignCallHandler?): Promise<ProofData>
 ```
 
 #### Parameters
@@ -83,6 +83,7 @@ generateFinalProof(inputs): Promise<ProofData>
 | Parameter | Type |
 | :------ | :------ |
 | `inputs` | [`InputMap`](../type-aliases/InputMap.md) |
+| `foreignCallHandler`? | [`ForeignCallHandler`](../type-aliases/ForeignCallHandler.md) |
 
 #### Returns
 
@@ -95,7 +96,7 @@ Generates a witness and a proof given an object as input.
 #### Example
 
 ```typescript
-async generateFinalproof(input)
+async generateFinalProof(input)
 ```
 
 ***
