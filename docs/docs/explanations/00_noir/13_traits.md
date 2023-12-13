@@ -194,7 +194,7 @@ This is set to change to an error in future Noir versions.
 ## Default Method Implementations
 
 A trait can also have default implementations of its methods by giving a body to the desired functions.
-Note that this body must be valid for all types that may implement the trait. Resultingly, the only
+Note that this body must be valid for all types that may implement the trait. As a result, the only
 valid operations on `self` will be operations valid for any type or other operations on the trait itself.
 
 ```rust
