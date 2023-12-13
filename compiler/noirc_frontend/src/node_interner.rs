@@ -1305,6 +1305,10 @@ impl NodeInterner {
         }
     }
 
+    /// Resolves the [Location] of the definition for a given [crate::hir_def::expr::HirMemberAccess]
+    /// This is used to resolve the location of a struct member access.
+    /// For example, in the expression `foo.bar` we want to resolve the location of `bar`
+    /// to the location of the definition of `bar` in the struct `foo`.
     fn resolve_struct_member_access(
         &self,
         expr_member_access: &crate::hir_def::expr::HirMemberAccess,
