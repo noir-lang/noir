@@ -63,8 +63,8 @@ jobs:
       - name: tar
         run: |
           sudo mkdir /dist
-          sudo tar -czvf /target.tar.gz /dist/target
-          sudo tar -czvf /cargo.tar.gz /dist/cargo
+          sudo tar -czvf /dist/target.tar.gz /target
+          sudo tar -czvf /dist/cargo.tar.gz /cargo
           mkdir 
       - name: test-cache-save
         uses: actions/cache/save@v3
