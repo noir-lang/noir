@@ -49,6 +49,9 @@ mod test {
         });
     }
 
+    /// Many of the tests in this file have odd unused variable warnings which do not occur
+    /// when running an identical program using `nargo execute`. They're filtered out of the
+    /// errors returned by `get_errors` for now.
     pub(crate) fn remove_unused_variable_warnings(errors: &mut Vec<(CompilationError, FileId)>) {
         errors.retain(|(error, _)| {
             !matches!(error, CompilationError::ResolverError(ResolverError::UnusedVariable { .. }))
