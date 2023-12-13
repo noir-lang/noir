@@ -2,6 +2,7 @@ import { AztecAddress, Fr } from '@aztec/circuits.js';
 
 import { MemoryDB } from './memory_db.js';
 import { randomNoteDao } from './note_dao.test.js';
+import { describePxeDatabase } from './pxe_database_test_suite.js';
 
 describe('Memory DB', () => {
   let db: MemoryDB;
@@ -9,6 +10,8 @@ describe('Memory DB', () => {
   beforeEach(() => {
     db = new MemoryDB();
   });
+
+  describePxeDatabase(() => db);
 
   describe('NoteDao', () => {
     const contractAddress = AztecAddress.random();

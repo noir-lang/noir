@@ -46,7 +46,8 @@
     "scripts",
     "types",
     "world-state",
-    "yarn-project-base"
+    "yarn-project-base",
+    "kv-store"
   ],
   "prettier": "@aztec/foundation/prettier",
   "devDependencies": {

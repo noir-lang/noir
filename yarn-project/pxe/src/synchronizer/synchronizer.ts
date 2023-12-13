@@ -5,7 +5,7 @@ import { InterruptibleSleep } from '@aztec/foundation/sleep';
 import { AztecNode, INITIAL_L2_BLOCK_NUM, KeyStore, L2BlockContext, L2BlockL2Logs, LogType } from '@aztec/types';
 import { NoteProcessorCaughtUpStats } from '@aztec/types/stats';
 
-import { Database } from '../database/index.js';
+import { PxeDatabase } from '../database/index.js';
 import { NoteProcessor } from '../note_processor/index.js';
 
 /**
@@ -25,7 +25,7 @@ export class Synchronizer {
   private log: DebugLogger;
   private noteProcessorsToCatchUp: NoteProcessor[] = [];
 
-  constructor(private node: AztecNode, private db: Database, logSuffix = '') {
+  constructor(private node: AztecNode, private db: PxeDatabase, logSuffix = '') {
     this.log = createDebugLogger(logSuffix ? `aztec:pxe_synchronizer_${logSuffix}` : 'aztec:pxe_synchronizer');
   }
 

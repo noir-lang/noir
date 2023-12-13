@@ -29,7 +29,8 @@
       "^(\\.{1,2}/.*)\\.[cm]?js$": "$1"
     },
     "testRegex": "./src/.*\\.test\\.(js|mjs|ts)$",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "workerThreads": true
   },
   "dependencies": {
     "@aztec/acir-simulator": "workspace:^",
@@ -37,6 +38,7 @@
     "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/key-store": "workspace:^",
+    "@aztec/kv-store": "workspace:^",
     "@aztec/noir-compiler": "workspace:^",
     "@aztec/noir-protocol-circuits": "workspace:^",
     "@aztec/types": "workspace:^",

@@ -13,7 +13,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { KeyStore, L2Block, MerkleTreeId, NullifierMembershipWitness, StateInfoProvider } from '@aztec/types';
 
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
-import { Database } from '../database/index.js';
+import { PxeDatabase } from '../database/index.js';
 
 /**
  * A data oracle that provides information needed for simulating a transaction.
@@ -21,7 +21,7 @@ import { Database } from '../database/index.js';
 export class SimulatorOracle implements DBOracle {
   constructor(
     private contractDataOracle: ContractDataOracle,
-    private db: Database,
+    private db: PxeDatabase,
     private keyStore: KeyStore,
     private stateInfoProvider: StateInfoProvider,
     private log = createDebugLogger('aztec:pxe:simulator_oracle'),

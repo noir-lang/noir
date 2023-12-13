@@ -151,7 +151,7 @@ export async function setupPXEService(
   logger: DebugLogger;
 }> {
   const pxeServiceConfig = getPXEServiceConfig();
-  const pxe = await createPXEService(aztecNode, pxeServiceConfig, {}, useLogSuffix);
+  const pxe = await createPXEService(aztecNode, pxeServiceConfig, useLogSuffix);
 
   const wallets = await createAccounts(pxe, numberOfAccounts);
 

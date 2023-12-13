@@ -150,7 +150,7 @@ describe('e2e_p2p_network', () => {
     numTxs: number,
   ): Promise<NodeContext> => {
     const rpcConfig = getRpcConfig();
-    const pxeService = await createPXEService(node, rpcConfig, {}, true);
+    const pxeService = await createPXEService(node, rpcConfig, true);
 
     const keyPair = ConstantKeyPair.random(new Grumpkin());
     const completeAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(keyPair.getPrivateKey(), Fr.random());

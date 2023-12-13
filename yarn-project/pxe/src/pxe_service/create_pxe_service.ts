@@ -1,24 +1,13 @@
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { TestKeyStore } from '@aztec/key-store';
-import { AztecNode, KeyStore } from '@aztec/types';
+import { AztecLmdbStore } from '@aztec/kv-store';
+import { AztecNode } from '@aztec/types';
+
+import { join } from 'path';
 
 import { PXEServiceConfig } from '../config/index.js';
-import { Database, MemoryDB } from '../database/index.js';
+import { KVPxeDatabase } from '../database/kv_pxe_database.js';
 import { PXEService } from './pxe_service.js';
-
-/**
- * Optional information for creating an PXEService.
- */
-interface CreatePXEServiceOptions {
-  /**
-   * A secure storage for cryptographic keys.
-   */
-  keyStore?: KeyStore;
-  /**
-   * Storage for the PXE.
-   */
-  db?: Database;
-}
 
 /**
  * Create and start an PXEService instance with the given AztecNode.
@@ -33,7 +22,6 @@ interface CreatePXEServiceOptions {
 export async function createPXEService(
   aztecNode: AztecNode,
   config: PXEServiceConfig,
-  { keyStore, db }: CreatePXEServiceOptions = {},
   useLogSuffix: string | boolean | undefined = undefined,
 ) {
   const logSuffix =
@@ -43,10 +31,18 @@ export async function createPXEService(
         : undefined
       : useLogSuffix;
 
-  keyStore = keyStore || new TestKeyStore(new Grumpkin());
-  db = db || new MemoryDB(logSuffix);
+  const pxeDbPath = config.dataDirectory ? join(config.dataDirectory, 'pxe_data') : undefined;
+  const keyStorePath = config.dataDirectory ? join(config.dataDirectory, 'pxe_key_store') : undefined;
+  const l1Contracts = await aztecNode.getL1ContractAddresses();
+
+  const keyStore = new TestKeyStore(
+    new Grumpkin(),
+    await AztecLmdbStore.create(l1Contracts.rollupAddress, keyStorePath),
+  );
+  const db = new KVPxeDatabase(await AztecLmdbStore.create(l1Contracts.rollupAddress, pxeDbPath));
 
   const server = new PXEService(keyStore, aztecNode, db, config, logSuffix);
+
   await server.start();
   return server;
 }

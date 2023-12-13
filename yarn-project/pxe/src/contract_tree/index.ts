@@ -93,12 +93,7 @@ export class ContractTree {
 
     const completeAddress = computeCompleteAddress(from, contractAddressSalt, root, constructorHash);
 
-    const contractDao: ContractDao = {
-      ...artifact,
-      completeAddress,
-      functions,
-      portalContract,
-    };
+    const contractDao = new ContractDao(artifact, completeAddress, portalContract);
     const NewContractConstructor = {
       functionData,
       vkHash,

@@ -1,9 +1,10 @@
 import { AcirSimulator } from '@aztec/acir-simulator';
-import { Fr, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
+import { EthAddress, Fr, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
 import { ConstantKeyPair } from '@aztec/key-store';
+import { AztecLmdbStore } from '@aztec/kv-store';
 import {
   AztecNode,
   FunctionL2Logs,
@@ -21,7 +22,8 @@ import {
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
 
-import { Database, MemoryDB } from '../database/index.js';
+import { PxeDatabase } from '../database/index.js';
+import { KVPxeDatabase } from '../database/kv_pxe_database.js';
 import { NoteDao } from '../database/note_dao.js';
 import { NoteProcessor } from './note_processor.js';
 
@@ -29,7 +31,7 @@ const TXS_PER_BLOCK = 4;
 
 describe('Note Processor', () => {
   let grumpkin: Grumpkin;
-  let database: Database;
+  let database: PxeDatabase;
   let aztecNode: ReturnType<typeof mock<AztecNode>>;
   let addNotesSpy: any;
   let noteProcessor: NoteProcessor;
@@ -114,8 +116,8 @@ describe('Note Processor', () => {
     owner = ConstantKeyPair.random(grumpkin);
   });
 
-  beforeEach(() => {
-    database = new MemoryDB();
+  beforeEach(async () => {
+    database = new KVPxeDatabase(await AztecLmdbStore.create(EthAddress.random()));
     addNotesSpy = jest.spyOn(database, 'addNotes');
 
     aztecNode = mock<AztecNode>();

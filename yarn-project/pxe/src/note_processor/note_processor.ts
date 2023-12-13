@@ -7,7 +7,7 @@ import { Timer } from '@aztec/foundation/timer';
 import { AztecNode, KeyStore, L1NotePayload, L2BlockContext, L2BlockL2Logs } from '@aztec/types';
 import { NoteProcessorStats } from '@aztec/types/stats';
 
-import { Database } from '../database/index.js';
+import { PxeDatabase } from '../database/index.js';
 import { NoteDao } from '../database/note_dao.js';
 import { getAcirSimulator } from '../simulator/index.js';
 
@@ -45,7 +45,7 @@ export class NoteProcessor {
      */
     public readonly publicKey: PublicKey,
     private keyStore: KeyStore,
-    private db: Database,
+    private db: PxeDatabase,
     private node: AztecNode,
     private startingBlock: number,
     private simulator = getAcirSimulator(db, node, keyStore),

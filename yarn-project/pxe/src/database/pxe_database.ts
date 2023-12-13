@@ -9,7 +9,7 @@ import { NoteDao } from './note_dao.js';
  * A database interface that provides methods for retrieving, adding, and removing transactional data related to Aztec
  * addresses, storage slots, and nullifiers.
  */
-export interface Database extends ContractDatabase {
+export interface PxeDatabase extends ContractDatabase {
   /**
    * Add a auth witness to the database.
    * @param messageHash - The message hash.
@@ -22,7 +22,7 @@ export interface Database extends ContractDatabase {
    * @param messageHash - The message hash.
    * @returns A Promise that resolves to an array of field elements representing the auth witness.
    */
-  getAuthWitness(messageHash: Fr): Promise<Fr[]>;
+  getAuthWitness(messageHash: Fr): Promise<Fr[] | undefined>;
 
   /**
    * Adding a capsule to the capsule dispenser.
@@ -78,17 +78,6 @@ export interface Database extends ContractDatabase {
    * @returns An object containing the Merkle tree roots for each merkle tree id.
    */
   getTreeRoots(): Record<MerkleTreeId, Fr>;
-
-  /**
-   * Set the tree roots for the Merkle trees in the database.
-   * This function updates the 'treeRoots' property of the instance
-   * with the provided 'roots' object containing MerkleTreeId and Fr pairs.
-   * Note that this will overwrite any existing tree roots in the database.
-   *
-   * @param roots - A Record object mapping MerkleTreeIds to their corresponding Fr root values.
-   * @returns A Promise that resolves when the tree roots have been successfully updated in the database.
-   */
-  setTreeRoots(roots: Record<MerkleTreeId, Fr>): Promise<void>;
 
   /**
    * Retrieve the stored Block Header from the database.

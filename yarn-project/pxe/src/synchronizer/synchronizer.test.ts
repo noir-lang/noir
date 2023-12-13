@@ -1,22 +1,24 @@
-import { BlockHeader, CompleteAddress, Fr, GrumpkinScalar } from '@aztec/circuits.js';
+import { BlockHeader, CompleteAddress, EthAddress, Fr, GrumpkinScalar } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { TestKeyStore } from '@aztec/key-store';
+import { AztecLmdbStore } from '@aztec/kv-store';
 import { AztecNode, INITIAL_L2_BLOCK_NUM, L2Block, MerkleTreeId } from '@aztec/types';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 import omit from 'lodash.omit';
 
-import { Database, MemoryDB } from '../database/index.js';
+import { PxeDatabase } from '../database/index.js';
+import { KVPxeDatabase } from '../database/kv_pxe_database.js';
 import { Synchronizer } from './synchronizer.js';
 
 describe('Synchronizer', () => {
   let aztecNode: MockProxy<AztecNode>;
-  let database: Database;
+  let database: PxeDatabase;
   let synchronizer: TestSynchronizer;
   let roots: Record<MerkleTreeId, Fr>;
   let blockHeader: BlockHeader;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     blockHeader = BlockHeader.random();
     roots = {
       [MerkleTreeId.CONTRACT_TREE]: blockHeader.contractTreeRoot,
@@ -28,7 +30,7 @@ describe('Synchronizer', () => {
     };
 
     aztecNode = mock<AztecNode>();
-    database = new MemoryDB();
+    database = new KVPxeDatabase(await AztecLmdbStore.create(EthAddress.random()));
     synchronizer = new TestSynchronizer(aztecNode, database);
   });
 
@@ -102,9 +104,9 @@ describe('Synchronizer', () => {
     aztecNode.getBlockNumber.mockResolvedValueOnce(1);
 
     // Manually adding account to database so that we can call synchronizer.isAccountStateSynchronized
-    const keyStore = new TestKeyStore(new Grumpkin());
+    const keyStore = new TestKeyStore(new Grumpkin(), await AztecLmdbStore.create(EthAddress.random()));
     const privateKey = GrumpkinScalar.random();
-    keyStore.addAccount(privateKey);
+    await keyStore.addAccount(privateKey);
     const completeAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(privateKey, Fr.random());
     await database.addCompleteAddress(completeAddress);
 
