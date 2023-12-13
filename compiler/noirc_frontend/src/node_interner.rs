@@ -489,28 +489,31 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
-    pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
+    pub fn push_empty_trait(&mut self, type_id: TraitId, unresolved_trait: &UnresolvedTrait) {
         let self_type_typevar_id = self.next_type_variable_id();
 
-        self.traits.insert(
-            type_id,
-            Trait::new(
-                type_id,
-                typ.trait_def.name.clone(),
-                typ.crate_id,
-                typ.trait_def.span,
-                vecmap(&typ.trait_def.generics, |_| {
-                    // Temporary type variable ids before the trait is resolved to its actual ids.
-                    // This lets us record how many arguments the type expects so that other types
-                    // can refer to it with generic arguments before the generic parameters themselves
-                    // are resolved.
-                    let id = TypeVariableId(0);
-                    (id, TypeVariable::unbound(id))
-                }),
-                self_type_typevar_id,
-                TypeVariable::unbound(self_type_typevar_id),
-            ),
-        );
+        let new_trait = Trait {
+            id: type_id,
+            name: unresolved_trait.trait_def.name.clone(),
+            crate_id: unresolved_trait.crate_id,
+            span: unresolved_trait.trait_def.span,
+            generics: vecmap(&unresolved_trait.trait_def.generics, |_| {
+                // Temporary type variable ids before the trait is resolved to its actual ids.
+                // This lets us record how many arguments the type expects so that other types
+                // can refer to it with generic arguments before the generic parameters themselves
+                // are resolved.
+                let id = TypeVariableId(0);
+                (id, TypeVariable::unbound(id))
+            }),
+            self_type_typevar_id,
+            self_type_typevar: TypeVariable::unbound(self_type_typevar_id),
+            methods: Vec::new(),
+            method_ids: unresolved_trait.method_ids.clone(),
+            constants: Vec::new(),
+            types: Vec::new(),
+        };
+
+        self.traits.insert(type_id, new_trait);
     }
 
     pub fn new_struct(
@@ -1255,9 +1258,8 @@ impl NodeInterner {
         self.selected_trait_implementations.insert(ident_id, trait_impl);
     }
 
-    /// Tags the given identifier with the selected trait_impl so that monomorphization
-    /// can later recover which impl was selected, or alternatively see if it needs to
-    /// decide which (because the impl was Assumed).
+    /// Retrieves the impl selected for a given IdentId during name resolution.
+    /// From type checking and on, the "ident" referred to is changed to a TraitMethodReference node.
     pub fn get_selected_impl_for_ident(&self, ident_id: ExprId) -> Option<TraitImplKind> {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
