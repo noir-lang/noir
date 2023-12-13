@@ -45,9 +45,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch}}-noir-base-docker-artifact-cache-${{ github.ref }}-
             ${{ runner.os }}-${{ runner.arch}}-noir-base-docker-artifact-cache-
-      # - name: Install Dependencies
-      #   if: steps.cache-restore.outputs.cache-hit == 'true'
-      #   run: #do something
+      - name: Install Dependencies
+        if: steps.cache-restore.outputs.cache-hit == 'true'
+        run: #do something
       - name: Build cargo
         uses: docker/build-push-action@v5
         with:
