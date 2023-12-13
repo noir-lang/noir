@@ -49,15 +49,6 @@ mod test {
         });
     }
 
-    /// Many of the tests in this file have odd unused variable warnings which do not occur
-    /// when running an identical program using `nargo execute`. They're filtered out of the
-    /// errors returned by `get_errors` for now.
-    pub(crate) fn remove_unused_variable_warnings(errors: &mut Vec<(CompilationError, FileId)>) {
-        errors.retain(|(error, _)| {
-            !matches!(error, CompilationError::ResolverError(ResolverError::UnusedVariable { .. }))
-        });
-    }
-
     pub(crate) fn get_program(
         src: &str,
     ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
@@ -98,9 +89,7 @@ mod test {
     }
 
     pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
-        let (_program, _context, mut errors) = get_program(src);
-        remove_unused_variable_warnings(&mut errors);
-        errors
+        get_program(src).2
     }
 
     #[test]
@@ -798,7 +787,7 @@ mod test {
             }
         "#;
 
-        let (_, _, errors) = get_program(src);
+        let errors = get_program_errors(src);
         assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
         // It should be regarding the unused variable
         match &errors[0].0 {
@@ -875,7 +864,7 @@ mod test {
             }
         "#;
 
-        let (_, _, errors) = get_program(src);
+        let errors = get_program_errors(src);
         assert!(errors.len() == 3, "Expected 3 errors, got: {:?}", errors);
 
         // Errors are:
