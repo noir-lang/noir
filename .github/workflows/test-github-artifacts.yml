@@ -36,12 +36,15 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # - name: test-cache
-      #   uses: actions/cache/restore@v3
-      #   with:
-      #     key: cache-${{ hashFiles('**/lockfiles') }}
-      #     path: /dist
-      - name: Test cargo
+      - name: test-cache-restore
+        uses: actions/cache/restore@v3
+        with:
+          path: /dist
+          key: ${{ runner.os }}-noir-base-docker-artifact-cache-$GITHUB_REF-$GITHUB_SHA
+          restore-keys: |
+            ${{ runner.os }}-noir-base-docker-artifact-cache-$GITHUB_REF-
+            ${{ runner.os }}-noir-base-docker-artifact-cache-
+      - name: Build cargo
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -63,8 +66,8 @@ jobs:
           sudo tar -czvf /target.tar.gz /dist/target
           sudo tar -czvf /cargo.tar.gz /dist/cargo
           mkdir 
-      - name: test-cache
+      - name: test-cache-save
         uses: actions/cache/save@v3
         with:
           path: /dist
-          key: ${{ runner.os }}-noir-base-docker-artifact-cache
+          key: ${{ runner.os }}-noir-base-docker-artifact-cache-$GITHUB_REF-$GITHUB_SHA
