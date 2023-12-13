@@ -13,12 +13,12 @@ use noirc_frontend::{
 use std::path::Path;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = "Context",)]
 pub struct ContextWrapper {
     context: Context,
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = "CrateId",)]
 #[derive(Debug, Copy, Clone)]
 pub struct CrateIDWrapper(CrateId);
 
