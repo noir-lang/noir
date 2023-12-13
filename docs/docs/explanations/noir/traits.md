@@ -110,7 +110,41 @@ fn foo(elements: [T], thing: U) where
 }
 ```
 
-### Trait Implementations With Where Clauses
+## Generic Implementations
+
+You can add generics to a trait implementation by adding the generic list after the `impl` keyword:
+
+```self
+trait Second {
+    fn second(self) -> Field;
+}
+
+impl<T> Second for (T, Field) {
+    fn second(self) -> Field {
+        self.1
+    }
+}
+```
+
+You can also implement a trait for every type this way:
+
+```rust
+trait Debug {
+    fn debug(self);
+}
+
+impl<T> Debug for T {
+    fn debug(self) {
+        println(self);
+    }
+}
+
+fn main() {
+    1.debug();
+}
+```
+
+### Generic Trait Implementations With Where Clauses
 
 Where clauses can also be placed on trait implementations themselves to restrict generics in a similar way.
 For example, while `impl<T> Foo for T` implements the trait `Foo` for every type, `impl<T> Foo for T where T: Bar`
@@ -229,40 +263,6 @@ impl Numeric for u32 {
     fn double(self) -> u32 {
         self * 2
     }
-}
-```
-
-## Generic Implementations
-
-You can add generics to a trait implementation by adding the generic list after the `impl` keyword:
-
-```self
-trait Second {
-    fn second(self) -> Field;
-}
-
-impl<T> Second for (T, Field) {
-    fn second(self) -> Field {
-        self.1
-    }
-}
-```
-
-You can also implement a trait for every type this way:
-
-```rust
-trait Debug {
-    fn debug(self);
-}
-
-impl<T> Debug for T {
-    fn debug(self) {
-        println(self);
-    }
-}
-
-fn main() {
-    1.debug();
 }
 ```
 
