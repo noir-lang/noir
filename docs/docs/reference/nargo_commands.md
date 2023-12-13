@@ -99,14 +99,14 @@ You can also use "build" as an alias for compile (e.g. `nargo build`).
 
 ### Options
 
-| Option                | Description                                                                 |
+| Option                | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
-| `--package <PACKAGE>` | The name of the package to compile                                          |
-| `--workspace`         | Compile all packages in the workspace                                       |
-| `--print-acir`        | Display the ACIR for compiled circuit                                       |
-| `--deny-warnings`     | Treat all warnings as errors                                                |
-| `--silence-warnings`  | Suppress warnings                                                           |
-| `-h, --help`          | Print help                                                                  |
+| `--package <PACKAGE>` | The name of the package to compile                           |
+| `--workspace`         | Compile all packages in the workspace                        |
+| `--print-acir`        | Display the ACIR for compiled circuit                        |
+| `--deny-warnings`     | Treat all warnings as errors                                 |
+| `--silence-warnings`  | Suppress warnings                                            |
+| `-h, --help`          | Print help                                                   |
 
 ## `nargo new <PATH>`
 
