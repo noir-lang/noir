@@ -14,18 +14,13 @@ Start by installing our test runner, in this case jest:
 yarn add -D jest
 ```
 
-We'll also be running our Sandbox within the test suite, to avoid polluting a global instance, so we'll need to install the Sandbox itself as a dependency as well:
-
-```sh
-yarn add -D @aztec/aztec-sandbox
-```
+We'll need to [install and run the Sandbox](../../cli/sandbox-reference.md#installation).
 
 ## Test setup
 
 Create a new file `src/index.test.mjs` with the imports we'll be using and an empty test suite to begin with:
 
 ```js
-import { createSandbox } from "@aztec/aztec-sandbox";
 import { Contract, createAccount } from "@aztec/aztec.js";
 import TokenContractArtifact from "../contracts/token/target/Token.json" assert { type: "json" };
 

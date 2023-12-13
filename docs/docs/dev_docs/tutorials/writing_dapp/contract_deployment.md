@@ -20,7 +20,7 @@ Then, open the `contracts/token/Nargo.toml` configuration file, and add the `azt
 ```toml
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
-value_note = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/value-note"}
+authwit = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/authwit"}
 safe_math = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/safe-math"}
 ```
 
@@ -28,24 +28,18 @@ Last, copy-paste the code from the `Token` contract into `contracts/token/main.n
 
 #include_code token_all yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
-The `Token` contract also requires a helper file. Copy it too:
+### Helper files
 
-Create `contracts/token/types.nr` and copy-paste the following:
-
-#include_code token_types_all yarn-project/noir-contracts/src/contracts/token_contract/src/types/transparent_note.nr rust
+The `Token` contract also requires some helper files. You can view the files [here](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/yarn-project/noir-contracts/src/contracts/token_contract/src). Copy the `types.nr` and the `types` folder into `contracts/token/src`.
 
 ## Compile your contract
 
-We'll now use the [Aztec CLI](../../cli/main.md) to [compile](../../contracts/compiling.md) our project. If you haven't installed the CLI already, you can install it locally to your project running:
-
-```sh
-yarn add -D @aztec/cli
-```
+We'll now use the [Aztec CLI](../../cli/main.md) to [compile](../../contracts/compiling.md) our project. If you haven't installed the CLI already, it comes with the sandbox, so you can install it via the [Sandbox install command](../../cli/sandbox-reference.md#installation).
 
 Now run the following from your project root:
 
 ```sh
-yarn aztec-cli compile contracts/token
+aztec-cli compile contracts/token
 ```
 
 :::info

@@ -52,9 +52,6 @@ Prepend the command to start the sandbox with `DEBUG=aztec:*` to log everything 
 ```bash
 # Using the docker-compose.yml setup
 cd ~./aztec && DEBUG=aztec:* docker-compose up
-
-# or if you're using the npm package
-DEBUG=aztec:* aztec-sandbox
 ```
 
 Alternatively you can update the `DEBUG` environment variable in docker-compose.yml and start the sandbox normally.

@@ -75,6 +75,10 @@
     to = "/dev_docs/getting_started/sandbox"
 
 [[redirects]]
+    from = "/dev_docs/cli/updating"
+    to = "/dev_docs/updating"
+
+[[redirects]]
     from = "/dev_docs/dapps/tutorials/main"
     to = "/dev_docs/tutorials/writing_dapp/main"
 
