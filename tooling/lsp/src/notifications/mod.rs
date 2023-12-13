@@ -2,7 +2,7 @@ use std::ops::ControlFlow;
 
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use nargo::prepare_package;
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 
@@ -69,29 +69,21 @@ pub(super) fn on_did_save_text_document(
         }
     };
 
-    let root_path = match &state.root_path {
-        Some(root) => root,
-        None => {
-            return ControlFlow::Break(Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                "Could not find project root",
-            )
-            .into()));
-        }
-    };
+    let package_root = find_file_manifest(file_path.as_path());
 
-    let toml_path = match find_package_manifest(root_path, &file_path) {
-        Ok(toml_path) => toml_path,
-        Err(err) => {
+    let toml_path = match package_root {
+        Some(toml_path) => toml_path,
+        None => {
             // If we cannot find a manifest, we log a warning but return no diagnostics
             // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
             let _ = state.client.log_message(LogMessageParams {
                 typ: MessageType::WARNING,
-                message: format!("{err}"),
+                message: format!("Nargo.toml not found for file: {:}", file_path.display()),
             });
             return ControlFlow::Continue(());
         }
     };
+
     let workspace = match resolve_workspace_from_toml(
         &toml_path,
         PackageSelection::All,
