@@ -44,7 +44,7 @@ jobs:
           key: noir-base-docker-artifact-cache
       - name: Cache was hit
         if: steps.cache-restore.outputs.cache-hit == 'true'
-        run: echo hihi
+        run: echo hi
       - name: Build cargo
         uses: docker/build-push-action@v5
         with:
