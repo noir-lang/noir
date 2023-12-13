@@ -84,7 +84,6 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
 }
 
 pub fn prepare_package(package: &Package) -> (Context, CrateId) {
-    // TODO: FileManager continues to leak into various crates
     let mut fm = FileManager::new(&package.root_dir);
     insert_all_files_for_package_into_file_manager(package, &mut fm);
 
