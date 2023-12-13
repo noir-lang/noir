@@ -15,6 +15,9 @@ pub enum PrintableType {
         #[serde(rename = "type")]
         typ: Box<PrintableType>,
     },
+    Tuple {
+        types: Vec<PrintableType>,
+    },
     SignedInteger {
         width: u32,
     },
@@ -40,6 +43,7 @@ impl PrintableType {
             | Self::UnsignedInteger { .. }
             | Self::Boolean => 1,
             Self::Array { length, typ } => typ.field_count() * (*length as u32),
+            Self::Tuple { types } => types.iter().fold(0, |count,typ|  count + typ.field_count()),
             Self::Struct { fields, .. } => {
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
@@ -316,6 +320,9 @@ fn decode_value(
             }
 
             PrintableValue::Vec(array_elements)
+        }
+        PrintableType::Tuple { types } => {
+            PrintableValue::Vec(vecmap(types, |typ| decode_value(field_iterator, typ)))
         }
         PrintableType::String { length } => {
             let field_elements: Vec<FieldElement> = field_iterator.take(*length as usize).collect();
