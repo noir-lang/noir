@@ -41,20 +41,10 @@ mod test {
 
     pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, FileId)>) {
         errors.retain(|(error, _)| match error {
-            CompilationError::ParseError(error) => match error.reason() {
-                Some(ParserErrorReason::ExperimentalFeature(..)) => false,
-                _ => true,
-            },
+            CompilationError::ParseError(error) => {
+                !matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(..)))
+            }
             _ => true,
-        });
-    }
-
-    /// Many of the tests in this file have odd unused variable warnings which do not occur
-    /// when running an identical program using `nargo execute`. They're filtered out of the
-    /// errors returned by `get_errors` for now.
-    pub(crate) fn remove_unused_variable_warnings(errors: &mut Vec<(CompilationError, FileId)>) {
-        errors.retain(|(error, _)| {
-            !matches!(error, CompilationError::ResolverError(ResolverError::UnusedVariable { .. }))
         });
     }
 
@@ -62,8 +52,7 @@ mod test {
         src: &str,
     ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
         let root = std::path::Path::new("/");
-        let fm = FileManager::new(root, Box::new(|path| std::fs::read_to_string(path)));
-        //let fm = FileManager::new(root,  Box::new(get_non_stdlib_asset));
+        let fm = FileManager::new(root);
         let graph = CrateGraph::default();
         let mut context = Context::new(fm, graph);
         let root_file_id = FileId::dummy();
@@ -98,9 +87,7 @@ mod test {
     }
 
     pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
-        let (_program, _context, mut errors) = get_program(src);
-        remove_unused_variable_warnings(&mut errors);
-        errors
+        get_program(src).2
     }
 
     #[test]
@@ -798,7 +785,7 @@ mod test {
             }
         "#;
 
-        let (_, _, errors) = get_program(src);
+        let errors = get_program_errors(src);
         assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
         // It should be regarding the unused variable
         match &errors[0].0 {
@@ -875,7 +862,7 @@ mod test {
             }
         "#;
 
-        let (_, _, errors) = get_program(src);
+        let errors = get_program_errors(src);
         assert!(errors.len() == 3, "Expected 3 errors, got: {:?}", errors);
 
         // Errors are:

@@ -9,8 +9,7 @@ import {
 } from '../shared';
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { compile } from '@noir-lang/noir_wasm';
-import { initializeResolver } from '@noir-lang/source-resolver';
+import { compile, PathToFileSourceMap } from '@noir-lang/noir_wasm';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getPrecompiledSource(path: string): Promise<any> {
@@ -21,7 +20,12 @@ async function getPrecompiledSource(path: string): Promise<any> {
 describe('noir wasm compilation', () => {
   describe('can compile simple scripts', () => {
     it('matching nargos compilation', async () => {
-      const wasmCircuit = await compile(join(__dirname, simpleScriptSourcePath));
+      const sourceMap = new PathToFileSourceMap();
+      sourceMap.add_source_code(
+        join(__dirname, simpleScriptSourcePath),
+        readFileSync(join(__dirname, simpleScriptSourcePath), 'utf-8'),
+      );
+      const wasmCircuit = await compile(join(__dirname, simpleScriptSourcePath), undefined, undefined, sourceMap);
       const cliCircuit = await getPrecompiledSource(simpleScriptExpectedArtifact);
 
       if (!('program' in wasmCircuit)) {
@@ -36,32 +40,25 @@ describe('noir wasm compilation', () => {
   });
 
   describe('can compile scripts with dependencies', () => {
+    const sourceMap: PathToFileSourceMap = new PathToFileSourceMap();
     beforeEach(() => {
-      // this test requires a custom resolver in order to correctly resolve dependencies
-      initializeResolver((file) => {
-        switch (file) {
-          case '/script/main.nr':
-            return readFileSync(join(__dirname, depsScriptSourcePath), 'utf-8');
-
-          case '/lib_a/lib.nr':
-            return readFileSync(join(__dirname, libASourcePath), 'utf-8');
-
-          case '/lib_b/lib.nr':
-            return readFileSync(join(__dirname, libBSourcePath), 'utf-8');
-
-          default:
-            return '';
-        }
-      });
+      sourceMap.add_source_code('script/main.nr', readFileSync(join(__dirname, depsScriptSourcePath), 'utf-8'));
+      sourceMap.add_source_code('lib_a/lib.nr', readFileSync(join(__dirname, libASourcePath), 'utf-8'));
+      sourceMap.add_source_code('lib_b/lib.nr', readFileSync(join(__dirname, libBSourcePath), 'utf-8'));
     });
 
     it('matching nargos compilation', async () => {
-      const wasmCircuit = await compile('/script/main.nr', false, {
-        root_dependencies: ['lib_a'],
-        library_dependencies: {
-          lib_a: ['lib_b'],
+      const wasmCircuit = await compile(
+        'script/main.nr',
+        false,
+        {
+          root_dependencies: ['lib_a'],
+          library_dependencies: {
+            lib_a: ['lib_b'],
+          },
         },
-      });
+        sourceMap,
+      );
 
       const cliCircuit = await getPrecompiledSource(depsScriptExpectedArtifact);
 
