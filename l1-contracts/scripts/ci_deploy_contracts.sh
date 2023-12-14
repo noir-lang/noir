@@ -33,7 +33,7 @@ for KEY in ROLLUP_CONTRACT_ADDRESS REGISTRY_CONTRACT_ADDRESS INBOX_CONTRACT_ADDR
   export TF_VAR_$KEY=$VALUE
 done
 
-if [ -n "${DRY_DEPLOY:-}" ]; then
+if [ "$DRY_DEPLOY" -eq 1 ]; then
   echo "DRY_DEPLOY: deploy_terraform l1-contracts ./terraform"
   echo "DRY_DEPLOY: tag_remote_image $REPOSITORY cache-$CONTENT_HASH cache-$CONTENT_HASH-$DEPLOY_TAG-deployed"
 else

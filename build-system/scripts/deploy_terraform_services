@@ -24,7 +24,7 @@ cd $PROJECT_DIR
 # Bail out if nothing changed.
 CONTENT_HASH=$(calculate_content_hash $CHECK_REBUILD_REPOSITORY)
 echo "Last successfully deployed commit: $CONTENT_HASH"
-if check_rebuild cache-$CONTENT_HASH-$DEPLOY_TAG-deployed $CHECK_REBUILD_REPOSITORY; then
+if [ -z "$TO_TAINT" ] && check_rebuild cache-$CONTENT_HASH-$DEPLOY_TAG-deployed $CHECK_REBUILD_REPOSITORY; then
   echo "No changes detected, skipping deployment."
   exit 0
 fi
