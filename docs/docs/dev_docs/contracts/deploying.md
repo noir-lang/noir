@@ -25,25 +25,10 @@ aztec-cli deploy /path/to/contract/artifact.json
 </TabItem>
 <TabItem value="js" label="Aztec.js">
 
-Pre-requisite - Generate type-safe typescript classes for your contract when compiling using the `@aztec/noir-compiler` package. You can install the package by running `npm install @aztec/noir-compiler`.
+Pre-requisite - Compile the contract and generate a type-safe typescript class for it.
 
-```ts
-import { readFileSync, writeFileSync } from "fs";
-import { createConsoleLogger } from "@aztec/foundation/log";
-import {
-  compileUsingNoirWasm,
-  generateTypescriptContractInterface,
-} from "@aztec/noir-compiler";
-
-const compiled: ContractArtifact[] = await compileUsingNoirWasm(
-  projectPathToContractFolder,
-  { log: createConsoleLogger() }
-);
-const abiImportPath = "../target/Example.json";
-writeFileSync(
-  tsInterfaceDestFilePath,
-  generateTypescriptContractInterface(compiled[0], abiImportPath)
-);
+```bash
+aztec-cli compile /path/to/contract -o target/ -ts target/
 ```
 
 This would create a typescript file like `Example.ts` in the path specified. More details in the [compiling page](./compiling.md)
@@ -51,7 +36,7 @@ This would create a typescript file like `Example.ts` in the path specified. Mor
 Now you can import it to easily deploy and interact with the contract.
 
 ```ts
-import { ExampleContract } from "./Example.js";
+import { ExampleContract } from "./target/Example.js";
 
 const tx = ExampleContract.deploy(pxe).send();
 await tx.wait({ interval: 0.5 });
