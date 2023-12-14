@@ -4,9 +4,6 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
-#[cfg(feature = "aztec")]
-pub(crate) mod aztec_library;
-
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
@@ -181,6 +178,14 @@ impl Context {
                 }
             })
             .collect()
+    }
+
+    /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
+    /// Returns [None] when definition is not found.
+    pub fn get_definition_location_from(&self, location: Location) -> Option<Location> {
+        let interner = &self.def_interner;
+
+        interner.find_location_index(location).and_then(|index| interner.resolve_location(index))
     }
 
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain

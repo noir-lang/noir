@@ -126,6 +126,7 @@ impl<'a> Lexer<'a> {
             Some(']') => self.single_char_token(Token::RightBracket),
             Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
+            Some('r') => self.eat_raw_string_or_alpha_numeric(),
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
@@ -322,10 +323,28 @@ impl<'a> Lexer<'a> {
         let start = self.position;
 
         let integer_str = self.eat_while(Some(initial_char), |ch| {
-            ch.is_ascii_digit() | ch.is_ascii_hexdigit() | (ch == 'x')
+            ch.is_ascii_digit() | ch.is_ascii_hexdigit() | (ch == 'x') | (ch == '_')
         });
 
         let end = self.position;
+
+        // We want to enforce some simple rules about usage of underscores:
+        // 1. Underscores cannot appear at the end of a integer literal. e.g. 0x123_.
+        // 2. There cannot be more than one underscore consecutively, e.g. 0x5__5, 5__5.
+        //
+        // We're not concerned with an underscore at the beginning of a decimal literal
+        // such as `_5` as this would be lexed into an ident rather than an integer literal.
+        let invalid_underscore_location = integer_str.ends_with('_');
+        let consecutive_underscores = integer_str.contains("__");
+        if invalid_underscore_location || consecutive_underscores {
+            return Err(LexerErrorKind::InvalidIntegerLiteral {
+                span: Span::inclusive(start, end),
+                found: integer_str,
+            });
+        }
+
+        // Underscores needs to be stripped out before the literal can be converted to a `FieldElement.
+        let integer_str = integer_str.replace('_', "");
 
         let integer = match FieldElement::try_from_str(&integer_str) {
             None => {
@@ -397,6 +416,78 @@ impl<'a> Lexer<'a> {
             self.eat_fmt_string()
         } else {
             self.eat_alpha_numeric('f')
+        }
+    }
+
+    fn eat_raw_string(&mut self) -> SpannedTokenResult {
+        let start = self.position;
+
+        let beginning_hashes = self.eat_while(None, |ch| ch == '#');
+        let beginning_hashes_count = beginning_hashes.chars().count();
+        if beginning_hashes_count > 255 {
+            // too many hashes (unlikely in practice)
+            // also, Rust disallows 256+ hashes as well
+            return Err(LexerErrorKind::UnexpectedCharacter {
+                span: Span::single_char(start + 255),
+                found: Some('#'),
+                expected: "\"".to_owned(),
+            });
+        }
+
+        if !self.peek_char_is('"') {
+            return Err(LexerErrorKind::UnexpectedCharacter {
+                span: Span::single_char(self.position),
+                found: self.next_char(),
+                expected: "\"".to_owned(),
+            });
+        }
+        self.next_char();
+
+        let mut str_literal = String::new();
+        loop {
+            let chars = self.eat_while(None, |ch| ch != '"');
+            str_literal.push_str(&chars[..]);
+            if !self.peek_char_is('"') {
+                return Err(LexerErrorKind::UnexpectedCharacter {
+                    span: Span::single_char(self.position),
+                    found: self.next_char(),
+                    expected: "\"".to_owned(),
+                });
+            }
+            self.next_char();
+            let mut ending_hashes_count = 0;
+            while let Some('#') = self.peek_char() {
+                if ending_hashes_count == beginning_hashes_count {
+                    break;
+                }
+                self.next_char();
+                ending_hashes_count += 1;
+            }
+            if ending_hashes_count == beginning_hashes_count {
+                break;
+            } else {
+                str_literal.push('"');
+                for _ in 0..ending_hashes_count {
+                    str_literal.push('#');
+                }
+            }
+        }
+
+        let str_literal_token = Token::RawStr(str_literal, beginning_hashes_count as u8);
+
+        let end = self.position;
+        Ok(str_literal_token.into_span(start, end))
+    }
+
+    fn eat_raw_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
+        // Problem: we commit to eating raw strings once we see one or two characters.
+        // This is unclean, but likely ok in all practical cases, and works with existing
+        // `Lexer` methods.
+        let peek1 = self.peek_char().unwrap_or('X');
+        let peek2 = self.peek2_char().unwrap_or('X');
+        match (peek1, peek2) {
+            ('#', '#') | ('#', '"') | ('"', _) => self.eat_raw_string(),
+            _ => self.eat_alpha_numeric('r'),
         }
     }
 
@@ -560,15 +651,18 @@ mod tests {
     }
 
     #[test]
-    fn test_attribute_with_apostrophe() {
-        let input = r#"#[test(should_fail_with = "the eagle's feathers")]"#;
+    fn test_attribute_with_common_punctuation() {
+        let input =
+            r#"#[test(should_fail_with = "stmt. q? exclaim! & symbols, 1% shouldn't fail")]"#;
         let mut lexer = Lexer::new(input);
 
         let token = lexer.next_token().unwrap().token().clone();
         assert_eq!(
             token,
             Token::Attribute(Attribute::Function(FunctionAttribute::Test(
-                TestScope::ShouldFailWith { reason: "the eagle's feathers".to_owned().into() }
+                TestScope::ShouldFailWith {
+                    reason: "stmt. q? exclaim! & symbols, 1% shouldn't fail".to_owned().into()
+                }
             )))
         );
     }
@@ -854,15 +948,33 @@ mod tests {
     }
 
     #[test]
-    fn test_eat_hex_int() {
-        let input = "0x05";
+    fn test_eat_integer_literals() {
+        let test_cases: Vec<(&str, Token)> = vec![
+            ("0x05", Token::Int(5_i128.into())),
+            ("5", Token::Int(5_i128.into())),
+            ("0x1234_5678", Token::Int(0x1234_5678_u128.into())),
+            ("0x_01", Token::Int(0x1_u128.into())),
+            ("1_000_000", Token::Int(1_000_000_u128.into())),
+        ];
 
-        let expected = vec![Token::Int(5_i128.into())];
-        let mut lexer = Lexer::new(input);
-
-        for token in expected.into_iter() {
+        for (input, expected_token) in test_cases {
+            let mut lexer = Lexer::new(input);
             let got = lexer.next_token().unwrap();
-            assert_eq!(got, token);
+            assert_eq!(got.token(), &expected_token);
+        }
+    }
+
+    #[test]
+    fn test_reject_invalid_underscores_in_integer_literal() {
+        let test_cases: Vec<&str> = vec!["0x05_", "5_", "5__5", "0x5__5"];
+
+        for input in test_cases {
+            let mut lexer = Lexer::new(input);
+            let token = lexer.next_token();
+            assert!(
+                matches!(token, Err(LexerErrorKind::InvalidIntegerLiteral { .. })),
+                "expected {input} to throw error"
+            );
         }
     }
 

@@ -46,8 +46,8 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
             .collect::<Vec<_>>()
             .join("\n");
 
-        let output_source_path = outputs_dir.join(file_name);
-        let output_source = std::fs::read_to_string(output_source_path).unwrap();
+        let output_source_path = outputs_dir.join(file_name).display().to_string();
+        let output_source = std::fs::read_to_string(output_source_path.clone()).unwrap();
 
         write!(
             test_file,
@@ -63,6 +63,9 @@ fn format_{test_name}() {{
     let config = nargo_fmt::Config::of("{config}").unwrap();
     let fmt_text = nargo_fmt::format(&input, parsed_module, &config);
 
+    if std::env::var("UPDATE_EXPECT").is_ok() {{
+        std::fs::write("{output_source_path}", fmt_text.clone()).unwrap();
+    }}
 
     similar_asserts::assert_eq!(fmt_text, expected_output);
 }}

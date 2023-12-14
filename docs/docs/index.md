@@ -1,9 +1,8 @@
 ---
-title: Introducing Noir
+title: Noir
 description:
-  Learn about the public alpha release of Noir, a domain specific language heavily influenced by
-  Rust that compiles to an intermediate language which can be compiled to an arithmetic circuit or a
-  rank-1 constraint system.
+  Learn about the public alpha release of Noir, a domain specific language heavily influenced by Rust that compiles to
+  an intermediate language which can be compiled to an arithmetic circuit or a rank-1 constraint system.
 keywords:
   [
     Noir,
@@ -18,83 +17,69 @@ keywords:
     Proving System,
     Smart Contract Language,
   ]
-slug: /
+sidebar_position: 0
 ---
-
-## What is Noir?
-
-Noir is a Domain Specific Language for SNARK proving systems. It has been designed to use any ACIR compatible proving system.
-
-It's design choices are influenced heavily by Rust and focuses on a simple, familiar syntax.
-
-## Who is Noir for?
-
-Noir can be used for a variety of purposes.
-
-### Solidity Developers
-
-Noir currently includes a command to create a Solidity contract which verifies your Noir program. This will
-be modularised in the future; however, as of the alpha, you can use the [`nargo codegen-verifier`](./nargo/commands#nargo-codegen-verifier) command to create
-a verifier contract.
-
-### Protocol Developers
-
-As a protocol developer, you may not want to use the Aztec backend due to it not being a fit for
-your stack, or maybe you simply want to use a different proving system. Since Noir does not compile
-to a specific proof system, it is possible for protocol developers to replace the PLONK-based
-proving system with a different proving system altogether.
-
-### Blockchain developers
-
-As a blockchain developer, you will be constrained by parameters set by your blockchain (for example, the
-proving system and smart contract language has been pre-defined). In order for you to use Noir in
-your blockchain, a proving system backend and a smart contract interface
-must be implemented for it.
 
 ## What's new about Noir?
 
-Noir is simple and flexible in its design, as it does not compile immediately to a fixed
-NP-complete language. Instead, Noir compiles to an intermediate language (ACIR), which itself can be compiled
-to an arithmetic circuit (if choosing to target Aztec's barretenberg backend) or a rank-1 constraint system (if choosing to target an R1CS backend like Arkwork's Marlin backend, or others).
+Noir, a domain-specific language crafted for SNARK proving systems, stands out with its simplicity, flexibility,
+and robust capabilities. Unlike conventional approaches that compile directly to a fixed NP-complete language,
+Noir takes a two-pronged path. It first compiles to an adaptable intermediate language known as ACIR. From there,
+depending on the project's needs, ACIR can be further compiled into an arithmetic circuit for integration with Aztec's
+barretenberg backend or transformed into a rank-1 constraint system suitable for R1CS backends like Arkwork's Marlin
+backend, among others.
 
-This in itself brings up a few challenges within the design process, but allows one to decouple the programming language completely from the backend. This is similar in theory to LLVM.
+This innovative design introduces unique challenges, yet it strategically separates the programming language from the
+backend. Noir's approach echoes the modular philosophy of LLVM, offering developers a versatile toolkit for cryptographic
+programming.
 
-## Current Features
+## Who is Noir for?
 
-Compiler:
+### Solidity Developers
 
-- Module System
-- For expressions
-- Arrays
-- Bit Operations
-- Binary operations (<, <=, >, >=, +, -, \*, /, %) [See documentation for an extensive list]
-- Unsigned integers
-- If statements
-- Structures and Tuples
-- Generics
+Noir streamlines the creation of Solidity contracts that interface with SNARK systems.
+[`Utilize the nargo codegen-verifier`](@site/docs/reference/nargo_commands.md#nargo-codegen-verifier) command to construct verifier
+contracts efficiently. While the current alpha version offers this as a direct feature, future updates aim
+to modularize this process for even greater ease of use.
 
-ACIR Supported OPCODES:
+Noir currently includes a command to create a Solidity contract which verifies your Noir program. This will be
+modularised in the future; however, as of the alpha, you can use the
+ command to create a verifier contract.
 
-- Sha256
-- Blake2s
-- Schnorr signature verification
-- MerkleMembership
-- Pedersen Commitment
-- Pedersen Hash
-- HashToField
+### Protocol Developers
+
+Should the Aztec backend not align with your existing tech stack, or if you're inclined to integrate alternative
+proving systems, Noir's agnostic compilation to a proof-agnostic intermediate language offers unmatched flexibility.
+This allows protocol engineers the freedom to substitute the default PLONK-based system with an alternative of their
+choice, tailoring the proving system to their specific needs.
+
+### Blockchain developers
+
+Blockchain developers often face environmental constraints, such as predetermined proving systems and smart contract
+languages. Noir addresses this by enabling the implementation of custom proving system backends and smart contract
+interfaces, ensuring seamless integration with your blockchain's architecture, and expanding the horizons for innovation
+within your projects.
 
 ## Libraries
 
-Noir does not currently have an official package manager. You can find a list of available Noir libraries in the [awesome-noir repo here](https://github.com/noir-lang/awesome-noir#libraries).
+Noir does not currently have an official package manager. You can find a list of available Noir libraries in the
+[awesome-noir repo here](https://github.com/noir-lang/awesome-noir#libraries).
 
 Some libraries that are available today include:
 
 - [Standard Library](https://github.com/noir-lang/noir/tree/master/noir_stdlib) - the Noir Standard Library
-- [Ethereum Storage Proof Verification](https://github.com/aragonzkresearch/noir-trie-proofs) - a library that contains the primitives necessary for RLP decoding (in the form of look-up table construction) and Ethereum state and storage proof verification (or verification of any trie proof involving 32-byte long keys)
-- [BigInt](https://github.com/shuklaayush/noir-bigint) - a library that provides a custom BigUint56 data type, allowing for computations on large unsigned integers
-- [ECrecover](https://github.com/colinnielsen/ecrecover-noir/tree/main) - a library to verify an ECDSA signature and return the source Ethereum address
-- [Sparse Merkle Tree Verifier](https://github.com/vocdoni/smtverifier-noir/tree/main) - a library for verification of sparse Merkle trees
-- [Signed Int](https://github.com/resurgencelabs/signed_int) - a library for accessing a custom Signed Integer data type, allowing access to negative numbers on Noir
-- [Fraction](https://github.com/resurgencelabs/fraction) - a library for accessing fractional number data type in Noir, allowing results that aren't whole numbers
+- [Ethereum Storage Proof Verification](https://github.com/aragonzkresearch/noir-trie-proofs) - a library that contains
+  the primitives necessary for RLP decoding (in the form of look-up table construction) and Ethereum state and storage
+  proof verification (or verification of any trie proof involving 32-byte long keys)
+- [BigInt](https://github.com/shuklaayush/noir-bigint) - a library that provides a custom BigUint56 data type, allowing
+  for computations on large unsigned integers
+- [ECrecover](https://github.com/colinnielsen/ecrecover-noir/tree/main) - a library to verify an ECDSA signature and
+  return the source Ethereum address
+- [Sparse Merkle Tree Verifier](https://github.com/vocdoni/smtverifier-noir/tree/main) - a library for verification of
+  sparse Merkle trees
+- [Signed Int](https://github.com/resurgencelabs/signed_int) - a library for accessing a custom Signed Integer data
+  type, allowing access to negative numbers on Noir
+- [Fraction](https://github.com/resurgencelabs/fraction) - a library for accessing fractional number data type in Noir,
+  allowing results that aren't whole numbers
 
-See the section on [dependencies](./modules_packages_crates/dependencies) for more information.
+See the section on [dependencies](@site/docs/explanations/modules_packages_crates/dependencies.md) for more information.

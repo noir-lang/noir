@@ -19,13 +19,21 @@ mod compat;
 mod option;
 mod string;
 mod test;
+mod ops;
+mod default;
+mod prelude;
+
 // Oracle calls are required to be wrapped in an unconstrained function
-// Thus, the only argument to the `println` oracle is expected to always be an ident 
-#[oracle(println)]
-unconstrained fn println_oracle<T>(_input: T) {}
+// Thus, the only argument to the `println` oracle is expected to always be an ident
+#[oracle(print)]
+unconstrained fn print_oracle<T>(_with_newline: bool, _input: T) {}
+
+unconstrained pub fn print<T>(input: T) {
+    print_oracle(false, input);
+}
 
 unconstrained pub fn println<T>(input: T) {
-    println_oracle(input);
+    print_oracle(true, input);
 }
 
 #[foreign(recursive_aggregation)]

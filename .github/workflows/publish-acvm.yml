@@ -3,7 +3,7 @@ name: Publish ACVM crates
 on:
   workflow_dispatch:
     inputs:
-      acvm-ref:
+      noir-ref:
         description: The acvm reference to checkout
         required: true
 
@@ -15,7 +15,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.acvm-ref }}
+          ref: ${{ inputs.noir-ref }}
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.71.1

@@ -70,6 +70,10 @@ function abiTypeToTs(type: AbiType, primitiveTypeMap: Map<string, PrimitiveTypes
       return `string`;
     case 'struct':
       return getLastComponentOfPath(type.path);
+    case 'tuple': {
+      const field_types = type.fields.map((field) => abiTypeToTs(field, primitiveTypeMap));
+      return `[${field_types.join(', ')}]`;
+    }
     default:
       throw new Error(`Unknown ABI type ${JSON.stringify(type)}`);
   }
@@ -166,7 +170,7 @@ export function generateTsInterface(
 
   // Generating Return type, if it exists
   if (abiObj.return_type != null) {
-    result += generateStructInterfaces(abiObj.return_type, outputStructs, primitiveTypeMap);
+    result += generateStructInterfaces(abiObj.return_type.abi_type, outputStructs, primitiveTypeMap);
   }
 
   return [result, getTsFunctionSignature(abiObj, primitiveTypeMap)];
@@ -180,6 +184,6 @@ function getTsFunctionSignature(
     param.name,
     abiTypeToTs(param.type, primitiveTypeMap),
   ]);
-  const returnValue = abi.return_type ? abiTypeToTs(abi.return_type, primitiveTypeMap) : null;
+  const returnValue = abi.return_type ? abiTypeToTs(abi.return_type.abi_type, primitiveTypeMap) : null;
   return { inputs, returnValue };
 }

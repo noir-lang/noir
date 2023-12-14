@@ -1,4 +1,4 @@
-use std::vec;
+use std::{collections::HashMap, vec};
 
 use acvm::acir::acir_field::FieldOptions;
 use fm::FileId;
@@ -44,6 +44,7 @@ pub fn collect_defs(
 ) -> Vec<(CompilationError, FileId)> {
     let mut collector = ModCollector { def_collector, file_id, module_id };
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
+
     // First resolve the module declarations
     for decl in ast.module_decls {
         errors.extend(collector.parse_module_declaration(context, &decl, crate_id));
@@ -57,6 +58,7 @@ pub fn collect_defs(
             module_id: collector.module_id,
             path: import.path,
             alias: import.alias,
+            is_prelude: false,
         });
     }
 
@@ -126,7 +128,8 @@ impl<'a> ModCollector<'a> {
 
             for method in r#impl.methods {
                 let func_id = context.def_interner.push_empty_fn();
-                context.def_interner.push_function(func_id, &method.def, module_id);
+                let location = Location::new(method.span(), self.file_id);
+                context.def_interner.push_function(func_id, &method.def, module_id, location);
                 unresolved_functions.push_fn(self.module_id, func_id, method);
             }
 
@@ -152,7 +155,8 @@ impl<'a> ModCollector<'a> {
 
             for (_, func_id, noir_function) in &mut unresolved_functions.functions {
                 noir_function.def.where_clause.append(&mut trait_impl.where_clause.clone());
-                context.def_interner.push_function(*func_id, &noir_function.def, module);
+                let location = Location::new(noir_function.def.span, self.file_id);
+                context.def_interner.push_function(*func_id, &noir_function.def, module, location);
             }
 
             let unresolved_trait_impl = UnresolvedTraitImpl {
@@ -185,7 +189,8 @@ impl<'a> ModCollector<'a> {
         for item in &trait_impl.items {
             if let TraitImplItem::Function(impl_method) = item {
                 let func_id = context.def_interner.push_empty_fn();
-                context.def_interner.push_function(func_id, &impl_method.def, module);
+                let location = Location::new(impl_method.span(), self.file_id);
+                context.def_interner.push_function(func_id, &impl_method.def, module, location);
                 unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
             }
         }
@@ -218,7 +223,8 @@ impl<'a> ModCollector<'a> {
 
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
-            context.def_interner.push_function(func_id, &function.def, module);
+            let location = Location::new(function.span(), self.file_id);
+            context.def_interner.push_function(func_id, &function.def, module, location);
 
             // Now link this func_id to a crate level map with the noir function and the module id
             // Encountering a NoirFunction, we retrieve it's module_data to get the namespace
@@ -266,7 +272,9 @@ impl<'a> ModCollector<'a> {
 
             // Create the corresponding module for the struct namespace
             let id = match self.push_child_module(&name, self.file_id, false, false) {
-                Ok(local_id) => context.def_interner.new_struct(&unresolved, krate, local_id),
+                Ok(local_id) => {
+                    context.def_interner.new_struct(&unresolved, krate, local_id, self.file_id)
+                }
                 Err(error) => {
                     definition_errors.push((error.into(), self.file_id));
                     continue;
@@ -343,7 +351,7 @@ impl<'a> ModCollector<'a> {
             let name = trait_definition.name.clone();
 
             // Create the corresponding module for the trait namespace
-            let id = match self.push_child_module(&name, self.file_id, false, false) {
+            let trait_id = match self.push_child_module(&name, self.file_id, false, false) {
                 Ok(local_id) => TraitId(ModuleId { krate, local_id }),
                 Err(error) => {
                     errors.push((error.into(), self.file_id));
@@ -353,7 +361,7 @@ impl<'a> ModCollector<'a> {
 
             // Add the trait to scope so its path can be looked up later
             let result =
-                self.def_collector.def_map.modules[self.module_id.0].declare_trait(name, id);
+                self.def_collector.def_map.modules[self.module_id.0].declare_trait(name, trait_id);
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::Duplicate {
@@ -370,6 +378,8 @@ impl<'a> ModCollector<'a> {
                 functions: Vec::new(),
                 trait_id: None,
             };
+
+            let mut method_ids = HashMap::new();
             for trait_item in &trait_definition.items {
                 match trait_item {
                     TraitItem::Function {
@@ -381,6 +391,8 @@ impl<'a> ModCollector<'a> {
                         body,
                     } => {
                         let func_id = context.def_interner.push_empty_fn();
+                        method_ids.insert(name.to_string(), func_id);
+
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
                             visibility: crate::FunctionVisibility::Public,
@@ -391,9 +403,12 @@ impl<'a> ModCollector<'a> {
                             is_internal: None,
                         };
 
-                        context.def_interner.push_function_definition(func_id, modifiers, id.0);
+                        let location = Location::new(name.span(), self.file_id);
+                        context
+                            .def_interner
+                            .push_function_definition(func_id, modifiers, trait_id.0, location);
 
-                        match self.def_collector.def_map.modules[id.0.local_id.0]
+                        match self.def_collector.def_map.modules[trait_id.0.local_id.0]
                             .declare_function(name.clone(), func_id)
                         {
                             Ok(()) => {
@@ -428,7 +443,7 @@ impl<'a> ModCollector<'a> {
                         let stmt_id = context.def_interner.push_empty_global();
 
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
-                            [id.0.local_id.0]
+                            [trait_id.0.local_id.0]
                             .declare_global(name.clone(), stmt_id)
                         {
                             let error = DefCollectorErrorKind::Duplicate {
@@ -442,7 +457,7 @@ impl<'a> ModCollector<'a> {
                     TraitItem::Type { name } => {
                         // TODO(nickysn or alexvitkov): implement context.def_interner.push_empty_type_alias and get an id, instead of using TypeAliasId::dummy_id()
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
-                            [id.0.local_id.0]
+                            [trait_id.0.local_id.0]
                             .declare_type_alias(name.clone(), TypeAliasId::dummy_id())
                         {
                             let error = DefCollectorErrorKind::Duplicate {
@@ -462,9 +477,10 @@ impl<'a> ModCollector<'a> {
                 module_id: self.module_id,
                 crate_id: krate,
                 trait_def: trait_definition,
+                method_ids,
                 fns_with_default_impl: unresolved_functions,
             };
-            self.def_collector.collected_traits.insert(id, unresolved);
+            self.def_collector.collected_traits.insert(trait_id, unresolved);
         }
         errors
     }

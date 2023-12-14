@@ -6,8 +6,9 @@ use noirc_frontend::{
 };
 
 use crate::{
+    rewrite,
     utils::{last_line_contains_single_line_comment, last_line_used_width, FindToken},
-    visitor::expr::format_seq,
+    visitor::expr::{format_seq, NewlineMode},
 };
 
 use super::{
@@ -54,6 +55,7 @@ impl super::FmtVisitor<'_> {
                 generics,
                 span,
                 HorizontalVertical,
+                NewlineMode::IfContainsNewLine,
                 false,
             );
 
@@ -63,12 +65,18 @@ impl super::FmtVisitor<'_> {
         let parameters = if parameters.is_empty() {
             self.slice(params_span).into()
         } else {
-            let fn_start = result.find_token(Token::Keyword(Keyword::Fn)).unwrap().start();
-            let slice = self.slice(fn_start..result.len() as u32);
+            let fn_start = result
+                .find_token_with(|token| {
+                    matches!(token, Token::Keyword(Keyword::Fn | Keyword::Unconstrained))
+                })
+                .unwrap()
+                .start();
 
+            let slice = self.slice(fn_start..result.len() as u32);
             let indent = self.indent;
             let used_width = last_line_used_width(slice, indent.width());
-            let one_line_budget = self.budget(used_width + return_type.len());
+            let overhead = if return_type.is_empty() { 2 } else { 3 }; // 2 = `()`, 3 = `() `
+            let one_line_budget = self.budget(used_width + return_type.len() + overhead);
             let shape = Shape { width: one_line_budget, indent };
 
             let tactic = LimitedHorizontalVertical(one_line_budget);
@@ -82,7 +90,8 @@ impl super::FmtVisitor<'_> {
                 parameters,
                 params_span.into(),
                 tactic,
-                true,
+                NewlineMode::IfContainsNewLine,
+                false,
             )
         };
 
@@ -114,7 +123,8 @@ impl super::FmtVisitor<'_> {
                 result.push_str("pub ");
             }
 
-            result.push_str(self.slice(span));
+            let typ = rewrite::typ(self, self.shape(), func.return_type());
+            result.push_str(&typ);
 
             let slice = self.slice(span.end()..func_span.start());
             if !slice.trim().is_empty() {
