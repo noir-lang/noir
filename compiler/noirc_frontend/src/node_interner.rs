@@ -21,8 +21,8 @@ use crate::hir_def::{
 };
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
-    ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared, TypeAliasType,
-    TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind, BinaryOpKind,
+    BinaryOpKind, ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared,
+    TypeAliasType, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -1258,13 +1258,12 @@ impl NodeInterner {
     /// Tags the given identifier with the selected trait_impl so that monomorphization
     /// can later recover which impl was selected, or alternatively see if it needs to
     /// decide which impl to select (because the impl was Assumed).
-    pub fn select_impl_for_ident(&mut self, ident_id: ExprId, trait_impl: TraitImplKind) {
+    pub fn select_impl_for_expression(&mut self, ident_id: ExprId, trait_impl: TraitImplKind) {
         self.selected_trait_implementations.insert(ident_id, trait_impl);
     }
 
-    /// Retrieves the impl selected for a given IdentId during name resolution.
-    /// From type checking and on, the "ident" referred to is changed to a TraitMethodReference node.
-    pub fn get_selected_impl_for_ident(&self, ident_id: ExprId) -> Option<TraitImplKind> {
+    /// Retrieves the impl selected for a given ExprId during name resolution.
+    pub fn get_selected_impl_for_expression(&self, ident_id: ExprId) -> Option<TraitImplKind> {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
 
@@ -1298,9 +1297,6 @@ impl NodeInterner {
             }
             HirExpression::Constructor(expr) => {
                 let struct_type = &expr.r#type.borrow();
-
-                eprintln!("\n -> Resolve Constructor {struct_type:?}\n");
-
                 Some(struct_type.location)
             }
             HirExpression::MemberAccess(expr_member_access) => {
@@ -1392,12 +1388,12 @@ impl NodeInterner {
         match operator {
             BinaryOpKind::Equal => {
                 self.operator_traits.insert(BinaryOpKind::NotEqual, trait_id);
-            },
+            }
             BinaryOpKind::Less => {
                 self.operator_traits.insert(BinaryOpKind::LessEqual, trait_id);
                 self.operator_traits.insert(BinaryOpKind::Greater, trait_id);
                 self.operator_traits.insert(BinaryOpKind::GreaterEqual, trait_id);
-            },
+            }
             _ => (),
         }
     }

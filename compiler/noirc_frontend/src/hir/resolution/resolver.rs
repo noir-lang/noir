@@ -1254,7 +1254,7 @@ impl<'a> Resolver<'a> {
                     let expr_id = self.interner.push_expr(hir_expr);
                     self.interner.push_expr_location(expr_id, expr.span, self.file);
                     self.interner
-                        .select_impl_for_ident(expr_id, TraitImplKind::Assumed { object_type });
+                        .select_impl_for_expression(expr_id, TraitImplKind::Assumed { object_type });
                     return expr_id;
                 } else {
                     // If the Path is being used as an Expression, then it is referring to a global from a separate module

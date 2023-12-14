@@ -354,11 +354,34 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirExpression::Infix(infix) => {
-                let lhs = Box::new(self.expr(infix.lhs));
-                let rhs = Box::new(self.expr(infix.rhs));
+                let lhs = self.expr(infix.lhs);
+                let rhs = self.expr(infix.rhs);
                 let operator = infix.operator.kind;
                 let location = self.interner.expr_location(&expr);
-                ast::Expression::Binary(ast::Binary { lhs, rhs, operator, location })
+
+                if self.interner.get_selected_impl_for_expression(expr).is_some() {
+                    // If an impl was selected for this infix operator, replace it
+                    // with a method call to the appropriate trait impl method.
+                    let lhs_type = self.interner.id_type(infix.lhs);
+                    let args = vec![lhs_type.clone(), lhs_type];
+                    let ret = self.interner.id_type(expr);
+                    let env = Box::new(Type::Unit);
+                    let function_type = Type::Function(args, Box::new(ret.clone()), env);
+
+                    let method = TraitMethodId { trait_id: infix.trait_id, method_index: 0 };
+                    let func = self.resolve_trait_method_reference(expr, function_type, method);
+
+                    ast::Expression::Call(ast::Call {
+                        func: Box::new(func),
+                        arguments: vec![lhs, rhs],
+                        return_type: self.convert_type(&ret),
+                        location,
+                    })
+                } else {
+                    let lhs = Box::new(lhs);
+                    let rhs = Box::new(rhs);
+                    ast::Expression::Binary(ast::Binary { lhs, rhs, operator, location })
+                }
             }
 
             HirExpression::Index(index) => self.index(expr, index),
@@ -398,13 +421,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr),
 
             HirExpression::TraitMethodReference(method) => {
-                if let Type::Function(_, _, _) = self.interner.id_type(expr) {
-                    self.resolve_trait_method_reference(expr, method)
-                } else {
-                    unreachable!(
-                        "Calling a non-function, this should've been caught in typechecking"
-                    );
-                }
+                let function_type = self.interner.id_type(expr);
+                self.resolve_trait_method_reference(expr, function_type, method)
             }
 
             HirExpression::MethodCall(hir_method_call) => {
@@ -824,13 +842,12 @@ impl<'interner> Monomorphizer<'interner> {
     fn resolve_trait_method_reference(
         &mut self,
         expr_id: node_interner::ExprId,
+        function_type: HirType,
         method: TraitMethodId,
     ) -> ast::Expression {
-        let function_type = self.interner.id_type(expr_id);
-
         let trait_impl = self
             .interner
-            .get_selected_impl_for_ident(expr_id)
+            .get_selected_impl_for_expression(expr_id)
             .expect("ICE: missing trait impl - should be caught during type checking");
 
         let hir_func_id = match trait_impl {
