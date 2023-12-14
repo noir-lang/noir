@@ -673,6 +673,8 @@ fn should_check_siblings_for_module(module_path: &Path, parent_path: &Path) -> b
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::path::PathBuf;
     use tempfile::{tempdir, TempDir};
 
     // Returns the absolute path to the file
