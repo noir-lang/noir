@@ -136,27 +136,30 @@ One should notice that when Bob generates his first proof, he has no input aggre
 
 We can imagine the `aggregation object` as the baton in a [relay race](https://en.wikipedia.org/wiki/Relay_race). The first runner doesn't have to receive the baton from anyone else, as he/she already starts with it. But when his/her turn is over, the next runner needs to receive it, run a bit more, and pass it along. Even though every runner could theoretically verify the baton mid-run (why not? 🏃🔍), only at the end of the race does the referee verify that the whole race is valid.
 
-## How many circuits do I need
+## Some architecture
 
-This is a common question, as there's not a one-size-fits-all solution. Here are three out of the many possible configurations:
+As with everything in computer science, there's no one-size-fits all. But there are two patterns that could help understanding and implementing them:
 
-### Two, but watch out
+### Adding some logic to a proof verification
 
-A common pattern, that requires some resources, is to have everyone generate both a main proof and a recursive proof. This involves two circuits:
+This would be an approach for something like our guessing game, where proofs are sent back and forth and are verified by each opponent. This circuit would be divided in two sections:
 
-- A `main`, non-recursive circuit with some logic
-- A `recursive` circuit meant to verify two proofs in one proof
+- A `recursive verification` section, which would be just the call to `std::verify_proof`, and that would be skipped on the first move (since there's no proof to verify)
+- A `guessing` section, which is basically the logic part where the actual guessing happens
 
-In this case, if Alice and Bob are playing a chess game and Alice is playing whites, she would immediately start by sending Bob a recursive proof, by verifying her `main` proof twice to start with.
+In such a situation, and assuming Alice is first, she would skip the first part and try to guess Bob's number. Bob would then verify her proof on the first section of his run, and try to guess Alice's number on the second part, and so on.
 
-From then on, Bob would generate his `main` proof and verify both Alice's recursive proof, and his own `main` proof. Everyone generates two proofs, which could be intensive.
+One could be confused about what happens with the recursive aggregation object, as it seems like it has no relationship with anything other than the "recursive part" of the circuit (it's simply an input and an output to `std::verify_proof`). It actually doesn't, even if it may seem lightly unintuitive. Again, it would help to imagine it as a baton in a draft race, which says nothing about the race itself but simply testifies that it was correctly passed around.
 
 ### The light approach
 
-In some one-way interaction situations, one could shave off one of the recursive proofs. This would fit, for example, a situation where the first prover is using a phone, which is currently unfit to generate recursive proofs in an acceptable time frame. With this configuration, only the first, lighter proof, is generated on the phone.
+In some one-way interaction situations, one could actually use two circuits, in order to make proving faster for one of the parties.
+
+This would fit, for example, a situation where the first prover is using a phone. Phones are currently unfit to generate recursive proofs in an acceptable time frame, given the gate size of the circuit. With this configuration, only the first, lighter proof, is generated on the phone.
+
+One would, then, use two circuits:
 
 - A `main`, non-recursive circuit with some logic
-- A `first proof` recursive circuit meant to verify only the first `main` circuit
 - A `recursive` circuit meant to verify two proofs in one proof
 
 To give a practical example, a barman wouldn't need to verify a "proof-of-age" on-chain every time he serves alcohol to a customer. These proofs would be made on the customer's phones, and the barman would just verify them locally, aggregating them into a final proof sent on-chain at the end of the day. However, the very first customer needs its own circuit, as there's only one proof to verify.
