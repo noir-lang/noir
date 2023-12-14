@@ -17,7 +17,7 @@ COPY . .
 # WORKDIR /usr/src/noir
 # COPY . .
 # # RUN ./scripts/bootstrap_native.sh
-# ENV PATH="${PATH}:/usr/src/noir/target/release/"
+# ENV PATH="${PATH}:/usr/src/noir/target/release/"sadf
 
 FROM test-base as test-cargo
 RUN apt-get install -y curl libc++-dev
