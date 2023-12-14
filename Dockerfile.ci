@@ -1,4 +1,4 @@
-FROM rust:1-bookworm as base
+FROM rust:1.71.1-bookworm as base
 RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git -y
 RUN cargo install cargo-chef
 
