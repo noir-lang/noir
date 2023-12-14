@@ -121,6 +121,7 @@ num-bigint = "0.4"
 num-traits = "0.2"
 similar-asserts = "1.5.0"
 log = "0.4.17"
+tempfile = "3.6.0"
 
 tracing = "0.1.40"
 
