@@ -102,11 +102,9 @@ Doing this recursively allows us to arrive on a final proof `abcd` which if true
 
 ### Daniel - Reusable components
 
-Daniel has a big circuit and a big headache. A part of his circuit is a setup phase that finishes with some assertions that need to be made. But that section alone takes 40% (80sec) of the 200sec proving time, and is largely independent of the rest of the circuit.
+Daniel has a big circuit and a big headache. A part of his circuit is a setup phase that finishes with some assertions that need to be made. But that section alone takes most of the proving time, and is largely independent of the rest of the circuit.
 
-He could find it more efficient to generate a proof for that setup phase separately, and verifying it his actual business logic section of the circuit. For example, at the time of writing, on a Macbook M2, a recursive proof would take about 40 seconds using all the 8 cores in parallel.
-
-This would make Daniel save 40 seconds by leveraging recursive proofs.
+He could find it more efficient to generate a proof for that setup phase separately, and verifying it in his actual business logic section of the circuit. This will allow for parallelization of both proofs, which results in a considerable speedup.
 
 ## What params do I need
 
@@ -138,7 +136,7 @@ We can imagine the `aggregation object` as the baton in a [relay race](https://e
 
 ## Some architecture
 
-As with everything in computer science, there's no one-size-fits all. But there are two patterns that could help understanding and implementing them:
+As with everything in computer science, there's no one-size-fits all. But there are some patterns that could help understanding and implementing them. To give three examples:
 
 ### Adding some logic to a proof verification
 
@@ -151,20 +149,18 @@ In such a situation, and assuming Alice is first, she would skip the first part 
 
 One could be confused about what happens with the recursive aggregation object, as it seems like it has no relationship with anything other than the "recursive part" of the circuit (it's simply an input and an output to `std::verify_proof`). It actually doesn't, even if it may seem lightly unintuitive. Again, it would help to imagine it as a baton in a draft race, which says nothing about the race itself but simply testifies that it was correctly passed around.
 
-### The light approach
+### Aggregating proofs
 
-In some one-way interaction situations, one could actually use two circuits, in order to make proving faster for one of the parties.
+In some one-way interaction situations, recursiveness would allow for aggregation of simple proofs that don't need to be immediately verified on-chain or elsewhere.
 
-This would fit, for example, a situation where the first prover is using a phone. Phones are currently unfit to generate recursive proofs in an acceptable time frame, given the gate size of the circuit. With this configuration, only the first, lighter proof, is generated on the phone.
-
-One would, then, use two circuits:
+To give a practical example, a barman wouldn't need to verify a "proof-of-age" on-chain every time he serves alcohol to a customer. Instead, the architecture would comprise two circuits:
 
 - A `main`, non-recursive circuit with some logic
 - A `recursive` circuit meant to verify two proofs in one proof
 
-To give a practical example, a barman wouldn't need to verify a "proof-of-age" on-chain every time he serves alcohol to a customer. These proofs would be made on the customer's phones, and the barman would just verify them locally, aggregating them into a final proof sent on-chain at the end of the day. However, the very first customer needs its own circuit, as there's only one proof to verify.
+The customer's proofs would be intermediate, and made on their phones, and the barman could just verify them locally. He would then aggregate them into a final proof sent on-chain (or elsewhere) at the end of the day.
 
-### Different logic
+### Recursively verifying different circuits
 
 Nothing prevents you from verifying different circuits in a recursive proof, for example:
 
@@ -172,7 +168,7 @@ Nothing prevents you from verifying different circuits in a recursive proof, for
 - A `circuit2` circuit
 - A `recursive` circuit
 
-To give another practical example, a regulator could verify that taxes were paid for a specific purchase by aggregating both a `payer` circuit (proving that a purchase was made and taxes were paid), and a `receipt` circuit (proving that the payment was received)
+In this example, a regulator could verify that taxes were paid for a specific purchase by aggregating both a `payer` circuit (proving that a purchase was made and taxes were paid), and a `receipt` circuit (proving that the payment was received)
 
 ## How fast is it
 
