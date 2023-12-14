@@ -23,6 +23,7 @@ mod abi_gen;
 mod contract;
 mod debug;
 mod program;
+mod stdlib;
 
 use debug::filter_relevant_files;
 
@@ -62,6 +63,10 @@ pub struct CompileOptions {
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
 
+    /// Output ACIR gzipped bytecode instead of the JSON artefact
+    #[arg(long, hide = true)]
+    pub only_acir: bool,
+
     /// Disables the builtin macros being used in the compiler
     #[arg(long, hide = true)]
     pub disable_macros: bool,
@@ -78,11 +83,23 @@ pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
 
 /// Adds the file from the file system at `Path` to the crate graph as a root file
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
+    // Add the stdlib contents to the file manager, since every package automatically has a dependency
+    // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file
+    // contents to the file manager. However since the dependency on the stdlib is implicit, we need
+    // to manually add it here.
+    let stdlib_paths_with_source = stdlib::stdlib_paths_with_source();
+    for (path, source) in stdlib_paths_with_source {
+        context.file_manager.add_file_with_source_canonical_path(Path::new(&path), source);
+    }
+
     let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
-    let std_file_id = context.file_manager.add_file(&path_to_std_lib_file).unwrap();
+    let std_file_id = context
+        .file_manager
+        .name_to_id(path_to_std_lib_file)
+        .expect("stdlib file id is expected to be present");
     let std_crate_id = context.crate_graph.add_stdlib(std_file_id);
 
-    let root_file_id = context.file_manager.add_file(file_name).unwrap();
+    let root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {file_name:?}"));
 
     let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
@@ -93,7 +110,10 @@ pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
 
 // Adds the file from the file system at `Path` to the crate graph
 pub fn prepare_dependency(context: &mut Context, file_name: &Path) -> CrateId {
-    let root_file_id = context.file_manager.add_file(file_name).unwrap();
+    let root_file_id = context
+        .file_manager
+        .name_to_id(file_name.to_path_buf())
+        .unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {file_name:?}"));
 
     let crate_id = context.crate_graph.add_crate(root_file_id);
 

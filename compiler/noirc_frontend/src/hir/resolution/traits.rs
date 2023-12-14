@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::{
     graph::CrateId,
@@ -22,9 +22,7 @@ use crate::{
 };
 
 use super::{
-    errors::ResolverError,
     functions, get_module_mut, get_struct_type,
-    import::PathResolutionError,
     path_resolver::{PathResolver, StandardPathResolver},
     resolver::Resolver,
     take_errors,
@@ -92,13 +90,14 @@ fn resolve_trait_methods(
 
     let mut functions = vec![];
     let mut resolver_errors = vec![];
+
     for item in &unresolved_trait.trait_def.items {
         if let TraitItem::Function {
             name,
             generics,
             parameters,
             return_type,
-            where_clause: _,
+            where_clause,
             body: _,
         } = item
         {
@@ -109,6 +108,16 @@ fn resolve_trait_methods(
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
             resolver.add_generics(generics);
             resolver.set_self_type(Some(self_type));
+
+            let func_id = unresolved_trait.method_ids[&name.0.contents];
+            let (_, func_meta) = resolver.resolve_trait_function(
+                name,
+                parameters,
+                return_type,
+                where_clause,
+                func_id,
+            );
+            resolver.interner.push_fn_meta(func_meta, func_id);
 
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
             let return_type = resolver.resolve_type(return_type.get_type().into_owned());
@@ -124,14 +133,13 @@ fn resolve_trait_methods(
             let the_trait = resolver.interner.get_trait(trait_id);
             generics.push((the_trait.self_type_typevar_id, the_trait.self_type_typevar.clone()));
 
-            let name = name.clone();
-            let span: Span = name.span();
             let default_impl_list: Vec<_> = unresolved_trait
                 .fns_with_default_impl
                 .functions
                 .iter()
                 .filter(|(_, _, q)| q.name() == name.0.contents)
                 .collect();
+
             let default_impl = if default_impl_list.len() == 1 {
                 Some(Box::new(default_impl_list[0].2.clone()))
             } else {
@@ -140,18 +148,18 @@ fn resolve_trait_methods(
 
             let no_environment = Box::new(Type::Unit);
             let function_type = Type::Function(arguments, Box::new(return_type), no_environment);
-            let typ = Type::Forall(generics, Box::new(function_type));
 
-            let f = TraitFunction {
-                name,
-                typ,
-                span,
+            functions.push(TraitFunction {
+                name: name.clone(),
+                typ: Type::Forall(generics, Box::new(function_type)),
+                span: name.span(),
                 default_impl,
                 default_impl_file_id: unresolved_trait.file_id,
                 default_impl_module_id: unresolved_trait.module_id,
-            };
-            functions.push(f);
-            resolver_errors.extend(take_errors_filter_self_not_resolved(file, resolver));
+            });
+
+            let errors = resolver.take_errors().into_iter();
+            resolver_errors.extend(errors.map(|resolution_error| (resolution_error.into(), file)));
         }
     }
     (functions, resolver_errors)
@@ -450,22 +458,4 @@ pub(crate) fn resolve_trait_impls(
     }
 
     methods
-}
-
-pub(crate) fn take_errors_filter_self_not_resolved(
-    file_id: FileId,
-    resolver: Resolver<'_>,
-) -> Vec<(CompilationError, FileId)> {
-    resolver
-        .take_errors()
-        .iter()
-        .filter(|resolution_error| match resolution_error {
-            ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident)) => {
-                &ident.0.contents != "Self"
-            }
-            _ => true,
-        })
-        .cloned()
-        .map(|resolution_error| (resolution_error.into(), file_id))
-        .collect()
 }
