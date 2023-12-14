@@ -8,8 +8,6 @@ const IGNORE_VERSIONS = ['0.16.0'];
 const NUMBER_OF_VERSIONS_TO_SHOW = 2;
 
 async function main() {
-  const versionsFile = path.resolve('../versions.json');
-
   const axiosOpts = {
     params: { per_page: 100 },
     headers: {},
@@ -51,7 +49,7 @@ async function main() {
 
   console.log('Only latest patches: ', onlyLatestPatches);
 
-  fs.writeFileSync(versionsFile, JSON.stringify(onlyLatestPatches, null, 2));
+  fs.writeFileSync(path.resolve(__dirname, '../versions.json'), JSON.stringify(onlyLatestPatches, null, 2));
 }
 
 main();
