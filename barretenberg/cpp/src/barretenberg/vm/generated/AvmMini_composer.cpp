@@ -17,28 +17,10 @@ void AvmMiniComposer::compute_witness(CircuitConstructor& circuit)
 
     auto polynomials = circuit.compute_polynomials();
 
-    proving_key->avmMini_clk = polynomials.avmMini_clk;
-    proving_key->avmMini_first = polynomials.avmMini_first;
-    proving_key->memTrace_m_clk = polynomials.memTrace_m_clk;
-    proving_key->memTrace_m_sub_clk = polynomials.memTrace_m_sub_clk;
-    proving_key->memTrace_m_addr = polynomials.memTrace_m_addr;
-    proving_key->memTrace_m_val = polynomials.memTrace_m_val;
-    proving_key->memTrace_m_lastAccess = polynomials.memTrace_m_lastAccess;
-    proving_key->memTrace_m_rw = polynomials.memTrace_m_rw;
-    proving_key->avmMini_subop = polynomials.avmMini_subop;
-    proving_key->avmMini_ia = polynomials.avmMini_ia;
-    proving_key->avmMini_ib = polynomials.avmMini_ib;
-    proving_key->avmMini_ic = polynomials.avmMini_ic;
-    proving_key->avmMini_mem_op_a = polynomials.avmMini_mem_op_a;
-    proving_key->avmMini_mem_op_b = polynomials.avmMini_mem_op_b;
-    proving_key->avmMini_mem_op_c = polynomials.avmMini_mem_op_c;
-    proving_key->avmMini_rwa = polynomials.avmMini_rwa;
-    proving_key->avmMini_rwb = polynomials.avmMini_rwb;
-    proving_key->avmMini_rwc = polynomials.avmMini_rwc;
-    proving_key->avmMini_mem_idx_a = polynomials.avmMini_mem_idx_a;
-    proving_key->avmMini_mem_idx_b = polynomials.avmMini_mem_idx_b;
-    proving_key->avmMini_mem_idx_c = polynomials.avmMini_mem_idx_c;
-    proving_key->avmMini_last = polynomials.avmMini_last;
+    for (auto [key_poly, prover_poly] : zip_view(proving_key->get_all(), polynomials.get_unshifted())) {
+        ASSERT(flavor_get_label(*proving_key, key_poly) == flavor_get_label(polynomials, prover_poly));
+        key_poly = prover_poly;
+    }
 
     computed_witness = true;
 }

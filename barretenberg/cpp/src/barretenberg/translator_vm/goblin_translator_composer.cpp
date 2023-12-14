@@ -99,7 +99,7 @@ void GoblinTranslatorComposer::compute_witness(CircuitBuilder& circuit_builder)
     // Construct the conventional wire polynomials
     auto wire_polynomials = construct_wire_polynomials_base_goblin_translator(circuit_builder, dyadic_circuit_size);
 
-    // Most of the witness polynomials are the original wire polynomials
+    // TODO(AD): figure out how to get this in a loop, why does NUM_WIRES=81? @kesha
     proving_key->op = wire_polynomials[0];
     proving_key->x_lo_y_hi = wire_polynomials[1];
     proving_key->x_hi_z_1 = wire_polynomials[2];

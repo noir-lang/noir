@@ -246,10 +246,10 @@ class GoblinTranslator {
                             public DerivedWitnessEntities<DataType>,
                             public ConcatenatedRangeConstraints<DataType> {
       public:
-        DEFINE_COMPOUND_GET_ALL(WireNonshiftedEntities<DataType>::get_all(),
-                                WireToBeShiftedEntities<DataType>::get_all(),
-                                DerivedWitnessEntities<DataType>::get_all(),
-                                ConcatenatedRangeConstraints<DataType>::get_all())
+        DEFINE_COMPOUND_GET_ALL(WireNonshiftedEntities<DataType>,
+                                WireToBeShiftedEntities<DataType>,
+                                DerivedWitnessEntities<DataType>,
+                                ConcatenatedRangeConstraints<DataType>)
 
         RefVector<DataType> get_wires()
         {
@@ -342,12 +342,21 @@ class GoblinTranslator {
         };
 
         // everything but ConcatenatedRangeConstraints
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/810)
         RefVector<DataType> get_unshifted_wires()
         {
             return concatenate(WireNonshiftedEntities<DataType>::get_all(),
                                WireToBeShiftedEntities<DataType>::get_all(),
                                DerivedWitnessEntities<DataType>::get_all());
-        };
+        }
+        // everything but ConcatenatedRangeConstraints
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/810)
+        std::vector<std::string> get_unshifted_wire_labels()
+        {
+            return concatenate(WireNonshiftedEntities<DataType>::get_labels(),
+                               WireToBeShiftedEntities<DataType>::get_labels(),
+                               DerivedWitnessEntities<DataType>::get_labels());
+        }
         RefVector<DataType> get_to_be_shifted()
         {
             return concatenate(WireToBeShiftedEntities<DataType>::get_all(),
@@ -647,9 +656,7 @@ class GoblinTranslator {
                      this->ordered_range_constraints_4 };
         }
 
-        DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>::get_all(),
-                                WitnessEntities<DataType>::get_all(),
-                                ShiftedEntities<DataType>::get_all())
+        DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>, WitnessEntities<DataType>, ShiftedEntities<DataType>)
         /**
          * @brief Get the polynomials that are concatenated for the permutation relation
          *
@@ -758,95 +765,8 @@ class GoblinTranslator {
         // Gemini-specific getters.
         RefVector<DataType> get_unshifted()
         {
-            return {
-                this->x_lo_y_hi,
-                this->x_hi_z_1,
-                this->y_lo_z_2,
-                this->p_x_low_limbs,
-                this->p_x_low_limbs_range_constraint_0,
-                this->p_x_low_limbs_range_constraint_1,
-                this->p_x_low_limbs_range_constraint_2,
-                this->p_x_low_limbs_range_constraint_3,
-                this->p_x_low_limbs_range_constraint_4,
-                this->p_x_low_limbs_range_constraint_tail,
-                this->p_x_high_limbs,
-                this->p_x_high_limbs_range_constraint_0,
-                this->p_x_high_limbs_range_constraint_1,
-                this->p_x_high_limbs_range_constraint_2,
-                this->p_x_high_limbs_range_constraint_3,
-                this->p_x_high_limbs_range_constraint_4,
-                this->p_x_high_limbs_range_constraint_tail,
-                this->p_y_low_limbs,
-                this->p_y_low_limbs_range_constraint_0,
-                this->p_y_low_limbs_range_constraint_1,
-                this->p_y_low_limbs_range_constraint_2,
-                this->p_y_low_limbs_range_constraint_3,
-                this->p_y_low_limbs_range_constraint_4,
-                this->p_y_low_limbs_range_constraint_tail,
-                this->p_y_high_limbs,
-                this->p_y_high_limbs_range_constraint_0,
-                this->p_y_high_limbs_range_constraint_1,
-                this->p_y_high_limbs_range_constraint_2,
-                this->p_y_high_limbs_range_constraint_3,
-                this->p_y_high_limbs_range_constraint_4,
-                this->p_y_high_limbs_range_constraint_tail,
-                this->z_low_limbs,
-                this->z_low_limbs_range_constraint_0,
-                this->z_low_limbs_range_constraint_1,
-                this->z_low_limbs_range_constraint_2,
-                this->z_low_limbs_range_constraint_3,
-                this->z_low_limbs_range_constraint_4,
-                this->z_low_limbs_range_constraint_tail,
-                this->z_high_limbs,
-                this->z_high_limbs_range_constraint_0,
-                this->z_high_limbs_range_constraint_1,
-                this->z_high_limbs_range_constraint_2,
-                this->z_high_limbs_range_constraint_3,
-                this->z_high_limbs_range_constraint_4,
-                this->z_high_limbs_range_constraint_tail,
-                this->accumulators_binary_limbs_0,
-                this->accumulators_binary_limbs_1,
-                this->accumulators_binary_limbs_2,
-                this->accumulators_binary_limbs_3,
-                this->accumulator_low_limbs_range_constraint_0,
-                this->accumulator_low_limbs_range_constraint_1,
-                this->accumulator_low_limbs_range_constraint_2,
-                this->accumulator_low_limbs_range_constraint_3,
-                this->accumulator_low_limbs_range_constraint_4,
-                this->accumulator_low_limbs_range_constraint_tail,
-                this->accumulator_high_limbs_range_constraint_0,
-                this->accumulator_high_limbs_range_constraint_1,
-                this->accumulator_high_limbs_range_constraint_2,
-                this->accumulator_high_limbs_range_constraint_3,
-                this->accumulator_high_limbs_range_constraint_4,
-                this->accumulator_high_limbs_range_constraint_tail,
-                this->quotient_low_binary_limbs,
-                this->quotient_high_binary_limbs,
-                this->quotient_low_limbs_range_constraint_0,
-                this->quotient_low_limbs_range_constraint_1,
-                this->quotient_low_limbs_range_constraint_2,
-                this->quotient_low_limbs_range_constraint_3,
-                this->quotient_low_limbs_range_constraint_4,
-                this->quotient_low_limbs_range_constraint_tail,
-                this->quotient_high_limbs_range_constraint_0,
-                this->quotient_high_limbs_range_constraint_1,
-                this->quotient_high_limbs_range_constraint_2,
-                this->quotient_high_limbs_range_constraint_3,
-                this->quotient_high_limbs_range_constraint_4,
-                this->quotient_high_limbs_range_constraint_tail,
-                this->relation_wide_limbs,
-                this->relation_wide_limbs_range_constraint_0,
-                this->relation_wide_limbs_range_constraint_1,
-                this->relation_wide_limbs_range_constraint_2,
-                this->relation_wide_limbs_range_constraint_3,
-                this->ordered_range_constraints_0,
-                this->ordered_range_constraints_1,
-                this->ordered_range_constraints_2,
-                this->ordered_range_constraints_3,
-                this->ordered_range_constraints_4,
-
-                this->z_perm,
-            };
+            return concatenate(PrecomputedEntities<DataType>::get_all(),
+                               WitnessEntities<DataType>::get_unshifted_wires());
         }
         // get_to_be_shifted is inherited
         RefVector<DataType> get_shifted()
@@ -962,11 +882,11 @@ class GoblinTranslator {
         {
             os << "{ ";
             std::ios_base::fmtflags f(os.flags());
-            for (size_t i = 0; i < NUM_ALL_ENTITIES - 1; i++) {
-                os << "e[" << std::setw(2) << i << "] = " << (a._data[i]) << ",\n";
+            auto entities = a.get_all();
+            for (size_t i = 0; i < entities.size() - 1; i++) {
+                os << "e[" << std::setw(2) << i << "] = " << (entities[i]) << ",\n";
             }
-            os << "e[" << std::setw(2) << (NUM_ALL_ENTITIES - 1) << "] = " << std::get<NUM_ALL_ENTITIES - 1>(a._data)
-               << " }";
+            os << "e[" << std::setw(2) << (entities.size() - 1) << "] = " << entities[entities.size() - 1] << " }";
 
             os.flags(f);
             return os;
@@ -988,6 +908,19 @@ class GoblinTranslator {
         // Expose constructors on the base class
         using Base = ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>>;
         using Base::Base;
+
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/810): get around this by properly having
+        // concatenated range be a concept outside of witnessentities
+        std::vector<std::string> get_labels()
+        {
+            return concatenate(PrecomputedEntities<Polynomial>::get_labels(),
+                               WitnessEntities<Polynomial>::get_unshifted_wire_labels());
+        }
+        RefVector<Polynomial> get_all()
+        {
+            return concatenate(PrecomputedEntities<Polynomial>::get_all(),
+                               WitnessEntities<Polynomial>::get_unshifted_wires());
+        }
 
         ProvingKey(const size_t circuit_size)
             : ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>>(circuit_size, 0)
@@ -1017,10 +950,17 @@ class GoblinTranslator {
         using Base::Base;
     };
     /**
-     * @brief A container for the prover polynomials handles; only stores spans.
+     * @brief A container for the prover polynomials handles.
      */
-    class ProverPolynomials : public AllEntities<PolynomialHandle> {
+    class ProverPolynomials : public AllEntities<Polynomial> {
       public:
+        // Define all operations as default, except move construction/assignment
+        ProverPolynomials() = default;
+        ProverPolynomials& operator=(const ProverPolynomials&) = delete;
+        ProverPolynomials(const ProverPolynomials& o) = delete;
+        ProverPolynomials(ProverPolynomials&& o) noexcept = default;
+        ProverPolynomials& operator=(ProverPolynomials&& o) noexcept = default;
+        ~ProverPolynomials() = default;
         [[nodiscard]] size_t get_polynomial_size() const { return this->op.size(); }
         /**
          * @brief Returns the evaluations of all prover polynomials at one point on the boolean hypercube, which
@@ -1041,28 +981,6 @@ class GoblinTranslator {
      */
     using ProverPolynomialIds = AllEntities<size_t>;
 
-    /**
-     * @brief An owning container of polynomials.
-     * @warning When this was introduced it broke some of our design principles.
-     *   - Execution trace builders don't handle "polynomials" because the interpretation of the execution trace
-     * columns as polynomials is a detail of the proving system, and trace builders are (sometimes in practice,
-     * always in principle) reusable for different proving protocols (e.g., Plonk and Honk).
-     *   - Polynomial storage is handled by key classes. Polynomials aren't moved, but are accessed elsewhere by
-     * std::spans.
-     *
-     *  We will consider revising this data model: TODO(https://github.com/AztecProtocol/barretenberg/issues/743)
-     */
-    class AllPolynomials : public AllEntities<Polynomial> {
-      public:
-        [[nodiscard]] AllValues get_row(const size_t row_idx) const
-        {
-            AllValues result;
-            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
-                result_field = polynomial[row_idx];
-            }
-            return result;
-        }
-    };
     /**
      * @brief A container for polynomials produced after the first round of sumcheck.
      * @todo TODO(#394) Use polynomial classes for guaranteed memory alignment.

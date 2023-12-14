@@ -137,7 +137,32 @@ class Ultra {
                               z_perm,       // column 5
                               z_lookup)     // column 6
 
-        RefVector<DataType> get_wires() { return { w_l, w_r, w_o, w_4 }; };
+        RefVector<DataType> get_wires() { return { w_l, w_r, w_o, w_4, sorted_accum, z_perm, z_lookup }; };
+    };
+
+    /**
+     * @brief Class for ShiftedEntities, containing shifted witness and table polynomials.
+     */
+    template <typename DataType> class ShiftedEntities {
+      public:
+        DEFINE_FLAVOR_MEMBERS(DataType,
+                              table_1_shift,      // column 0
+                              table_2_shift,      // column 1
+                              table_3_shift,      // column 2
+                              table_4_shift,      // column 3
+                              w_l_shift,          // column 4
+                              w_r_shift,          // column 5
+                              w_o_shift,          // column 6
+                              w_4_shift,          // column 7
+                              sorted_accum_shift, // column 8
+                              z_perm_shift,       // column 9
+                              z_lookup_shift)     // column 10
+
+        RefVector<DataType> get_shifted()
+        {
+            return { table_1_shift, table_2_shift, table_3_shift,      table_4_shift, w_l_shift,     w_r_shift,
+                     w_o_shift,     w_4_shift,     sorted_accum_shift, z_perm_shift,  z_lookup_shift };
+        };
     };
 
     /**
@@ -200,7 +225,7 @@ class Ultra {
         // Gemini-specific getters.
         RefVector<DataType> get_unshifted()
         {
-            return { q_c,           q_l,   q_r,      q_o,     q_4,     q_m,          q_arith, q_sort,
+            return { q_m,           q_c,   q_l,      q_r,     q_o,     q_4,          q_arith, q_sort,
                      q_elliptic,    q_aux, q_lookup, sigma_1, sigma_2, sigma_3,      sigma_4, id_1,
                      id_2,          id_3,  id_4,     table_1, table_2, table_3,      table_4, lagrange_first,
                      lagrange_last, w_l,   w_r,      w_o,     w_4,     sorted_accum, z_perm,  z_lookup
@@ -245,6 +270,11 @@ class Ultra {
         std::vector<uint32_t> memory_read_records;
         std::vector<uint32_t> memory_write_records;
 
+        RefVector<DataType> get_to_be_shifted()
+        {
+            return { this->table_1, this->table_2, this->table_3,      this->table_4, this->w_l,     this->w_r,
+                     this->w_o,     this->w_4,     this->sorted_accum, this->z_perm,  this->z_lookup };
+        };
         // The plookup wires that store plookup read data.
         std::array<PolynomialHandle, 3> get_table_column_wires() { return { w_l, w_r, w_o }; };
     };
@@ -270,38 +300,22 @@ class Ultra {
     };
 
     /**
-     * @brief A container for polynomials handles; only stores spans.
+     * @brief A container for polynomials handles.
      */
-    class ProverPolynomials : public AllEntities<PolynomialHandle> {
+    class ProverPolynomials : public AllEntities<Polynomial> {
       public:
+        // Define all operations as default, except move construction/assignment
+        ProverPolynomials() = default;
+        ProverPolynomials& operator=(const ProverPolynomials&) = delete;
+        ProverPolynomials(const ProverPolynomials& o) = delete;
+        ProverPolynomials(ProverPolynomials&& o) noexcept = default;
+        ProverPolynomials& operator=(ProverPolynomials&& o) noexcept = default;
+        ~ProverPolynomials() = default;
         [[nodiscard]] size_t get_polynomial_size() const { return q_c.size(); }
         [[nodiscard]] AllValues get_row(const size_t row_idx) const
         {
             AllValues result;
             for (auto [result_field, polynomial] : zip_view(result.get_all(), get_all())) {
-                result_field = polynomial[row_idx];
-            }
-            return result;
-        }
-    };
-
-    /**
-     * @brief An owning container of polynomials.
-     * @warning When this was introduced it broke some of our design principles.
-     *   - Execution trace builders don't handle "polynomials" because the interpretation of the execution trace
-     * columns as polynomials is a detail of the proving system, and trace builders are (sometimes in practice,
-     * always in principle) reusable for different proving protocols (e.g., Plonk and Honk).
-     *   - Polynomial storage is handled by key classes. Polynomials aren't moved, but are accessed elsewhere by
-     * std::spans.
-     *
-     *  We will consider revising this data model: TODO(https://github.com/AztecProtocol/barretenberg/issues/743)
-     */
-    class AllPolynomials : public AllEntities<Polynomial> {
-      public:
-        [[nodiscard]] AllValues get_row(const size_t row_idx) const
-        {
-            AllValues result;
-            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
                 result_field = polynomial[row_idx];
             }
             return result;

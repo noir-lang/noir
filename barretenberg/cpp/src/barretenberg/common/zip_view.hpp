@@ -75,6 +75,7 @@
 static_assert(__cplusplus >= 201703L,
               " must be c++17 or greater"); // could be rewritten in c++11, but the features you must use will be buggy
                                             // in an older compiler anyways.
+#include "barretenberg/common/assert.hpp"
 #include <cassert>
 #include <functional>
 #include <iostream>
@@ -154,13 +155,22 @@ class zip_iterator {
     }
 };
 
+enum class ZipAllowDifferentSizes { FLAG };
 template <class... S> class zip_view {
     using arg_indexes = std::make_index_sequence<sizeof...(S)>;
 
   public:
     zip_view(S... args)
         : args(std::forward<S>(args)...)
-    {}
+    {
+        // min size matches max size
+        ASSERT(size() == max_size_impl(arg_indexes{}));
+    }
+    zip_view(ZipAllowDifferentSizes /*unused*/, S... args)
+        : args(std::forward<S>(args)...)
+    {
+        // Same in a release build, in a debug build doesn't error with different container sizes
+    }
     auto begin() const { return get_begins(arg_indexes{}); }
     auto end() const { return get_ends(arg_indexes{}); }
     [[nodiscard]] std::size_t size() const { return size_impl(arg_indexes{}); }
@@ -177,6 +187,10 @@ template <class... S> class zip_view {
     }
     template <std::size_t... I> auto size_impl(std::index_sequence<I...>) const
     {
+        return std::min({ std::size_t(std::get<I>(args).size())... });
+    }
+    template <std::size_t... I> auto max_size_impl(std::index_sequence<I...>) const
+    {
         return std::max({ std::size_t(std::get<I>(args).size())... });
     }
 
@@ -188,3 +202,6 @@ template <class... S> class zip_view {
 
 // deduction guide,
 template <class... S> zip_view(S&&...) -> zip_view<S...>;
+
+// deduction guide,
+template <class... S> zip_view(ZipAllowDifferentSizes, S&&...) -> zip_view<S...>;

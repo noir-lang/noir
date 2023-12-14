@@ -39,7 +39,7 @@ template <typename Flavor> class ECCVMCircuitBuilder {
     using VMOperation = proof_system_eccvm::VMOperation<CycleGroup>;
     std::shared_ptr<ECCOpQueue> op_queue;
     using ScalarMul = proof_system_eccvm::ScalarMul<CycleGroup>;
-    using AllPolynomials = typename Flavor::AllPolynomials;
+    using ProverPolynomials = typename Flavor::ProverPolynomials;
 
     ECCVMCircuitBuilder()
         : op_queue(std::make_shared<ECCOpQueue>()){};
@@ -315,9 +315,9 @@ template <typename Flavor> class ECCVMCircuitBuilder {
      (reads come from msm_x/y1, msm_x/y2)
      *          lookup_read_counts_1: stores number of times a point has been read from a Straus precomputation table
      (reads come from msm_x/y3, msm_x/y4)
-     * @return AllPolynomials
+     * @return ProverPolynomials
      */
-    AllPolynomials compute_polynomials()
+    ProverPolynomials compute_polynomials()
     {
         const auto msms = get_msms();
         const auto flattened_muls = get_flattened_scalar_muls(msms);
@@ -339,7 +339,7 @@ template <typename Flavor> class ECCVMCircuitBuilder {
         const auto num_rows_log2 = static_cast<size_t>(numeric::get_msb64(num_rows));
         size_t num_rows_pow2 = 1UL << (num_rows_log2 + (1UL << num_rows_log2 == num_rows ? 0 : 1));
 
-        AllPolynomials polys;
+        ProverPolynomials polys;
         for (auto& poly : polys.get_all()) {
             poly = Polynomial(num_rows_pow2);
         }

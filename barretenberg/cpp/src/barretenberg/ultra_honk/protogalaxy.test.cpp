@@ -38,50 +38,9 @@ barretenberg::Polynomial<FF> get_random_polynomial(size_t size)
 ProverPolynomials construct_ultra_full_polynomials(auto& input_polynomials)
 {
     ProverPolynomials full_polynomials;
-    full_polynomials.q_c = input_polynomials[0];
-    full_polynomials.q_l = input_polynomials[1];
-    full_polynomials.q_r = input_polynomials[2];
-    full_polynomials.q_o = input_polynomials[3];
-    full_polynomials.q_4 = input_polynomials[4];
-    full_polynomials.q_m = input_polynomials[5];
-    full_polynomials.q_arith = input_polynomials[6];
-    full_polynomials.q_sort = input_polynomials[7];
-    full_polynomials.q_elliptic = input_polynomials[8];
-    full_polynomials.q_aux = input_polynomials[9];
-    full_polynomials.q_lookup = input_polynomials[10];
-    full_polynomials.sigma_1 = input_polynomials[11];
-    full_polynomials.sigma_2 = input_polynomials[12];
-    full_polynomials.sigma_3 = input_polynomials[13];
-    full_polynomials.sigma_4 = input_polynomials[14];
-    full_polynomials.id_1 = input_polynomials[15];
-    full_polynomials.id_2 = input_polynomials[16];
-    full_polynomials.id_3 = input_polynomials[17];
-    full_polynomials.id_4 = input_polynomials[18];
-    full_polynomials.table_1 = input_polynomials[19];
-    full_polynomials.table_2 = input_polynomials[20];
-    full_polynomials.table_3 = input_polynomials[21];
-    full_polynomials.table_4 = input_polynomials[22];
-    full_polynomials.lagrange_first = input_polynomials[23];
-    full_polynomials.lagrange_last = input_polynomials[24];
-    full_polynomials.w_l = input_polynomials[25];
-    full_polynomials.w_r = input_polynomials[26];
-    full_polynomials.w_o = input_polynomials[27];
-    full_polynomials.w_4 = input_polynomials[28];
-    full_polynomials.sorted_accum = input_polynomials[29];
-    full_polynomials.z_perm = input_polynomials[30];
-    full_polynomials.z_lookup = input_polynomials[31];
-    full_polynomials.table_1_shift = input_polynomials[32];
-    full_polynomials.table_2_shift = input_polynomials[33];
-    full_polynomials.table_3_shift = input_polynomials[34];
-    full_polynomials.table_4_shift = input_polynomials[35];
-    full_polynomials.w_l_shift = input_polynomials[36];
-    full_polynomials.w_r_shift = input_polynomials[37];
-    full_polynomials.w_o_shift = input_polynomials[38];
-    full_polynomials.w_4_shift = input_polynomials[39];
-    full_polynomials.sorted_accum_shift = input_polynomials[40];
-    full_polynomials.z_perm_shift = input_polynomials[41];
-    full_polynomials.z_lookup_shift = input_polynomials[42];
-
+    for (auto [prover_poly, input_poly] : zip_view(full_polynomials.get_all(), input_polynomials)) {
+        prover_poly = input_poly.share();
+    }
     return full_polynomials;
 }
 
@@ -184,7 +143,7 @@ TEST_F(ProtoGalaxyTests, PerturbatorPolynomial)
     }
 
     auto accumulator = std::make_shared<Instance>();
-    accumulator->prover_polynomials = full_polynomials;
+    accumulator->prover_polynomials = std::move(full_polynomials);
     accumulator->folding_parameters = { betas, target_sum };
     accumulator->relation_parameters = relation_parameters;
     accumulator->alpha = alpha;
@@ -309,7 +268,7 @@ TEST_F(ProtoGalaxyTests, ComputeNewAccumulator)
     accumulator->witness_commitments = construct_witness_commitments();
     accumulator->instance_size = instance_size;
     accumulator->log_instance_size = log_instance_size;
-    accumulator->prover_polynomials = full_polynomials;
+    accumulator->prover_polynomials = std::move(full_polynomials);
     accumulator->folding_parameters = { betas, target_sum };
     accumulator->relation_parameters = relation_parameters;
     accumulator->alpha = alpha;

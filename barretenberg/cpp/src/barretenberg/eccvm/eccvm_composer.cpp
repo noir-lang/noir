@@ -84,7 +84,7 @@ std::shared_ptr<typename Flavor::ProvingKey> ECCVMComposer_<Flavor>::compute_pro
         const size_t n = proving_key->circuit_size;
         typename Flavor::Polynomial lagrange_polynomial_second(n);
         lagrange_polynomial_second[1] = 1;
-        proving_key->lagrange_second = lagrange_polynomial_second;
+        proving_key->lagrange_second = lagrange_polynomial_second.share();
     }
 
     proving_key->contains_recursive_proof = false;

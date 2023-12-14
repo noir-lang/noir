@@ -33,7 +33,7 @@ template <typename Curve> class KZG {
                                       const Polynomial& polynomial,
                                       const std::shared_ptr<BaseTranscript>& prover_trancript)
     {
-        Polynomial quotient(polynomial);
+        Polynomial quotient = polynomial;
         quotient[0] -= opening_pair.evaluation;
         // Computes the coefficients for the quotient polynomial q(X) = (p(X) - v) / (X - r) through an FFT
         quotient.factor_roots(opening_pair.challenge);

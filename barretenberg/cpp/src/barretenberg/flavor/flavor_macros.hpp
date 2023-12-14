@@ -8,14 +8,34 @@
 
 #include "barretenberg/common/ref_vector.hpp"
 #include "barretenberg/common/std_array.hpp"
+#include "barretenberg/common/std_string.hpp"
+#include "barretenberg/common/std_vector.hpp"
 #include <array>
 #include <iostream>
 #include <sstream>
 
-template <typename... Refs> auto _refs_to_pointer_array(Refs&... refs)
+namespace barretenberg::detail {
+template <typename... Args> constexpr std::size_t _va_count(Args&&... /*unused*/)
 {
-    return std::array{ &refs... };
+    return sizeof...(Args);
 }
+template <typename T, typename... BaseClass> constexpr std::size_t _sum_base_class_size(const T& arg)
+{
+    return (static_cast<const BaseClass&>(arg).size() + ...);
+}
+template <typename T, typename... BaseClass> auto _concatenate_base_class_get_all(T& arg)
+{
+    return concatenate(static_cast<BaseClass&>(arg).get_all()...);
+}
+template <typename T, typename... BaseClass> auto _concatenate_base_class_get_all_const(const T& arg)
+{
+    return concatenate(static_cast<const BaseClass&>(arg).get_all()...);
+}
+template <typename T, typename... BaseClass> auto _concatenate_base_class_get_labels(const T& arg)
+{
+    return concatenate(static_cast<const BaseClass&>(arg).get_labels()...);
+}
+} // namespace barretenberg::detail
 
 #define DEFINE_REF_VIEW(...)                                                                                           \
     [[nodiscard]] auto get_all()                                                                                       \
@@ -36,14 +56,30 @@ template <typename... Refs> auto _refs_to_pointer_array(Refs&... refs)
  */
 #define DEFINE_FLAVOR_MEMBERS(DataType, ...)                                                                           \
     DataType __VA_ARGS__;                                                                                              \
-    DEFINE_REF_VIEW(__VA_ARGS__)
+    DEFINE_REF_VIEW(__VA_ARGS__)                                                                                       \
+    std::vector<std::string> get_labels() const                                                                        \
+    {                                                                                                                  \
+        return barretenberg::detail::split_and_trim(#__VA_ARGS__, ',');                                                \
+    }                                                                                                                  \
+    constexpr std::size_t size() const                                                                                 \
+    {                                                                                                                  \
+        return barretenberg::detail::_va_count(__VA_ARGS__);                                                           \
+    }
 
 #define DEFINE_COMPOUND_GET_ALL(...)                                                                                   \
     [[nodiscard]] auto get_all()                                                                                       \
     {                                                                                                                  \
-        return concatenate(__VA_ARGS__);                                                                               \
+        return barretenberg::detail::_concatenate_base_class_get_all<decltype(*this), __VA_ARGS__>(*this);             \
     }                                                                                                                  \
     [[nodiscard]] auto get_all() const                                                                                 \
     {                                                                                                                  \
-        return concatenate(__VA_ARGS__);                                                                               \
+        return barretenberg::detail::_concatenate_base_class_get_all_const<decltype(*this), __VA_ARGS__>(*this);       \
+    }                                                                                                                  \
+    constexpr std::size_t size() const                                                                                 \
+    {                                                                                                                  \
+        return barretenberg::detail::_sum_base_class_size<decltype(*this), __VA_ARGS__>(*this);                        \
+    }                                                                                                                  \
+    std::vector<std::string> get_labels() const                                                                        \
+    {                                                                                                                  \
+        return barretenberg::detail::_concatenate_base_class_get_labels<decltype(*this), __VA_ARGS__>(*this);          \
     }

@@ -9,54 +9,38 @@ namespace proof_system::honk {
  * function returns an array of data pointed to by the ProverPolynomials.
  */
 template <typename Flavor>
-std::pair<typename Flavor::AllPolynomials, typename Flavor::ProverPolynomials> get_sequential_prover_polynomials(
-    const size_t log_circuit_size, const size_t starting_value)
+typename Flavor::ProverPolynomials get_sequential_prover_polynomials(const size_t log_circuit_size,
+                                                                     const size_t starting_value)
 {
     using FF = typename Flavor::FF;
-    using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Polynomial = typename Flavor::Polynomial;
 
-    typename Flavor::AllPolynomials storage;
+    typename Flavor::ProverPolynomials prover_polynomials;
     size_t circuit_size = 1 << log_circuit_size;
     size_t value_idx = starting_value;
-    for (auto& polynomial : storage.get_all()) {
+    for (auto& polynomial : prover_polynomials.get_all()) {
         polynomial = Polynomial(circuit_size);
         for (auto& value : polynomial) {
             value = FF(value_idx++);
         }
     }
-
-    ProverPolynomials prover_polynomials;
-    for (auto [prover_poly, storage_poly] : zip_view(prover_polynomials.get_all(), storage.get_all())) {
-        prover_poly = storage_poly;
-    }
-
-    return std::pair(std::move(storage), prover_polynomials);
+    return prover_polynomials;
 }
 
-template <typename Flavor>
-std::pair<typename Flavor::AllPolynomials, typename Flavor::ProverPolynomials> get_zero_prover_polynomials(
-    const size_t log_circuit_size)
+template <typename Flavor> typename Flavor::ProverPolynomials get_zero_prover_polynomials(const size_t log_circuit_size)
 {
     using FF = typename Flavor::FF;
-    using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Polynomial = typename Flavor::Polynomial;
 
-    typename Flavor::AllPolynomials storage;
+    typename Flavor::ProverPolynomials prover_polynomials;
     size_t circuit_size = 1 << log_circuit_size;
-    for (auto& polynomial : storage.get_all()) {
+    for (auto& polynomial : prover_polynomials.get_all()) {
         polynomial = Polynomial(circuit_size);
         for (auto& value : polynomial) {
             value = FF(0);
         }
     }
-
-    ProverPolynomials prover_polynomials;
-    for (auto [prover_poly, storage_poly] : zip_view(prover_polynomials.get_all(), storage.get_all())) {
-        prover_poly = storage_poly;
-    }
-
-    return std::pair(std::move(storage), prover_polynomials);
+    return prover_polynomials;
 }
 
 } // namespace proof_system::honk

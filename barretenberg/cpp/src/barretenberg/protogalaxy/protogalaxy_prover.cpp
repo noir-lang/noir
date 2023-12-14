@@ -198,33 +198,23 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
         transcript->send_to_verifier("next_gate_challenge_" + std::to_string(idx), instances.next_gate_challenges[idx]);
     }
 
-    // Allocate space, initialised to 0, for the prover polynomials of the next accumulator
-    AllPolynomials storage;
-    for (auto& polynomial : storage.get_all()) {
-        polynomial = typename Flavor::Polynomial(instances[0]->instance_size);
-        for (auto& value : polynomial) {
-            value = FF(0);
-        }
-    }
+    // Initialize prover polynomials
     ProverPolynomials acc_prover_polynomials;
-    size_t poly_idx = 0;
-    auto prover_polynomial_pointers = acc_prover_polynomials.get_all();
-    for (auto& polynomial : storage.get_all()) {
-        prover_polynomial_pointers[poly_idx] = polynomial;
-        poly_idx++;
+    for (auto& polynomial : acc_prover_polynomials.get_all()) {
+        polynomial = typename Flavor::Polynomial(instances[0]->instance_size);
     }
 
     // Fold the prover polynomials
     auto acc_poly_views = acc_prover_polynomials.get_all();
     for (size_t inst_idx = 0; inst_idx < ProverInstances::NUM; inst_idx++) {
-        auto inst_poly_views = instances[inst_idx]->prover_polynomials.get_all();
-        for (auto [acc_poly_view, inst_poly_view] : zip_view(acc_poly_views, inst_poly_views)) {
-            for (size_t poly_idx = 0; poly_idx < inst_poly_view.size(); poly_idx++) {
-                (acc_poly_view)[poly_idx] += (inst_poly_view)[poly_idx] * lagranges[inst_idx];
+        for (auto [acc_poly, inst_poly] :
+             zip_view(acc_prover_polynomials.get_all(), instances[inst_idx]->prover_polynomials.get_all())) {
+            for (auto [acc_field, inst_field] : zip_view(acc_poly, inst_poly)) {
+                acc_field += inst_field * lagranges[inst_idx];
             }
         }
     }
-    next_accumulator->prover_polynomials = acc_prover_polynomials;
+    next_accumulator->prover_polynomials = std::move(acc_prover_polynomials);
 
     // Fold the witness commtiments and send them to the verifier
     auto witness_labels = next_accumulator->commitment_labels.get_witness();

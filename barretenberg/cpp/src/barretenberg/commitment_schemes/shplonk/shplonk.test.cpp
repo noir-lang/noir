@@ -44,7 +44,7 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
 
     // Aggregate polynomials and their opening pairs
     std::vector<OpeningPair> opening_pairs = { { r1, eval1 }, { r2, eval2 } };
-    std::vector<Polynomial> polynomials = { poly1, poly2 };
+    std::vector<Polynomial> polynomials = { poly1.share(), poly2.share() };
 
     // Execute the shplonk prover functionality
     const Fr nu_challenge = prover_transcript->get_challenge("Shplonk:nu");

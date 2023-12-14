@@ -216,7 +216,7 @@ template <typename BuilderType> class UltraRecursive_ {
         // Gemini-specific getters.
         RefVector<DataType> get_unshifted()
         {
-            return { q_c,           q_l,   q_r,      q_o,     q_4,     q_m,          q_arith, q_sort,
+            return { q_m,           q_c,   q_l,      q_r,     q_o,     q_4,          q_arith, q_sort,
                      q_elliptic,    q_aux, q_lookup, sigma_1, sigma_2, sigma_3,      sigma_4, id_1,
                      id_2,          id_3,  id_4,     table_1, table_2, table_3,      table_4, lagrange_first,
                      lagrange_last, w_l,   w_r,      w_o,     w_4,     sorted_accum, z_perm,  z_lookup

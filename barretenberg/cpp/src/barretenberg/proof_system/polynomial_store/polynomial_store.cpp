@@ -26,7 +26,7 @@ template <typename Fr> barretenberg::Polynomial<Fr> PolynomialStore<Fr>::get(std
 {
     // info("poly store get: ", key);
     // Take a shallow copy of the polynomial. Compiler will move the shallow copy to call site.
-    auto p = polynomial_map.at(key).clone();
+    auto p = polynomial_map.at(key).share();
     // info("got ", key, ": ", p.hash());
     return p;
 };

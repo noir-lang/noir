@@ -45,7 +45,7 @@ BBERG_PROFILE static void test_round(State& state, size_t index) noexcept
     for (auto _ : state) {
         state.PauseTiming();
         honk::UltraComposer composer;
-        // TODO: https://github.com/AztecProtocol/barretenberg/issues/761 benchmark both sparse and dense circuits
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/761) benchmark both sparse and dense circuits
         honk::UltraProver prover = bench_utils::get_prover(
             composer, &bench_utils::generate_ecdsa_verification_test_circuit<UltraCircuitBuilder>, 10);
         test_round_inner(state, prover, index);

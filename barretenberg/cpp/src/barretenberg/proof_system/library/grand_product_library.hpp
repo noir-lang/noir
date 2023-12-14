@@ -1,6 +1,7 @@
 #pragma once
 #include "barretenberg/common/constexpr_utils.hpp"
 #include "barretenberg/common/thread.hpp"
+#include "barretenberg/common/zip_view.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
@@ -57,22 +58,21 @@ void compute_grand_product(const size_t circuit_size,
 
     // Allocate numerator/denominator polynomials that will serve as scratch space
     // TODO(zac) we can re-use the permutation polynomial as the numerator polynomial. Reduces readability
-    Polynomial numerator = Polynomial{ circuit_size };
-    Polynomial denominator = Polynomial{ circuit_size };
+    Polynomial numerator{ circuit_size };
+    Polynomial denominator{ circuit_size };
 
     // Step (1)
     // Populate `numerator` and `denominator` with the algebra described by Relation
     const size_t num_threads = circuit_size >= get_num_cpus_pow2() ? get_num_cpus_pow2() : 1;
     const size_t block_size = circuit_size / num_threads;
-    auto full_polynomial_pointers = full_polynomials.get_all();
+    auto full_polynomials_view = full_polynomials.get_all();
     parallel_for(num_threads, [&](size_t thread_idx) {
         const size_t start = thread_idx * block_size;
         const size_t end = (thread_idx + 1) * block_size;
         for (size_t i = start; i < end; ++i) {
             typename Flavor::AllValues evaluations;
-            auto evaluations_pointer = evaluations.get_all();
-            for (size_t k = 0; k < Flavor::NUM_ALL_ENTITIES; ++k) {
-                evaluations_pointer[k] = full_polynomial_pointers[k].size() > i ? full_polynomial_pointers[k][i] : 0;
+            for (auto [eval, full_poly] : zip_view(evaluations.get_all(), full_polynomials_view)) {
+                eval = full_poly.size() > i ? full_poly[i] : 0;
             }
             numerator[i] = GrandProdRelation::template compute_grand_product_numerator<Accumulator>(
                 evaluations, relation_parameters);
@@ -155,12 +155,13 @@ void compute_grand_products(std::shared_ptr<typename Flavor::ProvingKey>& key,
         // Assign the grand product polynomial to the relevant std::span member of `full_polynomials` (and its shift)
         // For example, for UltraPermutationRelation, this will be `full_polynomials.z_perm`
         // For example, for LookupRelation, this will be `full_polynomials.z_lookup`
-        std::span<FF>& full_polynomial = GrandProdRelation::get_grand_product_polynomial(full_polynomials);
+        barretenberg::Polynomial<FF>& full_polynomial =
+            GrandProdRelation::get_grand_product_polynomial(full_polynomials);
         auto& key_polynomial = GrandProdRelation::get_grand_product_polynomial(*key);
-        full_polynomial = key_polynomial;
+        full_polynomial = key_polynomial.share();
 
         compute_grand_product<Flavor, GrandProdRelation>(key->circuit_size, full_polynomials, relation_parameters);
-        std::span<FF>& full_polynomial_shift =
+        barretenberg::Polynomial<FF>& full_polynomial_shift =
             GrandProdRelation::get_shifted_grand_product_polynomial(full_polynomials);
         full_polynomial_shift = key_polynomial.shifted();
     });

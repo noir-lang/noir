@@ -187,7 +187,7 @@ class GoblinUltra {
     template <typename DataType>
     class WitnessEntities : public WireEntities<DataType>, public DerivedEntities<DataType> {
       public:
-        DEFINE_COMPOUND_GET_ALL(WireEntities<DataType>::get_all(), DerivedEntities<DataType>::get_all())
+        DEFINE_COMPOUND_GET_ALL(WireEntities<DataType>, DerivedEntities<DataType>)
 
         RefVector<DataType> get_wires() { return WireEntities<DataType>::get_all(); };
         RefVector<DataType> get_ecc_op_wires()
@@ -228,9 +228,7 @@ class GoblinUltra {
                         public WitnessEntities<DataType>,
                         public ShiftedEntities<DataType> {
       public:
-        DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>::get_all(),
-                                WitnessEntities<DataType>::get_all(),
-                                ShiftedEntities<DataType>::get_all())
+        DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>, WitnessEntities<DataType>, ShiftedEntities<DataType>)
 
         RefVector<DataType> get_wires() { return { this->w_l, this->w_r, this->w_o, this->w_4 }; };
         RefVector<DataType> get_ecc_op_wires()
@@ -240,105 +238,16 @@ class GoblinUltra {
         // Gemini-specific getters.
         RefVector<DataType> get_unshifted()
         {
-            return { this->q_c,
-                     this->q_l,
-                     this->q_r,
-                     this->q_o,
-                     this->q_4,
-                     this->q_m,
-                     this->q_arith,
-                     this->q_sort,
-                     this->q_elliptic,
-                     this->q_aux,
-                     this->q_lookup,
-                     this->q_busread,
-                     this->q_poseidon2_external,
-                     this->q_poseidon2_internal,
-                     this->sigma_1,
-                     this->sigma_2,
-                     this->sigma_3,
-                     this->sigma_4,
-                     this->id_1,
-                     this->id_2,
-                     this->id_3,
-                     this->id_4,
-                     this->table_1,
-                     this->table_2,
-                     this->table_3,
-                     this->table_4,
-                     this->lagrange_first,
-                     this->lagrange_last,
-                     this->lagrange_ecc_op,
-                     this->databus_id,
-                     this->w_l,
-                     this->w_r,
-                     this->w_o,
-                     this->w_4,
-                     this->sorted_accum,
-                     this->z_perm,
-                     this->z_lookup,
-                     this->ecc_op_wire_1,
-                     this->ecc_op_wire_2,
-                     this->ecc_op_wire_3,
-                     this->ecc_op_wire_4,
-                     this->calldata,
-                     this->calldata_read_counts,
-                     this->lookup_inverses };
+            return concatenate(PrecomputedEntities<DataType>::get_all(), WitnessEntities<DataType>::get_all());
         };
 
-        RefVector<DataType> get_witness()
-        {
-            return { this->w_l,
-                     this->w_r,
-                     this->w_o,
-                     this->w_4,
-                     this->sorted_accum,
-                     this->z_perm,
-                     this->z_lookup,
-                     this->ecc_op_wire_1,
-                     this->ecc_op_wire_2,
-                     this->ecc_op_wire_3,
-                     this->ecc_op_wire_4,
-                     this->calldata,
-                     this->calldata_read_counts,
-                     this->lookup_inverses };
-        };
+        RefVector<DataType> get_witness() { return WitnessEntities<DataType>::get_all(); };
         RefVector<DataType> get_to_be_shifted()
         {
             return { this->table_1, this->table_2, this->table_3,      this->table_4, this->w_l,     this->w_r,
                      this->w_o,     this->w_4,     this->sorted_accum, this->z_perm,  this->z_lookup };
         };
-        RefVector<DataType> get_precomputed()
-        {
-            return { this->q_m,
-                     this->q_c,
-                     this->q_l,
-                     this->q_r,
-                     this->q_o,
-                     this->q_4,
-                     this->q_arith,
-                     this->q_sort,
-                     this->q_elliptic,
-                     this->q_aux,
-                     this->q_lookup,
-                     this->q_busread,
-                     this->sigma_1,
-                     this->sigma_2,
-                     this->sigma_3,
-                     this->sigma_4,
-                     this->id_1,
-                     this->id_2,
-                     this->id_3,
-                     this->id_4,
-                     this->table_1,
-                     this->table_2,
-                     this->table_3,
-                     this->table_4,
-                     this->lagrange_first,
-                     this->lagrange_last,
-                     this->lagrange_ecc_op,
-                     this->databus_id };
-        }
+        RefVector<DataType> get_precomputed() { return PrecomputedEntities<DataType>::get_all(); }
         RefVector<DataType> get_shifted() { return ShiftedEntities<DataType>::get_all(); };
     };
 
@@ -358,6 +267,11 @@ class GoblinUltra {
 
         size_t num_ecc_op_gates; // needed to determine public input offset
 
+        RefVector<DataType> get_to_be_shifted()
+        {
+            return { this->table_1, this->table_2, this->table_3,      this->table_4, this->w_l,     this->w_r,
+                     this->w_o,     this->w_4,     this->sorted_accum, this->z_perm,  this->z_lookup };
+        };
         // The plookup wires that store plookup read data.
         std::array<PolynomialHandle, 3> get_table_column_wires() { return { w_l, w_r, w_o }; };
     };
@@ -410,35 +324,19 @@ class GoblinUltra {
     };
 
     /**
-     * @brief A container for the prover polynomials handles; only stores spans.
+     * @brief A container for the prover polynomials handles.
      */
-    class ProverPolynomials : public AllEntities<PolynomialHandle> {
+    class ProverPolynomials : public AllEntities<Polynomial> {
       public:
+        // Define all operations as default, except move construction/assignment
+        ProverPolynomials() = default;
+        ProverPolynomials& operator=(const ProverPolynomials&) = delete;
+        ProverPolynomials(const ProverPolynomials& o) = delete;
+        ProverPolynomials(ProverPolynomials&& o) noexcept = default;
+        ProverPolynomials& operator=(ProverPolynomials&& o) noexcept = default;
+        ~ProverPolynomials() = default;
         [[nodiscard]] size_t get_polynomial_size() const { return q_c.size(); }
         [[nodiscard]] AllValues get_row(size_t row_idx) const
-        {
-            AllValues result;
-            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
-                result_field = polynomial[row_idx];
-            }
-            return result;
-        }
-    };
-
-    /**
-     * @brief An owning container of polynomials.
-     * @warning When this was introduced it broke some of our design principles.
-     *   - Execution trace builders don't handle "polynomials" because the interpretation of the execution trace
-     * columns as polynomials is a detail of the proving system, and trace builders are (sometimes in practice,
-     * always in principle) reusable for different proving protocols (e.g., Plonk and Honk).
-     *   - Polynomial storage is handled by key classes. Polynomials aren't moved, but are accessed elsewhere by
-     * std::spans.
-     *
-     *  We will consider revising this data model: TODO(https://github.com/AztecProtocol/barretenberg/issues/743)
-     */
-    class AllPolynomials : public AllEntities<Polynomial> {
-      public:
-        [[nodiscard]] AllValues get_row(const size_t row_idx) const
         {
             AllValues result;
             for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {

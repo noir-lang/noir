@@ -28,7 +28,7 @@ template <typename Flavor> class ToyAVMCircuitBuilder {
     static constexpr size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
     static constexpr size_t NUM_WIRES = Flavor::NUM_WIRES;
 
-    using AllPolynomials = typename Flavor::AllPolynomials;
+    using ProverPolynomials = typename Flavor::ProverPolynomials;
     size_t num_gates = 0;
     std::array<std::vector<FF>, NUM_WIRES> wires;
     ToyAVMCircuitBuilder() = default;
@@ -44,16 +44,16 @@ template <typename Flavor> class ToyAVMCircuitBuilder {
     /**
      * @brief Compute the AVM Template flavor polynomial data required to generate a proof
      *
-     * @return AllPolynomials
+     * @return ProverPolynomials
      */
-    AllPolynomials compute_polynomials()
+    ProverPolynomials compute_polynomials()
     {
 
         const auto num_gates_log2 = static_cast<size_t>(numeric::get_msb64(num_gates));
         size_t num_gates_pow2 = 1UL << (num_gates_log2 + (1UL << num_gates_log2 == num_gates ? 0 : 1));
 
-        AllPolynomials polys;
-        for (auto& poly : polys.get_all()) {
+        ProverPolynomials polys;
+        for (Polynomial& poly : polys.get_all()) {
             poly = Polynomial(num_gates_pow2);
         }
 

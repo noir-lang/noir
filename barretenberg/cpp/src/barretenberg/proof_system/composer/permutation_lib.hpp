@@ -409,7 +409,7 @@ void compute_plonk_permutation_lagrange_polynomials_from_mapping(
         std::string index = std::to_string(i + 1);
         barretenberg::polynomial polynomial_lagrange(key->circuit_size);
         compute_standard_plonk_lagrange_polynomial(polynomial_lagrange, mappings[i], key->small_domain);
-        key->polynomial_store.put(label + "_" + index + "_lagrange", std::move(polynomial_lagrange));
+        key->polynomial_store.put(label + "_" + index + "_lagrange", polynomial_lagrange.share());
     }
 }
 
@@ -440,8 +440,8 @@ void compute_monomial_and_coset_fft_polynomials_from_lagrange(std::string label,
         barretenberg::polynomial sigma_fft(sigma_polynomial, key->large_domain.size);
         sigma_fft.coset_fft(key->large_domain);
 
-        key->polynomial_store.put(prefix, std::move(sigma_polynomial));
-        key->polynomial_store.put(prefix + "_fft", std::move(sigma_fft));
+        key->polynomial_store.put(prefix, sigma_polynomial.share());
+        key->polynomial_store.put(prefix + "_fft", sigma_fft.share());
     }
 }
 
@@ -476,10 +476,10 @@ template <typename Flavor> inline void compute_first_and_last_lagrange_polynomia
     typename Flavor::Polynomial lagrange_polynomial_0(n);
     typename Flavor::Polynomial lagrange_polynomial_n_min_1(n);
     lagrange_polynomial_0[0] = 1;
-    proving_key->lagrange_first = lagrange_polynomial_0;
+    proving_key->lagrange_first = lagrange_polynomial_0.share();
 
     lagrange_polynomial_n_min_1[n - 1] = 1;
-    proving_key->lagrange_last = lagrange_polynomial_n_min_1;
+    proving_key->lagrange_last = lagrange_polynomial_n_min_1.share();
 }
 
 /**

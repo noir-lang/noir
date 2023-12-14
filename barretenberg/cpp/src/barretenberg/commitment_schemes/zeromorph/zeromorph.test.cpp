@@ -37,12 +37,10 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
      */
     bool execute_zeromorph_protocol(size_t NUM_UNSHIFTED, size_t NUM_SHIFTED)
     {
-        bool verified = false;
-
         size_t N = 16;
         size_t log_N = numeric::get_msb(N);
 
-        auto u_challenge = this->random_evaluation_point(log_N);
+        std::vector<Fr> u_challenge = this->random_evaluation_point(log_N);
 
         // Construct some random multilinear polynomials f_i and their evaluations v_i = f_i(u)
         std::vector<Polynomial> f_polynomials; // unshifted polynomials
@@ -94,7 +92,7 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
         auto pairing_points = ZeroMorphVerifier::verify(
             f_commitments, g_commitments, v_evaluations, w_evaluations, u_challenge, verifier_transcript);
 
-        verified = this->vk()->pairing_check(pairing_points[0], pairing_points[1]);
+        bool verified = this->vk()->pairing_check(pairing_points[0], pairing_points[1]);
 
         // The prover and verifier manifests should agree
         EXPECT_EQ(prover_transcript->get_manifest(), verifier_transcript->get_manifest());
@@ -225,17 +223,6 @@ template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentT
         // Initialize an empty BaseTranscript
         auto prover_transcript = BaseTranscript::prover_init_empty();
 
-        std::vector<std::span<Fr>> concatenated_polynomials_views;
-        for (auto& poly : concatenated_polynomials) {
-            concatenated_polynomials_views.emplace_back(poly);
-        }
-
-        std::vector<std::vector<std::span<Fr>>> concatenation_groups_views(concatenation_groups.size());
-        for (auto [group_of_polys, group_of_views] : zip_view(concatenation_groups, concatenation_groups_views)) {
-            for (auto& poly : group_of_polys) {
-                group_of_views.emplace_back(poly);
-            }
-        }
         // Execute Prover protocol
         ZeroMorphProver::prove(f_polynomials, // unshifted
                                g_polynomials, // to-be-shifted
@@ -244,9 +231,9 @@ template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentT
                                u_challenge,
                                this->commitment_key,
                                prover_transcript,
-                               concatenated_polynomials_views,
+                               concatenated_polynomials,
                                c_evaluations,
-                               to_vector_of_ref_vectors(concatenation_groups_views));
+                               to_vector_of_ref_vectors(concatenation_groups));
 
         auto verifier_transcript = BaseTranscript::verifier_init_empty(prover_transcript);
 
