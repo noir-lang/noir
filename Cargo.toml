@@ -122,6 +122,8 @@ num-traits = "0.2"
 similar-asserts = "1.5.0"
 log = "0.4.17"
 
+tracing = "0.1.40"
+
 [profile.dev]
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.
 # See https://ritik-mishra.medium.com/resolving-the-wasm-pack-error-locals-exceed-maximum-ec3a9d96685b
