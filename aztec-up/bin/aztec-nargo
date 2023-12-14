@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-$(dirname $0)/.aztec-run aztecprotocol/noir $@
+export SKIP_NET=1
+
+if [ "${1:-}" == "lsp" ]; then
+  docker run -i -v $HOME:$HOME -e HOME=$HOME aztecprotocol/noir $@
+else
+  $(dirname $0)/.aztec-run aztecprotocol/noir $@
+fi
