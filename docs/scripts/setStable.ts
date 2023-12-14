@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 
+const GITHUB_PAGES = 3;
 const IGNORE_VERSIONS = ['0.16.0'];
 const NUMBER_OF_VERSIONS_TO_SHOW = 3;
 
@@ -16,15 +17,25 @@ async function main() {
 
   if (process.env.GITHUB_TOKEN) axiosOpts.headers = { Authorization: `token ${process.env.GITHUB_TOKEN}` };
 
-  const { data } = await axios.get('https://api.github.com/repos/noir-lang/noir/releases', axiosOpts);
+  let stables = [];
+  console.log('Retrieved versions:');
 
-  const stables = data
-    .filter(
-      (release) => !release.prerelease && !release.tag_name.includes('aztec') && !release.tag_name.includes('aztec'),
-    )
-    .filter((release) => !IGNORE_VERSIONS.includes(release.tag_name.replace('v', '')))
-    .map((release) => release.tag_name)
-    .slice(0, NUMBER_OF_VERSIONS_TO_SHOW);
+  for (let i = 0; i < GITHUB_PAGES; i++) {
+    const { data } = await axios.get(`https://api.github.com/repos/noir-lang/noir/releases?page=${i + 1}`, axiosOpts);
+
+    console.log(data.map((release) => release.tag_name));
+    stables.push(
+      ...data
+        .filter(
+          (release) =>
+            !release.prerelease && !release.tag_name.includes('aztec') && !release.tag_name.includes('aztec'),
+        )
+        .filter((release) => !IGNORE_VERSIONS.includes(release.tag_name.replace('v', '')))
+        .map((release) => release.tag_name),
+    );
+  }
+
+  stables = stables.slice(0, NUMBER_OF_VERSIONS_TO_SHOW);
 
   console.log('Filtered down to stables: ', stables);
 
