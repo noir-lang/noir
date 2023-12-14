@@ -36,47 +36,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: test-cache-restore
-        id: cache-restore
-        uses: actions/cache/restore@v3
-        with:
-          path: dist
-          key: noir-base-docker-artifact-cache
-      - name: Cache was hit
-        if: steps.cache-restore.outputs.cache-hit == 'true'
-        run: |
-          # sudo mkdir -p target
-          sudo mkdir -p /usr/local/cargo
-          sudo tar -xzvf dist/target.tar.gz -C ./
-          sudo tar -xzvf dist/cargo.tar.gz -C /usr/local/cargo
-      - name: Setup build context
-        if: steps.cache-restore.outputs.cache-hit == 'true'
-        run: echo "additional-build-context=cargo=/usr/local/cargo" >> $GITHUB_ENV
       - name: Build cargo
         uses: docker/build-push-action@v5
         with:
           context: .
-          build-contexts: |
-            ${{ env.additional-build-context }}
           file: Dockerfile.ci
           tags: ${{ steps.prep.outputs.tags }}
           target: test-base
           cache-from: type=gha
           cache-to: type=gha,mode=max
           push: true
-      - name: run image
-        run: |
-          id=$(docker create ${{ steps.prep.outputs.image }}:latest)
-          sudo docker cp $id:/usr/src/noir/target /target
-          sudo docker cp $id:/usr/local/cargo /cargo
-          sudo docker rm -v $id
-      - name: tar
-        run: |
-          sudo mkdir -p dist
-          sudo tar -czvf dist/target.tar.gz /target
-          sudo tar -czvf dist/cargo.tar.gz /cargo
-      - name: test-cache-save
-        uses: actions/cache/save@v3
-        with:
-          path: dist
-          key: noir-base-docker-artifact-cache
