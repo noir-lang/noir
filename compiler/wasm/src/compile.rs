@@ -150,31 +150,6 @@ impl PathToFileSourceMap {
     }
 }
 
-#[wasm_bindgen]
-// This is a map containing the paths of all of the files in the entry-point crate and
-// the transitive dependencies of the entry-point crate.
-//
-// This is for all intents and purposes the file system that the compiler will use to resolve/compile
-// files in the crate being compiled and its dependencies.
-#[derive(Deserialize, Default)]
-pub struct PathToFileSourceMap(HashMap<std::path::PathBuf, String>);
-
-#[wasm_bindgen]
-impl PathToFileSourceMap {
-    #[wasm_bindgen(constructor)]
-    pub fn new() -> PathToFileSourceMap {
-        PathToFileSourceMap::default()
-    }
-    // Inserts a path and its source code into the map.
-    //
-    // Returns true, if there was already source code in the map for the given path
-    pub fn add_source_code(&mut self, path: String, source_code: String) -> bool {
-        let path_buf = Path::new(&path).to_path_buf();
-        let old_value = self.0.insert(path_buf, source_code);
-        old_value.is_some()
-    }
-}
-
 pub enum CompileResult {
     Contract { contract: PreprocessedContract, debug: DebugArtifact },
     Program { program: PreprocessedProgram, debug: DebugArtifact },
