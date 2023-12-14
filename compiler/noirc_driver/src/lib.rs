@@ -147,6 +147,8 @@ pub fn check_crate(
     deny_warnings: bool,
     disable_macros: bool,
 ) -> CompilationResult<()> {
+    log::trace!("Start checking crate");
+
     let macros: Vec<&dyn MacroProcessor> = if disable_macros {
         vec![]
     } else {
@@ -159,6 +161,8 @@ pub fn check_crate(
         let diagnostic: CustomDiagnostic = error.into();
         diagnostic.in_file(file_id)
     }));
+
+    log::trace!("Finish checking crate");
 
     if has_errors(&errors, deny_warnings) {
         Err(errors)
@@ -372,6 +376,7 @@ pub fn compile_no_check(
         force_compile || options.print_acir || options.show_brillig || options.show_ssa;
 
     if !force_compile && hashes_match {
+        log::info!("Program matches existing artifact, returning early");
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
     let visibility = program.return_visibility;
