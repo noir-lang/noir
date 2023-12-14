@@ -63,7 +63,8 @@ jobs:
           target: test-base
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          load: true
+          # load: true
+          push: true
       - name: run image
         run: |
           id=$(docker create ${{ steps.prep.outputs.image }}:latest)
