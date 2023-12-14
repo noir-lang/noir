@@ -44,6 +44,8 @@ pub(super) fn transform_internal(
     is_opcode_supported: impl Fn(&Opcode) -> bool,
     acir_opcode_positions: Vec<usize>,
 ) -> Result<(Circuit, AcirTransformationMap), CompileError> {
+    log::trace!("Start circuit transformation");
+
     // Fallback transformer pass
     let (acir, acir_opcode_positions) =
         FallbackTransformer::transform(acir, is_opcode_supported, acir_opcode_positions)?;
@@ -216,6 +218,8 @@ pub(super) fn transform_internal(
 
     let transformation_map =
         AcirTransformationMap { acir_opcode_positions: new_acir_opcode_positions };
+
+    log::trace!("Finish circuit transformation");
 
     Ok((acir, transformation_map))
 }
