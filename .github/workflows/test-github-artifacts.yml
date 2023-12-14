@@ -64,7 +64,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           # load: true
-          push: true
+          outputs: |
+            type=docker
+            type=registry
       - name: run image
         run: |
           id=$(docker create ${{ steps.prep.outputs.image }}:latest)
