@@ -147,8 +147,6 @@ This would be an approach for something like our guessing game, where proofs are
 
 In such a situation, and assuming Alice is first, she would skip the first part and try to guess Bob's number. Bob would then verify her proof on the first section of his run, and try to guess Alice's number on the second part, and so on.
 
-One could be confused about what happens with the recursive aggregation object, as it seems like it has no relationship with anything other than the "recursive part" of the circuit (it's simply an input and an output to `std::verify_proof`). It actually doesn't, even if it may seem lightly unintuitive. Again, it would help to imagine it as a baton in a draft race, which says nothing about the race itself but simply testifies that it was correctly passed around.
-
 ### Aggregating proofs
 
 In some one-way interaction situations, recursiveness would allow for aggregation of simple proofs that don't need to be immediately verified on-chain or elsewhere.

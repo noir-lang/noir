@@ -1,5 +1,5 @@
 ---
-title: Recursion with NoirJS
+title: How to use recursion on NoirJS
 description: Learn how to implement recursion with NoirJS, a powerful tool for creating smart contracts on the EVM blockchain. This guide assumes familiarity with NoirJS, solidity verifiers, and the Barretenberg proving backend. Discover how to generate both final and intermediate proofs using `noir_js` and `backend_barretenberg`.
 keywords:
   [
@@ -21,9 +21,13 @@ keywords:
 sidebar_position: 1
 ---
 
-We're assuming you already read the [recursion explainer](../explainers/explainer-recursion.md), and that you already built a recursive circuit following [the reference](../noir/standard_library/recursion.md).
+This guide shows you how to use recursive proofs in your NoirJS app. For the sake of clarity, it is assumed that:
 
-It is also assumed that you're not using `noir_wasm` for compilation, and instead you've used [`nargo compile`](../reference/nargo_commands.md) to generate the `json` you're now importing into your project.
+- You already have a NoirJS app. If you don't, please visit the [NoirJS tutorial](../tutorials/noirjs_app.md) and the [reference](../reference/NoirJS).
+- You are familiar with what are recursive proofs and you have read the [recursion explainer](../explainers/explainer-recursion.md)
+- You already built a recursive circuit following [the reference](../noir/standard_library/recursion.md), and understand how it works.
+
+It is also assumed that you're not using `noir_wasm` for compilation, and instead you've used [`nargo compile`](../reference/nargo_commands.md) to generate the `json` you're now importing into your project. However, the guide should work just the same if you're using `noir_wasm`.
 
 :::info
 
@@ -42,6 +46,8 @@ In a standard recursive app, you're also dealing with at least two circuits. For
 
 - `main`: a circuit of type `assert(x != y)`
 - `recursive`: a circuit that verifies `main`
+
+For a full example on how recursive proofs work, please refer to the [noir-examples](https://github.com/noir/noir-examples) repository. We will *not* be using it as a reference for this guide.
 
 ## Step 1: Setup
 
@@ -164,14 +170,14 @@ This allows you to neatly call exactly the method you want without conflicting n
 ```js
 // Alice runs this 👇
 const { witness: mainWitness } = await noirs.main.execute(input)
-const proof = await backends.main.generateIntermediateProof(witness)
+const proof = await backends.main.generateIntermediateProof(mainWitness)
 
 // Bob runs this 👇
+const verified = await backends.main.verifyIntermediateProof(proof)
 const { proofAsFields, vkAsFields, vkHash } = await backends.main.generateIntermediateProofArtifacts(
     proof,
     numPublicInputs,
 );
-
 const recursiveProof = await noirs.recursive.generateFinalProof(recursiveInputs)
 ```
 
