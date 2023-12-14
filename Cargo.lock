@@ -1633,7 +1633,6 @@ version = "0.20.0"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
- "rust-embed",
  "serde",
  "tempfile",
 ]
@@ -2443,6 +2442,7 @@ dependencies = [
  "rayon",
  "rustc_version",
  "serde",
+ "tempfile",
  "thiserror",
 ]
 
@@ -2577,7 +2577,6 @@ version = "0.20.0"
 dependencies = [
  "acvm",
  "async-lsp",
- "cfg-if",
  "codespan-lsp",
  "fm",
  "lsp-types 0.94.1",
@@ -2601,7 +2600,6 @@ version = "0.20.0"
 dependencies = [
  "acvm",
  "build-data",
- "cfg-if",
  "console_error_panic_hook",
  "fm",
  "getrandom",
@@ -2666,6 +2664,7 @@ dependencies = [
  "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
+ "rust-embed",
  "serde",
 ]
 
