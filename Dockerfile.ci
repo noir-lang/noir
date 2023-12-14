@@ -11,7 +11,7 @@ WORKDIR /usr/src/noir
 COPY --from=planner recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
-# RUN cargo build --release --bin app
+RUN cargo build --release --bin app
 
 # FROM rust:1-slim-bookworm as test-base
 # WORKDIR /usr/src/noir
