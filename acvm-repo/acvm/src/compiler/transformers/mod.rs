@@ -39,10 +39,6 @@ pub(super) fn transform_internal(
 ) -> (Circuit, AcirTransformationMap) {
     log::trace!("Start circuit transformation");
 
-    // Fallback transformer pass
-    let (acir, acir_opcode_positions) =
-        FallbackTransformer::transform(acir, is_opcode_supported, acir_opcode_positions)?;
-
     let mut transformer = match &np_language {
         crate::Language::R1CS => {
             let transformation_map = AcirTransformationMap { acir_opcode_positions };
@@ -213,6 +209,6 @@ pub(super) fn transform_internal(
         AcirTransformationMap { acir_opcode_positions: new_acir_opcode_positions };
 
     log::trace!("Finish circuit transformation");
-    
+
     (acir, transformation_map)
 }
