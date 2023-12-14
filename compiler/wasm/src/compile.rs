@@ -198,8 +198,7 @@ pub fn compile(
             })?
             .0;
 
-        let optimized_contract = nargo::ops::optimize_contract(compiled_contract, np_language)
-            .expect("Contract optimization failed");
+        let optimized_contract = nargo::ops::optimize_contract(compiled_contract, np_language);
 
         let compile_output = preprocess_contract(optimized_contract);
         Ok(JsCompileResult::new(compile_output))
@@ -214,8 +213,7 @@ pub fn compile(
             })?
             .0;
 
-        let optimized_program = nargo::ops::optimize_program(compiled_program, np_language)
-            .expect("Program optimization failed");
+        let optimized_program = nargo::ops::optimize_program(compiled_program, np_language);
 
         let compile_output = preprocess_program(optimized_program);
         Ok(JsCompileResult::new(compile_output))

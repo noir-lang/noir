@@ -199,8 +199,7 @@ fn compile_program(
     };
 
     // Apply backend specific optimizations.
-    let optimized_program = nargo::ops::optimize_program(program, np_language)
-        .expect("Backend does not support an opcode that is in the IR");
+    let optimized_program = nargo::ops::optimize_program(program, np_language);
     let only_acir = compile_options.only_acir;
     save_program(optimized_program.clone(), package, &workspace.target_directory_path(), only_acir);
 
@@ -221,8 +220,7 @@ fn compile_contract(
             }
         };
 
-    let optimized_contract = nargo::ops::optimize_contract(contract, np_language)
-        .expect("Backend does not support an opcode that is in the IR");
+    let optimized_contract = nargo::ops::optimize_contract(contract, np_language);
 
     (context.file_manager, Ok((optimized_contract, warnings)))
 }
