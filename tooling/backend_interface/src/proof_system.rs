@@ -36,8 +36,7 @@ impl Backend {
         InfoCommand { crs_path: self.crs_directory() }.run(binary_path)
     }
 
-    /// If we cannot get a valid backend, returns the default backend which supports all the opcodes
-    /// and uses Plonk with width 3
+    /// If we cannot get a valid backend, returns Plonk with width 3
     /// The function also prints a message saying we could not find a backend
     pub fn get_backend_info_or_default(&self) -> Language {
         if let Ok(language) = self.get_backend_info() {
