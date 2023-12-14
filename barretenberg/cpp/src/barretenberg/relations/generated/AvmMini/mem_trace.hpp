@@ -8,14 +8,14 @@ namespace proof_system::AvmMini_vm {
 
 template <typename FF> struct Mem_traceRow {
     FF memTrace_m_rw_shift{};
-    FF memTrace_m_lastAccess{};
+    FF memTrace_m_addr_shift{};
+    FF memTrace_m_val{};
     FF memTrace_m_addr{};
-    FF memTrace_m_val_shift{};
     FF memTrace_m_rw{};
     FF avmMini_first{};
-    FF memTrace_m_addr_shift{};
+    FF memTrace_m_lastAccess{};
     FF avmMini_last{};
-    FF memTrace_m_val{};
+    FF memTrace_m_val_shift{};
 };
 
 template <typename FF_> class mem_traceImpl {
@@ -38,7 +38,7 @@ template <typename FF_> class mem_traceImpl {
 
         // Contribution 0
         {
-            DECLARE_VIEWS(0);
+            AvmMini_DECLARE_VIEWS(0);
 
             auto tmp = (memTrace_m_lastAccess * (-memTrace_m_lastAccess + FF(1)));
             tmp *= scaling_factor;
@@ -46,7 +46,7 @@ template <typename FF_> class mem_traceImpl {
         }
         // Contribution 1
         {
-            DECLARE_VIEWS(1);
+            AvmMini_DECLARE_VIEWS(1);
 
             auto tmp = (memTrace_m_rw * (-memTrace_m_rw + FF(1)));
             tmp *= scaling_factor;
@@ -54,7 +54,7 @@ template <typename FF_> class mem_traceImpl {
         }
         // Contribution 2
         {
-            DECLARE_VIEWS(2);
+            AvmMini_DECLARE_VIEWS(2);
 
             auto tmp = (((-avmMini_first + FF(1)) * (-memTrace_m_lastAccess + FF(1))) *
                         (memTrace_m_addr_shift - memTrace_m_addr));
@@ -63,7 +63,7 @@ template <typename FF_> class mem_traceImpl {
         }
         // Contribution 3
         {
-            DECLARE_VIEWS(3);
+            AvmMini_DECLARE_VIEWS(3);
 
             auto tmp = (((((-avmMini_first + FF(1)) * (-avmMini_last + FF(1))) * (-memTrace_m_lastAccess + FF(1))) *
                          (-memTrace_m_rw_shift + FF(1))) *

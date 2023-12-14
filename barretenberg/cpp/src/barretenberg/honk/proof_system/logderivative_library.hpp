@@ -6,7 +6,7 @@ namespace proof_system::honk::logderivative_library {
 /**
  * @brief Compute the inverse polynomial I(X) required for logderivative lookups
  * *
- * @details
+ * details
  * Inverse may be defined in terms of its values  on X_i = 0,1,...,n-1 as Z_perm[0] = 1 and for i = 1:n-1
  *                           1                              1
  * Inverse[i] = ∏ -------------------------- * ∏' --------------------------

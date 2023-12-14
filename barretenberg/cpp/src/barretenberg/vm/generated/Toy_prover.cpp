@@ -1,6 +1,6 @@
 
 
-#include "AvmMini_prover.hpp"
+#include "Toy_prover.hpp"
 #include "barretenberg/commitment_schemes/claim.hpp"
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/honk/proof_system/logderivative_library.hpp"
@@ -14,58 +14,32 @@
 
 namespace proof_system::honk {
 
-using Flavor = honk::flavor::AvmMiniFlavor;
+using Flavor = honk::flavor::ToyFlavor;
 
 /**
- * Create AvmMiniProver from proving key, witness and manifest.
+ * Create ToyProver from proving key, witness and manifest.
  *
  * @param input_key Proving key.
  * @param input_manifest Input manifest
  *
  * @tparam settings Settings class.
  * */
-AvmMiniProver::AvmMiniProver(std::shared_ptr<Flavor::ProvingKey> input_key,
-                             std::shared_ptr<PCSCommitmentKey> commitment_key)
+ToyProver::ToyProver(std::shared_ptr<Flavor::ProvingKey> input_key, std::shared_ptr<PCSCommitmentKey> commitment_key)
     : key(input_key)
     , commitment_key(commitment_key)
 {
     // TODO: take every polynomial and assign it to the key!!
-    prover_polynomials.avmMini_clk = key->avmMini_clk;
-    prover_polynomials.avmMini_first = key->avmMini_first;
-    prover_polynomials.memTrace_m_clk = key->memTrace_m_clk;
-    prover_polynomials.memTrace_m_sub_clk = key->memTrace_m_sub_clk;
-    prover_polynomials.memTrace_m_addr = key->memTrace_m_addr;
-    prover_polynomials.memTrace_m_val = key->memTrace_m_val;
-    prover_polynomials.memTrace_m_lastAccess = key->memTrace_m_lastAccess;
-    prover_polynomials.memTrace_m_rw = key->memTrace_m_rw;
-    prover_polynomials.avmMini_sel_op_add = key->avmMini_sel_op_add;
-    prover_polynomials.avmMini_sel_op_sub = key->avmMini_sel_op_sub;
-    prover_polynomials.avmMini_sel_op_mul = key->avmMini_sel_op_mul;
-    prover_polynomials.avmMini_sel_op_div = key->avmMini_sel_op_div;
-    prover_polynomials.avmMini_op_err = key->avmMini_op_err;
-    prover_polynomials.avmMini_inv = key->avmMini_inv;
-    prover_polynomials.avmMini_ia = key->avmMini_ia;
-    prover_polynomials.avmMini_ib = key->avmMini_ib;
-    prover_polynomials.avmMini_ic = key->avmMini_ic;
-    prover_polynomials.avmMini_mem_op_a = key->avmMini_mem_op_a;
-    prover_polynomials.avmMini_mem_op_b = key->avmMini_mem_op_b;
-    prover_polynomials.avmMini_mem_op_c = key->avmMini_mem_op_c;
-    prover_polynomials.avmMini_rwa = key->avmMini_rwa;
-    prover_polynomials.avmMini_rwb = key->avmMini_rwb;
-    prover_polynomials.avmMini_rwc = key->avmMini_rwc;
-    prover_polynomials.avmMini_mem_idx_a = key->avmMini_mem_idx_a;
-    prover_polynomials.avmMini_mem_idx_b = key->avmMini_mem_idx_b;
-    prover_polynomials.avmMini_mem_idx_c = key->avmMini_mem_idx_c;
-    prover_polynomials.avmMini_last = key->avmMini_last;
+    prover_polynomials.toy_first = key->toy_first;
+    prover_polynomials.toy_q_tuple_set = key->toy_q_tuple_set;
+    prover_polynomials.toy_set_1_column_1 = key->toy_set_1_column_1;
+    prover_polynomials.toy_set_1_column_2 = key->toy_set_1_column_2;
+    prover_polynomials.toy_set_2_column_1 = key->toy_set_2_column_1;
+    prover_polynomials.toy_set_2_column_2 = key->toy_set_2_column_2;
+    prover_polynomials.toy_x = key->toy_x;
+    prover_polynomials.two_column_perm = key->two_column_perm;
 
-    prover_polynomials.memTrace_m_rw = key->memTrace_m_rw;
-    prover_polynomials.memTrace_m_rw_shift = key->memTrace_m_rw.shifted();
-
-    prover_polynomials.memTrace_m_addr = key->memTrace_m_addr;
-    prover_polynomials.memTrace_m_addr_shift = key->memTrace_m_addr.shifted();
-
-    prover_polynomials.memTrace_m_val = key->memTrace_m_val;
-    prover_polynomials.memTrace_m_val_shift = key->memTrace_m_val.shifted();
+    prover_polynomials.toy_x = key->toy_x;
+    prover_polynomials.toy_x_shift = key->toy_x.shifted();
 
     // prover_polynomials.lookup_inverses = key->lookup_inverses;
     // key->z_perm = Polynomial(key->circuit_size);
@@ -76,7 +50,7 @@ AvmMiniProver::AvmMiniProver(std::shared_ptr<Flavor::ProvingKey> input_key,
  * @brief Add circuit size, public input size, and public inputs to transcript
  *
  */
-void AvmMiniProver::execute_preamble_round()
+void ToyProver::execute_preamble_round()
 {
     const auto circuit_size = static_cast<uint32_t>(key->circuit_size);
 
@@ -87,7 +61,7 @@ void AvmMiniProver::execute_preamble_round()
  * @brief Compute commitments to the first three wires
  *
  */
-void AvmMiniProver::execute_wire_commitments_round()
+void ToyProver::execute_wire_commitments_round()
 {
     auto wire_polys = key->get_wires();
     auto labels = commitment_labels.get_wires();
@@ -100,7 +74,7 @@ void AvmMiniProver::execute_wire_commitments_round()
  * @brief Run Sumcheck resulting in u = (u_1,...,u_d) challenges and all evaluations at u being calculated.
  *
  */
-void AvmMiniProver::execute_relation_check_rounds()
+void ToyProver::execute_relation_check_rounds()
 {
     using Sumcheck = sumcheck::SumcheckProver<Flavor>;
 
@@ -115,7 +89,7 @@ void AvmMiniProver::execute_relation_check_rounds()
  * @details See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the unrolled protocol.
  *
  * */
-void AvmMiniProver::execute_zeromorph_rounds()
+void ToyProver::execute_zeromorph_rounds()
 {
     ZeroMorph::prove(prover_polynomials.get_unshifted(),
                      prover_polynomials.get_to_be_shifted(),
@@ -126,13 +100,13 @@ void AvmMiniProver::execute_zeromorph_rounds()
                      transcript);
 }
 
-plonk::proof& AvmMiniProver::export_proof()
+plonk::proof& ToyProver::export_proof()
 {
     proof.proof_data = transcript->proof_data;
     return proof;
 }
 
-plonk::proof& AvmMiniProver::construct_proof()
+plonk::proof& ToyProver::construct_proof()
 {
     // Add circuit size public input size and public inputs to transcript.
     execute_preamble_round();

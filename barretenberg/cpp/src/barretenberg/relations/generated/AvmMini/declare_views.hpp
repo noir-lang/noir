@@ -1,5 +1,5 @@
 
-#define DECLARE_VIEWS(index)                                                                                           \
+#define AvmMini_DECLARE_VIEWS(index)                                                                                   \
     using Accumulator = typename std::tuple_element<index, ContainerOverSubrelations>::type;                           \
     using View = typename Accumulator::View;                                                                           \
     [[maybe_unused]] auto avmMini_clk = View(new_term.avmMini_clk);                                                    \
@@ -30,5 +30,5 @@
     [[maybe_unused]] auto avmMini_mem_idx_c = View(new_term.avmMini_mem_idx_c);                                        \
     [[maybe_unused]] auto avmMini_last = View(new_term.avmMini_last);                                                  \
     [[maybe_unused]] auto memTrace_m_rw_shift = View(new_term.memTrace_m_rw_shift);                                    \
-    [[maybe_unused]] auto memTrace_m_val_shift = View(new_term.memTrace_m_val_shift);                                  \
-    [[maybe_unused]] auto memTrace_m_addr_shift = View(new_term.memTrace_m_addr_shift);
+    [[maybe_unused]] auto memTrace_m_addr_shift = View(new_term.memTrace_m_addr_shift);                                \
+    [[maybe_unused]] auto memTrace_m_val_shift = View(new_term.memTrace_m_val_shift);
