@@ -5,7 +5,7 @@ const axios = require('axios');
 
 const GITHUB_PAGES = 3;
 const IGNORE_VERSIONS = ['0.16.0'];
-const NUMBER_OF_VERSIONS_TO_SHOW = 3;
+const NUMBER_OF_VERSIONS_TO_SHOW = 2;
 
 async function main() {
   const versionsFile = path.resolve('../versions.json');
