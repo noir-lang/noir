@@ -18,7 +18,7 @@ serde_json.workspace = true
 bb_abstraction_leaks.workspace = true
 log.workspace = true
 
-tempfile = "3.6.0"
+tempfile.workspace = true
 
 ## bb binary downloading
 tar = "~0.4.15"

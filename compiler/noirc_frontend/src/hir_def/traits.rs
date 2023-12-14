@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
@@ -42,6 +44,12 @@ pub struct Trait {
     pub crate_id: CrateId,
 
     pub methods: Vec<TraitFunction>,
+
+    /// Maps method_name -> method id.
+    /// This map is separate from methods since TraitFunction ids
+    /// are created during collection where we don't yet have all
+    /// the information needed to create the full TraitFunction.
+    pub method_ids: HashMap<String, FuncId>,
 
     pub constants: Vec<TraitConstant>,
     pub types: Vec<TraitType>,
@@ -98,29 +106,6 @@ impl PartialEq for Trait {
 }
 
 impl Trait {
-    pub fn new(
-        id: TraitId,
-        name: Ident,
-        crate_id: CrateId,
-        span: Span,
-        generics: Generics,
-        self_type_typevar_id: TypeVariableId,
-        self_type_typevar: TypeVariable,
-    ) -> Trait {
-        Trait {
-            id,
-            name,
-            crate_id,
-            span,
-            methods: Vec::new(),
-            constants: Vec::new(),
-            types: Vec::new(),
-            generics,
-            self_type_typevar_id,
-            self_type_typevar,
-        }
-    }
-
     pub fn set_methods(&mut self, methods: Vec<TraitFunction>) {
         self.methods = methods;
     }
