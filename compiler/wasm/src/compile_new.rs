@@ -78,10 +78,12 @@ impl ContextWrapper {
         add_dep(&mut self.context, from.0, to.0, parsed_crate_name);
     }
 
-    pub fn compile_program(mut self) -> Result<JsCompileResult, JsCompileError> {
+    pub fn compile_program(
+        mut self,
+        program_width: usize,
+    ) -> Result<JsCompileResult, JsCompileError> {
         let compile_options = CompileOptions::default();
-        // For now we default to plonk width = 3, though we can add it as a parameter
-        let np_language = acvm::Language::PLONKCSat { width: 3 };
+        let np_language = acvm::Language::PLONKCSat { width: program_width };
         #[allow(deprecated)]
         let is_opcode_supported = acvm::pwg::default_is_opcode_supported(np_language);
 
@@ -106,10 +108,12 @@ impl ContextWrapper {
         Ok(JsCompileResult::new(compile_output))
     }
 
-    pub fn compile_contract(mut self) -> Result<JsCompileResult, JsCompileError> {
+    pub fn compile_contract(
+        mut self,
+        program_width: usize,
+    ) -> Result<JsCompileResult, JsCompileError> {
         let compile_options = CompileOptions::default();
-        // For now we default to plonk width = 3, though we can add it as a parameter
-        let np_language = acvm::Language::PLONKCSat { width: 3 };
+        let np_language = acvm::Language::PLONKCSat { width: program_width };
         #[allow(deprecated)]
         let is_opcode_supported = acvm::pwg::default_is_opcode_supported(np_language);
 
