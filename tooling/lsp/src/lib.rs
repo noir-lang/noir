@@ -7,7 +7,7 @@ use std::{
     collections::HashMap,
     future::Future,
     ops::{self, ControlFlow},
-    path::{Path, PathBuf},
+    path::PathBuf,
     pin::Pin,
     task::{self, Poll},
 };
@@ -18,6 +18,7 @@ use async_lsp::{
     ResponseError,
 };
 use fm::codespan_files as files;
+use lsp_types::CodeLens;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::{Context, FunctionNameMatch},
@@ -27,8 +28,8 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    on_code_lens_request, on_formatting, on_goto_definition_request, on_initialize, on_profile_run_request, on_shutdown,
-    on_test_run_request, on_tests_request,
+    on_code_lens_request, on_formatting, on_goto_definition_request, on_initialize,
+    on_profile_run_request, on_shutdown, on_test_run_request, on_tests_request,
 };
 use serde_json::Value as JsonValue;
 use tower::Service;
@@ -47,6 +48,7 @@ pub struct LspState {
     client: ClientSocket,
     solver: WrapperSolver,
     input_files: HashMap<String, String>,
+    collected_lenses: Option<Vec<CodeLens>>,
 }
 
 impl LspState {
@@ -56,6 +58,7 @@ impl LspState {
             root_path: None,
             solver: WrapperSolver(Box::new(solver)),
             input_files: HashMap::new(),
+            collected_lenses: None,
         }
     }
 }

@@ -43,6 +43,7 @@ pub(super) fn on_did_change_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let text = params.content_changes.into_iter().next().unwrap().text;
     state.input_files.insert(params.text_document.uri.to_string(), text);
+    state.collected_lenses = Some(Vec::new());
     ControlFlow::Continue(())
 }
 
@@ -117,6 +118,11 @@ pub(super) fn on_did_save_text_document(
                     tests,
                 });
             }
+
+            let collected_lenses = crate::requests::collect_lenses_for_package(
+                &context, crate_id, &file_path, &workspace, package,
+            );
+            state.collected_lenses = Some(collected_lenses);
 
             let fm = &context.file_manager;
             let files = fm.as_file_map();

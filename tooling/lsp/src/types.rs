@@ -9,10 +9,11 @@ use std::collections::{BTreeMap, HashMap};
 
 // Re-providing lsp_types that we don't need to override
 pub(crate) use lsp_types::{
-    CodeLens, CodeLensOptions, CodeLensParams, Command, Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    InitializeParams, InitializedParams, LogMessageParams, MessageType, Position,
-    PublishDiagnosticsParams, Range, ServerInfo, TextDocumentSyncCapability, Url,
+    CodeLens, CodeLensOptions, CodeLensParams, Command, Diagnostic, DiagnosticSeverity,
+    DidChangeConfigurationParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
+    DidOpenTextDocumentParams, DidSaveTextDocumentParams, InitializeParams, InitializedParams,
+    LogMessageParams, MessageType, Position, PublishDiagnosticsParams, Range, ServerInfo,
+    TextDocumentSyncCapability, Url,
 };
 
 pub(crate) mod request {
