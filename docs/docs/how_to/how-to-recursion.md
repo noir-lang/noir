@@ -23,7 +23,7 @@ sidebar_position: 1
 
 This guide shows you how to use recursive proofs in your NoirJS app. For the sake of clarity, it is assumed that:
 
-- You already have a NoirJS app. If you don't, please visit the [NoirJS tutorial](../tutorials/noirjs_app.md) and the [reference](../reference/NoirJS).
+- You already have a NoirJS app. If you don't, please visit the [NoirJS tutorial](../tutorials/noirjs_app.md) and the [reference](../reference/NoirJS/noir_js/index.md).
 - You are familiar with what are recursive proofs and you have read the [recursion explainer](../explainers/explainer-recursion.md)
 - You already built a recursive circuit following [the reference](../noir/standard_library/recursion.md), and understand how it works.
 
