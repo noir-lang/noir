@@ -99,8 +99,7 @@ fn compile_contract(
             }
         };
 
-    let optimized_contract = crate::ops::optimize_contract(contract, np_language)
-        .expect("Backend does not support an opcode that is in the IR");
+    let optimized_contract = crate::ops::optimize_contract(contract, np_language);
 
     (context.file_manager, Ok((optimized_contract, warnings)))
 }
