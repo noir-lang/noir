@@ -6,13 +6,13 @@ cd $(dirname "$0")/..
 ./scripts/install_wasm-bindgen.sh
 
 # If this project has been subrepod into another project, set build data manually.
+export SOURCE_DATE_EPOCH=$(date +%s)
+export GIT_DIRTY=false
 if [ -f ".gitrepo" ]; then
-  export SOURCE_DATE_EPOCH=$(date +%s)
-  export GIT_DIRTY=false
   export GIT_COMMIT=$(awk '/commit =/ {print $3}' .gitrepo)
+else
+  export GIT_COMMIT=$(git rev-parse --verify HEAD)
 fi
-
-export cargoExtraArgs="--features noirc_frontend/aztec"
 
 yarn
 yarn build
@@ -23,7 +23,6 @@ yarn workspaces foreach pack
 
 rm -rf packages && mkdir -p packages
 tar zxfv acvm-repo/acvm_js/package.tgz -C packages && mv packages/package packages/acvm_js
-tar zxfv compiler/source-resolver/package.tgz -C packages && mv packages/package packages/source-resolver
 tar zxfv compiler/wasm/package.tgz -C packages && mv packages/package packages/noir_wasm
 tar zxfv tooling/noir_codegen/package.tgz -C packages && mv packages/package packages/noir_codegen
 tar zxfv tooling/noir_js/package.tgz -C packages && mv packages/package packages/noir_js

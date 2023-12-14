@@ -116,7 +116,7 @@ impl Backend {
 
                 // If version doesn't match then download the correct version.
                 Ok(version_string) => {
-                    println!("`{ACVM_BACKEND_BARRETENBERG}` version `{version_string}` is different from expected `{BB_VERSION}`. Downloading expected version...");
+                    log::warn!("`{ACVM_BACKEND_BARRETENBERG}` version `{version_string}` is different from expected `{BB_VERSION}`. Downloading expected version...");
                     let bb_url = std::env::var("BB_BINARY_URL")
                         .unwrap_or_else(|_| bb_abstraction_leaks::BB_DOWNLOAD_URL.to_owned());
                     download_backend(&bb_url, binary_path)?;
@@ -124,7 +124,7 @@ impl Backend {
 
                 // If `bb` fails to report its version, then attempt to fix it by re-downloading the binary.
                 Err(_) => {
-                    println!("Could not determine version of `{ACVM_BACKEND_BARRETENBERG}`. Downloading expected version...");
+                    log::warn!("Could not determine version of `{ACVM_BACKEND_BARRETENBERG}`. Downloading expected version...");
                     let bb_url = std::env::var("BB_BINARY_URL")
                         .unwrap_or_else(|_| bb_abstraction_leaks::BB_DOWNLOAD_URL.to_owned());
                     download_backend(&bb_url, binary_path)?;

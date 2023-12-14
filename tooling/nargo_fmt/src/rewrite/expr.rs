@@ -110,9 +110,11 @@ pub(crate) fn rewrite(
             NewlineMode::Normal,
         ),
         ExpressionKind::Literal(literal) => match literal {
-            Literal::Integer(_) | Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) => {
-                visitor.slice(span).to_string()
-            }
+            Literal::Integer(_, _)
+            | Literal::Bool(_)
+            | Literal::Str(_)
+            | Literal::RawStr(..)
+            | Literal::FmtStr(_) => visitor.slice(span).to_string(),
             Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                 let repeated = rewrite_sub_expr(visitor, shape, *repeated_element);
                 let length = rewrite_sub_expr(visitor, shape, *length);

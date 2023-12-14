@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{
     graph::CrateId,
@@ -16,15 +16,13 @@ use crate::{
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
         Context,
     },
-    hir_def::traits::{Trait, TraitConstant, TraitFunction, TraitImpl, TraitType},
+    hir_def::traits::{TraitConstant, TraitFunction, TraitImpl, TraitType},
     node_interner::{FuncId, NodeInterner, TraitId},
-    Path, Shared, TraitItem, Type, TypeVariableKind,
+    Path, Shared, TraitItem, Type, TypeBinding, TypeVariableKind,
 };
 
 use super::{
-    errors::ResolverError,
     functions, get_module_mut, get_struct_type,
-    import::PathResolutionError,
     path_resolver::{PathResolver, StandardPathResolver},
     resolver::Resolver,
     take_errors,
@@ -90,15 +88,16 @@ fn resolve_trait_methods(
     });
     let file = def_maps[&crate_id].file_id(unresolved_trait.module_id);
 
-    let mut res = vec![];
+    let mut functions = vec![];
     let mut resolver_errors = vec![];
+
     for item in &unresolved_trait.trait_def.items {
         if let TraitItem::Function {
             name,
             generics,
             parameters,
             return_type,
-            where_clause: _,
+            where_clause,
             body: _,
         } = item
         {
@@ -110,39 +109,60 @@ fn resolve_trait_methods(
             resolver.add_generics(generics);
             resolver.set_self_type(Some(self_type));
 
-            let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
-            let resolved_return_type = resolver.resolve_type(return_type.get_type().into_owned());
-            let generics = resolver.get_generics().to_vec();
+            let func_id = unresolved_trait.method_ids[&name.0.contents];
+            let (_, func_meta) = resolver.resolve_trait_function(
+                name,
+                parameters,
+                return_type,
+                where_clause,
+                func_id,
+            );
+            resolver.interner.push_fn_meta(func_meta, func_id);
 
-            let name = name.clone();
-            let span: Span = name.span();
+            let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
+            let return_type = resolver.resolve_type(return_type.get_type().into_owned());
+
+            let mut generics = vecmap(resolver.get_generics(), |(_, type_var, _)| match &*type_var
+                .borrow()
+            {
+                TypeBinding::Unbound(id) => (*id, type_var.clone()),
+                TypeBinding::Bound(binding) => unreachable!("Trait generic was bound to {binding}"),
+            });
+
+            // Ensure the trait is generic over the Self type as well
+            let the_trait = resolver.interner.get_trait(trait_id);
+            generics.push((the_trait.self_type_typevar_id, the_trait.self_type_typevar.clone()));
+
             let default_impl_list: Vec<_> = unresolved_trait
                 .fns_with_default_impl
                 .functions
                 .iter()
                 .filter(|(_, _, q)| q.name() == name.0.contents)
                 .collect();
+
             let default_impl = if default_impl_list.len() == 1 {
                 Some(Box::new(default_impl_list[0].2.clone()))
             } else {
                 None
             };
 
-            let f = TraitFunction {
-                name,
-                generics,
-                arguments,
-                return_type: resolved_return_type,
-                span,
+            let no_environment = Box::new(Type::Unit);
+            let function_type = Type::Function(arguments, Box::new(return_type), no_environment);
+
+            functions.push(TraitFunction {
+                name: name.clone(),
+                typ: Type::Forall(generics, Box::new(function_type)),
+                span: name.span(),
                 default_impl,
                 default_impl_file_id: unresolved_trait.file_id,
                 default_impl_module_id: unresolved_trait.module_id,
-            };
-            res.push(f);
-            resolver_errors.extend(take_errors_filter_self_not_resolved(file, resolver));
+            });
+
+            let errors = resolver.take_errors().into_iter();
+            resolver_errors.extend(errors.map(|resolution_error| (resolution_error.into(), file)));
         }
     }
-    (res, resolver_errors)
+    (functions, resolver_errors)
 }
 
 fn collect_trait_impl_methods(
@@ -156,15 +176,18 @@ fn collect_trait_impl_methods(
     // for a particular method, the default implementation will be added at that slot.
     let mut ordered_methods = Vec::new();
 
-    let the_trait = interner.get_trait(trait_id);
-
     // check whether the trait implementation is in the same crate as either the trait or the type
     let mut errors =
-        check_trait_impl_crate_coherence(interner, &the_trait, trait_impl, crate_id, def_maps);
+        check_trait_impl_crate_coherence(interner, trait_id, trait_impl, crate_id, def_maps);
     // set of function ids that have a corresponding method in the trait
     let mut func_ids_in_trait = HashSet::new();
 
-    for method in &the_trait.methods {
+    // Temporarily take ownership of the trait's methods so we can iterate over them
+    // while also mutating the interner
+    let the_trait = interner.get_trait_mut(trait_id);
+    let methods = std::mem::take(&mut the_trait.methods);
+
+    for method in &methods {
         let overrides: Vec<_> = trait_impl
             .methods
             .functions
@@ -176,7 +199,8 @@ fn collect_trait_impl_methods(
             if let Some(default_impl) = &method.default_impl {
                 let func_id = interner.push_empty_fn();
                 let module = ModuleId { local_id: trait_impl.module_id, krate: crate_id };
-                interner.push_function(func_id, &default_impl.def, module);
+                let location = Location::new(default_impl.def.span, trait_impl.file_id);
+                interner.push_function(func_id, &default_impl.def, module, location);
                 func_ids_in_trait.insert(func_id);
                 ordered_methods.push((
                     method.default_impl_module_id,
@@ -185,7 +209,7 @@ fn collect_trait_impl_methods(
                 ));
             } else {
                 let error = DefCollectorErrorKind::TraitMissingMethod {
-                    trait_name: the_trait.name.clone(),
+                    trait_name: interner.get_trait(trait_id).name.clone(),
                     method_name: method.name.clone(),
                     trait_impl_span: trait_impl.object_type.span.expect("type must have a span"),
                 };
@@ -208,6 +232,10 @@ fn collect_trait_impl_methods(
             ordered_methods.push(overrides[0].clone());
         }
     }
+
+    // Restore the methods that were taken before the for loop
+    let the_trait = interner.get_trait_mut(trait_id);
+    the_trait.set_methods(methods);
 
     // Emit MethodNotInTrait error for methods in the impl block that
     // don't have a corresponding method signature defined in the trait
@@ -287,7 +315,7 @@ pub(crate) fn collect_trait_impls(
 
 fn check_trait_impl_crate_coherence(
     interner: &mut NodeInterner,
-    the_trait: &Trait,
+    trait_id: TraitId,
     trait_impl: &UnresolvedTraitImpl,
     current_crate: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
@@ -304,6 +332,7 @@ fn check_trait_impl_crate_coherence(
         _ => CrateId::Dummy,
     };
 
+    let the_trait = interner.get_trait(trait_id);
     if current_crate != the_trait.crate_id && current_crate != object_crate {
         let error = DefCollectorErrorKind::TraitImplOrphaned {
             span: trait_impl.object_type.span.expect("object type must have a span"),
@@ -429,22 +458,4 @@ pub(crate) fn resolve_trait_impls(
     }
 
     methods
-}
-
-pub(crate) fn take_errors_filter_self_not_resolved(
-    file_id: FileId,
-    resolver: Resolver<'_>,
-) -> Vec<(CompilationError, FileId)> {
-    resolver
-        .take_errors()
-        .iter()
-        .filter(|resolution_error| match resolution_error {
-            ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident)) => {
-                &ident.0.contents != "Self"
-            }
-            _ => true,
-        })
-        .cloned()
-        .map(|resolution_error| (resolution_error.into(), file_id))
-        .collect()
 }

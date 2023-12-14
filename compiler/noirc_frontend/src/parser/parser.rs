@@ -414,7 +414,12 @@ fn trait_definition() -> impl NoirParser<TopLevelStatement> {
         .then(trait_body())
         .then_ignore(just(Token::RightBrace))
         .validate(|(((name, generics), where_clause), items), span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
+            if !generics.is_empty() {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExperimentalFeature("Generic traits"),
+                    span,
+                ));
+            }
             TopLevelStatement::Trait(NoirTrait { name, generics, where_clause, span, items })
         })
 }
@@ -437,7 +442,13 @@ fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
         .then(parse_type())
         .then(optional_default_value())
         .then_ignore(just(Token::Semicolon))
-        .map(|((name, typ), default_value)| TraitItem::Constant { name, typ, default_value })
+        .validate(|((name, typ), default_value), span, emit| {
+            emit(ParserError::with_reason(
+                ParserErrorReason::ExperimentalFeature("Associated constants"),
+                span,
+            ));
+            TraitItem::Constant { name, typ, default_value }
+        })
 }
 
 /// trait_function_declaration: 'fn' ident generics '(' declaration_parameters ')' function_return_type
@@ -544,10 +555,15 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
 
 /// trait_type_declaration: 'type' ident generics
 fn trait_type_declaration() -> impl NoirParser<TraitItem> {
-    keyword(Keyword::Type)
-        .ignore_then(ident())
-        .then_ignore(just(Token::Semicolon))
-        .map(|name| TraitItem::Type { name })
+    keyword(Keyword::Type).ignore_then(ident()).then_ignore(just(Token::Semicolon)).validate(
+        |name, span, emit| {
+            emit(ParserError::with_reason(
+                ParserErrorReason::ExperimentalFeature("Associated types"),
+                span,
+            ));
+            TraitItem::Type { name }
+        },
+    )
 }
 
 /// Parses a non-trait implementation, adding a set of methods to a type.
@@ -581,11 +597,10 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(just(Token::LeftBrace))
         .then(trait_implementation_body())
         .then_ignore(just(Token::RightBrace))
-        .validate(|args, span, emit| {
+        .map(|args| {
             let ((other_args, where_clause), items) = args;
             let (((impl_generics, trait_name), trait_generics), object_type) = other_args;
 
-            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
             TopLevelStatement::TraitImpl(NoirTraitImpl {
                 impl_generics,
                 trait_name,
@@ -616,12 +631,10 @@ fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
         trait_bounds: Vec<TraitBound>,
     }
 
-    let constraints = parse_type().then_ignore(just(Token::Colon)).then(trait_bounds()).validate(
-        |(typ, trait_bounds), span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
-            MultiTraitConstraint { typ, trait_bounds }
-        },
-    );
+    let constraints = parse_type()
+        .then_ignore(just(Token::Colon))
+        .then(trait_bounds())
+        .map(|(typ, trait_bounds)| MultiTraitConstraint { typ, trait_bounds });
 
     keyword(Keyword::Where)
         .ignore_then(constraints.separated_by(just(Token::Comma)))
@@ -726,21 +739,21 @@ fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
 
 fn path() -> impl NoirParser<Path> {
     let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(1);
-    let make_path = |kind| move |segments| Path { segments, kind };
+    let make_path = |kind| move |segments, span| Path { segments, kind, span };
 
     let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
-    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map(make_path(kind));
+    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map_with_span(make_path(kind));
 
     choice((
         path_kind(Keyword::Crate, PathKind::Crate),
         path_kind(Keyword::Dep, PathKind::Dep),
-        idents().map(make_path(PathKind::Plain)),
+        idents().map_with_span(make_path(PathKind::Plain)),
     ))
 }
 
 fn empty_path() -> impl NoirParser<Path> {
-    let make_path = |kind| move |_| Path { segments: Vec::new(), kind };
-    let path_kind = |key, kind| keyword(key).map(make_path(kind));
+    let make_path = |kind| move |_, span| Path { segments: Vec::new(), kind, span };
+    let path_kind = |key, kind| keyword(key).map_with_span(make_path(kind));
 
     choice((path_kind(Keyword::Crate, PathKind::Crate), path_kind(Keyword::Dep, PathKind::Dep)))
 }
@@ -1015,18 +1028,37 @@ fn parse_type_inner(
         named_type(recursive_type_parser.clone()),
         named_trait(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
-        recursive_type_parser.clone().delimited_by(just(Token::LeftParen), just(Token::RightParen)),
+        parenthesized_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser.clone()),
         mutable_reference_type(recursive_type_parser),
     ))
 }
 
+fn parenthesized_type(
+    recursive_type_parser: impl NoirParser<UnresolvedType>,
+) -> impl NoirParser<UnresolvedType> {
+    recursive_type_parser
+        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+        .map_with_span(|typ, span| UnresolvedType {
+            typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
+            span: span.into(),
+        })
+}
+
 fn optional_visibility() -> impl NoirParser<Visibility> {
-    keyword(Keyword::Pub).or_not().map(|opt| match opt {
-        Some(_) => Visibility::Public,
-        None => Visibility::Private,
-    })
+    keyword(Keyword::Pub)
+        .or(keyword(Keyword::CallData))
+        .or(keyword(Keyword::ReturnData))
+        .or_not()
+        .map(|opt| match opt {
+            Some(Token::Keyword(Keyword::Pub)) => Visibility::Public,
+            Some(Token::Keyword(Keyword::CallData)) | Some(Token::Keyword(Keyword::ReturnData)) => {
+                Visibility::DataBus
+            }
+            None => Visibility::Private,
+            _ => unreachable!("unexpected token found"),
+        })
 }
 
 fn optional_distinctness() -> impl NoirParser<Distinctness> {
@@ -1177,7 +1209,9 @@ where
         .ignore_then(type_parser.clone())
         .then_ignore(just(Token::RightBracket))
         .or_not()
-        .map_with_span(|t, span| t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(span)));
+        .map_with_span(|t, span| {
+            t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(Span::empty(span.end())))
+        });
 
     keyword(Keyword::Fn)
         .ignore_then(env)
@@ -1657,15 +1691,28 @@ fn literal() -> impl NoirParser<ExpressionKind> {
         Token::Int(x) => ExpressionKind::integer(x),
         Token::Bool(b) => ExpressionKind::boolean(b),
         Token::Str(s) => ExpressionKind::string(s),
+        Token::RawStr(s, hashes) => ExpressionKind::raw_string(s, hashes),
         Token::FmtStr(s) => ExpressionKind::format_string(s),
         unexpected => unreachable!("Non-literal {} parsed as a literal", unexpected),
     })
 }
 
+fn literal_with_sign() -> impl NoirParser<ExpressionKind> {
+    choice((
+        literal(),
+        just(Token::Minus).then(literal()).map(|(_, exp)| match exp {
+            ExpressionKind::Literal(Literal::Integer(value, sign)) => {
+                ExpressionKind::Literal(Literal::Integer(value, !sign))
+            }
+            _ => unreachable!(),
+        }),
+    ))
+}
+
 fn literal_or_collection<'a>(
     expr_parser: impl ExprParser + 'a,
 ) -> impl NoirParser<ExpressionKind> + 'a {
-    choice((literal(), constructor(expr_parser.clone()), array_expr(expr_parser)))
+    choice((literal_with_sign(), constructor(expr_parser.clone()), array_expr(expr_parser)))
 }
 
 #[cfg(test)]
@@ -2242,7 +2289,7 @@ mod test {
         let hex = parse_with(literal(), "0x05").unwrap();
 
         match (expr_to_lit(int), expr_to_lit(hex)) {
-            (Literal::Integer(int), Literal::Integer(hex)) => assert_eq!(int, hex),
+            (Literal::Integer(int, false), Literal::Integer(hex, false)) => assert_eq!(int, hex),
             _ => unreachable!(),
         }
     }
@@ -2548,5 +2595,80 @@ mod test {
         ];
 
         check_cases_with_errors(&cases[..], block(fresh_statement()));
+    }
+
+    #[test]
+    fn parse_raw_string_expr() {
+        let cases = vec![
+            Case { source: r##" r"foo" "##, expect: r##"r"foo""##, errors: 0 },
+            Case { source: r##" r#"foo"# "##, expect: r##"r#"foo"#"##, errors: 0 },
+            // backslash
+            Case { source: r##" r"\\" "##, expect: r##"r"\\""##, errors: 0 },
+            Case { source: r##" r#"\"# "##, expect: r##"r#"\"#"##, errors: 0 },
+            Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
+            Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
+            // escape sequence
+            Case {
+                source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##,
+                expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##,
+                errors: 0,
+            },
+            Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
+            // mismatch - errors:
+            Case { source: r###" r#"foo"## "###, expect: r###"r#"foo"#"###, errors: 1 },
+            Case { source: r###" r##"foo"# "###, expect: "(none)", errors: 2 },
+            // mismatch: short:
+            Case { source: r###" r"foo"# "###, expect: r###"r"foo""###, errors: 1 },
+            Case { source: r###" r#"foo" "###, expect: "(none)", errors: 2 },
+            // empty string
+            Case { source: r####"r"""####, expect: r####"r"""####, errors: 0 },
+            Case { source: r####"r###""###"####, expect: r####"r###""###"####, errors: 0 },
+            // miscellaneous
+            Case { source: r###" r#\"foo\"# "###, expect: "plain::r", errors: 2 },
+            Case { source: r###" r\"foo\" "###, expect: "plain::r", errors: 1 },
+            Case { source: r###" r##"foo"# "###, expect: "(none)", errors: 2 },
+            // missing 'r' letter
+            Case { source: r###" ##"foo"# "###, expect: r#""foo""#, errors: 2 },
+            Case { source: r###" #"foo" "###, expect: "plain::foo", errors: 2 },
+            // whitespace
+            Case { source: r###" r #"foo"# "###, expect: "plain::r", errors: 2 },
+            Case { source: r###" r# "foo"# "###, expect: "plain::r", errors: 3 },
+            Case { source: r###" r#"foo" # "###, expect: "(none)", errors: 2 },
+            // after identifier
+            Case { source: r###" bar#"foo"# "###, expect: "plain::bar", errors: 2 },
+            // nested
+            Case {
+                source: r###"r##"foo r#"bar"# r"baz" ### bye"##"###,
+                expect: r###"r##"foo r#"bar"# r"baz" ### bye"##"###,
+                errors: 0,
+            },
+        ];
+
+        check_cases_with_errors(&cases[..], expression());
+    }
+
+    #[test]
+    fn parse_raw_string_lit() {
+        let lit_cases = vec![
+            Case { source: r##" r"foo" "##, expect: r##"r"foo""##, errors: 0 },
+            Case { source: r##" r#"foo"# "##, expect: r##"r#"foo"#"##, errors: 0 },
+            // backslash
+            Case { source: r##" r"\\" "##, expect: r##"r"\\""##, errors: 0 },
+            Case { source: r##" r#"\"# "##, expect: r##"r#"\"#"##, errors: 0 },
+            Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
+            Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
+            // escape sequence
+            Case {
+                source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##,
+                expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##,
+                errors: 0,
+            },
+            Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
+            // mismatch - errors:
+            Case { source: r###" r#"foo"## "###, expect: r###"r#"foo"#"###, errors: 1 },
+            Case { source: r###" r##"foo"# "###, expect: "(none)", errors: 2 },
+        ];
+
+        check_cases_with_errors(&lit_cases[..], literal());
     }
 }

@@ -20,9 +20,39 @@ jobs:
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
           command: manifest
 
+  update-acvm-workspace-package-versions:
+    name: Update acvm workspace package versions
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.release-pr }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.65.0
+
+      - name: Update ACVM workspace root versions
+        run: |
+          ./scripts/update-acvm-workspace-versions.sh
+
+      - name: Configure git
+        run: |
+          git config user.name kevaundray
+          git config user.email kevtheappdev@gmail.com
+
+      - name: Commit updates
+        run: |
+          git add Cargo.toml
+          git commit -m 'chore: Update root workspace acvm versions'
+          git push
+  
   update-lockfile:
     name: Update lockfile
-    needs: [release-please]
+    needs: [release-please,update-acvm-workspace-package-versions]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-latest
     steps:
@@ -48,6 +78,41 @@ jobs:
         run: |
           git add Cargo.lock
           git commit -m 'chore: Update lockfile'
+          git push
+  
+  update-docs:
+    name: Update docs
+    needs: [release-please, update-lockfile]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Cut a new version
+        working-directory: ./docs
+        run: yarn docusaurus docs:version ${{ needs.release-please.outputs.tag-name }}
+
+      - name: Configure git
+        run: |
+          git config --local user.name 'kevaundray'
+          git config --local user.email 'kevtheappdev@gmail.com'
+
+      - name: Commit new documentation version
+        run: |
+          git add .
+          git commit -m "chore(docs): cut new docs version for tag ${{ needs.release-please.outputs.tag-name }}"
           git push
 
   build-binaries:
@@ -78,19 +143,33 @@ jobs:
           ref: master
           token: ${{ secrets.NOIR_REPO_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}", "npm-tag": "latest" }'
-  
 
   publish-docs:
     name: Publish docs
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Dispatch to publish workflow
+      - name: Dispatch to publish-docs
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: docs-new-version.yml
-          repo: noir-lang/noir
+          workflow: publish-docs.yml
           ref: master
-          token: ${{ secrets.GITHUB_TOKEN }}
-          inputs: '{ "tag": "${{ needs.release-please.outputs.tag-name }}"}'
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
+          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
+
+  publish-acvm:
+    name: Publish acvm
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Dispatch to publish-acvm
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: publish-acvm.yml
+          ref: master
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
+          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
