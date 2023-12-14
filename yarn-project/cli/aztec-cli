@@ -148,7 +148,10 @@ if [[ ! -z "${DEBUG:-}" ]]; then
   DOCKER_ENV="$DOCKER_ENV -e DEBUG=$DEBUG"
 fi
 
-DOCKER_VOLUME="$DOCKER_VOLUME -v cache:/cache"
+COMPILER_CACHE="$HOME/.aztec/cache"
+mkdir -p "$COMPILER_CACHE"
+DOCKER_VOLUME="$DOCKER_VOLUME -v $COMPILER_CACHE:/cache"
+DOCKER_ENV="$DOCKER_ENV -e XDG_CACHE_HOME=/cache"
 
 $DOCKER_PATH run \
   --rm \
