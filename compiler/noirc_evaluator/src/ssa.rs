@@ -42,6 +42,7 @@ pub(crate) fn optimize_into_acir(
 ) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
 
+    log::trace!("Start SSA generation");
     let ssa_builder = SsaBuilder::new(program, print_ssa_passes)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
@@ -69,9 +70,15 @@ pub(crate) fn optimize_into_acir(
     let ssa = ssa_builder
         .run_pass(Ssa::fill_internal_slices, "After Fill Internal Slice Dummy Data:")
         .finish();
+    log::trace!("Finish SSA generation");
 
     let last_array_uses = ssa.find_last_array_uses();
-    ssa.into_acir(brillig, abi_distinctness, &last_array_uses)
+
+    log::trace!("Start ACIR generation");
+    let acir = ssa.into_acir(brillig, abi_distinctness, &last_array_uses);
+    log::trace!("Finish ACIR generation");
+
+    acir
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Circuit].
@@ -83,6 +90,8 @@ pub fn create_circuit(
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
 ) -> Result<(Circuit, DebugInfo, Vec<Witness>, Vec<Witness>, Vec<SsaReport>), RuntimeError> {
+    log::trace!("Start circuit generation");
+
     let func_sig = program.main_function_signature.clone();
     let mut generated_acir =
         optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
@@ -123,6 +132,8 @@ pub fn create_circuit(
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
     debug_info.update_acir(transformation_map);
+
+    log::trace!("Finish circuit generation");
 
     Ok((optimized_circuit, debug_info, input_witnesses, return_witnesses, warnings))
 }

@@ -53,11 +53,16 @@ tokio = { version = "1.0", features = ["io-std"] }
 backend-interface = { path = "../backend_interface" }
 bb_abstraction_leaks.workspace = true
 
+# Logs
+tracing.workspace = true
+tracing-subscriber = "0.3.18"
+tracing-appender = "0.2.3"
+
 [target.'cfg(not(unix))'.dependencies]
 tokio-util = { version = "0.7.8", features = ["compat"] }
 
 [dev-dependencies]
-tempfile = "3.6.0"
+tempfile.workspace = true
 dirs.workspace = true
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"

@@ -119,6 +119,9 @@ num-bigint = "0.4"
 num-traits = "0.2"
 similar-asserts = "1.5.0"
 log = "0.4.17"
+tempfile = "3.6.0"
+
+tracing = "0.1.40"
 
 [profile.dev]
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.
