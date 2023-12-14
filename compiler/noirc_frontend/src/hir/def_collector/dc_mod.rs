@@ -1,4 +1,4 @@
-use std::vec;
+use std::{collections::HashMap, vec};
 
 use acvm::acir::acir_field::FieldOptions;
 use fm::FileId;
@@ -44,6 +44,7 @@ pub fn collect_defs(
 ) -> Vec<(CompilationError, FileId)> {
     let mut collector = ModCollector { def_collector, file_id, module_id };
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
+
     // First resolve the module declarations
     for decl in ast.module_decls {
         errors.extend(collector.parse_module_declaration(context, &decl, crate_id));
@@ -57,6 +58,7 @@ pub fn collect_defs(
             module_id: collector.module_id,
             path: import.path,
             alias: import.alias,
+            is_prelude: false,
         });
     }
 
@@ -376,6 +378,8 @@ impl<'a> ModCollector<'a> {
                 functions: Vec::new(),
                 trait_id: None,
             };
+
+            let mut method_ids = HashMap::new();
             for trait_item in &trait_definition.items {
                 match trait_item {
                     TraitItem::Function {
@@ -387,6 +391,8 @@ impl<'a> ModCollector<'a> {
                         body,
                     } => {
                         let func_id = context.def_interner.push_empty_fn();
+                        method_ids.insert(name.to_string(), func_id);
+
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
                             visibility: crate::FunctionVisibility::Public,
@@ -471,6 +477,7 @@ impl<'a> ModCollector<'a> {
                 module_id: self.module_id,
                 crate_id: krate,
                 trait_def: trait_definition,
+                method_ids,
                 fns_with_default_impl: unresolved_functions,
             };
             self.def_collector.collected_traits.insert(trait_id, unresolved);

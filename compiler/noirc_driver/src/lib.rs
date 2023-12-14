@@ -62,6 +62,14 @@ pub struct CompileOptions {
     /// Suppress warnings
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
+
+    /// Output ACIR gzipped bytecode instead of the JSON artefact
+    #[arg(long, hide = true)]
+    pub only_acir: bool,
+
+    /// Disables the builtin macros being used in the compiler
+    #[arg(long, hide = true)]
+    pub disable_macros: bool,
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
@@ -137,11 +145,13 @@ pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
+    disable_macros: bool,
 ) -> CompilationResult<()> {
-    #[cfg(not(feature = "aztec"))]
-    let macros: Vec<&dyn MacroProcessor> = Vec::new();
-    #[cfg(feature = "aztec")]
-    let macros = vec![&aztec_macros::AztecMacro as &dyn MacroProcessor];
+    let macros: Vec<&dyn MacroProcessor> = if disable_macros {
+        vec![]
+    } else {
+        vec![&aztec_macros::AztecMacro as &dyn MacroProcessor]
+    };
 
     let mut errors = vec![];
     let diagnostics = CrateDefMap::collect_defs(crate_id, context, macros);
@@ -177,7 +187,8 @@ pub fn compile_main(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, mut warnings) = check_crate(context, crate_id, options.deny_warnings)?;
+    let (_, mut warnings) =
+        check_crate(context, crate_id, options.deny_warnings, options.disable_macros)?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -210,7 +221,8 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (_, warnings) = check_crate(context, crate_id, options.deny_warnings)?;
+    let (_, warnings) =
+        check_crate(context, crate_id, options.deny_warnings, options.disable_macros)?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);

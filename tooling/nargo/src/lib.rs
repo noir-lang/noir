@@ -52,12 +52,16 @@ pub fn insert_all_files_for_package_into_file_manager(
     package: &Package,
     file_manager: &mut FileManager,
 ) {
-    // Start off at the root directory of the package and add all of the files located
-    // in that directory.
-    let root_path = package.root_dir.clone();
+    // Start off at the entry path and read all files in the parent directory.
+    let entry_path_parent = package
+        .entry_path
+        .parent()
+        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path))
+        .clone();
 
     // Get all files in the package and add them to the file manager
-    let paths = get_all_paths_in_dir(&root_path).expect("could not get all paths in the package");
+    let paths =
+        get_all_paths_in_dir(entry_path_parent).expect("could not get all paths in the package");
     for path in paths {
         let source = std::fs::read_to_string(path.as_path())
             .unwrap_or_else(|_| panic!("could not read file {:?} into string", path));
@@ -84,7 +88,6 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
 }
 
 pub fn prepare_package(package: &Package) -> (Context, CrateId) {
-    // TODO: FileManager continues to leak into various crates
     let mut fm = FileManager::new(&package.root_dir);
     insert_all_files_for_package_into_file_manager(package, &mut fm);
 

@@ -60,6 +60,7 @@ fn check_package(package: &Package, compile_options: &CompileOptions) -> Result<
         &mut context,
         crate_id,
         compile_options.deny_warnings,
+        compile_options.disable_macros,
         compile_options.silence_warnings,
     )?;
 
@@ -181,9 +182,10 @@ pub(crate) fn check_crate_and_report_errors(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
+    disable_macros: bool,
     silence_warnings: bool,
 ) -> Result<(), CompileError> {
-    let result = check_crate(context, crate_id, deny_warnings);
+    let result = check_crate(context, crate_id, deny_warnings, disable_macros);
     super::compile_cmd::report_errors(
         result,
         &context.file_manager,
