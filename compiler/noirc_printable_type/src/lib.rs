@@ -11,7 +11,7 @@ use thiserror::Error;
 pub enum PrintableType {
     Field,
     Array {
-        length: u64,
+        length: Option<u64>,
         #[serde(rename = "type")]
         typ: Box<PrintableType>,
     },
@@ -36,18 +36,28 @@ pub enum PrintableType {
 
 impl PrintableType {
     /// Returns the number of field elements required to represent the type once encoded.
-    fn field_count(&self) -> u32 {
+    fn field_count(&self) -> Option<u32> {
         match self {
             Self::Field
             | Self::SignedInteger { .. }
             | Self::UnsignedInteger { .. }
-            | Self::Boolean => 1,
-            Self::Array { length, typ } => typ.field_count() * (*length as u32),
-            Self::Tuple { types } => types.iter().fold(0, |count,typ|  count + typ.field_count()),
+            | Self::Boolean => Some(1),
+            Self::Array { length, typ } => {
+                length.and_then(|len| {
+                    typ.field_count().map(|x| x*(len as u32))
+                })
+            },
+            Self::Tuple { types } => {
+                types.iter().fold(Some(0), |count,typ| {
+                    count.and_then(|c| typ.field_count().map(|fc| c + fc))
+                })
+            },
             Self::Struct { fields, .. } => {
-                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
-            }
-            Self::String { length } => *length as u32,
+                fields.iter().fold(Some(0), |count, (_, field_type)| {
+                    count.and_then(|c| field_type.field_count().map(|fc| c + fc))
+                })
+            },
+            Self::String { length } => Some(*length as u32),
         }
     }
 }
@@ -137,9 +147,9 @@ fn convert_fmt_string_inputs(
         .enumerate()
     {
         let printable_type = fetch_printable_type(printable_value)?;
-        let type_size = printable_type.field_count() as usize;
-        let value = match printable_type {
-            PrintableType::Array { .. } | PrintableType::String { .. } => {
+        let field_count = printable_type.field_count();
+        let value = match (field_count, &printable_type) {
+            (_, PrintableType::Array { .. } | PrintableType::String { .. }) => {
                 // Arrays and strings are represented in a single value vector rather than multiple separate input values
                 let mut input_values_as_fields = input_and_printable_values[i]
                     .values()
@@ -147,12 +157,15 @@ fn convert_fmt_string_inputs(
                     .map(|value| value.to_field());
                 decode_value(&mut input_values_as_fields, &printable_type)
             }
-            _ => {
+            (Some(type_size), _) => {
                 // We must use a flat map here as each value in a struct will be in a separate input value
-                let mut input_values_as_fields = input_and_printable_values[i..(i + type_size)]
+                let mut input_values_as_fields = input_and_printable_values[i..(i + (type_size as usize))]
                     .iter()
                     .flat_map(|param| vecmap(param.values(), |value| value.to_field()));
                 decode_value(&mut input_values_as_fields, &printable_type)
+            }
+            (None, _) => {
+                panic!("unexpected None field_count for type {printable_type:?}");
             }
         };
 
@@ -312,7 +325,20 @@ fn decode_value(
 
             PrintableValue::Field(field_element)
         }
-        PrintableType::Array { length, typ } => {
+        PrintableType::Array { length: None, typ } => {
+            // TODO: maybe the len is the first arg? not sure
+            let length = field_iterator.next()
+                .expect("not enough data to decode variable array length")
+                .to_u128() as usize;
+            println!["FIRST ARG (LENGTH?)={length}"];
+            let mut array_elements = Vec::with_capacity(length);
+            for _ in 0..length {
+                array_elements.push(decode_value(field_iterator, typ));
+            }
+
+            PrintableValue::Vec(array_elements)
+        },
+        PrintableType::Array { length: Some(length), typ } => {
             let length = *length as usize;
             let mut array_elements = Vec::with_capacity(length);
             for _ in 0..length {
