@@ -945,7 +945,7 @@ jobs:
           name: "Deploy mainnet fork"
           command: |
             should_deploy || exit 0
-            deploy mainnet-fork
+            deploy_terraform_services iac/mainnet-fork
       - run:
           name: "Deploy L1 contracts to mainnet fork"
           working_directory: l1-contracts
@@ -953,19 +953,35 @@ jobs:
             should_deploy || exit 0
             ./scripts/ci_deploy_contracts.sh
       - run:
-          name: "Deploy devnet to AWS"
+          name: "Deploy P2P bootstrap servers to AWS"
+          command: |
+            should_deploy 0 || exit 0
+            # Export variables for Terraform.
+            export TF_VAR_BOOTNODE_1_PRIVATE_KEY=$BOOTNODE_1_PRIVATE_KEY
+            export TF_VAR_BOOTNODE_2_PRIVATE_KEY=$BOOTNODE_2_PRIVATE_KEY
+            deploy_terraform_services yarn-project/p2p-bootstrap aztec-sandbox
+      - run:
+          name: "Deploy Aztec Nodes to AWS"
+          command: |
+            should_deploy 0 || exit 0
+            export TF_VAR_BOOTNODE_1_PEER_ID=$BOOTNODE_1_PEER_ID
+            export TF_VAR_BOOTNODE_2_PEER_ID=$BOOTNODE_2_PEER_ID
+            export TF_VAR_SEQ_1_PUBLISHER_PRIVATE_KEY=$SEQ_1_PUBLISHER_PRIVATE_KEY
+            export TF_VAR_SEQ_2_PUBLISHER_PRIVATE_KEY=$SEQ_2_PUBLISHER_PRIVATE_KEY
+            export TF_VAR_NODE_1_PRIVATE_KEY=$NODE_1_PRIVATE_KEY
+            export TF_VAR_NODE_2_PRIVATE_KEY=$NODE_2_PRIVATE_KEY
+            # Check if l1-contracts have changed
+            if $CONTRACTS_DEPLOYED -eq 1; then
+              deploy_terraform_services yarn-project/aztec-node aztec-sandbox aztec-node aws_efs_file_system.node_data_store
+            else
+              deploy_terraform_services yarn-project/aztec-node aztec-sandbox
+            fi
+      - run:
+          name: "Deploy Aztec Faucet to AWS"
           command: |
             should_deploy 0 || exit 0
             export TF_VAR_FAUCET_PRIVATE_KEY=$FAUCET_PRIVATE_KEY
-            export TF_VAR_BOOTNODE_1_PEER_ID=$BOOTNODE_1_PEER_ID
-            export TF_VAR_BOOTNODE_2_PEER_ID=$BOOTNODE_2_PEER_ID
-            export TF_VAR_BOOTNODE_1_PRIVATE_KEY=$BOOTNODE_1_PRIVATE_KEY
-            export TF_VAR_BOOTNODE_2_PRIVATE_KEY=$BOOTNODE_2_PRIVATE_KEY
-            export TF_VAR_SEQ_1_PUBLISHER_PRIVATE_KEY=$SEQ_1_PUBLISHER_PRIVATE_KEY
-            export TF_VAR_SEQ_2_PUBLISHER_PRIVATE_KEY=$SEQ_2_PUBLISHER_PRIVATE_KEY
-            deploy_terraform p2p-bootstrap yarn-project/p2p-bootstrap/terraform
-            deploy_terraform aztec-node yarn-project/aztec-node/terraform
-            deploy_terraform aztec-faucet yarn-project/aztec-faucet/terraform
+            deploy_terraform_services yarn-project/aztec-faucet aztec-sandbox
 
 # Repeatable config for defining the workflow below.
 defaults: &defaults

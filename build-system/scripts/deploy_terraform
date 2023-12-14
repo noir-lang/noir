@@ -44,7 +44,7 @@ for RESOURCE in $TO_TAINT; do
 done
 
 if [ "$DRY_DEPLOY" -eq 1 ]; then
-  terraform plan -input=false -auto-approve
+  terraform plan -input=false
 else
   terraform apply -input=false -auto-approve
 fi

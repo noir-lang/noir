@@ -3,7 +3,7 @@
 # Right now, that's only if we're master.
 set -eu
 
-if [ "$BRANCH" == "master" ]; then
+if [ "$BRANCH" == "master" ] || [ "$DRY_DEPLOY" -eq 1 ]; then
   exit 0
 else
   exit 1

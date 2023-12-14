@@ -110,7 +110,7 @@ resource "aws_efs_file_system" "node_data_store" {
   provisioned_throughput_in_mibps = 20
 
   tags = {
-    Name = "${var.DEPLOY_TAG}-node-data"
+    Name = "${var.DEPLOY_TAG}-node-${count.index + 1}-data"
   }
 
   lifecycle_policy {

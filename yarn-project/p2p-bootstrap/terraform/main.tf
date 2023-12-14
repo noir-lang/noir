@@ -54,15 +54,15 @@ locals {
 }
 
 
-resource "aws_cloudwatch_log_group" "aztec-bootstrap-log-group" {
+resource "aws_cloudwatch_log_group" "p2p-bootstrap-log-group" {
   count             = local.bootnode_count
-  name              = "/fargate/service/${var.DEPLOY_TAG}/aztec-bootstrap-${count.index + 1}"
+  name              = "/fargate/service/${var.DEPLOY_TAG}/p2p-bootstrap-${count.index + 1}"
   retention_in_days = 14
 }
 
-resource "aws_service_discovery_service" "aztec-bootstrap" {
+resource "aws_service_discovery_service" "p2p-bootstrap" {
   count = local.bootnode_count
-  name  = "${var.DEPLOY_TAG}-aztec-bootstrap-${count.index + 1}"
+  name  = "${var.DEPLOY_TAG}-p2p-bootstrap-${count.index + 1}"
 
   health_check_custom_config {
     failure_threshold = 1
@@ -91,9 +91,9 @@ resource "aws_service_discovery_service" "aztec-bootstrap" {
   }
 }
 
-resource "aws_ecs_task_definition" "aztec-bootstrap" {
+resource "aws_ecs_task_definition" "p2p-bootstrap" {
   count                    = local.bootnode_count
-  family                   = "${var.DEPLOY_TAG}-aztec-bootstrap-${count.index + 1}"
+  family                   = "${var.DEPLOY_TAG}-p2p-bootstrap-${count.index + 1}"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = "2048"
@@ -104,7 +104,7 @@ resource "aws_ecs_task_definition" "aztec-bootstrap" {
   container_definitions = <<DEFINITIONS
 [
   {
-    "name": "${var.DEPLOY_TAG}-aztec-bootstrap-${count.index + 1}",
+    "name": "${var.DEPLOY_TAG}-p2p-bootstrap-${count.index + 1}",
     "image": "${var.DOCKERHUB_ACCOUNT}/aztec-sandbox:${var.DEPLOY_TAG}",
     "essential": true,
     "command": ["start"],
@@ -154,7 +154,7 @@ resource "aws_ecs_task_definition" "aztec-bootstrap" {
     "logConfiguration": {
       "logDriver": "awslogs",
       "options": {
-        "awslogs-group": "/fargate/service/${var.DEPLOY_TAG}/aztec-bootstrap-${count.index + 1}",
+        "awslogs-group": "/fargate/service/${var.DEPLOY_TAG}/p2p-bootstrap-${count.index + 1}",
         "awslogs-region": "eu-west-2",
         "awslogs-stream-prefix": "ecs"
       }
@@ -164,9 +164,9 @@ resource "aws_ecs_task_definition" "aztec-bootstrap" {
 DEFINITIONS
 }
 
-resource "aws_ecs_service" "aztec-bootstrap" {
+resource "aws_ecs_service" "p2p-bootstrap" {
   count                              = local.bootnode_count
-  name                               = "${var.DEPLOY_TAG}-aztec-bootstrap-${count.index + 1}"
+  name                               = "${var.DEPLOY_TAG}-p2p-bootstrap-${count.index + 1}"
   cluster                            = data.terraform_remote_state.setup_iac.outputs.ecs_cluster_id
   launch_type                        = "FARGATE"
   desired_count                      = 1
@@ -183,23 +183,23 @@ resource "aws_ecs_service" "aztec-bootstrap" {
   }
 
   service_registries {
-    registry_arn   = aws_service_discovery_service.aztec-bootstrap[count.index].arn
-    container_name = "${var.DEPLOY_TAG}-aztec-bootstrap-${count.index + 1}"
+    registry_arn   = aws_service_discovery_service.p2p-bootstrap[count.index].arn
+    container_name = "${var.DEPLOY_TAG}-p2p-bootstrap-${count.index + 1}"
     container_port = 80
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.aztec-bootstrap-target-group[count.index].id
-    container_name   = "${var.DEPLOY_TAG}-aztec-bootstrap-${count.index + 1}"
+    target_group_arn = aws_lb_target_group.p2p-bootstrap-target-group[count.index].id
+    container_name   = "${var.DEPLOY_TAG}-p2p-bootstrap-${count.index + 1}"
     container_port   = var.BOOTNODE_LISTEN_PORT + count.index
   }
 
-  task_definition = aws_ecs_task_definition.aztec-bootstrap[count.index].family
+  task_definition = aws_ecs_task_definition.p2p-bootstrap[count.index].family
 }
 
-resource "aws_lb_target_group" "aztec-bootstrap-target-group" {
+resource "aws_lb_target_group" "p2p-bootstrap-target-group" {
   count       = local.bootnode_count
-  name        = "aztec-bootstrap-${count.index + 1}-target-group"
+  name        = "p2p-bootstrap-${count.index + 1}-target-group"
   port        = var.BOOTNODE_LISTEN_PORT + count.index
   protocol    = "TCP"
   target_type = "ip"
@@ -224,18 +224,18 @@ resource "aws_security_group_rule" "allow-bootstrap-tcp" {
   security_group_id = data.terraform_remote_state.aztec-network_iac.outputs.p2p_security_group_id
 }
 
-resource "aws_lb_listener" "aztec-bootstrap-tcp-listener" {
+resource "aws_lb_listener" "p2p-bootstrap-tcp-listener" {
   count             = local.bootnode_count
   load_balancer_arn = data.terraform_remote_state.aztec-network_iac.outputs.nlb_arn
   port              = var.BOOTNODE_LISTEN_PORT + count.index
   protocol          = "TCP"
 
   tags = {
-    name = "aztec-bootstrap-${count.index}-target-group"
+    name = "p2p-bootstrap-${count.index}-target-group"
   }
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.aztec-bootstrap-target-group[count.index].arn
+    target_group_arn = aws_lb_target_group.p2p-bootstrap-target-group[count.index].arn
   }
 }
