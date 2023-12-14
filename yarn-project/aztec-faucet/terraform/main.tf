@@ -76,7 +76,7 @@ resource "aws_service_discovery_service" "aztec-faucet" {
 
 # Define task definition and service.
 resource "aws_ecs_task_definition" "aztec-faucet" {
-  family                   = "${var.DEPLOY_TAG}-faucet"
+  family                   = "${var.DEPLOY_TAG}-aztec-faucet"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = "2048"

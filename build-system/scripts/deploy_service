@@ -4,10 +4,10 @@ set -eu
 
 # Redeploy services with the latest image that match $DEPLOY_TAG followed by $SERVICE_NAME.
 SERVICE_NAME=$1
-PATTERN="$DEPLOY_TAG.*$SERVICE_NAME.*"
+PATTERN="${DEPLOY_TAG}.*${SERVICE_NAME}[^\"]*"
 
 # Fetch list of services
-SERVICES=$(aws ecs list-services --region $ECR_DEPLOY_REGION --cluster setup | grep -Eo "arn:aws:ecs:[^:]+:[^:]+:service/[^/]+/$PATTERN" || true)
+SERVICES=$(aws ecs list-services --region $ECR_DEPLOY_REGION --cluster setup | grep -Eo "arn:aws:ecs:[^:]+:[^:]+:service/[^/]+/${PATTERN}" || true)
 
 echo "Services to redeploy:"
 echo "$SERVICES"
