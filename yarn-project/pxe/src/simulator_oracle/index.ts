@@ -10,7 +10,14 @@ import {
   PublicKey,
 } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { KeyStore, L2Block, MerkleTreeId, NullifierMembershipWitness, StateInfoProvider } from '@aztec/types';
+import {
+  KeyStore,
+  L2Block,
+  MerkleTreeId,
+  NullifierMembershipWitness,
+  PublicDataWitness,
+  StateInfoProvider,
+} from '@aztec/types';
 
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { PxeDatabase } from '../database/index.js';
@@ -172,6 +179,10 @@ export class SimulatorOracle implements DBOracle {
 
   public async getBlock(blockNumber: number): Promise<L2Block | undefined> {
     return await this.stateInfoProvider.getBlock(blockNumber);
+  }
+
+  public async getPublicDataTreeWitness(blockNumber: number, leafSlot: Fr): Promise<PublicDataWitness | undefined> {
+    return await this.stateInfoProvider.getPublicDataTreeWitness(blockNumber, leafSlot);
   }
 
   /**

@@ -13,6 +13,7 @@ import { L2Block } from '../l2_block.js';
 import { MerkleTreeId } from '../merkle_tree_id.js';
 import { SiblingPath } from '../sibling_path.js';
 import { NullifierMembershipWitness } from './nullifier_tree.js';
+import { PublicDataWitness } from './public_data_tree.js';
 
 /** Helper type for a specific L2 block number or the latest block number */
 type BlockNumber = number | 'latest';
@@ -131,6 +132,17 @@ export interface StateInfoProvider {
     blockNumber: BlockNumber,
     nullifier: Fr,
   ): Promise<NullifierMembershipWitness | undefined>;
+
+  /**
+   * Returns a public data tree witness for a given leaf slot at a given block.
+   * @param blockNumber - The block number at which to get the data.
+   * @param leafSlot - The leaf slot we try to find the witness for.
+   * @returns The public data witness (if found).
+   * @remarks The witness can be used to compute the current value of the public data tree leaf. If the low leaf preimage corresponds to an
+   * "in range" slot, means that the slot doesn't exist and the value is 0. If the low leaf preimage corresponds to the exact slot, the current value
+   * is contained in the leaf preimage.
+   */
+  getPublicDataTreeWitness(blockNumber: BlockNumber, leafSlot: Fr): Promise<PublicDataWitness | undefined>;
 
   /**
    * Get a block specified by its number.

@@ -10,6 +10,7 @@ import {
   INITIAL_L2_BLOCK_NUM,
   MerkleTreeId,
   NullifierMembershipWitness,
+  PublicDataWitness,
 } from '@aztec/types';
 
 import { NoteData, TypedOracle } from '../acvm/index.js';
@@ -99,6 +100,16 @@ export class ViewDataOracle extends TypedOracle {
   }
 
   /**
+   * Returns a public data tree witness for a given leaf slot at a given block.
+   * @param blockNumber - The block number at which to get the index.
+   * @param leafSlot - The slot of the public data tree to get the witness for.
+   * @returns - The witness
+   */
+  public async getPublicDataTreeWitness(blockNumber: number, leafSlot: Fr): Promise<PublicDataWitness | undefined> {
+    return await this.db.getPublicDataTreeWitness(blockNumber, leafSlot);
+  }
+
+  /**
    * Fetches a block header of a given block.
    * @param blockNumber - The number of a block of which to get the block header.
    * @returns Block extracted from a block with block number `blockNumber`.
@@ -115,7 +126,7 @@ export class ViewDataOracle extends TypedOracle {
       block.endL1ToL2MessagesTreeSnapshot.root,
       block.endArchiveSnapshot.root,
       new Fr(0), // TODO(#3441) privateKernelVkTreeRoot is not present in L2Block and it's not yet populated in noir
-      block.endPublicDataTreeRoot,
+      block.endPublicDataTreeSnapshot.root,
       computeGlobalsHash(block.globalVariables),
     );
   }
@@ -257,9 +268,6 @@ export class ViewDataOracle extends TypedOracle {
     for (let i = 0n; i < numberOfElements; i++) {
       const storageSlot = new Fr(startStorageSlot.value + i);
       const value = await this.aztecNode.getPublicStorageAt(this.contractAddress, storageSlot);
-      if (value === undefined) {
-        throw new Error(`Oracle storage read undefined: slot=${storageSlot.toString()}`);
-      }
 
       this.log(`Oracle storage read: slot=${storageSlot.toString()} value=${value}`);
       values.push(value);

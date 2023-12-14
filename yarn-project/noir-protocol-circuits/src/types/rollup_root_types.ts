@@ -41,8 +41,8 @@ export interface BaseOrMergeRollupPublicInputs {
   end_nullifier_tree_snapshot: AppendOnlyTreeSnapshot;
   start_contract_tree_snapshot: AppendOnlyTreeSnapshot;
   end_contract_tree_snapshot: AppendOnlyTreeSnapshot;
-  start_public_data_tree_root: Field;
-  end_public_data_tree_root: Field;
+  start_public_data_tree_snapshot: AppendOnlyTreeSnapshot;
+  end_public_data_tree_snapshot: AppendOnlyTreeSnapshot;
   calldata_hash: FixedLengthArray<Field, 2>;
 }
 
@@ -81,8 +81,8 @@ export interface RootRollupPublicInputs {
   end_nullifier_tree_snapshot: AppendOnlyTreeSnapshot;
   start_contract_tree_snapshot: AppendOnlyTreeSnapshot;
   end_contract_tree_snapshot: AppendOnlyTreeSnapshot;
-  start_public_data_tree_root: Field;
-  end_public_data_tree_root: Field;
+  start_public_data_tree_snapshot: AppendOnlyTreeSnapshot;
+  end_public_data_tree_snapshot: AppendOnlyTreeSnapshot;
   start_l1_to_l2_messages_tree_snapshot: AppendOnlyTreeSnapshot;
   end_l1_to_l2_messages_tree_snapshot: AppendOnlyTreeSnapshot;
   start_archive_snapshot: AppendOnlyTreeSnapshot;

@@ -1,5 +1,6 @@
-import { AztecAddress, Fr } from '@aztec/circuits.js';
-import { computePublicDataTreeIndex } from '@aztec/circuits.js/abis';
+import { AztecAddress, Fr, PublicDataTreeLeafPreimage } from '@aztec/circuits.js';
+import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/abis';
+import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { MerkleTreeId } from '@aztec/types';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
@@ -20,22 +21,52 @@ describe('world_state_public_db', () => {
     addresses = Array(DB_VALUES_SIZE).fill(0).map(AztecAddress.random);
     slots = Array(DB_VALUES_SIZE).fill(0).map(Fr.random);
     dbValues = Array(DB_VALUES_SIZE).fill(0).map(Fr.random);
-    const publicData = new Map<bigint, Buffer>(
-      Array(DB_VALUES_SIZE)
-        .fill(0)
-        .map((_, idx: number) => {
-          const index = computePublicDataTreeIndex(addresses[idx], slots[idx]);
-          return [index.toBigInt(), dbValues[idx].toBuffer()];
-        }),
-    );
-    dbStorage = new Map<number, Map<bigint, Buffer>>([[MerkleTreeId.PUBLIC_DATA_TREE, publicData]]);
+    const publicDataEntries = Array(DB_VALUES_SIZE)
+      .fill(0)
+      .map((_, idx: number) => {
+        const leafSlot = computePublicDataTreeLeafSlot(addresses[idx], slots[idx]);
+        return new PublicDataTreeLeafPreimage(leafSlot, dbValues[idx], Fr.ZERO, 0n);
+      });
+    dbStorage = new Map<number, Map<bigint, Buffer>>([
+      [
+        MerkleTreeId.PUBLIC_DATA_TREE,
+        new Map(publicDataEntries.map((preimage, idx) => [BigInt(idx), preimage.toBuffer()])),
+      ],
+    ]);
     db = mock<MerkleTreeOperations>();
-    db.getLeafValue.mockImplementation((treeId: MerkleTreeId, index: bigint): Promise<Buffer | undefined> => {
+    db.getPreviousValueIndex.mockImplementation(
+      (
+        treeId: MerkleTreeId,
+        leafSlot: bigint,
+      ): Promise<
+        | {
+            index: bigint;
+            alreadyPresent: boolean;
+          }
+        | undefined
+      > => {
+        const sortedByLeafSlot = publicDataEntries.slice().sort((a, b) => Number(a.getKey() - b.getKey()));
+        let findResult = undefined;
+        for (const preimage of sortedByLeafSlot) {
+          if (preimage.getKey() > leafSlot) {
+            break;
+          }
+          findResult = {
+            index: BigInt(publicDataEntries.indexOf(preimage)),
+            alreadyPresent: preimage.getKey() === leafSlot,
+          };
+        }
+
+        return Promise.resolve(findResult);
+      },
+    );
+    db.getLeafPreimage.mockImplementation((treeId: MerkleTreeId, index: bigint): Promise<IndexedTreeLeafPreimage> => {
       const tree = dbStorage.get(treeId);
       if (!tree) {
         throw new Error('Invalid Tree Id');
       }
-      return Promise.resolve(tree.get(index));
+
+      return Promise.resolve(PublicDataTreeLeafPreimage.fromBuffer(tree.get(index)!));
     });
   });
 

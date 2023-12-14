@@ -1,4 +1,8 @@
-import { MAX_NEW_NULLIFIERS_PER_TX, NullifierLeafPreimage } from '@aztec/circuits.js';
+import {
+  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  NullifierLeafPreimage,
+} from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
@@ -8,12 +12,7 @@ import { L2Block, MerkleTreeId, SiblingPath } from '@aztec/types';
 /**
  * Type alias for the nullifier tree ID.
  */
-export type IndexedTreeId = MerkleTreeId.NULLIFIER_TREE;
-
-/**
- * Type alias for the public data tree ID.
- */
-export type PublicTreeId = MerkleTreeId.PUBLIC_DATA_TREE;
+export type IndexedTreeId = MerkleTreeId.NULLIFIER_TREE | MerkleTreeId.PUBLIC_DATA_TREE;
 
 /**
  *
@@ -31,6 +30,8 @@ export type PublicTreeId = MerkleTreeId.PUBLIC_DATA_TREE;
  *    more leaves, we can then insert the first block of 1024 leaves into indices 1024:2047.
  */
 export const INITIAL_NULLIFIER_TREE_SIZE = 2 * MAX_NEW_NULLIFIERS_PER_TX;
+
+export const INITIAL_PUBLIC_DATA_TREE_SIZE = 2 * MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX;
 
 /**
  *  Defines tree information.
@@ -164,7 +165,7 @@ export interface MerkleTreeOperations {
    * @param leaf - The updated leaf value.
    * @param index - The index of the leaf to be updated.
    */
-  updateLeaf(treeId: IndexedTreeId | PublicTreeId, leaf: NullifierLeafPreimage | Buffer, index: bigint): Promise<void>;
+  updateLeaf(treeId: IndexedTreeId, leaf: NullifierLeafPreimage | Buffer, index: bigint): Promise<void>;
 
   /**
    * Returns the index containing a leaf value.

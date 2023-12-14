@@ -109,6 +109,17 @@ export class Oracle {
     return witness.toFieldArray().map(toACVMField);
   }
 
+  async getPublicDataTreeWitness([blockNumber]: ACVMField[], [leafSlot]: ACVMField[]): Promise<ACVMField[]> {
+    const parsedBlockNumber = frToNumber(fromACVMField(blockNumber));
+    const parsedLeafSlot = fromACVMField(leafSlot);
+
+    const witness = await this.typedOracle.getPublicDataTreeWitness(parsedBlockNumber, parsedLeafSlot);
+    if (!witness) {
+      throw new Error(`Public data witness not found for slot ${parsedLeafSlot} at block ${parsedBlockNumber}.`);
+    }
+    return witness.toFieldArray().map(toACVMField);
+  }
+
   async getBlockHeader([blockNumber]: ACVMField[]): Promise<ACVMField[]> {
     const parsedBlockNumber = frToNumber(fromACVMField(blockNumber));
 

@@ -148,7 +148,7 @@ fn propagate_valid_public_data_update_requests(public_call: PublicCallData, circ
         let update_request = update_requests[i];
         if (!update_request.is_empty()) {
             let public_data_update_request = PublicDataUpdateRequest {
-                leaf_index: compute_public_data_tree_index(contract_address, update_request.storage_slot),
+                leaf_slot: compute_public_data_tree_index(contract_address, update_request.storage_slot),
                 old_value: compute_public_data_tree_value(update_request.old_value),
                 new_value: compute_public_data_tree_value(update_request.new_value),
             };
@@ -169,7 +169,7 @@ fn propagate_valid_public_data_reads(public_call: PublicCallData, circuit_output
         let read_request: StorageRead = read_requests[i];
         if !read_request.is_empty() {
             let public_data_read = PublicDataRead {
-                leaf_index: compute_public_data_tree_index(contract_address, read_request.storage_slot),
+                leaf_slot: compute_public_data_tree_index(contract_address, read_request.storage_slot),
                 value: compute_public_data_tree_value(read_request.current_value),
             };
             public_data_reads.push(public_data_read);

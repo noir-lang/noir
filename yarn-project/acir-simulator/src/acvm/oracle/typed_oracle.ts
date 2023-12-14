@@ -8,6 +8,7 @@ import {
   MerkleTreeId,
   Note,
   NullifierMembershipWitness,
+  PublicDataWitness,
   PublicKey,
   UnencryptedL2Log,
 } from '@aztec/types';
@@ -92,6 +93,10 @@ export abstract class TypedOracle {
   }
 
   getNullifierMembershipWitness(_blockNumber: number, _nullifier: Fr): Promise<NullifierMembershipWitness | undefined> {
+    throw new Error('Not available.');
+  }
+
+  getPublicDataTreeWitness(_blockNumber: number, _leafSlot: Fr): Promise<PublicDataWitness | undefined> {
     throw new Error('Not available.');
   }
 

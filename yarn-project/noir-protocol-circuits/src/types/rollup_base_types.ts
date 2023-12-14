@@ -57,13 +57,13 @@ export interface OptionallyRevealedData {
 }
 
 export interface PublicDataUpdateRequest {
-  leaf_index: Field;
+  leaf_slot: Field;
   old_value: Field;
   new_value: Field;
 }
 
 export interface PublicDataRead {
-  leaf_index: Field;
+  leaf_slot: Field;
   value: Field;
 }
 
@@ -158,6 +158,23 @@ export interface NullifierMembershipWitness {
   sibling_path: FixedLengthArray<Field, 20>;
 }
 
+export interface PublicDataTreeLeaf {
+  slot: Field;
+  value: Field;
+}
+
+export interface PublicDataTreeLeafPreimage {
+  slot: Field;
+  value: Field;
+  next_slot: Field;
+  next_index: u32;
+}
+
+export interface PublicDataMembershipWitness {
+  leaf_index: Field;
+  sibling_path: FixedLengthArray<Field, 40>;
+}
+
 export interface ArchiveRootMembershipWitness {
   leaf_index: Field;
   sibling_path: FixedLengthArray<Field, 16>;
@@ -184,7 +201,7 @@ export interface BaseRollupInputs {
   start_note_hash_tree_snapshot: AppendOnlyTreeSnapshot;
   start_nullifier_tree_snapshot: AppendOnlyTreeSnapshot;
   start_contract_tree_snapshot: AppendOnlyTreeSnapshot;
-  start_public_data_tree_root: Field;
+  start_public_data_tree_snapshot: AppendOnlyTreeSnapshot;
   archive_snapshot: AppendOnlyTreeSnapshot;
   sorted_new_nullifiers: FixedLengthArray<Field, 128>;
   sorted_new_nullifiers_indexes: FixedLengthArray<u32, 128>;
@@ -192,9 +209,14 @@ export interface BaseRollupInputs {
   low_nullifier_membership_witness: FixedLengthArray<NullifierMembershipWitness, 128>;
   new_commitments_subtree_sibling_path: FixedLengthArray<Field, 25>;
   new_nullifiers_subtree_sibling_path: FixedLengthArray<Field, 13>;
+  public_data_writes_subtree_sibling_paths: FixedLengthArray<FixedLengthArray<Field, 36>, 2>;
   new_contracts_subtree_sibling_path: FixedLengthArray<Field, 15>;
-  new_public_data_update_requests_sibling_paths: FixedLengthArray<FixedLengthArray<Field, 254>, 32>;
-  new_public_data_reads_sibling_paths: FixedLengthArray<FixedLengthArray<Field, 254>, 32>;
+  sorted_public_data_writes: FixedLengthArray<FixedLengthArray<PublicDataTreeLeaf, 16>, 2>;
+  sorted_public_data_writes_indexes: FixedLengthArray<FixedLengthArray<u32, 16>, 2>;
+  low_public_data_writes_preimages: FixedLengthArray<FixedLengthArray<PublicDataTreeLeafPreimage, 16>, 2>;
+  low_public_data_writes_witnesses: FixedLengthArray<FixedLengthArray<PublicDataMembershipWitness, 16>, 2>;
+  public_data_reads_preimages: FixedLengthArray<FixedLengthArray<PublicDataTreeLeafPreimage, 16>, 2>;
+  public_data_reads_witnesses: FixedLengthArray<FixedLengthArray<PublicDataMembershipWitness, 16>, 2>;
   archive_root_membership_witnesses: FixedLengthArray<ArchiveRootMembershipWitness, 2>;
   constants: ConstantRollupData;
 }
@@ -210,8 +232,8 @@ export interface BaseOrMergeRollupPublicInputs {
   end_nullifier_tree_snapshot: AppendOnlyTreeSnapshot;
   start_contract_tree_snapshot: AppendOnlyTreeSnapshot;
   end_contract_tree_snapshot: AppendOnlyTreeSnapshot;
-  start_public_data_tree_root: Field;
-  end_public_data_tree_root: Field;
+  start_public_data_tree_snapshot: AppendOnlyTreeSnapshot;
+  end_public_data_tree_snapshot: AppendOnlyTreeSnapshot;
   calldata_hash: FixedLengthArray<Field, 2>;
 }
 

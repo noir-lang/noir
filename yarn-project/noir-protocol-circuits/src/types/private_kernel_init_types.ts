@@ -174,13 +174,13 @@ export interface OptionallyRevealedData {
 }
 
 export interface PublicDataUpdateRequest {
-  leaf_index: Field;
+  leaf_slot: Field;
   old_value: Field;
   new_value: Field;
 }
 
 export interface PublicDataRead {
-  leaf_index: Field;
+  leaf_slot: Field;
   value: Field;
 }
 

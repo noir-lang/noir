@@ -653,7 +653,7 @@ Fr {
 }
 `;
 
-exports[`abis computes public data tree index 1`] = `
+exports[`abis computes public data tree leaf slot 1`] = `
 Fr {
   "asBigInt": 9076808949980998475110411569159266589807853958487763065147292518713994520820n,
   "asBuffer": {

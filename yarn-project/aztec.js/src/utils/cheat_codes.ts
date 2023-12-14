@@ -280,9 +280,6 @@ export class AztecCheatCodes {
    */
   public async loadPublic(who: AztecAddress, slot: Fr | bigint): Promise<Fr> {
     const storageValue = await this.pxe.getPublicStorageAt(who, new Fr(slot));
-    if (storageValue === undefined) {
-      throw new Error(`Storage slot ${slot} not found`);
-    }
     return storageValue;
   }
 

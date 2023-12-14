@@ -122,9 +122,9 @@ export interface AztecNode extends StateInfoProvider {
    *
    * @param contract - Address of the contract to query.
    * @param slot - Slot to query.
-   * @returns Storage value at the given contract slot (or undefined if not found).
+   * @returns Storage value at the given contract slot.
    */
-  getPublicStorageAt(contract: AztecAddress, slot: Fr): Promise<Fr | undefined>;
+  getPublicStorageAt(contract: AztecAddress, slot: Fr): Promise<Fr>;
 
   /**
    * Returns the current committed roots for the data trees.

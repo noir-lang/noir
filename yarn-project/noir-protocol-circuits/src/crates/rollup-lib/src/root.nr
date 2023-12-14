@@ -43,7 +43,7 @@ impl RootRollupInputs {
                                                       right.end_nullifier_tree_snapshot.root,
                                                       right.end_contract_tree_snapshot.root,
                                                       new_l1_to_l2_messages_tree_snapshot.root,
-                                                      right.end_public_data_tree_root);
+                                                      right.end_public_data_tree_snapshot.root);
 
         // Update the archive
         let end_archive_snapshot = components::insert_subtree_to_snapshot_tree(
@@ -68,8 +68,8 @@ impl RootRollupInputs {
             end_nullifier_tree_snapshot : right.end_nullifier_tree_snapshot,
             start_contract_tree_snapshot : left.start_contract_tree_snapshot,
             end_contract_tree_snapshot : right.end_contract_tree_snapshot,
-            start_public_data_tree_root : left.start_public_data_tree_root,
-            end_public_data_tree_root : right.end_public_data_tree_root,
+            start_public_data_tree_snapshot : left.start_public_data_tree_snapshot,
+            end_public_data_tree_snapshot : right.end_public_data_tree_snapshot,
             start_l1_to_l2_messages_tree_snapshot : self.start_l1_to_l2_messages_tree_snapshot,
             end_l1_to_l2_messages_tree_snapshot : new_l1_to_l2_messages_tree_snapshot,
             start_archive_snapshot : self.start_archive_snapshot,
@@ -187,11 +187,11 @@ mod tests {
             outputs.end_contract_tree_snapshot.eq(inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_contract_tree_snapshot)
         );
 
-        assert_eq(
-            outputs.start_public_data_tree_root, inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_public_data_tree_root
+        assert(
+            outputs.start_public_data_tree_snapshot.eq(inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_public_data_tree_snapshot)
         );
-        assert_eq(
-            outputs.end_public_data_tree_root, inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_public_data_tree_root
+        assert(
+            outputs.end_public_data_tree_snapshot.eq(inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_public_data_tree_snapshot)
         );
     }
 

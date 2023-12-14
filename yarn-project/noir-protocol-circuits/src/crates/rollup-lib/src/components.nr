@@ -51,7 +51,7 @@ pub fn assert_prev_rollups_follow_on_from_each_other(left : BaseOrMergeRollupPub
     assert(left.end_note_hash_tree_snapshot.eq(right.start_note_hash_tree_snapshot), "input proofs have different note hash tree snapshots");
     assert(left.end_nullifier_tree_snapshot.eq(right.start_nullifier_tree_snapshot),"input proofs have different nullifier tree snapshots");
     assert(left.end_contract_tree_snapshot.eq(right.start_contract_tree_snapshot), "input proofs have different contract tree snapshots");
-    assert(left.end_public_data_tree_root == right.start_public_data_tree_root, "input proofs have different public data tree snapshots");
+    assert(left.end_public_data_tree_snapshot.eq(right.start_public_data_tree_snapshot), "input proofs have different public data tree snapshots");
 }
 
 /**

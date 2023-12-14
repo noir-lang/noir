@@ -137,7 +137,7 @@ describe('e2e_inclusion_proofs_contract', () => {
     const randomPublicValue = Fr.random();
     await expect(
       contract.methods.test_public_value_inclusion_proof(randomPublicValue, blockNumber).send().wait(),
-    ).rejects.toThrow(/Proving public value inclusion failed/);
+    ).rejects.toThrow(/Public value does not match value in witness/);
   });
 
   it('proves existence of a nullifier in private context', async () => {
