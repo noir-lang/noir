@@ -51,7 +51,9 @@ jobs:
           sudo tar -xzvf dist/cargo.tar.gz -C /usr/local/cargo
       - name: Setup build context
         if: steps.cache-restore.outputs.cache-hit == 'true'
-        run: echo "additional-build-context=cargo=/usr/local/cargo" >> $GITHUB_ENV
+        run: |
+          echo "additional-build-context=cargo=/usr/local/cargo" >> $GITHUB_ENV'
+          echo "bump"
       - name: Build cargo
         uses: docker/build-push-action@v5
         with:
