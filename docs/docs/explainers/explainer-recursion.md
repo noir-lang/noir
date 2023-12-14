@@ -48,7 +48,7 @@ In this case, while `n` is not `1`, this function will keep calling itself until
 
 In Zero-Knowledge, recursion has some similarities.
 
-It is not a Noir function calling itself, but a proof being used as an input to another circuit. In short, you verify one proof *inside* another proof, returning the proof that both proofs were valid.
+It is not a Noir function calling itself, but a proof being used as an input to another circuit. In short, you verify one proof *inside* another proof, returning the proof that both proofs are valid.
 
 This means that, given enough computational resources, you can prove the correctness of any arbitrary number of proofs in a single proof. This could be useful to design state channels (for which a common example would be [Bitcoin's Lightning Network](https://en.wikipedia.org/wiki/Lightning_Network)), to save on gas costs by settling one proof on-chain, or simply to make business logic less dependent on a consensus mechanism.
 
