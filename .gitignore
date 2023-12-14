@@ -14,11 +14,6 @@ pkg/
 !.yarn/sdks
 !.yarn/versions
 
-# Source resolver
-compiler/source-resolver/node_modules
-compiler/source-resolver/lib
-compiler/source-resolver/lib-node
-
 # Noir.js
 tooling/noir_js/lib
 
