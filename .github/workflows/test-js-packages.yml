@@ -265,22 +265,7 @@ jobs:
           yarn workspace @noir-lang/noir_js build
           yarn workspace @noir-lang/noir_js test
 
-  test-source-resolver:
-    name: source-resolver
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
-
-      - name: Build @noir-lang/source-resolver
-        run: yarn workspace @noir-lang/source-resolver build
-
-      - name: Run tests
-        run: yarn workspace @noir-lang/source-resolver test
+  
 
   test-noir-wasm:
     needs: [build-noir-wasm, build-nargo]
@@ -318,10 +303,6 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
-
-      - name: Install dependencies
-        run: |
-          yarn workspace @noir-lang/source-resolver build
 
       - name: Run node tests
         run: yarn workspace @noir-lang/noir_wasm test:node
@@ -411,8 +392,8 @@ jobs:
       - name: Setup `integration-tests`
         run: |
           # Note the lack of spaces between package names.
-          PACKAGES_TO_BUILD="@noir-lang/source-resolver,@noir-lang/types,@noir-lang/backend_barretenberg,@noir-lang/noir_js"
-          yarn workspaces foreach -vp --from "{$PACKAGES_TO_BUILD}" run build
+          PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/backend_barretenberg,@noir-lang/noir_js"
+          yarn workspaces foreach -vtp --from "{$PACKAGES_TO_BUILD}" run build
 
       - name: Run `integration-tests`
         run: |
@@ -431,7 +412,6 @@ jobs:
       - test-noirc-abi
       - test-noir-js-backend-barretenberg
       - test-noir-js
-      - test-source-resolver
       - test-noir-wasm
       - test-noir-codegen
       - test-integration
