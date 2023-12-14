@@ -10,7 +10,7 @@ use const_format::formatcp;
 
 const USERNAME: &str = "AztecProtocol";
 const REPO: &str = "aztec-packages";
-const VERSION: &str = "0.12.0";
+const VERSION: &str = "0.16.0";
 const TAG: &str = formatcp!("aztec-packages-v{}", VERSION);
 
 const API_URL: &str =
@@ -30,8 +30,11 @@ fn main() -> Result<(), String> {
     };
 
     // Arm builds of linux are not supported
+    // We do not panic because we allow users to run nargo without a backend.
     if let (Os::Linux, Arch::AARCH64) = (&os, &arch) {
-        panic!("ARM64 builds of linux are not supported")
+        println!(
+            "cargo:warning=ARM64 builds of linux are not supported for the barretenberg binary"
+        );
     };
 
     println!("cargo:rustc-env=BB_BINARY_URL={}", get_bb_download_url(arch, os));

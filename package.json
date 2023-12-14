@@ -3,7 +3,6 @@
   "private": true,
   "workspaces": [
     "compiler/wasm",
-    "compiler/source-resolver",
     "compiler/integration-tests",
     "tooling/noir_js_types",
     "tooling/noirc_abi_wasm",
@@ -19,7 +18,7 @@
     "test": "yarn workspaces foreach run test",
     "test:integration": "yarn workspace integration-tests test",
     "clean:workspaces": "yarn workspaces foreach --exclude @noir-lang/root run clean",
-    "clean:root": "rm -rf ./result ./target",
+    "clean:root": "rm -rf ./result ./target ./packages",
     "clean": "yarn clean:workspaces && yarn clean:root",
     "lint": "yarn workspaces foreach --verbose run lint",
     "install:acvm_js": "yarn workspace @noir-lang/acvm_js run install:from:nix",
@@ -27,10 +26,9 @@
     "install:noirc_abi_wasm": "yarn workspace @noir-lang/noirc_abi run install:from:nix",
     "install:from:nix": "yarn install:acvm_js && yarn install:noir_wasm && yarn install:noirc_abi_wasm",
     "build:types": "yarn workspace @noir-lang/types run build",
-    "build:source-resolver": "yarn workspace @noir-lang/source-resolver run build",
     "build:backend_barretenberg": "yarn workspace @noir-lang/backend_barretenberg run build",
     "build:noir_js": "yarn workspace @noir-lang/noir_js run build",
-    "build:js:only": "yarn build:types && yarn build:source-resolver && yarn build:backend_barretenberg && yarn build:noir_js",
+    "build:js:only": "yarn build:types && yarn build:backend_barretenberg && yarn build:noir_js",
     "prepare:publish": "yarn clean && yarn install:from:nix && yarn build:js:only",
     "nightly:version": "yarn workspaces foreach run nightly:version",
     "publish:all": "yarn install && yarn workspaces foreach run publish"

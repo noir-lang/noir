@@ -46,7 +46,6 @@ pub(crate) enum Intrinsic {
     BlackBox(BlackBoxFunc),
     FromField,
     AsField,
-    WrappingShiftLeft,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -69,7 +68,6 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
             Intrinsic::FromField => write!(f, "from_field"),
             Intrinsic::AsField => write!(f, "as_field"),
-            Intrinsic::WrappingShiftLeft => write!(f, "wrapping_shift_left"),
         }
     }
 }
@@ -94,8 +92,7 @@ impl Intrinsic {
             | Intrinsic::ToBits(_)
             | Intrinsic::ToRadix(_)
             | Intrinsic::FromField
-            | Intrinsic::AsField
-            | Intrinsic::WrappingShiftLeft => false,
+            | Intrinsic::AsField => false,
 
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
@@ -122,7 +119,6 @@ impl Intrinsic {
             "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
             "from_field" => Some(Intrinsic::FromField),
             "as_field" => Some(Intrinsic::AsField),
-            "wrapping_shift_left" => Some(Intrinsic::WrappingShiftLeft),
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }
@@ -186,6 +182,13 @@ pub(crate) enum Instruction {
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array.
     ArraySet { array: ValueId, index: ValueId, value: ValueId },
+
+    /// An instruction to increment the reference count of a value.
+    ///
+    /// This currently only has an effect in Brillig code where array sharing and copy on write is
+    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
+    /// IncrementRc instructions are ignored.
+    IncrementRc { value: ValueId },
 }
 
 impl Instruction {
@@ -199,18 +202,19 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
             Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
-            Instruction::Allocate { .. } => InstructionResultType::Known(Type::Reference),
             Instruction::Not(value) | Instruction::Truncate { value, .. } => {
                 InstructionResultType::Operand(*value)
             }
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(..)
             | Instruction::Store { .. }
-            | Instruction::EnableSideEffects { .. }
-            | Instruction::RangeCheck { .. } => InstructionResultType::None,
-            Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
-                InstructionResultType::Unknown
-            }
+            | Instruction::IncrementRc { .. }
+            | Instruction::RangeCheck { .. }
+            | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
+            Instruction::Allocate { .. }
+            | Instruction::Load { .. }
+            | Instruction::ArrayGet { .. }
+            | Instruction::Call { .. } => InstructionResultType::Unknown,
         }
     }
 
@@ -228,7 +232,11 @@ impl Instruction {
         use Instruction::*;
 
         match self {
-            Binary(_) | Cast(_, _) | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
+            Binary(bin) => {
+                // In ACIR, a division with a false predicate outputs (0,0), so it cannot replace another instruction unless they have the same predicate
+                bin.operator != BinaryOp::Div
+            }
+            Cast(_, _) | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
 
             // Unclear why this instruction causes problems.
             Truncate { .. } => false,
@@ -239,6 +247,7 @@ impl Instruction {
             | Allocate
             | Load { .. }
             | Store { .. }
+            | IncrementRc { .. }
             | RangeCheck { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
@@ -270,7 +279,11 @@ impl Instruction {
             | ArrayGet { .. }
             | ArraySet { .. } => false,
 
-            Constrain(..) | Store { .. } | EnableSideEffects { .. } | RangeCheck { .. } => true,
+            Constrain(..)
+            | Store { .. }
+            | EnableSideEffects { .. }
+            | IncrementRc { .. }
+            | RangeCheck { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
@@ -327,6 +340,7 @@ impl Instruction {
             Instruction::ArraySet { array, index, value } => {
                 Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
             }
+            Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 Instruction::RangeCheck {
                     value: f(*value),
@@ -378,7 +392,7 @@ impl Instruction {
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);
             }
-            Instruction::RangeCheck { value, .. } => {
+            Instruction::IncrementRc { value } | Instruction::RangeCheck { value, .. } => {
                 f(*value);
             }
         }
@@ -419,12 +433,74 @@ impl Instruction {
                     _ => None,
                 }
             }
-            Instruction::Constrain(lhs, rhs, ..) => {
+            Instruction::Constrain(lhs, rhs, msg) => {
                 if dfg.resolve(*lhs) == dfg.resolve(*rhs) {
                     // Remove trivial case `assert_eq(x, x)`
                     SimplifyResult::Remove
                 } else {
-                    SimplifyResult::None
+                    match (&dfg[dfg.resolve(*lhs)], &dfg[dfg.resolve(*rhs)]) {
+                        (
+                            Value::NumericConstant { constant, typ },
+                            Value::Instruction { instruction, .. },
+                        )
+                        | (
+                            Value::Instruction { instruction, .. },
+                            Value::NumericConstant { constant, typ },
+                        ) if *typ == Type::bool() => {
+                            match dfg[*instruction] {
+                                Instruction::Binary(Binary {
+                                    lhs,
+                                    rhs,
+                                    operator: BinaryOp::Eq,
+                                }) if constant.is_one() => {
+                                    // Replace an explicit two step equality assertion
+                                    //
+                                    // v2 = eq v0, u32 v1
+                                    // constrain v2 == u1 1
+                                    //
+                                    // with a direct assertion of equality between the two values
+                                    //
+                                    // v2 = eq v0, u32 v1
+                                    // constrain v0 == v1
+                                    //
+                                    // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
+                                    // will likely be removed through dead instruction elimination.
+
+                                    SimplifiedToInstruction(Instruction::Constrain(
+                                        lhs,
+                                        rhs,
+                                        msg.clone(),
+                                    ))
+                                }
+                                Instruction::Not(value) => {
+                                    // Replace an assertion that a not instruction is truthy
+                                    //
+                                    // v1 = not v0
+                                    // constrain v1 == u1 1
+                                    //
+                                    // with an assertion that the not instruction input is falsy
+                                    //
+                                    // v1 = not v0
+                                    // constrain v0 == u1 0
+                                    //
+                                    // Note that this doesn't remove the value `v1` as it may be used in other instructions, but it
+                                    // will likely be removed through dead instruction elimination.
+                                    let reversed_constant = FieldElement::from(!constant.is_one());
+                                    let reversed_constant =
+                                        dfg.make_constant(reversed_constant, Type::bool());
+                                    SimplifiedToInstruction(Instruction::Constrain(
+                                        value,
+                                        reversed_constant,
+                                        msg.clone(),
+                                    ))
+                                }
+
+                                _ => None,
+                            }
+                        }
+
+                        _ => None,
+                    }
                 }
             }
             Instruction::ArrayGet { array, index } => {
@@ -453,11 +529,23 @@ impl Instruction {
                 }
                 None
             }
-            Instruction::Truncate { value, bit_size, .. } => {
+            Instruction::Truncate { value, bit_size, max_bit_size } => {
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
                     let integer_modulus = 2_u128.pow(*bit_size);
                     let truncated = numeric_constant.to_u128() % integer_modulus;
                     SimplifiedTo(dfg.make_constant(truncated.into(), typ))
+                } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
+                    if let Instruction::Truncate { bit_size: src_bit_size, .. } = &dfg[*instruction]
+                    {
+                        // If we're truncating the value to fit into the same or larger bit size then this is a noop.
+                        if src_bit_size <= bit_size && src_bit_size <= max_bit_size {
+                            SimplifiedTo(*value)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
@@ -478,6 +566,7 @@ impl Instruction {
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
+            Instruction::IncrementRc { .. } => None,
             Instruction::RangeCheck { value, max_bit_size, .. } => {
                 if let Some(numeric_constant) = dfg.get_numeric_constant(*value) {
                     if numeric_constant.num_bits() < *max_bit_size {
@@ -768,10 +857,19 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
-                if operand_type.is_unsigned() && rhs_is_zero {
-                    // Unsigned values cannot be less than zero.
-                    let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
-                    return SimplifyResult::SimplifiedTo(zero);
+                if operand_type.is_unsigned() {
+                    if rhs_is_zero {
+                        // Unsigned values cannot be less than zero.
+                        let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                        return SimplifyResult::SimplifiedTo(zero);
+                    } else if rhs_is_one {
+                        let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                        return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+                            BinaryOp::Eq,
+                            self.lhs,
+                            zero,
+                        ));
+                    }
                 }
             }
             BinaryOp::And => {

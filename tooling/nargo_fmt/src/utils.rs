@@ -1,4 +1,5 @@
-use crate::visitor::FmtVisitor;
+use crate::rewrite;
+use crate::visitor::{FmtVisitor, Shape};
 use noirc_frontend::hir::resolution::errors::Span;
 use noirc_frontend::lexer::Lexer;
 use noirc_frontend::token::Token;
@@ -40,15 +41,22 @@ impl Expr {
 
 pub(crate) struct Exprs<'me, T> {
     pub(crate) visitor: &'me FmtVisitor<'me>,
+    shape: Shape,
     pub(crate) elements: std::iter::Peekable<std::vec::IntoIter<T>>,
     pub(crate) last_position: u32,
     pub(crate) end_position: u32,
 }
 
 impl<'me, T: Item> Exprs<'me, T> {
-    pub(crate) fn new(visitor: &'me FmtVisitor<'me>, span: Span, elements: Vec<T>) -> Self {
+    pub(crate) fn new(
+        visitor: &'me FmtVisitor<'me>,
+        shape: Shape,
+        span: Span,
+        elements: Vec<T>,
+    ) -> Self {
         Self {
             visitor,
+            shape,
             last_position: span.start() + 1, /*(*/
             end_position: span.end() - 1,    /*)*/
             elements: elements.into_iter().peekable(),
@@ -70,7 +78,7 @@ impl<T: Item> Iterator for Exprs<'_, T> {
         let next_start = self.elements.peek().map_or(self.end_position, |expr| expr.start());
 
         let (leading, different_line) = self.leading(start, end);
-        let expr = element.format(self.visitor);
+        let expr = element.format(self.visitor, self.shape);
         let trailing = self.trailing(element_span.end(), next_start, is_last);
 
         Expr { leading, value: expr, trailing, different_line }.into()
@@ -112,7 +120,7 @@ impl<'me, T> Exprs<'me, T> {
 
 pub(crate) trait FindToken {
     fn find_token(&self, token: Token) -> Option<Span>;
-    fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32>;
+    fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<Span>;
 }
 
 impl FindToken for str {
@@ -120,11 +128,11 @@ impl FindToken for str {
         Lexer::new(self).flatten().find_map(|it| (it.token() == &token).then(|| it.to_span()))
     }
 
-    fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32> {
+    fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<Span> {
         Lexer::new(self)
             .skip_comments(false)
             .flatten()
-            .find_map(|spanned| f(spanned.token()).then(|| spanned.to_span().end()))
+            .find_map(|spanned| f(spanned.token()).then(|| spanned.to_span()))
     }
 }
 
@@ -134,7 +142,7 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
             .find_token_with(|token| {
                 matches!(token, Token::LineComment(_, _) | Token::BlockComment(_, _))
             })
-            .map(|index| index as usize)
+            .map(|index| index.end() as usize)
             .unwrap_or(slice.len())
     }
 
@@ -196,7 +204,7 @@ pub(crate) fn count_newlines(slice: &str) -> usize {
 pub(crate) trait Item {
     fn span(&self) -> Span;
 
-    fn format(self, visitor: &FmtVisitor) -> String;
+    fn format(self, visitor: &FmtVisitor, shape: Shape) -> String;
 
     fn start(&self) -> u32 {
         self.span().start()
@@ -212,8 +220,8 @@ impl Item for Expression {
         self.span
     }
 
-    fn format(self, visitor: &FmtVisitor) -> String {
-        visitor.format_sub_expr(self)
+    fn format(self, visitor: &FmtVisitor, shape: Shape) -> String {
+        rewrite::sub_expr(visitor, shape, self)
     }
 }
 
@@ -223,11 +231,11 @@ impl Item for (Ident, Expression) {
         (name.span().start()..value.span.end()).into()
     }
 
-    fn format(self, visitor: &FmtVisitor) -> String {
+    fn format(self, visitor: &FmtVisitor, shape: Shape) -> String {
         let (name, expr) = self;
 
         let name = name.0.contents;
-        let expr = visitor.format_sub_expr(expr);
+        let expr = rewrite::sub_expr(visitor, shape, expr);
 
         if name == expr {
             name
@@ -242,13 +250,14 @@ impl Item for Param {
         self.span
     }
 
-    fn format(self, visitor: &FmtVisitor) -> String {
+    fn format(self, visitor: &FmtVisitor, shape: Shape) -> String {
         let visibility = match self.visibility {
             Visibility::Public => "pub ",
             Visibility::Private => "",
+            Visibility::DataBus => "call_data",
         };
         let pattern = visitor.slice(self.pattern.span());
-        let ty = visitor.slice(self.typ.span.unwrap());
+        let ty = rewrite::typ(visitor, shape, self.typ);
 
         format!("{pattern}: {visibility}{ty}")
     }
@@ -259,7 +268,7 @@ impl Item for Ident {
         self.span()
     }
 
-    fn format(self, visitor: &FmtVisitor) -> String {
+    fn format(self, visitor: &FmtVisitor, _shape: Shape) -> String {
         visitor.slice(self.span()).into()
     }
 }
@@ -268,10 +277,26 @@ pub(crate) fn first_line_width(exprs: &str) -> usize {
     exprs.lines().next().map_or(0, |line: &str| line.chars().count())
 }
 
+pub(crate) fn last_line_width(s: &str) -> usize {
+    s.rsplit('\n').next().unwrap_or("").chars().count()
+}
+
 pub(crate) fn is_single_line(s: &str) -> bool {
     !s.chars().any(|c| c == '\n')
 }
 
 pub(crate) fn last_line_contains_single_line_comment(s: &str) -> bool {
     s.lines().last().map_or(false, |line| line.contains("//"))
+}
+
+pub(crate) fn last_line_used_width(s: &str, offset: usize) -> usize {
+    if s.contains('\n') {
+        last_line_width(s)
+    } else {
+        offset + s.chars().count()
+    }
+}
+
+pub(crate) fn span_is_empty(span: Span) -> bool {
+    span.start() == span.end()
 }

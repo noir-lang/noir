@@ -6,8 +6,8 @@ use super::{
 use crate::backends::Backend;
 use crate::errors::CliError;
 
-use acvm::acir::circuit::Opcode;
 use acvm::Language;
+use backend_interface::BackendOpcodeSupport;
 use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 use clap::Args;
 use nargo::package::Package;
@@ -54,7 +54,7 @@ pub(crate) fn run(
             package,
             &args.compile_options,
             np_language,
-            &|opcode| opcode_support.is_opcode_supported(opcode),
+            &opcode_support,
         )?;
 
         let contract_dir = workspace.contracts_directory_path(package);
@@ -74,15 +74,10 @@ fn smart_contract_for_package(
     package: &Package,
     compile_options: &CompileOptions,
     np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
+    opcode_support: &BackendOpcodeSupport,
 ) -> Result<String, CliError> {
-    let program = compile_bin_package(
-        workspace,
-        package,
-        compile_options,
-        np_language,
-        &is_opcode_supported,
-    )?;
+    let program =
+        compile_bin_package(workspace, package, compile_options, np_language, opcode_support)?;
 
     let mut smart_contract_string = backend.eth_contract(&program.circuit)?;
 

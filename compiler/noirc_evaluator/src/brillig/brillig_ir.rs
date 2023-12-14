@@ -5,6 +5,7 @@
 //! ssa types and types in this module.
 //! A similar paradigm can be seen with the `acir_ir` module.
 pub(crate) mod artifact;
+pub(crate) mod brillig_variable;
 pub(crate) mod debug_show;
 pub(crate) mod registers;
 
@@ -14,12 +15,13 @@ use crate::ssa::ir::dfg::CallStack;
 
 use self::{
     artifact::{BrilligArtifact, UnresolvedJumpLocation},
+    brillig_variable::{BrilligArray, BrilligVariable, BrilligVector},
     registers::BrilligRegistersContext,
 };
 use acvm::{
     acir::brillig::{
-        BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, Opcode as BrilligOpcode,
-        RegisterIndex, RegisterOrMemory, Value,
+        BinaryFieldOp, BinaryIntOp, BlackBoxOp, Opcode as BrilligOpcode, RegisterIndex,
+        RegisterOrMemory, Value,
     },
     FieldElement,
 };
@@ -88,6 +90,8 @@ pub(crate) struct BrilligContext {
     context_label: String,
     /// Section label, used to separate sections of code
     section_label: usize,
+    /// Stores the next available section
+    next_section: usize,
     /// IR printer
     debug_show: DebugShow,
 }
@@ -100,6 +104,7 @@ impl BrilligContext {
             registers: BrilligRegistersContext::new(),
             context_label: String::default(),
             section_label: 0,
+            next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
         }
     }
@@ -161,10 +166,14 @@ impl BrilligContext {
 
     /// Allocates a variable in memory and stores the
     /// pointer to the array in `pointer_register`
-    pub(crate) fn allocate_variable_instruction(&mut self, pointer_register: RegisterIndex) {
+    fn allocate_variable_reference_instruction(
+        &mut self,
+        pointer_register: RegisterIndex,
+        size: usize,
+    ) {
         self.debug_show.allocate_instruction(pointer_register);
-        // A variable can be stored in up to two values, so we reserve two values for that.
-        let size_register = self.make_constant(2_u128.into());
+        // A variable can be stored in up to three values, so we reserve three values for that.
+        let size_register = self.make_constant(size.into());
         self.push_opcode(BrilligOpcode::Mov {
             destination: pointer_register,
             source: ReservedRegisters::stack_pointer(),
@@ -174,6 +183,30 @@ impl BrilligContext {
             size_register,
             ReservedRegisters::stack_pointer(),
             BinaryIntOp::Add,
+        );
+    }
+
+    pub(crate) fn allocate_simple_reference_instruction(
+        &mut self,
+        pointer_register: RegisterIndex,
+    ) {
+        self.allocate_variable_reference_instruction(pointer_register, 1);
+    }
+
+    pub(crate) fn allocate_array_reference_instruction(&mut self, pointer_register: RegisterIndex) {
+        self.allocate_variable_reference_instruction(
+            pointer_register,
+            BrilligArray::registers_count(),
+        );
+    }
+
+    pub(crate) fn allocate_vector_reference_instruction(
+        &mut self,
+        pointer_register: RegisterIndex,
+    ) {
+        self.allocate_variable_reference_instruction(
+            pointer_register,
+            BrilligVector::registers_count(),
         );
     }
 
@@ -253,8 +286,8 @@ impl BrilligContext {
     {
         let iterator_register = self.make_constant(0_u128.into());
 
-        let loop_label = self.next_section_label();
-        self.enter_next_section();
+        let (loop_section, loop_label) = self.reserve_next_section_label();
+        self.enter_section(loop_section);
 
         // Loop body
 
@@ -267,7 +300,7 @@ impl BrilligContext {
             BinaryIntOp::LessThan,
         );
 
-        let exit_loop_label = self.next_section_label();
+        let (exit_loop_section, exit_loop_label) = self.reserve_next_section_label();
 
         self.not_instruction(iterator_less_than_iterations, 1, iterator_less_than_iterations);
         self.jump_if_instruction(iterator_less_than_iterations, exit_loop_label);
@@ -281,10 +314,39 @@ impl BrilligContext {
         self.jump_instruction(loop_label);
 
         // Exit the loop
-        self.enter_next_section();
+        self.enter_section(exit_loop_section);
+
         // Deallocate our temporary registers
         self.deallocate_register(iterator_less_than_iterations);
         self.deallocate_register(iterator_register);
+    }
+
+    /// This instruction will issue an if-then branch that will check if the condition is true
+    /// and if so, perform the instructions given in `f(self, true)` and otherwise perform the
+    /// instructions given in `f(self, false)`. A boolean is passed instead of two separate
+    /// functions to allow the given function to mutably alias its environment.
+    pub(crate) fn branch_instruction(
+        &mut self,
+        condition: RegisterIndex,
+        mut f: impl FnMut(&mut BrilligContext, bool),
+    ) {
+        // Reserve 3 sections
+        let (then_section, then_label) = self.reserve_next_section_label();
+        let (otherwise_section, otherwise_label) = self.reserve_next_section_label();
+        let (end_section, end_label) = self.reserve_next_section_label();
+
+        self.jump_if_instruction(condition, then_label.clone());
+        self.jump_instruction(otherwise_label.clone());
+
+        self.enter_section(then_section);
+        f(self, true);
+        self.jump_instruction(end_label.clone());
+
+        self.enter_section(otherwise_section);
+        f(self, false);
+        self.jump_instruction(end_label.clone());
+
+        self.enter_section(end_section);
     }
 
     /// Adds a label to the next opcode
@@ -299,21 +361,23 @@ impl BrilligContext {
             .add_label_at_position(self.current_section_label(), self.obj.index_of_next_opcode());
     }
 
-    /// Increments the section label and adds a section label to the next opcode
-    fn enter_next_section(&mut self) {
-        self.section_label += 1;
+    /// Enter the given section
+    fn enter_section(&mut self, section: usize) {
+        self.section_label = section;
         self.obj
             .add_label_at_position(self.current_section_label(), self.obj.index_of_next_opcode());
+    }
+
+    /// Create, reserve, and return a new section label.
+    fn reserve_next_section_label(&mut self) -> (usize, String) {
+        let section = self.next_section;
+        self.next_section += 1;
+        (section, self.compute_section_label(section))
     }
 
     /// Internal function used to compute the section labels
     fn compute_section_label(&self, section: usize) -> String {
         format!("{}-{}", self.context_label, section)
-    }
-
-    /// Returns the next section label
-    fn next_section_label(&self) -> String {
-        self.compute_section_label(self.section_label + 1)
     }
 
     /// Returns the current section label
@@ -371,15 +435,13 @@ impl BrilligContext {
         assert_message: Option<String>,
     ) {
         self.debug_show.constrain_instruction(condition);
-        self.add_unresolved_jump(
-            BrilligOpcode::JumpIf { condition, location: 0 },
-            self.next_section_label(),
-        );
+        let (next_section, next_label) = self.reserve_next_section_label();
+        self.add_unresolved_jump(BrilligOpcode::JumpIf { condition, location: 0 }, next_label);
         self.push_opcode(BrilligOpcode::Trap);
         if let Some(assert_message) = assert_message {
             self.obj.add_assert_message_to_last_opcode(assert_message);
         }
-        self.enter_next_section();
+        self.enter_section(next_section);
     }
 
     /// Processes a return instruction.
@@ -528,17 +590,24 @@ impl BrilligContext {
     /// Loads a variable stored previously
     pub(crate) fn load_variable_instruction(
         &mut self,
-        destination: RegisterOrMemory,
+        destination: BrilligVariable,
         variable_pointer: RegisterIndex,
     ) {
         match destination {
-            RegisterOrMemory::RegisterIndex(register_index) => {
+            BrilligVariable::Simple(register_index) => {
                 self.load_instruction(register_index, variable_pointer);
             }
-            RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => {
+            BrilligVariable::BrilligArray(BrilligArray { pointer, size: _, rc }) => {
                 self.load_instruction(pointer, variable_pointer);
+
+                let rc_pointer = self.allocate_register();
+                self.mov_instruction(rc_pointer, variable_pointer);
+                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 1_usize);
+
+                self.load_instruction(rc, rc_pointer);
+                self.deallocate_register(rc_pointer);
             }
-            RegisterOrMemory::HeapVector(HeapVector { pointer, size }) => {
+            BrilligVariable::BrilligVector(BrilligVector { pointer, size, rc }) => {
                 self.load_instruction(pointer, variable_pointer);
 
                 let size_pointer = self.allocate_register();
@@ -547,6 +616,13 @@ impl BrilligContext {
 
                 self.load_instruction(size, size_pointer);
                 self.deallocate_register(size_pointer);
+
+                let rc_pointer = self.allocate_register();
+                self.mov_instruction(rc_pointer, variable_pointer);
+                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 2_usize);
+
+                self.load_instruction(rc, rc_pointer);
+                self.deallocate_register(rc_pointer);
             }
         }
     }
@@ -565,32 +641,38 @@ impl BrilligContext {
     pub(crate) fn store_variable_instruction(
         &mut self,
         variable_pointer: RegisterIndex,
-        source: RegisterOrMemory,
+        source: BrilligVariable,
     ) {
-        let size_pointer = self.allocate_register();
-        self.mov_instruction(size_pointer, variable_pointer);
-        self.usize_op_in_place(size_pointer, BinaryIntOp::Add, 1_usize);
-
         match source {
-            RegisterOrMemory::RegisterIndex(register_index) => {
+            BrilligVariable::Simple(register_index) => {
                 self.store_instruction(variable_pointer, register_index);
-                let size_constant = self.make_constant(Value::from(1_usize));
-                self.store_instruction(size_pointer, size_constant);
-                self.deallocate_register(size_constant);
             }
-            RegisterOrMemory::HeapArray(HeapArray { pointer, size }) => {
+            BrilligVariable::BrilligArray(BrilligArray { pointer, size: _, rc }) => {
                 self.store_instruction(variable_pointer, pointer);
-                let size_constant = self.make_constant(Value::from(size));
-                self.store_instruction(size_pointer, size_constant);
-                self.deallocate_register(size_constant);
+
+                let rc_pointer: RegisterIndex = self.allocate_register();
+                self.mov_instruction(rc_pointer, variable_pointer);
+                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 1_usize);
+                self.store_instruction(rc_pointer, rc);
+                self.deallocate_register(rc_pointer);
             }
-            RegisterOrMemory::HeapVector(HeapVector { pointer, size }) => {
+            BrilligVariable::BrilligVector(BrilligVector { pointer, size, rc }) => {
                 self.store_instruction(variable_pointer, pointer);
+
+                let size_pointer = self.allocate_register();
+                self.mov_instruction(size_pointer, variable_pointer);
+                self.usize_op_in_place(size_pointer, BinaryIntOp::Add, 1_usize);
                 self.store_instruction(size_pointer, size);
+
+                let rc_pointer: RegisterIndex = self.allocate_register();
+                self.mov_instruction(rc_pointer, variable_pointer);
+                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 2_usize);
+                self.store_instruction(rc_pointer, rc);
+
+                self.deallocate_register(size_pointer);
+                self.deallocate_register(rc_pointer);
             }
         }
-
-        self.deallocate_register(size_pointer);
     }
 
     /// Emits a truncate instruction.
@@ -725,14 +807,14 @@ impl BrilligContext {
     }
 
     /// Saves all of the registers that have been used up until this point.
-    fn save_registers_of_vars(&mut self, vars: &[RegisterOrMemory]) -> Vec<RegisterIndex> {
+    fn save_registers_of_vars(&mut self, vars: &[BrilligVariable]) -> Vec<RegisterIndex> {
         // Save all of the used registers at this point in memory
         // because the function call will/may overwrite them.
         //
         // Note that here it is important that the stack pointer register is at register 0,
         // as after the first register save we add to the pointer.
         let mut used_registers: Vec<_> =
-            vars.iter().flat_map(|var| extract_registers(*var)).collect();
+            vars.iter().flat_map(|var| var.extract_registers()).collect();
 
         // Also dump the previous stack pointer
         used_registers.push(ReservedRegisters::previous_stack_pointer());
@@ -811,7 +893,7 @@ impl BrilligContext {
     pub(crate) fn pre_call_save_registers_prep_args(
         &mut self,
         arguments: &[RegisterIndex],
-        variables_to_save: &[RegisterOrMemory],
+        variables_to_save: &[BrilligVariable],
     ) -> Vec<RegisterIndex> {
         // Save all the registers we have used to the stack.
         let saved_registers = self.save_registers_of_vars(variables_to_save);
@@ -852,9 +934,9 @@ impl BrilligContext {
     }
 
     /// Utility method to transform a HeapArray to a HeapVector by making a runtime constant with the size.
-    pub(crate) fn array_to_vector(&mut self, array: &HeapArray) -> HeapVector {
+    pub(crate) fn array_to_vector(&mut self, array: &BrilligArray) -> BrilligVector {
         let size_register = self.make_constant(array.size.into());
-        HeapVector { size: size_register, pointer: array.pointer }
+        BrilligVector { size: size_register, pointer: array.pointer, rc: array.rc }
     }
 
     /// Issues a blackbox operation.
@@ -868,12 +950,13 @@ impl BrilligContext {
     pub(crate) fn radix_instruction(
         &mut self,
         source: RegisterIndex,
-        target_vector: HeapVector,
+        target_vector: BrilligVector,
         radix: RegisterIndex,
         limb_count: RegisterIndex,
         big_endian: bool,
     ) {
         self.mov_instruction(target_vector.size, limb_count);
+        self.const_instruction(target_vector.rc, 1_usize.into());
         self.allocate_array_instruction(target_vector.pointer, target_vector.size);
 
         let shifted_register = self.allocate_register();
@@ -914,7 +997,7 @@ impl BrilligContext {
     }
 
     /// This instruction will reverse the order of the elements in a vector.
-    pub(crate) fn reverse_vector_in_place_instruction(&mut self, vector: HeapVector) {
+    pub(crate) fn reverse_vector_in_place_instruction(&mut self, vector: BrilligVector) {
         let iteration_count = self.allocate_register();
         self.usize_op(vector.size, iteration_count, BinaryIntOp::UnsignedDiv, 2);
 
@@ -949,48 +1032,9 @@ impl BrilligContext {
         self.deallocate_register(index_at_end_of_array);
     }
 
-    pub(crate) fn extract_heap_vector(&mut self, variable: RegisterOrMemory) -> HeapVector {
-        match variable {
-            RegisterOrMemory::HeapVector(vector) => vector,
-            RegisterOrMemory::HeapArray(array) => {
-                let size = self.allocate_register();
-                self.const_instruction(size, array.size.into());
-                HeapVector { pointer: array.pointer, size }
-            }
-            _ => unreachable!("ICE: Expected vector, got {variable:?}"),
-        }
-    }
-
     /// Sets a current call stack that the next pushed opcodes will be associated with.
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
         self.obj.set_call_stack(call_stack);
-    }
-}
-
-pub(crate) fn extract_register(variable: RegisterOrMemory) -> RegisterIndex {
-    match variable {
-        RegisterOrMemory::RegisterIndex(register_index) => register_index,
-        _ => unreachable!("ICE: Expected register, got {variable:?}"),
-    }
-}
-
-pub(crate) fn extract_heap_array(variable: RegisterOrMemory) -> HeapArray {
-    match variable {
-        RegisterOrMemory::HeapArray(array) => array,
-        _ => unreachable!("ICE: Expected array, got {variable:?}"),
-    }
-}
-
-/// Collects the registers that a given variable is stored in.
-pub(crate) fn extract_registers(variable: RegisterOrMemory) -> Vec<RegisterIndex> {
-    match variable {
-        RegisterOrMemory::RegisterIndex(register_index) => vec![register_index],
-        RegisterOrMemory::HeapArray(array) => {
-            vec![array.pointer]
-        }
-        RegisterOrMemory::HeapVector(vector) => {
-            vec![vector.pointer, vector.size]
-        }
     }
 }
 

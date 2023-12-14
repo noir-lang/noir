@@ -116,7 +116,7 @@ impl Backend {
 
                 // If version doesn't match then download the correct version.
                 Ok(version_string) => {
-                    println!("`{ACVM_BACKEND_BARRETENBERG}` version `{version_string}` is different from expected `{BB_VERSION}`. Downloading expected version...");
+                    log::warn!("`{ACVM_BACKEND_BARRETENBERG}` version `{version_string}` is different from expected `{BB_VERSION}`. Downloading expected version...");
                     let bb_url = std::env::var("BB_BINARY_URL")
                         .unwrap_or_else(|_| bb_abstraction_leaks::BB_DOWNLOAD_URL.to_owned());
                     download_backend(&bb_url, binary_path)?;
@@ -124,7 +124,7 @@ impl Backend {
 
                 // If `bb` fails to report its version, then attempt to fix it by re-downloading the binary.
                 Err(_) => {
-                    println!("Could not determine version of `{ACVM_BACKEND_BARRETENBERG}`. Downloading expected version...");
+                    log::warn!("Could not determine version of `{ACVM_BACKEND_BARRETENBERG}`. Downloading expected version...");
                     let bb_url = std::env::var("BB_BINARY_URL")
                         .unwrap_or_else(|_| bb_abstraction_leaks::BB_DOWNLOAD_URL.to_owned());
                     download_backend(&bb_url, binary_path)?;
@@ -151,6 +151,34 @@ impl BackendOpcodeSupport {
             Opcode::BlackBoxFuncCall(func) => {
                 self.black_box_functions.contains(func.get_black_box_func().name())
             }
+        }
+    }
+
+    pub fn all() -> BackendOpcodeSupport {
+        BackendOpcodeSupport {
+            opcodes: HashSet::from([
+                "arithmetic".to_string(),
+                "directive".to_string(),
+                "brillig".to_string(),
+                "memory_init".to_string(),
+                "memory_op".to_string(),
+            ]),
+            black_box_functions: HashSet::from([
+                "sha256".to_string(),
+                "schnorr_verify".to_string(),
+                "blake2s".to_string(),
+                "pedersen".to_string(),
+                "pedersen_hash".to_string(),
+                "hash_to_field_128_security".to_string(),
+                "ecdsa_secp256k1".to_string(),
+                "fixed_base_scalar_mul".to_string(),
+                "and".to_string(),
+                "xor".to_string(),
+                "range".to_string(),
+                "keccak256".to_string(),
+                "recursive_aggregation".to_string(),
+                "ecdsa_secp256r1".to_string(),
+            ]),
         }
     }
 }
