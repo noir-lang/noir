@@ -1,7 +1,7 @@
-use std::{collections::HashMap, vec};
+use std::{collections::HashMap, path::Path, vec};
 
 use acvm::acir::acir_field::FieldOptions;
-use fm::FileId;
+use fm::{FileId, FileManager, FILE_EXTENSION};
 use noirc_errors::Location;
 
 use crate::{
@@ -524,7 +524,7 @@ impl<'a> ModCollector<'a> {
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let child_file_id =
-            match context.file_manager.find_module(self.file_id, &mod_name.0.contents) {
+            match find_module(&context.file_manager, self.file_id, &mod_name.0.contents) {
                 Ok(child_file_id) => child_file_id,
                 Err(expected_path) => {
                     let mod_name = mod_name.clone();
@@ -626,5 +626,116 @@ impl<'a> ModCollector<'a> {
         }
 
         Ok(LocalModuleId(module_id))
+    }
+}
+
+fn find_module(
+    file_manager: &FileManager,
+    anchor: FileId,
+    mod_name: &str,
+) -> Result<FileId, String> {
+    let anchor_path = file_manager.path(anchor).with_extension("");
+    let anchor_dir = anchor_path.parent().unwrap();
+
+    // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of
+    // the anchor at `base/mod_name.nr`.
+    let candidate = if should_check_siblings_for_module(&anchor_path, anchor_dir) {
+        anchor_dir.join(format!("{mod_name}.{FILE_EXTENSION}"))
+    } else {
+        // Otherwise, we check for children of the anchor at `base/anchor/mod_name.nr`
+        anchor_path.join(format!("{mod_name}.{FILE_EXTENSION}"))
+    };
+
+    file_manager
+        .name_to_id(candidate.clone())
+        .ok_or_else(|| candidate.as_os_str().to_string_lossy().to_string())
+}
+
+/// Returns true if a module's child modules are expected to be in the same directory.
+/// Returns false if they are expected to be in a subdirectory matching the name of the module.
+fn should_check_siblings_for_module(module_path: &Path, parent_path: &Path) -> bool {
+    if let Some(filename) = module_path.file_stem() {
+        // This check also means a `main.nr` or `lib.nr` file outside of the crate root would
+        // check its same directory for child modules instead of a subdirectory. Should we prohibit
+        // `main.nr` and `lib.nr` files outside of the crate root?
+        filename == "main"
+            || filename == "lib"
+            || filename == "mod"
+            || Some(filename) == parent_path.file_stem()
+    } else {
+        // If there's no filename, we arbitrarily return true.
+        // Alternatively, we could panic, but this is left to a different step where we
+        // ideally have some source location to issue an error.
+        true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::{tempdir, TempDir};
+
+    // Returns the absolute path to the file
+    fn create_dummy_file(dir: &TempDir, file_name: &Path) -> PathBuf {
+        let file_path = dir.path().join(file_name);
+        let _file = std::fs::File::create(&file_path).unwrap();
+        file_path
+    }
+
+    #[test]
+    fn path_resolve_file_module() {
+        let dir = tempdir().unwrap();
+
+        let entry_file_name = Path::new("my_dummy_file.nr");
+        create_dummy_file(&dir, entry_file_name);
+
+        let mut fm = FileManager::new(dir.path());
+
+        let file_id = fm.add_file_with_source(entry_file_name, "fn foo() {}".to_string()).unwrap();
+
+        let dep_file_name = Path::new("foo.nr");
+        create_dummy_file(&dir, dep_file_name);
+        find_module(&fm, file_id, "foo").unwrap_err();
+    }
+
+    #[test]
+    fn path_resolve_sub_module() {
+        let dir = tempdir().unwrap();
+        let mut fm = FileManager::new(dir.path());
+
+        // Create a lib.nr file at the root.
+        // we now have dir/lib.nr
+        let lib_nr_path = create_dummy_file(&dir, Path::new("lib.nr"));
+        let file_id = fm
+            .add_file_with_source(lib_nr_path.as_path(), "fn foo() {}".to_string())
+            .expect("could not add file to file manager and obtain a FileId");
+
+        // Create a sub directory
+        // we now have:
+        // - dir/lib.nr
+        // - dir/sub_dir
+        let sub_dir = TempDir::new_in(&dir).unwrap();
+        let sub_dir_name = sub_dir.path().file_name().unwrap().to_str().unwrap();
+
+        // Add foo.nr to the subdirectory
+        // we no have:
+        // - dir/lib.nr
+        // - dir/sub_dir/foo.nr
+        let foo_nr_path = create_dummy_file(&sub_dir, Path::new("foo.nr"));
+        fm.add_file_with_source(foo_nr_path.as_path(), "fn foo() {}".to_string());
+
+        // Add a parent module for the sub_dir
+        // we no have:
+        // - dir/lib.nr
+        // - dir/sub_dir.nr
+        // - dir/sub_dir/foo.nr
+        let sub_dir_nr_path = create_dummy_file(&dir, Path::new(&format!("{sub_dir_name}.nr")));
+        fm.add_file_with_source(sub_dir_nr_path.as_path(), "fn foo() {}".to_string());
+
+        // First check for the sub_dir.nr file and add it to the FileManager
+        let sub_dir_file_id = find_module(&fm, file_id, sub_dir_name).unwrap();
+
+        // Now check for files in it's subdirectory
+        find_module(&fm, sub_dir_file_id, "foo").unwrap();
     }
 }
