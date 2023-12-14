@@ -1,8 +1,4 @@
-use acir::{
-    circuit::{opcodes::UnsupportedMemoryOpcode, Circuit, Opcode, OpcodeLocation},
-    BlackBoxFunc,
-};
-use thiserror::Error;
+use acir::circuit::{Circuit, OpcodeLocation};
 
 use crate::Language;
 
@@ -14,14 +10,6 @@ pub use optimizers::optimize;
 use optimizers::optimize_internal;
 pub use transformers::transform;
 use transformers::transform_internal;
-
-#[derive(PartialEq, Eq, Debug, Error)]
-pub enum CompileError {
-    #[error("The blackbox function {0} is not supported by the backend and acvm does not have a fallback implementation")]
-    UnsupportedBlackBox(BlackBoxFunc),
-    #[error("The opcode {0} is not supported by the backend and acvm does not have a fallback implementation")]
-    UnsupportedMemoryOpcode(UnsupportedMemoryOpcode),
-}
 
 /// This module moves and decomposes acir opcodes. The transformation map allows consumers of this module to map
 /// metadata they had about the opcodes to the new opcode structure generated after the transformation.
@@ -69,17 +57,13 @@ fn transform_assert_messages(
 }
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
-pub fn compile(
-    acir: Circuit,
-    np_language: Language,
-    is_opcode_supported: impl Fn(&Opcode) -> bool,
-) -> Result<(Circuit, AcirTransformationMap), CompileError> {
+pub fn compile(acir: Circuit, np_language: Language) -> (Circuit, AcirTransformationMap) {
     let (acir, AcirTransformationMap { acir_opcode_positions }) = optimize_internal(acir);
 
     let (mut acir, transformation_map) =
-        transform_internal(acir, np_language, is_opcode_supported, acir_opcode_positions)?;
+        transform_internal(acir, np_language, acir_opcode_positions);
 
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
 
-    Ok((acir, transformation_map))
+    (acir, transformation_map)
 }

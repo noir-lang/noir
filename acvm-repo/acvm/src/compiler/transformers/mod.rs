@@ -8,31 +8,25 @@ use indexmap::IndexMap;
 use crate::Language;
 
 mod csat;
-mod fallback;
 mod r1cs;
 
 pub(crate) use csat::CSatTransformer;
-pub(crate) use fallback::FallbackTransformer;
 pub(crate) use r1cs::R1CSTransformer;
 
-use super::{transform_assert_messages, AcirTransformationMap, CompileError};
+use super::{transform_assert_messages, AcirTransformationMap};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
-pub fn transform(
-    acir: Circuit,
-    np_language: Language,
-    is_opcode_supported: impl Fn(&Opcode) -> bool,
-) -> Result<(Circuit, AcirTransformationMap), CompileError> {
+pub fn transform(acir: Circuit, np_language: Language) -> (Circuit, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
     let (mut acir, transformation_map) =
-        transform_internal(acir, np_language, is_opcode_supported, acir_opcode_positions)?;
+        transform_internal(acir, np_language, acir_opcode_positions);
 
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
 
-    Ok((acir, transformation_map))
+    (acir, transformation_map)
 }
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
@@ -41,18 +35,13 @@ pub fn transform(
 pub(super) fn transform_internal(
     acir: Circuit,
     np_language: Language,
-    is_opcode_supported: impl Fn(&Opcode) -> bool,
     acir_opcode_positions: Vec<usize>,
-) -> Result<(Circuit, AcirTransformationMap), CompileError> {
-    // Fallback transformer pass
-    let (acir, acir_opcode_positions) =
-        FallbackTransformer::transform(acir, is_opcode_supported, acir_opcode_positions)?;
-
+) -> (Circuit, AcirTransformationMap) {
     let mut transformer = match &np_language {
         crate::Language::R1CS => {
             let transformation_map = AcirTransformationMap { acir_opcode_positions };
             let transformer = R1CSTransformer::new(acir);
-            return Ok((transformer.transform(), transformation_map));
+            return (transformer.transform(), transformation_map);
         }
         crate::Language::PLONKCSat { width } => {
             let mut csat = CSatTransformer::new(*width);
@@ -217,5 +206,5 @@ pub(super) fn transform_internal(
     let transformation_map =
         AcirTransformationMap { acir_opcode_positions: new_acir_opcode_positions };
 
-    Ok((acir, transformation_map))
+    (acir, transformation_map)
 }

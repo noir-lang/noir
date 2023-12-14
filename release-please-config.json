@@ -65,7 +65,6 @@
         "blackbox_solver/Cargo.toml",
         "brillig/Cargo.toml",
         "brillig_vm/Cargo.toml",
-        "stdlib/Cargo.toml",
         {
           "type": "json",
           "path": "acvm_js/package.json",

@@ -1,9 +1,8 @@
 use acvm::Language;
 use serde::Deserialize;
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use crate::{BackendError, BackendOpcodeSupport};
+use crate::BackendError;
 
 use super::string_from_stderr;
 
@@ -14,7 +13,11 @@ pub(crate) struct InfoCommand {
 #[derive(Deserialize)]
 struct InfoResponse {
     language: LanguageResponse,
+    #[allow(dead_code)]
+    #[deprecated(note = "This field is deprecated and will be removed in the future")]
     opcodes_supported: Vec<String>,
+    #[allow(dead_code)]
+    #[deprecated(note = "This field is deprecated and will be removed in the future")]
     black_box_functions_supported: Vec<String>,
 }
 
@@ -24,20 +27,8 @@ struct LanguageResponse {
     width: Option<usize>,
 }
 
-impl BackendOpcodeSupport {
-    fn new(info: InfoResponse) -> Self {
-        let opcodes: HashSet<String> = info.opcodes_supported.into_iter().collect();
-        let black_box_functions: HashSet<String> =
-            info.black_box_functions_supported.into_iter().collect();
-        Self { opcodes, black_box_functions }
-    }
-}
-
 impl InfoCommand {
-    pub(crate) fn run(
-        self,
-        binary_path: &Path,
-    ) -> Result<(Language, BackendOpcodeSupport), BackendError> {
+    pub(crate) fn run(self, binary_path: &Path) -> Result<Language, BackendError> {
         let mut command = std::process::Command::new(binary_path);
 
         command.arg("info").arg("-c").arg(self.crs_path).arg("-o").arg("-");
@@ -59,23 +50,18 @@ impl InfoCommand {
             _ => panic!("Unknown langauge"),
         };
 
-        Ok((language, BackendOpcodeSupport::new(backend_info)))
+        Ok(language)
     }
 }
 
 #[test]
 fn info_command() -> Result<(), BackendError> {
-    use acvm::acir::circuit::opcodes::Opcode;
-
-    use acvm::acir::native_types::Expression;
-
     let backend = crate::get_mock_backend()?;
     let crs_path = backend.backend_directory();
 
-    let (language, opcode_support) = InfoCommand { crs_path }.run(backend.binary_path())?;
+    let language = InfoCommand { crs_path }.run(backend.binary_path())?;
 
     assert!(matches!(language, Language::PLONKCSat { width: 3 }));
-    assert!(opcode_support.is_opcode_supported(&Opcode::Arithmetic(Expression::default())));
 
     Ok(())
 }
