@@ -39,7 +39,7 @@ pub struct Circuit {
     // c++ code at the moment when it is, due to OpcodeLocation needing a comparison
     // implementation which is never generated.
     pub assert_messages: Vec<(OpcodeLocation, String)>,
-
+    /// The width of the expressions in arithmetic opcodes
     pub expression_width: ExpressionWidth,
 }
 
