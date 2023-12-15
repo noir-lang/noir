@@ -38,12 +38,17 @@ impl AcirTransformationMap {
     /// Returns a `BTreeMap` which maps an ACIR index in the untransformed [`Circuit`] to the set of ACIR indices
     /// in the new [`Circuit`] corresponding to the opcodes.
     pub fn get_opcode_mapping(&self) -> BTreeMap<usize, Vec<usize>> {
+        if self.acir_opcode_positions.is_empty() {
+            return BTreeMap::new();
+        };
+
         let mut new_opcode_to_old_map: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
         let mut index = 0;
         let mut old_index = 0;
 
         let mut temp: Vec<usize> = Vec::new();
         while old_index <= *self.acir_opcode_positions.last().unwrap() {
+            println!("{old_index}, {index}");
             let val = self.acir_opcode_positions[index];
             match old_index.cmp(&val) {
                 std::cmp::Ordering::Less => {
