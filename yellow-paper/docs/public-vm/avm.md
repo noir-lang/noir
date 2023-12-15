@@ -38,7 +38,7 @@ A contract's public bytecode is a series of execution instructions for the AVM. 
 Many terms and definitions here are borrowed from the [Ethereum Yellow Paper](https://ethereum.github.io/yellowpaper/paper.pdf).
 :::
 
-An "Execution Context" includes the information necessary to trigger AVM execution along with the state maintained by the AVM throughout execution:
+An "Execution Context" includes the information necessary to initiate AVM execution along with the state maintained by the AVM throughout execution:
 ```
 AVMContext {
     environment: ExecutionEnvironment,
@@ -51,12 +51,13 @@ AVMContext {
 
 The first two entries, "Execution Environment" and "Machine State", share the same lifecycle. They contain information pertaining to a single message call and are initialized prior to the start of a call's execution.
 
-> When a nested message call is made, a new environment and machine state are initialized by the caller. In other words, a nested message call has its own environment and machine state, although their initialization will be partially derived from the caller's context.
+> When a nested message call is made, a new environment and machine state are initialized by the caller. In other words, a nested message call has its own environment and machine state which are _partially_ derived from the caller's context.
 
 The "Execution Environment" is fully specified by a message call's execution agent and remains constant throughout a call's execution.
 ```
 ExecutionEnvironment {
     address,
+    storageAddress,
     origin,
     l1GasPrice,
     l2GasPrice,
@@ -68,6 +69,7 @@ ExecutionEnvironment {
     globalVariables: PublicGlobalVariables,
     messageCallDepth,
     isStaticCall,
+    isDelegateCall,
 }
 ```
 
@@ -77,6 +79,86 @@ MachineState {
     l1GasLeft,
     l2GasLeft,
     pc,
-    memory: uninitialized,
+    memory: offset => value,  // uninitialized at start
 }
 ```
+
+"World State" contains persistable VM state. If a message call succeeds, its world state updates are applied to the calling context (whether that be a parent call's context or the transaction context). If a message call fails, its world state updates are rejected by its caller. When a _transaction_ succeeds, its world state updates persist into future transactions.
+```
+WorldState {
+    publicStorage: (address, slot) => value,          // read/write
+    noteHashes: (address, index) => noteHash,         // read & append only
+    nullifiers: (address, index) => nullifier,        // read & append only
+    l1l2messageHashes: (address, key) => messageHash, // read only
+    contracts: (address) => bytecode,                 // read only
+}
+```
+
+> Note: the notation `key => value` describes a mapping from `key` to `value`.
+
+> Note: each member of the world state is implemented as an independent merkle tree with different properties.
+
+The "Accrued Substate", as coined in the [Ethereum Yellow Paper](https://ethereum.github.io/yellowpaper/paper), contains information that is accrued throughout transaction execution to be "acted upon immediately following the transaction." These are append-only arrays containing state that is not relevant to other calls or transactions. Similar to world state, if a message call succeeds, its substate is appended to its calling context, but if it fails its substate is dropped by its caller.
+```
+AccruedSubstate {
+    logs: [],           // append-only
+    l2toL1Messages: [], // append-only
+}
+```
+
+Finally, when a message call halts, it sets the context's "Message Call Results" to communicate results to the caller.
+```
+MessageCallResults {
+    reverted: boolean,
+    output: [] | undefined,
+}
+```
+
+### Context initialization for initial call
+This section outlines AVM context initialization specifically for a **public execution request's initial message call** (_i.e._ not a nested message call). Context initialization for nested message calls will be explained in a later section.
+
+When AVM execution is initiated for a public execution request, the AVM context is initialized as follows:
+```
+context = AVMContext {
+    environment: INITIAL_EXECUTION_ENVIRONMENT,
+    machineState: INITIAL_MACHINE_STATE,
+    accruedSubstate: empty,
+    worldState: <latest world state>,
+    results: INITIAL_MESSAGE_CALL_RESULTS,
+}
+```
+> Note: Since world state persists between transactions, the latest state is injected into a new AVM context.
+
+Given a `PublicCallRequest` and its parent `TxRequest`, these above-listed "`INITIAL_*`" entries are defined as follows:
+```
+INITIAL_EXECUTION_ENVIRONMENT = ExecutionEnvironment {
+    address: PublicCallRequest.contractAddress,
+    storageAddress: PublicCallRequest.CallContext.storageContractAddress,
+    origin: TxRequest.origin,
+    l1GasPrice: TxRequest.l1GasPrice,
+    l2GasPrice: TxRequest.l2GasPrice,
+    calldata: PublicCallRequest.args,
+    sender: PublicCallRequest.CallContext.msgSender,
+    portal: PublicCallRequest.CallContext.portalContractAddress,
+    bytecode: worldState.contracts[PublicCallRequest.contractAddress],
+    blockHeader: <latest block header>,
+    globalVariables: <latest global variable values>
+    messageCallDepth: 0,
+    isStaticCall: PublicCallRequest.CallContext.isStaticCall,
+    isDelegateCall: PublicCallRequest.CallContext.isDelegateCall,
+}
+
+INITIAL_MACHINE_STATE = MachineState {
+    l1GasLeft: TxRequest.l1GasLimit,
+    l2GasLeft: TxRequest.l2GasLimit,
+    pc: 0,
+    memory: uninitialized,
+}
+
+INITIAL_MESSAGE_CALL_RESULTS = MessageCallResults {
+    reverted: false,
+    output: undefined,
+}
+```
+
+> Note: unlike memory in the Ethereum Virtual Machine, uninitialized memory in the AVM is not readable! A memory cell must be written (and therefore [type-tagged](./state-model#types-and-tagged-memory)) before it can be read.
