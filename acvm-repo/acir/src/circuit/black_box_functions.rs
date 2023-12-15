@@ -1,8 +1,5 @@
 //! Black box functions are ACIR opcodes which rely on backends implementing support for specialized constraints.
 //! This makes certain zk-snark unfriendly computations cheaper than if they were implemented in more basic constraints.
-//!
-//! It is possible to fallback to less efficient implementations written in ACIR in some cases.
-//! These are implemented inside the ACVM stdlib.
 
 use serde::{Deserialize, Serialize};
 #[cfg(test)]

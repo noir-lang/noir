@@ -186,8 +186,6 @@ pub fn compile(
 
     // For now we default to plonk width = 3, though we can add it as a parameter
     let np_language = acvm::Language::PLONKCSat { width: 3 };
-    #[allow(deprecated)]
-    let is_opcode_supported = acvm::pwg::default_is_opcode_supported(np_language);
 
     if contracts.unwrap_or_default() {
         let compiled_contract = compile_contract(&mut context, crate_id, &compile_options)
@@ -200,9 +198,7 @@ pub fn compile(
             })?
             .0;
 
-        let optimized_contract =
-            nargo::ops::optimize_contract(compiled_contract, np_language, &is_opcode_supported)
-                .expect("Contract optimization failed");
+        let optimized_contract = nargo::ops::optimize_contract(compiled_contract, np_language);
 
         let compile_output = preprocess_contract(optimized_contract);
         Ok(JsCompileResult::new(compile_output))
@@ -217,9 +213,7 @@ pub fn compile(
             })?
             .0;
 
-        let optimized_program =
-            nargo::ops::optimize_program(compiled_program, np_language, &is_opcode_supported)
-                .expect("Program optimization failed");
+        let optimized_program = nargo::ops::optimize_program(compiled_program, np_language);
 
         let compile_output = preprocess_program(optimized_program);
         Ok(JsCompileResult::new(compile_output))

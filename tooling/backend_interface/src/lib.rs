@@ -1,14 +1,13 @@
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 
-use std::{collections::HashSet, path::PathBuf};
+use std::path::PathBuf;
 
 mod cli;
 mod download;
 mod proof_system;
 mod smart_contract;
 
-use acvm::acir::circuit::Opcode;
 use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 use bb_abstraction_leaks::BB_VERSION;
 use cli::VersionCommand;
@@ -132,54 +131,6 @@ impl Backend {
             }
         }
         Ok(binary_path)
-    }
-}
-
-pub struct BackendOpcodeSupport {
-    opcodes: HashSet<String>,
-    black_box_functions: HashSet<String>,
-}
-
-impl BackendOpcodeSupport {
-    pub fn is_opcode_supported(&self, opcode: &Opcode) -> bool {
-        match opcode {
-            Opcode::Arithmetic(_) => self.opcodes.contains("arithmetic"),
-            Opcode::Directive(_) => self.opcodes.contains("directive"),
-            Opcode::Brillig(_) => self.opcodes.contains("brillig"),
-            Opcode::MemoryInit { .. } => self.opcodes.contains("memory_init"),
-            Opcode::MemoryOp { .. } => self.opcodes.contains("memory_op"),
-            Opcode::BlackBoxFuncCall(func) => {
-                self.black_box_functions.contains(func.get_black_box_func().name())
-            }
-        }
-    }
-
-    pub fn all() -> BackendOpcodeSupport {
-        BackendOpcodeSupport {
-            opcodes: HashSet::from([
-                "arithmetic".to_string(),
-                "directive".to_string(),
-                "brillig".to_string(),
-                "memory_init".to_string(),
-                "memory_op".to_string(),
-            ]),
-            black_box_functions: HashSet::from([
-                "sha256".to_string(),
-                "schnorr_verify".to_string(),
-                "blake2s".to_string(),
-                "pedersen".to_string(),
-                "pedersen_hash".to_string(),
-                "hash_to_field_128_security".to_string(),
-                "ecdsa_secp256k1".to_string(),
-                "fixed_base_scalar_mul".to_string(),
-                "and".to_string(),
-                "xor".to_string(),
-                "range".to_string(),
-                "keccak256".to_string(),
-                "recursive_aggregation".to_string(),
-                "ecdsa_secp256r1".to_string(),
-            ]),
-        }
     }
 }
 
