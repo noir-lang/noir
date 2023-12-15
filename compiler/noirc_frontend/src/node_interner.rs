@@ -1397,6 +1397,29 @@ impl NodeInterner {
             _ => (),
         }
     }
+
+    /// This function is needed when creating a NodeInterner for testing so that calls
+    /// to `get_operator_trait` do not panic when the stdlib isn't present.
+    #[cfg(test)]
+    pub fn populate_dummy_operator_traits(&mut self) {
+        let dummy_trait = TraitId(ModuleId::dummy_id());
+        self.operator_traits.insert(BinaryOpKind::Add, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Subtract, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Multiply, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Divide, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Modulo, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Equal, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::NotEqual, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Less, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::LessEqual, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Greater, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::GreaterEqual, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::And, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Or, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Xor, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::ShiftLeft, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::ShiftRight, dummy_trait);
+    }
 }
 
 impl Methods {

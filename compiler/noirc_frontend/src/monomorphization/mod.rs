@@ -26,7 +26,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
-    ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind,
+    ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
     Visibility,
 };
 
@@ -236,6 +236,7 @@ impl<'interner> Monomorphizer<'interner> {
         });
 
         let parameters = self.parameters(meta.parameters);
+
         let body = self.expr(body_expr_id);
         let unconstrained = modifiers.is_unconstrained
             || matches!(modifiers.contract_function_type, Some(ContractFunctionType::Open));
@@ -370,13 +371,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                     let method = TraitMethodId { trait_id: infix.trait_id, method_index: 0 };
                     let func = self.resolve_trait_method_reference(expr, function_type, method);
-
-                    ast::Expression::Call(ast::Call {
-                        func: Box::new(func),
-                        arguments: vec![lhs, rhs],
-                        return_type: self.convert_type(&ret),
-                        location,
-                    })
+                    self.create_operator_impl_call(func, lhs, infix.operator, rhs, ret, location)
                 } else {
                     let lhs = Box::new(lhs);
                     let rhs = Box::new(rhs);
@@ -1102,7 +1097,7 @@ impl<'interner> Monomorphizer<'interner> {
         function_type: HirType,
     ) -> FuncId {
         let new_id = self.next_function_id();
-        self.define_global(id, function_type, new_id);
+        self.define_global(id, function_type.clone(), new_id);
 
         let bindings = self.interner.get_instantiation_bindings(expr_id);
         let bindings = self.follow_bindings(bindings);
@@ -1431,6 +1426,67 @@ impl<'interner> Monomorphizer<'interner> {
                 Box::new(env_type.clone()),
             ),
         })
+    }
+
+    /// Call an operator overloading method for the given operator.
+    /// This function handles the special cases some operators have which don't map
+    /// 1 to 1 onto their operator function. For example: != requires a negation on
+    /// the result of its `eq` method, and the comparison operators each require a
+    /// conversion from the `Ordering` result to a boolean.
+    fn create_operator_impl_call(
+        &self,
+        func: ast::Expression,
+        lhs: ast::Expression,
+        operator: HirBinaryOp,
+        rhs: ast::Expression,
+        ret: Type,
+        location: Location,
+    ) -> ast::Expression {
+        let arguments = vec![lhs, rhs];
+        let func = Box::new(func);
+        let return_type = self.convert_type(&ret);
+
+        let mut result =
+            ast::Expression::Call(ast::Call { func, arguments, return_type, location });
+
+        use crate::BinaryOpKind::*;
+        match operator.kind {
+            // Negate the result of the == operation
+            NotEqual => {
+                result = ast::Expression::Unary(ast::Unary {
+                    operator: UnaryOp::Not,
+                    rhs: Box::new(result),
+                    result_type: ast::Type::Bool,
+                    location,
+                });
+            }
+            // All the comparison operators require special handling since their `cmp` method
+            // returns an `Ordering` rather than a boolean value.
+            //
+            // (a < b) => a.cmp(b) == Ordering::Less
+            // (a <= b) => a.cmp(b) != Ordering::Greater
+            // (a > b) => a.cmp(b) == Ordering::Greater
+            // (a >= b) => a.cmp(b) != Ordering::Less
+            Less | LessEqual | Greater | GreaterEqual => {
+                let ordering_value = if matches!(operator.kind, Less | GreaterEqual) {
+                    FieldElement::zero() // Ordering::Less
+                } else {
+                    2u128.into() // Ordering::Greater
+                };
+
+                let operator =
+                    if matches!(operator.kind, Less | Greater) { Equal } else { NotEqual };
+
+                let int_value = ast::Literal::Integer(ordering_value, ast::Type::Field, location);
+                let rhs = Box::new(ast::Expression::Literal(int_value));
+                let lhs = Box::new(result);
+
+                result = ast::Expression::Binary(ast::Binary { lhs, operator, rhs, location });
+            }
+            _ => (),
+        }
+
+        result
     }
 }
 

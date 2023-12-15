@@ -55,6 +55,8 @@ mod test {
         let fm = FileManager::new(root);
         let graph = CrateGraph::default();
         let mut context = Context::new(fm, graph);
+        context.def_interner.populate_dummy_operator_traits();
+
         let root_file_id = FileId::dummy();
         let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
         let (program, parser_errors) = parse_program(src);

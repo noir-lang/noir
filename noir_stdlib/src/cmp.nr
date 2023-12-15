@@ -28,6 +28,14 @@ impl<T, N> Eq for [T; N] where T: Eq {
     }
 }
 
+impl<N> Eq for str<N> {
+    fn eq(self, other: str<N>) -> bool {
+        let self_bytes = self.as_bytes();
+        let other_bytes = other.as_bytes();
+        self_bytes == other_bytes
+    }
+}
+
 impl<A, B> Eq for (A, B) where A: Eq, B: Eq {
     fn eq(self, other: (A, B)) -> bool {
         self.0.eq(other.0) & self.1.eq(other.1)

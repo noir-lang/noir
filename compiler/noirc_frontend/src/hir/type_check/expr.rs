@@ -142,12 +142,7 @@ impl<'interner> TypeChecker<'interner> {
                         if use_impl {
                             let trait_id = infix_expr.trait_id;
                             self.verify_trait_constraint(&lhs_type, trait_id, *expr_id, span);
-
-                            // Monomorphization will later look for type bindings for this impl
-                            // even though it has none (no operator traits have generic methods),
-                            // so we have to insert empty bindings here.
-                            let no_bindings = TypeBindings::new();
-                            self.interner.store_instantiation_bindings(*expr_id, no_bindings);
+                            self.typecheck_operator_method(*expr_id, trait_id, &lhs_type, span);
                         }
                         typ
                     }
@@ -317,8 +312,10 @@ impl<'interner> TypeChecker<'interner> {
                         the_trait.self_type_typevar_id,
                         (the_trait.self_type_typevar.clone(), object_type.clone()),
                     );
-                    self.interner
-                        .select_impl_for_expression(*expr_id, TraitImplKind::Assumed { object_type });
+                    self.interner.select_impl_for_expression(
+                        *expr_id,
+                        TraitImplKind::Assumed { object_type },
+                    );
                 }
 
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
@@ -1188,6 +1185,60 @@ impl<'interner> TypeChecker<'interner> {
                 element_type
             }
         }
+    }
+
+    /// Prerequisite: verify_trait_constraint of the operator's trait constraint.
+    ///
+    /// Although by this point the operator is expected to already have a trait impl,
+    /// we still need to match the operator's type against the method's instantiated type
+    /// to ensure the instantiation bindings are correct and the monomorphizer can
+    /// re-apply the needed bindings.
+    fn typecheck_operator_method(
+        &mut self,
+        expr_id: ExprId,
+        trait_id: TraitId,
+        object_type: &Type,
+        span: Span,
+    ) {
+        let the_trait = self.interner.get_trait(trait_id);
+
+        // The first (and only) method of each operator trait should be the operator method
+        let method = &the_trait.methods[0];
+        let (method_type, mut bindings) = method.typ.instantiate(&self.interner);
+
+        match method_type {
+            Type::Function(args, _, _) => {
+                // We can cheat a bit and match against only the object type here since no operator
+                // overload uses other generic parameters or return types aside from the object type.
+                let expected_object_type = &args[0];
+                self.unify(object_type, expected_object_type, || TypeCheckError::TypeMismatch {
+                    expected_typ: expected_object_type.to_string(),
+                    expr_typ: object_type.to_string(),
+                    expr_span: span,
+                });
+            }
+            other => {
+                unreachable!("Expected operator method to have a function type, but found {other}")
+            }
+        }
+
+                // We must also remember to apply these substitutions to the object_type
+                // referenced by the selected trait impl, if one has yet to be selected.
+                let impl_kind = self.interner.get_selected_impl_for_expression(expr_id);
+                if let Some(TraitImplKind::Assumed { object_type }) = impl_kind {
+                    let the_trait = self.interner.get_trait(trait_id);
+                    let object_type = object_type.substitute(&bindings);
+                    bindings.insert(
+                        the_trait.self_type_typevar_id,
+                        (the_trait.self_type_typevar.clone(), object_type.clone()),
+                    );
+                    self.interner.select_impl_for_expression(
+                        expr_id,
+                        TraitImplKind::Assumed { object_type },
+                    );
+                }
+
+        self.interner.store_instantiation_bindings(expr_id, bindings);
     }
 }
 
