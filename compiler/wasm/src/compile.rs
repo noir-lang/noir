@@ -20,8 +20,6 @@ use wasm_bindgen::prelude::*;
 
 use crate::errors::{CompileError, JsCompileError};
 
-const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
-
 #[wasm_bindgen(typescript_custom_section)]
 const DEPENDENCY_GRAPH: &'static str = r#"
 export type DependencyGraph = {
@@ -32,14 +30,12 @@ export type DependencyGraph = {
 export type CompiledContract = {
     noir_version: string;
     name: string;
-    backend: string;
     functions: Array<any>;
     events: Array<any>;
 };
 
 export type CompiledProgram = {
     noir_version: string;
-    backend: string;
     abi: any;
     bytecode: string;
 }
@@ -286,7 +282,6 @@ fn preprocess_program(program: CompiledProgram) -> CompileResult {
 
     let preprocessed_program = PreprocessedProgram {
         hash: program.hash,
-        backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         bytecode: program.circuit,
@@ -316,7 +311,6 @@ fn preprocess_contract(contract: CompiledContract) -> CompileResult {
     let preprocessed_contract = PreprocessedContract {
         noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
         name: contract.name,
-        backend: String::from(BACKEND_IDENTIFIER),
         functions: preprocessed_functions,
         events: contract.events,
     };

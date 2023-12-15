@@ -29,9 +29,6 @@ use super::fs::program::{
 use super::NargoConfig;
 use rayon::prelude::*;
 
-// TODO(#1388): pull this from backend.
-const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
-
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CompileCommand {
@@ -233,7 +230,6 @@ fn save_program(
 ) {
     let preprocessed_program = PreprocessedProgram {
         hash: program.hash,
-        backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
         noir_version: program.noir_version,
         bytecode: program.circuit,
@@ -275,7 +271,6 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
     let preprocessed_contract = PreprocessedContract {
         noir_version: contract.noir_version,
         name: contract.name,
-        backend: String::from(BACKEND_IDENTIFIER),
         functions: preprocessed_functions,
         events: contract.events,
     };
