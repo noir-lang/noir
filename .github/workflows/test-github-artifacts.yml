@@ -48,6 +48,7 @@ jobs:
           push: true
 
   test-nargo:
+    name: test cargo 
     runs-on: ubuntu-latest
     needs: [build-base]
     container:
@@ -55,7 +56,6 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
-    name: Compile site assets  
     steps:
       - name: test
         run: |
