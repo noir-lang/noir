@@ -48,7 +48,6 @@ impl AcirTransformationMap {
 
         let mut temp: Vec<usize> = Vec::new();
         while old_index <= *self.acir_opcode_positions.last().unwrap() {
-            println!("{old_index}, {index}");
             let val = self.acir_opcode_positions[index];
             match old_index.cmp(&val) {
                 std::cmp::Ordering::Less => {
