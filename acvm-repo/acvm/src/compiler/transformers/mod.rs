@@ -21,8 +21,10 @@ pub fn transform(acir: Circuit, np_language: Language) -> (Circuit, AcirTransfor
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
-    let (mut acir, transformation_map) =
+    let (mut acir, acir_opcode_positions) =
         transform_internal(acir, np_language, acir_opcode_positions);
+
+    let transformation_map = AcirTransformationMap::new(acir_opcode_positions);
 
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
 
@@ -36,14 +38,13 @@ pub(super) fn transform_internal(
     acir: Circuit,
     np_language: Language,
     acir_opcode_positions: Vec<usize>,
-) -> (Circuit, AcirTransformationMap) {
+) -> (Circuit, Vec<usize>) {
     log::trace!("Start circuit transformation");
 
     let mut transformer = match &np_language {
         crate::Language::R1CS => {
-            let transformation_map = AcirTransformationMap { acir_opcode_positions };
             let transformer = R1CSTransformer::new(acir);
-            return (transformer.transform(), transformation_map);
+            return (transformer.transform(), acir_opcode_positions);
         }
         crate::Language::PLONKCSat { width } => {
             let mut csat = CSatTransformer::new(*width);
@@ -205,10 +206,7 @@ pub(super) fn transform_internal(
         ..acir
     };
 
-    let transformation_map =
-        AcirTransformationMap { acir_opcode_positions: new_acir_opcode_positions };
-
     log::trace!("Finish circuit transformation");
 
-    (acir, transformation_map)
+    (acir, new_acir_opcode_positions)
 }
