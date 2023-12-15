@@ -29,8 +29,8 @@ pub enum CompileError {
 /// metadata they had about the opcodes to the new opcode structure generated after the transformation.
 #[derive(Debug)]
 pub struct AcirTransformationMap {
-    /// Maps the old acir indexes to the new acir indexes
-    old_indexes_to_new_indexes: HashMap<usize, Vec<usize>>,
+    /// Maps the old acir indices to the new acir indices
+    old_indices_to_new_indices: HashMap<usize, Vec<usize>>,
 }
 
 impl AcirTransformationMap {
@@ -38,11 +38,11 @@ impl AcirTransformationMap {
     /// The index of the vector is the new opcode index.
     /// The value of the vector is the old opcode index pointed.
     fn new(acir_opcode_positions: Vec<usize>) -> Self {
-        let mut old_indexes_to_new_indexes = HashMap::with_capacity(acir_opcode_positions.len());
+        let mut old_indices_to_new_indices = HashMap::with_capacity(acir_opcode_positions.len());
         for (new_index, old_index) in acir_opcode_positions.into_iter().enumerate() {
-            old_indexes_to_new_indexes.entry(old_index).or_insert_with(Vec::new).push(new_index);
+            old_indices_to_new_indices.entry(old_index).or_insert_with(Vec::new).push(new_index);
         }
-        AcirTransformationMap { old_indexes_to_new_indexes }
+        AcirTransformationMap { old_indices_to_new_indices }
     }
 
     pub fn new_locations(
@@ -53,16 +53,17 @@ impl AcirTransformationMap {
             OpcodeLocation::Acir(index) => index,
             OpcodeLocation::Brillig { acir_index, .. } => acir_index,
         };
-        let new_indexes = self.old_indexes_to_new_indexes.get(&old_acir_index);
 
-        new_indexes.into_iter().flat_map(move |new_indexes| {
-            new_indexes.iter().map(move |new_index| match old_location {
-                OpcodeLocation::Acir(_) => OpcodeLocation::Acir(*new_index),
-                OpcodeLocation::Brillig { brillig_index, .. } => {
-                    OpcodeLocation::Brillig { acir_index: *new_index, brillig_index }
-                }
-            })
-        })
+        self.old_indices_to_new_indices.get(&old_acir_index).into_iter().flat_map(
+            move |new_indices| {
+                new_indices.iter().map(move |new_index| match old_location {
+                    OpcodeLocation::Acir(_) => OpcodeLocation::Acir(*new_index),
+                    OpcodeLocation::Brillig { brillig_index, .. } => {
+                        OpcodeLocation::Brillig { acir_index: *new_index, brillig_index }
+                    }
+                })
+            },
+        )
     }
 }
 
