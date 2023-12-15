@@ -60,4 +60,4 @@ jobs:
       - name: test
         run: |
           cd /usr/src/noir
-          sudo ./scripts/test_native.sh
+          ./scripts/test_native.sh
