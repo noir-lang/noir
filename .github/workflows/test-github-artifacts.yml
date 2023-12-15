@@ -59,3 +59,5 @@ jobs:
     steps:
       - name: test
         run: ls 
+      - name: test cargo
+        run: ./scripts/test_native.sh
