@@ -4,7 +4,7 @@ describe('env', () => {
   let api: Barretenberg;
 
   beforeAll(async () => {
-    api = await Barretenberg.new(3);
+    api = await Barretenberg.new({ threads: 3 });
   }, 15000);
 
   afterAll(async () => {

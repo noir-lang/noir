@@ -44,7 +44,7 @@ async function computeCircuitSize(bytecodePath: string, api: Barretenberg) {
 }
 
 async function init(bytecodePath: string, crsPath: string) {
-  const api = await Barretenberg.new(threads);
+  const api = await Barretenberg.new({ threads });
 
   const circuitSize = await getGates(bytecodePath, api);
   const subgroupSize = Math.pow(2, Math.ceil(Math.log2(circuitSize)));
@@ -70,7 +70,7 @@ async function init(bytecodePath: string, crsPath: string) {
 }
 
 async function initLite() {
-  const api = await Barretenberg.new(1);
+  const api = await Barretenberg.new({ threads: 1 });
 
   // Plus 1 needed! (Move +1 into Crs?)
   const crs = await Crs.new(1);
@@ -140,7 +140,7 @@ export async function prove(
 }
 
 export async function gateCount(bytecodePath: string) {
-  const api = await Barretenberg.new(1);
+  const api = await Barretenberg.new({ threads: 1 });
   try {
     const numberOfGates = await getGates(bytecodePath, api);
 

@@ -13,7 +13,7 @@ async function runTest(
   const CIRCUIT_SIZE = 2 ** 19;
 
   debug("starting test...");
-  const api = await Barretenberg.new(threads);
+  const api = await Barretenberg.new({ threads });
 
   // Important to init slab allocator as first thing, to ensure maximum memory efficiency.
   await api.commonInitSlabAllocator(CIRCUIT_SIZE);
