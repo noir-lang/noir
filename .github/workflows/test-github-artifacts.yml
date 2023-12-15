@@ -7,8 +7,8 @@ on:
       - 'cache-docker-artifacts'
 
 jobs:
-  build-nargo:
-    name: Build nargo
+  build-base:
+    name: Build base image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -49,12 +49,27 @@ jobs:
 
   test-nargo:
     runs-on: ubuntu-latest
+    needs: [build-base]
     container:
       image: ghcr.io/noir-lang/noir:${{ github.sha }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
-    needs: [build-nargo]
+    name: Compile site assets  
+    steps:
+      - name: test
+        run: |
+          cd /usr/src/noir
+          ./scripts/test_native.sh
+
+  js-setup:
+    runs-on: ubuntu-latest
+    needs: [build-base]
+    container:
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
     name: Compile site assets  
     steps:
       - name: test
