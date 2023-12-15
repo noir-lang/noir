@@ -2,7 +2,7 @@ use std::ops::ControlFlow;
 
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use nargo::prepare_package;
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 
@@ -13,7 +13,7 @@ use crate::types::{
     PublishDiagnosticsParams,
 };
 
-use crate::{byte_span_to_range, get_non_stdlib_asset, get_package_tests_in_crate, LspState};
+use crate::{byte_span_to_range, get_package_tests_in_crate, LspState};
 
 pub(super) fn on_initialized(
     _state: &mut LspState,
@@ -69,29 +69,21 @@ pub(super) fn on_did_save_text_document(
         }
     };
 
-    let root_path = match &state.root_path {
-        Some(root) => root,
-        None => {
-            return ControlFlow::Break(Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                "Could not find project root",
-            )
-            .into()));
-        }
-    };
+    let package_root = find_file_manifest(file_path.as_path());
 
-    let toml_path = match find_package_manifest(root_path, &file_path) {
-        Ok(toml_path) => toml_path,
-        Err(err) => {
+    let toml_path = match package_root {
+        Some(toml_path) => toml_path,
+        None => {
             // If we cannot find a manifest, we log a warning but return no diagnostics
             // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
             let _ = state.client.log_message(LogMessageParams {
                 typ: MessageType::WARNING,
-                message: format!("{err}"),
+                message: format!("Nargo.toml not found for file: {:}", file_path.display()),
             });
             return ControlFlow::Continue(());
         }
     };
+
     let workspace = match resolve_workspace_from_toml(
         &toml_path,
         PackageSelection::All,
@@ -111,9 +103,9 @@ pub(super) fn on_did_save_text_document(
     let diagnostics: Vec<_> = workspace
         .into_iter()
         .flat_map(|package| -> Vec<Diagnostic> {
-            let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
+            let (mut context, crate_id) = prepare_package(package);
 
-            let file_diagnostics = match check_crate(&mut context, crate_id, false) {
+            let file_diagnostics = match check_crate(&mut context, crate_id, false, false) {
                 Ok(((), warnings)) => warnings,
                 Err(errors_and_warnings) => errors_and_warnings,
             };
@@ -160,9 +152,6 @@ pub(super) fn on_did_save_text_document(
                 .collect()
         })
         .collect();
-
-    // We need to refresh lenses when we compile since that's the only time they can be accurately reflected
-    std::mem::drop(state.client.code_lens_refresh(()));
 
     let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
         uri: params.text_document.uri,

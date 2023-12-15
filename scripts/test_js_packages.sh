@@ -14,9 +14,7 @@ else
   export GIT_COMMIT=$(git rev-parse --verify HEAD)
 fi
 
-export cargoExtraArgs="--features noirc_driver/aztec"
-
-cargo build --features="noirc_driver/aztec" --release
+cargo build --release
 export PATH="${PATH}:/usr/src/noir/target/release/"
 
 yarn

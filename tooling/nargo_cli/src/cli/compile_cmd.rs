@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use acvm::acir::circuit::opcodes::BlackBoxFuncCall;
 use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use backend_interface::BackendOpcodeSupport;
@@ -24,6 +23,7 @@ use clap::Args;
 use crate::backends::Backend;
 use crate::errors::CliError;
 
+use super::fs::program::only_acir;
 use super::fs::program::{
     read_debug_artifact_from_file, read_program_from_file, save_contract_to_file,
     save_debug_artifact_to_file, save_program_to_file,
@@ -175,8 +175,7 @@ fn compile_program(
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> (FileManager, CompilationResult<CompiledProgram>) {
-    let (mut context, crate_id) =
-        prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
+    let (mut context, crate_id) = prepare_package(package);
 
     let program_artifact_path = workspace.package_build_path(package);
     let mut debug_artifact_path = program_artifact_path.clone();
@@ -213,21 +212,11 @@ fn compile_program(
         }
     };
 
-    // TODO: we say that pedersen hashing is supported by all backends for now
-    let is_opcode_supported_pedersen_hash = |opcode: &Opcode| -> bool {
-        if let Opcode::BlackBoxFuncCall(BlackBoxFuncCall::PedersenHash { .. }) = opcode {
-            true
-        } else {
-            is_opcode_supported(opcode)
-        }
-    };
-
     // Apply backend specific optimizations.
-    let optimized_program =
-        nargo::ops::optimize_program(program, np_language, &is_opcode_supported_pedersen_hash)
-            .expect("Backend does not support an opcode that is in the IR");
-
-    save_program(optimized_program.clone(), package, &workspace.target_directory_path());
+    let optimized_program = nargo::ops::optimize_program(program, np_language, is_opcode_supported)
+        .expect("Backend does not support an opcode that is in the IR");
+    let only_acir = compile_options.only_acir;
+    save_program(optimized_program.clone(), package, &workspace.target_directory_path(), only_acir);
 
     (context.file_manager, Ok((optimized_program, warnings)))
 }
@@ -238,8 +227,7 @@ fn compile_contract(
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> (FileManager, CompilationResult<CompiledContract>) {
-    let (mut context, crate_id) =
-        prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
+    let (mut context, crate_id) = prepare_package(package);
     let (contract, warnings) =
         match noirc_driver::compile_contract(&mut context, crate_id, compile_options) {
             Ok(contracts_and_warnings) => contracts_and_warnings,
@@ -255,7 +243,12 @@ fn compile_contract(
     (context.file_manager, Ok((optimized_contract, warnings)))
 }
 
-fn save_program(program: CompiledProgram, package: &Package, circuit_dir: &Path) {
+fn save_program(
+    program: CompiledProgram,
+    package: &Package,
+    circuit_dir: &Path,
+    only_acir_opt: bool,
+) {
     let preprocessed_program = PreprocessedProgram {
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
@@ -263,8 +256,11 @@ fn save_program(program: CompiledProgram, package: &Package, circuit_dir: &Path)
         noir_version: program.noir_version,
         bytecode: program.circuit,
     };
-
-    save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
+    if only_acir_opt {
+        only_acir(&preprocessed_program, circuit_dir);
+    } else {
+        save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
+    }
 
     let debug_artifact = DebugArtifact {
         debug_symbols: vec![program.debug],

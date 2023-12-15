@@ -16,11 +16,6 @@
         "flake.nix",
         {
           "type": "json",
-          "path": "compiler/source-resolver/package.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
           "path": "compiler/wasm/package.json",
           "jsonpath": "$.version"
         },

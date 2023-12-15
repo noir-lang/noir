@@ -19,7 +19,7 @@ use crate::hir_def::expr::{
 };
 
 use crate::hir_def::traits::{Trait, TraitConstraint};
-use crate::token::FunctionAttribute;
+use crate::token::{Attributes, FunctionAttribute};
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
@@ -37,11 +37,11 @@ use crate::{
     StatementKind,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionVisibility, Generics,
-    LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern, Shared, StructType, Type,
-    TypeAliasType, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics,
-    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-    Visibility, ERROR_IDENT,
+    ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionDefinition,
+    FunctionReturnType, FunctionVisibility, Generics, LValue, NoirStruct, NoirTypeAlias, Param,
+    Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable,
+    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -198,6 +198,51 @@ impl<'a> Resolver<'a> {
 
         self.trait_bounds.clear();
         (hir_func, func_meta, self.errors)
+    }
+
+    pub fn resolve_trait_function(
+        &mut self,
+        name: &Ident,
+        parameters: &[(Ident, UnresolvedType)],
+        return_type: &FunctionReturnType,
+        where_clause: &[UnresolvedTraitConstraint],
+        func_id: FuncId,
+    ) -> (HirFunction, FuncMeta) {
+        self.scopes.start_function();
+
+        // Check whether the function has globals in the local module and add them to the scope
+        self.resolve_local_globals();
+
+        self.trait_bounds = where_clause.to_vec();
+
+        let kind = FunctionKind::Normal;
+        let def = FunctionDefinition {
+            name: name.clone(),
+            attributes: Attributes::empty(),
+            is_open: false,
+            is_internal: false,
+            is_unconstrained: false,
+            visibility: FunctionVisibility::Public, // Trait functions are always public
+            generics: Vec::new(),                   // self.generics should already be set
+            parameters: vecmap(parameters, |(name, typ)| Param {
+                visibility: Visibility::Private,
+                pattern: Pattern::Identifier(name.clone()),
+                typ: typ.clone(),
+                span: name.span(),
+            }),
+            body: BlockExpression(Vec::new()),
+            span: name.span(),
+            where_clause: where_clause.to_vec(),
+            return_type: return_type.clone(),
+            return_visibility: Visibility::Private,
+            return_distinctness: Distinctness::DuplicationAllowed,
+        };
+
+        let (hir_func, func_meta) = self.intern_function(NoirFunction { kind, def }, func_id);
+        let _ = self.scopes.end_function();
+        // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
+        self.trait_bounds.clear();
+        (hir_func, func_meta)
     }
 
     fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: ScopeTree) {
@@ -523,7 +568,7 @@ impl<'a> Resolver<'a> {
         _new_variables: &mut Generics,
     ) -> Type {
         if let Some(t) = self.lookup_trait_or_error(path) {
-            Type::TraitAsType(t)
+            Type::TraitAsType(t.id, Rc::new(t.name.to_string()))
         } else {
             Type::Error
         }
@@ -938,7 +983,7 @@ impl<'a> Resolver<'a> {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
-            | Type::TraitAsType(_)
+            | Type::TraitAsType(..)
             | Type::Forall(_, _) => (),
 
             Type::Array(length, element_type) => {
@@ -1498,8 +1543,8 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    pub fn get_trait(&self, trait_id: TraitId) -> Trait {
-        self.interner.get_trait(trait_id)
+    pub fn get_trait_mut(&mut self, trait_id: TraitId) -> &mut Trait {
+        self.interner.get_trait_mut(trait_id)
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
@@ -1542,9 +1587,9 @@ impl<'a> Resolver<'a> {
     }
 
     /// Lookup a given trait by name/path.
-    fn lookup_trait_or_error(&mut self, path: Path) -> Option<Trait> {
+    fn lookup_trait_or_error(&mut self, path: Path) -> Option<&mut Trait> {
         match self.lookup(path) {
-            Ok(trait_id) => Some(self.get_trait(trait_id)),
+            Ok(trait_id) => Some(self.get_trait_mut(trait_id)),
             Err(error) => {
                 self.push_err(error);
                 None
@@ -1584,23 +1629,35 @@ impl<'a> Resolver<'a> {
         &mut self,
         path: &Path,
     ) -> Option<(HirExpression, Type)> {
-        if let Some(trait_id) = self.trait_id {
-            if path.kind == PathKind::Plain && path.segments.len() == 2 {
-                let name = &path.segments[0].0.contents;
-                let method = &path.segments[1];
+        let trait_id = self.trait_id?;
 
-                if name == SELF_TYPE_NAME {
-                    let the_trait = self.interner.get_trait(trait_id);
+        if path.kind == PathKind::Plain && path.segments.len() == 2 {
+            let name = &path.segments[0].0.contents;
+            let method = &path.segments[1];
 
-                    if let Some(method) = the_trait.find_method(method.clone()) {
-                        let self_type = Type::TypeVariable(
-                            the_trait.self_type_typevar,
-                            crate::TypeVariableKind::Normal,
-                        );
-                        return Some((HirExpression::TraitMethodReference(method), self_type));
-                    }
-                }
+            if name == SELF_TYPE_NAME {
+                let the_trait = self.interner.get_trait(trait_id);
+                let method = the_trait.find_method(method.0.contents.as_str())?;
+                let self_type = self.self_type.clone()?;
+                return Some((HirExpression::TraitMethodReference(method), self_type));
             }
+        }
+        None
+    }
+
+    // this resolves TraitName::some_static_method
+    fn resolve_trait_static_method(&mut self, path: &Path) -> Option<(HirExpression, Type)> {
+        if path.kind == PathKind::Plain && path.segments.len() == 2 {
+            let method = &path.segments[1];
+
+            let mut trait_path = path.clone();
+            trait_path.pop();
+            let trait_id = self.lookup(trait_path).ok()?;
+            let the_trait = self.interner.get_trait(trait_id);
+
+            let method = the_trait.find_method(method.0.contents.as_str())?;
+            let self_type = Type::type_variable(the_trait.self_type_typevar_id);
+            return Some((HirExpression::TraitMethodReference(method), self_type));
         }
         None
     }
@@ -1628,7 +1685,7 @@ impl<'a> Resolver<'a> {
                 {
                     let the_trait = self.interner.get_trait(trait_id);
                     if let Some(method) =
-                        the_trait.find_method(path.segments.last().unwrap().clone())
+                        the_trait.find_method(path.segments.last().unwrap().0.contents.as_str())
                     {
                         let self_type = self.resolve_type(typ.clone());
                         return Some((HirExpression::TraitMethodReference(method), self_type));
@@ -1641,6 +1698,7 @@ impl<'a> Resolver<'a> {
 
     fn resolve_trait_generic_path(&mut self, path: &Path) -> Option<(HirExpression, Type)> {
         self.resolve_trait_static_method_by_self(path)
+            .or_else(|| self.resolve_trait_static_method(path))
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
 
@@ -1662,10 +1720,7 @@ impl<'a> Resolver<'a> {
     fn eval_global_as_array_length(&mut self, global: StmtId) -> u64 {
         let stmt = match self.interner.statement(&global) {
             HirStatement::Let(let_expr) => let_expr,
-            other => {
-                dbg!(other);
-                return 0;
-            }
+            _ => return 0,
         };
 
         let length = stmt.expression;

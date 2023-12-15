@@ -11,7 +11,6 @@ license.workspace = true
 [dependencies]
 acvm.workspace = true
 codespan-lsp.workspace = true
-codespan-reporting.workspace = true
 lsp-types.workspace = true
 nargo.workspace = true
 nargo_fmt.workspace = true
@@ -22,7 +21,6 @@ noirc_frontend.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tower.workspace = true
-cfg-if.workspace = true
 async-lsp = { workspace = true, features = ["omni-trait"] }
 serde_with = "3.2.0"
 fm.workspace = true
