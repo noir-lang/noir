@@ -81,5 +81,6 @@
   },
   "plugins": [
     "sentence-case"
-  ]
+  ],
+  "bootstrap-sha": "690cfc0468de0b9aee53ccfe832c71c16e61e5fc"
 }

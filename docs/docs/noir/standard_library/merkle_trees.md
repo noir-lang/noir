@@ -17,7 +17,7 @@ keywords:
 
 ## compute_merkle_root
 
-Returns the root of the tree from the provided leaf and its hash path, using a [Pedersen hash](@site/docs/explanations/standard_library/cryptographic_primitives/hashes.mdx#pedersen_hash).
+Returns the root of the tree from the provided leaf and its hash path, using a [Pedersen hash](./cryptographic_primitives/hashes.mdx#pedersen_hash).
 
 ```rust
 fn compute_merkle_root(leaf : Field, index : Field, hash_path: [Field]) -> Field

@@ -83,8 +83,11 @@ jobs:
   update-docs:
     name: Update docs
     needs: [release-please, update-lockfile]
-    if: ${{ needs.release-please.outputs.tag-name }}
+    if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-latest
+    env:
+      PENDING_RELEASE_SEMVER: v${{ needs.release-please.outputs.major }}.${{needs.release-please.outputs.minor}}.${{needs.release-please.outputs.patch}}
+
     steps:
       - name: Checkout release branch
         uses: actions/checkout@v4
@@ -102,7 +105,7 @@ jobs:
 
       - name: Cut a new version
         working-directory: ./docs
-        run: yarn docusaurus docs:version ${{ needs.release-please.outputs.tag-name }}
+        run: yarn docusaurus docs:version ${{ env.PENDING_RELEASE_SEMVER }}
 
       - name: Configure git
         run: |
@@ -112,7 +115,7 @@ jobs:
       - name: Commit new documentation version
         run: |
           git add .
-          git commit -m "chore(docs): cut new docs version for tag ${{ needs.release-please.outputs.tag-name }}"
+          git commit -m "chore(docs): cut new docs version for tag ${{ env.PENDING_RELEASE_SEMVER }}"
           git push
 
   build-binaries:

@@ -147,9 +147,7 @@ pub(crate) fn on_shutdown(
 #[cfg(test)]
 mod initialization {
     use async_lsp::ClientSocket;
-    use lsp_types::{
-        CodeLensOptions, InitializeParams, TextDocumentSyncCapability, TextDocumentSyncKind,
-    };
+    use lsp_types::{InitializeParams, TextDocumentSyncCapability, TextDocumentSyncKind};
     use tokio::test;
 
     use crate::{
