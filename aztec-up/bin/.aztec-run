@@ -9,12 +9,6 @@ shift
 
 VERSION=${VERSION:-"latest"}
 
-# Any host bindings we might send to the container.
-DOCKER_HOST_BINDS=""
-
-# Volumes to pass to the container.
-DOCKER_VOLUME="-v $HOME:$HOME"
-
 # Colors.
 y="\033[33m"
 r="\033[0m"
@@ -33,18 +27,26 @@ if [[ $PWD != ${HOME}* ]]; then
   exit 1
 fi
 
+UNAME=$(uname -s)
+if [ "$UNAME" == "Linux" ] && docker info 2>/dev/null | grep -q rootless; then
+  ROOTLESS=1
+fi
+
+# If running in rootless docker, don't set uid/gid in container, as it breaks the write perms to the home mount.
+# Otherwise we set the uid/gid to be that of user running the container to ensure write perms to the home mount.
+if [ -z "${ROOTLESS:-}" ]; then
+  DOCKER_USER="--user $(id -u):$(id -g)"
+fi
+
 # Set up host.docker.internal alias on Linux, just like it is on mac.
-if [ -z "${SKIP_NET:-}" ]; then
-  UNAME=$(uname -s)
-  if [ "$UNAME" == "Linux" ]; then
-    if docker info 2>/dev/null | grep -q rootless; then
-      # We're in rootless docker. Probe for the host ip and use that.
-      ip=$(hostname -I | head | tr -d ' ')
-      warn "WARNING: Running within rootless docker. Using $ip as host ip. Ensure listening services are listening on this interface."
-      DOCKER_HOST_BINDS="$DOCKER_HOST_BINDS --add-host host.docker.internal:$ip"
-    else
-      DOCKER_HOST_BINDS="$DOCKER_HOST_BINDS --add-host host.docker.internal:host-gateway"
-    fi
+if [[ -z "${SKIP_NET:-}" && "$UNAME" == "Linux" ]]; then
+  if [ -n "${ROOTLESS:-}" ]; then
+    # We're in rootless docker. Probe for the host ip and use that.
+    ip=$(hostname -I | head | tr -d ' ')
+    warn "WARNING: Running within rootless docker. Using $ip as host ip. Ensure listening services are listening on this interface."
+    DOCKER_HOST_BINDS="$DOCKER_HOST_BINDS --add-host host.docker.internal:$ip"
+  else
+    DOCKER_HOST_BINDS="$DOCKER_HOST_BINDS --add-host host.docker.internal:host-gateway"
   fi
 fi
 
@@ -74,13 +76,14 @@ for env in ${ENV_VARS_TO_INJECT:-}; do
   DOCKER_ENV+="-e $env:${!env:-} "
 done
 
-DOCKER_VOLUME="$DOCKER_VOLUME -v cache:/cache"
+# Volumes to pass to the container.
 
 docker run \
   -ti \
   --rm \
   --workdir "$PWD" \
-  $DOCKER_HOST_BINDS \
-  $DOCKER_ENV \
-  $DOCKER_VOLUME \
+  -v $HOME:$HOME -v cache:/cache \
+  ${DOCKER_ENV:-} \
+  ${DOCKER_HOST_BINDS:-} \
+  ${DOCKER_USER:-} \
   $IMAGE:$VERSION ${args[@]:-}
