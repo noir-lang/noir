@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+FROM rust:1-bookworm as test-base
+=======
 FROM rust:1.71.1-bookworm as base
+>>>>>>> c38841f8235b0d5667458279d0252466dbc1ef95
 RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git -y
 WORKDIR /usr/src/noir
 COPY . .
