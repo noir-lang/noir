@@ -1,6 +1,7 @@
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::compiler::AcirTransformationMap;
 
+use acvm::compiler::reverse_mapping;
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::collections::BTreeMap;
@@ -37,15 +38,36 @@ impl DebugInfo {
     ///
     /// The [`OpcodeLocation`]s are generated with the ACIR, but passing the ACIR through a transformation step
     /// renders the old `OpcodeLocation`s invalid. The AcirTransformationMap is able to map the old `OpcodeLocation` to the new ones.
-    /// Note: One old `OpcodeLocation` might have transformed into more than one new `OpcodeLocation`.
+    /// Note: One old `OpcodeLocation` might have transformed into more than one new `OpcodeLocation`, or removed entirely.
     pub fn update_acir(&mut self, update_map: AcirTransformationMap) {
         log::trace!("Start debug info update");
         let old_locations = mem::take(&mut self.locations);
 
+        // `update_map` maps as `update_map.get(new_acir_index) = old_acir_index` which is many to one.
+        // We want a mapping which is `reverse_mapping_tree.get(old_acir_index) = new_acir_indices`, which is one to many.
+        let reverse_mapping_tree = update_map.get_opcode_mapping();
+
         for (old_opcode_location, source_locations) in old_locations {
-            update_map.new_locations(old_opcode_location).for_each(|new_opcode_location| {
-                self.locations.insert(new_opcode_location, source_locations.clone());
-            });
+            let old_acir_index = match old_opcode_location {
+                OpcodeLocation::Acir(index) => index,
+                OpcodeLocation::Brillig { acir_index, .. } => acir_index,
+            };
+
+            if let Some(new_acir_indices) = reverse_mapping_tree.get(&old_acir_index) {
+                // Update the `OpcodeLocation`s with the new acir index and write them back into the `locations` map.
+                new_acir_indices
+                    .iter()
+                    .map(|&new_acir_index| match old_opcode_location {
+                        OpcodeLocation::Acir(_) => OpcodeLocation::Acir(new_acir_index),
+                        OpcodeLocation::Brillig { brillig_index, .. } => {
+                            // brillig indices are unaffected by optimizations.
+                            OpcodeLocation::Brillig { acir_index: new_acir_index, brillig_index }
+                        }
+                    })
+                    .for_each(|new_opcode_location| {
+                        self.locations.insert(new_opcode_location, source_locations.clone());
+                    });
+            }
         }
         log::trace!("Finish debug info update");
     }

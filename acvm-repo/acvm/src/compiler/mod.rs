@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use acir::{
     circuit::{opcodes::UnsupportedMemoryOpcode, Circuit, Opcode, OpcodeLocation},
     BlackBoxFunc,
@@ -33,7 +35,45 @@ pub struct AcirTransformationMap {
 }
 
 impl AcirTransformationMap {
-    pub fn new_locations(
+    /// Returns a `BTreeMap` which maps an ACIR index in the untransformed [`Circuit`] to the set of ACIR indices
+    /// in the new [`Circuit`] corresponding to the opcodes.
+    pub fn get_opcode_mapping(&self) -> BTreeMap<usize, Vec<usize>> {
+        let mut new_opcode_to_old_map: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+        let mut index = 0;
+        let mut old_index = 0;
+
+        let mut temp: Vec<usize> = Vec::new();
+        while old_index <= *self.acir_opcode_positions.last().unwrap() {
+            let val = self.acir_opcode_positions[index];
+            match old_index.cmp(&val) {
+                std::cmp::Ordering::Less => {
+                    new_opcode_to_old_map.insert(old_index, temp);
+                    temp = Vec::new();
+                    old_index = val;
+                }
+                std::cmp::Ordering::Equal => {
+                    temp.push(index);
+                    index += 1;
+                    if index == self.acir_opcode_positions.len() {
+                        new_opcode_to_old_map.insert(old_index, temp);
+                        break;
+                    }
+                }
+                std::cmp::Ordering::Greater => {
+                    // We assume that `self.acir_opcodes_positions` is sorted. For this assumption to be broken
+                    // we would require the situation where a circuit `[opcode_1, opcode_2]` is optimized such that
+                    // the new opcodes generated from `opcode_1` would be executed after the opcodes from `opcode_2`.
+                    //
+                    // There is no reason for this to occur so we can discount it.
+                    unreachable!("`old_index` cannot exceed `val`")
+                }
+            }
+        }
+
+        new_opcode_to_old_map
+    }
+
+    fn new_locations(
         &self,
         old_location: OpcodeLocation,
     ) -> impl Iterator<Item = OpcodeLocation> + '_ {
