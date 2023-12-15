@@ -19,11 +19,7 @@ This is a black box function. Read [this section](./black_box_fns) to learn more
 
 :::
 
-## Aggregation Object
-
-The purpose of the input aggregation object is a little less clear though (and the output aggregation object that is returned from the `std::verify_proof` method). Recursive zkSNARK schemes do not necessarily "verify a proof" in the sense that you expect a true or false to be spit out by the verifier. Rather an aggregation object is built over the public inputs. In the case of PLONK the recursive aggregation object is two G1 points (expressed as 16 witness values). The final verifier (in our case this is most often the smart contract verifier) has to be aware of this aggregation object to execute a pairing and check the validity of these points (thus completing the recursive verification).
-
-So for example in this circuit:
+## Example usage
 
 ```rust
 use dep::std;
@@ -37,17 +33,17 @@ fn main(
     proof_b : [Field; 94],
 ) -> pub [Field; 16] {
     let output_aggregation_object_a = std::verify_proof(
-        verification_key,
-        proof,
-        public_inputs,
+        verification_key.as_slice(),
+        proof.as_slice(),
+        public_inputs.as_slice(),
         key_hash,
         input_aggregation_object
     );
 
     let output_aggregation_object = std::verify_proof(
-        verification_key,
-        proof_b,
-        public_inputs,
+        verification_key.as_slice(),
+        proof_b.as_slice(),
+        public_inputs.as_slice(),
         key_hash,
         output_aggregation_object_a
     );
@@ -59,8 +55,6 @@ fn main(
     output
 }
 ```
-
-In this example we have a circuit, that generates proofs A and B, that is being verified in circuit C. Assuming that the proof being passed in is not already a recursive proof, the `input_aggregation_object` will be all zeros. It will then generate an `output_aggregation_object`. This blob of data then becomes the `input_aggregation_object` of the next recursive aggregation we wish to compute. We can see here as the same public inputs, verification key, and key hash are used that we are verifying two proofs generated from the same circuit in this single circuit. `std::verify_proof` returns a `[Field]` because the size of an aggregation object is proof system dependent--in barretenberg, aggregation objects are two G1 points, while in Halo2, the aggregation object is a list of G1 points that is log the circuit size. So for the final step we convert the slice into an array of size 16 because we are generating proofs using UltraPlonk.
 
 ## Parameters
 
