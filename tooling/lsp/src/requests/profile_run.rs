@@ -3,7 +3,7 @@ use std::{
     future::{self, Future},
 };
 
-use acvm::Language;
+use acvm::acir::circuit::ExpressionWidth;
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::artifacts::debug::DebugArtifact;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -57,7 +57,7 @@ fn on_profile_run_request_inner(
                 .cloned()
                 .partition(|package| package.is_binary());
 
-            let np_language = Language::PLONKCSat { width: 3 };
+            let np_language = ExpressionWidth::Bounded { width: 3 };
 
             let (compiled_programs, compiled_contracts) = nargo::ops::compile_workspace(
                 &workspace,

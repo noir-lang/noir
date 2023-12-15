@@ -14,7 +14,7 @@ use crate::{
     errors::{RuntimeError, SsaReport},
 };
 use acvm::acir::{
-    circuit::{Circuit, PublicInputs},
+    circuit::{Circuit, ExpressionWidth, PublicInputs},
     native_types::Witness,
 };
 
@@ -119,6 +119,9 @@ pub fn create_circuit(
         public_parameters,
         return_values,
         assert_messages: assert_messages.into_iter().collect(),
+        // At this point, we have not yet performed any optimizations
+        // on the ACIR.
+        program_width: ExpressionWidth::Unbounded,
     };
 
     // This converts each im::Vector in the BTreeMap to a Vec

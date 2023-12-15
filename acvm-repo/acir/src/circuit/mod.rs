@@ -15,7 +15,7 @@ use serde::{de::Error as DeserializationError, Deserialize, Deserializer, Serial
 
 use std::collections::BTreeSet;
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Circuit {
     // current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
     // will take on this value. (The value is cached here as an optimization.)
@@ -39,6 +39,29 @@ pub struct Circuit {
     // c++ code at the moment when it is, due to OpcodeLocation needing a comparison
     // implementation which is never generated.
     pub assert_messages: Vec<(OpcodeLocation, String)>,
+
+    pub program_width: ExpressionWidth,
+}
+
+impl Default for Circuit {
+    fn default() -> Self {
+        Self {
+            current_witness_index: Default::default(),
+            opcodes: Default::default(),
+            private_parameters: Default::default(),
+            public_parameters: Default::default(),
+            return_values: Default::default(),
+            assert_messages: Default::default(),
+            program_width: ExpressionWidth::Unbounded,
+        }
+    }
+}
+
+
+#[derive(Debug,Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ExpressionWidth {
+    Unbounded,
+    Bounded { width: usize },
 }
 
 impl Circuit {
@@ -235,7 +258,7 @@ mod tests {
         opcodes::{BlackBoxFuncCall, FunctionInput},
         Circuit, Compression, Opcode, PublicInputs,
     };
-    use crate::native_types::Witness;
+    use crate::{circuit::ExpressionWidth, native_types::Witness};
     use acir_field::FieldElement;
 
     fn and_opcode() -> Opcode {
@@ -260,6 +283,7 @@ mod tests {
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(12)])),
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(4), Witness(12)])),
             assert_messages: Default::default(),
+            program_width: ExpressionWidth::Unbounded,
         };
 
         fn read_write(circuit: Circuit) -> (Circuit, Circuit) {
@@ -289,6 +313,7 @@ mod tests {
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             assert_messages: Default::default(),
+            program_width: ExpressionWidth::Unbounded,
         };
 
         let json = serde_json::to_string_pretty(&circuit).unwrap();

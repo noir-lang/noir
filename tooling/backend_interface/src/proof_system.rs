@@ -2,9 +2,9 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
+use acvm::acir::circuit::ExpressionWidth;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::FieldElement;
-use acvm::Language;
 use tempfile::tempdir;
 
 use crate::cli::{
@@ -30,7 +30,7 @@ impl Backend {
             .run(binary_path)
     }
 
-    pub fn get_backend_info(&self) -> Result<Language, BackendError> {
+    pub fn get_backend_info(&self) -> Result<ExpressionWidth, BackendError> {
         let binary_path = self.assert_binary_exists()?;
         self.assert_correct_version()?;
         InfoCommand { crs_path: self.crs_directory() }.run(binary_path)
@@ -38,12 +38,12 @@ impl Backend {
 
     /// If we cannot get a valid backend, returns Plonk with width 3
     /// The function also prints a message saying we could not find a backend
-    pub fn get_backend_info_or_default(&self) -> Language {
+    pub fn get_backend_info_or_default(&self) -> ExpressionWidth {
         if let Ok(language) = self.get_backend_info() {
             language
         } else {
             log::warn!("No valid backend found, defaulting to Plonk with width 3");
-            Language::PLONKCSat { width: 3 }
+            ExpressionWidth::Bounded { width: 3 }
         }
     }
 

@@ -6,7 +6,7 @@ use super::{
 use crate::backends::Backend;
 use crate::errors::CliError;
 
-use acvm::Language;
+use acvm::acir::circuit::ExpressionWidth;
 use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 use clap::Args;
 use nargo::package::Package;
@@ -71,9 +71,9 @@ fn smart_contract_for_package(
     backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
-    np_language: Language,
+    expression_width: ExpressionWidth,
 ) -> Result<String, CliError> {
-    let program = compile_bin_package(workspace, package, compile_options, np_language)?;
+    let program = compile_bin_package(workspace, package, compile_options, expression_width)?;
 
     let mut smart_contract_string = backend.eth_contract(&program.circuit)?;
 

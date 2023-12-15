@@ -152,7 +152,7 @@ mod tests {
     use acir::{
         circuit::{
             opcodes::{BlackBoxFuncCall, FunctionInput},
-            Circuit, Opcode, PublicInputs,
+            Circuit, ExpressionWidth, Opcode, PublicInputs,
         },
         native_types::{Expression, Witness},
     };
@@ -176,6 +176,7 @@ mod tests {
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
+            program_width: ExpressionWidth::Unbounded,
         }
     }
 

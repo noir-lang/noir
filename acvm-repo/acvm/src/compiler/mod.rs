@@ -1,6 +1,4 @@
-use acir::circuit::{Circuit, OpcodeLocation};
-
-use crate::Language;
+use acir::circuit::{Circuit, ExpressionWidth, OpcodeLocation};
 
 // The various passes that we can use over ACIR
 mod optimizers;
@@ -57,11 +55,14 @@ fn transform_assert_messages(
 }
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
-pub fn compile(acir: Circuit, np_language: Language) -> (Circuit, AcirTransformationMap) {
+pub fn compile(
+    acir: Circuit,
+    expression_width: ExpressionWidth,
+) -> (Circuit, AcirTransformationMap) {
     let (acir, AcirTransformationMap { acir_opcode_positions }) = optimize_internal(acir);
 
     let (mut acir, transformation_map) =
-        transform_internal(acir, np_language, acir_opcode_positions);
+        transform_internal(acir, expression_width, acir_opcode_positions);
 
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
 

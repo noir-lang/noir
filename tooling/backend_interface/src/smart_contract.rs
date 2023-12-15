@@ -38,7 +38,7 @@ mod tests {
     use std::collections::BTreeSet;
 
     use acvm::acir::{
-        circuit::{Circuit, Opcode, PublicInputs},
+        circuit::{Circuit, ExpressionWidth, Opcode, PublicInputs},
         native_types::{Expression, Witness},
     };
 
@@ -56,6 +56,7 @@ mod tests {
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
+            program_width: ExpressionWidth::Unbounded,
         };
 
         let contract = get_mock_backend()?.eth_contract(&circuit)?;
