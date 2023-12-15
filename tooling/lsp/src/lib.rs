@@ -7,7 +7,7 @@ use std::{
     collections::HashMap,
     future::Future,
     ops::{self, ControlFlow},
-    path::PathBuf,
+    path::{Path, PathBuf},
     pin::Pin,
     task::{self, Poll},
 };
@@ -19,6 +19,8 @@ use async_lsp::{
 };
 use fm::codespan_files as files;
 use lsp_types::CodeLens;
+use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::{Context, FunctionNameMatch},
@@ -32,6 +34,7 @@ use requests::{
     on_profile_run_request, on_shutdown, on_test_run_request, on_tests_request,
 };
 use serde_json::Value as JsonValue;
+use thiserror::Error;
 use tower::Service;
 
 mod notifications;
@@ -42,13 +45,20 @@ mod types;
 use solver::WrapperSolver;
 use types::{notification, request, NargoTest, NargoTestId, Position, Range, Url};
 
+#[derive(Debug, Error)]
+pub enum LspError {
+    /// Error while Resolving Workspace - {0}.
+    #[error("Failed to Resolve Workspace - {0}")]
+    WorkspaceResolutionError(String),
+}
+
 // State for the LSP gets implemented on this struct and is internal to the implementation
 pub struct LspState {
     root_path: Option<PathBuf>,
     client: ClientSocket,
     solver: WrapperSolver,
     input_files: HashMap<String, String>,
-    collected_lenses: Option<Vec<CodeLens>>,
+    cached_lenses: HashMap<String, Vec<CodeLens>>,
 }
 
 impl LspState {
@@ -58,7 +68,7 @@ impl LspState {
             root_path: None,
             solver: WrapperSolver(Box::new(solver)),
             input_files: HashMap::new(),
-            collected_lenses: None,
+            cached_lenses: HashMap::new(),
         }
     }
 }
@@ -178,4 +188,30 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
     } else {
         None
     }
+}
+
+pub(crate) fn resolve_workspace_for_source_path(
+    file_path: &Path,
+) -> Result<nargo::workspace::Workspace, LspError> {
+    let package_root = find_file_manifest(file_path);
+
+    let toml_path = match package_root {
+        Some(toml_path) => toml_path,
+        None => {
+            return Err(LspError::WorkspaceResolutionError(format!(
+                "Nargo.toml not found for file: {:?}",
+                file_path
+            )))
+        }
+    };
+
+    let workspace = match resolve_workspace_from_toml(
+        &toml_path,
+        PackageSelection::All,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    ) {
+        Ok(workspace) => workspace,
+        Err(err) => return Err(LspError::WorkspaceResolutionError(format!("{err}"))),
+    };
+    Ok(workspace)
 }

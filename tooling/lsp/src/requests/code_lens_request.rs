@@ -1,15 +1,14 @@
 use std::future::{self, Future};
 
-use async_lsp::{ErrorCode, LanguageClient, ResponseError};
+use async_lsp::{ErrorCode, ResponseError};
 
 use nargo::{package::Package, workspace::Workspace};
-use nargo_toml::{resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::check_crate;
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
-    byte_span_to_range,
-    types::{CodeLens, CodeLensParams, CodeLensResult, Command, LogMessageParams, MessageType},
+    byte_span_to_range, resolve_workspace_for_source_path,
+    types::{CodeLens, CodeLensParams, CodeLensResult, Command},
     LspState,
 };
 
@@ -50,67 +49,46 @@ fn on_code_lens_request_inner(
     state: &mut LspState,
     params: CodeLensParams,
 ) -> Result<CodeLensResult, ResponseError> {
-    if let Some(collected_lenses) = &state.collected_lenses {
-        return Ok(Some(collected_lenses.clone()));
-    }
-
     let file_path = params.text_document.uri.to_file_path().map_err(|_| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
     })?;
 
-    let package_root = nargo_toml::find_file_manifest(file_path.as_path());
-
-    let toml_path = match package_root {
-        Some(toml_path) => toml_path,
-        None => {
-            // If we cannot find a manifest, we log a warning but return no diagnostics
-            // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
-            let _ = state.client.log_message(LogMessageParams {
-                typ: MessageType::WARNING,
-                message: format!("Nargo.toml not found for file: {:}", file_path.display()),
-            });
-            return Ok(None);
-        }
-    };
-
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        PackageSelection::All,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    )
-    .map_err(|err| {
-        // If we found a manifest, but the workspace is invalid, we raise an error about it
-        ResponseError::new(ErrorCode::REQUEST_FAILED, err)
-    })?;
-
-    let mut lenses: Vec<CodeLens> = vec![];
-
-    for package in &workspace {
-        let (mut context, crate_id) = nargo::prepare_package(package);
-        // We ignore the warnings and errors produced by compilation for producing code lenses
-        // because we can still get the test functions even if compilation fails
-        let _ = check_crate(&mut context, crate_id, false, false);
-
-        let collected_lenses =
-            collect_lenses_for_package(&context, crate_id, &file_path, &workspace, package);
-
-        lenses.extend(collected_lenses);
+    if let Some(collected_lenses) = state.cached_lenses.get(&params.text_document.uri.to_string()) {
+        return Ok(Some(collected_lenses.clone()));
     }
 
-    if lenses.is_empty() {
+    let source_string = std::fs::read_to_string(&file_path).map_err(|_| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not read file from disk")
+    })?;
+
+    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+    let package = workspace.members.first().unwrap();
+
+    let (mut context, crate_id) = nargo::prepare_source(source_string);
+    // We ignore the warnings and errors produced by compilation for producing code lenses
+    // because we can still get the test functions even if compilation fails
+    let _ = check_crate(&mut context, crate_id, false, false);
+
+    let collected_lenses =
+        collect_lenses_for_package(&context, crate_id, &workspace, package, None);
+
+    if collected_lenses.is_empty() {
+        state.cached_lenses.remove(&params.text_document.uri.to_string());
         Ok(None)
     } else {
-        state.collected_lenses = Some(lenses.clone());
-        Ok(Some(lenses))
+        state
+            .cached_lenses
+            .insert(params.text_document.uri.to_string().clone(), collected_lenses.clone());
+        Ok(Some(collected_lenses))
     }
 }
 
 pub(crate) fn collect_lenses_for_package(
     context: &noirc_frontend::macros_api::HirContext,
     crate_id: noirc_frontend::macros_api::CrateId,
-    file_path: &std::path::PathBuf,
     workspace: &Workspace,
     package: &Package,
+    file_path: Option<&std::path::PathBuf>,
 ) -> Vec<CodeLens> {
     let mut lenses: Vec<CodeLens> = vec![];
     let fm = &context.file_manager;
@@ -123,8 +101,10 @@ pub(crate) fn collect_lenses_for_package(
 
         // Ignore diagnostics for any file that wasn't the file we saved
         // TODO: In the future, we could create "related" diagnostics for these files
-        if fm.path(file_id) != *file_path {
-            continue;
+        if let Some(file_path) = file_path {
+            if fm.path(file_id) != *file_path {
+                continue;
+            }
         }
 
         let range = byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
@@ -152,8 +132,10 @@ pub(crate) fn collect_lenses_for_package(
 
             // Ignore diagnostics for any file that wasn't the file we saved
             // TODO: In the future, we could create "related" diagnostics for these files
-            if fm.path(file_id) != *file_path {
-                return lenses;
+            if let Some(file_path) = file_path {
+                if fm.path(file_id) != *file_path {
+                    return lenses;
+                }
             }
 
             let range =
@@ -209,8 +191,10 @@ pub(crate) fn collect_lenses_for_package(
 
             // Ignore diagnostics for any file that wasn't the file we saved
             // TODO: In the future, we could create "related" diagnostics for these files
-            if fm.path(file_id) != *file_path {
-                continue;
+            if let Some(file_path) = file_path {
+                if fm.path(file_id) != *file_path {
+                    continue;
+                }
             }
 
             let range =

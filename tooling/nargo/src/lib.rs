@@ -14,7 +14,7 @@ pub mod ops;
 pub mod package;
 pub mod workspace;
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::Path};
 
 use fm::FileManager;
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
@@ -101,6 +101,28 @@ pub fn prepare_package(package: &Package) -> (Context, CrateId) {
     (context, crate_id)
 }
 
+/// Prepares a package from a source string
+/// This is useful for situations when we don't need dependencies
+/// and just need to operate on single file.
+///
+/// Use case for this is the LSP server and code lenses
+/// which operate on single file and need to understand this file
+/// in order to offer code lenses to the user
+pub fn prepare_source(source: String) -> (Context, CrateId) {
+    let root = Path::new("");
+    let mut file_manager = FileManager::new(root);
+    let root_file_id = file_manager.add_file_with_source(Path::new("main.nr"), source).expect(
+        "Adding source buffer to file manager should never fail when file manager is empty",
+    );
+
+    let graph = CrateGraph::default();
+    let mut context = Context::new(file_manager, graph);
+
+    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+
+    (context, root_crate_id)
+}
+
 // Get all paths in the directory and subdirectories.
 //
 // Panics: If the path is not a path to a directory.
@@ -167,5 +189,20 @@ mod tests {
         for path in expected_paths {
             assert!(paths.contains(&path));
         }
+    }
+    #[test]
+    fn prepare_package_from_source_string() {
+        let source = r#"
+        fn main() {
+            let x = 1;
+            let y = 2;
+            let z = x + y;
+        }
+        "#;
+
+        let (mut context, crate_id) = crate::prepare_source(source.to_string());
+        let _check_result = noirc_driver::check_crate(&mut context, crate_id, false, false);
+        let main_func_id = context.get_main_function(&crate_id);
+        assert!(main_func_id.is_some());
     }
 }
