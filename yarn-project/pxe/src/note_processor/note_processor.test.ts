@@ -223,4 +223,26 @@ describe('Note Processor', () => {
     addedNoteDaos.forEach(info => nonceSet.add(info.nonce.value));
     expect(nonceSet.size).toBe(notes.length);
   });
+
+  it('advances the block number', async () => {
+    const { blockContexts, encryptedLogsArr } = mockData([[2]]);
+    await noteProcessor.process(blockContexts, encryptedLogsArr);
+    expect(noteProcessor.status.syncedToBlock).toEqual(blockContexts.at(-1)?.block.number);
+  });
+
+  it('should restore the last block number processed and ignore the starting block', async () => {
+    const { blockContexts, encryptedLogsArr } = mockData([[2]]);
+    await noteProcessor.process(blockContexts, encryptedLogsArr);
+
+    const newNoteProcessor = new NoteProcessor(
+      owner.getPublicKey(),
+      keyStore,
+      database,
+      aztecNode,
+      INITIAL_L2_BLOCK_NUM,
+      simulator,
+    );
+
+    expect(newNoteProcessor.status).toEqual(noteProcessor.status);
+  });
 });

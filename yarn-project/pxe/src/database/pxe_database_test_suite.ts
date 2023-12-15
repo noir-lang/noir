@@ -1,6 +1,6 @@
 import { AztecAddress, BlockHeader, CompleteAddress } from '@aztec/circuits.js';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { MerkleTreeId, NoteFilter, randomTxHash } from '@aztec/types';
+import { INITIAL_L2_BLOCK_NUM, MerkleTreeId, NoteFilter, randomTxHash } from '@aztec/types';
 
 import { NoteDao } from './note_dao.js';
 import { randomNoteDao } from './note_dao.test.js';
@@ -155,13 +155,13 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
         const blockHeader = BlockHeader.random();
         blockHeader.privateKernelVkTreeRoot = Fr.zero();
 
-        await database.setBlockHeader(blockHeader);
+        await database.setBlockData(INITIAL_L2_BLOCK_NUM, blockHeader);
         expect(database.getBlockHeader()).toEqual(blockHeader);
       });
 
       it('retrieves the merkle tree roots from the block', async () => {
         const blockHeader = BlockHeader.random();
-        await database.setBlockHeader(blockHeader);
+        await database.setBlockData(INITIAL_L2_BLOCK_NUM, blockHeader);
         expect(database.getTreeRoots()).toEqual({
           [MerkleTreeId.NOTE_HASH_TREE]: blockHeader.noteHashTreeRoot,
           [MerkleTreeId.NULLIFIER_TREE]: blockHeader.nullifierTreeRoot,

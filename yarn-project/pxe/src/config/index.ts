@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 export interface PXEServiceConfig {
   /** The interval to wait between polling for new blocks. */
   l2BlockPollingIntervalMS: number;
-  /** L2 block to start scanning from */
+  /** L2 block to start scanning from for new accounts */
   l2StartingBlock: number;
 
   /** Where to store PXE data. If not set will store in memory */

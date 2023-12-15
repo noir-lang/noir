@@ -1,6 +1,6 @@
 import { BlockHeader, CompleteAddress, PublicKey } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { MerkleTreeId, NoteFilter } from '@aztec/types';
 
@@ -18,8 +18,10 @@ export class MemoryDB extends MemoryContractDatabase implements PxeDatabase {
   private notesTable: NoteDao[] = [];
   private treeRoots: Record<MerkleTreeId, Fr> | undefined;
   private globalVariablesHash: Fr | undefined;
+  private blockNumber: number | undefined;
   private addresses: CompleteAddress[] = [];
   private authWitnesses: Record<string, Fr[]> = {};
+  private syncedBlockPerPublicKey = new Map<string, number>();
   // A capsule is a "blob" of data that is passed to the contract through an oracle.
   // We are using a stack to keep track of the capsules that are passed to the contract.
   private capsuleStack: Fr[][] = [];
@@ -134,8 +136,9 @@ export class MemoryDB extends MemoryContractDatabase implements PxeDatabase {
     );
   }
 
-  public setBlockHeader(blockHeader: BlockHeader): Promise<void> {
+  public setBlockData(blockNumber: number, blockHeader: BlockHeader): Promise<void> {
     this.globalVariablesHash = blockHeader.globalVariablesHash;
+    this.blockNumber = blockNumber;
     this.setTreeRoots({
       [MerkleTreeId.NOTE_HASH_TREE]: blockHeader.noteHashTreeRoot,
       [MerkleTreeId.NULLIFIER_TREE]: blockHeader.nullifierTreeRoot,
@@ -146,6 +149,10 @@ export class MemoryDB extends MemoryContractDatabase implements PxeDatabase {
     });
 
     return Promise.resolve();
+  }
+
+  public getBlockNumber(): number | undefined {
+    return this.blockNumber;
   }
 
   public addCompleteAddress(completeAddress: CompleteAddress): Promise<boolean> {
@@ -172,6 +179,15 @@ export class MemoryDB extends MemoryContractDatabase implements PxeDatabase {
 
   public getCompleteAddresses(): Promise<CompleteAddress[]> {
     return Promise.resolve(this.addresses);
+  }
+
+  getSynchedBlockNumberForPublicKey(publicKey: Point): number | undefined {
+    return this.syncedBlockPerPublicKey.get(publicKey.toString());
+  }
+
+  setSynchedBlockNumberForPublicKey(publicKey: Point, blockNumber: number): Promise<boolean> {
+    this.syncedBlockPerPublicKey.set(publicKey.toString(), blockNumber);
+    return Promise.resolve(true);
   }
 
   public estimateSize() {
