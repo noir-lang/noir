@@ -62,7 +62,8 @@ jobs:
           cd /usr/src/noir
           ./scripts/test_native.sh
 
-  js-setup:
+  test-acvm-js:
+    name: test acvm js
     runs-on: ubuntu-latest
     needs: [build-base]
     container:
@@ -70,9 +71,8 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
-    name: Compile site assets  
     steps:
       - name: test
         run: |
           cd /usr/src/noir
-          ./scripts/test_native.sh
+          yarn workspace @noir-lang/acvm_js test
