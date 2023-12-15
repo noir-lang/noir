@@ -7,8 +7,8 @@ on:
       - 'cache-docker-artifacts'
 
 jobs:
-  build:
-    name: Test github artifacts
+  build-nargo:
+    name: Build nargo
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -46,3 +46,32 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           push: true
+
+  test-nargo:
+    runs-on: ubuntu-latest
+    needs: [build-nargo]
+    name: Compile site assets
+    steps:
+      - name: Login to GitHub Container Registry        
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: prepare docker images tags
+        id: prep
+        run: |
+          REGISTRY="ghcr.io"
+          IMG="${REGISTRY}/${{ github.repository }}"
+          IMAGE=$(echo "$IMG" | tr '[:upper:]' '[:lower:]')
+          TAGS="${IMAGE}:${{ github.sha }}"
+          TAGS="${TAGS},${IMAGE}:latest,${IMAGE}:v${{ steps.date.outputs.date }}"
+          IMAGE_REF="${IMAGE}:${{ github.sha }}"
+          # echo ::set-output name=tags::${TAGS}
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          echo "image-ref=$IMAGE_REF" >> $GITHUB_OUTPUT
+      - name: Run the build process with Docker
+        uses: addnab/docker-run-action@v3
+        with:
+          image: ${{ steps.prep.outputs.image-ref }}
