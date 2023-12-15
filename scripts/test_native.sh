@@ -12,4 +12,5 @@ else
   export GIT_COMMIT=$(git rev-parse --verify HEAD)
 fi
 
+sudo apt-get install -y curl libc++-dev
 cargo test --workspace --locked --release
