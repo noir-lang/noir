@@ -39,8 +39,14 @@ fi
 
 terraform init -input=false $BACKEND_CONFIG
 
+IFS=','
+# Tainting listed resources.
 for RESOURCE in $TO_TAINT; do
-  terraform taint $RESOURCE || true
+  if [ "$DRY_DEPLOY" -eq 1 ]; then
+    echo "DRY_DEPLOY: terraform taint $RESOURCE"
+  else
+    terraform taint $RESOURCE || true
+  fi
 done
 
 if [ "$DRY_DEPLOY" -eq 1 ]; then

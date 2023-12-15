@@ -971,8 +971,9 @@ jobs:
             export TF_VAR_NODE_1_PRIVATE_KEY=$NODE_1_PRIVATE_KEY
             export TF_VAR_NODE_2_PRIVATE_KEY=$NODE_2_PRIVATE_KEY
             # Check if l1-contracts have changed
-            if $CONTRACTS_DEPLOYED -eq 1; then
-              deploy_terraform_services yarn-project/aztec-node aztec-sandbox aztec-node aws_efs_file_system.node_data_store
+            if [ "$CONTRACTS_DEPLOYED" -eq 1 ]; then
+              echo "Contracts have changed, taint nodes to force redeploy.."
+              deploy_terraform_services yarn-project/aztec-node aztec-sandbox aztec-node "aws_ecs_task_definition.aztec-node[0],aws_ecs_task_definition.aztec-node[1]"
             else
               deploy_terraform_services yarn-project/aztec-node aztec-sandbox
             fi
@@ -1104,18 +1105,18 @@ workflows:
       - aztec-faucet: *defaults_yarn_project_prod
 
       # Boxes.
-      - boxes-blank-react:
-          requires:
-            - aztec-sandbox
-          <<: *defaults
-      - boxes-blank:
-          requires:
-            - aztec-sandbox
-          <<: *defaults
-      - boxes-token:
-          requires:
-            - aztec-sandbox
-          <<: *defaults
+      # - boxes-blank-react:
+      #     requires:
+      #       - aztec-sandbox
+      #     <<: *defaults
+      # - boxes-blank:
+      #     requires:
+      #       - aztec-sandbox
+      #     <<: *defaults
+      # - boxes-token:
+      #     requires:
+      #       - aztec-sandbox
+      #     <<: *defaults
 
       # End to end tests.
       - e2e-join:

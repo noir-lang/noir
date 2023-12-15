@@ -6,7 +6,7 @@ set -eu
 
 # The box name is the name of the directory containing the docker-compose.yml file
 # The current dir is assumed to be `yarn-project/boxes`, as this script `yarn-project/boxes/run_tests`
-CURRENT_DIR=`dirname $0`
+CURRENT_DIR=$(dirname $0)
 BOX_NAME=${1:-boxes-blank}
 
 cd $CURRENT_DIR/$BOX_NAME
@@ -58,4 +58,4 @@ docker-compose -f $COMPOSE_FILE up --exit-code-from boxes-$BOX_NAME
 # Success - push a new tag for the commit hash with the box name appended
 IMAGE_COMMIT_URI=$SANDBOX_IMAGE_URI-$BOX_NAME
 retry docker tag $SANDBOX_IMAGE_URI $IMAGE_COMMIT_URI
-retry docker push $IMAGE_COMMIT_URI > /dev/null 2>&1
+retry docker push $IMAGE_COMMIT_URI >/dev/null 2>&1
