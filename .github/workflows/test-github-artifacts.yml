@@ -58,6 +58,6 @@ jobs:
     name: Compile site assets  
     steps:
       - name: test
-        run: ls 
+        run: cd /usr/src/noir
       - name: test cargo
         run: ./scripts/test_native.sh
