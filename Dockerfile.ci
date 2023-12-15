@@ -25,7 +25,7 @@ ENV PATH="${PATH}:/usr/src/noir/target/release/"
 #Required for yarn building
 RUN yarn --immutable
 RUN apt-get install -y jq
-RUN yarn build
+# RUN yarn build
 
 FROM test-base as test-cargo
 RUN apt-get install -y curl libc++-dev
