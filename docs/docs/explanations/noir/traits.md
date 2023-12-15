@@ -53,7 +53,7 @@ trait Area {
     fn area(self) -> Field;
 }
 
-fn log_area(shape: S) where S: Area {
+fn log_area<T>(shape: T) where T: Area {
     println(shape.area());
 }
 ```
@@ -85,7 +85,7 @@ As seen in `log_area` above, when we want to create a function or method that is
 a trait, we can add a where clause to the generic function.
 
 ```rust
-fn log_area(shape: S) where S: Area {
+fn log_area<T>(shape: T) where T: Area {
     println(shape.area());
 }
 ```
@@ -94,7 +94,7 @@ It is also possible to apply multiple trait constraints on the same variable at 
 operator. Similarly, we can have multiple trait constraints by separating each with a comma:
 
 ```rust
-fn foo(elements: [T], thing: U) where
+fn foo<T, U>(elements: [T], thing: U) where
     T: Default + Add + Eq,
     U: Bar,
 {

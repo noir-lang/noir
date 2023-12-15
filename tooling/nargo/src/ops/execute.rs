@@ -13,6 +13,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
     blackbox_solver: &B,
     foreign_call_executor: &mut F,
 ) -> Result<WitnessMap, NargoError> {
+    log::trace!("Start circuit execution");
     let mut acvm = ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness);
 
     loop {
@@ -55,5 +56,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
     }
 
     let solved_witness = acvm.finalize();
+
+    log::trace!("Finish circuit execution");
     Ok(solved_witness)
 }
