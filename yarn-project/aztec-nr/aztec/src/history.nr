@@ -1,3 +1,4 @@
+mod contract_inclusion;
 mod note_inclusion;
 mod note_validity;
 mod nullifier_inclusion;

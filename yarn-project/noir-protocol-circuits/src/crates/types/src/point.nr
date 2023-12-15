@@ -4,12 +4,18 @@ struct Point {
     y: Field,
 }
 
+global POINT_SERIALIZED_LEN: Field = 2;
+
 impl Point {
     pub fn zero() -> Self {
         Point {
             x: 0,
             y: 0,
         }
+    }
+
+    fn serialize(self) -> [Field; POINT_SERIALIZED_LEN] {
+        [self.x, self.y]
     }
 
     // TODO(David): Would be quite careful here as (0,0) is not a point

@@ -339,7 +339,7 @@ export class AztecNodeService implements AztecNode {
    * @param leafIndex - The index of the leaf for which the sibling path is required.
    * @returns The sibling path for the leaf index.
    */
-  public async getNullifierTreeSiblingPath(
+  public async getNullifierSiblingPath(
     blockNumber: number | 'latest',
     leafIndex: bigint,
   ): Promise<SiblingPath<typeof NULLIFIER_TREE_HEIGHT>> {
@@ -408,7 +408,7 @@ export class AztecNodeService implements AztecNode {
    * @param leafIndex - Index of the leaf in the tree.
    * @returns The sibling path.
    */
-  public async getPublicDataTreeSiblingPath(
+  public async getPublicDataSiblingPath(
     blockNumber: number | 'latest',
     leafIndex: bigint,
   ): Promise<SiblingPath<typeof PUBLIC_DATA_TREE_HEIGHT>> {

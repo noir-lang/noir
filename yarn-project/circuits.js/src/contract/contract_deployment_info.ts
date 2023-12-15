@@ -48,7 +48,8 @@ export function getContractDeploymentInfo(
 
   return {
     completeAddress,
-    constructorHash: constructorVkHash,
+    constructorHash,
+    constructorVkHash,
     functionTreeRoot,
   };
 }
