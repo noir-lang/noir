@@ -58,4 +58,4 @@ jobs:
     name: Compile site assets  
     steps:
       - name: test
-        run: echo hi 
+        run: ls 
