@@ -80,12 +80,21 @@ export interface PxeDatabase extends ContractDatabase {
   getTreeRoots(): Record<MerkleTreeId, Fr>;
 
   /**
+   * Gets the most recently processed block number.
+   * @returns The most recently processed block number or undefined if never synched.
+   */
+  getBlockNumber(): number | undefined;
+
+  /**
    * Retrieve the stored Block Header from the database.
    * The function returns a Promise that resolves to the Block Header.
    * This data is required to reproduce block attestations.
    * Throws an error if the block header is not available within the database.
    *
    * note: this data is a combination of the tree roots and the global variables hash.
+   *
+   * @returns The Block Header.
+   * @throws If no block have been processed yet.
    */
   getBlockHeader(): BlockHeader;
 
@@ -94,10 +103,11 @@ export interface PxeDatabase extends ContractDatabase {
    * This function updates the 'global variables hash' and `tree roots` property of the instance
    * Note that this will overwrite any existing hash or roots in the database.
    *
+   * @param blockNumber - The block number of the most recent block
    * @param blockHeader - An object containing the most recent block header.
    * @returns A Promise that resolves when the hash has been successfully updated in the database.
    */
-  setBlockHeader(blockHeader: BlockHeader): Promise<void>;
+  setBlockData(blockNumber: number, blockHeader: BlockHeader): Promise<void>;
 
   /**
    * Adds complete address to the database.
@@ -120,6 +130,19 @@ export interface PxeDatabase extends ContractDatabase {
    * @returns A promise that resolves to an array of AztecAddress instances.
    */
   getCompleteAddresses(): Promise<CompleteAddress[]>;
+
+  /**
+   * Updates up to which block number we have processed notes for a given public key.
+   * @param publicKey - The public key to set the synched block number for.
+   * @param blockNumber - The block number to set.
+   */
+  setSynchedBlockNumberForPublicKey(publicKey: PublicKey, blockNumber: number): Promise<boolean>;
+
+  /**
+   * Get the synched block number for a given public key.
+   * @param publicKey - The public key to get the synched block number for.
+   */
+  getSynchedBlockNumberForPublicKey(publicKey: PublicKey): number | undefined;
 
   /**
    * Returns the estimated size in bytes of this db.

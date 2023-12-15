@@ -50,7 +50,7 @@ export interface StateInfoProvider {
    * @returns The sibling path for the leaf index.
    * TODO: https://github.com/AztecProtocol/aztec-packages/issues/3414
    */
-  getNullifierTreeSiblingPath(
+  getNullifierSiblingPath(
     blockNumber: BlockNumber,
     leafIndex: bigint,
   ): Promise<SiblingPath<typeof NULLIFIER_TREE_HEIGHT>>;
@@ -103,7 +103,7 @@ export interface StateInfoProvider {
    * @returns The sibling path.
    * TODO: https://github.com/AztecProtocol/aztec-packages/issues/3414
    */
-  getPublicDataTreeSiblingPath(
+  getPublicDataSiblingPath(
     blockNumber: BlockNumber,
     leafIndex: bigint,
   ): Promise<SiblingPath<typeof PUBLIC_DATA_TREE_HEIGHT>>;

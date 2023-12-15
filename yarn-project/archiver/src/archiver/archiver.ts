@@ -48,11 +48,6 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
   private runningPromise?: RunningPromise;
 
   /**
-   * Next L1 block number to fetch `L2BlockProcessed` logs from (i.e. `fromBlock` in eth_getLogs).
-   */
-  private nextL2BlockFromL1Block = 0n;
-
-  /**
    * Use this to track logged block in order to avoid repeating the same message.
    */
   private lastLoggedL1BlockNumber = 0n;
@@ -220,10 +215,20 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
       this.publicClient,
       this.rollupAddress,
       blockUntilSynced,
-      this.nextL2BlockFromL1Block,
+      lastProcessedL1BlockNumber + 1n,
       currentL1BlockNumber,
       nextExpectedL2BlockNum,
     );
+
+    if (retrievedBlocks.retrievedData.length === 0) {
+      return;
+    } else {
+      this.log(
+        `Retrieved ${retrievedBlocks.retrievedData.length} new L2 blocks between L1 blocks ${
+          lastProcessedL1BlockNumber + 1n
+        } and ${currentL1BlockNumber}.`,
+      );
+    }
 
     // create the block number -> block hash mapping to ensure we retrieve the appropriate events
     const blockHashMapping: { [key: number]: Buffer | undefined } = {};
@@ -234,13 +239,10 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
       this.publicClient,
       this.contractDeploymentEmitterAddress,
       blockUntilSynced,
-      this.nextL2BlockFromL1Block,
+      lastProcessedL1BlockNumber + 1n,
       currentL1BlockNumber,
       blockHashMapping,
     );
-    if (retrievedBlocks.retrievedData.length === 0) {
-      return;
-    }
 
     this.log(`Retrieved ${retrievedBlocks.retrievedData.length} block(s) from chain`);
 
@@ -280,9 +282,6 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
         );
       }),
     );
-
-    // set the L1 block for the next search
-    this.nextL2BlockFromL1Block = retrievedBlocks.nextEthBlockNumber;
   }
 
   /**

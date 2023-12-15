@@ -92,10 +92,25 @@ export class PXEService implements PXE {
    * @returns A promise that resolves when the server has started successfully.
    */
   public async start() {
-    const { l2BlockPollingIntervalMS, l2StartingBlock } = this.config;
-    await this.synchronizer.start(l2StartingBlock, 1, l2BlockPollingIntervalMS);
+    const { l2BlockPollingIntervalMS } = this.config;
+    await this.synchronizer.start(1, l2BlockPollingIntervalMS);
+    await this.restoreNoteProcessors();
     const info = await this.getNodeInfo();
     this.log.info(`Started PXE connected to chain ${info.chainId} version ${info.protocolVersion}`);
+  }
+
+  private async restoreNoteProcessors() {
+    const publicKeys = await this.keyStore.getAccounts();
+    const publicKeysSet = new Set(publicKeys.map(k => k.toString()));
+
+    const registeredAddresses = await this.db.getCompleteAddresses();
+
+    for (const address of registeredAddresses) {
+      if (!publicKeysSet.has(address.publicKey.toString())) {
+        continue;
+      }
+      this.synchronizer.addAccount(address.publicKey, this.keyStore, this.config.l2StartingBlock);
+    }
   }
 
   /**

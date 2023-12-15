@@ -4,7 +4,7 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
-import { AztecNode, KeyStore, L1NotePayload, L2BlockContext, L2BlockL2Logs } from '@aztec/types';
+import { AztecNode, INITIAL_L2_BLOCK_NUM, KeyStore, L1NotePayload, L2BlockContext, L2BlockL2Logs } from '@aztec/types';
 import { NoteProcessorStats } from '@aztec/types/stats';
 
 import { PxeDatabase } from '../database/index.js';
@@ -30,9 +30,6 @@ interface ProcessedData {
  * before storing them against their owner.
  */
 export class NoteProcessor {
-  /** The latest L2 block number that the note processor has synchronized to. */
-  private syncedToBlock = 0;
-
   /** Keeps track of processing time since an instance is created. */
   public readonly timer: Timer = new Timer();
 
@@ -47,12 +44,10 @@ export class NoteProcessor {
     private keyStore: KeyStore,
     private db: PxeDatabase,
     private node: AztecNode,
-    private startingBlock: number,
+    private startingBlock: number = INITIAL_L2_BLOCK_NUM,
     private simulator = getAcirSimulator(db, node, keyStore),
     private log = createDebugLogger('aztec:note_processor'),
-  ) {
-    this.syncedToBlock = this.startingBlock - 1;
-  }
+  ) {}
 
   /**
    * Check if the NoteProcessor is synchronized with the remote block number.
@@ -63,14 +58,18 @@ export class NoteProcessor {
    */
   public async isSynchronized() {
     const remoteBlockNumber = await this.node.getBlockNumber();
-    return this.syncedToBlock === remoteBlockNumber;
+    return this.getSyncedToBlock() === remoteBlockNumber;
   }
 
   /**
    * Returns synchronization status (ie up to which block has been synced ) for this note processor.
    */
   public get status() {
-    return { syncedToBlock: this.syncedToBlock };
+    return { syncedToBlock: this.getSyncedToBlock() };
+  }
+
+  private getSyncedToBlock(): number {
+    return this.db.getSynchedBlockNumberForPublicKey(this.publicKey) ?? this.startingBlock - 1;
   }
 
   /**
@@ -171,8 +170,10 @@ export class NoteProcessor {
 
     await this.processBlocksAndNotes(blocksAndNotes);
 
-    this.syncedToBlock = l2BlockContexts[l2BlockContexts.length - 1].block.number;
-    this.log(`Synched block ${this.syncedToBlock}`);
+    const syncedToBlock = l2BlockContexts[l2BlockContexts.length - 1].block.number;
+    await this.db.setSynchedBlockNumberForPublicKey(this.publicKey, syncedToBlock);
+
+    this.log(`Synched block ${syncedToBlock}`);
   }
 
   /**
