@@ -202,6 +202,7 @@ pub(super) fn transform_internal(
     let acir = Circuit {
         current_witness_index,
         opcodes: transformed_opcodes,
+        expression_width,
         // The transformer does not add new public inputs
         ..acir
     };

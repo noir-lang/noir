@@ -121,7 +121,7 @@ pub fn create_circuit(
         assert_messages: assert_messages.into_iter().collect(),
         // At this point, we have not yet performed any optimizations
         // on the ACIR.
-        program_width: ExpressionWidth::Unbounded,
+        expression_width: ExpressionWidth::Unbounded,
     };
 
     // This converts each im::Vector in the BTreeMap to a Vec

@@ -40,7 +40,7 @@ pub struct Circuit {
     // implementation which is never generated.
     pub assert_messages: Vec<(OpcodeLocation, String)>,
 
-    pub program_width: ExpressionWidth,
+    pub expression_width: ExpressionWidth,
 }
 
 impl Default for Circuit {
@@ -52,7 +52,7 @@ impl Default for Circuit {
             public_parameters: Default::default(),
             return_values: Default::default(),
             assert_messages: Default::default(),
-            program_width: ExpressionWidth::Unbounded,
+            expression_width: ExpressionWidth::Unbounded,
         }
     }
 }
@@ -283,7 +283,7 @@ mod tests {
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(12)])),
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(4), Witness(12)])),
             assert_messages: Default::default(),
-            program_width: ExpressionWidth::Unbounded,
+            expression_width: ExpressionWidth::Unbounded,
         };
 
         fn read_write(circuit: Circuit) -> (Circuit, Circuit) {
@@ -313,7 +313,7 @@ mod tests {
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             assert_messages: Default::default(),
-            program_width: ExpressionWidth::Unbounded,
+            expression_width: ExpressionWidth::Unbounded,
         };
 
         let json = serde_json::to_string_pretty(&circuit).unwrap();

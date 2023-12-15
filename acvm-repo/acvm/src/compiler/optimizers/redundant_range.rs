@@ -176,7 +176,7 @@ mod tests {
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
-            program_width: ExpressionWidth::Unbounded,
+            expression_width: ExpressionWidth::Unbounded,
         }
     }
 
