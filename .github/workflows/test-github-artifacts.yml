@@ -50,7 +50,7 @@ jobs:
   test-nargo:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/noir-lang/noir:latest
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
