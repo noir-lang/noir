@@ -34,9 +34,13 @@ pub(crate) use {
     test_run::on_test_run_request, tests::on_tests_request,
 };
 
+/// LSP client will send initialization request after the server has started.
+/// [InitializeParams].`initialization_options` will contain the options sent from the client.
 #[derive(Debug, Deserialize, Serialize)]
 struct LspInitializationOptions {
     
+    /// Controls whether code lens is enabled by the server
+    /// By default this will be set to true (enabled).
     #[serde(rename = "enableCodeLens", default = "default_enable_code_lens")]
     enable_code_lens: bool,
 }
