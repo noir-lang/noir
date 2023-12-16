@@ -39,6 +39,7 @@ describe('noir wasm', () => {
       }
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
+      expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
       expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
     }).timeout(20e3); // 20 seconds
@@ -76,6 +77,7 @@ describe('noir wasm', () => {
       const cliCircuit = await getPrecompiledSource(depsScriptExpectedArtifact);
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
+      expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
       expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
     }).timeout(20e3); // 20 seconds
