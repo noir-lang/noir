@@ -41,7 +41,7 @@ impl InfoCommand {
 
         let backend_info: InfoResponse =
             serde_json::from_slice(&output.stdout).expect("Backend should return valid json");
-        let language: ExpressionWidth = match backend_info.language.name.as_str() {
+        let expression_width: ExpressionWidth = match backend_info.language.name.as_str() {
             "PLONK-CSAT" => {
                 let width = backend_info.language.width.unwrap();
                 ExpressionWidth::Bounded { width }
@@ -50,7 +50,7 @@ impl InfoCommand {
             _ => panic!("Unknown Expression width configuration"),
         };
 
-        Ok(language)
+        Ok(expression_width)
     }
 }
 
@@ -59,9 +59,9 @@ fn info_command() -> Result<(), BackendError> {
     let backend = crate::get_mock_backend()?;
     let crs_path = backend.backend_directory();
 
-    let language = InfoCommand { crs_path }.run(backend.binary_path())?;
+    let expression_width = InfoCommand { crs_path }.run(backend.binary_path())?;
 
-    assert!(matches!(language, ExpressionWidth::Bounded { width: 3 }));
+    assert!(matches!(expression_width, ExpressionWidth::Bounded { width: 3 }));
 
     Ok(())
 }
