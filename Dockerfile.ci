@@ -1,6 +1,9 @@
 FROM rust:1.71.1-slim-bookworm as base
 RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git -y
+WORKDIR /usr/src/noir
+COPY . .
 
+FROM base as intermediate
 # Required for cargo test
 RUN apt-get install -y curl libc++-dev
 
