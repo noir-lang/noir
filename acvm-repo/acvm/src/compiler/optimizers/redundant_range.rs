@@ -234,7 +234,7 @@ mod tests {
     #[test]
     fn non_range_opcodes() {
         // The optimizer should not remove or change non-range opcodes
-        // The four Arithmetic opcodes should remain unchanged.
+        // The four AssertZero opcodes should remain unchanged.
         let mut circuit = test_circuit(vec![(Witness(1), 16), (Witness(1), 16)]);
 
         circuit.opcodes.push(Opcode::AssertZero(Expression::default()));

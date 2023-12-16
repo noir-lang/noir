@@ -60,7 +60,7 @@ pub(super) fn transform_internal(
     // TODO or at the very least, we could put all of it inside of CSatOptimizer pass
 
     let mut new_acir_opcode_positions: Vec<usize> = Vec::with_capacity(acir_opcode_positions.len());
-    // Optimize the arithmetic gates by reducing them into the correct width and
+    // Optimize the assert zero gates by reducing them into the correct width and
     // creating intermediate variables when necessary
     let mut transformed_opcodes = Vec::new();
 
