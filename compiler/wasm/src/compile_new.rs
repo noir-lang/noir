@@ -13,8 +13,11 @@ use noirc_frontend::{
 use std::path::Path;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-#[wasm_bindgen(js_name = "Context")]
-pub struct ContextWrapper {
+/// This is a wrpaper class that is wasm-bindgen compatible
+/// We do not use js_name and rename it like CrateId because
+/// then the impl block is not picked up in javascript.
+#[wasm_bindgen]
+pub struct CompilerContext {
     context: Context,
 }
 
@@ -23,14 +26,14 @@ pub struct ContextWrapper {
 pub struct CrateIDWrapper(CrateId);
 
 #[wasm_bindgen]
-impl ContextWrapper {
+impl CompilerContext {
     #[wasm_bindgen(constructor)]
-    pub fn new(source_map: PathToFileSourceMap) -> ContextWrapper {
+    pub fn new(source_map: PathToFileSourceMap) -> CompilerContext {
         console_error_panic_hook::set_once();
-
+    
         let fm = file_manager_with_source_map(source_map);
         let graph = CrateGraph::default();
-        ContextWrapper { context: Context::new(fm, graph) }
+        CompilerContext { context: Context::new(fm, graph) }
     }
 
     #[cfg(test)]
@@ -66,11 +69,15 @@ impl ContextWrapper {
     // This function will add an edge from CrateId1 to CrateId2 and the edge will be named `crate_name`
     //
     // This essentially says that CrateId1 depends on CrateId2 and the dependency is named `crate_name`
+    //
+    // We pass references to &CrateIdWrapper even though it is a copy because Rust's move semantics are 
+    // not respected once we use javascript. ie it will actually allocated a new object in javascript
+    // then deallocate that object if we do not pass as a reference.
     pub fn add_dependency_edge(
         &mut self,
         crate_name: String,
-        from: CrateIDWrapper,
-        to: CrateIDWrapper,
+        from: &CrateIDWrapper,
+        to: &CrateIDWrapper,
     ) {
         let parsed_crate_name: CrateName = crate_name
             .parse()
@@ -84,8 +91,6 @@ impl ContextWrapper {
     ) -> Result<JsCompileResult, JsCompileError> {
         let compile_options = CompileOptions::default();
         let np_language = acvm::Language::PLONKCSat { width: program_width };
-        #[allow(deprecated)]
-        let is_opcode_supported = acvm::pwg::default_is_opcode_supported(np_language);
 
         let root_crate_id = *self.context.root_crate_id();
 
@@ -101,8 +106,7 @@ impl ContextWrapper {
                 .0;
 
         let optimized_program =
-            nargo::ops::optimize_program(compiled_program, np_language, &is_opcode_supported)
-                .expect("Program optimization failed");
+            nargo::ops::optimize_program(compiled_program, np_language);
 
         let compile_output = preprocess_program(optimized_program);
         Ok(JsCompileResult::new(compile_output))
@@ -114,9 +118,6 @@ impl ContextWrapper {
     ) -> Result<JsCompileResult, JsCompileError> {
         let compile_options = CompileOptions::default();
         let np_language = acvm::Language::PLONKCSat { width: program_width };
-        #[allow(deprecated)]
-        let is_opcode_supported = acvm::pwg::default_is_opcode_supported(np_language);
-
         let root_crate_id = *self.context.root_crate_id();
 
         let compiled_contract =
@@ -131,8 +132,7 @@ impl ContextWrapper {
                 .0;
 
         let optimized_contract =
-            nargo::ops::optimize_contract(compiled_contract, np_language, &is_opcode_supported)
-                .expect("Contract optimization failed");
+            nargo::ops::optimize_contract(compiled_contract, np_language);
 
         let compile_output = preprocess_contract(optimized_contract);
         Ok(JsCompileResult::new(compile_output))
@@ -148,9 +148,9 @@ mod test {
 
     use std::path::Path;
 
-    use super::ContextWrapper;
+    use super::CompilerContext;
 
-    fn setup_test_context(source_map: PathToFileSourceMap) -> ContextWrapper {
+    fn setup_test_context(source_map: PathToFileSourceMap) -> CompilerContext {
         let mut fm = file_manager_with_source_map(source_map);
         // Add this due to us calling prepare_crate on "/main.nr" below
         fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());
@@ -159,7 +159,7 @@ mod test {
         let mut context = Context::new(fm, graph);
         prepare_crate(&mut context, Path::new("/main.nr"));
 
-        ContextWrapper { context }
+        CompilerContext { context }
     }
 
     #[test]
@@ -197,8 +197,8 @@ mod test {
         let lib1_crate_id = context.process_dependency_crate("lib1/lib.nr".to_string());
         let root_crate_id = context.root_crate_id();
 
-        context.add_dependency_edge("lib1".to_string(), root_crate_id, lib1_crate_id);
-        context.add_dependency_edge("lib1".to_string(), root_crate_id, lib1_crate_id);
+        context.add_dependency_edge("lib1".to_string(), &root_crate_id, &lib1_crate_id);
+        context.add_dependency_edge("lib1".to_string(), &root_crate_id, &lib1_crate_id);
 
         assert_eq!(context.crate_graph().number_of_crates(), 3);
     }
@@ -222,9 +222,9 @@ mod test {
         let lib3_crate_id = context.process_dependency_crate("lib3/lib.nr".to_string());
         let root_crate_id = context.root_crate_id();
 
-        context.add_dependency_edge("lib1".to_string(), root_crate_id, lib1_crate_id);
-        context.add_dependency_edge("lib2".to_string(), lib1_crate_id, lib2_crate_id);
-        context.add_dependency_edge("lib3".to_string(), lib2_crate_id, lib3_crate_id);
+        context.add_dependency_edge("lib1".to_string(), &root_crate_id, &lib1_crate_id);
+        context.add_dependency_edge("lib2".to_string(), &lib1_crate_id, &lib2_crate_id);
+        context.add_dependency_edge("lib3".to_string(), &lib2_crate_id, &lib3_crate_id);
 
         assert_eq!(context.crate_graph().number_of_crates(), 5);
     }
@@ -247,8 +247,8 @@ mod test {
         let lib3_crate_id = context.process_dependency_crate("lib3/lib.nr".to_string());
         let root_crate_id = context.root_crate_id();
 
-        context.add_dependency_edge("lib1".to_string(), root_crate_id, lib1_crate_id);
-        context.add_dependency_edge("lib3".to_string(), lib2_crate_id, lib3_crate_id);
+        context.add_dependency_edge("lib1".to_string(), &root_crate_id, &lib1_crate_id);
+        context.add_dependency_edge("lib3".to_string(), &lib2_crate_id, &lib3_crate_id);
 
         assert_eq!(context.crate_graph().number_of_crates(), 5);
     }
