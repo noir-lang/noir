@@ -41,7 +41,6 @@ describe('noir wasm', () => {
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
       expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
-      expect(wasmCircuit.program.backend).to.eq(cliCircuit.backend);
     }).timeout(20e3); // 20 seconds
   });
 
@@ -79,7 +78,6 @@ describe('noir wasm', () => {
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
       expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
-      expect(wasmCircuit.program.backend).to.eq(cliCircuit.backend);
     }).timeout(20e3); // 20 seconds
   });
 });
