@@ -9,7 +9,7 @@ import {
 } from '../shared';
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { compile, CompilerContext, PathToFileSourceMap } from '@noir-lang/noir_wasm';
+import { compile, compile_, CompilerContext, PathToFileSourceMap } from '@noir-lang/noir_wasm';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getPrecompiledSource(path: string): Promise<any> {
@@ -74,8 +74,9 @@ describe('noir wasm compilation', () => {
   });
 
   describe('can compile scripts with dependencies -- context-api', () => {
-    const sourceMap: PathToFileSourceMap = new PathToFileSourceMap();
+    let sourceMap: PathToFileSourceMap;
     beforeEach(() => {
+      sourceMap = new PathToFileSourceMap();
       sourceMap.add_source_code('script/main.nr', readFileSync(join(__dirname, depsScriptSourcePath), 'utf-8'));
       sourceMap.add_source_code('lib_a/lib.nr', readFileSync(join(__dirname, libASourcePath), 'utf-8'));
       sourceMap.add_source_code('lib_b/lib.nr', readFileSync(join(__dirname, libBSourcePath), 'utf-8'));
@@ -107,6 +108,32 @@ describe('noir wasm compilation', () => {
 
       const program_width = 3;
       const wasmCircuit = await compilerContext.compile_program(program_width);
+
+      const cliCircuit = await getPrecompiledSource(depsScriptExpectedArtifact);
+
+      if (!('program' in wasmCircuit)) {
+        throw Error('Expected program to be present');
+      }
+
+      // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
+      expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
+      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
+      expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
+      expect(wasmCircuit.program.backend).to.eq(cliCircuit.backend);
+    }).timeout(10e3);
+
+    it('matching nargos compilation - context-implementation-compile-api', async () => {
+      const wasmCircuit = await compile_(
+        'script/main.nr',
+        false,
+        {
+          root_dependencies: ['lib_a'],
+          library_dependencies: {
+            lib_a: ['lib_b'],
+          },
+        },
+        sourceMap,
+      );
 
       const cliCircuit = await getPrecompiledSource(depsScriptExpectedArtifact);
 
