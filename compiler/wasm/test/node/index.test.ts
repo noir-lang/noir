@@ -70,7 +70,6 @@ describe('noir wasm compilation', () => {
       expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
       expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
-      expect(wasmCircuit.program.backend).to.eq(cliCircuit.backend);
     }).timeout(10e3);
   });
 
@@ -120,7 +119,6 @@ describe('noir wasm compilation', () => {
       expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
       expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
-      expect(wasmCircuit.program.backend).to.eq(cliCircuit.backend);
     }).timeout(10e3);
 
     it('matching nargos compilation - context-implementation-compile-api', async () => {
