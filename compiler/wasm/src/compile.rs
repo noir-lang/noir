@@ -120,10 +120,10 @@ impl JsCompileResult {
     }
 }
 
-#[derive(Deserialize)]
-struct DependencyGraph {
-    root_dependencies: Vec<CrateName>,
-    library_dependencies: HashMap<CrateName, Vec<CrateName>>,
+#[derive(Deserialize, Default)]
+pub(crate) struct DependencyGraph {
+    pub(crate) root_dependencies: Vec<CrateName>,
+    pub(crate) library_dependencies: HashMap<CrateName, Vec<CrateName>>,
 }
 #[wasm_bindgen]
 // This is a map containing the paths of all of the files in the entry-point crate and
