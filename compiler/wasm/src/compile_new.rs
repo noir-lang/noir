@@ -137,6 +137,89 @@ impl CompilerContext {
     }
 }
 
+/// This is a method that exposes the same API as `compile`
+/// But uses the Context based APi internally
+#[wasm_bindgen]
+pub fn compile_(
+    entry_point: String,
+    contracts: Option<bool>,
+    dependency_graph: Option<crate::compile::JsDependencyGraph>,
+    file_source_map: PathToFileSourceMap,
+) -> Result<JsCompileResult, JsCompileError> {
+    use std::collections::HashMap;
+
+    console_error_panic_hook::set_once();
+
+    let dependency_graph: crate::compile::DependencyGraph =
+        if let Some(dependency_graph) = dependency_graph {
+            <wasm_bindgen::JsValue as gloo_utils::format::JsValueSerdeExt>::into_serde(
+                &wasm_bindgen::JsValue::from(dependency_graph),
+            )
+            .map_err(|err| err.to_string())?
+        } else {
+            crate::compile::DependencyGraph::default()
+        };
+
+    let mut compiler_context = CompilerContext::new(file_source_map);
+
+    // Set the root crate
+    let root_id = compiler_context.process_root_crate(entry_point.clone());
+
+    let add_noir_lib = |context: &mut CompilerContext, lib_name: &CrateName| -> CrateIDWrapper {
+        let lib_name_string = lib_name.to_string();
+        let path_to_lib = Path::new(&lib_name_string)
+            .join("lib.nr")
+            .to_str()
+            .expect("paths are expected to be valid utf-8")
+            .to_string();
+        context.process_dependency_crate(path_to_lib)
+    };
+
+    // Add the dependency graph
+    let mut crate_names: HashMap<CrateName, CrateIDWrapper> = HashMap::new();
+    //
+    // Process the direct dependencies of the root
+    for lib_name in dependency_graph.root_dependencies {
+        let lib_name_string = lib_name.to_string();
+
+        let crate_id = add_noir_lib(&mut compiler_context, &lib_name);
+
+        crate_names.insert(lib_name.clone(), crate_id);
+
+        // Add the dependency edges
+        compiler_context.add_dependency_edge(lib_name_string, &root_id, &crate_id);
+    }
+
+    // Process the transitive dependencies of the root
+    for (lib_name, dependencies) in &dependency_graph.library_dependencies {
+        // first create the library crate if needed
+        // this crate might not have been registered yet because of the order of the HashMap
+        // e.g. {root: [lib1], libs: { lib2 -> [lib3], lib1 -> [lib2] }}
+        let crate_id = *crate_names
+            .entry(lib_name.clone())
+            .or_insert_with(|| add_noir_lib(&mut compiler_context, lib_name));
+
+        for dependency_name in dependencies {
+            let dependency_name_string = dependency_name.to_string();
+
+            let dep_crate_id = crate_names
+                .entry(dependency_name.clone())
+                .or_insert_with(|| add_noir_lib(&mut compiler_context, dependency_name));
+
+            compiler_context.add_dependency_edge(dependency_name_string, &crate_id, dep_crate_id);
+        }
+    }
+
+    let is_contract = contracts.unwrap_or(false);
+    let program_width = 3;
+
+    if is_contract {
+        compiler_context.compile_contract(program_width)
+    } else {
+        compiler_context.compile_program(program_width)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use noirc_driver::prepare_crate;
