@@ -6,24 +6,25 @@ services:
       '
       [ -n "$$FORK_URL" ] && ARGS="$$ARGS --fork-url $$FORK_URL";
       [ -n "$$FORK_BLOCK_NUMBER" ] && ARGS="$$ARGS --fork-block-number $$FORK_BLOCK_NUMBER";
-      echo anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --silent $$ARGS;
-      anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --silent $$ARGS
+      echo anvil -p $$ANVIL_PORT --host 0.0.0.0 --chain-id 31337 --silent $$ARGS;
+      anvil -p $$ANVIL_PORT --host 0.0.0.0 --chain-id 31337 --silent $$ARGS
       '
     ports:
-      - "${SANDBOX_ANVIL_PORT:-8545}:8545"
+      - "${ANVIL_PORT:-8545}:${ANVIL_PORT:-8545}"
     environment:
       FORK_URL:
       FORK_BLOCK_NUMBER:
+      ANVIL_PORT: ${ANVIL_PORT:-8545}
 
   aztec:
     image: "aztecprotocol/aztec-sandbox"
     ports:
-      - "${SANDBOX_AZTEC_NODE_PORT:-8079}:8079"
-      - "${SANDBOX_PXE_PORT:-8080}:8080"
+      - "${AZTEC_NODE_PORT:-8079}:${AZTEC_NODE_PORT:-8079}"
+      - "${PXE_PORT:-8080}:${PXE_PORT:-8080}"
     environment:
       DEBUG: # Loaded from the user shell if explicitly set
       HOST_WORKDIR: "${PWD}" # Loaded from the user shell to show log files absolute path in host
-      ETHEREUM_HOST: http://ethereum:8545
+      ETHEREUM_HOST: http://ethereum:${ANVIL_PORT:-8545}
       CHAIN_ID: 31337
       ARCHIVER_POLLING_INTERVAL_MS: 50
       P2P_BLOCK_CHECK_INTERVAL_MS: 50
@@ -31,5 +32,7 @@ services:
       WS_BLOCK_CHECK_INTERVAL_MS: 50
       PXE_BLOCK_POLLING_INTERVAL_MS: 50
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
+      AZTEC_NODE_PORT: ${AZTEC_NODE_PORT:-8079}
+      PXE_PORT: ${PXE_PORT:-8080}
     volumes:
       - ./log:/usr/src/yarn-project/aztec-sandbox/log:rw

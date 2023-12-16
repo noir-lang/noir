@@ -10,7 +10,7 @@ import { NoirCommit } from '@aztec/noir-compiler/versions';
 import { BootstrapNode, getP2PConfigEnvVars } from '@aztec/p2p';
 import { GrumpkinScalar, PXEService, createPXERpcServer } from '@aztec/pxe';
 
-import { resolve as dnsResolve } from 'dns';
+import { lookup } from 'dns/promises';
 import { readFileSync } from 'fs';
 import http from 'http';
 import { dirname, resolve } from 'path';
@@ -35,11 +35,10 @@ enum SandboxMode {
  * If we can successfully resolve 'host.docker.internal', then we are running in a container, and we should treat
  * localhost as being host.docker.internal.
  */
-function getLocalhost() {
-  return new Promise(resolve =>
-    dnsResolve('host.docker.internal', err => (err ? resolve('localhost') : resolve('host.docker.internal'))),
-  );
-}
+const getLocalhost = () =>
+  lookup('host.docker.internal')
+    .then(() => 'host.docker.internal')
+    .catch(() => 'localhost');
 
 const LOCALHOST = await getLocalhost();
 const {

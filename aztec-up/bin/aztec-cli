@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# TODO: Make compile command always be wasm. Or put nargo in container. Or probe.
-# TODO: Make unbox fail if trying to unbox outside of the cwd.
 set -euo pipefail
 
 export ENV_VARS_TO_INJECT="PXE_URL PRIVATE_KEY DEBUG"

@@ -3,7 +3,7 @@ import { fileURLToPath } from '@aztec/foundation/url';
 import { addNoirCompilerCommanderActions } from '@aztec/noir-compiler/cli';
 
 import { Command, Option } from 'commander';
-import { resolve as dnsResolve } from 'dns';
+import { lookup } from 'dns/promises';
 import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 
@@ -27,11 +27,10 @@ import {
  * If we can successfully resolve 'host.docker.internal', then we are running in a container, and we should treat
  * localhost as being host.docker.internal.
  */
-function getLocalhost() {
-  return new Promise(resolve =>
-    dnsResolve('host.docker.internal', err => (err ? resolve('localhost') : resolve('host.docker.internal'))),
-  );
-}
+const getLocalhost = () =>
+  lookup('host.docker.internal')
+    .then(() => 'host.docker.internal')
+    .catch(() => 'localhost');
 
 const LOCALHOST = await getLocalhost();
 const { ETHEREUM_HOST = `http://${LOCALHOST}:8545`, PRIVATE_KEY, API_KEY } = process.env;

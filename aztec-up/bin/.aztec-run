@@ -44,9 +44,9 @@ if [[ -z "${SKIP_NET:-}" && "$UNAME" == "Linux" ]]; then
     # We're in rootless docker. Probe for the host ip and use that.
     ip=$(hostname -I | head | tr -d ' ')
     warn "WARNING: Running within rootless docker. Using $ip as host ip. Ensure listening services are listening on this interface."
-    DOCKER_HOST_BINDS="$DOCKER_HOST_BINDS --add-host host.docker.internal:$ip"
+    DOCKER_HOST_BINDS="--add-host host.docker.internal:$ip"
   else
-    DOCKER_HOST_BINDS="$DOCKER_HOST_BINDS --add-host host.docker.internal:host-gateway"
+    DOCKER_HOST_BINDS="--add-host host.docker.internal:host-gateway"
   fi
 fi
 
@@ -70,10 +70,12 @@ done
 
 DOCKER_ENV="-e HOME=$HOME"
 for env in ${ENV_VARS_TO_INJECT:-}; do
-  # First substitute any reference to localhost with our host gateway.
-  env=${env//localhost/host.docker.internal}
-  # Inject into container.
-  DOCKER_ENV+="-e $env:${!env:-} "
+  if [ -n "${!env:-}" ]; then
+    # First substitute any reference to localhost with our host gateway.
+    env=${env//localhost/host.docker.internal}
+    # Inject into container.
+    DOCKER_ENV+=" -e $env=${!env:-}"
+  fi
 done
 
 # Volumes to pass to the container.
