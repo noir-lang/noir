@@ -24,7 +24,7 @@ use brillig::{HeapArray, RegisterIndex, RegisterOrMemory};
 
 #[test]
 fn addition_circuit() {
-    let addition = Opcode::Arithmetic(Expression {
+    let addition = Opcode::AssertZero(Expression {
         mul_terms: Vec::new(),
         linear_combinations: vec![
             (FieldElement::one(), Witness(1)),

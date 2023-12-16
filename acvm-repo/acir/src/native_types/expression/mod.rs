@@ -42,7 +42,7 @@ impl std::fmt::Display for Expression {
         if let Some(witness) = self.to_witness() {
             write!(f, "x{}", witness.witness_index())
         } else {
-            write!(f, "%{:?}%", crate::circuit::opcodes::Opcode::Arithmetic(self.clone()))
+            write!(f, "%{:?}%", crate::circuit::opcodes::Opcode::AssertZero(self.clone()))
         }
     }
 }

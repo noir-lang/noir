@@ -253,7 +253,7 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
         let opcode = &self.opcodes[self.instruction_pointer];
 
         let resolution = match opcode {
-            Opcode::Arithmetic(expr) => ArithmeticSolver::solve(&mut self.witness_map, expr),
+            Opcode::AssertZero(expr) => ArithmeticSolver::solve(&mut self.witness_map, expr),
             Opcode::BlackBoxFuncCall(bb_func) => {
                 blackbox::solve(self.backend, &mut self.witness_map, bb_func)
             }

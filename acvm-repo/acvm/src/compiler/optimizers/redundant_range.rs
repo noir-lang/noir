@@ -132,7 +132,7 @@ fn extract_range_opcode(opcode: &Opcode) -> Option<(Witness, u32)> {
 
 fn optimized_range_opcode(witness: Witness, num_bits: u32) -> Opcode {
     if num_bits == 1 {
-        Opcode::Arithmetic(Expression {
+        Opcode::AssertZero(Expression {
             mul_terms: vec![(FieldElement::one(), witness, witness)],
             linear_combinations: vec![(-FieldElement::one(), witness)],
             q_c: FieldElement::zero(),
@@ -237,10 +237,10 @@ mod tests {
         // The four Arithmetic opcodes should remain unchanged.
         let mut circuit = test_circuit(vec![(Witness(1), 16), (Witness(1), 16)]);
 
-        circuit.opcodes.push(Opcode::Arithmetic(Expression::default()));
-        circuit.opcodes.push(Opcode::Arithmetic(Expression::default()));
-        circuit.opcodes.push(Opcode::Arithmetic(Expression::default()));
-        circuit.opcodes.push(Opcode::Arithmetic(Expression::default()));
+        circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
+        circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
+        circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
+        circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let optimizer = RangeOptimizer::new(circuit);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
