@@ -34,13 +34,3 @@ pub enum Directive {
         sort_by: Vec<u32>, // specify primary index to sort by, then the secondary,... For instance, if tuple is 2 and sort_by is [1,0], then a=[(a0,b0),..] is sorted by bi and then ai.
     },
 }
-
-impl Directive {
-    pub fn name(&self) -> &str {
-        match self {
-            Directive::Quotient(_) => "quotient",
-            Directive::ToLeRadix { .. } => "to_le_radix",
-            Directive::PermutationSort { .. } => "permutation_sort",
-        }
-    }
-}
