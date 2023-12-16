@@ -181,7 +181,7 @@ impl Expression {
     /// Checks if this expression can fit into one arithmetic identity
     /// TODO: This needs to be reworded, arithmetic identity only makes sense in the context
     /// TODO of PLONK, whereas we want expressions to be generic.
-    /// TODO: We just need to reword it to say exactly what its doing and 
+    /// TODO: We just need to reword it to say exactly what its doing and
     /// TODO then reference the fact that this is what plonk will accept.
     /// TODO alternatively, we can define arithmetic identity in the context of expressions
     /// TODO and then reference that.
