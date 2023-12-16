@@ -19,19 +19,48 @@ fi
 # Login to pull our ecr images with docker.
 ecr_login
 
+# Contract addresses will be saved in the serve directory
 mkdir -p serve
-# Contract addresses will be mounted in the serve directory
-docker run \
-  -v $(pwd)/serve:/usr/src/l1-contracts/serve \
-  -e ETHEREUM_HOST=$ETHEREUM_HOST -e PRIVATE_KEY=$CONTRACT_PUBLISHER_PRIVATE_KEY \
-  "$ECR_URL/l1-contracts:cache-$CONTENT_HASH" \
-  ./scripts/deploy_contracts.sh
+FILE_PATH=./serve/contract_addresses.json
+CLI_IMAGE=$(calculate_image_uri cli)
+retry docker pull $CLI_IMAGE
 
-# Write the contract addresses as terraform variables
-for KEY in ROLLUP_CONTRACT_ADDRESS REGISTRY_CONTRACT_ADDRESS INBOX_CONTRACT_ADDRESS OUTBOX_CONTRACT_ADDRESS CONTRACT_DEPLOYMENT_EMITTER_ADDRESS; do
-  VALUE=$(jq -r .$KEY ./serve/contract_addresses.json)
-  export TF_VAR_$KEY=$VALUE
-done
+# remove 0x prefix from private key
+PRIVATE_KEY=${CONTRACT_PUBLISHER_PRIVATE_KEY#0x}
+docker run \
+  $CLI_IMAGE \
+  deploy-l1-contracts -u $ETHEREUM_HOST -p $PRIVATE_KEY >./serve/contract_addresses.json
+
+## Result format is:
+# Rollup Address: 0xe33d37702bb94e83ca09e7dc804c9f4c4ab8ee4a
+# Registry Address: 0xf02a70628c4e0d7c41f231f9af24c1678a030438
+# L1 -> L2 Inbox Address: 0xdf34a07c7da15630d3b5d6bb17651d548a6e9d8f
+# L2 -> L1 Outbox address: 0xf6b1b3c2c393fe55fe577a1f528bd72a76589ab0
+# Contract Deployment Emitter Address: 0xf3ecc6e9428482a74687ee5f7b96f4dff8781454
+
+# Read the file line by line
+while IFS= read -r line; do
+  # Extract the hexadecimal address using awk
+  address=$(echo "$line" | awk '{print $NF}')
+
+  # Assign the address to the respective variable based on the line content
+  if [[ $line == *"Rollup"* ]]; then
+    export TF_VAR_ROLLUP_CONTRACT_ADDRESS=$address
+    echo "TF_VAR_ROLLUP_CONTRACT_ADDRESS=$TF_VAR_ROLLUP_CONTRACT_ADDRESS"
+  elif [[ $line == *"Registry"* ]]; then
+    export TF_VAR_REGISTRY_CONTRACT_ADDRESS=$address
+    echo "TF_VAR_REGISTRY_CONTRACT_ADDRESS=$TF_VAR_REGISTRY_CONTRACT_ADDRESS"
+  elif [[ $line == *"Inbox"* ]]; then
+    export TF_VAR_INBOX_CONTRACT_ADDRESS=$address
+    echo "TF_VAR_INBOX_CONTRACT_ADDRESS=$TF_VAR_INBOX_CONTRACT_ADDRESS"
+  elif [[ $line == *"Outbox"* ]]; then
+    export TF_VAR_OUTBOX_CONTRACT_ADDRESS=$address
+    echo "TF_VAR_OUTBOX_CONTRACT_ADDRESS=$TF_VAR_OUTBOX_CONTRACT_ADDRESS"
+  elif [[ $line == *"Emitter"* ]]; then
+    export TF_VAR_CONTRACT_DEPLOYMENT_EMITTER_ADDRESS=$address
+    echo "TF_VAR_CONTRACT_DEPLOYMENT_EMITTER_ADDRESS=$TF_VAR_CONTRACT_DEPLOYMENT_EMITTER_ADDRESS"
+  fi
+done <"$FILE_PATH"
 
 if [ "$DRY_DEPLOY" -eq 1 ]; then
   echo "DRY_DEPLOY: deploy_terraform l1-contracts ./terraform"
