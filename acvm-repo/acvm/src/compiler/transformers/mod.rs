@@ -5,7 +5,7 @@ use acir::{
 };
 use indexmap::IndexMap;
 
-use crate::Language;
+use crate::ExpressionWidth;
 
 mod csat;
 mod r1cs;
@@ -16,13 +16,13 @@ pub(crate) use r1cs::R1CSTransformer;
 use super::{transform_assert_messages, AcirTransformationMap};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
-pub fn transform(acir: Circuit, np_language: Language) -> (Circuit, AcirTransformationMap) {
+pub fn transform(acir: Circuit, expression_width: ExpressionWidth) -> (Circuit, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
     let (mut acir, acir_opcode_positions) =
-        transform_internal(acir, np_language, acir_opcode_positions);
+        transform_internal(acir, expression_width, acir_opcode_positions);
 
     let transformation_map = AcirTransformationMap::new(acir_opcode_positions);
 
@@ -36,17 +36,17 @@ pub fn transform(acir: Circuit, np_language: Language) -> (Circuit, AcirTransfor
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 pub(super) fn transform_internal(
     acir: Circuit,
-    np_language: Language,
+    expression_width: ExpressionWidth,
     acir_opcode_positions: Vec<usize>,
 ) -> (Circuit, Vec<usize>) {
     log::trace!("Start circuit transformation");
 
-    let mut transformer = match &np_language {
-        crate::Language::R1CS => {
+    let mut transformer = match &expression_width {
+        crate::ExpressionWidth::Unbounded => {
             let transformer = R1CSTransformer::new(acir);
             return (transformer.transform(), acir_opcode_positions);
         }
-        crate::Language::PLONKCSat { width } => {
+        crate::ExpressionWidth::Bounded { width } => {
             let mut csat = CSatTransformer::new(*width);
             for value in acir.circuit_arguments() {
                 csat.mark_solvable(value);

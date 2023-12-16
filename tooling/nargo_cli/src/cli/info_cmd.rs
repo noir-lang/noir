@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use acvm::Language;
+use acvm::ExpressionWidth;
 use backend_interface::BackendError;
 use clap::Args;
 use iter_extended::vecmap;
@@ -67,12 +67,12 @@ pub(crate) fn run(
         .cloned()
         .partition(|package| package.is_binary());
 
-    let np_language = backend.get_backend_info_or_default();
+    let expression_width = backend.get_backend_info_or_default();
     let (compiled_programs, compiled_contracts) = compile_workspace(
         &workspace,
         &binary_packages,
         &contract_packages,
-        np_language,
+        expression_width,
         &args.compile_options,
     )?;
 
@@ -97,13 +97,13 @@ pub(crate) fn run(
         .into_par_iter()
         .zip(compiled_programs)
         .map(|(package, program)| {
-            count_opcodes_and_gates_in_program(backend, program, &package, np_language)
+            count_opcodes_and_gates_in_program(backend, program, &package, expression_width)
         })
         .collect::<Result<_, _>>()?;
 
     let contract_info = compiled_contracts
         .into_par_iter()
-        .map(|contract| count_opcodes_and_gates_in_contract(backend, contract, np_language))
+        .map(|contract| count_opcodes_and_gates_in_contract(backend, contract, expression_width))
         .collect::<Result<_, _>>()?;
 
     let info_report = InfoReport { programs: program_info, contracts: contract_info };
@@ -202,7 +202,7 @@ struct InfoReport {
 struct ProgramInfo {
     name: String,
     #[serde(skip)]
-    language: Language,
+    language: ExpressionWidth,
     acir_opcodes: usize,
     circuit_size: u32,
 }
@@ -222,7 +222,7 @@ impl From<ProgramInfo> for Row {
 struct ContractInfo {
     name: String,
     #[serde(skip)]
-    language: Language,
+    language: ExpressionWidth,
     functions: Vec<FunctionInfo>,
 }
 
@@ -251,7 +251,7 @@ fn count_opcodes_and_gates_in_program(
     backend: &Backend,
     compiled_program: CompiledProgram,
     package: &Package,
-    language: Language,
+    language: ExpressionWidth,
 ) -> Result<ProgramInfo, CliError> {
     Ok(ProgramInfo {
         name: package.name.to_string(),
@@ -264,7 +264,7 @@ fn count_opcodes_and_gates_in_program(
 fn count_opcodes_and_gates_in_contract(
     backend: &Backend,
     contract: CompiledContract,
-    language: Language,
+    language: ExpressionWidth,
 ) -> Result<ContractInfo, CliError> {
     let functions = contract
         .functions

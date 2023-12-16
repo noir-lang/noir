@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use acir::circuit::{Circuit, OpcodeLocation};
 
-use crate::Language;
+use crate::ExpressionWidth;
 
 // The various passes that we can use over ACIR
 mod optimizers;
@@ -69,11 +69,11 @@ fn transform_assert_messages(
 }
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
-pub fn compile(acir: Circuit, np_language: Language) -> (Circuit, AcirTransformationMap) {
+pub fn compile(acir: Circuit, expression_width: ExpressionWidth) -> (Circuit, AcirTransformationMap) {
     let (acir, acir_opcode_positions) = optimize_internal(acir);
 
     let (mut acir, acir_opcode_positions) =
-        transform_internal(acir, np_language, acir_opcode_positions);
+        transform_internal(acir, expression_width, acir_opcode_positions);
 
     let transformation_map = AcirTransformationMap::new(acir_opcode_positions);
 
