@@ -30,7 +30,7 @@ impl CompilerContext {
     #[wasm_bindgen(constructor)]
     pub fn new(source_map: PathToFileSourceMap) -> CompilerContext {
         console_error_panic_hook::set_once();
-    
+
         let fm = file_manager_with_source_map(source_map);
         let graph = CrateGraph::default();
         CompilerContext { context: Context::new(fm, graph) }
@@ -70,7 +70,7 @@ impl CompilerContext {
     //
     // This essentially says that CrateId1 depends on CrateId2 and the dependency is named `crate_name`
     //
-    // We pass references to &CrateIdWrapper even though it is a copy because Rust's move semantics are 
+    // We pass references to &CrateIdWrapper even though it is a copy because Rust's move semantics are
     // not respected once we use javascript. ie it will actually allocated a new object in javascript
     // then deallocate that object if we do not pass as a reference.
     pub fn add_dependency_edge(
@@ -105,8 +105,7 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_program =
-            nargo::ops::optimize_program(compiled_program, np_language);
+        let optimized_program = nargo::ops::optimize_program(compiled_program, np_language);
 
         let compile_output = preprocess_program(optimized_program);
         Ok(JsCompileResult::new(compile_output))
@@ -131,8 +130,7 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_contract =
-            nargo::ops::optimize_contract(compiled_contract, np_language);
+        let optimized_contract = nargo::ops::optimize_contract(compiled_contract, np_language);
 
         let compile_output = preprocess_contract(optimized_contract);
         Ok(JsCompileResult::new(compile_output))
