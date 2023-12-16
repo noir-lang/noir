@@ -3,8 +3,8 @@ use std::io::Write;
 use std::path::Path;
 
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
-use acvm::FieldElement;
 use acvm::ExpressionWidth;
+use acvm::FieldElement;
 use tempfile::tempdir;
 
 use crate::cli::{

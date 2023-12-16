@@ -69,7 +69,10 @@ fn transform_assert_messages(
 }
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
-pub fn compile(acir: Circuit, expression_width: ExpressionWidth) -> (Circuit, AcirTransformationMap) {
+pub fn compile(
+    acir: Circuit,
+    expression_width: ExpressionWidth,
+) -> (Circuit, AcirTransformationMap) {
     let (acir, acir_opcode_positions) = optimize_internal(acir);
 
     let (mut acir, acir_opcode_positions) =

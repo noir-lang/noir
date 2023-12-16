@@ -16,7 +16,10 @@ pub(crate) use r1cs::R1CSTransformer;
 use super::{transform_assert_messages, AcirTransformationMap};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
-pub fn transform(acir: Circuit, expression_width: ExpressionWidth) -> (Circuit, AcirTransformationMap) {
+pub fn transform(
+    acir: Circuit,
+    expression_width: ExpressionWidth,
+) -> (Circuit, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();

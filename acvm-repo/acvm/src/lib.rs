@@ -19,12 +19,12 @@ pub use brillig_vm;
 pub use acvm_blackbox_solver as blackbox_solver;
 
 /// Specifies the maximum width of the expressions which will be constrained.
-/// 
+///
 /// Unbounded Expressions are useful if you are eventually going to pass the ACIR
 /// into a proving system which supports R1CS.
-/// 
+///
 /// Bounded Expressions are useful if you are eventually going to pass the ACIR
-/// into a proving system which supports PLONK, where arithmetic expressions have a 
+/// into a proving system which supports PLONK, where arithmetic expressions have a
 /// finite fan-in.
 #[derive(Debug, Clone, Copy)]
 pub enum ExpressionWidth {

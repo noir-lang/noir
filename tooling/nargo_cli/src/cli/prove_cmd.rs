@@ -59,7 +59,8 @@ pub(crate) fn run(
 
     let expression_width = backend.get_backend_info()?;
     for package in &workspace {
-        let program = compile_bin_package(&workspace, package, &args.compile_options, expression_width)?;
+        let program =
+            compile_bin_package(&workspace, package, &args.compile_options, expression_width)?;
 
         prove_package(
             backend,
