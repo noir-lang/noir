@@ -42,7 +42,7 @@ jobs:
           context: .
           file: Dockerfile.ci
           tags: ${{ steps.prep.outputs.tags }}
-          target: base
+          target: js-base
           cache-from: type=gha
           cache-to: type=gha,mode=max
           push: true
