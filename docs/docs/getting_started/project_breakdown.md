@@ -52,7 +52,7 @@ license = "MIT"
 ecrecover = {tag = "v0.9.0", git = "https://github.com/colinnielsen/ecrecover-noir.git"}
 ```
 
-Nargo.toml for a [workspace](@site/docs/explanations/modules_packages_crates/workspaces.md) will look a bit different. For example:
+Nargo.toml for a [workspace](../noir/modules_packages_crates/workspaces.md) will look a bit different. For example:
 
 ```toml
 [workspace]
@@ -75,7 +75,7 @@ The package section requires a number of fields including:
 
 #### Dependencies section
 
-This is where you will specify any dependencies for your project. See the [Dependencies page](@site/docs/explanations/modules_packages_crates/dependencies.md) for more info.
+This is where you will specify any dependencies for your project. See the [Dependencies page](../noir/modules_packages_crates/dependencies.md) for more info.
 
 `./proofs/` and `./contract/` directories will not be immediately visible until you create a proof or
 verifier contract respectively.
