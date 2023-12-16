@@ -39,35 +39,9 @@ jobs:
         run: |
           ./scripts/update-acvm-workspace-versions.sh
 
-      - name: Configure git
-        run: |
-          git config user.name kevaundray
-          git config user.email kevtheappdev@gmail.com
-
-      - name: Commit updates
-        run: |
-          git add Cargo.toml
-          git commit -m 'chore: Update root workspace acvm versions'
-          git push
-  
-  update-lockfile:
-    name: Update lockfile
-    needs: [release-please,update-acvm-workspace-package-versions]
-    if: ${{ needs.release-please.outputs.release-pr }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout release branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
-          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
-
-      - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.65.0
-
       - name: Update lockfile
         run: |
-          cargo update --workspace
+            cargo update --workspace
 
       - name: Configure git
         run: |
@@ -76,13 +50,13 @@ jobs:
 
       - name: Commit updates
         run: |
-          git add Cargo.lock
-          git commit -m 'chore: Update lockfile'
+          git add .
+          git commit -m 'chore: Update root workspace acvm versions and lockfile'
           git push
   
   update-docs:
     name: Update docs
-    needs: [release-please, update-lockfile]
+    needs: [release-please, update-acvm-workspace-package-versions]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-latest
     env:
