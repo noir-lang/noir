@@ -37,7 +37,7 @@ unconstrained pub fn println<T>(input: T) {
 }
 
 #[foreign(recursive_aggregation)]
-pub fn verify_proof<N>(
+pub fn delayed_proof_aggregation<N>(
     _verification_key: [Field],
     _proof: [Field],
     _public_inputs: [Field],
