@@ -38,7 +38,7 @@ impl Opcode {
     // TODO concat!("directive:", directive.name)
     pub fn name(&self) -> &str {
         match self {
-            Opcode::AssertZero(_) => "arithmetic",
+            Opcode::AssertZero(_) => "assert_zero",
             Opcode::Directive(directive) => directive.name(),
             Opcode::BlackBoxFuncCall(g) => g.name(),
             Opcode::Brillig(_) => "brillig",
@@ -47,11 +47,11 @@ impl Opcode {
         }
     }
 
-    pub fn is_arithmetic(&self) -> bool {
+    pub fn is_assert_zero(&self) -> bool {
         matches!(self, Opcode::AssertZero(_))
     }
 
-    pub fn arithmetic(self) -> Option<Expression> {
+    pub fn assert_zero(self) -> Option<Expression> {
         match self {
             Opcode::AssertZero(expr) => Some(expr),
             _ => None,
