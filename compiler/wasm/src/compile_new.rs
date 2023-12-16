@@ -13,7 +13,7 @@ use noirc_frontend::{
 use std::path::Path;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-/// This is a wrpaper class that is wasm-bindgen compatible
+/// This is a wrapper class that is wasm-bindgen compatible
 /// We do not use js_name and rename it like CrateId because
 /// then the impl block is not picked up in javascript.
 #[wasm_bindgen]
