@@ -1,10 +1,13 @@
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{JsString, Object};
-use nargo::artifacts::{
-    contract::{PreprocessedContract, PreprocessedContractFunction},
-    debug::DebugArtifact,
-    program::PreprocessedProgram,
+use nargo::{
+    artifacts::{
+        contract::{PreprocessedContract, PreprocessedContractFunction},
+        debug::DebugArtifact,
+        program::PreprocessedProgram,
+    },
+    file_manager_with_stdlib,
 };
 use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
@@ -225,7 +228,7 @@ pub fn compile(
 // should be considered as immutable.
 pub(crate) fn file_manager_with_source_map(source_map: PathToFileSourceMap) -> FileManager {
     let root = Path::new("");
-    let mut fm = FileManager::new(root);
+    let mut fm = file_manager_with_stdlib(root);
 
     for (path, source) in source_map.0 {
         fm.add_file_with_source(path.as_path(), source);
