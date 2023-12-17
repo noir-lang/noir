@@ -18,7 +18,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 /// then the impl block is not picked up in javascript.
 #[wasm_bindgen]
 pub struct CompilerContext {
-    context: Context,
+    context: Context<'static>,
 }
 
 #[wasm_bindgen(js_name = "CrateId")]
