@@ -81,16 +81,21 @@ pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
 /// Helper type for connecting a compilation artifact to the errors or warnings which were produced during compilation.
 pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
 
+/// Adds the source code for the stdlib into the file manager
+pub fn add_stdlib_source_to_file_manager(file_manager : &mut fm::FileManager) {
+    let stdlib_paths_with_source = stdlib::stdlib_paths_with_source();
+    for (path, source) in stdlib_paths_with_source {
+        file_manager.add_file_with_source_canonical_path(Path::new(&path), source);
+    }
+}
+
 /// Adds the file from the file system at `Path` to the crate graph as a root file
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     // Add the stdlib contents to the file manager, since every package automatically has a dependency
     // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file
     // contents to the file manager. However since the dependency on the stdlib is implicit, we need
     // to manually add it here.
-    let stdlib_paths_with_source = stdlib::stdlib_paths_with_source();
-    for (path, source) in stdlib_paths_with_source {
-        context.file_manager.to_mut().add_file_with_source_canonical_path(Path::new(&path), source);
-    }
+    add_stdlib_source_to_file_manager(&mut context.file_manager.to_mut());
 
     let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
     let std_file_id = context
