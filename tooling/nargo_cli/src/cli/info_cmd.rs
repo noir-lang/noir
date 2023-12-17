@@ -5,12 +5,13 @@ use backend_interface::BackendError;
 use clap::Args;
 use iter_extended::vecmap;
 use nargo::{
-    artifacts::debug::DebugArtifact, file_manager_with_stdlib,
-    insert_all_files_for_package_into_file_manager, package::Package,
+    artifacts::debug::DebugArtifact, insert_all_files_for_package_into_file_manager,
+    package::Package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
-    CompileOptions, CompiledContract, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
+    file_manager_with_stdlib, CompileOptions, CompiledContract, CompiledProgram,
+    NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_errors::{debug_info::OpCodesCount, Location};
 use noirc_frontend::graph::CrateName;

@@ -1,9 +1,9 @@
 use std::{fs::DirEntry, path::Path};
 
 use clap::Args;
-use nargo::{file_manager_with_stdlib, insert_all_files_for_package_into_file_manager};
+use nargo::insert_all_files_for_package_into_file_manager;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use noirc_driver::{file_manager_with_stdlib, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{hir::def_map::parse_file, parser::ParserError};
 

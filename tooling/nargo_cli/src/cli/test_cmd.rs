@@ -4,13 +4,13 @@ use acvm::BlackBoxFunctionSolver;
 use clap::Args;
 use fm::FileManager;
 use nargo::{
-    file_manager_with_stdlib, insert_all_files_for_package_into_file_manager,
+    insert_all_files_for_package_into_file_manager,
     ops::{run_test, TestStatus},
     package::Package,
     prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::{graph::CrateName, hir::FunctionNameMatch};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 

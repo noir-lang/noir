@@ -6,9 +6,9 @@ use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::codespan_files::Error;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location};
 use lsp_types::{Position, Url};
-use nargo::{file_manager_with_stdlib, insert_all_files_for_package_into_file_manager};
+use nargo::insert_all_files_for_package_into_file_manager;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use noirc_driver::{file_manager_with_stdlib, NOIR_ARTIFACT_VERSION_STRING};
 
 pub(crate) fn on_goto_definition_request(
     state: &mut LspState,

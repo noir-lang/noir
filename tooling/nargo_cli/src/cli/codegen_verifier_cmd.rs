@@ -12,11 +12,11 @@ use acvm::Language;
 use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 use clap::Args;
 use fm::FileManager;
+use nargo::insert_all_files_for_package_into_file_manager;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
-use nargo::{file_manager_with_stdlib, insert_all_files_for_package_into_file_manager};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
 /// Generates a Solidity verifier smart contract for the program

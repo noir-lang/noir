@@ -1,17 +1,15 @@
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{JsString, Object};
-use nargo::{
-    artifacts::{
-        contract::{PreprocessedContract, PreprocessedContractFunction},
-        debug::DebugArtifact,
-        program::PreprocessedProgram,
-    },
-    file_manager_with_stdlib,
+use nargo::artifacts::{
+    contract::{PreprocessedContract, PreprocessedContractFunction},
+    debug::DebugArtifact,
+    program::PreprocessedProgram,
 };
 use noirc_driver::{
-    add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
-    CompiledContract, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
+    add_dep, compile_contract, compile_main, file_manager_with_stdlib, prepare_crate,
+    prepare_dependency, CompileOptions, CompiledContract, CompiledProgram,
+    NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
     graph::{CrateGraph, CrateId, CrateName},

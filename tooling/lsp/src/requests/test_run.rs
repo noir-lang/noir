@@ -5,12 +5,14 @@ use std::{
 
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
-    file_manager_with_stdlib, insert_all_files_for_package_into_file_manager,
+    insert_all_files_for_package_into_file_manager,
     ops::{run_test, TestStatus},
     prepare_package,
 };
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{
+    check_crate, file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
+};
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{

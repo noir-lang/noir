@@ -7,13 +7,14 @@ use clap::Args;
 use fm::FileManager;
 use iter_extended::btree_map;
 use nargo::{
-    errors::CompileError, file_manager_with_stdlib, insert_all_files_for_package_into_file_manager,
-    package::Package, prepare_package,
+    errors::CompileError, insert_all_files_for_package_into_file_manager, package::Package,
+    prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{
-    check_crate, compute_function_abi, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
+    check_crate, compute_function_abi, file_manager_with_stdlib, CompileOptions,
+    NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},

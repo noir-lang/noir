@@ -6,12 +6,11 @@ use std::{
 
 use acvm::Language;
 use async_lsp::{ErrorCode, ResponseError};
-use nargo::{
-    artifacts::debug::DebugArtifact, file_manager_with_stdlib,
-    insert_all_files_for_package_into_file_manager,
-};
+use nargo::{artifacts::debug::DebugArtifact, insert_all_files_for_package_into_file_manager};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{
+    file_manager_with_stdlib, CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING,
+};
 use noirc_errors::{debug_info::OpCodesCount, Location};
 
 use crate::{

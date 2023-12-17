@@ -2,11 +2,9 @@ use std::ops::ControlFlow;
 use std::path::Path;
 
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use nargo::{
-    file_manager_with_stdlib, insert_all_files_for_package_into_file_manager, prepare_package,
-};
+use nargo::{insert_all_files_for_package_into_file_manager, prepare_package};
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{check_crate, file_manager_with_stdlib, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 
 use crate::types::{
