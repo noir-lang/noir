@@ -171,7 +171,7 @@ pub fn compile(
     let fm = file_manager_with_source_map(file_source_map);
 
     let graph = CrateGraph::default();
-    let mut context = Context::new(fm, graph);
+    let mut context = Context::new(std::borrow::Cow::Owned(fm), graph);
 
     let path = Path::new(&entry_point);
     let crate_id = prepare_crate(&mut context, path);

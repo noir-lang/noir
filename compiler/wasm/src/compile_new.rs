@@ -33,7 +33,7 @@ impl CompilerContext {
 
         let fm = file_manager_with_source_map(source_map);
         let graph = CrateGraph::default();
-        CompilerContext { context: Context::new(fm, graph) }
+        CompilerContext { context: Context::new(std::borrow::Cow::Owned(fm), graph) }
     }
 
     #[cfg(test)]

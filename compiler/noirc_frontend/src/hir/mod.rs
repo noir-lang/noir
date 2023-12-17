@@ -70,28 +70,27 @@ impl ReadOnlyFileManagerTrait for &FileManager {
     }
 }
 
-// TODO: remove this, its only so that new still works in the compiler
-impl ReadOnlyFileManagerTrait for fm::FileManager {
+impl<'a> ReadOnlyFileManagerTrait for std::borrow::Cow<'a, fm::FileManager> {
     type FileId = fm::FileId;
 
     fn root(&self) -> &std::path::Path {
-        self.root()
+        fm::FileManager::root(self)
     }
 
     fn fetch_file(&self, file_id: Self::FileId) -> &str {
-        self.fetch_file(file_id)
+        fm::FileManager::fetch_file(self, file_id)
     }
 
     fn path(&self, file_id: Self::FileId) -> &std::path::Path {
-        self.path(file_id)
+        fm::FileManager::path(self, file_id)
     }
 
     fn name_to_id(&self, file_name: std::path::PathBuf) -> Option<Self::FileId> {
-        self.name_to_id(file_name)
+        fm::FileManager::name_to_id(self, file_name)
     }
 }
 
-pub type Context<'a> = Context_<&'a fm::FileManager>;
+pub type Context<'file> = Context_<std::borrow::Cow<'file,fm::FileManager>>;
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// def_interner is required for type inference and monomorphization.
@@ -118,15 +117,6 @@ pub enum FunctionNameMatch<'a> {
 
 impl<F: ReadOnlyFileManagerTrait> Context_<F> {
     pub fn new(file_manager: F, crate_graph: CrateGraph) -> Context_<F> {
-        Context_ {
-            def_interner: NodeInterner::default(),
-            def_maps: BTreeMap::new(),
-            visited_files: BTreeMap::new(),
-            crate_graph,
-            file_manager,
-        }
-    }
-    pub fn from_ref_file_manager(file_manager: F, crate_graph: CrateGraph) -> Context_<F> {
         Context_ {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),

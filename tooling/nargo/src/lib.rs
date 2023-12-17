@@ -92,7 +92,7 @@ pub fn prepare_package<'file_manager>(
     package: &Package,
 ) -> (Context<'file_manager>, CrateId) {
     let graph = CrateGraph::default();
-    let mut context = Context::from_ref_file_manager(file_manager, graph);
+    let mut context = Context::new(std::borrow::Cow::Borrowed(file_manager), graph);
 
     let crate_id = prepare_crate(&mut context, &package.entry_path);
 
