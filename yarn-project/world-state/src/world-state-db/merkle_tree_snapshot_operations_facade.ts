@@ -3,7 +3,8 @@ import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { BatchInsertionResult, IndexedTreeSnapshot, TreeSnapshot } from '@aztec/merkle-tree';
 import { MerkleTreeId, SiblingPath } from '@aztec/types';
 
-import { CurrentTreeRoots, HandleL2BlockResult, MerkleTreeDb, MerkleTreeOperations, TreeInfo } from '../index.js';
+import { MerkleTreeDb } from './merkle_tree_db.js';
+import { CurrentTreeRoots, HandleL2BlockResult, MerkleTreeOperations, TreeInfo } from './merkle_tree_operations.js';
 
 /**
  * Merkle tree operations on readonly tree snapshots.
