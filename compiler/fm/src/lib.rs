@@ -94,9 +94,9 @@ impl FileManager {
         assert!(old_value.is_none(), "ice: the same path was inserted into the file manager twice");
     }
 
-    pub fn fetch_file(&self, file_id: FileId) -> File {
+    pub fn fetch_file(&self, file_id: FileId) -> &str {
         // Unwrap as we ensure that all file_id's map to a corresponding file in the file map
-        self.file_map.get_file(file_id).unwrap()
+        self.file_map.get_file(file_id).unwrap().source()
     }
 
     pub fn path(&self, file_id: FileId) -> &Path {
