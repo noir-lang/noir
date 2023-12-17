@@ -7,7 +7,7 @@ use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
 };
 use noirc_frontend::{
-    graph::{CrateGraph, CrateId, CrateName},
+    graph::{CrateId, CrateName},
     hir::Context,
 };
 use std::path::Path;
@@ -32,8 +32,7 @@ impl CompilerContext {
         console_error_panic_hook::set_once();
 
         let fm = file_manager_with_source_map(source_map);
-        let graph = CrateGraph::default();
-        CompilerContext { context: Context::new(fm, graph) }
+        CompilerContext { context: Context::new(fm) }
     }
 
     #[cfg(test)]
@@ -236,8 +235,7 @@ mod test {
         // Add this due to us calling prepare_crate on "/main.nr" below
         fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());
 
-        let graph = CrateGraph::default();
-        let mut context = Context::new(fm, graph);
+        let mut context = Context::new(fm);
         prepare_crate(&mut context, Path::new("/main.nr"));
 
         CompilerContext { context }
