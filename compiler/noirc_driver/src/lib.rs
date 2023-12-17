@@ -82,7 +82,7 @@ pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
 pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
 
 /// Adds the source code for the stdlib into the file manager
-pub fn add_stdlib_source_to_file_manager(file_manager : &mut fm::FileManager) {
+pub fn add_stdlib_source_to_file_manager(file_manager: &mut fm::FileManager) {
     let stdlib_paths_with_source = stdlib::stdlib_paths_with_source();
     for (path, source) in stdlib_paths_with_source {
         file_manager.add_file_with_source_canonical_path(Path::new(&path), source);
