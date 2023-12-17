@@ -11,7 +11,7 @@ use noirc_driver::{
     CompiledContract, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
-    graph::{CrateGraph, CrateId, CrateName},
+    graph::{CrateId, CrateName},
     hir::Context,
 };
 use serde::Deserialize;
@@ -169,8 +169,7 @@ pub fn compile(
 
     let fm = file_manager_with_source_map(file_source_map);
 
-    let graph = CrateGraph::default();
-    let mut context = Context::new(fm, graph);
+    let mut context = Context::new(fm);
 
     let path = Path::new(&entry_point);
     let crate_id = prepare_crate(&mut context, path);
@@ -321,10 +320,7 @@ pub(crate) fn preprocess_contract(contract: CompiledContract) -> CompileResult {
 #[cfg(test)]
 mod test {
     use noirc_driver::prepare_crate;
-    use noirc_frontend::{
-        graph::{CrateGraph, CrateName},
-        hir::Context,
-    };
+    use noirc_frontend::{graph::CrateName, hir::Context};
 
     use crate::compile::PathToFileSourceMap;
 
@@ -336,8 +332,7 @@ mod test {
         // Add this due to us calling prepare_crate on "/main.nr" below
         fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());
 
-        let graph = CrateGraph::default();
-        let mut context = Context::new(fm, graph);
+        let mut context = Context::new(fm);
         prepare_crate(&mut context, Path::new("/main.nr"));
 
         context
