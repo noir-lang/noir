@@ -10,26 +10,107 @@ use crate::node_interner::{FuncId, NodeInterner, StructId};
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
 use noirc_errors::Location;
-use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use self::def_map::TestFunction;
 
+pub trait WriteOnlyFileManagerTrait {
+    type FileId;
+
+    fn root(&self) -> &std::path::Path;
+
+    fn add_file_with_source(
+        &mut self,
+        file_name: &std::path::Path,
+        source: String,
+    ) -> Option<Self::FileId> {
+        let file_name = self.root().join(file_name);
+        self.add_file_with_source_canonical_path(&file_name, source)
+    }
+
+    /// Adds a source file to the [`FileManager`] using a path which is not appended to the root path.
+    ///
+    /// This should only be used for the stdlib as these files do not exist on the user's filesystem.
+    fn add_file_with_source_canonical_path(
+        &mut self,
+        file_name: &std::path::Path,
+        source: String,
+    ) -> Option<Self::FileId>;
+}
+
+pub trait ReadOnlyFileManagerTrait {
+    type FileId;
+    type File;
+
+    fn root(&self) -> &std::path::Path;
+
+    fn fetch_file(&self, file_id: Self::FileId) -> Self::File;
+
+    fn path(&self, file_id: Self::FileId) -> &std::path::Path;
+
+    fn name_to_id(&self, file_name: std::path::PathBuf) -> Option<Self::FileId>;
+}
+
+impl<'a> ReadOnlyFileManagerTrait for &'a FileManager {
+    type FileId = fm::FileId;
+
+    type File = fm::File<'a>;
+
+    fn root(&self) -> &std::path::Path {
+        fm::FileManager::root(self)
+    }
+
+    fn fetch_file(&self, file_id: Self::FileId) -> Self::File {
+        fm::FileManager::fetch_file(self, file_id)
+    }
+
+    fn path(&self, file_id: Self::FileId) -> &std::path::Path {
+        fm::FileManager::path(self, file_id)
+    }
+
+    fn name_to_id(&self, file_name: std::path::PathBuf) -> Option<Self::FileId> {
+        fm::FileManager::name_to_id(self, file_name)
+    }
+}
+// TODO: remove this, its only so that new still works in the compiler
+impl ReadOnlyFileManagerTrait for fm::FileManager {
+    type FileId = fm::FileId;
+
+    type File = String;
+
+    fn root(&self) -> &std::path::Path {
+        self.root()
+    }
+
+    fn fetch_file(&self, file_id: Self::FileId) -> Self::File {
+        self.fetch_file(file_id).source().to_string()
+    }
+
+    fn path(&self, file_id: Self::FileId) -> &std::path::Path {
+        self.path(file_id)
+    }
+
+    fn name_to_id(&self, file_name: std::path::PathBuf) -> Option<Self::FileId> {
+        self.name_to_id(file_name)
+    }
+}
+
+pub type Context<'a> = Context_<&'a fm::FileManager>;
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// def_interner is required for type inference and monomorphization.
-pub struct Context<'file_manager> {
+pub struct Context_<F : ReadOnlyFileManagerTrait> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
     // In the WASM context, we take ownership of the file manager,
     // which is why this needs to be a Cow. In all use-cases, the file manager
     // is read-only however, once it has been passed to the Context.
-    pub file_manager: Cow<'file_manager, FileManager>,
+    pub file_manager: F,
 
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
-    pub visited_files: BTreeMap<fm::FileId, Location>,
+    pub visited_files: BTreeMap<F::FileId, Location>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -39,26 +120,26 @@ pub enum FunctionNameMatch<'a> {
     Contains(&'a str),
 }
 
-impl Context<'_> {
-    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context<'static> {
-        Context {
+impl<F : ReadOnlyFileManagerTrait> Context_<F> {
+    pub fn new(file_manager: F, crate_graph: CrateGraph) -> Context_<F> {
+        Context_ {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
             visited_files: BTreeMap::new(),
             crate_graph,
-            file_manager: Cow::Owned(file_manager),
+            file_manager,
         }
     }
     pub fn from_ref_file_manager(
-        file_manager: &FileManager,
+        file_manager: F,
         crate_graph: CrateGraph,
-    ) -> Context<'_> {
-        Context {
+    ) -> Context_<F> {
+        Context_ {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
             visited_files: BTreeMap::new(),
             crate_graph,
-            file_manager: Cow::Borrowed(file_manager),
+            file_manager,
         }
     }
 
