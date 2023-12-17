@@ -90,7 +90,7 @@ impl<'a> ReadOnlyFileManagerTrait for std::borrow::Cow<'a, fm::FileManager> {
     }
 }
 
-pub type Context<'file> = Context_<std::borrow::Cow<'file,fm::FileManager>>;
+pub type Context<'file> = Context_<std::borrow::Cow<'file, fm::FileManager>>;
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// def_interner is required for type inference and monomorphization.
