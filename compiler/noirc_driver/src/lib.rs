@@ -92,6 +92,8 @@ pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
         context.file_manager.add_file_with_source_canonical_path(Path::new(&path), source);
     }
 
+    context.repopulate_cache();
+
     let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
     let std_file_id = context
         .file_manager

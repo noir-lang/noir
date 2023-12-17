@@ -71,6 +71,22 @@ impl Context {
         }
     }
 
+    // TODO: Do not merge with this method!
+    pub fn repopulate_cache(&mut self) {
+        for file_id in self.file_manager.as_file_map().all_file_ids() {
+            let file_path = self.file_manager.path(*file_id);
+            let file_extension =
+                file_path.extension().expect("expected all file paths to have an extension");
+            // TODO: Another reason we may not want to have this method here
+            // TODO: is the fact that we want to not have the compiler worry
+            // TODO about the nr file extension
+            if file_extension != "nr" {
+                continue;
+            }
+            self.file_to_ast_cache.insert(*file_id, parse_file(&self.file_manager, *file_id));
+        }
+    }
+
     pub fn parsed_file_results(&self, file_id: fm::FileId) -> (ParsedModule, Vec<ParserError>) {
         // TODO: we could make it parse the file if it is not in the cache
         //
