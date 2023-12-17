@@ -40,11 +40,10 @@ pub trait WriteOnlyFileManagerTrait {
 
 pub trait ReadOnlyFileManagerTrait {
     type FileId;
-    type File;
 
     fn root(&self) -> &std::path::Path;
 
-    fn fetch_file(&self, file_id: Self::FileId) -> Self::File;
+    fn fetch_file(&self, file_id: Self::FileId) -> &str;
 
     fn path(&self, file_id: Self::FileId) -> &std::path::Path;
 
@@ -54,13 +53,11 @@ pub trait ReadOnlyFileManagerTrait {
 impl<'a> ReadOnlyFileManagerTrait for &'a FileManager {
     type FileId = fm::FileId;
 
-    type File = fm::File<'a>;
-
     fn root(&self) -> &std::path::Path {
         fm::FileManager::root(self)
     }
 
-    fn fetch_file(&self, file_id: Self::FileId) -> Self::File {
+    fn fetch_file(&self, file_id: Self::FileId) -> &str {
         fm::FileManager::fetch_file(self, file_id)
     }
 
@@ -76,14 +73,12 @@ impl<'a> ReadOnlyFileManagerTrait for &'a FileManager {
 impl ReadOnlyFileManagerTrait for fm::FileManager {
     type FileId = fm::FileId;
 
-    type File = String;
-
     fn root(&self) -> &std::path::Path {
         self.root()
     }
 
-    fn fetch_file(&self, file_id: Self::FileId) -> Self::File {
-        self.fetch_file(file_id).source().to_string()
+    fn fetch_file(&self, file_id: Self::FileId) -> &str {
+        self.fetch_file(file_id)
     }
 
     fn path(&self, file_id: Self::FileId) -> &std::path::Path {
@@ -99,7 +94,7 @@ pub type Context<'a> = Context_<&'a fm::FileManager>;
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// def_interner is required for type inference and monomorphization.
-pub struct Context_<F : ReadOnlyFileManagerTrait> {
+pub struct Context_<F: ReadOnlyFileManagerTrait> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
@@ -120,7 +115,7 @@ pub enum FunctionNameMatch<'a> {
     Contains(&'a str),
 }
 
-impl<F : ReadOnlyFileManagerTrait> Context_<F> {
+impl<F: ReadOnlyFileManagerTrait> Context_<F> {
     pub fn new(file_manager: F, crate_graph: CrateGraph) -> Context_<F> {
         Context_ {
             def_interner: NodeInterner::default(),
@@ -130,10 +125,7 @@ impl<F : ReadOnlyFileManagerTrait> Context_<F> {
             file_manager,
         }
     }
-    pub fn from_ref_file_manager(
-        file_manager: F,
-        crate_graph: CrateGraph,
-    ) -> Context_<F> {
+    pub fn from_ref_file_manager(file_manager: F, crate_graph: CrateGraph) -> Context_<F> {
         Context_ {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
