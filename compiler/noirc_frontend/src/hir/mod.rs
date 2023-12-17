@@ -22,8 +22,9 @@ pub struct Context<'file_manager> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
-    // TODO: This requires FileManager to be clone, perhaps Context should
-    // TODO always have a reference to the file manager since it doesn't ever add to it
+    // In the WASM context, we take ownership of the file manager,
+    // which is why this needs to be a Cow. In all use-cases, the file manager
+    // is read-only however, once it has been passed to the Context.
     pub file_manager: Cow<'file_manager, FileManager>,
 
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.

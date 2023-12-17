@@ -82,10 +82,10 @@ pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
 pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
 
 /// Helper method to create a file manager with the stdlib already added
-/// 
+///
 /// TODO: This should become the canonical way to create a file manager and
-/// TODO if we use a File manager trait, we can move file manager into this crate 
-/// TODO as a module 
+/// TODO if we use a File manager trait, we can move file manager into this crate
+/// TODO as a module
 pub fn file_manager_with_stdlib(root: &Path) -> FileManager {
     let mut file_manager = FileManager::new(root);
 
