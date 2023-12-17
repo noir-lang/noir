@@ -107,6 +107,9 @@ pub fn add_stdlib_source_to_file_manager(file_manager: &mut FileManager) {
 }
 
 /// Adds the file from the file system at `Path` to the crate graph as a root file
+///
+/// Note: This methods adds the stdlib as a dependency to the crate.
+/// This assumes that the stdlib has already been added to the file manager.
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
     let std_file_id = context
