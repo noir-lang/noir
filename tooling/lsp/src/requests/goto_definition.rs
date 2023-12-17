@@ -1,10 +1,13 @@
 use std::future::{self, Future};
+use std::path::Path;
 
 use crate::{types::GotoDefinitionResult, LspState};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::codespan_files::Error;
+use fm::FileManager;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location};
 use lsp_types::{Position, Url};
+use nargo::insert_all_files_for_package_into_file_manager;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 
@@ -51,8 +54,12 @@ fn on_goto_definition_inner(
 
     let mut definition_position = None;
 
+    let mut workspace_file_manager = FileManager::new(Path::new(""));
+
     for package in &workspace {
-        let (mut context, crate_id) = nargo::prepare_package(package);
+        insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
+
+        let (mut context, crate_id) = nargo::prepare_package(&workspace_file_manager, package);
 
         // We ignore the warnings and errors produced by compilation while resolving the definition
         let _ = noirc_driver::check_crate(&mut context, crate_id, false, false);

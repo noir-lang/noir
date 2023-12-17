@@ -1,7 +1,12 @@
-use std::future::{self, Future};
+use std::{
+    future::{self, Future},
+    path::Path,
+};
 
 use async_lsp::{ErrorCode, ResponseError};
+use fm::FileManager;
 use nargo::{
+    insert_all_files_for_package_into_file_manager,
     ops::{run_test, TestStatus},
     prepare_package,
 };
@@ -47,10 +52,14 @@ fn on_test_run_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;
 
+    let mut workspace_file_manager = FileManager::new(Path::new(""));
+
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
         Some(package) => {
-            let (mut context, crate_id) = prepare_package(package);
+            insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
+
+            let (mut context, crate_id) = prepare_package(&workspace_file_manager, package);
             if check_crate(&mut context, crate_id, false, false).is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),
