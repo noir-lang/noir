@@ -4,7 +4,7 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 use clap::Args;
-use fm::FileId;
+use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
@@ -81,8 +81,16 @@ pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
 /// Helper type for connecting a compilation artifact to the errors or warnings which were produced during compilation.
 pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
 
+pub fn file_manager_with_stdlib(root: &Path) -> FileManager {
+    let mut file_manager = FileManager::new(root);
+
+    add_stdlib_source_to_file_manager(&mut file_manager);
+
+    file_manager
+}
+
 /// Adds the source code for the stdlib into the file manager
-pub fn add_stdlib_source_to_file_manager(file_manager: &mut fm::FileManager) {
+pub fn add_stdlib_source_to_file_manager(file_manager: &mut FileManager) {
     // Add the stdlib contents to the file manager, since every package automatically has a dependency
     // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file
     // contents to the file manager. However since the dependency on the stdlib is implicit, we need

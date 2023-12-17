@@ -17,7 +17,7 @@ pub mod workspace;
 use std::collections::BTreeMap;
 
 use fm::FileManager;
-use noirc_driver::{add_dep, add_stdlib_source_to_file_manager, prepare_crate, prepare_dependency};
+use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
 use noirc_frontend::{
     graph::{CrateGraph, CrateId, CrateName},
     hir::Context,
@@ -85,14 +85,6 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
             }
         }
     }
-}
-// TODO: This method should perhaps live inside of noirc_driver instead
-pub fn file_manager_with_stdlib(root: &std::path::Path) -> FileManager {
-    let mut file_manager = FileManager::new(root);
-
-    add_stdlib_source_to_file_manager(&mut file_manager);
-
-    file_manager
 }
 
 pub fn prepare_package<'file_manager>(
