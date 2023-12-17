@@ -50,7 +50,7 @@ pub trait ReadOnlyFileManagerTrait {
     fn name_to_id(&self, file_name: std::path::PathBuf) -> Option<Self::FileId>;
 }
 
-impl<'a> ReadOnlyFileManagerTrait for &'a FileManager {
+impl ReadOnlyFileManagerTrait for &FileManager {
     type FileId = fm::FileId;
 
     fn root(&self) -> &std::path::Path {
@@ -69,6 +69,7 @@ impl<'a> ReadOnlyFileManagerTrait for &'a FileManager {
         fm::FileManager::name_to_id(self, file_name)
     }
 }
+
 // TODO: remove this, its only so that new still works in the compiler
 impl ReadOnlyFileManagerTrait for fm::FileManager {
     type FileId = fm::FileId;
