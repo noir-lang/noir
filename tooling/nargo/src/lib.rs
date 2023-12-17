@@ -87,12 +87,12 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
     }
 }
 
-pub fn prepare_package(package: &Package) -> (Context, CrateId) {
-    let mut fm = FileManager::new(&package.root_dir);
-    insert_all_files_for_package_into_file_manager(package, &mut fm);
-
+pub fn prepare_package<'file_manager>(
+    file_manager: &'file_manager FileManager,
+    package: &Package,
+) -> (Context<'file_manager>, CrateId) {
     let graph = CrateGraph::default();
-    let mut context = Context::new(fm, graph);
+    let mut context = Context::from_ref_file_manager(file_manager, graph);
 
     let crate_id = prepare_crate(&mut context, &package.entry_path);
 
