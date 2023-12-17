@@ -4,7 +4,7 @@ use acvm::BlackBoxFunctionSolver;
 use clap::Args;
 use fm::FileManager;
 use nargo::{
-    insert_all_files_for_package_into_file_manager,
+    file_manager_with_stdlib, insert_all_files_for_package_into_file_manager,
     ops::{run_test, TestStatus},
     package::Package,
     prepare_package,
@@ -59,7 +59,7 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = FileManager::new(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
 
     let pattern = match &args.test_name {
         Some(name) => {

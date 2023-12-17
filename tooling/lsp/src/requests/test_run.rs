@@ -4,9 +4,8 @@ use std::{
 };
 
 use async_lsp::{ErrorCode, ResponseError};
-use fm::FileManager;
 use nargo::{
-    insert_all_files_for_package_into_file_manager,
+    file_manager_with_stdlib, insert_all_files_for_package_into_file_manager,
     ops::{run_test, TestStatus},
     prepare_package,
 };
@@ -52,7 +51,7 @@ fn on_test_run_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;
 
-    let mut workspace_file_manager = FileManager::new(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
 
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {

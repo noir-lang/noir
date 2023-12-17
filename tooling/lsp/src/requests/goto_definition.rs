@@ -4,10 +4,9 @@ use std::path::Path;
 use crate::{types::GotoDefinitionResult, LspState};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::codespan_files::Error;
-use fm::FileManager;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location};
 use lsp_types::{Position, Url};
-use nargo::insert_all_files_for_package_into_file_manager;
+use nargo::{file_manager_with_stdlib, insert_all_files_for_package_into_file_manager};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 
@@ -54,7 +53,7 @@ fn on_goto_definition_inner(
 
     let mut definition_position = None;
 
-    let mut workspace_file_manager = FileManager::new(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
 
     for package in &workspace {
         insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);

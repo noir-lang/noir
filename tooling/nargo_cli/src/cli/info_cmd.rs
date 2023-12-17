@@ -3,11 +3,10 @@ use std::{collections::HashMap, path::Path};
 use acvm::Language;
 use backend_interface::BackendError;
 use clap::Args;
-use fm::FileManager;
 use iter_extended::vecmap;
 use nargo::{
-    artifacts::debug::DebugArtifact, insert_all_files_for_package_into_file_manager,
-    package::Package,
+    artifacts::debug::DebugArtifact, file_manager_with_stdlib,
+    insert_all_files_for_package_into_file_manager, package::Package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
@@ -65,7 +64,7 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = FileManager::new(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
     for package in workspace.clone().into_iter() {
         insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
     }

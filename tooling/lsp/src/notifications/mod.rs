@@ -2,8 +2,9 @@ use std::ops::ControlFlow;
 use std::path::Path;
 
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use fm::FileManager;
-use nargo::{insert_all_files_for_package_into_file_manager, prepare_package};
+use nargo::{
+    file_manager_with_stdlib, insert_all_files_for_package_into_file_manager, prepare_package,
+};
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
@@ -102,7 +103,7 @@ pub(super) fn on_did_save_text_document(
         }
     };
 
-    let mut workspace_file_manager = FileManager::new(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
 
     let diagnostics: Vec<_> = workspace
         .into_iter()

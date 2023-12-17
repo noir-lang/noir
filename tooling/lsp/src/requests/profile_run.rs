@@ -6,7 +6,10 @@ use std::{
 
 use acvm::Language;
 use async_lsp::{ErrorCode, ResponseError};
-use nargo::{artifacts::debug::DebugArtifact, insert_all_files_for_package_into_file_manager};
+use nargo::{
+    artifacts::debug::DebugArtifact, file_manager_with_stdlib,
+    insert_all_files_for_package_into_file_manager,
+};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{debug_info::OpCodesCount, Location};
@@ -15,7 +18,7 @@ use crate::{
     types::{NargoProfileRunParams, NargoProfileRunResult},
     LspState,
 };
-use fm::{FileId, FileManager};
+use fm::FileId;
 
 pub(crate) fn on_profile_run_request(
     state: &mut LspState,
@@ -49,7 +52,7 @@ fn on_profile_run_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;
 
-    let mut workspace_file_manager = FileManager::new(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
 
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {

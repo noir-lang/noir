@@ -1,8 +1,7 @@
 use std::{fs::DirEntry, path::Path};
 
 use clap::Args;
-use fm::FileManager;
-use nargo::insert_all_files_for_package_into_file_manager;
+use nargo::{file_manager_with_stdlib, insert_all_files_for_package_into_file_manager};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_errors::CustomDiagnostic;
@@ -36,7 +35,8 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
     let mut check_exit_code_one = false;
 
     for package in &workspace {
-        let mut file_manager = FileManager::new(&package.root_dir);
+        // TODO: This should not be creating a new file manager per package
+        let mut file_manager = file_manager_with_stdlib(&package.root_dir);
         insert_all_files_for_package_into_file_manager(package, &mut file_manager);
 
         visit_noir_files(&package.root_dir.join("src"), &mut |entry| {

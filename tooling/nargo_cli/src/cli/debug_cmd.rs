@@ -3,11 +3,10 @@ use std::path::PathBuf;
 use acvm::acir::native_types::WitnessMap;
 use clap::Args;
 
-use fm::FileManager;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
-use nargo::insert_all_files_for_package_into_file_manager;
 use nargo::package::Package;
+use nargo::{file_manager_with_stdlib, insert_all_files_for_package_into_file_manager};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
@@ -53,7 +52,7 @@ pub(crate) fn run(
     let target_dir = &workspace.target_directory_path();
     let np_language = backend.get_backend_info()?;
 
-    let mut workspace_file_manager = FileManager::new(std::path::Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
     for package in workspace.clone().into_iter() {
         insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
     }
