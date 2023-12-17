@@ -320,10 +320,7 @@ pub(crate) fn preprocess_contract(contract: CompiledContract) -> CompileResult {
 #[cfg(test)]
 mod test {
     use noirc_driver::prepare_crate;
-    use noirc_frontend::{
-        graph::{CrateGraph, CrateName},
-        hir::Context,
-    };
+    use noirc_frontend::{graph::CrateName, hir::Context};
 
     use crate::compile::PathToFileSourceMap;
 

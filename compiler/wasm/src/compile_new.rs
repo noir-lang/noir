@@ -36,7 +36,7 @@ impl CompilerContext {
     }
 
     #[cfg(test)]
-    pub(crate) fn crate_graph(&self) -> &CrateGraph {
+    pub(crate) fn crate_graph(&self) -> &noirc_frontend::graph::CrateGraph {
         &self.context.crate_graph
     }
     #[cfg(test)]
@@ -222,7 +222,7 @@ pub fn compile_(
 #[cfg(test)]
 mod test {
     use noirc_driver::prepare_crate;
-    use noirc_frontend::{graph::CrateGraph, hir::Context};
+    use noirc_frontend::hir::Context;
 
     use crate::compile::{file_manager_with_source_map, PathToFileSourceMap};
 
