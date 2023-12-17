@@ -7,12 +7,14 @@ pub mod type_check;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::parser::ParserError;
+use crate::ParsedModule;
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
 use noirc_errors::Location;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
-use self::def_map::TestFunction;
+use self::def_map::{parse_file, TestFunction};
 
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
@@ -26,6 +28,8 @@ pub struct Context {
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
     pub visited_files: BTreeMap<fm::FileId, Location>,
+
+    file_to_ast_cache: HashMap<fm::FileId, (ParsedModule, Vec<ParserError>)>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -37,13 +41,41 @@ pub enum FunctionNameMatch<'a> {
 
 impl Context {
     pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
-        Context {
+        let mut context = Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
             visited_files: BTreeMap::new(),
             crate_graph,
             file_manager,
+            file_to_ast_cache: HashMap::default(),
+        };
+
+        context.populate_cache_with_file_manager();
+
+        context
+    }
+
+    // TODO: This method should live at a higher level
+    fn populate_cache_with_file_manager(&mut self) {
+        for file_id in self.file_manager.as_file_map().all_file_ids() {
+            let file_path = self.file_manager.path(*file_id);
+            let file_extension =
+                file_path.extension().expect("expected all file paths to have an extension");
+            // TODO: Another reason we may not want to have this method here
+            // TODO: is the fact that we want to not have the compiler worry
+            // TODO about the nr file extension
+            if file_extension != "nr" {
+                continue;
+            }
+            self.file_to_ast_cache.insert(*file_id, parse_file(&self.file_manager, *file_id));
         }
+    }
+
+    pub fn parsed_file_results(&self, file_id: fm::FileId) -> (ParsedModule, Vec<ParserError>) {
+        // TODO: we could make it parse the file if it is not in the cache
+        //
+        // TODO: Check if we can return a reference here instead of cloning.
+        self.file_to_ast_cache.get(&file_id).expect("noir file not found in cache").clone()
     }
 
     /// Returns the CrateDefMap for a given CrateId.
