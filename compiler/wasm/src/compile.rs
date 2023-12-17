@@ -338,7 +338,7 @@ mod test {
         fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());
 
         let graph = CrateGraph::default();
-        let mut context = Context::new(fm, graph);
+        let mut context = Context::new(std::borrow::Cow::Owned(fm), graph);
         prepare_crate(&mut context, Path::new("/main.nr"));
 
         context
