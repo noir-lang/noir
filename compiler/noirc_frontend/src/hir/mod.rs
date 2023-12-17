@@ -10,6 +10,7 @@ use crate::node_interner::{FuncId, NodeInterner, StructId};
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
 use noirc_errors::Location;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use self::def_map::TestFunction;
@@ -17,11 +18,13 @@ use self::def_map::TestFunction;
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// def_interner is required for type inference and monomorphization.
-pub struct Context {
+pub struct Context<'file_manager> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
-    pub file_manager: FileManager,
+    // TODO: This requires FileManager to be clone, perhaps Context should
+    // TODO always have a reference to the file manager since it doesn't ever add to it
+    pub file_manager: Cow<'file_manager, FileManager>,
 
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
@@ -35,14 +38,26 @@ pub enum FunctionNameMatch<'a> {
     Contains(&'a str),
 }
 
-impl Context {
-    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
+impl Context<'_> {
+    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context<'static> {
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
             visited_files: BTreeMap::new(),
             crate_graph,
-            file_manager,
+            file_manager: Cow::Owned(file_manager),
+        }
+    }
+    pub fn from_ref_file_manager(
+        file_manager: &FileManager,
+        crate_graph: CrateGraph,
+    ) -> Context<'_> {
+        Context {
+            def_interner: NodeInterner::default(),
+            def_maps: BTreeMap::new(),
+            visited_files: BTreeMap::new(),
+            crate_graph,
+            file_manager: Cow::Borrowed(file_manager),
         }
     }
 
