@@ -331,7 +331,7 @@ mod test {
     use super::{file_manager_with_source_map, process_dependency_graph, DependencyGraph};
     use std::{collections::HashMap, path::Path};
 
-    fn setup_test_context(source_map: PathToFileSourceMap) -> Context {
+    fn setup_test_context(source_map: PathToFileSourceMap) -> Context<'static> {
         let mut fm = file_manager_with_source_map(source_map);
         // Add this due to us calling prepare_crate on "/main.nr" below
         fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());
