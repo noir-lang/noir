@@ -1,9 +1,13 @@
+use std::path::Path;
+
 use acvm::acir::native_types::WitnessMap;
 use clap::Args;
 
+use fm::FileManager;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
+use nargo::insert_all_files_for_package_into_file_manager;
 use nargo::ops::DefaultForeignCallExecutor;
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -56,10 +60,18 @@ pub(crate) fn run(
     )?;
     let target_dir = &workspace.target_directory_path();
 
+    let mut workspace_file_manager = FileManager::new(Path::new(""));
+
     let np_language = backend.get_backend_info_or_default();
     for package in &workspace {
-        let compiled_program =
-            compile_bin_package(&workspace, package, &args.compile_options, np_language)?;
+        insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
+        let compiled_program = compile_bin_package(
+            &workspace_file_manager,
+            &workspace,
+            package,
+            &args.compile_options,
+            np_language,
+        )?;
 
         let (return_value, solved_witness) =
             execute_program_and_decode(compiled_program, package, &args.prover_name)?;

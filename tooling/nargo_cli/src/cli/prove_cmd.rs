@@ -1,5 +1,9 @@
+use std::path::Path;
+
 use clap::Args;
+use fm::FileManager;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
+use nargo::insert_all_files_for_package_into_file_manager;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -57,9 +61,18 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
+    let mut workspace_file_manager = FileManager::new(Path::new(""));
+
     let np_language = backend.get_backend_info()?;
     for package in &workspace {
-        let program = compile_bin_package(&workspace, package, &args.compile_options, np_language)?;
+        insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
+        let program = compile_bin_package(
+            &workspace_file_manager,
+            &workspace,
+            package,
+            &args.compile_options,
+            np_language,
+        )?;
 
         prove_package(
             backend,

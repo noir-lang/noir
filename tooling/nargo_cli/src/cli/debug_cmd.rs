@@ -3,8 +3,10 @@ use std::path::PathBuf;
 use acvm::acir::native_types::WitnessMap;
 use clap::Args;
 
+use fm::FileManager;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
+use nargo::insert_all_files_for_package_into_file_manager;
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
@@ -51,6 +53,11 @@ pub(crate) fn run(
     let target_dir = &workspace.target_directory_path();
     let np_language = backend.get_backend_info()?;
 
+    let mut workspace_file_manager = FileManager::new(std::path::Path::new(""));
+    for package in workspace.clone().into_iter() {
+        insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
+    }
+
     let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
         println!(
             "No matching binary packages found in workspace. Only binary packages can be debugged."
@@ -58,8 +65,13 @@ pub(crate) fn run(
         return Ok(());
     };
 
-    let compiled_program =
-        compile_bin_package(&workspace, package, &args.compile_options, np_language)?;
+    let compiled_program = compile_bin_package(
+        &workspace_file_manager,
+        &workspace,
+        package,
+        &args.compile_options,
+        np_language,
+    )?;
 
     run_async(package, compiled_program, &args.prover_name, &args.witness_name, target_dir)
 }

@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use super::NargoConfig;
 use super::{
     compile_cmd::compile_bin_package,
@@ -9,6 +11,8 @@ use crate::errors::CliError;
 use acvm::Language;
 use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 use clap::Args;
+use fm::FileManager;
+use nargo::insert_all_files_for_package_into_file_manager;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -45,9 +49,13 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
+    let mut workspace_file_manager = FileManager::new(Path::new(""));
+
     let np_language = backend.get_backend_info()?;
     for package in &workspace {
+        insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
         let smart_contract_string = smart_contract_for_package(
+            &workspace_file_manager,
             &workspace,
             backend,
             package,
@@ -67,13 +75,15 @@ pub(crate) fn run(
 }
 
 fn smart_contract_for_package(
+    file_manager: &FileManager,
     workspace: &Workspace,
     backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
     np_language: Language,
 ) -> Result<String, CliError> {
-    let program = compile_bin_package(workspace, package, compile_options, np_language)?;
+    let program =
+        compile_bin_package(file_manager, workspace, package, compile_options, np_language)?;
 
     let mut smart_contract_string = backend.eth_contract(&program.circuit)?;
 

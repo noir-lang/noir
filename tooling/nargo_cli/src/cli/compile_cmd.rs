@@ -8,6 +8,7 @@ use nargo::artifacts::contract::PreprocessedContractFunction;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::errors::CompileError;
+use nargo::insert_all_files_for_package_into_file_manager;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
@@ -61,6 +62,12 @@ pub(crate) fn run(
     )?;
     let circuit_dir = workspace.target_directory_path();
 
+    // TODO: create a function which takes a workspace and returns a file manager
+    let mut workspace_file_manager = FileManager::new(Path::new(""));
+    for package in workspace.clone().into_iter() {
+        insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
+    }
+
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()
         .filter(|package| !package.is_library())
@@ -69,6 +76,7 @@ pub(crate) fn run(
 
     let np_language = backend.get_backend_info_or_default();
     let (_, compiled_contracts) = compile_workspace(
+        &workspace_file_manager,
         &workspace,
         &binary_packages,
         &contract_packages,
@@ -85,6 +93,7 @@ pub(crate) fn run(
 }
 
 pub(super) fn compile_workspace(
+    file_manager: &FileManager,
     workspace: &Workspace,
     binary_packages: &[Package],
     contract_packages: &[Package],
@@ -92,23 +101,24 @@ pub(super) fn compile_workspace(
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
     // Compile all of the packages in parallel.
-    let program_results: Vec<(FileManager, CompilationResult<CompiledProgram>)> = binary_packages
+    let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
         .par_iter()
-        .map(|package| compile_program(workspace, package, compile_options, np_language))
+        .map(|package| {
+            compile_program(file_manager, workspace, package, compile_options, np_language)
+        })
         .collect();
-    let contract_results: Vec<(FileManager, CompilationResult<CompiledContract>)> =
-        contract_packages
-            .par_iter()
-            .map(|package| compile_contract(package, compile_options, np_language))
-            .collect();
+    let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
+        .par_iter()
+        .map(|package| compile_contract(file_manager, package, compile_options, np_language))
+        .collect();
 
     // Report any warnings/errors which were encountered during compilation.
     let compiled_programs: Vec<CompiledProgram> = program_results
         .into_iter()
-        .map(|(file_manager, compilation_result)| {
+        .map(|compilation_result| {
             report_errors(
                 compilation_result,
-                &file_manager,
+                file_manager,
                 compile_options.deny_warnings,
                 compile_options.silence_warnings,
             )
@@ -116,10 +126,10 @@ pub(super) fn compile_workspace(
         .collect::<Result<_, _>>()?;
     let compiled_contracts: Vec<CompiledContract> = contract_results
         .into_iter()
-        .map(|(file_manager, compilation_result)| {
+        .map(|compilation_result| {
             report_errors(
                 compilation_result,
-                &file_manager,
+                file_manager,
                 compile_options.deny_warnings,
                 compile_options.silence_warnings,
             )
@@ -130,6 +140,7 @@ pub(super) fn compile_workspace(
 }
 
 pub(crate) fn compile_bin_package(
+    file_manager: &FileManager,
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
@@ -139,12 +150,12 @@ pub(crate) fn compile_bin_package(
         return Err(CompileError::LibraryCrate(package.name.clone()).into());
     }
 
-    let (file_manager, compilation_result) =
-        compile_program(workspace, package, compile_options, np_language);
+    let compilation_result =
+        compile_program(file_manager, workspace, package, compile_options, np_language);
 
     let program = report_errors(
         compilation_result,
-        &file_manager,
+        file_manager,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )?;
@@ -153,12 +164,13 @@ pub(crate) fn compile_bin_package(
 }
 
 fn compile_program(
+    file_manager: &FileManager,
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
     np_language: Language,
-) -> (FileManager, CompilationResult<CompiledProgram>) {
-    let (mut context, crate_id) = prepare_package(package);
+) -> CompilationResult<CompiledProgram> {
+    let (mut context, crate_id) = prepare_package(file_manager, package);
 
     let program_artifact_path = workspace.package_build_path(package);
     let mut debug_artifact_path = program_artifact_path.clone();
@@ -191,7 +203,7 @@ fn compile_program(
     ) {
         Ok(program_and_warnings) => program_and_warnings,
         Err(errors) => {
-            return (context.file_manager, Err(errors));
+            return Err(errors);
         }
     };
 
@@ -200,26 +212,27 @@ fn compile_program(
     let only_acir = compile_options.only_acir;
     save_program(optimized_program.clone(), package, &workspace.target_directory_path(), only_acir);
 
-    (context.file_manager, Ok((optimized_program, warnings)))
+    Ok((optimized_program, warnings))
 }
 
 fn compile_contract(
+    file_manager: &FileManager,
     package: &Package,
     compile_options: &CompileOptions,
     np_language: Language,
-) -> (FileManager, CompilationResult<CompiledContract>) {
-    let (mut context, crate_id) = prepare_package(package);
+) -> CompilationResult<CompiledContract> {
+    let (mut context, crate_id) = prepare_package(file_manager, package);
     let (contract, warnings) =
         match noirc_driver::compile_contract(&mut context, crate_id, compile_options) {
             Ok(contracts_and_warnings) => contracts_and_warnings,
             Err(errors) => {
-                return (context.file_manager, Err(errors));
+                return Err(errors);
             }
         };
 
     let optimized_contract = nargo::ops::optimize_contract(contract, np_language);
 
-    (context.file_manager, Ok((optimized_contract, warnings)))
+    Ok((optimized_contract, warnings))
 }
 
 fn save_program(
