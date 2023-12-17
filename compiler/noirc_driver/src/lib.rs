@@ -95,7 +95,7 @@ pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file
     // contents to the file manager. However since the dependency on the stdlib is implicit, we need
     // to manually add it here.
-    add_stdlib_source_to_file_manager(&mut context.file_manager.to_mut());
+    add_stdlib_source_to_file_manager(context.file_manager.to_mut());
 
     let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
     let std_file_id = context
