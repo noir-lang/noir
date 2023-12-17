@@ -49,6 +49,12 @@ impl FileManager {
         &self.file_map
     }
 
+    // Returns the path that the file manager will reference as the root
+    // for all other files which do not use an absolute/canonical path
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
     /// Adds a source file to the [`FileManager`].
     ///
     /// The `file_name` is expected to be relative to the [`FileManager`]'s root directory.
