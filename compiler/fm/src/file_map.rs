@@ -75,6 +75,10 @@ impl FileMap {
     pub fn get_file_id(&self, file_name: &PathString) -> Option<FileId> {
         self.name_to_id.get(file_name).cloned()
     }
+
+    pub fn all_file_ids(&self) -> impl Iterator<Item = &FileId> {
+        self.name_to_id.values()
+    }
 }
 impl Default for FileMap {
     fn default() -> Self {
