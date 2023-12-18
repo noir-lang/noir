@@ -75,8 +75,6 @@ pub(crate) fn on_initialize(
             false => None,
         };
 
-        CodeLensOptions { resolve_provider: Some(false) };
-
         let nargo = NargoCapability {
             tests: Some(NargoTestsOptions {
                 fetch: Some(true),
