@@ -9,6 +9,8 @@ RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesourc
 RUN apt-get update && apt-get install nodejs -y
 RUN corepack enable
 WORKDIR /usr/src/noir
+COPY ./yarn.lock ./yarn.lock
+RUN yarn --immutable
 COPY . .
 
 FROM base-base as base
