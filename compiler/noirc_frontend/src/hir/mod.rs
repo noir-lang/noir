@@ -52,8 +52,9 @@ impl Context<'_> {
     }
     pub fn from_ref_file_manager(
         file_manager: &FileManager,
-        crate_graph: CrateGraph,
     ) -> Context<'_> {
+        let crate_graph = CrateGraph::default();
+
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
