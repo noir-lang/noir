@@ -33,32 +33,6 @@ pub enum Opcode {
     },
 }
 
-impl Opcode {
-    // TODO We can add a domain separator by doing something like:
-    // TODO concat!("directive:", directive.name)
-    pub fn name(&self) -> &str {
-        match self {
-            Opcode::AssertZero(_) => "assert_zero",
-            Opcode::Directive(directive) => directive.name(),
-            Opcode::BlackBoxFuncCall(g) => g.name(),
-            Opcode::Brillig(_) => "brillig",
-            Opcode::MemoryOp { .. } => "mem",
-            Opcode::MemoryInit { .. } => "init memory block",
-        }
-    }
-
-    pub fn is_assert_zero(&self) -> bool {
-        matches!(self, Opcode::AssertZero(_))
-    }
-
-    pub fn assert_zero(self) -> Option<Expression> {
-        match self {
-            Opcode::AssertZero(expr) => Some(expr),
-            _ => None,
-        }
-    }
-}
-
 impl std::fmt::Display for Opcode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

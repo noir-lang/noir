@@ -11,7 +11,7 @@ use noirc_driver::{
     CompiledContract, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
-    graph::{CrateGraph, CrateId, CrateName},
+    graph::{CrateId, CrateName},
     hir::Context,
 };
 use serde::Deserialize;
@@ -19,8 +19,6 @@ use std::{collections::HashMap, path::Path};
 use wasm_bindgen::prelude::*;
 
 use crate::errors::{CompileError, JsCompileError};
-
-const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 #[wasm_bindgen(typescript_custom_section)]
 const DEPENDENCY_GRAPH: &'static str = r#"
@@ -32,14 +30,12 @@ export type DependencyGraph = {
 export type CompiledContract = {
     noir_version: string;
     name: string;
-    backend: string;
     functions: Array<any>;
     events: Array<any>;
 };
 
 export type CompiledProgram = {
     noir_version: string;
-    backend: string;
     abi: any;
     bytecode: string;
 }
@@ -173,8 +169,7 @@ pub fn compile(
 
     let fm = file_manager_with_source_map(file_source_map);
 
-    let graph = CrateGraph::default();
-    let mut context = Context::new(fm, graph);
+    let mut context = Context::new(fm);
 
     let path = Path::new(&entry_point);
     let crate_id = prepare_crate(&mut context, path);
@@ -183,8 +178,8 @@ pub fn compile(
 
     let compile_options = CompileOptions::default();
 
-    // For now we default to plonk width = 3, though we can add it as a parameter
-    let np_language = acvm::Language::PLONKCSat { width: 3 };
+    // For now we default to a bounded width of 3, though we can add it as a parameter
+    let expression_width = acvm::ExpressionWidth::Bounded { width: 3 };
 
     if contracts.unwrap_or_default() {
         let compiled_contract = compile_contract(&mut context, crate_id, &compile_options)
@@ -197,7 +192,7 @@ pub fn compile(
             })?
             .0;
 
-        let optimized_contract = nargo::ops::optimize_contract(compiled_contract, np_language);
+        let optimized_contract = nargo::ops::optimize_contract(compiled_contract, expression_width);
 
         let compile_output = preprocess_contract(optimized_contract);
         Ok(JsCompileResult::new(compile_output))
@@ -212,7 +207,7 @@ pub fn compile(
             })?
             .0;
 
-        let optimized_program = nargo::ops::optimize_program(compiled_program, np_language);
+        let optimized_program = nargo::ops::optimize_program(compiled_program, expression_width);
 
         let compile_output = preprocess_program(optimized_program);
         Ok(JsCompileResult::new(compile_output))
@@ -285,7 +280,6 @@ pub(crate) fn preprocess_program(program: CompiledProgram) -> CompileResult {
 
     let preprocessed_program = PreprocessedProgram {
         hash: program.hash,
-        backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         bytecode: program.circuit,
@@ -316,7 +310,6 @@ pub(crate) fn preprocess_contract(contract: CompiledContract) -> CompileResult {
     let preprocessed_contract = PreprocessedContract {
         noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
         name: contract.name,
-        backend: String::from(BACKEND_IDENTIFIER),
         functions: preprocessed_functions,
         events: contract.events,
     };
@@ -327,10 +320,7 @@ pub(crate) fn preprocess_contract(contract: CompiledContract) -> CompileResult {
 #[cfg(test)]
 mod test {
     use noirc_driver::prepare_crate;
-    use noirc_frontend::{
-        graph::{CrateGraph, CrateName},
-        hir::Context,
-    };
+    use noirc_frontend::{graph::CrateName, hir::Context};
 
     use crate::compile::PathToFileSourceMap;
 
@@ -342,8 +332,7 @@ mod test {
         // Add this due to us calling prepare_crate on "/main.nr" below
         fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());
 
-        let graph = CrateGraph::default();
-        let mut context = Context::new(fm, graph);
+        let mut context = Context::new(fm);
         prepare_crate(&mut context, Path::new("/main.nr"));
 
         context

@@ -8,7 +8,7 @@ mod download;
 mod proof_system;
 mod smart_contract;
 
-use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
+pub use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 use bb_abstraction_leaks::BB_VERSION;
 use cli::VersionCommand;
 pub use download::download_backend;

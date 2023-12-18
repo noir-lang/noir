@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use acvm::Language;
+use acvm::ExpressionWidth;
 use fm::FileManager;
 use iter_extended::vecmap;
 use nargo::artifacts::contract::PreprocessedContract;
@@ -28,9 +28,6 @@ use super::fs::program::{
 };
 use super::NargoConfig;
 use rayon::prelude::*;
-
-// TODO(#1388): pull this from backend.
-const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
@@ -70,12 +67,12 @@ pub(crate) fn run(
         .cloned()
         .partition(|package| package.is_binary());
 
-    let np_language = backend.get_backend_info_or_default();
+    let expression_width = backend.get_backend_info_or_default();
     let (_, compiled_contracts) = compile_workspace(
         &workspace,
         &binary_packages,
         &contract_packages,
-        np_language,
+        expression_width,
         &args.compile_options,
     )?;
 
@@ -91,18 +88,18 @@ pub(super) fn compile_workspace(
     workspace: &Workspace,
     binary_packages: &[Package],
     contract_packages: &[Package],
-    np_language: Language,
+    expression_width: ExpressionWidth,
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
     // Compile all of the packages in parallel.
     let program_results: Vec<(FileManager, CompilationResult<CompiledProgram>)> = binary_packages
         .par_iter()
-        .map(|package| compile_program(workspace, package, compile_options, np_language))
+        .map(|package| compile_program(workspace, package, compile_options, expression_width))
         .collect();
     let contract_results: Vec<(FileManager, CompilationResult<CompiledContract>)> =
         contract_packages
             .par_iter()
-            .map(|package| compile_contract(package, compile_options, np_language))
+            .map(|package| compile_contract(package, compile_options, expression_width))
             .collect();
 
     // Report any warnings/errors which were encountered during compilation.
@@ -136,14 +133,14 @@ pub(crate) fn compile_bin_package(
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
-    np_language: Language,
+    expression_width: ExpressionWidth,
 ) -> Result<CompiledProgram, CliError> {
     if package.is_library() {
         return Err(CompileError::LibraryCrate(package.name.clone()).into());
     }
 
     let (file_manager, compilation_result) =
-        compile_program(workspace, package, compile_options, np_language);
+        compile_program(workspace, package, compile_options, expression_width);
 
     let program = report_errors(
         compilation_result,
@@ -159,7 +156,7 @@ fn compile_program(
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
-    np_language: Language,
+    expression_width: ExpressionWidth,
 ) -> (FileManager, CompilationResult<CompiledProgram>) {
     let (mut context, crate_id) = prepare_package(package);
 
@@ -199,7 +196,7 @@ fn compile_program(
     };
 
     // Apply backend specific optimizations.
-    let optimized_program = nargo::ops::optimize_program(program, np_language);
+    let optimized_program = nargo::ops::optimize_program(program, expression_width);
     let only_acir = compile_options.only_acir;
     save_program(optimized_program.clone(), package, &workspace.target_directory_path(), only_acir);
 
@@ -209,7 +206,7 @@ fn compile_program(
 fn compile_contract(
     package: &Package,
     compile_options: &CompileOptions,
-    np_language: Language,
+    expression_width: ExpressionWidth,
 ) -> (FileManager, CompilationResult<CompiledContract>) {
     let (mut context, crate_id) = prepare_package(package);
     let (contract, warnings) =
@@ -220,7 +217,7 @@ fn compile_contract(
             }
         };
 
-    let optimized_contract = nargo::ops::optimize_contract(contract, np_language);
+    let optimized_contract = nargo::ops::optimize_contract(contract, expression_width);
 
     (context.file_manager, Ok((optimized_contract, warnings)))
 }
@@ -233,7 +230,6 @@ fn save_program(
 ) {
     let preprocessed_program = PreprocessedProgram {
         hash: program.hash,
-        backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
         noir_version: program.noir_version,
         bytecode: program.circuit,
@@ -275,7 +271,6 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
     let preprocessed_contract = PreprocessedContract {
         noir_version: contract.noir_version,
         name: contract.name,
-        backend: String::from(BACKEND_IDENTIFIER),
         functions: preprocessed_functions,
         events: contract.events,
     };

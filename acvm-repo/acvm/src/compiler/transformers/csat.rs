@@ -9,7 +9,7 @@ use indexmap::IndexMap;
 /// A transformer which processes any [`Expression`]s to break them up such that they
 /// fit within the [`ProofSystemCompiler`][crate::ProofSystemCompiler]'s width.
 ///
-/// This transformer is only used when targetting the [`PLONKCSat`][crate::Language::PLONKCSat] language.
+/// This transformer is only used when targeting the [`Bounded`][crate::ExpressionWidth::Bounded] configuration.
 ///
 /// This is done by creating intermediate variables to hold partial calculations and then combining them
 /// to calculate the original expression.
