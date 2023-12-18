@@ -28,7 +28,6 @@ members = [
     "acvm-repo/acir",
     "acvm-repo/acvm",
     "acvm-repo/acvm_js",
-    "acvm-repo/stdlib",
     "acvm-repo/brillig",
     "acvm-repo/brillig_vm",
     "acvm-repo/blackbox_solver",
@@ -39,7 +38,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.20.0"
+version = "0.21.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
@@ -50,14 +49,14 @@ repository = "https://github.com/noir-lang/noir/"
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "0.37.0", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "0.37.0", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "0.37.0", path = "acvm-repo/acvm" }
-stdlib = { version = "0.37.0", package = "acvm_stdlib", path = "acvm-repo/stdlib", default-features = false }
-brillig = { version = "0.37.0", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "0.37.0", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "0.37.0", path = "acvm-repo/blackbox_solver", default-features = false }
-barretenberg_blackbox_solver = { version = "0.37.0", path = "acvm-repo/barretenberg_blackbox_solver", default-features = false }
+acir_field = { version = "0.37.1", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "0.37.1", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "0.37.1", path = "acvm-repo/acvm" }
+stdlib = { version = "0.37.1", package = "acvm_stdlib", path = "acvm-repo/stdlib", default-features = false }
+brillig = { version = "0.37.1", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "0.37.1", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "0.37.1", path = "acvm-repo/blackbox_solver", default-features = false }
+barretenberg_blackbox_solver = { version = "0.37.1", path = "acvm-repo/barretenberg_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 arena = { path = "compiler/utils/arena" }
