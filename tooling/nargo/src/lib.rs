@@ -114,8 +114,7 @@ pub fn prepare_source(source: String) -> (Context, CrateId) {
         "Adding source buffer to file manager should never fail when file manager is empty",
     );
 
-    let graph = CrateGraph::default();
-    let mut context = Context::new(file_manager, graph);
+    let mut context = Context::new(file_manager);
 
     let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
