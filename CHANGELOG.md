@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.22.0](https://github.com/noir-lang/noir/compare/v0.21.0...v0.22.0) (2023-12-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* Remove unused methods on ACIR opcodes ([#3841](https://github.com/noir-lang/noir/issues/3841))
+* Remove backend field from artifacts ([#3819](https://github.com/noir-lang/noir/issues/3819))
+* Remove partial backend feature ([#3805](https://github.com/noir-lang/noir/issues/3805))
+
+### Features
+
+* Add context-centric based API for noir_wasm ([#3798](https://github.com/noir-lang/noir/issues/3798)) ([19155d0](https://github.com/noir-lang/noir/commit/19155d02a1248c85e94f14a2a0bb383a4edeb16f))
+
+
+### Miscellaneous Chores
+
+* Remove backend field from artifacts ([#3819](https://github.com/noir-lang/noir/issues/3819)) ([fa1cf5f](https://github.com/noir-lang/noir/commit/fa1cf5f03aa21b001c31ebb9ce405e3c2859bb57))
+* Remove partial backend feature ([#3805](https://github.com/noir-lang/noir/issues/3805)) ([0383100](https://github.com/noir-lang/noir/commit/0383100853a80a5b28b797cdfeae0d271f1b7805))
+* Remove unused methods on ACIR opcodes ([#3841](https://github.com/noir-lang/noir/issues/3841)) ([9e5d0e8](https://github.com/noir-lang/noir/commit/9e5d0e813d61a0bfb5ee68174ed287c5a20f1579))
+
 ## [0.21.0](https://github.com/noir-lang/noir/compare/v0.20.0...v0.21.0) (2023-12-15)
 
 
