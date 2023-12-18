@@ -74,10 +74,7 @@ jobs:
     steps:
       - name: test
         run: |
-          cd /usr/src/noir
-          apt-get install -y jq
-          yarn workspace @noir-lang/acvm_js build
-          yarn workspace @noir-lang/acvm_js test
+          ./.github/scripts/test-acvm-js.sh
 
   # test-noirc-abi:
   #   name: test noirc abi
