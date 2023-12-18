@@ -1,5 +1,6 @@
 ---
 title: Cross-chain communication
+sidebar_position: 100
 ---
 
 This section describes what our L1 contracts do, what they are responsible for and how they interact with the circuits. 
@@ -11,6 +12,138 @@ The purpose of the L1 contracts are simple:
 - Facilitate cross-chain communication such that L1 liquidity can be used on L2
 - Act as a validating light node for L2 that every L1 node implicitly run
 :::
+
+## Overview
+
+When presented with a new [`ProvenBlock`](../rollup-circuits/root_rollup.md) and its proof, an Aztec node can be convinced of its validity if the proof passes and the `Header.last_archive` matches the `archive` of the node (archive here represents a root of [archive tree](../state/archive.md)). The `archive` used as public input is the archive after the new header is inserted (see [root rollup](./../rollup-circuits/root_rollup.md)).
+
+```python
+def process(block: ProvenBlock, archive: Fr, proof: Proof):
+    assert self.archive == header.last_archive
+    assert proof.verify(header, archive)
+    assert self.inbox.consume(block.l1_to_l2_msgs)
+    for tx in block.body.txs:
+        assert self.outbox.insert(tx.l2_to_l1_msgs)
+    
+    self.archive = archive
+```
+
+While the `ProvenBlock` must be published and available for nodes to build the state of the rollup, we can build the validating light node (the contract) such that as long as the node can be *convinced*  that the data is available we can progress the state. This means our light node can be built to only require a subset of the `ProvenBlock` to be published to Ethereum L1 and use a different data availability layer for most of the block body. Namely, we need the cross-chain messages to be published to L1, but the rest of the block body can be published to a different data availability layer.
+
+:::info Validium or Rollup
+If a different data availability layer than Ethereum is used for the block body, we are effectively building a Validium. If we use Ethereum for the block body, we are building a Rollup.
+:::
+
+Using the data structures defined throughout the [rollup circuits](./../rollup-circuits/index.md) section, we can outline the validating light node structure as follows:
+```mermaid
+classDiagram
+
+class AvailabilityOracle {
+    available: Map[Fr => bool]
+    mut publish(effects: TxEffect[]): Fr
+    is_available(txs_hash: Fr): bool
+}
+
+class Inbox {
+    consume(entries: Fr[])
+}
+
+class Outbox {
+    insert(entries: Fr[])
+}
+
+class Verifier {
+    verify(proof: Proof, header: Header, archive: Fr): bool
+}
+
+class StateTransitioner {
+    archive: Snapshot
+    process(header: Header, archive: Fr, txs_hash: Fr, l1_to_l2_msgs: Fr[], l2_to_l1_msgs: Fr[], proof: Proof)
+}
+StateTransitioner --> AvailabilityOracle: is_available()
+StateTransitioner --> Inbox: consume()
+StateTransitioner --> Outbox: insert()
+StateTransitioner --> Verifier: verify()
+```
+
+
+### State transitioner
+The state transitioner is the heart of the validating light node for the L2. The contract keeps track of the current state of the L2 and progresses this state when a valid L2 block is received. It also facilitates cross-chain communication (communication between the L1 inbox and outbox contracts).
+
+```python
+class StateTransitioner:
+
+    def __init__(
+        self, 
+        verifier: Verifier,
+        registry: Registry,
+        version: Fr, 
+        archive: Snapshot
+    ):
+        self.verifier = verifier
+        self.registry = registry
+        self.version = version
+        self.archive = archive
+        self.last_block_ts = block.timestamp
+        self.block_number = 0
+
+    def process(
+        self,
+        header: Header, 
+        archive: Fr, 
+        txs_hash: Fr, 
+        l1_to_l2_msgs: Fr[], 
+        l2_to_l1_msgs: Fr[], 
+        proof: Proof
+    ):
+        assert self.body_available(header, txs_hash, l1_to_l2_msgs, l2_to_l1_msgs)
+        assert self.validate_header(header)
+        assert self.verifier.verify(proof, header, archive)
+        assert self.registry.inbox.consume(l1_to_l2_msgs)
+        assert self.registry.outbox.insert(l2_to_l1_msgs)
+        self.archive = archive
+
+    def body_available(
+        self,
+        content_hash: Fr, 
+        txs_hash: Fr, 
+        l1_to_l2_msgs: Fr[], 
+        l2_to_l1_msgs: Fr[]
+    ) -> bool:
+        assert self.registry.availability_oracle.is_available(txs_hash)
+        in_hash = SHA256(pad(l1_to_l2_msgs))
+        out_hash = MerkleTree(pad(l2_to_l1_msgs), SHA256)
+        return content_hash == SHA256(txs_hash, out_hash, in_hash)
+    )
+
+    def validate_header(
+        self,
+        header: Header
+    ) -> bool:
+        assert header.global_variables.block_number = self.block_number + 1
+        assert header.global_variables.chain_id == block.chain_id
+        assert header.global_variables.version == self.version 
+        assert header.global_variables.timestamp < block.timestamp
+        assert header.global_variables.timestamp > self.last_block_ts
+        assert header.archive == self.archive
+
+        return True
+```
+
+
+### Availability Oracle
+The state transitioner should be connected to an oracle which addresses the availability condition. 
+
+For the case of a rollup, this "oracle" will be deriving the `TxsHash` from calldata and blobs. For a validium it should be connected to a bridge that it can use to verify that the data is available on the other chain. 
+
+For a generic DA that publishes data commitments to Ethereum, the oracle could be a snark proof that opens the data commitment from the bridge and computes the `TxsHash` from it.
+
+By having the availability oracle be independent from state progression we can even do multi-transaction blocks, e.g., use multiple transactions or commitments from other DA layers to construct the `TxsHash` for a large block. 
+
+
+### Registry
+To keep one location where all the core rollup contracts can be found, we have a registry contract. The registry is a contract that holds the current and historical addresses of the core rollup contracts. The addresses of a rollup deployment are contained in a snapshot, and the registry is tracking version-snapshot pairs. Depending on the upgrade scheme, it might be used to handle upgrades, or it could entirely be removed. It is generally the one address that a node MUST know about, as it can then tell the node where to find the remainder of the contracts. This is for example used when looking for the address new L2 blocks should be published to.
+
 
 ## Message Bridges
 
@@ -25,15 +158,7 @@ While we logically have 4 boxes, we practically only require 3 of those. The L2 
 
 ### Portals
 
-When deploying a contract on L2, it is possible to specify its "portal" address. This is an immutable variable, that can be used to constrain who the L2 contract expect messages from, and who it sends to.
-
-In the current paradigm, any messages that are sent from the L2 contract to L1 MUST be sent to the portal address. This was to get around the access control issue of private execution and is enforced in the kernel. It practically gives us a 1:M relationship between L1 and L2, where one L1 contract can be specified as the portal for many L2, and communicate with all of them, but each L2 can only communicate with a single L1 contract.
-
-:::warning Comment for discussion
-Plainly speaking, we don't need to restrict the recipient of the message to a single address. We could let the contract itself figure it out. We restricted it for reasons above, but we could lift this requirement. As long as the portal address exists, it CAN be used to constrain it like this.
-
-Further comment on this later.
-:::
+When deploying a contract on L2, it is possible to specify its "portal" address. This is an immutable variable, that can be used to constrain who the L2 contract expects messages from, and who it sends messages to.
 
 ### Messages
 
@@ -55,7 +180,7 @@ struct L1ToL2Msg {
     L2Actor: recipient,
     bytes32: content,
     bytes32: secretHash,
-    uint32 deadline,
+    uint32 deadline, // timestamp
     uint64 fee,
 }
 
@@ -66,29 +191,29 @@ struct L2ToL1Msg {
 }
 ```
 
-Beware, that while we speak of messages, we are practically passing around only their **hashes** to reduce cost. The `version` value of the `L2Actor` is the version of the rollup, intended to be used allow specifying what version of the rollup the message is intended for or sent from.
+Beware, that while we speak of messages, we are practically passing around only their **hashes** to reduce cost. The `version` value of the `L2Actor` is the version of the rollup, which is intended to be used to specify which version of the rollup the message is intended for or sent from. This way, multiple rollup instances can use the same inbox/outbox contracts.
 
 :::info Why a single hash?
-Persistent storage is expensive so to reduce overhead we only commit to the messages and then "open" these for consumption later. We need a hash function that is relatively cheap on both L1 and L2, we chose a modded SHA256 to fit the output value into a single field element.
+Compute on L1 is expensive, but storage is extremely expensive! To reduce overhead, we trade storage for computation and only commit to the messages and then "open" these for consumption later. However, since computation also bears significant we need to use a hash function that is relatively cheap on L1, while still being doable inside a snark. For this purpose a modded SHA256 was chosen, modded here meaning that it fits the output value into a single field element using the modulo operator.
 :::
 
 Some additional discussion/comments on the message structure can be found in [The Republic](https://forum.aztec.network/t/the-republic-a-flexible-optional-governance-proposal-with-self-governed-portals/609/2#supporting-pending-messages-5).
 
 Since any data that is moving from one chain to the other at some point will live on L1, it will be PUBLIC. While this is fine for L1 consumption (which is public in itself), we want to ensure that the L2 consumption can be private.
-To support this, we use a nullifier scheme similar to what we are doing for all the other notes (**REFERENCE**). As part of the nullifier computation we then use the `secret` which hashes to the `secretHash`, this ensures that only actors with knowledge of `secret` will be able to see when it is spent on L2.
+To support this, we use a nullifier scheme similar to what we are doing for the other [notes](./../state/note_hash_tree.md). As part of the nullifier computation we then use the `secret` which hashes to the `secretHash`, this ensures that only actors with knowledge of `secret` will be able to see when it is spent on L2.
 
 Any message that is consumed on one side MUST be moved to the other side. This is to ensure that the messages exist AND are only consumed once. The L1 contracts can handle one side, but the circuits must handle the other.
 
 :::info Is `secretHash` required?
-We are using the `secretHash` to ensure that the user can spend the message privately with a generic nullifier computation. However, as the nullifier computation is almost entirely controlled by the app circuit (except the siloing, **REFERENCE**) applications could be made to simply use a different nullifier computation and have it become part of the content. However, this reduces the developer burden and is quite easy to mess up. For those reasons we have decided to use the `secretHash` as part of the message.
+We are using the `secretHash` to ensure that the user can spend the message privately with a generic nullifier computation. However, as the nullifier computation is almost entirely controlled by the app circuit (except the siloing, see [Nullifier Tree](./../state/nullifier_tree.md) ) applications could be made to simply use a different nullifier computation and have it become part of the content. However, this reduces the developer burden and is quite easy to mess up. For those reasons we have decided to use the `secretHash` as part of the message.
 :::
 
 ### Inbox
 When we say inbox, we are generally referring to the L1 contract that handles the L1 to L2 messages.
 
-The inbox is logically a [multi-set](https://en.wikipedia.org/wiki/Multiset) that builds messages based on the caller and user-provided content (multi-set meaning that repetitions are allowed). While anyone can insert messages into the inbox, only the recipient state transitioner can consume messages from it (as specified by the version). When the state transitioner is consuming a message, it MUST insert it into the "L2 outbox" (message tree).
+The inbox is logically a [multi-set](https://en.wikipedia.org/wiki/Multiset) that builds messages based on the caller and user-provided content (multi-set meaning that repetitions are allowed). While anyone can insert messages into the inbox, only the recipient state transitioner can consume messages from it (as specified by the version). When the state transitioner is consuming a message, it MUST insert it into the "L2 outbox" ([message tree](./../state/index.md)).
 
-When a message is inserted into the inbox, the inbox **MUST** fill in the following fields:
+When a message is inserted into the inbox, the inbox **MUST** fill in the `sender`:
 - `L1Actor.actor`: The sender of the message (the caller), `msg.sender`
 - `L1Actor.chainId`: The chainId of the L1 chain sending the message, `block.chainId`
 
@@ -110,23 +235,14 @@ While we have ensured that the message either arrives to the L2 outbox or is can
 ##### L2 Inbox
 While the L2 inbox is not a real contract, it is a logical contract that apply mutations to the data similar to the L1 inbox to ensure that the sender cannot fake his position. This logic is handled by the kernel and rollup circuits.
 
-Just like the L1 variant, we must populate some fields:
-- `L2Actor.actor`: The sender of the message (the caller) [also in L1 inbox]
-- `L2Actor.version`: The version of the L2 chain sending the message [also in L1 inbox]
-- `L1Actor.actor` The recipient of the message (the portal)
-- `L1Actor.chainId` The chainId of the L1 chain receiving the message
+Just like the L1 variant, we must populate the `sender`:
+- `L2Actor.actor`: The sender of the message (the caller)
+- `L2Actor.version`: The version of the L2 chain sending the message
 
 In practice, this is done in the kernel circuit of the L2, and the message hash is a public output of the circuit that is inserted into the L1 outbox for later consumption.
 
-:::warning Comment for discussion
-Note that while we are letting the inbox populate more values that what we did for the L1 inbox. This is more an opinionated decision than a purely technical one. 
-
-We could let the contract itself populate the `L1Actor` like we did for L1, but we decided to let the kernel do it instead, since access control can be quite tedious to get right in private execution. By having the `portal` contract that is specified at the time of deployment, we can insert this value and ensure that it is controlled by the contract.
-If we have a better alternative for access control this could be changed to be more similar to the L1 inbox, which gives better flexibility.
-:::
-
 ### Outbox
-The outboxes are the location where a user can consume messages from. An outbox can only contain elements that have previously been removed from an inbox. 
+The outboxes are the location where a user can consume messages from. An outbox can only contain elements that have previously been removed from the paired inbox. 
 
 Our L1 outbox is pretty simple, Like the L1 inbox, it is a multi-set. It should allow the state transitioner to insert messages and the recipient of the message can consume it (removing it from the outbox).
 
@@ -145,43 +261,14 @@ This means that all validation is done by the application circuit. The applicati
 - Compute a nullifier that includes the `secret` along with the msg hash and the index of the message in the tree
     - The index is included to ensure that the nullifier is unique for each message
 
-## Registry
-The registry is a contract that holds the current and historical addresses of the core rollup contracts. The addresses of a rollup deployment are contained in a snapshot, and the registry is tracking version-snapshot pairs. Depending on the upgrade scheme, it might be used to handle upgrades, or it could entirely be removed. It is generally the one address that a node MUST know about, as it can then tell the node where to find the remainder of the contracts. This is for example used when looking for the address new L2 blocks should be published to.
-
-## State transitioner
-The state transitioner is the heart of the validating light node for the L2. Practically this means that the contract keeps track of the current state of the L2 and progresses this state when a valid L2 block is received. It also facilitates cross-chain communication (communication between the L1 inbox and outbox contracts).
-
-When new blocks are to be processed, the state transitioner receives the `header` of the block, and commitments to its content (following the same scheme as the rollup circuits) from the Decoder. The header definition can be found in **REFERENCE**, but is commitments to the state before and after the block.
-
-
-### Decoder
-The state transitioner should be connected to a decoder which addresses the decode validity condition, and feeds the outputs back into the State transitioner. The action of preparing outputs for the state transitioner should be independent from the processing of a proof, that way allowing for multi-transaction setups. 
-
-In a solo-DA paradigm there will be just one decoder, which can be integrated into the state transitioner, but for multi-layer DA setups, the decoders SHOULD be separate contracts.
-
-
-## Validity conditions (constraints)
+## Validity conditions
 While there are multiple contracts, they work in unison to ensure that the rollup is valid and that messages are correctly moved between the chains. In practice this means that the contracts are to ensure that the following constraints are met in order for the validating light node to accept a block. 
 
-Note that some conditions are marked as SHOULD, which is not strictly needed for security of the rollup, but the security of the individual applications or for UX.
+Note that some conditions are marked as SHOULD, which is not strictly needed for security of the rollup, but the security of the individual applications or for UX. Also, some of the conditions are repetitions of what we saw earlier from the [state transitioner](#state-transitioner).
 
-- **Decode**: 
-    - A commitment to the block content must be computed following the same scheme as the rollup circuits using only PUBLISHED DATA. See **REFERENCE** for more details on the commitment computation.
-    - A commitment to the L1 to L2 messages must be computed following the same scheme as the rollup circuits using only PUBLISHED DATA. See **REFERENCE** for more details on the commitment computation.
-- **Header Validation**:
-    - The starting state of the block (derived from the header) MUST match the state stored in the contract
-    - The global variables defined by the header MUST be valid:
-        - The block number MUST be the next block number
-        - The timestamp MUST:
-            - be newer than the previous block inclusion
-            - not be in the future (if l1 time is less than l2 time we are in the future)
-        - The version MUST be the same as the current version
-        - The chainId MUST be the same as the current chainId
-    - The ending state of the block (derived from the header) MUST *replace* the state stored in the contract
-        - Requires ALL `MUST` constraints to be met
-- **Proof validation**: The proof MUST be valid with the public inputs hash
-    - A single public input hash MUST be computed from the block header, the commitment to the block content and the commitment to L1 to L2 messages.
-- **State update**: The state root MUST be set to the ending state value
+- **Data Availability**: The block content MUST be available. To validate this, the `AvailabilityOracle` is used.
+- **Header Validation**: See the checks from the [state transitioner](#state-transitioner)
+- **Proof validation**: The proof MUST be valid when validated with the header and archive.
 - **Inserting messages**: for messages that are inserted into the inboxes:
     - The `sender.actor` MUST be the caller
     - The `(sender|recipient).chainId` MUST be the chainId of the L1 where the state transitioner is deployed
@@ -194,7 +281,7 @@ Note that some conditions are marked as SHOULD, which is not strictly needed for
 - **Message Cancellation**: To remove messages from the L1 inbox:
     - The message MUST exist in the inbox
     - The caller MUST be `sender.actor`
-    - The current time (`block.timestamp`) MUST be larger than the `deadline`
+    - The `deadline` MUST be in the future, `> block.timestamp`
     - The `fee` SHOULD be refunded to the caller
 - **Moving messages**:
     - Moves MUST be atomic:
@@ -214,13 +301,12 @@ Note that some conditions are marked as SHOULD, which is not strictly needed for
         - The consumer contract SHOULD check that the message exists in the state
 
 :::info
-- We compute a single hash since each public input increases the costs of proof verification.
+- For cost purposes, it can be useful to commit to the public inputs to just pass a single value into the circuit.
 - Time constraints might change depending on the exact sequencer selection mechanism.
 :::
 
 ## Logical Execution
 Below, we will outline the **LOGICAL** execution of a L2 block and how the contracts interact with the circuits. We will be executing cross-chain communication before and after the block itself. Note that in reality, the L2 inbox does not exists, and its functionality is handled by the kernel and the rollup circuits.
-
 
 ```mermaid
 sequenceDiagram
@@ -293,21 +379,21 @@ sequenceDiagram
     O->>O: Validate msg
     O->>O: Update state (delete)
 ```
-We will walk briefly through the steps of the diagram above.
+We will walk briefly through the steps of the diagram above. The numbering matches the numbering of nodes in the diagram, the start of the action.
 
-1. A portal contracts on L1 wants to send a message for L2
-1. The L1 inbox populates the message with `sender` information
+1. A portal contract on L1 wants to send a message for L2
+1. The L1 inbox populates the message with information of the `sender` (using `msg.sender` and `block.chainid`)
 1. The L1 inbox contract inserts the message into its storage
-1. On the L2, as part of a L2 block, a transaction tries to consume a message from the L2 outbox.
+1. On the L2, as part of a L2 block, a transaction wish to consume a message from the L2 outbox.
 1. The L2 outbox ensures that the message is included, and that the caller is the recipient and knows the secret to spend. (This is practically done by the application circuit)
 1. The nullifier of the message is emitted to privately spend the message (This is practically done by the application circuit)
-1. The L2 contract wishes to send a message to L1
-1. The L2 inbox populates the message with `sender` and `recipient` information
+1. The L2 contract wishes to send a message to L1 (specifying a recipient)
+1. The L2 inbox populates the message with `sender` information
 1. The L2 inbox inserts the message into its storage
 1. The rollup circuit starts consuming the messages from the inbox
 1. The L2 inbox deletes the messages from its storage
 1. The L2 block includes messages from the L1 inbox that are to be inserted into the L2 outbox.
-1. The outbox state is updated to include the messages
+1. The L2 outbox state is updated to include the messages
 1. The L2 block is submitted to L1 
 1. The state transitioner receives the block and verifies the proof + validate constraints on block.
 1. The state transitioner updates it state to the ending state of the block
@@ -320,7 +406,7 @@ We will walk briefly through the steps of the diagram above.
 1. The state transitioner inserts the messages into the L1 inbox that was specified in the block. Note that they have logically been consumed from the L2 outbox, ensuring atomicity.
 1. The L1 outbox updates it local state by inserting the messages
 1. The portal later consumes the message from the L1 outbox
-1. The L1 outbox validates that the message exists and that the caller is the recipient
+1. The L1 outbox validates that the message exists and that the caller is indeed the recipient
 1. The L1 outbox updates it local state by deleting the message
 
 :::info L2 inbox is not real
@@ -337,6 +423,6 @@ As should be clear from above, the L2 inbox doesn't need to exist for itself, it
     - Modularize the computation such that the state transitioner need not know the exact computation but merely use a separate contract as an oracle.
 - Governance/upgrade contract(s)
     - Relies on the governance/upgrade scheme being more explicitly defined
-- Explore getting rid of the specific 1:M relationship between L1 and L2
 - Forced transaction inclusion
     - While we don't have an exact scheme, an outline was made in [hackmd](https://hackmd.io/@aztec-network/S1lRcMkvn?type=view) and the [forum](https://forum.aztec.network/t/forcing-transactions/606)
+
