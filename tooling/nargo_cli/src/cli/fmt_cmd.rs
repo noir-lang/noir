@@ -62,7 +62,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
                 return Ok(());
             }
 
-            let original = file_manager.fetch_file(file_id).source();
+            let original = file_manager.fetch_file(file_id);
             let formatted = nargo_fmt::format(original, parsed_module, &config);
 
             if check_mode {
