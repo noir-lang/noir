@@ -7,8 +7,8 @@ on:
       - 'cache-docker-artifacts'
 
 jobs:
-  build-base:
-    name: Build base image
+  build-base-js:
+    name: Build base js image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -22,8 +22,47 @@ jobs:
           REGISTRY="ghcr.io"
           IMG="${REGISTRY}/${{ github.repository }}"
           IMAGE=$(echo "$IMG" | tr '[:upper:]' '[:lower:]')
-          TAGS="${IMAGE}:${{ github.sha }}"
-          TAGS="${TAGS},${IMAGE}:latest,${IMAGE}:v${{ steps.date.outputs.date }}"
+          TAGS="${IMAGE}:${{ github.sha }}:js"
+          TAGS="${TAGS},${IMAGE}:latest:js,${IMAGE}:v${{ steps.date.outputs.date }}:js"
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to GitHub Container Registry        
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build cargo
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.ci
+          tags: ${{ steps.prep.outputs.tags }}
+          target: base-js
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          push: true
+
+  build-base-nargo:
+    name: Build base nargo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y.%m.%d.%H.%M')" >> $GITHUB_STATE
+      - name: prepare docker images tags
+        id: prep
+        run: |
+          REGISTRY="ghcr.io"
+          IMG="${REGISTRY}/${{ github.repository }}"
+          IMAGE=$(echo "$IMG" | tr '[:upper:]' '[:lower:]')
+          TAGS="${IMAGE}:${{ github.sha }}:nargo"
+          TAGS="${TAGS},${IMAGE}:latest:nargo,${IMAGE}:v${{ steps.date.outputs.date }}:nargo"
           # echo ::set-output name=tags::${TAGS}
           echo "tags=$TAGS" >> $GITHUB_OUTPUT
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
@@ -42,32 +81,45 @@ jobs:
           context: .
           file: Dockerfile.ci
           tags: ${{ steps.prep.outputs.tags }}
-          target: js-base
+          target: base-nargo
           cache-from: type=gha
           cache-to: type=gha,mode=max
           push: true
+        
+  test-nargo:
+    name: test cargo 
+    runs-on: ubuntu-latest
+    needs: [build-base-nargo]
+    container:
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}:nargo
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
+    steps:
+      - name: test
+        run: |
+          /usr/src/noir/.github/scripts/test-nargo.sh
 
-  # test-nargo:
-  #   name: test cargo 
-  #   runs-on: ubuntu-latest
-  #   needs: [build-base]
-  #   container:
-  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}
-  #     credentials:
-  #       username: ${{ github.actor }}
-  #       password: ${{ secrets.github_token }}
-  #   steps:
-  #     - name: test
-  #       run: |
-  #         cd /usr/src/noir
-  #         ./scripts/test_native.sh
+  test-source-resolver:
+    name: test noir wasm
+    runs-on: ubuntu-latest
+    needs: [build-base-js]
+    container:
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}:js
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
+    steps:
+      - name: test
+        run: |
+          /usr/src/noir/.github/scripts/test-source-resolver.sh
 
   test-noir-wasm:
     name: test noir wasm
     runs-on: ubuntu-latest
-    needs: [build-base]
+    needs: [build-base-js, test-source-resolver, build-base-nargo]
     container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}:js
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
@@ -79,9 +131,9 @@ jobs:
   test-acvm-js:
     name: test acvm js
     runs-on: ubuntu-latest
-    needs: [build-base]
+    needs: [build-base-js]
     container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}:js
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
@@ -93,9 +145,9 @@ jobs:
   test-noirc-abi:
     name: test noirc abi
     runs-on: ubuntu-latest
-    needs: [build-base]
+    needs: [build-base-js]
     container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}:js
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
@@ -103,19 +155,3 @@ jobs:
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-noirc-abi.sh
-
-  # test-noirc-abi:
-  #   name: test noirc abi
-  #   runs-on: ubuntu-latest
-  #   needs: [build-base]
-  #   container:
-  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}
-  #     credentials:
-  #       username: ${{ github.actor }}
-  #       password: ${{ secrets.github_token }}
-  #   steps:
-  #     - name: test
-  #       run: |
-  #         cd /usr/src/noir
-  #         yarn workspace @noir-lang/noirc_abi build
-  #         yarn workspace @noir-lang/noirc_abi test

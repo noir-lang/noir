@@ -1,20 +1,28 @@
 FROM rust:1.71.1-slim-bookworm as base-base
 RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git -y
+WORKDIR /usr/src/noir
 
-FROM base-base as js-base
+FROM base-base as base-nargo
+COPY . .
+RUN ./scripts/bootstrap_native.sh
+ENV PATH="${PATH}:/usr/src/noir/target/release"
+
+FROM base-base as base-js
 RUN apt-get install -y ca-certificates curl gnupg
 RUN mkdir -p /etc/apt/keyrings
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
 RUN apt-get update && apt-get install nodejs -y
 RUN corepack enable
-WORKDIR /usr/src/noir
 RUN apt-get install -y jq
 COPY yarn.lock package.json .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
 # acvm-js
 COPY ./acvm-repo/acvm_js/package.json ./acvm-repo/acvm_js/
 COPY ./tooling/noirc_abi_wasm/package.json ./tooling/noirc_abi_wasm/
+COPY ./compiler/wasm/package.json ./compiler/wasm/
+COPY ./compiler/source-resolver/package.json ./compiler/source-resolver/
+
 RUN yarn
 # RUN yarn --immutable
 COPY . .
@@ -43,7 +51,7 @@ RUN ./scripts/install_wasm-bindgen-new.sh
 #Required to build
 COPY . .
 RUN ./scripts/bootstrap_native.sh
-ENV PATH="${PATH}:/usr/src/noir/target/release/"
+ENV PATH="${PATH}:/usr/src/noir/target/release"
 
 #Required for yarn building
 RUN yarn --immutable
