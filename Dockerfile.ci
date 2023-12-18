@@ -9,11 +9,14 @@ RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesourc
 RUN apt-get update && apt-get install nodejs -y
 RUN corepack enable
 WORKDIR /usr/src/noir
+RUN apt-get install -y jq
 COPY yarn.lock package.json .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
-# RUN yarn --immutable
+# acvm-js
+COPY ./acvm-repo/acvm_js/package.json ./acvm-repo/acvm_js/
+COPY ./tooling/noirc_abi_wasm/package.json ./tooling/noirc_abi_wasm/
 RUN yarn
-RUN yarn --immutable
+# RUN yarn --immutable
 COPY . .
 
 FROM base-base as base

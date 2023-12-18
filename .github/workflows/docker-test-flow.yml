@@ -76,6 +76,20 @@ jobs:
         run: |
           /usr/src/noir/.github/scripts/test-acvm-js.sh
 
+  test-noirc-abi:
+    name: test noirc abi
+    runs-on: ubuntu-latest
+    needs: [build-base]
+    container:
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
+    steps:
+      - name: test
+        run: |
+          /usr/src/noir/.github/scripts/test-noirc-abi.sh
+
   # test-noirc-abi:
   #   name: test noirc abi
   #   runs-on: ubuntu-latest
