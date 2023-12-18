@@ -24,6 +24,27 @@ mod semver;
 pub use errors::ManifestError;
 use git::clone_git_repo;
 
+/// Searches for a `Nargo.toml` file in the current directory and all parent directories.
+/// For example, if the current directory is `/workspace/package/src`, then this function
+/// will search for a `Nargo.toml` file in
+/// * `/workspace/package/src`,
+/// * `/workspace/package`,
+/// * `/workspace`.
+///
+/// Returns the [PathBuf] of the `Nargo.toml` file if found, otherwise returns None.
+///
+/// It will return innermost `Nargo.toml` file, which is the one closest to the current directory.
+/// For example, if the current directory is `/workspace/package/src`, then this function
+/// will return the `Nargo.toml` file in `/workspace/package/Nargo.toml`
+pub fn find_file_manifest(current_path: &Path) -> Option<PathBuf> {
+    for path in current_path.ancestors() {
+        if let Ok(toml_path) = get_package_manifest(path) {
+            return Some(toml_path);
+        }
+    }
+    None
+}
+
 /// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path].
 ///
 /// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
@@ -249,7 +270,6 @@ struct PackageMetadata {
     // We also state that ACIR and the compiler will upgrade in lockstep.
     // so you will not need to supply an ACIR and compiler version
     compiler_version: Option<String>,
-    backend: Option<String>,
     license: Option<String>,
 }
 
@@ -411,7 +431,7 @@ pub fn resolve_workspace_from_toml(
     let nargo_toml = read_toml(toml_path)?;
     let workspace = toml_to_workspace(nargo_toml, package_selection)?;
     if let Some(current_compiler_version) = current_compiler_version {
-        semver::semver_check_workspace(workspace.clone(), current_compiler_version)?;
+        semver::semver_check_workspace(&workspace, current_compiler_version)?;
     }
     Ok(workspace)
 }

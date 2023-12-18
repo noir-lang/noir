@@ -13,4 +13,4 @@ else
 fi
 
 # Build native.
-cargo build --features="noirc_driver/aztec" --release
+cargo build --release

@@ -1687,28 +1687,28 @@ fn execute_brillig(
             _signature: &[u8],
             _message: &[u8],
         ) -> Result<bool, BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::SchnorrVerify))
+            unimplemented!("SchnorrVerify is not supported")
         }
         fn pedersen_commitment(
             &self,
             _inputs: &[FieldElement],
             _domain_separator: u32,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::PedersenCommitment))
+            unimplemented!("PedersenCommitment is not supported")
         }
         fn pedersen_hash(
             &self,
             _inputs: &[FieldElement],
             _domain_separator: u32,
         ) -> Result<FieldElement, BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::PedersenHash))
+            unimplemented!("PedersenHash is not supported")
         }
         fn fixed_base_scalar_mul(
             &self,
             _low: &FieldElement,
             _high: &FieldElement,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::FixedBaseScalarMul))
+            unimplemented!("FixedBaseScalarMul is not supported")
         }
     }
 

@@ -489,28 +489,31 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
-    pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
+    pub fn push_empty_trait(&mut self, type_id: TraitId, unresolved_trait: &UnresolvedTrait) {
         let self_type_typevar_id = self.next_type_variable_id();
 
-        self.traits.insert(
-            type_id,
-            Trait::new(
-                type_id,
-                typ.trait_def.name.clone(),
-                typ.crate_id,
-                typ.trait_def.span,
-                vecmap(&typ.trait_def.generics, |_| {
-                    // Temporary type variable ids before the trait is resolved to its actual ids.
-                    // This lets us record how many arguments the type expects so that other types
-                    // can refer to it with generic arguments before the generic parameters themselves
-                    // are resolved.
-                    let id = TypeVariableId(0);
-                    (id, TypeVariable::unbound(id))
-                }),
-                self_type_typevar_id,
-                TypeVariable::unbound(self_type_typevar_id),
-            ),
-        );
+        let new_trait = Trait {
+            id: type_id,
+            name: unresolved_trait.trait_def.name.clone(),
+            crate_id: unresolved_trait.crate_id,
+            span: unresolved_trait.trait_def.span,
+            generics: vecmap(&unresolved_trait.trait_def.generics, |_| {
+                // Temporary type variable ids before the trait is resolved to its actual ids.
+                // This lets us record how many arguments the type expects so that other types
+                // can refer to it with generic arguments before the generic parameters themselves
+                // are resolved.
+                let id = TypeVariableId(0);
+                (id, TypeVariable::unbound(id))
+            }),
+            self_type_typevar_id,
+            self_type_typevar: TypeVariable::unbound(self_type_typevar_id),
+            methods: Vec::new(),
+            method_ids: unresolved_trait.method_ids.clone(),
+            constants: Vec::new(),
+            types: Vec::new(),
+        };
+
+        self.traits.insert(type_id, new_trait);
     }
 
     pub fn new_struct(
@@ -863,12 +866,16 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_trait(&self, id: TraitId) -> Trait {
-        self.traits[&id].clone()
+    pub fn get_trait(&self, id: TraitId) -> &Trait {
+        &self.traits[&id]
     }
 
-    pub fn try_get_trait(&self, id: TraitId) -> Option<Trait> {
-        self.traits.get(&id).cloned()
+    pub fn get_trait_mut(&mut self, id: TraitId) -> &mut Trait {
+        self.traits.get_mut(&id).expect("get_trait_mut given invalid TraitId")
+    }
+
+    pub fn try_get_trait(&self, id: TraitId) -> Option<&Trait> {
+        self.traits.get(&id)
     }
 
     pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
@@ -892,7 +899,7 @@ impl NodeInterner {
         let typ = self.id_type(def_id);
         if let Type::Function(args, ret, env) = &typ {
             let def = self.definition(def_id);
-            if let Type::TraitAsType(_trait) = ret.as_ref() {
+            if let Type::TraitAsType(..) = ret.as_ref() {
                 if let DefinitionKind::Function(func_id) = def.kind {
                     let f = self.function(&func_id);
                     let func_body = f.as_expr();
@@ -1251,9 +1258,8 @@ impl NodeInterner {
         self.selected_trait_implementations.insert(ident_id, trait_impl);
     }
 
-    /// Tags the given identifier with the selected trait_impl so that monomorphization
-    /// can later recover which impl was selected, or alternatively see if it needs to
-    /// decide which (because the impl was Assumed).
+    /// Retrieves the impl selected for a given IdentId during name resolution.
+    /// From type checking and on, the "ident" referred to is changed to a TraitMethodReference node.
     pub fn get_selected_impl_for_ident(&self, ident_id: ExprId) -> Option<TraitImplKind> {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
@@ -1286,7 +1292,63 @@ impl NodeInterner {
                     _ => None,
                 }
             }
+            HirExpression::Constructor(expr) => {
+                let struct_type = &expr.r#type.borrow();
+
+                eprintln!("\n -> Resolve Constructor {struct_type:?}\n");
+
+                Some(struct_type.location)
+            }
+            HirExpression::MemberAccess(expr_member_access) => {
+                self.resolve_struct_member_access(expr_member_access)
+            }
+            HirExpression::Call(expr_call) => {
+                let func = expr_call.func;
+                self.resolve_location(func)
+            }
+
             _ => None,
+        }
+    }
+
+    /// Resolves the [Location] of the definition for a given [crate::hir_def::expr::HirMemberAccess]
+    /// This is used to resolve the location of a struct member access.
+    /// For example, in the expression `foo.bar` we want to resolve the location of `bar`
+    /// to the location of the definition of `bar` in the struct `foo`.
+    fn resolve_struct_member_access(
+        &self,
+        expr_member_access: &crate::hir_def::expr::HirMemberAccess,
+    ) -> Option<Location> {
+        let expr_lhs = &expr_member_access.lhs;
+        let expr_rhs = &expr_member_access.rhs;
+
+        let found_ident = self.nodes.get(expr_lhs.into())?;
+
+        let ident = match found_ident {
+            Node::Expression(HirExpression::Ident(ident)) => ident,
+            _ => return None,
+        };
+
+        let definition_info = self.definition(ident.id);
+
+        let local_id = match definition_info.kind {
+            DefinitionKind::Local(Some(local_id)) => local_id,
+            _ => return None,
+        };
+
+        let constructor_expression = match self.nodes.get(local_id.into()) {
+            Some(Node::Expression(HirExpression::Constructor(constructor_expression))) => {
+                constructor_expression
+            }
+            _ => return None,
+        };
+
+        let struct_type = constructor_expression.r#type.borrow();
+        let field_names = struct_type.field_names();
+
+        match field_names.iter().find(|field_name| field_name.0 == expr_rhs.0) {
+            Some(found) => Some(Location::new(found.span(), struct_type.location.file)),
+            None => None,
         }
     }
 }
@@ -1382,6 +1444,6 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Error
         | Type::NotConstant
         | Type::Struct(_, _)
-        | Type::TraitAsType(_) => None,
+        | Type::TraitAsType(..) => None,
     }
 }

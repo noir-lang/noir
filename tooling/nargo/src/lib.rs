@@ -16,10 +16,10 @@ pub mod workspace;
 
 use std::collections::BTreeMap;
 
-use fm::{FileManager, FileReader};
+use fm::FileManager;
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
 use noirc_frontend::{
-    graph::{CrateGraph, CrateId, CrateName},
+    graph::{CrateId, CrateName},
     hir::Context,
 };
 use package::{Dependency, Package};
@@ -42,15 +42,129 @@ pub fn prepare_dependencies(
     }
 }
 
-pub fn prepare_package(package: &Package, file_reader: Box<FileReader>) -> (Context, CrateId) {
-    // TODO: FileManager continues to leak into various crates
-    let fm = FileManager::new(&package.root_dir, file_reader);
-    let graph = CrateGraph::default();
-    let mut context = Context::new(fm, graph);
+// We will pre-populate the file manager with all the files in the package
+// This is so that we can avoid having to read from disk when we are compiling
+//
+// This does not require parsing because we are interested in the files under the src directory
+// it may turn out that we do not need to include some Noir files that we add to the file
+// manager
+pub fn insert_all_files_for_package_into_file_manager(
+    package: &Package,
+    file_manager: &mut FileManager,
+) {
+    // Start off at the entry path and read all files in the parent directory.
+    let entry_path_parent = package
+        .entry_path
+        .parent()
+        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path))
+        .clone();
+
+    // Get all files in the package and add them to the file manager
+    let paths =
+        get_all_paths_in_dir(entry_path_parent).expect("could not get all paths in the package");
+    for path in paths {
+        let source = std::fs::read_to_string(path.as_path())
+            .unwrap_or_else(|_| panic!("could not read file {:?} into string", path));
+        file_manager.add_file_with_source(path.as_path(), source);
+    }
+
+    insert_all_files_for_packages_dependencies_into_file_manager(package, file_manager);
+}
+
+// Inserts all files for the dependencies of the package into the file manager
+// too
+fn insert_all_files_for_packages_dependencies_into_file_manager(
+    package: &Package,
+    file_manager: &mut FileManager,
+) {
+    for (_, dep) in package.dependencies.iter() {
+        match dep {
+            Dependency::Local { package } | Dependency::Remote { package } => {
+                insert_all_files_for_package_into_file_manager(package, file_manager);
+                insert_all_files_for_packages_dependencies_into_file_manager(package, file_manager);
+            }
+        }
+    }
+}
+
+pub fn prepare_package(package: &Package) -> (Context, CrateId) {
+    let mut fm = FileManager::new(&package.root_dir);
+    insert_all_files_for_package_into_file_manager(package, &mut fm);
+
+    let mut context = Context::new(fm);
 
     let crate_id = prepare_crate(&mut context, &package.entry_path);
 
     prepare_dependencies(&mut context, crate_id, &package.dependencies);
 
     (context, crate_id)
+}
+
+// Get all paths in the directory and subdirectories.
+//
+// Panics: If the path is not a path to a directory.
+//
+// TODO: Along with prepare_package, this function is an abstraction leak
+// TODO: given that this crate should not know about the file manager.
+// TODO: We can clean this up in a future refactor
+fn get_all_paths_in_dir(dir: &std::path::Path) -> std::io::Result<Vec<std::path::PathBuf>> {
+    assert!(dir.is_dir(), "directory {dir:?} is not a path to a directory");
+
+    let mut paths = Vec::new();
+
+    if dir.is_dir() {
+        for entry in std::fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                let mut sub_paths = get_all_paths_in_dir(&path)?;
+                paths.append(&mut sub_paths);
+            } else {
+                paths.push(path);
+            }
+        }
+    }
+
+    Ok(paths)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::get_all_paths_in_dir;
+    use std::{
+        fs::{self, File},
+        path::Path,
+    };
+    use tempfile::tempdir;
+
+    fn create_test_dir_structure(temp_dir: &Path) -> std::io::Result<()> {
+        fs::create_dir(temp_dir.join("subdir1"))?;
+        File::create(temp_dir.join("subdir1/file1.txt"))?;
+        fs::create_dir(temp_dir.join("subdir2"))?;
+        File::create(temp_dir.join("subdir2/file2.txt"))?;
+        File::create(temp_dir.join("file3.txt"))?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_all_paths_in_dir() {
+        let temp_dir = tempdir().expect("could not create a temporary directory");
+        create_test_dir_structure(temp_dir.path())
+            .expect("could not create test directory structure");
+
+        let paths = get_all_paths_in_dir(temp_dir.path())
+            .expect("could not get all paths in the test directory");
+
+        // This should be the paths to all of the files in the directory and the subdirectory
+        let expected_paths = vec![
+            temp_dir.path().join("file3.txt"),
+            temp_dir.path().join("subdir1/file1.txt"),
+            temp_dir.path().join("subdir2/file2.txt"),
+        ];
+
+        assert_eq!(paths.len(), expected_paths.len());
+        for path in expected_paths {
+            assert!(paths.contains(&path));
+        }
+    }
 }
