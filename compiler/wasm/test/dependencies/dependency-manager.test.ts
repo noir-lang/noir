@@ -1,8 +1,7 @@
-import { NoirDependencyConfig } from '@aztec/foundation/noir';
-
-import { NoirPackage } from '../package.js';
-import { NoirDependencyManager } from './dependency-manager.js';
-import { NoirDependency, NoirDependencyResolver } from './dependency-resolver.js';
+import { NoirDependencyConfig } from 'src/types/noir_package_config.js';
+import { NoirPackage } from '../../src/noir/package.js';
+import { NoirDependencyManager } from '../../src/noir/dependencies/dependency-manager.js';
+import { NoirDependency, NoirDependencyResolver } from '../../src/noir/dependencies/dependency-resolver.js';
 
 describe('DependencyManager', () => {
   let manager: NoirDependencyManager;

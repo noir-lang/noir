@@ -3,12 +3,12 @@ import { Volume } from 'memfs/lib/volume.js';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'path';
 
-import { FileManager } from '../file-manager/file-manager.js';
-import { createMemFSFileManager } from '../file-manager/memfs-file-manager.js';
-import { NoirPackage } from '../package.js';
-import { NoirDependencyResolver } from './dependency-resolver.js';
-import { LocalDependencyResolver } from './local-dependency-resolver.js';
-import { fileURLToPath } from '../../types/utils.js';
+import { FileManager } from '../../src/noir/file-manager/file-manager.js';
+import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager.js';
+import { NoirPackage } from '../../src/noir/package.js';
+import { NoirDependencyResolver } from '../../src/noir/dependencies/dependency-resolver.js';
+import { LocalDependencyResolver } from '../../src/noir/dependencies/local-dependency-resolver.js';
+import { fileURLToPath } from '../../src/types/utils.js';
 
 describe('DependencyResolver', () => {
   let resolver: NoirDependencyResolver;
@@ -16,7 +16,7 @@ describe('DependencyResolver', () => {
   let pkg: NoirPackage;
 
   beforeEach(async () => {
-    const fixtures = join(dirname(fileURLToPath(import.meta.url)), '../../../fixtures');
+    const fixtures = join(dirname(fileURLToPath(import.meta.url)), '../../public/fixtures');
     const memFS = createFsFromVolume(new Volume());
     memFS.mkdirSync('/test_contract/src', { recursive: true });
     memFS.mkdirSync('/test_lib/src', { recursive: true });

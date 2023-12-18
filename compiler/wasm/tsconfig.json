@@ -11,6 +11,8 @@
     "importHelpers": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
+    "target": "ESNext",
+    "moduleResolution": "NodeNext"
   },
-  "include": ["src/**/*.*ts"]
+  "include": ["src/**/*.*ts", "test/dependencies/dependency-manager.test.ts", "test/dependencies/github-dependency-resolver.test.ts", "test/dependencies/local-dependency-resolver.test.ts", "test/file-manager/file-manager.test.ts"]
 }

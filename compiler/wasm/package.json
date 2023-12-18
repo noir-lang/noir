@@ -20,10 +20,10 @@
   "scripts": {
     "serve": "webpack serve",
     "build": "webpack",
-    "test": "yarn test:node",
-    "test:node": "mocha",
+    "test": "yarn test:node && yarn test:browser",
+    "test:node": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
     "test:browser": "web-test-runner",
-    "clean": "chmod u+w web nodejs || true && rm -rf ./nodejs ./web ./target ./result",
+    "clean": "chmod u+w web nodejs || true && rm -rf ./build ./target ./dist",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
     "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",

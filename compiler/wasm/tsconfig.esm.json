@@ -5,6 +5,5 @@
     },
     "compilerOptions": {
       "module": "NodeNext",
-      "target":"ESNext",
     },
   }

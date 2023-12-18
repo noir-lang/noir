@@ -5,28 +5,23 @@ import {
   libBSourcePath,
   simpleScriptSourcePath,
   simpleScriptExpectedArtifact,
-} from '../shared';
-import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import wasm, { compile } from '../../dist/node/main';
+} from '../../shared';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import { compile, PathToFileSourceMap } from '../../../build/cjs';
+
 async function getPrecompiledSource(path: string): Promise<any> {
-  const compiledData = readFileSync(resolve(__dirname, path)).toString();
+  const compiledData = readFileSync(resolve(import.meta.url, path)).toString();
   return JSON.parse(compiledData);
 }
 
 describe('noir wasm compilation', () => {
   describe('can compile simple scripts', () => {
     it('matching nargos compilation', async () => {
-      const sourceMap = new wasm.default.PathToFileSourceMap();
-      sourceMap.add_source_code(
-        join(__dirname, simpleScriptSourcePath),
-        readFileSync(join(__dirname, simpleScriptSourcePath), 'utf-8'),
-      );
-      const wasmCircuit = await compile(join(__dirname, simpleScriptSourcePath), undefined, undefined, sourceMap);
+      const sourceMap = new PathToFileSourceMap();
+      sourceMap.add_source_code(simpleScriptSourcePath, readFileSync(simpleScriptSourcePath, 'utf-8'));
+      const wasmCircuit = compile(simpleScriptSourcePath, undefined, undefined, sourceMap);
       const cliCircuit = await getPrecompiledSource(simpleScriptExpectedArtifact);
 
       if (!('program' in wasmCircuit)) {
@@ -41,15 +36,15 @@ describe('noir wasm compilation', () => {
   });
 
   describe('can compile scripts with dependencies', () => {
-    const sourceMap = new wasm.default.PathToFileSourceMap();
+    const sourceMap = new PathToFileSourceMap();
     beforeEach(() => {
-      sourceMap.add_source_code('script/main.nr', readFileSync(join(__dirname, depsScriptSourcePath), 'utf-8'));
-      sourceMap.add_source_code('lib_a/lib.nr', readFileSync(join(__dirname, libASourcePath), 'utf-8'));
-      sourceMap.add_source_code('lib_b/lib.nr', readFileSync(join(__dirname, libBSourcePath), 'utf-8'));
+      sourceMap.add_source_code('script/main.nr', readFileSync(depsScriptSourcePath, 'utf-8'));
+      sourceMap.add_source_code('lib_a/lib.nr', readFileSync(libASourcePath, 'utf-8'));
+      sourceMap.add_source_code('lib_b/lib.nr', readFileSync(libBSourcePath, 'utf-8'));
     });
 
     it('matching nargos compilation', async () => {
-      const wasmCircuit = await compile(
+      const wasmCircuit = compile(
         'script/main.nr',
         false,
         {

@@ -105,6 +105,7 @@ const nodeConfig: webpack.Configuration = {
     new WasmPackPlugin({
       crateDirectory: path.resolve(__dirname),
       outDir: path.resolve(__dirname, './build/cjs'),
+      extraArgs: '--target nodejs',
     }),
   ],
   module: {

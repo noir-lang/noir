@@ -1,5 +1,3 @@
-import { expect } from '@esm-bundle/chai';
-import initNoirWasm, { PathToFileSourceMap, compile } from '@noir-lang/noir_wasm';
 import {
   depsScriptExpectedArtifact,
   depsScriptSourcePath,
@@ -7,11 +5,8 @@ import {
   libBSourcePath,
   simpleScriptExpectedArtifact,
   simpleScriptSourcePath,
-} from '../shared';
-
-beforeEach(async () => {
-  await initNoirWasm();
-});
+} from '../../shared';
+import { PathToFileSourceMap, compile } from '../../../build/esm';
 
 async function getFileContent(path: string): Promise<string> {
   const url = new URL(path, import.meta.url);
@@ -39,10 +34,10 @@ describe('noir wasm', () => {
       }
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
-      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
-      expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
-      expect(wasmCircuit.program.backend).to.eq(cliCircuit.backend);
-    }).timeout(20e3); // 20 seconds
+      expect(wasmCircuit.program.bytecode).toEqual(cliCircuit.bytecode);
+      expect(wasmCircuit.program.abi).toEqual(cliCircuit.abi);
+      expect(wasmCircuit.program.backend).toEqual(cliCircuit.backend);
+    });
   });
 
   describe('can compile script with dependencies', () => {
@@ -77,9 +72,9 @@ describe('noir wasm', () => {
       const cliCircuit = await getPrecompiledSource(depsScriptExpectedArtifact);
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
-      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
-      expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
-      expect(wasmCircuit.program.backend).to.eq(cliCircuit.backend);
-    }).timeout(20e3); // 20 seconds
+      expect(wasmCircuit.program.bytecode).toEqual(cliCircuit.bytecode);
+      expect(wasmCircuit.program.abi).toEqual(cliCircuit.abi);
+      expect(wasmCircuit.program.backend).toEqual(cliCircuit.backend);
+    });
   });
 });

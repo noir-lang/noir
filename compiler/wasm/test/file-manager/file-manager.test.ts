@@ -1,11 +1,11 @@
 import { Volume, createFsFromVolume } from 'memfs';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
-import * as fs from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { existsSync, mkdtempSync, rmSync } from 'fs';
+import * as fs from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
-import { FileManager, FileSystem } from './file-manager.js';
-import { createMemFSFileManager } from './memfs-file-manager.js';
+import { FileManager, FileSystem } from '../../src/noir/file-manager/file-manager.js';
+import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager.js';
 
 const memFS = (): { fm: FileManager; teardown: () => void } => {
   const fm = createMemFSFileManager(createFsFromVolume(new Volume()), '/');

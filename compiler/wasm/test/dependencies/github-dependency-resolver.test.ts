@@ -1,18 +1,21 @@
-import { NoirGitDependencyConfig } from '@aztec/foundation/noir';
-import { fileURLToPath } from '@aztec/foundation/url';
-
 import { jest } from '@jest/globals';
 import { Volume, createFsFromVolume } from 'memfs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'path';
 
-import { FileManager } from '../file-manager/file-manager.js';
-import { createMemFSFileManager } from '../file-manager/memfs-file-manager.js';
-import { NoirPackage } from '../package.js';
-import { NoirDependencyResolver } from './dependency-resolver.js';
-import { GithubDependencyResolver, resolveGithubCodeArchive, safeFilename } from './github-dependency-resolver.js';
+import { FileManager } from '../../src/noir/file-manager/file-manager.js';
+import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager.js';
+import { NoirPackage } from '../../src/noir/package.js';
+import { NoirDependencyResolver } from '../../src/noir/dependencies/dependency-resolver.js';
+import {
+  GithubDependencyResolver,
+  resolveGithubCodeArchive,
+  safeFilename,
+} from '../../src/noir/dependencies/github-dependency-resolver.js';
+import { NoirGitDependencyConfig } from '../../src/types/noir_package_config.js';
+import { fileURLToPath } from '../../src/types/utils.js';
 
-const fixtures = join(dirname(fileURLToPath(import.meta.url)), '../../../fixtures');
+const fixtures = join(dirname(fileURLToPath(import.meta.url)), '../../public/fixtures');
 
 describe('GithubDependencyResolver', () => {
   let resolver: NoirDependencyResolver;
@@ -61,7 +64,9 @@ describe('GithubDependencyResolver', () => {
   });
 
   it('resolves Github dependency', async () => {
-    fetchMock.mockResolvedValueOnce(new Response(await readFile(join(fixtures, 'test_lib.zip')), { status: 200 }));
+    fetchMock.mockResolvedValueOnce(
+      new Response(await readFile(join(fixtures, 'deps', 'test_lib.zip')), { status: 200 }),
+    );
     const lib = await resolver.resolveDependency(pkg, libDependency);
     expect(lib).toBeDefined();
     expect(lib!.version).toEqual(libDependency.tag);

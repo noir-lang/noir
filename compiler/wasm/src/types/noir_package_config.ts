@@ -8,22 +8,17 @@ type noirLocalDependencySchema = {
   path: string;
 };
 
-enum type {
-  lib = 'lib',
-  contract = 'contract',
-  bin = 'bin',
-}
-
+type noirPackageType = 'lib' | 'contract' | 'bin';
 type noirPackageConfigSchema = {
   package: {
     name: string;
-    type: type;
-    entry: string;
-    description: string;
-    authors: string[];
-    compiler_version: string;
-    backend: string;
-    license: string;
+    type: noirPackageType;
+    entry?: string;
+    description?: string;
+    authors?: string[];
+    compiler_version?: string;
+    backend?: string;
+    license?: string;
   };
   dependencies: Record<string, NoirGitDependencyConfig | NoirLocalDependencyConfig>;
 };
