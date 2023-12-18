@@ -1,6 +1,8 @@
-use dep::protocol_types::constants::NULLIFIER_TREE_HEIGHT;
+use dep::protocol_types::{
+    constants::NULLIFIER_TREE_HEIGHT,
+    hash::pedersen_hash,
+};
 use crate::utils::arr_copy_slice;
-use crate::hash::pedersen_hash;
 
 global LEAF_DATA_LENGTH: Field = 3;
 // TODO: move this to constants.hpp so that it gets computed as INDEX_LENGTH + LEAF_DATA_LENGTH + NULLIFIER_TREE_HEIGHT
@@ -32,11 +34,11 @@ struct NullifierMembershipWitness {
 }
 
 #[oracle(getLowNullifierMembershipWitness)]
-fn get_low_nullifier_membership_witness_oracle(_block_number: Field, _nullifier: Field) -> [Field; NULLIFIER_MEMBERSHIP_WITNESS] {}
+fn get_low_nullifier_membership_witness_oracle(_block_number: u32, _nullifier: Field) -> [Field; NULLIFIER_MEMBERSHIP_WITNESS] {}
 
 // Nullifier here refers to the nullifier we are looking to get non-inclusion proof for (by proving that a lower
 // nullifier's next_value is bigger than the nullifier)
-unconstrained pub fn get_low_nullifier_membership_witness(block_number: Field, nullifier: Field) -> NullifierMembershipWitness {
+unconstrained pub fn get_low_nullifier_membership_witness(block_number: u32, nullifier: Field) -> NullifierMembershipWitness {
     let fields = get_low_nullifier_membership_witness_oracle(block_number, nullifier);
     NullifierMembershipWitness {
         index: fields[0],
@@ -46,11 +48,11 @@ unconstrained pub fn get_low_nullifier_membership_witness(block_number: Field, n
 }
 
 #[oracle(getNullifierMembershipWitness)]
-fn get_nullifier_membership_witness_oracle(_block_number: Field, _nullifier: Field) -> [Field; NULLIFIER_MEMBERSHIP_WITNESS] {}
+fn get_nullifier_membership_witness_oracle(_block_number: u32, _nullifier: Field) -> [Field; NULLIFIER_MEMBERSHIP_WITNESS] {}
 
 // Nullifier here refers to the nullifier we are looking to get non-inclusion proof for (by proving that a lower
 // nullifier's next_value is bigger than the nullifier)
-unconstrained pub fn get_nullifier_membership_witness(block_number: Field, nullifier: Field) -> NullifierMembershipWitness {
+unconstrained pub fn get_nullifier_membership_witness(block_number: u32, nullifier: Field) -> NullifierMembershipWitness {
     let fields = get_nullifier_membership_witness_oracle(block_number, nullifier);
     NullifierMembershipWitness {
         index: fields[0],

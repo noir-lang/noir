@@ -366,7 +366,7 @@ export function computePublicDataTreeValue(value: Fr): Fr {
  * @returns Public data tree index computed from contract address and storage slot.
 
  */
-export function computePublicDataTreeIndex(contractAddress: AztecAddress, storageSlot: Fr): Fr {
+export function computePublicDataTreeLeafSlot(contractAddress: AztecAddress, storageSlot: Fr): Fr {
   return Fr.fromBuffer(
     pedersenHash([contractAddress.toBuffer(), storageSlot.toBuffer()], GeneratorIndex.PUBLIC_LEAF_INDEX),
   );

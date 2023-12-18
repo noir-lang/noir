@@ -73,7 +73,7 @@ mod tests {
             public_data_read::PublicDataRead,
             public_data_update_request::PublicDataUpdateRequest,
         },
-        address::{Address, EthAddress},
+        address::{AztecAddress, EthAddress},
         contrakt::storage_read::StorageRead,
         hash::compute_logs_hash,
         tests::{
@@ -224,8 +224,8 @@ mod tests {
 
         // Tweak the (storage) contract_address to be different to msg_sender.
         let msg_sender = builder.public_call.public_inputs.call_context.msg_sender.to_field();
-        builder.public_call.contract_address = Address::from_field(msg_sender + 1);
-        builder.public_call.public_inputs.call_context.storage_contract_address = Address::from_field(msg_sender + 1);
+        builder.public_call.contract_address = AztecAddress::from_field(msg_sender + 1);
+        builder.public_call.public_inputs.call_context.storage_contract_address = AztecAddress::from_field(msg_sender + 1);
 
         builder.failed();
     }
@@ -233,7 +233,7 @@ mod tests {
     #[test(should_fail_with="Contract address cannot be zero")]
     fn contract_address_must_be_valid() {
         let mut builder = PublicKernelPrivatePreviousInputsBuilder::new();
-        builder.public_call.contract_address = Address::zero();
+        builder.public_call.contract_address = AztecAddress::zero();
 
         builder.failed();
     }
@@ -407,7 +407,7 @@ mod tests {
         let mut builder = PublicKernelPrivatePreviousInputsBuilder::new();
         let new_contracts = [
             NewContractData {
-                contract_address: Address::from_field(123),
+                contract_address: AztecAddress::from_field(123),
                 portal_contract_address: EthAddress::from_field(456),
                 function_tree_root: 78,
             },

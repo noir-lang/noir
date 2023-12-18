@@ -1,6 +1,7 @@
 // docs:start:encrypted_import
 use dep::aztec::log::emit_encrypted_log;
 // docs:end:encrypted_import
+use dep::protocol_types::address::AztecAddress;
 use dep::aztec::{
     note::{
         note_header::NoteHeader,
@@ -21,14 +22,14 @@ global ADDRESS_NOTE_LEN: Field = 3;
 // docs:start:address_note_def
 // Stores an address
 struct AddressNote {
-    address: Field,
-    owner: Field,
+    address: AztecAddress,
+    owner: AztecAddress,
     randomness: Field,
     header: NoteHeader,
 }
 
 impl AddressNote {
-    pub fn new(address: Field, owner: Field) -> Self {
+    pub fn new(address: AztecAddress, owner: AztecAddress) -> Self {
         let randomness = rand();
         AddressNote {
             address,
@@ -41,13 +42,13 @@ impl AddressNote {
 
 
     pub fn serialize(self) -> [Field; ADDRESS_NOTE_LEN]{
-        [self.address, self.owner, self.randomness]
+        [self.address.to_field(), self.owner.to_field(), self.randomness]
     }
 
     pub fn deserialize(serialized_note: [Field; ADDRESS_NOTE_LEN]) -> Self {
         AddressNote {
-            address: serialized_note[0],
-            owner: serialized_note[1],
+            address: AztecAddress::from_field(serialized_note[0]),
+            owner: AztecAddress::from_field(serialized_note[1]),
             randomness: serialized_note[2],
             header: NoteHeader::empty(),
         }

@@ -6,11 +6,16 @@ use l1_to_l2_message_getter_data::make_l1_to_l2_message_getter_data;
 use crate::abi::PublicContextInputs;
 use crate::oracle::get_l1_to_l2_message::get_l1_to_l2_message_call;
 
+use dep::protocol_types::address::{
+    AztecAddress,
+    EthAddress,
+};
+
 // Returns the nullifier for the message
 pub fn process_l1_to_l2_message(
     l1_to_l2_root: Field,
-    storage_contract_address: Field,
-    portal_contract_address: Field,
+    storage_contract_address: AztecAddress,
+    portal_contract_address: EthAddress,
     chain_id: Field,
     version: Field,
     msg_key: Field,
@@ -24,10 +29,10 @@ pub fn process_l1_to_l2_message(
     assert(l1_to_l2_message_data.root == l1_to_l2_root);
 
     // Validate this is the target contract
-    assert(l1_to_l2_message_data.message.recipient == storage_contract_address);
+    assert(l1_to_l2_message_data.message.recipient.eq(storage_contract_address));
 
     // Validate the sender is the portal contract
-    assert(l1_to_l2_message_data.message.sender == portal_contract_address);
+    assert(l1_to_l2_message_data.message.sender.eq(portal_contract_address));
 
     // Validate the chain id is correct
     assert(l1_to_l2_message_data.message.chainId == chain_id);

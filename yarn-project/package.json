@@ -10,7 +10,7 @@
     "formatting:fix": "FORCE_COLOR=true yarn workspaces foreach -p -v run formatting:fix",
     "lint": "yarn eslint --cache --ignore-pattern l1-artifacts .",
     "format": "yarn prettier --cache -w .",
-    "test": "FORCE_COLOR=true yarn workspaces foreach --exclude @aztec/aztec3-packages --exclude @aztec/end-to-end --exclude @aztec/canary --exclude private-token -p -j unlimited -v run test",
+    "test": "FORCE_COLOR=true yarn workspaces foreach --exclude @aztec/aztec3-packages --exclude @aztec/end-to-end --exclude private-token -p -j unlimited -v run test",
     "build": "yarn workspace @aztec/l1-artifacts build && tsc -b tsconfig.json",
     "build:dev": "yarn workspace @aztec/l1-artifacts build && tsc -b tsconfig.json --watch",
     "clean": "yarn workspaces foreach -p -v run clean"
@@ -23,10 +23,6 @@
     "pxe",
     "aztec-sandbox",
     "aztec.js",
-    "boxes/blank",
-    "boxes/blank-react",
-    "boxes/token",
-    "canary",
     "circuits.js",
     "cli",
     "docs",
@@ -47,7 +43,8 @@
     "scripts",
     "types",
     "world-state",
-    "yarn-project-base"
+    "yarn-project-base",
+    "kv-store"
   ],
   "prettier": "@aztec/foundation/prettier",
   "devDependencies": {

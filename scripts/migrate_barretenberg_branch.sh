@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eu
 
 # Usage: ./this.sh <branch> <commit_message>

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Launches tmux with 1 window that has 2 panes running, from top to bottom:
 # - aztec.js
 # - a shell in end-to-end. If a test is given as an argument, the test will be run here automatically.

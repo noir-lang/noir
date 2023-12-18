@@ -31,7 +31,7 @@ describe('e2e_nested_contract', () => {
 
     it('performs nested calls', async () => {
       await parentContract.methods
-        .entryPoint(childContract.address, childContract.methods.value.selector.toField())
+        .entryPoint(childContract.address, childContract.methods.value.selector)
         .send()
         .wait();
 
@@ -48,21 +48,21 @@ describe('e2e_nested_contract', () => {
     it('fails simulation if calling a function not allowed to be called externally', async () => {
       await expect(
         parentContract.methods
-          .entryPoint(childContract.address, childContract.methods.valueInternal.selector.toField())
+          .entryPoint(childContract.address, childContract.methods.valueInternal.selector)
           .simulate(),
       ).rejects.toThrowError('Assertion failed: Sender must be this contract');
     }, 100_000);
 
     it('performs public nested calls', async () => {
       await parentContract.methods
-        .pubEntryPoint(childContract.address, childContract.methods.pubGetValue.selector.toField(), 42n)
+        .pubEntryPoint(childContract.address, childContract.methods.pubGetValue.selector, 42n)
         .send()
         .wait();
     }, 100_000);
 
     it('enqueues a single public call', async () => {
       await parentContract.methods
-        .enqueueCallToChild(childContract.address, childContract.methods.pubIncValue.selector.toField(), 42n)
+        .enqueueCallToChild(childContract.address, childContract.methods.pubIncValue.selector, 42n)
         .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(new Fr(42n));
@@ -71,14 +71,14 @@ describe('e2e_nested_contract', () => {
     it('fails simulation if calling a public function not allowed to be called externally', async () => {
       await expect(
         parentContract.methods
-          .enqueueCallToChild(childContract.address, childContract.methods.pubIncValueInternal.selector.toField(), 42n)
+          .enqueueCallToChild(childContract.address, childContract.methods.pubIncValueInternal.selector, 42n)
           .simulate(),
       ).rejects.toThrowError('Assertion failed: Sender must be this contract');
     }, 100_000);
 
     it('enqueues multiple public calls', async () => {
       await parentContract.methods
-        .enqueueCallToChildTwice(childContract.address, childContract.methods.pubIncValue.selector.value, 42n)
+        .enqueueCallToChildTwice(childContract.address, childContract.methods.pubIncValue.selector, 42n)
         .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(new Fr(85n));
@@ -86,7 +86,7 @@ describe('e2e_nested_contract', () => {
 
     it('enqueues a public call with nested public calls', async () => {
       await parentContract.methods
-        .enqueueCallToPubEntryPoint(childContract.address, childContract.methods.pubIncValue.selector.toField(), 42n)
+        .enqueueCallToPubEntryPoint(childContract.address, childContract.methods.pubIncValue.selector, 42n)
         .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(new Fr(42n));
@@ -94,7 +94,7 @@ describe('e2e_nested_contract', () => {
 
     it('enqueues multiple public calls with nested public calls', async () => {
       await parentContract.methods
-        .enqueueCallsToPubEntryPoint(childContract.address, childContract.methods.pubIncValue.selector.toField(), 42n)
+        .enqueueCallsToPubEntryPoint(childContract.address, childContract.methods.pubIncValue.selector, 42n)
         .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(new Fr(85n));
@@ -103,7 +103,7 @@ describe('e2e_nested_contract', () => {
     // Regression for https://github.com/AztecProtocol/aztec-packages/issues/640
     it('reads fresh value after write within the same tx', async () => {
       await parentContract.methods
-        .pubEntryPointTwice(childContract.address, childContract.methods.pubIncValue.selector.value, 42n)
+        .pubEntryPointTwice(childContract.address, childContract.methods.pubIncValue.selector, 42n)
         .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(new Fr(84n));
@@ -114,7 +114,7 @@ describe('e2e_nested_contract', () => {
     // through the account contract, if the account entrypoint behaves properly, it will honor
     // this order and not run the private call first which results in the public calls being inverted.
     it('executes public calls in expected order', async () => {
-      const pubSetValueSelector = childContract.methods.pubSetValue.selector.toField();
+      const pubSetValueSelector = childContract.methods.pubSetValue.selector;
       const actions = [
         childContract.methods.pubSetValue(20n).request(),
         parentContract.methods.enqueueCallToChild(childContract.address, pubSetValueSelector, 40n).request(),

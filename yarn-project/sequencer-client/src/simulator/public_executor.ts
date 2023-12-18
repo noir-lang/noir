@@ -1,6 +1,6 @@
 import { CommitmentsDB, MessageLoadOracleInputs, PublicContractsDB, PublicStateDB } from '@aztec/acir-simulator';
-import { AztecAddress, EthAddress, Fr, FunctionSelector } from '@aztec/circuits.js';
-import { computePublicDataTreeIndex } from '@aztec/circuits.js/abis';
+import { AztecAddress, EthAddress, Fr, FunctionSelector, PublicDataTreeLeafPreimage } from '@aztec/circuits.js';
+import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/abis';
 import { ContractDataSource, ExtendedContractData, L1ToL2MessageSource, MerkleTreeId, Tx } from '@aztec/types';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
@@ -82,17 +82,27 @@ export class WorldStatePublicDB implements PublicStateDB {
    * @returns The current value in the storage slot.
    */
   public async storageRead(contract: AztecAddress, slot: Fr): Promise<Fr> {
-    const index = computePublicDataTreeIndex(contract, slot).value;
-    const uncommited = this.uncommitedWriteCache.get(index);
+    const leafSlot = computePublicDataTreeLeafSlot(contract, slot).value;
+    const uncommited = this.uncommitedWriteCache.get(leafSlot);
     if (uncommited !== undefined) {
       return uncommited;
     }
-    const commited = this.commitedWriteCache.get(index);
+    const commited = this.commitedWriteCache.get(leafSlot);
     if (commited !== undefined) {
       return commited;
     }
-    const value = await this.db.getLeafValue(MerkleTreeId.PUBLIC_DATA_TREE, index);
-    return value ? Fr.fromBuffer(value) : Fr.ZERO;
+
+    const lowLeafResult = await this.db.getPreviousValueIndex(MerkleTreeId.PUBLIC_DATA_TREE, leafSlot);
+    if (!lowLeafResult || !lowLeafResult.alreadyPresent) {
+      return Fr.ZERO;
+    }
+
+    const preimage = (await this.db.getLeafPreimage(
+      MerkleTreeId.PUBLIC_DATA_TREE,
+      lowLeafResult.index,
+    )) as PublicDataTreeLeafPreimage;
+
+    return preimage.value;
   }
 
   /**
@@ -102,7 +112,7 @@ export class WorldStatePublicDB implements PublicStateDB {
    * @param newValue - The new value to store.
    */
   public storageWrite(contract: AztecAddress, slot: Fr, newValue: Fr): Promise<void> {
-    const index = computePublicDataTreeIndex(contract, slot).value;
+    const index = computePublicDataTreeLeafSlot(contract, slot).value;
     this.uncommitedWriteCache.set(index, newValue);
     return Promise.resolve();
   }

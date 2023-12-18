@@ -109,6 +109,17 @@ export class Oracle {
     return witness.toFieldArray().map(toACVMField);
   }
 
+  async getPublicDataTreeWitness([blockNumber]: ACVMField[], [leafSlot]: ACVMField[]): Promise<ACVMField[]> {
+    const parsedBlockNumber = frToNumber(fromACVMField(blockNumber));
+    const parsedLeafSlot = fromACVMField(leafSlot);
+
+    const witness = await this.typedOracle.getPublicDataTreeWitness(parsedBlockNumber, parsedLeafSlot);
+    if (!witness) {
+      throw new Error(`Public data witness not found for slot ${parsedLeafSlot} at block ${parsedBlockNumber}.`);
+    }
+    return witness.toFieldArray().map(toACVMField);
+  }
+
   async getBlockHeader([blockNumber]: ACVMField[]): Promise<ACVMField[]> {
     const parsedBlockNumber = frToNumber(fromACVMField(blockNumber));
 
@@ -117,6 +128,17 @@ export class Oracle {
       throw new Error(`Block header not found for block ${parsedBlockNumber}.`);
     }
     return blockHeader.toArray().map(toACVMField);
+  }
+
+  // TODO(#3564) - Nuke this oracle and inject the number directly to context
+  async getNullifierRootBlockNumber([nullifierTreeRoot]: ACVMField[]): Promise<ACVMField> {
+    const parsedRoot = fromACVMField(nullifierTreeRoot);
+
+    const blockNumber = await this.typedOracle.getNullifierRootBlockNumber(parsedRoot);
+    if (!blockNumber) {
+      throw new Error(`Block header not found for block ${parsedRoot}.`);
+    }
+    return toACVMField(blockNumber);
   }
 
   async getAuthWitness([messageHash]: ACVMField[]): Promise<ACVMField[]> {

@@ -3,7 +3,7 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { ExtendedNote, Note, TxHash } from '@aztec/types';
 
 import { createCompatibleClient } from '../client.js';
-import { parseFields } from '../utils.js';
+import { parseFields } from '../parse_args.js';
 
 /**
  *

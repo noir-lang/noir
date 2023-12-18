@@ -7,7 +7,7 @@ export type FixedLengthArray<T, L extends number> = L extends 0 ? never[] : T[] 
 export type Field = string;
 export type u32 = string;
 
-export interface Address {
+export interface AztecAddress {
   inner: Field;
 }
 
@@ -49,15 +49,15 @@ export interface FunctionData {
 }
 
 export interface TxRequest {
-  origin: Address;
+  origin: AztecAddress;
   args_hash: Field;
   tx_context: TxContext;
   function_data: FunctionData;
 }
 
 export interface CallContext {
-  msg_sender: Address;
-  storage_contract_address: Address;
+  msg_sender: AztecAddress;
+  storage_contract_address: AztecAddress;
   portal_contract_address: EthAddress;
   function_selector: FunctionSelector;
   is_delegate_call: boolean;
@@ -65,19 +65,14 @@ export interface CallContext {
   is_contract_deployment: boolean;
 }
 
-export interface Block {
+export interface BlockHeader {
   note_hash_tree_root: Field;
   nullifier_tree_root: Field;
   contract_tree_root: Field;
   l1_to_l2_messages_tree_root: Field;
+  archive_root: Field;
   public_data_tree_root: Field;
   global_variables_hash: Field;
-}
-
-export interface BlockHeader {
-  archive_root: Field;
-  block: Block;
-  private_kernel_vk_tree_root: Field;
 }
 
 export interface PrivateCircuitPublicInputs {
@@ -103,20 +98,20 @@ export interface PrivateCircuitPublicInputs {
 }
 
 export interface PrivateCallStackItem {
-  contract_address: Address;
+  contract_address: AztecAddress;
   public_inputs: PrivateCircuitPublicInputs;
   function_data: FunctionData;
   is_execution_request: boolean;
 }
 
 export interface CallerContext {
-  msg_sender: Address;
-  storage_contract_address: Address;
+  msg_sender: AztecAddress;
+  storage_contract_address: AztecAddress;
 }
 
 export interface CallRequest {
   hash: Field;
-  caller_contract_address: Address;
+  caller_contract_address: AztecAddress;
   caller_context: CallerContext;
 }
 
@@ -162,7 +157,7 @@ export interface PrivateKernelInputsInit {
 export interface AggregationObject {}
 
 export interface NewContractData {
-  contract_address: Address;
+  contract_address: AztecAddress;
   portal_contract_address: EthAddress;
   function_tree_root: Field;
 }
@@ -179,13 +174,13 @@ export interface OptionallyRevealedData {
 }
 
 export interface PublicDataUpdateRequest {
-  leaf_index: Field;
+  leaf_slot: Field;
   old_value: Field;
   new_value: Field;
 }
 
 export interface PublicDataRead {
-  leaf_index: Field;
+  leaf_slot: Field;
   value: Field;
 }
 

@@ -8,6 +8,7 @@ import {
   MerkleTreeId,
   Note,
   NullifierMembershipWitness,
+  PublicDataWitness,
   PublicKey,
   UnencryptedL2Log,
 } from '@aztec/types';
@@ -95,6 +96,10 @@ export abstract class TypedOracle {
     throw new Error('Not available.');
   }
 
+  getPublicDataTreeWitness(_blockNumber: number, _leafSlot: Fr): Promise<PublicDataWitness | undefined> {
+    throw new Error('Not available.');
+  }
+
   getLowNullifierMembershipWitness(
     _blockNumber: number,
     _nullifier: Fr,
@@ -103,6 +108,11 @@ export abstract class TypedOracle {
   }
 
   getBlockHeader(_blockNumber: number): Promise<BlockHeader | undefined> {
+    throw new Error('Not available.');
+  }
+
+  // TODO(#3564) - Nuke this oracle and inject the number directly to context
+  getNullifierRootBlockNumber(_nullifierTreeRoot: Fr): Promise<number | undefined> {
     throw new Error('Not available.');
   }
 

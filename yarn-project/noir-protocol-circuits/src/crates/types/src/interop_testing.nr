@@ -1,7 +1,7 @@
 use crate::abis::complete_address::CompleteAddress;
 use crate::point::Point;
 use crate::transaction::request::TxRequest;
-use crate::address::{Address, EthAddress};
+use crate::address::{AztecAddress, EthAddress};
 use crate::transaction::context::TxContext;
 use crate::abis::function_data::FunctionData;
 use crate::abis::function_leaf_preimage::FunctionLeafPreimage;
@@ -33,7 +33,7 @@ fn compute_complete_address() {
 #[test]
 fn compute_tx_request_hash() {
     let tx_request = TxRequest {
-        origin : Address::from_field(1),
+        origin : AztecAddress::from_field(1),
         args_hash : 3,
         tx_context : TxContext {
             is_fee_payment_tx : false,
@@ -62,11 +62,11 @@ fn compute_tx_request_hash() {
 #[test]
 fn compute_l2_l1_hash() {
     // All zeroes
-   let hash_result = compute_l2_to_l1_hash(Address::from_field(0), 0, EthAddress::from_field(0), 0, 0);
+   let hash_result = compute_l2_to_l1_hash(AztecAddress::from_field(0), 0, EthAddress::from_field(0), 0, 0);
    assert(hash_result == 0x2266ac2f9f0c19c015239ef5ea85862fc6fac00db73779b220a4d49c4856c2e1);
 
     // Non-zero case
-    let hash_result = compute_l2_to_l1_hash(Address::from_field(1), 2, EthAddress::from_field(3), 4, 5);
+    let hash_result = compute_l2_to_l1_hash(AztecAddress::from_field(1), 2, EthAddress::from_field(3), 4, 5);
     assert(hash_result == 0x0f24729168d4450a5681beafa5e3a899ac28bd17bf5a4877dab37bcd834e1634);
 }
 
@@ -101,7 +101,7 @@ fn compute_function_leaf() {
 
 #[test]
 fn compute_call_stack_item_request() {
-    let contract_address = Address::from_field(1);
+    let contract_address = AztecAddress::from_field(1);
     let function_data = FunctionData {
         selector: FunctionSelector::from_u32(2),
         is_internal: false,
@@ -124,7 +124,7 @@ fn compute_call_stack_item_request() {
 
 #[test]
 fn compute_call_stack_item() {
-    let contract_address = Address::from_field(1);
+    let contract_address = AztecAddress::from_field(1);
     let function_data = FunctionData {
         selector: FunctionSelector::from_u32(2),
         is_internal: false,

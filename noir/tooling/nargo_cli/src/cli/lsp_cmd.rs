@@ -1,5 +1,5 @@
 use async_lsp::{
-    client_monitor::ClientProcessMonitorLayer, concurrency::ConcurrencyLayer,
+    concurrency::ConcurrencyLayer,
     panic::CatchUnwindLayer, server::LifecycleLayer, tracing::TracingLayer,
 };
 use clap::Args;
@@ -39,9 +39,10 @@ pub(crate) fn run(
                 .layer(LifecycleLayer::default())
                 .layer(CatchUnwindLayer::default())
                 .layer(ConcurrencyLayer::default())
-                .layer(ClientProcessMonitorLayer::new(client))
                 .service(router)
         });
+
+        eprintln!("LSP starting...");
 
         // Prefer truly asynchronous piped stdin/stdout without blocking tasks.
         #[cfg(unix)]

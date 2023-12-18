@@ -94,7 +94,7 @@ mod tests {
             previous_kernel_data_builder::PreviousKernelDataBuilder,
             private_call_data_builder::PrivateCallDataBuilder,
         },
-        address::Address,
+        address::AztecAddress,
         hash::compute_logs_hash,
         utils::{
             arrays::array_length,
@@ -161,8 +161,8 @@ mod tests {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
         // Set (storage) contract_address to 0
-        builder.private_call.contract_address = Address::zero();
-        builder.private_call.public_inputs.call_context.storage_contract_address = Address::zero();
+        builder.private_call.contract_address = AztecAddress::zero();
+        builder.private_call.public_inputs.call_context.storage_contract_address = AztecAddress::zero();
 
         builder.failed();
     }
@@ -172,8 +172,8 @@ mod tests {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
         // Set historical_tree_root to a wrong value (the correct value + 1).
-        let contract_tree_root = builder.previous_kernel.block_header.block.contract_tree_root;
-        builder.previous_kernel.block_header.block.contract_tree_root = contract_tree_root + 1;
+        let contract_tree_root = builder.previous_kernel.block_header.contract_tree_root;
+        builder.previous_kernel.block_header.contract_tree_root = contract_tree_root + 1;
 
         builder.failed();
     }
@@ -326,8 +326,8 @@ mod tests {
 
         // Tweak the (storage) contract_address to be different to msg_sender.
         let msg_sender = builder.private_call.public_inputs.call_context.msg_sender.to_field();
-        builder.private_call.contract_address = Address::from_field(msg_sender + 1);
-        builder.private_call.public_inputs.call_context.storage_contract_address = Address::from_field(msg_sender + 1);
+        builder.private_call.contract_address = AztecAddress::from_field(msg_sender + 1);
+        builder.private_call.public_inputs.call_context.storage_contract_address = AztecAddress::from_field(msg_sender + 1);
 
         builder.failed();
     }
@@ -608,8 +608,8 @@ mod tests {
         builder.private_call.append_read_requests(1);
 
         // Set the root to be a different root so the above read request is not under this root.
-        let old_root = builder.previous_kernel.block_header.block.note_hash_tree_root;
-        builder.previous_kernel.block_header.block.note_hash_tree_root = old_root + 1;
+        let old_root = builder.previous_kernel.block_header.note_hash_tree_root;
+        builder.previous_kernel.block_header.note_hash_tree_root = old_root + 1;
 
         builder.failed();
     }

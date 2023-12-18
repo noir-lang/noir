@@ -103,7 +103,6 @@ def compute_first_example():
                              row.q_l, row.q_r, row.q_o, row.q_c)
         accumulator += zeta_pow * relation_value
         zeta_pow *= zeta
-
     return accumulator
 
 

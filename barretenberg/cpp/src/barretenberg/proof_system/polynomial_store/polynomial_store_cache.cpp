@@ -31,7 +31,7 @@ PolynomialStoreCache::Polynomial PolynomialStoreCache::get(std::string const& ke
     auto it = cache_.find(key);
     if (it != cache_.end()) {
         // info("cache get hit ", key);
-        return it->second.clone();
+        return it->second.share();
     }
 
     // info("cache get miss ", key);

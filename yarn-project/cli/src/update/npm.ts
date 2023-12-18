@@ -9,6 +9,15 @@ import { SemVer, parse } from 'semver';
 import { atomicUpdateFile } from '../utils.js';
 import { DependencyChanges } from './common.js';
 
+const deprecatedNpmPackages = new Set<string>([]);
+const npmDeprecationMessage = `
+The following packages have been deprecated and will no longer be updated on the npm registry:
+${Array.from(deprecatedNpmPackages)
+  .map(pkg => `  - ${pkg}`)
+  .join('\n')}
+Remove them from package.json
+`;
+
 /**
  * Looks up a package.json file and returns its contents
  * @param projectPath - Path to Nodejs project
@@ -68,6 +77,8 @@ export async function updateAztecDeps(
   log(`Updating @aztec packages to ${aztecVersion} in ${relative(process.cwd(), changes.file)}`);
   const version = aztecVersion.version;
 
+  let detectedDeprecatedPackages = false;
+
   for (const depType of ['dependencies', 'devDependencies'] as const) {
     const dependencies = pkg[depType];
     if (!dependencies) {
@@ -84,6 +95,11 @@ export async function updateAztecDeps(
         continue;
       }
 
+      if (deprecatedNpmPackages.has(name)) {
+        detectedDeprecatedPackages = true;
+        continue;
+      }
+
       if (dependencies[name] !== version) {
         changes.dependencies.push({
           name,
@@ -94,6 +110,10 @@ export async function updateAztecDeps(
         dependencies[name] = version;
       }
     }
+  }
+
+  if (detectedDeprecatedPackages) {
+    log(npmDeprecationMessage);
   }
 
   if (changes.dependencies.length > 0) {

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Conditionally runs a script if any dependent code has changed between
 # the last successful run and the present commit.
 #

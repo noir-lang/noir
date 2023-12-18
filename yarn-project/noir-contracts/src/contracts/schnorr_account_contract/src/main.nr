@@ -6,6 +6,8 @@ contract SchnorrAccount {
     use dep::std;
     use dep::std::option::Option;
 
+    use dep::protocol_types::address::AztecAddress;
+
     use dep::aztec::{
         context::{PrivateContext, Context},
         note::{ note_header::NoteHeader, utils as note_utils },
@@ -27,7 +29,7 @@ contract SchnorrAccount {
     }
 
     impl Storage {
-        fn init(context: Context) -> pub Self {
+        fn init(context: Context) -> Self {
             Storage {
                 // docs:start:storage_init
                 signing_public_key: ImmutableSingleton::new(context, 1, PublicKeyNoteMethods),
@@ -48,6 +50,7 @@ contract SchnorrAccount {
         // docs:end:initialize
     }
 
+    // Note: If you globally change the entrypoint signature don't forget to update default_entrypoint.ts file
     #[aztec(private)]
     fn entrypoint(payload: pub EntrypointPayload) {
         let actions = AccountActions::private(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
@@ -107,7 +110,8 @@ contract SchnorrAccount {
         serialized_note: [Field; PUBLIC_KEY_NOTE_LEN]
     ) -> [Field; 4] {
         assert(storage_slot == 1);
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+        let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
+        let note_header = NoteHeader::new(_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(PublicKeyNoteMethods, note_header, serialized_note)
     }
 }

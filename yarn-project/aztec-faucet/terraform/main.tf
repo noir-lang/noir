@@ -35,7 +35,8 @@ data "terraform_remote_state" "aztec2_iac" {
 }
 
 locals {
-  api_prefix = var.API_PREFIX == "" ? "/${var.DEPLOY_TAG}/aztec-faucet" : "/${var.DEPLOY_TAG}/aztec-faucet/${var.API_PREFIX}"
+  api_prefix = "/${var.DEPLOY_TAG}/aztec-faucet/${var.API_KEY}"
+  rpc_url = "https://${var.DEPLOY_TAG}-mainnet-fork.aztec.network:8545/${var.API_KEY}"
 }
 
 
@@ -76,7 +77,7 @@ resource "aws_service_discovery_service" "aztec-faucet" {
 
 # Define task definition and service.
 resource "aws_ecs_task_definition" "aztec-faucet" {
-  family                   = "${var.DEPLOY_TAG}-faucet"
+  family                   = "${var.DEPLOY_TAG}-aztec-faucet"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = "2048"
@@ -86,7 +87,7 @@ resource "aws_ecs_task_definition" "aztec-faucet" {
   container_definitions    = <<DEFINITIONS
 [
   {
-    "name": "${var.DEPLOY_TAG}-faucet",
+    "name": "${var.DEPLOY_TAG}-aztec-faucet",
     "image": "${var.DOCKERHUB_ACCOUNT}/aztec-faucet:${var.DEPLOY_TAG}",
     "essential": true,
     "memoryReservation": 3776,
@@ -110,11 +111,7 @@ resource "aws_ecs_task_definition" "aztec-faucet" {
       },
       {
         "name": "RPC_URL",
-        "value": "${var.RPC_URL}"
-      },
-      {
-        "name": "API_KEY",
-        "value": "${var.API_KEY}"
+        "value": "${local.rpc_url}"
       },
       {
         "name": "API_PREFIX",
@@ -151,7 +148,7 @@ DEFINITIONS
 }
 
 resource "aws_ecs_service" "aztec-faucet" {
-  name                               = "${var.DEPLOY_TAG}-faucet"
+  name                               = "${var.DEPLOY_TAG}-aztec-faucet"
   cluster                            = data.terraform_remote_state.setup_iac.outputs.ecs_cluster_id
   launch_type                        = "FARGATE"
   desired_count                      = 1
@@ -169,13 +166,13 @@ resource "aws_ecs_service" "aztec-faucet" {
 
   load_balancer {
     target_group_arn = aws_alb_target_group.aztec-faucet.arn
-    container_name   = "${var.DEPLOY_TAG}-faucet"
+    container_name   = "${var.DEPLOY_TAG}-aztec-faucet"
     container_port   = 80
   }
 
   service_registries {
     registry_arn   = aws_service_discovery_service.aztec-faucet.arn
-    container_name = "${var.DEPLOY_TAG}-faucet"
+    container_name = "${var.DEPLOY_TAG}-aztec-faucet"
     container_port = 80
   }
 

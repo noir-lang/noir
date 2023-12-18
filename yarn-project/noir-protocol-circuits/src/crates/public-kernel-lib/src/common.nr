@@ -12,7 +12,7 @@ use dep::types::{
         public_data_read::PublicDataRead,
         public_data_update_request::PublicDataUpdateRequest,
     },
-    address::Address,
+    address::AztecAddress,
     contrakt::{
         storage_read::StorageRead,
         storage_update_request::StorageUpdateRequest,
@@ -42,7 +42,7 @@ pub fn validate_inputs(public_call: PublicCallData){
     let this_call_stack_item: PublicCallStackItem = public_call.call_stack_item;
     assert(this_call_stack_item.public_inputs.call_context.is_contract_deployment == false,
                       "Contract deployment cannot be a public function");
-    assert(!this_call_stack_item.contract_address.eq(Address::zero()),
+    assert(!this_call_stack_item.contract_address.eq(AztecAddress::zero()),
                       "Contract address cannot be zero");
     assert(this_call_stack_item.function_data.selector.to_field() != 0,
                       "Function signature cannot be zero");
@@ -148,7 +148,7 @@ fn propagate_valid_public_data_update_requests(public_call: PublicCallData, circ
         let update_request = update_requests[i];
         if (!update_request.is_empty()) {
             let public_data_update_request = PublicDataUpdateRequest {
-                leaf_index: compute_public_data_tree_index(contract_address, update_request.storage_slot),
+                leaf_slot: compute_public_data_tree_index(contract_address, update_request.storage_slot),
                 old_value: compute_public_data_tree_value(update_request.old_value),
                 new_value: compute_public_data_tree_value(update_request.new_value),
             };
@@ -169,7 +169,7 @@ fn propagate_valid_public_data_reads(public_call: PublicCallData, circuit_output
         let read_request: StorageRead = read_requests[i];
         if !read_request.is_empty() {
             let public_data_read = PublicDataRead {
-                leaf_index: compute_public_data_tree_index(contract_address, read_request.storage_slot),
+                leaf_slot: compute_public_data_tree_index(contract_address, read_request.storage_slot),
                 value: compute_public_data_tree_value(read_request.current_value),
             };
             public_data_reads.push(public_data_read);

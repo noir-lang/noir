@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Handler for SIGCHLD, cleanup if child exit with error, used by nargo_test.sh and compile.sh
 handle_sigchld() {

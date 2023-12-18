@@ -2,19 +2,22 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { L1ContractAddresses } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { TestKeyStore } from '@aztec/key-store';
+import { AztecLmdbStore } from '@aztec/kv-store';
 import { AztecNode, INITIAL_L2_BLOCK_NUM, L2Tx, PXE, mockTx } from '@aztec/types';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 
-import { MemoryDB } from '../../database/memory_db.js';
+import { KVPxeDatabase } from '../../database/kv_pxe_database.js';
+import { PxeDatabase } from '../../database/pxe_database.js';
 import { PXEServiceConfig } from '../../index.js';
 import { PXEService } from '../pxe_service.js';
 import { pxeTestSuite } from './pxe_test_suite.js';
 
-function createPXEService(): Promise<PXE> {
-  const keyStore = new TestKeyStore(new Grumpkin());
+async function createPXEService(): Promise<PXE> {
+  const kvStore = await AztecLmdbStore.create(EthAddress.random());
+  const keyStore = new TestKeyStore(new Grumpkin(), kvStore);
   const node = mock<AztecNode>();
-  const db = new MemoryDB();
+  const db = new KVPxeDatabase(kvStore);
   const config: PXEServiceConfig = { l2BlockPollingIntervalMS: 100, l2StartingBlock: INITIAL_L2_BLOCK_NUM };
 
   // Setup the relevant mocks
@@ -39,13 +42,14 @@ pxeTestSuite('PXEService', createPXEService);
 describe('PXEService', () => {
   let keyStore: TestKeyStore;
   let node: MockProxy<AztecNode>;
-  let db: MemoryDB;
+  let db: PxeDatabase;
   let config: PXEServiceConfig;
 
-  beforeEach(() => {
-    keyStore = new TestKeyStore(new Grumpkin());
+  beforeEach(async () => {
+    const kvStore = await AztecLmdbStore.create(EthAddress.random());
+    keyStore = new TestKeyStore(new Grumpkin(), kvStore);
     node = mock<AztecNode>();
-    db = new MemoryDB();
+    db = new KVPxeDatabase(kvStore);
     config = { l2BlockPollingIntervalMS: 100, l2StartingBlock: INITIAL_L2_BLOCK_NUM };
   });
 

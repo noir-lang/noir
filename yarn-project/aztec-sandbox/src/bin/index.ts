@@ -10,6 +10,7 @@ import { NoirCommit } from '@aztec/noir-compiler/versions';
 import { BootstrapNode, getP2PConfigEnvVars } from '@aztec/p2p';
 import { GrumpkinScalar, PXEService, createPXERpcServer } from '@aztec/pxe';
 
+import { lookup } from 'dns/promises';
 import { readFileSync } from 'fs';
 import http from 'http';
 import { dirname, resolve } from 'path';
@@ -30,8 +31,18 @@ enum SandboxMode {
   P2PBootstrap = 'p2p-bootstrap',
 }
 
+/**
+ * If we can successfully resolve 'host.docker.internal', then we are running in a container, and we should treat
+ * localhost as being host.docker.internal.
+ */
+const getLocalhost = () =>
+  lookup('host.docker.internal')
+    .then(() => 'host.docker.internal')
+    .catch(() => 'localhost');
+
+const LOCALHOST = await getLocalhost();
 const {
-  AZTEC_NODE_URL = 'http://localhost:8079',
+  AZTEC_NODE_URL = `http://${LOCALHOST}:8079`,
   AZTEC_NODE_PORT = 8079,
   PXE_PORT = 8080,
   MODE = 'sandbox',
@@ -148,7 +159,7 @@ async function main() {
 
     const port = process.env.AZTEC_NODE_PORT || 8080; // Use standard 8080 when no PXE is running
     const nodeRpcServer = createAztecNodeRpcServer(node);
-    const app = nodeRpcServer.getApp();
+    const app = nodeRpcServer.getApp(API_PREFIX);
 
     // Add a /status endpoint
     const statusRouter = createStatusRouter(API_PREFIX);

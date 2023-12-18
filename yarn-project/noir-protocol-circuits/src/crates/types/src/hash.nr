@@ -1,4 +1,4 @@
-use crate::address::{Address, EthAddress};
+use crate::address::{AztecAddress, EthAddress};
 use crate::mocked::VerificationKey;
 use crate::point::Point;
 use crate::abis::function_selector::FunctionSelector;
@@ -25,7 +25,7 @@ use crate::constants::{
         GENERATOR_INDEX__FUNCTION_ARGS,
 };
 
-use dep::std::hash::sha256;
+use dep::std::hash::{pedersen_hash_with_separator, sha256};
 
 pub fn sha256_to_field<N>(bytes_to_hash: [u8; N]) -> Field {
     let sha256_hashed = sha256(bytes_to_hash);
@@ -63,11 +63,11 @@ pub fn hash_args<N>(args: [Field; N]) -> Field {
                         chunk_args[j] = args[item_index];
                     }
                 }
-                chunk_hash = dep::std::hash::pedersen_hash_with_separator(chunk_args, GENERATOR_INDEX__FUNCTION_ARGS);
+                chunk_hash = pedersen_hash(chunk_args, GENERATOR_INDEX__FUNCTION_ARGS);
             }
             chunks_hashes[i] = chunk_hash;
         }
-        dep::std::hash::pedersen_hash_with_separator(chunks_hashes, GENERATOR_INDEX__FUNCTION_ARGS)
+        pedersen_hash(chunks_hashes, GENERATOR_INDEX__FUNCTION_ARGS)
     }
 }
 
@@ -128,7 +128,7 @@ pub fn function_tree_root_from_siblings(selector : FunctionSelector, is_internal
 }
 
 // Calculate the contract tree root from the sibling path and leaf preimage.
-pub fn contract_tree_root_from_siblings(function_tree_root : Field, storage_contract_address : Address, portal_contract_address : EthAddress, contract_leaf_index : Field,contract_leaf_sibling_path : [Field; CONTRACT_TREE_HEIGHT]) -> Field {
+pub fn contract_tree_root_from_siblings(function_tree_root : Field, storage_contract_address : AztecAddress, portal_contract_address : EthAddress, contract_leaf_index : Field,contract_leaf_sibling_path : [Field; CONTRACT_TREE_HEIGHT]) -> Field {
     //TODO(Kev): if we use shorthand syntax here, we get an error as expected,
     // since variable name is `storage_contract_address` but the span is incorrect.
     let contract_leaf_preimage = ContractLeafPreimage { contract_address: storage_contract_address,
@@ -147,22 +147,22 @@ pub fn read_request_root_from_siblings(read_request : Field, leaf_index : Field,
     root_from_sibling_path(read_request, leaf_index, sibling_path)
 }
 
-pub fn silo_commitment(address : Address, inner_commitment : Field) -> Field {
-    dep::std::hash::pedersen_hash_with_separator([
+pub fn silo_commitment(address : AztecAddress, inner_commitment : Field) -> Field {
+    pedersen_hash([
         address.to_field(),
         inner_commitment,
     ], GENERATOR_INDEX__SILOED_COMMITMENT)
 }
 
-pub fn silo_nullifier(address : Address, nullifier : Field) -> Field {
-    dep::std::hash::pedersen_hash_with_separator([
+pub fn silo_nullifier(address : AztecAddress, nullifier : Field) -> Field {
+    pedersen_hash([
         address.to_field(),
         nullifier,
     ], GENERATOR_INDEX__OUTER_NULLIFIER)
 }
 
 fn merkle_hash(left : Field, right : Field) -> Field {
-    dep::std::hash::pedersen_hash_with_separator([left, right], 0)
+    pedersen_hash([left, right], 0)
 }
 
 pub fn stdlib_recursion_verification_key_compress_native_vk(_vk : VerificationKey) -> Field {
@@ -174,11 +174,11 @@ pub fn stdlib_recursion_verification_key_compress_native_vk(_vk : VerificationKe
 }
 
 // TODO CPP uses blake2s for this
-pub fn compute_new_contract_address_hash(new_contract_address : Address) -> Field {
+pub fn compute_new_contract_address_hash(new_contract_address : AztecAddress) -> Field {
     dep::std::hash::pedersen_hash([new_contract_address.to_field()])
 }
 
-pub fn compute_l2_to_l1_hash(contract_address : Address, rollup_version_id: Field, portal_contract_address : EthAddress, chain_id : Field, content : Field) -> Field {
+pub fn compute_l2_to_l1_hash(contract_address : AztecAddress, rollup_version_id: Field, portal_contract_address : EthAddress, chain_id : Field, content : Field) -> Field {
     let mut bytes: BoundedVec<u8, 160> = BoundedVec::new(0);
 
     let inputs = [contract_address.to_field(), rollup_version_id, portal_contract_address.to_field(), chain_id, content];
@@ -196,7 +196,7 @@ pub fn compute_l2_to_l1_hash(contract_address : Address, rollup_version_id: Fiel
 pub fn compute_constructor_hash(function_data : FunctionData, args_hash : Field, constructor_vk_hash : Field) -> Field {
     let function_data_hash = function_data.hash();
 
-    dep::std::hash::pedersen_hash_with_separator([
+    pedersen_hash([
         function_data_hash,
         args_hash,
         constructor_vk_hash
@@ -251,7 +251,7 @@ pub fn compute_logs_hash(previous_log_hash : [Field;2], current_log_hash : [Fiel
 }
 
 pub fn compute_partial_address(contract_address_salt : Field, function_tree_root : Field, constructor_hash : Field) -> Field {
-    dep::std::hash::pedersen_hash_with_separator([
+    pedersen_hash([
         // TODO why the zeroes?
         0,
         0,
@@ -261,24 +261,24 @@ pub fn compute_partial_address(contract_address_salt : Field, function_tree_root
     ], GENERATOR_INDEX__PARTIAL_ADDRESS)
 }
 
-pub fn compute_contract_address_from_partial(point : Point, partial_address : Field) -> Address {
-    let field = dep::std::hash::pedersen_hash_with_separator([
+pub fn compute_contract_address_from_partial(point : Point, partial_address : Field) -> AztecAddress {
+    let field = pedersen_hash([
         point.x,
         point.y,
         partial_address
     ], GENERATOR_INDEX__CONTRACT_ADDRESS);
-    Address::from_field(field)
+    AztecAddress::from_field(field)
 }
 
 pub fn compute_commitment_nonce(first_nullifier : Field, commitment_index : Field) -> Field {
-    dep::std::hash::pedersen_hash_with_separator([
+    pedersen_hash([
         first_nullifier,
         commitment_index
     ], GENERATOR_INDEX__COMMITMENT_NONCE)
 }
 
 pub fn compute_unique_siloed_commitment(nonce: Field, siloed_commitment: Field) -> Field {
-    dep::std::hash::pedersen_hash_with_separator([
+    pedersen_hash([
         nonce,
         siloed_commitment
     ], GENERATOR_INDEX__UNIQUE_COMMITMENT)
@@ -294,4 +294,8 @@ pub fn compute_unique_siloed_commitments<N>(first_nullifier: Field, siloed_commi
         }
     }
     unique_siloed_commitments
+}
+
+pub fn pedersen_hash<N>(inputs: [Field; N], hash_index: u32) -> Field {
+    dep::std::hash::pedersen_hash_with_separator(inputs, hash_index)
 }

@@ -113,7 +113,7 @@ describe('Private kernel', () => {
       Fr.fromString('0x1864fcdaa80ff2719154fa7c8a9050662972707168d69eac9db6fd3110829f80'),
       Fr.fromString('0x1864fcdaa80ff2719154fa7c8a9050662972707168d69eac9db6fd3110829f80'),
       Fr.fromString('0x1759d221795419503f86c032e8f8762f2b739e74835099584b6531f5f27390fe'),
-      Fr.ZERO,
+      Fr.ZERO, // TODO(#3441)
       Fr.fromString('0x0ccaafdc9c353743970d4e305ae73641ce694f07db67886d2769c9ed88e969d8'),
       Fr.fromString('0x200569267c0f73ac89aaa414239398db9445dd4ad3a8cf37015cd55b8d4c5e8d'),
     );
@@ -225,7 +225,7 @@ describe('Private kernel', () => {
       Fr.fromString('0x1864fcdaa80ff2719154fa7c8a9050662972707168d69eac9db6fd3110829f80'),
       Fr.fromString('0x1864fcdaa80ff2719154fa7c8a9050662972707168d69eac9db6fd3110829f80'),
       Fr.fromString('0x1759d221795419503f86c032e8f8762f2b739e74835099584b6531f5f27390fe'),
-      Fr.ZERO,
+      Fr.ZERO, // TODO(#3441)
       Fr.fromString('0x0ccaafdc9c353743970d4e305ae73641ce694f07db67886d2769c9ed88e969d8'),
       Fr.fromString('0x200569267c0f73ac89aaa414239398db9445dd4ad3a8cf37015cd55b8d4c5e8d'),
     );

@@ -1,5 +1,9 @@
 use dep::std::option::Option;
-use dep::protocol_types::constants::EMPTY_NULLIFIED_COMMITMENT;
+use dep::protocol_types::{
+    address::AztecAddress,
+    constants::EMPTY_NULLIFIED_COMMITMENT,
+};
+    
 use crate::context::{PrivateContext, Context};
 use crate::note::{
     lifecycle::create_note,
@@ -15,7 +19,7 @@ struct ImmutableSingleton<Note, N> {
     context: Option<&mut PrivateContext>,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
-    compute_initialization_nullifier: fn (Field, Option<Field>) -> Field,
+    compute_initialization_nullifier: fn (Field, Option<AztecAddress>) -> Field,
 }
 // docs:end:struct
 
@@ -37,7 +41,7 @@ impl<Note, N> ImmutableSingleton<Note, N> {
     // docs:end:new
 
     // docs:start:is_initialized
-    unconstrained pub fn is_initialized(self, owner: Option<Field>) -> bool {
+    unconstrained pub fn is_initialized(self, owner: Option<AztecAddress>) -> bool {
         let compute_initialization_nullifier = self.compute_initialization_nullifier;
         let nullifier = compute_initialization_nullifier(self.storage_slot, owner);
         check_nullifier_exists(nullifier)
@@ -48,7 +52,7 @@ impl<Note, N> ImmutableSingleton<Note, N> {
     pub fn initialize(
         self,
         note: &mut Note, 
-        owner: Option<Field>,
+        owner: Option<AztecAddress>,
         broadcast: bool,
     ) {
         let context = self.context.unwrap();

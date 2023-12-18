@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Conditionally runs a script on a remote spot instance if the REPOSITORY content hash has changed and we haven't had a
 # successful run.
 # The TAG_POSTFIX is used by cond_spot_run_test whereby we use an image tag postfixed with JOB_NAME to identifify if
@@ -19,7 +19,12 @@ CPUS=$2
 ARCH=$3
 shift 3
 
-BASE_TAG=$(calculate_image_tag $REPOSITORY)
+MULTIARCH=$(query_manifest multiarch $REPOSITORY)
+if [ "$MULTIARCH" == "host" ]; then
+  BASE_TAG=$(calculate_image_tag $REPOSITORY $ARCH)
+else
+  BASE_TAG=$(calculate_image_tag $REPOSITORY)
+fi
 SUCCESS_TAG=$BASE_TAG
 
 if [ -n "${TAG_POSTFIX:-}" ]; then

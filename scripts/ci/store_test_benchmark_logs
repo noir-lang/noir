@@ -1,5 +1,5 @@
-#!/bin/bash
-# Script for storing barretenberg benchmark results. 
+#!/usr/bin/env bash
+# Script for storing barretenberg benchmark results.
 # Uploads results to the AztecProtocol/benchmark-archive repository.
 
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
@@ -36,7 +36,7 @@ cat /tmp/csv/new.csv \
 # If there actually were any logs, update the information in the benchmark repository
 if [ -s /tmp/csv/trimmed.csv ]; then
     cd /tmp
-    
+
     git clone --depth 1 https://$AZTEC_GITHUB_TOKEN:@github.com/AztecProtocol/benchmark-archive
 
     cd benchmark-archive

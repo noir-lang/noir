@@ -4,11 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": {
-      "node": "./dest/index.js",
-      "import": "./dest/index.js",
-      "default": "./dest/main.js"
-    },
+    ".": "./dest/index.js",
     "./interfaces/pxe": "./dest/api/interfaces/pxe.js",
     "./abi": "./dest/api/abi.js",
     "./aztec_address": "./dest/api/aztec_address.js",

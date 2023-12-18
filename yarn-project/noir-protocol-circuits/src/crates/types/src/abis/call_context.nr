@@ -1,10 +1,17 @@
-use crate::abis::function_selector::FunctionSelector;
-use crate::address::{EthAddress,Address};
-use crate::constants::GENERATOR_INDEX__CALL_CONTEXT;
+use crate::{
+    abis::function_selector::FunctionSelector,
+    address::{EthAddress,AztecAddress},
+    constants::{
+        CALL_CONTEXT_LENGTH,
+        GENERATOR_INDEX__CALL_CONTEXT,
+    },
+    hash::pedersen_hash,
+};
 
-struct CallContext{
-    msg_sender : Address,
-    storage_contract_address : Address,
+// docs:start:call-context
+struct CallContext {
+    msg_sender : AztecAddress,
+    storage_contract_address : AztecAddress,
     portal_contract_address : EthAddress,
 
     function_selector : FunctionSelector,
@@ -13,10 +20,11 @@ struct CallContext{
     is_static_call : bool,
     is_contract_deployment : bool,
 }
+// docs:end:call-context
 
 impl CallContext {
-    fn hash(self) -> Field {
-        dep::std::hash::pedersen_hash_with_separator([
+    fn serialize(self) -> [Field; CALL_CONTEXT_LENGTH] {
+        [
             self.msg_sender.to_field(),
             self.storage_contract_address.to_field(),
             self.portal_contract_address.to_field(),
@@ -24,10 +32,15 @@ impl CallContext {
             self.is_delegate_call as Field,
             self.is_static_call as Field,
             self.is_contract_deployment as Field,
-        ], GENERATOR_INDEX__CALL_CONTEXT)
+        ]
+    }
+
+    fn hash(self) -> Field {
+        pedersen_hash(self.serialize(), GENERATOR_INDEX__CALL_CONTEXT)
     }
 
     fn assert_is_zero(self) {
+        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3595)
         assert(self.msg_sender.to_field() == 0);
         assert(self.storage_contract_address.to_field() == 0);
         assert(self.portal_contract_address.to_field() == 0);
@@ -38,6 +51,7 @@ impl CallContext {
     }
 
     fn eq(self, call_context: CallContext) -> bool {
+        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3595)
         call_context.msg_sender.eq(self.msg_sender)
             & call_context.storage_contract_address.eq(self.storage_contract_address)
             & call_context.portal_contract_address.eq(self.portal_contract_address)

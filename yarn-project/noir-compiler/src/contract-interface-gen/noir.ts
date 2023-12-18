@@ -32,7 +32,7 @@ function isPrivateCall(functionType: FunctionType) {
 function generateCallStatement(selector: FunctionSelector, functionType: FunctionType) {
   const callMethod = isPrivateCall(functionType) ? 'call_private_function' : 'call_public_function';
   return `
-    context.${callMethod}(self.address, 0x${selector.toString()}, serialized_args)`;
+    context.${callMethod}(self.address, FunctionSelector::from_field(0x${selector.toString()}), serialized_args)`;
 }
 
 /**
@@ -167,7 +167,11 @@ ${callStatement}
 function generateStaticImports() {
   return `use dep::std;
 use dep::aztec::context::{ PrivateContext, PublicContext };
-use dep::protocol_types::constants::RETURN_VALUES_LENGTH;`;
+use dep::protocol_types::{
+  address::AztecAddress,
+  abis::function_selector::FunctionSelector,
+  constants::RETURN_VALUES_LENGTH,
+};`;
 }
 
 /**
@@ -189,7 +193,7 @@ function generateContractStructName(contractName: string, kind: 'private' | 'pub
 function generateContractInterfaceStruct(contractName: string, kind: 'private' | 'public') {
   return `// Interface for calling ${contractName} functions from a ${kind} context
 struct ${generateContractStructName(contractName, kind)} {
-  address: Field,
+  address: AztecAddress,
 }
 `;
 }
@@ -203,7 +207,7 @@ struct ${generateContractStructName(contractName, kind)} {
  */
 function generateContractInterfaceImpl(contractName: string, kind: 'private' | 'public', functions: string[]) {
   return `impl ${generateContractStructName(contractName, kind)} {
-  pub fn at(address: Field) -> Self {
+  pub fn at(address: AztecAddress) -> Self {
       Self {
           address,
       }

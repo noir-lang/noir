@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -ex
 
@@ -24,6 +24,6 @@ git clone repo1 repo3
   git subrepo clone ../repo2 subrepo
   bash
   git rebase -i HEAD^
-  git log -p 
+  git log -p
   ls
 )

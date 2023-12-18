@@ -48,7 +48,7 @@ As shown in the snippet, the application context is made up of 4 main structures
 
 First of all, the call context.
 
-#include_code call-context /yarn-project/aztec-nr/aztec/src/abi.nr rust
+#include_code call-context /yarn-project/noir-protocol-circuits/src/crates/types/src/abis/call_context.nr rust
 
 The call context contains information about the current call being made:
 
@@ -75,13 +75,13 @@ The call context contains information about the current call being made:
 
 Another structure that is contained within the context is the Block Header object. This object is a special one as it contains all of the roots of Aztec's data trees.
 
-#include_code block-header /yarn-project/aztec-nr/aztec/src/abi.nr rust
+#include_code block-header /yarn-project/noir-protocol-circuits/src/crates/types/src/abis/block_header.nr rust
 
 ### Contract Deployment Data
 
 Just like with the `is_contract_deployment` flag mentioned earlier. This data will only be set to true when the current transaction is one in which a contract is being deployed.
 
-#include_code contract-deployment-data /yarn-project/aztec-nr/aztec/src/abi.nr rust
+#include_code contract-deployment-data /yarn-project/noir-protocol-circuits/src/crates/types/src/contrakt/deployment_data.nr rust
 
 ### Private Global Variables
 

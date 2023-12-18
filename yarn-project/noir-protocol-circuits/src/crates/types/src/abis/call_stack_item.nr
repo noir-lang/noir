@@ -3,7 +3,7 @@ use crate::abis::{
     private_circuit_public_inputs::PrivateCircuitPublicInputs,
     public_circuit_public_inputs::PublicCircuitPublicInputs,
 };
-use crate::address::Address;
+use crate::address::AztecAddress;
 use crate::constants::{
     GENERATOR_INDEX__CALL_STACK_ITEM,
 };
@@ -14,7 +14,7 @@ struct PrivateCallStackItem {
     // `contract_address` _does not change_. Amongst other things, it's used as a lookup for
     // getting the correct code from the tree. There is a separate `storage_contract_address`
     // within a CallStackItem which varies depending on whether this is a call or delegatecall.
-    contract_address: Address,
+    contract_address: AztecAddress,
     public_inputs: PrivateCircuitPublicInputs,
     function_data: FunctionData,
     // Not really needed for PrivateCallStackItem.
@@ -32,7 +32,7 @@ impl PrivateCallStackItem {
 }
 
 struct PublicCallStackItem {
-    contract_address: Address,
+    contract_address: AztecAddress,
     public_inputs: PublicCircuitPublicInputs,
     function_data: FunctionData,
     // True if this call stack item represents a request to execute a function rather than a

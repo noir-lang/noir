@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Check that the correct number of args have been provided
 if [ $# -ne 2 ]; then
@@ -67,7 +67,7 @@ if [ ${#non_empty_profiles[@]} -gt 1 ]; then
         additional_objects+="-object  $WORKING_DIRECTORY/bin/${non_empty_profile_base}_tests "
     done
     object_string=${additional_objects#"-object"}
-    
+
     # Output the coverage report into `all_tests_coverage_report` folder
     rm -rf "$WORKING_DIRECTORY/all_tests_coverage_report"
     mkdir "$WORKING_DIRECTORY/all_tests_coverage_report"

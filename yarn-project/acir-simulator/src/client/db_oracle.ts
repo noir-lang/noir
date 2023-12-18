@@ -3,7 +3,7 @@ import { FunctionArtifact, FunctionDebugMetadata, FunctionSelector } from '@azte
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { L2Block, MerkleTreeId, NullifierMembershipWitness } from '@aztec/types';
+import { L2Block, MerkleTreeId, NullifierMembershipWitness, PublicDataWitness } from '@aztec/types';
 
 import { NoteData } from '../acvm/index.js';
 import { CommitmentsDB } from '../public/index.js';
@@ -154,9 +154,22 @@ export interface DBOracle extends CommitmentsDB {
   getLowNullifierMembershipWitness(blockNumber: number, nullifier: Fr): Promise<NullifierMembershipWitness | undefined>;
 
   /**
+   * Returns a witness for a given slot of the public data tree at a given block.
+   * @param blockNumber - The block number at which to get the witness.
+   * @param leafSlot - The slot of the public data in the public data tree.
+   */
+  getPublicDataTreeWitness(blockNumber: number, leafSlot: Fr): Promise<PublicDataWitness | undefined>;
+
+  /**
    * Fetch a block corresponding to the given block number.
    * @param blockNumber - The block number of a block to fetch.
    * @returns - The block corresponding to the given block number. Undefined if it does not exist.
    */
   getBlock(blockNumber: number): Promise<L2Block | undefined>;
+
+  /**
+   * Fetches the current block number.
+   * @returns The block number.
+   */
+  getBlockNumber(): Promise<number>;
 }

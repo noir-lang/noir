@@ -86,7 +86,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
             let value_index = sorted_values_indexes[i];
 
             // Calculate the new value of the low_leaf
-            let updated_low_leaf= update_low_leaf(low_leaf_preimage, value, start_insertion_index+value_index); 
+            let updated_low_leaf = update_low_leaf(low_leaf_preimage, value, start_insertion_index+value_index);
 
             current_tree_root = crate::components::root_from_sibling_path(
                 hash_leaf(updated_low_leaf), witness.leaf_index, witness.sibling_path);

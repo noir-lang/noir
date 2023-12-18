@@ -89,7 +89,7 @@ To create the API and do a blake2s hash:
 ```typescript
 import { Crs, Barretenberg, RawBuffer } from './index.js';
 
-const api = await Barretenberg.new(/* num_threads */ 1);
+const api = await Barretenberg.new(/* num_threads */ { threads: 1 });
 const input = Buffer.from('hello world!');
 const result = await api.blake2s(input);
 await api.destroy();

@@ -21,6 +21,8 @@ const WARNING_DIFF_THRESHOLD = 15;
 const SMALL_MS_THRESHOLD = 200;
 // What % diff should be considered as a warning for "small" ms measurements
 const WARNING_DIFF_THRESHOLD_SMALL_MS = 30;
+// What % diff should be considered as a warning for trial_decryption in particular
+const WARNING_DIFF_THRESHOLD_TRIAL_DECRYPTION = 75;
 
 const log = createConsoleLogger();
 
@@ -30,7 +32,9 @@ function isWarning(row: string, col: string, value: number, base: number | undef
     return false;
   }
   const absPercentDiff = Math.abs(Math.round(((value - base) / base) * 100));
-  if ((row.endsWith('_ms') || col.endsWith('_ms')) && value < SMALL_MS_THRESHOLD) {
+  if (row.includes('trial_decrypt') || col.includes('trial_decrypt')) {
+    return absPercentDiff > WARNING_DIFF_THRESHOLD_TRIAL_DECRYPTION;
+  } else if ((row.endsWith('_ms') || col.endsWith('_ms')) && value < SMALL_MS_THRESHOLD) {
     return absPercentDiff >= WARNING_DIFF_THRESHOLD_SMALL_MS;
   } else {
     return absPercentDiff > WARNING_DIFF_THRESHOLD;

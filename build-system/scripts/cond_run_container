@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Conditionally runs a script if the REPOSITORY content hash has changed and we haven't had a successful run.
 #
 # Arguments are:

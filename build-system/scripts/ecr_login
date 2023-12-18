@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eu
 REGION=${1:-$ECR_REGION}
 # Retries up to 3 times with 10 second intervals

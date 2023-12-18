@@ -43,6 +43,14 @@ export interface PreimageFactory {
   clone(preimage: IndexedTreeLeafPreimage): IndexedTreeLeafPreimage;
 }
 
+export const buildDbKeyForPreimage = (name: string, index: bigint) => {
+  return `${name}:leaf_by_index:${toBufferBE(index, 32).toString('hex')}`;
+};
+
+export const buildDbKeyForLeafIndex = (name: string, key: bigint) => {
+  return `${name}:leaf_index_by_leaf_key:${toBufferBE(key, 32).toString('hex')}`;
+};
+
 /**
  * Factory for creating leaves.
  */
@@ -58,14 +66,6 @@ export interface LeafFactory {
    */
   fromBuffer(buffer: Buffer): IndexedTreeLeaf;
 }
-
-export const buildDbKeyForPreimage = (name: string, index: bigint) => {
-  return `${name}:leaf_by_index:${toBufferBE(index, 32).toString('hex')}`;
-};
-
-export const buildDbKeyForLeafIndex = (name: string, key: bigint) => {
-  return `${name}:leaf_index_by_leaf_key:${toBufferBE(key, 32).toString('hex')}`;
-};
 
 /**
  * Pre-compute empty witness.
@@ -460,7 +460,41 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
    *  nextIdx   4       2       3       7       5       1       0       6
    *  nextVal   2      10      15      19       3       5       0      20
    *
-   * TODO: this implementation will change once the zero value is changed from h(0,0,0). Changes incoming over the next sprint
+   * For leaves that allow updating the process is exactly the same. When a leaf is inserted that is already present,
+   * the low leaf will be the leaf that is being updated, and it'll get updated and an empty leaf will be inserted instead.
+   * For example:
+   *
+   * Initial state:
+   *
+   *  index     0       1       2       3        4       5       6       7
+   *  ---------------------------------------------------------------------
+   *  slot      0       0       0       0        0       0       0       0
+   *  value     0       0       0       0        0       0       0       0
+   *  nextIdx   0       0       0       0        0       0       0       0
+   *  nextSlot  0       0       0       0        0       0       0       0.
+   *
+   *
+   *  Add new value 30:5:
+   *
+   *  index     0       1       2       3        4       5       6       7
+   *  ---------------------------------------------------------------------
+   *  slot      0       30      0       0        0       0       0       0
+   *  value     0       5       0       0        0       0       0       0
+   *  nextIdx   1       0       0       0        0       0       0       0
+   *  nextSlot  30      0       0       0        0       0       0       0.
+   *
+   *
+   *  Update the value of 30 to 10 (insert 30:10):
+   *
+   *  index     0       1       2       3        4       5       6       7
+   *  ---------------------------------------------------------------------
+   *  slot      0       30      0       0        0       0       0       0
+   *  value     0       10      0       0        0       0       0       0
+   *  nextIdx   1       0       0       0        0       0       0       0
+   *  nextSlot  30      0       0       0        0       0       0       0.
+   *
+   *  The low leaf is 30, so we update it to 10, and insert an empty leaf at index 2.
+   *
    * @param leaves - Values to insert into the tree.
    * @param subtreeHeight - Height of the subtree.
    * @returns The data for the leaves to be updated when inserting the new ones.
@@ -473,6 +507,7 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
     leaves: Buffer[],
     subtreeHeight: SubtreeHeight,
   ): Promise<BatchInsertionResult<TreeHeight, SubtreeSiblingPathHeight>> {
+    const insertedKeys = new Map<bigint, boolean>();
     const emptyLowLeafWitness = getEmptyLowLeafWitness(this.getDepth() as TreeHeight, this.leafPreimageFactory);
     // Accumulators
     const lowLeavesWitnesses: LowLeafWitnessData<TreeHeight>[] = leaves.map(() => emptyLowLeafWitness);
@@ -496,6 +531,12 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
         continue;
       }
 
+      if (insertedKeys.has(newLeaf.getKey())) {
+        throw new Error('Cannot insert duplicated keys in the same batch');
+      } else {
+        insertedKeys.set(newLeaf.getKey(), true);
+      }
+
       const indexOfPrevious = await this.findIndexOfPreviousKey(newLeaf.getKey(), true);
       if (indexOfPrevious === undefined) {
         return {
@@ -505,6 +546,8 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
           newSubtreeSiblingPath: await this.getSubtreeSiblingPath(subtreeHeight, true),
         };
       }
+
+      const isUpdate = indexOfPrevious.alreadyPresent;
 
       // get the low leaf (existence checked in getting index)
       const lowLeafPreimage = (await this.getLatestLeafPreimageCopy(indexOfPrevious.index, true))!;
@@ -519,23 +562,35 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
       // Update the running paths
       lowLeavesWitnesses[i] = witness;
 
-      const currentPendingPreimageLeaf = this.leafPreimageFactory.fromLeaf(
-        newLeaf,
-        lowLeafPreimage.getNextKey(),
-        lowLeafPreimage.getNextIndex(),
-      );
+      if (isUpdate) {
+        const newLowLeaf = lowLeafPreimage.asLeaf().updateTo(newLeaf);
 
-      pendingInsertionSubtree[originalIndex] = currentPendingPreimageLeaf;
+        const newLowLeafPreimage = this.leafPreimageFactory.fromLeaf(
+          newLowLeaf,
+          lowLeafPreimage.getNextKey(),
+          lowLeafPreimage.getNextIndex(),
+        );
 
-      const newLowLeafPreimage = this.leafPreimageFactory.fromLeaf(
-        lowLeafPreimage.asLeaf(),
-        newLeaf.getKey(),
-        startInsertionIndex + BigInt(originalIndex),
-      );
+        await this.updateLeaf(newLowLeafPreimage, indexOfPrevious.index);
 
-      const lowLeafIndex = indexOfPrevious.index;
-      this.cachedLeafPreimages[lowLeafIndex.toString()] = newLowLeafPreimage;
-      await this.updateLeaf(newLowLeafPreimage, lowLeafIndex);
+        pendingInsertionSubtree[originalIndex] = this.leafPreimageFactory.empty();
+      } else {
+        const newLowLeafPreimage = this.leafPreimageFactory.fromLeaf(
+          lowLeafPreimage.asLeaf(),
+          newLeaf.getKey(),
+          startInsertionIndex + BigInt(originalIndex),
+        );
+
+        await this.updateLeaf(newLowLeafPreimage, indexOfPrevious.index);
+
+        const currentPendingPreimageLeaf = this.leafPreimageFactory.fromLeaf(
+          newLeaf,
+          lowLeafPreimage.getNextKey(),
+          lowLeafPreimage.getNextIndex(),
+        );
+
+        pendingInsertionSubtree[originalIndex] = currentPendingPreimageLeaf;
+      }
     }
 
     const newSubtreeSiblingPath = await this.getSubtreeSiblingPath<SubtreeHeight, SubtreeSiblingPathHeight>(

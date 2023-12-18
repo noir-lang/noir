@@ -70,7 +70,7 @@ template <typename Flavor> class SumcheckProver {
      *
      * @details
      */
-    SumcheckOutput<Flavor> prove(ProverPolynomials full_polynomials,
+    SumcheckOutput<Flavor> prove(ProverPolynomials& full_polynomials,
                                  const proof_system::RelationParameters<FF>& relation_parameters,
                                  FF alpha) // pass by value, not by reference
     {

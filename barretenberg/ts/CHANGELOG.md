@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.16.9](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.16.8...barretenberg.js-v0.16.9) (2023-12-13)
+
+
+### Miscellaneous
+
+* **barretenberg.js:** Synchronize aztec-packages versions
+
+## [0.16.8](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.16.7...barretenberg.js-v0.16.8) (2023-12-13)
+
+
+### Bug Fixes
+
+* Aztec sandbox compose fixes ([#3634](https://github.com/AztecProtocol/aztec-packages/issues/3634)) ([765a19c](https://github.com/AztecProtocol/aztec-packages/commit/765a19c3aad3a2793a764b970b7cc8a819094da7))
+* Top level init bb.js, but better scoped imports to not incur cost too early ([#3629](https://github.com/AztecProtocol/aztec-packages/issues/3629)) ([cea862d](https://github.com/AztecProtocol/aztec-packages/commit/cea862dd7feec714a34eba6a3cf7a2a174a59a1b))
+
 ## [0.16.7](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.16.6...barretenberg.js-v0.16.7) (2023-12-06)
 
 

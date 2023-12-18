@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This script builds the projects listed in build_manifest.sh, terminating when it reaches PROJECT_NAME.
 # If run from within a project, it will build only that project, unless env var ONLY_TARGET=false.
 #

@@ -9,6 +9,10 @@ export type DeploymentInfo = {
    */
   completeAddress: CompleteAddress;
   /**
+   * The contract's constructor verification key hash.
+   */
+  constructorVkHash: Fr;
+  /**
    * The contract's constructor hash.
    */
   constructorHash: Fr;

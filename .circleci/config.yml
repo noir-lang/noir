@@ -358,15 +358,15 @@ jobs:
           command: build yarn-project-prod | add_timestamps
 
   yarn-project-formatting:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: Check Formatting
-          command: cond_run_container yarn-project formatting | add_timestamps
+          command: cond_spot_run_container yarn-project 8 formatting | add_timestamps
 
   yarn-project-tests:
     docker:
@@ -432,7 +432,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test via adhoc script"
-          command: ./yarn-project/boxes/run_tests blank-react
+          command: ./boxes/run_tests blank-react
 
   boxes-blank:
     machine:
@@ -443,7 +443,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test via adhoc script"
-          command: ./yarn-project/boxes/run_tests blank
+          command: ./boxes/run_tests blank
 
   boxes-token:
     machine:
@@ -454,7 +454,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test via adhoc script"
-          command: ./yarn-project/boxes/run_tests token
+          command: ./boxes/run_tests token
 
   end-to-end:
     machine:
@@ -904,26 +904,8 @@ jobs:
           name: "Assemble benchmark summary from uploaded logs"
           command: ./scripts/ci/assemble_e2e_benchmark.sh
 
-  # Release jobs.
-  release-npm:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: medium
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "yarn-project"
-          command: |
-            should_release || exit 0
-            yarn-project/deploy_npm.sh latest
-      - run:
-          name: "l1-contracts"
-          command: |
-            should_release || exit 0
-            deploy_npm l1-contracts
-
-  release-dockerhub:
+  # Deploy & release jobs.
+  deploy-and-release:
     machine:
       image: ubuntu-2204:2023.07.2
     resource_class: medium
@@ -939,56 +921,68 @@ jobs:
             deploy_dockerhub cli
             deploy_dockerhub aztec-faucet
             deploy_dockerhub mainnet-fork
-
-  # Deploy jobs.
-  deploy-mainnet-fork:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: medium
-    steps:
-      - *checkout
-      - *setup_env
+      - run:
+          name: "Release canary to NPM: yarn-project"
+          command: |
+            should_release || exit 0
+            yarn-project/deploy_npm.sh canary
+      - run:
+          name: "Release latest to NPM: yarn-project"
+          command: |
+            should_release || exit 0
+            yarn-project/deploy_npm.sh latest
+      - run:
+          name: "Release canary to NPM: l1-contracts"
+          command: |
+            should_release || exit 0
+            deploy_npm l1-contracts canary
+      - run:
+          name: "Release latest to NPM: l1-contracts"
+          command: |
+            should_release || exit 0
+            deploy_npm l1-contracts latest
       - run:
           name: "Deploy mainnet fork"
           command: |
             should_deploy || exit 0
-            deploy mainnet-fork
-
-  deploy-contracts:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: medium
-    steps:
-      - *checkout
-      - *setup_env
+            deploy_terraform_services iac/mainnet-fork
       - run:
           name: "Deploy L1 contracts to mainnet fork"
           working_directory: l1-contracts
           command: |
             should_deploy || exit 0
             ./scripts/ci_deploy_contracts.sh
-
-  deploy-devnet:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: medium
-    steps:
-      - *checkout
-      - *setup_env
       - run:
-          name: "Deploy devnet to AWS"
+          name: "Deploy P2P bootstrap servers to AWS"
+          command: |
+            should_deploy 0 || exit 0
+            # Export variables for Terraform.
+            export TF_VAR_BOOTNODE_1_PRIVATE_KEY=$BOOTNODE_1_PRIVATE_KEY
+            export TF_VAR_BOOTNODE_2_PRIVATE_KEY=$BOOTNODE_2_PRIVATE_KEY
+            deploy_terraform_services yarn-project/p2p-bootstrap aztec-sandbox
+      - run:
+          name: "Deploy Aztec Nodes to AWS"
+          command: |
+            should_deploy 0 || exit 0
+            export TF_VAR_BOOTNODE_1_PEER_ID=$BOOTNODE_1_PEER_ID
+            export TF_VAR_BOOTNODE_2_PEER_ID=$BOOTNODE_2_PEER_ID
+            export TF_VAR_SEQ_1_PUBLISHER_PRIVATE_KEY=$SEQ_1_PUBLISHER_PRIVATE_KEY
+            export TF_VAR_SEQ_2_PUBLISHER_PRIVATE_KEY=$SEQ_2_PUBLISHER_PRIVATE_KEY
+            export TF_VAR_NODE_1_PRIVATE_KEY=$NODE_1_PRIVATE_KEY
+            export TF_VAR_NODE_2_PRIVATE_KEY=$NODE_2_PRIVATE_KEY
+            # Check if l1-contracts have changed
+            if [ "$CONTRACTS_DEPLOYED" -eq 1 ]; then
+              echo "Contracts have changed, taint nodes to force redeploy.."
+              deploy_terraform_services yarn-project/aztec-node aztec-sandbox aztec-node "aws_ecs_task_definition.aztec-node[0],aws_ecs_task_definition.aztec-node[1]"
+            else
+              deploy_terraform_services yarn-project/aztec-node aztec-sandbox
+            fi
+      - run:
+          name: "Deploy Aztec Faucet to AWS"
           command: |
             should_deploy 0 || exit 0
             export TF_VAR_FAUCET_PRIVATE_KEY=$FAUCET_PRIVATE_KEY
-            export TF_VAR_BOOTNODE_1_PEER_ID=$BOOTNODE_1_PEER_ID
-            export TF_VAR_BOOTNODE_2_PEER_ID=$BOOTNODE_2_PEER_ID
-            export TF_VAR_BOOTNODE_1_PRIVATE_KEY=$BOOTNODE_1_PRIVATE_KEY
-            export TF_VAR_BOOTNODE_2_PRIVATE_KEY=$BOOTNODE_2_PRIVATE_KEY
-            export TF_VAR_SEQ_1_PUBLISHER_PRIVATE_KEY=$SEQ_1_PUBLISHER_PRIVATE_KEY
-            export TF_VAR_SEQ_2_PUBLISHER_PRIVATE_KEY=$SEQ_2_PUBLISHER_PRIVATE_KEY
-            deploy_terraform p2p-bootstrap yarn-project/p2p-bootstrap/terraform
-            deploy_terraform aztec-node yarn-project/aztec-node/terraform
-            deploy_terraform aztec-faucet yarn-project/aztec-faucet/terraform
+            deploy_terraform_services yarn-project/aztec-faucet aztec-sandbox
 
 # Repeatable config for defining the workflow below.
 defaults: &defaults
@@ -1111,18 +1105,18 @@ workflows:
       - aztec-faucet: *defaults_yarn_project_prod
 
       # Boxes.
-      - boxes-blank-react:
-          requires:
-            - aztec-sandbox
-          <<: *defaults
-      - boxes-blank:
-          requires:
-            - aztec-sandbox
-          <<: *defaults
-      - boxes-token:
-          requires:
-            - aztec-sandbox
-          <<: *defaults
+      # - boxes-blank-react:
+      #     requires:
+      #       - aztec-sandbox
+      #     <<: *defaults
+      # - boxes-blank:
+      #     requires:
+      #       - aztec-sandbox
+      #     <<: *defaults
+      # - boxes-token:
+      #     requires:
+      #       - aztec-sandbox
+      #     <<: *defaults
 
       # End to end tests.
       - e2e-join:
@@ -1213,19 +1207,4 @@ workflows:
           <<: *defaults
 
       # Production releases.
-      - release-dockerhub: *defaults_deploy
-      - release-npm: *defaults_deploy
-
-      # Production deployment.
-      - deploy-mainnet-fork:
-          requires:
-            - release-dockerhub
-          <<: *defaults_deploy
-      - deploy-contracts:
-          requires:
-            - deploy-mainnet-fork
-          <<: *defaults_deploy
-      - deploy-devnet:
-          requires:
-            - deploy-contracts
-          <<: *defaults_deploy
+      - deploy-and-release: *defaults_deploy

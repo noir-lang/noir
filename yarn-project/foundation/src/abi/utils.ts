@@ -1,4 +1,4 @@
-import { ABIType } from './abi.js';
+import { type ABIType } from './abi.js';
 
 /**
  * Returns whether the ABI type is an Aztec or Ethereum Address defined in Aztec.nr.
@@ -6,7 +6,7 @@ import { ABIType } from './abi.js';
  * @returns Boolean.
  */
 export function isAddressStruct(abiType: ABIType) {
-  return isEthereumAddressStruct(abiType) || isAztecAddressStruct(abiType);
+  return isEthAddressStruct(abiType) || isAztecAddressStruct(abiType);
 }
 
 /**
@@ -14,8 +14,8 @@ export function isAddressStruct(abiType: ABIType) {
  * @param abiType - Type to check.
  * @returns Boolean.
  */
-export function isEthereumAddressStruct(abiType: ABIType) {
-  return abiType.kind === 'struct' && abiType.path.endsWith('::types::address::EthereumAddress');
+export function isEthAddressStruct(abiType: ABIType) {
+  return abiType.kind === 'struct' && abiType.path.endsWith('types::address::EthAddress');
 }
 
 /**
@@ -24,5 +24,14 @@ export function isEthereumAddressStruct(abiType: ABIType) {
  * @returns Boolean.
  */
 export function isAztecAddressStruct(abiType: ABIType) {
-  return abiType.kind === 'struct' && abiType.path.endsWith('::types::address::AztecAddress');
+  return abiType.kind === 'struct' && abiType.path.endsWith('types::address::AztecAddress');
+}
+
+/**
+ * Returns whether the ABI type is an Function Selector defined in Aztec.nr.
+ * @param abiType - Type to check.
+ * @returns Boolean.
+ */
+export function isFunctionSelectorStruct(abiType: ABIType) {
+  return abiType.kind === 'struct' && abiType.path.endsWith('types::abis::function_selector::FunctionSelector');
 }

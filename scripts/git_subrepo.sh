@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eu
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
@@ -11,10 +11,10 @@ fi
 
 # git subrepo is quite nice, but has one flaw in our workflow:
 # We frequently squash commits in PRs, and we might update the .gitrepo file
-# with a parent commit that later does not exist. 
+# with a parent commit that later does not exist.
 # A backup heuristic is used to later find the squashed commit's parent
-# using the .gitrepo file's git history. This might be brittle 
-# in the face of e.g. a .gitrepo whitespace change, but it's a fallback, 
+# using the .gitrepo file's git history. This might be brittle
+# in the face of e.g. a .gitrepo whitespace change, but it's a fallback,
 # we only have this issue in master, and the file should only be edited
 # generally by subrepo commands.
 SUBREPO_PATH="${2:-}"

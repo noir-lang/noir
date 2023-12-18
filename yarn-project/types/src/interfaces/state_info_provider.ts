@@ -13,6 +13,7 @@ import { L2Block } from '../l2_block.js';
 import { MerkleTreeId } from '../merkle_tree_id.js';
 import { SiblingPath } from '../sibling_path.js';
 import { NullifierMembershipWitness } from './nullifier_tree.js';
+import { PublicDataWitness } from './public_data_tree.js';
 
 /** Helper type for a specific L2 block number or the latest block number */
 type BlockNumber = number | 'latest';
@@ -49,7 +50,7 @@ export interface StateInfoProvider {
    * @returns The sibling path for the leaf index.
    * TODO: https://github.com/AztecProtocol/aztec-packages/issues/3414
    */
-  getNullifierTreeSiblingPath(
+  getNullifierSiblingPath(
     blockNumber: BlockNumber,
     leafIndex: bigint,
   ): Promise<SiblingPath<typeof NULLIFIER_TREE_HEIGHT>>;
@@ -102,7 +103,7 @@ export interface StateInfoProvider {
    * @returns The sibling path.
    * TODO: https://github.com/AztecProtocol/aztec-packages/issues/3414
    */
-  getPublicDataTreeSiblingPath(
+  getPublicDataSiblingPath(
     blockNumber: BlockNumber,
     leafIndex: bigint,
   ): Promise<SiblingPath<typeof PUBLIC_DATA_TREE_HEIGHT>>;
@@ -133,9 +134,26 @@ export interface StateInfoProvider {
   ): Promise<NullifierMembershipWitness | undefined>;
 
   /**
+   * Returns a public data tree witness for a given leaf slot at a given block.
+   * @param blockNumber - The block number at which to get the data.
+   * @param leafSlot - The leaf slot we try to find the witness for.
+   * @returns The public data witness (if found).
+   * @remarks The witness can be used to compute the current value of the public data tree leaf. If the low leaf preimage corresponds to an
+   * "in range" slot, means that the slot doesn't exist and the value is 0. If the low leaf preimage corresponds to the exact slot, the current value
+   * is contained in the leaf preimage.
+   */
+  getPublicDataTreeWitness(blockNumber: BlockNumber, leafSlot: Fr): Promise<PublicDataWitness | undefined>;
+
+  /**
    * Get a block specified by its number.
    * @param number - The block number being requested.
    * @returns The requested block.
    */
   getBlock(number: number): Promise<L2Block | undefined>;
+
+  /**
+   * Fetches the current block number.
+   * @returns The block number.
+   */
+  getBlockNumber(): Promise<number>;
 }

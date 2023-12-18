@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Tests noir contracts, if multiple are provided, then they are testing in parallel, bubbling any testing errors
 #

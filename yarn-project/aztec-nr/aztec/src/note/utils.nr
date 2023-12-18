@@ -1,4 +1,7 @@
-use dep::protocol_types::constants::GENERATOR_INDEX__OUTER_NULLIFIER;
+use dep::protocol_types::{
+    constants::GENERATOR_INDEX__OUTER_NULLIFIER,
+    hash::pedersen_hash,
+};
 use crate::{
     note::{
         note_hash::{compute_inner_hash, compute_siloed_hash, compute_unique_hash},
@@ -6,7 +9,6 @@ use crate::{
         note_interface::NoteInterface,
     },
     utils::arr_copy_slice,
-    hash::pedersen_hash,
 };
 
 pub fn compute_inner_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, note: Note) -> Field {
@@ -44,7 +46,7 @@ pub fn compute_siloed_nullifier<Note, N>(note_interface: NoteInterface<Note, N>,
     let compute_nullifier = note_interface.compute_nullifier;
     let inner_nullifier = compute_nullifier(note_with_header);
 
-    let input = [header.contract_address, inner_nullifier];
+    let input = [header.contract_address.to_field(), inner_nullifier];
     pedersen_hash(input, GENERATOR_INDEX__OUTER_NULLIFIER)
 }
 

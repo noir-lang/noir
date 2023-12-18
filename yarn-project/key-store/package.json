@@ -32,6 +32,7 @@
   "dependencies": {
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
+    "@aztec/kv-store": "workspace:^",
     "@aztec/types": "workspace:^",
     "tslib": "^2.4.0"
   },

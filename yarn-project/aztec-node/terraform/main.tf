@@ -59,7 +59,7 @@ locals {
   node_p2p_private_keys  = [var.NODE_1_PRIVATE_KEY, var.NODE_2_PRIVATE_KEY]
   node_count             = length(local.publisher_private_keys)
   bootnodes = [for i in range(0, local.node_count) :
-    "/dns4/${var.DEPLOY_TAG}-aztec-bootstrap-${i + 1}.local/tcp/${var.BOOTNODE_LISTEN_PORT + i}/p2p/${local.bootnode_ids[i]}"
+    "/dns4/${var.DEPLOY_TAG}-p2p-bootstrap-${i + 1}.local/tcp/${var.BOOTNODE_LISTEN_PORT + i}/p2p/${local.bootnode_ids[i]}"
   ]
   combined_bootnodes = join(",", local.bootnodes)
   data_dir           = "/usr/src/yarn-project/aztec-sandbox/data"
@@ -110,7 +110,7 @@ resource "aws_efs_file_system" "node_data_store" {
   provisioned_throughput_in_mibps = 20
 
   tags = {
-    Name = "${var.DEPLOY_TAG}-node-data"
+    Name = "${var.DEPLOY_TAG}-node-${count.index + 1}-data"
   }
 
   lifecycle_policy {

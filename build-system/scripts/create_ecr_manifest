@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This script:
 # 1. Logs into ECR and ensures we have the given repository
 # 2. Computes the image uri of the cached images for the given repository given the list of architectures

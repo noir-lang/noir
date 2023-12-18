@@ -165,7 +165,7 @@ describe('guides/dapp/testing', () => {
         await token.methods.mint_public(owner.getAddress(), 100n).send().wait();
         const ownerPublicBalanceSlot = cheats.aztec.computeSlotInMap(6n, owner.getAddress());
         const balance = await pxe.getPublicStorageAt(token.address, ownerPublicBalanceSlot);
-        expect(balance!.value).toEqual(100n);
+        expect(balance.value).toEqual(100n);
         // docs:end:public-storage
       }, 30_000);
 

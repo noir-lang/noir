@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export SKIP_TITLE=1
+bash -i <(curl -s http://install.aztec.network)

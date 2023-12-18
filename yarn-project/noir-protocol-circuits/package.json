@@ -15,11 +15,9 @@
     "noir:build": "cd src && ../../../noir/target/release/nargo compile --silence-warnings && rm -rf ./target/debug_*",
     "noir:types": "yarn ts-node --esm src/scripts/generate_ts_from_abi.ts && yarn formatting:fix",
     "noir:test": "cd src && ../../../noir/target/release/nargo test",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
+    "test": "yarn test:js && yarn noir:test",
+    "test:js": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
   },
-  "inherits": [
-    "../package.common.json"
-  ],
   "jest": {
     "preset": "ts-jest/presets/default-esm",
     "moduleNameMapper": {

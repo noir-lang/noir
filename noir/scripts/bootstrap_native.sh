@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eu
 
 cd $(dirname "$0")/..
@@ -13,4 +13,8 @@ else
 fi
 
 # Build native.
-cargo build --features="noirc_driver/aztec" --release
+if [ -n "${DEBUG:-}" ]; then
+  cargo build --features="noirc_driver/aztec"
+else
+  cargo build --features="noirc_driver/aztec" --release
+fi

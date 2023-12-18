@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Uploads to S3 the contents of the log file mounted on the end-to-end container,
 # which contains log entries with an associated event and metrics for it.

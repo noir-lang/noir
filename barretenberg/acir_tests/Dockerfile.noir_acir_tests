@@ -3,7 +3,7 @@
 # So, it lives here.
 # This chains off the nargo build, and creates a container with a compiled set of acir tests.
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir
-RUN apk add bash jq
+RUN apt update && apt install -y jq && rm -rf /var/lib/apt/lists/* && apt-get clean
 ENV PATH="/usr/src/noir/target/release:${PATH}"
 WORKDIR /usr/src/noir/test_programs
 COPY . .

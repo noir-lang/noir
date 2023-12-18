@@ -1,9 +1,25 @@
-#!/bin/bash
+#!/usr/bin/env bash
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
-# Redeploy service with latest image.
+# Redeploy services with the latest image that match $DEPLOY_TAG followed by $SERVICE_NAME.
 SERVICE_NAME=$1
-if aws ecs list-services --region $ECR_DEPLOY_REGION --cluster setup | grep "/$SERVICE_NAME\"" > /dev/null; then
-  aws ecs update-service --region $ECR_DEPLOY_REGION --cluster setup --service $SERVICE_NAME --force-new-deployment
-fi
+PATTERN="${DEPLOY_TAG}.*${SERVICE_NAME}[^\"]*"
+
+# Fetch list of services
+SERVICES=$(aws ecs list-services --region $ECR_DEPLOY_REGION --cluster setup | grep -Eo "arn:aws:ecs:[^:]+:[^:]+:service/[^/]+/${PATTERN}" || true)
+
+echo "Services to redeploy:"
+echo "$SERVICES"
+
+# Loop through and update each matching service.
+for SERVICE_ARN in $SERVICES; do
+  # Extract the actual service name from ARN
+  ACTUAL_SERVICE_NAME=$(echo "$SERVICE_ARN" | awk -F/ '{print $NF}')
+
+  if [ "$DRY_DEPLOY" -eq 1 ]; then
+    echo "DRY_DEPLOY: aws ecs update-service --region $ECR_DEPLOY_REGION --cluster setup --service $ACTUAL_SERVICE_NAME --force-new-deployment"
+  else
+    aws ecs update-service --region $ECR_DEPLOY_REGION --cluster setup --service $ACTUAL_SERVICE_NAME --force-new-deployment
+  fi
+done

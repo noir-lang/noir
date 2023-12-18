@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eu
 
 #find ./cpp/src -type f -name "c_bind*.hpp" | ./scripts/decls_json.py > exports.json

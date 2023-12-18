@@ -3,6 +3,7 @@ mod ecdsa_public_key_note;
 // Account contract that uses ECDSA signatures for authentication on the same curve as Ethereum.
 // The signing key is stored in an immutable private note and should be different from the signing key.
 contract EcdsaAccount {
+    use dep::protocol_types::address::AztecAddress;
     use dep::std;
     use dep::std::option::Option;
     use dep::aztec::{
@@ -30,7 +31,7 @@ contract EcdsaAccount {
     }
 
     impl Storage {
-        fn init(context: Context) -> pub Self {
+        fn init(context: Context) -> Self {
             Storage {
                 public_key: ImmutableSingleton::new(context, 1, EcdsaPublicKeyNoteInterface),
             }
@@ -47,6 +48,7 @@ contract EcdsaAccount {
         storage.public_key.initialize(&mut pub_key_note, Option::none(), true);
     }
 
+    // Note: If you globally change the entrypoint signature don't forget to update default_entrypoint.ts
     #[aztec(private)]
     fn entrypoint(payload: pub EntrypointPayload) {
         let actions = AccountActions::private(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
@@ -103,7 +105,8 @@ contract EcdsaAccount {
         serialized_note: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]
     ) -> [Field; 4] {
         assert(storage_slot == 1);
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+        let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
+        let note_header = NoteHeader::new(_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(EcdsaPublicKeyNoteInterface, note_header, serialized_note)
     }
 }

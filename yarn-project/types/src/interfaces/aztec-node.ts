@@ -39,12 +39,6 @@ export interface AztecNode extends StateInfoProvider {
   getBlocks(from: number, limit: number): Promise<L2Block[]>;
 
   /**
-   * Fetches the current block number.
-   * @returns The block number.
-   */
-  getBlockNumber(): Promise<number>;
-
-  /**
    * Method to fetch the version of the rollup the node is connected to.
    * @returns The rollup version.
    */
@@ -128,9 +122,9 @@ export interface AztecNode extends StateInfoProvider {
    *
    * @param contract - Address of the contract to query.
    * @param slot - Slot to query.
-   * @returns Storage value at the given contract slot (or undefined if not found).
+   * @returns Storage value at the given contract slot.
    */
-  getPublicStorageAt(contract: AztecAddress, slot: Fr): Promise<Fr | undefined>;
+  getPublicStorageAt(contract: AztecAddress, slot: Fr): Promise<Fr>;
 
   /**
    * Returns the current committed roots for the data trees.

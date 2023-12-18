@@ -1,6 +1,6 @@
-import { ABIType, FunctionAbi, isAddressStruct } from '@aztec/foundation/abi';
-
 import { Fr } from '../fields/index.js';
+import { ABIType, FunctionAbi } from './abi.js';
+import { isAddressStruct, isFunctionSelectorStruct } from './utils.js';
 
 /**
  * Encodes arguments for a function call.
@@ -68,17 +68,32 @@ class ArgumentEncoder {
           this.encodeArgument(abiType.type, arg[i], `${name}[${i}]`);
         }
         break;
-      case 'struct':
+      case 'struct': {
         // If the abi expects a struct like { address: Field } and the supplied arg does not have
         // an address field in it, we try to encode it as if it were a field directly.
-        if (isAddressStruct(abiType) && typeof arg.address === 'undefined') {
-          this.encodeArgument({ kind: 'field' }, arg, `${name}.address`);
+        const isAddress = isAddressStruct(abiType);
+        if (isAddress && typeof arg.address === 'undefined' && typeof arg.inner === 'undefined') {
+          this.encodeArgument({ kind: 'field' }, arg, `${name}.inner`);
+          break;
+        }
+        if (isFunctionSelectorStruct(abiType)) {
+          if (typeof arg.value === 'undefined') {
+            this.encodeArgument({ kind: 'integer', sign: 'unsigned', width: 32 }, arg, `${name}.inner`);
+          } else {
+            this.encodeArgument({ kind: 'integer', sign: 'unsigned', width: 32 }, arg.value, `${name}.inner`);
+          }
           break;
         }
         for (const field of abiType.fields) {
-          this.encodeArgument(field.type, arg[field.name], `${name}.${field.name}`);
+          // The ugly check bellow is here because of a `CompleteAddress`. Since it has `address` property but in ABI
+          // it's called inner we set `field.name` here to `address` instead of using `field.name`. I know it's hacky
+          // but using address.address in Noir looks stupid and renaming `address` param of `CompleteAddress`
+          // to `inner` doesn't make sense.
+          const fieldName = isAddress && arg.address !== undefined ? 'address' : field.name;
+          this.encodeArgument(field.type, arg[fieldName], `${name}.${field.name}`);
         }
         break;
+      }
       case 'integer':
         this.flattened.push(new Fr(arg));
         break;

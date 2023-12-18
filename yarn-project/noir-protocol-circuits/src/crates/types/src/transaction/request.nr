@@ -1,10 +1,10 @@
 use crate::constants::GENERATOR_INDEX__TX_REQUEST;
-use crate::address::Address;
+use crate::address::AztecAddress;
 use crate::transaction::context::TxContext;
 use crate::abis::function_data::FunctionData;
 
 struct TxRequest {
-    origin : Address,
+    origin : AztecAddress,
     args_hash : Field,
     tx_context : TxContext,
     function_data : FunctionData

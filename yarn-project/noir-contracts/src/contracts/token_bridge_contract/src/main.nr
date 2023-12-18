@@ -7,12 +7,16 @@ mod token_interface;
 // Bridge has to be set as a minter on the token before it can be used
 
 contract TokenBridge {
+    use dep::protocol_types::address::{
+        AztecAddress,
+        EthAddress,
+    };
+
     use dep::aztec::{
         context::{Context},
         hash::{compute_secret_hash},
         state_vars::{public_state::PublicState},
-        types::type_serialization::field_serialization::FieldSerializationMethods,
-        types::address::{AztecAddress, EthereumAddress},
+        types::type_serialization::address_serialization::AddressSerializationMethods,
         selector::compute_selector,
     };
     // docs:end:token_bridge_imports
@@ -24,7 +28,7 @@ contract TokenBridge {
     // docs:start:token_bridge_storage_and_constructor
     // Storage structure, containing all storage, and specifying what slots they use.
     struct Storage {
-        token: PublicState<Field, 1>,
+        token: PublicState<AztecAddress, 1>,
     }
 
     impl Storage {
@@ -33,7 +37,7 @@ contract TokenBridge {
                 token: PublicState::new(
                     context,
                     1,
-                    FieldSerializationMethods,
+                    AddressSerializationMethods,
                 ),
             }
         }
@@ -43,21 +47,21 @@ contract TokenBridge {
     #[aztec(private)]
     fn constructor(token: AztecAddress) {
         let selector = compute_selector("_initialize((Field))");
-        context.call_public_function(context.this_address(), selector, [token.address]);
+        context.call_public_function(context.this_address(), selector, [token.to_field()]);
     }
     // docs:end:token_bridge_storage_and_constructor
 
     // docs:start:claim_public
     // Consumes a L1->L2 message and calls the token contract to mint the appropriate amount publicly
     #[aztec(public)]
-    fn claim_public(to: AztecAddress, amount: Field, canceller: EthereumAddress, msg_key: Field, secret: Field) {
-        let content_hash = get_mint_public_content_hash(to.address, amount, canceller.address);
+    fn claim_public(to: AztecAddress, amount: Field, canceller: EthAddress, msg_key: Field, secret: Field) {
+        let content_hash = get_mint_public_content_hash(to, amount, canceller);
 
         // Consume message and emit nullifier
         context.consume_l1_to_l2_message(msg_key, content_hash, secret);
 
         // Mint tokens
-        Token::at(storage.token.read()).mint_public(context, to.address, amount);
+        Token::at(storage.token.read()).mint_public(context, to, amount);
     }
     // docs:end:claim_public
 
@@ -66,13 +70,13 @@ contract TokenBridge {
     // Requires `msg.sender` to give approval to the bridge to burn tokens on their behalf using witness signatures
     #[aztec(public)]
     fn exit_to_l1_public(
-        recipient: EthereumAddress, // ethereum address to withdraw to
+        recipient: EthAddress, // ethereum address to withdraw to
         amount: Field,
-        callerOnL1: EthereumAddress, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
+        callerOnL1: EthAddress, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
         nonce: Field // nonce used in the approval message by `msg.sender` to let bridge burn their tokens on L2
     ) {
         // Send an L2 to L1 message
-        let content = get_withdraw_content_hash(recipient.address, amount, callerOnL1.address);
+        let content = get_withdraw_content_hash(recipient, amount, callerOnL1);
         context.message_portal(content);
 
         // Burn tokens
@@ -86,14 +90,14 @@ contract TokenBridge {
     fn claim_private(
         secret_hash_for_redeeming_minted_notes: Field, // secret hash used to redeem minted notes at a later time. This enables anyone to call this function and mint tokens to a user on their behalf
         amount: Field,
-        canceller: EthereumAddress,
+        canceller: EthAddress,
         msg_key: Field, // L1 to L2 message key as derived from the inbox contract
         secret_for_L1_to_L2_message_consumption: Field // secret used to consume the L1 to L2 message
     ) {
         // Consume L1 to L2 message and emit nullifier
         let content_hash = get_mint_private_content_hash(secret_hash_for_redeeming_minted_notes,
             amount,
-            canceller.address);
+            canceller);
         context.consume_l1_to_l2_message(msg_key, content_hash, secret_for_L1_to_L2_message_consumption);
 
         // Mint tokens on L2
@@ -112,43 +116,43 @@ contract TokenBridge {
     #[aztec(private)]
     fn exit_to_l1_private(
         token: AztecAddress,
-        recipient: EthereumAddress, // ethereum address to withdraw to
+        recipient: EthAddress, // ethereum address to withdraw to
         amount: Field,
-        callerOnL1: EthereumAddress, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
+        callerOnL1: EthAddress, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
         nonce: Field // nonce used in the approval message by `msg.sender` to let bridge burn their tokens on L2
     ) {
         // Send an L2 to L1 message
-        let content = get_withdraw_content_hash(recipient.address, amount, callerOnL1.address);
+        let content = get_withdraw_content_hash(recipient, amount, callerOnL1);
         context.message_portal(content);
 
         // docs:start:call_assert_token_is_same
         // Assert that user provided token address is same as seen in storage.
         context.call_public_function(context.this_address(),
-            compute_selector("_assert_token_is_same(Field)"),
-            [token.address]);
+            compute_selector("_assert_token_is_same((Field))"),
+            [token.to_field()]);
         // docs:end:call_assert_token_is_same
 
         // Burn tokens
-        Token::at(token.address).burn(&mut context, context.msg_sender(), amount, nonce);
+        Token::at(token).burn(&mut context, context.msg_sender(), amount, nonce);
     }
     /// docs:end:exit_to_l1_private
 
     // View function that is callable by other contracts.
     // Unconstrained can't be called by others since it isn't safe.
     #[aztec(public)]
-    fn get_token() -> Field {
+    fn get_token() -> AztecAddress {
         storage.token.read()
     }
 
     // /// Unconstrained ///
 
-    unconstrained fn token() -> Field {
+    unconstrained fn token() -> AztecAddress {
         storage.token.read()
     }
 
     #[aztec(public)]
     internal fn _initialize(token: AztecAddress) {
-        storage.token.write(token.address);
+        storage.token.write(token);
     }
 
     // docs:start:call_mint_on_token
@@ -163,8 +167,8 @@ contract TokenBridge {
 
     // docs:start:assert_token_is_same
     #[aztec(public)]
-    internal fn _assert_token_is_same(token: Field) {
-        assert(storage.token.read() == token, "Token address is not the same as seen in storage");
+    internal fn _assert_token_is_same(token: AztecAddress) {
+        assert(storage.token.read().eq(token), "Token address is not the same as seen in storage");
     }
     // docs:end:assert_token_is_same
 

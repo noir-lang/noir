@@ -11,6 +11,34 @@ namespace proof_system {
 using plookup::ColumnIdx;
 using plookup::MultiTableId;
 
+TEST(ultra_circuit_constructor, copy_constructor)
+{
+    UltraCircuitBuilder circuit_constructor = UltraCircuitBuilder();
+
+    for (size_t i = 0; i < 16; ++i) {
+        for (size_t j = 0; j < 16; ++j) {
+            uint64_t left = static_cast<uint64_t>(j);
+            uint64_t right = static_cast<uint64_t>(i);
+            uint32_t left_idx = circuit_constructor.add_variable(fr(left));
+            uint32_t right_idx = circuit_constructor.add_variable(fr(right));
+            uint32_t result_idx = circuit_constructor.add_variable(fr(left ^ right));
+
+            uint32_t add_idx =
+                circuit_constructor.add_variable(fr(left) + fr(right) + circuit_constructor.get_variable(result_idx));
+            circuit_constructor.create_big_add_gate(
+                { left_idx, right_idx, result_idx, add_idx, fr(1), fr(1), fr(1), fr(-1), fr(0) });
+        }
+    }
+
+    bool result = circuit_constructor.check_circuit();
+    EXPECT_EQ(result, true);
+
+    UltraCircuitBuilder duplicate_circuit_constructor{ circuit_constructor };
+
+    EXPECT_EQ(duplicate_circuit_constructor.get_num_gates(), circuit_constructor.get_num_gates());
+    EXPECT_TRUE(duplicate_circuit_constructor.check_circuit());
+}
+
 TEST(ultra_circuit_constructor, create_gates_from_plookup_accumulators)
 {
 
@@ -742,6 +770,12 @@ TEST(ultra_circuit_constructor, ram)
     EXPECT_EQ(result, true);
 
     EXPECT_TRUE(saved_state.is_same_state(circuit_constructor));
+
+    // Test the builder copy constructor for a circuit with RAM gates
+    UltraCircuitBuilder duplicate_circuit_constructor{ circuit_constructor };
+
+    EXPECT_EQ(duplicate_circuit_constructor.get_num_gates(), circuit_constructor.get_num_gates());
+    EXPECT_TRUE(duplicate_circuit_constructor.check_circuit());
 }
 
 TEST(ultra_circuit_constructor, range_checks_on_duplicates)

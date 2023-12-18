@@ -8,6 +8,7 @@ mod context;
 mod debug_log;
 mod get_l1_to_l2_message;
 mod get_nullifier_membership_witness;
+mod get_public_data_witness;
 mod get_membership_witness;
 mod get_public_key;
 mod get_secret_key;

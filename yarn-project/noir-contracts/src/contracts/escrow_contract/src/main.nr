@@ -2,6 +2,8 @@
 contract Escrow {
     use dep::std::option::Option;
 
+    use dep::protocol_types::address::AztecAddress;
+
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
         note::{
@@ -25,7 +27,7 @@ contract Escrow {
     }
 
     impl Storage {
-        fn init(context: Context) -> pub Self {
+        fn init(context: Context) -> Self {
             Storage {
                 owners: Set::new(context, 1, AddressNoteMethods),
             }
@@ -35,7 +37,7 @@ contract Escrow {
     // Creates a new instance
     // docs:start:constructor
     #[aztec(private)]
-    fn constructor(owner: pub Field) {
+    fn constructor(owner: pub AztecAddress) {
         let this = context.this_address();
 
         // Create a new note and add it to the owners set.
@@ -48,21 +50,22 @@ contract Escrow {
 
     // Withdraws balance. Requires that msg.sender is registered as an owner.
     #[aztec(private)]
-    fn withdraw(token: Field, amount: Field, recipient: Field) {
+    fn withdraw(token: AztecAddress, amount: Field, recipient: AztecAddress) {
         let this = context.this_address();
         let sender = context.msg_sender();
 
         // We don't remove note from the owners set. If a note exists, the owner and recipient are legit.
-        let options = NoteGetterOptions::new().select(0, sender).select(1, this).set_limit(1);
+        let options = NoteGetterOptions::new().select(0, sender.to_field()).select(1, this.to_field()).set_limit(1);
         let notes = storage.owners.get_notes(options);
         assert(notes[0].is_some(), "Sender is not an owner.");
 
         let selector = compute_selector("transfer((Field),(Field),Field,Field)");
-        let _callStackItem = context.call_private_function(token, selector, [this, recipient, amount, 0]);
+        let _callStackItem = context.call_private_function(token, selector, [this.to_field(), recipient.to_field(), amount, 0]);
     }
 
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; ADDRESS_NOTE_LEN]) -> [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+        let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
+        let note_header = NoteHeader::new(_address, nonce, storage_slot);
         assert(storage_slot == 1);
         note_utils::compute_note_hash_and_nullifier(AddressNoteMethods, note_header, serialized_note)
     }

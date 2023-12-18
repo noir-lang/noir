@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
@@ -23,8 +23,14 @@ function deploy_package() {
   VERSION=$(extract_tag_version $REPOSITORY false)
   echo "Deploying $REPOSITORY $VERSION $DIST_TAG"
 
-  if [ -n "$DIST_TAG" ]; then
+  # If the commit tag itself has a dist-tag (e.g. v2.1.0-testnet.123), extract the dist-tag.
+  TAG=$(echo "$VERSION" | grep -oP ".*-\K(.*)(?=\.\d+)" || true)
+  TAG_ARG=""
+  if [ -n "$TAG" ]; then
+    TAG_ARG="--tag $TAG"
+  else
     TAG_ARG="--tag $DIST_TAG"
+    TAG=$DIST_TAG
   fi
 
   PUBLISHED_VERSION=$(npm show . version ${TAG_ARG:-} 2>/dev/null) || true
@@ -32,7 +38,7 @@ function deploy_package() {
 
   # Check if there is already a published package equal to given version, assume this is a re-run of a deploy
   if [ "$VERSION" == "$PUBLISHED_VERSION" ]; then
-    echo "Tagged ${DIST_TAG:+ $DIST_TAG}version $VERSION is equal to published ${DIST_TAG:+ $DIST_TAG}version $PUBLISHED_VERSION."
+    echo "Tagged $TAG version $VERSION is equal to published $TAG version $PUBLISHED_VERSION."
     echo "Skipping publish."
     exit 0
   fi
@@ -61,7 +67,7 @@ function deploy_package() {
     # Check if version exists
     if npm view "$PACKAGE_NAME@$VERSION" version >/dev/null 2>&1; then
       # Tag the existing version
-      npm dist-tag add $PACKAGE_NAME@$VERSION $DIST_TAG
+      npm dist-tag add $PACKAGE_NAME@$VERSION $TAG
     else
       # Publish new version
       npm publish $TAG_ARG --access public

@@ -14,11 +14,24 @@ In this guide, you will
 ## Prerequisites
 
 - Node.js >= v18 (recommend installing with [nvm](https://github.com/nvm-sh/nvm))
-- Docker and Docker Compose (Docker Desktop under WSL2 on windows)
+
+## Install Docker
+
+See this page of the Docker docs for instructions on how to install Docker Desktop for your operating system: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
+
+Once you have Docker installed, make sure it is running by opening the Docker Desktop application.
+
+### Note on Linux
+
+If you are running Linux, you will need to set the context (because Docker Desktop runs in a VM by default). See [this page](https://docs.docker.com/desktop/faqs/linuxfaqs/#what-is-the-difference-between-docker-desktop-for-linux-and-docker-engine) for more information. You can do this by running:
+
+```bash
+docker context use default
+```
 
 ## Install the Sandbox
 
-You can run the Sandbox using either Docker or npm. In this guide we will use Docker, but you can learn more about alternative installation methods [here](../cli/sandbox-reference.md).
+You can run the Sandbox using Docker.
 
 To install the latest Sandbox version, run:
 
@@ -29,8 +42,6 @@ To install the latest Sandbox version, run:
 This will attempt to run the Sandbox on ` localhost:8080`, so you will have to make sure nothing else is running on that port or change the port defined in `./.aztec/docker-compose.yml`. Running the command again will overwrite any changes made to the `docker-compose.yml`.
 
 This command will also install the CLI if a node package version of the CLI isn't found locally.
-
-Alternatively, you can [run the sandbox as an npm package](../cli/sandbox-reference.md#with-npm).
 
 ## Deploy a contract using the CLI
 

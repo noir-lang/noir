@@ -1,11 +1,11 @@
 use crate::point::Point;
-use crate::address::Address;
+use crate::address::AztecAddress;
 use crate::hash::{compute_partial_address,compute_contract_address_from_partial};
 
 struct CompleteAddress{
-    address : Address,
+    address : AztecAddress,
     public_key : Point, 
-    // TODO(David): Can we type this as Address instead of Field?
+    // TODO(David): Can we type this as AztecAddress instead of Field?
     partial_address: Field,
 }
 

@@ -16,6 +16,8 @@
  *   import { AztecAddress } from '@aztec/aztec.js/aztec_address';
  *   import { EthAddress } from '@aztec/aztec.js/eth_address';
  * ```
+ *
+ * TODO: Ultimately reimplement this mega exporter by mega exporting a granular api (then deprecate it).
  */
 export {
   WaitOpts,
@@ -36,6 +38,7 @@ export {
   computeMessageSecretHash,
   CheatCodes,
   AztecAddressLike,
+  FunctionSelectorLike,
   isContractDeployed,
   EthCheatCodes,
   computeAuthWitMessageHash,
@@ -118,7 +121,7 @@ export {
 // External devs will almost certainly have their own methods of doing these things.
 // If we want to use them in our own "aztec.js consuming code", import them from foundation as needed.
 export { ContractArtifact, FunctionArtifact, encodeArguments } from '@aztec/foundation/abi';
-export { sha256, init } from '@aztec/foundation/crypto';
+export { sha256 } from '@aztec/foundation/crypto';
 export { DebugLogger, createDebugLogger, onLog } from '@aztec/foundation/log';
 export { retry, retryUntil } from '@aztec/foundation/retry';
 export { sleep } from '@aztec/foundation/sleep';
@@ -127,6 +130,7 @@ export { fileURLToPath } from '@aztec/foundation/url';
 export { to2Fields, toBigInt } from '@aztec/foundation/serialize';
 export { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 export { makeFetch } from '@aztec/foundation/json-rpc/client';
+export { FieldsOf } from '@aztec/foundation/types';
 
 export {
   DeployL1Contracts,
@@ -135,4 +139,7 @@ export {
   deployL1Contracts,
 } from '@aztec/ethereum';
 
-export { FieldsOf } from '@aztec/foundation/types';
+// Start of section that exports public api via granular api.
+// Here you *can* do `export *` as the granular api defacto exports things explicitly.
+// This entire index file will be deprecated at some point after we're satisfied.
+export * from './api/init.js';

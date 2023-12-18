@@ -90,28 +90,11 @@ template <class FF> class GrandProductTests : public testing::Test {
         };
 
         typename Flavor::ProverPolynomials prover_polynomials;
-        prover_polynomials.w_l = proving_key->w_l;
-        prover_polynomials.w_r = proving_key->w_r;
-        prover_polynomials.w_o = proving_key->w_o;
-        prover_polynomials.q_m = proving_key->q_m;
-        prover_polynomials.q_l = proving_key->q_l;
-        prover_polynomials.q_r = proving_key->q_r;
-        prover_polynomials.q_o = proving_key->q_o;
-        prover_polynomials.q_c = proving_key->q_c;
-        prover_polynomials.sigma_1 = proving_key->sigma_1;
-        prover_polynomials.sigma_2 = proving_key->sigma_2;
-        prover_polynomials.sigma_3 = proving_key->sigma_3;
-        prover_polynomials.id_1 = proving_key->id_1;
-        prover_polynomials.id_2 = proving_key->id_2;
-        prover_polynomials.id_3 = proving_key->id_3;
-        prover_polynomials.lagrange_first = proving_key->lagrange_first;
-        prover_polynomials.lagrange_last = proving_key->lagrange_last;
-        if constexpr (Flavor::NUM_WIRES == 4) {
-            prover_polynomials.w_4 = proving_key->w_4;
-            prover_polynomials.sigma_4 = proving_key->sigma_4;
-            prover_polynomials.id_4 = proving_key->id_4;
+        for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_unshifted(), proving_key->get_all())) {
+            ASSERT(proof_system::flavor_get_label(prover_polynomials, prover_poly) ==
+                   proof_system::flavor_get_label(*proving_key, key_poly));
+            prover_poly = key_poly.share();
         }
-        prover_polynomials.z_perm = proving_key->z_perm;
 
         // Method 1: Compute z_perm using 'compute_grand_product_polynomial' as the prover would in practice
         constexpr size_t PERMUTATION_RELATION_INDEX = 0;
@@ -237,7 +220,7 @@ template <class FF> class GrandProductTests : public testing::Test {
         auto lookup_index_selector = get_random_polynomial(circuit_size);
         auto lookup_selector = get_random_polynomial(circuit_size);
 
-        proving_key->sorted_accum = sorted_batched;
+        proving_key->sorted_accum = sorted_batched.share();
         populate_span(proving_key->q_r, column_1_step_size);
         populate_span(proving_key->q_m, column_2_step_size);
         populate_span(proving_key->q_c, column_3_step_size);
@@ -257,30 +240,22 @@ template <class FF> class GrandProductTests : public testing::Test {
             .lookup_grand_product_delta = 1,
         };
 
-        Flavor::ProverPolynomials prover_polynomials;
-        prover_polynomials.w_l = proving_key->w_l;
-        prover_polynomials.w_r = proving_key->w_r;
-        prover_polynomials.w_o = proving_key->w_o;
-        prover_polynomials.w_l_shift = proving_key->w_l.shifted();
-        prover_polynomials.w_r_shift = proving_key->w_r.shifted();
-        prover_polynomials.w_o_shift = proving_key->w_o.shifted();
-        prover_polynomials.sorted_accum = proving_key->sorted_accum;
-        prover_polynomials.sorted_accum_shift = proving_key->sorted_accum.shifted();
-        prover_polynomials.table_1 = proving_key->table_1;
-        prover_polynomials.table_2 = proving_key->table_2;
-        prover_polynomials.table_3 = proving_key->table_3;
-        prover_polynomials.table_4 = proving_key->table_4;
-        prover_polynomials.table_1_shift = proving_key->table_1.shifted();
-        prover_polynomials.table_2_shift = proving_key->table_2.shifted();
-        prover_polynomials.table_3_shift = proving_key->table_3.shifted();
-        prover_polynomials.table_4_shift = proving_key->table_4.shifted();
-        prover_polynomials.q_m = proving_key->q_m;
-        prover_polynomials.q_r = proving_key->q_r;
-        prover_polynomials.q_o = proving_key->q_o;
-        prover_polynomials.q_c = proving_key->q_c;
-        prover_polynomials.q_lookup = proving_key->q_lookup;
-        prover_polynomials.z_perm = proving_key->z_perm;
-        prover_polynomials.z_lookup = proving_key->z_lookup;
+        typename Flavor::ProverPolynomials prover_polynomials;
+        for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_unshifted(), proving_key->get_all())) {
+            ASSERT(proof_system::flavor_get_label(prover_polynomials, prover_poly) ==
+                   proof_system::flavor_get_label(*proving_key, key_poly));
+            prover_poly = key_poly.share();
+        }
+        for (auto [prover_poly, key_poly] :
+             zip_view(prover_polynomials.get_shifted(), proving_key->get_to_be_shifted())) {
+            ASSERT(proof_system::flavor_get_label(prover_polynomials, prover_poly) ==
+                   proof_system::flavor_get_label(*proving_key, key_poly) + "_shift");
+            prover_poly = key_poly.shifted();
+        }
+        // Test a few assignments
+        EXPECT_EQ(&proving_key->z_lookup[0], &prover_polynomials.z_lookup[0]);
+        EXPECT_EQ(&proving_key->sigma_1[0], &prover_polynomials.sigma_1[0]);
+        EXPECT_EQ(&proving_key->lagrange_last[0], &prover_polynomials.lagrange_last[0]);
 
         // Method 1: Compute z_lookup using the prover library method
         constexpr size_t LOOKUP_RELATION_INDEX = 1;

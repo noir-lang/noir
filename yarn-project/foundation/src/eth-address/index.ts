@@ -1,4 +1,5 @@
-import { keccak256String, randomBytes } from '../crypto/index.js';
+import { keccak256String } from '../crypto/keccak/index.js';
+import { randomBytes } from '../crypto/random/index.js';
 import { Fr } from '../fields/index.js';
 import { BufferReader } from '../serialize/index.js';
 

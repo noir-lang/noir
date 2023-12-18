@@ -1,8 +1,10 @@
-import { ABIParameter, decodeFunctionSignature } from '@aztec/foundation/abi';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { keccak } from '@aztec/foundation/crypto';
-import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
+
+import { keccak } from '../crypto/keccak/index.js';
+import { Fr } from '../fields/index.js';
+import { ABIParameter } from './abi.js';
+import { decodeFunctionSignature } from './decoder.js';
 
 /**
  * A function selector is the first 4 bytes of the hash of a function signature.

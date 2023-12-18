@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Return a repositories build cache image tag based on content hash.
 # If the second argument is set:
 #   It's used to suffix the tag with the given unique arch descriptor.

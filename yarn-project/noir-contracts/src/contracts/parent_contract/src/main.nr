@@ -1,13 +1,17 @@
 // A contract used along with `Child` contract to test nested calls.
 contract Parent {
     use dep::aztec::selector::compute_selector;
+    use dep::protocol_types::{
+        address::AztecAddress,
+        abis::function_selector::FunctionSelector,
+    };
 
     #[aztec(private)]
     fn constructor() {}
 
     // Private function to call another private function in the targetContract using the provided selector
     #[aztec(private)]
-    fn entryPoint(targetContract: Field, targetSelector: Field) -> Field {
+    fn entryPoint(targetContract: AztecAddress, targetSelector: FunctionSelector) -> Field {
         // Call the target private function
         let return_values = context.call_private_function(targetContract, targetSelector, [0]);
 
@@ -17,7 +21,7 @@ contract Parent {
 
     // Public function to directly call another public function to the targetContract using the selector and value provided
     #[aztec(public)]
-    fn pubEntryPoint(targetContract: Field, targetSelector: Field, initValue: Field) -> Field {
+    fn pubEntryPoint(targetContract: AztecAddress, targetSelector: FunctionSelector, initValue: Field) -> Field {
         let return_values = context.call_public_function(targetContract, targetSelector, [initValue]);
 
         return_values[0]
@@ -25,7 +29,7 @@ contract Parent {
 
     // Same as pubEntryPoint, but calls the target contract twice, using the return value from the first invocation as the argument for the second.
     #[aztec(public)]
-    fn pubEntryPointTwice(targetContract: Field, targetSelector: Field, initValue: Field) -> Field {
+    fn pubEntryPointTwice(targetContract: AztecAddress, targetSelector: FunctionSelector, initValue: Field) -> Field {
         let returnValue = context.call_public_function(targetContract, targetSelector, [initValue])[0];
         let return_values = context.call_public_function(targetContract, targetSelector, [returnValue]);
 
@@ -34,7 +38,7 @@ contract Parent {
 
     // Private function to enqueue a call to the targetContract address using the selector and argument provided
     #[aztec(private)]
-    fn enqueueCallToChild(targetContract: Field, targetSelector: Field, targetValue: Field) {
+    fn enqueueCallToChild(targetContract: AztecAddress, targetSelector: FunctionSelector, targetValue: Field) {
         context.call_public_function(targetContract, targetSelector, [targetValue]);
     }
 
@@ -42,11 +46,11 @@ contract Parent {
     // - one through a nested call to enqueueCallToChild with value 10,
     // - followed by one issued directly from this function with value 20.
     #[aztec(private)]
-    fn enqueueCallsToChildWithNestedFirst(targetContract: Field, targetSelector: Field) {
-        let enqueueCallToChildSelector = compute_selector("enqueueCallToChild(Field,Field,Field)");
+    fn enqueueCallsToChildWithNestedFirst(targetContract: AztecAddress, targetSelector: FunctionSelector) {
+        let enqueueCallToChildSelector = compute_selector("enqueueCallToChild((Field),(u32),Field)");
         let _ret = context.call_private_function(context.this_address(),
             enqueueCallToChildSelector,
-            [targetContract, targetSelector, 10]);
+            [targetContract.to_field(), targetSelector.to_field(), 10]);
         context.call_public_function(targetContract, targetSelector, [20]);
     }
 
@@ -54,17 +58,17 @@ contract Parent {
     // - one issued directly from this function with value 20,
     // - followed by one through a nested call to enqueueCallToChild with value 10.
     #[aztec(private)]
-    fn enqueueCallsToChildWithNestedLast(targetContract: Field, targetSelector: Field) {
+    fn enqueueCallsToChildWithNestedLast(targetContract: AztecAddress, targetSelector: FunctionSelector) {
         context.call_public_function(targetContract, targetSelector, [20]);
-        let enqueueCallToChildSelector = compute_selector("enqueueCallToChild(Field,Field,Field)");
+        let enqueueCallToChildSelector = compute_selector("enqueueCallToChild((Field),(u32),Field)");
         let _ret = context.call_private_function(context.this_address(),
             enqueueCallToChildSelector,
-            [targetContract, targetSelector, 10]);
+            [targetContract.to_field(), targetSelector.to_field(), 10]);
     }
 
     // Private function to enqueue a call to the targetContract address using the selector and argument provided
     #[aztec(private)]
-    fn enqueueCallToChildTwice(targetContract: Field, targetSelector: Field, targetValue: Field) {
+    fn enqueueCallToChildTwice(targetContract: AztecAddress, targetSelector: FunctionSelector, targetValue: Field) {
         // Enqueue the first public call
         context.call_public_function(targetContract, targetSelector, [targetValue]);
         // Enqueue the second public call
@@ -72,27 +76,27 @@ contract Parent {
     }
 
     // Private function to enqueue a call to the pubEntryPoint function of this same contract, passing the target arguments provided
-    #[aztec(private)]
-    fn enqueueCallToPubEntryPoint(targetContract: Field, targetSelector: Field, targetValue: Field) {
-        let pubEntryPointSelector = compute_selector("pubEntryPoint(Field,Field,Field)");
+        #[aztec(private)]
+    fn enqueueCallToPubEntryPoint(targetContract: AztecAddress, targetSelector: FunctionSelector, targetValue: Field) {
+        let pubEntryPointSelector = compute_selector("pubEntryPoint((Field),(u32),Field)");
         let thisAddress = context.this_address();
         let _void = context.call_public_function(thisAddress,
             pubEntryPointSelector,
-            [targetContract, targetSelector, targetValue]);
+            [targetContract.to_field(), targetSelector.to_field(), targetValue]);
     }
 
     // Private function to enqueue two calls to the pubEntryPoint function of this same contract, passing the target arguments provided
-    #[aztec(private)]
-    fn enqueueCallsToPubEntryPoint(targetContract: Field, targetSelector: Field, targetValue: Field) {
-        let pubEntryPointSelector = compute_selector("pubEntryPoint(Field,Field,Field)");
+        #[aztec(private)]
+    fn enqueueCallsToPubEntryPoint(targetContract: AztecAddress, targetSelector: FunctionSelector, targetValue: Field) {
+        let pubEntryPointSelector = compute_selector("pubEntryPoint((Field),(u32),Field)");
         let thisAddress = context.this_address();
 
         context.call_public_function(thisAddress,
             pubEntryPointSelector,
-            [targetContract, targetSelector, targetValue]);
+            [targetContract.to_field(), targetSelector.to_field(), targetValue]);
 
         context.call_public_function(thisAddress,
             pubEntryPointSelector,
-            [targetContract, targetSelector, targetValue + 1]);
+            [targetContract.to_field(), targetSelector.to_field(), targetValue + 1]);
     }
 }

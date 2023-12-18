@@ -1219,7 +1219,7 @@ TYPED_TEST(PolynomialTests, move_construct_and_assign)
         coeff = FF::random_element();
     }
 
-    // construct a new poly FFom the original via the move constructor
+    // construct a new poly from the original via the move constructor
     Polynomial<FF> polynomial_b(std::move(polynomial_a));
 
     // verifiy that source poly is appropriately destroyed

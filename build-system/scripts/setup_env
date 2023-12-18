@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This script sets up the global build environment. This should be called before any other build scripts,
 # as the other build scripts assume these global variables are set. The global variables are written to
 # the file in $BASH_ENV, which means that any new bash shells launched within the lifetime of the machine
@@ -34,7 +34,7 @@ echo "PULL_REQUEST=$PULL_REQUEST"
 # If the user has requested to perform a "dry deploy", we set the commit tag to fake version, and set DRY_DEPLOY to 1.
 if [[ "$COMMIT_MESSAGE" == *"[ci dry-deploy]"* ]]; then
   COMMIT_TAG=v999.999.999
-  DRY_DEPLOY=1
+  export DRY_DEPLOY=1
 fi
 
 if should_deploy; then
@@ -42,12 +42,14 @@ if should_deploy; then
     # Extract the deploy env from the commit tag, if it has one, e.g. testnet.
     # If we have one, we look something like v2.1.123-testnet.0. This is a "non production" release.
     if [[ "$COMMIT_TAG" == *"-"* ]]; then
-      # Strips the trailing '.XX' from the end of the commit tag
+      # Strips the trailing '.XX' from the end of the commit tag.
       TEMP=${COMMIT_TAG%.*}
-      # Strips the 'vX.Y.ZZZ-' from the front of the commit tag, leaving the e.g. 'testnet'
+      # Strips the 'vX.Y.ZZZ-' from the front of the commit tag, leaving the e.g. 'testnet'.
       DEPLOY_ENV=${TEMP##*-}
-    else
+    elif [ ! "$DRY_DEPLOY" -eq 1 ]; then
       DEPLOY_ENV=prod
+    else
+      DEPLOY_ENV=dev
     fi
   else
     # If we're on master, this is our devnet.

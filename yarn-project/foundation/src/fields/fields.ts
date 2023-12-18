@@ -1,5 +1,5 @@
 import { toBigIntBE, toBufferBE } from '../bigint-buffer/index.js';
-import { randomBytes } from '../crypto/index.js';
+import { randomBytes } from '../crypto/random/index.js';
 import { BufferReader } from '../serialize/buffer_reader.js';
 
 const ZERO_BUFFER = Buffer.alloc(32);

@@ -18,7 +18,7 @@ export interface KeyStore {
    * @param privKey - The private key of the account.
    * @returns - The account's public key.
    */
-  addAccount(privKey: GrumpkinPrivateKey): PublicKey;
+  addAccount(privKey: GrumpkinPrivateKey): Promise<PublicKey>;
 
   /**
    * Retrieves the public keys of all accounts stored.

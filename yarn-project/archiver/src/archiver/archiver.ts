@@ -48,11 +48,6 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
   private runningPromise?: RunningPromise;
 
   /**
-   * Next L1 block number to fetch `L2BlockProcessed` logs from (i.e. `fromBlock` in eth_getLogs).
-   */
-  private nextL2BlockFromL1Block = 0n;
-
-  /**
    * Use this to track logged block in order to avoid repeating the same message.
    */
   private lastLoggedL1BlockNumber = 0n;
@@ -197,28 +192,43 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
 
     // TODO (#717): optimize this - there could be messages in confirmed that are also in pending.
     // Or messages in pending that are also cancelled in the same block. No need to modify storage for them.
-    // Store l1 to l2 messages
-    this.log('Adding pending l1 to l2 messages to store');
-    await this.store.addPendingL1ToL2Messages(retrievedPendingL1ToL2Messages.retrievedData);
-    // remove cancelled messages from the pending message store:
-    this.log('Removing pending l1 to l2 messages from store where messages were cancelled');
-    await this.store.cancelPendingL1ToL2Messages(retrievedCancelledL1ToL2Messages.retrievedData);
+
+    if (retrievedPendingL1ToL2Messages.retrievedData.length) {
+      // Store l1 to l2 messages
+      this.log(`Adding ${retrievedPendingL1ToL2Messages.retrievedData.length} pending l1 to l2 messages to store`);
+      await this.store.addPendingL1ToL2Messages(retrievedPendingL1ToL2Messages.retrievedData);
+    }
+
+    if (retrievedCancelledL1ToL2Messages.retrievedData.length) {
+      // remove cancelled messages from the pending message store:
+      this.log(
+        `Removing ${retrievedCancelledL1ToL2Messages.retrievedData.length} pending l1 to l2 messages from store where messages were cancelled`,
+      );
+      await this.store.cancelPendingL1ToL2Messages(retrievedCancelledL1ToL2Messages.retrievedData);
+    }
 
     // ********** Events that are processed per block **********
 
     // Read all data from chain and then write to our stores at the end
     const nextExpectedL2BlockNum = BigInt((await this.store.getBlockNumber()) + 1);
-    this.log(
-      `Retrieving chain state from L1 block: ${this.nextL2BlockFromL1Block}, next expected l2 block number: ${nextExpectedL2BlockNum}`,
-    );
     const retrievedBlocks = await retrieveBlocks(
       this.publicClient,
       this.rollupAddress,
       blockUntilSynced,
-      this.nextL2BlockFromL1Block,
+      lastProcessedL1BlockNumber + 1n,
       currentL1BlockNumber,
       nextExpectedL2BlockNum,
     );
+
+    if (retrievedBlocks.retrievedData.length === 0) {
+      return;
+    } else {
+      this.log(
+        `Retrieved ${retrievedBlocks.retrievedData.length} new L2 blocks between L1 blocks ${
+          lastProcessedL1BlockNumber + 1n
+        } and ${currentL1BlockNumber}.`,
+      );
+    }
 
     // create the block number -> block hash mapping to ensure we retrieve the appropriate events
     const blockHashMapping: { [key: number]: Buffer | undefined } = {};
@@ -229,13 +239,10 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
       this.publicClient,
       this.contractDeploymentEmitterAddress,
       blockUntilSynced,
-      this.nextL2BlockFromL1Block,
+      lastProcessedL1BlockNumber + 1n,
       currentL1BlockNumber,
       blockHashMapping,
     );
-    if (retrievedBlocks.retrievedData.length === 0) {
-      return;
-    }
 
     this.log(`Retrieved ${retrievedBlocks.retrievedData.length} block(s) from chain`);
 
@@ -275,9 +282,6 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
         );
       }),
     );
-
-    // set the L1 block for the next search
-    this.nextL2BlockFromL1Block = retrievedBlocks.nextEthBlockNumber;
   }
 
   /**

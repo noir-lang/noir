@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Returns true if we are expected to proceed with a release job.
 # Specifically if we have a commit tag, are master, or are being forced to release.
 # This script should be used at the start of all release steps to early out PR runs.

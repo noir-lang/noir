@@ -1,15 +1,15 @@
-use crate::address::Address;
+use crate::address::AztecAddress;
 
 struct CallerContext {
-    msg_sender: Address,
-    storage_contract_address: Address,
+    msg_sender: AztecAddress,
+    storage_contract_address: AztecAddress,
 }
 
 impl CallerContext {
     pub fn empty() -> Self {
         CallerContext {
-            msg_sender: Address::zero(),
-            storage_contract_address: Address::zero(),
+            msg_sender: AztecAddress::zero(),
+            storage_contract_address: AztecAddress::zero(),
         }
     }
 
@@ -25,7 +25,7 @@ impl CallerContext {
 
 struct CallRequest {
     hash: Field,
-    caller_contract_address: Address,
+    caller_contract_address: AztecAddress,
     caller_context: CallerContext,
 }
 
@@ -33,7 +33,7 @@ impl CallRequest {
     pub fn empty() -> Self {
         Self {
             hash: 0,
-            caller_contract_address: Address::zero(),
+            caller_contract_address: AztecAddress::zero(),
             caller_context: dep::std::unsafe::zeroed(),
         }
     }

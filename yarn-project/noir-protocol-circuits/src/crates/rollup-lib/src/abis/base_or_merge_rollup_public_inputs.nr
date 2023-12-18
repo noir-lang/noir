@@ -26,8 +26,8 @@ struct BaseOrMergeRollupPublicInputs {
     start_contract_tree_snapshot : AppendOnlyTreeSnapshot,
     end_contract_tree_snapshot : AppendOnlyTreeSnapshot,
 
-    start_public_data_tree_root : Field,
-    end_public_data_tree_root : Field,
+    start_public_data_tree_snapshot : AppendOnlyTreeSnapshot,
+    end_public_data_tree_snapshot : AppendOnlyTreeSnapshot,
     
     // We hash public inputs to make them constant-sized (to then be unpacked on-chain)
     // U128 isn't safe if it's an input to the circuit (it won't automatically constrain the witness)

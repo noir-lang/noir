@@ -1,10 +1,10 @@
 use dep::std::option::Option;
 use dep::safe_math::SafeU120;
 use dep::protocol_types::constants::MAX_READ_REQUESTS_PER_CALL;
+use dep::protocol_types::address::AztecAddress;
 use dep::aztec::{
   context::Context,
   state_vars::set::Set,
-  types::address::AztecAddress,
 };
 use dep::aztec::note::{
     note_getter::view_notes,

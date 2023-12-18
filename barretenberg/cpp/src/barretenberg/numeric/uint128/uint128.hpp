@@ -5,6 +5,7 @@
 
 #ifdef __i386__
 #include "barretenberg/common/serialize.hpp"
+#include <concepts>
 
 namespace numeric {
 
@@ -37,7 +38,7 @@ class alignas(32) uint128_t {
     constexpr ~uint128_t() = default;
     explicit constexpr operator bool() const { return static_cast<bool>(data[0]); };
 
-    template <typename T> explicit constexpr operator T() const { return static_cast<T>(data[0]); };
+    template <std::integral T> explicit constexpr operator T() const { return static_cast<T>(data[0]); };
 
     [[nodiscard]] constexpr bool get_bit(uint64_t bit_index) const;
     [[nodiscard]] constexpr uint64_t get_msb() const;

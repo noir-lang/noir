@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # When destroying and applying mainnet fork terraform, it may not be

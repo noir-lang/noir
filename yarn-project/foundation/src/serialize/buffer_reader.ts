@@ -31,8 +31,16 @@ export class BufferReader {
    * @param bufferOrReader - A Buffer or BufferReader to initialize the BufferReader.
    * @returns An instance of BufferReader.
    */
-  public static asReader(bufferOrReader: Buffer | BufferReader) {
-    return Buffer.isBuffer(bufferOrReader) ? new BufferReader(bufferOrReader) : bufferOrReader;
+  public static asReader(bufferOrReader: Uint8Array | Buffer | BufferReader): BufferReader {
+    if (bufferOrReader instanceof BufferReader) {
+      return bufferOrReader;
+    }
+
+    const buf = Buffer.isBuffer(bufferOrReader)
+      ? bufferOrReader
+      : Buffer.from(bufferOrReader.buffer, bufferOrReader.byteOffset, bufferOrReader.byteLength);
+
+    return new BufferReader(buf);
   }
 
   /**

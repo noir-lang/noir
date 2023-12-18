@@ -1,11 +1,11 @@
 use crate::utils;
 
 // Aztec address
-struct Address {
+struct AztecAddress {
     inner : Field
 }
 
-impl Address {
+impl AztecAddress {
     pub fn zero() -> Self {
         Self {
             inner: 0
@@ -24,7 +24,7 @@ impl Address {
         }
     }
 
-    pub fn to_field(self) -> Field{
+    pub fn to_field(self) -> Field {
         self.inner
     }
 
@@ -45,6 +45,16 @@ impl Address {
 
     pub fn eq(self, other : Self) -> bool {
         self.to_field() == other.to_field()
+    }
+
+    pub fn serialize(self: Self) -> [Field; 1] {
+        [self.inner]
+    }
+
+    pub fn deserialize(fields: [Field; 1]) -> Self {
+        Self {
+            inner: fields[0]
+        }
     }
 }
 
@@ -92,6 +102,16 @@ impl EthAddress{
 
     pub fn eq(self, other : Self) -> bool {
         self.to_field() == other.to_field()
+    }
+
+    pub fn serialize(self: Self) -> [Field; 1] {
+        [self.inner]
+    }
+
+    pub fn deserialize(fields: [Field; 1]) -> Self {
+        Self {
+            inner: fields[0]
+        }
     }
 }
 

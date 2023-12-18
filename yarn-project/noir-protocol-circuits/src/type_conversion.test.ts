@@ -92,7 +92,7 @@ describe('Noir<>Circuits.js type conversion test suite', () => {
         new Fr(37n),
         new Fr(38n),
         new Fr(39n),
-        new Fr(40n),
+        new Fr(0n), // TODO(#3441) this currently doesn't exist in Noir is it gets squashed to 0
         new Fr(41n),
         new Fr(42n),
       );

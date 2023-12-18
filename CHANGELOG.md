@@ -1,5 +1,55 @@
 # Changelog
 
+## [0.16.9](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.16.8...aztec-packages-v0.16.9) (2023-12-13)
+
+
+### Bug Fixes
+
+* **ci:** Deploy_npm script ([#3678](https://github.com/AztecProtocol/aztec-packages/issues/3678)) ([9d7c58d](https://github.com/AztecProtocol/aztec-packages/commit/9d7c58d4fe0f91c453c47d6be813325cff08907b))
+
+## [0.16.8](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.16.7...aztec-packages-v0.16.8) (2023-12-13)
+
+
+### Features
+
+* Block header block number oracle ([#3648](https://github.com/AztecProtocol/aztec-packages/issues/3648)) ([ac1edc1](https://github.com/AztecProtocol/aztec-packages/commit/ac1edc1d30352cc3e3dcbfce4e69fe38777cc0df))
+* Complete folding prover and verifier for ultra instances ([#3419](https://github.com/AztecProtocol/aztec-packages/issues/3419)) ([bb86ce9](https://github.com/AztecProtocol/aztec-packages/commit/bb86ce9a27e09b8a336af04b787b81d5f1d49ac8))
+* Copy constructors for builders ([#3635](https://github.com/AztecProtocol/aztec-packages/issues/3635)) ([b82b0c5](https://github.com/AztecProtocol/aztec-packages/commit/b82b0c579c4a315c9b4eaf3e9726275633603b5a))
+* Enabling nullifier tree snapshot ([#3670](https://github.com/AztecProtocol/aztec-packages/issues/3670)) ([b47d49d](https://github.com/AztecProtocol/aztec-packages/commit/b47d49def5b8ae9db3cab9afd1367c68b15cb766))
+* Libraryfying historic access ([#3658](https://github.com/AztecProtocol/aztec-packages/issues/3658)) ([6877ca1](https://github.com/AztecProtocol/aztec-packages/commit/6877ca1c906743afbf488ac0f7e662bf4486f6a6))
+* Log-derivative based generic permutations for AVM ([#3428](https://github.com/AztecProtocol/aztec-packages/issues/3428)) ([379b5ad](https://github.com/AztecProtocol/aztec-packages/commit/379b5adc259ac69b01e61b852172cdfc87cf9350))
+* Merge recursive verifier ([#3588](https://github.com/AztecProtocol/aztec-packages/issues/3588)) ([cdd9259](https://github.com/AztecProtocol/aztec-packages/commit/cdd92595c313617189a530e0bfda987db211ae6b))
+* New install script and container wrappers. ([#3617](https://github.com/AztecProtocol/aztec-packages/issues/3617)) ([c7f1878](https://github.com/AztecProtocol/aztec-packages/commit/c7f1878777bf76dbfd451761dbe6dc78903e45e2))
+* Persist pxe state ([#3628](https://github.com/AztecProtocol/aztec-packages/issues/3628)) ([9ccbbd9](https://github.com/AztecProtocol/aztec-packages/commit/9ccbbd96e50f22646f0527c7d15944cecabca662))
+* Update command handles Dockerized sandbox ([#3656](https://github.com/AztecProtocol/aztec-packages/issues/3656)) ([7c85750](https://github.com/AztecProtocol/aztec-packages/commit/7c85750089e022240376751086d515d993409d98))
+
+
+### Bug Fixes
+
+* Aztec sandbox compose fixes ([#3634](https://github.com/AztecProtocol/aztec-packages/issues/3634)) ([765a19c](https://github.com/AztecProtocol/aztec-packages/commit/765a19c3aad3a2793a764b970b7cc8a819094da7))
+* Broken uint256_t implicit copy ([#3625](https://github.com/AztecProtocol/aztec-packages/issues/3625)) ([1a6b44d](https://github.com/AztecProtocol/aztec-packages/commit/1a6b44d67e077eb5904ab30255454693d6a1edac))
+* **ci:** Rebuild versioned cli / sandbox images ([#3613](https://github.com/AztecProtocol/aztec-packages/issues/3613)) ([6a53fbc](https://github.com/AztecProtocol/aztec-packages/commit/6a53fbc48624d6ecbcc8dc6fd69564fdb3db342e))
+* Make lsp work in docker, plus some other install tweaks. ([#3661](https://github.com/AztecProtocol/aztec-packages/issues/3661)) ([53eb54f](https://github.com/AztecProtocol/aztec-packages/commit/53eb54fb3416711dbc411e6037bc2da18d523cc3))
+* **noir-compiler:** Compile time error if ctor is missing ([#3649](https://github.com/AztecProtocol/aztec-packages/issues/3649)) ([12249bf](https://github.com/AztecProtocol/aztec-packages/commit/12249bf91d5934f798856a75cdd9de8a5822604b))
+* Sandbox node mode api prefix ([#3662](https://github.com/AztecProtocol/aztec-packages/issues/3662)) ([fd6eefe](https://github.com/AztecProtocol/aztec-packages/commit/fd6eefe310e291e9625184dee9177a9b219e82f2))
+* Top level init bb.js, but better scoped imports to not incur cost too early ([#3629](https://github.com/AztecProtocol/aztec-packages/issues/3629)) ([cea862d](https://github.com/AztecProtocol/aztec-packages/commit/cea862dd7feec714a34eba6a3cf7a2a174a59a1b))
+
+
+### Miscellaneous
+
+* **ci:** Combine deploy / release jobs + canary update ([#3610](https://github.com/AztecProtocol/aztec-packages/issues/3610)) ([0888c05](https://github.com/AztecProtocol/aztec-packages/commit/0888c05098c94151462e30528a32322ae793d9ac)), closes [#3579](https://github.com/AztecProtocol/aztec-packages/issues/3579)
+* **docs:** Update implementation references in token contract tutorial ([#3626](https://github.com/AztecProtocol/aztec-packages/issues/3626)) ([a2cee4f](https://github.com/AztecProtocol/aztec-packages/commit/a2cee4ff1df294b1253f4a495a158794b47bfe66))
+* Nuke fib ([#3607](https://github.com/AztecProtocol/aztec-packages/issues/3607)) ([48e2e3d](https://github.com/AztecProtocol/aztec-packages/commit/48e2e3d261a7091cb0b87565ec8bc9ae595b3022))
+* Reduced spam logging in archiver ([#3671](https://github.com/AztecProtocol/aztec-packages/issues/3671)) ([e749daa](https://github.com/AztecProtocol/aztec-packages/commit/e749daa7f1e9e34cad93d64e76e04d2525c6f458))
+* Run the protocol circuits noir tests in CI ([#3660](https://github.com/AztecProtocol/aztec-packages/issues/3660)) ([383e123](https://github.com/AztecProtocol/aztec-packages/commit/383e1231c1df23e1365e94642fe0d4d670d84c8f)), closes [#3205](https://github.com/AztecProtocol/aztec-packages/issues/3205)
+
+
+### Documentation
+
+* Updated yellow paper for fees ([#3659](https://github.com/AztecProtocol/aztec-packages/issues/3659)) ([5513624](https://github.com/AztecProtocol/aztec-packages/commit/55136246ffa457c73426190438c254743c841675))
+* **yellowpaper:** Rewrite section on tagged memory, misc rewording/cleanup ([#3523](https://github.com/AztecProtocol/aztec-packages/issues/3523)) ([fe849e3](https://github.com/AztecProtocol/aztec-packages/commit/fe849e323526ea132c2a3ab41c8351a24f6e9cf4))
+* **yellowpaper:** Update `cast` instruction description with truncation operation ([#3621](https://github.com/AztecProtocol/aztec-packages/issues/3621)) ([2cede41](https://github.com/AztecProtocol/aztec-packages/commit/2cede412d25ef27acc7347e31389ae5d780f1b0b))
+
 ## [0.16.7](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.16.6...aztec-packages-v0.16.7) (2023-12-06)
 
 

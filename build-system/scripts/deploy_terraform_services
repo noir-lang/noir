@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
+set -eu
+
+# This script deploys a terraform project and restarts related services.
+
+# The terraform project directory.
+PROJECT_DIR=$1
+# Extract project name fromm the directory, e.g. yarn-project/aztec-node -> aztec-node
+PROJECT_NAME=$(basename $PROJECT_DIR)
+
+# The repository to check for changes. Defaults to the project name
+# but can be different for projects that e.g. use the sandbox image.
+CHECK_REBUILD_REPOSITORY=${2:-$PROJECT_NAME}
+
+# The services to restart. Defaults to the project name but can be different.
+SERVICE_NAMES=${3:-$PROJECT_NAME}
+
+# The terraform resources to taint. Defaults to none.
+TO_TAINT=${4:-}
+
+cd $PROJECT_DIR
+
+# Bail out if nothing changed.
+CONTENT_HASH=$(calculate_content_hash $CHECK_REBUILD_REPOSITORY)
+echo "Last successfully deployed commit: $CONTENT_HASH"
+if [ -z "$TO_TAINT" ] && check_rebuild cache-$CONTENT_HASH-$DEPLOY_TAG-deployed $CHECK_REBUILD_REPOSITORY; then
+  echo "No changes detected, skipping deployment."
+  exit 0
+fi
+
+deploy_terraform $PROJECT_NAME ./terraform/ "$TO_TAINT"
+
+# Restart services.
+for SERVICE in $SERVICE_NAMES; do
+  deploy_service $SERVICE
+done
+
+# Tag the image as deployed.
+if [ "$DRY_DEPLOY" -eq 1 ]; then
+  echo "DRY_DEPLOY: tag_remote_image $CHECK_REBUILD_REPOSITORY cache-$CONTENT_HASH cache-$CONTENT_HASH-$DEPLOY_TAG-deployed"
+else
+  retry tag_remote_image $CHECK_REBUILD_REPOSITORY cache-$CONTENT_HASH cache-$CONTENT_HASH-$DEPLOY_TAG-deployed
+fi

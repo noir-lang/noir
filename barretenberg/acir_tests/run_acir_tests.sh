@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Env var overrides:
 #   BIN: to specify a different binary to test with (e.g. bb.js or bb.js-dev).
 #   VERBOSE: to enable logging for each test.
@@ -80,8 +80,8 @@ else
     # If parallel flag is set, run in parallel
     if [ -n "${PARALLEL:-}" ]; then
       test $TEST_NAME &
-    else 
-      test $TEST_NAME 
+    else
+      test $TEST_NAME
     fi
   done
 fi

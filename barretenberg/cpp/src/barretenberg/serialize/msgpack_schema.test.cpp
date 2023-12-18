@@ -77,10 +77,10 @@ TEST(msgpack_tests, msgpack_schema_sanity)
 {
     EXPECT_EQ(
         msgpack_schema_to_string(good_example),
-        "{\"__typename\":\"GoodExample\",\"a\":[\"alias\",[\"Fr\",\"bin32\"]],\"b\":[\"alias\",[\"Fr\",\"bin32\"]]}\n");
+        "{\"__typename\":\"GoodExample\",\"a\":[\"alias\",[\"fr\",\"bin32\"]],\"b\":[\"alias\",[\"fr\",\"bin32\"]]}\n");
     EXPECT_EQ(msgpack_schema_to_string(complicated_schema),
-              "{\"__typename\":\"ComplicatedSchema\",\"array\":[\"vector\",[[\"array\",[[\"alias\",[\"Fr\",\"bin32\"]],"
-              "20]]]],\"good_or_not\":[\"optional\",[{\"__typename\":\"GoodExample\",\"a\":[\"alias\",[\"Fr\","
-              "\"bin32\"]],\"b\":[\"alias\",[\"Fr\",\"bin32\"]]}]],\"bare\":[\"alias\",[\"Fr\",\"bin32\"]],\"huh\":["
-              "\"variant\",[[\"alias\",[\"Fr\",\"bin32\"]],\"GoodExample\"]]}\n");
+              "{\"__typename\":\"ComplicatedSchema\",\"array\":[\"vector\",[[\"array\",[[\"alias\",[\"fr\",\"bin32\"]],"
+              "20]]]],\"good_or_not\":[\"optional\",[{\"__typename\":\"GoodExample\",\"a\":[\"alias\",[\"fr\","
+              "\"bin32\"]],\"b\":[\"alias\",[\"fr\",\"bin32\"]]}]],\"bare\":[\"alias\",[\"fr\",\"bin32\"]],\"huh\":["
+              "\"variant\",[[\"alias\",[\"fr\",\"bin32\"]],\"GoodExample\"]]}\n");
 }

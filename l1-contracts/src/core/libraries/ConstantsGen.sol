@@ -47,7 +47,7 @@ library Constants {
   uint256 internal constant FUNCTION_TREE_HEIGHT = 5;
   uint256 internal constant CONTRACT_TREE_HEIGHT = 16;
   uint256 internal constant NOTE_HASH_TREE_HEIGHT = 32;
-  uint256 internal constant PUBLIC_DATA_TREE_HEIGHT = 254;
+  uint256 internal constant PUBLIC_DATA_TREE_HEIGHT = 40;
   uint256 internal constant NULLIFIER_TREE_HEIGHT = 20;
   uint256 internal constant L1_TO_L2_MSG_TREE_HEIGHT = 16;
   uint256 internal constant ROLLUP_VK_TREE_HEIGHT = 8;
@@ -56,8 +56,10 @@ library Constants {
   uint256 internal constant NOTE_HASH_SUBTREE_HEIGHT = 7;
   uint256 internal constant NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH = 25;
   uint256 internal constant NULLIFIER_SUBTREE_HEIGHT = 7;
+  uint256 internal constant PUBLIC_DATA_SUBTREE_HEIGHT = 4;
   uint256 internal constant ARCHIVE_HEIGHT = 16;
   uint256 internal constant NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH = 13;
+  uint256 internal constant PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH = 36;
   uint256 internal constant L1_TO_L2_MSG_SUBTREE_HEIGHT = 4;
   uint256 internal constant L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH = 12;
   uint256 internal constant FUNCTION_SELECTOR_NUM_BYTES = 4;

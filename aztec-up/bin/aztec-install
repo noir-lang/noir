@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Colors
+g="\033[32m"  # Green
+y="\033[33m"  # Yellow
+b="\033[34m"  # Blue
+p="\033[35m"  # Purple
+r="\033[0m"   # Reset
+bold="\033[1m"
+
+# Function to replace characters and add color
+function print_colored() {
+  local b=$'\033[34m'  # Blue
+  local y=$'\033[33m'  # Yellow
+  local r=$'\033[0m'   # Reset
+    echo "$1" | sed -E "s/(█+)/${b}\1${y}/g"
+}
+
+function title() {
+  echo
+  print_colored " █████╗ ███████╗████████╗███████╗ ██████╗"
+  print_colored "██╔══██╗╚══███╔╝╚══██╔══╝██╔════╝██╔════╝"
+  print_colored "███████║  ███╔╝    ██║   █████╗  ██║"
+  print_colored "██╔══██║ ███╔╝     ██║   ██╔══╝  ██║"
+  print_colored "██║  ██║███████╗   ██║   ███████╗╚██████╗"
+  print_colored "╚═╝  ╚═╝╚══════╝   ╚═╝   ╚══════╝ ╚═════╝"
+  echo -e "${r}"
+  echo -e "Welcome to the ${bold}${b}Aztec${r} installer! Your journey into blockchain privacy begins... ${bold}${p}now${r}."
+  echo -e "We presently leverage docker to simplify releases of our complex project."
+  echo -e "Please ensure it's installed for your platform: https://docs.docker.com/engine/install"
+  echo
+  if [ "$(uname -s)" == "Darwin" ]; then
+    echo -e "${y}WARNING: For best performance we recommend adjusting your default docker settings:"
+    echo -e     "         - Under general, enable VirtioFS."
+    echo -e     "         - Under resources, set CPUs to ~80% your maximum."
+    echo -e     "         - Under resources, set Memory to ~80% your maximum."
+    echo -e     "You may receive a warning about your home directory being mounted into a container."
+    echo -e     "This is requested so we can read and write project files, that is all."
+    echo -e "${r}"
+  fi
+  echo -e "This will install the following scripts and update your PATH if necessary:"
+  echo -e "  ${bold}${g}aztec${r}         - launches various infrastructure subsystems (sequencer, prover, pxe, etc)."
+  echo -e "  ${bold}${g}aztec-cli${r}     - a command line tool for interfacing and experimenting with infrastructure."
+  echo -e "  ${bold}${g}aztec-nargo${r}   - aztec's build of nargo, the noir compiler toolchain."
+  echo -e "  ${bold}${g}aztec-sandbox${r} - a wrapper around docker-compose that launches services needed for sandbox testing."
+  echo -e "  ${bold}${g}aztec-up${r}      - a tool to upgrade the aztec toolchain to the latest, or specific versions."
+  echo
+  read -p "Do you wish to continue? (y/n)" -n 1 -r
+  echo
+  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    exit 0
+  fi
+}
+
+function info {
+  echo -e "${g}$1${r}"
+}
+
+function warn {
+  echo -e "${y}$1${r}"
+}
+
+AZTEC_PATH=$HOME/.aztec
+BIN_PATH=$AZTEC_PATH/bin
+
+# Define version if specified, otherwise set to "latest".
+VERSION=${VERSION:-"latest"}
+INSTALL_HOST=install.aztec.network.s3-website.eu-west-2.amazonaws.com
+
+[ -z "${SKIP_TITLE:-}" ] && title
+
+# Check if Docker is available.
+if ! command -v docker &>/dev/null; then
+  warn "Docker is not installed. Please install Docker and try again."
+  exit 1
+fi
+
+# Check if Docker is running.
+if ! docker info &>/dev/null; then
+  warn "Docker is not running. Please start Docker and try again."
+  exit 1
+fi
+
+if ! docker compose &>/dev/null && ! command -v docker-compose &>/dev/null; then
+  warn "WARNING: 'docker compose' not supported and docker-compose not found."
+  warn "Continuing installation, but aztec-sandbox will not work."
+fi
+
+# Create a "hidden" `$HOME/.aztec` dir, so as not to clutter the user's cwd.
+rm -f $BIN_PATH/* && mkdir -p $BIN_PATH
+
+# Download containers from dockerhub. Tag them as latest.
+function pull_container {
+  docker pull aztecprotocol/$1:$VERSION
+
+  # If not latest, retag to be latest so it runs from scripts.
+  if [ $VERSION != "latest" ]; then
+    docker tag aztecprotocol/$1:$VERSION aztecprotocol/$1:latest
+  fi
+}
+
+export DOCKER_CLI_HINTS=false
+
+if [ -z "${SKIP_PULL:-}" ]; then
+  info "Pulling aztec version $VERSION..."
+  pull_container aztec-sandbox
+  pull_container cli
+  pull_container noir
+fi
+
+# Download the Docker Compose file. Used by aztec-start.
+curl -fsSL http://$INSTALL_HOST/docker-compose.yml -o $BIN_PATH/docker-compose.yml
+
+function install_bin {
+  curl -fsSL http://$INSTALL_HOST/$1 -o $BIN_PATH/$1
+  chmod +x $BIN_PATH/$1
+  echo "Installed: $BIN_PATH/$1"
+}
+
+info "Installing scripts in $BIN_PATH..."
+install_bin .aztec-run
+install_bin aztec
+install_bin aztec-cli
+install_bin aztec-sandbox
+install_bin aztec-up
+install_bin aztec-nargo
+
+function update_path_env_var {
+  TARGET_DIR="${1}"
+  # Check if the target directory is in the user's PATH.
+  if [[ ":$PATH:" != *":$TARGET_DIR:"* ]]; then
+    # Determine the user's shell.
+    SHELL_PROFILE=""
+    case $SHELL in
+    */bash)
+      SHELL_PROFILE="$HOME/.bashrc"
+      ;;
+    */zsh)
+      SHELL_PROFILE="$HOME/.zshrc"
+      ;;
+    # Add other shells as needed
+    *)
+      echo "Unsupported shell: $SHELL"
+      return
+      ;;
+    esac
+    # Inform the user about the change and ask for confirmation
+    warn "The directory $TARGET_DIR is not in your PATH."
+    read -p "Add it to $SHELL_PROFILE to make the aztec binaries accessible? (y/n)" -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      # Add the target directory to the user's PATH in their profile.
+      echo "export PATH=\"\$PATH:$TARGET_DIR\"" >> "$SHELL_PROFILE"
+      info "Done! Starting fresh shell..."
+      $SHELL
+    else
+      warn "Skipped updating PATH. You might need to add $TARGET_DIR to your PATH manually to use the binary."
+    fi
+  fi
+}
+
+update_path_env_var $BIN_PATH
+
+info "Done!"

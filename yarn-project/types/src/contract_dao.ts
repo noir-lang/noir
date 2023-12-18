@@ -1,53 +1,67 @@
 import { CompleteAddress, ContractFunctionDao } from '@aztec/circuits.js';
-import { ContractArtifact, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+import { ContractArtifact, DebugMetadata, EventAbi, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { EthAddress } from '@aztec/foundation/eth-address';
+import { prefixBufferWithLength } from '@aztec/foundation/serialize';
 
-import { EncodedContractFunction } from './contract_data.js';
+import { BufferReader, EncodedContractFunction } from './contract_data.js';
 
 /**
  * A contract Data Access Object (DAO).
  * Contains the contract's address, portal contract address, and an array of ContractFunctionDao objects.
  * Each ContractFunctionDao object includes FunctionAbi data and the function selector buffer.
  */
-export interface ContractDao extends ContractArtifact {
-  /**
-   * The complete address representing the contract on L2.
-   */
-  completeAddress: CompleteAddress;
-  /**
-   * The Ethereum address of the L1 contract serving as a bridge for cross-layer interactions.
-   */
-  portalContract: EthAddress;
-  /**
-   * An array of contract functions with additional selector property.
-   */
-  functions: ContractFunctionDao[];
-}
+export class ContractDao implements ContractArtifact {
+  /** An array of contract functions with additional selector property.  */
+  public readonly functions: ContractFunctionDao[];
+  constructor(
+    private contractArtifact: ContractArtifact,
+    /** The complete address representing the contract on L2.  */
+    public readonly completeAddress: CompleteAddress,
+    /** The Ethereum address of the L1 contract serving as a bridge for cross-layer interactions.  */
+    public readonly portalContract: EthAddress,
+  ) {
+    this.functions = contractArtifact.functions.map(f => ({
+      ...f,
+      selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
+    }));
+  }
 
-/**
- * Converts the given contract artifact into a ContractDao object that includes additional properties
- * such as the address, portal contract, and function selectors.
- *
- * @param artifact - The contract artifact.
- * @param completeAddress - The AztecAddress representing the contract's address.
- * @param portalContract - The EthAddress representing the address of the associated portal contract.
- * @returns A ContractDao object containing the provided information along with generated function selectors.
- */
-export function toContractDao(
-  artifact: ContractArtifact,
-  completeAddress: CompleteAddress,
-  portalContract: EthAddress,
-): ContractDao {
-  const functions = artifact.functions.map(f => ({
-    ...f,
-    selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
-  }));
-  return {
-    ...artifact,
-    completeAddress,
-    functions,
-    portalContract,
-  };
+  get aztecNrVersion() {
+    return this.contractArtifact.aztecNrVersion;
+  }
+
+  get name(): string {
+    return this.contractArtifact.name;
+  }
+
+  get events(): EventAbi[] {
+    return this.contractArtifact.events;
+  }
+
+  get debug(): DebugMetadata | undefined {
+    return this.contractArtifact.debug;
+  }
+
+  toBuffer(): Buffer {
+    // the contract artifact was originally emitted to a JSON file by Noir
+    // should be safe to JSON.stringify it (i.e. it doesn't contain BigInts)
+    const contractArtifactJson = JSON.stringify(this.contractArtifact);
+    const buf = Buffer.concat([
+      this.completeAddress.toBuffer(),
+      this.portalContract.toBuffer20(),
+      prefixBufferWithLength(Buffer.from(contractArtifactJson, 'utf-8')),
+    ]);
+
+    return buf;
+  }
+
+  static fromBuffer(buf: Uint8Array | BufferReader) {
+    const reader = BufferReader.asReader(buf);
+    const completeAddress = CompleteAddress.fromBuffer(reader);
+    const portalContract = new EthAddress(reader.readBytes(EthAddress.SIZE_IN_BYTES));
+    const contractArtifact = JSON.parse(reader.readString());
+    return new ContractDao(contractArtifact, completeAddress, portalContract);
+  }
 }
 
 /**

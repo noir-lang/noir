@@ -10,7 +10,7 @@ use crate::{
         public_data_read::PublicDataRead,
         public_data_update_request::PublicDataUpdateRequest,
     },
-    address::{Address, EthAddress},
+    address::{AztecAddress, EthAddress},
     hash::NUM_FIELDS_PER_SHA256,
     mocked::{Proof, VerificationKey},
     tests::{
@@ -29,7 +29,7 @@ use crate::constants::{
 };
 
 struct PreviousKernelDataBuilder {
-    contract_address: Address,
+    contract_address: AztecAddress,
     portal_contract_address: EthAddress,
     end: CombinedAccumulatedDataBuilder,
     block_header: BlockHeader,
@@ -79,7 +79,7 @@ impl PreviousKernelDataBuilder {
             if i as u64 < num_updates as u64 {
                 let update_request = PublicDataUpdateRequest {
                     // The default leaf index is its index + 23.
-                    leaf_index: value_offset + i + 23,
+                    leaf_slot: value_offset + i + 23,
                     // The default value is its index + 45.
                     old_value: value_offset + i + 45,
                     // The default value is its index + 678.
@@ -96,7 +96,7 @@ impl PreviousKernelDataBuilder {
             if i as u64 < num_reads as u64 {
                 let read_request = PublicDataRead {
                     // The default leaf index is its index + 34.
-                    leaf_index: value_offset + i + 34,
+                    leaf_slot: value_offset + i + 34,
                     // The default value is its index + 5566.
                     value: value_offset + i + 5566,
                 };

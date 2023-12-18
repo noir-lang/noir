@@ -116,7 +116,7 @@ describe('e2e_cross_chain_messaging', () => {
   let outbox: any;
 
   beforeEach(async () => {
-    logger = createDebugLogger('aztec:canary_uniswap');
+    logger = createDebugLogger('aztec:e2e_uniswap');
     const pxe = createPXEClient(PXE_URL);
     await waitForSandbox(pxe);
     const wallets = await getSandboxAccountsWallets(pxe);
@@ -165,7 +165,7 @@ This fetches the wallets from the sandbox and deploys our cross chain harness on
 
 ```bash
 cd packages/src
-DEBUG='aztec:canary_uniswap' yarn test
+DEBUG='aztec:e2e_uniswap' yarn test
 ```
 
 ### Error handling

@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# The script starts a Docker container passing any commands and arguments to the command running inside the container.
+# It handles mounting paths into the container.
+# It handles networking comms back to the host.
+set -euo pipefail
+
+IMAGE=${1:-}
+shift
+
+VERSION=${VERSION:-"latest"}
+
+# Colors.
+y="\033[33m"
+r="\033[0m"
+
+function warn {
+  echo -e "${y}$1${r}"
+}
+
+if ! command -v docker &> /dev/null; then
+  warn "No docker found."
+  exit 1
+fi
+
+if [[ $PWD != ${HOME}* ]]; then
+  warn "Due to how we containerize our applications, we require your working directory to be somewhere within $HOME."
+  exit 1
+fi
+
+UNAME=$(uname -s)
+if [ "$UNAME" == "Linux" ] && docker info 2>/dev/null | grep -q rootless; then
+  ROOTLESS=1
+fi
+
+# If running in rootless docker, don't set uid/gid in container, as it breaks the write perms to the home mount.
+# Otherwise we set the uid/gid to be that of user running the container to ensure write perms to the home mount.
+if [ -z "${ROOTLESS:-}" ]; then
+  DOCKER_USER="--user $(id -u):$(id -g)"
+fi
+
+# Set up host.docker.internal alias on Linux, just like it is on mac.
+if [[ -z "${SKIP_NET:-}" && "$UNAME" == "Linux" ]]; then
+  if [ -n "${ROOTLESS:-}" ]; then
+    # We're in rootless docker. Probe for the host ip and use that.
+    ip=$(hostname -I | head | tr -d ' ')
+    warn "WARNING: Running within rootless docker. Using $ip as host ip. Ensure listening services are listening on this interface."
+    DOCKER_HOST_BINDS="--add-host host.docker.internal:$ip"
+  else
+    DOCKER_HOST_BINDS="--add-host host.docker.internal:host-gateway"
+  fi
+fi
+
+# Substitute any references to localhost with our host gateway.
+# TODO: In node, we can hook the resolve override for localhost with host.docker.internal.
+# Consider if we should just do that, but that wouldn't help e.g. nargo.
+args=("$@")
+for i in "${!args[@]}"; do
+    args[$i]=${args[$i]//localhost/host.docker.internal}
+done
+
+# Check if it's either a filename or a directory that exists outside the HOME.
+# If so, warn and exit.
+for i in "${!args[@]}"; do
+    arg=${args[$i]}
+    if [[ -f "$arg" || -d "$arg" ]] && [[ $(realpath $arg) != ${HOME}* ]]; then
+      warn "Due to how we containerize our applications, paths outside of $HOME cannot be referenced."
+      exit 1
+    fi
+done
+
+DOCKER_ENV="-e HOME=$HOME"
+for env in ${ENV_VARS_TO_INJECT:-}; do
+  if [ -n "${!env:-}" ]; then
+    # First substitute any reference to localhost with our host gateway.
+    env=${env//localhost/host.docker.internal}
+    # Inject into container.
+    DOCKER_ENV+=" -e $env=${!env:-}"
+  fi
+done
+
+# Volumes to pass to the container.
+
+docker run \
+  -ti \
+  --rm \
+  --workdir "$PWD" \
+  -v $HOME:$HOME -v cache:/cache \
+  ${DOCKER_ENV:-} \
+  ${DOCKER_HOST_BINDS:-} \
+  ${DOCKER_USER:-} \
+  $IMAGE:$VERSION ${args[@]:-}

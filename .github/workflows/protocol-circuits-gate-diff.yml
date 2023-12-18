@@ -1,0 +1,64 @@
+name: Report gates diff
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  compare_protocol_circuits_gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install noirup
+        run: |
+          curl -L $INSTALL_URL | bash
+          echo "${HOME}/.nargo/bin" >> $GITHUB_PATH
+        env:
+          INSTALL_URL: https://raw.githubusercontent.com/noir-lang/noirup/main/install
+          NOIRUP_BIN_URL: https://raw.githubusercontent.com/noir-lang/noirup/main/noirup
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo
+
+      - name: Install Barretenberg dependencies
+        run: sudo apt update && sudo apt install clang lld cmake libomp-dev
+
+      - name: Install nargo from source with noirup
+        run: noirup $toolchain
+        env:
+          toolchain: --path ./noir
+
+      - name: Check nargo installation
+        run: nargo --version
+
+      - name: Generate gates report
+        working-directory: ./yarn-project/noir-protocol-circuits/src
+        run: |
+          nargo info --json > protocol_circuits_report.json
+          mv protocol_circuits_report.json ../../../protocol_circuits_report.json
+      - name: Compare gates reports
+        id: gates_diff
+        uses: TomAFrench/noir-gates-diff@e7cf131b7e7f044c01615f93f0b855f65ddc02d4
+        with:
+          report: protocol_circuits_report.json
+          summaryQuantile: 1 # Display any diff in gate count
+
+      - name: Add gates diff to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          # delete the comment in case changes no longer impact circuit sizes
+          delete: ${{ !steps.gates_diff.outputs.markdown }}
+          message: ${{ steps.gates_diff.outputs.markdown }}

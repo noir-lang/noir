@@ -1,3 +1,4 @@
+use dep::protocol_types::address::AztecAddress;
 use dep::aztec::types::type_serialization::TypeSerializationInterface;
 use crate::cards::Card;
 
@@ -5,14 +6,14 @@ global NUMBER_OF_PLAYERS = 2;
 global NUMBER_OF_CARDS_DECK = 2;
 
 struct PlayerEntry {
-    address: Field,
+    address: AztecAddress,
     deck_strength: u32,
     points: u120,
 }
 
 impl PlayerEntry {
     pub fn is_initialized(self) -> bool {
-        self.address != 0
+        !self.address.is_zero()
     }
 }
 
@@ -32,8 +33,8 @@ global GAME_SERIALIZED_LEN: Field = 15;
 
 fn deserializeGame(fields: [Field; GAME_SERIALIZED_LEN]) -> Game {
     let players = [
-        PlayerEntry { address: fields[0], deck_strength: fields[1] as u32, points: fields[2] as u120 },
-        PlayerEntry { address: fields[3], deck_strength: fields[4] as u32, points: fields[5] as u120 }
+        PlayerEntry { address: AztecAddress::from_field(fields[0]), deck_strength: fields[1] as u32, points: fields[2] as u120 },
+        PlayerEntry { address: AztecAddress::from_field(fields[3]), deck_strength: fields[4] as u32, points: fields[5] as u120 }
     ];
     let rounds_cards = [
         Card::from_field(fields[6]), Card::from_field(fields[7]),
@@ -52,10 +53,10 @@ fn deserializeGame(fields: [Field; GAME_SERIALIZED_LEN]) -> Game {
 
 fn serializeGame(game: Game) -> [Field; GAME_SERIALIZED_LEN] {
     [
-        game.players[0].address,
+        game.players[0].address.to_field(),
         game.players[0].deck_strength as Field,
         game.players[0].points as Field,
-        game.players[1].address,
+        game.players[1].address.to_field(),
         game.players[1].deck_strength as Field,
         game.players[1].points as Field,
         game.rounds_cards[0].to_field(),
@@ -81,7 +82,7 @@ impl Game {
         for i in 0..NUMBER_OF_PLAYERS {
             let entry = self.players[i];
             if entry.is_initialized() {
-                assert(entry.address != player_entry.address, "Player already in game");
+                assert(!entry.address.eq(player_entry.address), "Player already in game");
             } else if !added {
                 self.players[i] = player_entry;
                 added = true;

@@ -1,5 +1,6 @@
 contract Counter {
     // docs:start:imports
+    use dep::protocol_types::address::AztecAddress;
     use dep::aztec::{
         context::{PrivateContext, Context},
         note::{
@@ -28,7 +29,7 @@ contract Counter {
 
     // docs:start:storage_init
     impl Storage {
-        fn init(context: Context) -> pub Self {
+        fn init(context: Context) -> Self {
             Storage {
                 counters: Map::new(
                     context,
@@ -44,31 +45,32 @@ contract Counter {
 
     // docs:start:constructor
     #[aztec(private)]
-    fn constructor(headstart: u120, owner: Field) {
+    fn constructor(headstart: u120, owner: AztecAddress) {
         let counters = storage.counters;
-        counters.at(owner).add(headstart, owner);
+        counters.at(owner.to_field()).add(headstart, owner);
     }
     // docs:end:constructor
 
     // docs:start:increment
     #[aztec(private)]
-      fn increment(owner: Field) {
+      fn increment(owner: AztecAddress) {
         let counters = storage.counters;
-        counters.at(owner).add(1, owner);
+        counters.at(owner.to_field()).add(1, owner);
     }
     // docs:end:increment
 
     // docs:start:get_counter
-    unconstrained fn get_counter(owner: Field) -> Field {
+    unconstrained fn get_counter(owner: AztecAddress) -> Field {
         let counters = storage.counters;
-        balance_utils::get_balance(counters.at(owner).set)
+        balance_utils::get_balance(counters.at(owner.to_field()).set)
     }
     // docs:end:get_counter
 
     // docs:start:nullifier
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
+    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
+        let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
+        let note_header = NoteHeader::new(_address, nonce, storage_slot);
+        note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)
     }
     // docs:end:nullifier
 }

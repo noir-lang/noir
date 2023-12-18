@@ -76,7 +76,7 @@ describe('e2e_ordering', () => {
 
           // The final value of the child is the last one set
           const value = await pxe.getPublicStorageAt(child.address, new Fr(1));
-          expect(value?.value).toBe(expectedOrder[1]); // final state should match last value set
+          expect(value.value).toBe(expectedOrder[1]); // final state should match last value set
         },
       );
     });
@@ -100,7 +100,7 @@ describe('e2e_ordering', () => {
           expect(receipt.status).toBe(TxStatus.MINED);
 
           const value = await pxe.getPublicStorageAt(child.address, new Fr(1));
-          expect(value?.value).toBe(expectedOrder[1]); // final state should match last value set
+          expect(value.value).toBe(expectedOrder[1]); // final state should match last value set
         },
       );
 

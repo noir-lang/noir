@@ -16,7 +16,7 @@ contract Child {
     }
 
     impl Storage {
-        fn init(context: Context) -> pub Self {
+        fn init(context: Context) -> Self {
             Storage {
                 current_value: PublicState::new(
                     context,
@@ -37,7 +37,7 @@ contract Child {
     }
 
     fn check_sender(call_context: CallContext) {
-        assert_eq(call_context.msg_sender, call_context.storage_contract_address, "Sender must be this contract");
+        assert(call_context.msg_sender.eq(call_context.storage_contract_address), "Sender must be this contract");
     }
 
     // Returns a sum of the input and the chain id and version of the contract in private circuit public input's return_values. 

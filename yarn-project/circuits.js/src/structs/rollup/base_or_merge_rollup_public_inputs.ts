@@ -60,13 +60,13 @@ export class BaseOrMergeRollupPublicInputs {
     public endContractTreeSnapshot: AppendOnlyTreeSnapshot,
 
     /**
-     * Root of the public data tree at the start of the rollup circuit.
+     * Snapshot of the public data tree at the start of the rollup circuit.
      */
-    public startPublicDataTreeRoot: Fr,
+    public startPublicDataTreeSnapshot: AppendOnlyTreeSnapshot,
     /**
-     * Root of the public data tree at the end of the rollup circuit.
+     * Snapshot of the public data tree at the end of the rollup circuit.
      */
-    public endPublicDataTreeRoot: Fr,
+    public endPublicDataTreeSnapshot: AppendOnlyTreeSnapshot,
 
     /**
      * SHA256 hashes of calldata. Used to make public inputs constant-sized (to then be unpacked on-chain).
@@ -94,8 +94,8 @@ export class BaseOrMergeRollupPublicInputs {
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
-      Fr.fromBuffer(reader),
-      Fr.fromBuffer(reader),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
       reader.readArray(NUM_FIELDS_PER_SHA256, Fr) as [Fr, Fr],
     );
   }
@@ -120,8 +120,8 @@ export class BaseOrMergeRollupPublicInputs {
       this.startContractTreeSnapshot,
       this.endContractTreeSnapshot,
 
-      this.startPublicDataTreeRoot,
-      this.endPublicDataTreeRoot,
+      this.startPublicDataTreeSnapshot,
+      this.endPublicDataTreeSnapshot,
 
       this.calldataHash,
     );

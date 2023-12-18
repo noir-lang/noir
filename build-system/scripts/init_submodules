@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # For a given repository, init any required submodules.
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -euo pipefail

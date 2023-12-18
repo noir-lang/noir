@@ -11,7 +11,7 @@ use dep::types::{
         private_kernel::private_call_data::PrivateCallData,
         previous_kernel_data::PreviousKernelData,
     },
-    address::{Address, EthAddress},
+    address::{AztecAddress, EthAddress},
     contrakt::deployment_data::ContractDeploymentData,
     constants::{
         EMPTY_NULLIFIED_COMMITMENT,

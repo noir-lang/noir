@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This script takes the state of your current repository, and clones it inside of a docker container.
 # You likely don't have a fresh clone, and it's paramount that to test bootstrapping, we don't have any
 # intermediate build state in the context.

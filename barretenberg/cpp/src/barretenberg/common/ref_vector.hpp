@@ -139,6 +139,7 @@ template <typename T> RefVector<T> concatenate(const RefVector<T>& ref_vector, c
     return concatenated;
 }
 
+/* @details Ensures a nested vector holds reference objects */
 template <typename T> static std::vector<RefVector<T>> to_vector_of_ref_vectors(std::vector<std::vector<T>>& vec)
 {
     std::vector<RefVector<T>> result;

@@ -48,10 +48,8 @@ import {
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-  MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP,
   MAX_PUBLIC_DATA_READS_PER_CALL,
   MAX_PUBLIC_DATA_READS_PER_TX,
-  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_READ_REQUESTS_PER_CALL,
@@ -67,6 +65,7 @@ import {
   NewContractData,
   NullifierLeafPreimage,
   OptionallyRevealedData,
+  PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
   Point,
   PreviousKernelData,
@@ -83,6 +82,8 @@ import {
   PublicCallStackItem,
   PublicCircuitPublicInputs,
   PublicDataRead,
+  PublicDataTreeLeaf,
+  PublicDataTreeLeafPreimage,
   PublicDataUpdateRequest,
   PublicKernelInputs,
   RETURN_VALUES_LENGTH,
@@ -802,8 +803,8 @@ export function makeBaseOrMergeRollupPublicInputs(
     makeAppendOnlyTreeSnapshot(seed + 0x600),
     makeAppendOnlyTreeSnapshot(seed + 0x700),
     makeAppendOnlyTreeSnapshot(seed + 0x800),
-    fr(seed + 0x900),
-    fr(seed + 0x1000),
+    makeAppendOnlyTreeSnapshot(seed + 0x900),
+    makeAppendOnlyTreeSnapshot(seed + 0x1000),
     [fr(seed + 0x901), fr(seed + 0x902)],
   );
 }
@@ -864,8 +865,8 @@ export function makeRootRollupPublicInputs(
     endNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     startContractTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     endContractTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
-    startPublicDataTreeRoot: fr((seed += 0x100)),
-    endPublicDataTreeRoot: fr((seed += 0x100)),
+    startPublicDataTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    endPublicDataTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     startL1ToL2MessagesTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     endL1ToL2MessagesTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     startArchiveSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
@@ -885,6 +886,24 @@ export function makeMergeRollupInputs(seed = 0): MergeRollupInputs {
 }
 
 /**
+ * Makes arbitrary public data tree leaves.
+ * @param seed - The seed to use for generating the public data tree leaf.
+ * @returns A public data tree leaf.
+ */
+export function makePublicDataTreeLeaf(seed = 0): PublicDataTreeLeaf {
+  return new PublicDataTreeLeaf(new Fr(seed), new Fr(seed + 1));
+}
+
+/**
+ * Makes arbitrary public data tree leaf preimages.
+ * @param seed - The seed to use for generating the public data tree leaf preimage.
+ * @returns A public data tree leaf preimage.
+ */
+export function makePublicDataTreeLeafPreimage(seed = 0): PublicDataTreeLeafPreimage {
+  return new PublicDataTreeLeafPreimage(new Fr(seed), new Fr(seed + 1), new Fr(seed + 2), BigInt(seed + 3));
+}
+
+/**
  * Makes arbitrary base rollup inputs.
  * @param seed - The seed to use for generating the base rollup inputs.
  * @returns A base rollup inputs.
@@ -895,7 +914,7 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
   const startNoteHashTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x100);
   const startNullifierTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x200);
   const startContractTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x300);
-  const startPublicDataTreeRoot = fr(seed + 0x400);
+  const startPublicDataTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x400);
   const startArchiveSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x500);
 
   const lowNullifierLeafPreimages = makeTuple(
@@ -917,16 +936,69 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
   const sortedNewNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP, fr, seed + 0x6000);
   const sortednewNullifiersIndexes = makeTuple(MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP, i => i, seed + 0x7000);
 
-  const newPublicDataUpdateRequestsSiblingPaths = makeTuple(
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP,
-    x => makeTuple(PUBLIC_DATA_TREE_HEIGHT, fr, x),
-    seed + 0x8000,
+  const sortedPublicDataWrites = makeTuple(
+    KERNELS_PER_BASE_ROLLUP,
+    i => {
+      return makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, makePublicDataTreeLeaf, seed + 0x8000 + i * 0x100);
+    },
+    0,
+  );
+  const sortedPublicDataWritesIndexes = makeTuple(
+    KERNELS_PER_BASE_ROLLUP,
+    () => makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => i, 0),
+    0,
   );
 
-  const newPublicDataReadsSiblingPaths = makeTuple(
-    MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP,
-    x => makeTuple(PUBLIC_DATA_TREE_HEIGHT, fr, x),
-    seed + 0x8000,
+  const lowPublicDataWritesPreimages = makeTuple(
+    KERNELS_PER_BASE_ROLLUP,
+    i => {
+      return makeTuple(
+        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+        makePublicDataTreeLeafPreimage,
+        seed + 0x8200 + i * 0x100,
+      );
+    },
+    0,
+  );
+
+  const lowPublicDataWritesMembershipWitnesses = makeTuple(
+    KERNELS_PER_BASE_ROLLUP,
+    i => {
+      return makeTuple(
+        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+        i => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, i),
+        seed + 0x8400 + i * 0x100,
+      );
+    },
+    0,
+  );
+
+  const publicDataWritesSubtreeSiblingPaths = makeTuple(
+    KERNELS_PER_BASE_ROLLUP,
+    i => {
+      return makeTuple(PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, fr, 0x8600 + i * 0x100);
+    },
+    0,
+  );
+
+  const publicDataReadsPreimages = makeTuple(
+    KERNELS_PER_BASE_ROLLUP,
+    i => {
+      return makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, makePublicDataTreeLeafPreimage, seed + 0x8800 + i * 0x100);
+    },
+    0,
+  );
+
+  const publicDataReadsMembershipWitnesses = makeTuple(
+    KERNELS_PER_BASE_ROLLUP,
+    i => {
+      return makeTuple(
+        MAX_PUBLIC_DATA_READS_PER_TX,
+        i => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, i),
+        seed + 0x8a00 + i * 0x100,
+      );
+    },
+    0,
   );
 
   const archiveRootMembershipWitnesses = makeTuple(KERNELS_PER_BASE_ROLLUP, x =>
@@ -941,7 +1013,7 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
     startNoteHashTreeSnapshot,
     startNullifierTreeSnapshot,
     startContractTreeSnapshot,
-    startPublicDataTreeRoot,
+    startPublicDataTreeSnapshot,
     archiveSnapshot: startArchiveSnapshot,
     sortedNewNullifiers,
     sortednewNullifiersIndexes,
@@ -949,8 +1021,13 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
     newCommitmentsSubtreeSiblingPath,
     newNullifiersSubtreeSiblingPath,
     newContractsSubtreeSiblingPath,
-    newPublicDataUpdateRequestsSiblingPaths,
-    newPublicDataReadsSiblingPaths,
+    sortedPublicDataWrites,
+    sortedPublicDataWritesIndexes,
+    lowPublicDataWritesPreimages,
+    lowPublicDataWritesMembershipWitnesses,
+    publicDataWritesSubtreeSiblingPaths,
+    publicDataReadsPreimages,
+    publicDataReadsMembershipWitnesses,
     archiveRootMembershipWitnesses,
     constants,
   });

@@ -216,7 +216,11 @@ We are importing the Option type, items from the `value_note` library to help ma
 
 For more detail on execution contexts, see [Contract Communication](../../concepts/foundation/communication/main).
 
-We are also importing types from a `types.nr` file. The main thing to note from this types file is the `TransparentNote` definition. This defines how the contract moves value from the public domain into the private domain. It is similar to the `value_note` that we imported, but with some modifications namely, instead of a defined `owner`, it allows anyone that can produce the pre-image to the stored `secret_hash` to spend the note.
+### Types files
+
+We are also importing types from a `types.nr` file, which imports types from the `types` folder. You can view them [here](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/yarn-project/noir-contracts/src/contracts/token_contract/src).
+
+The main thing to note from this types folder is the `TransparentNote` definition. This defines how the contract moves value from the public domain into the private domain. It is similar to the `value_note` that we imported, but with some modifications namely, instead of a defined `owner`, it allows anyone that can produce the pre-image to the stored `secret_hash` to spend the note.
 
 ### Note on private state
 

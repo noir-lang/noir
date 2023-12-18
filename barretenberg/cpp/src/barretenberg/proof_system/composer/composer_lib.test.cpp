@@ -22,11 +22,11 @@ class ComposerLibTests : public ::testing::Test {
 
 TEST_F(ComposerLibTests, ConstructSelectors)
 {
-    circuit_constructor.q_m = { 1, 2, 3, 4 };
-    circuit_constructor.q_1 = { 5, 6, 7, 8 };
-    circuit_constructor.q_2 = { 9, 10, 11, 12 };
-    circuit_constructor.q_3 = { 13, 14, 15, 16 };
-    circuit_constructor.q_c = { 17, 18, 19, 20 };
+    circuit_constructor.q_m() = { 1, 2, 3, 4 };
+    circuit_constructor.q_1() = { 5, 6, 7, 8 };
+    circuit_constructor.q_2() = { 9, 10, 11, 12 };
+    circuit_constructor.q_3() = { 13, 14, 15, 16 };
+    circuit_constructor.q_c() = { 17, 18, 19, 20 };
 
     construct_selector_polynomials<Flavor>(circuit_constructor, &proving_key);
     size_t offset = 0;

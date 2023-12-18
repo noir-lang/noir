@@ -3,7 +3,8 @@ import {
   ContractArtifact,
   FunctionArtifact,
   isAztecAddressStruct,
-  isEthereumAddressStruct,
+  isEthAddressStruct,
+  isFunctionSelectorStruct,
 } from '@aztec/foundation/abi';
 
 import compact from 'lodash.compact';
@@ -26,11 +27,14 @@ function abiTypeToTypescript(type: ABIParameter['type']): string {
     case 'array':
       return `${abiTypeToTypescript(type.type)}[]`;
     case 'struct':
-      if (isEthereumAddressStruct(type)) {
+      if (isEthAddressStruct(type)) {
         return 'EthAddressLike';
       }
       if (isAztecAddressStruct(type)) {
         return 'AztecAddressLike';
+      }
+      if (isFunctionSelectorStruct(type)) {
+        return 'FunctionSelectorLike';
       }
       return `{ ${type.fields.map(f => `${f.name}: ${abiTypeToTypescript(f.type)}`).join(', ')} }`;
     default:
@@ -189,6 +193,7 @@ import {
   EthAddressLike,
   FieldLike,
   Fr,
+  FunctionSelectorLike,
   Point,
   PublicKey,
   Wallet,
