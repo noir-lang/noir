@@ -22,8 +22,8 @@ jobs:
           REGISTRY="ghcr.io"
           IMG="${REGISTRY}/${{ github.repository }}"
           IMAGE=$(echo "$IMG" | tr '[:upper:]' '[:lower:]')
-          TAGS="${IMAGE}:${{ github.sha }}:js"
-          TAGS="${TAGS},${IMAGE}:latest:js,${IMAGE}:v${{ steps.date.outputs.date }}:js"
+          TAGS="${IMAGE}:${{ github.sha }}-js"
+          TAGS="${TAGS},${IMAGE}:latest-js,${IMAGE}:v${{ steps.date.outputs.date }}-js"
           echo "tags=$TAGS" >> $GITHUB_OUTPUT
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
       - name: Set up Docker Buildx
@@ -61,8 +61,8 @@ jobs:
           REGISTRY="ghcr.io"
           IMG="${REGISTRY}/${{ github.repository }}"
           IMAGE=$(echo "$IMG" | tr '[:upper:]' '[:lower:]')
-          TAGS="${IMAGE}:${{ github.sha }}:nargo"
-          TAGS="${TAGS},${IMAGE}:latest:nargo,${IMAGE}:v${{ steps.date.outputs.date }}:nargo"
+          TAGS="${IMAGE}:${{ github.sha }}-nargo"
+          TAGS="${TAGS},${IMAGE}:latest-nargo,${IMAGE}:v${{ steps.date.outputs.date }}-nargo"
           # echo ::set-output name=tags::${TAGS}
           echo "tags=$TAGS" >> $GITHUB_OUTPUT
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-base-nargo]
     container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}:nargo
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}-nargo
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
@@ -105,7 +105,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-base-js]
     container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}:js
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
@@ -119,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-base-js, test-source-resolver, build-base-nargo]
     container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}:js
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
@@ -133,7 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-base-js]
     container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}:js
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
@@ -147,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-base-js]
     container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}:js
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
