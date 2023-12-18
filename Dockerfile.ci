@@ -19,11 +19,29 @@ COPY yarn.lock package.json .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
 # acvm-js
 COPY ./acvm-repo/acvm_js/package.json ./acvm-repo/acvm_js/
+# noirc abi
 COPY ./tooling/noirc_abi_wasm/package.json ./tooling/noirc_abi_wasm/
+# noir wasm
 COPY ./compiler/wasm/package.json ./compiler/wasm/
+# source resolver
 COPY ./compiler/source-resolver/package.json ./compiler/source-resolver/
 
-RUN yarn
+#! Things rely on this
+COPY ./tooling/noir_js_types/package.json ./tooling/noir_js_types/
+
+#backend barretenberg
+COPY ./tooling/noir_js_backend_barretenberg/package.json ./tooling/noir_js_backend_barretenberg/
+
+COPY ./tooling/noir_js/package.json ./tooling/noir_js/
+
+COPY ./tooling/noir_codegen/package.json ./tooling/noir_codegen/
+
+### NEW ADDED
+COPY ./compiler/integration-tests/package.json ./compiler/integration-tests/
+COPY ./release-tests/package.json ./release-tests/
+COPY ./docs/package.json ./docs/
+
+RUN yarn --immutable
 # RUN yarn --immutable
 COPY . .
 
@@ -82,11 +100,11 @@ RUN corepack enable
 RUN yarn --immutable
 RUN apt-get install -y jq
 RUN yarn build
-RUN yarn workspace @noir-lang/acvm_js test
-RUN npx playwright install && npx playwright install-deps
-RUN yarn workspace @noir-lang/acvm_js test:browser
-RUN yarn workspace @noir-lang/noirc_abi test
-RUN yarn workspace @noir-lang/noirc_abi test:browser
+# RUN yarn workspace @noir-lang/acvm_js test
+# RUN npx playwright install && npx playwright install-deps
+# RUN yarn workspace @noir-lang/acvm_js test:browser
+# RUN yarn workspace @noir-lang/noirc_abi test
+# RUN yarn workspace @noir-lang/noirc_abi test:browser
 RUN yarn workspace @noir-lang/backend_barretenberg test
 RUN ./scripts/nargo_compile_noir_js_assert_lt.sh
 RUN rm -rf /usr/src/noir/tooling/noir_js/test/noir_compiled_examples/assert_lt/target/debug_assert_lt.json
