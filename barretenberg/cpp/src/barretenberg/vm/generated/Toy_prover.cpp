@@ -29,21 +29,16 @@ ToyProver::ToyProver(std::shared_ptr<Flavor::ProvingKey> input_key, std::shared_
     , commitment_key(commitment_key)
 {
     // TODO: take every polynomial and assign it to the key!!
-    prover_polynomials.toy_first = key->toy_first;
-    prover_polynomials.toy_q_tuple_set = key->toy_q_tuple_set;
-    prover_polynomials.toy_set_1_column_1 = key->toy_set_1_column_1;
-    prover_polynomials.toy_set_1_column_2 = key->toy_set_1_column_2;
-    prover_polynomials.toy_set_2_column_1 = key->toy_set_2_column_1;
-    prover_polynomials.toy_set_2_column_2 = key->toy_set_2_column_2;
-    prover_polynomials.toy_x = key->toy_x;
-    prover_polynomials.two_column_perm = key->two_column_perm;
-
-    prover_polynomials.toy_x = key->toy_x;
-    prover_polynomials.toy_x_shift = key->toy_x.shifted();
-
-    // prover_polynomials.lookup_inverses = key->lookup_inverses;
-    // key->z_perm = Polynomial(key->circuit_size);
-    // prover_polynomials.z_perm = key->z_perm;
+    for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_unshifted(), key->get_all())) {
+        ASSERT(proof_system::flavor_get_label(prover_polynomials, prover_poly) ==
+               proof_system::flavor_get_label(*key, key_poly));
+        prover_poly = key_poly.share();
+    }
+    for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_shifted(), key->get_to_be_shifted())) {
+        ASSERT(proof_system::flavor_get_label(prover_polynomials, prover_poly) ==
+               proof_system::flavor_get_label(*key, key_poly) + "_shift");
+        prover_poly = key_poly.shifted();
+    }
 }
 
 /**

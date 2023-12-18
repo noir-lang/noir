@@ -38,7 +38,7 @@ class ToyCircuitBuilder {
 
     // TODO: template
     using Polynomial = Flavor::Polynomial;
-    using AllPolynomials = Flavor::AllPolynomials;
+    using ProverPolynomials = Flavor::ProverPolynomials;
 
     static constexpr size_t num_fixed_columns = 9;
     static constexpr size_t num_polys = 8;
@@ -46,10 +46,10 @@ class ToyCircuitBuilder {
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
 
-    AllPolynomials compute_polynomials()
+    ProverPolynomials compute_polynomials()
     {
         const auto num_rows = get_circuit_subgroup_size();
-        AllPolynomials polys;
+        ProverPolynomials polys;
 
         // Allocate mem for each column
         for (auto& poly : polys.get_all()) {
@@ -88,7 +88,7 @@ class ToyCircuitBuilder {
             .eccvm_set_permutation_delta = 0,
         };
 
-        auto polys = compute_polynomials();
+        ProverPolynomials polys = compute_polynomials();
         const size_t num_rows = polys.get_polynomial_size();
 
         const auto evaluate_relation = [&]<typename Relation>(const std::string& relation_name) {

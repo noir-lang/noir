@@ -126,13 +126,13 @@ class ToyFlavor {
         using Base = ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>>;
         using Base::Base;
 
+        RefVector<DataType> get_to_be_shifted() { return { toy_x }; };
+
         // The plookup wires that store plookup read data.
         std::array<PolynomialHandle, 0> get_table_column_wires() { return {}; };
     };
 
     using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>>;
-
-    using ProverPolynomials = AllEntities<PolynomialHandle>;
 
     using FoldedPolynomials = AllEntities<std::vector<FF>>;
 
@@ -142,20 +142,34 @@ class ToyFlavor {
         using Base::Base;
     };
 
-    class AllPolynomials : public AllEntities<Polynomial> {
+    using RowPolynomials = AllEntities<FF>;
+
+    /**
+     * @brief A container for the prover polynomials handles.
+     */
+    class ProverPolynomials : public AllEntities<Polynomial> {
       public:
-        [[nodiscard]] size_t get_polynomial_size() const { return this->toy_q_tuple_set.size(); }
-        [[nodiscard]] AllValues get_row(const size_t row_idx) const
+        // Define all operations as default, except move construction/assignment
+        ProverPolynomials() = default;
+        ProverPolynomials& operator=(const ProverPolynomials&) = delete;
+        ProverPolynomials(const ProverPolynomials& o) = delete;
+        ProverPolynomials(ProverPolynomials&& o) noexcept = default;
+        ProverPolynomials& operator=(ProverPolynomials&& o) noexcept = default;
+        ~ProverPolynomials() = default;
+        [[nodiscard]] size_t get_polynomial_size() const { return toy_first.size(); }
+        /**
+         * @brief Returns the evaluations of all prover polynomials at one point on the boolean hypercube, which
+         * represents one row in the execution trace.
+         */
+        [[nodiscard]] AllValues get_row(size_t row_idx) const
         {
             AllValues result;
-            for (auto [result_field, polynomial] : zip_view(result.get_all(), get_all())) {
+            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
                 result_field = polynomial[row_idx];
             }
             return result;
         }
     };
-
-    using RowPolynomials = AllEntities<FF>;
 
     class PartiallyEvaluatedMultivariates : public AllEntities<Polynomial> {
       public:
