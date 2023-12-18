@@ -403,11 +403,15 @@ In this section, we'll explain how to test the VS Code Noir debugger combining t
 
 5. Go to Code -> Settings -> Extensions -> Noir Language Server. Look for the property `Nargo Path` and enter the path to the experimental build you got as a result of following the steps at [Trying out REPL experimental features](#trying-out-repl-experimental-features).
 
-6. At the VS Code sidebar, go to the debugger section (see screenshot). Click "create new launch configuration". Overwrite the `projectFolder` property with the absolute path to the Nargo project you want to debug.
+6. At the VS Code sidebar, go to the debugger section (see screenshot). Click "Add configuration". Overwrite the `projectFolder` property with the absolute path to the Nargo project you want to debug.
 
-7. Go to a Noir file you want to debug. You should see this button is enabled. Click the play button.
+<img width="473" alt="Screenshot 2023-12-18 at 14 37 38" src="https://github.com/manastech/noir/assets/651693/cdad9ee1-8164-4c33-ab24-2584016088f0">
 
-The debugger should now start. Current features exposed to the debugger include different kinds of stepping interactions, variable inspection and stacktraces. At the time of writing, Brillig registers and memory are not being exposed, but they will soon be.  
+7. Go to a Noir file you want to debug. Navigate again to the debug section of VS Code, and click the "play" icon.
+
+The debugger should now have started. Current features exposed to the debugger include different kinds of stepping interactions, variable inspection and stacktraces. At the time of writing, Brillig registers and memory are not being exposed, but they will soon be.  
+
+![Screen Recording 2023-12-18 at 14 14 28](https://github.com/manastech/noir/assets/651693/36b4becb-953a-4158-9c5a-7a185673f54f)
 
 ## Towards debugging contracts
 
