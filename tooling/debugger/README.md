@@ -401,7 +401,7 @@ In this section, we'll explain how to test the VS Code Noir debugger combining t
 
 4. From VS Code, press fn+F5. This will open a new VS Code window with the extension loaded from source. 
 
-5. Go to Code -> Settings -> Extensions -> Noir Language Server. Look for the property `Nargo Path` and enter the path to the experimental build you got as a result of following the steps at [Trying out REPL experimental features].
+5. Go to Code -> Settings -> Extensions -> Noir Language Server. Look for the property `Nargo Path` and enter the path to the experimental build you got as a result of following the steps at [Trying out REPL experimental features](#trying-out-repl-experimental-features).
 
 6. At the VS Code sidebar, go to the debugger section (see screenshot). Click "create new launch configuration". Overwrite the `projectFolder` property with the absolute path to the Nargo project you want to debug.
 
