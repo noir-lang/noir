@@ -62,6 +62,20 @@ jobs:
   #         cd /usr/src/noir
   #         ./scripts/test_native.sh
 
+  test-noir-wasm:
+    name: test noir wasm
+    runs-on: ubuntu-latest
+    needs: [build-base]
+    container:
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
+    steps:
+      - name: test
+        run: |
+          /usr/src/noir/.github/scripts/test-noir-wasm.sh
+
   test-acvm-js:
     name: test acvm js
     runs-on: ubuntu-latest
