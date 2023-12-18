@@ -52,7 +52,7 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
     let target_dir = &workspace.target_directory_path();
-    let np_language = backend.get_backend_info()?;
+    let expression_width = backend.get_backend_info()?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
     for package in workspace.clone().into_iter() {
@@ -71,7 +71,7 @@ pub(crate) fn run(
         &workspace,
         package,
         &args.compile_options,
-        np_language,
+        expression_width,
     )?;
 
     run_async(package, compiled_program, &args.prover_name, &args.witness_name, target_dir)

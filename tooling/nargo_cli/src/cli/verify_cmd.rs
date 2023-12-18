@@ -55,7 +55,7 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
 
-    let np_language = backend.get_backend_info()?;
+    let expression_width = backend.get_backend_info()?;
     for package in &workspace {
         // TODO: Same as other todo, we can be adding files for the entire workspace
         insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
@@ -64,7 +64,7 @@ pub(crate) fn run(
             &workspace,
             package,
             &args.compile_options,
-            np_language,
+            expression_width,
         )?;
 
         verify_package(backend, &workspace, package, program, &args.verifier_name)?;

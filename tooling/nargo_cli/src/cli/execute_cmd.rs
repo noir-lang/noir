@@ -63,7 +63,7 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
 
-    let np_language = backend.get_backend_info_or_default();
+    let expression_width = backend.get_backend_info_or_default();
     for package in &workspace {
         insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
         let compiled_program = compile_bin_package(
@@ -71,7 +71,7 @@ pub(crate) fn run(
             &workspace,
             package,
             &args.compile_options,
-            np_language,
+            expression_width,
         )?;
 
         let (return_value, solved_witness) =

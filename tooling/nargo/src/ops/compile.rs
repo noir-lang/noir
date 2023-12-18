@@ -1,4 +1,4 @@
-use acvm::Language;
+use acvm::ExpressionWidth;
 use fm::FileManager;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, CompiledProgram};
 
@@ -18,7 +18,7 @@ pub fn compile_workspace(
     workspace: &Workspace,
     binary_packages: &[Package],
     contract_packages: &[Package],
-    np_language: Language,
+    expression_width: ExpressionWidth,
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CompileError> {
     // TODO: We want to remove this returning of file managers and just have one file manager
@@ -26,12 +26,12 @@ pub fn compile_workspace(
     let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
         .par_iter()
         .map(|package| {
-            compile_program(file_manager, workspace, package, compile_options, np_language)
+            compile_program(file_manager, workspace, package, compile_options, expression_width)
         })
         .collect();
     let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
         .par_iter()
-        .map(|package| compile_contract(file_manager, package, compile_options, np_language))
+        .map(|package| compile_contract(file_manager, package, compile_options, expression_width))
         .collect();
 
     // Report any warnings/errors which were encountered during compilation.
@@ -66,7 +66,7 @@ pub fn compile_program(
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
-    np_language: Language,
+    expression_width: ExpressionWidth,
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, crate_id) = prepare_package(file_manager, package);
 
@@ -83,7 +83,7 @@ pub fn compile_program(
         };
 
     // Apply backend specific optimizations.
-    let optimized_program = crate::ops::optimize_program(program, np_language);
+    let optimized_program = crate::ops::optimize_program(program, expression_width);
 
     Ok((optimized_program, warnings))
 }
@@ -92,7 +92,7 @@ fn compile_contract(
     file_manager: &FileManager,
     package: &Package,
     compile_options: &CompileOptions,
-    np_language: Language,
+    expression_width: ExpressionWidth,
 ) -> CompilationResult<CompiledContract> {
     let (mut context, crate_id) = prepare_package(file_manager, package);
     let (contract, warnings) =
@@ -103,7 +103,7 @@ fn compile_contract(
             }
         };
 
-    let optimized_contract = crate::ops::optimize_contract(contract, np_language);
+    let optimized_contract = crate::ops::optimize_contract(contract, expression_width);
 
     Ok((optimized_contract, warnings))
 }

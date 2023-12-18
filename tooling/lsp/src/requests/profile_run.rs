@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use acvm::Language;
+use acvm::ExpressionWidth;
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::{artifacts::debug::DebugArtifact, insert_all_files_for_package_into_file_manager};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -65,14 +65,14 @@ fn on_profile_run_request_inner(
                 .cloned()
                 .partition(|package| package.is_binary());
 
-            let np_language = Language::PLONKCSat { width: 3 };
+            let expression_width = ExpressionWidth::Bounded { width: 3 };
 
             let (compiled_programs, compiled_contracts) = nargo::ops::compile_workspace(
                 &workspace_file_manager,
                 &workspace,
                 &binary_packages,
                 &contract_packages,
-                np_language,
+                expression_width,
                 &CompileOptions::default(),
             )
             .map_err(|err| ResponseError::new(ErrorCode::REQUEST_FAILED, err))?;
