@@ -18,5 +18,12 @@
     },
     "[javascript]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "jestrunner.projectPath": "./",
+    "jestrunner.debugOptions": {
+        "runtimeArgs": ["--experimental-vm-modules"],
+        "env": {
+            "NODE_NO_WARNINGS": 1
+        }
     }
 }
