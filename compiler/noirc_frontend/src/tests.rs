@@ -21,7 +21,6 @@ mod test {
     use crate::hir::Context;
     use crate::node_interner::{NodeInterner, StmtId};
 
-    use crate::graph::CrateGraph;
     use crate::hir::def_collector::dc_crate::DefCollector;
     use crate::hir_def::expr::HirExpression;
     use crate::hir_def::stmt::HirStatement;
