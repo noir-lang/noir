@@ -87,7 +87,7 @@ jobs:
           push: true
         
   test-nargo:
-    name: test cargo 
+    name: test nargo 
     runs-on: ubuntu-latest
     needs: [build-base-nargo]
     container:
@@ -101,7 +101,7 @@ jobs:
           /usr/src/noir/.github/scripts/test-nargo.sh
 
   test-source-resolver:
-    name: test noir wasm
+    name: test source resolver
     runs-on: ubuntu-latest
     needs: [build-base-js]
     container:

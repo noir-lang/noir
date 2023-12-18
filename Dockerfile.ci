@@ -4,7 +4,7 @@ WORKDIR /usr/src/noir
 
 FROM base-base as base-nargo
 COPY . .
-RUN ./scripts/bootstrap_native.sh
+RUN .github/scripts/build-nargo.sh
 ENV PATH="${PATH}:/usr/src/noir/target/release"
 
 FROM base-base as base-js
