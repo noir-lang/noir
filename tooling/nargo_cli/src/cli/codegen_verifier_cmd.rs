@@ -51,7 +51,7 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
 
-    let np_language = backend.get_backend_info()?;
+    let expression_width = backend.get_backend_info()?;
     for package in &workspace {
         insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
         let smart_contract_string = smart_contract_for_package(
