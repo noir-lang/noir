@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 use fm::FileManager;
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
 use noirc_frontend::{
-    graph::{CrateGraph, CrateId, CrateName},
+    graph::{CrateId, CrateName},
     hir::Context,
 };
 use package::{Dependency, Package};

@@ -39,8 +39,9 @@ pub enum FunctionNameMatch<'a> {
     Contains(&'a str),
 }
 
-impl Context<'_> {
-    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context<'static> {
+impl Context {
+    pub fn new(file_manager: FileManager) -> Context {
+        let crate_graph = CrateGraph::default();
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),

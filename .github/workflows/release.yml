@@ -11,6 +11,7 @@ jobs:
     outputs:
       release-pr: ${{ steps.release.outputs.pr }}
       tag-name: ${{ steps.release.outputs.tag_name }}
+      pending-release-semver: v${{ steps.release.outputs.major }}.${{steps.release.outputs.minor}}.${{steps.release.outputs.patch}}
     runs-on: ubuntu-latest
     steps:
       - name: Run release-please
@@ -59,9 +60,7 @@ jobs:
     needs: [release-please, update-acvm-workspace-package-versions]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-latest
-    env:
-      PENDING_RELEASE_SEMVER: v${{ needs.release-please.outputs.major }}.${{needs.release-please.outputs.minor}}.${{needs.release-please.outputs.patch}}
-
+ 
     steps:
       - name: Checkout release branch
         uses: actions/checkout@v4
@@ -79,7 +78,7 @@ jobs:
 
       - name: Cut a new version
         working-directory: ./docs
-        run: yarn docusaurus docs:version ${{ env.PENDING_RELEASE_SEMVER }}
+        run: yarn docusaurus docs:version ${{ needs.release-please.outputs.pending-release-semver }}
 
       - name: Configure git
         run: |
@@ -89,7 +88,7 @@ jobs:
       - name: Commit new documentation version
         run: |
           git add .
-          git commit -m "chore(docs): cut new docs version for tag ${{ env.PENDING_RELEASE_SEMVER }}"
+          git commit -m "chore(docs): cut new docs version for tag ${{ needs.release-please.outputs.pending-release-semver }}"
           git push
 
   build-binaries:
