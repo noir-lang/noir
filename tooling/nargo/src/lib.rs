@@ -19,7 +19,7 @@ use std::{collections::BTreeMap, path::Path};
 use fm::FileManager;
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
 use noirc_frontend::{
-    graph::{CrateGraph, CrateId, CrateName},
+    graph::{CrateId, CrateName},
     hir::Context,
 };
 use package::{Dependency, Package};
@@ -91,8 +91,7 @@ pub fn prepare_package(package: &Package) -> (Context, CrateId) {
     let mut fm = FileManager::new(&package.root_dir);
     insert_all_files_for_package_into_file_manager(package, &mut fm);
 
-    let graph = CrateGraph::default();
-    let mut context = Context::new(fm, graph);
+    let mut context = Context::new(fm);
 
     let crate_id = prepare_crate(&mut context, &package.entry_path);
 

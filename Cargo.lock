@@ -41,7 +41,6 @@ version = "0.37.1"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
- "acvm_stdlib",
  "brillig_vm",
  "indexmap 1.9.3",
  "log",
@@ -85,13 +84,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
  "wasm-logger",
-]
-
-[[package]]
-name = "acvm_stdlib"
-version = "0.37.1"
-dependencies = [
- "acir",
 ]
 
 [[package]]

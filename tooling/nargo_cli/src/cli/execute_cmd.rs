@@ -56,15 +56,10 @@ pub(crate) fn run(
     )?;
     let target_dir = &workspace.target_directory_path();
 
-    let (np_language, opcode_support) = backend.get_backend_info_or_default();
+    let np_language = backend.get_backend_info_or_default();
     for package in &workspace {
-        let compiled_program = compile_bin_package(
-            &workspace,
-            package,
-            &args.compile_options,
-            np_language,
-            &opcode_support,
-        )?;
+        let compiled_program =
+            compile_bin_package(&workspace, package, &args.compile_options, np_language)?;
 
         let (return_value, solved_witness) =
             execute_program_and_decode(compiled_program, package, &args.prover_name)?;
