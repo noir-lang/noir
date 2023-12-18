@@ -74,7 +74,7 @@ jobs:
     steps:
       - name: test
         run: |
-          ./.github/scripts/test-acvm-js.sh
+          /usr/src/noir/.github/scripts/test-acvm-js.sh
 
   # test-noirc-abi:
   #   name: test noirc abi
