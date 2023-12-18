@@ -7,6 +7,7 @@ import { Command } from 'commander';
 import { acvmInfoJson } from './info.js';
 import { Timer, writeBenchmark } from './benchmark/index.js';
 import path from 'path';
+import { GrumpkinCrs } from './crs/node/index.js';
 createDebug.log = console.error.bind(console);
 const debug = createDebug('bb.js');
 
@@ -43,11 +44,12 @@ async function computeCircuitSize(bytecodePath: string, api: Barretenberg) {
   return { exact, total, subgroup };
 }
 
-async function init(bytecodePath: string, crsPath: string) {
+async function init(bytecodePath: string, crsPath: string, subgroupSizeOverride = -1) {
   const api = await Barretenberg.new({ threads });
 
   const circuitSize = await getGates(bytecodePath, api);
-  const subgroupSize = Math.pow(2, Math.ceil(Math.log2(circuitSize)));
+  // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): remove subgroupSizeOverride hack for goblin
+  const subgroupSize = Math.max(subgroupSizeOverride, Math.pow(2, Math.ceil(Math.log2(circuitSize))));
   if (subgroupSize > MAX_CIRCUIT_SIZE) {
     throw new Error(`Circuit size of ${subgroupSize} exceeds max supported of ${MAX_CIRCUIT_SIZE}`);
   }
@@ -67,6 +69,20 @@ async function init(bytecodePath: string, crsPath: string) {
 
   const acirComposer = await api.acirNewAcirComposer(subgroupSize);
   return { api, acirComposer, circuitSize, subgroupSize };
+}
+
+async function initGoblin(bytecodePath: string, crsPath: string) {
+  // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): remove this subgroup size hack
+  const hardcodedGrumpkinSubgroupSizeHack = 32768;
+  const initData = await init(bytecodePath, crsPath, hardcodedGrumpkinSubgroupSizeHack);
+  const { api } = initData;
+
+  // Plus 1 needed! (Move +1 into Crs?)
+  // Need both grumpkin and bn254 SRS's currently
+  const grumpkinCrs = await GrumpkinCrs.new(hardcodedGrumpkinSubgroupSizeHack + 1, crsPath);
+  await api.srsInitGrumpkinSrs(new RawBuffer(grumpkinCrs.getG1Data()), grumpkinCrs.numPoints);
+
+  return initData;
 }
 
 async function initLite() {
@@ -105,6 +121,34 @@ export async function proveAndVerify(bytecodePath: string, witnessPath: string, 
     debug(`verifying...`);
     const verified = await api.acirVerifyProof(acirComposer, proof, isRecursive);
     debug(`verified: ${verified}`);
+    return verified;
+  } finally {
+    await api.destroy();
+  }
+  /* eslint-enable camelcase */
+}
+
+export async function proveAndVerifyGoblin(bytecodePath: string, witnessPath: string, crsPath: string) {
+  /* eslint-disable camelcase */
+  const acir_test = path.basename(process.cwd());
+
+  const { api, acirComposer, circuitSize, subgroupSize } = await initGoblin(bytecodePath, crsPath);
+  try {
+    debug(`creating proof...`);
+    const bytecode = getBytecode(bytecodePath);
+    const witness = getWitness(witnessPath);
+
+    writeBenchmark('gate_count', circuitSize, { acir_test, threads });
+    writeBenchmark('subgroup_size', subgroupSize, { acir_test, threads });
+
+    const proofTimer = new Timer();
+    const proof = await api.acirCreateGoblinProof(acirComposer, bytecode, witness);
+    writeBenchmark('proof_construction_time', proofTimer.ms(), { acir_test, threads });
+
+    debug(`verifying...`);
+    const verified = await api.acirVerifyGoblinProof(acirComposer, proof);
+    debug(`verified: ${verified}`);
+    console.log({ verified });
     return verified;
   } finally {
     await api.destroy();
@@ -309,6 +353,17 @@ program
   .action(async ({ bytecodePath, witnessPath, recursive, crsPath }) => {
     handleGlobalOptions();
     const result = await proveAndVerify(bytecodePath, witnessPath, crsPath, recursive);
+    process.exit(result ? 0 : 1);
+  });
+
+program
+  .command('prove_and_verify_goblin')
+  .description('Generate a proof and verify it. Process exits with success or failure code.')
+  .option('-b, --bytecode-path <path>', 'Specify the bytecode path', './target/acir.gz')
+  .option('-w, --witness-path <path>', 'Specify the witness path', './target/witness.gz')
+  .action(async ({ bytecodePath, witnessPath, crsPath }) => {
+    handleGlobalOptions();
+    const result = await proveAndVerifyGoblin(bytecodePath, witnessPath, crsPath);
     process.exit(result ? 0 : 1);
   });
 

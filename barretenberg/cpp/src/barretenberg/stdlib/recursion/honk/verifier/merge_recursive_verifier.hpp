@@ -27,5 +27,6 @@ template <typename CircuitBuilder> class MergeRecursiveVerifier_ {
 };
 
 extern template class MergeRecursiveVerifier_<GoblinUltraCircuitBuilder>;
+extern template class MergeRecursiveVerifier_<UltraCircuitBuilder>;
 
 } // namespace proof_system::plonk::stdlib::recursion::goblin

@@ -1,33 +1,27 @@
-#pragma once
-#include "exec_pipe.hpp"
-#include "file_io.hpp"
-#include "log.hpp"
-#include <barretenberg/ecc/curves/bn254/g1.hpp>
-#include <barretenberg/srs/io.hpp>
-#include <filesystem>
-#include <fstream>
-#include <ios>
+#include "get_bn254_crs.hpp"
 
 // Gets the transcript URL from the BARRETENBERG_TRANSCRIPT_URL environment variable, if set.
 // Otherwise returns the default URL.
-inline std::string getTranscriptURL()
+namespace {
+std::string get_bn254_transcript_url()
 {
     const char* ENV_VAR_NAME = "BARRETENBERG_TRANSCRIPT_URL";
     const std::string DEFAULT_URL = "https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/monomial/transcript00.dat";
 
     const char* env_url = std::getenv(ENV_VAR_NAME);
 
-    auto environment_variable_exists = (env_url && *env_url);
+    auto environment_variable_exists = ((env_url != nullptr) && *env_url);
 
     return environment_variable_exists ? std::string(env_url) : DEFAULT_URL;
 }
+} // namespace
 
-inline std::vector<uint8_t> download_g1_data(size_t num_points)
+std::vector<uint8_t> download_bn254_g1_data(size_t num_points)
 {
     size_t g1_start = 28;
     size_t g1_end = g1_start + num_points * 64 - 1;
 
-    std::string url = getTranscriptURL();
+    std::string url = get_bn254_transcript_url();
 
     std::string command =
         "curl -s -H \"Range: bytes=" + std::to_string(g1_start) + "-" + std::to_string(g1_end) + "\" '" + url + "'";
@@ -38,15 +32,15 @@ inline std::vector<uint8_t> download_g1_data(size_t num_points)
         throw std::runtime_error("Failed to download g1 data.");
     }
 
-    return exec_pipe(command);
+    return data;
 }
 
-inline std::vector<uint8_t> download_g2_data()
+std::vector<uint8_t> download_bn254_g2_data()
 {
     size_t g2_start = 28 + 5040001 * 64;
     size_t g2_end = g2_start + 128 - 1;
 
-    std::string url = getTranscriptURL();
+    std::string url = get_bn254_transcript_url();
 
     std::string command =
         "curl -s -H \"Range: bytes=" + std::to_string(g2_start) + "-" + std::to_string(g2_end) + "\" '" + url + "'";
@@ -54,7 +48,7 @@ inline std::vector<uint8_t> download_g2_data()
     return exec_pipe(command);
 }
 
-inline std::vector<barretenberg::g1::affine_element> get_g1_data(const std::filesystem::path& path, size_t num_points)
+std::vector<barretenberg::g1::affine_element> get_bn254_g1_data(const std::filesystem::path& path, size_t num_points)
 {
     std::filesystem::create_directories(path);
     std::ifstream size_file(path / "size");
@@ -74,7 +68,7 @@ inline std::vector<barretenberg::g1::affine_element> get_g1_data(const std::file
     }
 
     vinfo("downloading crs...");
-    auto data = download_g1_data(num_points);
+    auto data = download_bn254_g1_data(num_points);
     write_file(path / "g1.dat", data);
 
     std::ofstream new_size_file(path / "size");
@@ -90,7 +84,7 @@ inline std::vector<barretenberg::g1::affine_element> get_g1_data(const std::file
     return points;
 }
 
-inline barretenberg::g2::affine_element get_g2_data(const std::filesystem::path& path)
+barretenberg::g2::affine_element get_bn254_g2_data(const std::filesystem::path& path)
 {
     std::filesystem::create_directories(path);
 
@@ -100,7 +94,7 @@ inline barretenberg::g2::affine_element get_g2_data(const std::filesystem::path&
         barretenberg::srs::IO<curve::BN254>::read_affine_elements_from_buffer(&g2_point, (char*)data.data(), 128);
         return g2_point;
     } catch (std::exception&) {
-        auto data = download_g2_data();
+        auto data = download_bn254_g2_data();
         write_file(path / "g2.dat", data);
         barretenberg::g2::affine_element g2_point;
         barretenberg::srs::IO<curve::BN254>::read_affine_elements_from_buffer(&g2_point, (char*)data.data(), 128);

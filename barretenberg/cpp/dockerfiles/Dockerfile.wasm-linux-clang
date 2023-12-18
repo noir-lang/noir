@@ -11,5 +11,6 @@ RUN ./scripts/strip-wasm.sh
 FROM scratch
 WORKDIR /usr/src/barretenberg/cpp
 COPY . .
+COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db
 COPY --from=builder /usr/src/barretenberg/cpp/build-wasm/bin/barretenberg.wasm /usr/src/barretenberg/cpp/build-wasm/bin/barretenberg.wasm
 COPY --from=builder /usr/src/barretenberg/cpp/build-wasm-threads/bin/barretenberg.wasm /usr/src/barretenberg/cpp/build-wasm-threads/bin/barretenberg.wasm

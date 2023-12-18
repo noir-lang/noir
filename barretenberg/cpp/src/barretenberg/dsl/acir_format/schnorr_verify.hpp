@@ -25,7 +25,7 @@ struct SchnorrConstraint {
     friend bool operator==(SchnorrConstraint const& lhs, SchnorrConstraint const& rhs) = default;
 };
 
-void create_schnorr_verify_constraints(Builder& builder, const SchnorrConstraint& input);
+template <typename Builder> void create_schnorr_verify_constraints(Builder& builder, const SchnorrConstraint& input);
 
 template <typename B> inline void read(B& buf, SchnorrConstraint& constraint)
 {

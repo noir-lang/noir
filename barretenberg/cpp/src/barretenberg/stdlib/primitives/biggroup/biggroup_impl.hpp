@@ -600,7 +600,8 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::batch_mul(const std::vector<element
                                                        const std::vector<Fr>& scalars,
                                                        const size_t max_num_bits)
 {
-    if constexpr (IsGoblinBuilder<C>) {
+    // Perform goblinized batched mul if available; supported only for BN254
+    if constexpr (IsGoblinBuilder<C> && std::same_as<G, barretenberg::g1>) {
         return goblin_batch_mul(points, scalars);
     }
 

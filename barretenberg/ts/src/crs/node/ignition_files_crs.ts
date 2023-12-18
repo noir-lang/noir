@@ -14,9 +14,10 @@ function getCurrentDir() {
 }
 
 /**
- * The path to our SRS object, assuming that we are in barretenberg/ts folder.
+ * The path to our SRS object, assuming that we are in e.g. barretenberg/ts/dest/node/crs/node folder.
  */
-export const SRS_DEV_PATH = getCurrentDir() + '/../../../cpp/srs_db/ignition/monomial';
+export const SRS_DEV_PATH = getCurrentDir() + '/../../../../../cpp/srs_db/ignition/monomial';
+export const GRUMPKIN_SRS_DEV_PATH = getCurrentDir() + '/../../../../../cpp/srs_db/grumpkin/monomial';
 
 /**
  * Downloader for CRS from a local file (for Node).
@@ -33,8 +34,8 @@ export class IgnitionFilesCrs {
     private path = SRS_DEV_PATH,
   ) {}
 
-  static defaultExists() {
-    return existsSync(SRS_DEV_PATH);
+  pathExists() {
+    return existsSync(this.path);
   }
 
   /**
@@ -49,7 +50,10 @@ export class IgnitionFilesCrs {
     const data = await readFile(this.path + '/transcript00.dat');
     this.data = data.subarray(g1Start, g1End);
 
-    this.g2Data = await readFile(this.path + '/g2.dat');
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): proper abstraction from Grumpkin which does not have g2
+    if (existsSync(this.path + '/g2.dat')) {
+      this.g2Data = await readFile(this.path + '/g2.dat');
+    }
   }
 
   /**

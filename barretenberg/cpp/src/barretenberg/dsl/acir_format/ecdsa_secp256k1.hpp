@@ -30,14 +30,18 @@ struct EcdsaSecp256k1Constraint {
     friend bool operator==(EcdsaSecp256k1Constraint const& lhs, EcdsaSecp256k1Constraint const& rhs) = default;
 };
 
+template <typename Builder>
 void create_ecdsa_k1_verify_constraints(Builder& builder,
                                         const EcdsaSecp256k1Constraint& input,
                                         bool has_valid_witness_assignments = true);
 
-void dummy_ecdsa_constraint(Builder& builder, EcdsaSecp256k1Constraint const& input);
+template <typename Builder> void dummy_ecdsa_constraint(Builder& builder, EcdsaSecp256k1Constraint const& input);
 
+template <typename Builder>
 crypto::ecdsa::signature ecdsa_convert_signature(Builder& builder, std::vector<uint32_t> signature);
 witness_ct ecdsa_index_to_witness(Builder& builder, uint32_t index);
-byte_array_ct ecdsa_vector_of_bytes_to_byte_array(Builder& builder, std::vector<uint32_t> vector_of_bytes);
+template <typename Builder>
+proof_system::plonk::stdlib::byte_array<Builder> ecdsa_vector_of_bytes_to_byte_array(
+    Builder& builder, std::vector<uint32_t> vector_of_bytes);
 
 } // namespace acir_format

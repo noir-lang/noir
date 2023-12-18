@@ -199,7 +199,7 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const plonk
         if (commitment.y != 0) {
             batched_commitment_unshifted += commitment * rhos[commitment_idx];
         } else {
-            info("point at infinity (unshifted)");
+            info("ECCVM Verifier: point at infinity (unshifted)");
         }
         ++commitment_idx;
     }
@@ -210,7 +210,7 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const plonk
         if (commitment.y != 0) {
             batched_commitment_to_be_shifted += commitment * rhos[commitment_idx];
         } else {
-            info("point at infinity (to be shifted)");
+            info("ECCVM Verifier: point at infinity (to be shifted)");
         }
         ++commitment_idx;
     }

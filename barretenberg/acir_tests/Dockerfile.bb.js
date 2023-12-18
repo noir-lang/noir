@@ -14,6 +14,8 @@ COPY . .
 ENV VERBOSE=1
 # Run double_verify_proof through bb.js on node to check 512k support.
 RUN BIN=../ts/dest/node/main.js FLOW=prove_then_verify ./run_acir_tests.sh double_verify_proof
+# TODO(https://github.com/AztecProtocol/barretenberg/issues/811) make this able to run double_verify_proof
+RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_goblin ./run_acir_tests.sh assert_statement
 # Run 1_mul through bb.js build, all_cmds flow, to test all cli args.
 RUN BIN=../ts/dest/node/main.js FLOW=all_cmds ./run_acir_tests.sh 1_mul
 # Run double_verify_proof through bb.js on chrome testing multi-threaded browser support.

@@ -22,3 +22,15 @@ WASM_EXPORT void srs_init_srs(uint8_t const* points_buf, uint32_t const* num_poi
 
     barretenberg::srs::init_crs_factory(points, g2_point);
 }
+
+/**
+ * WARNING: The SRS is not encoded the same way as all the read/write methods encode.
+ * Have to use the old school io functions to parse the buffers.
+ */
+WASM_EXPORT void srs_init_grumpkin_srs(uint8_t const* points_buf, uint32_t const* num_points)
+{
+    auto points = std::vector<curve::Grumpkin::AffineElement>(ntohl(*num_points));
+    srs::IO<curve::Grumpkin>::read_affine_elements_from_buffer(points.data(), (char*)points_buf, points.size() * 64);
+
+    barretenberg::srs::init_grumpkin_crs_factory(points);
+}

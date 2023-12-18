@@ -10,5 +10,7 @@ COPY . .
 # Run every acir test through native bb build prove_then_verify flow.
 # This ensures we test independent pk construction through real/garbage witness data paths.
 RUN FLOW=prove_then_verify ./run_acir_tests.sh
+# TODO(https://github.com/AztecProtocol/barretenberg/issues/811) make this able to run the default test
+RUN FLOW=prove_and_verify_goblin ./run_acir_tests.sh assert_statement
 # Run 1_mul through native bb build, all_cmds flow, to test all cli args.
 RUN VERBOSE=1 FLOW=all_cmds ./run_acir_tests.sh 1_mul

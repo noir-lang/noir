@@ -6,6 +6,7 @@ namespace acir_format {
 
 using namespace proof_system::plonk::stdlib;
 
+template <typename Builder>
 crypto::schnorr::signature convert_signature(Builder& builder, std::vector<uint32_t> signature)
 {
 
@@ -43,8 +44,13 @@ crypto::schnorr::signature convert_signature(Builder& builder, std::vector<uint3
 // vector of bytes here, assumes that the witness indices point to a field element which can be represented
 // with just a byte.
 // notice that this function truncates each field_element to a byte
-byte_array_ct vector_of_bytes_to_byte_array(Builder& builder, std::vector<uint32_t> vector_of_bytes)
+template <typename Builder>
+proof_system::plonk::stdlib::byte_array<Builder> vector_of_bytes_to_byte_array(Builder& builder,
+                                                                               std::vector<uint32_t> vector_of_bytes)
 {
+    using byte_array_ct = proof_system::plonk::stdlib::byte_array<Builder>;
+    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
+
     byte_array_ct arr(&builder);
 
     // Get the witness assignment for each witness index
@@ -59,14 +65,20 @@ byte_array_ct vector_of_bytes_to_byte_array(Builder& builder, std::vector<uint32
     }
     return arr;
 }
-witness_ct index_to_witness(Builder& builder, uint32_t index)
+
+template <typename Builder>
+proof_system::plonk::stdlib::witness_t<Builder> index_to_witness(Builder& builder, uint32_t index)
 {
     fr value = builder.get_variable(index);
     return { &builder, value };
 }
 
-void create_schnorr_verify_constraints(Builder& builder, const SchnorrConstraint& input)
+template <typename Builder> void create_schnorr_verify_constraints(Builder& builder, const SchnorrConstraint& input)
 {
+    using witness_ct = proof_system::plonk::stdlib::witness_t<Builder>;
+    using cycle_group_ct = proof_system::plonk::stdlib::cycle_group<Builder>;
+    using schnorr_signature_bits_ct = proof_system::plonk::stdlib::schnorr::signature_bits<Builder>;
+    using bool_ct = proof_system::plonk::stdlib::bool_t<Builder>;
 
     auto new_sig = convert_signature(builder, input.signature);
     // From ignorance, you will see me convert a bunch of witnesses from ByteArray -> BitArray
@@ -91,5 +103,10 @@ void create_schnorr_verify_constraints(Builder& builder, const SchnorrConstraint
 
     builder.assert_equal(signature_result_normalized.witness_index, input.result);
 }
+
+template void create_schnorr_verify_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
+                                                                     const SchnorrConstraint& input);
+template void create_schnorr_verify_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
+                                                                           const SchnorrConstraint& input);
 
 } // namespace acir_format

@@ -13,10 +13,10 @@ namespace barretenberg::srs::factories {
  *
  * This class is currently only used with wasm and works exclusively with the BN254 CRS.
  */
-class MemCrsFactory : public CrsFactory<curve::BN254> {
+class MemBn254CrsFactory : public CrsFactory<curve::BN254> {
   public:
-    MemCrsFactory(std::vector<g1::affine_element> const& points, g2::affine_element const g2_point);
-    MemCrsFactory(MemCrsFactory&& other) = default;
+    MemBn254CrsFactory(std::vector<g1::affine_element> const& points, g2::affine_element const& g2_point);
+    MemBn254CrsFactory(MemBn254CrsFactory&& other) = default;
 
     std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> get_prover_crs(size_t degree) override;
 

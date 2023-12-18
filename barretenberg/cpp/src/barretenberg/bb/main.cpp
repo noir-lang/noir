@@ -2,8 +2,9 @@
 #include "barretenberg/dsl/types.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "config.hpp"
+#include "get_bn254_crs.hpp"
 #include "get_bytecode.hpp"
-#include "get_crs.hpp"
+#include "get_grumpkin_crs.hpp"
 #include "get_witness.hpp"
 #include "log.hpp"
 #include <barretenberg/common/benchmark.hpp>
@@ -31,17 +32,39 @@ acir_proofs::AcirComposer init(acir_format::acir_format& constraint_system)
     auto subgroup_size = acir_composer.get_circuit_subgroup_size();
 
     // Must +1!
-    auto g1_data = get_g1_data(CRS_PATH, subgroup_size + 1);
-    auto g2_data = get_g2_data(CRS_PATH);
-    srs::init_crs_factory(g1_data, g2_data);
+    auto bn254_g1_data = get_bn254_g1_data(CRS_PATH, subgroup_size + 1);
+    auto bn254_g2_data = get_bn254_g2_data(CRS_PATH);
+    srs::init_crs_factory(bn254_g1_data, bn254_g2_data);
+
+    // Must +1!
+    auto grumpkin_g1_data = get_grumpkin_g1_data(CRS_PATH, subgroup_size + 1);
+    srs::init_grumpkin_crs_factory(grumpkin_g1_data);
 
     return acir_composer;
 }
 
-acir_proofs::AcirComposer init()
+void init_reference_strings()
+{
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): Don't hardcode subgroup size
+    size_t subgroup_size = 32768;
+
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/811) reduce duplication with above
+    // Must +1!
+    auto g1_data = get_bn254_g1_data(CRS_PATH, subgroup_size + 1);
+    auto g2_data = get_bn254_g2_data(CRS_PATH);
+    srs::init_crs_factory(g1_data, g2_data);
+
+    // Must +1!
+    auto grumpkin_g1_data = get_grumpkin_g1_data(CRS_PATH, subgroup_size + 1);
+    srs::init_grumpkin_crs_factory(grumpkin_g1_data);
+}
+
+// Initializes without loading G1
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/811) adapt for grumpkin
+acir_proofs::AcirComposer verifier_init()
 {
     acir_proofs::AcirComposer acir_composer(0, verbose);
-    auto g2_data = get_g2_data(CRS_PATH);
+    auto g2_data = get_bn254_g2_data(CRS_PATH);
     srs::init_crs_factory({}, g2_data);
     return acir_composer;
 }
@@ -93,6 +116,43 @@ bool proveAndVerify(const std::string& bytecodePath, const std::string& witnessP
     write_benchmark("vk_construction_time", vk_timer.milliseconds(), "acir_test", current_dir);
 
     auto verified = acir_composer.verify_proof(proof, recursive);
+
+    vinfo("verified: ", verified);
+    return verified;
+}
+
+/**
+ * @brief Proves and Verifies an ACIR circuit
+ *
+ * Communication:
+ * - proc_exit: A boolean value is returned indicating whether the proof is valid.
+ *   an exit code of 0 will be returned for success and 1 for failure.
+ *
+ * @param bytecodePath Path to the file containing the serialized circuit
+ * @param witnessPath Path to the file containing the serialized witness
+ * @param recursive Whether to use recursive proof generation of non-recursive
+ * @return true if the proof is valid
+ * @return false if the proof is invalid
+ */
+bool proveAndVerifyGoblin(const std::string& bytecodePath,
+                          const std::string& witnessPath,
+                          [[maybe_unused]] bool recursive)
+{
+    info("Construct constraint_system and witness.");
+    auto constraint_system = get_constraint_system(bytecodePath);
+    auto witness = get_witness(witnessPath);
+
+    init_reference_strings();
+
+    info("Construct goblin circuit from constraint system and witness.");
+    acir_proofs::AcirComposer acir_composer;
+    acir_composer.create_goblin_circuit(constraint_system, witness);
+
+    info("Construct goblin proof.");
+    auto proof = acir_composer.create_goblin_proof();
+
+    info("verify_goblin_proof.");
+    auto verified = acir_composer.verify_goblin_proof(proof);
 
     vinfo("verified: ", verified);
     return verified;
@@ -165,7 +225,7 @@ void gateCount(const std::string& bytecodePath)
  */
 bool verify(const std::string& proof_path, bool recursive, const std::string& vk_path)
 {
-    auto acir_composer = init();
+    auto acir_composer = verifier_init();
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
     acir_composer.load_verification_key(std::move(vk_data));
     auto verified = acir_composer.verify_proof(read_file(proof_path), recursive);
@@ -231,7 +291,7 @@ void write_pk(const std::string& bytecodePath, const std::string& outputPath)
  */
 void contract(const std::string& output_path, const std::string& vk_path)
 {
-    auto acir_composer = init();
+    auto acir_composer = verifier_init();
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
     acir_composer.load_verification_key(std::move(vk_data));
     auto contract = acir_composer.get_solidity_verifier();
@@ -272,7 +332,7 @@ void contract(const std::string& output_path, const std::string& vk_path)
  */
 void proof_as_fields(const std::string& proof_path, std::string const& vk_path, const std::string& output_path)
 {
-    auto acir_composer = init();
+    auto acir_composer = verifier_init();
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
     auto data = acir_composer.serialize_proof_into_fields(read_file(proof_path), vk_data.num_public_inputs);
     auto json = format("[", join(map(data, [](auto fr) { return format("\"", fr, "\""); })), "]");
@@ -301,7 +361,7 @@ void proof_as_fields(const std::string& proof_path, std::string const& vk_path, 
  */
 void vk_as_fields(const std::string& vk_path, const std::string& output_path)
 {
-    auto acir_composer = init();
+    auto acir_composer = verifier_init();
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
     acir_composer.load_verification_key(std::move(vk_data));
     auto data = acir_composer.serialize_verification_key_into_fields();
@@ -394,9 +454,11 @@ int main(int argc, char* argv[])
             acvm_info(output_path);
             return 0;
         }
-
         if (command == "prove_and_verify") {
             return proveAndVerify(bytecode_path, witness_path, recursive) ? 0 : 1;
+        }
+        if (command == "prove_and_verify_goblin") {
+            return proveAndVerifyGoblin(bytecode_path, witness_path, recursive) ? 0 : 1;
         }
         if (command == "prove") {
             std::string output_path = get_option(args, "-o", "./proofs/proof");

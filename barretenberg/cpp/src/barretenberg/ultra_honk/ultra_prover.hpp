@@ -14,7 +14,6 @@ template <UltraFlavor Flavor> class UltraProver_ {
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
     using CommitmentKey = typename Flavor::CommitmentKey;
-    using ProvingKey = typename Flavor::ProvingKey;
     using Polynomial = typename Flavor::Polynomial;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
@@ -62,5 +61,6 @@ extern template class UltraProver_<honk::flavor::Ultra>;
 extern template class UltraProver_<honk::flavor::GoblinUltra>;
 
 using UltraProver = UltraProver_<honk::flavor::Ultra>;
+using GoblinUltraProver = UltraProver_<honk::flavor::GoblinUltra>;
 
 } // namespace proof_system::honk

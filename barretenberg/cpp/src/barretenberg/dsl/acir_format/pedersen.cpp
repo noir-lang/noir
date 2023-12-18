@@ -4,8 +4,10 @@ namespace acir_format {
 
 using namespace proof_system::plonk;
 
-void create_pedersen_constraint(Builder& builder, const PedersenConstraint& input)
+template <typename Builder> void create_pedersen_constraint(Builder& builder, const PedersenConstraint& input)
 {
+    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
+
     std::vector<field_ct> scalars;
 
     for (const auto& scalar : input.scalars) {
@@ -20,8 +22,10 @@ void create_pedersen_constraint(Builder& builder, const PedersenConstraint& inpu
     builder.assert_equal(point.y.witness_index, input.result_y);
 }
 
-void create_pedersen_hash_constraint(Builder& builder, const PedersenHashConstraint& input)
+template <typename Builder> void create_pedersen_hash_constraint(Builder& builder, const PedersenHashConstraint& input)
 {
+    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
+
     std::vector<field_ct> scalars;
 
     for (const auto& scalar : input.scalars) {
@@ -34,5 +38,14 @@ void create_pedersen_hash_constraint(Builder& builder, const PedersenHashConstra
 
     builder.assert_equal(result.witness_index, input.result);
 }
+
+template void create_pedersen_constraint<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
+                                                              const PedersenConstraint& input);
+template void create_pedersen_hash_constraint<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
+                                                                   const PedersenHashConstraint& input);
+template void create_pedersen_constraint<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
+                                                                    const PedersenConstraint& input);
+template void create_pedersen_hash_constraint<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
+                                                                         const PedersenHashConstraint& input);
 
 } // namespace acir_format

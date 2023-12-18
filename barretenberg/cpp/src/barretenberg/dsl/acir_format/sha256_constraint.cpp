@@ -7,8 +7,10 @@ namespace acir_format {
 
 // This function does not work (properly) because the stdlib:sha256 function is not working correctly for 512 bits
 // pair<witness_index, bits>
-void create_sha256_constraints(Builder& builder, const Sha256Constraint& constraint)
+template <typename Builder> void create_sha256_constraints(Builder& builder, const Sha256Constraint& constraint)
 {
+    using byte_array_ct = proof_system::plonk::stdlib::byte_array<Builder>;
+    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
 
     // Create byte array struct
     byte_array_ct arr(&builder);
@@ -38,5 +40,10 @@ void create_sha256_constraints(Builder& builder, const Sha256Constraint& constra
         builder.assert_equal(bytes[i].normalize().witness_index, constraint.result[i]);
     }
 }
+
+template void create_sha256_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
+                                                             const Sha256Constraint& constraint);
+template void create_sha256_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
+                                                                   const Sha256Constraint& constraint);
 
 } // namespace acir_format

@@ -15,6 +15,9 @@
 # whatever is requested but does not check the validity of the downloads.
 set -eu
 
+# Enter script directory.
+cd $(dirname $0)
+
 mkdir -p ignition
 cd ignition
 mkdir -p monomial

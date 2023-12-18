@@ -5,8 +5,11 @@ namespace acir_format {
 
 using namespace proof_system::plonk;
 
+template <typename Builder>
 void create_hash_to_field_constraints(Builder& builder, const HashToFieldConstraint constraint)
 {
+    using byte_array_ct = proof_system::plonk::stdlib::byte_array<Builder>;
+    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
 
     // Create byte array struct
     byte_array_ct arr(&builder);
@@ -37,5 +40,10 @@ void create_hash_to_field_constraints(Builder& builder, const HashToFieldConstra
 
     builder.assert_equal(normalised_out.witness_index, constraint.result);
 }
+
+template void create_hash_to_field_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
+                                                                    const HashToFieldConstraint constraint);
+template void create_hash_to_field_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
+                                                                          const HashToFieldConstraint constraint);
 
 } // namespace acir_format

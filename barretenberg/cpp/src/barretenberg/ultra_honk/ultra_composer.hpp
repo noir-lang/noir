@@ -19,9 +19,11 @@ template <UltraFlavor Flavor> class UltraComposer_ {
     using PCS = typename Flavor::PCS;
     using CommitmentKey = typename Flavor::CommitmentKey;
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
-    using Instance = ProverInstance_<Flavor>;
+    using ProverInstance = ProverInstance_<Flavor>;
+    using Instance = ProverInstance;
     using FF = typename Flavor::FF;
     using Transcript = typename Flavor::Transcript;
+    using CRSFactory = srs::factories::CrsFactory<typename Flavor::Curve>;
 
     static constexpr size_t NUM_FOLDING = 2;
     using ProverInstances = ProverInstances_<Flavor, NUM_FOLDING>;
@@ -33,13 +35,13 @@ template <UltraFlavor Flavor> class UltraComposer_ {
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
 
     // The crs_factory holds the path to the srs and exposes methods to extract the srs elements
-    std::shared_ptr<srs::factories::CrsFactory<typename Flavor::Curve>> crs_factory_;
+    std::shared_ptr<CRSFactory> crs_factory_;
     // The commitment key is passed to the prover but also used herein to compute the verfication key commitments
     std::shared_ptr<CommitmentKey> commitment_key;
 
     UltraComposer_() { crs_factory_ = barretenberg::srs::get_crs_factory(); }
 
-    explicit UltraComposer_(std::shared_ptr<srs::factories::CrsFactory<typename Flavor::Curve>> crs_factory)
+    explicit UltraComposer_(std::shared_ptr<CRSFactory> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
 
@@ -51,7 +53,7 @@ template <UltraFlavor Flavor> class UltraComposer_ {
 
     std::shared_ptr<CommitmentKey> compute_commitment_key(size_t circuit_size)
     {
-        commitment_key = std::make_shared<CommitmentKey>(circuit_size, crs_factory_);
+        commitment_key = std::make_shared<CommitmentKey>(circuit_size + 1);
         return commitment_key;
     };
 
@@ -59,9 +61,14 @@ template <UltraFlavor Flavor> class UltraComposer_ {
 
     UltraProver_<Flavor> create_prover(const std::shared_ptr<Instance>&,
                                        const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
+
     UltraVerifier_<Flavor> create_verifier(
         const std::shared_ptr<Instance>&,
         const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
+
+    UltraVerifier_<Flavor> create_verifier(CircuitBuilder& circuit);
+
+    UltraVerifier_<Flavor> create_ultra_with_keccak_verifier(CircuitBuilder& circuit);
 
     /**
      * @brief Create Prover for Goblin ECC op queue merge protocol
@@ -106,7 +113,6 @@ template <UltraFlavor Flavor> class UltraComposer_ {
         return output_state;
     };
 
-  private:
     /**
      * @brief Compute the verification key of an Instance, produced from a finalised circuit.
      *
@@ -114,6 +120,7 @@ template <UltraFlavor Flavor> class UltraComposer_ {
      */
     void compute_verification_key(const std::shared_ptr<Instance>&);
 };
+
 extern template class UltraComposer_<honk::flavor::Ultra>;
 extern template class UltraComposer_<honk::flavor::GoblinUltra>;
 // TODO(#532): this pattern is weird; is this not instantiating the templates?

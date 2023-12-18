@@ -60,6 +60,7 @@ struct RecursionConstraint {
     friend bool operator==(RecursionConstraint const& lhs, RecursionConstraint const& rhs) = default;
 };
 
+template <typename Builder>
 void create_recursion_constraints(Builder& builder,
                                   const RecursionConstraint& input,
                                   bool has_valid_witness_assignments = false);

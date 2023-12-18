@@ -38,6 +38,7 @@ struct acir_format {
     std::vector<HashToFieldConstraint> hash_to_field_constraints;
     std::vector<FixedBaseScalarMul> fixed_base_scalar_mul_constraints;
     std::vector<RecursionConstraint> recursion_constraints;
+
     // A standard plonk arithmetic constraint, as defined in the poly_triple struct, consists of selector values
     // for q_M,q_L,q_R,q_O,q_C and indices of three variables taking the role of left, right and output wire
     // This could be a large vector so use slab allocator, we don't expect the blackbox implementations to be so large.
@@ -71,16 +72,20 @@ struct acir_format {
 
 using WitnessVector = std::vector<fr, ContainerSlabAllocator<fr>>;
 
-void read_witness(Builder& builder, std::vector<barretenberg::fr> const& witness);
+template <typename Builder> void read_witness(Builder& builder, std::vector<barretenberg::fr> const& witness);
 
-void create_circuit(Builder& builder, const acir_format& constraint_system);
+template <typename Builder> void create_circuit(Builder& builder, const acir_format& constraint_system);
 
+template <typename Builder = UltraCircuitBuilder>
 Builder create_circuit(const acir_format& constraint_system, size_t size_hint = 0);
 
 Builder create_circuit_with_witness(const acir_format& constraint_system,
                                     WitnessVector const& witness,
                                     size_t size_hint = 0);
 
+template <typename Builder>
 void create_circuit_with_witness(Builder& builder, const acir_format& constraint_system, WitnessVector const& witness);
+
+template <typename Builder> void apply_wire_index_offset(Builder& builder);
 
 } // namespace acir_format

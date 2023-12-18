@@ -28,6 +28,7 @@ void generate_dummy_proof() {}
  *       We would either need a separate ACIR opcode where inner_proof_contains_recursive_proof = true,
  *       or we need non-witness data to be provided as metadata in the ACIR opcode
  */
+template <typename Builder>
 void create_recursion_constraints(Builder& builder,
                                   const RecursionConstraint& input,
                                   bool has_valid_witness_assignments)
@@ -348,5 +349,9 @@ G1AsFields export_g1_affine_element_as_fields(const barretenberg::g1::affine_ele
 
     return G1AsFields{ x_lo, x_hi, y_lo, y_hi };
 }
+
+template void create_recursion_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
+                                                                const RecursionConstraint& input,
+                                                                bool has_valid_witness_assignments);
 
 } // namespace acir_format

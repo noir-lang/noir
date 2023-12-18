@@ -24,8 +24,8 @@ struct PedersenHashConstraint {
     friend bool operator==(PedersenHashConstraint const& lhs, PedersenHashConstraint const& rhs) = default;
 };
 
-void create_pedersen_constraint(Builder& builder, const PedersenConstraint& input);
-void create_pedersen_hash_constraint(Builder& builder, const PedersenHashConstraint& input);
+template <typename Builder> void create_pedersen_constraint(Builder& builder, const PedersenConstraint& input);
+template <typename Builder> void create_pedersen_hash_constraint(Builder& builder, const PedersenHashConstraint& input);
 
 template <typename B> inline void read(B& buf, PedersenConstraint& constraint)
 {

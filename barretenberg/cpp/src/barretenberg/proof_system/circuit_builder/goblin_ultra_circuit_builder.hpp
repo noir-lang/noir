@@ -20,6 +20,8 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
     static constexpr size_t DEFAULT_NON_NATIVE_FIELD_LIMB_BITS =
         UltraCircuitBuilder_<arithmetization::UltraHonk<FF>>::DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
 
+    size_t num_vars_added_in_constructor = 0; // needed in constructing circuit from acir
+
     size_t num_ecc_op_gates = 0; // number of ecc op "gates" (rows); these are placed at the start of the circuit
 
     // Stores record of ecc operations and performs corresponding native operations internally
@@ -80,6 +82,7 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
         add_accum_op_idx = this->put_constant_variable(FF(EccOpCode::ADD_ACCUM));
         mul_accum_op_idx = this->put_constant_variable(FF(EccOpCode::MUL_ACCUM));
         equality_op_idx = this->put_constant_variable(FF(EccOpCode::EQUALITY));
+        num_vars_added_in_constructor = this->variables.size();
     };
     GoblinUltraCircuitBuilder_(std::shared_ptr<ECCOpQueue> op_queue_in)
         : GoblinUltraCircuitBuilder_(0, op_queue_in)

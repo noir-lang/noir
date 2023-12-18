@@ -34,5 +34,6 @@ extern template class UltraVerifier_<honk::flavor::Ultra>;
 extern template class UltraVerifier_<honk::flavor::GoblinUltra>;
 
 using UltraVerifier = UltraVerifier_<honk::flavor::Ultra>;
+using GoblinUltraVerifier = UltraVerifier_<honk::flavor::GoblinUltra>;
 
 } // namespace proof_system::honk

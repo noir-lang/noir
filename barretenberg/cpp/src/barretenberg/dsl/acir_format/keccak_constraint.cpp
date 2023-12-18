@@ -4,8 +4,10 @@
 
 namespace acir_format {
 
-void create_keccak_constraints(Builder& builder, const KeccakConstraint& constraint)
+template <typename Builder> void create_keccak_constraints(Builder& builder, const KeccakConstraint& constraint)
 {
+    using byte_array_ct = proof_system::plonk::stdlib::byte_array<Builder>;
+    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
 
     // Create byte array struct
     byte_array_ct arr(&builder);
@@ -35,8 +37,11 @@ void create_keccak_constraints(Builder& builder, const KeccakConstraint& constra
     }
 }
 
-void create_keccak_var_constraints(Builder& builder, const KeccakVarConstraint& constraint)
+template <typename Builder> void create_keccak_var_constraints(Builder& builder, const KeccakVarConstraint& constraint)
 {
+    using byte_array_ct = proof_system::plonk::stdlib::byte_array<Builder>;
+    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
+    using uint32_ct = proof_system::plonk::stdlib::uint32<Builder>;
 
     // Create byte array struct
     byte_array_ct arr(&builder);
@@ -67,5 +72,14 @@ void create_keccak_var_constraints(Builder& builder, const KeccakVarConstraint& 
         builder.assert_equal(bytes[i].normalize().witness_index, constraint.result[i]);
     }
 }
+
+template void create_keccak_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
+                                                             const KeccakConstraint& constraint);
+template void create_keccak_var_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
+                                                                 const KeccakVarConstraint& constraint);
+template void create_keccak_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
+                                                                   const KeccakConstraint& constraint);
+template void create_keccak_var_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
+                                                                       const KeccakVarConstraint& constraint);
 
 } // namespace acir_format

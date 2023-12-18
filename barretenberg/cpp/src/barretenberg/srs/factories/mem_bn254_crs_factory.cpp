@@ -1,34 +1,15 @@
-#include "mem_crs_factory.hpp"
+#include "mem_bn254_crs_factory.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 #include "barretenberg/ecc/scalar_multiplication/point_table.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
+#include "barretenberg/srs/factories/mem_prover_crs.hpp"
 
 namespace {
 
 using namespace barretenberg;
 using namespace barretenberg::srs::factories;
-
-class MemProverCrs : public ProverCrs<curve::BN254> {
-  public:
-    MemProverCrs(std::vector<g1::affine_element> const& points)
-        : num_points(points.size())
-    {
-        monomials_ = scalar_multiplication::point_table_alloc<g1::affine_element>(num_points);
-        std::copy(points.begin(), points.end(), monomials_.get());
-        scalar_multiplication::generate_pippenger_point_table<curve::BN254>(
-            monomials_.get(), monomials_.get(), num_points);
-    }
-
-    g1::affine_element* get_monomial_points() override { return monomials_.get(); }
-
-    size_t get_monomial_size() const override { return num_points; }
-
-  private:
-    size_t num_points;
-    std::shared_ptr<g1::affine_element[]> monomials_;
-};
 
 class MemVerifierCrs : public VerifierCrs<curve::BN254> {
   public:
@@ -59,17 +40,18 @@ class MemVerifierCrs : public VerifierCrs<curve::BN254> {
 
 namespace barretenberg::srs::factories {
 
-MemCrsFactory::MemCrsFactory(std::vector<g1::affine_element> const& points, g2::affine_element const g2_point)
-    : prover_crs_(std::make_shared<MemProverCrs>(points))
+MemBn254CrsFactory::MemBn254CrsFactory(std::vector<g1::affine_element> const& points,
+                                       g2::affine_element const& g2_point)
+    : prover_crs_(std::make_shared<MemProverCrs<curve::BN254>>(points))
     , verifier_crs_(std::make_shared<MemVerifierCrs>(g2_point))
 {}
 
-std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> MemCrsFactory::get_prover_crs(size_t)
+std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> MemBn254CrsFactory::get_prover_crs(size_t)
 {
     return prover_crs_;
 }
 
-std::shared_ptr<barretenberg::srs::factories::VerifierCrs<curve::BN254>> MemCrsFactory::get_verifier_crs(size_t)
+std::shared_ptr<barretenberg::srs::factories::VerifierCrs<curve::BN254>> MemBn254CrsFactory::get_verifier_crs(size_t)
 {
     return verifier_crs_;
 }

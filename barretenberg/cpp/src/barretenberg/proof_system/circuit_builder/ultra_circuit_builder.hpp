@@ -56,6 +56,8 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
     // number of gates created per non-native field operation in process_non_native_field_multiplications
     static constexpr size_t GATES_PER_NON_NATIVE_FIELD_MULTIPLICATION_ARITHMETIC = 7;
 
+    size_t num_vars_added_in_constructor = 0; // needed in constructing circuit from acir
+
     enum AUX_SELECTORS {
         NONE,
         LIMB_ACCUMULATE_1,
@@ -655,6 +657,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
         w_4().reserve(size_hint);
         this->zero_idx = put_constant_variable(FF::zero());
         this->tau.insert({ DUMMY_TAG, DUMMY_TAG }); // TODO(luke): explain this
+        num_vars_added_in_constructor = this->variables.size();
     };
     UltraCircuitBuilder_(const UltraCircuitBuilder_& other) = default;
     UltraCircuitBuilder_(UltraCircuitBuilder_&& other)
