@@ -3,8 +3,8 @@ use std::io::Write;
 use std::path::Path;
 
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
+use acvm::ExpressionWidth;
 use acvm::FieldElement;
-use acvm::Language;
 use tempfile::tempdir;
 
 use crate::cli::{
@@ -30,20 +30,22 @@ impl Backend {
             .run(binary_path)
     }
 
-    pub fn get_backend_info(&self) -> Result<Language, BackendError> {
+    pub fn get_backend_info(&self) -> Result<ExpressionWidth, BackendError> {
         let binary_path = self.assert_binary_exists()?;
         self.assert_correct_version()?;
         InfoCommand { crs_path: self.crs_directory() }.run(binary_path)
     }
 
-    /// If we cannot get a valid backend, returns Plonk with width 3
+    /// If we cannot get a valid backend, returns `ExpressionWidth::Bound { width: 3 }``
     /// The function also prints a message saying we could not find a backend
-    pub fn get_backend_info_or_default(&self) -> Language {
-        if let Ok(language) = self.get_backend_info() {
-            language
+    pub fn get_backend_info_or_default(&self) -> ExpressionWidth {
+        if let Ok(expression_width) = self.get_backend_info() {
+            expression_width
         } else {
-            log::warn!("No valid backend found, defaulting to Plonk with width 3");
-            Language::PLONKCSat { width: 3 }
+            log::warn!(
+                "No valid backend found, ExpressionWidth defaulting to Bounded with a width of 3"
+            );
+            ExpressionWidth::Bounded { width: 3 }
         }
     }
 
