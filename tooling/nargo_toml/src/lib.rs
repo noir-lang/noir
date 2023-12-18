@@ -270,7 +270,6 @@ struct PackageMetadata {
     // We also state that ACIR and the compiler will upgrade in lockstep.
     // so you will not need to supply an ACIR and compiler version
     compiler_version: Option<String>,
-    backend: Option<String>,
     license: Option<String>,
 }
 

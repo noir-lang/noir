@@ -69,7 +69,7 @@ x : Field, y : pub Field
 
 Program inputs in Noir are private by default (e.g. `x`), but can be labeled public using the
 keyword `pub` (e.g. `y`). To learn more about private and public values, check the
-[Data Types](@site/docs/explanations/noir/data_types/index.md) section.
+[Data Types](../noir/syntax/data_types/index.md) section.
 
 The next line of the program specifies its body:
 
@@ -79,7 +79,7 @@ assert(x != y);
 
 The Noir syntax `assert` can be interpreted as something similar to constraints in other zk-contract languages.
 
-For more Noir syntax, check the [Language Concepts](@site/docs/explanations/noir/comments.md) chapter.
+For more Noir syntax, check the [Language Concepts](../noir/syntax/comments.md) chapter.
 
 ## Build In/Output Files
 
@@ -139,4 +139,4 @@ corresponding error instead.
 
 Congratulations, you have now created and verified a proof for your very first Noir program!
 
-In the [next section](@site/docs/getting_started/project_breakdown.md), we will go into more detail on each step performed.
+In the [next section](./project_breakdown.md), we will go into more detail on each step performed.

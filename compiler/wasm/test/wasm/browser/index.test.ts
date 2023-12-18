@@ -34,9 +34,9 @@ describe('noir wasm', () => {
       }
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
+      expect(wasmCircuit.program.noir_version).toEqual(cliCircuit.noir_version);
       expect(wasmCircuit.program.bytecode).toEqual(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).toEqual(cliCircuit.abi);
-      expect(wasmCircuit.program.backend).toEqual(cliCircuit.backend);
     });
   });
 
@@ -72,9 +72,10 @@ describe('noir wasm', () => {
       const cliCircuit = await getPrecompiledSource(depsScriptExpectedArtifact);
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
+
+      expect(wasmCircuit.program.noir_version).toEqual(cliCircuit.noir_version);
       expect(wasmCircuit.program.bytecode).toEqual(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).toEqual(cliCircuit.abi);
-      expect(wasmCircuit.program.backend).toEqual(cliCircuit.backend);
     });
   });
 });

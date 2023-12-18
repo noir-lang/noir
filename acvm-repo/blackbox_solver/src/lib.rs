@@ -16,8 +16,6 @@ use thiserror::Error;
 
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
 pub enum BlackBoxResolutionError {
-    #[error("unsupported blackbox function: {0}")]
-    Unsupported(BlackBoxFunc),
     #[error("failed to solve blackbox function: {0}, reason: {1}")]
     Failed(BlackBoxFunc, String),
 }

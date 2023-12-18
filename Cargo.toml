@@ -28,7 +28,6 @@ members = [
     "acvm-repo/acir",
     "acvm-repo/acvm",
     "acvm-repo/acvm_js",
-    "acvm-repo/stdlib",
     "acvm-repo/brillig",
     "acvm-repo/brillig_vm",
     "acvm-repo/blackbox_solver",

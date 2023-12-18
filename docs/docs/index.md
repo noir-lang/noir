@@ -38,7 +38,7 @@ programming.
 ### Solidity Developers
 
 Noir streamlines the creation of Solidity contracts that interface with SNARK systems.
-[`Utilize the nargo codegen-verifier`](@site/docs/reference/nargo_commands.md#nargo-codegen-verifier) command to construct verifier
+[`Utilize the nargo codegen-verifier`](./reference/nargo_commands.md#nargo-codegen-verifier) command to construct verifier
 contracts efficiently. While the current alpha version offers this as a direct feature, future updates aim
 to modularize this process for even greater ease of use.
 
@@ -82,4 +82,4 @@ Some libraries that are available today include:
 - [Fraction](https://github.com/resurgencelabs/fraction) - a library for accessing fractional number data type in Noir,
   allowing results that aren't whole numbers
 
-See the section on [dependencies](@site/docs/explanations/modules_packages_crates/dependencies.md) for more information.
+See the section on [dependencies](noir/modules_packages_crates/dependencies.md) for more information.

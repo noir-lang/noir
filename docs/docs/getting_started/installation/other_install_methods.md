@@ -24,7 +24,7 @@ sidebar_position: 1
 
 ## Installation
 
-The most common method of installing Nargo is through [Noirup](@site/docs/getting_started/installation/index.md)
+The most common method of installing Nargo is through [Noirup](./index.md)
 
 However, there are other methods for installing Nargo:
 
@@ -167,7 +167,7 @@ The default backend for Noir (Barretenberg) doesn't provide Windows binaries at 
 
 Step 1: Follow the instructions [here](https://learn.microsoft.com/en-us/windows/wsl/install) to install and run WSL.
 
-step 2: Follow the [Noirup instructions](@site/docs/getting_started/installation/index.md).
+step 2: Follow the [Noirup instructions](./index.md).
 
 ## Uninstalling Nargo
 

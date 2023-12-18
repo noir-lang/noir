@@ -3,7 +3,7 @@ title: Generate a Solidity Verifier
 description:
   Learn how to run the verifier as a smart contract on the blockchain. Compile a Solidity verifier
   contract for your Noir program and deploy it on any EVM blockchain acting as a verifier smart
-  contract. Read more to find out!
+  contract. Read more to find out
 keywords:
   [
     solidity verifier,
@@ -16,6 +16,7 @@ keywords:
     proving backend,
     Barretenberg,
   ]
+sidebar_position: 0
 ---
 
 For certain applications, it may be desirable to run the verifier as a smart contract instead of on
