@@ -13,6 +13,7 @@ COPY yarn.lock package.json .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
 # RUN yarn --immutable
 RUN yarn
+RUN yarn --immutable
 COPY . .
 
 FROM base-base as base
