@@ -13,12 +13,10 @@ use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 use tracing_web::MakeWebConsoleWriter;
 
-mod circuit;
 mod compile;
 mod compile_new;
 mod errors;
 
-pub use circuit::{acir_read_bytes, acir_write_bytes};
 pub use compile::compile;
 
 // Expose the new Context-Centric API

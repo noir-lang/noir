@@ -42,13 +42,21 @@ pub fn prepare_dependencies(
     }
 }
 
+pub fn insert_all_files_for_workspace_into_file_manager(
+    workspace: &workspace::Workspace,
+    file_manager: &mut FileManager,
+) {
+    for package in workspace.clone().into_iter() {
+        insert_all_files_for_package_into_file_manager(package, file_manager);
+    }
+}
 // We will pre-populate the file manager with all the files in the package
 // This is so that we can avoid having to read from disk when we are compiling
 //
 // This does not require parsing because we are interested in the files under the src directory
 // it may turn out that we do not need to include some Noir files that we add to the file
 // manager
-pub fn insert_all_files_for_package_into_file_manager(
+fn insert_all_files_for_package_into_file_manager(
     package: &Package,
     file_manager: &mut FileManager,
 ) {
@@ -87,11 +95,11 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
     }
 }
 
-pub fn prepare_package(package: &Package) -> (Context, CrateId) {
-    let mut fm = FileManager::new(&package.root_dir);
-    insert_all_files_for_package_into_file_manager(package, &mut fm);
-
-    let mut context = Context::new(fm);
+pub fn prepare_package<'file_manager>(
+    file_manager: &'file_manager FileManager,
+    package: &Package,
+) -> (Context<'file_manager>, CrateId) {
+    let mut context = Context::from_ref_file_manager(file_manager);
 
     let crate_id = prepare_crate(&mut context, &package.entry_path);
 
