@@ -240,7 +240,7 @@ jobs:
   test-barretenberg-backend:
     name: test barretenberg backend
     runs-on: ubuntu-latest
-    needs: [build-base-js, test-noirc-abi]
+    needs: [build-base-js, test-noirc-abi, build-noir-js-types]
     container:
       image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
       credentials:
@@ -253,11 +253,11 @@ jobs:
           name: noirc-abi-wasm
           path: |
             /usr/src/noir/tooling/noirc_abi_wasm
-      # - name: download source-resolver
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: noir-js-types
-      #     path: /usr/src/noir/tooling/noir_js_types/lib/
+      - name: download noir js types
+        uses: actions/download-artifact@v4
+        with:
+          name: noir-js-types
+          path: /usr/src/noir/tooling/noir_js_types/lib/
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-backend-barretenberg.sh
