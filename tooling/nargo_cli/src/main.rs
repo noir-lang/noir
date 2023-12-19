@@ -32,7 +32,7 @@ fn main() {
     } else {
         tracing_subscriber::fmt()
             .with_ansi(true)
-            .with_env_filter(EnvFilter::from_default_env())
+            .with_env_filter(EnvFilter::from_env("NOIR_LOG"))
             .init();
     }
 
