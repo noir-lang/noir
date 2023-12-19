@@ -21,8 +21,12 @@ namespace avmMini(256);
     // DIV
     pol commit sel_op_div;
 
-    // Error boolean flag pertaining to an operation
-    pol commit op_err;
+    // Instruction memory tag (0: uninitialized, 1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6:field)
+    pol commit in_tag;
+
+    // Errors
+    pol commit op_err; // Boolean flag pertaining to an operation error
+    pol commit tag_err; // Boolean flag (foreign key to memTrace.m_tag_err)
 
     // A helper witness being the inverse of some value
     // to show a non-zero equality
@@ -49,8 +53,8 @@ namespace avmMini(256);
     pol commit mem_idx_a;
     pol commit mem_idx_b;
     pol commit mem_idx_c;
-    
-    
+
+  
     // Track the last line of the execution trace. It does NOT correspond to the last row of the whole table
     // of size N. As this depends on the supplied bytecode, this polynomial cannot be constant.
     pol commit last;
@@ -63,6 +67,7 @@ namespace avmMini(256);
     sel_op_div * (1 - sel_op_div) = 0;
 
     op_err * (1 - op_err) = 0;
+    tag_err * (1 - tag_err) = 0; // Potential optimization (boolean constraint derivation from equivalence check to memTrace)?
 
     mem_op_a * (1 - mem_op_a) = 0;
     mem_op_b * (1 - mem_op_b) = 0;
@@ -72,23 +77,38 @@ namespace avmMini(256);
     rwb * (1 - rwb) = 0;
     rwc * (1 - rwc) = 0;
     
+    // TODO: Constrain rwa, rwb, rwc to u32 type and 0 <= in_tag <= 6
+
+    // Set intermediate registers to 0 whenever tag_err occurs
+    tag_err * ia = 0;
+    tag_err * ib = 0;
+    tag_err * ic = 0;
+
     // Relation for addition over the finite field
+    #[SUBOP_ADDITION_FF]
     sel_op_add * (ia + ib - ic) = 0;
     
     // Relation for subtraction over the finite field
+    #[SUBOP_SUBTRACTION_FF]
     sel_op_sub * (ia - ib - ic) = 0;
 
     // Relation for multiplication over the finite field
+    #[SUBOP_MULTIPLICATION_FF]
     sel_op_mul * (ia * ib - ic) = 0;
 
     // Relation for division over the finite field
+    // If tag_err == 1 in a division, then ib == 0 and op_err == 1.
+    #[SUBOP_DIVISION_FF]
     sel_op_div * (1 - op_err) * (ic * ib - ia) = 0;
 
     // When sel_op_div == 1, we want ib == 0 <==> op_err == 1
     // This can be achieved with the 2 following relations.
     // inv is an extra witness to show that we can invert ib, i.e., inv = ib^(-1)
-    // If ib == 0, we have to set inv = 1 to satisfy the second relation.
+    // If ib == 0, we have to set inv = 1 to satisfy the second relation,
+    // because op_err == 1 from the first relation.
+    #[SUBOP_DIVISION_ZERO_ERR1]
     sel_op_div * (ib * inv - 1 + op_err) = 0;
+    #[SUBOP_DIVISION_ZERO_ERR2]
     sel_op_div * op_err * (1 - inv) = 0;
 
     // op_err cannot be maliciously activated for a non-relevant
@@ -97,9 +117,10 @@ namespace avmMini(256);
     // Note that the above is even a stronger constraint, as it shows
     // that exactly one sel_op_XXX must be true.
     // At this time, we have only division producing an error.
+    #[SUBOP_ERROR_RELEVANT_OP]
     op_err * (sel_op_div - 1) = 0;
 
-    // TODO: constraint that we stop execution at the first error
+    // TODO: constraint that we stop execution at the first error (tag_err or op_err)
     // An error can only happen at the last sub-operation row.
 
     // OPEN/POTENTIAL OPTIMIZATION: Dedicated error per relevant operation?
@@ -109,3 +130,9 @@ namespace avmMini(256);
     // (ib * inv - 1 + op_div_err) = 0 && op_err * (1 - inv) = 0 
     // This works in combination with op_div_err * (sel_op_div - 1) = 0;
     // Drawback is the need to paralllelize the latter.
+
+    // Inter-table Constraints
+    
+    // TODO: tag_err {clk} IS memTrace.m_tag_err {memTrace.m_clk}
+    // TODO: Map memory trace with intermediate register values whenever there is no tag error, sthg like:
+    // mem_op_a * (1 - tag_err) {mem_idx_a, clk, ia, rwa} IS m_sub_clk == 0 && 1 - m_tag_err {m_addr, m_clk, m_val, m_rw}

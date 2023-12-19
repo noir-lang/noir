@@ -60,10 +60,19 @@ bool AvmMiniVerifier::verify_proof(const plonk::proof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_sub_clk);
     commitments.memTrace_m_addr =
         transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_addr);
+    commitments.memTrace_m_tag = transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_tag);
     commitments.memTrace_m_val = transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_val);
     commitments.memTrace_m_lastAccess =
         transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_lastAccess);
+    commitments.memTrace_m_last =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_last);
     commitments.memTrace_m_rw = transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_rw);
+    commitments.memTrace_m_in_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_in_tag);
+    commitments.memTrace_m_tag_err =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_tag_err);
+    commitments.memTrace_m_one_min_inv =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_one_min_inv);
     commitments.avmMini_sel_op_add =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_op_add);
     commitments.avmMini_sel_op_sub =
@@ -72,7 +81,10 @@ bool AvmMiniVerifier::verify_proof(const plonk::proof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_op_mul);
     commitments.avmMini_sel_op_div =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_op_div);
+    commitments.avmMini_in_tag = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_in_tag);
     commitments.avmMini_op_err = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_op_err);
+    commitments.avmMini_tag_err =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_tag_err);
     commitments.avmMini_inv = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_inv);
     commitments.avmMini_ia = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_ia);
     commitments.avmMini_ib = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_ib);
