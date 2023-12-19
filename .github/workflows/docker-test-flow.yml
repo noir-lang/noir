@@ -216,6 +216,19 @@ jobs:
         run: |
           /usr/src/noir/.github/scripts/test-acvm-js.sh
 
+      - name: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: acvm-js
+          path: |
+            /usr/src/noir/acvm-repo/acvm-js/nodejs
+            /usr/src/noir/acvm-repo/acvm-js/web
+            /usr/src/noir/acvm-repo/acvm-js/target
+            /usr/src/noir/acvm-repo/acvm-js/outputs
+            /usr/src/noir/acvm-repo/acvm-js/result
+          if-no-files-found: error
+          compression-level: 0
+
   #DONE
   test-noirc-abi:
     name: test noirc abi
@@ -272,7 +285,7 @@ jobs:
   test-noir_js:
     name: test noirjs
     runs-on: ubuntu-latest
-    needs: [build-base-js, test-noirc-abi, artifact-nargo]
+    needs: [build-base-js, test-noirc-abi, artifact-nargo, test-acvm-js]
     container:
       image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
       credentials:
@@ -293,6 +306,12 @@ jobs:
           name: noirc-abi-wasm
           path: |
             /usr/src/noir/tooling/noirc_abi_wasm
+      - name: download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: acvm-js
+          path: |
+            /usr/src/noir/acvm-repo/acvm-js/
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-noir-js.sh
