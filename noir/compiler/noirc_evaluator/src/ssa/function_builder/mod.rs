@@ -1,3 +1,5 @@
+pub(crate) mod data_bus;
+
 use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;
@@ -312,16 +314,11 @@ impl FunctionBuilder {
                 (FieldElement::max_num_bits(), self.insert_binary(predicate, BinaryOp::Mul, pow))
             };
 
-        let instruction = Instruction::Binary(Binary { lhs, rhs: pow, operator: BinaryOp::Mul });
         if max_bit <= bit_size {
-            self.insert_instruction(instruction, None).first()
+            self.insert_binary(lhs, BinaryOp::Mul, pow)
         } else {
-            let result = self.insert_instruction(instruction, None).first();
-            self.insert_instruction(
-                Instruction::Truncate { value: result, bit_size, max_bit_size: max_bit },
-                None,
-            )
-            .first()
+            let result = self.insert_binary(lhs, BinaryOp::Mul, pow);
+            self.insert_truncate(result, bit_size, max_bit)
         }
     }
 

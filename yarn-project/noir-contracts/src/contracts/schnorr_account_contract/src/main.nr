@@ -91,10 +91,12 @@ contract SchnorrAccount {
         }
 
         // Verify signature of the payload bytes
-        let verification = std::schnorr::verify_signature(public_key.x,
+        let verification = std::schnorr::verify_signature(
+            public_key.x,
             public_key.y,
             signature,
-            message_hash.to_be_bytes(32));
+            message_hash.to_be_bytes(32)
+        );
         assert(verification == true);
         // docs:end:entrypoint
         true
@@ -108,7 +110,7 @@ contract SchnorrAccount {
         nonce: Field,
         storage_slot: Field,
         serialized_note: [Field; PUBLIC_KEY_NOTE_LEN]
-    ) -> [Field; 4] {
+    ) -> pub [Field; 4] {
         assert(storage_slot == 1);
         let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
         let note_header = NoteHeader::new(_address, nonce, storage_slot);

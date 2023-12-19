@@ -1,4 +1,11 @@
-import { ABIParameter, ABIType, DebugFileMap, DebugInfo, EventAbi } from '@aztec/foundation/abi';
+import {
+  ABIParameter,
+  ABIParameterVisibility,
+  ABIType,
+  DebugFileMap,
+  DebugInfo,
+  EventAbi,
+} from '@aztec/foundation/abi';
 
 /** The Aztec.nr function types. */
 type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
@@ -18,7 +25,16 @@ export interface NoirFunctionAbi {
     }[];
   };
   /** The return type of the function. */
-  return_type: ABIType;
+  return_type: {
+    /**
+     * The type of the return value.
+     */
+    abi_type: ABIType;
+    /**
+     * The visibility of the return value.
+     */
+    visibility: ABIParameterVisibility;
+  };
   /** The witness indices of the return type. */
   return_witnesses: number[];
 }
@@ -49,8 +65,6 @@ export interface NoirFunctionEntry {
 export interface NoirCompiledContract {
   /** The name of the contract. */
   name: string;
-  /** Compilation backend. */
-  backend: string;
   /** The functions of the contract. */
   functions: NoirFunctionEntry[];
   /** The events of the contract */
@@ -63,8 +77,6 @@ export interface NoirCompiledContract {
 export interface NoirCompiledCircuit {
   /** The hash of the circuit. */
   hash?: number;
-  /** Compilation backend. */
-  backend: string;
   /**
    * The ABI of the function.
    */
@@ -89,11 +101,6 @@ export interface ProgramArtifact {
    * The hash of the contract.
    */
   hash?: number;
-
-  /**
-   * The compilation backend of the artifact.
-   */
-  backend: string;
 
   /**
    * The abi of the program.

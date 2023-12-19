@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.35.0"
+version = "0.38.0"
 dependencies = [
  "acir_field",
  "base64",
@@ -23,7 +23,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.35.0"
+version = "0.38.0"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -37,13 +37,13 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.35.0"
+version = "0.38.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
- "acvm_stdlib",
  "brillig_vm",
  "indexmap 1.9.3",
+ "log",
  "num-bigint",
  "num-traits",
  "paste",
@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.35.0"
+version = "0.38.0"
 dependencies = [
  "acir",
  "blake2",
@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "0.35.0"
+version = "0.38.0"
 dependencies = [
  "acvm",
  "barretenberg_blackbox_solver",
@@ -84,13 +84,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
  "wasm-logger",
-]
-
-[[package]]
-name = "acvm_stdlib"
-version = "0.35.0"
-dependencies = [
- "acir",
 ]
 
 [[package]]
@@ -217,7 +210,7 @@ checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
 name = "arena"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "generational-arena",
 ]
@@ -408,6 +401,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "atty"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
+dependencies = [
+ "hermit-abi 0.1.19",
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -415,7 +419,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "aztec_macros"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "iter-extended",
  "noirc_frontend",
@@ -431,6 +435,7 @@ dependencies = [
  "const_format",
  "dirs",
  "flate2",
+ "log",
  "reqwest",
  "serde",
  "serde_json",
@@ -457,7 +462,7 @@ dependencies = [
 
 [[package]]
 name = "barretenberg_blackbox_solver"
-version = "0.35.0"
+version = "0.38.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -581,7 +586,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "0.35.0"
+version = "0.38.0"
 dependencies = [
  "acir_field",
  "serde",
@@ -589,7 +594,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.35.0"
+version = "0.38.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1124,6 +1129,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam-channel"
+version = "0.5.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a33c2bf77f2df06183c3aa30d1e96c0695a313d4f9c453cc3762a6db39f99200"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-deque"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1482,6 +1497,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_logger"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a12e6657c4c97ebab115a42dcee77225f7f482cdd841cf7088c657a42e9e00e7"
+dependencies = [
+ "atty",
+ "humantime",
+ "log",
+ "regex",
+ "termcolor",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1604,11 +1632,10 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
- "rust-embed",
  "serde",
  "tempfile",
 ]
@@ -1909,6 +1936,15 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "hermit-abi"
+version = "0.1.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "hermit-abi"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "443144c8cdadd93ebf52ddb4056d257f5b52c04d3c804e657d19eb73fc33668b"
@@ -1961,6 +1997,12 @@ name = "httpdate"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4a1e36c821dbe04574f602848a19f742f4fb3c98d40449f11bcad18d6b17421"
+
+[[package]]
+name = "humantime"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
 name = "hyper"
@@ -2159,14 +2201,14 @@ version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb0889898416213fab133e1d33a0e5858a48177452750691bde3666d0fdbaf8b"
 dependencies = [
- "hermit-abi",
+ "hermit-abi 0.3.2",
  "rustix",
  "windows-sys 0.48.0",
 ]
 
 [[package]]
 name = "iter-extended"
-version = "0.19.4"
+version = "0.22.0"
 
 [[package]]
 name = "itertools"
@@ -2388,12 +2430,13 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "codespan-reporting",
  "fm",
  "iter-extended",
+ "log",
  "noirc_abi",
  "noirc_driver",
  "noirc_errors",
@@ -2403,12 +2446,13 @@ dependencies = [
  "rayon",
  "rustc_version",
  "serde",
+ "tempfile",
  "thiserror",
 ]
 
 [[package]]
 name = "nargo_cli"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -2423,6 +2467,7 @@ dependencies = [
  "const_format",
  "criterion",
  "dirs",
+ "env_logger",
  "fm",
  "hex",
  "iai",
@@ -2453,11 +2498,14 @@ dependencies = [
  "tokio-util",
  "toml",
  "tower",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
 ]
 
 [[package]]
 name = "nargo_fmt"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "bytecount",
  "noirc_frontend",
@@ -2469,7 +2517,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "dirs",
  "fm",
@@ -2518,7 +2566,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "codespan-reporting",
@@ -2532,13 +2580,11 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "async-lsp",
- "cfg-if",
  "codespan-lsp",
- "codespan-reporting",
  "fm",
  "lsp-types 0.94.1",
  "nargo",
@@ -2557,11 +2603,10 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "build-data",
- "cfg-if",
  "console_error_panic_hook",
  "fm",
  "getrandom",
@@ -2579,7 +2624,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -2596,7 +2641,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -2613,7 +2658,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "aztec_macros",
@@ -2622,34 +2667,38 @@ dependencies = [
  "fm",
  "fxhash",
  "iter-extended",
+ "log",
  "noirc_abi",
  "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
+ "rust-embed",
  "serde",
 ]
 
 [[package]]
 name = "noirc_errors"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "chumsky",
  "codespan",
  "codespan-reporting",
  "fm",
+ "log",
  "serde",
  "serde_with",
 ]
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "fxhash",
  "im",
  "iter-extended",
+ "log",
  "noirc_errors",
  "noirc_frontend",
  "num-bigint",
@@ -2659,13 +2708,14 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "arena",
  "chumsky",
  "fm",
  "iter-extended",
+ "log",
  "noirc_errors",
  "noirc_printable_type",
  "regex",
@@ -2676,12 +2726,13 @@ dependencies = [
  "smol_str",
  "strum",
  "strum_macros",
+ "tempfile",
  "thiserror",
 ]
 
 [[package]]
 name = "noirc_printable_type"
-version = "0.19.4"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -2696,6 +2747,16 @@ name = "normalize-line-endings"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61807f77802ff30975e01f4f071c8ba10c022052f98b3294119f3e615d13e5be"
+
+[[package]]
+name = "nu-ansi-term"
+version = "0.46.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77a8165726e8236064dbb45459242600304b42a5ea24ee2948e18e023bf7ba84"
+dependencies = [
+ "overload",
+ "winapi",
+]
 
 [[package]]
 name = "num-bigint"
@@ -2744,7 +2805,7 @@ version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
 dependencies = [
- "hermit-abi",
+ "hermit-abi 0.3.2",
  "libc",
 ]
 
@@ -2768,6 +2829,12 @@ name = "oorandom"
 version = "11.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
+
+[[package]]
+name = "overload"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
 name = "owo-colors"
@@ -4377,11 +4444,10 @@ checksum = "b6bc1c9ce2b5135ac7f93c72918fc37feb872bdc6a5533a8b85eb4b86bfdae52"
 
 [[package]]
 name = "tracing"
-version = "0.1.37"
+version = "0.1.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ce8c33a8d48bd45d624a6e523445fd21ec13d3653cd51f681abf67418f54eb8"
+checksum = "c3523ab5a71916ccf420eebdf5521fcef02141234bbc0b8a49f2fdc4544364ef"
 dependencies = [
- "cfg-if",
  "log",
  "pin-project-lite",
  "tracing-attributes",
@@ -4389,10 +4455,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-attributes"
-version = "0.1.26"
+name = "tracing-appender"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f4f31f56159e98206da9efd823404b79b6ef3143b4a7ab76e67b1751b25a4ab"
+checksum = "3566e8ce28cc0a3fe42519fc80e6b4c943cc4c8cef275620eb8dac2d3d4e06cf"
+dependencies = [
+ "crossbeam-channel",
+ "thiserror",
+ "time",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "tracing-attributes"
+version = "0.1.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34704c8d6ebcbc939824180af020566b01a7c01f80641264eba0999f6c2b6be7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4401,9 +4479,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.31"
+version = "0.1.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0955b8137a1df6f1a2e9a37d8a6656291ff0297c1a97c24e0d8425fe2312f79a"
+checksum = "c06d3da6113f116aaee68e4d601191614c9053067f9ab7f6edbcb161237daa54"
 dependencies = [
  "once_cell",
  "valuable",
@@ -4420,14 +4498,28 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-subscriber"
-version = "0.3.17"
+name = "tracing-log"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30a651bc37f915e81f087d86e62a18eec5f79550c7faff886f7090b4ea757c77"
+checksum = "ee855f1f400bd0e5c02d150ae5de3840039a3f54b025156404e34c23c03f47c3"
 dependencies = [
+ "log",
+ "once_cell",
+ "tracing-core",
+]
+
+[[package]]
+name = "tracing-subscriber"
+version = "0.3.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad0f048c97dbd9faa9b7df56362b8ebcaa52adb06b498c050d2f4e32f90a7a8b"
+dependencies = [
+ "nu-ansi-term",
  "sharded-slab",
+ "smallvec",
  "thread_local",
  "tracing-core",
+ "tracing-log",
 ]
 
 [[package]]

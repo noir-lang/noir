@@ -21,8 +21,7 @@ iter-extended.workspace = true
 fm.workspace = true
 serde.workspace = true
 fxhash.workspace = true
+rust-embed = "6.6.0"
+log.workspace = true
 
-aztec_macros ={path = "../../aztec_macros", optional = true}
-
-[features]
-aztec = ["aztec_macros"]
+aztec_macros = { path = "../../aztec_macros" }

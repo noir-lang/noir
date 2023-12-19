@@ -65,7 +65,7 @@ contract EasyPrivateToken {
     }
 
     // Helper function to get the balance of a user ("unconstrained" is a Noir alternative of Solidity's "view" function).
-    unconstrained fn getBalance(owner: AztecAddress) -> Field {
+    unconstrained fn getBalance(owner: AztecAddress) -> pub Field {
         let balances = storage.balances;
 
         // Return the sum of all notes in the set.
@@ -75,7 +75,12 @@ contract EasyPrivateToken {
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: Field,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; VALUE_NOTE_LEN]
+    ) -> pub [Field; 4] {
         let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
         let note_header = NoteHeader::new(_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)

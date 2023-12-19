@@ -92,6 +92,7 @@ type HirType = crate::Type;
 /// this function. Typically, this is the function named "main" in the source project,
 /// but it can also be, for example, an arbitrary test function for running `nargo test`.
 pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Program {
+    log::trace!("Start monomorphization");
     let mut monomorphizer = Monomorphizer::new(interner);
     let function_sig = monomorphizer.compile_main(main);
 
@@ -105,8 +106,16 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
     }
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    let FuncMeta { return_distinctness, .. } = interner.function_meta(&main);
-    Program::new(functions, function_sig, return_distinctness, monomorphizer.return_location)
+    let FuncMeta { return_distinctness, return_visibility, .. } = interner.function_meta(&main);
+
+    log::trace!("Finish monomorphization");
+    Program::new(
+        functions,
+        function_sig,
+        return_distinctness,
+        monomorphizer.return_location,
+        return_visibility,
+    )
 }
 
 impl<'interner> Monomorphizer<'interner> {
@@ -215,7 +224,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
             let the_trait = self.interner.get_trait(trait_id);
-            *the_trait.self_type_typevar.borrow_mut() = TypeBinding::Bound(self_type);
+            the_trait.self_type_typevar.force_bind(self_type);
         }
 
         let meta = self.interner.function_meta(&f);
@@ -225,7 +234,7 @@ impl<'interner> Monomorphizer<'interner> {
         let body_expr_id = *self.interner.function(&f).as_expr();
         let body_return_type = self.interner.id_type(body_expr_id);
         let return_type = self.convert_type(match meta.return_type() {
-            Type::TraitAsType(_) => &body_return_type,
+            Type::TraitAsType(..) => &body_return_type,
             _ => meta.return_type(),
         });
 
@@ -310,10 +319,23 @@ impl<'interner> Monomorphizer<'interner> {
                 ))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
-            HirExpression::Literal(HirLiteral::Integer(value)) => {
-                let typ = self.convert_type(&self.interner.id_type(expr));
-                let location = self.interner.id_location(expr);
-                Literal(Integer(value, typ, location))
+            HirExpression::Literal(HirLiteral::Integer(value, sign)) => {
+                if sign {
+                    let typ = self.convert_type(&self.interner.id_type(expr));
+                    let location = self.interner.id_location(expr);
+                    match typ {
+                        ast::Type::Field => Literal(Integer(-value, typ, location)),
+                        ast::Type::Integer(_, bit_size) => {
+                            let base = 1_u128 << bit_size;
+                            Literal(Integer(FieldElement::from(base) - value, typ, location))
+                        }
+                        _ => unreachable!("Integer literal must be numeric"),
+                    }
+                } else {
+                    let typ = self.convert_type(&self.interner.id_type(expr));
+                    let location = self.interner.id_location(expr);
+                    Literal(Integer(value, typ, location))
+                }
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array),
@@ -701,7 +723,7 @@ impl<'interner> Monomorphizer<'interner> {
                     ast::Type::Slice(element)
                 }
             }
-            HirType::TraitAsType(_) => {
+            HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
             HirType::NamedGeneric(binding, _) => {
@@ -712,11 +734,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                // NOTE: Make sure to review this if there is ever type-directed dispatch,
-                // like automatic solving of traits. It should be fine since it is strictly
-                // after type checking, but care should be taken that it doesn't change which
-                // impls are chosen.
-                *binding.borrow_mut() = TypeBinding::Bound(HirType::default_int_type());
+                binding.bind(HirType::default_int_type());
                 ast::Type::Field
             }
 
@@ -728,10 +746,6 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                // NOTE: Make sure to review this if there is ever type-directed dispatch,
-                // like automatic solving of traits. It should be fine since it is strictly
-                // after type checking, but care should be taken that it doesn't change which
-                // impls are chosen.
                 let default =
                     if self.is_range_loop && matches!(kind, TypeVariableKind::IntegerOrField) {
                         Type::default_range_loop_type()
@@ -740,7 +754,7 @@ impl<'interner> Monomorphizer<'interner> {
                     };
 
                 let monomorphized_default = self.convert_type(&default);
-                *binding.borrow_mut() = TypeBinding::Bound(default);
+                binding.bind(default);
                 monomorphized_default
             }
 
@@ -875,7 +889,6 @@ impl<'interner> Monomorphizer<'interner> {
         let original_func = Box::new(self.expr(call.func));
         let mut arguments = vecmap(&call.arguments, |id| self.expr(*id));
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
-        let func: Box<ast::Expression>;
         let return_type = self.interner.id_type(id);
         let return_type = self.convert_type(&return_type);
 
@@ -883,10 +896,11 @@ impl<'interner> Monomorphizer<'interner> {
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
             if let Definition::Oracle(name) = &ident.definition {
-                if name.as_str() == "println" {
+                if name.as_str() == "print" {
                     // Oracle calls are required to be wrapped in an unconstrained function
-                    // Thus, the only argument to the `println` oracle is expected to always be an ident
-                    self.append_printable_type_info(&hir_arguments[0], &mut arguments);
+                    // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
+                    // The second argument is expected to always be an ident
+                    self.append_printable_type_info(&hir_arguments[1], &mut arguments);
                 }
             }
         }
@@ -895,7 +909,8 @@ impl<'interner> Monomorphizer<'interner> {
         let func_type = self.interner.id_type(call.func);
         let func_type = self.convert_type(&func_type);
         let is_closure = self.is_function_closure(func_type);
-        if is_closure {
+
+        let func = if is_closure {
             let local_id = self.next_local_id();
 
             // store the function in a temporary variable before calling it
@@ -917,14 +932,13 @@ impl<'interner> Monomorphizer<'interner> {
                 typ: self.convert_type(&self.interner.id_type(call.func)),
             });
 
-            func = Box::new(ast::Expression::ExtractTupleField(
-                Box::new(extracted_func.clone()),
-                1usize,
-            ));
-            let env_argument = ast::Expression::ExtractTupleField(Box::new(extracted_func), 0usize);
+            let env_argument =
+                ast::Expression::ExtractTupleField(Box::new(extracted_func.clone()), 0usize);
             arguments.insert(0, env_argument);
+
+            Box::new(ast::Expression::ExtractTupleField(Box::new(extracted_func), 1usize))
         } else {
-            func = original_func.clone();
+            original_func.clone()
         };
 
         let call = self
@@ -1430,12 +1444,12 @@ fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
 
 fn perform_instantiation_bindings(bindings: &TypeBindings) {
     for (var, binding) in bindings.values() {
-        *var.borrow_mut() = TypeBinding::Bound(binding.clone());
+        var.force_bind(binding.clone());
     }
 }
 
 fn undo_instantiation_bindings(bindings: TypeBindings) {
     for (id, (var, _)) in bindings {
-        *var.borrow_mut() = TypeBinding::Unbound(id);
+        var.unbind(id);
     }
 }

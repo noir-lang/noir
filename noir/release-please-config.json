@@ -16,11 +16,6 @@
         "flake.nix",
         {
           "type": "json",
-          "path": "compiler/source-resolver/package.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
           "path": "compiler/wasm/package.json",
           "jsonpath": "$.version"
         },
@@ -48,6 +43,11 @@
           "type": "json",
           "path": "tooling/noirc_abi_wasm/package.json",
           "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "docs/docs/package.json",
+          "jsonpath": "$.version"
         }
       ]
     },
@@ -65,8 +65,11 @@
         "blackbox_solver/Cargo.toml",
         "brillig/Cargo.toml",
         "brillig_vm/Cargo.toml",
-        "stdlib/Cargo.toml",
-        "flake.nix",
+        {
+          "type": "json",
+          "path": "acvm_js/package.json",
+          "jsonpath": "$.version"
+        },
         {
           "type": "json",
           "path": "acvm_js/package.json",
@@ -77,5 +80,6 @@
   },
   "plugins": [
     "sentence-case"
-  ]
+  ],
+  "bootstrap-sha": "690cfc0468de0b9aee53ccfe832c71c16e61e5fc"
 }

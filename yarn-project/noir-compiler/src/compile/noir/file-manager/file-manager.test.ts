@@ -1,5 +1,6 @@
 import { Volume, createFsFromVolume } from 'memfs';
-import * as fs from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import * as fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -17,20 +18,23 @@ const memFS = (): { fm: FileManager; teardown: () => void } => {
 
 const nodeFM = (): { fm: FileManager; teardown: () => void } => {
   const fileSystem: FileSystem = {
-    existsSync: fs.existsSync,
-    mkdirSync: fs.mkdirSync,
-    writeFileSync: fs.writeFileSync,
-    readFileSync: fs.readFileSync,
-    renameSync: fs.renameSync,
+    existsSync: existsSync,
+    mkdir: async (dir: string, opts?: { recursive: boolean }) => {
+      await fs.mkdir(dir, opts);
+    },
+    writeFile: fs.writeFile,
+    readFile: fs.readFile,
+    rename: fs.rename,
+    readdir: fs.readdir,
   };
 
-  const dir = fs.mkdtempSync(join(tmpdir(), 'noir-compiler-test'));
+  const dir = mkdtempSync(join(tmpdir(), 'noir-compiler-test'));
   const fm = new FileManager(fileSystem, dir);
 
   return {
     fm,
     teardown: () => {
-      fs.rmSync(dir, {
+      rmSync(dir, {
         recursive: true,
       });
     },
@@ -60,12 +64,12 @@ describe.each([memFS, nodeFM])('FileManager', setup => {
 
   it('saves files and correctly reads bytes back', async () => {
     await fm.writeFile('test.txt', new Blob([testFileBytes]).stream());
-    expect(fm.readFileSync('test.txt')).toEqual(testFileBytes);
+    await expect(fm.readFile('test.txt')).resolves.toEqual(testFileBytes);
   });
 
   it('saves files and correctly reads UTF-8 string back', async () => {
     await fm.writeFile('test.txt', new Blob([testFileBytes]).stream());
-    expect(fm.readFileSync('test.txt', 'utf-8')).toEqual(testFileContent);
+    await expect(fm.readFile('test.txt', 'utf-8')).resolves.toEqual(testFileContent);
   });
 
   it('correctly checks if file exists or not', async () => {
@@ -78,7 +82,7 @@ describe.each([memFS, nodeFM])('FileManager', setup => {
     await fm.writeFile('test.txt.tmp', new Blob([testFileBytes]).stream());
     expect(fm.hasFileSync('test.txt.tmp')).toBe(true);
 
-    fm.moveFileSync('test.txt.tmp', 'test.txt');
+    await fm.moveFile('test.txt.tmp', 'test.txt');
 
     expect(fm.hasFileSync('test.txt.tmp')).toBe(false);
     expect(fm.hasFileSync('test.txt')).toBe(true);

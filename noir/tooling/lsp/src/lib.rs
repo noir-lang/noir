@@ -7,7 +7,7 @@ use std::{
     collections::HashMap,
     future::Future,
     ops::{self, ControlFlow},
-    path::{Path, PathBuf},
+    path::PathBuf,
     pin::Pin,
     task::{self, Poll},
 };
@@ -17,7 +17,7 @@ use async_lsp::{
     router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService,
     ResponseError,
 };
-use codespan_reporting::files;
+use fm::codespan_files as files;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::{Context, FunctionNameMatch},
@@ -27,7 +27,7 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    on_code_lens_request, on_formatting, on_initialize, on_profile_run_request, on_shutdown,
+    on_formatting, on_goto_definition_request, on_initialize, on_profile_run_request, on_shutdown,
     on_test_run_request, on_tests_request,
 };
 use serde_json::Value as JsonValue;
@@ -72,10 +72,10 @@ impl NargoLspService {
             .request::<request::Initialize, _>(on_initialize)
             .request::<request::Formatting, _>(on_formatting)
             .request::<request::Shutdown, _>(on_shutdown)
-            .request::<request::CodeLens, _>(on_code_lens_request)
             .request::<request::NargoTests, _>(on_tests_request)
             .request::<request::NargoTestRun, _>(on_test_run_request)
             .request::<request::NargoProfileRun, _>(on_profile_run_request)
+            .request::<request::GotoDefinition, _>(on_goto_definition_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
@@ -173,31 +173,5 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
         Some(range)
     } else {
         None
-    }
-}
-
-cfg_if::cfg_if! {
-    if #[cfg(all(target_arch = "wasm32", not(target_os = "wasi")))] {
-        use wasm_bindgen::{prelude::*, JsValue};
-
-        #[wasm_bindgen(module = "@noir-lang/source-resolver")]
-        extern "C" {
-
-            #[wasm_bindgen(catch)]
-            fn read_file(path: &str) -> Result<String, JsValue>;
-
-        }
-
-        fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
-            let path_str = path_to_file.to_str().unwrap();
-            match read_file(path_str) {
-                Ok(buffer) => Ok(buffer),
-                Err(_) => Err(Error::new(ErrorKind::Other, "could not read file using wasm")),
-            }
-        }
-    } else {
-        fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
-            std::fs::read_to_string(path_to_file)
-        }
     }
 }

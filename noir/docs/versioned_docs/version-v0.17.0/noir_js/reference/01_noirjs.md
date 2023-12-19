@@ -74,8 +74,8 @@ async execute(inputs)
 
 | Return value | Type                  | Description                                         |
 | ------------ | --------------------- | --------------------------------------------------- |
-| `witness`      | Promise <Uint8Array\> | The witness |
-| `returnValue`      | Promise <InputMap\> | The return value  |
+| `witness`      | Promise \<Uint8Array\> | The witness |
+| `returnValue`      | Promise \<InputMap\> | The return value  |
 
 ### Usage
 
@@ -103,7 +103,7 @@ async generateFinalproof(input)
 
 | Return value | Type                  | Description                                         |
 | ------------ | --------------------- | --------------------------------------------------- |
-| `proof`      | Promise <Uint8Array\> | An array with the byte representation of the proof. |
+| `proof`      | Promise \<Uint8Array\> | An array with the byte representation of the proof. |
 
 ### Usage
 
@@ -133,7 +133,7 @@ async verifyFinalProof(proof)
 
 | Return value | Type               | Description                                  |
 | ------------ | ------------------ | -------------------------------------------- |
-| `verified`   | Promise <boolean\> | A boolean for whether the proof was verified |
+| `verified`   | Promise \<boolean\> | A boolean for whether the proof was verified |
 
 ### Usage
 

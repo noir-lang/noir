@@ -59,10 +59,6 @@ COPY --from=noir /usr/src/noir/target/release/nargo /usr/src/noir/target/release
 # Copy in noir packages
 COPY --from=noir-packages /usr/src/noir/packages /usr/src/noir/packages
 
-# TODO: FIX: For some reason the source-resolver package needs to be in compiler dir or we get errors like:
-#              Error: ENOENT: no such file or directory, open '/aztec/lib.nr'
-RUN mkdir /usr/src/noir/compiler && mv /usr/src/noir/packages/source-resolver /usr/src/noir/compiler
-
 # We install a symlink to yarn-project's node_modules at a location that all portalled packages can find as they
 # walk up the tree as part of module resolution. The supposedly idiomatic way of supporting module resolution
 # correctly for portalled packages, is to use --preserve-symlinks when running node.

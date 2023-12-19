@@ -551,7 +551,6 @@ __metadata:
     "@jest/globals": ^29.5.0
     "@ltd/j-toml": ^1.38.0
     "@noir-lang/noir_wasm": "portal:../../noir/packages/noir_wasm"
-    "@noir-lang/source-resolver": "portal:../../noir/packages/source-resolver"
     "@types/fs-extra": ^11.0.1
     "@types/jest": ^29.5.0
     "@types/lodash.camelcase": ^4.3.7
@@ -2751,7 +2750,7 @@ __metadata:
   resolution: "@noir-lang/backend_barretenberg@portal:../noir/packages/backend_barretenberg::locator=%40aztec%2Faztec3-packages%40workspace%3A."
   dependencies:
     "@aztec/bb.js": 0.16.0
-    "@noir-lang/types": 0.19.4
+    "@noir-lang/types": 0.22.0
     fflate: ^0.8.0
   languageName: node
   linkType: soft
@@ -2760,17 +2759,15 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_js@portal:../noir/packages/noir_js::locator=%40aztec%2Faztec3-packages%40workspace%3A."
   dependencies:
-    "@noir-lang/acvm_js": 0.35.0
-    "@noir-lang/noirc_abi": 0.19.4
-    "@noir-lang/types": 0.19.4
+    "@noir-lang/acvm_js": 0.38.0
+    "@noir-lang/noirc_abi": 0.22.0
+    "@noir-lang/types": 0.22.0
   languageName: node
   linkType: soft
 
 "@noir-lang/noir_wasm@portal:../noir/packages/noir_wasm::locator=%40aztec%2Faztec3-packages%40workspace%3A.":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_wasm@portal:../noir/packages/noir_wasm::locator=%40aztec%2Faztec3-packages%40workspace%3A."
-  peerDependencies:
-    "@noir-lang/source-resolver": 0.19.4
   languageName: node
   linkType: soft
 
@@ -2780,17 +2777,11 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@noir-lang/source-resolver@portal:../noir/compiler/source-resolver::locator=%40aztec%2Faztec3-packages%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@noir-lang/source-resolver@portal:../noir/compiler/source-resolver::locator=%40aztec%2Faztec3-packages%40workspace%3A."
-  languageName: node
-  linkType: soft
-
 "@noir-lang/types@portal:../noir/packages/types::locator=%40aztec%2Faztec3-packages%40workspace%3A.":
   version: 0.0.0-use.local
   resolution: "@noir-lang/types@portal:../noir/packages/types::locator=%40aztec%2Faztec3-packages%40workspace%3A."
   dependencies:
-    "@noir-lang/noirc_abi": 0.19.4
+    "@noir-lang/noirc_abi": 0.22.0
   languageName: node
   linkType: soft
 

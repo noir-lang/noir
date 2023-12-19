@@ -28,7 +28,7 @@ describe('DependencyResolver', () => {
 
     fm = createMemFSFileManager(memFS, '/');
 
-    pkg = NoirPackage.open('/test_contract', fm);
+    pkg = await NoirPackage.open('/test_contract', fm);
     resolver = new LocalDependencyResolver(fm);
   });
 

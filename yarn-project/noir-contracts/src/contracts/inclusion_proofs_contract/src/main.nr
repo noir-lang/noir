@@ -238,7 +238,7 @@ contract InclusionProofs {
         nonce: Field,
         storage_slot: Field,
         serialized_note: [Field; VALUE_NOTE_LEN]
-    ) -> [Field; 4] {
+    ) -> pub [Field; 4] {
         let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
         let note_header = NoteHeader::new(_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)

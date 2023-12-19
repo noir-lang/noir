@@ -53,7 +53,7 @@ jobs:
         uses: TomAFrench/noir-gates-diff@e7cf131b7e7f044c01615f93f0b855f65ddc02d4
         with:
           report: protocol_circuits_report.json
-          summaryQuantile: 1 # Display any diff in gate count
+          summaryQuantile: 0 # Display any diff in gate count
 
       - name: Add gates diff to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'

@@ -2,7 +2,7 @@
 name = "acvm_js"
 description = "Typescript wrapper around the ACVM allowing execution of ACIR code"
 # x-release-please-start-version
-version = "0.35.0"
+version = "0.38.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -26,9 +26,9 @@ wasm-bindgen-futures.workspace = true
 console_error_panic_hook.workspace = true
 gloo-utils.workspace = true
 js-sys.workspace = true
+log.workspace = true
 
 serde = { version = "1.0.136", features = ["derive"] }
-log = "0.4.17"
 wasm-logger = "0.2.0"
 const-str = "0.5.5"
 

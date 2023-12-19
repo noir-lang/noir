@@ -95,18 +95,18 @@ contract TokenBridge {
         secret_for_L1_to_L2_message_consumption: Field // secret used to consume the L1 to L2 message
     ) {
         // Consume L1 to L2 message and emit nullifier
-        let content_hash = get_mint_private_content_hash(secret_hash_for_redeeming_minted_notes,
-            amount,
-            canceller);
+        let content_hash = get_mint_private_content_hash(secret_hash_for_redeeming_minted_notes, amount, canceller);
         context.consume_l1_to_l2_message(msg_key, content_hash, secret_for_L1_to_L2_message_consumption);
 
         // Mint tokens on L2
         // `mint_private` on token is public. So we call an internal public function
         // which then calls the public method on the token contract.
         // Since the secret_hash is passed, no secret is leaked.
-        context.call_public_function(context.this_address(),
+        context.call_public_function(
+            context.this_address(),
             compute_selector("_call_mint_on_token(Field,Field)"),
-            [amount, secret_hash_for_redeeming_minted_notes]);
+            [amount, secret_hash_for_redeeming_minted_notes]
+        );
     }
     // docs:end:claim_private
 
@@ -127,9 +127,11 @@ contract TokenBridge {
 
         // docs:start:call_assert_token_is_same
         // Assert that user provided token address is same as seen in storage.
-        context.call_public_function(context.this_address(),
+        context.call_public_function(
+            context.this_address(),
             compute_selector("_assert_token_is_same((Field))"),
-            [token.to_field()]);
+            [token.to_field()]
+        );
         // docs:end:call_assert_token_is_same
 
         // Burn tokens
@@ -146,7 +148,7 @@ contract TokenBridge {
 
     // /// Unconstrained ///
 
-    unconstrained fn token() -> AztecAddress {
+    unconstrained fn token() -> pub AztecAddress {
         storage.token.read()
     }
 
@@ -174,7 +176,12 @@ contract TokenBridge {
 
     // TODO: remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented
     // docs:start:compute_note_hash_and_nullifier_placeholder
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; 0]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: Field,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; 0]
+    ) -> pub [Field; 4] {
         [0, 0, 0, 0]
     }
     // docs:end:compute_note_hash_and_nullifier_placeholder

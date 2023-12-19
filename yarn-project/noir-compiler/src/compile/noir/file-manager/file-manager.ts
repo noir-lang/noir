@@ -1,4 +1,4 @@
-import { dirname, isAbsolute, join } from 'path';
+import path, { dirname, isAbsolute, join } from 'path';
 
 /**
  * A file system interface that matches the node fs module.
@@ -7,19 +7,27 @@ export interface FileSystem {
   /** Checks if the file exists */
   existsSync: (path: string) => boolean;
   /** Creates a directory structure */
-  mkdirSync: (
+  mkdir: (
     dir: string,
     opts?: {
       /** Create parent directories as needed */
       recursive: boolean;
     },
-  ) => void;
+  ) => Promise<void>;
   /** Writes a file */
-  writeFileSync: (path: string, data: Uint8Array) => void;
+  writeFile: (path: string, data: Uint8Array) => Promise<void>;
   /** Reads a file */
-  readFileSync: (path: string, encoding?: 'utf-8') => Uint8Array | string;
+  readFile: (path: string, encoding?: 'utf-8') => Promise<Uint8Array | string>;
   /** Renames a file */
-  renameSync: (oldPath: string, newPath: string) => void;
+  rename: (oldPath: string, newPath: string) => Promise<void>;
+  /** Reads a directory */
+  readdir: (
+    path: string,
+    options?: {
+      /** Traverse child directories recursively */
+      recursive: boolean;
+    },
+  ) => Promise<string[]>;
 }
 
 /**
@@ -64,8 +72,8 @@ export class FileManager {
       offset += chunk.length;
     }
 
-    this.#fs.mkdirSync(dirname(path), { recursive: true });
-    this.#fs.writeFileSync(this.#getPath(path), file);
+    await this.#fs.mkdir(dirname(path), { recursive: true });
+    await this.#fs.writeFile(this.#getPath(path), file);
   }
 
   /**
@@ -74,7 +82,7 @@ export class FileManager {
    * @param oldName - File to save
    * @param newName - File contents
    */
-  moveFileSync(oldName: string, newName: string) {
+  async moveFile(oldName: string, newName: string) {
     if (isAbsolute(oldName) || isAbsolute(newName)) {
       throw new Error("can't move absolute path");
     }
@@ -82,29 +90,29 @@ export class FileManager {
     const oldPath = this.#getPath(oldName);
     const newPath = this.#getPath(newName);
 
-    this.#fs.mkdirSync(dirname(newPath), { recursive: true });
-    this.#fs.renameSync(oldPath, newPath);
+    await this.#fs.mkdir(dirname(newPath), { recursive: true });
+    await this.#fs.rename(oldPath, newPath);
   }
 
   /**
    * Reads a file from the disk and returns a buffer
    * @param name - File to read
    */
-  public readFileSync(name: string): Uint8Array;
+  public async readFile(name: string): Promise<Uint8Array>;
   /**
    * Reads a file from the filesystem as a string
    * @param name - File to read
    * @param encoding - Encoding to use
    */
-  public readFileSync(name: string, encoding: 'utf-8'): string;
+  public async readFile(name: string, encoding: 'utf-8'): Promise<string>;
   /**
    * Reads a file from the filesystem
    * @param name - File to read
    * @param encoding - Encoding to use
    */
-  public readFileSync(name: string, encoding?: 'utf-8'): string | Uint8Array {
+  public async readFile(name: string, encoding?: 'utf-8'): Promise<string | Uint8Array> {
     const path = this.#getPath(name);
-    const data = this.#fs.readFileSync(path, encoding);
+    const data = await this.#fs.readFile(path, encoding);
 
     if (!encoding) {
       return typeof data === 'string'
@@ -125,5 +133,24 @@ export class FileManager {
 
   #getPath(name: string) {
     return isAbsolute(name) ? name : join(this.#dataDir, name);
+  }
+
+  /**
+   * Reads a file from the filesystem
+   * @param dir - File to read
+   * @param options - Readdir options
+   */
+  public async readdir(
+    dir: string,
+    options?: {
+      /**
+       * Traverse child directories recursively
+       */
+      recursive: boolean;
+    },
+  ) {
+    const dirPath = this.#getPath(dir);
+    const files = await this.#fs.readdir(dirPath, options);
+    return files.map(file => path.join(dirPath, file));
   }
 }

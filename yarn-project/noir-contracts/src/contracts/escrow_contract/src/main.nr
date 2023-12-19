@@ -60,10 +60,19 @@ contract Escrow {
         assert(notes[0].is_some(), "Sender is not an owner.");
 
         let selector = compute_selector("transfer((Field),(Field),Field,Field)");
-        let _callStackItem = context.call_private_function(token, selector, [this.to_field(), recipient.to_field(), amount, 0]);
+        let _callStackItem = context.call_private_function(
+            token,
+            selector,
+            [this.to_field(), recipient.to_field(), amount, 0]
+        );
     }
 
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; ADDRESS_NOTE_LEN]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: Field,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; ADDRESS_NOTE_LEN]
+    ) -> pub [Field; 4] {
         let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
         let note_header = NoteHeader::new(_address, nonce, storage_slot);
         assert(storage_slot == 1);

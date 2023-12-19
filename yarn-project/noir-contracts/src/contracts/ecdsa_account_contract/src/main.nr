@@ -42,7 +42,7 @@ contract EcdsaAccount {
 
     // Creates a new account out of an ECDSA public key to use for signature verification
     #[aztec(private)]
-    fn constructor(signing_pub_key_x: pub [u8;32], signing_pub_key_y: pub [u8;32]) {
+    fn constructor(signing_pub_key_x: pub [u8; 32], signing_pub_key_y: pub [u8; 32]) {
         let this = context.this_address();
         let mut pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);
         storage.public_key.initialize(&mut pub_key_note, Option::none(), true);
@@ -103,7 +103,7 @@ contract EcdsaAccount {
         nonce: Field,
         storage_slot: Field,
         serialized_note: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]
-    ) -> [Field; 4] {
+    ) -> pub [Field; 4] {
         assert(storage_slot == 1);
         let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
         let note_header = NoteHeader::new(_address, nonce, storage_slot);

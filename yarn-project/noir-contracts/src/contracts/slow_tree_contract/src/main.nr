@@ -88,9 +88,11 @@ contract SlowTree {
 
         let expected_root = compute_merkle_root(p.value, p.index, p.sibling_path);
         let selector = compute_selector("_assert_current_root(Field,Field)");
-        context.call_public_function(context.this_address(),
+        context.call_public_function(
+            context.this_address(),
             selector,
-            [context.msg_sender().to_field(), expected_root]);
+            [context.msg_sender().to_field(), expected_root]
+        );
 
         p.value
     }
@@ -123,21 +125,30 @@ contract SlowTree {
         let new_after_root = compute_merkle_root(p.new_value, p.index, p.after.sibling_path);
 
         let selector = compute_selector("_update(Field,Field,Field,Field,Field,Field)");
-        context.call_public_function(context.this_address(),
+        context.call_public_function(
+            context.this_address(),
             selector,
             [
-                context.msg_sender().to_field(),
-                p.index,
-                p.new_value,
-                before_root,
-                after_root,
-                new_after_root
-            ]);
+            context.msg_sender().to_field(),
+            p.index,
+            p.new_value,
+            before_root,
+            after_root,
+            new_after_root
+        ]
+        );
     }
     // docs:end:update_at_private
     // docs:start:_update
     #[aztec(public)]
-    internal fn _update(caller: Field, index: Field, new_value: Field, before: Field, after: Field, new_root: Field) {
+    internal fn _update(
+        caller: Field,
+        index: Field,
+        new_value: Field,
+        before: Field,
+        after: Field,
+        new_root: Field
+    ) {
         let current_root = storage.trees.at(caller).current_root();
         let after_root = storage.trees.at(caller).read_root().after;
 
@@ -147,15 +158,20 @@ contract SlowTree {
         storage.trees.at(caller).update_unsafe_at(index, new_value, new_root);
     }
     // docs:end:_update
-    unconstrained fn un_read_leaf_at(address: AztecAddress, key: Field) -> Leaf {
+    unconstrained fn un_read_leaf_at(address: AztecAddress, key: Field) -> pub Leaf {
         storage.trees.at(address.to_field()).read_leaf_at(key)
     }
 
-    unconstrained fn un_read_root(address: AztecAddress) -> Leaf {
+    unconstrained fn un_read_root(address: AztecAddress) -> pub Leaf {
         storage.trees.at(address.to_field()).read_root()
     }
 
-    unconstrained fn compute_note_hash_and_nullifier(_contract_address: Field, _nonce: Field, _storage_slot: Field, _serialized_note: [Field; 4]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        _contract_address: Field,
+        _nonce: Field,
+        _storage_slot: Field,
+        _serialized_note: [Field; 4]
+    ) -> pub [Field; 4] {
         [0x0d, 0x0e, 0x0a, 0x0d]
     }
 }

@@ -14,17 +14,7 @@ process_dir() {
     if [ -d ./target/ ]; then
       rm -r ./target/
     fi
-    nargo compile && nargo execute witness
-
-    if [ -f ./target/witness.tr ]; then
-      mv ./target/witness.tr ./target/witness.gz
-    fi
-
-    if [ -f ./target/${dir_name}.json ]; then
-        jq -r '.bytecode' ./target/${dir_name}.json | base64 -d > ./target/acir.gz
-    fi
-
-    rm ./target/${dir_name}.json
+    nargo compile --only-acir && nargo execute witness
 
     if [ -d "$current_dir/acir_artifacts/$dir_name/target" ]; then
       rm -r "$current_dir/acir_artifacts/$dir_name/target"

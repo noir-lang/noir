@@ -3,7 +3,7 @@
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.19.4",
+  "version": "0.22.0",
   "packageManager": "yarn@3.5.1",
   "license": "(MIT OR Apache-2.0)",
   "type": "module",
@@ -27,7 +27,7 @@
     "dev": "tsc-multi --watch",
     "build": "tsc",
     "test": "yarn test:codegen && yarn test:node && yarn test:clean",
-    "test:codegen": "ts-node --esm src/main.ts ./test/assert_lt/target/** --out-dir ./test/codegen",
+    "test:codegen": "tsx src/main.ts ./test/assert_lt/target/** --out-dir ./test/codegen",
     "test:node": "mocha --timeout 25000 --exit --config ./.mocharc.json",
     "test:clean": "rm -rf ./test/codegen",
     "prettier": "prettier 'src/**/*.ts'",
@@ -50,6 +50,7 @@
     "mocha": "^10.2.0",
     "prettier": "3.0.3",
     "ts-node": "^10.9.1",
+    "tsx": "^4.6.2",
     "typescript": "^5.2.2"
   }
 }

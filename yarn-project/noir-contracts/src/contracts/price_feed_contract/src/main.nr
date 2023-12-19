@@ -48,12 +48,17 @@ contract PriceFeed {
         storage.assets.at(asset_id).read()
     }
 
-    unconstrained fn fetch_price(assetId: Field) -> Asset {
+    unconstrained fn fetch_price(assetId: Field) -> pub Asset {
         storage.assets.at(assetId).read()
     }
 
     // TODO: remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; 0]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: Field,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; 0]
+    ) -> pub [Field; 4] {
         [0, 0, 0, 0]
     }
 }

@@ -170,14 +170,18 @@ contract DocsExample {
         let legendary_card = actions::get_legendary_card(storage.legendary_card);
 
         let owner = legendary_card.owner;
-        let result = context.call_private_function(inputs.call_context.storage_contract_address,
+        let result = context.call_private_function(
+            inputs.call_context.storage_contract_address,
             FunctionSelector::from_field(GET_POINTS_OF_COMMON_CARD_FUNCTION_SELECTOR),
-            [owner.to_field(), 0]);
+            [owner.to_field(), 0]
+        );
         let total_points = legendary_card.points + result[0] as u8;
 
-        context.call_public_function(inputs.call_context.storage_contract_address,
+        context.call_public_function(
+            inputs.call_context.storage_contract_address,
             FunctionSelector::from_field(REPLACE_QUEEN_FUNCTION_SELECTOR),
-            [owner.to_field(), total_points as Field]);
+            [owner.to_field(), total_points as Field]
+        );
     }
 
     #[aztec(private)]
@@ -197,7 +201,7 @@ contract DocsExample {
     }
 
     // docs:start:functions-UnconstrainedFunction
-    unconstrained fn get_total_points(account: AztecAddress) -> u8 {
+    unconstrained fn get_total_points(account: AztecAddress) -> pub u8 {
         actions::get_total_points(storage.cards, account, 0)
     }
     // docs:end:functions-UnconstrainedFunction
@@ -274,7 +278,12 @@ contract DocsExample {
     // docs:end:l1_to_l2_cross_chain_message  
 
     // TODO: remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; 0]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: Field,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; 0]
+    ) -> pub [Field; 4] {
         [0, 0, 0, 0]
     }
 }

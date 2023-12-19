@@ -1,4 +1,5 @@
 import { IFs, fs } from 'memfs';
+import { IDirent } from 'memfs/lib/node/types/misc.js';
 
 import { FileManager } from './file-manager.js';
 
@@ -8,13 +9,49 @@ import { FileManager } from './file-manager.js';
  * @param dataDir - where to store files
  */
 export function createMemFSFileManager(memFS: IFs = fs, dataDir = '/'): FileManager {
+  const readdirRecursive = async (dir: string): Promise<string[]> => {
+    const contents = await memFS.promises.readdir(dir);
+    let files: string[] = [];
+    for (const handle in contents) {
+      if ((handle as unknown as IDirent).isFile()) {
+        files.push(handle.toString());
+      } else {
+        files = files.concat(await readdirRecursive(handle.toString()));
+      }
+    }
+    return files;
+  };
   return new FileManager(
     {
       existsSync: memFS.existsSync.bind(memFS),
-      mkdirSync: memFS.mkdirSync.bind(memFS),
-      writeFileSync: memFS.writeFileSync.bind(memFS),
-      renameSync: memFS.renameSync.bind(memFS),
-      readFileSync: memFS.readFileSync.bind(memFS),
+      mkdir: async (
+        dir: string,
+        options?: {
+          /**
+           * Traverse child directories
+           */
+          recursive: boolean;
+        },
+      ) => {
+        await memFS.promises.mkdir(dir, options);
+      },
+      writeFile: memFS.promises.writeFile.bind(memFS),
+      rename: memFS.promises.rename.bind(memFS),
+      readFile: memFS.promises.readFile.bind(memFS),
+      readdir: async (
+        dir: string,
+        options?: {
+          /**
+           * Traverse child directories
+           */
+          recursive: boolean;
+        },
+      ) => {
+        if (options?.recursive) {
+          return readdirRecursive(dir);
+        }
+        return (await memFS.promises.readdir(dir)).map(handles => handles.toString());
+      },
     },
     dataDir,
   );

@@ -47,7 +47,7 @@ export function addNoirCompilerCommanderActions(program: Command, log: LogFn = (
 
     .action(async (projectPath: string, options) => {
       const { generateTypescriptInterface } = await import('./generate_typescript_interface.js');
-      generateTypescriptInterface(projectPath, options, log);
+      await generateTypescriptInterface(projectPath, options, log);
     });
 
   return program
@@ -62,6 +62,6 @@ export function addNoirCompilerCommanderActions(program: Command, log: LogFn = (
     .description('Generates Noir interfaces from the artifacts in the given project')
     .action(async (projectPath: string, options) => {
       const { generateNoirInterface } = await import('./generate_noir_interface.js');
-      generateNoirInterface(projectPath, options, log);
+      await generateNoirInterface(projectPath, options, log);
     });
 }

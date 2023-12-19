@@ -8,5 +8,4 @@ contract TestContract {
     open fn openFunction() -> pub Field {
         42
     }
-
 }

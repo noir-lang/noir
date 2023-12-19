@@ -15,6 +15,7 @@ concurrency:
 jobs:
   build-nargo:
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
 
     steps:
       - name: Checkout Noir repo
@@ -47,6 +48,7 @@ jobs:
 
   build-noir-wasm:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout sources
@@ -76,6 +78,8 @@ jobs:
 
   build-acvm-js:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -103,6 +107,7 @@ jobs:
 
   build-noirc-abi:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout sources
@@ -133,6 +138,7 @@ jobs:
     needs: [build-acvm-js]
     name: ACVM JS (Node.js)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout sources
@@ -154,6 +160,7 @@ jobs:
     needs: [build-acvm-js]
     name: ACVM JS (Browser)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout sources
@@ -180,6 +187,7 @@ jobs:
     needs: [build-noirc-abi]
     name: noirc_abi
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout sources
@@ -265,27 +273,12 @@ jobs:
           yarn workspace @noir-lang/noir_js build
           yarn workspace @noir-lang/noir_js test
 
-  test-source-resolver:
-    name: source-resolver
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
-
-      - name: Build @noir-lang/source-resolver
-        run: yarn workspace @noir-lang/source-resolver build
-
-      - name: Run tests
-        run: yarn workspace @noir-lang/source-resolver test
-
   test-noir-wasm:
     needs: [build-noir-wasm, build-nargo]
     name: noir_wasm
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -319,10 +312,6 @@ jobs:
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
 
-      - name: Install dependencies
-        run: |
-          yarn workspace @noir-lang/source-resolver build
-
       - name: Run node tests
         run: yarn workspace @noir-lang/noir_wasm test:node
 
@@ -333,6 +322,8 @@ jobs:
     needs: [build-acvm-js, build-noirc-abi]
     name: noir_codegen
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -365,7 +356,8 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
-   
+    timeout-minutes: 30
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -411,29 +403,38 @@ jobs:
       - name: Setup `integration-tests`
         run: |
           # Note the lack of spaces between package names.
-          PACKAGES_TO_BUILD="@noir-lang/source-resolver,@noir-lang/types,@noir-lang/backend_barretenberg,@noir-lang/noir_js"
-          yarn workspaces foreach -vp --from "{$PACKAGES_TO_BUILD}" run build
+          PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/backend_barretenberg,@noir-lang/noir_js"
+          yarn workspaces foreach -vtp --from "{$PACKAGES_TO_BUILD}" run build
 
       - name: Run `integration-tests`
         run: |
           yarn test:integration
   
-  # This is a noop job which depends on all test jobs
+  # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:
     name: End
     runs-on: ubuntu-latest
+    # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
+    if: ${{ always() }}
     needs: 
       - test-acvm_js-node
       - test-acvm_js-browser
       - test-noirc-abi
       - test-noir-js-backend-barretenberg
       - test-noir-js
-      - test-source-resolver
       - test-noir-wasm
       - test-noir-codegen
       - test-integration
     
     steps:
-        - name: Noop
-          run: echo "noop"
+        - name: Report overall success
+          run: |
+            if [[ $FAIL == true ]]; then
+                exit 1
+            else
+                exit 0
+            fi
+          env:
+            # We treat any skipped or failing jobs as a failure for the workflow as a whole.
+            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'skipped') }}

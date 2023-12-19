@@ -83,26 +83,35 @@ contract Uniswap {
         let input_asset = TokenBridge::at(input_asset_bridge).token(context);
 
         // Transfer funds to this contract
-        Token::at(input_asset).transfer_public(context,
+        Token::at(input_asset).transfer_public(
+            context,
             sender,
             context.this_address(),
             input_amount,
-            nonce_for_transfer_approval);
+            nonce_for_transfer_approval
+        );
 
         // Approve bridge to burn this contract's funds and exit to L1 Uniswap Portal
-        let _void = context.call_public_function(context.this_address(),
+        let _void = context.call_public_function(
+            context.this_address(),
             compute_selector("_approve_bridge_and_exit_input_asset_to_L1((Field),(Field),Field)"),
-            [input_asset.to_field(), input_asset_bridge.to_field(), input_amount]);
+            [input_asset.to_field(), input_asset_bridge.to_field(), input_amount]
+        );
 
         // Create swap message and send to Outbox for Uniswap Portal
         // this ensures the integrity of what the user originally intends to do on L1.
         let input_asset_bridge_portal_address = get_portal_address(input_asset_bridge);
         let output_asset_bridge_portal_address = get_portal_address(output_asset_bridge);
         // ensure portal exists - else funds might be lost
-        assert(!input_asset_bridge_portal_address.is_zero(), "L1 portal address of input_asset's bridge is 0");
-        assert(!output_asset_bridge_portal_address.is_zero(), "L1 portal address of output_asset's bridge is 0");
+        assert(
+            !input_asset_bridge_portal_address.is_zero(), "L1 portal address of input_asset's bridge is 0"
+        );
+        assert(
+            !output_asset_bridge_portal_address.is_zero(), "L1 portal address of output_asset's bridge is 0"
+        );
 
-        let content_hash = compute_swap_public_content_hash(input_asset_bridge_portal_address,
+        let content_hash = compute_swap_public_content_hash(
+            input_asset_bridge_portal_address,
             input_amount,
             uniswap_fee_tier,
             output_asset_bridge_portal_address,
@@ -111,7 +120,8 @@ contract Uniswap {
             secret_hash_for_L1_to_l2_message,
             deadline_for_L1_to_l2_message,
             canceller_for_L1_to_L2_message,
-            caller_on_L1);
+            caller_on_L1
+        );
         context.message_portal(content_hash);
     }
     // docs:end:swap_public
@@ -137,31 +147,42 @@ contract Uniswap {
     ) {
         // Assert that user provided token address is same as expected by token bridge.
         // we can't directly use `input_asset_bridge.token` because that is a public method and public can't return data to private
-        context.call_public_function(context.this_address(),
+        context.call_public_function(
+            context.this_address(),
             compute_selector("_assert_token_is_same((Field),(Field))"),
-            [input_asset.to_field(), input_asset_bridge.to_field()]);
+            [input_asset.to_field(), input_asset_bridge.to_field()]
+        );
 
         // Transfer funds to this contract
-        Token::at(input_asset).unshield(&mut context,
+        Token::at(input_asset).unshield(
+            &mut context,
             context.msg_sender(),
             context.this_address(),
             input_amount,
-            nonce_for_unshield_approval);
+            nonce_for_unshield_approval
+        );
 
         // Approve bridge to burn this contract's funds and exit to L1 Uniswap Portal
-        context.call_public_function(context.this_address(),
+        context.call_public_function(
+            context.this_address(),
             compute_selector("_approve_bridge_and_exit_input_asset_to_L1((Field),(Field),Field)"),
-            [input_asset.to_field(), input_asset_bridge.to_field(), input_amount]);
+            [input_asset.to_field(), input_asset_bridge.to_field(), input_amount]
+        );
 
         // Create swap message and send to Outbox for Uniswap Portal
         // this ensures the integrity of what the user originally intends to do on L1.
         let input_asset_bridge_portal_address = get_portal_address(input_asset_bridge);
         let output_asset_bridge_portal_address = get_portal_address(output_asset_bridge);
         // ensure portal exists - else funds might be lost
-        assert(!input_asset_bridge_portal_address.is_zero(), "L1 portal address of input_asset's bridge is 0");
-        assert(!output_asset_bridge_portal_address.is_zero(), "L1 portal address of output_asset's bridge is 0");
+        assert(
+            !input_asset_bridge_portal_address.is_zero(), "L1 portal address of input_asset's bridge is 0"
+        );
+        assert(
+            !output_asset_bridge_portal_address.is_zero(), "L1 portal address of output_asset's bridge is 0"
+        );
 
-        let content_hash = compute_swap_private_content_hash(input_asset_bridge_portal_address,
+        let content_hash = compute_swap_private_content_hash(
+            input_asset_bridge_portal_address,
             input_amount,
             uniswap_fee_tier,
             output_asset_bridge_portal_address,
@@ -170,7 +191,8 @@ contract Uniswap {
             secret_hash_for_L1_to_l2_message,
             deadline_for_L1_to_l2_message,
             canceller_for_L1_to_L2_message,
-            caller_on_L1);
+            caller_on_L1
+        );
         context.message_portal(content_hash);
     }
     // docs:end:swap_private
@@ -197,40 +219,51 @@ contract Uniswap {
         // approve bridge to burn this contract's funds (required when exiting on L1, as it burns funds on L2):
         let nonce_for_burn_approval = storage.nonce_for_burn_approval.read();
         let selector = compute_selector("burn_public((Field),Field,Field)");
-        let message_hash = compute_authwit_message_hash(token_bridge,
+        let message_hash = compute_authwit_message_hash(
+            token_bridge,
             token,
             selector,
-            [context.this_address().to_field(), amount, nonce_for_burn_approval]);
+            [context.this_address().to_field(), amount, nonce_for_burn_approval]
+        );
         storage.approved_action.at(message_hash).write(true);
 
         // increment nonce_for_burn_approval so it won't be used again
         storage.nonce_for_burn_approval.write(nonce_for_burn_approval + 1);
 
         // Exit to L1 Uniswap Portal !
-        TokenBridge::at(token_bridge).exit_to_l1_public(context,
+        TokenBridge::at(token_bridge).exit_to_l1_public(
+            context,
             context.this_portal_address(),
             amount,
             context.this_portal_address(),
-            nonce_for_burn_approval);
+            nonce_for_burn_approval
+        );
     }
     // docs:end:authwit_uniswap_set
 
     // docs:start:assert_token_is_same
     #[aztec(public)]
     internal fn _assert_token_is_same(token: AztecAddress, token_bridge: AztecAddress) {
-        assert(token.eq(TokenBridge::at(token_bridge).token(context)), "input_asset address is not the same as seen in the bridge contract");
+        assert(
+            token.eq(TokenBridge::at(token_bridge).token(context)), "input_asset address is not the same as seen in the bridge contract"
+        );
     }
     // docs:end:assert_token_is_same
 
     // /// Unconstrained /// 
 
     // this method exists solely for e2e tests to test that nonce gets incremented each time.
-    unconstrained fn nonce_for_burn_approval() -> Field {
+    unconstrained fn nonce_for_burn_approval() -> pub Field {
         storage.nonce_for_burn_approval.read()
     }
 
     // TODO: remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; 0]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: Field,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; 0]
+    ) -> pub [Field; 4] {
         [0, 0, 0, 0]
     }
 }

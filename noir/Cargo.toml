@@ -28,7 +28,6 @@ members = [
     "acvm-repo/acir",
     "acvm-repo/acvm",
     "acvm-repo/acvm_js",
-    "acvm-repo/stdlib",
     "acvm-repo/brillig",
     "acvm-repo/brillig_vm",
     "acvm-repo/blackbox_solver",
@@ -39,7 +38,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.19.4"
+version = "0.22.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
@@ -50,14 +49,14 @@ repository = "https://github.com/noir-lang/noir/"
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir = { path = "acvm-repo/acir", default-features = false }
-acvm = { path = "acvm-repo/acvm" }
-acir_field = { path = "acvm-repo/acir_field", default-features = false }
-stdlib = { package = "acvm_stdlib", path = "acvm-repo/stdlib", default-features = false }
-brillig = { path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { path = "acvm-repo/blackbox_solver", default-features = false }
-barretenberg_blackbox_solver = { path = "acvm-repo/barretenberg_blackbox_solver", default-features = false }
+acir_field = { version = "0.38.0", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "0.38.0", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "0.38.0", path = "acvm-repo/acvm" }
+stdlib = { version = "0.37.1", package = "acvm_stdlib", path = "acvm-repo/stdlib", default-features = false }
+brillig = { version = "0.38.0", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "0.38.0", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "0.38.0", path = "acvm-repo/blackbox_solver", default-features = false }
+barretenberg_blackbox_solver = { version = "0.38.0", path = "acvm-repo/barretenberg_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 arena = { path = "compiler/utils/arena" }
@@ -96,7 +95,7 @@ getrandom = "0.2"
 
 
 cfg-if = "1.0.0"
-clap = { version = "4.3.19", features = ["derive"] }
+clap = { version = "4.3.19", features = ["derive", "env"] }
 codespan = { version = "0.11.1", features = ["serialization"] }
 codespan-lsp = "0.11.1"
 codespan-reporting = "0.11.1"
@@ -120,6 +119,10 @@ const_format = "0.2.30"
 num-bigint = "0.4"
 num-traits = "0.2"
 similar-asserts = "1.5.0"
+log = "0.4.17"
+tempfile = "3.6.0"
+
+tracing = "0.1.40"
 
 [profile.dev]
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.

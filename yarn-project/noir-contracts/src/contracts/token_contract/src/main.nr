@@ -339,31 +339,31 @@ contract Token {
     /// Unconstrained ///
 
     // docs:start:admin
-    unconstrained fn admin() -> Field {
+    unconstrained fn admin() -> pub Field {
         storage.admin.read().to_field()
     }
     // docs:end:admin
 
     // docs:start:is_minter
-    unconstrained fn is_minter(minter: AztecAddress) -> bool {
+    unconstrained fn is_minter(minter: AztecAddress) -> pub bool {
         storage.minters.at(minter.to_field()).read()
     }
     // docs:end:is_minter
 
     // docs:start:total_supply
-    unconstrained fn total_supply() -> u120 {
+    unconstrained fn total_supply() -> pub u120 {
         storage.total_supply.read().value
     }
     // docs:end:total_supply
 
     // docs:start:balance_of_private
-    unconstrained fn balance_of_private(owner: AztecAddress) -> u120 {
+    unconstrained fn balance_of_private(owner: AztecAddress) -> pub u120 {
         storage.balances.at(owner).balance_of().value
     }
     // docs:end:balance_of_private
 
     // docs:start:balance_of_public
-    unconstrained fn balance_of_public(owner: AztecAddress) -> u120 {
+    unconstrained fn balance_of_public(owner: AztecAddress) -> pub u120 {
         storage.public_balances.at(owner.to_field()).read().value
     }
     // docs:end:balance_of_public
@@ -375,7 +375,12 @@ contract Token {
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; TOKEN_NOTE_LEN]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: Field,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; TOKEN_NOTE_LEN]
+    ) -> pub [Field; 4] {
         let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
         let note_header = NoteHeader::new(_address, nonce, storage_slot);
         if (storage_slot == 5) {

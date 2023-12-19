@@ -1,7 +1,6 @@
 import { LogFn } from '@aztec/foundation/log';
 
-import { readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
-import { mkdirpSync } from 'fs-extra';
+import { mkdir, readFile, readdir, stat, writeFile } from 'fs/promises';
 import path, { resolve } from 'path';
 
 import { generateTypescriptContractInterface } from '../index.js';
@@ -13,7 +12,7 @@ import { isContractArtifact } from '../utils.js';
  * @param log - Optional logging function.
  * @returns The program with the command registered.
  */
-export function generateTypescriptInterface(
+export async function generateTypescriptInterface(
   projectPath: string,
   options: {
     /* eslint-disable jsdoc/require-jsdoc */
@@ -30,10 +29,10 @@ export function generateTypescriptInterface(
   const currentDir = process.cwd();
 
   const artifactsDir = resolve(projectPath, artifacts);
-  for (const artifactsDirItem of readdirSync(artifactsDir)) {
+  for (const artifactsDirItem of await readdir(artifactsDir)) {
     const artifactPath = resolve(artifactsDir, artifactsDirItem);
-    if (statSync(artifactPath).isFile() && artifactPath.endsWith('.json')) {
-      const contract = JSON.parse(readFileSync(artifactPath).toString());
+    if ((await stat(artifactPath)).isFile() && artifactPath.endsWith('.json')) {
+      const contract = JSON.parse((await readFile(artifactPath)).toString());
       if (!isContractArtifact(contract)) {
         continue;
       }
@@ -47,8 +46,8 @@ export function generateTypescriptInterface(
       }
       try {
         const tsWrapper = generateTypescriptContractInterface(contract, relativeArtifactPath);
-        mkdirpSync(path.dirname(tsPath));
-        writeFileSync(tsPath, tsWrapper);
+        await mkdir(path.dirname(tsPath), { recursive: true });
+        await writeFile(tsPath, tsWrapper);
       } catch (err) {
         log(`Error generating interface for ${artifactPath}: ${err}`);
       }

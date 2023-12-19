@@ -1,7 +1,6 @@
 import { LogFn } from '@aztec/foundation/log';
 
-import { readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
-import { mkdirpSync } from 'fs-extra';
+import { mkdir, readFile, readdir, stat, writeFile } from 'fs/promises';
 import path, { resolve } from 'path';
 
 import { generateNoirContractInterface } from '../index.js';
@@ -10,7 +9,7 @@ import { isContractArtifact } from '../utils.js';
 /**
  *
  */
-export function generateNoirInterface(
+export async function generateNoirInterface(
   projectPath: string,
   options: {
     // eslint-disable-next-line jsdoc/require-jsdoc
@@ -27,10 +26,10 @@ export function generateNoirInterface(
   const currentDir = process.cwd();
 
   const artifactsDir = resolve(projectPath, artifacts);
-  for (const artifactsDirItem of readdirSync(artifactsDir)) {
+  for (const artifactsDirItem of await readdir(artifactsDir)) {
     const artifactPath = resolve(artifactsDir, artifactsDirItem);
-    if (statSync(artifactPath).isFile() && artifactPath.endsWith('.json')) {
-      const contract = JSON.parse(readFileSync(artifactPath).toString());
+    if ((await stat(artifactPath)).isFile() && artifactPath.endsWith('.json')) {
+      const contract = JSON.parse((await readFile(artifactPath)).toString());
       if (!isContractArtifact(contract)) {
         continue;
       }
@@ -38,8 +37,8 @@ export function generateNoirInterface(
       log(`Writing ${contract.name} Noir external interface to ${path.relative(currentDir, interfacePath)}`);
       try {
         const noirInterface = generateNoirContractInterface(contract);
-        mkdirpSync(path.dirname(interfacePath));
-        writeFileSync(interfacePath, noirInterface);
+        await mkdir(path.dirname(interfacePath), { recursive: true });
+        await writeFile(interfacePath, noirInterface);
       } catch (err) {
         log(`Error generating interface for ${artifactPath}: ${err}`);
       }

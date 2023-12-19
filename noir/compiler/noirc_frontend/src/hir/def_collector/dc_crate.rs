@@ -7,8 +7,8 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::import::{resolve_imports, ImportDirective};
 use crate::hir::resolution::resolver::Resolver;
 use crate::hir::resolution::{
-    collect_impls, collect_trait_impls, resolve_free_functions, resolve_globals, resolve_impls,
-    resolve_structs, resolve_trait_by_path, resolve_trait_impls, resolve_traits,
+    collect_impls, collect_trait_impls, path_resolver, resolve_free_functions, resolve_globals,
+    resolve_impls, resolve_structs, resolve_trait_by_path, resolve_trait_impls, resolve_traits,
     resolve_type_aliases,
 };
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
@@ -19,8 +19,9 @@ use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, Type
 
 use crate::parser::{ParserError, SortedModule};
 use crate::{
-    ExpressionKind, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias,
-    Path, Type, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
+    NoirTypeAlias, Path, PathKind, Type, UnresolvedGenerics, UnresolvedTraitConstraint,
+    UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -81,6 +82,7 @@ pub struct UnresolvedTrait {
     pub module_id: LocalModuleId,
     pub crate_id: CrateId,
     pub trait_def: NoirTrait,
+    pub method_ids: HashMap<String, FuncId>,
     pub fns_with_default_impl: UnresolvedFunctions,
 }
 
@@ -243,8 +245,19 @@ impl DefCollector {
             context,
         ));
 
+        let submodules = vecmap(def_collector.def_map.modules().iter(), |(index, _)| index);
         // Add the current crate to the collection of DefMaps
         context.def_maps.insert(crate_id, def_collector.def_map);
+
+        inject_prelude(crate_id, context, crate_root, &mut def_collector.collected_imports);
+        for submodule in submodules {
+            inject_prelude(
+                crate_id,
+                context,
+                LocalModuleId(submodule),
+                &mut def_collector.collected_imports,
+            );
+        }
 
         // Resolve unresolved imports collected from the crate
         let (resolved, unresolved_imports) =
@@ -264,8 +277,11 @@ impl DefCollector {
         for resolved_import in resolved {
             let name = resolved_import.name;
             for ns in resolved_import.resolved_namespace.iter_defs() {
-                let result = current_def_map.modules[resolved_import.module_scope.0]
-                    .import(name.clone(), ns);
+                let result = current_def_map.modules[resolved_import.module_scope.0].import(
+                    name.clone(),
+                    ns,
+                    resolved_import.is_prelude,
+                );
 
                 if let Err((first_def, second_def)) = result {
                     let err = DefCollectorErrorKind::Duplicate {
@@ -358,6 +374,47 @@ impl DefCollector {
     }
 }
 
+fn inject_prelude(
+    crate_id: CrateId,
+    context: &Context,
+    crate_root: LocalModuleId,
+    collected_imports: &mut Vec<ImportDirective>,
+) {
+    let segments: Vec<_> = "std::prelude"
+        .split("::")
+        .map(|segment| crate::Ident::new(segment.into(), Span::default()))
+        .collect();
+
+    let path =
+        Path { segments: segments.clone(), kind: crate::PathKind::Dep, span: Span::default() };
+
+    if !crate_id.is_stdlib() {
+        if let Ok(module_def) = path_resolver::resolve_path(
+            &context.def_maps,
+            ModuleId { krate: crate_id, local_id: crate_root },
+            path,
+        ) {
+            let module_id = module_def.as_module().expect("std::prelude should be a module");
+            let prelude = context.module(module_id).scope().names();
+
+            for path in prelude {
+                let mut segments = segments.clone();
+                segments.push(Ident::new(path.to_string(), Span::default()));
+
+                collected_imports.insert(
+                    0,
+                    ImportDirective {
+                        module_id: crate_root,
+                        path: Path { segments, kind: PathKind::Dep, span: Span::default() },
+                        alias: None,
+                        is_prelude: true,
+                    },
+                );
+            }
+        }
+    }
+}
+
 /// Separate the globals Vec into two. The first element in the tuple will be the
 /// literal globals, except for arrays, and the second will be all other globals.
 /// We exclude array literals as they can contain complex types
@@ -410,12 +467,15 @@ pub(crate) fn check_methods_signatures(
     trait_impl_generic_count: usize,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) {
-    let the_trait = resolver.interner.get_trait(trait_id);
-
-    let self_type = resolver.get_self_type().expect("trait impl must have a Self type");
+    let self_type = resolver.get_self_type().expect("trait impl must have a Self type").clone();
 
     // Temporarily bind the trait's Self type to self_type so we can type check
-    let _ = the_trait.self_type_typevar.borrow_mut().bind_to(self_type.clone(), the_trait.span);
+    let the_trait = resolver.interner.get_trait_mut(trait_id);
+    the_trait.self_type_typevar.bind(self_type);
+
+    // Temporarily take the trait's methods so we can use both them and a mutable reference
+    // to the interner within the loop.
+    let trait_methods = std::mem::take(&mut the_trait.methods);
 
     for (file_id, func_id) in impl_methods {
         let impl_method = resolver.interner.function_meta(func_id);
@@ -427,19 +487,22 @@ pub(crate) fn check_methods_signatures(
         // If that's the case, a `MethodNotInTrait` error has already been thrown, and we can ignore
         // the impl method, since there's nothing in the trait to match its signature against.
         if let Some(trait_method) =
-            the_trait.methods.iter().find(|method| method.name.0.contents == func_name)
+            trait_methods.iter().find(|method| method.name.0.contents == func_name)
         {
             let impl_function_type = impl_method.typ.instantiate(resolver.interner);
 
             let impl_method_generic_count =
                 impl_method.typ.generic_count() - trait_impl_generic_count;
-            let trait_method_generic_count = trait_method.generics.len();
+
+            // We subtract 1 here to account for the implicit generic `Self` type that is on all
+            // traits (and thus trait methods) but is not required (or allowed) for users to specify.
+            let trait_method_generic_count = trait_method.generics().len() - 1;
 
             if impl_method_generic_count != trait_method_generic_count {
                 let error = DefCollectorErrorKind::MismatchTraitImplementationNumGenerics {
                     impl_method_generic_count,
                     trait_method_generic_count,
-                    trait_name: the_trait.name.to_string(),
+                    trait_name: resolver.interner.get_trait(trait_id).name.to_string(),
                     method_name: func_name.to_string(),
                     span: impl_method.location.span,
                 };
@@ -447,9 +510,9 @@ pub(crate) fn check_methods_signatures(
             }
 
             if let Type::Function(impl_params, _, _) = impl_function_type.0 {
-                if trait_method.arguments.len() == impl_params.len() {
+                if trait_method.arguments().len() == impl_params.len() {
                     // Check the parameters of the impl method against the parameters of the trait method
-                    let args = trait_method.arguments.iter();
+                    let args = trait_method.arguments().iter();
                     let args_and_params = args.zip(&impl_params).zip(&impl_method.parameters.0);
 
                     for (parameter_index, ((expected, actual), (hir_pattern, _, _))) in
@@ -468,8 +531,8 @@ pub(crate) fn check_methods_signatures(
                 } else {
                     let error = DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
                         actual_num_parameters: impl_method.parameters.0.len(),
-                        expected_num_parameters: trait_method.arguments.len(),
-                        trait_name: the_trait.name.to_string(),
+                        expected_num_parameters: trait_method.arguments().len(),
+                        trait_name: resolver.interner.get_trait(trait_id).name.to_string(),
                         method_name: func_name.to_string(),
                         span: impl_method.location.span,
                     };
@@ -481,11 +544,12 @@ pub(crate) fn check_methods_signatures(
             let resolved_return_type =
                 resolver.resolve_type(impl_method.return_type.get_type().into_owned());
 
-            trait_method.return_type.unify(&resolved_return_type, &mut typecheck_errors, || {
+            // TODO: This is not right since it may bind generic return types
+            trait_method.return_type().unify(&resolved_return_type, &mut typecheck_errors, || {
                 let ret_type_span = impl_method.return_type.get_type().span;
                 let expr_span = ret_type_span.expect("return type must always have a span");
 
-                let expected_typ = trait_method.return_type.to_string();
+                let expected_typ = trait_method.return_type().to_string();
                 let expr_typ = impl_method.return_type().to_string();
                 TypeCheckError::TypeMismatch { expr_typ, expected_typ, expr_span }
             });
@@ -494,5 +558,7 @@ pub(crate) fn check_methods_signatures(
         }
     }
 
-    the_trait.self_type_typevar.borrow_mut().unbind(the_trait.self_type_typevar_id);
+    let the_trait = resolver.interner.get_trait_mut(trait_id);
+    the_trait.set_methods(trait_methods);
+    the_trait.self_type_typevar.unbind(the_trait.self_type_typevar_id);
 }

@@ -47,12 +47,6 @@ pub enum NargoError {
     ForeignCallError(#[from] ForeignCallError),
 }
 
-impl From<acvm::compiler::CompileError> for NargoError {
-    fn from(_: acvm::compiler::CompileError) -> Self {
-        NargoError::CompilationError
-    }
-}
-
 impl NargoError {
     /// Extracts the user defined failure message from the ExecutionError
     /// If one exists.
@@ -69,7 +63,6 @@ impl NargoError {
             ExecutionError::AssertionFailed(message, _) => Some(message),
             ExecutionError::SolvingError(error) => match error {
                 OpcodeResolutionError::IndexOutOfBounds { .. }
-                | OpcodeResolutionError::UnsupportedBlackBoxFunc(_)
                 | OpcodeResolutionError::OpcodeNotSolvable(_)
                 | OpcodeResolutionError::UnsatisfiedConstrain { .. } => None,
                 OpcodeResolutionError::BrilligFunctionFailed { message, .. } => Some(message),

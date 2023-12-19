@@ -74,14 +74,19 @@ contract StatefulTest {
         increment(recipient_notes, amount, recipient);
     }
 
-    unconstrained fn summed_values(owner: AztecAddress) -> Field {
+    unconstrained fn summed_values(owner: AztecAddress) -> pub Field {
         let owner_balance = storage.notes.at(owner.to_field());
 
         // Return the sum of all notes in the set.
         balance_utils::get_balance(owner_balance)
     }
 
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: Field,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; VALUE_NOTE_LEN]
+    ) -> pub [Field; 4] {
         let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
         let note_header = NoteHeader::new(_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)

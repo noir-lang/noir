@@ -56,7 +56,7 @@ contract EasyPrivateVoting {
     fn constructor(admin: AztecAddress) { // called when contract is deployed
         context.call_public_function(
             // we cannot update public state directly from private function but we can call public function (which queues it)
-            context.this_address(), // contract address whose method we want to call
+            context.this_address(),// contract address whose method we want to call
             compute_selector("_initialize((Field))"), // function selector
             [admin.to_field()] // parameters
         );
@@ -76,9 +76,10 @@ contract EasyPrivateVoting {
         let nullifier = dep::std::hash::pedersen_hash([context.msg_sender().to_field(), secret.low, secret.high]); // compute nullifier with this secret key so others can't descrypt it
         context.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT); // push nullifier
         context.call_public_function(
-            context.this_address(), 
-            compute_selector("add_to_tally_public(Field)"), 
-            [candidate]);
+            context.this_address(),
+            compute_selector("add_to_tally_public(Field)"),
+            [candidate]
+        );
     }
     // docs:end:cast_vote
 
@@ -99,12 +100,17 @@ contract EasyPrivateVoting {
     }
     // docs:end:end_vote
     // docs:start:get_vote
-    unconstrained fn get_vote(candidate: Field) -> Field {
+    unconstrained fn get_vote(candidate: Field) -> pub Field {
         storage.tally.at(candidate).read()
     }
     // docs:end:get_vote
     // docs:start:compute_note_hash_and_nullifier
-     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; 0]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: Field,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; 0]
+    ) -> pub [Field; 4] {
         [0, 0, 0, 0]
     }
     // docs:end:compute_note_hash_and_nullifier

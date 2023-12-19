@@ -1,8 +1,8 @@
 import { LogFn, createDebugLogger } from '@aztec/foundation/log';
 
 import { execSync } from 'child_process';
-import { readFileSync, readdirSync, statSync, unlinkSync } from 'fs';
-import { emptyDirSync } from 'fs-extra';
+import { emptyDir } from 'fs-extra';
+import { readFile, readdir, stat, unlink } from 'fs/promises';
 import path from 'path';
 
 import { NoirCommit, NoirTag } from '../index.js';
@@ -31,13 +31,13 @@ export class NargoContractCompiler {
    * Compiles the contracts in projectPath and returns the Aztec.nr artifact.
    * @returns Aztec.nr artifact of the compiled contracts.
    */
-  public compile(): Promise<NoirContractCompilationArtifacts[]> {
+  public async compile(): Promise<NoirContractCompilationArtifacts[]> {
     const stdio = this.opts.quiet ? 'ignore' : 'inherit';
     const nargoBin = this.opts.nargoBin ?? 'nargo';
     const version = execSync(`${nargoBin} --version`, { cwd: this.projectPath, stdio: 'pipe' }).toString();
     this.checkNargoBinVersion(version.replace('\n', ''));
-    emptyDirSync(this.getTargetFolder());
-    execSync(`${nargoBin} compile --no-backend`, { cwd: this.projectPath, stdio });
+    await emptyDir(this.getTargetFolder());
+    execSync(`${nargoBin} compile`, { cwd: this.projectPath, stdio });
     return Promise.resolve(this.collectArtifacts());
   }
 
@@ -51,23 +51,23 @@ export class NargoContractCompiler {
     }
   }
 
-  private collectArtifacts(): NoirContractCompilationArtifacts[] {
+  private async collectArtifacts(): Promise<NoirContractCompilationArtifacts[]> {
     const contractArtifacts = new Map<string, NoirCompiledContract>();
     const debugArtifacts = new Map<string, NoirDebugMetadata>();
 
-    for (const filename of readdirSync(this.getTargetFolder())) {
+    for (const filename of await readdir(this.getTargetFolder())) {
       const file = path.join(this.getTargetFolder(), filename);
-      if (statSync(file).isFile() && file.endsWith('.json')) {
+      if ((await stat(file)).isFile() && file.endsWith('.json')) {
         if (filename.startsWith('debug_')) {
           debugArtifacts.set(
             filename.replace('debug_', ''),
-            JSON.parse(readFileSync(file).toString()) as NoirDebugMetadata,
+            JSON.parse((await readFile(file)).toString()) as NoirDebugMetadata,
           );
         } else {
-          contractArtifacts.set(filename, JSON.parse(readFileSync(file).toString()) as NoirCompiledContract);
+          contractArtifacts.set(filename, JSON.parse((await readFile(file)).toString()) as NoirCompiledContract);
         }
         // Delete the file as it is not needed anymore and it can cause issues with prettier
-        unlinkSync(file);
+        await unlink(file);
       }
     }
 

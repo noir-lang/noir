@@ -16,17 +16,17 @@ export class LocalDependencyResolver implements NoirDependencyResolver {
     this.#fm = fm;
   }
 
-  resolveDependency(parent: NoirPackage, config: NoirDependencyConfig): Promise<NoirDependency | null> {
+  async resolveDependency(parent: NoirPackage, config: NoirDependencyConfig): Promise<NoirDependency | null> {
     if ('path' in config) {
       const parentPath = parent.getPackagePath();
       const dependencyPath = isAbsolute(config.path) ? config.path : join(parentPath, config.path);
-      return Promise.resolve({
+      return {
         // unknown version, Nargo.toml doesn't have a version field
         version: undefined,
-        package: NoirPackage.open(dependencyPath, this.#fm),
-      });
+        package: await NoirPackage.open(dependencyPath, this.#fm),
+      };
     } else {
-      return Promise.resolve(null);
+      return null;
     }
   }
 }

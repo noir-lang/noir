@@ -64,9 +64,11 @@ contract Benchmarking {
     fn increment_balance(owner: AztecAddress, value: Field) {
         let current = storage.balances.at(owner.to_field()).read();
         storage.balances.at(owner.to_field()).write(current + value);
-        let _callStackItem1 = context.call_public_function(context.this_address(),
+        let _callStackItem1 = context.call_public_function(
+            context.this_address(),
             compute_selector("broadcast((Field))"),
-            [owner.to_field()]);
+            [owner.to_field()]
+        );
     }
 
     // Emits a public log.
@@ -75,7 +77,12 @@ contract Benchmarking {
         emit_unencrypted_log(&mut context, storage.balances.at(owner.to_field()).read());
     }
 
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: Field,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; VALUE_NOTE_LEN]
+    ) -> pub [Field; 4] {
         let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
         let note_header = NoteHeader::new(_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)

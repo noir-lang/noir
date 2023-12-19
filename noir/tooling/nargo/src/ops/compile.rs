@@ -1,4 +1,4 @@
-use acvm::{acir::circuit::Opcode, Language};
+use acvm::ExpressionWidth;
 use fm::FileManager;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, CompiledProgram};
 
@@ -17,23 +17,18 @@ pub fn compile_workspace(
     workspace: &Workspace,
     binary_packages: &[Package],
     contract_packages: &[Package],
-    np_language: Language,
-    is_opcode_supported: impl Fn(&Opcode) -> bool + std::marker::Sync,
+    expression_width: ExpressionWidth,
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CompileError> {
     // Compile all of the packages in parallel.
     let program_results: Vec<(FileManager, CompilationResult<CompiledProgram>)> = binary_packages
         .par_iter()
-        .map(|package| {
-            compile_program(workspace, package, compile_options, np_language, &is_opcode_supported)
-        })
+        .map(|package| compile_program(workspace, package, compile_options, expression_width))
         .collect();
     let contract_results: Vec<(FileManager, CompilationResult<CompiledContract>)> =
         contract_packages
             .par_iter()
-            .map(|package| {
-                compile_contract(package, compile_options, np_language, &is_opcode_supported)
-            })
+            .map(|package| compile_contract(package, compile_options, expression_width))
             .collect();
 
     // Report any warnings/errors which were encountered during compilation.
@@ -67,11 +62,9 @@ pub fn compile_program(
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
+    expression_width: ExpressionWidth,
 ) -> (FileManager, CompilationResult<CompiledProgram>) {
-    let (mut context, crate_id) =
-        prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
+    let (mut context, crate_id) = prepare_package(package);
 
     let program_artifact_path = workspace.package_build_path(package);
     let mut debug_artifact_path = program_artifact_path.clone();
@@ -85,22 +78,8 @@ pub fn compile_program(
             }
         };
 
-    // TODO: we say that pedersen hashing is supported by all backends for now
-    let is_opcode_supported_pedersen_hash = |opcode: &Opcode| -> bool {
-        if let Opcode::BlackBoxFuncCall(
-            acvm::acir::circuit::opcodes::BlackBoxFuncCall::PedersenHash { .. },
-        ) = opcode
-        {
-            true
-        } else {
-            is_opcode_supported(opcode)
-        }
-    };
-
     // Apply backend specific optimizations.
-    let optimized_program =
-        crate::ops::optimize_program(program, np_language, &is_opcode_supported_pedersen_hash)
-            .expect("Backend does not support an opcode that is in the IR");
+    let optimized_program = crate::ops::optimize_program(program, expression_width);
 
     (context.file_manager, Ok((optimized_program, warnings)))
 }
@@ -108,11 +87,9 @@ pub fn compile_program(
 fn compile_contract(
     package: &Package,
     compile_options: &CompileOptions,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
+    expression_width: ExpressionWidth,
 ) -> (FileManager, CompilationResult<CompiledContract>) {
-    let (mut context, crate_id) =
-        prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
+    let (mut context, crate_id) = prepare_package(package);
     let (contract, warnings) =
         match noirc_driver::compile_contract(&mut context, crate_id, compile_options) {
             Ok(contracts_and_warnings) => contracts_and_warnings,
@@ -121,9 +98,7 @@ fn compile_contract(
             }
         };
 
-    let optimized_contract =
-        crate::ops::optimize_contract(contract, np_language, &is_opcode_supported)
-            .expect("Backend does not support an opcode that is in the IR");
+    let optimized_contract = crate::ops::optimize_contract(contract, expression_width);
 
     (context.file_manager, Ok((optimized_contract, warnings)))
 }

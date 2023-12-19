@@ -60,14 +60,19 @@ contract Counter {
     // docs:end:increment
 
     // docs:start:get_counter
-    unconstrained fn get_counter(owner: AztecAddress) -> Field {
+    unconstrained fn get_counter(owner: AztecAddress) -> pub Field {
         let counters = storage.counters;
         balance_utils::get_balance(counters.at(owner.to_field()).set)
     }
     // docs:end:get_counter
 
     // docs:start:nullifier
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: Field,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; VALUE_NOTE_LEN]
+    ) -> pub [Field; 4] {
         let _address = AztecAddress::from_field(contract_address); // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3669
         let note_header = NoteHeader::new(_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)
