@@ -60,7 +60,7 @@ Finally, some opcodes will have a predicate, whose value is 0 or 1. Its purpose 
 ### AssertZero opcode
 An AssertZero opcode adds the constraint that P(w) = 0, where w=(w_1,..w_n) is a tuple of n witnesses, and P is a multi-variate polynomial of total degree at most 2.
 The coefficients ${q_M}_{i,j}, q_i,q_c$ of the polynomial are known values which define the opcode.
-A general expression of assert zero opcode is the following: $\sum_{i,j} {q_M}_{i,j}w_iw_j + \sum_i q_iw_i +q_c = 0$
+A general expression of assert-zero opcode is the following: $\sum_{i,j} {q_M}_{i,j}w_iw_j + \sum_i q_iw_i +q_c = 0$
 
 An assert-zero opcode can be used to:
 - **express a constraint** on witnesses; for instance to express that a witness $w$ is a boolean, you can add the opcode:  $w*w-w=0$
