@@ -70,7 +70,7 @@ An assert-zero opcode can be used to:
 The solver expects that at most one witness is not known when executing the opcode.
 
 ### BlackBoxFuncCall opcode
-These opcodes represent a specific computation. Even if any computation can be done using only assert zero opcodes, it is not always efficient. Some proving systems, and in particular the proving system from Aztec, can implement several computations more efficiently using for instance look-up tables. The BlackBoxFuncCall opcode is used to ask the proving system to handle the computation by itself.
+These opcodes represent a specific computation. Even if any computation can be done using only assert-zero opcodes, it is not always efficient. Some proving systems, and in particular the proving system from Aztec, can implement several computations more efficiently using for instance look-up tables. The BlackBoxFuncCall opcode is used to ask the proving system to handle the computation by itself.
 All black box functions takes as input a tuple (witness, num_bits), where num_bits is a constant representing the bit size of the input witness, and they have one or several witnesses as output.
 Some more advanced computations assume that the proving system has an 'embedded curve'. It is a curve that cycle with the main curve of the proving system, i.e the scalar field of the embedded curve is the base field of the main one, and vice-versa. The curves used by the proving system are dependent on the proving system (and/or its configuration). Aztec's Barretenberg uses BN254 as the main curve and Grumpkin as the embedded curve.
 
