@@ -52,6 +52,7 @@ TEST_F(AvmMiniMemoryTests, mismatchedTag)
     trace_builder.callDataCopy(0, 2, 0, std::vector<FF>{ 98, 12 });
 
     trace_builder.add(0, 1, 4, AvmMemoryTag::u8);
+    trace_builder.halt();
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the addition selector
@@ -99,6 +100,7 @@ TEST_F(AvmMiniMemoryTests, mLastAccessViolation)
 
     //                           Memory layout:     [4,9,0,0,0,0,....]
     trace_builder.sub(1, 0, 2, AvmMemoryTag::u8); // [4,9,5,0,0,0.....]
+    trace_builder.halt();
     auto trace = trace_builder.finalize();
 
     // Find the row with subtraction operation
@@ -198,6 +200,7 @@ TEST_F(AvmMiniMemoryTests, mismatchedTagErrorViolation)
     trace_builder.callDataCopy(0, 2, 0, std::vector<FF>{ 98, 12 });
 
     trace_builder.sub(0, 1, 4, AvmMemoryTag::u8);
+    trace_builder.halt();
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the subtraction selector
@@ -231,6 +234,7 @@ TEST_F(AvmMiniMemoryTests, consistentTagNoErrorViolation)
     trace_builder.callDataCopy(0, 2, 0, std::vector<FF>{ 84, 7 });
 
     trace_builder.div(0, 1, 4, AvmMemoryTag::ff);
+    trace_builder.halt();
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the division selector

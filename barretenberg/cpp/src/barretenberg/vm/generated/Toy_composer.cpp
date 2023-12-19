@@ -17,14 +17,10 @@ void ToyComposer::compute_witness(CircuitConstructor& circuit)
 
     auto polynomials = circuit.compute_polynomials();
 
-    proving_key->toy_first = polynomials.toy_first;
-    proving_key->toy_q_tuple_set = polynomials.toy_q_tuple_set;
-    proving_key->toy_set_1_column_1 = polynomials.toy_set_1_column_1;
-    proving_key->toy_set_1_column_2 = polynomials.toy_set_1_column_2;
-    proving_key->toy_set_2_column_1 = polynomials.toy_set_2_column_1;
-    proving_key->toy_set_2_column_2 = polynomials.toy_set_2_column_2;
-    proving_key->toy_x = polynomials.toy_x;
-    proving_key->two_column_perm = polynomials.two_column_perm;
+    for (auto [key_poly, prover_poly] : zip_view(proving_key->get_all(), polynomials.get_unshifted())) {
+        ASSERT(flavor_get_label(*proving_key, key_poly) == flavor_get_label(polynomials, prover_poly));
+        key_poly = prover_poly;
+    }
 
     computed_witness = true;
 }

@@ -15,6 +15,11 @@
     [[maybe_unused]] auto memTrace_m_in_tag = View(new_term.memTrace_m_in_tag);                                        \
     [[maybe_unused]] auto memTrace_m_tag_err = View(new_term.memTrace_m_tag_err);                                      \
     [[maybe_unused]] auto memTrace_m_one_min_inv = View(new_term.memTrace_m_one_min_inv);                              \
+    [[maybe_unused]] auto avmMini_pc = View(new_term.avmMini_pc);                                                      \
+    [[maybe_unused]] auto avmMini_internal_return_ptr = View(new_term.avmMini_internal_return_ptr);                    \
+    [[maybe_unused]] auto avmMini_sel_internal_call = View(new_term.avmMini_sel_internal_call);                        \
+    [[maybe_unused]] auto avmMini_sel_internal_return = View(new_term.avmMini_sel_internal_return);                    \
+    [[maybe_unused]] auto avmMini_sel_halt = View(new_term.avmMini_sel_halt);                                          \
     [[maybe_unused]] auto avmMini_sel_op_add = View(new_term.avmMini_sel_op_add);                                      \
     [[maybe_unused]] auto avmMini_sel_op_sub = View(new_term.avmMini_sel_op_sub);                                      \
     [[maybe_unused]] auto avmMini_sel_op_mul = View(new_term.avmMini_sel_op_mul);                                      \
@@ -36,7 +41,9 @@
     [[maybe_unused]] auto avmMini_mem_idx_b = View(new_term.avmMini_mem_idx_b);                                        \
     [[maybe_unused]] auto avmMini_mem_idx_c = View(new_term.avmMini_mem_idx_c);                                        \
     [[maybe_unused]] auto avmMini_last = View(new_term.avmMini_last);                                                  \
+    [[maybe_unused]] auto avmMini_internal_return_ptr_shift = View(new_term.avmMini_internal_return_ptr_shift);        \
+    [[maybe_unused]] auto avmMini_pc_shift = View(new_term.avmMini_pc_shift);                                          \
+    [[maybe_unused]] auto memTrace_m_tag_shift = View(new_term.memTrace_m_tag_shift);                                  \
     [[maybe_unused]] auto memTrace_m_val_shift = View(new_term.memTrace_m_val_shift);                                  \
-    [[maybe_unused]] auto memTrace_m_addr_shift = View(new_term.memTrace_m_addr_shift);                                \
     [[maybe_unused]] auto memTrace_m_rw_shift = View(new_term.memTrace_m_rw_shift);                                    \
-    [[maybe_unused]] auto memTrace_m_tag_shift = View(new_term.memTrace_m_tag_shift);
+    [[maybe_unused]] auto memTrace_m_addr_shift = View(new_term.memTrace_m_addr_shift);

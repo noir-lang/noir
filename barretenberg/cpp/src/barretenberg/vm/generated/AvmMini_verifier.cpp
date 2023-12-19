@@ -73,6 +73,15 @@ bool AvmMiniVerifier::verify_proof(const plonk::proof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_tag_err);
     commitments.memTrace_m_one_min_inv =
         transcript->template receive_from_prover<Commitment>(commitment_labels.memTrace_m_one_min_inv);
+    commitments.avmMini_pc = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_pc);
+    commitments.avmMini_internal_return_ptr =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_internal_return_ptr);
+    commitments.avmMini_sel_internal_call =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_internal_call);
+    commitments.avmMini_sel_internal_return =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_internal_return);
+    commitments.avmMini_sel_halt =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_halt);
     commitments.avmMini_sel_op_add =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_op_add);
     commitments.avmMini_sel_op_sub =

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stack>
+
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/proof_system/circuit_builder/circuit_builder_base.hpp"
@@ -28,6 +30,7 @@ class AvmMiniTraceBuilder {
     // Number of rows
     static const size_t N = 256;
     static const size_t MEM_SIZE = 1024;
+    static const size_t CALLSTACK_OFFSET = 896; // TODO(md): Temporary reserved area 896 - 1024
 
     static const uint32_t SUB_CLK_LOAD_A = 0;
     static const uint32_t SUB_CLK_LOAD_B = 1;
@@ -56,6 +59,16 @@ class AvmMiniTraceBuilder {
     // Division with direct memory access.
     void div(uint32_t aOffset, uint32_t bOffset, uint32_t dstOffset, AvmMemoryTag inTag);
 
+    // Jump to a given program counter.
+    // TODO(md): this program counter MUST be an operand to the OPCODE.
+    void internal_call(uint32_t jmpDest);
+
+    // Return from a jump.
+    void internal_return();
+
+    // Halt -> stop program execution.
+    void halt();
+
     // CALLDATACOPY opcode with direct memory access, i.e.,
     // M[dstOffset:dstOffset+copySize] = calldata[cdOffset:cdOffset+copySize]
     void callDataCopy(uint32_t cdOffset, uint32_t copySize, uint32_t dstOffset, std::vector<FF> const& callDataMem);
@@ -82,6 +95,10 @@ class AvmMiniTraceBuilder {
     std::array<FF, MEM_SIZE> memory{};              // Memory table (used for simulation)
     std::array<AvmMemoryTag, MEM_SIZE> memoryTag{}; // The tag of the corresponding memory
                                                     // entry (aligned with the memory array).
+
+    uint32_t pc = 0;
+    uint32_t internal_return_ptr = CALLSTACK_OFFSET;
+    std::stack<uint32_t> internal_call_stack = {};
 
     static bool compareMemEntries(const MemoryTraceEntry& left, const MemoryTraceEntry& right);
     void insertInMemTrace(

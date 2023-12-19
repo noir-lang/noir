@@ -61,6 +61,7 @@ class AvmMiniArithmeticNegativeTests : public AvmMiniArithmeticTests {};
 // Test on basic addition over finite field type.
 TEST_F(AvmMiniArithmeticTests, additionFF)
 {
+    // trace_builder
     trace_builder.callDataCopy(0, 3, 0, std::vector<FF>{ 37, 4, 11 });
 
     //                             Memory layout:    [37,4,11,0,0,0,....]
@@ -204,6 +205,7 @@ TEST_F(AvmMiniArithmeticTests, divisionByZeroErrorFF)
 
     //                             Memory layout:    [15,0,0,0,0,0,....]
     trace_builder.div(0, 1, 2, AvmMemoryTag::ff); // [15,0,0,0,0,0....]
+    trace_builder.halt();
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the division selector
@@ -226,6 +228,7 @@ TEST_F(AvmMiniArithmeticTests, divisionZeroByZeroErrorFF)
 {
     //                             Memory layout:    [0,0,0,0,0,0,....]
     trace_builder.div(0, 1, 2, AvmMemoryTag::ff); // [0,0,0,0,0,0....]
+    trace_builder.halt();
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the division selector
@@ -261,6 +264,7 @@ TEST_F(AvmMiniArithmeticTests, arithmeticFFWithError)
     trace_builder.div(1, 1, 9, AvmMemoryTag::ff); // [0,23*136^(-1),45,23,68,136,0,136,136^2,1,0....]
     trace_builder.div(
         9, 0, 4, AvmMemoryTag::ff); // [0,23*136^(-1),45,23,1/0,136,0,136,136^2,1,0....] Error: division by 0
+    trace_builder.halt();
 
     auto trace = trace_builder.finalize();
     validateTraceProof(std::move(trace));
@@ -380,6 +384,7 @@ TEST_F(AvmMiniArithmeticNegativeTests, divisionByZeroNoErrorFF)
 
     //                             Memory layout:    [15,0,0,0,0,0,....]
     trace_builder.div(0, 1, 2, AvmMemoryTag::ff); // [15,0,0,0,0,0....]
+    trace_builder.halt();
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the division selector

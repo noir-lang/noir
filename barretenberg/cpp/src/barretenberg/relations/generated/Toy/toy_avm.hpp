@@ -7,9 +7,15 @@
 namespace proof_system::Toy_vm {
 
 template <typename FF> struct Toy_avmRow {
-    FF toy_x_shift{};
     FF toy_x{};
+    FF toy_x_shift{};
 };
+
+inline std::string get_relation_label_toy_avm(int index)
+{
+    switch (index) {}
+    return std::to_string(index);
+}
 
 template <typename FF_> class toy_avmImpl {
   public:

@@ -28,7 +28,6 @@ ToyProver::ToyProver(std::shared_ptr<Flavor::ProvingKey> input_key, std::shared_
     : key(input_key)
     , commitment_key(commitment_key)
 {
-    // TODO: take every polynomial and assign it to the key!!
     for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_unshifted(), key->get_all())) {
         ASSERT(proof_system::flavor_get_label(prover_polynomials, prover_poly) ==
                proof_system::flavor_get_label(*key, key_poly));

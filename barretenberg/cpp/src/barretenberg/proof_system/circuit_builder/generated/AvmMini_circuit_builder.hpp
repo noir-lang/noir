@@ -32,6 +32,11 @@ template <typename FF> struct AvmMiniFullRow {
     FF memTrace_m_in_tag{};
     FF memTrace_m_tag_err{};
     FF memTrace_m_one_min_inv{};
+    FF avmMini_pc{};
+    FF avmMini_internal_return_ptr{};
+    FF avmMini_sel_internal_call{};
+    FF avmMini_sel_internal_return{};
+    FF avmMini_sel_halt{};
     FF avmMini_sel_op_add{};
     FF avmMini_sel_op_sub{};
     FF avmMini_sel_op_mul{};
@@ -53,10 +58,12 @@ template <typename FF> struct AvmMiniFullRow {
     FF avmMini_mem_idx_b{};
     FF avmMini_mem_idx_c{};
     FF avmMini_last{};
-    FF memTrace_m_val_shift{};
-    FF memTrace_m_addr_shift{};
-    FF memTrace_m_rw_shift{};
+    FF avmMini_internal_return_ptr_shift{};
+    FF avmMini_pc_shift{};
     FF memTrace_m_tag_shift{};
+    FF memTrace_m_val_shift{};
+    FF memTrace_m_rw_shift{};
+    FF memTrace_m_addr_shift{};
 };
 
 class AvmMiniCircuitBuilder {
@@ -69,8 +76,8 @@ class AvmMiniCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 38;
-    static constexpr size_t num_polys = 34;
+    static constexpr size_t num_fixed_columns = 45;
+    static constexpr size_t num_polys = 39;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -99,6 +106,11 @@ class AvmMiniCircuitBuilder {
             polys.memTrace_m_in_tag[i] = rows[i].memTrace_m_in_tag;
             polys.memTrace_m_tag_err[i] = rows[i].memTrace_m_tag_err;
             polys.memTrace_m_one_min_inv[i] = rows[i].memTrace_m_one_min_inv;
+            polys.avmMini_pc[i] = rows[i].avmMini_pc;
+            polys.avmMini_internal_return_ptr[i] = rows[i].avmMini_internal_return_ptr;
+            polys.avmMini_sel_internal_call[i] = rows[i].avmMini_sel_internal_call;
+            polys.avmMini_sel_internal_return[i] = rows[i].avmMini_sel_internal_return;
+            polys.avmMini_sel_halt[i] = rows[i].avmMini_sel_halt;
             polys.avmMini_sel_op_add[i] = rows[i].avmMini_sel_op_add;
             polys.avmMini_sel_op_sub[i] = rows[i].avmMini_sel_op_sub;
             polys.avmMini_sel_op_mul[i] = rows[i].avmMini_sel_op_mul;
@@ -122,10 +134,12 @@ class AvmMiniCircuitBuilder {
             polys.avmMini_last[i] = rows[i].avmMini_last;
         }
 
-        polys.memTrace_m_val_shift = Polynomial(polys.memTrace_m_val.shifted());
-        polys.memTrace_m_addr_shift = Polynomial(polys.memTrace_m_addr.shifted());
-        polys.memTrace_m_rw_shift = Polynomial(polys.memTrace_m_rw.shifted());
+        polys.avmMini_internal_return_ptr_shift = Polynomial(polys.avmMini_internal_return_ptr.shifted());
+        polys.avmMini_pc_shift = Polynomial(polys.avmMini_pc.shifted());
         polys.memTrace_m_tag_shift = Polynomial(polys.memTrace_m_tag.shifted());
+        polys.memTrace_m_val_shift = Polynomial(polys.memTrace_m_val.shifted());
+        polys.memTrace_m_rw_shift = Polynomial(polys.memTrace_m_rw.shifted());
+        polys.memTrace_m_addr_shift = Polynomial(polys.memTrace_m_addr.shifted());
 
         return polys;
     }
@@ -163,12 +177,12 @@ class AvmMiniCircuitBuilder {
             return true;
         };
 
-        if (!evaluate_relation.template operator()<AvmMini_vm::mem_trace<FF>>(
-                "mem_trace", AvmMini_vm::get_relation_label_mem_trace)) {
-            return false;
-        }
         if (!evaluate_relation.template operator()<AvmMini_vm::avm_mini<FF>>("avm_mini",
                                                                              AvmMini_vm::get_relation_label_avm_mini)) {
+            return false;
+        }
+        if (!evaluate_relation.template operator()<AvmMini_vm::mem_trace<FF>>(
+                "mem_trace", AvmMini_vm::get_relation_label_mem_trace)) {
             return false;
         }
 

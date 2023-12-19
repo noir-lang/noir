@@ -142,8 +142,6 @@ class ToyFlavor {
         using Base::Base;
     };
 
-    using RowPolynomials = AllEntities<FF>;
-
     /**
      * @brief A container for the prover polynomials handles.
      */
@@ -156,7 +154,7 @@ class ToyFlavor {
         ProverPolynomials(ProverPolynomials&& o) noexcept = default;
         ProverPolynomials& operator=(ProverPolynomials&& o) noexcept = default;
         ~ProverPolynomials() = default;
-        [[nodiscard]] size_t get_polynomial_size() const { return toy_first.size(); }
+        [[nodiscard]] size_t get_polynomial_size() const { return toy_q_tuple_set.size(); }
         /**
          * @brief Returns the evaluations of all prover polynomials at one point on the boolean hypercube, which
          * represents one row in the execution trace.

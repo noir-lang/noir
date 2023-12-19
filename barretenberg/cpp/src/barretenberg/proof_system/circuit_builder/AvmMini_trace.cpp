@@ -191,6 +191,8 @@ void AvmMiniTraceBuilder::add(uint32_t aOffset, uint32_t bOffset, uint32_t dstOf
 
     mainTrace.push_back(Row{
         .avmMini_clk = clk,
+        .avmMini_pc = FF(pc++),
+        .avmMini_internal_return_ptr = FF(internal_return_ptr),
         .avmMini_sel_op_add = FF(1),
         .avmMini_in_tag = FF(static_cast<uint32_t>(inTag)),
         .avmMini_tag_err = FF(static_cast<uint32_t>(!tagMatch)),
@@ -233,6 +235,8 @@ void AvmMiniTraceBuilder::sub(uint32_t aOffset, uint32_t bOffset, uint32_t dstOf
 
     mainTrace.push_back(Row{
         .avmMini_clk = clk,
+        .avmMini_pc = FF(pc++),
+        .avmMini_internal_return_ptr = FF(internal_return_ptr),
         .avmMini_sel_op_sub = FF(1),
         .avmMini_in_tag = FF(static_cast<uint32_t>(inTag)),
         .avmMini_tag_err = FF(static_cast<uint32_t>(!tagMatch)),
@@ -275,6 +279,8 @@ void AvmMiniTraceBuilder::mul(uint32_t aOffset, uint32_t bOffset, uint32_t dstOf
 
     mainTrace.push_back(Row{
         .avmMini_clk = clk,
+        .avmMini_pc = FF(pc++),
+        .avmMini_internal_return_ptr = FF(internal_return_ptr),
         .avmMini_sel_op_mul = FF(1),
         .avmMini_in_tag = FF(static_cast<uint32_t>(inTag)),
         .avmMini_tag_err = FF(static_cast<uint32_t>(!tagMatch)),
@@ -331,6 +337,8 @@ void AvmMiniTraceBuilder::div(uint32_t aOffset, uint32_t bOffset, uint32_t dstOf
 
     mainTrace.push_back(Row{
         .avmMini_clk = clk,
+        .avmMini_pc = FF(pc++),
+        .avmMini_internal_return_ptr = FF(internal_return_ptr),
         .avmMini_sel_op_div = FF(1),
         .avmMini_in_tag = FF(static_cast<uint32_t>(inTag)),
         .avmMini_op_err = tagMatch ? error : FF(1),
@@ -427,6 +435,8 @@ void AvmMiniTraceBuilder::callDataCopy(uint32_t cdOffset,
 
         mainTrace.push_back(Row{
             .avmMini_clk = clk,
+            .avmMini_pc = FF(pc++),
+            .avmMini_internal_return_ptr = FF(internal_return_ptr),
             .avmMini_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::ff)),
             .avmMini_ia = ia,
             .avmMini_ib = ib,
@@ -514,6 +524,9 @@ std::vector<FF> AvmMiniTraceBuilder::returnOP(uint32_t retOffset, uint32_t retSi
 
         mainTrace.push_back(Row{
             .avmMini_clk = clk,
+            .avmMini_pc = FF(pc),
+            .avmMini_internal_return_ptr = FF(internal_return_ptr),
+            .avmMini_sel_halt = FF(1),
             .avmMini_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::ff)),
             .avmMini_ia = ia,
             .avmMini_ib = ib,
@@ -536,7 +549,104 @@ std::vector<FF> AvmMiniTraceBuilder::returnOP(uint32_t retOffset, uint32_t retSi
 }
 
 /**
- * @brief Helper to initialize memory. (Testing purpose mostly.)
+ * @brief HALT opcode
+ *        This opcode effectively stops program execution, and is used in the relation that
+ *        ensures the program counter increments on each opcode.
+ *        i.e.ythe program counter should freeze and the halt flag is set to 1.
+ */
+void AvmMiniTraceBuilder::halt()
+{
+    auto clk = mainTrace.size();
+
+    mainTrace.push_back(Row{
+        .avmMini_clk = clk,
+        .avmMini_pc = FF(pc),
+        .avmMini_internal_return_ptr = FF(internal_return_ptr),
+        .avmMini_sel_halt = FF(1),
+    });
+}
+
+/**
+ * @brief INTERNAL_CALL OPCODE
+ *        This opcode effectively jumps to a new `jmpDest` and stores the return program counter
+ *        (current program counter + 1) onto a call stack.
+ *        This function must:
+ *          - Set the next program counter to the provided `jmpDest`.
+ *          - Store the current `pc` + 1 onto the call stack (emulated in memory)
+ *          - Increment the return stack pointer (a pointer to where the call stack is in memory)
+ *
+ *        Note: We use intermediate register to perform memory storage operations.
+ *
+ * @param jmpDest - The destination to jump to
+ */
+void AvmMiniTraceBuilder::internal_call(uint32_t jmpDest)
+{
+    auto clk = mainTrace.size();
+
+    // We store the next instruction as the return location
+    uint32_t stored_pc = pc + 1;
+    internal_call_stack.push(stored_pc);
+
+    // Add the return location to the memory trace
+    storeInMemTrace(IntermRegister::ia, internal_return_ptr, FF(stored_pc), AvmMemoryTag::ff);
+    memory.at(internal_return_ptr) = stored_pc;
+
+    mainTrace.push_back(Row{
+        .avmMini_clk = clk,
+        .avmMini_pc = FF(pc),
+        .avmMini_internal_return_ptr = FF(internal_return_ptr),
+        .avmMini_sel_internal_call = FF(1),
+        .avmMini_ia = stored_pc,
+        .avmMini_mem_op_a = FF(1),
+        .avmMini_rwa = FF(1),
+        .avmMini_mem_idx_a = FF(internal_return_ptr),
+    });
+
+    // Adjust parameters for the next row
+    pc = jmpDest;
+    internal_return_ptr++;
+}
+
+/**
+ * @brief INTERNAL_RETURN OPCODE
+ *        The opcode returns from an internal call.
+ *        This function must:
+ *          - Read the return location from the internal_return_ptr
+ *          - Set the next program counter to the return location
+ *          - Decrement the return stack pointer
+ *
+ *  TODO(https://github.com/AztecProtocol/aztec-packages/issues/3740): This function MUST come after a call instruction.
+ */
+void AvmMiniTraceBuilder::internal_return()
+{
+    auto clk = mainTrace.size();
+
+    // Internal return pointer is decremented
+    FF a = memory.at(internal_return_ptr - 1);
+
+    // We want to load the value pointed by the internal pointer
+    loadInMemTrace(IntermRegister::ia, internal_return_ptr - 1, FF(a), AvmMemoryTag::ff);
+
+    mainTrace.push_back(Row{
+        .avmMini_clk = clk,
+        .avmMini_pc = pc,
+        .avmMini_internal_return_ptr = FF(internal_return_ptr),
+        .avmMini_sel_internal_return = FF(1),
+        .avmMini_ia = a,
+        .avmMini_mem_op_a = FF(1),
+        .avmMini_rwa = FF(0),
+        .avmMini_mem_idx_a = FF(internal_return_ptr - 1),
+    });
+
+    // We want the next row to be the one pointed by jmpDest
+    // The next pc should be from the top of the internal call stack + 1
+    pc = internal_call_stack.top();
+    internal_call_stack.pop();
+    internal_return_ptr--;
+}
+
+/**
+ * @brief Helper to initialize ffMemory. (Testing purpose mostly.)
  *
  */
 void AvmMiniTraceBuilder::setFFMem(size_t idx, FF el, AvmMemoryTag tag)

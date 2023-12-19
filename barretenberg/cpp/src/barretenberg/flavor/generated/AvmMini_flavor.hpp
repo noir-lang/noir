@@ -36,13 +36,13 @@ class AvmMiniFlavor {
     using VerifierCommitmentKey = pcs::VerifierCommitmentKey<Curve>;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 2;
-    static constexpr size_t NUM_WITNESS_ENTITIES = 32;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 37;
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for
     // the unshifted and one for the shifted
-    static constexpr size_t NUM_ALL_ENTITIES = 38;
+    static constexpr size_t NUM_ALL_ENTITIES = 45;
 
-    using Relations = std::tuple<AvmMini_vm::mem_trace<FF>, AvmMini_vm::avm_mini<FF>>;
+    using Relations = std::tuple<AvmMini_vm::avm_mini<FF>, AvmMini_vm::mem_trace<FF>>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
 
@@ -87,6 +87,11 @@ class AvmMiniFlavor {
                               memTrace_m_in_tag,
                               memTrace_m_tag_err,
                               memTrace_m_one_min_inv,
+                              avmMini_pc,
+                              avmMini_internal_return_ptr,
+                              avmMini_sel_internal_call,
+                              avmMini_sel_internal_return,
+                              avmMini_sel_halt,
                               avmMini_sel_op_add,
                               avmMini_sel_op_sub,
                               avmMini_sel_op_mul,
@@ -122,6 +127,11 @@ class AvmMiniFlavor {
                      memTrace_m_in_tag,
                      memTrace_m_tag_err,
                      memTrace_m_one_min_inv,
+                     avmMini_pc,
+                     avmMini_internal_return_ptr,
+                     avmMini_sel_internal_call,
+                     avmMini_sel_internal_return,
+                     avmMini_sel_halt,
                      avmMini_sel_op_add,
                      avmMini_sel_op_sub,
                      avmMini_sel_op_mul,
@@ -163,6 +173,11 @@ class AvmMiniFlavor {
                               memTrace_m_in_tag,
                               memTrace_m_tag_err,
                               memTrace_m_one_min_inv,
+                              avmMini_pc,
+                              avmMini_internal_return_ptr,
+                              avmMini_sel_internal_call,
+                              avmMini_sel_internal_return,
+                              avmMini_sel_halt,
                               avmMini_sel_op_add,
                               avmMini_sel_op_sub,
                               avmMini_sel_op_mul,
@@ -184,10 +199,12 @@ class AvmMiniFlavor {
                               avmMini_mem_idx_b,
                               avmMini_mem_idx_c,
                               avmMini_last,
+                              avmMini_internal_return_ptr_shift,
+                              avmMini_pc_shift,
+                              memTrace_m_tag_shift,
                               memTrace_m_val_shift,
-                              memTrace_m_addr_shift,
                               memTrace_m_rw_shift,
-                              memTrace_m_tag_shift)
+                              memTrace_m_addr_shift)
 
         RefVector<DataType> get_wires()
         {
@@ -204,6 +221,11 @@ class AvmMiniFlavor {
                      memTrace_m_in_tag,
                      memTrace_m_tag_err,
                      memTrace_m_one_min_inv,
+                     avmMini_pc,
+                     avmMini_internal_return_ptr,
+                     avmMini_sel_internal_call,
+                     avmMini_sel_internal_return,
+                     avmMini_sel_halt,
                      avmMini_sel_op_add,
                      avmMini_sel_op_sub,
                      avmMini_sel_op_mul,
@@ -225,10 +247,12 @@ class AvmMiniFlavor {
                      avmMini_mem_idx_b,
                      avmMini_mem_idx_c,
                      avmMini_last,
+                     avmMini_internal_return_ptr_shift,
+                     avmMini_pc_shift,
+                     memTrace_m_tag_shift,
                      memTrace_m_val_shift,
-                     memTrace_m_addr_shift,
                      memTrace_m_rw_shift,
-                     memTrace_m_tag_shift };
+                     memTrace_m_addr_shift };
         };
         RefVector<DataType> get_unshifted()
         {
@@ -245,6 +269,11 @@ class AvmMiniFlavor {
                      memTrace_m_in_tag,
                      memTrace_m_tag_err,
                      memTrace_m_one_min_inv,
+                     avmMini_pc,
+                     avmMini_internal_return_ptr,
+                     avmMini_sel_internal_call,
+                     avmMini_sel_internal_return,
+                     avmMini_sel_halt,
                      avmMini_sel_op_add,
                      avmMini_sel_op_sub,
                      avmMini_sel_op_mul,
@@ -269,11 +298,18 @@ class AvmMiniFlavor {
         };
         RefVector<DataType> get_to_be_shifted()
         {
-            return { memTrace_m_val, memTrace_m_addr, memTrace_m_rw, memTrace_m_tag };
+            return {
+                avmMini_internal_return_ptr, avmMini_pc, memTrace_m_tag, memTrace_m_val, memTrace_m_rw, memTrace_m_addr
+            };
         };
         RefVector<DataType> get_shifted()
         {
-            return { memTrace_m_val_shift, memTrace_m_addr_shift, memTrace_m_rw_shift, memTrace_m_tag_shift };
+            return { avmMini_internal_return_ptr_shift,
+                     avmMini_pc_shift,
+                     memTrace_m_tag_shift,
+                     memTrace_m_val_shift,
+                     memTrace_m_rw_shift,
+                     memTrace_m_addr_shift };
         };
     };
 
@@ -286,7 +322,9 @@ class AvmMiniFlavor {
 
         RefVector<DataType> get_to_be_shifted()
         {
-            return { memTrace_m_val, memTrace_m_addr, memTrace_m_rw, memTrace_m_tag };
+            return {
+                avmMini_internal_return_ptr, avmMini_pc, memTrace_m_tag, memTrace_m_val, memTrace_m_rw, memTrace_m_addr
+            };
         };
 
         // The plookup wires that store plookup read data.
@@ -376,6 +414,11 @@ class AvmMiniFlavor {
             Base::memTrace_m_in_tag = "MEMTRACE_M_IN_TAG";
             Base::memTrace_m_tag_err = "MEMTRACE_M_TAG_ERR";
             Base::memTrace_m_one_min_inv = "MEMTRACE_M_ONE_MIN_INV";
+            Base::avmMini_pc = "AVMMINI_PC";
+            Base::avmMini_internal_return_ptr = "AVMMINI_INTERNAL_RETURN_PTR";
+            Base::avmMini_sel_internal_call = "AVMMINI_SEL_INTERNAL_CALL";
+            Base::avmMini_sel_internal_return = "AVMMINI_SEL_INTERNAL_RETURN";
+            Base::avmMini_sel_halt = "AVMMINI_SEL_HALT";
             Base::avmMini_sel_op_add = "AVMMINI_SEL_OP_ADD";
             Base::avmMini_sel_op_sub = "AVMMINI_SEL_OP_SUB";
             Base::avmMini_sel_op_mul = "AVMMINI_SEL_OP_MUL";
@@ -427,6 +470,11 @@ class AvmMiniFlavor {
         Commitment memTrace_m_in_tag;
         Commitment memTrace_m_tag_err;
         Commitment memTrace_m_one_min_inv;
+        Commitment avmMini_pc;
+        Commitment avmMini_internal_return_ptr;
+        Commitment avmMini_sel_internal_call;
+        Commitment avmMini_sel_internal_return;
+        Commitment avmMini_sel_halt;
         Commitment avmMini_sel_op_add;
         Commitment avmMini_sel_op_sub;
         Commitment avmMini_sel_op_mul;
@@ -478,6 +526,11 @@ class AvmMiniFlavor {
             memTrace_m_in_tag = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
             memTrace_m_tag_err = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
             memTrace_m_one_min_inv = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
+            avmMini_pc = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
+            avmMini_internal_return_ptr = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
+            avmMini_sel_internal_call = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
+            avmMini_sel_internal_return = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
+            avmMini_sel_halt = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
             avmMini_sel_op_add = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
             avmMini_sel_op_sub = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
             avmMini_sel_op_mul = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
@@ -533,6 +586,11 @@ class AvmMiniFlavor {
             serialize_to_buffer<Commitment>(memTrace_m_in_tag, Transcript::proof_data);
             serialize_to_buffer<Commitment>(memTrace_m_tag_err, Transcript::proof_data);
             serialize_to_buffer<Commitment>(memTrace_m_one_min_inv, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_pc, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_internal_return_ptr, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_sel_internal_call, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_sel_internal_return, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avmMini_sel_halt, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avmMini_sel_op_add, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avmMini_sel_op_sub, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avmMini_sel_op_mul, Transcript::proof_data);
