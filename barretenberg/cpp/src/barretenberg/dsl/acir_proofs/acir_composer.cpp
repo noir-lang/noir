@@ -9,6 +9,7 @@
 #include "barretenberg/plonk/proof_system/verification_key/sol_gen.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
+#include "contract.hpp"
 
 namespace acir_proofs {
 
@@ -158,7 +159,7 @@ std::string AcirComposer::get_solidity_verifier()
 {
     std::ostringstream stream;
     output_vk_sol(stream, verification_key_, "UltraVerificationKey");
-    return stream.str();
+    return stream.str() + CONTRACT_SOURCE;
 }
 
 /**
