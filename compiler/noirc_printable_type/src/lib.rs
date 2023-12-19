@@ -32,6 +32,7 @@ pub enum PrintableType {
     String {
         length: u64,
     },
+    Function,
 }
 
 impl PrintableType {
@@ -41,7 +42,8 @@ impl PrintableType {
             Self::Field
             | Self::SignedInteger { .. }
             | Self::UnsignedInteger { .. }
-            | Self::Boolean => Some(1),
+            | Self::Boolean
+            | Self::Function => Some(1),
             Self::Array { length, typ } => {
                 length.and_then(|len| {
                     typ.field_count().map(|x| x*(len as u32))
@@ -213,6 +215,9 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
                 output.push_str("false");
             }
         }
+        (PrintableValue::Field(_), PrintableType::Function) => {
+            output.push_str("<<function>>");
+        }
         (PrintableValue::Vec(vector), PrintableType::Array { typ, .. }) => {
             output.push('[');
             let mut values = vector.iter().peekable();
@@ -320,7 +325,8 @@ fn decode_value(
         PrintableType::Field
         | PrintableType::SignedInteger { .. }
         | PrintableType::UnsignedInteger { .. }
-        | PrintableType::Boolean => {
+        | PrintableType::Boolean
+        | PrintableType::Function => {
             let field_element = field_iterator.next().unwrap();
 
             PrintableValue::Field(field_element)

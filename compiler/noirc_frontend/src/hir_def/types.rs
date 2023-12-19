@@ -1619,7 +1619,7 @@ impl From<&Type> for PrintableType {
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(_, _, _) => unreachable!(),
+            Type::Function(_, _, _) => PrintableType::Function,
             Type::MutableReference(_) => unreachable!("cannot print &mut"),
             Type::NotConstant => unreachable!(),
         }
