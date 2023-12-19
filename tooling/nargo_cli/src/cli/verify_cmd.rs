@@ -52,11 +52,12 @@ pub(crate) fn run(
     )?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    for package in workspace.clone().into_iter() {
+        insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
+    }
 
     let expression_width = backend.get_backend_info()?;
     for package in &workspace {
-        // TODO: Same as other todo, we can be adding files for the entire workspace
-        insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
         let program = compile_bin_package(
             &workspace_file_manager,
             &workspace,
