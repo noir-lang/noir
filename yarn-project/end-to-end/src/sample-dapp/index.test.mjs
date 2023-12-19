@@ -1,12 +1,24 @@
 import { createSandbox } from '@aztec/aztec-sandbox';
-import { Contract, ExtendedNote, Fr, Note, computeMessageSecretHash, createAccount } from '@aztec/aztec.js';
+import {
+  Contract,
+  ExtendedNote,
+  Fr,
+  Note,
+  computeMessageSecretHash,
+  createAccount,
+  createPXEClient,
+  waitForSandbox,
+} from '@aztec/aztec.js';
 import { TokenContractArtifact } from '@aztec/noir-contracts/artifacts';
+
+const { PXE_URL = 'http://localhost:8080', ETHEREUM_HOST = 'http://localhost:8545' } = process.env;
 
 describe('token', () => {
   // docs:start:setup
   let pxe, stop, owner, recipient, token;
   beforeAll(async () => {
-    ({ pxe, stop } = await createSandbox());
+    const pxe = createPXEClient(PXE_URL);
+    await waitForSandbox(pxe);
     owner = await createAccount(pxe);
     recipient = await createAccount(pxe);
 
@@ -24,8 +36,6 @@ describe('token', () => {
 
     await token.methods.redeem_shield({ address: owner.getAddress() }, initialBalance, secret).send().wait();
   }, 120_000);
-
-  afterAll(() => stop());
   // docs:end:setup
 
   // docs:start:test
