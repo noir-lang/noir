@@ -55,16 +55,16 @@ fn on_profile_run_request_inner(
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
         Some(_package) => {
-            // We add all packages into the file manager because binary packages could 
+            // We add all packages into the file manager because binary packages could
             // depend on them and we need them in the file manager to resolve their imports
             insert_all_files_for_package_into_file_manager(_package, &mut workspace_file_manager);
-            
+
             let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
-            .into_iter()
-            .filter(|package| !package.is_library())
-            .cloned()
-            .partition(|package| package.is_binary());
-        
+                .into_iter()
+                .filter(|package| !package.is_library())
+                .cloned()
+                .partition(|package| package.is_binary());
+
             let expression_width = ExpressionWidth::Bounded { width: 3 };
 
             let (compiled_programs, compiled_contracts) = nargo::ops::compile_workspace(
