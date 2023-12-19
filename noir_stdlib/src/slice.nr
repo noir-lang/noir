@@ -1,4 +1,9 @@
 impl<T> [T] {
+    fn as_array<N>(self) -> [T; N] {
+        assert(self.len() == N);
+        unsafe::slice_as_array(self)
+    }
+
     /// Push a new element to the end of the slice, returning a
     /// new slice with a length one greater than the
     /// original unmodified slice.
@@ -40,4 +45,12 @@ impl<T> [T] {
         }
         self
     }
+}
+
+mod unsafe {
+    // This is a private built-in compiler function `slice_as_array`.
+    // It's not intended for general use and should not be used directly.
+    // Users should prefer to use `slice.as_array()` instead 
+    #[builtin(slice_as_array)]
+    fn slice_as_array<T, N>(_slice: [T]) -> [T; N] {}
 }
