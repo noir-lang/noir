@@ -55,7 +55,7 @@ Some opcodes are not constrained, which mean they will not be used by the provin
 
 Finally, some opcodes will have a predicate, whose value is 0 or 1. Its purpose is to nullify the opcode when the value is 0, so that it has no effect. Note that removing the opcode is not a solution because this modifies the circuit (the circuit being mainly the list of the opcodes). 
 
-*Remark*: Opcodes operate on witnesses, but we will see that some opcode work on expressions of witnesses. We call an expression a linear combination of witnesses and/or products of two witnesses (and also a constant term). A single witness is a (simple) expression, and conversely, an  expression can be turned into a single witness using an assert zero opcode (see below). So basically, using witnesses or expressions is equivalent, but the latter can avoid the creation of witness in some cases.
+*Remark*: Opcodes operate on witnesses, but we will see that some opcode work on expressions of witnesses. We call an expression a linear combination of witnesses and/or products of two witnesses (and also a constant term). A single witness is a (simple) expression, and conversely, an expression can be turned into a single witness using an assert-zero opcode (see below). So basically, using witnesses or expressions is equivalent, but the latter can avoid the creation of witness in some cases.
 
 ### AssertZero opcode
 An AssertZero opcode adds the constraint that P(w) = 0, where w=(w_1,..w_n) is a tuple of n witnesses, and P is a multi-variate polynomial of total degree at most 2.
