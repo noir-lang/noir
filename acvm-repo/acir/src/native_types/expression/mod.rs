@@ -8,7 +8,7 @@ mod ordering;
 
 // In the addition polynomial
 // We can have arbitrary fan-in/out, so we need more than wL,wR and wO
-// When looking at the assert zero opcode for the quotient polynomial in standard plonk
+// When looking at the assert-zero opcode for the quotient polynomial in standard plonk
 // You can think of it as fan-in 2 and fan out-1 , or you can think of it as fan-in 1 and fan-out 2
 //
 // In the multiplication polynomial
