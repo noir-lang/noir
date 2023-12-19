@@ -32,8 +32,8 @@ pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, Vec<usize>) {
         .opcodes
         .into_iter()
         .map(|opcode| {
-            if let Opcode::Arithmetic(arith_expr) = opcode {
-                Opcode::Arithmetic(GeneralOptimizer::optimize(arith_expr))
+            if let Opcode::AssertZero(arith_expr) = opcode {
+                Opcode::AssertZero(GeneralOptimizer::optimize(arith_expr))
             } else {
                 opcode
             }

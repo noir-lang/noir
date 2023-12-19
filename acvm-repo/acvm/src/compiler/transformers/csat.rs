@@ -62,7 +62,7 @@ impl CSatTransformer {
     }
 
     // Still missing dead witness optimization.
-    // To do this, we will need the whole set of arithmetic opcodes
+    // To do this, we will need the whole set of assert-zero opcodes
     // I think it can also be done before the local optimization seen here, as dead variables will come from the user
     pub(crate) fn transform(
         &mut self,
@@ -84,7 +84,7 @@ impl CSatTransformer {
         opcode
     }
 
-    // This optimization will search for combinations of terms which can be represented in a single arithmetic opcode
+    // This optimization will search for combinations of terms which can be represented in a single assert-zero opcode
     // Case 1 : qM * wL * wR + qL * wL + qR * wR + qO * wO + qC
     // This polynomial does not require any further optimizations, it can be safely represented in one opcode
     // ie a polynomial with 1 mul(bi-variate) term and 3 (univariate) terms where 2 of those terms match the bivariate term
@@ -93,13 +93,13 @@ impl CSatTransformer {
     //
     //
     // Case 2: qM * wL * wR + qL * wL + qR * wR + qO * wO + qC + qM2 * wL2 * wR2 + qL * wL2 + qR * wR2 + qO * wO2 + qC2
-    // This polynomial cannot be represented using one arithmetic opcode.
+    // This polynomial cannot be represented using one assert-zero opcode.
     //
     // This algorithm will first extract the first full opcode(if possible):
     // t = qM * wL * wR + qL * wL + qR * wR + qO * wO + qC
     //
     // The polynomial now looks like so t + qM2 * wL2 * wR2 + qL * wL2 + qR * wR2 + qO * wO2 + qC2
-    // This polynomial cannot be represented using one arithmetic opcode.
+    // This polynomial cannot be represented using one assert-zero opcode.
     //
     // This algorithm will then extract the second full opcode(if possible):
     // t2 = qM2 * wL2 * wR2 + qL * wL2 + qR * wR2 + qO * wO2 + qC2
@@ -121,7 +121,7 @@ impl CSatTransformer {
         // If the opcode only has one mul term, then this algorithm cannot optimize it any further
         // Either it can be represented in a single arithmetic equation or it's fan-in is too large and we need intermediate variables for those
         // large-fan-in optimization is not this algorithms purpose.
-        // If the opcode has 0 mul terms, then it is an add opcode and similarly it can either fit into a single arithmetic opcode or it has a large fan-in
+        // If the opcode has 0 mul terms, then it is an add opcode and similarly it can either fit into a single assert-zero opcode or it has a large fan-in
         if opcode.mul_terms.len() <= 1 {
             return opcode;
         }
@@ -194,7 +194,7 @@ impl CSatTransformer {
                         }
                     }
 
-                    // Now we have used up 2 spaces in our arithmetic opcode. The width now dictates, how many more we can add
+                    // Now we have used up 2 spaces in our assert-zero opcode. The width now dictates, how many more we can add
                     let mut remaining_space = self.width - 2 - 1; // We minus 1 because we need an extra space to contain the intermediate variable
                                                                   // Keep adding terms until we have no more left, or we reach the width
                     let mut remaining_linear_terms =
@@ -325,7 +325,7 @@ impl CSatTransformer {
         // Then use intermediate variables again to squash the fan-in, so that it can fit into the appropriate width
 
         // First check if this polynomial actually needs a partial opcode optimization
-        // There is the chance that it fits perfectly within the arithmetic opcode
+        // There is the chance that it fits perfectly within the assert-zero opcode
         if opcode.fits_in_one_identity(self.width) {
             return opcode;
         }

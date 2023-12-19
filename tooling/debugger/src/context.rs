@@ -492,7 +492,7 @@ mod tests {
             // z = x + y
             Opcode::Brillig(brillig_opcodes),
             // x + y - z = 0
-            Opcode::Arithmetic(Expression {
+            Opcode::AssertZero(Expression {
                 mul_terms: vec![],
                 linear_combinations: vec![(fe_1, w_x), (fe_1, w_y), (-fe_1, w_z)],
                 q_c: fe_0,
