@@ -146,7 +146,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: nargo
-          path: /usr/src/noir/target/release/nargo
+          path: /usr/src/noir/target/release
       - run: |
           PATH=$PATH:/usr/src/noir/target/release
           echo $PATH
