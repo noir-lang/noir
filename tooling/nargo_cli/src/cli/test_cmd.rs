@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use acvm::BlackBoxFunctionSolver;
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
 use nargo::{
@@ -73,8 +74,7 @@ pub(crate) fn run(
         None => FunctionNameMatch::Anything,
     };
 
-    #[allow(deprecated)]
-    let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
+    let blackbox_solver = Bn254BlackBoxSolver::new();
     for package in &workspace {
         // By unwrapping here with `?`, we stop the test runner upon a package failing
         // TODO: We should run the whole suite even if there are failures in a package
