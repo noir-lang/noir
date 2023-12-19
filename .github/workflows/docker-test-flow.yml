@@ -151,7 +151,6 @@ jobs:
           PATH=$PATH:/usr/src/noir/target/release
           cd /usr/src/noir/target/release/
           chmod +x nargo
-          nargo
           cd /usr/src/noir/
           nargo
       - name: test
