@@ -1,7 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap},
     future::{self, Future},
-    path::Path,
 };
 
 use acvm::ExpressionWidth;
@@ -51,7 +50,7 @@ fn on_profile_run_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
 
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {

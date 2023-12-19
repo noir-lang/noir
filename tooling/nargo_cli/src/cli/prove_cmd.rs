@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use clap::Args;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 use nargo::insert_all_files_for_package_into_file_manager;
@@ -62,7 +60,7 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
 
     let expression_width = backend.get_backend_info()?;
     for package in &workspace {

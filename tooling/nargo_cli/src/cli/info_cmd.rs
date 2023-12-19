@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 
 use acvm::ExpressionWidth;
 use backend_interface::BackendError;
@@ -65,7 +65,7 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     for package in workspace.clone().into_iter() {
         insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
     }

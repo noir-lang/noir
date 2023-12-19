@@ -1,7 +1,4 @@
-use std::{
-    future::{self, Future},
-    path::Path,
-};
+use std::future::{self, Future};
 
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use lsp_types::{LogMessageParams, MessageType};
@@ -53,7 +50,7 @@ fn on_tests_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
 
     let package_tests: Vec<_> = workspace
         .into_iter()

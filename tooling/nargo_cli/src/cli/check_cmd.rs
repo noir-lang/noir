@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::backends::Backend;
 use crate::errors::CliError;
 
@@ -54,7 +52,7 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
 
     for package in &workspace {
         insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);

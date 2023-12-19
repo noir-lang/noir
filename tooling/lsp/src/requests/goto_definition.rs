@@ -1,5 +1,4 @@
 use std::future::{self, Future};
-use std::path::Path;
 
 use crate::{types::GotoDefinitionResult, LspState};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
@@ -53,7 +52,7 @@ fn on_goto_definition_inner(
 
     let mut definition_position = None;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
 
     for package in &workspace {
         insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);

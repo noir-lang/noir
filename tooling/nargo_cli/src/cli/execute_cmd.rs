@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use acvm::acir::native_types::WitnessMap;
 use clap::Args;
 
@@ -61,7 +59,7 @@ pub(crate) fn run(
     )?;
     let target_dir = &workspace.target_directory_path();
 
-    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
 
     let expression_width = backend.get_backend_info_or_default();
     for package in &workspace {

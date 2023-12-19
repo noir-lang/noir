@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use super::NargoConfig;
 use super::{
     compile_cmd::compile_bin_package,
@@ -49,7 +47,7 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
 
     let expression_width = backend.get_backend_info()?;
     for package in &workspace {

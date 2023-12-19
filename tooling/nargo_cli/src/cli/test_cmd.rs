@@ -1,4 +1,4 @@
-use std::{io::Write, path::Path};
+use std::io::Write;
 
 use acvm::BlackBoxFunctionSolver;
 use clap::Args;
@@ -59,7 +59,7 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
 
     let pattern = match &args.test_name {
         Some(name) => {

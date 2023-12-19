@@ -1,5 +1,4 @@
 use std::ops::ControlFlow;
-use std::path::Path;
 
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use nargo::{insert_all_files_for_package_into_file_manager, prepare_package};
@@ -101,7 +100,7 @@ pub(super) fn on_did_save_text_document(
         }
     };
 
-    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
 
     let diagnostics: Vec<_> = workspace
         .into_iter()
