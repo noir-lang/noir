@@ -2,10 +2,13 @@ use acvm::acir::native_types::WitnessMap;
 use backend_interface::Backend;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
-use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{
+    file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
+};
 use noirc_frontend::graph::CrateName;
 
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -57,19 +60,23 @@ fn load_and_compile_project(
 ) -> Result<(CompiledProgram, WitnessMap), LoadError> {
     let workspace =
         find_workspace(project_folder, package).ok_or(LoadError("Cannot open workspace"))?;
-    let (np_language, opcode_support) =
+
+    let expression_width =
         backend.get_backend_info().map_err(|_| LoadError("Failed to get backend info"))?;
     let package = workspace
         .into_iter()
         .find(|p| p.is_binary())
         .ok_or(LoadError("No matching binary packages found in workspace"))?;
 
+    let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+
     let compiled_program = compile_bin_package(
+        &workspace_file_manager,
         &workspace,
         package,
         &CompileOptions::default(),
-        np_language,
-        &opcode_support,
+        expression_width,
     )
     .map_err(|_| LoadError("Failed to compile project"))?;
 
@@ -130,9 +137,7 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                     Ok((compiled_program, initial_witness)) => {
                         server.respond(req.ack()?)?;
 
-                        #[allow(deprecated)]
-                        let blackbox_solver =
-                            barretenberg_blackbox_solver::BarretenbergSolver::new();
+                        let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver::new();
 
                         noir_debugger::run_dap_loop(
                             server,
