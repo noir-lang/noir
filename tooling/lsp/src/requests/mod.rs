@@ -59,23 +59,18 @@ pub(crate) fn on_initialize(
 ) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
     state.root_path = params.root_uri.and_then(|root_uri| root_uri.to_file_path().ok());
 
-
-    let initialization_options = match params.initialization_options {
-    
-        Some(initialization_options) => {
-            // We want default value of this setting to be true, so we need to handle the case where the client sends us a empty value
-            serde_json::from_value::<LspInitializationOptions>(initialization_options)
-                .unwrap_or_default()
-        }
-        None => LspInitializationOptions::default(),
-    };
+    let initialization_options: LspInitializationOptions = params
+        .initialization_options
+        .and_then(|value| serde_json::from_value(value).ok())
+        .unwrap_or_default();
 
     async move {
         let text_document_sync = TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL);
 
-        let code_lens = match initialization_options.enable_code_lens {
-            true => Some(CodeLensOptions { resolve_provider: Some(false) }),
-            false => None,
+        let code_lens = if initialization_options.enable_code_lens {
+            Some(CodeLensOptions { resolve_provider: Some(false) })
+        } else {
+            None
         };
 
         let nargo = NargoCapability {

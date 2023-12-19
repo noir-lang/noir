@@ -191,9 +191,7 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
     }
 }
 
-pub(crate) fn resolve_workspace_for_source_path(
-    file_path: &Path,
-) -> Result<Workspace, LspError> {
+pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
     let package_root = find_file_manifest(file_path);
 
     let toml_path = package_root.ok_or_else(|| {
@@ -203,8 +201,12 @@ pub(crate) fn resolve_workspace_for_source_path(
         ))
     })?;
 
-    let workspace = resolve_workspace_from_toml(&toml_path, PackageSelection::All, Some(NOIR_ARTIFACT_VERSION_STRING.to_string()))
-        .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()))?;
-    
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        PackageSelection::All,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    )
+    .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()))?;
+
     Ok(workspace)
 }
