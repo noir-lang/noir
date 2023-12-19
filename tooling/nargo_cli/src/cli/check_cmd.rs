@@ -5,7 +5,7 @@ use clap::Args;
 use fm::FileManager;
 use iter_extended::btree_map;
 use nargo::{
-    errors::CompileError, insert_all_files_for_package_into_file_manager, package::Package,
+    errors::CompileError, insert_all_files_for_workspace_into_file_manager, package::Package,
     prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -53,9 +53,9 @@ pub(crate) fn run(
     )?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     for package in &workspace {
-        insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
         check_package(&workspace_file_manager, package, &args.compile_options)?;
         println!("[{}] Constraint system successfully built!", package.name);
     }

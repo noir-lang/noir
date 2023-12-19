@@ -5,7 +5,7 @@ use std::{
 
 use acvm::ExpressionWidth;
 use async_lsp::{ErrorCode, ResponseError};
-use nargo::{artifacts::debug::DebugArtifact, insert_all_files_for_package_into_file_manager};
+use nargo::{artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING,
@@ -51,14 +51,11 @@ fn on_profile_run_request_inner(
     })?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
         Some(_package) => {
-            // We add all packages into the file manager because binary packages could
-            // depend on them and we need them in the file manager to resolve their imports
-            insert_all_files_for_package_into_file_manager(_package, &mut workspace_file_manager);
-
             let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
                 .into_iter()
                 .filter(|package| !package.is_library())

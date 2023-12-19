@@ -8,7 +8,7 @@ use nargo::artifacts::contract::PreprocessedContractFunction;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::errors::CompileError;
-use nargo::insert_all_files_for_package_into_file_manager;
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
@@ -63,11 +63,8 @@ pub(crate) fn run(
     )?;
     let circuit_dir = workspace.target_directory_path();
 
-    // TODO: create a function which takes a workspace and returns a file manager
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    for package in workspace.clone().into_iter() {
-        insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
-    }
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()

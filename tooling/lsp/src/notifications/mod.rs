@@ -1,7 +1,7 @@
 use std::ops::ControlFlow;
 
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use nargo::{insert_all_files_for_package_into_file_manager, prepare_package};
+use nargo::{insert_all_files_for_workspace_into_file_manager, prepare_package};
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, file_manager_with_stdlib, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
@@ -101,12 +101,11 @@ pub(super) fn on_did_save_text_document(
     };
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     let diagnostics: Vec<_> = workspace
         .into_iter()
         .flat_map(|package| -> Vec<Diagnostic> {
-            insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
-
             let (mut context, crate_id) = prepare_package(&workspace_file_manager, package);
 
             let file_diagnostics = match check_crate(&mut context, crate_id, false, false) {

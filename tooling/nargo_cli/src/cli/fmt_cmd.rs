@@ -1,7 +1,7 @@
 use std::{fs::DirEntry, path::Path};
 
 use clap::Args;
-use nargo::insert_all_files_for_package_into_file_manager;
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::CustomDiagnostic;
@@ -29,10 +29,8 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    for package in workspace.clone().into_iter() {
-        insert_all_files_for_package_into_file_manager(package, &mut file_manager);
-    }
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     let config = nargo_fmt::Config::read(&config.program_dir)
         .map_err(|err| CliError::Generic(err.to_string()))?;
@@ -41,8 +39,8 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
 
     for package in &workspace {
         visit_noir_files(&package.root_dir.join("src"), &mut |entry| {
-            let file_id = file_manager.name_to_id(entry.path().to_path_buf()).expect("The file should exist since we added all files in the package into the file manager");
-            let (parsed_module, errors) = parse_file(&file_manager, file_id);
+            let file_id = workspace_file_manager.name_to_id(entry.path().to_path_buf()).expect("The file should exist since we added all files in the package into the file manager");
+            let (parsed_module, errors) = parse_file(&workspace_file_manager, file_id);
 
             let is_all_warnings = errors.iter().all(ParserError::is_warning);
             if !is_all_warnings {
@@ -56,14 +54,14 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
 
                 let _ = super::compile_cmd::report_errors::<()>(
                     Err(errors),
-                    &file_manager,
+                    &workspace_file_manager,
                     false,
                     false,
                 );
                 return Ok(());
             }
 
-            let original = file_manager.fetch_file(file_id);
+            let original = workspace_file_manager.fetch_file(file_id);
             let formatted = nargo_fmt::format(original, parsed_module, &config);
 
             if check_mode {

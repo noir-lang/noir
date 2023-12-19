@@ -4,7 +4,7 @@ use acvm::BlackBoxFunctionSolver;
 use clap::Args;
 use fm::FileManager;
 use nargo::{
-    insert_all_files_for_package_into_file_manager,
+    insert_all_files_for_workspace_into_file_manager,
     ops::{run_test, TestStatus},
     package::Package,
     prepare_package,
@@ -60,6 +60,7 @@ pub(crate) fn run(
     )?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     let pattern = match &args.test_name {
         Some(name) => {
@@ -75,7 +76,6 @@ pub(crate) fn run(
     #[allow(deprecated)]
     let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
     for package in &workspace {
-        insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
         // By unwrapping here with `?`, we stop the test runner upon a package failing
         // TODO: We should run the whole suite even if there are failures in a package
         run_tests(

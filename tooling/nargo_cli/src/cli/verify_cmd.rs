@@ -7,7 +7,7 @@ use crate::{backends::Backend, errors::CliError};
 
 use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
-use nargo::insert_all_files_for_package_into_file_manager;
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -52,9 +52,7 @@ pub(crate) fn run(
     )?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    for package in workspace.clone().into_iter() {
-        insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
-    }
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     let expression_width = backend.get_backend_info()?;
     for package in &workspace {

@@ -2,7 +2,7 @@ use std::future::{self, Future};
 
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
-    insert_all_files_for_package_into_file_manager,
+    insert_all_files_for_workspace_into_file_manager,
     ops::{run_test, TestStatus},
     prepare_package,
 };
@@ -51,12 +51,11 @@ fn on_test_run_request_inner(
     })?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
         Some(package) => {
-            insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
-
             let (mut context, crate_id) = prepare_package(&workspace_file_manager, package);
             if check_crate(&mut context, crate_id, false, false).is_err() {
                 let result = NargoTestRunResult {

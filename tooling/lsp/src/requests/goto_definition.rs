@@ -5,7 +5,7 @@ use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::codespan_files::Error;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location};
 use lsp_types::{Position, Url};
-use nargo::insert_all_files_for_package_into_file_manager;
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, NOIR_ARTIFACT_VERSION_STRING};
 
@@ -53,10 +53,9 @@ fn on_goto_definition_inner(
     let mut definition_position = None;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     for package in &workspace {
-        insert_all_files_for_package_into_file_manager(package, &mut workspace_file_manager);
-
         let (mut context, crate_id) = nargo::prepare_package(&workspace_file_manager, package);
 
         // We ignore the warnings and errors produced by compilation while resolving the definition
