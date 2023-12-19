@@ -147,11 +147,9 @@ jobs:
         with:
           name: nargo
           path: /usr/src/noir/target/release
-      - run: |
-          PATH=$PATH:/usr/src/noir/target/release
-          cd /usr/src/noir/target/release/
-          chmod +x nargo
-          cd /usr/src/noir/
+      - name: prep downloaded artifact
+        run: |
+          chmod +x /usr/src/noir/target/release/nargo
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-noir-wasm.sh
