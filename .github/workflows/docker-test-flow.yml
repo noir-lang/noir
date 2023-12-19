@@ -154,7 +154,6 @@ jobs:
           cd /usr/src/noir/
       - name: test
         run: |
-          nargo
           /usr/src/noir/.github/scripts/test-noir-wasm.sh
 
   test-acvm-js:
