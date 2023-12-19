@@ -234,3 +234,19 @@ fn prepare_source(source: String) -> (Context<'static>, CrateId) {
 
     (context, root_crate_id)
 }
+
+#[test]
+fn prepare_package_from_source_string() {
+    let source = r#"
+    fn main() {
+        let x = 1;
+        let y = 2;
+        let z = x + y;
+    }
+    "#;
+
+    let (mut context, crate_id) = crate::prepare_source(source.to_string());
+    let _check_result = noirc_driver::check_crate(&mut context, crate_id, false, false);
+    let main_func_id = context.get_main_function(&crate_id);
+    assert!(main_func_id.is_some());
+}
