@@ -221,11 +221,11 @@ jobs:
         with:
           name: acvm-js
           path: |
-            /usr/src/noir/acvm-repo/acvm-js/nodejs
-            /usr/src/noir/acvm-repo/acvm-js/web
-            /usr/src/noir/acvm-repo/acvm-js/target
-            /usr/src/noir/acvm-repo/acvm-js/outputs
-            /usr/src/noir/acvm-repo/acvm-js/result
+            /usr/src/noir/acvm-repo/acvm_js/nodejs
+            /usr/src/noir/acvm-repo/acvm_js/web
+            /usr/src/noir/acvm-repo/acvm_js/target
+            /usr/src/noir/acvm-repo/acvm_js/outputs
+            /usr/src/noir/acvm-repo/acvm_js/result
           if-no-files-found: error
           compression-level: 0
 
