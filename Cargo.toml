@@ -31,7 +31,7 @@ members = [
     "acvm-repo/brillig",
     "acvm-repo/brillig_vm",
     "acvm-repo/blackbox_solver",
-    "acvm-repo/barretenberg_blackbox_solver",
+    "acvm-repo/bn254_blackbox_solver",
 ]
 default-members = ["tooling/nargo_cli"]
 resolver = "2"
@@ -56,7 +56,7 @@ stdlib = { version = "0.37.1", package = "acvm_stdlib", path = "acvm-repo/stdlib
 brillig = { version = "0.38.0", path = "acvm-repo/brillig", default-features = false }
 brillig_vm = { version = "0.38.0", path = "acvm-repo/brillig_vm", default-features = false }
 acvm_blackbox_solver = { version = "0.38.0", path = "acvm-repo/blackbox_solver", default-features = false }
-barretenberg_blackbox_solver = { version = "0.38.0", path = "acvm-repo/barretenberg_blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "0.38.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 arena = { path = "compiler/utils/arena" }

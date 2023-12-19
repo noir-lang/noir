@@ -13,36 +13,32 @@ use wasm::Barretenberg;
 
 use self::wasm::{Pedersen, SchnorrSig};
 
-#[deprecated = "The `BarretenbergSolver` is a temporary solution and will be removed in future."]
-pub struct BarretenbergSolver {
+pub struct Bn254BlackBoxSolver {
     blackbox_vendor: Barretenberg,
 }
 
-#[allow(deprecated)]
-impl BarretenbergSolver {
+impl Bn254BlackBoxSolver {
     #[cfg(target_arch = "wasm32")]
-    pub async fn initialize() -> BarretenbergSolver {
+    pub async fn initialize() -> Bn254BlackBoxSolver {
         let blackbox_vendor = Barretenberg::initialize().await;
-        BarretenbergSolver { blackbox_vendor }
+        Bn254BlackBoxSolver { blackbox_vendor }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn new() -> BarretenbergSolver {
+    pub fn new() -> Bn254BlackBoxSolver {
         let blackbox_vendor = Barretenberg::new();
-        BarretenbergSolver { blackbox_vendor }
+        Bn254BlackBoxSolver { blackbox_vendor }
     }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[allow(deprecated)]
-impl Default for BarretenbergSolver {
+impl Default for Bn254BlackBoxSolver {
     fn default() -> Self {
         Self::new()
     }
 }
 
-#[allow(deprecated)]
-impl BlackBoxFunctionSolver for BarretenbergSolver {
+impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
     fn schnorr_verify(
         &self,
         public_key_x: &FieldElement,
@@ -57,7 +53,6 @@ impl BlackBoxFunctionSolver for BarretenbergSolver {
         let sig_s: [u8; 32] = signature[0..32].try_into().unwrap();
         let sig_e: [u8; 32] = signature[32..64].try_into().unwrap();
 
-        #[allow(deprecated)]
         self.blackbox_vendor.verify_signature(pub_key, sig_s, sig_e, message).map_err(|err| {
             BlackBoxResolutionError::Failed(BlackBoxFunc::SchnorrVerify, err.to_string())
         })
