@@ -1,6 +1,6 @@
 use async_lsp::{
-    client_monitor::ClientProcessMonitorLayer, concurrency::ConcurrencyLayer,
-    panic::CatchUnwindLayer, server::LifecycleLayer, tracing::TracingLayer,
+    concurrency::ConcurrencyLayer, panic::CatchUnwindLayer, server::LifecycleLayer,
+    tracing::TracingLayer,
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
@@ -39,7 +39,6 @@ pub(crate) fn run(
                 .layer(LifecycleLayer::default())
                 .layer(CatchUnwindLayer::default())
                 .layer(ConcurrencyLayer::default())
-                .layer(ClientProcessMonitorLayer::new(client))
                 .service(router)
         });
 
