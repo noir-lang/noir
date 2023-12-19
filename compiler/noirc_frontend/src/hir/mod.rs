@@ -41,24 +41,21 @@ pub enum FunctionNameMatch<'a> {
 
 impl Context<'_> {
     pub fn new(file_manager: FileManager) -> Context<'static> {
-        let crate_graph = CrateGraph::default();
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
             visited_files: BTreeMap::new(),
-            crate_graph,
+            crate_graph: CrateGraph::default(),
             file_manager: Cow::Owned(file_manager),
         }
     }
 
     pub fn from_ref_file_manager(file_manager: &FileManager) -> Context<'_> {
-        let crate_graph = CrateGraph::default();
-
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
             visited_files: BTreeMap::new(),
-            crate_graph,
+            crate_graph: CrateGraph::default(),
             file_manager: Cow::Borrowed(file_manager),
         }
     }
