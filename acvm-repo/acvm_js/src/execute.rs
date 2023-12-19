@@ -2,8 +2,7 @@ use acvm::{
     acir::circuit::Circuit,
     pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM},
 };
-#[allow(deprecated)]
-use barretenberg_blackbox_solver::BarretenbergSolver;
+use barretenberg_blackbox_solver::Bn254BlackBoxSolver;
 
 use js_sys::Error;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -14,13 +13,11 @@ use crate::{
 };
 
 #[wasm_bindgen]
-#[allow(deprecated)]
-pub struct WasmBlackBoxFunctionSolver(BarretenbergSolver);
+pub struct WasmBlackBoxFunctionSolver(Bn254BlackBoxSolver);
 
 impl WasmBlackBoxFunctionSolver {
     async fn initialize() -> WasmBlackBoxFunctionSolver {
-        #[allow(deprecated)]
-        WasmBlackBoxFunctionSolver(BarretenbergSolver::initialize().await)
+        WasmBlackBoxFunctionSolver(Bn254BlackBoxSolver::initialize().await)
     }
 }
 
