@@ -30,6 +30,7 @@ jobs:
     strategy:
       matrix:
         target: [x86_64-apple-darwin, aarch64-apple-darwin]
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -120,6 +121,7 @@ jobs:
       fail-fast: false
       matrix:
         target: [x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl]
+    timeout-minutes: 30
 
     steps:
       - name: Checkout

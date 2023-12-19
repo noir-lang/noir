@@ -92,6 +92,7 @@ type HirType = crate::Type;
 /// this function. Typically, this is the function named "main" in the source project,
 /// but it can also be, for example, an arbitrary test function for running `nargo test`.
 pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Program {
+    log::trace!("Start monomorphization");
     let mut monomorphizer = Monomorphizer::new(interner);
     let function_sig = monomorphizer.compile_main(main);
 
@@ -106,6 +107,8 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
     let FuncMeta { return_distinctness, return_visibility, .. } = interner.function_meta(&main);
+
+    log::trace!("Finish monomorphization");
     Program::new(
         functions,
         function_sig,
@@ -231,7 +234,7 @@ impl<'interner> Monomorphizer<'interner> {
         let body_expr_id = *self.interner.function(&f).as_expr();
         let body_return_type = self.interner.id_type(body_expr_id);
         let return_type = self.convert_type(match meta.return_type() {
-            Type::TraitAsType(_) => &body_return_type,
+            Type::TraitAsType(..) => &body_return_type,
             _ => meta.return_type(),
         });
 
@@ -720,7 +723,7 @@ impl<'interner> Monomorphizer<'interner> {
                     ast::Type::Slice(element)
                 }
             }
-            HirType::TraitAsType(_) => {
+            HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
             HirType::NamedGeneric(binding, _) => {

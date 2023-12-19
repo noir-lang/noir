@@ -640,22 +640,9 @@ impl<'f> Context<'f> {
             match instruction {
                 Instruction::Constrain(lhs, rhs, message) => {
                     // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
+                    let lhs = self.handle_constrain_arg_side_effects(lhs, condition, &call_stack);
+                    let rhs = self.handle_constrain_arg_side_effects(rhs, condition, &call_stack);
 
-                    // Condition needs to be cast to argument type in order to multiply them together.
-                    let argument_type = self.inserter.function.dfg.type_of_value(lhs);
-                    let casted_condition = self.insert_instruction(
-                        Instruction::Cast(condition, argument_type),
-                        call_stack.clone(),
-                    );
-
-                    let lhs = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, lhs, casted_condition),
-                        call_stack.clone(),
-                    );
-                    let rhs = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
-                        call_stack,
-                    );
                     Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {
@@ -683,6 +670,90 @@ impl<'f> Context<'f> {
         } else {
             instruction
         }
+    }
+
+    /// Given the arguments of a constrain instruction, multiplying them by the branch's condition
+    /// requires special handling in the case of complex types.
+    fn handle_constrain_arg_side_effects(
+        &mut self,
+        argument: ValueId,
+        condition: ValueId,
+        call_stack: &CallStack,
+    ) -> ValueId {
+        let argument_type = self.inserter.function.dfg.type_of_value(argument);
+
+        match &argument_type {
+            Type::Numeric(_) => {
+                // Condition needs to be cast to argument type in order to multiply them together.
+                let casted_condition = self.insert_instruction(
+                    Instruction::Cast(condition, argument_type),
+                    call_stack.clone(),
+                );
+
+                self.insert_instruction(
+                    Instruction::binary(BinaryOp::Mul, argument, casted_condition),
+                    call_stack.clone(),
+                )
+            }
+            Type::Array(_, _) => {
+                self.handle_array_constrain_arg(argument_type, argument, condition, call_stack)
+            }
+            Type::Slice(_) => {
+                panic!("Cannot use slices directly in a constrain statement")
+            }
+            Type::Reference(_) => {
+                panic!("Cannot use references directly in a constrain statement")
+            }
+            Type::Function => {
+                panic!("Cannot use functions directly in a constrain statement")
+            }
+        }
+    }
+
+    fn handle_array_constrain_arg(
+        &mut self,
+        typ: Type,
+        argument: ValueId,
+        condition: ValueId,
+        call_stack: &CallStack,
+    ) -> ValueId {
+        let mut new_array = im::Vector::new();
+
+        let (element_types, len) = match &typ {
+            Type::Array(elements, len) => (elements, *len),
+            _ => panic!("Expected array type"),
+        };
+
+        for i in 0..len {
+            for (element_index, element_type) in element_types.iter().enumerate() {
+                let index = ((i * element_types.len() + element_index) as u128).into();
+                let index = self.inserter.function.dfg.make_constant(index, Type::field());
+
+                let typevars = Some(vec![element_type.clone()]);
+
+                let mut get_element = |array, typevars| {
+                    let get = Instruction::ArrayGet { array, index };
+                    self.inserter
+                        .function
+                        .dfg
+                        .insert_instruction_and_results(
+                            get,
+                            self.inserter.function.entry_block(),
+                            typevars,
+                            CallStack::new(),
+                        )
+                        .first()
+                };
+
+                let element = get_element(argument, typevars);
+
+                new_array.push_back(
+                    self.handle_constrain_arg_side_effects(element, condition, call_stack),
+                );
+            }
+        }
+
+        self.inserter.function.dfg.make_array(new_array, typ)
     }
 
     fn undo_stores_in_then_branch(&mut self, then_branch: &Branch) {
@@ -935,7 +1006,6 @@ mod test {
         // }
         let ssa = ssa.flatten_cfg();
         let main = ssa.main();
-        println!("{ssa}");
         assert_eq!(main.reachable_blocks().len(), 1);
 
         let store_count = count_instruction(main, |ins| matches!(ins, Instruction::Store { .. }));

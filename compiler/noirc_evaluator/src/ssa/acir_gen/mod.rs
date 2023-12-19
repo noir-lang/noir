@@ -1569,12 +1569,17 @@ impl Context {
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
-            BinaryOp::Lt => self.acir_context.less_than_var(
-                lhs,
-                rhs,
-                bit_count,
-                self.current_side_effects_enabled_var,
-            ),
+            BinaryOp::Lt => match binary_type {
+                AcirType::NumericType(NumericType::Signed { .. }) => self
+                    .acir_context
+                    .less_than_signed(lhs, rhs, bit_count, self.current_side_effects_enabled_var),
+                _ => self.acir_context.less_than_var(
+                    lhs,
+                    rhs,
+                    bit_count,
+                    self.current_side_effects_enabled_var,
+                ),
+            },
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
             BinaryOp::Or => self.acir_context.or_var(lhs, rhs, binary_type),

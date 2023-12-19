@@ -12,6 +12,7 @@ pub struct ImportDirective {
     pub module_id: LocalModuleId,
     pub path: Path,
     pub alias: Option<Ident>,
+    pub is_prelude: bool,
 }
 
 pub type PathResolution = Result<PerNs, PathResolutionError>;
@@ -30,6 +31,7 @@ pub struct ResolvedImport {
     pub resolved_namespace: PerNs,
     // The module which we must add the resolved namespace to
     pub module_scope: LocalModuleId,
+    pub is_prelude: bool,
 }
 
 impl From<PathResolutionError> for CustomDiagnostic {
@@ -66,7 +68,12 @@ pub fn resolve_imports(
                 .map_err(|error| (error, module_scope))?;
 
         let name = resolve_path_name(&import_directive);
-        Ok(ResolvedImport { name, resolved_namespace, module_scope })
+        Ok(ResolvedImport {
+            name,
+            resolved_namespace,
+            module_scope,
+            is_prelude: import_directive.is_prelude,
+        })
     })
 }
 
@@ -207,8 +214,12 @@ fn resolve_external_dep(
         kind: PathKind::Plain,
         span: Span::default(),
     };
-    let dep_directive =
-        ImportDirective { module_id: dep_module.local_id, path, alias: directive.alias.clone() };
+    let dep_directive = ImportDirective {
+        module_id: dep_module.local_id,
+        path,
+        alias: directive.alias.clone(),
+        is_prelude: false,
+    };
 
     let dep_def_map = def_maps.get(&dep_module.krate).unwrap();
 

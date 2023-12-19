@@ -51,12 +51,6 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
 
-      - name: Publish acvm_stdlib
-        run: |
-          cargo publish --package acvm_stdlib
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
-
       - name: Publish brillig_vm
         run: |
           cargo publish --package brillig_vm

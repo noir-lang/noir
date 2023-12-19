@@ -38,4 +38,27 @@ impl ATrait for Bar {
 fn main() {
     assert(Foo::static_method() == 100);
     assert(Bar::static_method() == 200);
+
+    // Regression for #3773
+    let zero: Field = MyDefault::my_default();
+    assert(zero == 0);
+}
+
+trait MyDefault {
+    fn my_default() -> Self;
+}
+
+// This impl is first, so if the type directed search picks the first impl
+// instead of the correct Field impl below, we'll get a panic in SSA from
+// a type mismatch.
+impl MyDefault for (Field, Field) {
+    fn my_default() -> (Field, Field) {
+        (0, 0)
+    }
+}
+
+impl MyDefault for Field {
+    fn my_default() -> Field {
+        0
+    }
 }
