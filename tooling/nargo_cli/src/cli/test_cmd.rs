@@ -111,18 +111,21 @@ fn run_tests<S: BlackBoxFunctionSolver>(
     let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, fn_name);
     let count_all = test_functions.len();
     if count_all == 0 {
-        return match &fn_name {
-            FunctionNameMatch::Anything => {
-                Err(CliError::Generic(format!("[{}] Found 0 tests.", package.name)))
+        match &fn_name {
+            FunctionNameMatch::Exact(pattern) => {
+                return Err(CliError::Generic(format!(
+                    "[{}] Found 0 tests matching input '{pattern}'.",
+                    package.name
+                )))
             }
-            FunctionNameMatch::Exact(pattern) => Err(CliError::Generic(format!(
-                "[{}] Found 0 tests matching input '{pattern}'.",
-                package.name
-            ))),
-            FunctionNameMatch::Contains(pattern) => Err(CliError::Generic(format!(
-                "[{}] Found 0 tests containing '{pattern}'.",
-                package.name
-            ))),
+            FunctionNameMatch::Contains(pattern) => {
+                return Err(CliError::Generic(format!(
+                    "[{}] Found 0 tests containing '{pattern}'.",
+                    package.name
+                )))
+            }
+            // If we are running all tests in a crate, having none is not an error
+            FunctionNameMatch::Anything => {}
         };
     }
 
