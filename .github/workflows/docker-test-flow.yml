@@ -152,6 +152,9 @@ jobs:
           ls -la
           cd /usr/src/noir/target/release/
           ls -la
+          nargo
+          cd /usr/src/noir/
+          nargo
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-noir-wasm.sh
