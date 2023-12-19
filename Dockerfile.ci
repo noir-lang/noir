@@ -26,15 +26,11 @@ COPY ./tooling/noirc_abi_wasm/package.json ./tooling/noirc_abi_wasm/
 COPY ./compiler/wasm/package.json ./compiler/wasm/
 # source resolver
 COPY ./compiler/source-resolver/package.json ./compiler/source-resolver/
-
 #! Things rely on this
 COPY ./tooling/noir_js_types/package.json ./tooling/noir_js_types/
-
 #backend barretenberg
 COPY ./tooling/noir_js_backend_barretenberg/package.json ./tooling/noir_js_backend_barretenberg/
-
 COPY ./tooling/noir_js/package.json ./tooling/noir_js/
-
 COPY ./tooling/noir_codegen/package.json ./tooling/noir_codegen/
 
 ### NEW ADDED
