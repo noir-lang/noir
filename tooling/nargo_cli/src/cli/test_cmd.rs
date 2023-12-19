@@ -2,13 +2,15 @@ use std::io::Write;
 
 use acvm::BlackBoxFunctionSolver;
 use clap::Args;
+use fm::FileManager;
 use nargo::{
+    insert_all_files_for_workspace_into_file_manager,
     ops::{run_test, TestStatus},
     package::Package,
     prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::{graph::CrateName, hir::FunctionNameMatch};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -57,6 +59,9 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+
     let pattern = match &args.test_name {
         Some(name) => {
             if args.exact {
@@ -73,20 +78,28 @@ pub(crate) fn run(
     for package in &workspace {
         // By unwrapping here with `?`, we stop the test runner upon a package failing
         // TODO: We should run the whole suite even if there are failures in a package
-        run_tests(&blackbox_solver, package, pattern, args.show_output, &args.compile_options)?;
+        run_tests(
+            &workspace_file_manager,
+            &blackbox_solver,
+            package,
+            pattern,
+            args.show_output,
+            &args.compile_options,
+        )?;
     }
 
     Ok(())
 }
 
 fn run_tests<S: BlackBoxFunctionSolver>(
+    file_manager: &FileManager,
     blackbox_solver: &S,
     package: &Package,
     fn_name: FunctionNameMatch,
     show_output: bool,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let (mut context, crate_id) = prepare_package(package);
+    let (mut context, crate_id) = prepare_package(file_manager, package);
     check_crate_and_report_errors(
         &mut context,
         crate_id,

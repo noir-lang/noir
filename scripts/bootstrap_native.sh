@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eu
 
 cd $(dirname "$0")/..
@@ -13,4 +13,8 @@ else
 fi
 
 # Build native.
-cargo build --release
+if [ -n "${DEBUG:-}" ]; then
+  cargo build
+else
+  cargo build --release
+fi
