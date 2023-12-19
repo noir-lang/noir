@@ -70,7 +70,7 @@ name = "acvm_js"
 version = "0.38.0"
 dependencies = [
  "acvm",
- "barretenberg_blackbox_solver",
+ "bn254_blackbox_solver",
  "build-data",
  "cfg-if",
  "console_error_panic_hook",
@@ -461,28 +461,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "barretenberg_blackbox_solver"
-version = "0.38.0"
-dependencies = [
- "acir",
- "acvm_blackbox_solver",
- "ark-ec",
- "ark-ff",
- "flate2",
- "getrandom",
- "grumpkin",
- "js-sys",
- "num-bigint",
- "pkg-config",
- "reqwest",
- "rust-embed",
- "tar",
- "thiserror",
- "wasm-bindgen-futures",
- "wasmer",
-]
-
-[[package]]
 name = "base16ct"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -582,6 +560,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "bn254_blackbox_solver"
+version = "0.38.0"
+dependencies = [
+ "acir",
+ "acvm_blackbox_solver",
+ "ark-ec",
+ "ark-ff",
+ "flate2",
+ "getrandom",
+ "grumpkin",
+ "js-sys",
+ "num-bigint",
+ "pkg-config",
+ "reqwest",
+ "rust-embed",
+ "tar",
+ "thiserror",
+ "wasm-bindgen-futures",
+ "wasmer",
 ]
 
 [[package]]
@@ -1130,9 +1130,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-channel"
-version = "0.5.8"
+version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a33c2bf77f2df06183c3aa30d1e96c0695a313d4f9c453cc3762a6db39f99200"
+checksum = "14c3242926edf34aec4ac3a77108ad4854bffaa2e4ddc1824124ce59231302d5"
 dependencies = [
  "cfg-if",
  "crossbeam-utils",
@@ -1174,9 +1174,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-utils"
-version = "0.8.16"
+version = "0.8.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a22b2d63d4d1dc0b7f1b6b2747dd0088008a9be28b6ddf0b1e7d335e3037294"
+checksum = "c06d96137f14f244c37f989d9fff8f95e6c18b918e71f36638f8c49112e4c78f"
 dependencies = [
  "cfg-if",
 ]
@@ -2459,8 +2459,8 @@ dependencies = [
  "assert_fs",
  "async-lsp",
  "backend-interface",
- "barretenberg_blackbox_solver",
  "bb_abstraction_leaks",
+ "bn254_blackbox_solver",
  "build-data",
  "clap",
  "color-eyre",
@@ -2596,6 +2596,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "thiserror",
  "tokio",
  "tower",
  "wasm-bindgen",
