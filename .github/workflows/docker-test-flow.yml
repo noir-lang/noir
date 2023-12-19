@@ -100,7 +100,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nargo
-          path: target/release/nargo
+          path: /usr/local/noir/target/release/nargo
+          if-no-files-found: error
         
   test-nargo:
     name: test nargo 
@@ -133,7 +134,7 @@ jobs:
   test-noir-wasm:
     name: test noir wasm
     runs-on: ubuntu-latest
-    needs: [build-base-js, test-source-resolver, build-base-nargo]
+    needs: [build-base-js, test-source-resolver, artifact-nargo]
     container:
       image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
       credentials:
