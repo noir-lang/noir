@@ -1,9 +1,9 @@
-import { ABIParameter, ABIType, DebugFileMap, DebugInfo, EventAbi } from '../types/abi';
+import { ABIParameter, ABIType, EventAbi } from './abi';
 
-/** The Aztec.nr function types. */
-type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
+/** The Noir function types. */
+export type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
 
-/** The ABI of an Aztec.nr function. */
+/** The ABI of an Noir function. */
 export interface NoirFunctionAbi {
   /** The parameters of the function. */
   parameters: ABIParameter[];
@@ -24,7 +24,7 @@ export interface NoirFunctionAbi {
 }
 
 /**
- * The compilation result of an Aztec.nr function.
+ * The compilation result of an Noir function.
  */
 export interface NoirFunctionEntry {
   /** The name of the function. */
@@ -44,7 +44,7 @@ export interface NoirFunctionEntry {
 }
 
 /**
- * The compilation result of an Aztec.nr contract.
+ * The compilation result of an Noir contract.
  */
 export interface NoirCompiledContract {
   /** The name of the contract. */
@@ -58,7 +58,7 @@ export interface NoirCompiledContract {
 }
 
 /**
- * The compilation result of an Aztec.nr contract.
+ * The compilation result of an Noir contract.
  */
 export interface NoirCompiledCircuit {
   /** The hash of the circuit. */
@@ -74,42 +74,68 @@ export interface NoirCompiledCircuit {
 }
 
 /**
- * Defines artifact of a contract.
+ * A file ID. It's assigned during compilation.
  */
-export interface ProgramArtifact {
-  /**
-   * version of noir used to compile
-   */
-  noir_version?: string;
-  /**
-   * the name of the project, read from Nargo.toml
-   */
-  name?: string;
-  /**
-   * The hash of the contract.
-   */
-  hash?: number;
+export type FileId = number;
 
+/**
+ * A pointer to a specific section of the source code.
+ */
+export interface SourceCodeLocation {
   /**
-   * The compilation backend of the artifact.
+   * The section of the source code.
    */
-  backend: string;
-
+  span: {
+    /**
+     * The byte where the section starts.
+     */
+    start: number;
+    /**
+     * The byte where the section ends.
+     */
+    end: number;
+  };
   /**
-   * The abi of the program.
+   * The source code file pointed to.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  abi: any; // TODO: type
-
-  /**
-   * The debug metadata of the contract.
-   * It's used to include the relevant source code section when a constraint is not met during simulation.
-   */
-  debug?: NoirDebugMetadata;
+  file: FileId;
 }
 
 /**
- * The debug metadata of an Aztec.nr contract.
+ * The location of an opcode in the bytecode.
+ * It's a string of the form `{acirIndex}` or `{acirIndex}:{brilligIndex}`.
+ */
+export type OpcodeLocation = string;
+
+/**
+ * The debug information for a given function.
+ */
+export interface DebugInfo {
+  /**
+   * A map of the opcode location to the source code location.
+   */
+  locations: Record<OpcodeLocation, SourceCodeLocation[]>;
+}
+
+/**
+ * Maps a file ID to its metadata for debugging purposes.
+ */
+export type DebugFileMap = Record<
+  FileId,
+  {
+    /**
+     * The source code of the file.
+     */
+    source: string;
+    /**
+     * The path of the file.
+     */
+    path: string;
+  }
+>;
+
+/**
+ * The debug metadata of an Noir contract.
  */
 export interface NoirDebugMetadata {
   /**

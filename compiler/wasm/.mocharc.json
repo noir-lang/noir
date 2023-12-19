@@ -1,0 +1,14 @@
+{
+    "require": "ts-node/register",
+    "extensions": [
+      "ts"
+    ],
+    "spec": [
+      "**/!(browser)/*.test.ts"
+    ],
+    "node-option": [
+      "experimental-specifier-resolution=node",
+      "loader=ts-node/esm"
+    ]
+  }
+  

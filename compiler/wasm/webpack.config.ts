@@ -49,6 +49,7 @@ const webConfig: webpack.Configuration = {
     new WasmPackPlugin({
       crateDirectory: path.resolve(__dirname),
       outDir: path.resolve(__dirname, './build/esm'),
+      forceMode: 'production',
     }),
     new CopyWebpackPlugin({
       patterns: [{ from: path.resolve(__dirname, 'public'), to: path.resolve(__dirname, 'dist/web/public') }],
@@ -106,6 +107,7 @@ const nodeConfig: webpack.Configuration = {
       crateDirectory: path.resolve(__dirname),
       outDir: path.resolve(__dirname, './build/cjs'),
       extraArgs: '--target nodejs',
+      forceMode: 'production',
     }),
   ],
   module: {
@@ -113,11 +115,7 @@ const nodeConfig: webpack.Configuration = {
       {
         test: /\.(shim\.)?[cmjt]t?s?$/,
         use: {
-          loader: 'babel-loader',
-          options: {
-            presets: ['@babel/preset-env', '@babel/preset-typescript'],
-            plugins: ['@babel/plugin-proposal-class-properties', '@babel/plugin-transform-private-methods'],
-          },
+          loader: 'ts-loader',
         },
       },
       {

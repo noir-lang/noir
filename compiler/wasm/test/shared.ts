@@ -1,13 +1,12 @@
-import { join, resolve } from 'path';
-import { fileURLToPath } from '../src/types/utils';
+const currentPath = __dirname.split('/');
 
-const fixtures = resolve(fileURLToPath(import.meta.url), '../../public/fixtures');
+const fixtures = `/${currentPath.slice(0, currentPath.length - 1).join('/')}/public/fixtures`;
 
-export const simpleScriptSourcePath = join(fixtures, 'simple/noir-script/src/main.nr');
-export const simpleScriptExpectedArtifact = join(fixtures, 'simple/noir-script/target/noir_wasm_testing.json');
+export const simpleScriptSourcePath = `${fixtures}/simple/src/main.nr`;
+export const simpleScriptExpectedArtifact = `${fixtures}/simple/target/noir_wasm_testing.json`;
 
-export const depsScriptSourcePath = join(fixtures, 'deps/noir-script/src/main.nr');
-export const depsScriptExpectedArtifact = join(fixtures, 'deps/noir-script/target/noir_wasm_testing.json');
+export const depsScriptSourcePath = `${fixtures}/with-deps/src/main.nr`;
+export const depsScriptExpectedArtifact = `${fixtures}/with-deps/target/noir_wasm_testing.json`;
 
-export const libASourcePath = join(fixtures, 'deps/lib-a/src/lib.nr');
-export const libBSourcePath = join(fixtures, 'deps/lib-b/src/lib.nr');
+export const libASourcePath = `${fixtures}/deps/lib-a/src/lib.nr`;
+export const libBSourcePath = `${fixtures}/deps/lib-b/src/lib.nr`;

@@ -5,7 +5,7 @@ import { FileManager } from '../file-manager/file-manager';
 import { NoirPackage } from '../package';
 import { NoirDependency, NoirDependencyResolver } from './dependency-resolver';
 import { NoirDependencyConfig, NoirGitDependencyConfig } from '../../types/noir_package_config';
-import { LogData } from '../../types/utils';
+import { LogData } from '../../utils';
 
 /**
  * Downloads dependencies from github

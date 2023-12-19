@@ -8,11 +8,13 @@ import {
 } from '../../shared';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { expect } from 'chai';
 
 import { compile, PathToFileSourceMap, compile_, CompilerContext } from '../../../build/cjs';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getPrecompiledSource(path: string): Promise<any> {
-  const compiledData = readFileSync(resolve(import.meta.url, path)).toString();
+  const compiledData = readFileSync(resolve(__dirname, path)).toString();
   return JSON.parse(compiledData);
 }
 
@@ -29,11 +31,11 @@ describe('noir wasm compilation', () => {
       }
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
-      expect(wasmCircuit.program.bytecode).toEqual(cliCircuit.bytecode);
-      expect(wasmCircuit.program.abi).toEqual(cliCircuit.abi);
-      expect(wasmCircuit.program.noir_version).toEqual(cliCircuit.noir_version);
+      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
+      expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
+      expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
     });
-  });
+  }).timeout(10e3);
 
   describe('can compile scripts with dependencies', () => {
     const sourceMap = new PathToFileSourceMap();
@@ -63,11 +65,11 @@ describe('noir wasm compilation', () => {
       }
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
-      expect(wasmCircuit.program.bytecode).toEqual(cliCircuit.bytecode);
-      expect(wasmCircuit.program.abi).toEqual(cliCircuit.abi);
-      expect(wasmCircuit.program.noir_version).toEqual(cliCircuit.noir_version);
+      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
+      expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
+      expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
     });
-  });
+  }).timeout(10e3);
 
   describe('can compile scripts with dependencies -- context-api', () => {
     let sourceMap: PathToFileSourceMap;
@@ -112,10 +114,10 @@ describe('noir wasm compilation', () => {
       }
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
-      expect(wasmCircuit.program.noir_version).toEqual(cliCircuit.noir_version);
-      expect(wasmCircuit.program.bytecode).toEqual(cliCircuit.bytecode);
-      expect(wasmCircuit.program.abi).toEqual(cliCircuit.abi);
-    });
+      expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
+      expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
+      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
+    }).timeout(10e3);
 
     it('matching nargos compilation - context-implementation-compile-api', async () => {
       const wasmCircuit = await compile_(
@@ -137,9 +139,9 @@ describe('noir wasm compilation', () => {
       }
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
-      expect(wasmCircuit.program.noir_version).toEqual(cliCircuit.noir_version);
-      expect(wasmCircuit.program.bytecode).toEqual(cliCircuit.bytecode);
-      expect(wasmCircuit.program.abi).toEqual(cliCircuit.abi);
-    });
+      expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
+      expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
+      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
+    }).timeout(10e3);
   });
 });

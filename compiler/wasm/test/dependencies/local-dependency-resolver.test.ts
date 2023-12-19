@@ -1,14 +1,15 @@
 import { createFsFromVolume } from 'memfs';
-import { Volume } from 'memfs/lib/volume.js';
+import { Volume } from 'memfs/lib/volume';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'path';
 
-import { FileManager } from '../../src/noir/file-manager/file-manager.js';
-import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager.js';
-import { NoirPackage } from '../../src/noir/package.js';
-import { NoirDependencyResolver } from '../../src/noir/dependencies/dependency-resolver.js';
-import { LocalDependencyResolver } from '../../src/noir/dependencies/local-dependency-resolver.js';
-import { fileURLToPath } from '../../src/types/utils.js';
+import { FileManager } from '../../src/noir/file-manager/file-manager';
+import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager';
+import { NoirPackage } from '../../src/noir/package';
+import { NoirDependencyResolver } from '../../src/noir/dependencies/dependency-resolver';
+import { LocalDependencyResolver } from '../../src/noir/dependencies/local-dependency-resolver';
+import { expect } from 'chai';
+import forEach from 'mocha-each';
 
 describe('DependencyResolver', () => {
   let resolver: NoirDependencyResolver;
@@ -16,18 +17,18 @@ describe('DependencyResolver', () => {
   let pkg: NoirPackage;
 
   beforeEach(async () => {
-    const fixtures = join(dirname(fileURLToPath(import.meta.url)), '../../public/fixtures');
+    const fixtures = join(__dirname, '../../public/fixtures');
     const memFS = createFsFromVolume(new Volume());
-    memFS.mkdirSync('/test_contract/src', { recursive: true });
-    memFS.mkdirSync('/test_lib/src', { recursive: true });
-    memFS.writeFileSync('/test_contract/Nargo.toml', await readFile(join(fixtures, 'test_contract/Nargo.toml')));
-    memFS.writeFileSync('/test_contract/src/main.nr', await readFile(join(fixtures, 'test_contract/src/main.nr')));
-    memFS.writeFileSync('/test_lib/Nargo.toml', await readFile(join(fixtures, 'test_lib/Nargo.toml')));
-    memFS.writeFileSync('/test_lib/src/lib.nr', await readFile(join(fixtures, 'test_lib/src/lib.nr')));
+    memFS.mkdirSync('/noir-contract/src', { recursive: true });
+    memFS.mkdirSync('/lib-c/src', { recursive: true });
+    memFS.writeFileSync('/noir-contract/Nargo.toml', await readFile(join(fixtures, 'noir-contract/Nargo.toml')));
+    memFS.writeFileSync('/noir-contract/src/main.nr', await readFile(join(fixtures, 'noir-contract/src/main.nr')));
+    memFS.writeFileSync('/lib-c/Nargo.toml', await readFile(join(fixtures, 'deps/lib-c/Nargo.toml')));
+    memFS.writeFileSync('/lib-c/src/lib.nr', await readFile(join(fixtures, 'deps/lib-c/src/lib.nr')));
 
     fm = createMemFSFileManager(memFS, '/');
 
-    pkg = await NoirPackage.open('/test_contract', fm);
+    pkg = await NoirPackage.open('/noir-contract', fm);
     resolver = new LocalDependencyResolver(fm);
   });
 
@@ -38,15 +39,15 @@ describe('DependencyResolver', () => {
       tag: 'v1.0.0',
     });
 
-    expect(dep).toBeNull();
+    expect(dep).to.be.null;
   });
 
-  it.each(['../test_contract', '/test_contract'])('resolves a known dependency', async (path) => {
+  forEach(['../noir-contract', '/noir-contract']).it('resolves a known dependency %s', async (path) => {
     const lib = await resolver.resolveDependency(pkg, {
       path,
     });
-    expect(lib).toBeDefined();
-    expect(lib!.version).toBeUndefined();
-    expect(fm.hasFileSync(lib!.package.getEntryPointPath())).toBe(true);
+    expect(lib).not.to.be.undefined;
+    expect(lib!.version).to.be.undefined;
+    expect(fm.hasFileSync(lib!.package.getEntryPointPath())).to.eq(true);
   });
 });

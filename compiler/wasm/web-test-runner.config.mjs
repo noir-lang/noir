@@ -17,7 +17,7 @@ export default {
       ts: true,
     }),
   ],
-  files: ['test/browser/**/*.test.mjs'],
+  files: ['**/browser/*.test.ts'],
   nodeResolve: true,
   testFramework: {
     config: {
@@ -25,6 +25,6 @@ export default {
       timeout: 40000,
     },
   },
-  rootDir: fileURLToPath(new URL('./../../', import.meta.url)),
+  rootDir: fileURLToPath(new URL('./../../../', import.meta.url)),
   reporters: [reporter],
 };

@@ -3,7 +3,7 @@ import { join } from 'path';
 import { NoirPackage } from '../package';
 import { NoirDependency, NoirDependencyResolver } from './dependency-resolver';
 import { NoirDependencyConfig } from '../../types/noir_package_config';
-import { LogData, LogFn } from '../../types/utils';
+import { LogData, LogFn } from '../../utils';
 
 /**
  * Noir Dependency Resolver

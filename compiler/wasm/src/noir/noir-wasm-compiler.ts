@@ -5,8 +5,8 @@ import { GithubDependencyResolver as GithubCodeArchiveDependencyResolver } from 
 import { LocalDependencyResolver } from './dependencies/local-dependency-resolver';
 import { FileManager } from './file-manager/file-manager';
 import { NoirPackage } from './package';
-import { LogData, LogFn } from '../types/utils';
-import { NoirCompilationResult, NoirProgramCompilationArtifacts } from './noir_artifact';
+import { LogData, LogFn } from '../utils';
+import { NoirCompilationResult } from '../types/noir_artifact';
 
 /** Compilation options */
 export type NoirWasmCompileOptions = {
@@ -92,86 +92,25 @@ export class NoirWasmContractCompiler {
   }
 
   /**
-   * Gets the version of Aztec.nr that was used compiling this contract.
-   */
-  public getResolvedAztecNrVersion() {
-    // TODO eliminate this hardcoded library name!
-    // see docs/docs/dev_docs/contracts/setup.md
-    return this.#dependencyManager.getVersionOf('aztec');
-  }
-
-  /**
    * Compile EntryPoint
    */
   /**
    * Compile EntryPoint
    */
-  public async compile(): Promise<NoirProgramCompilationArtifacts[]> {
-    console.log(`Compiling Program at ${this.#package.getEntryPointPath()}`);
-    return await this.compileProgram();
-  }
+  public async compile(): Promise<NoirCompilationResult[]> {
+    console.log(`Compiling at ${this.#package.getEntryPointPath()}`);
 
-  /**
-   * Compiles the Program.
-   */
-  public async compileProgram(): Promise<NoirProgramCompilationArtifacts[]> {
-    await this.#dependencyManager.resolveDependencies();
-    this.#debugLog(`Dependencies: ${this.#dependencyManager.getPackageNames().join(', ')}`);
-
-    try {
-      const isContract: boolean = false;
-
-      const entrypoint = this.#package.getEntryPointPath();
-      const deps = {
-        /* eslint-disable camelcase */
-        root_dependencies: this.#dependencyManager.getEntrypointDependencies(),
-        library_dependencies: this.#dependencyManager.getLibraryDependencies(),
-        /* eslint-enable camelcase */
-      };
-      const packageSources = await this.#package.getSources(this.#fm);
-      const librarySources = (
-        await Promise.all(
-          this.#dependencyManager
-            .getLibraries()
-            .map(async ([alias, library]) => await library.package.getSources(this.#fm, alias)),
-        )
-      ).flat();
-      this.#sourceMap.clean();
-      [...packageSources, ...librarySources].forEach((sourceFile) => {
-        this.#sourceMap.add_source_code(sourceFile.path, sourceFile.source);
-      });
-      const result = this.#wasmCompiler.compile(entrypoint, isContract, deps, this.#sourceMap);
-
-      if (!('program' in result)) {
-        throw new Error('No program found in compilation result');
-      }
-
-      return [{ name: this.#package.getNoirPackageConfig().package.name, ...result }];
-    } catch (err) {
-      if (err instanceof Error && err.name === 'CompileError') {
-        await this.#processCompileError(err);
-      }
-
-      throw err;
-    }
-  }
-
-  /**
-   * Compiles the Contract.
-   */
-  public async compileContract(): Promise<NoirCompilationResult[]> {
     if (!(this.#package.getType() === 'contract' || this.#package.getType() === 'bin')) {
       this.#log(
         `Compile skipped - only supports compiling "contract" and "bin" package types (${this.#package.getType()})`,
       );
       return [];
     }
-    this.#debugLog(`Compiling contract at ${this.#package.getEntryPointPath()}`);
     await this.#dependencyManager.resolveDependencies();
     this.#debugLog(`Dependencies: ${this.#dependencyManager.getPackageNames().join(', ')}`);
 
     try {
-      const isContract: boolean = true;
+      const isContract: boolean = this.#package.getType() === 'contract';
 
       const entrypoint = this.#package.getEntryPointPath();
       const deps = {
@@ -194,8 +133,8 @@ export class NoirWasmContractCompiler {
       });
       const result = this.#wasmCompiler.compile(entrypoint, isContract, deps, this.#sourceMap);
 
-      if (!('contract' in result)) {
-        throw new Error('No contract found in compilation result');
+      if ((isContract && !('contract' in result)) || (!isContract && !('program' in result))) {
+        throw new Error('Invalid compilation result');
       }
 
       return [result];

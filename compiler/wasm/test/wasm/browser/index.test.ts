@@ -6,9 +6,13 @@ import {
   simpleScriptExpectedArtifact,
   simpleScriptSourcePath,
 } from '../../shared';
-import { PathToFileSourceMap, compile } from '../../../build/esm';
+import esmBuild from '../../../build/esm';
+import { expect } from 'chai';
+
+const { PathToFileSourceMap, compile } = esmBuild;
 
 async function getFileContent(path: string): Promise<string> {
+  // @ts-expect-error import.meta.url is only defined in the context of ESM, in which this test runs
   const url = new URL(path, import.meta.url);
   const response = await fetch(url);
   return await response.text();
@@ -26,7 +30,7 @@ describe('noir wasm', () => {
       const sourceMap = new PathToFileSourceMap();
       sourceMap.add_source_code('main.nr', await getFileContent(simpleScriptSourcePath));
 
-      const wasmCircuit = await compile('main.nr', undefined, undefined, sourceMap);
+      const wasmCircuit = compile('main.nr', undefined, undefined, sourceMap);
       const cliCircuit = await getPrecompiledSource(simpleScriptExpectedArtifact);
 
       if (!('program' in wasmCircuit)) {
@@ -34,9 +38,9 @@ describe('noir wasm', () => {
       }
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
-      expect(wasmCircuit.program.noir_version).toEqual(cliCircuit.noir_version);
-      expect(wasmCircuit.program.bytecode).toEqual(cliCircuit.bytecode);
-      expect(wasmCircuit.program.abi).toEqual(cliCircuit.abi);
+      expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
+      expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
+      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
     });
   });
 
@@ -73,9 +77,9 @@ describe('noir wasm', () => {
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
 
-      expect(wasmCircuit.program.noir_version).toEqual(cliCircuit.noir_version);
-      expect(wasmCircuit.program.bytecode).toEqual(cliCircuit.bytecode);
-      expect(wasmCircuit.program.abi).toEqual(cliCircuit.abi);
+      expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
+      expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
+      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
     });
   });
 });

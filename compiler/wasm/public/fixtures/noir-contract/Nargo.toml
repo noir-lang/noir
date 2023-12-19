@@ -5,4 +5,4 @@ compiler_version = ">=0.18.0"
 type = "contract"
 
 [dependencies]
-test = { path = "../test_lib" }
+test = { path = "../deps/lib-c" }

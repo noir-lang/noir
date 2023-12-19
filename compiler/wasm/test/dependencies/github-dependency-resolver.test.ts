@@ -1,30 +1,37 @@
-import { jest } from '@jest/globals';
 import { Volume, createFsFromVolume } from 'memfs';
-import { readFile } from 'node:fs/promises';
+import { readFile } from 'fs/promises';
 import { dirname, join } from 'path';
 
-import { FileManager } from '../../src/noir/file-manager/file-manager.js';
-import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager.js';
-import { NoirPackage } from '../../src/noir/package.js';
-import { NoirDependencyResolver } from '../../src/noir/dependencies/dependency-resolver.js';
+import { FileManager } from '../../src/noir/file-manager/file-manager';
+import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager';
+import { NoirPackage } from '../../src/noir/package';
+import { NoirDependencyResolver } from '../../src/noir/dependencies/dependency-resolver';
 import {
   GithubDependencyResolver,
   resolveGithubCodeArchive,
   safeFilename,
-} from '../../src/noir/dependencies/github-dependency-resolver.js';
-import { NoirGitDependencyConfig } from '../../src/types/noir_package_config.js';
-import { fileURLToPath } from '../../src/types/utils.js';
+} from '../../src/noir/dependencies/github-dependency-resolver';
+import { NoirGitDependencyConfig } from '../../src/types/noir_package_config';
+import { fileURLToPath } from '../../src/utils';
+import Sinon, { SinonStub } from 'sinon';
+import { expect } from 'chai';
+import forEach from 'mocha-each';
+import chai from 'chai';
+import chaiAsPromised from 'chai-as-promised';
 
-const fixtures = join(dirname(fileURLToPath(import.meta.url)), '../../public/fixtures');
+chai.use(chaiAsPromised);
+
+const fixtures = join(__dirname, '../../public/fixtures');
 
 describe('GithubDependencyResolver', () => {
   let resolver: NoirDependencyResolver;
   let fm: FileManager;
   let pkg: NoirPackage;
   let libDependency: NoirGitDependencyConfig;
-  let fetchMock: jest.SpiedFunction<typeof fetch>;
+  let fetchStub: SinonStub | undefined;
 
   beforeEach(() => {
+    fetchStub = Sinon.stub(globalThis, 'fetch');
     fm = createMemFSFileManager(createFsFromVolume(new Volume()), '/');
 
     libDependency = {
@@ -46,13 +53,11 @@ describe('GithubDependencyResolver', () => {
     resolver = new GithubDependencyResolver(fm);
 
     // cut off outside access
-    fetchMock = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
-      throw new Error();
-    });
+    fetchStub.onCall(0).throws(new Error());
   });
 
   afterEach(() => {
-    fetchMock.mockRestore();
+    fetchStub?.restore();
   });
 
   it("returns null if it can't resolve a dependency", async () => {
@@ -60,77 +65,78 @@ describe('GithubDependencyResolver', () => {
       path: '/test_lib',
     });
 
-    expect(dep).toBeNull();
+    expect(dep).to.be.null;
   });
 
   it('resolves Github dependency', async () => {
-    fetchMock.mockResolvedValueOnce(
-      new Response(await readFile(join(fixtures, 'deps', 'test_lib.zip')), { status: 200 }),
-    );
+    fetchStub?.onCall(0).returns(new Response(await readFile(join(fixtures, 'deps', 'test_lib.zip')), { status: 200 }));
     const lib = await resolver.resolveDependency(pkg, libDependency);
-    expect(lib).toBeDefined();
-    expect(lib!.version).toEqual(libDependency.tag);
-    expect(fm.hasFileSync(lib!.package.getEntryPointPath())).toBe(true);
+    expect(lib).not.to.be.undefined;
+    expect(lib!.version).to.eq(libDependency.tag);
+    expect(fm.hasFileSync(lib!.package.getEntryPointPath())).to.eq(true);
   });
 
-  it.each<[NoirGitDependencyConfig, 'zip' | 'tar', string]>([
+  forEach([
     [
-      {
-        git: 'https://github.com/example/lib.nr',
-        tag: 'v1.0.0',
-      },
-      'zip',
       'https://github.com/example/lib.nr/archive/v1.0.0.zip',
-    ],
-    [
+      'zip',
       {
         git: 'https://github.com/example/lib.nr',
         tag: 'v1.0.0',
       },
-      'tar',
+    ],
+    [
       'https://github.com/example/lib.nr/archive/v1.0.0.tar.gz',
-    ],
-    [
-      {
-        git: 'https://github.com/example/lib.nr',
-        tag: 'HEAD',
-      },
-      'zip',
-      'https://github.com/example/lib.nr/archive/HEAD.zip',
-    ],
-    [
-      {
-        git: 'https://github.com/example/lib.nr',
-        tag: 'HEAD',
-      },
       'tar',
-      'https://github.com/example/lib.nr/archive/HEAD.tar.gz',
+      {
+        git: 'https://github.com/example/lib.nr',
+        tag: 'v1.0.0',
+      },
     ],
-  ])('resolves to the correct code archive URL', (dep, format, href) => {
-    const archiveUrl = resolveGithubCodeArchive(dep, format);
-    expect(archiveUrl.href).toEqual(href);
-  });
+    [
+      'https://github.com/example/lib.nr/archive/HEAD.zip',
+      'zip',
+      {
+        git: 'https://github.com/example/lib.nr',
+        tag: 'HEAD',
+      },
+    ],
+    [
+      'https://github.com/example/lib.nr/archive/HEAD.tar.gz',
+      'tar',
+      {
+        git: 'https://github.com/example/lib.nr',
+        tag: 'HEAD',
+      },
+    ],
+  ]).it(
+    'resolves to the correct code archive URL %s',
+    async (href: string, format: 'zip' | 'tar', dep: NoirGitDependencyConfig) => {
+      const archiveUrl = resolveGithubCodeArchive(dep, format);
+      expect(archiveUrl.href).to.eq(href);
+    },
+  );
 
-  it.each([
+  forEach([
     { git: 'https://github.com/', tag: 'v1' },
     { git: 'https://github.com/foo', tag: 'v1' },
     { git: 'https://example.com', tag: 'v1' },
-  ])('throws if the Github URL is invalid', (dep) => {
-    expect(() => resolveGithubCodeArchive(dep, 'zip')).toThrow();
+  ]).it('throws if the Github URL is invalid %j', (dep) => {
+    expect(() => resolveGithubCodeArchive(dep, 'zip')).to.throw();
   });
 
-  it.each([
+  forEach([
     ['main', 'main'],
     ['v1.0.0', 'v1.0.0'],
     ['../../../etc/passwd', '.._.._.._etc_passwd'],
     ['/etc/passwd', 'etc_passwd'],
     ['/SomeOrg/some-repo@v1.0.0', 'SomeOrg_some-repo@v1.0.0'],
     ['SomeOrg/some-repo@v1.0.0', 'SomeOrg_some-repo@v1.0.0'],
-  ])('generates safe file names', (value, expected) => {
-    expect(safeFilename(value)).toEqual(expected);
+  ]).it('generates safe file names from %s', (value, expected) => {
+    expect(safeFilename(value)).to.eq(expected);
   });
 
-  it.each([''])('rejects invalid values', (value) => {
-    expect(() => safeFilename(value)).toThrow();
+  forEach(['']).it('rejects invalid values', (value) => {
+    expect(() => safeFilename(value)).to.throw();
   });
 });

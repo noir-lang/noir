@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "outDir": "../dist/types",
+    "declaration": true,
+    "declarationDir": "dist/types",
     "strict": true,
     "baseUrl": ".",
     "experimentalDecorators": true,
@@ -12,7 +13,9 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "target": "ESNext",
-    "moduleResolution": "NodeNext"
+    "module": "CommonJS",
+    "moduleResolution": "node",
   },
-  "include": ["src/**/*.*ts", "test/dependencies/dependency-manager.test.ts", "test/dependencies/github-dependency-resolver.test.ts", "test/dependencies/local-dependency-resolver.test.ts", "test/file-manager/file-manager.test.ts"]
+  "include": ["src"],
+  "exclude": ["node_modules", "build", "dist"]
 }

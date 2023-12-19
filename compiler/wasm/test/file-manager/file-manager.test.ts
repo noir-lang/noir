@@ -4,8 +4,11 @@ import * as fs from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-import { FileManager, FileSystem } from '../../src/noir/file-manager/file-manager.js';
-import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager.js';
+import { FileManager, FileSystem } from '../../src/noir/file-manager/file-manager';
+import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager';
+
+import { expect } from 'chai';
+import forEach from 'mocha-each';
 
 const memFS = (): { fm: FileManager; teardown: () => void } => {
   const fm = createMemFSFileManager(createFsFromVolume(new Volume()), '/');
@@ -16,7 +19,7 @@ const memFS = (): { fm: FileManager; teardown: () => void } => {
   };
 };
 
-const nodeFM = (): { fm: FileManager; teardown: () => void } => {
+const nodeFS = (): { fm: FileManager; teardown: () => void } => {
   const fileSystem: FileSystem = {
     existsSync: existsSync,
     mkdir: async (dir: string, opts?: { recursive: boolean }) => {
@@ -46,14 +49,17 @@ const nodeFM = (): { fm: FileManager; teardown: () => void } => {
  * @param setup - Function to setup a file manager
  * @param teardown - Optional function to call at the end of the test
  */
-describe.each([memFS, nodeFM])('FileManager', (setup) => {
+forEach([
+  ['memFs', memFS],
+  ['nodeFS', nodeFS],
+]).describe('FileManager: %s', (name, fs) => {
   let fm: FileManager;
   let testFileContent: string;
   let testFileBytes: Uint8Array;
   let teardown: () => void;
 
   beforeEach(() => {
-    ({ fm, teardown } = setup());
+    ({ fm, teardown } = fs());
     testFileContent = 'foo';
     testFileBytes = new TextEncoder().encode(testFileContent);
   });
@@ -62,29 +68,29 @@ describe.each([memFS, nodeFM])('FileManager', (setup) => {
     return teardown?.();
   });
 
-  it('saves files and correctly reads bytes back', async () => {
+  it(`saves files and correctly reads bytes back using ${name}`, async () => {
     await fm.writeFile('test.txt', new Blob([testFileBytes]).stream());
-    await expect(fm.readFile('test.txt')).resolves.toEqual(testFileBytes);
+    expect(fm.readFile('test.txt')).to.eventually.eq(testFileBytes);
   });
 
-  it('saves files and correctly reads UTF-8 string back', async () => {
+  it(`saves files and correctly reads UTF-8 string back using ${name}`, async () => {
     await fm.writeFile('test.txt', new Blob([testFileBytes]).stream());
-    await expect(fm.readFile('test.txt', 'utf-8')).resolves.toEqual(testFileContent);
+    expect(fm.readFile('test.txt', 'utf-8')).to.eventually.eq(testFileContent);
   });
 
-  it('correctly checks if file exists or not', async () => {
-    expect(fm.hasFileSync('test.txt')).toBe(false);
+  it(`correctly checks if file exists or not using ${name}`, async () => {
+    expect(fm.hasFileSync('test.txt')).to.eq(false);
     await fm.writeFile('test.txt', new Blob([testFileBytes]).stream());
-    expect(fm.hasFileSync('test.txt')).toBe(true);
+    expect(fm.hasFileSync('test.txt')).to.eq(true);
   });
 
-  it('moves files', async () => {
+  it(`moves files using ${name}`, async () => {
     await fm.writeFile('test.txt.tmp', new Blob([testFileBytes]).stream());
-    expect(fm.hasFileSync('test.txt.tmp')).toBe(true);
+    expect(fm.hasFileSync('test.txt.tmp')).to.eq(true);
 
     await fm.moveFile('test.txt.tmp', 'test.txt');
 
-    expect(fm.hasFileSync('test.txt.tmp')).toBe(false);
-    expect(fm.hasFileSync('test.txt')).toBe(true);
+    expect(fm.hasFileSync('test.txt.tmp')).to.eq(false);
+    expect(fm.hasFileSync('test.txt')).to.eq(true);
   });
 });

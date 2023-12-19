@@ -4,4 +4,4 @@ type="bin"
 authors = [""]
 
 [dependencies]
-lib_a = { path="../lib-a" }
+lib_a = { path="../deps/lib-a" }

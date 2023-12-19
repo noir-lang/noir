@@ -1,9 +1,0 @@
-{
-    "extends": "./tsconfig.json",
-    "ts-node": {
-      "esm": true
-    },
-    "compilerOptions": {
-      "module": "NodeNext",
-    },
-  }
