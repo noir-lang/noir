@@ -14,7 +14,7 @@ pub mod ops;
 pub mod package;
 pub mod workspace;
 
-use std::{collections::BTreeMap, path::Path};
+use std::collections::BTreeMap;
 
 use fm::FileManager;
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
@@ -98,27 +98,6 @@ pub fn prepare_package(package: &Package) -> (Context, CrateId) {
     prepare_dependencies(&mut context, crate_id, &package.dependencies);
 
     (context, crate_id)
-}
-
-/// Prepares a package from a source string
-/// This is useful for situations when we don't need dependencies
-/// and just need to operate on single file.
-///
-/// Use case for this is the LSP server and code lenses
-/// which operate on single file and need to understand this file
-/// in order to offer code lenses to the user
-pub fn prepare_source(source: String) -> (Context, CrateId) {
-    let root = Path::new("");
-    let mut file_manager = FileManager::new(root);
-    let root_file_id = file_manager.add_file_with_source(Path::new("main.nr"), source).expect(
-        "Adding source buffer to file manager should never fail when file manager is empty",
-    );
-
-    let mut context = Context::new(file_manager);
-
-    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
-
-    (context, root_crate_id)
 }
 
 // Get all paths in the directory and subdirectories.

@@ -26,6 +26,9 @@ use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::{Context, FunctionNameMatch},
 };
+
+use fm::FileManager;
+
 use notifications::{
     on_did_change_configuration, on_did_change_text_document, on_did_close_text_document,
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
@@ -209,4 +212,25 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
     .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()))?;
 
     Ok(workspace)
+}
+
+/// Prepares a package from a source string
+/// This is useful for situations when we don't need dependencies
+/// and just need to operate on single file.
+///
+/// Use case for this is the LSP server and code lenses
+/// which operate on single file and need to understand this file
+/// in order to offer code lenses to the user
+fn prepare_source(source: String) -> (Context, CrateId) {
+    let root = Path::new("");
+    let mut file_manager = FileManager::new(root);
+    let root_file_id = file_manager.add_file_with_source(Path::new("main.nr"), source).expect(
+        "Adding source buffer to file manager should never fail when file manager is empty",
+    );
+
+    let mut context = Context::new(file_manager);
+
+    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+
+    (context, root_crate_id)
 }

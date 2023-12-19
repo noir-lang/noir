@@ -13,7 +13,8 @@ use crate::types::{
 };
 
 use crate::{
-    byte_span_to_range, get_package_tests_in_crate, resolve_workspace_for_source_path, LspState,
+    byte_span_to_range, get_package_tests_in_crate, prepare_source,
+    resolve_workspace_for_source_path, LspState,
 };
 
 pub(super) fn on_initialized(
@@ -45,7 +46,7 @@ pub(super) fn on_did_change_text_document(
     let text = params.content_changes.into_iter().next().unwrap().text;
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
 
-    let (mut context, crate_id) = nargo::prepare_source(text);
+    let (mut context, crate_id) = prepare_source(text);
     let _ = check_crate(&mut context, crate_id, false, false);
 
     let workspace = match resolve_workspace_for_source_path(

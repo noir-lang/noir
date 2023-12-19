@@ -7,7 +7,7 @@ use noirc_driver::check_crate;
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
-    byte_span_to_range, resolve_workspace_for_source_path,
+    byte_span_to_range, prepare_source, resolve_workspace_for_source_path,
     types::{CodeLens, CodeLensParams, CodeLensResult, Command},
     LspState,
 };
@@ -64,7 +64,7 @@ fn on_code_lens_request_inner(
     let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
     let package = workspace.members.first().unwrap();
 
-    let (mut context, crate_id) = nargo::prepare_source(source_string);
+    let (mut context, crate_id) = prepare_source(source_string);
     // We ignore the warnings and errors produced by compilation for producing code lenses
     // because we can still get the test functions even if compilation fails
     let _ = check_crate(&mut context, crate_id, false, false);
