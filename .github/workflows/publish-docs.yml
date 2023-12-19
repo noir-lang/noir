@@ -1,12 +1,9 @@
 name: Publish documentation
 
 on:
-  workflow_dispatch:
-    inputs:
-      noir-ref:
-        description: The noir reference to checkout
-        required: false
-        default: 'master'
+  push:
+    branches:
+      - master
 
 jobs:
   publish-docs:
@@ -16,9 +13,6 @@ jobs:
     steps:
       - name: Checkout release branch
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.noir-ref }}
-          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v2
