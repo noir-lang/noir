@@ -2,7 +2,7 @@ use acvm::{
     acir::circuit::Circuit,
     pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM},
 };
-use barretenberg_blackbox_solver::Bn254BlackBoxSolver;
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 
 use js_sys::Error;
 use wasm_bindgen::prelude::wasm_bindgen;
