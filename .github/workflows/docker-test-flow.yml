@@ -103,7 +103,8 @@ jobs:
           path: /usr/src/noir/target/release/nargo
           if-no-files-found: error
           compression-level: 0
-        
+  
+  #done
   test-nargo:
     name: test nargo 
     runs-on: ubuntu-latest
@@ -118,6 +119,7 @@ jobs:
         run: |
           /usr/src/noir/.github/scripts/test-nargo.sh
 
+  #done
   test-source-resolver:
     name: test source resolver
     runs-on: ubuntu-latest
@@ -141,6 +143,7 @@ jobs:
             /usr/src/noir/compiler/source-resolver/types
           if-no-files-found: error
 
+  #done
   build-noir-js-types:
     name: build noir types
     runs-on: ubuntu-latest
@@ -198,6 +201,7 @@ jobs:
         run: |
           /usr/src/noir/.github/scripts/test-noir-wasm.sh
 
+  #DONE
   test-acvm-js:
     name: test acvm js
     runs-on: ubuntu-latest
@@ -212,6 +216,7 @@ jobs:
         run: |
           /usr/src/noir/.github/scripts/test-acvm-js.sh
 
+  #DONE
   test-noirc-abi:
     name: test noirc abi
     runs-on: ubuntu-latest
@@ -267,13 +272,27 @@ jobs:
   test-noir_js:
     name: test noirjs
     runs-on: ubuntu-latest
-    needs: [build-base-js, test-noirc-abi]
+    needs: [build-base-js, test-noirc-abi, artifact-nargo]
     container:
       image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
     steps:
+      - name: download nargo
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: /usr/src/noir/target/release
+      - name: prep downloaded artifact
+        run: |
+          chmod +x /usr/src/noir/target/release/nargo
+      - name: download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: noirc-abi-wasm
+          path: |
+            /usr/src/noir/tooling/noirc_abi_wasm
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-noir-js.sh
