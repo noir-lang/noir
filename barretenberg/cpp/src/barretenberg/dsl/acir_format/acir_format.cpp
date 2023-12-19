@@ -1,6 +1,7 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/log.hpp"
 #include "barretenberg/dsl/acir_format/pedersen.hpp"
+#include "barretenberg/dsl/acir_format/recursion_constraint.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 
 namespace acir_format {
@@ -149,23 +150,52 @@ void build_constraints(Builder& builder, acir_format const& constraint_system, b
         create_block_constraints(builder, constraint, has_valid_witness_assignments);
     }
 
-    // Add recursion constraints
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/817): disable these for UGH for now since we're not yet
     // dealing with proper recursion
     if constexpr (IsGoblinBuilder<Builder>) {
         info("WARNING: this circuit contains recursion_constraints!");
     } else {
+        // These are set and modified whenever we encounter a recursion opcode
+        //
+        // These should not be set by the caller
+        // TODO: Check if this is always the case. ie I won't receive a proof that will set the first
+        // TODO input_aggregation_object to be non-zero.
+        // TODO: if not, we can add input_aggregation_object to the proof too for all recursive proofs
+        // TODO: This might be the case for proof trees where the proofs are created on different machines
+        std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> current_input_aggregation_object = {
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        };
+        std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> current_output_aggregation_object = {
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        };
+
+        // Add recursion constraints
         for (size_t i = 0; i < constraint_system.recursion_constraints.size(); ++i) {
             auto& constraint = constraint_system.recursion_constraints[i];
-            create_recursion_constraints(builder, constraint, has_valid_witness_assignments);
+            current_output_aggregation_object = create_recursion_constraints(builder,
+                                                                             constraint,
+                                                                             current_input_aggregation_object,
+                                                                             constraint.nested_aggregation_object,
+                                                                             has_valid_witness_assignments);
+            current_input_aggregation_object = current_output_aggregation_object;
+        }
 
-            // make sure the verification key records the public input indices of the final recursion output (N.B. up to
-            // the ACIR description to make sure that the final output aggregation object wires are public inputs!)
-            if (i == constraint_system.recursion_constraints.size() - 1) {
-                std::vector<uint32_t> proof_output_witness_indices(constraint.output_aggregation_object.begin(),
-                                                                   constraint.output_aggregation_object.end());
-                builder.set_recursive_proof(proof_output_witness_indices);
+        // Now that the circuit has been completely built, we add the output aggregation as public
+        // inputs.
+        if (!constraint_system.recursion_constraints.empty()) {
+
+            // First add the output aggregation object as public inputs
+            // Set the indices as public inputs because they are no longer being
+            // created in ACIR
+            for (const auto& idx : current_output_aggregation_object) {
+                builder.set_public_input(idx);
             }
+
+            // Make sure the verification key records the public input indices of the
+            // final recursion output.
+            std::vector<uint32_t> proof_output_witness_indices(current_output_aggregation_object.begin(),
+                                                               current_output_aggregation_object.end());
+            builder.set_recursive_proof(proof_output_witness_indices);
         }
     }
 }

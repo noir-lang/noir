@@ -130,6 +130,16 @@ bool AcirComposer::verify_proof(std::vector<uint8_t> const& proof, bool is_recur
     // Hack. Shouldn't need to do this. 2144 is size with no public inputs.
     builder_.public_inputs.resize((proof.size() - 2144) / 32);
 
+    // TODO: We could get rid of this, if we made the Noir program specify whether something should be
+    // TODO: created with the recursive setting or not. ie:
+    //
+    // #[recursive_friendly]
+    // fn main() {}
+    // would put in the ACIR that we want this to be recursion friendly with a flag maybe and the backend
+    // would set the is_recursive flag to be true.
+    // This would eliminate the need for nargo to have a --recursive flag
+    //
+    // End result is that we may just be able to get it off of builder_, like builder_.is_recursive_friendly
     if (is_recursive) {
         auto verifier = composer.create_verifier(builder_);
         return verifier.verify_proof({ proof });
@@ -152,6 +162,8 @@ std::string AcirComposer::get_solidity_verifier()
 }
 
 /**
+ * TODO: We should change this to return a proof without public inputs, since that is what std::verify_proof
+ * TODO: takes.
  * @brief Takes in a proof buffer and converts into a vector of field elements.
  *        The Recursion opcode requires the proof serialized as a vector of witnesses.
  *        Use this method to get the witness values!

@@ -146,7 +146,15 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
                                                   transcript::HashType::PedersenBlake3s,
                                                   16);
 
-        const std::vector<barretenberg::fr> proof_witnesses = export_transcript_in_recursion_format(transcript);
+        std::vector<barretenberg::fr> proof_witnesses = export_transcript_in_recursion_format(transcript);
+        // - Save the public inputs so that we can set their values.
+        // - Then truncate them from the proof because the ACIR API expects proofs without public inputs
+
+        std::vector<barretenberg::fr> inner_public_input_values(
+            proof_witnesses.begin(), proof_witnesses.begin() + static_cast<std::ptrdiff_t>(num_inner_public_inputs));
+        proof_witnesses.erase(proof_witnesses.begin(),
+                              proof_witnesses.begin() + static_cast<std::ptrdiff_t>(num_inner_public_inputs));
+
         const std::vector<barretenberg::fr> key_witnesses = export_key_in_recursion_format(inner_verifier.key);
 
         const uint32_t key_hash_start_idx = static_cast<uint32_t>(witness_offset);
@@ -202,14 +210,18 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
         for (const auto& wit : key_witnesses) {
             witness.emplace_back(wit);
         }
+        // Set the values for the inner public inputs
+        // Note: this is confusing, but we minus one here due to the fact that the
+        // witness values have not taken into account that zero is taken up by the zero_idx
+        for (size_t i = 0; i < num_inner_public_inputs; ++i) {
+            witness[inner_public_inputs[i] - 1] = inner_public_input_values[i];
+        }
         witness_offset = key_indices_start_idx + key_witnesses.size();
         circuit_idx++;
     }
 
-    std::vector<uint32_t> public_inputs(output_aggregation_object.begin(), output_aggregation_object.end());
-
     acir_format constraint_system{ .varnum = static_cast<uint32_t>(witness.size() + 1),
-                                   .public_inputs = public_inputs,
+                                   .public_inputs = {},
                                    .logic_constraints = {},
                                    .range_constraints = {},
                                    .sha256_constraints = {},

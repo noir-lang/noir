@@ -53,17 +53,24 @@ struct RecursionConstraint {
     std::vector<uint32_t> proof;
     std::vector<uint32_t> public_inputs;
     uint32_t key_hash;
+    // TODO:This is now unused, but we keep it here for backwards compatibility
     std::array<uint32_t, AGGREGATION_OBJECT_SIZE> input_aggregation_object;
+    // TODO: This is now unused, but we keep it here for backwards compatibility
     std::array<uint32_t, AGGREGATION_OBJECT_SIZE> output_aggregation_object;
+    // TODO: This is currently not being used on the Noir level at all
+    // TODO: we don't have a way to specify that the proof we are creating contains a
+    // TODO: aggregation object (ie it is also verifying a proof)
     std::array<uint32_t, AGGREGATION_OBJECT_SIZE> nested_aggregation_object;
 
     friend bool operator==(RecursionConstraint const& lhs, RecursionConstraint const& rhs) = default;
 };
 
-template <typename Builder>
-void create_recursion_constraints(Builder& builder,
-                                  const RecursionConstraint& input,
-                                  bool has_valid_witness_assignments = false);
+std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> create_recursion_constraints(
+    Builder& builder,
+    const RecursionConstraint& input,
+    std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> input_aggregation_object,
+    std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> nested_aggregation_object,
+    bool has_valid_witness_assignments = false);
 
 std::vector<barretenberg::fr> export_key_in_recursion_format(std::shared_ptr<verification_key> const& vkey);
 std::vector<barretenberg::fr> export_dummy_key_in_recursion_format(const PolynomialManifest& polynomial_manifest,
