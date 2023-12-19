@@ -96,12 +96,14 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
     steps:
+      - run: echo ${{ github.workspace }}
       - name: artifact
         uses: actions/upload-artifact@v4
         with:
           name: nargo
           path: ./target/release/nargo
           if-no-files-found: error
+          compression-level: 0
         
   test-nargo:
     name: test nargo 
