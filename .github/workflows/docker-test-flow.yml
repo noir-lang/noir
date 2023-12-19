@@ -131,6 +131,15 @@ jobs:
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-source-resolver.sh
+      - name: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-resolver
+          path: |
+            /usr/src/noir/compiler/source-resolver/lib
+            /usr/src/noir/compiler/source-resolver/lib-node
+            /usr/src/noir/compiler/source-resolver/types
+          if-no-files-found: error
 
   test-noir-wasm:
     name: test noir wasm
@@ -150,6 +159,11 @@ jobs:
       - name: prep downloaded artifact
         run: |
           chmod +x /usr/src/noir/target/release/nargo
+      - name: download source-resolver
+        uses: actions/download-artifact@v4
+        with:
+          name: source-resolver
+          path: /usr/src/noir/compiler/source-resolver
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-noir-wasm.sh
