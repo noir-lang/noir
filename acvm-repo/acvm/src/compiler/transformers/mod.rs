@@ -4,6 +4,7 @@ use acir::{
     FieldElement,
 };
 use indexmap::IndexMap;
+use tracing::trace;
 
 use crate::ExpressionWidth;
 
@@ -42,7 +43,7 @@ pub(super) fn transform_internal(
     expression_width: ExpressionWidth,
     acir_opcode_positions: Vec<usize>,
 ) -> (Circuit, Vec<usize>) {
-    log::trace!("Start circuit transformation");
+    trace!("Start circuit transformation");
 
     let mut transformer = match &expression_width {
         crate::ExpressionWidth::Unbounded => {
@@ -209,7 +210,7 @@ pub(super) fn transform_internal(
         ..acir
     };
 
-    log::trace!("Finish circuit transformation");
+    trace!("Finish circuit transformation");
 
     (acir, new_acir_opcode_positions)
 }

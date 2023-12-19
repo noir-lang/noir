@@ -6,6 +6,7 @@ use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::ExpressionWidth;
 use acvm::FieldElement;
 use tempfile::tempdir;
+use tracing::warn;
 
 use crate::cli::{
     GatesCommand, InfoCommand, ProofAsFieldsCommand, ProveCommand, VerifyCommand,
@@ -42,7 +43,7 @@ impl Backend {
         if let Ok(expression_width) = self.get_backend_info() {
             expression_width
         } else {
-            log::warn!(
+            warn!(
                 "No valid backend found, ExpressionWidth defaulting to Bounded with a width of 3"
             );
             ExpressionWidth::Bounded { width: 3 }

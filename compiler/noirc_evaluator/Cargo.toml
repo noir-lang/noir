@@ -17,4 +17,5 @@ thiserror.workspace = true
 num-bigint = "0.4"
 im = { version = "15.1", features = ["serde"] }
 serde.workspace = true
-log.workspace = true
+# log.workspace = true
+tracing.workspace = true

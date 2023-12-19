@@ -12,6 +12,7 @@ use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
+use tracing::trace;
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
     unreachable,
@@ -92,7 +93,7 @@ type HirType = crate::Type;
 /// this function. Typically, this is the function named "main" in the source project,
 /// but it can also be, for example, an arbitrary test function for running `nargo test`.
 pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Program {
-    log::trace!("Start monomorphization");
+    trace!("Start monomorphization");
     let mut monomorphizer = Monomorphizer::new(interner);
     let function_sig = monomorphizer.compile_main(main);
 
@@ -108,7 +109,7 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
     let FuncMeta { return_distinctness, return_visibility, .. } = interner.function_meta(&main);
 
-    log::trace!("Finish monomorphization");
+    trace!("Finish monomorphization");
     Program::new(
         functions,
         function_sig,
