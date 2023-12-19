@@ -1,7 +1,7 @@
-use wasm_bindgen::prelude::*;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 use tracing_web::MakeWebConsoleWriter;
+use wasm_bindgen::prelude::*;
 
 /// Sets the package's logging level.
 ///
@@ -17,7 +17,7 @@ pub fn init_log_level(filter: String) {
     static SET_HOOK: Once = Once::new();
     SET_HOOK.call_once(|| {
         let fmt_layer = tracing_subscriber::fmt::layer()
-            .with_ansi(false) 
+            .with_ansi(false)
             .without_time()
             .with_writer(MakeWebConsoleWriter::new());
 

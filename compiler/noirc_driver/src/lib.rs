@@ -17,8 +17,8 @@ use noirc_frontend::macros_api::MacroProcessor;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
-use tracing::{trace, info};
 use std::path::Path;
+use tracing::{info, trace};
 
 mod abi_gen;
 mod contract;

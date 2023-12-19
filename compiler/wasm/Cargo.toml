@@ -23,8 +23,8 @@ serde.workspace = true
 js-sys.workspace = true
 console_error_panic_hook.workspace = true
 gloo-utils.workspace = true
-tracing-web = "0.1.3"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-subscriber.workspace = true
+tracing-web.workspace = true
 
 # This is an unused dependency, we are adding it
 # so that we can enable the js feature in getrandom.

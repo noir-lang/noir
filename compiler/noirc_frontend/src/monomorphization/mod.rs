@@ -12,11 +12,11 @@ use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
-use tracing::trace;
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
     unreachable,
 };
+use tracing::trace;
 
 use crate::{
     hir_def::{

@@ -122,6 +122,8 @@ similar-asserts = "1.5.0"
 tempfile = "3.6.0"
 
 tracing = "0.1.40"
+tracing-web = "0.1.3"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
 [profile.dev]
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.

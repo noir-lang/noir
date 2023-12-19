@@ -53,8 +53,7 @@ backend-interface = { path = "../backend_interface" }
 bb_abstraction_leaks.workspace = true
 
 # Logs
-tracing.workspace = true
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-subscriber.workspace = true
 tracing-appender = "0.2.3"
 
 [target.'cfg(not(unix))'.dependencies]

@@ -3,10 +3,10 @@ use acvm::compiler::AcirTransformationMap;
 
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
-use tracing::trace;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::mem;
+use tracing::trace;
 
 use crate::Location;
 use serde::{Deserialize, Serialize};

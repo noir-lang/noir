@@ -27,8 +27,8 @@ console_error_panic_hook.workspace = true
 gloo-utils.workspace = true
 js-sys.workspace = true 
 tracing.workspace = true
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-tracing-web = "0.1.3"
+tracing-subscriber.workspace = true
+tracing-web.workspace = true
 
 serde = { version = "1.0.136", features = ["derive"] }
 const-str = "0.5.5"
