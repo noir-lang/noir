@@ -221,7 +221,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
 /// Use case for this is the LSP server and code lenses
 /// which operate on single file and need to understand this file
 /// in order to offer code lenses to the user
-fn prepare_source(source: String) -> (Context, CrateId) {
+fn prepare_source(source: String) -> (Context<'static>, CrateId) {
     let root = Path::new("");
     let mut file_manager = FileManager::new(root);
     let root_file_id = file_manager.add_file_with_source(Path::new("main.nr"), source).expect(
