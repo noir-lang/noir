@@ -95,7 +95,7 @@ pub fn file_manager_with_stdlib(root: &Path) -> FileManager {
 }
 
 /// Adds the source code for the stdlib into the file manager
-pub fn add_stdlib_source_to_file_manager(file_manager: &mut FileManager) {
+fn add_stdlib_source_to_file_manager(file_manager: &mut FileManager) {
     // Add the stdlib contents to the file manager, since every package automatically has a dependency
     // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file
     // contents to the file manager. However since the dependency on the stdlib is implicit, we need
