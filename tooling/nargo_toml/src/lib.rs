@@ -4,7 +4,7 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::BTreeMap,
     path::{Component, Path, PathBuf},
 };
 
@@ -123,7 +123,7 @@ impl PackageConfig {
     fn resolve_to_package(
         &self,
         root_dir: &Path,
-        processed: &mut HashSet<String>,
+        processed: &mut Vec<String>,
     ) -> Result<Package, ManifestError> {
         let name: CrateName = if let Some(name) = &self.package.name {
             name.parse().map_err(|_| ManifestError::InvalidPackageName {
@@ -290,7 +290,7 @@ impl DependencyConfig {
     fn resolve_to_dependency(
         &self,
         pkg_root: &Path,
-        processed: &mut HashSet<String>,
+        processed: &mut Vec<String>,
     ) -> Result<Dependency, ManifestError> {
         let dep = match self {
             Self::Github { git, tag, directory } => {
@@ -333,7 +333,7 @@ fn toml_to_workspace(
     nargo_toml: NargoToml,
     package_selection: PackageSelection,
 ) -> Result<Workspace, ManifestError> {
-    let mut resolved = HashSet::new();
+    let mut resolved = Vec::new();
     let workspace = match nargo_toml.config {
         Config::Package { package_config } => {
             let member = package_config.resolve_to_package(&nargo_toml.root_dir, &mut resolved)?;
@@ -413,16 +413,25 @@ fn read_toml(toml_path: &Path) -> Result<NargoToml, ManifestError> {
 /// Resolves a Nargo.toml file into a `Package` struct as defined by our `nargo` core.
 fn resolve_package_from_toml(
     toml_path: &Path,
-    processed: &mut HashSet<String>,
+    processed: &mut Vec<String>,
 ) -> Result<Package, ManifestError> {
     // Checks for cyclic dependencies
     let str_path = toml_path.to_str().expect("ICE - path is empty");
-    if processed.contains(str_path) {
-        return Err(ManifestError::CyclicDependency { toml: toml_path.to_path_buf() });
+    if processed.contains(&str_path.to_string()) {
+        let mut cycle = false;
+        let mut message = String::new();
+        for toml in processed {
+            cycle = cycle || toml == str_path;
+            if cycle {
+                message += &format!("{} referencing ", toml);
+            }
+        }
+        message += str_path;
+        return Err(ManifestError::CyclicDependency { cycle: message });
     }
     // Adds the package to the set of resolved packages
     if let Some(str) = toml_path.to_str() {
-        processed.insert(str.to_string());
+        processed.push(str.to_string());
     }
 
     let nargo_toml = read_toml(toml_path)?;
@@ -435,7 +444,9 @@ fn resolve_package_from_toml(
             Err(ManifestError::UnexpectedWorkspace(toml_path.to_path_buf()))
         }
     };
-    processed.remove(str_path);
+    let pos =
+        processed.iter().position(|toml| toml == str_path).expect("added package must be here");
+    processed.remove(pos);
     result
 }
 
