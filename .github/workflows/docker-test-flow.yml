@@ -149,11 +149,8 @@ jobs:
           path: /usr/src/noir/target/release
       - run: |
           PATH=$PATH:/usr/src/noir/target/release
-          echo $PATH
-          cd /usr/src/noir/
-          ls -la
           cd /usr/src/noir/target/release/
-          ls -la
+          chmod +x nargo
           nargo
           cd /usr/src/noir/
           nargo
