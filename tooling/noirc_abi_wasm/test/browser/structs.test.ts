@@ -17,7 +17,7 @@ it('correctly handles struct inputs', async () => {
   const struct_array_arg: MyStruct[] = inputs.struct_array_arg as MyStruct[];
   const nested_struct_arg: MyNestedStruct = inputs.nested_struct_arg as MyNestedStruct;
 
-  expect(BigInt(decoded_inputs.inputs.struct_arg)).to.be.equal(BigInt(struct_arg.foo));
+  expect(BigInt(decoded_inputs.inputs.struct_arg.foo)).to.be.equal(BigInt(struct_arg.foo));
   expect(BigInt(decoded_inputs.inputs.struct_array_arg[0].foo)).to.be.equal(BigInt(struct_array_arg[0].foo));
   expect(BigInt(decoded_inputs.inputs.struct_array_arg[1].foo)).to.be.equal(BigInt(struct_array_arg[1].foo));
   expect(BigInt(decoded_inputs.inputs.struct_array_arg[2].foo)).to.be.equal(BigInt(struct_array_arg[2].foo));
