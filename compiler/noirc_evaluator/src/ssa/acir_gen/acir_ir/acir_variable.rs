@@ -936,6 +936,56 @@ impl AcirContext {
         Ok(remainder)
     }
 
+    /// Returns an 'AcirVar' containing the boolean value lhs<rhs, assuming lhs and rhs are signed integers of size bit_count.
+    /// Like in the unsigned case, we compute the difference diff = lhs-rhs+2^n (and we avoid underflow)
+    /// The result depends on the diff and the signs of the inputs:
+    /// If same sign, lhs<rhs <=> diff<2^n, because the 2-complement representation keeps the ordering (e.g in 8 bits -1 is 255 > -2 = 254)
+    /// If not, lhs positive => diff > 2^n
+    /// and lhs negative => diff <= 2^n => diff < 2^n (because signs are not the same, so lhs != rhs and so diff != 2^n)
+    pub(crate) fn less_than_signed(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        bit_count: u32,
+        predicate: AcirVar,
+    ) -> Result<AcirVar, RuntimeError> {
+        let pow_last = self.add_constant(FieldElement::from(1_u128 << (bit_count - 1)));
+        let pow = self.add_constant(FieldElement::from(1_u128 << (bit_count)));
+
+        // We check whether the inputs have same sign or not by computing the XOR of their bit sign
+        let lhs_sign = self.div_var(
+            lhs,
+            pow_last,
+            AcirType::NumericType(NumericType::Unsigned { bit_size: bit_count }),
+            predicate,
+        )?;
+        let rhs_sign = self.div_var(
+            rhs,
+            pow_last,
+            AcirType::NumericType(NumericType::Unsigned { bit_size: bit_count }),
+            predicate,
+        )?;
+        let same_sign = self.xor_var(
+            lhs_sign,
+            rhs_sign,
+            AcirType::NumericType(NumericType::Signed { bit_size: 1 }),
+        )?;
+
+        // We compute the input difference
+        let no_underflow = self.add_var(lhs, pow)?;
+        let diff = self.sub_var(no_underflow, rhs)?;
+
+        // We check the 'bit sign' of the difference
+        let diff_sign = self.less_than_var(diff, pow, bit_count + 1, predicate)?;
+
+        // Then the result is simply diff_sign XOR same_sign (can be checked with a truth table)
+        self.xor_var(
+            diff_sign,
+            same_sign,
+            AcirType::NumericType(NumericType::Signed { bit_size: 1 }),
+        )
+    }
+
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
     /// and `0` otherwise.
     pub(crate) fn more_than_eq_var(
