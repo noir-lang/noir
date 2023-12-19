@@ -29,16 +29,17 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
+    let mut file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    for package in workspace.clone().into_iter() {
+        insert_all_files_for_package_into_file_manager(package, &mut file_manager);
+    }
+
     let config = nargo_fmt::Config::read(&config.program_dir)
         .map_err(|err| CliError::Generic(err.to_string()))?;
 
     let mut check_exit_code_one = false;
 
     for package in &workspace {
-        // TODO: This should not be creating a new file manager per package
-        let mut file_manager = file_manager_with_stdlib(&package.root_dir);
-        insert_all_files_for_package_into_file_manager(package, &mut file_manager);
-
         visit_noir_files(&package.root_dir.join("src"), &mut |entry| {
             let file_id = file_manager.name_to_id(entry.path().to_path_buf()).expect("The file should exist since we added all files in the package into the file manager");
             let (parsed_module, errors) = parse_file(&file_manager, file_id);
