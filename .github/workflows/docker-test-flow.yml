@@ -152,9 +152,9 @@ jobs:
           cd /usr/src/noir/target/release/
           chmod +x nargo
           cd /usr/src/noir/
-          nargo
       - name: test
         run: |
+          nargo
           /usr/src/noir/.github/scripts/test-noir-wasm.sh
 
   test-acvm-js:
