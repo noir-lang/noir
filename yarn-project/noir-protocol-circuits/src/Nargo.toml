@@ -16,5 +16,6 @@ members = [
     "crates/rollup-lib",
     "crates/rollup-merge",
     "crates/rollup-base",
+    "crates/rollup-base-simulated",
     "crates/rollup-root",
 ]

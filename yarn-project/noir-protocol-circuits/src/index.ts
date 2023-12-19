@@ -26,7 +26,7 @@ import PublicKernelPrivatePreviousJson from './target/public_kernel_private_prev
 import PublicKernelPrivatePreviousSimulatedJson from './target/public_kernel_private_previous_simulated.json' assert { type: 'json' };
 import PublicKernelPublicPreviousJson from './target/public_kernel_public_previous.json' assert { type: 'json' };
 import PublicKernelPublicPreviousSimulatedJson from './target/public_kernel_public_previous_simulated.json' assert { type: 'json' };
-import BaseRollupJson from './target/rollup_base.json' assert { type: 'json' };
+import BaseRollupSimulatedJson from './target/rollup_base_simulated.json' assert { type: 'json' };
 import MergeRollupJson from './target/rollup_merge.json' assert { type: 'json' };
 import RootRollupJson from './target/rollup_root.json' assert { type: 'json' };
 import {
@@ -416,12 +416,12 @@ async function executeMergeRollupWithACVM(input: MergeRollupInputType): Promise<
  * Executes the base rollup with the given inputs using the acvm.
  */
 async function executeBaseRollupWithACVM(input: BaseRollupInputType): Promise<BaseRollupReturnType> {
-  const initialWitnessMap = abiEncode(BaseRollupJson.abi as Abi, input as any);
+  const initialWitnessMap = abiEncode(BaseRollupSimulatedJson.abi as Abi, input as any);
 
   // Execute the circuit on those initial witness values
   //
   // Decode the bytecode from base64 since the acvm does not know about base64 encoding
-  const decodedBytecode = Buffer.from(BaseRollupJson.bytecode, 'base64');
+  const decodedBytecode = Buffer.from(BaseRollupSimulatedJson.bytecode, 'base64');
   //
   // Execute the circuit
   const _witnessMap = await executeCircuitWithBlackBoxSolver(
@@ -434,7 +434,7 @@ async function executeBaseRollupWithACVM(input: BaseRollupInputType): Promise<Ba
   );
 
   // Decode the witness map into two fields, the return values and the inputs
-  const decodedInputs: DecodedInputs = abiDecode(BaseRollupJson.abi as Abi, _witnessMap);
+  const decodedInputs: DecodedInputs = abiDecode(BaseRollupSimulatedJson.abi as Abi, _witnessMap);
 
   // Cast the inputs as the return type
   return decodedInputs.return_value as BaseRollupReturnType;
