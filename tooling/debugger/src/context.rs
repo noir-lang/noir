@@ -663,7 +663,7 @@ mod tests {
                 bytecode: vec![BrilligOpcode::Stop, BrilligOpcode::Stop, BrilligOpcode::Stop],
                 predicate: None,
             }),
-            Opcode::Arithmetic(Expression::default()),
+            Opcode::AssertZero(Expression::default()),
         ];
         let circuit = Circuit { opcodes, ..Circuit::default() };
         let debug_artifact =
