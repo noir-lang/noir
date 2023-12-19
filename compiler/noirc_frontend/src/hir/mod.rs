@@ -50,6 +50,7 @@ impl Context<'_> {
             file_manager: Cow::Owned(file_manager),
         }
     }
+
     pub fn from_ref_file_manager(file_manager: &FileManager) -> Context<'_> {
         let crate_graph = CrateGraph::default();
 
