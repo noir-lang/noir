@@ -19,6 +19,7 @@ use async_lsp::{
 };
 use fm::codespan_files as files;
 use lsp_types::CodeLens;
+use nargo::workspace::Workspace;
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_frontend::{
@@ -47,7 +48,7 @@ use types::{notification, request, NargoTest, NargoTestId, Position, Range, Url}
 
 #[derive(Debug, Error)]
 pub enum LspError {
-    /// Error while Resolving Workspace - {0}.
+    /// Error while Resolving Workspace.
     #[error("Failed to Resolve Workspace - {0}")]
     WorkspaceResolutionError(String),
 }
@@ -192,26 +193,18 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
 
 pub(crate) fn resolve_workspace_for_source_path(
     file_path: &Path,
-) -> Result<nargo::workspace::Workspace, LspError> {
+) -> Result<Workspace, LspError> {
     let package_root = find_file_manifest(file_path);
 
-    let toml_path = match package_root {
-        Some(toml_path) => toml_path,
-        None => {
-            return Err(LspError::WorkspaceResolutionError(format!(
-                "Nargo.toml not found for file: {:?}",
-                file_path
-            )))
-        }
-    };
+    let toml_path = package_root.ok_or_else(|| {
+        LspError::WorkspaceResolutionError(format!(
+            "Nargo.toml not found for file: {:?}",
+            file_path
+        ))
+    })?;
 
-    let workspace = match resolve_workspace_from_toml(
-        &toml_path,
-        PackageSelection::All,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    ) {
-        Ok(workspace) => workspace,
-        Err(err) => return Err(LspError::WorkspaceResolutionError(format!("{err}"))),
-    };
+    let workspace = resolve_workspace_from_toml(&toml_path, PackageSelection::All, Some(NOIR_ARTIFACT_VERSION_STRING.to_string()))
+        .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()))?;
+    
     Ok(workspace)
 }

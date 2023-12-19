@@ -55,7 +55,7 @@ pub(super) fn on_did_change_text_document(
         Err(lsp_error) => {
             return ControlFlow::Break(Err(ResponseError::new(
                 ErrorCode::REQUEST_FAILED,
-                format!("{}", lsp_error),
+                lsp_error.to_string(),
             )
             .into()))
         }
@@ -107,7 +107,7 @@ pub(super) fn on_did_save_text_document(
         Err(lsp_error) => {
             return ControlFlow::Break(Err(ResponseError::new(
                 ErrorCode::REQUEST_FAILED,
-                format!("{}", lsp_error),
+                lsp_error.to_string(),
             )
             .into()))
         }
