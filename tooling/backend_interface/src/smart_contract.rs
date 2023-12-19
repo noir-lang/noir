@@ -47,7 +47,7 @@ mod tests {
     #[test]
     fn test_smart_contract() -> Result<(), BackendError> {
         let expression = &(Witness(1) + Witness(2)) - &Expression::from(Witness(3));
-        let constraint = Opcode::Arithmetic(expression);
+        let constraint = Opcode::AssertZero(expression);
 
         let circuit = Circuit {
             current_witness_index: 4,

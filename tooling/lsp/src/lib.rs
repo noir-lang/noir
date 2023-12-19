@@ -7,7 +7,7 @@ use std::{
     collections::HashMap,
     future::Future,
     ops::{self, ControlFlow},
-    path::PathBuf,
+    path::{Path, PathBuf},
     pin::Pin,
     task::{self, Poll},
 };
@@ -18,19 +18,27 @@ use async_lsp::{
     ResponseError,
 };
 use fm::codespan_files as files;
+use lsp_types::CodeLens;
+use nargo::workspace::Workspace;
+use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::{Context, FunctionNameMatch},
 };
+
+use fm::FileManager;
+
 use notifications::{
     on_did_change_configuration, on_did_change_text_document, on_did_close_text_document,
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    on_formatting, on_goto_definition_request, on_initialize, on_profile_run_request, on_shutdown,
-    on_test_run_request, on_tests_request,
+    on_code_lens_request, on_formatting, on_goto_definition_request, on_initialize,
+    on_profile_run_request, on_shutdown, on_test_run_request, on_tests_request,
 };
 use serde_json::Value as JsonValue;
+use thiserror::Error;
 use tower::Service;
 
 mod notifications;
@@ -41,12 +49,20 @@ mod types;
 use solver::WrapperSolver;
 use types::{notification, request, NargoTest, NargoTestId, Position, Range, Url};
 
+#[derive(Debug, Error)]
+pub enum LspError {
+    /// Error while Resolving Workspace.
+    #[error("Failed to Resolve Workspace - {0}")]
+    WorkspaceResolutionError(String),
+}
+
 // State for the LSP gets implemented on this struct and is internal to the implementation
 pub struct LspState {
     root_path: Option<PathBuf>,
     client: ClientSocket,
     solver: WrapperSolver,
     input_files: HashMap<String, String>,
+    cached_lenses: HashMap<String, Vec<CodeLens>>,
 }
 
 impl LspState {
@@ -56,6 +72,7 @@ impl LspState {
             root_path: None,
             solver: WrapperSolver(Box::new(solver)),
             input_files: HashMap::new(),
+            cached_lenses: HashMap::new(),
         }
     }
 }
@@ -72,6 +89,7 @@ impl NargoLspService {
             .request::<request::Initialize, _>(on_initialize)
             .request::<request::Formatting, _>(on_formatting)
             .request::<request::Shutdown, _>(on_shutdown)
+            .request::<request::CodeLens, _>(on_code_lens_request)
             .request::<request::NargoTests, _>(on_tests_request)
             .request::<request::NargoTestRun, _>(on_test_run_request)
             .request::<request::NargoProfileRun, _>(on_profile_run_request)
@@ -174,4 +192,61 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
     } else {
         None
     }
+}
+
+pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
+    let package_root = find_file_manifest(file_path);
+
+    let toml_path = package_root.ok_or_else(|| {
+        LspError::WorkspaceResolutionError(format!(
+            "Nargo.toml not found for file: {:?}",
+            file_path
+        ))
+    })?;
+
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        PackageSelection::All,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    )
+    .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()))?;
+
+    Ok(workspace)
+}
+
+/// Prepares a package from a source string
+/// This is useful for situations when we don't need dependencies
+/// and just need to operate on single file.
+///
+/// Use case for this is the LSP server and code lenses
+/// which operate on single file and need to understand this file
+/// in order to offer code lenses to the user
+fn prepare_source(source: String) -> (Context<'static>, CrateId) {
+    let root = Path::new("");
+    let mut file_manager = FileManager::new(root);
+    let root_file_id = file_manager.add_file_with_source(Path::new("main.nr"), source).expect(
+        "Adding source buffer to file manager should never fail when file manager is empty",
+    );
+
+    let mut context = Context::new(file_manager);
+
+    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+
+    (context, root_crate_id)
+}
+
+#[test]
+fn prepare_package_from_source_string() {
+    let source = r#"
+    fn main() {
+        let x = 1;
+        let y = 2;
+        let z = x + y;
+    }
+    "#;
+
+    let (mut context, crate_id) = crate::prepare_source(source.to_string());
+    let _check_result = noirc_driver::check_crate(&mut context, crate_id, false, false);
+    let main_func_id = context.get_main_function(&crate_id);
+    assert!(main_func_id.is_some());
 }

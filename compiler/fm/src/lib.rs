@@ -16,7 +16,7 @@ use std::{
 };
 
 pub const FILE_EXTENSION: &str = "nr";
-
+#[derive(Clone)]
 pub struct FileManager {
     root: PathBuf,
     file_map: FileMap,
@@ -88,9 +88,9 @@ impl FileManager {
         assert!(old_value.is_none(), "ice: the same path was inserted into the file manager twice");
     }
 
-    pub fn fetch_file(&self, file_id: FileId) -> File {
+    pub fn fetch_file(&self, file_id: FileId) -> &str {
         // Unwrap as we ensure that all file_id's map to a corresponding file in the file map
-        self.file_map.get_file(file_id).unwrap()
+        self.file_map.get_file(file_id).unwrap().source()
     }
 
     pub fn path(&self, file_id: FileId) -> &Path {
@@ -99,51 +99,9 @@ impl FileManager {
         self.id_to_path.get(&file_id).unwrap().as_path()
     }
 
-    // TODO: This should also ideally not be here, so that the file manager
-    // TODO: does not know about rust modules.
-    // TODO: Ideally this is moved to def_collector_mod and we make this method accept a FileManager
-    pub fn find_module(&self, anchor: FileId, mod_name: &str) -> Result<FileId, String> {
-        let anchor_path = self.path(anchor).with_extension("");
-        let anchor_dir = anchor_path.parent().unwrap();
-
-        // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of
-        // the anchor at `base/mod_name.nr`.
-        let candidate = if should_check_siblings_for_module(&anchor_path, anchor_dir) {
-            anchor_dir.join(format!("{mod_name}.{FILE_EXTENSION}"))
-        } else {
-            // Otherwise, we check for children of the anchor at `base/anchor/mod_name.nr`
-            anchor_path.join(format!("{mod_name}.{FILE_EXTENSION}"))
-        };
-
-        self.name_to_id(candidate.clone())
-            .ok_or_else(|| candidate.as_os_str().to_string_lossy().to_string())
-    }
-
     // TODO: This should accept a &Path instead of a PathBuf
     pub fn name_to_id(&self, file_name: PathBuf) -> Option<FileId> {
         self.file_map.get_file_id(&PathString::from_path(file_name))
-    }
-}
-
-// TODO: This should not be here because the file manager should not know about the
-// TODO: rust modules. See comment on `find_module``
-// TODO: Moreover, the check for main, lib, mod should ideally not be done here
-/// Returns true if a module's child module's are expected to be in the same directory.
-/// Returns false if they are expected to be in a subdirectory matching the name of the module.
-fn should_check_siblings_for_module(module_path: &Path, parent_path: &Path) -> bool {
-    if let Some(filename) = module_path.file_stem() {
-        // This check also means a `main.nr` or `lib.nr` file outside of the crate root would
-        // check its same directory for child modules instead of a subdirectory. Should we prohibit
-        // `main.nr` and `lib.nr` files outside of the crate root?
-        filename == "main"
-            || filename == "lib"
-            || filename == "mod"
-            || Some(filename) == parent_path.file_stem()
-    } else {
-        // If there's no filename, we arbitrarily return true.
-        // Alternatively, we could panic, but this is left to a different step where we
-        // ideally have some source location to issue an error.
-        true
     }
 }
 
@@ -237,22 +195,6 @@ mod tests {
     }
 
     #[test]
-    fn path_resolve_file_module() {
-        let dir = tempdir().unwrap();
-
-        let entry_file_name = Path::new("my_dummy_file.nr");
-        create_dummy_file(&dir, entry_file_name);
-
-        let mut fm = FileManager::new(dir.path());
-
-        let file_id = fm.add_file_with_source(entry_file_name, "fn foo() {}".to_string()).unwrap();
-
-        let dep_file_name = Path::new("foo.nr");
-        create_dummy_file(&dir, dep_file_name);
-        fm.find_module(file_id, "foo").unwrap_err();
-    }
-
-    #[test]
     fn path_resolve_file_module_other_ext() {
         let dir = tempdir().unwrap();
         let file_name = Path::new("foo.nr");
@@ -263,47 +205,6 @@ mod tests {
         let file_id = fm.add_file_with_source(file_name, "fn foo() {}".to_string()).unwrap();
 
         assert!(fm.path(file_id).ends_with("foo.nr"));
-    }
-
-    #[test]
-    fn path_resolve_sub_module() {
-        let dir = tempdir().unwrap();
-        let mut fm = FileManager::new(dir.path());
-
-        // Create a lib.nr file at the root.
-        // we now have dir/lib.nr
-        let lib_nr_path = create_dummy_file(&dir, Path::new("lib.nr"));
-        let file_id = fm
-            .add_file_with_source(lib_nr_path.as_path(), "fn foo() {}".to_string())
-            .expect("could not add file to file manager and obtain a FileId");
-
-        // Create a sub directory
-        // we now have:
-        // - dir/lib.nr
-        // - dir/sub_dir
-        let sub_dir = TempDir::new_in(&dir).unwrap();
-        let sub_dir_name = sub_dir.path().file_name().unwrap().to_str().unwrap();
-
-        // Add foo.nr to the subdirectory
-        // we no have:
-        // - dir/lib.nr
-        // - dir/sub_dir/foo.nr
-        let foo_nr_path = create_dummy_file(&sub_dir, Path::new("foo.nr"));
-        fm.add_file_with_source(foo_nr_path.as_path(), "fn foo() {}".to_string());
-
-        // Add a parent module for the sub_dir
-        // we no have:
-        // - dir/lib.nr
-        // - dir/sub_dir.nr
-        // - dir/sub_dir/foo.nr
-        let sub_dir_nr_path = create_dummy_file(&dir, Path::new(&format!("{sub_dir_name}.nr")));
-        fm.add_file_with_source(sub_dir_nr_path.as_path(), "fn foo() {}".to_string());
-
-        // First check for the sub_dir.nr file and add it to the FileManager
-        let sub_dir_file_id = fm.find_module(file_id, sub_dir_name).unwrap();
-
-        // Now check for files in it's subdirectory
-        fm.find_module(sub_dir_file_id, "foo").unwrap();
     }
 
     /// Tests that two identical files that have different paths are treated as the same file

@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.37.0"
+version = "0.38.0"
 dependencies = [
  "acir_field",
  "base64",
@@ -23,7 +23,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.37.0"
+version = "0.38.0"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -37,13 +37,13 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.37.0"
+version = "0.38.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
- "acvm_stdlib",
  "brillig_vm",
  "indexmap 1.9.3",
+ "log",
  "num-bigint",
  "num-traits",
  "paste",
@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.37.0"
+version = "0.38.0"
 dependencies = [
  "acir",
  "blake2",
@@ -67,10 +67,10 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "0.37.0"
+version = "0.38.0"
 dependencies = [
  "acvm",
- "barretenberg_blackbox_solver",
+ "bn254_blackbox_solver",
  "build-data",
  "cfg-if",
  "console_error_panic_hook",
@@ -84,13 +84,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
  "wasm-logger",
-]
-
-[[package]]
-name = "acvm_stdlib"
-version = "0.37.0"
-dependencies = [
- "acir",
 ]
 
 [[package]]
@@ -217,7 +210,7 @@ checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
 name = "arena"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "generational-arena",
 ]
@@ -426,7 +419,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "aztec_macros"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "iter-extended",
  "noirc_frontend",
@@ -465,28 +458,6 @@ dependencies = [
  "miniz_oxide",
  "object",
  "rustc-demangle",
-]
-
-[[package]]
-name = "barretenberg_blackbox_solver"
-version = "0.37.0"
-dependencies = [
- "acir",
- "acvm_blackbox_solver",
- "ark-ec",
- "ark-ff",
- "flate2",
- "getrandom",
- "grumpkin",
- "js-sys",
- "num-bigint",
- "pkg-config",
- "reqwest",
- "rust-embed",
- "tar",
- "thiserror",
- "wasm-bindgen-futures",
- "wasmer",
 ]
 
 [[package]]
@@ -592,8 +563,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "bn254_blackbox_solver"
+version = "0.38.0"
+dependencies = [
+ "acir",
+ "acvm_blackbox_solver",
+ "ark-ec",
+ "ark-ff",
+ "flate2",
+ "getrandom",
+ "grumpkin",
+ "js-sys",
+ "num-bigint",
+ "pkg-config",
+ "reqwest",
+ "rust-embed",
+ "tar",
+ "thiserror",
+ "wasm-bindgen-futures",
+ "wasmer",
+]
+
+[[package]]
 name = "brillig"
-version = "0.37.0"
+version = "0.38.0"
 dependencies = [
  "acir_field",
  "serde",
@@ -601,7 +594,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.37.0"
+version = "0.38.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1137,9 +1130,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-channel"
-version = "0.5.8"
+version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a33c2bf77f2df06183c3aa30d1e96c0695a313d4f9c453cc3762a6db39f99200"
+checksum = "14c3242926edf34aec4ac3a77108ad4854bffaa2e4ddc1824124ce59231302d5"
 dependencies = [
  "cfg-if",
  "crossbeam-utils",
@@ -1181,9 +1174,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-utils"
-version = "0.8.16"
+version = "0.8.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a22b2d63d4d1dc0b7f1b6b2747dd0088008a9be28b6ddf0b1e7d335e3037294"
+checksum = "c06d96137f14f244c37f989d9fff8f95e6c18b918e71f36638f8c49112e4c78f"
 dependencies = [
  "cfg-if",
 ]
@@ -1650,7 +1643,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -2226,7 +2219,7 @@ dependencies = [
 
 [[package]]
 name = "iter-extended"
-version = "0.20.0"
+version = "0.22.0"
 
 [[package]]
 name = "itertools"
@@ -2448,12 +2441,13 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "codespan-reporting",
  "fm",
  "iter-extended",
+ "log",
  "noirc_abi",
  "noirc_driver",
  "noirc_errors",
@@ -2469,15 +2463,15 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "assert_cmd",
  "assert_fs",
  "async-lsp",
  "backend-interface",
- "barretenberg_blackbox_solver",
  "bb_abstraction_leaks",
+ "bn254_blackbox_solver",
  "build-data",
  "clap",
  "color-eyre",
@@ -2523,7 +2517,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "bytecount",
  "noirc_frontend",
@@ -2535,7 +2529,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "dirs",
  "fm",
@@ -2584,7 +2578,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "codespan-reporting",
@@ -2602,7 +2596,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -2618,6 +2612,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "thiserror",
  "tokio",
  "tower",
  "wasm-bindgen",
@@ -2625,7 +2620,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -2646,7 +2641,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -2663,7 +2658,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -2680,7 +2675,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "aztec_macros",
@@ -2689,6 +2684,7 @@ dependencies = [
  "fm",
  "fxhash",
  "iter-extended",
+ "log",
  "noirc_abi",
  "noirc_errors",
  "noirc_evaluator",
@@ -2699,25 +2695,27 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "chumsky",
  "codespan",
  "codespan-reporting",
  "fm",
+ "log",
  "serde",
  "serde_with",
 ]
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "fxhash",
  "im",
  "iter-extended",
+ "log",
  "noirc_errors",
  "noirc_frontend",
  "num-bigint",
@@ -2727,13 +2725,14 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "arena",
  "chumsky",
  "fm",
  "iter-extended",
+ "log",
  "noirc_errors",
  "noirc_printable_type",
  "regex",
@@ -2744,12 +2743,13 @@ dependencies = [
  "smol_str",
  "strum",
  "strum_macros",
+ "tempfile",
  "thiserror",
 ]
 
 [[package]]
 name = "noirc_printable_type"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "acvm",
  "iter-extended",

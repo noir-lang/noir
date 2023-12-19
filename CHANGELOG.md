@@ -1,5 +1,82 @@
 # Changelog
 
+## [0.22.0](https://github.com/noir-lang/noir/compare/v0.21.0...v0.22.0) (2023-12-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* Remove unused methods on ACIR opcodes ([#3841](https://github.com/noir-lang/noir/issues/3841))
+* Remove backend field from artifacts ([#3819](https://github.com/noir-lang/noir/issues/3819))
+* Remove partial backend feature ([#3805](https://github.com/noir-lang/noir/issues/3805))
+
+### Features
+
+* Add context-centric based API for noir_wasm ([#3798](https://github.com/noir-lang/noir/issues/3798)) ([19155d0](https://github.com/noir-lang/noir/commit/19155d02a1248c85e94f14a2a0bb383a4edeb16f))
+
+
+### Miscellaneous Chores
+
+* Remove backend field from artifacts ([#3819](https://github.com/noir-lang/noir/issues/3819)) ([fa1cf5f](https://github.com/noir-lang/noir/commit/fa1cf5f03aa21b001c31ebb9ce405e3c2859bb57))
+* Remove partial backend feature ([#3805](https://github.com/noir-lang/noir/issues/3805)) ([0383100](https://github.com/noir-lang/noir/commit/0383100853a80a5b28b797cdfeae0d271f1b7805))
+* Remove unused methods on ACIR opcodes ([#3841](https://github.com/noir-lang/noir/issues/3841)) ([9e5d0e8](https://github.com/noir-lang/noir/commit/9e5d0e813d61a0bfb5ee68174ed287c5a20f1579))
+
+## [0.21.0](https://github.com/noir-lang/noir/compare/v0.20.0...v0.21.0) (2023-12-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove unused `source-resolver` package ([#3791](https://github.com/noir-lang/noir/issues/3791))
+* Make file manager read-only to the compiler ([#3760](https://github.com/noir-lang/noir/issues/3760))
+
+### Features
+
+* Add `prelude.nr` ([#3693](https://github.com/noir-lang/noir/issues/3693)) ([5f0f81f](https://github.com/noir-lang/noir/commit/5f0f81f7f49b021880e0bff648aa6c6d0fede46c))
+* Add some traits to the stdlib ([#3796](https://github.com/noir-lang/noir/issues/3796)) ([8e11352](https://github.com/noir-lang/noir/commit/8e113526a2d78d27ed4e489f16d5604a2aaa18ea))
+* Add support for writing tracing debug info to file ([#3790](https://github.com/noir-lang/noir/issues/3790)) ([98a5004](https://github.com/noir-lang/noir/commit/98a500436a68652a367ccbf77e32f8544aff73bc))
+* Allow passing custom foreign call handlers when creating proofs in NoirJS ([#3764](https://github.com/noir-lang/noir/issues/3764)) ([6076e08](https://github.com/noir-lang/noir/commit/6076e08a0814bb6f3836af3c65a7b40c066b9494))
+* Allow underscores in integer literals ([#3746](https://github.com/noir-lang/noir/issues/3746)) ([2c06a64](https://github.com/noir-lang/noir/commit/2c06a64e502bac6839375c5636d39a172a609a5f))
+* Avoid overflow checks on boolean multiplication ([#3745](https://github.com/noir-lang/noir/issues/3745)) ([9b5b686](https://github.com/noir-lang/noir/commit/9b5b6861c3aa0e154e17598ac9994d3970f0e752))
+* Aztec-packages ([#3754](https://github.com/noir-lang/noir/issues/3754)) ([c043265](https://github.com/noir-lang/noir/commit/c043265e550b59bd4296504826fe15d3ce3e9ad2))
+* Dockerfile to test cargo and JS packages ([#3684](https://github.com/noir-lang/noir/issues/3684)) ([513d619](https://github.com/noir-lang/noir/commit/513d6196a0766082a3c88a4050498bae2cfa7e13))
+* Docs landing page with a playground ([#3667](https://github.com/noir-lang/noir/issues/3667)) ([9a95fbe](https://github.com/noir-lang/noir/commit/9a95fbeefb2ecd5a898006530a1e054cd345bfe8))
+* Enhance test information output ([#3696](https://github.com/noir-lang/noir/issues/3696)) ([468fbbc](https://github.com/noir-lang/noir/commit/468fbbca43e33b23bc662bf1d36dcb79830a291c))
+* Implement print without newline ([#3650](https://github.com/noir-lang/noir/issues/3650)) ([9827dfe](https://github.com/noir-lang/noir/commit/9827dfe51118ba55da6da51ab8bf45cffd2ca756))
+* **lsp:** Add goto definition for locals ([#3705](https://github.com/noir-lang/noir/issues/3705)) ([9dd465c](https://github.com/noir-lang/noir/commit/9dd465c23e286481fa9a35632d133901f86d5883))
+* **lsp:** Add goto definition for structs ([#3718](https://github.com/noir-lang/noir/issues/3718)) ([a576c5b](https://github.com/noir-lang/noir/commit/a576c5bba6ab92eb4798715a43475808ac954fba))
+* Optimize out unnecessary truncation instructions ([#3717](https://github.com/noir-lang/noir/issues/3717)) ([c9c72ae](https://github.com/noir-lang/noir/commit/c9c72ae7b80aa9504a082dd083b19d4b80d954c5))
+* Remove experimental feature warning for traits ([#3783](https://github.com/noir-lang/noir/issues/3783)) ([cb52242](https://github.com/noir-lang/noir/commit/cb522429592477c2b0544f3b3026a1a946b0e5b1))
+* Reorganizing docs to fit diataxis framework ([#3711](https://github.com/noir-lang/noir/issues/3711)) ([54a1ed5](https://github.com/noir-lang/noir/commit/54a1ed58c991eefa7ac9304b894c7046c294487b))
+* Simplify explicit equality assertions to assert equality directly ([#3708](https://github.com/noir-lang/noir/issues/3708)) ([2fc46e2](https://github.com/noir-lang/noir/commit/2fc46e2269bba8d9ad6ae5fcea10e64dce9b3745))
+* Speed up transformation of debug messages ([#3815](https://github.com/noir-lang/noir/issues/3815)) ([2a8af1e](https://github.com/noir-lang/noir/commit/2a8af1e4141ffff61547ee1c2837a6392bd5db48))
+
+
+### Bug Fixes
+
+* `try_unify` no longer binds types on failure ([#3697](https://github.com/noir-lang/noir/issues/3697)) ([f03e581](https://github.com/noir-lang/noir/commit/f03e5812439bdf9d1aedc69debdc50ba5dba2049))
+* Add missing assertion to test ([#3765](https://github.com/noir-lang/noir/issues/3765)) ([bcbe116](https://github.com/noir-lang/noir/commit/bcbe11613b7205476a49ad0d588b868b4fc43ba1))
+* Add negative integer literals ([#3690](https://github.com/noir-lang/noir/issues/3690)) ([8b3a68f](https://github.com/noir-lang/noir/commit/8b3a68f5286c09e1f612dbcfff3fe41023ab7109))
+* Allow trait method references from the trait name ([#3774](https://github.com/noir-lang/noir/issues/3774)) ([cfa34d4](https://github.com/noir-lang/noir/commit/cfa34d4d913dbd35f8329430e0d58830e069d6ff))
+* Deserialize odd length hex literals ([#3747](https://github.com/noir-lang/noir/issues/3747)) ([4000fb2](https://github.com/noir-lang/noir/commit/4000fb279221eb07187d657bfaa7f1c7b311abf2))
+* **docs:** Trigger `update-docs` workflow when the `release-please` PR gets merged and not on every merge to master ([#3677](https://github.com/noir-lang/noir/issues/3677)) ([9a3d1d2](https://github.com/noir-lang/noir/commit/9a3d1d2cf647cd583344f8da122fed1acbca9397))
+* Initialise strings as u8 array ([#3682](https://github.com/noir-lang/noir/issues/3682)) ([8da40b7](https://github.com/noir-lang/noir/commit/8da40b75a36ebac51d5377311db3c55fa339dcac))
+* **lsp:** Package resolution on save ([#3794](https://github.com/noir-lang/noir/issues/3794)) ([14f2fff](https://github.com/noir-lang/noir/commit/14f2fffeb3de5f653c11694ee3c5e5d62aaa34ec))
+* Parse negative integer literals ([#3698](https://github.com/noir-lang/noir/issues/3698)) ([463ab06](https://github.com/noir-lang/noir/commit/463ab060075db1915127c3f6cef11bfed9d40109))
+* Pub is required on return for entry points ([#3616](https://github.com/noir-lang/noir/issues/3616)) ([7f1d796](https://github.com/noir-lang/noir/commit/7f1d7968368734e02b152e2e907dc7af9e1604c8))
+* Remove `noirc_driver/aztec` feature flag in docker ([#3784](https://github.com/noir-lang/noir/issues/3784)) ([a48d562](https://github.com/noir-lang/noir/commit/a48d562b59aa2009a9c9b65dd71e11cdd8d06cf0))
+* Remove include-keys option ([#3692](https://github.com/noir-lang/noir/issues/3692)) ([95d7ce2](https://github.com/noir-lang/noir/commit/95d7ce21016e3603bf279efb970536ad32d89a3a))
+* Revert chnage to modify version in workspace file for acvm dependencies ([#3673](https://github.com/noir-lang/noir/issues/3673)) ([0696f75](https://github.com/noir-lang/noir/commit/0696f755364293bcc7ebc7a0def0dcafede2e543))
+* Sequence update-lockfile workflow so it gets modified after the ACVM version in the root has been changed ([#3676](https://github.com/noir-lang/noir/issues/3676)) ([c00cd85](https://github.com/noir-lang/noir/commit/c00cd8537836f8e4d8559b01d16dfdd1b5cad519))
+* **ssa:** Handle array arguments to side effectual constrain statements ([#3740](https://github.com/noir-lang/noir/issues/3740)) ([028d65e](https://github.com/noir-lang/noir/commit/028d65ea71f9c11e69784d06e0f9768668455f83))
+* Stop cloning Traits! ([#3736](https://github.com/noir-lang/noir/issues/3736)) ([fcff412](https://github.com/noir-lang/noir/commit/fcff412bb39a04a5c88506ae5a5ee2fbdefd93ef))
+* Stop issuing unused variable warnings for variables in trait definitions ([#3797](https://github.com/noir-lang/noir/issues/3797)) ([0bb44c3](https://github.com/noir-lang/noir/commit/0bb44c3bbc63d385d77d93da6abd07214bcfd700))
+* Unsigned integers cannot be negated ([#3688](https://github.com/noir-lang/noir/issues/3688)) ([f904ae1](https://github.com/noir-lang/noir/commit/f904ae1065af74652b2111ea17b72f994de37472))
+
+
+### Miscellaneous Chores
+
+* Make file manager read-only to the compiler ([#3760](https://github.com/noir-lang/noir/issues/3760)) ([e3dcc21](https://github.com/noir-lang/noir/commit/e3dcc21cb2c0fef7f28f50b018747c4f09609b11))
+* Remove unused `source-resolver` package ([#3791](https://github.com/noir-lang/noir/issues/3791)) ([57d2505](https://github.com/noir-lang/noir/commit/57d2505d53e2233becd1e2a7de882c4acb518eff))
+
 ## [0.20.0](https://github.com/noir-lang/noir/compare/v0.19.5...v0.20.0) (2023-12-01)
 
 
