@@ -43,8 +43,7 @@ contracts efficiently. While the current alpha version offers this as a direct f
 to modularize this process for even greater ease of use.
 
 Noir currently includes a command to create a Solidity contract which verifies your Noir program. This will be
-modularised in the future; however, as of the alpha, you can use the
- command to create a verifier contract.
+modularised in the future; however, as of the alpha, you can use the `nargo codegen-verifier` command to create a verifier contract.
 
 ### Protocol Developers
 
