@@ -97,18 +97,11 @@ jobs:
         password: ${{ secrets.github_token }}
     steps:
       - run: echo ${{ github.workspace }}
-      - run: |
-          cd /usr/src/noir
-          ls -la
-          pwd
-      - run: |
-          mkdir dist
-          cp ./target/release/nargo ./dist/nargo
       - name: artifact
         uses: actions/upload-artifact@v4
         with:
           name: nargo
-          path: ./dist/*
+          path: /usr/src/noir/target/release/nargo
           if-no-files-found: error
           compression-level: 0
         
