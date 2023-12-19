@@ -21,7 +21,6 @@ pub fn compile_workspace(
     expression_width: ExpressionWidth,
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CompileError> {
-    // TODO: We want to remove this returning of file managers and just have one file manager
     // Compile all of the packages in parallel.
     let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
         .par_iter()
