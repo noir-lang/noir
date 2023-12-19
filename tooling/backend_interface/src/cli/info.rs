@@ -1,4 +1,4 @@
-use acvm::Language;
+use acvm::ExpressionWidth;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
@@ -28,7 +28,7 @@ struct LanguageResponse {
 }
 
 impl InfoCommand {
-    pub(crate) fn run(self, binary_path: &Path) -> Result<Language, BackendError> {
+    pub(crate) fn run(self, binary_path: &Path) -> Result<ExpressionWidth, BackendError> {
         let mut command = std::process::Command::new(binary_path);
 
         command.arg("info").arg("-c").arg(self.crs_path).arg("-o").arg("-");
@@ -41,16 +41,16 @@ impl InfoCommand {
 
         let backend_info: InfoResponse =
             serde_json::from_slice(&output.stdout).expect("Backend should return valid json");
-        let language: Language = match backend_info.language.name.as_str() {
+        let expression_width: ExpressionWidth = match backend_info.language.name.as_str() {
             "PLONK-CSAT" => {
                 let width = backend_info.language.width.unwrap();
-                Language::PLONKCSat { width }
+                ExpressionWidth::Bounded { width }
             }
-            "R1CS" => Language::R1CS,
-            _ => panic!("Unknown langauge"),
+            "R1CS" => ExpressionWidth::Unbounded,
+            _ => panic!("Unknown Expression width configuration"),
         };
 
-        Ok(language)
+        Ok(expression_width)
     }
 }
 
@@ -59,9 +59,9 @@ fn info_command() -> Result<(), BackendError> {
     let backend = crate::get_mock_backend()?;
     let crs_path = backend.backend_directory();
 
-    let language = InfoCommand { crs_path }.run(backend.binary_path())?;
+    let expression_width = InfoCommand { crs_path }.run(backend.binary_path())?;
 
-    assert!(matches!(language, Language::PLONKCSat { width: 3 }));
+    assert!(matches!(expression_width, ExpressionWidth::Bounded { width: 3 }));
 
     Ok(())
 }
