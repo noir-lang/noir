@@ -97,8 +97,8 @@ jobs:
         password: ${{ secrets.github_token }}
     steps:
       - run: echo ${{ github.workspace }}
-      - run: echo ls -la
-      - run: echo pwd
+      - run: ls -la
+      - run: pwd
       - run: |
           mkdir dist
           cp ./target/release/nargo ./dist/nargo
