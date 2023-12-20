@@ -251,12 +251,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: noirc-abi-wasm
-          path: |
-            /usr/src/noir/tooling/noirc_abi_wasm/nodejs
-            /usr/src/noir/tooling/noirc_abi_wasm/web
-            /usr/src/noir/tooling/noirc_abi_wasm/target
-            /usr/src/noir/tooling/noirc_abi_wasm/outputs
-            /usr/src/noir/tooling/noirc_abi_wasm/result
+          path:
+            /usr/src/noir/tooling/noirc_abi_wasm/outputs/out/noirc_abi_wasm
           if-no-files-found: error
           compression-level: 0
 
@@ -339,12 +335,11 @@ jobs:
       - name: prep downloaded artifact
         run: |
           chmod +x /usr/src/noir/target/release/nargo
-      - name: download artifact
-        uses: actions/download-artifact@v4
+      - name: Download noirc_abi package artifact
+        uses: actions/download-artifact@v3
         with:
-          name: noirc-abi-wasm
-          path: |
-            /usr/src/noir/tooling/noirc_abi_wasm
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
       - name: artifact
         uses: actions/download-artifact@v4
         with:
