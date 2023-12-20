@@ -472,6 +472,35 @@ impl Instruction {
                                         msg.clone(),
                                     ))
                                 }
+
+                                Instruction::Binary(Binary {
+                                    lhs,
+                                    rhs,
+                                    operator: BinaryOp::Mul,
+                                }) if dfg.type_of_value(lhs) == Type::bool() => {
+                                    // Replace an equality assertion on a boolean multiplication
+                                    //
+                                    // v2 = mul v0, v1
+                                    // constrain v2 == u1 1
+                                    //
+                                    // with a direct assertion that each value is equal to 1
+                                    //
+                                    // v2 = mul v0, v1
+                                    // constrain v0 == 1
+                                    // constrain v1 == 1
+                                    //
+                                    // This is due to the fact that for `v2` to be 1 then both `v0` and `v1` are 1.
+                                    //
+                                    // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
+                                    // will likely be removed through dead instruction elimination.
+                                    let one = FieldElement::one();
+                                    let one = dfg.make_constant(one, Type::bool());
+
+                                    SimplifiedToInstructionMultiple(vec![
+                                        Instruction::Constrain(lhs, one, msg.clone()),
+                                        Instruction::Constrain(rhs, one, msg.clone()),
+                                    ])
+                                }
                                 Instruction::Not(value) => {
                                     // Replace an assertion that a not instruction is truthy
                                     //
@@ -1109,6 +1138,9 @@ pub(crate) enum SimplifyResult {
     /// Replace this function with an simpler but equivalent instruction.
     SimplifiedToInstruction(Instruction),
 
+    /// Replace this function with an simpler but equivalent instruction.
+    SimplifiedToInstructionMultiple(Vec<Instruction>),
+
     /// Remove the instruction, it is unnecessary
     Remove,
 
@@ -1117,9 +1149,10 @@ pub(crate) enum SimplifyResult {
 }
 
 impl SimplifyResult {
-    pub(crate) fn instruction(self) -> Option<Instruction> {
+    pub(crate) fn instructions(self) -> Option<Vec<Instruction>> {
         match self {
-            SimplifyResult::SimplifiedToInstruction(instruction) => Some(instruction),
+            SimplifyResult::SimplifiedToInstruction(instruction) => Some(vec![instruction]),
+            SimplifyResult::SimplifiedToInstructionMultiple(instructions) => Some(instructions),
             _ => None,
         }
     }

@@ -166,12 +166,22 @@ impl DataFlowGraph {
                 SimplifiedToMultiple(simplification)
             }
             SimplifyResult::Remove => InstructionRemoved,
-            result @ (SimplifyResult::SimplifiedToInstruction(_) | SimplifyResult::None) => {
-                let instruction = result.instruction().unwrap_or(instruction);
-                let id = self.make_instruction(instruction, ctrl_typevars);
-                self.blocks[block].insert_instruction(id);
-                self.locations.insert(id, call_stack);
-                InsertInstructionResult::Results(id, self.instruction_results(id))
+            result @ (SimplifyResult::SimplifiedToInstruction(_)
+            | SimplifyResult::SimplifiedToInstructionMultiple(_)
+            | SimplifyResult::None) => {
+                let mut instructions =
+                    result.instructions().unwrap_or(vec![instruction]).into_iter().peekable();
+
+                while let Some(instruction) = instructions.next() {
+                    let id = self.make_instruction(instruction, ctrl_typevars.clone());
+                    self.blocks[block].insert_instruction(id);
+                    self.locations.insert(id, call_stack.clone());
+
+                    if instructions.peek().is_none() {
+                        return InsertInstructionResult::Results(id, self.instruction_results(id));
+                    }
+                }
+                unreachable!("more than one instruction must be returned")
             }
         }
     }
