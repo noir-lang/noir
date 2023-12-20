@@ -42,6 +42,10 @@ pub(crate) struct ExecuteCommand {
 
     #[clap(flatten)]
     compile_options: CompileOptions,
+
+    /// JSON RPC url to solve oracle calls
+    #[clap(long)]
+    foreign_call_resolver: Option<String>,
 }
 
 pub(crate) fn run(
@@ -73,8 +77,12 @@ pub(crate) fn run(
             expression_width,
         )?;
 
-        let (return_value, solved_witness) =
-            execute_program_and_decode(compiled_program, package, &args.prover_name)?;
+        let (return_value, solved_witness) = execute_program_and_decode(
+            compiled_program,
+            package,
+            &args.prover_name,
+            args.foreign_call_resolver.clone(),
+        )?;
 
         println!("[{}] Circuit witness successfully solved", package.name);
         if let Some(return_value) = return_value {
@@ -93,11 +101,12 @@ fn execute_program_and_decode(
     program: CompiledProgram,
     package: &Package,
     prover_name: &str,
+    foreign_call_resolver_url: Option<String>,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
-    let solved_witness = execute_program(&program, &inputs_map)?;
+    let solved_witness = execute_program(&program, &inputs_map, foreign_call_resolver_url)?;
     let public_abi = program.abi.public_abi();
     let (_, return_value) = public_abi.decode(&solved_witness)?;
 
@@ -107,6 +116,7 @@ fn execute_program_and_decode(
 pub(crate) fn execute_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
+    foreign_call_resolver_url: Option<String>,
 ) -> Result<WitnessMap, CliError> {
     let blackbox_solver = Bn254BlackBoxSolver::new();
 
@@ -116,7 +126,7 @@ pub(crate) fn execute_program(
         &compiled_program.circuit,
         initial_witness,
         &blackbox_solver,
-        &mut DefaultForeignCallExecutor::new(true),
+        &mut DefaultForeignCallExecutor::new(true, foreign_call_resolver_url),
     );
     match solved_witness_err {
         Ok(solved_witness) => Ok(solved_witness),

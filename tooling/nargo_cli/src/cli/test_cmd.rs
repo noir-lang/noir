@@ -43,6 +43,10 @@ pub(crate) struct TestCommand {
 
     #[clap(flatten)]
     compile_options: CompileOptions,
+
+    /// JSON RPC url to solve oracle calls
+    #[clap(long)]
+    foreign_call_resolver: Option<String>,
 }
 
 pub(crate) fn run(
@@ -84,6 +88,7 @@ pub(crate) fn run(
             package,
             pattern,
             args.show_output,
+            args.foreign_call_resolver.clone(),
             &args.compile_options,
         )?;
     }
@@ -97,6 +102,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
     package: &Package,
     fn_name: FunctionNameMatch,
     show_output: bool,
+    foreign_call_resolver_url: Option<String>,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, package);
@@ -141,7 +147,14 @@ fn run_tests<S: BlackBoxFunctionSolver>(
             .expect("Failed to write to stdout");
         writer.flush().expect("Failed to flush writer");
 
-        match run_test(blackbox_solver, &context, test_function, show_output, compile_options) {
+        match run_test(
+            blackbox_solver,
+            &context,
+            test_function,
+            show_output,
+            foreign_call_resolver_url.clone(),
+            compile_options,
+        ) {
             TestStatus::Pass { .. } => {
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Green)))

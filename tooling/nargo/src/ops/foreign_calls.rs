@@ -2,6 +2,7 @@ use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult, Value},
     pwg::ForeignCallWaitInfo,
 };
+use jsonrpc::{arg as build_json_rpc_arg, minreq_http::Builder, Client};
 use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
 
 pub trait ForeignCallExecutor {
@@ -94,11 +95,22 @@ pub struct DefaultForeignCallExecutor {
     mocked_responses: Vec<MockedCall>,
     /// Whether to print [`ForeignCall::Print`] output.
     show_output: bool,
+    // JSON RPC client to solve oracle calls
+    oracle_resolver: Option<Client>,
 }
 
 impl DefaultForeignCallExecutor {
-    pub fn new(show_output: bool) -> Self {
-        DefaultForeignCallExecutor { show_output, ..DefaultForeignCallExecutor::default() }
+    pub fn new(show_output: bool, resolver_url: Option<String>) -> Self {
+        let oracle_resolver = resolver_url.map(|resolver_url| {
+            let transport_builder =
+                Builder::new().url(&resolver_url).expect("Invalid resolver URL");
+            Client::with_transport(transport_builder.build())
+        });
+        DefaultForeignCallExecutor {
+            show_output,
+            oracle_resolver,
+            ..DefaultForeignCallExecutor::default()
+        }
     }
 }
 
@@ -193,23 +205,39 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 let response_position = self
                     .mocked_responses
                     .iter()
-                    .position(|response| response.matches(foreign_call_name, &foreign_call.inputs))
-                    .unwrap_or_else(|| panic!("Unknown foreign call {}", foreign_call_name));
+                    .position(|response| response.matches(foreign_call_name, &foreign_call.inputs));
 
-                let mock = self
-                    .mocked_responses
-                    .get_mut(response_position)
-                    .expect("Invalid position of mocked response");
-                let result = mock.result.values.clone();
+                match (response_position, &self.oracle_resolver) {
+                    (Some(response_position), _) => {
+                        let mock = self
+                            .mocked_responses
+                            .get_mut(response_position)
+                            .expect("Invalid position of mocked response");
+                        let result = mock.result.values.clone();
 
-                if let Some(times_left) = &mut mock.times_left {
-                    *times_left -= 1;
-                    if *times_left == 0 {
-                        self.mocked_responses.remove(response_position);
+                        if let Some(times_left) = &mut mock.times_left {
+                            *times_left -= 1;
+                            if *times_left == 0 {
+                                self.mocked_responses.remove(response_position);
+                            }
+                        }
+
+                        Ok(ForeignCallResult { values: result })
                     }
-                }
+                    (None, Some(oracle_resolver)) => {
+                        let encoded_params: Vec<_> =
+                            foreign_call.inputs.iter().map(build_json_rpc_arg).collect();
+                        let req = oracle_resolver.build_request(foreign_call_name, &encoded_params);
+                        let parsed_response: Vec<ForeignCallParam> = oracle_resolver
+                            .send_request(req)
+                            .expect("Failed to send oracle request")
+                            .result()
+                            .expect("Failed to parse oracle response");
 
-                Ok(ForeignCallResult { values: result })
+                        Ok(ForeignCallResult { values: parsed_response })
+                    }
+                    (None, None) => panic!("Unknown foreign call {}", foreign_call_name),
+                }
             }
         }
     }

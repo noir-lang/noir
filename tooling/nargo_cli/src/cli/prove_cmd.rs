@@ -43,6 +43,10 @@ pub(crate) struct ProveCommand {
 
     #[clap(flatten)]
     compile_options: CompileOptions,
+
+    /// JSON RPC url to solve oracle calls
+    #[clap(long)]
+    foreign_call_resolver: Option<String>,
 }
 
 pub(crate) fn run(
@@ -81,6 +85,7 @@ pub(crate) fn run(
             &args.prover_name,
             &args.verifier_name,
             args.verify,
+            args.foreign_call_resolver.clone(),
         )?;
     }
 
@@ -95,12 +100,14 @@ pub(crate) fn prove_package(
     prover_name: &str,
     verifier_name: &str,
     check_proof: bool,
+    foreign_call_resolver_url: Option<String>,
 ) -> Result<(), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &compiled_program.abi)?;
 
-    let solved_witness = execute_program(&compiled_program, &inputs_map)?;
+    let solved_witness =
+        execute_program(&compiled_program, &inputs_map, foreign_call_resolver_url)?;
 
     // Write public inputs into Verifier.toml
     let public_abi = compiled_program.abi.public_abi();
