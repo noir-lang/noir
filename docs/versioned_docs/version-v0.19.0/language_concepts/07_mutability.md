@@ -69,11 +69,11 @@ fn main(x : Field, y : [Field; N]) {
 
     assert(res == y[0]);
 
-    let res2 = x * mysubmodule::N;
+    let res2 = x * my_submodule::N;
     assert(res != res2);
 }
 
-mod mysubmodule {
+mod my_submodule {
     use dep::std;
 
     global N: Field = 10;

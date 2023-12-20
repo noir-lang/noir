@@ -977,7 +977,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * require `Backend` to implement `Default` trait ([#223](https://github.com/noir-lang/acvm/issues/223))
 * Make GeneralOptimizer crate visible ([#220](https://github.com/noir-lang/acvm/issues/220))
 * return `PartialWitnessGeneratorStatus` from `PartialWitnessGenerator.solve` ([#213](https://github.com/noir-lang/acvm/issues/213))
-* organise operator implementations for Expression ([#190](https://github.com/noir-lang/acvm/issues/190))
+* organize operator implementations for Expression ([#190](https://github.com/noir-lang/acvm/issues/190))
 
 ### Features
 
@@ -1000,7 +1000,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Miscellaneous Chores
 
 * Make GeneralOptimizer crate visible ([#220](https://github.com/noir-lang/acvm/issues/220)) ([64bb346](https://github.com/noir-lang/acvm/commit/64bb346524428a0ce196826ea1e5ccde08ad6201))
-* organise operator implementations for Expression ([#190](https://github.com/noir-lang/acvm/issues/190)) ([a619df6](https://github.com/noir-lang/acvm/commit/a619df614bbb9b2518b788b42a7553b069823a0f))
+* organize operator implementations for Expression ([#190](https://github.com/noir-lang/acvm/issues/190)) ([a619df6](https://github.com/noir-lang/acvm/commit/a619df614bbb9b2518b788b42a7553b069823a0f))
 
 ## [0.9.0](https://github.com/noir-lang/acvm/compare/root-v0.8.1...root-v0.9.0) (2023-04-07)
 
@@ -1114,7 +1114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **acir:** make PublicInputs use a BTreeSet rather than Vec ([#99](https://github.com/noir-lang/acvm/issues/99))
 * refactor ToRadix to ToRadixLe and ToRadixBe ([#58](https://github.com/noir-lang/acvm/issues/58))
 * **acir:** Add keccak256 Opcode ([#91](https://github.com/noir-lang/acvm/issues/91))
-* reorganise compiler in terms of optimisers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88))
+* reorganize compiler in terms of optimisers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88))
 
 ### Features
 
@@ -1138,7 +1138,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Miscellaneous Chores
 
 * refactor ToRadix to ToRadixLe and ToRadixBe ([#58](https://github.com/noir-lang/acvm/issues/58)) ([2427a27](https://github.com/noir-lang/acvm/commit/2427a275048e598c6d651cce8348a4c55148f235))
-* reorganise compiler in terms of optimisers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88)) ([9329307](https://github.com/noir-lang/acvm/commit/9329307e054de202cfc55207162ad952b70d515e))
+* reorganize compiler in terms of optimisers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88)) ([9329307](https://github.com/noir-lang/acvm/commit/9329307e054de202cfc55207162ad952b70d515e))
 
 ## [0.4.1] - 2023-02-08
 

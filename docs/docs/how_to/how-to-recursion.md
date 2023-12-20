@@ -53,7 +53,7 @@ For a full example on how recursive proofs work, please refer to the [noir-examp
 
 In a common NoirJS app, you need to instantiate a backend with something like `const backend = new Backend(circuit)`. Then you feed it to the `noir_js` interface.
 
-For recursiveness, this doesn't happen, and the only need for `noir_js` is only to `execute` a circuit and get its witness and return value. Everything else is not interfaced, so it needs to happen on the `backend` object.
+For recursion, this doesn't happen, and the only need for `noir_js` is only to `execute` a circuit and get its witness and return value. Everything else is not interfaced, so it needs to happen on the `backend` object.
 
 It is also recommended that you instantiate the backend with as many threads as possible, to allow for maximum concurrency:
 
@@ -159,7 +159,7 @@ const backends = {
 main: new BarretenbergBackend(circuits.main),
 recursive: new BarretenbergBackend(circuits.recursive)
 }
-const noirs = {
+const noir_programs = {
 main: new Noir(circuits.main, backends.main),
 recursive: new Noir(circuits.recursive, backends.recursive)
 }
@@ -169,7 +169,7 @@ This allows you to neatly call exactly the method you want without conflicting n
 
 ```js
 // Alice runs this 👇
-const { witness: mainWitness } = await noirs.main.execute(input)
+const { witness: mainWitness } = await noir_programs.main.execute(input)
 const proof = await backends.main.generateIntermediateProof(mainWitness)
 
 // Bob runs this 👇
@@ -178,7 +178,7 @@ const { proofAsFields, vkAsFields, vkHash } = await backends.main.generateInterm
     proof,
     numPublicInputs,
 );
-const recursiveProof = await noirs.recursive.generateFinalProof(recursiveInputs)
+const recursiveProof = await noir_programs.recursive.generateFinalProof(recursiveInputs)
 ```
 
 :::

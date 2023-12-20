@@ -26,7 +26,7 @@ Noir, a domain-specific language crafted for SNARK proving systems, stands out w
 and robust capabilities. Unlike conventional approaches that compile directly to a fixed NP-complete language,
 Noir takes a two-pronged path. It first compiles to an adaptable intermediate language known as ACIR. From there,
 depending on the project's needs, ACIR can be further compiled into an arithmetic circuit for integration with Aztec's
-barretenberg backend or transformed into a rank-1 constraint system suitable for R1CS backends like Arkwork's Marlin
+barretenberg backend or transformed into a rank-1 constraint system suitable for R1CS backends like Arkworks' Marlin
 backend, among others.
 
 This innovative design introduces unique challenges, yet it strategically separates the programming language from the
@@ -43,7 +43,7 @@ contracts efficiently. While the current alpha version offers this as a direct f
 to modularize this process for even greater ease of use.
 
 Noir currently includes a command to create a Solidity contract which verifies your Noir program. This will be
-modularised in the future; however, as of the alpha, you can use the `nargo codegen-verifier` command to create a verifier contract.
+modularized in the future; however, as of the alpha, you can use the `nargo codegen-verifier` command to create a verifier contract.
 
 ### Protocol Developers
 

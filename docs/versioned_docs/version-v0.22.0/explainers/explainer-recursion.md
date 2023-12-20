@@ -149,7 +149,7 @@ In such a situation, and assuming Alice is first, she would skip the first part 
 
 ### Aggregating proofs
 
-In some one-way interaction situations, recursiveness would allow for aggregation of simple proofs that don't need to be immediately verified on-chain or elsewhere.
+In some one-way interaction situations, recursion would allow for aggregation of simple proofs that don't need to be immediately verified on-chain or elsewhere.
 
 To give a practical example, a barman wouldn't need to verify a "proof-of-age" on-chain every time he serves alcohol to a customer. Instead, the architecture would comprise two circuits:
 
