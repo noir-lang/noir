@@ -363,12 +363,12 @@ jobs:
         with:
           name: acvm_js
           path: /usr/src/noir/acvm-repo/acvm_js
-      # - name: artifact
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: noir-js-types
-      #     path: |
-      #       /usr/src/noir/tooling/noir_js_types/lib
+      - name: artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: noir-js-types
+          path: |
+            /usr/src/noir/tooling/noir_js_types/lib
       - name: artifact
         uses: actions/download-artifact@v4
         with:
