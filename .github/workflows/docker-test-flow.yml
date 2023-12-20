@@ -379,6 +379,10 @@ jobs:
           name: noir_js
           path:
             /usr/src/noir/tooling/noir_js/lib
+      - name: Build noir_js_types
+        run: |
+          cd /usr/src/noir
+          yarn workspace @noir-lang/types build
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-noir-codegen.sh
