@@ -20,7 +20,6 @@ COPY .yarn/ ./.yarn/
 COPY ./acvm-repo/acvm_js/package.json ./acvm-repo/acvm_js/
 COPY ./tooling/noirc_abi_wasm/package.json ./tooling/noirc_abi_wasm/
 COPY ./compiler/wasm/package.json ./compiler/wasm/
-COPY ./compiler/source-resolver/package.json ./compiler/source-resolver/
 COPY ./tooling/noir_js_types/package.json ./tooling/noir_js_types/
 COPY ./tooling/noir_js_backend_barretenberg/package.json ./tooling/noir_js_backend_barretenberg/
 COPY ./tooling/noir_js/package.json ./tooling/noir_js/
