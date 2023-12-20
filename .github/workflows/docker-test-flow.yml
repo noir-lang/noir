@@ -307,6 +307,8 @@ jobs:
           name: acvm-js
           path: |
             /usr/src/noir/acvm-repo/acvm-js
+      - name: Build noir_js_types
+        run: yarn workspace @noir-lang/types build
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-noir-js.sh
