@@ -124,6 +124,7 @@
         "srem",
         "stdlib",
         "struct",
+        "structs",
         "subexpression",
         "subshell",
         "subtyping",
@@ -148,5 +149,8 @@
         "wasi",
         "Weierstraß",
         "zshell"
+    ],
+    "ignorePaths": [
+        "./**/node_modules/**"
     ]
 }
