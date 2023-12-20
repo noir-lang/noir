@@ -172,8 +172,7 @@ jobs:
         with:
           name: noir-js-types
           path: |
-            /usr/src/noir/tooling/noir_js_types/lib/cjs
-            /usr/src/noir/tooling/noir_js_types/lib/esm
+            /usr/src/noir/tooling/noir_js_types/lib
           if-no-files-found: error
           compression-level: 0
 
@@ -321,9 +320,21 @@ jobs:
           name: barretenberg-backend
           path:
             /usr/src/noir/tooling/noir_js_backend_barretenberg/lib
+      - name: artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: noir-js-types
+          path: |
+            /usr/src/noir/tooling/noir_js_types/lib
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-noir-js.sh
+      - name: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: noir_js
+          path:
+            /usr/src/noir/tooling/noir_js/lib
 
   # DONE
   test-noir_codegen:
@@ -360,6 +371,12 @@ jobs:
           name: noir-js-types
           path: |
             /usr/src/noir/tooling/noir_js_types/lib
+      - name: artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: noir_js
+          path:
+            /usr/src/noir/tooling/noir_js/lib
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-noir-codegen.sh
