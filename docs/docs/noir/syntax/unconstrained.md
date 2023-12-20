@@ -6,7 +6,7 @@ keywords: [Noir programming language, unconstrained, open]
 sidebar_position: 5
 ---
 
-Unconstrained functions are functions which do not constrain any of the included computation and allow for non-determinisitic computation.
+Unconstrained functions are functions which do not constrain any of the included computation and allow for non-deterministic computation.
 
 ## Why?
 
