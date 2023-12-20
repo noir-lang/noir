@@ -383,6 +383,10 @@ jobs:
         run: |
           cd /usr/src/noir
           yarn workspace @noir-lang/types build
+      - name: Build noir_js
+        run: |
+          cd /usr/src/noir
+          yarn workspace @noir-lang/noir_js build
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-noir-codegen.sh
