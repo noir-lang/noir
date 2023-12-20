@@ -255,6 +255,20 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
             output.push_str(" }");
         }
 
+        (PrintableValue::Vec(values), PrintableType::Tuple { types }) => {
+            output.push_str("(");
+            let mut elems = values.iter().zip(types).peekable();
+            while let Some((value, typ)) = elems.next() {
+                output.push_str(
+                    &PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
+                );
+                if elems.peek().is_some() {
+                    output.push_str(", ");
+                }
+            }
+            output.push_str(")");
+        }
+
         _ => return None,
     };
 
