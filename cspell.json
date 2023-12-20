@@ -109,6 +109,7 @@
         "srem",
         "stdlib",
         "struct",
+        "structs",
         "subexpression",
         "subshell",
         "subtyping",
@@ -128,5 +129,8 @@
         "urem",
         "vecmap",
         "wasi"
+    ],
+    "ignorePaths": [
+        "./**/node_modules/**"
     ]
 }
