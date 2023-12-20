@@ -43,7 +43,8 @@ pub(crate) fn optimize_into_acir(
 ) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
 
-    let ssa_gen_span = span!(Level::TRACE, "SSA generation");
+    let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
+    let ssa_gen_span_guard = ssa_gen_span.enter();
     let ssa_builder = SsaBuilder::new(program, print_ssa_passes)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
@@ -71,13 +72,14 @@ pub(crate) fn optimize_into_acir(
     let ssa = ssa_builder
         .run_pass(Ssa::fill_internal_slices, "After Fill Internal Slice Dummy Data:")
         .finish();
-    drop(ssa_gen_span);
+    drop(ssa_gen_span_guard);
 
     let last_array_uses = ssa.find_last_array_uses();
 
-    let acir_gen_span = span!(Level::TRACE, "ACIR generation");
+    let acir_gen_span = span!(Level::TRACE, "acir_generation");
+    let acir_gen_span_guard = acir_gen_span.enter();
     let acir = ssa.into_acir(brillig, abi_distinctness, &last_array_uses);
-    drop(acir_gen_span);
+    drop(acir_gen_span_guard);
 
     acir
 }
