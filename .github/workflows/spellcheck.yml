@@ -8,8 +8,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  spellcheck-code:
-    name: Spellcheck
+  code:
+    name: Code
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -23,8 +23,8 @@ jobs:
           files: |
             **/*.{md,rs}
 
-  spellcheck-docs:
-    name: Spellcheck
+  docs:
+    name: Documentation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
