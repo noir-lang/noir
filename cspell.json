@@ -36,6 +36,7 @@
         "cpus",
         "cranelift",
         "curvegroup",
+        "databus",
         "deflatten",
         "deflattened",
         "deflattening",
