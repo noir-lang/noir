@@ -11,7 +11,7 @@ use crate::{
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitImplKind, TraitMethodId},
-    BinaryOpKind, Signedness, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
+    BinaryOpKind, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -1121,13 +1121,7 @@ impl<'interner> TypeChecker<'interner> {
                         span,
                     });
                 }
-                if op.is_bit_shift()
-                    && (*sign_x == Signedness::Signed || *sign_y == Signedness::Signed)
-                {
-                    Err(TypeCheckError::InvalidInfixOp { kind: "Signed integer", span })
-                } else {
-                    Ok(Integer(*sign_x, *bit_width_x))
-                }
+                Ok(Integer(*sign_x, *bit_width_x))
             }
             (Integer(..), FieldElement) | (FieldElement, Integer(..)) => {
                 Err(TypeCheckError::IntegerAndFieldBinaryOperation { span })
