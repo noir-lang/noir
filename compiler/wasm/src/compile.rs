@@ -7,8 +7,9 @@ use nargo::artifacts::{
     program::PreprocessedProgram,
 };
 use noirc_driver::{
-    add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
-    CompiledContract, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
+    add_dep, compile_contract, compile_main, file_manager_with_stdlib, prepare_crate,
+    prepare_dependency, CompileOptions, CompiledContract, CompiledProgram,
+    NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},
@@ -178,8 +179,8 @@ pub fn compile(
 
     let compile_options = CompileOptions::default();
 
-    // For now we default to plonk width = 3, though we can add it as a parameter
-    let np_language = acvm::Language::PLONKCSat { width: 3 };
+    // For now we default to a bounded width of 3, though we can add it as a parameter
+    let expression_width = acvm::ExpressionWidth::Bounded { width: 3 };
 
     if contracts.unwrap_or_default() {
         let compiled_contract = compile_contract(&mut context, crate_id, &compile_options)
@@ -192,7 +193,7 @@ pub fn compile(
             })?
             .0;
 
-        let optimized_contract = nargo::ops::optimize_contract(compiled_contract, np_language);
+        let optimized_contract = nargo::ops::optimize_contract(compiled_contract, expression_width);
 
         let compile_output = preprocess_contract(optimized_contract);
         Ok(JsCompileResult::new(compile_output))
@@ -207,7 +208,7 @@ pub fn compile(
             })?
             .0;
 
-        let optimized_program = nargo::ops::optimize_program(compiled_program, np_language);
+        let optimized_program = nargo::ops::optimize_program(compiled_program, expression_width);
 
         let compile_output = preprocess_program(optimized_program);
         Ok(JsCompileResult::new(compile_output))
@@ -224,7 +225,7 @@ pub fn compile(
 // should be considered as immutable.
 pub(crate) fn file_manager_with_source_map(source_map: PathToFileSourceMap) -> FileManager {
     let root = Path::new("");
-    let mut fm = FileManager::new(root);
+    let mut fm = file_manager_with_stdlib(root);
 
     for (path, source) in source_map.0 {
         fm.add_file_with_source(path.as_path(), source);
@@ -327,7 +328,7 @@ mod test {
     use super::{file_manager_with_source_map, process_dependency_graph, DependencyGraph};
     use std::{collections::HashMap, path::Path};
 
-    fn setup_test_context(source_map: PathToFileSourceMap) -> Context {
+    fn setup_test_context(source_map: PathToFileSourceMap) -> Context<'static> {
         let mut fm = file_manager_with_source_map(source_map);
         // Add this due to us calling prepare_crate on "/main.nr" below
         fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());

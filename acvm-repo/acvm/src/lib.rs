@@ -18,10 +18,16 @@ pub use brillig_vm;
 // re-export blackbox solver
 pub use acvm_blackbox_solver as blackbox_solver;
 
-/// Supported NP complete languages
-/// This might need to be in ACIR instead
+/// Specifies the maximum width of the expressions which will be constrained.
+///
+/// Unbounded Expressions are useful if you are eventually going to pass the ACIR
+/// into a proving system which supports R1CS.
+///
+/// Bounded Expressions are useful if you are eventually going to pass the ACIR
+/// into a proving system which supports PLONK, where arithmetic expressions have a
+/// finite fan-in.
 #[derive(Debug, Clone, Copy)]
-pub enum Language {
-    R1CS,
-    PLONKCSat { width: usize },
+pub enum ExpressionWidth {
+    Unbounded,
+    Bounded { width: usize },
 }
