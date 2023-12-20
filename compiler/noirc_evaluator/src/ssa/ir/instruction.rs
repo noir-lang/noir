@@ -477,7 +477,9 @@ impl Instruction {
                                     lhs,
                                     rhs,
                                     operator: BinaryOp::Mul,
-                                }) if dfg.type_of_value(lhs) == Type::bool() => {
+                                }) if constant.is_one()
+                                    && dfg.type_of_value(lhs) == Type::bool() =>
+                                {
                                     // Replace an equality assertion on a boolean multiplication
                                     //
                                     // v2 = mul v0, v1
