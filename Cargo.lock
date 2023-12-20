@@ -1215,6 +1215,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dap"
+version = "0.4.1-alpha1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35c7fc89d334ab745ba679f94c7314c9b17ecdcd923c111df6206e9fd7729fa9"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2437,6 +2448,7 @@ dependencies = [
  "color-eyre",
  "const_format",
  "criterion",
+ "dap",
  "dirs",
  "fm",
  "hex",
@@ -2539,11 +2551,15 @@ version = "0.22.0"
 dependencies = [
  "acvm",
  "codespan-reporting",
+ "dap",
  "easy-repl",
+ "fm",
  "nargo",
+ "noirc_driver",
  "noirc_errors",
  "noirc_printable_type",
  "owo-colors",
+ "serde_json",
  "thiserror",
 ]
 

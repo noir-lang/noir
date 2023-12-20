@@ -93,6 +93,8 @@ gloo-utils = { version = "0.1", features = ["serde"] }
 js-sys = "0.3.62"
 getrandom = "0.2"
 
+# Debugger
+dap = "0.4.1-alpha1"
 
 cfg-if = "1.0.0"
 clap = { version = "4.3.19", features = ["derive", "env"] }
