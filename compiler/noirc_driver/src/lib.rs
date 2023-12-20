@@ -18,7 +18,7 @@ use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use tracing::{info, trace};
+use tracing::info;
 
 mod abi_gen;
 mod contract;
@@ -161,14 +161,13 @@ pub fn add_dep(
 ///
 /// This returns a (possibly empty) vector of any warnings found on success.
 /// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
+#[tracing::instrument(level = "trace", skip(context))]
 pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
     disable_macros: bool,
 ) -> CompilationResult<()> {
-    trace!("Start checking crate");
-
     let macros: Vec<&dyn MacroProcessor> = if disable_macros {
         vec![]
     } else {
@@ -181,8 +180,6 @@ pub fn check_crate(
         let diagnostic: CustomDiagnostic = error.into();
         diagnostic.in_file(file_id)
     }));
-
-    trace!("Finish checking crate");
 
     if has_errors(&errors, deny_warnings) {
         Err(errors)

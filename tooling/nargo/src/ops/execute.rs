@@ -1,20 +1,19 @@
 use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
-use tracing::trace;
 
 use crate::errors::ExecutionError;
 use crate::NargoError;
 
 use super::foreign_calls::ForeignCallExecutor;
 
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
     circuit: &Circuit,
     initial_witness: WitnessMap,
     blackbox_solver: &B,
     foreign_call_executor: &mut F,
 ) -> Result<WitnessMap, NargoError> {
-    trace!("Start circuit execution");
     let mut acvm = ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness);
 
     loop {
@@ -56,8 +55,5 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
         }
     }
 
-    let solved_witness = acvm.finalize();
-
-    trace!("Finish circuit execution");
-    Ok(solved_witness)
+    Ok(acvm.finalize())
 }

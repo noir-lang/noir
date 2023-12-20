@@ -23,7 +23,7 @@ use noirc_errors::debug_info::DebugInfo;
 use noirc_frontend::{
     hir_def::function::FunctionSignature, monomorphization::ast::Program, Visibility,
 };
-use tracing::trace;
+use tracing::{span, Level};
 
 use self::{acir_gen::GeneratedAcir, ssa_gen::Ssa};
 
@@ -43,7 +43,7 @@ pub(crate) fn optimize_into_acir(
 ) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
 
-    trace!("Start SSA generation");
+    let ssa_gen_span = span!(Level::TRACE, "SSA generation");
     let ssa_builder = SsaBuilder::new(program, print_ssa_passes)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
@@ -71,13 +71,13 @@ pub(crate) fn optimize_into_acir(
     let ssa = ssa_builder
         .run_pass(Ssa::fill_internal_slices, "After Fill Internal Slice Dummy Data:")
         .finish();
-    trace!("Finish SSA generation");
+    drop(ssa_gen_span);
 
     let last_array_uses = ssa.find_last_array_uses();
 
-    trace!("Start ACIR generation");
+    let acir_gen_span = span!(Level::TRACE, "ACIR generation");
     let acir = ssa.into_acir(brillig, abi_distinctness, &last_array_uses);
-    trace!("Finish ACIR generation");
+    drop(acir_gen_span);
 
     acir
 }
@@ -86,13 +86,12 @@ pub(crate) fn optimize_into_acir(
 ///
 /// The output ACIR is is backend-agnostic and so must go through a transformation pass before usage in proof generation.
 #[allow(clippy::type_complexity)]
+#[tracing::instrument(level = "trace", skip(program))]
 pub fn create_circuit(
     program: Program,
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
 ) -> Result<(Circuit, DebugInfo, Vec<Witness>, Vec<Witness>, Vec<SsaReport>), RuntimeError> {
-    trace!("Start circuit generation");
-
     let func_sig = program.main_function_signature.clone();
     let mut generated_acir =
         optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
@@ -133,8 +132,6 @@ pub fn create_circuit(
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
     debug_info.update_acir(transformation_map);
-
-    trace!("Finish circuit generation");
 
     Ok((optimized_circuit, debug_info, input_witnesses, return_witnesses, warnings))
 }

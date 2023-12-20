@@ -4,7 +4,6 @@ use acir::{
     FieldElement,
 };
 use indexmap::IndexMap;
-use tracing::trace;
 
 use crate::ExpressionWidth;
 
@@ -38,13 +37,12 @@ pub fn transform(
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
+#[tracing::instrument(level = "trace", name = "transform_acir", skip(acir, acir_opcode_positions))]
 pub(super) fn transform_internal(
     acir: Circuit,
     expression_width: ExpressionWidth,
     acir_opcode_positions: Vec<usize>,
 ) -> (Circuit, Vec<usize>) {
-    trace!("Start circuit transformation");
-
     let mut transformer = match &expression_width {
         crate::ExpressionWidth::Unbounded => {
             let transformer = R1CSTransformer::new(acir);
@@ -209,8 +207,6 @@ pub(super) fn transform_internal(
         // The transformer does not add new public inputs
         ..acir
     };
-
-    trace!("Finish circuit transformation");
 
     (acir, new_acir_opcode_positions)
 }
