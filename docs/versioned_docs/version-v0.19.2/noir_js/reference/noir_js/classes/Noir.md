@@ -95,7 +95,7 @@ Generates a witness and a proof given an object as input.
 #### Example
 
 ```typescript
-async generateFinalproof(input)
+async generateFinalProof(input)
 ```
 
 ***
