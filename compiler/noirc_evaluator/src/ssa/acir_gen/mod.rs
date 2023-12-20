@@ -156,6 +156,7 @@ impl AcirValue {
 }
 
 impl Ssa {
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn into_acir(
         self,
         brillig: Brillig,

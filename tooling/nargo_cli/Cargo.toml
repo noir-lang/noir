@@ -46,7 +46,6 @@ hex.workspace = true
 similar-asserts.workspace = true
 termcolor = "1.1.2"
 color-eyre = "0.6.2"
-env_logger = "0.9.0"
 tokio = { version = "1.0", features = ["io-std"] }
 dap.workspace = true
 
@@ -55,8 +54,7 @@ backend-interface = { path = "../backend_interface" }
 bb_abstraction_leaks.workspace = true
 
 # Logs
-tracing.workspace = true
-tracing-subscriber = "0.3.18"
+tracing-subscriber.workspace = true
 tracing-appender = "0.2.3"
 
 [target.'cfg(not(unix))'.dependencies]
