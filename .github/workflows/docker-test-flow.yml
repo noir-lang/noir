@@ -361,7 +361,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm
+          path: /usr/src/noir/tooling/noirc_abi_wasm
       - name: Download acvm_js package artifact
         uses: actions/download-artifact@v4
         with:
@@ -379,14 +379,6 @@ jobs:
           name: noir_js
           path:
             /usr/src/noir/tooling/noir_js/lib
-      - name: Build noir_js_types
-        run: |
-          cd /usr/src/noir
-          yarn workspace @noir-lang/types build
-      - name: Build noir_js
-        run: |
-          cd /usr/src/noir
-          yarn workspace @noir-lang/noir_js build
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-noir-codegen.sh
@@ -418,7 +410,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm
+          path: /usr/src/noir/tooling/noirc_abi_wasm
       - name: Download acvm_js package artifact
         uses: actions/download-artifact@v4
         with:
