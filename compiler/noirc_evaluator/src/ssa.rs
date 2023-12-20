@@ -76,12 +76,7 @@ pub(crate) fn optimize_into_acir(
 
     let last_array_uses = ssa.find_last_array_uses();
 
-    let acir_gen_span = span!(Level::TRACE, "acir_generation");
-    let acir_gen_span_guard = acir_gen_span.enter();
-    let acir = ssa.into_acir(brillig, abi_distinctness, &last_array_uses);
-    drop(acir_gen_span_guard);
-
-    acir
+    ssa.into_acir(brillig, abi_distinctness, &last_array_uses)
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Circuit].
