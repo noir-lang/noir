@@ -25,6 +25,7 @@ fn main() {
     if let Ok(log_dir) = env::var("NARGO_LOG_DIR") {
         let debug_file = rolling::daily(log_dir, "nargo-log");
         tracing_subscriber::fmt()
+            .with_span_events(FmtSpan::ACTIVE)
             .with_writer(debug_file)
             .with_ansi(false)
             .with_env_filter(EnvFilter::from_default_env())
