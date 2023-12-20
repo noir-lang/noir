@@ -433,11 +433,16 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ always() }}
     needs: 
+      - test-source-resolver
+      - test-nargo
       - test-noirc-abi
       - test-source-resolver
       - test-noir-wasm
       - test-integration
       - test-noir_codegen
+      - test-acvm_js
+      - test-barretenberg-backend
+      - test-noir_js
     
     steps:
         - name: Report overall success
