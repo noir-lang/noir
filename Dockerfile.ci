@@ -6,7 +6,6 @@ ENV PATH="${PATH}:/usr/src/noir/target/release"
 FROM base-base as base-nargo
 COPY . .
 RUN .github/scripts/build-nargo.sh
-ENV PATH="${PATH}:/usr/src/noir/target/release"
 
 FROM base-base as base-js
 RUN apt-get install -y ca-certificates curl gnupg
@@ -41,6 +40,11 @@ COPY ./docs/package.json ./docs/
 RUN yarn --immutable
 # RUN yarn --immutable
 COPY . .
+
+# #TEMP
+# RUN .github/scripts/build-nargo.sh
+# RUN ./scripts/install_wasm-bindgen-new.sh
+
 
 FROM base-base as base
 WORKDIR /usr/src/noir
