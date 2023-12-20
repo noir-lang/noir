@@ -366,7 +366,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: acvm_js
-          path: ./acvm-repo/acvm_js
+          path: /usr/src/noir/acvm-repo/acvm_js
       - name: artifact
         uses: actions/download-artifact@v4
         with:
@@ -415,7 +415,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: acvm_js
-          path: ./acvm-repo/acvm_js
+          path: /usr/src/noir/acvm-repo/acvm_js
       - name: Download noir js types
         uses: actions/download-artifact@v4
         with:
