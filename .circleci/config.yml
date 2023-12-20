@@ -853,6 +853,13 @@ jobs:
           name: "Copy docs dockerignore"
           command: cp docs/.dockerignore .
       - run:
+          name: "Configure build for master"
+          command: |
+            if [ "$CIRCLE_BRANCH" == "master" ]; then
+              echo "Configuring build for master"
+              echo "INCLUDE_RELEASED_CODE=1" >> docs/.env
+            fi
+      - run:
           name: "Build docs"
           command: build docs
       - run:
