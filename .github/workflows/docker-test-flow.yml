@@ -206,7 +206,7 @@ jobs:
           /usr/src/noir/.github/scripts/test-noir-wasm.sh
 
   #DONE
-  test-acvm-js:
+  test-acvm_js:
     name: test acvm js
     runs-on: ubuntu-latest
     needs: [build-base-js]
@@ -218,11 +218,11 @@ jobs:
     steps:
       - name: test
         run: |
-          /usr/src/noir/.github/scripts/test-acvm-js.sh
+          /usr/src/noir/.github/scripts/test-acvm_js.sh
       - name: artifact
         uses: actions/upload-artifact@v4
         with:
-          name: acvm-js
+          name: acvm_js
           path:
             /usr/src/noir/acvm-repo/acvm_js/outputs/out/acvm_js
           if-no-files-found: error
@@ -280,7 +280,7 @@ jobs:
   test-noir_js:
     name: test noirjs
     runs-on: ubuntu-latest
-    needs: [build-base-js, test-noirc-abi, artifact-nargo, test-acvm-js]
+    needs: [build-base-js, test-noirc-abi, artifact-nargo, test-acvm_js]
     container:
       image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
       credentials:
@@ -304,9 +304,9 @@ jobs:
       - name: download artifact
         uses: actions/download-artifact@v4
         with:
-          name: acvm-js
+          name: acvm_js
           path: |
-            /usr/src/noir/acvm-repo/acvm-js
+            /usr/src/noir/acvm-repo/acvm_js
       - name: Build noir_js_types
         run: yarn workspace @noir-lang/types build
       - name: test
@@ -317,7 +317,7 @@ jobs:
   test-noir_codegen:
     name: test noir codegen
     runs-on: ubuntu-latest
-    needs: [build-base-js, artifact-nargo, test-noirc-abi, test-acvm-js,  build-noir-js-types, test-noir_js]
+    needs: [build-base-js, artifact-nargo, test-noirc-abi, test-acvm_js,  build-noir-js-types, test-noir_js]
     container:
       image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
       credentials:
@@ -340,7 +340,7 @@ jobs:
       - name: Download acvm_js package artifact
         uses: actions/download-artifact@v3
         with:
-          name: acvm-js
+          name: acvm_js
           path: ./acvm-repo/acvm_js
       - name: artifact
         uses: actions/download-artifact@v4
