@@ -19,12 +19,6 @@ export default {
   ],
   files: ['**/browser/*.test.ts'],
   nodeResolve: true,
-  testFramework: {
-    config: {
-      ui: 'bdd',
-      timeout: 40000,
-    },
-  },
-  rootDir: fileURLToPath(new URL('./../../../', import.meta.url)),
+  rootDir: fileURLToPath(new URL('./../../', import.meta.url)),
   reporters: [reporter],
 };

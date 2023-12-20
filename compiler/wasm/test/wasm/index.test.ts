@@ -1,16 +1,19 @@
-import {
+import { getPaths } from '../shared';
+import { readFileSync } from 'fs';
+import { join, resolve } from 'path';
+import { expect } from 'chai';
+
+import { compile, PathToFileSourceMap, compile_, CompilerContext } from '../../build/cjs';
+
+const basePath = resolve(join(__dirname, '../../'));
+const {
+  simpleScriptSourcePath,
+  simpleScriptExpectedArtifact,
   depsScriptSourcePath,
   depsScriptExpectedArtifact,
   libASourcePath,
   libBSourcePath,
-  simpleScriptSourcePath,
-  simpleScriptExpectedArtifact,
-} from '../../shared';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { expect } from 'chai';
-
-import { compile, PathToFileSourceMap, compile_, CompilerContext } from '../../../build/cjs';
+} = getPaths(basePath);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getPrecompiledSource(path: string): Promise<any> {

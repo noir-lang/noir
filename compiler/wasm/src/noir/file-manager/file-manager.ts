@@ -43,6 +43,13 @@ export class FileManager {
   }
 
   /**
+   * Returns the data directory
+   */
+  getDataDir() {
+    return this.#dataDir;
+  }
+
+  /**
    * Saves a file to the data directory.
    * @param name - File to save
    * @param stream - File contents
@@ -151,7 +158,6 @@ export class FileManager {
     },
   ) {
     const dirPath = this.#getPath(dir);
-    const files = await this.#fs.readdir(dirPath, options);
-    return files.map((file) => path.join(dirPath, file));
+    return await this.#fs.readdir(dirPath, options);
   }
 }

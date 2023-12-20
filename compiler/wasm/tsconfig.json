@@ -14,8 +14,7 @@
     "esModuleInterop": true,
     "target": "ESNext",
     "module": "CommonJS",
-    "moduleResolution": "node",
+    "moduleResolution": "Node"
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "build", "dist"]
+  "include": ["./src"]
 }

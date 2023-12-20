@@ -13,18 +13,23 @@
     "import": "./dist/web/main.js",
     "require": "./dist/node/main.js"
   },
+  "files": [
+    "dist",
+    "package.json"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/noir-lang/noir.git"
   },
   "scripts": {
     "serve": "webpack serve",
-    "build-fixtures": "cd public/fixtures && cd simple && nargo compile && cd ../with-deps && nargo compile && cd ../noir-contract && nargo compile && cd ../",
-    "build": "webpack",
+    "build:fixtures": "cd public/fixtures && cd simple && nargo compile && cd ../with-deps && nargo compile && cd ../noir-contract && nargo compile && cd ../",
+    "build:webpack": "webpack",
+    "build": "yarn build:webpack && yarn build:fixtures",
     "test": "yarn test:node && yarn test:browser",
     "test:node": "NODE_NO_WARNINGS=1 $(yarn bin mocha) --config ./.mocharc.json",
     "test:browser": "web-test-runner",
-    "clean": "chmod u+w web nodejs || true && rm -rf ./build ./target ./dist",
+    "clean": "rm -rf ./build ./target ./dist public/fixtures/simple/target public/fixtures/with-deps/target public/fixtures/noir-contract/target",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
     "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
@@ -32,10 +37,7 @@
     "install:from:nix": "yarn clean && yarn build:nix && cp -rL ./result/noir_wasm/nodejs ./ && cp -rL ./result/noir_wasm/web ./"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-class-properties": "^7.18.6",
-    "@babel/plugin-transform-private-methods": "^7.23.3",
-    "@babel/preset-env": "^7.23.5",
-    "@babel/preset-typescript": "^7.23.3",
+    "@esm-bundle/chai": "^4.3.4-fix.0",
     "@jest/globals": "^29.7.0",
     "@ltd/j-toml": "^1.38.0",
     "@types/babel__preset-env": "^7",
@@ -57,7 +59,6 @@
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",
     "assert": "^2.1.0",
-    "babel-loader": "^9.1.3",
     "browserify-fs": "^1.0.0",
     "buffer": "^6.0.3",
     "chai": "^4.3.10",

@@ -66,6 +66,7 @@ export class NoirWasmContractCompiler {
     /* eslint-enable @typescript-eslint/no-explicit-any */
     opts: NoirWasmCompileOptions,
   ) {
+    // Assume the filemanager is initialized at the project root
     if (!isAbsolute(projectPath)) {
       throw new Error('projectPath must be an absolute path');
     }
@@ -81,14 +82,7 @@ export class NoirWasmContractCompiler {
       noirPackage,
     );
 
-    return new NoirWasmContractCompiler(
-      noirPackage,
-      dependencyManager,
-      fileManager,
-      wasmCompiler.compile,
-      sourceMap,
-      opts,
-    );
+    return new NoirWasmContractCompiler(noirPackage, dependencyManager, fileManager, wasmCompiler, sourceMap, opts);
   }
 
   /**
@@ -127,8 +121,8 @@ export class NoirWasmContractCompiler {
             .map(async ([alias, library]) => await library.package.getSources(this.#fm, alias)),
         )
       ).flat();
-      this.#sourceMap.clean();
       [...packageSources, ...librarySources].forEach((sourceFile) => {
+        this.#debugLog(`Adding source ${sourceFile.path}`);
         this.#sourceMap.add_source_code(sourceFile.path, sourceFile.source);
       });
       const result = this.#wasmCompiler.compile(entrypoint, isContract, deps, this.#sourceMap);

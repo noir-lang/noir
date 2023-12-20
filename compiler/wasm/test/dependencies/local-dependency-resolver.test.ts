@@ -1,5 +1,4 @@
-import { createFsFromVolume } from 'memfs';
-import { Volume } from 'memfs/lib/volume';
+import { createFsFromVolume, Volume } from 'memfs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'path';
 

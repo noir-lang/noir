@@ -1,10 +1,26 @@
-import { compileUsingNoirWasm } from './noir_wasm';
 import { FileManager } from './noir/file-manager/file-manager';
+import { createNodejsFileManager } from './noir/file-manager/nodejs-file-manager';
+import { NoirWasmContractCompiler } from './noir/noir-wasm-compiler';
+import { LogData, LogFn } from './utils';
 
-async function compile(fileManager: FileManager, projectPath: string) {
-  const cjsModule = await require('../build/cjs');
-  console.log('hey cjs');
-  return compileUsingNoirWasm(fileManager, projectPath, cjsModule.compile, new cjsModule.PathToFileSourceMap());
+async function compile(fileManager: FileManager, projectPath?: string, logFn?: LogFn) {
+  const cjs = await require('../build/cjs');
+  const compiler = await NoirWasmContractCompiler.new(
+    fileManager,
+    projectPath ?? fileManager.getDataDir(),
+    cjs,
+    new cjs.PathToFileSourceMap(),
+    {
+      log:
+        logFn ??
+        function (msg: string, _data?: LogData) {
+          console.log(msg);
+        },
+    },
+  );
+  return await compiler.compile();
 }
 
-export { compile };
+const createFileManager = createNodejsFileManager;
+
+export { compile, createFileManager };

@@ -1,4 +1,4 @@
-import { NoirDependencyConfig } from 'src/types/noir_package_config';
+import { NoirDependencyConfig } from '../../src/types/noir_package_config';
 import { NoirPackage } from '../../src/noir/package';
 import { NoirDependencyManager } from '../../src/noir/dependencies/dependency-manager';
 import { NoirDependency, NoirDependencyResolver } from '../../src/noir/dependencies/dependency-resolver';

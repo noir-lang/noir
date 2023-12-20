@@ -1,6 +1,6 @@
 import { Volume, createFsFromVolume } from 'memfs';
 import { readFile } from 'fs/promises';
-import { dirname, join } from 'path';
+import { join } from 'path';
 
 import { FileManager } from '../../src/noir/file-manager/file-manager';
 import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager';
@@ -12,7 +12,6 @@ import {
   safeFilename,
 } from '../../src/noir/dependencies/github-dependency-resolver';
 import { NoirGitDependencyConfig } from '../../src/types/noir_package_config';
-import { fileURLToPath } from '../../src/utils';
 import Sinon, { SinonStub } from 'sinon';
 import { expect } from 'chai';
 import forEach from 'mocha-each';
