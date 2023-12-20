@@ -29,6 +29,7 @@ impl Ssa {
     ///    only 1 successor then (2) also will be applied.
     ///
     /// Currently, 1 and 4 are unimplemented.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn simplify_cfg(mut self) -> Self {
         for function in self.functions.values_mut() {
             simplify_function(function);

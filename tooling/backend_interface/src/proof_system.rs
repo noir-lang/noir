@@ -50,6 +50,7 @@ impl Backend {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn prove(
         &self,
         circuit: &Circuit,
@@ -90,6 +91,7 @@ impl Backend {
         Ok(proof)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn verify(
         &self,
         proof: &[u8],
