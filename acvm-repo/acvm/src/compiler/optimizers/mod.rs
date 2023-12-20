@@ -6,6 +6,7 @@ mod unused_memory;
 
 pub(crate) use general::GeneralOptimizer;
 pub(crate) use redundant_range::RangeOptimizer;
+use tracing::info;
 
 use self::unused_memory::UnusedMemoryOptimizer;
 
@@ -25,6 +26,8 @@ pub fn optimize(acir: Circuit) -> (Circuit, AcirTransformationMap) {
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
 #[tracing::instrument(level = "trace", name = "optimize_acir" skip(acir))]
 pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, Vec<usize>) {
+    info!("Number of opcodes before: {}", acir.opcodes.len());
+
     // General optimizer pass
     let opcodes: Vec<Opcode> = acir
         .opcodes
@@ -52,6 +55,8 @@ pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, Vec<usize>) {
     let range_optimizer = RangeOptimizer::new(acir);
     let (acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
+
+    info!("Number of opcodes after: {}", acir.opcodes.len());
 
     (acir, acir_opcode_positions)
 }

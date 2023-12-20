@@ -83,7 +83,7 @@ pub(crate) fn optimize_into_acir(
 ///
 /// The output ACIR is is backend-agnostic and so must go through a transformation pass before usage in proof generation.
 #[allow(clippy::type_complexity)]
-#[tracing::instrument(level = "trace", skip(program))]
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn create_circuit(
     program: Program,
     enable_ssa_logging: bool,
