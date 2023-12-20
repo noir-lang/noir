@@ -188,11 +188,11 @@ jobs:
       - name: prep downloaded artifact
         run: |
           chmod +x /usr/src/noir/target/release/nargo
-      - name: Download noirc_abi package artifact
+      - name: Download noir_wasm package artifact
         uses: actions/download-artifact@v4
         with:
-          name: noirc_abi_wasm
-          path: /usr/src/noir/tooling/noirc_abi_wasm
+          name: noir_wasm
+          path: /usr/src/noir/compiler/wasm
       - name: test
         run: |
           /usr/src/noir/.github/scripts/test-noir-wasm.sh
