@@ -5,8 +5,9 @@ use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::codespan_files::Error;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location};
 use lsp_types::{Position, Url};
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use noirc_driver::{file_manager_with_stdlib, NOIR_ARTIFACT_VERSION_STRING};
 
 pub(crate) fn on_goto_definition_request(
     state: &mut LspState,
@@ -51,12 +52,14 @@ fn on_goto_definition_inner(
 
     let mut definition_position = None;
 
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+
     for package in &workspace {
-        let (mut context, crate_id) =
-            nargo::prepare_package(package, Box::new(crate::get_non_stdlib_asset));
+        let (mut context, crate_id) = nargo::prepare_package(&workspace_file_manager, package);
 
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false);
 
         let files = context.file_manager.as_file_map();
         let file_id = context.file_manager.name_to_id(file_path.clone());

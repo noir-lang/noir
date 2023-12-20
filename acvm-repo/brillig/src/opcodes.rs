@@ -133,28 +133,6 @@ pub enum BrilligOpcode {
     Stop,
 }
 
-impl BrilligOpcode {
-    pub fn name(&self) -> &'static str {
-        match self {
-            BrilligOpcode::BinaryFieldOp { .. } => "binary_field_op",
-            BrilligOpcode::BinaryIntOp { .. } => "binary_int_op",
-            BrilligOpcode::JumpIfNot { .. } => "jmp_if_not",
-            BrilligOpcode::JumpIf { .. } => "jmp_if",
-            BrilligOpcode::Jump { .. } => "jmp",
-            BrilligOpcode::Call { .. } => "call",
-            BrilligOpcode::Const { .. } => "const",
-            BrilligOpcode::Return => "return",
-            BrilligOpcode::ForeignCall { .. } => "foreign_call",
-            BrilligOpcode::Mov { .. } => "mov",
-            BrilligOpcode::Load { .. } => "load",
-            BrilligOpcode::Store { .. } => "store",
-            BrilligOpcode::BlackBox(_) => "black_box",
-            BrilligOpcode::Trap => "trap",
-            BrilligOpcode::Stop => "stop",
-        }
-    }
-}
-
 /// Binary fixed-length field expressions
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BinaryFieldOp {

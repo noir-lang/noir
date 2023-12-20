@@ -2,8 +2,12 @@
 import { expect } from '@esm-bundle/chai';
 import { TEST_LOG_LEVEL } from '../environment.js';
 import { Logger } from 'tslog';
-import { initializeResolver } from '@noir-lang/source-resolver';
-import newCompiler, { CompiledProgram, compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
+import newCompiler, {
+  CompiledProgram,
+  PathToFileSourceMap,
+  compile,
+  init_log_level as compilerLogLevel,
+} from '@noir-lang/noir_wasm';
 import { acvm, abi, Noir } from '@noir-lang/noir_js';
 
 import * as TOML from 'smol-toml';
@@ -27,14 +31,9 @@ const circuit_main = 'test_programs/execution_success/assert_statement';
 const circuit_recursion = 'compiler/integration-tests/circuits/recursion';
 
 function getCircuit(noirSource: string): CompiledProgram {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  initializeResolver((id: string) => {
-    logger.debug('source-resolver: resolving:', id);
-    return noirSource;
-  });
-
-  // We're ignoring this in the resolver but pass in something sensible.
-  const result = compile('/main.nr');
+  const sourceMap = new PathToFileSourceMap();
+  sourceMap.add_source_code('main.nr', noirSource);
+  const result = compile('main.nr', undefined, undefined, sourceMap);
   if (!('program' in result)) {
     throw new Error('Compilation failed');
   }

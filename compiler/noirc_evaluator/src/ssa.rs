@@ -23,6 +23,7 @@ use noirc_errors::debug_info::DebugInfo;
 use noirc_frontend::{
     hir_def::function::FunctionSignature, monomorphization::ast::Program, Visibility,
 };
+use tracing::{span, Level};
 
 use self::{acir_gen::GeneratedAcir, ssa_gen::Ssa};
 
@@ -42,6 +43,8 @@ pub(crate) fn optimize_into_acir(
 ) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
 
+    let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
+    let ssa_gen_span_guard = ssa_gen_span.enter();
     let ssa_builder = SsaBuilder::new(program, print_ssa_passes)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
@@ -69,8 +72,10 @@ pub(crate) fn optimize_into_acir(
     let ssa = ssa_builder
         .run_pass(Ssa::fill_internal_slices, "After Fill Internal Slice Dummy Data:")
         .finish();
+    drop(ssa_gen_span_guard);
 
     let last_array_uses = ssa.find_last_array_uses();
+
     ssa.into_acir(brillig, abi_distinctness, &last_array_uses)
 }
 
@@ -78,6 +83,7 @@ pub(crate) fn optimize_into_acir(
 ///
 /// The output ACIR is is backend-agnostic and so must go through a transformation pass before usage in proof generation.
 #[allow(clippy::type_complexity)]
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn create_circuit(
     program: Program,
     enable_ssa_logging: bool,

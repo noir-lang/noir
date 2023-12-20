@@ -13,7 +13,7 @@ pub use memory_operation::{BlockId, MemOp};
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Opcode {
-    Arithmetic(Expression),
+    AssertZero(Expression),
     /// Calls to "gadgets" which rely on backends implementing support for specialized constraints.
     ///
     /// Often used for exposing more efficient implementations of SNARK-unfriendly computations.  
@@ -33,62 +33,10 @@ pub enum Opcode {
     },
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum UnsupportedMemoryOpcode {
-    MemoryOp,
-    MemoryInit,
-}
-
-impl std::fmt::Display for UnsupportedMemoryOpcode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            UnsupportedMemoryOpcode::MemoryOp => write!(f, "MemoryOp"),
-            UnsupportedMemoryOpcode::MemoryInit => write!(f, "MemoryInit"),
-        }
-    }
-}
-
-impl Opcode {
-    // TODO We can add a domain separator by doing something like:
-    // TODO concat!("directive:", directive.name)
-    pub fn name(&self) -> &str {
-        match self {
-            Opcode::Arithmetic(_) => "arithmetic",
-            Opcode::Directive(directive) => directive.name(),
-            Opcode::BlackBoxFuncCall(g) => g.name(),
-            Opcode::Brillig(_) => "brillig",
-            Opcode::MemoryOp { .. } => "mem",
-            Opcode::MemoryInit { .. } => "init memory block",
-        }
-    }
-
-    pub fn unsupported_opcode(&self) -> UnsupportedMemoryOpcode {
-        match self {
-            Opcode::MemoryOp { .. } => UnsupportedMemoryOpcode::MemoryOp,
-            Opcode::MemoryInit { .. } => UnsupportedMemoryOpcode::MemoryInit,
-            Opcode::BlackBoxFuncCall(_) => {
-                unreachable!("Unsupported Blackbox function should not be reported here")
-            }
-            _ => unreachable!("Opcode is supported"),
-        }
-    }
-
-    pub fn is_arithmetic(&self) -> bool {
-        matches!(self, Opcode::Arithmetic(_))
-    }
-
-    pub fn arithmetic(self) -> Option<Expression> {
-        match self {
-            Opcode::Arithmetic(expr) => Some(expr),
-            _ => None,
-        }
-    }
-}
-
 impl std::fmt::Display for Opcode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Opcode::Arithmetic(expr) => {
+            Opcode::AssertZero(expr) => {
                 write!(f, "EXPR [ ")?;
                 for i in &expr.mul_terms {
                     write!(f, "({}, _{}, _{}) ", i.0, i.1.witness_index(), i.2.witness_index())?;

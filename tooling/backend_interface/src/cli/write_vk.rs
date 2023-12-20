@@ -12,6 +12,7 @@ pub(crate) struct WriteVkCommand {
 }
 
 impl WriteVkCommand {
+    #[tracing::instrument(level = "trace", name = "vk_generation", skip_all)]
     pub(crate) fn run(self, binary_path: &Path) -> Result<(), BackendError> {
         let mut command = std::process::Command::new(binary_path);
 

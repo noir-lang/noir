@@ -10,8 +10,8 @@ use crate::{
         },
         types::Type,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitMethodId},
-    BinaryOpKind, Signedness, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
+    node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitImplKind, TraitMethodId},
+    BinaryOpKind, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -289,8 +289,23 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::TraitMethodReference(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
-                let typ = &the_trait.methods[method.method_index].typ;
-                let (typ, bindings) = typ.instantiate(self.interner);
+                let typ2 = &the_trait.methods[method.method_index].typ;
+                let (typ, mut bindings) = typ2.instantiate(self.interner);
+
+                // We must also remember to apply these substitutions to the object_type
+                // referenced by the selected trait impl, if one has yet to be selected.
+                let impl_kind = self.interner.get_selected_impl_for_ident(*expr_id);
+                if let Some(TraitImplKind::Assumed { object_type }) = impl_kind {
+                    let the_trait = self.interner.get_trait(method.trait_id);
+                    let object_type = object_type.substitute(&bindings);
+                    bindings.insert(
+                        the_trait.self_type_typevar_id,
+                        (the_trait.self_type_typevar.clone(), object_type.clone()),
+                    );
+                    self.interner
+                        .select_impl_for_ident(*expr_id, TraitImplKind::Assumed { object_type });
+                }
+
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
                 typ
             }
@@ -1106,13 +1121,7 @@ impl<'interner> TypeChecker<'interner> {
                         span,
                     });
                 }
-                if op.is_bit_shift()
-                    && (*sign_x == Signedness::Signed || *sign_y == Signedness::Signed)
-                {
-                    Err(TypeCheckError::InvalidInfixOp { kind: "Signed integer", span })
-                } else {
-                    Ok(Integer(*sign_x, *bit_width_x))
-                }
+                Ok(Integer(*sign_x, *bit_width_x))
             }
             (Integer(..), FieldElement) | (FieldElement, Integer(..)) => {
                 Err(TypeCheckError::IntegerAndFieldBinaryOperation { span })

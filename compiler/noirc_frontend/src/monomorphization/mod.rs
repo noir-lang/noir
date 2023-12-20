@@ -91,6 +91,7 @@ type HirType = crate::Type;
 /// Note that there is no requirement on the `main` function that can be passed into
 /// this function. Typically, this is the function named "main" in the source project,
 /// but it can also be, for example, an arbitrary test function for running `nargo test`.
+#[tracing::instrument(level = "trace", skip(main, interner))]
 pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Program {
     let mut monomorphizer = Monomorphizer::new(interner);
     let function_sig = monomorphizer.compile_main(main);
@@ -106,6 +107,7 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
     let FuncMeta { return_distinctness, return_visibility, .. } = interner.function_meta(&main);
+
     Program::new(
         functions,
         function_sig,

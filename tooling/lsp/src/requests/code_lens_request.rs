@@ -1,15 +1,14 @@
 use std::future::{self, Future};
 
-use async_lsp::{ErrorCode, LanguageClient, ResponseError};
+use async_lsp::{ErrorCode, ResponseError};
 
-use nargo::{package::Package, prepare_package, workspace::Workspace};
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
+use nargo::{package::Package, workspace::Workspace};
+use noirc_driver::check_crate;
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
-    byte_span_to_range, get_non_stdlib_asset,
-    types::{CodeLens, CodeLensParams, CodeLensResult, Command, LogMessageParams, MessageType},
+    byte_span_to_range, prepare_source, resolve_workspace_for_source_path,
+    types::{CodeLens, CodeLensParams, CodeLensResult, Command},
     LspState,
 };
 
@@ -54,182 +53,184 @@ fn on_code_lens_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
     })?;
 
-    let root_path = state.root_path.as_deref().ok_or_else(|| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find project root")
+    if let Some(collected_lenses) = state.cached_lenses.get(&params.text_document.uri.to_string()) {
+        return Ok(Some(collected_lenses.clone()));
+    }
+
+    let source_string = std::fs::read_to_string(&file_path).map_err(|_| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not read file from disk")
     })?;
 
-    let toml_path = match find_package_manifest(root_path, &file_path) {
-        Ok(toml_path) => toml_path,
-        Err(err) => {
-            // If we cannot find a manifest, we log a warning but return no code lenses
-            // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
-            let _ = state.client.log_message(LogMessageParams {
-                typ: MessageType::WARNING,
-                message: err.to_string(),
-            });
-            return Ok(None);
-        }
-    };
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        PackageSelection::All,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    )
-    .map_err(|err| {
-        // If we found a manifest, but the workspace is invalid, we raise an error about it
-        ResponseError::new(ErrorCode::REQUEST_FAILED, err)
-    })?;
+    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+    let package = workspace.members.first().unwrap();
 
+    let (mut context, crate_id) = prepare_source(source_string);
+    // We ignore the warnings and errors produced by compilation for producing code lenses
+    // because we can still get the test functions even if compilation fails
+    let _ = check_crate(&mut context, crate_id, false, false);
+
+    let collected_lenses =
+        collect_lenses_for_package(&context, crate_id, &workspace, package, None);
+
+    if collected_lenses.is_empty() {
+        state.cached_lenses.remove(&params.text_document.uri.to_string());
+        Ok(None)
+    } else {
+        state
+            .cached_lenses
+            .insert(params.text_document.uri.to_string().clone(), collected_lenses.clone());
+        Ok(Some(collected_lenses))
+    }
+}
+
+pub(crate) fn collect_lenses_for_package(
+    context: &noirc_frontend::macros_api::HirContext,
+    crate_id: noirc_frontend::macros_api::CrateId,
+    workspace: &Workspace,
+    package: &Package,
+    file_path: Option<&std::path::PathBuf>,
+) -> Vec<CodeLens> {
     let mut lenses: Vec<CodeLens> = vec![];
+    let fm = &context.file_manager;
+    let files = fm.as_file_map();
+    let tests =
+        context.get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Anything);
+    for (func_name, test_function) in tests {
+        let location = context.function_meta(&test_function.get_id()).name.location;
+        let file_id = location.file;
 
-    for package in &workspace {
-        let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
-        // We ignore the warnings and errors produced by compilation for producing code lenses
-        // because we can still get the test functions even if compilation fails
-        let _ = check_crate(&mut context, crate_id, false);
+        // Ignore diagnostics for any file that wasn't the file we saved
+        // TODO: In the future, we could create "related" diagnostics for these files
+        if let Some(file_path) = file_path {
+            if fm.path(file_id) != *file_path {
+                continue;
+            }
+        }
 
-        let fm = &context.file_manager;
-        let files = fm.as_file_map();
-        let tests = context
-            .get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Anything);
+        let range = byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
 
-        for (func_name, test_function) in tests {
-            let location = context.function_meta(&test_function.get_id()).name.location;
+        let test_command = Command {
+            title: with_arrow(TEST_CODELENS_TITLE),
+            command: TEST_COMMAND.into(),
+            arguments: Some(
+                [
+                    package_selection_args(workspace, package),
+                    vec!["--exact".into(), func_name.into()],
+                ]
+                .concat(),
+            ),
+        };
+
+        let test_lens = CodeLens { range, command: Some(test_command), data: None };
+
+        lenses.push(test_lens);
+    }
+    if package.is_binary() {
+        if let Some(main_func_id) = context.get_main_function(&crate_id) {
+            let location = context.function_meta(&main_func_id).name.location;
             let file_id = location.file;
 
             // Ignore diagnostics for any file that wasn't the file we saved
             // TODO: In the future, we could create "related" diagnostics for these files
-            if fm.path(file_id) != file_path {
-                continue;
+            if let Some(file_path) = file_path {
+                if fm.path(file_id) != *file_path {
+                    return lenses;
+                }
             }
 
             let range =
                 byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
 
-            let test_command = Command {
-                title: with_arrow(TEST_CODELENS_TITLE),
-                command: TEST_COMMAND.into(),
-                arguments: Some(
-                    [
-                        package_selection_args(&workspace, package),
-                        vec!["--exact".into(), func_name.into()],
-                    ]
-                    .concat(),
-                ),
+            let compile_command = Command {
+                title: with_arrow(COMPILE_CODELENS_TITLE),
+                command: COMPILE_COMMAND.into(),
+                arguments: Some(package_selection_args(workspace, package)),
             };
 
-            let test_lens = CodeLens { range, command: Some(test_command), data: None };
+            let compile_lens = CodeLens { range, command: Some(compile_command), data: None };
 
-            lenses.push(test_lens);
-        }
+            lenses.push(compile_lens);
 
-        if package.is_binary() {
-            if let Some(main_func_id) = context.get_main_function(&crate_id) {
-                let location = context.function_meta(&main_func_id).name.location;
-                let file_id = location.file;
+            let info_command = Command {
+                title: INFO_CODELENS_TITLE.to_string(),
+                command: INFO_COMMAND.into(),
+                arguments: Some(package_selection_args(workspace, package)),
+            };
 
-                // Ignore diagnostics for any file that wasn't the file we saved
-                // TODO: In the future, we could create "related" diagnostics for these files
-                if fm.path(file_id) != file_path {
-                    continue;
-                }
+            let info_lens = CodeLens { range, command: Some(info_command), data: None };
 
-                let range =
-                    byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
+            lenses.push(info_lens);
 
-                let compile_command = Command {
-                    title: with_arrow(COMPILE_CODELENS_TITLE),
-                    command: COMPILE_COMMAND.into(),
-                    arguments: Some(package_selection_args(&workspace, package)),
-                };
+            let execute_command = Command {
+                title: EXECUTE_CODELENS_TITLE.to_string(),
+                command: EXECUTE_COMMAND.into(),
+                arguments: Some(package_selection_args(workspace, package)),
+            };
 
-                let compile_lens = CodeLens { range, command: Some(compile_command), data: None };
+            let execute_lens = CodeLens { range, command: Some(execute_command), data: None };
 
-                lenses.push(compile_lens);
+            lenses.push(execute_lens);
 
-                let info_command = Command {
-                    title: INFO_CODELENS_TITLE.to_string(),
-                    command: INFO_COMMAND.into(),
-                    arguments: Some(package_selection_args(&workspace, package)),
-                };
+            let profile_command = Command {
+                title: PROFILE_CODELENS_TITLE.to_string(),
+                command: PROFILE_COMMAND.into(),
+                arguments: Some(package_selection_args(workspace, package)),
+            };
 
-                let info_lens = CodeLens { range, command: Some(info_command), data: None };
+            let profile_lens = CodeLens { range, command: Some(profile_command), data: None };
 
-                lenses.push(info_lens);
-
-                let execute_command = Command {
-                    title: EXECUTE_CODELENS_TITLE.to_string(),
-                    command: EXECUTE_COMMAND.into(),
-                    arguments: Some(package_selection_args(&workspace, package)),
-                };
-
-                let execute_lens = CodeLens { range, command: Some(execute_command), data: None };
-
-                lenses.push(execute_lens);
-
-                let profile_command = Command {
-                    title: PROFILE_CODELENS_TITLE.to_string(),
-                    command: PROFILE_COMMAND.into(),
-                    arguments: Some(package_selection_args(&workspace, package)),
-                };
-
-                let profile_lens = CodeLens { range, command: Some(profile_command), data: None };
-
-                lenses.push(profile_lens);
-            }
-        }
-
-        if package.is_contract() {
-            // Currently not looking to deduplicate this since we don't have a clear decision on if the Contract stuff is staying
-            for contract in context.get_all_contracts(&crate_id) {
-                let location = contract.location;
-                let file_id = location.file;
-
-                // Ignore diagnostics for any file that wasn't the file we saved
-                // TODO: In the future, we could create "related" diagnostics for these files
-                if fm.path(file_id) != file_path {
-                    continue;
-                }
-
-                let range =
-                    byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-
-                let compile_command = Command {
-                    title: with_arrow(COMPILE_CODELENS_TITLE),
-                    command: COMPILE_COMMAND.into(),
-                    arguments: Some(package_selection_args(&workspace, package)),
-                };
-
-                let compile_lens = CodeLens { range, command: Some(compile_command), data: None };
-
-                lenses.push(compile_lens);
-
-                let info_command = Command {
-                    title: INFO_CODELENS_TITLE.to_string(),
-                    command: INFO_COMMAND.into(),
-                    arguments: Some(package_selection_args(&workspace, package)),
-                };
-
-                let info_lens = CodeLens { range, command: Some(info_command), data: None };
-
-                lenses.push(info_lens);
-
-                let profile_command = Command {
-                    title: PROFILE_CODELENS_TITLE.to_string(),
-                    command: PROFILE_COMMAND.into(),
-                    arguments: Some(package_selection_args(&workspace, package)),
-                };
-
-                let profile_lens = CodeLens { range, command: Some(profile_command), data: None };
-
-                lenses.push(profile_lens);
-            }
+            lenses.push(profile_lens);
         }
     }
 
-    if lenses.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(lenses))
+    if package.is_contract() {
+        // Currently not looking to deduplicate this since we don't have a clear decision on if the Contract stuff is staying
+        for contract in context.get_all_contracts(&crate_id) {
+            let location = contract.location;
+            let file_id = location.file;
+
+            // Ignore diagnostics for any file that wasn't the file we saved
+            // TODO: In the future, we could create "related" diagnostics for these files
+            if let Some(file_path) = file_path {
+                if fm.path(file_id) != *file_path {
+                    continue;
+                }
+            }
+
+            let range =
+                byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
+
+            let compile_command = Command {
+                title: with_arrow(COMPILE_CODELENS_TITLE),
+                command: COMPILE_COMMAND.into(),
+                arguments: Some(package_selection_args(workspace, package)),
+            };
+
+            let compile_lens = CodeLens { range, command: Some(compile_command), data: None };
+
+            lenses.push(compile_lens);
+
+            let info_command = Command {
+                title: INFO_CODELENS_TITLE.to_string(),
+                command: INFO_COMMAND.into(),
+                arguments: Some(package_selection_args(workspace, package)),
+            };
+
+            let info_lens = CodeLens { range, command: Some(info_command), data: None };
+
+            lenses.push(info_lens);
+
+            let profile_command = Command {
+                title: PROFILE_CODELENS_TITLE.to_string(),
+                command: PROFILE_COMMAND.into(),
+                arguments: Some(package_selection_args(workspace, package)),
+            };
+
+            let profile_lens = CodeLens { range, command: Some(profile_command), data: None };
+
+            lenses.push(profile_lens);
+        }
     }
+
+    lenses
 }

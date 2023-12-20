@@ -3,9 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "docusaurus start",
+    "start": "yarn version::stables && docusaurus start",
     "build": "yarn version::stables && docusaurus build",
-    "version::stables": "node --loader ts-node/esm ./scripts/setStable.ts"
+    "version::stables": "ts-node ./scripts/setStable.ts",
+    "serve": "serve build"
   },
   "dependencies": {
     "@docusaurus/core": "^3.0.1",
@@ -34,6 +35,7 @@
     "docusaurus-plugin-typedoc": "1.0.0-next.18",
     "eslint-plugin-prettier": "^5.0.0",
     "prettier": "3.0.3",
+    "serve": "^14.2.1",
     "ts-node": "^10.9.1",
     "typedoc": "^0.25.0",
     "typedoc-plugin-frontmatter": "^0.0.2",

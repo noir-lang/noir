@@ -34,7 +34,7 @@ impl DebugArtifact {
             .collect();
 
         for file_id in files_with_debug_symbols {
-            let file_source = file_manager.fetch_file(file_id).source();
+            let file_source = file_manager.fetch_file(file_id);
 
             file_map.insert(
                 file_id,
