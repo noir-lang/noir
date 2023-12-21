@@ -3,6 +3,7 @@
 #include "barretenberg/dsl/acir_format/pedersen.hpp"
 #include "barretenberg/dsl/acir_format/recursion_constraint.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include <cstddef>
 
 namespace acir_format {
 
@@ -158,10 +159,10 @@ void build_constraints(Builder& builder, acir_format const& constraint_system, b
         // These are set and modified whenever we encounter a recursion opcode
         //
         // These should not be set by the caller
-        // TODO: Check if this is always the case. ie I won't receive a proof that will set the first
-        // TODO input_aggregation_object to be non-zero.
-        // TODO: if not, we can add input_aggregation_object to the proof too for all recursive proofs
-        // TODO: This might be the case for proof trees where the proofs are created on different machines
+        // TODO(maxim): Check if this is always the case. ie I won't receive a proof that will set the first
+        // TODO(maxim): input_aggregation_object to be non-zero.
+        // TODO(maxim): if not, we can add input_aggregation_object to the proof too for all recursive proofs
+        // TODO(maxim): This might be the case for proof trees where the proofs are created on different machines
         std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> current_input_aggregation_object = {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         };
@@ -169,13 +170,45 @@ void build_constraints(Builder& builder, acir_format const& constraint_system, b
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         };
 
+        // Get the size of proof with no public inputs prepended to it
+        // This is used while processing recursion constraints to determine whether
+        // the proof we are verifying contains a recursive proof itself
+        auto proof_size_no_pub_inputs = recursion_proof_size_without_public_inputs();
+
         // Add recursion constraints
-        for (size_t i = 0; i < constraint_system.recursion_constraints.size(); ++i) {
-            auto& constraint = constraint_system.recursion_constraints[i];
+        for (auto constraint : constraint_system.recursion_constraints) {
+            // A proof passed into the constraint should be stripped of its public inputs, except in the case where a
+            // proof contains an aggregation object itself. We refer to this as the `nested_aggregation_object`. The
+            // verifier circuit requires that the indices to a nested proof aggregation state are a circuit constant.
+            // The user tells us they how they want these constants set by keeping the nested aggregation object
+            // attached to the proof as public inputs. As this is the only object that can prepended to the proof if the
+            // proof is above the expected size (with public inputs stripped)
+            std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> nested_aggregation_object = {};
+            // If the proof has public inputs attached to it, we should handle setting the nested aggregation object
+            if (constraint.proof.size() > proof_size_no_pub_inputs) {
+                // The public inputs attached to a proof should match the aggregation object in size
+                ASSERT(constraint.proof.size() - proof_size_no_pub_inputs ==
+                       RecursionConstraint::AGGREGATION_OBJECT_SIZE);
+                for (size_t i = 0; i < RecursionConstraint::AGGREGATION_OBJECT_SIZE; ++i) {
+                    // Set the nested aggregation object indices to the current size of the public inputs
+                    // This way we know that the nested aggregation object indices will always be the last
+                    // indices of the public inputs
+                    nested_aggregation_object[i] = static_cast<uint32_t>(constraint.public_inputs.size());
+                    // Attach the nested aggregation object to the end of the public inputs to fill in
+                    // the slot where the nested aggregation object index will point into
+                    constraint.public_inputs.emplace_back(constraint.proof[i]);
+                }
+                // Remove the aggregation object so that they can be handled as normal public inputs
+                // in they way taht the recursion constraint expects
+                constraint.proof.erase(constraint.proof.begin(),
+                                       constraint.proof.begin() +
+                                           static_cast<std::ptrdiff_t>(RecursionConstraint::AGGREGATION_OBJECT_SIZE));
+            }
+
             current_output_aggregation_object = create_recursion_constraints(builder,
                                                                              constraint,
                                                                              current_input_aggregation_object,
-                                                                             constraint.nested_aggregation_object,
+                                                                             nested_aggregation_object,
                                                                              has_valid_witness_assignments);
             current_input_aggregation_object = current_output_aggregation_object;
         }
@@ -241,25 +274,26 @@ void create_circuit_with_witness(Builder& builder, acir_format const& constraint
 
 /**
  * @brief Apply an offset to the indices stored in the wires
- * @details This method is needed due to the following: Noir constructs "wires" as indices into a "witness" vector. This
- * is analogous to the wires and variables vectors in bberg builders. Were it not for the addition of constant variables
- * in the constructors of a builder (e.g. zero), we would simply have noir.wires = builder.wires and noir.witness =
- * builder.variables. To account for k-many constant variables in the first entries of the variables array, we have
- * something like variables = variables.append(noir.witness). Accordingly, the indices in noir.wires have to be
- * incremented to account for the offset at which noir.wires was placed into variables.
+ * @details This method is needed due to the following: Noir constructs "wires" as indices into a "witness" vector.
+ * This is analogous to the wires and variables vectors in bberg builders. Were it not for the addition of constant
+ * variables in the constructors of a builder (e.g. zero), we would simply have noir.wires = builder.wires and
+ * noir.witness = builder.variables. To account for k-many constant variables in the first entries of the variables
+ * array, we have something like variables = variables.append(noir.witness). Accordingly, the indices in noir.wires
+ * have to be incremented to account for the offset at which noir.wires was placed into variables.
  *
  * @tparam Builder
  * @param builder
  */
 template <typename Builder> void apply_wire_index_offset(Builder& builder)
 {
-    // For now, noir has a hard coded witness index offset = 1. Once this is removed, this pre-applied offset goes away
+    // For now, noir has a hard coded witness index offset = 1. Once this is removed, this pre-applied offset goes
+    // away
     const uint32_t pre_applied_noir_offset = 1;
     auto offset = static_cast<uint32_t>(builder.num_vars_added_in_constructor - pre_applied_noir_offset);
     info("Applying offset = ", offset);
 
-    // Apply the offset to the indices stored the wires that were generated from acir. (Do not apply the offset to those
-    // values that were added in the builder constructor).
+    // Apply the offset to the indices stored the wires that were generated from acir. (Do not apply the offset to
+    // those values that were added in the builder constructor).
     size_t start_index = builder.num_vars_added_in_constructor;
     for (auto& wire : builder.wires) {
         for (size_t idx = start_index; idx < wire.size(); ++idx) {

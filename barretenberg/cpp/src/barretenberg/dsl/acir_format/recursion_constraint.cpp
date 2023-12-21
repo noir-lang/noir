@@ -33,11 +33,6 @@ std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> create_recurs
     Builder& builder,
     const RecursionConstraint& input,
     std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> input_aggregation_object,
-    // TODO: does this need to be a part of the recursion opcode?
-    // TODO: or can we figure it out from the vk?
-    // TODO: either way we could probably have the user explicitly provide it
-    // TODO: in Noir.
-    // Note: this is not being used in Noir at the moment
     std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> nested_aggregation_object,
     bool has_valid_witness_assignments)
 {
@@ -141,6 +136,7 @@ std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> create_recurs
     std::shared_ptr<verification_key_ct> vkey = verification_key_ct::from_field_elements(
         &builder, key_fields, inner_proof_contains_recursive_proof, nested_aggregation_indices);
     vkey->program_width = noir_recursive_settings::program_width;
+
     Transcript_ct transcript(&builder, manifest, proof_fields, input.public_inputs.size());
     aggregation_state_ct result = proof_system::plonk::stdlib::recursion::verify_proof_<bn254, noir_recursive_settings>(
         &builder, vkey, transcript, previous_aggregation);
@@ -356,6 +352,13 @@ std::vector<barretenberg::fr> export_dummy_transcript_in_recursion_format(const 
         }
     }
     return fields;
+}
+
+size_t recursion_proof_size_without_public_inputs()
+{
+    const auto manifest = Composer::create_manifest(0);
+    auto dummy_transcript = export_dummy_transcript_in_recursion_format(manifest, false);
+    return dummy_transcript.size();
 }
 
 G1AsFields export_g1_affine_element_as_fields(const barretenberg::g1::affine_element& group_element)

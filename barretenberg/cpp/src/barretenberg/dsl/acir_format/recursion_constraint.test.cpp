@@ -139,8 +139,8 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
         auto inner_verifier = inner_composer.create_verifier(inner_circuit);
 
         const bool has_nested_proof = inner_verifier.key->contains_recursive_proof;
-        const size_t num_inner_public_inputs = inner_circuit.get_public_inputs().size();
 
+        const size_t num_inner_public_inputs = inner_circuit.get_public_inputs().size();
         transcript::StandardTranscript transcript(inner_proof.proof_data,
                                                   Composer::create_manifest(num_inner_public_inputs),
                                                   transcript::HashType::PedersenBlake3s,
@@ -149,11 +149,16 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
         std::vector<barretenberg::fr> proof_witnesses = export_transcript_in_recursion_format(transcript);
         // - Save the public inputs so that we can set their values.
         // - Then truncate them from the proof because the ACIR API expects proofs without public inputs
-
         std::vector<barretenberg::fr> inner_public_input_values(
             proof_witnesses.begin(), proof_witnesses.begin() + static_cast<std::ptrdiff_t>(num_inner_public_inputs));
-        proof_witnesses.erase(proof_witnesses.begin(),
-                              proof_witnesses.begin() + static_cast<std::ptrdiff_t>(num_inner_public_inputs));
+
+        // We want to make sure that we do not remove the nested aggregation object in the case of the proof we want to
+        // recursively verify contains a recursive proof itself. We are safe to keep all the inner public inputs
+        // as in these tests the outer circuits do not have public inputs themselves
+        if (!has_nested_proof) {
+            proof_witnesses.erase(proof_witnesses.begin(),
+                                  proof_witnesses.begin() + static_cast<std::ptrdiff_t>(num_inner_public_inputs));
+        }
 
         const std::vector<barretenberg::fr> key_witnesses = export_key_in_recursion_format(inner_verifier.key);
 
@@ -187,8 +192,13 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
         for (size_t i = 0; i < key_size; ++i) {
             key_indices.emplace_back(static_cast<uint32_t>(i + key_indices_start_idx));
         }
-        for (size_t i = 0; i < num_inner_public_inputs; ++i) {
-            inner_public_inputs.push_back(static_cast<uint32_t>(i + public_input_start_idx));
+        // In the case of a nested proof we keep the nested aggregation object attached to the proof,
+        // thus we do not explicitly have to keep the public inputs while setting up the initial recursion constraint.
+        // They will later be attached as public inputs when creating the circuit.
+        if (!has_nested_proof) {
+            for (size_t i = 0; i < num_inner_public_inputs; ++i) {
+                inner_public_inputs.push_back(static_cast<uint32_t>(i + public_input_start_idx));
+            }
         }
 
         RecursionConstraint recursion_constraint{
@@ -201,21 +211,30 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
             .nested_aggregation_object = nested_aggregation_object,
         };
         recursion_constraints.push_back(recursion_constraint);
+
         for (size_t i = 0; i < proof_indices_start_idx - witness_offset; ++i) {
             witness.emplace_back(0);
         }
         for (const auto& wit : proof_witnesses) {
             witness.emplace_back(wit);
         }
+
         for (const auto& wit : key_witnesses) {
             witness.emplace_back(wit);
         }
+
         // Set the values for the inner public inputs
         // Note: this is confusing, but we minus one here due to the fact that the
         // witness values have not taken into account that zero is taken up by the zero_idx
-        for (size_t i = 0; i < num_inner_public_inputs; ++i) {
-            witness[inner_public_inputs[i] - 1] = inner_public_input_values[i];
+        //
+        // We once again have to check whether we have a nested proof, because if we do have one
+        // then we could get a segmentation fault as `inner_public_inputs` was never filled with values.
+        if (!has_nested_proof) {
+            for (size_t i = 0; i < num_inner_public_inputs; ++i) {
+                witness[inner_public_inputs[i] - 1] = inner_public_input_values[i];
+            }
         }
+
         witness_offset = key_indices_start_idx + key_witnesses.size();
         circuit_idx++;
     }

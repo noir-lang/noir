@@ -53,13 +53,14 @@ struct RecursionConstraint {
     std::vector<uint32_t> proof;
     std::vector<uint32_t> public_inputs;
     uint32_t key_hash;
-    // TODO:This is now unused, but we keep it here for backwards compatibility
+    // TODO(maxim):This is now unused, but we keep it here for backwards compatibility
     std::array<uint32_t, AGGREGATION_OBJECT_SIZE> input_aggregation_object;
-    // TODO: This is now unused, but we keep it here for backwards compatibility
+    // TODO(maxim): This is now unused, but we keep it here for backwards compatibility
     std::array<uint32_t, AGGREGATION_OBJECT_SIZE> output_aggregation_object;
-    // TODO: This is currently not being used on the Noir level at all
-    // TODO: we don't have a way to specify that the proof we are creating contains a
-    // TODO: aggregation object (ie it is also verifying a proof)
+    // TODO(maxim): This is currently not being used on the Noir level at all,
+    // TODO(maxim): but we keep it here for backwards compatibility
+    // TODO(maxim): The object is now currently contained by the `proof` field
+    // TODO(maxim): and is handled when serializing ACIR to a barretenberg circuit
     std::array<uint32_t, AGGREGATION_OBJECT_SIZE> nested_aggregation_object;
 
     friend bool operator==(RecursionConstraint const& lhs, RecursionConstraint const& rhs) = default;
@@ -79,6 +80,7 @@ std::vector<barretenberg::fr> export_dummy_key_in_recursion_format(const Polynom
 std::vector<barretenberg::fr> export_transcript_in_recursion_format(const transcript::StandardTranscript& transcript);
 std::vector<barretenberg::fr> export_dummy_transcript_in_recursion_format(const transcript::Manifest& manifest,
                                                                           const bool contains_recursive_proof);
+size_t recursion_proof_size_without_public_inputs();
 
 // In order to interact with a recursive aggregation state inside of a circuit, we need to represent its internal G1
 // elements as field elements. This happens in multiple locations when creating a recursion constraint. The struct and
