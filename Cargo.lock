@@ -79,7 +79,6 @@ dependencies = [
  "js-sys",
  "pkg-config",
  "serde",
- "tracing",
  "tracing-subscriber",
  "tracing-web",
  "wasm-bindgen",
