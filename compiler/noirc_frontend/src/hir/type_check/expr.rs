@@ -136,11 +136,25 @@ impl<'interner> TypeChecker<'interner> {
                 let rhs_span = self.interner.expr_span(&infix_expr.rhs);
                 let span = lhs_span.merge(rhs_span);
 
-                self.infix_operand_type_rules(&lhs_type, &infix_expr.operator, &rhs_type, span)
-                    .unwrap_or_else(|error| {
-                        self.errors.push(error);
-                        Type::Error
-                    })
+                if matches!(lhs_type, Type::Array(_, _) | Type::Struct(_, _)) {
+                    // Replace with call to type's implementation of the `Eq` trait
+                    let method_call = HirExpression::MethodCall(HirMethodCallExpression {
+                        method: "eq".into(),
+                        object: infix_expr.lhs,
+                        arguments: vec![infix_expr.rhs],
+                        location: self.interner.expr_location(expr_id),
+                    });
+                    self.interner.replace_expr(expr_id, method_call);
+
+                    // We want to convert this method call into a pure function call so need to check again.
+                    self.check_expression(expr_id)
+                } else {
+                    self.infix_operand_type_rules(&lhs_type, &infix_expr.operator, &rhs_type, span)
+                        .unwrap_or_else(|error| {
+                            self.errors.push(error);
+                            Type::Error
+                        })
+                }
             }
             HirExpression::Index(index_expr) => self.check_index_expression(expr_id, index_expr),
             HirExpression::Call(call_expr) => {

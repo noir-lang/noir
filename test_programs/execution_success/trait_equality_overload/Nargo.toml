@@ -1,0 +1,5 @@
+[package]
+name = "trait_equality_overload"
+type = "bin"
+authors = [""]
+[dependencies]
