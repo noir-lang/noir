@@ -1,8 +1,9 @@
 import { NetCrs } from '../net_crs.js';
 import { GRUMPKIN_SRS_DEV_PATH, IgnitionFilesCrs } from './ignition_files_crs.js';
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { readFile } from 'fs/promises';
+import { readFile, stat } from 'fs/promises';
 import createDebug from 'debug';
+import { homedir } from 'os';
 
 const debug = createDebug('bb.js:crs');
 
@@ -12,7 +13,7 @@ const debug = createDebug('bb.js:crs');
 export class Crs {
   constructor(public readonly numPoints: number, public readonly path: string) {}
 
-  static async new(numPoints: number, crsPath = './crs') {
+  static async new(numPoints: number, crsPath = homedir() + '/.bb-crs') {
     const crs = new Crs(numPoints, crsPath);
     await crs.init();
     return crs;
@@ -20,23 +21,24 @@ export class Crs {
 
   async init() {
     mkdirSync(this.path, { recursive: true });
-    const size = await readFile(this.path + '/size', 'ascii').catch(() => undefined);
-    if (size && +size >= this.numPoints) {
-      debug(`using cached crs of size: ${size}`);
+
+    const g1FileSize = await stat(this.path + '/bn254_g1.dat')
+      .then(stats => stats.size)
+      .catch(() => 0);
+    const g2FileSize = await stat(this.path + '/bn254_g2.dat')
+      .then(stats => stats.size)
+      .catch(() => 0);
+
+    if (g1FileSize >= this.numPoints * 64 && g1FileSize % 64 == 0 && g2FileSize == 128) {
+      debug(`using cached crs of size: ${g1FileSize / 64}`);
       return;
     }
 
-    const ignitionCrs = new IgnitionFilesCrs(this.numPoints);
-    const crs = ignitionCrs.pathExists() ? new IgnitionFilesCrs(this.numPoints) : new NetCrs(this.numPoints);
-    if (crs instanceof NetCrs) {
-      debug(`downloading crs of size: ${this.numPoints}`);
-    } else {
-      debug(`loading igntion file crs of size: ${this.numPoints}`);
-    }
+    debug(`downloading crs of size: ${this.numPoints}`);
+    const crs = new NetCrs(this.numPoints);
     await crs.init();
-    writeFileSync(this.path + '/size', this.numPoints.toString());
-    writeFileSync(this.path + '/g1.dat', crs.getG1Data());
-    writeFileSync(this.path + '/g2.dat', crs.getG2Data());
+    writeFileSync(this.path + '/bn254_g1.dat', crs.getG1Data());
+    writeFileSync(this.path + '/bn254_g2.dat', crs.getG2Data());
   }
 
   /**
@@ -44,7 +46,7 @@ export class Crs {
    * @returns The points data.
    */
   getG1Data(): Uint8Array {
-    return readFileSync(this.path + '/g1.dat');
+    return readFileSync(this.path + '/bn254_g1.dat');
   }
 
   /**
@@ -52,7 +54,7 @@ export class Crs {
    * @returns The points data.
    */
   getG2Data(): Uint8Array {
-    return readFileSync(this.path + '/g2.dat');
+    return readFileSync(this.path + '/bn254_g2.dat');
   }
 }
 

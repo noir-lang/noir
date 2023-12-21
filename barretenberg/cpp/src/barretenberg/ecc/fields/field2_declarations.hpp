@@ -138,4 +138,16 @@ template <class base_field, class Params> struct alignas(32) field2 {
     }
 };
 
+template <typename B, typename base_field, typename Params> void read(B& it, field2<base_field, Params>& value)
+{
+    using serialize::read;
+    read(it, value.c0);
+    read(it, value.c1);
+}
+template <typename B, typename base_field, typename Params> void write(B& buf, field2<base_field, Params> const& value)
+{
+    using serialize::write;
+    write(buf, value.c0);
+    write(buf, value.c1);
+}
 } // namespace barretenberg

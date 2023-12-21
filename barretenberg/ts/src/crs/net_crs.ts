@@ -21,12 +21,11 @@ export class NetCrs {
   }
 
   async downloadG1Data() {
-    const g1Start = 28;
-    const g1End = g1Start + this.numPoints * 64 - 1;
+    const g1End = this.numPoints * 64 - 1;
 
-    const response = await fetch('https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/monomial/transcript00.dat', {
+    const response = await fetch('https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/flat/g1.dat', {
       headers: {
-        Range: `bytes=${g1Start}-${g1End}`,
+        Range: `bytes=0-${g1End}`,
       },
       cache: 'force-cache',
     });
@@ -38,13 +37,7 @@ export class NetCrs {
    * Download the G2 points data.
    */
   async downloadG2Data() {
-    const g2Start = 28 + 5040001 * 64;
-    const g2End = g2Start + 128 - 1;
-
-    const response2 = await fetch('https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/monomial/transcript00.dat', {
-      headers: {
-        Range: `bytes=${g2Start}-${g2End}`,
-      },
+    const response2 = await fetch('https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/flat/g2.dat', {
       cache: 'force-cache',
     });
 

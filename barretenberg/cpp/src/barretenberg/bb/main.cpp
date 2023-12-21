@@ -19,7 +19,14 @@
 #include <vector>
 
 using namespace barretenberg;
-std::string CRS_PATH = "./crs";
+
+std::string getHomeDir()
+{
+    char* home = std::getenv("HOME");
+    return home != nullptr ? std::string(home) : "./";
+}
+
+std::string CRS_PATH = getHomeDir() + "/.bb-crs";
 bool verbose = false;
 
 const std::filesystem::path current_path = std::filesystem::current_path();
@@ -441,7 +448,7 @@ int main(int argc, char* argv[])
         std::string proof_path = get_option(args, "-p", "./proofs/proof");
         std::string vk_path = get_option(args, "-k", "./target/vk");
         std::string pk_path = get_option(args, "-r", "./target/pk");
-        CRS_PATH = get_option(args, "-c", "./crs");
+        CRS_PATH = get_option(args, "-c", CRS_PATH);
         bool recursive = flag_present(args, "-r") || flag_present(args, "--recursive");
 
         // Skip CRS initialization for any command which doesn't require the CRS.

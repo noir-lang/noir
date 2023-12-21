@@ -45,8 +45,9 @@ std::vector<curve::Grumpkin::AffineElement> get_grumpkin_g1_data(const std::file
         size_file.close();
     }
     if (size >= num_points) {
-        vinfo("using cached crs at: ", path);
-        auto data = read_file(path / "grumpkin_g1.dat", 28 + num_points * 64);
+        auto file = path / "grumpkin_g1.dat";
+        vinfo("using cached crs at: ", file);
+        auto data = read_file(file, 28 + num_points * 64);
         auto points = std::vector<curve::Grumpkin::AffineElement>(num_points);
         auto size_of_points_in_bytes = num_points * 64;
         barretenberg::srs::IO<curve::Grumpkin>::read_affine_elements_from_buffer(
