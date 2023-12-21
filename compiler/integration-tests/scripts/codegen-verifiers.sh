@@ -21,6 +21,11 @@ contracts_dir=$self_path/../contracts
 rm -rf $contracts_dir
 mkdir $contracts_dir
 
+# Build dependency testing contract
+# Run codegen-verifier for recursion
+dep_testing_dir=$repo_root/compiler/integration-tests/circuits/deps_testing
+nargo --program-dir $dep_testing_dir compile
+
 cp $mul_dir/contract/1_mul/plonk_vk.sol $contracts_dir/1_mul.sol
 cp $assert_statement_dir/contract/assert_statement/plonk_vk.sol $contracts_dir/assert_statement.sol
 cp $recursion_dir/contract/recursion/plonk_vk.sol $contracts_dir/recursion.sol

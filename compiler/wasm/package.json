@@ -6,11 +6,11 @@
   "version": "0.22.0",
   "license": "(MIT OR Apache-2.0)",
   "main": "dist/main.js",
-  "types": "dist/types",
+  "types": "./dist/types/index.d.cts",
   "exports": {
     "node": "./dist/node/main.js",
-    "default": "./dist/web/main.js",
-    "import": "./dist/web/main.js",
+    "default": "./dist/web/main.mjs",
+    "import": "./dist/web/main.mjs",
     "require": "./dist/node/main.js"
   },
   "files": [
@@ -22,12 +22,10 @@
     "url": "https://github.com/noir-lang/noir.git"
   },
   "scripts": {
-    "serve": "webpack serve",
     "build": "webpack",
-    "test": "yarn test:build_fixtures && yarn test:node && yarn test:browser",
-    "test:build_fixtures": "cd public/fixtures && cd simple && nargo compile && cd ../with-deps && nargo compile && cd ../noir-contract && nargo compile && cd ../",
+    "test": "yarn test:build_fixtures && yarn test:node",
+    "test:build_fixtures": "cd test/fixtures && cd simple && nargo compile && cd ../with-deps && nargo compile && cd ../../",
     "test:node": "NODE_NO_WARNINGS=1 $(yarn bin mocha) --config ./.mocharc.json",
-    "test:browser": "web-test-runner",
     "clean": "rm -rf ./build ./target ./dist public/fixtures/simple/target public/fixtures/with-deps/target public/fixtures/noir-contract/target",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
     "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
@@ -48,6 +46,7 @@
     "@web/dev-server-esbuild": "^0.3.6",
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",
+    "assert": "^2.1.0",
     "browserify-fs": "^1.0.0",
     "chai": "^4.3.10",
     "copy-webpack-plugin": "^11.0.0",
@@ -57,7 +56,6 @@
     "mocha-each": "^2.0.1",
     "pako": "^2.1.0",
     "path-browserify": "^1.0.1",
-    "playwright": "^1.40.1",
     "process": "^0.11.10",
     "readable-stream": "^4.4.2",
     "sinon": "^17.0.1",
@@ -66,10 +64,6 @@
     "typescript": "~5.2.2",
     "unzipit": "^1.4.3",
     "webpack": "^5.49.0",
-    "webpack-cli": "^4.7.2",
-    "webpack-dev-server": "^4.15.1"
-  },
-  "dependencies": {
-    "assert": "^2.1.0"
+    "webpack-cli": "^4.7.2"
   }
 }

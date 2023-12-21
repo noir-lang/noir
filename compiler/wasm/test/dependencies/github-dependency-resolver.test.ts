@@ -1,6 +1,6 @@
 import { Volume, createFsFromVolume } from 'memfs';
 import { readFile } from 'fs/promises';
-import { join } from 'path';
+import { join, resolve } from 'path';
 
 import { FileManager } from '../../src/noir/file-manager/file-manager';
 import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager';
@@ -20,7 +20,7 @@ import chaiAsPromised from 'chai-as-promised';
 
 chai.use(chaiAsPromised);
 
-const fixtures = join(__dirname, '../../public/fixtures');
+const fixtures = resolve(join(__dirname, '../fixtures'));
 
 describe('GithubDependencyResolver', () => {
   let resolver: NoirDependencyResolver;

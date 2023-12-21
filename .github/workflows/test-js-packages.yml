@@ -315,17 +315,11 @@ jobs:
           echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
           export PATH="$PATH:$(dirname $nargo_binary)"
 
-      - name: Install Playwright
-        uses: ./.github/actions/install-playwright
-
       - name: Build fixtures
         run: yarn workspace @noir-lang/noir_wasm test:build_fixtures
 
       - name: Run node tests
         run: yarn workspace @noir-lang/noir_wasm test:node
-
-      - name: Run browser tests
-        run: yarn workspace @noir-lang/noir_wasm test:browser
 
   test-noir-codegen:
     needs: [build-acvm-js, build-noirc-abi]

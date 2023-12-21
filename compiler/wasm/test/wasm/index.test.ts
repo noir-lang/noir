@@ -5,7 +5,7 @@ import { expect } from 'chai';
 
 import { compile, PathToFileSourceMap, compile_, CompilerContext } from '../../build/cjs';
 
-const basePath = resolve(join(__dirname, '../../'));
+const basePath = resolve(join(__dirname, '../'));
 const {
   simpleScriptSourcePath,
   simpleScriptExpectedArtifact,

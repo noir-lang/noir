@@ -1,6 +1,5 @@
 import { createFsFromVolume, Volume } from 'memfs';
-import { readFile } from 'node:fs/promises';
-import { dirname, join } from 'path';
+import { readFile } from 'fs/promises';
 
 import { FileManager } from '../../src/noir/file-manager/file-manager';
 import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager';
@@ -9,6 +8,7 @@ import { NoirDependencyResolver } from '../../src/noir/dependencies/dependency-r
 import { LocalDependencyResolver } from '../../src/noir/dependencies/local-dependency-resolver';
 import { expect } from 'chai';
 import forEach from 'mocha-each';
+import { join } from 'path';
 
 describe('DependencyResolver', () => {
   let resolver: NoirDependencyResolver;
@@ -16,7 +16,7 @@ describe('DependencyResolver', () => {
   let pkg: NoirPackage;
 
   beforeEach(async () => {
-    const fixtures = join(__dirname, '../../public/fixtures');
+    const fixtures = join(__dirname, '../fixtures');
     const memFS = createFsFromVolume(new Volume());
     memFS.mkdirSync('/noir-contract/src', { recursive: true });
     memFS.mkdirSync('/lib-c/src', { recursive: true });
