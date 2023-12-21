@@ -4,10 +4,11 @@ import { getPaths } from '../../shared';
 import { expect } from 'chai';
 import { readFile } from 'fs/promises';
 
-// @ts-expect-error Import without typings, probably there's a better way
-import { compile, createFileManager } from '../../../dist/node/main';
+import type { NoirCompiledContract } from '../../../dist/types/types/noir_artifact';
 
-import { NoirCompiledContract } from '../../../dist/types/types/noir_artifact';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const cjs = require('../../../dist/node/main');
+const { createFileManager, compile } = cjs;
 
 const basePath = resolve(join(__dirname, '../../../'));
 const { contractProjectPath, contractExpectedArtifact } = getPaths(basePath);
