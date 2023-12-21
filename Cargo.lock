@@ -2983,6 +2983,7 @@ version = "0.22.0"
 dependencies = [
  "acvm",
  "iter-extended",
+ "jsonrpc",
  "regex",
  "serde",
  "serde_json",

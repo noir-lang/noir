@@ -26,7 +26,7 @@ thiserror.workspace = true
 codespan-reporting.workspace = true
 log.workspace = true
 rayon = "1.8.0"
-jsonrpc = { version = "0.16.0", features = ["minreq_http"] }
+jsonrpc.workspace = true
 
 [dev-dependencies]
 # TODO: This dependency is used to generate unit tests for `get_all_paths_in_dir`

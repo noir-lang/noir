@@ -230,12 +230,9 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
 
                         let req = oracle_resolver.build_request(foreign_call_name, &encoded_params);
 
-                        let response = oracle_resolver
-                            .send_request(req)
-                            .expect("Failed to send oracle request");
+                        let response = oracle_resolver.send_request(req)?;
 
-                        let parsed_response: ForeignCallResult =
-                            response.result().expect("Failed to parse oracle response");
+                        let parsed_response: ForeignCallResult = response.result()?;
 
                         Ok(parsed_response)
                     }
