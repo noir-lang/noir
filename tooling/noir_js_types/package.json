@@ -1,11 +1,20 @@
 {
   "name": "@noir-lang/types",
-  "collaborators": [
+  "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
   "packageManager": "yarn@3.5.1",
   "version": "0.22.0",
   "license": "(MIT OR Apache-2.0)",
+  "homepage": "https://noir-lang.org/",
+  "repository": {
+    "url": "https://github.com/noir-lang/noir.git",
+    "directory": "tooling/noir_js_types",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/noir-lang/noir/issues"
+  },
   "files": [
     "lib",
     "package.json"
