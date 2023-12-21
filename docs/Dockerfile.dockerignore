@@ -10,3 +10,6 @@ docs/node_modules
 !circuits/cpp/src
 !.release-please-manifest.json
 !boxes
+
+# Docs build fetches code snippets from the last release using git show.
+!.git

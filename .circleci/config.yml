@@ -856,8 +856,11 @@ jobs:
           name: "Configure build for master"
           command: |
             if [ "$CIRCLE_BRANCH" == "master" ]; then
-              echo "Configuring build for master"
+              echo Configuring build for master
               echo "INCLUDE_RELEASED_CODE=1" >> docs/.env
+              LAST_TAG="aztec-packages-v$(jq -r '.["."]' .release-please-manifest.json)"
+              echo Fetching latest released tag $LAST_TAG
+              git fetch origin --refetch --no-filter refs/tags/$LAST_TAG:refs/tags/$LAST_TAG
             fi
       - run:
           name: "Build docs"
