@@ -13,8 +13,6 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "target": "ESNext",
-    "module": "CommonJS",
-    "moduleResolution": "Node"
-  },
-  "include": ["./src"]
+    "module": "CommonJS"
+  }
 }

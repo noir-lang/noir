@@ -44,7 +44,6 @@
     "@types/chai": "^4",
     "@types/mocha": "^10.0.6",
     "@types/mocha-each": "^2",
-    "@types/node": "^20.10.0",
     "@types/path-browserify": "^1",
     "@types/readable-stream": "^4",
     "@types/sinon": "^17",

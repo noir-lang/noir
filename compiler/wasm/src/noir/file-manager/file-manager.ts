@@ -1,4 +1,4 @@
-import path, { dirname, isAbsolute, join } from 'path';
+import { dirname, isAbsolute, join } from 'path';
 
 /**
  * A file system interface that matches the node fs module.
