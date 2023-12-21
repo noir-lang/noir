@@ -299,24 +299,21 @@ jobs:
           name: noir_wasm
           path: ./compiler/wasm
 
-      - name: Download nargo binary
-        uses: actions/download-artifact@v3
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Download nargo binary
-        uses: actions/download-artifact@v3
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Add nargo to path
-        run: |
-          echo "./nargo" >> $GITHUB_PATH
-
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v3
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
