@@ -413,9 +413,8 @@ impl AcirContext {
             let max = self.add_constant((1_u128 << bit_size) - 1);
             let a = self.sub_var(max, lhs)?;
             let b = self.sub_var(max, rhs)?;
-            let inputs = vec![AcirValue::Var(a, typ.clone()), AcirValue::Var(b, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
-            self.sub_var(max, outputs[0])
+            let a_and_b = self.and_var(a, b, typ)?;
+            self.sub_var(max, a_and_b)
         }
     }
 
@@ -852,9 +851,7 @@ impl AcirContext {
 
         // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
-        let sign_sum = self.add_var(lhs_leading, rhs_leading)?;
-        let sign_prod = self.mul_var(lhs_leading, rhs_leading)?;
-        let q_sign = self.add_mul_var(sign_sum, -FieldElement::from(2_i128), sign_prod)?;
+        let q_sign = self.xor_var(lhs_leading, rhs_leading, AcirType::unsigned(1))?;
 
         let quotient = self.two_complement(q1, q_sign, bit_size)?;
         let remainder = self.two_complement(r1, lhs_leading, bit_size)?;
