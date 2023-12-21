@@ -47,6 +47,7 @@ jobs:
           retention-days: 3
 
   build-noir-wasm:
+    needs: [build-nargo, build-noirc-abi]
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -54,19 +55,29 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup Nix
-        uses: ./.github/actions/nix
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          nix-cache-name: "noir"
-          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
 
-      - name: Build wasm package
-        run: |
-          nix build -L .#noir_wasm
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Download wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Build noir_wasm
+        run: yarn workspace @noir-lang/noir_wasm build
 
       - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f ./result/noir_wasm)" >> $GITHUB_ENV
+        run: echo "UPLOAD_PATH=$(readlink -f ./compiler/wasm)" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
@@ -74,7 +85,6 @@ jobs:
           name: noir_wasm
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 3
-
 
   build-acvm-js:
     runs-on: ubuntu-latest
