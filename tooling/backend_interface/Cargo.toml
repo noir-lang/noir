@@ -16,7 +16,7 @@ thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 bb_abstraction_leaks.workspace = true
-log.workspace = true
+tracing.workspace = true
 
 tempfile.workspace = true
 
