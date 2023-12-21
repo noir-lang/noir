@@ -72,6 +72,7 @@ trait Eq {
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
 
+impl Eq for u4 { fn eq(self, other: u4) -> bool { self == other } }
 impl Eq for u8 { fn eq(self, other: u8) -> bool { self == other } }
 impl Eq for u16 { fn eq(self, other: u16) -> bool { self == other } }
 impl Eq for u32 { fn eq(self, other: u32) -> bool { self == other } }
