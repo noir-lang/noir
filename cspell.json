@@ -36,6 +36,7 @@
         "cpus",
         "cranelift",
         "curvegroup",
+        "databus",
         "deflatten",
         "deflattened",
         "deflattening",
@@ -124,6 +125,7 @@
         "srem",
         "stdlib",
         "struct",
+        "structs",
         "subexpression",
         "subshell",
         "subtyping",
@@ -148,5 +150,8 @@
         "wasi",
         "Weierstraß",
         "zshell"
+    ],
+    "ignorePaths": [
+        "./**/node_modules/**"
     ]
 }
