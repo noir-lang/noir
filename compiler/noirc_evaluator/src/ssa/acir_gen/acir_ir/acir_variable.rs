@@ -368,9 +368,19 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
-        let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-        let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
-        Ok(outputs[0])
+        let bit_size = typ.bit_size();
+        if bit_size == 1 {
+            // Operands are booleans.
+            //
+            // a ^ b == a + b - 2*a*b
+            let sum = self.add_var(lhs, rhs)?;
+            let prod = self.mul_var(lhs, rhs)?;
+            self.add_mul_var(sum, -FieldElement::from(2_i128), prod)
+        } else {
+            let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+            let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
+            Ok(outputs[0])
+        }
     }
 
     /// Returns an `AcirVar` that is the AND result of `lhs` & `rhs`.
