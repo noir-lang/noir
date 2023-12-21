@@ -24,7 +24,7 @@ iter-extended.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 codespan-reporting.workspace = true
-log.workspace = true
+tracing.workspace = true
 rayon = "1.8.0"
 
 [dev-dependencies]
