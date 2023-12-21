@@ -1,6 +1,6 @@
 {
   "name": "@noir-lang/noir_wasm",
-  "collaborators": [
+  "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
   "version": "0.22.0",
@@ -17,9 +17,15 @@
     "dist",
     "package.json"
   ],
+  "sideEffects": false,
+  "homepage": "https://noir-lang.org/",
   "repository": {
-    "type": "git",
-    "url": "https://github.com/noir-lang/noir.git"
+    "url": "https://github.com/noir-lang/noir.git",
+    "directory": "compiler/wasm",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/noir-lang/noir/issues"
   },
   "scripts": {
     "build": "webpack",
