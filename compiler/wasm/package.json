@@ -23,18 +23,15 @@
   },
   "scripts": {
     "serve": "webpack serve",
-    "build:fixtures": "cd public/fixtures && cd simple && nargo compile && cd ../with-deps && nargo compile && cd ../noir-contract && nargo compile && cd ../",
-    "build:webpack": "webpack",
-    "build": "yarn build:webpack && yarn build:fixtures",
-    "test": "yarn test:node && yarn test:browser",
+    "build": "webpack",
+    "test": "yarn test:build_fixtures && yarn test:node && yarn test:browser",
+    "test:build_fixtures": "cd public/fixtures && cd simple && nargo compile && cd ../with-deps && nargo compile && cd ../noir-contract && nargo compile && cd ../",
     "test:node": "NODE_NO_WARNINGS=1 $(yarn bin mocha) --config ./.mocharc.json",
     "test:browser": "web-test-runner",
     "clean": "rm -rf ./build ./target ./dist public/fixtures/simple/target public/fixtures/with-deps/target public/fixtures/noir-contract/target",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
     "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
-    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
-    "build:nix": "nix build -L .#noir_wasm",
-    "install:from:nix": "yarn clean && yarn build:nix && cp -rL ./result/noir_wasm/nodejs ./ && cp -rL ./result/noir_wasm/web ./"
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",

@@ -47,7 +47,7 @@ jobs:
           retention-days: 3
 
   build-noir-wasm:
-    needs: [build-nargo, build-noirc-abi]
+    needs: [build-noirc-abi]
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -64,7 +64,7 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Download wasm package artifact
+      - name: Download noirc_abi_wasm package artifact
         uses: actions/download-artifact@v3
         with:
           name: noirc_abi_wasm
@@ -305,22 +305,24 @@ jobs:
           name: nargo
           path: ./nargo
 
-      - name: Compile fixtures with Nargo CLI
-        working-directory: ./compiler/wasm/fixtures
+      - name: Download nargo binary
+        uses: actions/download-artifact@v3
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Add nargo to path
         run: |
-          nargo_binary=${{ github.workspace }}/nargo/nargo
-          chmod +x $nargo_binary
-          for dir in $(ls -d */); do
-            pushd $dir/noir-script
-            $nargo_binary compile
-            popd
-          done
+          echo "./nargo" >> $GITHUB_PATH
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
+
+      - name: Build fixtures
+        run: yarn workspace @noir-lang/noir_wasm test:build_fixtures
 
       - name: Run node tests
         run: yarn workspace @noir-lang/noir_wasm test:node
