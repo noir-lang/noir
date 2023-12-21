@@ -45,7 +45,7 @@ pub(crate) struct ExecuteCommand {
 
     /// JSON RPC url to solve oracle calls
     #[clap(long)]
-    foreign_call_resolver: Option<String>,
+    oracle_resolver: Option<String>,
 }
 
 pub(crate) fn run(
@@ -81,7 +81,7 @@ pub(crate) fn run(
             compiled_program,
             package,
             &args.prover_name,
-            args.foreign_call_resolver.as_deref(),
+            args.oracle_resolver.as_deref(),
         )?;
 
         println!("[{}] Circuit witness successfully solved", package.name);

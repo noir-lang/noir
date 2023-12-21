@@ -46,7 +46,7 @@ pub(crate) struct TestCommand {
 
     /// JSON RPC url to solve oracle calls
     #[clap(long)]
-    foreign_call_resolver: Option<String>,
+    oracle_resolver: Option<String>,
 }
 
 pub(crate) fn run(
@@ -88,7 +88,7 @@ pub(crate) fn run(
             package,
             pattern,
             args.show_output,
-            args.foreign_call_resolver.as_deref(),
+            args.oracle_resolver.as_deref(),
             &args.compile_options,
         )?;
     }

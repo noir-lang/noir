@@ -74,8 +74,8 @@ pub enum ForeignCallError {
     #[error("Could not parse PrintableType argument. {0}")]
     ParsingError(#[from] serde_json::Error),
 
-    #[error("Failed resolving oracle. {0}")]
-    OracleRequestError(#[from] jsonrpc::Error),
+    #[error("Failed resolving external foreign call. {0}")]
+    ExternalResolverError(#[from] jsonrpc::Error),
 }
 
 impl TryFrom<&[ForeignCallParam]> for PrintableValueDisplay {

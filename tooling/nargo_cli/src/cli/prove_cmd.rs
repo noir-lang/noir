@@ -46,7 +46,7 @@ pub(crate) struct ProveCommand {
 
     /// JSON RPC url to solve oracle calls
     #[clap(long)]
-    foreign_call_resolver: Option<String>,
+    oracle_resolver: Option<String>,
 }
 
 pub(crate) fn run(
@@ -85,7 +85,7 @@ pub(crate) fn run(
             &args.prover_name,
             &args.verifier_name,
             args.verify,
-            args.foreign_call_resolver.as_deref(),
+            args.oracle_resolver.as_deref(),
         )?;
     }
 

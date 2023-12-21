@@ -95,8 +95,8 @@ pub struct DefaultForeignCallExecutor {
     mocked_responses: Vec<MockedCall>,
     /// Whether to print [`ForeignCall::Print`] output.
     show_output: bool,
-    // JSON RPC client to solve oracle calls
-    oracle_resolver: Option<Client>,
+    /// JSON RPC client to resolve foreign calls
+    external_resolver: Option<Client>,
 }
 
 impl DefaultForeignCallExecutor {
@@ -108,7 +108,7 @@ impl DefaultForeignCallExecutor {
         });
         DefaultForeignCallExecutor {
             show_output,
-            oracle_resolver,
+            external_resolver: oracle_resolver,
             ..DefaultForeignCallExecutor::default()
         }
     }
@@ -207,7 +207,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     .iter()
                     .position(|response| response.matches(foreign_call_name, &foreign_call.inputs));
 
-                match (mock_response_position, &self.oracle_resolver) {
+                match (mock_response_position, &self.external_resolver) {
                     (Some(response_position), _) => {
                         let mock = self
                             .mocked_responses
@@ -224,13 +224,14 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
 
                         Ok(ForeignCallResult { values: result })
                     }
-                    (None, Some(oracle_resolver)) => {
+                    (None, Some(external_resolver)) => {
                         let encoded_params: Vec<_> =
                             foreign_call.inputs.iter().map(build_json_rpc_arg).collect();
 
-                        let req = oracle_resolver.build_request(foreign_call_name, &encoded_params);
+                        let req =
+                            external_resolver.build_request(foreign_call_name, &encoded_params);
 
-                        let response = oracle_resolver.send_request(req)?;
+                        let response = external_resolver.send_request(req)?;
 
                         let parsed_response: ForeignCallResult = response.result()?;
 
