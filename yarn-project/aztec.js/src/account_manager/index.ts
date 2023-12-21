@@ -2,16 +2,18 @@ import { PublicKey, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { CompleteAddress, GrumpkinPrivateKey, PXE } from '@aztec/types';
 
-import { DefaultWaitOpts } from '../../contract/sent_tx.js';
+import { Salt } from '../account/index.js';
+import { AccountInterface } from '../account/interface.js';
 import {
-  AccountWalletWithPrivateKey,
-  ContractDeployer,
-  DeployMethod,
-  WaitOpts,
-  generatePublicKey,
-} from '../../index.js';
-import { AccountContract, Salt } from '../index.js';
-import { AccountInterface } from '../interface.js';
+  AccountContract,
+  EcdsaAccountContract,
+  SchnorrAccountContract,
+  SingleKeyAccountContract,
+} from '../account_contract/index.js';
+import { DefaultWaitOpts, DeployMethod, WaitOpts } from '../contract/index.js';
+import { ContractDeployer } from '../contract_deployer/index.js';
+import { generatePublicKey } from '../utils/index.js';
+import { AccountWalletWithPrivateKey } from '../wallet/index.js';
 import { DeployAccountSentTx } from './deploy_account_sent_tx.js';
 import { waitForAccountSynch } from './util.js';
 
@@ -153,4 +155,55 @@ export class AccountManager {
     await this.pxe.registerAccount(this.encryptionPrivateKey, completeAddress.partialAddress);
     return completeAddress;
   }
+}
+
+/**
+ * Creates an Account that relies on an ECDSA signing key for authentication.
+ * @param pxe - An PXE server instance.
+ * @param encryptionPrivateKey - Grumpkin key used for note encryption.
+ * @param signingPrivateKey - Secp256k1 key used for signing transactions.
+ * @param saltOrAddress - Deployment salt or complete address if account contract is already deployed.
+ */
+export function getEcdsaAccount(
+  pxe: PXE,
+  encryptionPrivateKey: GrumpkinPrivateKey,
+  signingPrivateKey: Buffer,
+  saltOrAddress?: Salt | CompleteAddress,
+): AccountManager {
+  return new AccountManager(pxe, encryptionPrivateKey, new EcdsaAccountContract(signingPrivateKey), saltOrAddress);
+}
+
+/**
+ * Creates an Account that relies on a Grumpkin signing key for authentication.
+ * @param pxe - An PXE server instance.
+ * @param encryptionPrivateKey - Grumpkin key used for note encryption.
+ * @param signingPrivateKey - Grumpkin key used for signing transactions.
+ * @param saltOrAddress - Deployment salt or complete address if account contract is already deployed.
+ */
+export function getSchnorrAccount(
+  pxe: PXE,
+  encryptionPrivateKey: GrumpkinPrivateKey,
+  signingPrivateKey: GrumpkinPrivateKey,
+  saltOrAddress?: Salt | CompleteAddress,
+): AccountManager {
+  return new AccountManager(pxe, encryptionPrivateKey, new SchnorrAccountContract(signingPrivateKey), saltOrAddress);
+}
+
+/**
+ * Creates an Account that uses the same Grumpkin key for encryption and authentication.
+ * @param pxe - An PXE server instance.
+ * @param encryptionAndSigningPrivateKey - Grumpkin key used for note encryption and signing transactions.
+ * @param saltOrAddress - Deployment salt or complete address if account contract is already deployed.
+ */
+export function getUnsafeSchnorrAccount(
+  pxe: PXE,
+  encryptionAndSigningPrivateKey: GrumpkinPrivateKey,
+  saltOrAddress?: Salt | CompleteAddress,
+): AccountManager {
+  return new AccountManager(
+    pxe,
+    encryptionAndSigningPrivateKey,
+    new SingleKeyAccountContract(encryptionAndSigningPrivateKey),
+    saltOrAddress,
+  );
 }

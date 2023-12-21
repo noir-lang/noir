@@ -61,7 +61,7 @@ For our account contract, we will take the hash of the action to authorize, requ
 
 Now that we have a valid account contract, we need to write the typescript glue code that will take care of formatting and authenticating transactions so they can be processed by our contract, as well as deploying the contract during account setup. This takes the form of implementing the `AccountContract` interface:
 
-#include_code account-contract-interface yarn-project/aztec.js/src/account/contract/index.ts typescript
+#include_code account-contract-interface yarn-project/aztec.js/src/account_contract/account_contract.ts typescript
 
 However, if you are using the default `AccountActions` module, then you can leverage the `BaseAccountContract` class and just implement the logic for generating an auth witness that matches the one you wrote in Noir:
 

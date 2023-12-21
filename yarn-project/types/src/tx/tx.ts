@@ -10,8 +10,8 @@ import { arrayNonEmptyLength } from '@aztec/foundation/collection';
 import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
 import { ExtendedContractData } from '../contract_data.js';
-import { L2LogsSource } from '../index.js';
 import { GetUnencryptedLogsResponse } from '../logs/get_unencrypted_logs_response.js';
+import { L2LogsSource } from '../logs/index.js';
 import { TxL2Logs } from '../logs/tx_l2_logs.js';
 import { TxStats } from '../stats/stats.js';
 import { TxHash } from './tx_hash.js';

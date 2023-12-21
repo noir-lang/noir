@@ -1,4 +1,5 @@
 import {
+  AztecAddress,
   CompleteAddress,
   ContractDeploymentData,
   FunctionData,
@@ -10,8 +11,10 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { PXE, PackedArguments, PublicKey, Tx, TxExecutionRequest } from '@aztec/types';
 
-import { BaseContractInteraction } from '../contract/base_contract_interaction.js';
-import { Contract, ContractBase, SendMethodOptions } from '../contract/index.js';
+import { Wallet } from '../account/index.js';
+import { BaseContractInteraction, SendMethodOptions } from './base_contract_interaction.js';
+import { type Contract } from './contract.js';
+import { ContractBase } from './contract_base.js';
 import { DeploySentTx } from './deploy_sent_tx.js';
 
 /**
@@ -44,6 +47,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     private publicKey: PublicKey,
     protected pxe: PXE,
     private artifact: ContractArtifact,
+    private postDeployCtor: (address: AztecAddress, wallet: Wallet) => Promise<TContract>,
     private args: any[] = [],
   ) {
     super(pxe);
@@ -125,7 +129,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    */
   public send(options: DeployOptions = {}): DeploySentTx<TContract> {
     const txHashPromise = super.send(options).getTxHash();
-    return new DeploySentTx(this.artifact, this.pxe, txHashPromise, this.completeAddress);
+    return new DeploySentTx(this.pxe, txHashPromise, this.postDeployCtor, this.completeAddress);
   }
 
   /**

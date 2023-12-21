@@ -71,21 +71,22 @@ function generateMethod(entry: FunctionArtifact) {
 function generateDeploy(input: ContractArtifact) {
   const ctor = input.functions.find(f => f.name === 'constructor');
   const args = (ctor?.parameters ?? []).map(generateParameter).join(', ');
-  const artifactName = `${input.name}ContractArtifact`;
+  const contractName = `${input.name}Contract`;
+  const artifactName = `${contractName}Artifact`;
 
   return `
   /**
    * Creates a tx to deploy a new instance of this contract.
    */
   public static deploy(wallet: Wallet, ${args}) {
-    return new DeployMethod<${input.name}Contract>(Point.ZERO, wallet, ${artifactName}, Array.from(arguments).slice(1));
+    return new DeployMethod<${input.name}Contract>(Point.ZERO, wallet, ${artifactName}, ${contractName}.at, Array.from(arguments).slice(1));
   }
 
   /**
    * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
    */
   public static deployWithPublicKey(publicKey: PublicKey, wallet: Wallet, ${args}) {
-    return new DeployMethod<${input.name}Contract>(publicKey, wallet, ${artifactName}, Array.from(arguments).slice(2));
+    return new DeployMethod<${input.name}Contract>(publicKey, wallet, ${artifactName}, ${contractName}.at, Array.from(arguments).slice(2));
   }
   `;
 }

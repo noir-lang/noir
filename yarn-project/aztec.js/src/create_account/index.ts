@@ -1,8 +1,8 @@
-import { CompleteAddress, GrumpkinScalar } from '@aztec/circuits.js';
+import { GrumpkinScalar } from '@aztec/circuits.js';
 import { PXE } from '@aztec/types';
 
-import { getSchnorrAccount } from '../index.js';
-import { AccountWalletWithPrivateKey } from '../wallet/account_wallet.js';
+import { getSchnorrAccount } from '../account_manager/index.js';
+import { AccountWalletWithPrivateKey } from '../wallet/account_wallet_with_private_key.js';
 
 /**
  * Deploys and registers a new account using random private keys and returns the associated Schnorr account wallet. Useful for testing.
@@ -11,17 +11,6 @@ import { AccountWalletWithPrivateKey } from '../wallet/account_wallet.js';
  */
 export function createAccount(pxe: PXE): Promise<AccountWalletWithPrivateKey> {
   return getSchnorrAccount(pxe, GrumpkinScalar.random(), GrumpkinScalar.random()).waitDeploy();
-}
-
-/**
- * Creates a random address and registers it as a recipient on the pxe server. Useful for testing.
- * @param pxe - PXE.
- * @returns Complete address of the registered recipient.
- */
-export async function createRecipient(pxe: PXE): Promise<CompleteAddress> {
-  const completeAddress = CompleteAddress.random();
-  await pxe.registerRecipient(completeAddress);
-  return completeAddress;
 }
 
 /**

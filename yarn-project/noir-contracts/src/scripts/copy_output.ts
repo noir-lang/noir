@@ -14,9 +14,9 @@ import { format } from 'util';
 const log = createConsoleLogger('aztec:noir-contracts');
 
 const PROJECT_CONTRACTS = [
-  { name: 'SchnorrSingleKeyAccount', target: '../aztec.js/src/artifacts/', exclude: [] },
-  { name: 'SchnorrAccount', target: '../aztec.js/src/artifacts/', exclude: [] },
-  { name: 'EcdsaAccount', target: '../aztec.js/src/artifacts/', exclude: [] },
+  { name: 'SchnorrSingleKeyAccount', target: '../aztec.js/src/account_contract/artifacts/', exclude: [] },
+  { name: 'SchnorrAccount', target: '../aztec.js/src/account_contract/artifacts/', exclude: [] },
+  { name: 'EcdsaAccount', target: '../aztec.js/src/account_contract/artifacts/', exclude: [] },
 ];
 
 const INTERFACE_CONTRACTS = ['private_token', 'private_token_airdrop', 'test'];

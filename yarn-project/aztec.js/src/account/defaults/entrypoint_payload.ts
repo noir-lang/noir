@@ -4,10 +4,10 @@ import { pedersenHash } from '@aztec/foundation/crypto';
 import { FunctionCall, PackedArguments, emptyFunctionCall } from '@aztec/types';
 
 // These must match the values defined in yarn-project/aztec-nr/aztec/src/entrypoint.nr
-export const ACCOUNT_MAX_CALLS = 4;
+const ACCOUNT_MAX_CALLS = 4;
 
 /** Encoded function call for account contract entrypoint */
-export type EntrypointFunctionCall = {
+type EntrypointFunctionCall = {
   // eslint-disable-next-line camelcase
   /** Arguments hash for the call */
   args_hash: Fr;
@@ -76,7 +76,7 @@ export function hashPayload(payload: EntrypointPayload) {
 }
 
 /** Flattens an entrypoint payload */
-export function flattenPayload(payload: EntrypointPayload) {
+function flattenPayload(payload: EntrypointPayload) {
   return [
     ...payload.function_calls.flatMap(call => [
       call.args_hash,

@@ -3,7 +3,8 @@ import { LogFn, createDebugLogger } from '@aztec/foundation/log';
 import { execSync } from 'child_process';
 import { emptyDir } from 'fs-extra';
 import { readFile, readdir, stat, unlink } from 'fs/promises';
-import path from 'path';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
 import { NoirCommit, NoirTag } from '../index.js';
 import { NoirCompiledContract, NoirContractCompilationArtifacts, NoirDebugMetadata } from '../noir_artifact.js';
@@ -17,6 +18,19 @@ export type CompileOpts = {
   /** Logging function */
   log?: LogFn;
 };
+
+/**
+ *
+ */
+function getCurrentDir() {
+  if (typeof __dirname !== 'undefined') {
+    return __dirname;
+  } else {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    return dirname(fileURLToPath(import.meta.url));
+  }
+}
 
 /**
  * A class that compiles Aztec.nr contracts using nargo via the shell.
@@ -33,7 +47,7 @@ export class NargoContractCompiler {
    */
   public async compile(): Promise<NoirContractCompilationArtifacts[]> {
     const stdio = this.opts.quiet ? 'ignore' : 'inherit';
-    const nargoBin = this.opts.nargoBin ?? 'nargo';
+    const nargoBin = this.opts.nargoBin ?? getCurrentDir() + '/../../../../noir/target/release/nargo';
     const version = execSync(`${nargoBin} --version`, { cwd: this.projectPath, stdio: 'pipe' }).toString();
     this.checkNargoBinVersion(version.replace('\n', ''));
     await emptyDir(this.getTargetFolder());
@@ -56,7 +70,7 @@ export class NargoContractCompiler {
     const debugArtifacts = new Map<string, NoirDebugMetadata>();
 
     for (const filename of await readdir(this.getTargetFolder())) {
-      const file = path.join(this.getTargetFolder(), filename);
+      const file = join(this.getTargetFolder(), filename);
       if ((await stat(file)).isFile() && file.endsWith('.json')) {
         if (filename.startsWith('debug_')) {
           debugArtifacts.set(
@@ -81,6 +95,6 @@ export class NargoContractCompiler {
   }
 
   private getTargetFolder() {
-    return path.join(this.projectPath, 'target');
+    return join(this.projectPath, 'target');
   }
 }

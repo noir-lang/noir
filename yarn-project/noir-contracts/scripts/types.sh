@@ -49,7 +49,7 @@ process() {
 
 format() {
   echo "Formatting contract folders"
-  yarn run -T prettier -w ../aztec.js/src/artifacts/*.json ./$types_dir/*.ts
+  yarn run -T prettier -w ../aztec.js/src/account_contract/artifacts/*.json ./$types_dir/*.ts
   echo -e "Done\n"
 }
 

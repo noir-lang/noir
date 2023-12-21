@@ -27,9 +27,11 @@ export {
   ContractMethod,
   SentTx,
   BatchCall,
+  DeployMethod,
+  DeploySentTx,
 } from './contract/index.js';
 
-export { ContractDeployer, DeployMethod, DeploySentTx } from './contract_deployer/index.js';
+export { ContractDeployer } from './contract_deployer/index.js';
 
 export {
   generatePublicKey,
@@ -46,27 +48,26 @@ export {
 
 export { createPXEClient } from './pxe_client.js';
 
+export { CompleteAddress, AuthWitnessProvider } from './account/index.js';
+
 export {
-  CompleteAddress,
-  getSchnorrAccount,
   AccountContract,
-  AccountManager,
-  getUnsafeSchnorrAccount,
   EcdsaAccountContract,
-  createAccounts,
   SchnorrAccountContract,
   SingleKeyAccountContract,
-  createAccount,
-  AuthWitnessProvider,
   BaseAccountContract,
-} from './account/index.js';
+} from './account_contract/index.js';
+
+export { getSchnorrAccount, AccountManager, getUnsafeSchnorrAccount } from './account_manager/index.js';
 
 export { waitForSandbox, getSandboxAccountsWallets, deployInitialSandboxAccounts } from './sandbox/index.js';
 
 export { AccountWalletWithPrivateKey, AccountWallet, Wallet, SignerlessWallet } from './wallet/index.js';
 
-// TODO https://github.com/AztecProtocol/aztec-packages/issues/2632 --> FunctionSelector might not need to be exposed
-// here once the issue is resolved.
+export { createAccount, createAccounts } from './create_account/index.js';
+
+// // TODO https://github.com/AztecProtocol/aztec-packages/issues/2632 --> FunctionSelector might not need to be exposed
+// // here once the issue is resolved.
 export {
   AztecAddress,
   EthAddress,

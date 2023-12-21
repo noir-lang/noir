@@ -13,7 +13,7 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
-    "noir:clean": "rm -rf ./src/artifacts ./src/types && mkdir -p ../aztec.js/src/artifacts/ && find ../aztec.js/src/artifacts/ -mindepth 1 -delete && rm -rf target/",
+    "noir:clean": "rm -rf ./src/artifacts ./src/types ../aztec.js/src/account_contract/artifacts ./target/ && mkdir -p ../aztec.js/src/account_contract/artifacts",
     "noir:build": "./src/scripts/compile.sh",
     "noir:build:all": "yarn noir:clean && ./scripts/compile_all.sh && ./scripts/types_all.sh",
     "noir:types:all": "./scripts/types_all.sh"

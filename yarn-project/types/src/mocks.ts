@@ -14,7 +14,10 @@ import { Tuple } from '@aztec/foundation/serialize';
 
 import times from 'lodash.times';
 
-import { DeployedContract, ExtendedContractData, ExtendedNote, FunctionL2Logs, Note, TxL2Logs } from './index.js';
+import { ExtendedContractData } from './contract_data.js';
+import { DeployedContract } from './interfaces/index.js';
+import { FunctionL2Logs, Note, TxL2Logs } from './logs/index.js';
+import { ExtendedNote } from './notes/index.js';
 import { Tx, TxHash } from './tx/index.js';
 
 /**

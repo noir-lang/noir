@@ -1,9 +1,9 @@
-import { Fr, GrumpkinPrivateKey } from '@aztec/circuits.js';
+import { Fr } from '@aztec/circuits.js';
 import { ABIParameterVisibility, FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 import { AuthWitness, FunctionCall, PXE, TxExecutionRequest } from '@aztec/types';
 
 import { AccountInterface } from '../account/interface.js';
-import { ContractFunctionInteraction } from '../index.js';
+import { ContractFunctionInteraction } from '../contract/contract_function_interaction.js';
 import { BaseWallet } from './base_wallet.js';
 
 /**
@@ -66,21 +66,5 @@ export class AccountWallet extends BaseWallet {
       ],
       returnTypes: [],
     };
-  }
-}
-
-/**
- * Extends {@link AccountWallet} with the encryption private key. Not required for
- * implementing the wallet interface but useful for testing purposes or exporting
- * an account to another pxe.
- */
-export class AccountWalletWithPrivateKey extends AccountWallet {
-  constructor(pxe: PXE, account: AccountInterface, private encryptionPrivateKey: GrumpkinPrivateKey) {
-    super(pxe, account);
-  }
-
-  /** Returns the encryption private key associated with this account. */
-  public getEncryptionPrivateKey() {
-    return this.encryptionPrivateKey;
   }
 }

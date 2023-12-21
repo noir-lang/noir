@@ -1,4 +1,7 @@
-import { CompleteAddress, PXE, WaitOpts, retryUntil } from '../../index.js';
+import { retryUntil } from '@aztec/foundation/retry';
+import { CompleteAddress, PXE } from '@aztec/types';
+
+import { WaitOpts } from '../contract/index.js';
 
 /**
  * Waits for the account to finish synchronizing with the PXE Service.

@@ -1,6 +1,6 @@
 # Wallets
 
-Wallets are the applications through which users manage their accounts. Users rely on wallets to browse through their accounts, monitor their balances, and create new accounts. Wallets also store seed phrases and private keys, or interact with external keystores such as hardware wallets. 
+Wallets are the applications through which users manage their accounts. Users rely on wallets to browse through their accounts, monitor their balances, and create new accounts. Wallets also store seed phrases and private keys, or interact with external keystores such as hardware wallets.
 
 Wallets also provide an interface for dapps. Dapps may request access to see the user accounts, in order to show the state of those accounts in the context of the application, and request to send transactions from those accounts as the user interacts with the dapp.
 
@@ -10,9 +10,9 @@ In this page we will cover the main responsibilities of a wallet in the Aztec ne
 
 ## Account setup
 
-The first step for any wallet is to let the user set up their [accounts](../../concepts/foundation/accounts/main.md). An account in Aztec is represented on-chain by its corresponding account contract that the user must deploy to begin interacting with the network. This account contract dictates how transactions are authenticated and executed. 
+The first step for any wallet is to let the user set up their [accounts](../../concepts/foundation/accounts/main.md). An account in Aztec is represented on-chain by its corresponding account contract that the user must deploy to begin interacting with the network. This account contract dictates how transactions are authenticated and executed.
 
-A wallet must support at least one specific [account contract implementation](./writing_an_account_contract.md), which means being able to deploy such a contract, as well as interacting with it when sending transactions. Code-wise, this requires [implementing the `AccountContract` interface](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec.js/src/account/contract/index.ts).
+A wallet must support at least one specific [account contract implementation](./writing_an_account_contract.md), which means being able to deploy such a contract, as well as interacting with it when sending transactions. Code-wise, this requires [implementing the `AccountContract` interface](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec.js/src/account_contract/index.ts).
 
 Note that users must be able to receive funds in Aztec before deploying their account. A wallet should let a user generate a [deterministic complete address](../../concepts/foundation/accounts/keys.md#addresses-partial-addresses-and-public-keys) without having to interact with the network, so they can share it with others to receive funds. This requires that the wallet pins a specific contract implementation, its initialization arguments, a deployment salt, and a privacy key. These values yield a deterministic address, so when the account contract is actually deployed, it is available at the precalculated address. Once the account contract is deployed, the user can start sending transactions using it as the transaction origin.
 
@@ -64,4 +64,3 @@ At the time of this writing, all private state is encrypted and broadcasted thro
 Encrypted data blobs do not carry any public information as to whom their recipient is. Therefore, it is not possible for a remote node to identify the notes that belong to a user, and it is not possible for a wallet to query a remote node for its private state. As such, wallets need to keep a local database of their accounts private state, in order to be able to answer any queries on their private state.
 
 Dapps may require access to the user's private state, in order to show information relevant to the current application. For instance, a dapp for a token may require access to the user's private notes in the token contract in order to display the user's balance. It is responsibility of the wallet to require authorization from the user before disclosing private state to a dapp.
-

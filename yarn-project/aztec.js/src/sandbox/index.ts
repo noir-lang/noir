@@ -1,10 +1,12 @@
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { sleep } from '@aztec/foundation/sleep';
+import { PXE } from '@aztec/types';
 
 import zip from 'lodash.zip';
 
-import SchnorrAccountContractArtifact from '../artifacts/schnorr_account_contract.json' assert { type: 'json' };
-import { AccountWalletWithPrivateKey, PXE, createPXEClient, getSchnorrAccount } from '../index.js';
+import { getSchnorrAccount } from '../account_manager/index.js';
+import { createPXEClient } from '../pxe_client.js';
+import { AccountWalletWithPrivateKey } from '../wallet/index.js';
 
 export const INITIAL_SANDBOX_ENCRYPTION_KEYS = [
   GrumpkinScalar.fromString('2153536ff6628eee01cf4024889ff977a18d9fa61d0e414422f7681cf085c281'),
@@ -15,8 +17,6 @@ export const INITIAL_SANDBOX_ENCRYPTION_KEYS = [
 export const INITIAL_SANDBOX_SIGNING_KEYS = INITIAL_SANDBOX_ENCRYPTION_KEYS;
 
 export const INITIAL_SANDBOX_SALTS = [Fr.ZERO, Fr.ZERO, Fr.ZERO];
-
-export const INITIAL_SANDBOX_ACCOUNT_CONTRACT_ABI = SchnorrAccountContractArtifact;
 
 export const { PXE_URL = 'http://localhost:8080' } = process.env;
 

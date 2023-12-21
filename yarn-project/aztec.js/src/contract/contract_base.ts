@@ -2,7 +2,7 @@ import { ContractArtifact, FunctionArtifact, FunctionSelector } from '@aztec/fou
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { CompleteAddress, DeployedContract } from '@aztec/types';
 
-import { Wallet } from '../wallet/index.js';
+import { Wallet } from '../account/index.js';
 import { ContractFunctionInteraction } from './contract_function_interaction.js';
 
 /**

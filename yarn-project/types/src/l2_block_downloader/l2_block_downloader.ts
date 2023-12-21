@@ -2,7 +2,9 @@ import { MemoryFifo, Semaphore, SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { InterruptibleSleep } from '@aztec/foundation/sleep';
 
-import { INITIAL_L2_BLOCK_NUM, L2Block, L2BlockSource } from '../index.js';
+import { INITIAL_L2_BLOCK_NUM } from '../constants.js';
+import { L2Block } from '../l2_block.js';
+import { L2BlockSource } from '../l2_block_source.js';
 
 const log = createDebugLogger('aztec:l2_block_downloader');
 

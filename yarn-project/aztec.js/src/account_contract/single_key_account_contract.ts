@@ -4,9 +4,9 @@ import { ContractArtifact } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { AuthWitness, CompleteAddress, GrumpkinPrivateKey } from '@aztec/types';
 
-import SchnorrSingleKeyAccountContractArtifact from '../../artifacts/schnorr_single_key_account_contract.json' assert { type: 'json' };
-import { generatePublicKey } from '../../index.js';
-import { AuthWitnessProvider } from '../interface.js';
+import { AuthWitnessProvider } from '../account/interface.js';
+import { generatePublicKey } from '../utils/index.js';
+import SchnorrSingleKeyAccountContractArtifact from './artifacts/schnorr_single_key_account_contract.json' assert { type: 'json' };
 import { BaseAccountContract } from './base_account_contract.js';
 
 /**

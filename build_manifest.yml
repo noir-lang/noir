@@ -149,18 +149,6 @@ aztec-faucet:
   dependencies:
     - yarn-project-prod
 
-aztec-node:
-  buildDir: yarn-project
-  projectDir: yarn-project/aztec-node
-  dependencies:
-    - yarn-project-prod
-
-p2p-bootstrap:
-  buildDir: yarn-project
-  projectDir: yarn-project/p2p-bootstrap
-  dependencies:
-    - yarn-project-prod
-
 cli:
   buildDir: yarn-project
   projectDir: yarn-project/cli

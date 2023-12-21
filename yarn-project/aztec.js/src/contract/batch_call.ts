@@ -1,6 +1,6 @@
 import { FunctionCall, TxExecutionRequest } from '@aztec/types';
 
-import { Wallet } from '../wallet/index.js';
+import { Wallet } from '../account/index.js';
 import { BaseContractInteraction } from './base_contract_interaction.js';
 
 /** A batch of function calls to be sent as a single transaction through a wallet. */

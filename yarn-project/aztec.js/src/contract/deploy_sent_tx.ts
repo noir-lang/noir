@@ -1,11 +1,10 @@
 import { AztecAddress, CompleteAddress, FieldsOf } from '@aztec/circuits.js';
-import { ContractArtifact } from '@aztec/foundation/abi';
 import { PXE, TxHash, TxReceipt } from '@aztec/types';
 
-import { Contract } from '../contract/contract.js';
-import { ContractBase } from '../contract/contract_base.js';
-import { SentTx, WaitOpts } from '../contract/sent_tx.js';
-import { Wallet } from '../wallet/index.js';
+import { Wallet } from '../account/index.js';
+import { type Contract } from './contract.js';
+import { ContractBase } from './contract_base.js';
+import { SentTx, WaitOpts } from './sent_tx.js';
 
 /** Options related to waiting for a deployment tx. */
 export type DeployedWaitOpts = WaitOpts & {
@@ -24,9 +23,9 @@ export type DeployTxReceipt<TContract extends ContractBase = Contract> = FieldsO
  */
 export class DeploySentTx<TContract extends Contract = Contract> extends SentTx {
   constructor(
-    private artifact: ContractArtifact,
     wallet: PXE | Wallet,
     txHashPromise: Promise<TxHash>,
+    private postDeployCtor: (address: AztecAddress, wallet: Wallet) => Promise<TContract>,
 
     /**
      * The complete address of the deployed contract
@@ -66,6 +65,6 @@ export class DeploySentTx<TContract extends Contract = Contract> extends SentTx 
     if (!address) {
       throw new Error(`Contract address is missing from transaction receipt`);
     }
-    return Contract.at(address, this.artifact, contractWallet) as Promise<TContract>;
+    return this.postDeployCtor(address, contractWallet) as Promise<TContract>;
   }
 }

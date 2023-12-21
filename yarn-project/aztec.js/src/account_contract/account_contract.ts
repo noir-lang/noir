@@ -1,12 +1,7 @@
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { CompleteAddress, NodeInfo } from '@aztec/types';
 
-import { AccountInterface } from '../interface.js';
-
-export * from './ecdsa_account_contract.js';
-export * from './schnorr_account_contract.js';
-export * from './single_key_account_contract.js';
-export * from './base_account_contract.js';
+import { AccountInterface } from '../account/interface.js';
 
 // docs:start:account-contract-interface
 /**
