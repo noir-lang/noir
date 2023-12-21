@@ -81,7 +81,7 @@ pub(crate) fn run(
             compiled_program,
             package,
             &args.prover_name,
-            args.foreign_call_resolver.clone(),
+            args.foreign_call_resolver.as_deref(),
         )?;
 
         println!("[{}] Circuit witness successfully solved", package.name);
@@ -101,7 +101,7 @@ fn execute_program_and_decode(
     program: CompiledProgram,
     package: &Package,
     prover_name: &str,
-    foreign_call_resolver_url: Option<String>,
+    foreign_call_resolver_url: Option<&str>,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
@@ -116,7 +116,7 @@ fn execute_program_and_decode(
 pub(crate) fn execute_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
-    foreign_call_resolver_url: Option<String>,
+    foreign_call_resolver_url: Option<&str>,
 ) -> Result<WitnessMap, CliError> {
     let blackbox_solver = Bn254BlackBoxSolver::new();
 

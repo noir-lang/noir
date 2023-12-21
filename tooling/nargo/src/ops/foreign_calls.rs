@@ -100,10 +100,10 @@ pub struct DefaultForeignCallExecutor {
 }
 
 impl DefaultForeignCallExecutor {
-    pub fn new(show_output: bool, resolver_url: Option<String>) -> Self {
+    pub fn new(show_output: bool, resolver_url: Option<&str>) -> Self {
         let oracle_resolver = resolver_url.map(|resolver_url| {
             let transport_builder =
-                Builder::new().url(&resolver_url).expect("Invalid oracle resolver URL");
+                Builder::new().url(resolver_url).expect("Invalid oracle resolver URL");
             Client::with_transport(transport_builder.build())
         });
         DefaultForeignCallExecutor {
@@ -303,7 +303,7 @@ mod tests {
     fn test_oracle_resolver_echo() {
         let (server, url) = build_oracle_server();
 
-        let mut executor = DefaultForeignCallExecutor::new(false, Some(url));
+        let mut executor = DefaultForeignCallExecutor::new(false, Some(&url));
 
         let foreign_call = ForeignCallWaitInfo {
             function: "echo".to_string(),
@@ -321,7 +321,7 @@ mod tests {
     fn test_oracle_resolver_sum() {
         let (server, url) = build_oracle_server();
 
-        let mut executor = DefaultForeignCallExecutor::new(false, Some(url));
+        let mut executor = DefaultForeignCallExecutor::new(false, Some(&url));
 
         let foreign_call = ForeignCallWaitInfo {
             function: "sum".to_string(),

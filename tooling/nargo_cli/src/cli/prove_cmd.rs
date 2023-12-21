@@ -85,13 +85,14 @@ pub(crate) fn run(
             &args.prover_name,
             &args.verifier_name,
             args.verify,
-            args.foreign_call_resolver.clone(),
+            args.foreign_call_resolver.as_deref(),
         )?;
     }
 
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn prove_package(
     backend: &Backend,
     workspace: &Workspace,
@@ -100,7 +101,7 @@ pub(crate) fn prove_package(
     prover_name: &str,
     verifier_name: &str,
     check_proof: bool,
-    foreign_call_resolver_url: Option<String>,
+    foreign_call_resolver_url: Option<&str>,
 ) -> Result<(), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =

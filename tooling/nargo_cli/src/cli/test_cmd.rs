@@ -88,7 +88,7 @@ pub(crate) fn run(
             package,
             pattern,
             args.show_output,
-            args.foreign_call_resolver.clone(),
+            args.foreign_call_resolver.as_deref(),
             &args.compile_options,
         )?;
     }
@@ -102,7 +102,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
     package: &Package,
     fn_name: FunctionNameMatch,
     show_output: bool,
-    foreign_call_resolver_url: Option<String>,
+    foreign_call_resolver_url: Option<&str>,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, package);
@@ -152,7 +152,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
             &context,
             test_function,
             show_output,
-            foreign_call_resolver_url.clone(),
+            foreign_call_resolver_url,
             compile_options,
         ) {
             TestStatus::Pass { .. } => {
