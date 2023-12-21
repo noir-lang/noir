@@ -368,6 +368,21 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+
+        if lhs_expr == rhs_expr {
+            // x ^ x == 0
+            let zero = self.add_constant(FieldElement::zero());
+            return Ok(zero);
+        } else if lhs_expr.is_zero() {
+            // 0 ^ x == x
+            return Ok(rhs);
+        } else if rhs_expr.is_zero() {
+            // x ^ 0 == x
+            return Ok(lhs);
+        }
+
         let bit_size = typ.bit_size();
         if bit_size == 1 {
             // Operands are booleans.
@@ -390,6 +405,18 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+
+        if lhs_expr == rhs_expr {
+            // x & x == x
+            return Ok(lhs);
+        } else if lhs_expr.is_zero() || rhs_expr.is_zero() {
+            // x & 0 == 0 and 0 & x == 0
+            let zero = self.add_constant(FieldElement::zero());
+            return Ok(zero);
+        }
+
         let bit_size = typ.bit_size();
         if bit_size == 1 {
             // Operands are booleans.
@@ -408,6 +435,16 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+        if lhs_expr.is_zero() {
+            // 0 | x == x
+            return Ok(rhs);
+        } else if rhs_expr.is_zero() {
+            // x | 0 == x
+            return Ok(lhs);
+        }
+
         let bit_size = typ.bit_size();
         if bit_size == 1 {
             // Operands are booleans
