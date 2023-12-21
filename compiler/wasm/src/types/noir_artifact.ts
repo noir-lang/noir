@@ -1,27 +1,25 @@
-import { ABIParameter, ABIType, EventAbi } from './abi';
+import { Abi, AbiParameter } from '@noir-lang/noirc_abi';
+
+/**
+ * A contract event.
+ */
+export interface EventAbi {
+  /**
+   * The event name.
+   */
+  name: string;
+  /**
+   * Fully qualified name of the event.
+   */
+  path: string;
+  /**
+   * The fields of the event.
+   */
+  fields: AbiParameter[];
+}
 
 /** The Noir function types. */
 export type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
-
-/** The ABI of an Noir function. */
-export interface NoirFunctionAbi {
-  /** The parameters of the function. */
-  parameters: ABIParameter[];
-  /** The witness indices of the parameters. Indexed by parameter name. */
-  param_witnesses: {
-    /** input */
-    input: {
-      /** start */
-      start: number;
-      /** end */
-      end: number;
-    }[];
-  };
-  /** The return type of the function. */
-  return_type: ABIType;
-  /** The witness indices of the return type. */
-  return_witnesses: number[];
-}
 
 /**
  * The compilation result of an Noir function.
@@ -34,7 +32,7 @@ export interface NoirFunctionEntry {
   /** Whether the function is internal. */
   is_internal: boolean;
   /** The ABI of the function. */
-  abi: NoirFunctionAbi;
+  abi: Abi;
   /** The bytecode of the function in base64. */
   bytecode: string;
   /** The proving key. */
@@ -68,7 +66,7 @@ export interface NoirCompiledCircuit {
   /**
    * The ABI of the function.
    */
-  abi: NoirFunctionAbi;
+  abi: Abi;
   /** The bytecode of the circuit in base64. */
   bytecode: string;
 }
