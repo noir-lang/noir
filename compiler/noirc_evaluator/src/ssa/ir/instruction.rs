@@ -626,6 +626,35 @@ fn decompose_constrain(
                         ]
                         .concat()
                     }
+
+                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Or })
+                        if constant.is_zero() =>
+                    {
+                        // Replace an equality assertion on an OR
+                        //
+                        // v2 = or v0, v1
+                        // constrain v2 == u1 0
+                        //
+                        // with a direct assertion that each value is equal to 0
+                        //
+                        // v2 = or v0, v1
+                        // constrain v0 == 0
+                        // constrain v1 == 0
+                        //
+                        // This is due to the fact that for `v2` to be 0 then both `v0` and `v1` are 0.
+                        //
+                        // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
+                        // will likely be removed through dead instruction elimination.
+                        let zero = FieldElement::zero();
+                        let zero = dfg.make_constant(zero, dfg.type_of_value(lhs));
+
+                        [
+                            decompose_constrain(lhs, zero, msg.clone(), dfg),
+                            decompose_constrain(rhs, zero, msg, dfg),
+                        ]
+                        .concat()
+                    }
+
                     Instruction::Not(value) => {
                         // Replace an assertion that a not instruction is truthy
                         //
