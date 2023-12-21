@@ -1,4 +1,3 @@
-
 trait Add {
     fn add(self, other: Self) -> Self;
 }
@@ -65,6 +64,10 @@ impl Div for i64 { fn div(self, other: i64) -> i64 { self / other } }
 
 trait Eq {
     fn eq(self, other: Self) -> bool;
+
+    fn ne(self, other: Self) -> bool {
+        !Eq::eq(self, other)
+    }
 }
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }

@@ -138,13 +138,35 @@ impl<'interner> TypeChecker<'interner> {
 
                 if matches!(lhs_type, Type::Array(_, _) | Type::Struct(_, _)) {
                     // Replace with call to type's implementation of the `Eq` trait
-                    let method_call = HirExpression::MethodCall(HirMethodCallExpression {
-                        method: "eq".into(),
-                        object: infix_expr.lhs,
-                        arguments: vec![infix_expr.rhs],
-                        location: self.interner.expr_location(expr_id),
-                    });
-                    self.interner.replace_expr(expr_id, method_call);
+                    let method_call = match infix_expr.operator.kind {
+                        BinaryOpKind::Equal => HirMethodCallExpression {
+                            method: "eq".into(),
+                            object: infix_expr.lhs,
+                            arguments: vec![infix_expr.rhs],
+                            location: self.interner.expr_location(expr_id),
+                        },
+                        BinaryOpKind::Add => todo!(),
+                        BinaryOpKind::Subtract => todo!(),
+                        BinaryOpKind::Multiply => todo!(),
+                        BinaryOpKind::Divide => todo!(),
+                        BinaryOpKind::NotEqual => HirMethodCallExpression {
+                            method: "ne".into(),
+                            object: infix_expr.lhs,
+                            arguments: vec![infix_expr.rhs],
+                            location: self.interner.expr_location(expr_id),
+                        },
+                        BinaryOpKind::Less => todo!(),
+                        BinaryOpKind::LessEqual => todo!(),
+                        BinaryOpKind::Greater => todo!(),
+                        BinaryOpKind::GreaterEqual => todo!(),
+                        BinaryOpKind::And => todo!(),
+                        BinaryOpKind::Or => todo!(),
+                        BinaryOpKind::Xor => todo!(),
+                        BinaryOpKind::ShiftRight => todo!(),
+                        BinaryOpKind::ShiftLeft => todo!(),
+                        BinaryOpKind::Modulo => todo!(),
+                    };
+                    self.interner.replace_expr(expr_id, HirExpression::MethodCall(method_call));
 
                     // We want to convert this method call into a pure function call so need to check again.
                     self.check_expression(expr_id)
