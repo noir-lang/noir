@@ -44,7 +44,7 @@ your stack, or maybe you simply want to use a different proving system. Since No
 to a specific proof system, it is possible for protocol developers to replace the PLONK-based
 proving system with a different proving system altogether.
 
-### Blockchain developers
+### Blockchain Developers
 
 As a blockchain developer, you will be constrained by parameters set by your blockchain (for example, the
 proving system and smart contract language has been pre-defined). In order for you to use Noir in
@@ -96,5 +96,6 @@ Some libraries that are available today include:
 - [Sparse Merkle Tree Verifier](https://github.com/vocdoni/smtverifier-noir/tree/main) - a library for verification of sparse Merkle trees
 - [Signed Int](https://github.com/resurgencelabs/signed_int) - a library for accessing a custom Signed Integer data type, allowing access to negative numbers on Noir
 - [Fraction](https://github.com/resurgencelabs/fraction) - a library for accessing fractional number data type in Noir, allowing results that aren't whole numbers
+- [Base64](https://github.com/zkworks-xyz/noir-base64) - a library for base64 encoding
 
 See the section on [dependencies](./modules_packages_crates/dependencies) for more information.
