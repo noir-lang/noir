@@ -6,6 +6,16 @@ struct U128 {
 }
 
 impl U128 {
+
+    pub fn new(lo: u64, hi: u64) -> U128 {
+        // in order to handle multiplication, we need to represent the product of two u64 without overflow
+        assert(crate::field::modulus_num_bits() as u32 > 128);
+        U128 {
+            lo: lo as Field,
+            hi: hi as Field,
+        }
+    }
+
     pub fn from_le_bytes(bytes: [u8; 16]) -> U128 {
         let mut lo = 0;
         let mut base = 1;
@@ -82,7 +92,7 @@ impl U128 {
     }
 
 
-    pub fn add(self: Self, b: U128) -> U128{
+    pub fn add(self: Self, b: U128) -> U128 {
         let low = self.lo + b.lo;
         let lo = low as u64 as Field;
         let carry = (low - lo) / pow64;  

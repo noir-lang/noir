@@ -3,14 +3,8 @@ use dep::std::uint128::U128;
 use dep::std;
 
 fn main(mut x: u32, y: u32, z: u32, hexa : str<7>) {
-    let a = U128 {
-        lo: x as Field,
-        hi: x as Field,
-    };
-    let b = U128 {
-        lo: y as Field,
-        hi: x as Field,
-    };
+    let a = U128::new(x as u64, x as u64);
+    let b = U128::new(y as u64, x as u64);
     let c = a.add(b);
     assert(c.lo == z as Field);
     assert(c.hi == 2*x as Field);
