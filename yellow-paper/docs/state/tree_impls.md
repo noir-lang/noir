@@ -1,3 +1,7 @@
+---
+sidebar_position: 1
+---
+
 # Tree implementations
 
 Aztec relies on two Merkle tree implementations in the protocol: append-only and indexed Merkle trees.
