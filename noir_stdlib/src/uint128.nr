@@ -104,4 +104,17 @@ impl U128 {
             hi,
         }
     }
+
+    pub fn sub(self: Self, b: U128) -> U128 {
+        let low = pow64 + self.lo - b.lo;
+        let lo = low as u64 as Field;
+        let borrow = (low == lo) as Field;
+        let high = self.hi - b.hi - borrow;
+        let hi = high as u64 as Field;
+        assert(hi == high, "attempt to subtract with overflow");
+        U128 {
+            lo,
+            hi,
+        }
+    }
 }

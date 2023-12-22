@@ -1,4 +1,3 @@
-// Test integer addition: 3 + 4 = 7
 use dep::std::uint128::U128;
 use dep::std;
 
@@ -17,5 +16,13 @@ fn main(mut x: u32, y: u32, z: u32, hexa : str<7>) {
     let t3 = U128::from_le_bytes(t.to_le_bytes());
     assert(t.lo == t3.lo);
     assert(t.hi == t3.hi);
+
+    let t4 = t.sub(t2);
+    assert(t4.lo == t1.lo);
+    assert(t4.hi == t1.hi);
+
+    let t5 = U128::new(0,1);
+    let t6 = U128::new(1,0);
+    assert(t5.sub(t6).hi == 0);
 }
 
