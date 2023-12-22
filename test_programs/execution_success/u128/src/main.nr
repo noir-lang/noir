@@ -24,5 +24,7 @@ fn main(mut x: u32, y: u32, z: u32, hexa : str<7>) {
     let t5 = U128::new(0,1);
     let t6 = U128::new(1,0);
     assert(t5.sub(t6).hi == 0);
+    
+    assert(U128::from_hex("0x71f03a23783f9d9c7a8777").mul(U128::from_hex("0x8BFCF39041")).hi == U128::from_hex("0x3e4e0471b873470e247c824e61445537").hi);
 }
 

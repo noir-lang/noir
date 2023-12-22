@@ -117,4 +117,18 @@ impl U128 {
             hi,
         }
     }
+
+    pub fn mul(self: Self, b: U128) -> U128 {
+        assert(self.hi*b.hi == 0, "attempt to multiply with overflow");
+        let low = self.lo*b.lo;
+        let lo = low as u64 as Field;
+        let carry = (low - lo) / pow64;  
+        let high = (self.lo+self.hi)*(b.lo+b.hi) - low + carry;
+        let hi = high as u64 as Field;
+        assert(hi == high, "attempt to multiply with overflow");
+        U128 {
+            lo,
+            hi,
+        }
+    }
 }
