@@ -99,11 +99,14 @@ fn render<'a>(
             .enumerate()
             .map(|(current_line_index, line)| {
                 let current_line_number = current_line_index + 1;
-                
+
                 if current_line_index < first_line_to_print {
                     // Ignore lines before the context window we choose to show
                     PrintedLine::Skip
-                } else if current_line_index == first_line_to_print && current_line_index > 0 {
+                } else if current_line_index == first_line_to_print
+                    && current_line_index > 0
+                    && current_line_index < loc_line_index
+                {
                     // Denote that there's more lines before but we're not showing them
                     PrintedLine::Ellipsis { number: current_line_number }
                 } else if current_line_index < loc_line_index {
@@ -154,7 +157,9 @@ fn render<'a>(
                         content: line,
                         highlight: None,
                     }
-                } else if current_line_index == last_line_to_print && last_line_to_print < last_line_index {
+                } else if current_line_index == last_line_to_print
+                    && last_line_to_print < last_line_index
+                {
                     // Denote that there's more lines after but we're not showing them,
                     // and stop printing
                     PrintedLine::Ellipsis { number: current_line_number }
