@@ -1322,9 +1322,9 @@ impl NodeInterner {
         let expr_lhs = &expr_member_access.lhs;
         let expr_rhs = &expr_member_access.rhs;
 
-        let found_ident = self.nodes.get(expr_lhs.into())?;
+        let lhs_found_ident = self.nodes.get(expr_lhs.into())?;
 
-        let ident = match found_ident {
+        let ident = match lhs_found_ident {
             Node::Expression(HirExpression::Ident(ident)) => ident,
             _ => return None,
         };
@@ -1333,6 +1333,9 @@ impl NodeInterner {
 
         let local_id = match definition_info.kind {
             DefinitionKind::Local(Some(local_id)) => local_id,
+            DefinitionKind::Local(None) => {
+                return self.handle_struct_member_access_for_self(expr_lhs, expr_rhs)
+            }
             _ => return None,
         };
 
@@ -1346,10 +1349,31 @@ impl NodeInterner {
         let struct_type = constructor_expression.r#type.borrow();
         let field_names = struct_type.field_names();
 
-        match field_names.iter().find(|field_name| field_name.0 == expr_rhs.0) {
-            Some(found) => Some(Location::new(found.span(), struct_type.location.file)),
-            None => None,
-        }
+        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).and_then(
+            |found_field_name| {
+                Some(Location::new(found_field_name.span(), struct_type.location.file))
+            },
+        )
+    }
+
+    fn handle_struct_member_access_for_self(
+        &self,
+        expr_lhs: &ExprId,
+        expr_rhs: &Ident,
+    ) -> Option<Location> {
+        let lhs_self_struct = match self.id_type(expr_lhs) {
+            Type::Struct(struct_type, _) => struct_type,
+            _ => return None,
+        };
+
+        let struct_type = lhs_self_struct.borrow();
+        let field_names = struct_type.field_names();
+
+        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).and_then(
+            |found_field_name| {
+                Some(Location::new(found_field_name.span(), struct_type.location.file))
+            },
+        )
     }
 }
 
