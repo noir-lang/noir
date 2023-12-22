@@ -6,33 +6,16 @@ use owo_colors::OwoColorize;
 use std::ops::Range;
 
 #[derive(Debug)]
-struct PrintedLine<'a> {
-    number: usize,
-    cursor: &'a str,
-    content: &'a str,
-    highlight: Option<Range<usize>>,
-}
-
-impl<'a> PrintedLine<'a> {
-    fn ellipsis(line_number: usize) -> Self {
-        Self { number: line_number, cursor: "", content: "...", highlight: None }
-    }
+enum PrintedLine<'a> {
+    Skip,
+    Ellipsis { number: usize },
+    Content { number: usize, cursor: &'a str, content: &'a str, highlight: Option<Range<usize>> },
 }
 
 #[derive(Debug)]
 struct PrintedLocation<'a> {
     location: Location,
     lines: Vec<PrintedLine<'a>>,
-}
-
-impl<'a> PrintedLocation<'a> {
-    fn new(loc: Location) -> Self {
-        Self { location: loc, lines: [].into() }
-    }
-
-    fn add_line(&mut self, line: PrintedLine<'a>) {
-        self.lines.push(line);
-    }
 }
 
 pub(crate) fn print_source_code_location(
@@ -45,25 +28,31 @@ pub(crate) fn print_source_code_location(
         print_location_path(debug_artifact, loc.location);
 
         for line in loc.lines {
-            match line.highlight {
-                Some(highlight) => {
-                    println!(
-                        "{:>3} {:2} {}{}{}",
-                        line.number,
-                        line.cursor,
-                        line.content[0..highlight.start].to_string().dimmed(),
-                        &line.content[highlight.start..highlight.end],
-                        line.content[highlight.end..].to_string().dimmed(),
-                    );
+            match line {
+                PrintedLine::Skip => {}
+                PrintedLine::Ellipsis { number } => {
+                    println!("{:>3} {:2} {}", number.dimmed(), "", "...".dimmed(),);
                 }
-                None => {
-                    println!(
-                        "{:>3} {:2} {}",
-                        line.number.dimmed(),
-                        line.cursor.dimmed(),
-                        line.content.to_string().dimmed(),
-                    );
-                }
+                PrintedLine::Content { number, cursor, content, highlight } => match highlight {
+                    Some(highlight) => {
+                        println!(
+                            "{:>3} {:2} {}{}{}",
+                            number,
+                            cursor,
+                            content[0..highlight.start].to_string().dimmed(),
+                            &content[highlight.start..highlight.end],
+                            content[highlight.end..].to_string().dimmed(),
+                        );
+                    }
+                    None => {
+                        println!(
+                            "{:>3} {:2} {}",
+                            number.dimmed(),
+                            cursor.dimmed(),
+                            content.to_string().dimmed(),
+                        );
+                    }
+                },
             }
         }
     }
@@ -88,8 +77,6 @@ fn render<'a>(
     let Some(locations) = locations else { return rendered_locations };
 
     for loc in locations {
-        let mut rendered_loc = PrintedLocation::new(loc);
-
         let loc_line_index = debug_artifact.location_line_index(loc).unwrap();
         let loc_end_line_index = debug_artifact.location_end_line_index(loc).unwrap();
 
@@ -107,73 +94,81 @@ fn render<'a>(
 
         let source = debug_artifact.location_source_code(loc).unwrap();
 
-        for (current_line_index, line) in source.lines().enumerate() {
-            let current_line_number = current_line_index + 1;
+        let lines = source
+            .lines()
+            .enumerate()
+            .map(|(current_line_index, line)| {
+                let current_line_number = current_line_index + 1;
 
-            if current_line_index < first_line_to_print {
                 // Ignore lines before range starts
-                continue;
-            } else if current_line_index == first_line_to_print && current_line_index > 0 {
-                // Denote that there's more lines before but we're not showing them
-                rendered_loc.add_line(PrintedLine::ellipsis(current_line_number));
-                break;
-            }
+                if current_line_index < first_line_to_print {
+                    return PrintedLine::Skip;
+                }
 
-            if current_line_index > last_line_to_print {
+                // Denote that there's more lines before but we're not showing them
+                if current_line_index == first_line_to_print && current_line_index > 0 {
+                    return PrintedLine::Ellipsis { number: current_line_number };
+                }
+
                 // Denote that there's more lines after but we're not showing them,
                 // and stop printing
-                rendered_loc.add_line(PrintedLine::ellipsis(current_line_number));
-                break;
-            }
+                if current_line_index == last_line_to_print + 1 {
+                    return PrintedLine::Ellipsis { number: current_line_number };
+                }
 
-            if current_line_index < loc_line_index {
-                rendered_loc.add_line(PrintedLine {
-                    number: current_line_number,
-                    cursor: "",
-                    content: line,
-                    highlight: None,
-                });
-            } else if current_line_index == loc_line_index {
-                let to_highlight = debug_artifact.location_in_line(loc).unwrap();
+                if current_line_index > last_line_to_print {
+                    return PrintedLine::Skip;
+                }
 
-                // Highlight current location from where it starts
-                // to the end of the current line
-                rendered_loc.add_line(PrintedLine {
-                    number: current_line_number,
-                    cursor: "->",
-                    content: line,
-                    highlight: Some(to_highlight),
-                });
-            } else if current_line_index < loc_end_line_index {
-                // Highlight current line if it's contained by the current location
-                rendered_loc.add_line(PrintedLine {
-                    number: current_line_number,
-                    cursor: "",
-                    content: line,
-                    highlight: Some(Range { start: 0, end: line.len() - 1 }),
-                });
-            } else if current_line_index == loc_end_line_index {
-                let to_highlight = debug_artifact.location_in_end_line(loc).unwrap();
+                if current_line_index < loc_line_index {
+                    PrintedLine::Content {
+                        number: current_line_number,
+                        cursor: "",
+                        content: line,
+                        highlight: None,
+                    }
+                } else if current_line_index == loc_line_index {
+                    let to_highlight = debug_artifact.location_in_line(loc).unwrap();
 
-                // Highlight current location from the beginning
-                // of the line until the location's own end
-                rendered_loc.add_line(PrintedLine {
-                    number: current_line_number,
-                    cursor: "",
-                    content: line,
-                    highlight: Some(to_highlight),
-                });
-            } else {
-                rendered_loc.add_line(PrintedLine {
-                    number: current_line_number,
-                    cursor: "",
-                    content: line,
-                    highlight: None,
-                })
-            }
-        }
+                    // Highlight current location from where it starts
+                    // to the end of the current line
+                    PrintedLine::Content {
+                        number: current_line_number,
+                        cursor: "->",
+                        content: line,
+                        highlight: Some(to_highlight),
+                    }
+                } else if current_line_index < loc_end_line_index {
+                    // Highlight current line if it's contained by the current location
+                    PrintedLine::Content {
+                        number: current_line_number,
+                        cursor: "",
+                        content: line,
+                        highlight: Some(Range { start: 0, end: line.len() - 1 }),
+                    }
+                } else if current_line_index == loc_end_line_index {
+                    let to_highlight = debug_artifact.location_in_end_line(loc).unwrap();
 
-        rendered_locations.push(rendered_loc);
+                    // Highlight current location from the beginning
+                    // of the line until the location's own end
+                    PrintedLine::Content {
+                        number: current_line_number,
+                        cursor: "",
+                        content: line,
+                        highlight: Some(to_highlight),
+                    }
+                } else {
+                    PrintedLine::Content {
+                        number: current_line_number,
+                        cursor: "",
+                        content: line,
+                        highlight: None,
+                    }
+                }
+            })
+            .collect();
+
+        rendered_locations.push(PrintedLocation { location: loc, lines });
     }
 
     rendered_locations
