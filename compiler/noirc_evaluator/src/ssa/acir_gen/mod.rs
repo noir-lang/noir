@@ -1664,10 +1664,6 @@ impl Context {
             }
             NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size } => {
                 let max_bit_size = incoming_type.bit_size();
-                if max_bit_size <= *bit_size {
-                    // Incoming variable already fits into target bit size -  this is a no-op
-                    return Ok(variable);
-                }
                 self.acir_context.truncate_var(variable, *bit_size, max_bit_size)
             }
         }

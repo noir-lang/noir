@@ -969,6 +969,11 @@ impl AcirContext {
         rhs: u32,
         max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
+        if max_bit_size <= rhs {
+            // Incoming variable already fits into target bit size -  this is a no-op
+            return Ok(lhs);
+        }
+
         // 2^{rhs}
         let divisor =
             self.add_constant(FieldElement::from(2_u128).pow(&FieldElement::from(rhs as u128)));
