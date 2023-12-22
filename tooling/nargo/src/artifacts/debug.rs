@@ -59,6 +59,12 @@ impl DebugArtifact {
         self.line_index(location.file, location_start)
     }
 
+    /// Given a location, returns the index of the line it starts at
+    pub fn location_end_line_index(&self, location: Location) -> Result<usize, Error> {
+        let location_end = location.span.end() as usize;
+        self.line_index(location.file, location_end)
+    }
+
     /// Given a location, returns the line number it starts at
     pub fn location_line_number(&self, location: Location) -> Result<usize, Error> {
         let location_start = location.span.start() as usize;
@@ -82,10 +88,23 @@ impl DebugArtifact {
         let line_index = self.line_index(location.file, location_start)?;
         let line_span = self.line_range(location.file, line_index)?;
 
+        let line_length = line_span.end - (line_span.start + 1);
         let start_in_line = location_start - line_span.start;
         let end_in_line = location_end - line_span.start;
+        let end_in_line = std::cmp::min(end_in_line, line_length);
 
         Ok(Range { start: start_in_line, end: end_in_line })
+    }
+
+    /// Given a location, returns a Span relative to its last line's
+    /// position in the file. This is useful when processing a file's
+    /// contents on a per-line-basis.
+    pub fn location_in_end_line(&self, location: Location) -> Result<Range<usize>, Error> {
+        let end_line_index = self.location_end_line_index(location)?;
+        let line_span = self.line_range(location.file, end_line_index)?;
+        let location_end = location.span.end() as usize;
+        let end_in_line = location_end - line_span.start;
+        Ok(Range { start: 0, end: end_in_line })
     }
 
     /// Given a location, returns the last line index
