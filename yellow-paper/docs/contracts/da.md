@@ -211,14 +211,14 @@ From the above estimations, it is unlikely that our data requirements can be met
 
 The main concerns when investigating if multiple layers should be supported simultaneously are:
 - **Composability**: Applications should be able to integrate with one another seamlessly and synchronously. If this is not supported, they might as well be entirely separate deployments.
-- **Ossification**: By ossification we mean changing the assumptions of the deployments, for example, if an application was deployed at a specific data layer, changing the layer underneath it would change the security assumptions. This is addressed through the Upgrade mechanism [**REFERENCE**].
+- **Ossification**: By ossification we mean changing the assumptions of the deployments, for example, if an application was deployed at a specific data layer, changing the layer underneath it would change the security assumptions. This is addressed through the [Upgrade mechanism](../decentralisation/governance.md).
 - **Security**: Applications that depend on multiple different data layers might rely on all its layers to work to progress its state. Mainly the different parts of the application might end up with different confirmation rules (as mentioned earlier) degrading it to the least secure possibly breaking the liveness of the application if one of the layers is not progressing.
 
 The security aspect in particular can become a problem if users deploy accounts to a bad data layer for cost savings, and then cannot access their funds (or other assets) because that data layer is not available. This can be a problem, even though all the assets of the user lives on a still functional data layer. 
 
 Since the individual user burden is high with multi-layer approach, we discard it as a viable option, as the probability of user failure is too high.
 
-Instead, the likely design, will be that an instance has a specific data layer, and that "upgrading" to a new instance allows for a new data layer by deploying an entire instance. This ensures that composability is ensured as everything lives on the same data layer. Ossification is possible hence the upgrade mechanism [**REFERENCE**] doesn't "destroy" the old instance. This means that applications can be built to reject upgrades if they believe the new data layer is not secure enough and simple continue using the old.
+Instead, the likely design, will be that an instance has a specific data layer, and that "upgrading" to a new instance allows for a new data layer by deploying an entire instance. This ensures that composability is ensured as everything lives on the same data layer. Ossification is possible hence the [upgrade mechanism](../decentralisation/governance.md) doesn't "destroy" the old instance. This means that applications can be built to reject upgrades if they believe the new data layer is not secure enough and simple continue using the old.
 
 
 ## Privacy is Data Hungry - What choices do we really have?
