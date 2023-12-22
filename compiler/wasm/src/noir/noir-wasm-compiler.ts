@@ -5,7 +5,7 @@ import { GithubDependencyResolver as GithubCodeArchiveDependencyResolver } from 
 import { LocalDependencyResolver } from './dependencies/local-dependency-resolver';
 import { FileManager } from './file-manager/file-manager';
 import { Package } from './package';
-import { LogData, LogFn } from '../utils';
+import { LogFn } from '../utils';
 import { CompilationResult } from '../types/noir_artifact';
 
 /** Compilation options */
@@ -13,7 +13,7 @@ export type NoirWasmCompileOptions = {
   /** Logging function */
   log: LogFn;
   /** Log debugging information through this function */
-  debugLog?: LogFn;
+  debugLog: LogFn;
 };
 
 /**
@@ -39,11 +39,7 @@ export class NoirWasmCompiler {
     opts: NoirWasmCompileOptions,
   ) {
     this.#log = opts.log;
-    this.#debugLog =
-      opts.debugLog ??
-      function (msg: string, _data?: LogData) {
-        console.log(msg);
-      };
+    this.#debugLog = opts.debugLog;
     this.#package = entrypoint;
     this.#fm = fileManager;
     this.#wasmCompiler = wasmCompiler;

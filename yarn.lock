@@ -4057,6 +4057,7 @@ __metadata:
     "@esm-bundle/chai": ^4.3.4-fix.0
     "@ltd/j-toml": ^1.38.0
     "@noir-lang/noirc_abi": "workspace:*"
+    "@types/adm-zip": ^0.5.0
     "@types/chai": ^4
     "@types/mocha": ^10.0.6
     "@types/mocha-each": ^2
@@ -4068,6 +4069,7 @@ __metadata:
     "@web/dev-server-esbuild": ^0.3.6
     "@web/test-runner": ^0.15.3
     "@web/test-runner-playwright": ^0.10.0
+    adm-zip: ^0.5.0
     assert: ^2.1.0
     browserify-fs: ^1.0.0
     chai: ^4.3.10
@@ -5064,6 +5066,15 @@ __metadata:
   dependencies:
     "@types/estree": "*"
   checksum: 60e1fd28af18d6cb54a93a7231c7c18774a9a8739c9b179e9e8750dca631e10cbef2d82b02830ea3f557b1d121e6406441e9e1250bd492dc81d4b3456e76e4d4
+  languageName: node
+  linkType: hard
+
+"@types/adm-zip@npm:^0.5.0":
+  version: 0.5.5
+  resolution: "@types/adm-zip@npm:0.5.5"
+  dependencies:
+    "@types/node": "*"
+  checksum: 808c25b8a1c2e1c594cf9b1514e7953105cf96e19e38aa7dc109ff2537bda7345b950ef1f4e54a6e824e5503e29d24b0ff6d0aa1ff9bd4afb79ef0ef2df9ebab
   languageName: node
   linkType: hard
 
@@ -6645,6 +6656,13 @@ __metadata:
   version: 0.4.16
   resolution: "adm-zip@npm:0.4.16"
   checksum: 5ea46664d8b3b073fffeb7f934705fea288708745e708cffc1dd732ce3d2672cecd476b243f9d051892fd12952db2b6bd061975e1ff40057246f6d0cb6534a50
+  languageName: node
+  linkType: hard
+
+"adm-zip@npm:^0.5.0":
+  version: 0.5.10
+  resolution: "adm-zip@npm:0.5.10"
+  checksum: 07ed91cf6423bf5dca4ee63977bc7635e91b8d21829c00829d48dce4c6932e1b19e6cfcbe44f1931c956e68795ae97183fc775913883fa48ce88a1ac11fb2034
   languageName: node
   linkType: hard
 

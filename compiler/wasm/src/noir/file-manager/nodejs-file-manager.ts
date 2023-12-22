@@ -3,24 +3,25 @@ import { promises as fs } from 'fs';
 
 import { FileManager } from './file-manager';
 
+// This is needed because memfs doesn't support the recursive flag yet
+export async function readdirRecursive(dir: string): Promise<string[]> {
+  const contents = await fs.readdir(dir);
+  let files: string[] = [];
+  for (const handle of contents) {
+    if ((await fs.stat(`${dir}/${handle}`)).isFile()) {
+      files.push(`${dir}/${handle.toString()}`);
+    } else {
+      files = files.concat(await readdirRecursive(`${dir}/${handle.toString()}`));
+    }
+  }
+  return files;
+}
+
 /**
  * Creates a new FileManager instance based on nodejs fs
  * @param dataDir - where to store files
  */
 export function createNodejsFileManager(dataDir: string): FileManager {
-  // This is needed because memfs doesn't support the recursive flag yet
-  const readdirRecursive = async (dir: string): Promise<string[]> => {
-    const contents = await fs.readdir(dir);
-    let files: string[] = [];
-    for (const handle of contents) {
-      if ((await fs.stat(`${dir}/${handle}`)).isFile()) {
-        files.push(`${dir}/${handle.toString()}`);
-      } else {
-        files = files.concat(await readdirRecursive(`${dir}/${handle.toString()}`));
-      }
-    }
-    return files;
-  };
   return new FileManager(
     {
       ...fs,

@@ -1,9 +1,10 @@
 import { Volume, createFsFromVolume } from 'memfs';
-import { readFile } from 'fs/promises';
-import { join, resolve } from 'path';
+import { dirname, join, resolve } from 'path';
 
 import { FileManager } from '../../src/noir/file-manager/file-manager';
 import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager';
+import { readdirRecursive } from '../../src/noir/file-manager/nodejs-file-manager';
+
 import { Package } from '../../src/noir/package';
 import { DependencyResolver } from '../../src/noir/dependencies/dependency-resolver';
 import {
@@ -17,6 +18,7 @@ import { expect } from 'chai';
 import forEach from 'mocha-each';
 import chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
+import AdmZip from 'adm-zip';
 
 chai.use(chaiAsPromised);
 
@@ -68,7 +70,14 @@ describe('GithubDependencyResolver', () => {
   });
 
   it('resolves Github dependency', async () => {
-    fetchStub?.onCall(0).returns(new Response(await readFile(join(fixtures, 'deps', 'test_lib.zip')), { status: 200 }));
+    const zip = new AdmZip();
+    const testLibPath = join(fixtures, 'deps', 'test_lib');
+    for (const filePath of await readdirRecursive(testLibPath)) {
+      zip.addLocalFile(filePath, dirname(filePath.replace(testLibPath, 'test_lib')));
+    }
+
+    fetchStub?.onCall(0).returns(new Response(zip.toBuffer(), { status: 200 }));
+
     const lib = await resolver.resolveDependency(pkg, libDependency);
     expect(lib).not.to.be.undefined;
     expect(lib!.version).to.eq(libDependency.tag);

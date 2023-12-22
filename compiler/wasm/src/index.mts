@@ -4,7 +4,11 @@ import { NoirWasmCompiler } from './noir/noir-wasm-compiler';
 import { LogData, LogFn } from './utils';
 import { CompiledCircuit } from './types/noir_artifact';
 
-async function compile(fileManager: FileManager, projectPath?: string, logFn?: LogFn) {
+async function compile(fileManager: FileManager, projectPath?: string, logFn?: LogFn, debugLogFn?: LogFn) {
+  if (logFn && !debugLogFn) {
+    debugLogFn = logFn;
+  }
+
   const esm = await import('../build/esm');
   await esm.default;
   const compiler = await NoirWasmCompiler.new(
@@ -15,8 +19,21 @@ async function compile(fileManager: FileManager, projectPath?: string, logFn?: L
     {
       log:
         logFn ??
-        function (msg: string, _data?: LogData) {
-          console.log(msg);
+        function (msg: string, data?: LogData) {
+          if (data) {
+            console.log(msg, data);
+          } else {
+            console.log(msg);
+          }
+        },
+      debugLog:
+        debugLogFn ??
+        function (msg: string, data?: LogData) {
+          if (data) {
+            console.debug(msg, data);
+          } else {
+            console.debug(msg);
+          }
         },
     },
   );
