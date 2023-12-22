@@ -38,15 +38,10 @@ fn on_goto_definition_inner(
     let _ = noirc_driver::check_crate(&mut context, crate_id, false, false);
 
     let files = context.file_manager.as_file_map();
-    let file_id = match context.file_manager.name_to_id(file_path.clone()) {
-        Some(file_id) => file_id,
-        None => {
-            return Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                format!("Could not find file in file manager. File path: {:?}", file_path),
-            ))
-        }
-    };
+    let file_id = context.file_manager.name_to_id(file_path.clone()).ok_or(ResponseError::new(
+        ErrorCode::REQUEST_FAILED,
+        format!("Could not find file in file manager. File path: {:?}", file_path),
+    ))?;
 
     let byte_index =
         position_to_byte_index(files, file_id, &params.text_document_position_params.position)
