@@ -1,4 +1,4 @@
-global pow64 = 18446744073709551616;  //2^64;
+global pow64 : Field = 18446744073709551616;  //2^64;
 
 struct U128 {
     lo: Field,
@@ -142,5 +142,29 @@ impl U128 {
         } else {
             self.hi as u64 < b.hi as u64
         }
+    }
+
+    pub fn div(self: Self, b: U128) -> (U128, U128) {
+        let (q,r) = self.unconstrained_div(b);
+        let a = b.mul(q).add(r);
+        assert(self.lo == a.lo);
+        assert(self.hi == a.hi);
+        assert(r.less_than(b));
+        (q,r)
+    }
+
+    unconstrained fn unconstrained_div(self: Self, b: U128) -> (U128, U128) {
+        if self.less_than(b) {
+            (U128::new(0, 0), self)
+        } else {
+            //TODO check if this can overflow?
+            let (q,r) = self.unconstrained_div(b.mul(U128::new(2,0)));
+            if r.less_than(b) {
+                (q.mul(U128::new(2,0)), r)
+            } else {
+                (q.mul(U128::new(2,0)).add(U128::new(1,0)), r.sub(b))
+            }
+
+        }  
     }
 }
