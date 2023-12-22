@@ -102,6 +102,8 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                 if loc_line_index < context_lines { 0 } else { loc_line_index - context_lines };
 
             let last_line_index = self.debug_artifact.last_line_index(loc).unwrap();
+
+            // Print all lines that the current location spans
             let last_line_to_print =
                 std::cmp::min(loc_end_line_index + context_lines, last_line_index);
 
@@ -126,10 +128,11 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                 }
 
                 if current_line_index == loc_line_index {
-                    // Highlight current location
                     let Range { start: loc_start, end: loc_end } =
                         self.debug_artifact.location_in_line(loc).unwrap();
 
+                    // Highlight current location from where it starts
+                    // to the end of the current line
                     println!(
                         "{:>3} {:2} {}{}{}",
                         current_line_number,
@@ -139,12 +142,14 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                         &line[loc_end..].to_string().dimmed()
                     );
                 } else if current_line_index < loc_end_line_index {
+                    // Highlight current line if it's contained by the current location
                     println!("{:>3} {:2} {}", current_line_number, "", line);
                 } else if current_line_index == loc_end_line_index {
-                    // Highlight current location
                     let Range { start: loc_start, end: loc_end } =
                         self.debug_artifact.location_in_end_line(loc).unwrap();
 
+                    // Highlight current location from the beginning
+                    // of the line until the location's own end
                     println!(
                         "{:>3} {:2} {}{}",
                         current_line_number,
@@ -199,7 +204,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                 println!("       |       outputs={:?}", brillig.outputs);
                 for (brillig_index, brillig_opcode) in brillig.bytecode.iter().enumerate() {
                     println!(
-                        "{:>3}{:<2} |{:2} {:?}",
+                        "{:>3}.{:<2} |{:2} {:?}",
                         acir_index,
                         brillig_index,
                         brillig_marker(acir_index, brillig_index),

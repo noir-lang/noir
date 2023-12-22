@@ -59,7 +59,7 @@ impl DebugArtifact {
         self.line_index(location.file, location_start)
     }
 
-    /// Given a location, returns the index of the line it starts at
+    /// Given a location, returns the index of the line it ends at
     pub fn location_end_line_index(&self, location: Location) -> Result<usize, Error> {
         let location_end = location.span.end() as usize;
         self.line_index(location.file, location_end)
@@ -90,6 +90,9 @@ impl DebugArtifact {
 
         let line_length = line_span.end - (line_span.start + 1);
         let start_in_line = location_start - line_span.start;
+
+        // The location might continue beyond the line,
+        // so we need a bounds check
         let end_in_line = location_end - line_span.start;
         let end_in_line = std::cmp::min(end_in_line, line_length);
 
