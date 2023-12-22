@@ -1,13 +1,13 @@
 import { FileManager } from './noir/file-manager/file-manager';
 import { createNodejsFileManager } from './noir/file-manager/nodejs-file-manager';
-import { NoirWasmContractCompiler } from './noir/noir-wasm-compiler';
+import { NoirWasmCompiler } from './noir/noir-wasm-compiler';
 import { LogData, LogFn } from './utils';
-import { NoirCompiledCircuit } from './types/noir_artifact';
+import { CompiledCircuit } from './types/noir_artifact';
 
 async function compile(fileManager: FileManager, projectPath?: string, logFn?: LogFn) {
   const esm = await import('../build/esm');
   await esm.default;
-  const compiler = await NoirWasmContractCompiler.new(
+  const compiler = await NoirWasmCompiler.new(
     fileManager,
     projectPath ?? fileManager.getDataDir(),
     esm,
@@ -25,4 +25,4 @@ async function compile(fileManager: FileManager, projectPath?: string, logFn?: L
 
 const createFileManager = createNodejsFileManager;
 
-export { compile, createFileManager, NoirCompiledCircuit };
+export { compile, createFileManager, CompiledCircuit };

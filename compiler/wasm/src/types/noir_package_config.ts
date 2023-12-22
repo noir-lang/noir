@@ -20,34 +20,34 @@ type noirPackageConfigSchema = {
     backend?: string;
     license?: string;
   };
-  dependencies: Record<string, NoirGitDependencyConfig | NoirLocalDependencyConfig>;
+  dependencies: Record<string, GitDependencyConfig | LocalDependencyConfig>;
 };
 
 /**
  * Noir package configuration.
  */
-export type NoirPackageConfig = noirPackageConfigSchema;
+export type PackageConfig = noirPackageConfigSchema;
 
 /**
  * A remote package dependency.
  */
-export type NoirGitDependencyConfig = noirGitDependencySchema;
+export type GitDependencyConfig = noirGitDependencySchema;
 
 /**
  * A local package dependency.
  */
-export type NoirLocalDependencyConfig = noirLocalDependencySchema;
+export type LocalDependencyConfig = noirLocalDependencySchema;
 
 /**
  * A package dependency.
  */
-export type NoirDependencyConfig = NoirGitDependencyConfig | NoirLocalDependencyConfig;
+export type DependencyConfig = GitDependencyConfig | LocalDependencyConfig;
 
 /**
  * Checks that an object is a package configuration.
  * @param config - Config to check
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function parseNoirPackageConfig(config: any): NoirPackageConfig {
+export function parseNoirPackageConfig(config: any): PackageConfig {
   return config;
 }

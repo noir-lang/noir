@@ -2,15 +2,15 @@ import { delimiter, join, sep } from 'path';
 import { unzip } from 'unzipit';
 
 import { FileManager } from '../file-manager/file-manager';
-import { NoirPackage } from '../package';
-import { NoirDependency, NoirDependencyResolver } from './dependency-resolver';
-import { NoirDependencyConfig, NoirGitDependencyConfig } from '../../types/noir_package_config';
+import { Package } from '../package';
+import { Dependency, DependencyResolver } from './dependency-resolver';
+import { DependencyConfig, GitDependencyConfig } from '../../types/noir_package_config';
 import { LogData } from '../../utils';
 
 /**
  * Downloads dependencies from github
  */
-export class GithubDependencyResolver implements NoirDependencyResolver {
+export class GithubDependencyResolver implements DependencyResolver {
   #fm: FileManager;
   #log;
 
@@ -27,7 +27,7 @@ export class GithubDependencyResolver implements NoirDependencyResolver {
    * @param dependency - The dependency configuration
    * @returns asd
    */
-  async resolveDependency(_pkg: NoirPackage, dependency: NoirDependencyConfig): Promise<NoirDependency | null> {
+  async resolveDependency(_pkg: Package, dependency: DependencyConfig): Promise<Dependency | null> {
     // TODO accept ssh urls?
     // TODO github authentication?
     if (!('git' in dependency) || !dependency.git.startsWith('https://github.com')) {
@@ -38,11 +38,11 @@ export class GithubDependencyResolver implements NoirDependencyResolver {
     const libPath = await this.#extractZip(dependency, archivePath);
     return {
       version: dependency.tag,
-      package: await NoirPackage.open(libPath, this.#fm),
+      package: await Package.open(libPath, this.#fm),
     };
   }
 
-  async #fetchZipFromGithub(dependency: Pick<NoirGitDependencyConfig, 'git' | 'tag'>): Promise<string> {
+  async #fetchZipFromGithub(dependency: Pick<GitDependencyConfig, 'git' | 'tag'>): Promise<string> {
     if (!dependency.git.startsWith('https://github.com')) {
       throw new Error('Only github dependencies are supported');
     }
@@ -71,7 +71,7 @@ export class GithubDependencyResolver implements NoirDependencyResolver {
     return localArchivePath;
   }
 
-  async #extractZip(dependency: NoirGitDependencyConfig, archivePath: string): Promise<string> {
+  async #extractZip(dependency: GitDependencyConfig, archivePath: string): Promise<string> {
     const gitUrl = new URL(dependency.git);
     // extract the archive to this location
     const extractLocation = join('libs', safeFilename(gitUrl.pathname + '@' + (dependency.tag ?? 'HEAD')));
@@ -131,7 +131,7 @@ export function safeFilename(val: string): string {
  * @param dependency - The dependency configuration
  * @returns The URL to the library archive
  */
-export function resolveGithubCodeArchive(dependency: NoirGitDependencyConfig, format: 'zip' | 'tar'): URL {
+export function resolveGithubCodeArchive(dependency: GitDependencyConfig, format: 'zip' | 'tar'): URL {
   const gitUrl = new URL(dependency.git);
   const [owner, repo] = gitUrl.pathname.slice(1).split('/');
   const ref = dependency.tag ?? 'HEAD';

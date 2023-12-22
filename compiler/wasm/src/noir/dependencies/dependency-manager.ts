@@ -1,26 +1,26 @@
 import { join } from 'path';
 
-import { NoirPackage } from '../package';
-import { NoirDependency, NoirDependencyResolver } from './dependency-resolver';
-import { NoirDependencyConfig } from '../../types/noir_package_config';
+import { Package } from '../package';
+import { Dependency, DependencyResolver } from './dependency-resolver';
+import { DependencyConfig } from '../../types/noir_package_config';
 import { LogData, LogFn } from '../../utils';
 
 /**
  * Noir Dependency Resolver
  */
-export class NoirDependencyManager {
-  #entryPoint: NoirPackage;
-  #libraries = new Map<string, NoirDependency>();
+export class DependencyManager {
+  #entryPoint: Package;
+  #libraries = new Map<string, Dependency>();
   #dependencies = new Map<string, string[]>();
   #log: LogFn;
-  #resolvers: readonly NoirDependencyResolver[];
+  #resolvers: readonly DependencyResolver[];
 
   /**
    * Creates a new dependency resolver
    * @param resolvers - A list of dependency resolvers to use
    * @param entryPoint - The entry point of the project
    */
-  constructor(resolvers: readonly NoirDependencyResolver[] = [], entryPoint: NoirPackage) {
+  constructor(resolvers: readonly DependencyResolver[] = [], entryPoint: Package) {
     this.#resolvers = resolvers;
     this.#entryPoint = entryPoint;
     this.#log = (msg: string, _data?: LogData) => {
@@ -73,7 +73,7 @@ export class NoirDependencyManager {
       /** Package name */
       packageName: string;
       /** The package location */
-      noirPackage: NoirPackage;
+      noirPackage: Package;
     };
 
     const queue: Job[] = [
@@ -110,8 +110,8 @@ export class NoirDependencyManager {
     }
   }
 
-  async #resolveDependency(pkg: NoirPackage, config: NoirDependencyConfig): Promise<NoirDependency> {
-    let dependency: NoirDependency | null = null;
+  async #resolveDependency(pkg: Package, config: DependencyConfig): Promise<Dependency> {
+    let dependency: Dependency | null = null;
     for (const resolver of this.#resolvers) {
       dependency = await resolver.resolveDependency(pkg, config);
       if (dependency) {

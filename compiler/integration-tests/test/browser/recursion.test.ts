@@ -8,7 +8,7 @@ import * as TOML from 'smol-toml';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { getFile } from './utils.js';
 import { Field, InputMap } from '@noir-lang/noirc_abi';
-import { NoirCompiledCircuit, createFileManager, compile } from '@noir-lang/noir_wasm';
+import { CompiledCircuit, createFileManager, compile } from '@noir-lang/noir_wasm';
 
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
 
@@ -22,7 +22,7 @@ const base_relative_path = '../../../../..';
 const circuit_main = 'test_programs/execution_success/assert_statement';
 const circuit_recursion = 'compiler/integration-tests/circuits/recursion';
 
-async function getCircuit(projectPath: string): Promise<NoirCompiledCircuit> {
+async function getCircuit(projectPath: string): Promise<CompiledCircuit> {
   const fm = createFileManager('/');
   await fm.writeFile('./src/main.nr', await getFile(`${projectPath}/src/main.nr`));
   await fm.writeFile('./Nargo.toml', await getFile(`${projectPath}/Nargo.toml`));

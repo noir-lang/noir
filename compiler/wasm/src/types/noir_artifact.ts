@@ -44,7 +44,7 @@ export interface NoirFunctionEntry {
 /**
  * The compilation result of an Noir contract.
  */
-export interface NoirCompiledContract {
+export interface CompiledContract {
   /** The name of the contract. */
   name: string;
   /** Compilation backend. */
@@ -58,7 +58,7 @@ export interface NoirCompiledContract {
 /**
  * The compilation result of an Noir contract.
  */
-export interface NoirCompiledCircuit {
+export interface CompiledCircuit {
   /** The hash of the circuit. */
   hash?: number;
   /** Compilation backend. */
@@ -135,7 +135,7 @@ export type DebugFileMap = Record<
 /**
  * The debug metadata of an Noir contract.
  */
-export interface NoirDebugMetadata {
+export interface DebugMetadata {
   /**
    * The debug information for each function.
    */
@@ -149,22 +149,22 @@ export interface NoirDebugMetadata {
 /**
  * The compilation artifacts of a given contract.
  */
-export interface NoirContractCompilationArtifacts {
+export interface ContractCompilationArtifacts {
   /**
    * The compiled contract.
    */
-  contract: NoirCompiledContract;
+  contract: CompiledContract;
 
   /**
    * The artifact that contains the debug metadata about the contract.
    */
-  debug?: NoirDebugMetadata;
+  debug?: DebugMetadata;
 }
 
 /**
  * The compilation artifacts of a given program.
  */
-export interface NoirProgramCompilationArtifacts {
+export interface ProgramCompilationArtifacts {
   /**
    * not part of the compilation output, injected later
    */
@@ -172,33 +172,29 @@ export interface NoirProgramCompilationArtifacts {
   /**
    * The compiled contract.
    */
-  program: NoirCompiledCircuit;
+  program: CompiledCircuit;
 
   /**
    * The artifact that contains the debug metadata about the contract.
    */
-  debug?: NoirDebugMetadata;
+  debug?: DebugMetadata;
 }
 
 /**
  * output of Noir Wasm compilation, can be for a contract or lib/binary
  */
-export type NoirCompilationResult = NoirContractCompilationArtifacts | NoirProgramCompilationArtifacts;
+export type CompilationResult = ContractCompilationArtifacts | ProgramCompilationArtifacts;
 
 /**
  * Check if it has Contract unique property
  */
-export function isNoirContractCompilationArtifacts(
-  artifact: NoirCompilationResult,
-): artifact is NoirContractCompilationArtifacts {
-  return (artifact as NoirContractCompilationArtifacts).contract !== undefined;
+export function isContractCompilationArtifacts(artifact: CompilationResult): artifact is ContractCompilationArtifacts {
+  return (artifact as ContractCompilationArtifacts).contract !== undefined;
 }
 
 /**
  * Check if it has Contract unique property
  */
-export function isNoirProgramCompilationArtifacts(
-  artifact: NoirCompilationResult,
-): artifact is NoirProgramCompilationArtifacts {
-  return (artifact as NoirProgramCompilationArtifacts).program !== undefined;
+export function isProgramCompilationArtifacts(artifact: CompilationResult): artifact is ProgramCompilationArtifacts {
+  return (artifact as ProgramCompilationArtifacts).program !== undefined;
 }

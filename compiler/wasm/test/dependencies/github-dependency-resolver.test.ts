@@ -4,14 +4,14 @@ import { join, resolve } from 'path';
 
 import { FileManager } from '../../src/noir/file-manager/file-manager';
 import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager';
-import { NoirPackage } from '../../src/noir/package';
-import { NoirDependencyResolver } from '../../src/noir/dependencies/dependency-resolver';
+import { Package } from '../../src/noir/package';
+import { DependencyResolver } from '../../src/noir/dependencies/dependency-resolver';
 import {
   GithubDependencyResolver,
   resolveGithubCodeArchive,
   safeFilename,
 } from '../../src/noir/dependencies/github-dependency-resolver';
-import { NoirGitDependencyConfig } from '../../src/types/noir_package_config';
+import { GitDependencyConfig } from '../../src/types/noir_package_config';
 import Sinon, { SinonStub } from 'sinon';
 import { expect } from 'chai';
 import forEach from 'mocha-each';
@@ -23,10 +23,10 @@ chai.use(chaiAsPromised);
 const fixtures = resolve(join(__dirname, '../fixtures'));
 
 describe('GithubDependencyResolver', () => {
-  let resolver: NoirDependencyResolver;
+  let resolver: DependencyResolver;
   let fm: FileManager;
-  let pkg: NoirPackage;
-  let libDependency: NoirGitDependencyConfig;
+  let pkg: Package;
+  let libDependency: GitDependencyConfig;
   let fetchStub: SinonStub | undefined;
 
   beforeEach(() => {
@@ -38,7 +38,7 @@ describe('GithubDependencyResolver', () => {
       tag: 'v1.0.0',
     };
 
-    pkg = new NoirPackage('/test_contract', '/test_contract/src', {
+    pkg = new Package('/test_contract', '/test_contract/src', {
       dependencies: {
         // eslint-disable-next-line camelcase
         test_lib: libDependency,
@@ -110,7 +110,7 @@ describe('GithubDependencyResolver', () => {
     ],
   ]).it(
     'resolves to the correct code archive URL %s',
-    async (href: string, format: 'zip' | 'tar', dep: NoirGitDependencyConfig) => {
+    async (href: string, format: 'zip' | 'tar', dep: GitDependencyConfig) => {
       const archiveUrl = resolveGithubCodeArchive(dep, format);
       expect(archiveUrl.href).to.eq(href);
     },

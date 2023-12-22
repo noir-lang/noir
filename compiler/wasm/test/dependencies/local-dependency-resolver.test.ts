@@ -3,17 +3,17 @@ import { readFile } from 'fs/promises';
 
 import { FileManager } from '../../src/noir/file-manager/file-manager';
 import { createMemFSFileManager } from '../../src/noir/file-manager/memfs-file-manager';
-import { NoirPackage } from '../../src/noir/package';
-import { NoirDependencyResolver } from '../../src/noir/dependencies/dependency-resolver';
+import { Package } from '../../src/noir/package';
+import { DependencyResolver } from '../../src/noir/dependencies/dependency-resolver';
 import { LocalDependencyResolver } from '../../src/noir/dependencies/local-dependency-resolver';
 import { expect } from 'chai';
 import forEach from 'mocha-each';
 import { join } from 'path';
 
 describe('DependencyResolver', () => {
-  let resolver: NoirDependencyResolver;
+  let resolver: DependencyResolver;
   let fm: FileManager;
-  let pkg: NoirPackage;
+  let pkg: Package;
 
   beforeEach(async () => {
     const fixtures = join(__dirname, '../fixtures');
@@ -27,7 +27,7 @@ describe('DependencyResolver', () => {
 
     fm = createMemFSFileManager(memFS, '/');
 
-    pkg = await NoirPackage.open('/noir-contract', fm);
+    pkg = await Package.open('/noir-contract', fm);
     resolver = new LocalDependencyResolver(fm);
   });
 

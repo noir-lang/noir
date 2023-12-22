@@ -1,12 +1,12 @@
 import { isAbsolute } from 'path';
 
-import { NoirDependencyManager } from './dependencies/dependency-manager';
+import { DependencyManager } from './dependencies/dependency-manager';
 import { GithubDependencyResolver as GithubCodeArchiveDependencyResolver } from './dependencies/github-dependency-resolver';
 import { LocalDependencyResolver } from './dependencies/local-dependency-resolver';
 import { FileManager } from './file-manager/file-manager';
-import { NoirPackage } from './package';
+import { Package } from './package';
 import { LogData, LogFn } from '../utils';
-import { NoirCompilationResult } from '../types/noir_artifact';
+import { CompilationResult } from '../types/noir_artifact';
 
 /** Compilation options */
 export type NoirWasmCompileOptions = {
@@ -19,20 +19,20 @@ export type NoirWasmCompileOptions = {
 /**
  * Noir Package Compiler
  */
-export class NoirWasmContractCompiler {
+export class NoirWasmCompiler {
   #log: LogFn;
   #debugLog: LogFn;
-  #package: NoirPackage;
+  #package: Package;
   /* eslint-disable @typescript-eslint/no-explicit-any */
   #wasmCompiler: any;
   #sourceMap: any;
   /* eslint-disable @typescript-eslint/no-explicit-any */
   #fm: FileManager;
-  #dependencyManager: NoirDependencyManager;
+  #dependencyManager: DependencyManager;
 
   private constructor(
-    entrypoint: NoirPackage,
-    dependencyManager: NoirDependencyManager,
+    entrypoint: Package,
+    dependencyManager: DependencyManager,
     fileManager: FileManager,
     wasmCompiler: unknown,
     sourceMap: unknown,
@@ -71,9 +71,9 @@ export class NoirWasmContractCompiler {
       throw new Error('projectPath must be an absolute path');
     }
 
-    const noirPackage = await NoirPackage.open(projectPath, fileManager);
+    const noirPackage = await Package.open(projectPath, fileManager);
 
-    const dependencyManager = new NoirDependencyManager(
+    const dependencyManager = new DependencyManager(
       [
         new LocalDependencyResolver(fileManager),
         new GithubCodeArchiveDependencyResolver(fileManager),
@@ -82,7 +82,7 @@ export class NoirWasmContractCompiler {
       noirPackage,
     );
 
-    return new NoirWasmContractCompiler(noirPackage, dependencyManager, fileManager, wasmCompiler, sourceMap, opts);
+    return new NoirWasmCompiler(noirPackage, dependencyManager, fileManager, wasmCompiler, sourceMap, opts);
   }
 
   /**
@@ -91,7 +91,7 @@ export class NoirWasmContractCompiler {
   /**
    * Compile EntryPoint
    */
-  public async compile(): Promise<NoirCompilationResult[]> {
+  public async compile(): Promise<CompilationResult[]> {
     console.log(`Compiling at ${this.#package.getEntryPointPath()}`);
 
     if (!(this.#package.getType() === 'contract' || this.#package.getType() === 'bin')) {

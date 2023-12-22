@@ -2,7 +2,7 @@ import { parse } from '@ltd/j-toml';
 import { join } from 'path';
 
 import { FileManager } from './file-manager/file-manager';
-import { NoirDependencyConfig, NoirPackageConfig, parseNoirPackageConfig } from '../types/noir_package_config';
+import { DependencyConfig, PackageConfig, parseNoirPackageConfig } from '../types/noir_package_config';
 
 const CONFIG_FILE_NAME = 'Nargo.toml';
 const SOURCE_EXTENSIONS = ['.nr'];
@@ -24,13 +24,13 @@ type SourceList = Array<{
 /**
  * A Noir package.
  */
-export class NoirPackage {
+export class Package {
   #packagePath: string;
   #srcPath: string;
-  #config: NoirPackageConfig;
+  #config: PackageConfig;
   #version: string | null = null;
 
-  public constructor(path: string, srcDir: string, config: NoirPackageConfig) {
+  public constructor(path: string, srcDir: string, config: PackageConfig) {
     this.#packagePath = path;
     this.#srcPath = srcDir;
     this.#config = config;
@@ -46,7 +46,7 @@ export class NoirPackage {
   /**
    * Gets this package's Nargo.toml (NoirPackage)Config.
    */
-  public getNoirPackageConfig() {
+  public getPackageConfig() {
     return this.#config;
   }
 
@@ -90,7 +90,7 @@ export class NoirPackage {
   /**
    * Gets this package's dependencies.
    */
-  public getDependencies(): Record<string, NoirDependencyConfig> {
+  public getDependencies(): Record<string, DependencyConfig> {
     return this.#config.dependencies;
   }
 
@@ -120,10 +120,10 @@ export class NoirPackage {
    * @param fm - A file manager to use.
    * @returns The Noir package at the given location
    */
-  public static async open(path: string, fm: FileManager): Promise<NoirPackage> {
+  public static async open(path: string, fm: FileManager): Promise<Package> {
     const fileContents = await fm.readFile(join(path, CONFIG_FILE_NAME), 'utf-8');
     const config = parseNoirPackageConfig(parse(fileContents));
 
-    return new NoirPackage(path, join(path, 'src'), config);
+    return new Package(path, join(path, 'src'), config);
   }
 }

@@ -1,17 +1,17 @@
-import { NoirDependencyConfig } from '../../src/types/noir_package_config';
-import { NoirPackage } from '../../src/noir/package';
-import { NoirDependencyManager } from '../../src/noir/dependencies/dependency-manager';
-import { NoirDependency, NoirDependencyResolver } from '../../src/noir/dependencies/dependency-resolver';
+import { DependencyConfig } from '../../src/types/noir_package_config';
+import { Package } from '../../src/noir/package';
+import { DependencyManager } from '../../src/noir/dependencies/dependency-manager';
+import { Dependency, DependencyResolver } from '../../src/noir/dependencies/dependency-resolver';
 
 import { expect } from 'chai';
 
 describe('DependencyManager', () => {
-  let manager: NoirDependencyManager;
+  let manager: DependencyManager;
 
   beforeEach(() => {
-    manager = new NoirDependencyManager(
+    manager = new DependencyManager(
       [new TestDependencyResolver()],
-      new NoirPackage('/test_contract', '/test_contract/src', {
+      new Package('/test_contract', '/test_contract/src', {
         dependencies: {
           lib1: {
             path: '/lib1',
@@ -53,9 +53,9 @@ describe('DependencyManager', () => {
   });
 });
 
-class TestDependencyResolver implements NoirDependencyResolver {
+class TestDependencyResolver implements DependencyResolver {
   // eslint-disable-next-line require-await
-  public async resolveDependency(pkg: NoirPackage, dep: NoirDependencyConfig): Promise<NoirDependency | null> {
+  public async resolveDependency(pkg: Package, dep: DependencyConfig): Promise<Dependency | null> {
     if (!('path' in dep)) {
       return null;
     }
@@ -64,7 +64,7 @@ class TestDependencyResolver implements NoirDependencyResolver {
       case '/lib1':
         return {
           version: '',
-          package: new NoirPackage('/lib1', '/lib1/src', {
+          package: new Package('/lib1', '/lib1/src', {
             dependencies: {},
             package: {
               name: 'lib1',
@@ -76,7 +76,7 @@ class TestDependencyResolver implements NoirDependencyResolver {
       case '/lib2':
         return {
           version: '',
-          package: new NoirPackage('/lib2', '/lib2/src', {
+          package: new Package('/lib2', '/lib2/src', {
             dependencies: {
               lib3: {
                 path: '../lib3',
@@ -92,7 +92,7 @@ class TestDependencyResolver implements NoirDependencyResolver {
       case '/lib3':
         return {
           version: '',
-          package: new NoirPackage('/lib3', '/lib3/src', {
+          package: new Package('/lib3', '/lib3/src', {
             dependencies: {},
             package: {
               name: 'lib3',
