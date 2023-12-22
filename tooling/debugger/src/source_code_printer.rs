@@ -99,28 +99,16 @@ fn render<'a>(
             .enumerate()
             .map(|(current_line_index, line)| {
                 let current_line_number = current_line_index + 1;
-
-                // Ignore lines before range starts
+                
                 if current_line_index < first_line_to_print {
-                    return PrintedLine::Skip;
-                }
-
-                // Denote that there's more lines before but we're not showing them
-                if current_line_index == first_line_to_print && current_line_index > 0 {
-                    return PrintedLine::Ellipsis { number: current_line_number };
-                }
-
-                // Denote that there's more lines after but we're not showing them,
-                // and stop printing
-                if current_line_index == last_line_to_print + 1 {
-                    return PrintedLine::Ellipsis { number: current_line_number };
-                }
-
-                if current_line_index > last_line_to_print {
-                    return PrintedLine::Skip;
-                }
-
-                if current_line_index < loc_line_index {
+                    // Ignore lines before the context window we choose to show
+                    PrintedLine::Skip
+                } else if current_line_index == first_line_to_print && current_line_index > 0 {
+                    // Denote that there's more lines before but we're not showing them
+                    PrintedLine::Ellipsis { number: current_line_number }
+                } else if current_line_index < loc_line_index {
+                    // Print lines before the location start
+                    // without highlighting
                     PrintedLine::Content {
                         number: current_line_number,
                         cursor: "",
@@ -157,13 +145,21 @@ fn render<'a>(
                         content: line,
                         highlight: Some(to_highlight),
                     }
-                } else {
+                } else if current_line_index < last_line_to_print {
+                    // Print lines after the location end
+                    // without highlighting
                     PrintedLine::Content {
                         number: current_line_number,
                         cursor: "",
                         content: line,
                         highlight: None,
                     }
+                } else if current_line_index == last_line_to_print && last_line_to_print < last_line_index {
+                    // Denote that there's more lines after but we're not showing them,
+                    // and stop printing
+                    PrintedLine::Ellipsis { number: current_line_number }
+                } else {
+                    PrintedLine::Skip
                 }
             })
             .collect();
