@@ -122,13 +122,25 @@ impl U128 {
         assert(self.hi*b.hi == 0, "attempt to multiply with overflow");
         let low = self.lo*b.lo;
         let lo = low as u64 as Field;
-        let carry = (low - lo) / pow64;  
-        let high = (self.lo+self.hi)*(b.lo+b.hi) - low + carry;
+        let carry = (low - lo) / pow64;
+        let high = if crate::field::modulus_num_bits() as u32 > 196 {
+            (self.lo+self.hi)*(b.lo+b.hi) - low + carry
+        } else {
+            self.lo*b.hi + self.hi*b.lo + carry
+        };
         let hi = high as u64 as Field;
         assert(hi == high, "attempt to multiply with overflow");
         U128 {
             lo,
             hi,
+        }
+    }
+   
+    pub fn less_than(self: Self, b: U128) -> bool {
+        if self.hi == b.hi {
+            self.lo as u64 < b.lo as u64
+        } else {
+            self.hi as u64 < b.hi as u64
         }
     }
 }
