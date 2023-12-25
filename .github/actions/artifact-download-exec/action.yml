@@ -17,5 +17,6 @@ runs:
         name: ${{ github.event.inputs.name }}
         path: ${{ github.event.inputs.path }}
     - name: prep downloaded artifact
+      shell: bash
       run: |
         chmod +x ${{ github.event.inputs.path }}/${{ github.event.inputs.name }}
