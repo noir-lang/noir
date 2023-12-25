@@ -99,12 +99,17 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
-      options: -w /usr/src/noir
+      options: --workdir /usr/src/noir
     steps:
       - name: test
         run: ls -la
       - name: test
         run: pwd
+      - name: test
+        run: cd /usr/src/noir
+      - name: test
+        run: pwd
+        working-directory: /usr/src/noir
 
   # artifact-nargo:
   #   name: artifact nargo 
