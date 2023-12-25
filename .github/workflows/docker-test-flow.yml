@@ -99,6 +99,7 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
+      options: -w /usr/src/noir
     steps:
       - name: test
         run: ls -la
