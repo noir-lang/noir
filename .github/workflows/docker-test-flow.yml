@@ -391,17 +391,17 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
     steps:
-      # - name: download artifact
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: noirc_abi_wasm
-      #     path: |
-      #       /usr/src/noir/tooling/noirc_abi_wasm
-      # - name: download noir js types
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: noir-js-types
-      #     path: /usr/src/noir/tooling/noir_js_types/lib/
+      - name: download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path: |
+            /usr/src/noir/tooling/noirc_abi_wasm
+      - name: download noir js types
+        uses: actions/download-artifact@v4
+        with:
+          name: noir-js-types
+          path: /usr/src/noir/tooling/noir_js_types/lib/
       - name: download backend barretenberg
         uses: actions/download-artifact@v4
         with:
