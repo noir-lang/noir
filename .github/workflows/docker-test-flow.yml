@@ -456,7 +456,7 @@ jobs:
             /usr/src/noir/tooling/noir_js_types/lib
       - name: build
         run: |
-          /usr/src/noir/.github/scripts/build-noir-js.sh
+          /usr/src/noir/.github/scripts/noir-js-build.sh
       - name: artifact
         uses: actions/upload-artifact@v4
         with:
