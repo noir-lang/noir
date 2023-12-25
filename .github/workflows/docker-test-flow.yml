@@ -384,7 +384,7 @@ jobs:
   test-barretenberg-backend:
     name: test barretenberg backend
     runs-on: ubuntu-latest
-    needs: [build-base-js, build-noirc-abi, build-noir-js-types]
+    needs: [build-base-js, build-noirc-abi, build-noir-js-types, build-barretenberg-backend]
     container:
       image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
       credentials:
