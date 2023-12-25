@@ -90,26 +90,8 @@ jobs:
           cache-to: type=gha,mode=max
           push: true
 
-  artifact-nargo:
-    name: artifact nargo 
-    runs-on: ubuntu-latest
-    needs: [build-base-nargo]
-    container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}-nargo
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-    steps:
-      - name: artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nargo
-          path: /usr/src/noir/target/release/nargo
-          if-no-files-found: error
-          compression-level: 0
-  
-  test-nargo:
-    name: test nargo 
+  test-test:
+    name: test
     runs-on: ubuntu-latest
     needs: [build-base-nargo]
     container:
@@ -119,585 +101,618 @@ jobs:
         password: ${{ secrets.github_token }}
     steps:
       - name: test
-        run: |
-          /usr/src/noir/.github/scripts/test-nargo.sh
-
-  build-noir-wasm:
-    name: build noir wasm
-    runs-on: ubuntu-latest
-    needs: [build-base-js]
-    container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-    steps:
-      - name: build
-        run: |
-          /usr/src/noir/.github/scripts/noir-wasm-build.sh
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: noir_wasm
-          path: /usr/src/noir/compiler/wasm/outputs/out/noir_wasm
-          retention-days: 10
-      
-  test-noir-wasm:
-    name: test noir wasm
-    runs-on: ubuntu-latest
-    needs: [build-base-js, artifact-nargo, build-noir-wasm]
-    container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-    steps:
-      - name: Download nargo
-        uses: ./.github/actions/artifact-download-exec
-        with:
-          name: nargo
-          path: /usr/src/noir/target/release
-      # - name: download nargo
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: nargo
-      #     path: /usr/src/noir/target/release
-      - name: prep downloaded artifact
-        run: |
-          chmod +x /usr/src/noir/target/release/nargo
-      - name: Download noir_wasm package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: noir_wasm
-          path: /usr/src/noir/compiler/wasm
+        run: ls -la
       - name: test
-        run: |
-          /usr/src/noir/.github/scripts/noir-wasm-test.sh
+        run: pwd
 
-  test-noir-wasm-browser:
-    name: test noir wasm browser
-    runs-on: ubuntu-latest
-    needs: [build-base-js, artifact-nargo, build-noir-wasm]
-    container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-    steps:
-      - name: download nargo
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: /usr/src/noir/target/release
-      - name: prep downloaded artifact
-        run: |
-          chmod +x /usr/src/noir/target/release/nargo
-      - name: Download noir_wasm package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: noir_wasm
-          path: /usr/src/noir/compiler/wasm
-      - name: test
-        run: |
-          /usr/src/noir/.github/scripts/noir-wasm-test-browser.sh
-
-  build-acvm_js:
-    name: build acvm js
-    runs-on: ubuntu-latest
-    needs: [build-base-js]
-    container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-    steps:
-      - name: build
-        run: |
-          /usr/src/noir/.github/scripts/acvm_js-build.sh
-      - name: artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: acvm_js
-          path:
-            /usr/src/noir/acvm-repo/acvm_js/outputs/out/acvm_js
-          if-no-files-found: error
-          compression-level: 0
-
-  test-acvm_js:
-    name: test acvm js
-    runs-on: ubuntu-latest
-    needs: [build-base-js, build-acvm_js]
-    container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-    steps:
-      - name: download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: acvm_js
-          path: |
-            /usr/src/noir/acvm-repo/acvm_js
-      - name: test
-        run: |
-          /usr/src/noir/.github/scripts/acvm_js-test.sh
-
-  test-acvm_js-browser:
-    name: test acvm js browser
-    runs-on: ubuntu-latest
-    needs: [build-base-js, build-acvm_js]
-    container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-    steps:
-      - name: download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: acvm_js
-          path: |
-            /usr/src/noir/acvm-repo/acvm_js
-      - name: test
-        run: |
-          /usr/src/noir/.github/scripts/acvm_js-test-browser.sh
-
-  build-noirc-abi:
-    name: build noirc abi
-    runs-on: ubuntu-latest
-    needs: [build-base-js]
-    container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-    steps:
-      - name: build
-        run: |
-          /usr/src/noir/.github/scripts/noirc-abi-build.sh
-      - name: artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: noirc_abi_wasm
-          path:
-            /usr/src/noir/tooling/noirc_abi_wasm/outputs/out/noirc_abi_wasm
-          if-no-files-found: error
-          compression-level: 0
-
-  test-noirc-abi:
-    name: test noirc abi
-    runs-on: ubuntu-latest
-    needs: [build-base-js, build-noirc-abi]
-    container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-    steps:
-      - name: download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: noirc_abi_wasm
-          path: |
-            /usr/src/noir/tooling/noirc_abi_wasm
-      - name: test
-        run: |
-          /usr/src/noir/.github/scripts/noirc-abi-test.sh
-
-  test-noirc-abi-browser:
-    name: test noirc abi browser
-    runs-on: ubuntu-latest
-    needs: [build-base-js, build-noirc-abi]
-    container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-    steps:
-      - name: download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: noirc_abi_wasm
-          path: |
-            /usr/src/noir/tooling/noirc_abi_wasm
-      - name: test
-        run: |
-          /usr/src/noir/.github/scripts/noirc-abi-test-browser.sh
-
-  build-noir-js-types:
-    name: build noir types
-    runs-on: ubuntu-latest
-    needs: [build-base-js, build-noirc-abi]
-    container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-    steps:
-      - name: download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: noirc_abi_wasm
-          path: |
-            /usr/src/noir/tooling/noirc_abi_wasm
-      - name: build
-        run: |
-          /usr/src/noir/.github/scripts/noir-js-types-build.sh
-      - name: artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: noir-js-types
-          path: |
-            /usr/src/noir/tooling/noir_js_types/lib
-          if-no-files-found: error
-          compression-level: 0
-
-  build-barretenberg-backend:
-    name: build barretenberg backend
-    runs-on: ubuntu-latest
-    needs: [build-base-js, build-noirc-abi, build-noir-js-types]
-    container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-    steps:
-      - name: download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: noirc_abi_wasm
-          path: |
-            /usr/src/noir/tooling/noirc_abi_wasm
-      - name: download noir js types
-        uses: actions/download-artifact@v4
-        with:
-          name: noir-js-types
-          path: /usr/src/noir/tooling/noir_js_types/lib/
-      - name: build
-        run: |
-          /usr/src/noir/.github/scripts/backend-barretenberg-build.sh
-      - name: artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: barretenberg-backend
-          path:
-            /usr/src/noir/tooling/noir_js_backend_barretenberg/lib
-          if-no-files-found: error
-          compression-level: 0
-
-  test-barretenberg-backend:
-    name: test barretenberg backend
-    runs-on: ubuntu-latest
-    needs: [build-base-js, build-noirc-abi, build-noir-js-types]
-    container:
-      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-    steps:
-      # - name: download artifact
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: noirc_abi_wasm
-      #     path: |
-      #       /usr/src/noir/tooling/noirc_abi_wasm
-      # - name: download noir js types
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: noir-js-types
-      #     path: /usr/src/noir/tooling/noir_js_types/lib/
-      - name: download backend barretenberg
-        uses: actions/download-artifact@v4
-        with:
-          name: barretenberg-backend
-          path:
-            /usr/src/noir/tooling/noir_js_backend_barretenberg/lib
-      - name: test
-        run: |
-          /usr/src/noir/.github/scripts/backend-barretenberg-test.sh
-
-  # build-noir_js:
-  #   name: build noirjs
+  # artifact-nargo:
+  #   name: artifact nargo 
   #   runs-on: ubuntu-latest
-  #   needs: [build-base-js, build-noirc-abi, artifact-nargo, build-acvm_js, build-barretenberg-backend, build-noir-js-types]
+  #   needs: [build-base-nargo]
   #   container:
-  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-nargo
   #     credentials:
   #       username: ${{ github.actor }}
   #       password: ${{ secrets.github_token }}
   #   steps:
-  #     - name: download nargo
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: nargo
-  #         path: /usr/src/noir/target/release
-  #     - name: prep downloaded artifact
-  #       run: |
-  #         chmod +x /usr/src/noir/target/release/nargo
-  #     - name: download artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: noirc_abi_wasm
-  #         path: |
-  #           /usr/src/noir/tooling/noirc_abi_wasm
-  #     - name: download artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: acvm_js
-  #         path: |
-  #           /usr/src/noir/acvm-repo/acvm_js
-  #     - name: artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: barretenberg-backend
-  #         path:
-  #           /usr/src/noir/tooling/noir_js_backend_barretenberg/lib
-  #     - name: artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: noir-js-types
-  #         path: |
-  #           /usr/src/noir/tooling/noir_js_types/lib
-  #     - name: build
-  #       run: |
-  #         /usr/src/noir/.github/scripts/build-noir-js.sh
   #     - name: artifact
   #       uses: actions/upload-artifact@v4
   #       with:
-  #         name: noir_js
-  #         path:
-  #           /usr/src/noir/tooling/noir_js/lib
-
-  # test-noir_js:
-  #   name: test noirjs
-  #   runs-on: ubuntu-latest
-  #   needs: [
-  #     build-base-js,
-  #     build-noirc-abi,
-  #     artifact-nargo,
-  #     build-acvm_js,
-  #     build-barretenberg-backend,
-  #     build-noir_js
-  #   ]
-  #   container:
-  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-  #     credentials:
-  #       username: ${{ github.actor }}
-  #       password: ${{ secrets.github_token }}
-  #   steps:
-  #     - name: download nargo
-  #       uses: actions/download-artifact@v4
-  #       with:
   #         name: nargo
-  #         path: /usr/src/noir/target/release
-  #     - name: prep downloaded artifact
-  #       run: |
-  #         chmod +x /usr/src/noir/target/release/nargo
-  #     - name: download artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: noirc_abi_wasm
-  #         path: |
-  #           /usr/src/noir/tooling/noirc_abi_wasm
-  #     - name: download artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: acvm_js
-  #         path: |
-  #           /usr/src/noir/acvm-repo/acvm_js
-  #     - name: artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: barretenberg-backend
-  #         path:
-  #           /usr/src/noir/tooling/noir_js_backend_barretenberg/lib
-  #     - name: artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: noir-js-types
-  #         path: |
-  #           /usr/src/noir/tooling/noir_js_types/lib
-  #     - name: artifact
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: noir_js
-  #         path:
-  #           /usr/src/noir/tooling/noir_js/lib
-  #     - name: test
-  #       run: |
-  #         /usr/src/noir/.github/scripts/noir-js-test.sh
-
-  # build-noir_codegen:
-  #   name: build noir codegen
-  #   runs-on: ubuntu-latest
-  #   needs: [build-base-js, artifact-nargo, test-noirc-abi, test-acvm_js,  build-noir-js-types, test-noir_js]
-  #   container:
-  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-  #     credentials:
-  #       username: ${{ github.actor }}
-  #       password: ${{ secrets.github_token }}
-  #   steps:
-  #     - name: download nargo
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: nargo
-  #         path: /usr/src/noir/target/release
-  #     - name: prep downloaded artifact
-  #       run: |
-  #         chmod +x /usr/src/noir/target/release/nargo
-  #     - name: Download noirc_abi package artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: noirc_abi_wasm
-  #         path: /usr/src/noir/tooling/noirc_abi_wasm
-  #     - name: Download acvm_js package artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: acvm_js
-  #         path: /usr/src/noir/acvm-repo/acvm_js
-  #     - name: artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: noir-js-types
-  #         path: |
-  #           /usr/src/noir/tooling/noir_js_types/lib
-  #     - name: artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: noir_js
-  #         path:
-  #           /usr/src/noir/tooling/noir_js/lib
-  #     - name: build
-  #       run: |
-  #         /usr/src/noir/.github/scripts/noir-codegen-build.sh
-  #     - name: artifact
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: noir_codegen
-  #         path:
-  #           /usr/src/noir/tooling/noir_codegen/lib
+  #         path: /usr/src/noir/target/release/nargo
+  #         if-no-files-found: error
+  #         compression-level: 0
   
-  # test-noir_codegen:
-  #   name: test noir codegen
+  # test-nargo:
+  #   name: test nargo 
   #   runs-on: ubuntu-latest
-  #   needs: [build-base-js, artifact-nargo, test-noirc-abi, test-acvm_js,  build-noir-js-types, test-noir_js]
+  #   needs: [build-base-nargo]
   #   container:
-  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-nargo
   #     credentials:
   #       username: ${{ github.actor }}
   #       password: ${{ secrets.github_token }}
   #   steps:
-  #     - name: download nargo
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: nargo
-  #         path: /usr/src/noir/target/release
-  #     - name: prep downloaded artifact
-  #       run: |
-  #         chmod +x /usr/src/noir/target/release/nargo
-  #     - name: Download noirc_abi package artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: noirc_abi_wasm
-  #         path: /usr/src/noir/tooling/noirc_abi_wasm
-  #     - name: Download acvm_js package artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: acvm_js
-  #         path: /usr/src/noir/acvm-repo/acvm_js
-  #     - name: artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: noir-js-types
-  #         path: |
-  #           /usr/src/noir/tooling/noir_js_types/lib
-  #     - name: artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: noir_js
-  #         path:
-  #           /usr/src/noir/tooling/noir_js/lib
-  #     - name: artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: noir_codegen
-  #         path:
-  #           /usr/src/noir/tooling/noir_codegen/lib
   #     - name: test
   #       run: |
-  #         /usr/src/noir/.github/scripts/noir-codegen-test.sh
+  #         /usr/src/noir/.github/scripts/test-nargo.sh
 
-  # test-integration:
-  #   name: integration test
+  # build-noir-wasm:
+  #   name: build noir wasm
   #   runs-on: ubuntu-latest
-  #   needs: [build-base-js, artifact-nargo, test-noir-wasm, test-noirc-abi, test-acvm_js,  build-noir-js-types, test-noir_js]
+  #   needs: [build-base-js]
   #   container:
   #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
   #     credentials:
   #       username: ${{ github.actor }}
   #       password: ${{ secrets.github_token }}
   #   steps:
-  #     - name: download nargo
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: nargo
-  #         path: /usr/src/noir/target/release
-  #     - name: prep downloaded artifact
+  #     - name: build
   #       run: |
-  #         chmod +x /usr/src/noir/target/release/nargo
+  #         /usr/src/noir/.github/scripts/noir-wasm-build.sh
   #     - name: Upload artifact
-  #       uses: actions/download-artifact@v4
+  #       uses: actions/upload-artifact@v4
   #       with:
   #         name: noir_wasm
   #         path: /usr/src/noir/compiler/wasm/outputs/out/noir_wasm
-  #     - name: Download noirc_abi package artifact
+  #         retention-days: 10
+      
+  # test-noir-wasm:
+  #   name: test noir wasm
+  #   runs-on: ubuntu-latest
+  #   needs: [build-base-js, artifact-nargo, build-noir-wasm]
+  #   container:
+  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  #     credentials:
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.github_token }}
+  #   steps:
+  #     - name: Download nargo
+  #       uses: ./.github/actions/artifact-download-exec
+  #       with:
+  #         name: nargo
+  #         path: /usr/src/noir/target/release
+  #     # - name: download nargo
+  #     #   uses: actions/download-artifact@v4
+  #     #   with:
+  #     #     name: nargo
+  #     #     path: /usr/src/noir/target/release
+  #     - name: prep downloaded artifact
+  #       run: |
+  #         chmod +x /usr/src/noir/target/release/nargo
+  #     - name: Download noir_wasm package artifact
   #       uses: actions/download-artifact@v4
   #       with:
-  #         name: noirc_abi_wasm
-  #         path: /usr/src/noir/tooling/noirc_abi_wasm
-  #     - name: Download acvm_js package artifact
+  #         name: noir_wasm
+  #         path: /usr/src/noir/compiler/wasm
+  #     - name: test
+  #       run: |
+  #         /usr/src/noir/.github/scripts/noir-wasm-test.sh
+
+  # test-noir-wasm-browser:
+  #   name: test noir wasm browser
+  #   runs-on: ubuntu-latest
+  #   needs: [build-base-js, artifact-nargo, build-noir-wasm]
+  #   container:
+  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  #     credentials:
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.github_token }}
+  #   steps:
+  #     - name: download nargo
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: nargo
+  #         path: /usr/src/noir/target/release
+  #     - name: prep downloaded artifact
+  #       run: |
+  #         chmod +x /usr/src/noir/target/release/nargo
+  #     - name: Download noir_wasm package artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: noir_wasm
+  #         path: /usr/src/noir/compiler/wasm
+  #     - name: test
+  #       run: |
+  #         /usr/src/noir/.github/scripts/noir-wasm-test-browser.sh
+
+  # build-acvm_js:
+  #   name: build acvm js
+  #   runs-on: ubuntu-latest
+  #   needs: [build-base-js]
+  #   container:
+  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  #     credentials:
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.github_token }}
+  #   steps:
+  #     - name: build
+  #       run: |
+  #         /usr/src/noir/.github/scripts/acvm_js-build.sh
+  #     - name: artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: acvm_js
+  #         path:
+  #           /usr/src/noir/acvm-repo/acvm_js/outputs/out/acvm_js
+  #         if-no-files-found: error
+  #         compression-level: 0
+
+  # test-acvm_js:
+  #   name: test acvm js
+  #   runs-on: ubuntu-latest
+  #   needs: [build-base-js, build-acvm_js]
+  #   container:
+  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  #     credentials:
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.github_token }}
+  #   steps:
+  #     - name: download artifact
   #       uses: actions/download-artifact@v4
   #       with:
   #         name: acvm_js
-  #         path: /usr/src/noir/acvm-repo/acvm_js
-  #     - name: Download noir js types
+  #         path: |
+  #           /usr/src/noir/acvm-repo/acvm_js
+  #     - name: test
+  #       run: |
+  #         /usr/src/noir/.github/scripts/acvm_js-test.sh
+
+  # test-acvm_js-browser:
+  #   name: test acvm js browser
+  #   runs-on: ubuntu-latest
+  #   needs: [build-base-js, build-acvm_js]
+  #   container:
+  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  #     credentials:
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.github_token }}
+  #   steps:
+  #     - name: download artifact
   #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: acvm_js
+  #         path: |
+  #           /usr/src/noir/acvm-repo/acvm_js
+  #     - name: test
+  #       run: |
+  #         /usr/src/noir/.github/scripts/acvm_js-test-browser.sh
+
+  # build-noirc-abi:
+  #   name: build noirc abi
+  #   runs-on: ubuntu-latest
+  #   needs: [build-base-js]
+  #   container:
+  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  #     credentials:
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.github_token }}
+  #   steps:
+  #     - name: build
+  #       run: |
+  #         /usr/src/noir/.github/scripts/noirc-abi-build.sh
+  #     - name: artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: noirc_abi_wasm
+  #         path:
+  #           /usr/src/noir/tooling/noirc_abi_wasm/outputs/out/noirc_abi_wasm
+  #         if-no-files-found: error
+  #         compression-level: 0
+
+  # test-noirc-abi:
+  #   name: test noirc abi
+  #   runs-on: ubuntu-latest
+  #   needs: [build-base-js, build-noirc-abi]
+  #   container:
+  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  #     credentials:
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.github_token }}
+  #   steps:
+  #     - name: download artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: noirc_abi_wasm
+  #         path: |
+  #           /usr/src/noir/tooling/noirc_abi_wasm
+  #     - name: test
+  #       run: |
+  #         /usr/src/noir/.github/scripts/noirc-abi-test.sh
+
+  # test-noirc-abi-browser:
+  #   name: test noirc abi browser
+  #   runs-on: ubuntu-latest
+  #   needs: [build-base-js, build-noirc-abi]
+  #   container:
+  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  #     credentials:
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.github_token }}
+  #   steps:
+  #     - name: download artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: noirc_abi_wasm
+  #         path: |
+  #           /usr/src/noir/tooling/noirc_abi_wasm
+  #     - name: test
+  #       run: |
+  #         /usr/src/noir/.github/scripts/noirc-abi-test-browser.sh
+
+  # build-noir-js-types:
+  #   name: build noir types
+  #   runs-on: ubuntu-latest
+  #   needs: [build-base-js, build-noirc-abi]
+  #   container:
+  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  #     credentials:
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.github_token }}
+  #   steps:
+  #     - name: download artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: noirc_abi_wasm
+  #         path: |
+  #           /usr/src/noir/tooling/noirc_abi_wasm
+  #     - name: build
+  #       run: |
+  #         /usr/src/noir/.github/scripts/noir-js-types-build.sh
+  #     - name: artifact
+  #       uses: actions/upload-artifact@v4
   #       with:
   #         name: noir-js-types
   #         path: |
   #           /usr/src/noir/tooling/noir_js_types/lib
-  #     - name: Download noir js
+  #         if-no-files-found: error
+  #         compression-level: 0
+
+  # build-barretenberg-backend:
+  #   name: build barretenberg backend
+  #   runs-on: ubuntu-latest
+  #   needs: [build-base-js, build-noirc-abi, build-noir-js-types]
+  #   container:
+  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  #     credentials:
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.github_token }}
+  #   steps:
+  #     - name: download artifact
   #       uses: actions/download-artifact@v4
   #       with:
-  #         name: noir_js
+  #         name: noirc_abi_wasm
+  #         path: |
+  #           /usr/src/noir/tooling/noirc_abi_wasm
+  #     - name: download noir js types
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: noir-js-types
+  #         path: /usr/src/noir/tooling/noir_js_types/lib/
+  #     - name: build
+  #       run: |
+  #         /usr/src/noir/.github/scripts/backend-barretenberg-build.sh
+  #     - name: artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: barretenberg-backend
   #         path:
-  #           /usr/src/noir/tooling/noir_js/lib
+  #           /usr/src/noir/tooling/noir_js_backend_barretenberg/lib
+  #         if-no-files-found: error
+  #         compression-level: 0
+
+  # test-barretenberg-backend:
+  #   name: test barretenberg backend
+  #   runs-on: ubuntu-latest
+  #   needs: [build-base-js, build-noirc-abi, build-noir-js-types]
+  #   container:
+  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  #     credentials:
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.github_token }}
+  #   steps:
+  #     # - name: download artifact
+  #     #   uses: actions/download-artifact@v4
+  #     #   with:
+  #     #     name: noirc_abi_wasm
+  #     #     path: |
+  #     #       /usr/src/noir/tooling/noirc_abi_wasm
+  #     # - name: download noir js types
+  #     #   uses: actions/download-artifact@v4
+  #     #   with:
+  #     #     name: noir-js-types
+  #     #     path: /usr/src/noir/tooling/noir_js_types/lib/
+  #     - name: download backend barretenberg
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: barretenberg-backend
+  #         path:
+  #           /usr/src/noir/tooling/noir_js_backend_barretenberg/lib
   #     - name: test
   #       run: |
-  #         /usr/src/noir/.github/scripts/test-noir-codegen.sh
+  #         /usr/src/noir/.github/scripts/backend-barretenberg-test.sh
 
-  # tests-end:
-  #   name: End
-  #   runs-on: ubuntu-latest
-  #   if: ${{ always() }}
-  #   needs: 
-  #     - test-nargo
-  #     - test-noirc-abi
-  #     - test-noir-wasm
-  #     - test-integration
-  #     - test-noir_codegen
-  #     - test-acvm_js
-  #     - test-barretenberg-backend
-  #     - test-noir_js
+  # # build-noir_js:
+  # #   name: build noirjs
+  # #   runs-on: ubuntu-latest
+  # #   needs: [build-base-js, build-noirc-abi, artifact-nargo, build-acvm_js, build-barretenberg-backend, build-noir-js-types]
+  # #   container:
+  # #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  # #     credentials:
+  # #       username: ${{ github.actor }}
+  # #       password: ${{ secrets.github_token }}
+  # #   steps:
+  # #     - name: download nargo
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: nargo
+  # #         path: /usr/src/noir/target/release
+  # #     - name: prep downloaded artifact
+  # #       run: |
+  # #         chmod +x /usr/src/noir/target/release/nargo
+  # #     - name: download artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noirc_abi_wasm
+  # #         path: |
+  # #           /usr/src/noir/tooling/noirc_abi_wasm
+  # #     - name: download artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: acvm_js
+  # #         path: |
+  # #           /usr/src/noir/acvm-repo/acvm_js
+  # #     - name: artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: barretenberg-backend
+  # #         path:
+  # #           /usr/src/noir/tooling/noir_js_backend_barretenberg/lib
+  # #     - name: artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noir-js-types
+  # #         path: |
+  # #           /usr/src/noir/tooling/noir_js_types/lib
+  # #     - name: build
+  # #       run: |
+  # #         /usr/src/noir/.github/scripts/build-noir-js.sh
+  # #     - name: artifact
+  # #       uses: actions/upload-artifact@v4
+  # #       with:
+  # #         name: noir_js
+  # #         path:
+  # #           /usr/src/noir/tooling/noir_js/lib
+
+  # # test-noir_js:
+  # #   name: test noirjs
+  # #   runs-on: ubuntu-latest
+  # #   needs: [
+  # #     build-base-js,
+  # #     build-noirc-abi,
+  # #     artifact-nargo,
+  # #     build-acvm_js,
+  # #     build-barretenberg-backend,
+  # #     build-noir_js
+  # #   ]
+  # #   container:
+  # #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  # #     credentials:
+  # #       username: ${{ github.actor }}
+  # #       password: ${{ secrets.github_token }}
+  # #   steps:
+  # #     - name: download nargo
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: nargo
+  # #         path: /usr/src/noir/target/release
+  # #     - name: prep downloaded artifact
+  # #       run: |
+  # #         chmod +x /usr/src/noir/target/release/nargo
+  # #     - name: download artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noirc_abi_wasm
+  # #         path: |
+  # #           /usr/src/noir/tooling/noirc_abi_wasm
+  # #     - name: download artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: acvm_js
+  # #         path: |
+  # #           /usr/src/noir/acvm-repo/acvm_js
+  # #     - name: artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: barretenberg-backend
+  # #         path:
+  # #           /usr/src/noir/tooling/noir_js_backend_barretenberg/lib
+  # #     - name: artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noir-js-types
+  # #         path: |
+  # #           /usr/src/noir/tooling/noir_js_types/lib
+  # #     - name: artifact
+  # #       uses: actions/upload-artifact@v4
+  # #       with:
+  # #         name: noir_js
+  # #         path:
+  # #           /usr/src/noir/tooling/noir_js/lib
+  # #     - name: test
+  # #       run: |
+  # #         /usr/src/noir/.github/scripts/noir-js-test.sh
+
+  # # build-noir_codegen:
+  # #   name: build noir codegen
+  # #   runs-on: ubuntu-latest
+  # #   needs: [build-base-js, artifact-nargo, test-noirc-abi, test-acvm_js,  build-noir-js-types, test-noir_js]
+  # #   container:
+  # #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  # #     credentials:
+  # #       username: ${{ github.actor }}
+  # #       password: ${{ secrets.github_token }}
+  # #   steps:
+  # #     - name: download nargo
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: nargo
+  # #         path: /usr/src/noir/target/release
+  # #     - name: prep downloaded artifact
+  # #       run: |
+  # #         chmod +x /usr/src/noir/target/release/nargo
+  # #     - name: Download noirc_abi package artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noirc_abi_wasm
+  # #         path: /usr/src/noir/tooling/noirc_abi_wasm
+  # #     - name: Download acvm_js package artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: acvm_js
+  # #         path: /usr/src/noir/acvm-repo/acvm_js
+  # #     - name: artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noir-js-types
+  # #         path: |
+  # #           /usr/src/noir/tooling/noir_js_types/lib
+  # #     - name: artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noir_js
+  # #         path:
+  # #           /usr/src/noir/tooling/noir_js/lib
+  # #     - name: build
+  # #       run: |
+  # #         /usr/src/noir/.github/scripts/noir-codegen-build.sh
+  # #     - name: artifact
+  # #       uses: actions/upload-artifact@v4
+  # #       with:
+  # #         name: noir_codegen
+  # #         path:
+  # #           /usr/src/noir/tooling/noir_codegen/lib
+  
+  # # test-noir_codegen:
+  # #   name: test noir codegen
+  # #   runs-on: ubuntu-latest
+  # #   needs: [build-base-js, artifact-nargo, test-noirc-abi, test-acvm_js,  build-noir-js-types, test-noir_js]
+  # #   container:
+  # #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  # #     credentials:
+  # #       username: ${{ github.actor }}
+  # #       password: ${{ secrets.github_token }}
+  # #   steps:
+  # #     - name: download nargo
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: nargo
+  # #         path: /usr/src/noir/target/release
+  # #     - name: prep downloaded artifact
+  # #       run: |
+  # #         chmod +x /usr/src/noir/target/release/nargo
+  # #     - name: Download noirc_abi package artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noirc_abi_wasm
+  # #         path: /usr/src/noir/tooling/noirc_abi_wasm
+  # #     - name: Download acvm_js package artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: acvm_js
+  # #         path: /usr/src/noir/acvm-repo/acvm_js
+  # #     - name: artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noir-js-types
+  # #         path: |
+  # #           /usr/src/noir/tooling/noir_js_types/lib
+  # #     - name: artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noir_js
+  # #         path:
+  # #           /usr/src/noir/tooling/noir_js/lib
+  # #     - name: artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noir_codegen
+  # #         path:
+  # #           /usr/src/noir/tooling/noir_codegen/lib
+  # #     - name: test
+  # #       run: |
+  # #         /usr/src/noir/.github/scripts/noir-codegen-test.sh
+
+  # # test-integration:
+  # #   name: integration test
+  # #   runs-on: ubuntu-latest
+  # #   needs: [build-base-js, artifact-nargo, test-noir-wasm, test-noirc-abi, test-acvm_js,  build-noir-js-types, test-noir_js]
+  # #   container:
+  # #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+  # #     credentials:
+  # #       username: ${{ github.actor }}
+  # #       password: ${{ secrets.github_token }}
+  # #   steps:
+  # #     - name: download nargo
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: nargo
+  # #         path: /usr/src/noir/target/release
+  # #     - name: prep downloaded artifact
+  # #       run: |
+  # #         chmod +x /usr/src/noir/target/release/nargo
+  # #     - name: Upload artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noir_wasm
+  # #         path: /usr/src/noir/compiler/wasm/outputs/out/noir_wasm
+  # #     - name: Download noirc_abi package artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noirc_abi_wasm
+  # #         path: /usr/src/noir/tooling/noirc_abi_wasm
+  # #     - name: Download acvm_js package artifact
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: acvm_js
+  # #         path: /usr/src/noir/acvm-repo/acvm_js
+  # #     - name: Download noir js types
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noir-js-types
+  # #         path: |
+  # #           /usr/src/noir/tooling/noir_js_types/lib
+  # #     - name: Download noir js
+  # #       uses: actions/download-artifact@v4
+  # #       with:
+  # #         name: noir_js
+  # #         path:
+  # #           /usr/src/noir/tooling/noir_js/lib
+  # #     - name: test
+  # #       run: |
+  # #         /usr/src/noir/.github/scripts/test-noir-codegen.sh
+
+  # # tests-end:
+  # #   name: End
+  # #   runs-on: ubuntu-latest
+  # #   if: ${{ always() }}
+  # #   needs: 
+  # #     - test-nargo
+  # #     - test-noirc-abi
+  # #     - test-noir-wasm
+  # #     - test-integration
+  # #     - test-noir_codegen
+  # #     - test-acvm_js
+  # #     - test-barretenberg-backend
+  # #     - test-noir_js
     
-  #   steps:
-  #       - name: Report overall success
-  #         run: |
-  #           if [[ $FAIL == true ]]; then
-  #               exit 1
-  #           else
-  #               exit 0
-  #           fi
-  #         env:
-  #           FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'skipped') }}
+  # #   steps:
+  # #       - name: Report overall success
+  # #         run: |
+  # #           if [[ $FAIL == true ]]; then
+  # #               exit 1
+  # #           else
+  # #               exit 0
+  # #           fi
+  # #         env:
+  # #           FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'skipped') }}
