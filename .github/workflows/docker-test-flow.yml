@@ -152,11 +152,16 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
     steps:
-      - name: download nargo
-        uses: actions/download-artifact@v4
+      - name: Download nargo
+        uses: ./.github/actions/artifact-download-exec
         with:
           name: nargo
           path: /usr/src/noir/target/release
+      # - name: download nargo
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: nargo
+      #     path: /usr/src/noir/target/release
       - name: prep downloaded artifact
         run: |
           chmod +x /usr/src/noir/target/release/nargo
