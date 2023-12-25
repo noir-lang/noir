@@ -167,7 +167,7 @@ jobs:
           path: /usr/src/noir/compiler/wasm
       - name: test
         run: |
-          /usr/src/noir/.github/scripts/test-noir-wasm.sh
+          /usr/src/noir/.github/scripts/noir-wasm-test.sh
 
   test-noir-wasm-browser:
     name: test noir wasm browser
@@ -258,6 +258,68 @@ jobs:
         run: |
           /usr/src/noir/.github/scripts/acvm_js-test-browser.sh
 
+  build-noirc-abi:
+    name: build noirc abi
+    runs-on: ubuntu-latest
+    needs: [build-base-js]
+    container:
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
+    steps:
+      - name: build
+        run: |
+          /usr/src/noir/.github/scripts/noirc-abi-build.sh
+      - name: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path:
+            /usr/src/noir/tooling/noirc_abi_wasm/outputs/out/noirc_abi_wasm
+          if-no-files-found: error
+          compression-level: 0
+
+  test-noirc-abi:
+    name: test noirc abi
+    runs-on: ubuntu-latest
+    needs: [build-base-js, build-noirc-abi]
+    container:
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
+    steps:
+      - name: download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path: |
+            /usr/src/noir/tooling/noirc_abi_wasm
+      - name: test
+        run: |
+          /usr/src/noir/.github/scripts/noirc-abi-test.sh
+
+  test-noirc-abi-browser:
+    name: test noirc abi browser
+    runs-on: ubuntu-latest
+    needs: [build-base-js, build-noirc-abi]
+    container:
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
+    steps:
+      - name: download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path: |
+            /usr/src/noir/tooling/noirc_abi_wasm
+      - name: test
+        run: |
+          /usr/src/noir/.github/scripts/noirc-abi-test-browser.sh
+
   # build-noir-js-types:
   #   name: build noir types
   #   runs-on: ubuntu-latest
@@ -285,68 +347,6 @@ jobs:
   #           /usr/src/noir/tooling/noir_js_types/lib
   #         if-no-files-found: error
   #         compression-level: 0
-
-  # build-noirc-abi:
-  #   name: test noirc abi
-  #   runs-on: ubuntu-latest
-  #   needs: [build-base-js]
-  #   container:
-  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-  #     credentials:
-  #       username: ${{ github.actor }}
-  #       password: ${{ secrets.github_token }}
-  #   steps:
-  #     - name: build
-  #       run: |
-  #         /usr/src/noir/.github/scripts/noirc-abi-build.sh
-  #     - name: artifact
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: noirc_abi_wasm
-  #         path:
-  #           /usr/src/noir/tooling/noirc_abi_wasm/outputs/out/noirc_abi_wasm
-  #         if-no-files-found: error
-  #         compression-level: 0
-
-  # test-noirc-abi:
-  #   name: test noirc abi
-  #   runs-on: ubuntu-latest
-  #   needs: [build-base-js, build-noirc-abi]
-  #   container:
-  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-  #     credentials:
-  #       username: ${{ github.actor }}
-  #       password: ${{ secrets.github_token }}
-  #   steps:
-  #     - name: download artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: noirc_abi_wasm
-  #         path: |
-  #           /usr/src/noir/tooling/noirc_abi_wasm
-  #     - name: test
-  #       run: |
-  #         /usr/src/noir/.github/scripts/noirc-abi-test.sh
-
-  # test-noirc-abi-browser:
-  #   name: test noirc abi browser
-  #   runs-on: ubuntu-latest
-  #   needs: [build-base-js, build-noirc-abi]
-  #   container:
-  #     image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
-  #     credentials:
-  #       username: ${{ github.actor }}
-  #       password: ${{ secrets.github_token }}
-  #   steps:
-  #     - name: download artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: noirc_abi_wasm
-  #         path: |
-  #           /usr/src/noir/tooling/noirc_abi_wasm
-  #     - name: test
-  #       run: |
-  #         /usr/src/noir/.github/scripts/test-noirc-abi.sh
 
   # build-barretenberg-backend:
   #   name: build barretenberg backend
