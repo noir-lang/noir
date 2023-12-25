@@ -134,7 +134,7 @@ jobs:
     steps:
       - name: build
         run: |
-          /usr/src/noir/.github/scripts/build-noir-wasm.sh
+          /usr/src/noir/.github/scripts/noir-wasm-build.sh
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
