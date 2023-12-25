@@ -157,9 +157,9 @@ jobs:
         with:
           name: nargo
           path: /usr/src/noir/target/release
-      - name: prep downloaded artifact
-        run: |
-          chmod +x /usr/src/noir/target/release/nargo
+      # - name: prep downloaded artifact
+      #   run: |
+      #     chmod +x /usr/src/noir/target/release/nargo
       - name: Download noir_wasm package artifact
         uses: actions/download-artifact@v4
         with:
