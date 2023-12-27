@@ -36,7 +36,13 @@ pub(super) fn on_did_open_text_document(
     params: DidOpenTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
-    ControlFlow::Continue(())
+
+    let document_uri = params.text_document.uri;
+
+    match process_noir_document(document_uri, state) {
+        Ok(_) => ControlFlow::Continue(()),
+        Err(err) => ControlFlow::Break(Err(err)),
+    }
 }
 
 pub(super) fn on_did_change_text_document(
@@ -92,27 +98,25 @@ pub(super) fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let file_path = match params.text_document.uri.to_file_path() {
-        Ok(file_path) => file_path,
-        Err(()) => {
-            return ControlFlow::Break(Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                "URI is not a valid file path",
-            )
-            .into()))
-        }
-    };
+    let document_uri = params.text_document.uri;
 
-    let workspace = match resolve_workspace_for_source_path(&file_path) {
-        Ok(value) => value,
-        Err(lsp_error) => {
-            return ControlFlow::Break(Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                lsp_error.to_string(),
-            )
-            .into()))
-        }
-    };
+    match process_noir_document(document_uri, state) {
+        Ok(_) => ControlFlow::Continue(()),
+        Err(err) => ControlFlow::Break(Err(err)),
+    }
+}
+
+fn process_noir_document(
+    document_uri: lsp_types::Url,
+    state: &mut LspState,
+) -> Result<(), async_lsp::Error> {
+    let file_path = document_uri.to_file_path().map_err(|_| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+    })?;
+
+    let workspace = resolve_workspace_for_source_path(&file_path).map_err(|lsp_error| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
+    })?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
@@ -142,7 +146,7 @@ pub(super) fn on_did_save_text_document(
                 package,
                 Some(&file_path),
             );
-            state.cached_lenses.insert(params.text_document.uri.to_string(), collected_lenses);
+            state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
 
             let fm = &context.file_manager;
             let files = fm.as_file_map();
@@ -178,14 +182,13 @@ pub(super) fn on_did_save_text_document(
                 .collect()
         })
         .collect();
-
     let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
-        uri: params.text_document.uri,
+        uri: document_uri,
         version: None,
         diagnostics,
     });
 
-    ControlFlow::Continue(())
+    Ok(())
 }
 
 pub(super) fn on_exit(
