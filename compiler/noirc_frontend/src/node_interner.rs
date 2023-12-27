@@ -1349,11 +1349,9 @@ impl NodeInterner {
         let struct_type = constructor_expression.r#type.borrow();
         let field_names = struct_type.field_names();
 
-        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).and_then(
-            |found_field_name| {
-                Some(Location::new(found_field_name.span(), struct_type.location.file))
-            },
-        )
+        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).map(|found_field_name| {
+            Location::new(found_field_name.span(), struct_type.location.file)
+        })
     }
 
     fn handle_struct_member_access_for_self(
@@ -1369,11 +1367,9 @@ impl NodeInterner {
         let struct_type = lhs_self_struct.borrow();
         let field_names = struct_type.field_names();
 
-        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).and_then(
-            |found_field_name| {
-                Some(Location::new(found_field_name.span(), struct_type.location.file))
-            },
-        )
+        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).map(|found_field_name| {
+            Location::new(found_field_name.span(), struct_type.location.file)
+        })
     }
 }
 
