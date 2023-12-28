@@ -136,7 +136,8 @@ impl<'interner> TypeChecker<'interner> {
                 let rhs_span = self.interner.expr_span(&infix_expr.rhs);
                 let span = lhs_span.merge(rhs_span);
 
-                if matches!(lhs_type, Type::Array(_, _) | Type::Struct(_, _)) {
+                if matches!(lhs_type, Type::Array(_, _) | Type::Struct(_, _) | Type::String { .. })
+                {
                     // Replace with call to type's implementation of the `Eq` trait
                     let method_call = match infix_expr.operator.kind {
                         BinaryOpKind::Equal => HirMethodCallExpression {
