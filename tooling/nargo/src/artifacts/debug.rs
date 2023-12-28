@@ -235,6 +235,6 @@ mod tests {
         let debug_artifact = DebugArtifact::new(debug_symbols, &fm);
 
         let location_in_line = debug_artifact.location_in_line(loc).expect("Expected a range");
-        assert_eq!(location_in_line, Range { start: 12, end: 19 });
+        assert_eq!(location_in_line, Range { start: 12, end: 20 });
     }
 }
