@@ -41,29 +41,10 @@ pub(crate) fn print_source_code_location(
         for line in lines {
             match line {
                 PrintedLine::Skip => {}
-                PrintedLine::Ellipsis { number } => {
-                    println!("{:>3} {:2} {}", number.dimmed(), "", "...".dimmed(),);
+                PrintedLine::Ellipsis { number } => print_ellipsis(number),
+                PrintedLine::Content { number, cursor, content, highlight } => {
+                    print_content(number, cursor, content, highlight)
                 }
-                PrintedLine::Content { number, cursor, content, highlight } => match highlight {
-                    Some(highlight) => {
-                        println!(
-                            "{:>3} {:2} {}{}{}",
-                            number,
-                            cursor,
-                            content[0..highlight.start].to_string().dimmed(),
-                            &content[highlight.start..highlight.end],
-                            content[highlight.end..].to_string().dimmed(),
-                        );
-                    }
-                    None => {
-                        println!(
-                            "{:>3} {:2} {}",
-                            number.dimmed(),
-                            cursor.dimmed(),
-                            content.to_string().dimmed(),
-                        );
-                    }
-                },
             }
         }
     }
@@ -74,6 +55,33 @@ fn print_location_path(debug_artifact: &DebugArtifact, loc: Location) {
     let column_number = debug_artifact.location_column_number(loc).unwrap();
 
     println!("At {}:{line_number}:{column_number}", debug_artifact.name(loc.file).unwrap());
+}
+
+fn print_ellipsis(number: usize) {
+    println!("{:>3} {:2} {}", number.dimmed(), "", "...".dimmed());
+}
+
+fn print_content(number: usize, cursor: &str, content: &str, highlight: Option<Range<usize>>) {
+    match highlight {
+        Some(highlight) => {
+            println!(
+                "{:>3} {:2} {}{}{}",
+                number,
+                cursor,
+                content[0..highlight.start].to_string().dimmed(),
+                &content[highlight.start..highlight.end],
+                content[highlight.end..].to_string().dimmed(),
+            );
+        }
+        None => {
+            println!(
+                "{:>3} {:2} {}",
+                number.dimmed(),
+                cursor.dimmed(),
+                content.to_string().dimmed(),
+            );
+        }
+    }
 }
 
 fn render_line(
