@@ -5,14 +5,21 @@ use noirc_errors::Location;
 use owo_colors::OwoColorize;
 use std::ops::Range;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum PrintedLine<'a> {
     Skip,
-    Ellipsis { number: usize },
-    Content { number: usize, cursor: &'a str, content: &'a str, highlight: Option<Range<usize>> },
+    Ellipsis {
+        line_number: usize,
+    },
+    Content {
+        line_number: usize,
+        cursor: &'a str,
+        content: &'a str,
+        highlight: Option<Range<usize>>,
+    },
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct LocationPrintContext {
     file_lines: Range<usize>,
     printed_lines: Range<usize>,
@@ -41,9 +48,9 @@ pub(crate) fn print_source_code_location(
         for line in lines {
             match line {
                 PrintedLine::Skip => {}
-                PrintedLine::Ellipsis { number } => print_ellipsis(number),
-                PrintedLine::Content { number, cursor, content, highlight } => {
-                    print_content(number, cursor, content, highlight)
+                PrintedLine::Ellipsis { line_number } => print_ellipsis(line_number),
+                PrintedLine::Content { line_number, cursor, content, highlight } => {
+                    print_content(line_number, cursor, content, highlight)
                 }
             }
         }
@@ -57,16 +64,16 @@ fn print_location_path(debug_artifact: &DebugArtifact, loc: Location) {
     println!("At {}:{line_number}:{column_number}", debug_artifact.name(loc.file).unwrap());
 }
 
-fn print_ellipsis(number: usize) {
-    println!("{:>3} {:2} {}", number.dimmed(), "", "...".dimmed());
+fn print_ellipsis(line_number: usize) {
+    println!("{:>3} {:2} {}", line_number.dimmed(), "", "...".dimmed());
 }
 
-fn print_content(number: usize, cursor: &str, content: &str, highlight: Option<Range<usize>>) {
+fn print_content(line_number: usize, cursor: &str, content: &str, highlight: Option<Range<usize>>) {
     match highlight {
         Some(highlight) => {
             println!(
                 "{:>3} {:2} {}{}{}",
-                number,
+                line_number,
                 cursor,
                 content[0..highlight.start].to_string().dimmed(),
                 &content[highlight.start..highlight.end],
@@ -76,7 +83,7 @@ fn print_content(number: usize, cursor: &str, content: &str, highlight: Option<R
         None => {
             println!(
                 "{:>3} {:2} {}",
-                number.dimmed(),
+                line_number.dimmed(),
                 cursor.dimmed(),
                 content.to_string().dimmed(),
             );
@@ -99,14 +106,14 @@ fn render_line(
         PrintedLine::Skip
     } else if 0 < current && current == printed_lines.start && current < location_lines.start {
         // Denote that there's more lines before but we're not showing them
-        PrintedLine::Ellipsis { number: line_number }
+        PrintedLine::Ellipsis { line_number }
     } else if current < location_lines.start {
         // Print lines before the location start without highlighting
-        PrintedLine::Content { number: line_number, cursor: "", content, highlight: None }
+        PrintedLine::Content { line_number, cursor: "", content, highlight: None }
     } else if current == location_lines.start {
         // Highlight current location from where it starts to the end of the current line
         PrintedLine::Content {
-            number: line_number,
+            line_number,
             cursor: "->",
             content,
             highlight: Some(loc_context.location_offset_in_first_line),
@@ -114,25 +121,25 @@ fn render_line(
     } else if current < location_lines.end {
         // Highlight current line if it's contained by the current location
         PrintedLine::Content {
-            number: line_number,
+            line_number,
             cursor: "",
             content,
-            highlight: Some(Range { start: 0, end: content.len() - 1 }),
+            highlight: Some(Range { start: 0, end: content.len() }),
         }
     } else if current == location_lines.end {
         // Highlight current location from the beginning of the line until the location's own end
         PrintedLine::Content {
-            number: line_number,
+            line_number,
             cursor: "",
             content,
             highlight: Some(loc_context.location_offset_in_last_line),
         }
-    } else if current < printed_lines.end {
+    } else if current < printed_lines.end || printed_lines.end == file_lines.end {
         // Print lines after the location end without highlighting
-        PrintedLine::Content { number: line_number, cursor: "", content, highlight: None }
+        PrintedLine::Content { line_number, cursor: "", content, highlight: None }
     } else if current == printed_lines.end && printed_lines.end < file_lines.end {
         // Denote that there's more lines after but we're not showing them
-        PrintedLine::Ellipsis { number: line_number }
+        PrintedLine::Ellipsis { line_number }
     } else {
         PrintedLine::Skip
     }
@@ -216,4 +223,95 @@ fn render_location<'a>(
         .lines()
         .enumerate()
         .map(move |(index, content)| render_line(index, content, context.clone()))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::source_code_printer::render_location;
+    use crate::source_code_printer::PrintedLine::Content;
+    use acvm::acir::circuit::OpcodeLocation;
+    use fm::FileManager;
+    use nargo::artifacts::debug::DebugArtifact;
+    use noirc_errors::{debug_info::DebugInfo, Location, Span};
+    use std::collections::BTreeMap;
+    use std::ops::Range;
+    use std::path::Path;
+    use std::path::PathBuf;
+    use tempfile::{tempdir, TempDir};
+
+    // Returns the absolute path to the file
+    fn create_dummy_file(dir: &TempDir, file_name: &Path) -> PathBuf {
+        let file_path = dir.path().join(file_name);
+        let _file = std::fs::File::create(&file_path).unwrap();
+        file_path
+    }
+
+    #[test]
+    fn render_multiple_line_location() {
+        let source_code = r##"pub fn main(mut state: [Field; 2]) -> [Field; 2] {
+    state = permute(
+        consts::x5_2_config(),
+        state);
+
+    state
+}"##;
+
+        let dir = tempdir().unwrap();
+        let file_name = Path::new("main.nr");
+        create_dummy_file(&dir, file_name);
+
+        let mut fm = FileManager::new(dir.path());
+        let file_id = fm.add_file_with_source(file_name, source_code.to_string()).unwrap();
+
+        // Location of
+        // ```
+        // permute(
+        //      consts::x5_2_config(),
+        //      state)
+        // ```
+        let loc = Location::new(Span::inclusive(63, 116), file_id);
+
+        // We don't care about opcodes in this context,
+        // we just use a dummy to construct debug_symbols
+        let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
+        opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
+
+        let debug_symbols = vec![DebugInfo::new(opcode_locations)];
+        let debug_artifact = DebugArtifact::new(debug_symbols, &fm);
+
+        let location_rendered: Vec<_> = render_location(&debug_artifact, &loc).collect();
+
+        assert_eq!(
+            location_rendered,
+            vec![
+                Content {
+                    line_number: 1,
+                    cursor: "",
+                    content: "pub fn main(mut state: [Field; 2]) -> [Field; 2] {",
+                    highlight: None,
+                },
+                Content {
+                    line_number: 2,
+                    cursor: "->",
+                    content: "    state = permute(",
+                    highlight: Some(Range { start: 12, end: 20 }),
+                },
+                Content {
+                    line_number: 3,
+                    cursor: "",
+                    content: "        consts::x5_2_config(),",
+                    highlight: Some(Range { start: 0, end: 30 }),
+                },
+                Content {
+                    line_number: 4,
+                    cursor: "",
+                    content: "        state);",
+                    highlight: Some(Range { start: 0, end: 14 }),
+                },
+                Content { line_number: 5, cursor: "", content: "", highlight: None },
+                Content { line_number: 6, cursor: "", content: "    state", highlight: None },
+                Content { line_number: 7, cursor: "", content: "}", highlight: None },
+            ]
+        );
+    }
 }

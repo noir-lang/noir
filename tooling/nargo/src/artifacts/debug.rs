@@ -224,7 +224,7 @@ mod tests {
         //      consts::x5_2_config(),
         //      state)
         // ```
-        let loc = Location::new(Span::inclusive(63, 117), file_id);
+        let loc = Location::new(Span::inclusive(63, 116), file_id);
 
         // We don't care about opcodes in this context,
         // we just use a dummy to construct debug_symbols
@@ -235,6 +235,6 @@ mod tests {
         let debug_artifact = DebugArtifact::new(debug_symbols, &fm);
 
         let location_in_line = debug_artifact.location_in_line(loc).expect("Expected a range");
-        assert_eq!(location_in_line, Range { start: 12, end: 20 });
+        assert_eq!(location_in_line, Range { start: 12, end: 19 });
     }
 }

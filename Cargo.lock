@@ -2789,6 +2789,7 @@ dependencies = [
  "noirc_printable_type",
  "owo-colors",
  "serde_json",
+ "tempfile",
  "thiserror",
 ]
 
