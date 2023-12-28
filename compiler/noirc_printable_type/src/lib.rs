@@ -73,6 +73,9 @@ pub enum ForeignCallError {
 
     #[error("Could not parse PrintableType argument. {0}")]
     ParsingError(#[from] serde_json::Error),
+
+    #[error("Failed calling external resolver. {0}")]
+    ExternalResolverError(#[from] jsonrpc::Error),
 }
 
 impl TryFrom<&[ForeignCallParam]> for PrintableValueDisplay {
