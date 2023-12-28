@@ -12,22 +12,33 @@ enum PrintedLine<'a> {
     Content { number: usize, cursor: &'a str, content: &'a str, highlight: Option<Range<usize>> },
 }
 
-#[derive(Debug)]
-struct PrintedLocation<'a> {
-    location: Location,
-    lines: Vec<PrintedLine<'a>>,
+#[derive(Clone)]
+struct LocationPrintContext {
+    file_lines: Range<usize>,
+    printed_lines: Range<usize>,
+    location_lines: Range<usize>,
+    location_offset_in_first_line: Range<usize>,
+    location_offset_in_last_line: Range<usize>,
 }
 
+// Given a DebugArtifact and an OpcodeLocation, prints all the source code
+// locations the OpcodeLocation maps to, with some surrounding context and
+// visual aids to highlight the location itself.
 pub(crate) fn print_source_code_location(
     debug_artifact: &DebugArtifact,
     location: &OpcodeLocation,
 ) {
-    let rendered_locations = render(debug_artifact, location);
+    let locations = debug_artifact.debug_symbols[0].opcode_location(location);
+    let Some(locations) = locations else { return; };
 
-    for loc in rendered_locations {
-        print_location_path(debug_artifact, loc.location);
+    let locations = locations.iter();
 
-        for line in loc.lines {
+    for loc in locations {
+        print_location_path(debug_artifact, *loc);
+
+        let lines = render_location(debug_artifact, loc);
+
+        for line in lines {
             match line {
                 PrintedLine::Skip => {}
                 PrintedLine::Ellipsis { number } => {
@@ -65,112 +76,136 @@ fn print_location_path(debug_artifact: &DebugArtifact, loc: Location) {
     println!("At {}:{line_number}:{column_number}", debug_artifact.name(loc.file).unwrap());
 }
 
-fn render<'a>(
-    debug_artifact: &'a DebugArtifact,
-    location: &OpcodeLocation,
-) -> Vec<PrintedLocation<'a>> {
-    let mut rendered_locations: Vec<PrintedLocation> = [].into();
+fn render_line(
+    current: usize,
+    content: &str,
+    loc_context: LocationPrintContext,
+) -> PrintedLine<'_> {
+    let file_lines = loc_context.file_lines;
+    let printed_lines = loc_context.printed_lines;
+    let location_lines = loc_context.location_lines;
+    let line_number = current + 1;
 
-    let locations = debug_artifact.debug_symbols[0].opcode_location(location);
-
-    //TODO: use map instead?
-    let Some(locations) = locations else { return rendered_locations };
-
-    for loc in locations {
-        let loc_line_index = debug_artifact.location_line_index(loc).unwrap();
-        let loc_end_line_index = debug_artifact.location_end_line_index(loc).unwrap();
-
-        // How many lines before or after the location's line we
-        // print
-        let context_lines = 5;
-
-        let first_line_to_print =
-            if loc_line_index < context_lines { 0 } else { loc_line_index - context_lines };
-
-        let last_line_index = debug_artifact.last_line_index(loc).unwrap();
-
-        // Print all lines that the current location spans
-        let last_line_to_print = std::cmp::min(loc_end_line_index + context_lines, last_line_index);
-
-        let source = debug_artifact.location_source_code(loc).unwrap();
-
-        let lines = source
-            .lines()
-            .enumerate()
-            .map(|(current_line_index, line)| {
-                let current_line_number = current_line_index + 1;
-
-                if current_line_index < first_line_to_print {
-                    // Ignore lines before the context window we choose to show
-                    PrintedLine::Skip
-                } else if current_line_index == first_line_to_print
-                    && current_line_index > 0
-                    && current_line_index < loc_line_index
-                {
-                    // Denote that there's more lines before but we're not showing them
-                    PrintedLine::Ellipsis { number: current_line_number }
-                } else if current_line_index < loc_line_index {
-                    // Print lines before the location start
-                    // without highlighting
-                    PrintedLine::Content {
-                        number: current_line_number,
-                        cursor: "",
-                        content: line,
-                        highlight: None,
-                    }
-                } else if current_line_index == loc_line_index {
-                    let to_highlight = debug_artifact.location_in_line(loc).unwrap();
-
-                    // Highlight current location from where it starts
-                    // to the end of the current line
-                    PrintedLine::Content {
-                        number: current_line_number,
-                        cursor: "->",
-                        content: line,
-                        highlight: Some(to_highlight),
-                    }
-                } else if current_line_index < loc_end_line_index {
-                    // Highlight current line if it's contained by the current location
-                    PrintedLine::Content {
-                        number: current_line_number,
-                        cursor: "",
-                        content: line,
-                        highlight: Some(Range { start: 0, end: line.len() - 1 }),
-                    }
-                } else if current_line_index == loc_end_line_index {
-                    let to_highlight = debug_artifact.location_in_end_line(loc).unwrap();
-
-                    // Highlight current location from the beginning
-                    // of the line until the location's own end
-                    PrintedLine::Content {
-                        number: current_line_number,
-                        cursor: "",
-                        content: line,
-                        highlight: Some(to_highlight),
-                    }
-                } else if current_line_index < last_line_to_print {
-                    // Print lines after the location end
-                    // without highlighting
-                    PrintedLine::Content {
-                        number: current_line_number,
-                        cursor: "",
-                        content: line,
-                        highlight: None,
-                    }
-                } else if current_line_index == last_line_to_print
-                    && last_line_to_print < last_line_index
-                {
-                    // Denote that there's more lines after but we're not showing them,
-                    // and stop printing
-                    PrintedLine::Ellipsis { number: current_line_number }
-                } else {
-                    PrintedLine::Skip
-                }
-            })
-            .collect();
-
-        rendered_locations.push(PrintedLocation { location: loc, lines });
+    if current < printed_lines.start {
+        // Ignore lines before the context window we choose to show
+        PrintedLine::Skip
+    } else if 0 < current && current == printed_lines.start && current < location_lines.start {
+        // Denote that there's more lines before but we're not showing them
+        PrintedLine::Ellipsis { number: line_number }
+    } else if current < location_lines.start {
+        // Print lines before the location start without highlighting
+        PrintedLine::Content { number: line_number, cursor: "", content, highlight: None }
+    } else if current == location_lines.start {
+        // Highlight current location from where it starts to the end of the current line
+        PrintedLine::Content {
+            number: line_number,
+            cursor: "->",
+            content,
+            highlight: Some(loc_context.location_offset_in_first_line),
+        }
+    } else if current < location_lines.end {
+        // Highlight current line if it's contained by the current location
+        PrintedLine::Content {
+            number: line_number,
+            cursor: "",
+            content,
+            highlight: Some(Range { start: 0, end: content.len() - 1 }),
+        }
+    } else if current == location_lines.end {
+        // Highlight current location from the beginning of the line until the location's own end
+        PrintedLine::Content {
+            number: line_number,
+            cursor: "",
+            content,
+            highlight: Some(loc_context.location_offset_in_last_line),
+        }
+    } else if current < printed_lines.end {
+        // Print lines after the location end without highlighting
+        PrintedLine::Content { number: line_number, cursor: "", content, highlight: None }
+    } else if current == printed_lines.end && printed_lines.end < file_lines.end {
+        // Denote that there's more lines after but we're not showing them
+        PrintedLine::Ellipsis { number: line_number }
+    } else {
+        PrintedLine::Skip
     }
+}
 
-    rendered_locations
+// Given a Location in a DebugArtifact, returns a line iterator that specifies how to
+// print the location's file.
+//
+// Consider for example the file (line numbers added to facilitate this doc):
+// ```
+// 1 use dep::std::hash::poseidon;
+// 2
+// 3 fn main(x1: [Field; 2], y1: pub Field, x2: [Field; 4], y2: pub Field) {
+// 4    let hash1 = poseidon::bn254::hash_2(x1);
+// 5    assert(hash1 == y1);
+// 6
+// 7    let hash2 = poseidon::bn254::hash_4(x2);
+// 8    assert(hash2 == y2);
+// 9 }
+// 10
+// ```
+//
+// If the location to render is `poseidon::bn254::hash_2(x1)`, we'll render the file as:
+// ```
+// 1   use dep::std::hash::poseidon;
+// 2
+// 3   fn main(x1: [Field; 2], y1: pub Field, x2: [Field; 4], y2: pub Field) {
+// 4      let hash1 = <b>poseidon::bn254::hash_2(x1)</b>;
+// 5 ->   assert(hash1 == y1);
+// 6
+// 7      let hash2 = poseidon::bn254::hash_4(x2);
+// 8      assert(hash2 == y2);
+// 9   }
+// 10  ...
+// ```
+//
+// This is the result of:
+// 1. Limiting the amount of printed lines to 5 before and 5 after the location.
+// 2. Using ellipsis (...) to denote when some file lines have been left out of the render.
+// 3. Using an arrow cursor (->) to denote where the rendered location starts.
+// 4. Highlighting the location (here expressed as a <b/> block for the sake of the explanation).
+//
+// Note that locations may span multiple lines, so this function deals with that too.
+fn render_location<'a>(
+    debug_artifact: &'a DebugArtifact,
+    loc: &'a Location,
+) -> impl Iterator<Item = PrintedLine<'a>> {
+    let loc = *loc;
+
+    let file_lines = Range { start: 0, end: debug_artifact.last_line_index(loc).unwrap() };
+
+    // Sub-range of file lines that this location spans
+    let location_lines = Range {
+        start: debug_artifact.location_line_index(loc).unwrap(),
+        end: debug_artifact.location_end_line_index(loc).unwrap(),
+    };
+
+    // How many lines before or after the location's lines we print
+    let context_lines = 5;
+
+    // Sub-range of lines that we'll print, which includes location + context lines
+    let first_line_to_print =
+        if location_lines.start < context_lines { 0 } else { location_lines.start - context_lines };
+    let last_line_to_print = std::cmp::min(location_lines.end + context_lines, file_lines.end);
+    let printed_lines = Range { start: first_line_to_print, end: last_line_to_print };
+
+    // Range of the location relative to its starting and ending lines
+    let location_offset_in_first_line = debug_artifact.location_in_line(loc).unwrap();
+    let location_offset_in_last_line = debug_artifact.location_in_end_line(loc).unwrap();
+
+    let context = LocationPrintContext {
+        file_lines,
+        printed_lines,
+        location_lines,
+        location_offset_in_first_line,
+        location_offset_in_last_line,
+    };
+
+    let source = debug_artifact.location_source_code(loc).unwrap();
+    source
+        .lines()
+        .enumerate()
+        .map(move |(index, content)| render_line(index, content, context.clone()))
 }
