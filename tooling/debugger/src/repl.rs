@@ -111,7 +111,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                 println!("       |       outputs={:?}", brillig.outputs);
                 for (brillig_index, brillig_opcode) in brillig.bytecode.iter().enumerate() {
                     println!(
-                        "{:>3}{:<2} |{:2} {:?}",
+                        "{:>3}.{:<2} |{:2} {:?}",
                         acir_index,
                         brillig_index,
                         brillig_marker(acir_index, brillig_index),
