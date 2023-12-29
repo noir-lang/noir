@@ -59,7 +59,7 @@ impl DebugArtifact {
         self.line_index(location.file, location_start)
     }
 
-    /// Given a location, returns the index of the line it starts at
+    /// Given a location, returns the index of the line it ends at
     pub fn location_end_line_index(&self, location: Location) -> Result<usize, Error> {
         let location_end = location.span.end() as usize;
         self.line_index(location.file, location_end)
@@ -90,6 +90,9 @@ impl DebugArtifact {
 
         let line_length = line_span.end - (line_span.start + 1);
         let start_in_line = location_start - line_span.start;
+
+        // The location might continue beyond the line,
+        // so we need a bounds check
         let end_in_line = location_end - line_span.start;
         let end_in_line = std::cmp::min(end_in_line, line_length);
 
@@ -166,5 +169,72 @@ impl<'a> Files<'a> for DebugArtifact {
             SimpleFile::new(PathString::from(file.path.clone()), file.source.clone())
                 .line_range((), line_index)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::artifacts::debug::DebugArtifact;
+    use acvm::acir::circuit::OpcodeLocation;
+    use fm::FileManager;
+    use noirc_errors::{debug_info::DebugInfo, Location, Span};
+    use std::collections::BTreeMap;
+    use std::ops::Range;
+    use std::path::Path;
+    use std::path::PathBuf;
+    use tempfile::{tempdir, TempDir};
+
+    // Returns the absolute path to the file
+    fn create_dummy_file(dir: &TempDir, file_name: &Path) -> PathBuf {
+        let file_path = dir.path().join(file_name);
+        let _file = std::fs::File::create(&file_path).unwrap();
+        file_path
+    }
+
+    // Tests that location_in_line correctly handles
+    // locations spanning multiple lines.
+    // For example, given the snippet:
+    // ```
+    // permute(
+    //    consts::x5_2_config(),
+    //    state);
+    // ```
+    // We want location_in_line to return the range
+    // containing `permute(`
+    #[test]
+    fn location_in_line_stops_at_end_of_line() {
+        let source_code = r##"pub fn main(mut state: [Field; 2]) -> [Field; 2] {
+    state = permute(
+        consts::x5_2_config(),
+        state);
+
+    state
+}"##;
+
+        let dir = tempdir().unwrap();
+        let file_name = Path::new("main.nr");
+        create_dummy_file(&dir, file_name);
+
+        let mut fm = FileManager::new(dir.path());
+        let file_id = fm.add_file_with_source(file_name, source_code.to_string()).unwrap();
+
+        // Location of
+        // ```
+        // permute(
+        //      consts::x5_2_config(),
+        //      state)
+        // ```
+        let loc = Location::new(Span::inclusive(63, 116), file_id);
+
+        // We don't care about opcodes in this context,
+        // we just use a dummy to construct debug_symbols
+        let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
+        opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
+
+        let debug_symbols = vec![DebugInfo::new(opcode_locations)];
+        let debug_artifact = DebugArtifact::new(debug_symbols, &fm);
+
+        let location_in_line = debug_artifact.location_in_line(loc).expect("Expected a range");
+        assert_eq!(location_in_line, Range { start: 12, end: 20 });
     }
 }

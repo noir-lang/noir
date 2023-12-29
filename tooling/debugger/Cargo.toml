@@ -28,3 +28,4 @@ serde_json.workspace = true
 assert_cmd = "2.0.12"
 rexpect = "0.5.0"
 test-binary = "3.0.1"
+tempfile.workspace = true

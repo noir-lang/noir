@@ -2813,6 +2813,7 @@ dependencies = [
  "rexpect",
  "rustc_version",
  "serde_json",
+ "tempfile",
  "test-binary",
  "thiserror",
 ]
