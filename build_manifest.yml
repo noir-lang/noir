@@ -37,7 +37,7 @@ noir-packages:
     - ^noir/tooling/noirc_abi
     - ^noir/tooling/noirc_abi_wasm
 
-noir-acir-tests:
+noir-compile-acir-tests:
   buildDir: noir/test_programs
   # Awkward. Maybe change dockerfile paths to be absolute.
   dockerfile: ../../barretenberg/acir_tests/Dockerfile.noir_acir_tests
@@ -87,7 +87,7 @@ barretenberg-acir-tests-bb:
   dockerfile: Dockerfile.bb
   dependencies:
     - barretenberg-x86_64-linux-clang-assert
-    - noir-acir-tests
+    - noir-compile-acir-tests
 
 barretenberg-acir-tests-bb-sol:
   buildDir: barretenberg/acir_tests
@@ -95,17 +95,21 @@ barretenberg-acir-tests-bb-sol:
   dependencies:
     - barretenberg-x86_64-linux-clang-assert
     - barretenberg-x86_64-linux-clang-sol
-    - noir-acir-tests
+    - noir-compile-acir-tests
 
 barretenberg-acir-tests-bb.js:
   buildDir: barretenberg/acir_tests
   dockerfile: Dockerfile.bb.js
   dependencies:
     - bb.js
-    - noir-acir-tests
+    - noir-compile-acir-tests
 
 l1-contracts:
   buildDir: l1-contracts
+
+boxes-files:
+  buildDir: boxes
+  dockerfile: Dockerfile.files
 
 yarn-project-base:
   buildDir: yarn-project
@@ -118,12 +122,14 @@ yarn-project-base:
     - bb.js
     - noir
     - noir-packages
+    - boxes-files
 
 yarn-project:
   buildDir: yarn-project
   rebuildPatterns:
     - ^yarn-project/.*\.(ts|tsx|js|cjs|mjs|json|html|md|sh|nr|toml)$
     - ^yarn-project/Dockerfile$
+    - ^yarn-project/cli/aztec-cli
   dependencies:
     - yarn-project-base
 
@@ -156,22 +162,11 @@ cli:
     - yarn-project-prod
   multiarch: buildx
 
-boxes-blank-react:
+boxes:
   buildDir: boxes
-  projectDir: boxes/blank-react
   dependencies:
     - aztec-sandbox
-
-boxes-blank:
-  buildDir: boxes
-  projectDir: boxes/blank
-  dependencies:
-    - aztec-sandbox
-
-boxes-token:
-  buildDir: boxes
-  projectDir: boxes/token
-  dependencies:
+  runDependencies:
     - aztec-sandbox
 
 end-to-end:

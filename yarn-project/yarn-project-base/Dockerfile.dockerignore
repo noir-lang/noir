@@ -10,18 +10,6 @@ Dockerfile*
 *.tsbuildinfo
 node_modules
 
-# This is a sticking point, due to the project being under it's own dir.
-# Need to unexclude the dir and then exclude it's files.
-# TODO: These boxes might be better outside the workspace where they have their own dependencies
-# as they're meant to be consumers of the project, not a part of it.
-# NOTE: See comment at top of Dockerfile.dockerignore.v24!
-!boxes/token
-!boxes/blank
-!boxes/blank-react
-boxes/*/*
-!boxes/*/package.json
-!boxes/*/tsconfig.json
-
 # Unexclude package.json and yarn.lock files, for detecting any dependency changes.
 !*/package.json
 !*/package.*.json
@@ -39,6 +27,3 @@ boxes/*/*
 # Unexclude scripts we use in the Dockerfile.
 !yarn-project-base/scripts
 !l1-artifacts/scripts
-
-# Unexclude prettierignore
-!.prettierignore

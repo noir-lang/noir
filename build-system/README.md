@@ -6,20 +6,19 @@ The Aztec build system is agnostic to its underlying platform, but currently our
 
 - Monorepo support (or at least, multiple projects within one repository).
 - Builds docker containers for simple deployments.
-- Docker layer caching support to minimize rebuild times.
-- Don't rebuild projects that haven't changed as part of a commit (analyze diffs between commits).
+- Don't rebuild projects that haven't changed as part of a commit (generate and compare content hashes).
 - Allow fine or coarse grained control, of which file changes within a project, trigger a rebuild.
 - Stateless (apart from the source repository itself, and the target container registry).
-- Enable building on powerful (up to 64 core) EC2 spot instances. They're extremely cheap and powerful relative to Circle CI offerings.
+- Enable building on EC2 spot instances. They're extremely cheap and powerful relative to CI offerings.
 - Easy to follow build graph on Circle CI.
 - Deploy updated services only on a fully successful build of entire project.
-- No vendor lock-in (don't use vendor specific features).
+- No vendor lock-in (don't use vendor specific features). Vendor easily changeable, only used for orchestration.
 
 ## Overview
 
-We will assume Circle CI is the orchestration platform
+We will assume Circle CI is the orchestration platform.
 
-There are scripts that are called from the `.circleci/config.yml` that could be fairly easily run elsewhere if needed. They are located in the `scripts` folder, and are added to `PATH` so they can be called from project directories. The actual building of the services and libraries are all done with Dockerfiles.
+There are scripts that are called from the `.circleci/config.yml` that could be fairly easily run elsewhere if needed. They are located in the `scripts` folder, and are added to `PATH` so they can be called from project directories. The actual building of the services and libraries are all done with Dockerfiles, independent tests with docker-compose.
 
 There are two ECR (elastic container repository) instances used in two regions (`eu-west2` and `us-east2`). As containers are built, the results are stored in `us-east2` (deemed to be generally close to Circle CI) and these are considered to be caches that can be reused in subsequent builds. In the event of a deploy, the containers are published in `eu-west2` where all infrastructure is currently hosted. These are considered our live production builds.
 
@@ -36,19 +35,15 @@ We avoid using any Circle CI specific features. They are very general purpose, a
 
 The build system leverages image names and tags in the docker image registry to keep track of it's historical success or failure in terms of builds, tests, and deployments. It's otherwise stateless, meaning it only needs a container registry to track state.
 
-We work in terms of _commits_ and not branches. Branches are a higher level concept that are ignored. Given a commit hash, there is a linear history of commits we scan and compare to the docker registry to determine what's changed, and thus what needs to be rebuilt.
+We work in terms of _contest hashes_, not commit hashes or branches. Content hashes are like commit hashes, but are scoped to files matching the rebuild patterns.
 
-There is a `build_manifest.json` that describes various settings for each project (dependencies, rebuild patterns, etc). The dependencies as listed in the build manifest represent the graph such that if project A changes, all projects that depend on A will also be rebuilt. This likely closely mirrors the workflow graph as defined in Circle CI's `config.yml`.
+There is a `build_manifest.yml` that describes various settings for each project (dependencies, rebuild patterns, etc). The dependencies as listed in the build manifest represent the graph such that if project A changes, all projects that depend on A will also be rebuilt. This likely closely mirrors the workflow graph as defined in Circle CI's `config.yml`. In the future we can generate a target CI platforms configuration from this build manifest.
 
-A rebuild pattern is a regular expression that is matched against a list of changed files. We use pretty broad regular expressions that trigger rebuilds if _any_ file in a project changes, but you can be more fine-grained, e.g. not triggering rebuilds if you change something inconsequential.
+A rebuild pattern is a regular expression that is matched against a list of changed files. We often use pretty broad regular expressions that trigger rebuilds if _any_ file in a project changes, but you can be more fine-grained, e.g. not triggering rebuilds if you change something inconsequential.
 
 ## Usage
 
-Add the build system into your repository as a submodule located at `/build-system`. Circle CI expects a `.circleci/config.yml` file from which you can leverage the build scripts. After checking out your repository code, initialize this submodule e.g.
-
-```
-git submodule update --init build-system
-```
+Add the build system into your repository as a git subrepo located at `/build-system`. Circle CI expects a `.circleci/config.yml` file from which you can leverage the build scripts.
 
 At the start of each job, it's necessary to setup the build environment e.g.
 

@@ -8,11 +8,16 @@ RUN apt update && apt install -y jq && rm -rf /var/lib/apt/lists/* && apt-get cl
 COPY --from=yarn-project /usr/src /usr/src
 WORKDIR /usr/src/yarn-project
 ARG COMMIT_TAG=""
+# TODO: Use release-please to update package.json directly, and remove this!
 RUN ./scripts/version_packages.sh
 # Productionify. See comment in yarn-project-base/Dockerfile.
-RUN yarn workspaces focus @aztec/cli @aztec/aztec-sandbox @aztec/aztec-faucet --production && \
+RUN yarn workspaces focus @aztec/cli @aztec/aztec-sandbox @aztec/aztec-faucet @aztec/aztec.js --production && \
     yarn cache clean && \
-    rm -rf ./**/src
+    rm -rf /usr/src/barretenberg/ts/src && \
+    # TODO: Fix by extracting noir code out of yarn-project.
+    # This was just a "rm -rf ./**/src".
+    # Due to the mess of us needing to find noir code in noir-protocol-circuits/src/crates we have to do this...
+    find . -maxdepth 2 -name src -type d | grep -v "./noir-protocol-circuits" | xargs rm -rf
 
 # We no longer need nargo.
 RUN rm -rf /usr/src/noir/target
@@ -45,5 +50,14 @@ RUN ARCH= && \
     --exclude "*/include/*" && \
     rm "node-v$NODE_VERSION-linux-$ARCH.tar.gz" && \
     node --version
+# Yarn is used for unboxing.
+ENV YARN_VERSION=1.22.19 
+RUN curl -fsSLO --compressed "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-v$YARN_VERSION.tar.gz" && \
+    mkdir -p /opt && \
+    tar -xzf yarn-v$YARN_VERSION.tar.gz -C /opt/ && \
+    ln -s /opt/yarn-v$YARN_VERSION/bin/yarn /usr/local/bin/yarn && \
+    ln -s /opt/yarn-v$YARN_VERSION/bin/yarnpkg /usr/local/bin/yarnpkg && \
+    rm yarn-v$YARN_VERSION.tar.gz && \
+    yarn --version
 COPY --from=builder /usr/src /usr/src
 ENTRYPOINT ["/usr/bin/node"]

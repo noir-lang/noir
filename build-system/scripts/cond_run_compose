@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# Runs a docker-compose file.
+# Pulls the containers in the build manifests <project>.runDependencies property.
+# Uploads any logs to S3.
+# Can be used to test a built container (runDependencies would be self + dependency containers).
+# Can be used to build and test a container (runDependencies would just be dependency containers).
+# The trailing arguments are environment variables in the form KEY=VALUE, made available to docker-compose.
+
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
@@ -16,10 +23,11 @@ if ! check_rebuild $SUCCESS_TAG $REPOSITORY; then
   ecr_login
 
   # For each dependency and self, pull in the latest image and give it correct tag.
-  for REPO in $(query_manifest runDependencies $REPOSITORY $JOB_NAME) $REPOSITORY; do
+  for REPO in $(query_manifest runDependencies $REPOSITORY $JOB_NAME); do
     echo "Pulling $REPO..."
     REPO_IMAGE_URI=$(calculate_image_uri $REPO)
     retry docker pull $REPO_IMAGE_URI
+    docker tag $REPO_IMAGE_URI $ECR_DEPLOY_URL/$REPO
     docker tag $REPO_IMAGE_URI aztecprotocol/$REPO
   done
 

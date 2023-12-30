@@ -1,0 +1,22 @@
+{
+  "name": "@aztec/boxes",
+  "packageManager": "yarn@4.0.2",
+  "private": true,
+  "scripts": {
+    "compile": "FORCE_COLOR=true yarn workspaces foreach -A -p -j unlimited -v run compile:local",
+    "build": "FORCE_COLOR=true yarn workspaces foreach -A -p -j unlimited -v run build"
+  },
+  "workspaces": [
+    "blank",
+    "blank-react",
+    "token"
+  ],
+  "resolutions": {
+    "@aztec/aztec.js": "portal:../yarn-project/aztec.js",
+    "@aztec/circuits.js": "portal:../yarn-project/circuits.js",
+    "@aztec/foundation": "portal:../yarn-project/foundation",
+    "@aztec/bb.js": "portal:../barretenberg/ts",
+    "@aztec/types": "portal:../yarn-project/types",
+    "@aztec/ethereum": "portal:../yarn-project/ethereum"
+  }
+}

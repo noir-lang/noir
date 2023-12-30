@@ -2,6 +2,7 @@
 set -euo pipefail
 
 export SKIP_NET=1
+export PATH=$PATH:$HOME/bin
 
 if [ "${1:-}" == "lsp" ]; then
   docker run -i -v $HOME:$HOME -e HOME=$HOME aztecprotocol/noir $@

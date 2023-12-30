@@ -129,7 +129,13 @@ export async function deployContract(
   salt: Fr,
   client: PXE,
 ): Promise<AztecAddress> {
-  const tx = new DeployMethod(activeWallet.publicKey, client, artifact, typedArgs).send({
+  const tx = new DeployMethod(
+    activeWallet.publicKey,
+    client,
+    artifact,
+    (a, w) => Contract.at(a, artifact, w),
+    typedArgs,
+  ).send({
     contractAddressSalt: salt,
   });
   await tx.wait();

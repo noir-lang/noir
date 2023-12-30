@@ -5,4 +5,5 @@ compiler_version = ">=0.18.0"
 type = "contract"
 
 [dependencies]
-aztec = { path = "../../../../aztec-nr/aztec" }
+aztec = { path = "../../../../yarn-project/aztec-nr/aztec" }
+protocol_types = { path = "../../../../yarn-project/noir-protocol-circuits/src/crates/types" }

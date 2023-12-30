@@ -1,4 +1,4 @@
-import { AztecAddress, CompleteAddress, ContractArtifact, DeployMethod, Fr, PXE } from '@aztec/aztec.js';
+import { AztecAddress, CompleteAddress, Contract, ContractArtifact, DeployMethod, Fr, PXE } from '@aztec/aztec.js';
 
 export async function deployContract(
   activeWallet: CompleteAddress,
@@ -7,7 +7,13 @@ export async function deployContract(
   salt: Fr,
   pxe: PXE,
 ): Promise<AztecAddress> {
-  const tx = new DeployMethod(activeWallet.publicKey, pxe, contractArtifact, typedArgs).send({
+  const tx = new DeployMethod(
+    activeWallet.publicKey,
+    pxe,
+    contractArtifact,
+    (a, w) => Contract.at(a, contractArtifact, w),
+    typedArgs,
+  ).send({
     contractAddressSalt: salt,
   });
   await tx.wait();

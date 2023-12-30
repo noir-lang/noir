@@ -35,6 +35,8 @@ echo "PULL_REQUEST=$PULL_REQUEST"
 if [[ "$COMMIT_MESSAGE" == *"[ci dry-deploy]"* ]]; then
   COMMIT_TAG=v999.999.999
   export DRY_DEPLOY=1
+else
+  export DRY_DEPLOY=0
 fi
 
 if should_deploy; then

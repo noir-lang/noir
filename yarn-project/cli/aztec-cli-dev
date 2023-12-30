@@ -1,0 +1,6 @@
+#!/bin/sh
+# Add a symlink to this somewhere in your path.
+# Now you can run aztec-cli-dev anywhere to execute latest code, no 'yarn build' required.
+SCRIPT_PATH=$(dirname $(realpath $0))
+(cd $SCRIPT_PATH && yarn tsc -b)
+node --no-warnings $SCRIPT_PATH/dest/bin/index.js $@
