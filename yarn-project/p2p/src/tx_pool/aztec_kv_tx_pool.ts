@@ -1,4 +1,5 @@
-import { createDebugLogger } from '@aztec/foundation/log';
+import { Logger, createDebugLogger } from '@aztec/foundation/log';
+import { AztecKVStore, AztecMap } from '@aztec/kv-store';
 import { Tx, TxHash } from '@aztec/types';
 import { TxAddedToPoolStats } from '@aztec/types/stats';
 
@@ -7,18 +8,25 @@ import { TxPool } from './tx_pool.js';
 /**
  * In-memory implementation of the Transaction Pool.
  */
-export class InMemoryTxPool implements TxPool {
+export class AztecKVTxPool implements TxPool {
+  #store: AztecKVStore;
+
   /**
    * Our tx pool, stored as a Map in-memory, with K: tx hash and V: the transaction.
    */
-  private txs: Map<bigint, Tx>;
+  #txs: AztecMap<string, Buffer>;
+
+  #log: Logger;
 
   /**
    * Class constructor for in-memory TxPool. Initiates our transaction pool as a JS Map.
+   * @param store - A KV store.
    * @param log - A logger.
    */
-  constructor(private log = createDebugLogger('aztec:tx_pool')) {
-    this.txs = new Map<bigint, Tx>();
+  constructor(store: AztecKVStore, log = createDebugLogger('aztec:tx_pool')) {
+    this.#txs = store.createMap('txs');
+    this.#store = store;
+    this.#log = log;
   }
 
   /**
@@ -27,8 +35,8 @@ export class InMemoryTxPool implements TxPool {
    * @returns The transaction, if found, 'undefined' otherwise.
    */
   public getTxByHash(txHash: TxHash): Tx | undefined {
-    const result = this.txs.get(txHash.toBigInt());
-    return result === undefined ? undefined : Tx.clone(result);
+    const buffer = this.#txs.get(txHash.toString());
+    return buffer ? Tx.fromBuffer(buffer) : undefined;
   }
 
   /**
@@ -37,14 +45,18 @@ export class InMemoryTxPool implements TxPool {
    * @returns Empty promise.
    */
   public async addTxs(txs: Tx[]): Promise<void> {
-    for (const tx of txs) {
-      const txHash = await tx.getTxHash();
-      this.log(`Adding tx with id ${txHash.toString()}`, {
-        eventName: 'tx-added-to-pool',
-        ...tx.getStats(),
-      } satisfies TxAddedToPoolStats);
-      this.txs.set(txHash.toBigInt(), tx);
-    }
+    const txHashes = await Promise.all(txs.map(tx => tx.getTxHash()));
+    return this.#store.transaction(() => {
+      for (const [i, tx] of txs.entries()) {
+        const txHash = txHashes[i];
+        this.#log.info(`Adding tx with id ${txHash.toString()}`, {
+          eventName: 'tx-added-to-pool',
+          ...tx.getStats(),
+        } satisfies TxAddedToPoolStats);
+
+        void this.#txs.set(txHash.toString(), tx.toBuffer());
+      }
+    });
   }
 
   /**
@@ -53,10 +65,11 @@ export class InMemoryTxPool implements TxPool {
    * @returns The number of transactions that was deleted from the pool.
    */
   public deleteTxs(txHashes: TxHash[]): Promise<void> {
-    for (const txHash of txHashes) {
-      this.txs.delete(txHash.toBigInt());
-    }
-    return Promise.resolve();
+    return this.#store.transaction(() => {
+      for (const hash of txHashes) {
+        void this.#txs.delete(hash.toString());
+      }
+    });
   }
 
   /**
@@ -64,7 +77,7 @@ export class InMemoryTxPool implements TxPool {
    * @returns Array of tx objects in the order they were added to the pool.
    */
   public getAllTxs(): Tx[] {
-    return Array.from(this.txs.values()).map(x => Tx.clone(x));
+    return Array.from(this.#txs.values()).map(buffer => Tx.fromBuffer(buffer));
   }
 
   /**
@@ -72,7 +85,7 @@ export class InMemoryTxPool implements TxPool {
    * @returns An array of transaction hashes found in the tx pool.
    */
   public getAllTxHashes(): TxHash[] {
-    return Array.from(this.txs.keys()).map(x => TxHash.fromBigInt(x));
+    return Array.from(this.#txs.keys()).map(x => TxHash.fromString(x));
   }
 
   /**
@@ -81,6 +94,6 @@ export class InMemoryTxPool implements TxPool {
    * @returns True if the transaction present, false otherwise.
    */
   public hasTx(txHash: TxHash): boolean {
-    return this.txs.has(txHash.toBigInt());
+    return this.#txs.has(txHash.toString());
   }
 }

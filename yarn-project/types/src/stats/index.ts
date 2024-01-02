@@ -14,5 +14,5 @@ export const BENCHMARK_HISTORY_BLOCK_SIZE = process.env.BENCHMARK_HISTORY_BLOCK_
 
 /** Chain lengths to test for history processing benchmarks. */
 export const BENCHMARK_HISTORY_CHAIN_LENGTHS = process.env.BENCHMARK_HISTORY_CHAIN_LENGTHS
-  ? process.env.BENCHMARK_HISTORY_CHAIN_LENGTHS.split(',').map(Number)
+  ? process.env.BENCHMARK_HISTORY_CHAIN_LENGTHS.split(',').map(x => Number(x))
   : [5, 10];

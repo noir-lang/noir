@@ -146,6 +146,7 @@ __metadata:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/kv-store": "workspace:^"
     "@aztec/l1-artifacts": "workspace:^"
     "@aztec/merkle-tree": "workspace:^"
     "@aztec/p2p": "workspace:^"
@@ -660,6 +661,7 @@ __metadata:
   dependencies:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/kv-store": "workspace:^"
     "@aztec/types": "workspace:^"
     "@chainsafe/libp2p-noise": ^13.0.0
     "@chainsafe/libp2p-yamux": ^5.0.0

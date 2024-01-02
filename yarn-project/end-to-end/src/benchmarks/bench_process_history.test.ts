@@ -43,7 +43,7 @@ describe('benchmarks/process_history', () => {
         // Send enough txs to move the chain to the next block number checkpoint
         const txCount = (chainLength - lastBlock) * BLOCK_SIZE;
         const sentTxs = await sendTxs(txCount, context, contract);
-        await sentTxs[sentTxs.length - 1].wait({ timeout: 5 * 60_000 });
+        await Promise.all(sentTxs.map(tx => tx.wait({ timeout: 5 * 60_000 })));
         await sleep(100);
 
         // Create a new node and measure how much time it takes it to sync

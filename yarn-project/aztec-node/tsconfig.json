@@ -35,6 +35,9 @@
     },
     {
       "path": "../world-state"
+    },
+    {
+      "path": "../kv-store"
     }
   ],
   "include": ["src"]

@@ -16,7 +16,8 @@ import { computeGlobalsHash, computePublicDataTreeLeafSlot } from '@aztec/circui
 import { L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { InMemoryTxPool, P2P, createP2PClient } from '@aztec/p2p';
+import { AztecLmdbStore } from '@aztec/kv-store';
+import { AztecKVTxPool, P2P, createP2PClient } from '@aztec/p2p';
 import {
   GlobalVariableBuilder,
   PublicProcessorFactory,
@@ -105,6 +106,7 @@ export class AztecNodeService implements AztecNode {
     }
 
     const log = createDebugLogger('aztec:node');
+    const store = await AztecLmdbStore.create(config.l1Contracts.rollupAddress, config.dataDirectory);
     const [nodeDb, worldStateDb] = await openDb(config, log);
 
     // first create and sync the archiver
@@ -116,7 +118,7 @@ export class AztecNodeService implements AztecNode {
     config.transactionProtocol = `/aztec/tx/${config.l1Contracts.rollupAddress.toString()}`;
 
     // create the tx pool and the p2p client, which will need the l2 block source
-    const p2pClient = await createP2PClient(config, new InMemoryTxPool(), archiver);
+    const p2pClient = await createP2PClient(store, config, new AztecKVTxPool(store), archiver);
 
     // now create the merkle trees and the world state synchronizer
     const merkleTrees = await MerkleTrees.new(worldStateDb);
