@@ -13,7 +13,8 @@ impl GeneralOptimizer {
     pub(crate) fn optimize(opcode: Expression) -> Expression {
         // XXX: Perhaps this optimization can be done on the fly
         let opcode = remove_zero_coefficients(opcode);
-        simplify_mul_terms(opcode)
+        let opcode = simplify_mul_terms(opcode);
+        simplify_linear_terms(opcode)
     }
 }
 
@@ -40,5 +41,22 @@ fn simplify_mul_terms(mut gate: Expression) -> Expression {
     }
 
     gate.mul_terms = hash_map.into_iter().map(|((w_l, w_r), scale)| (scale, w_l, w_r)).collect();
+    gate
+}
+
+// Simplifies all mul terms with the same bi-variate variables
+fn simplify_linear_terms(mut gate: Expression) -> Expression {
+    let mut hash_map: IndexMap<Witness, FieldElement> = IndexMap::new();
+
+    // Canonicalize the ordering of the multiplication, lets just order by variable name
+    for (scale, witness) in gate.linear_combinations.into_iter() {
+        *hash_map.entry(witness).or_insert_with(FieldElement::zero) += scale;
+    }
+
+    gate.linear_combinations = hash_map
+        .into_iter()
+        .filter(|(_, scale)| scale != &FieldElement::zero())
+        .map(|(witness, scale)| (scale, witness))
+        .collect();
     gate
 }

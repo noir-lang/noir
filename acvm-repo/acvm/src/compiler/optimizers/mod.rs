@@ -1,5 +1,6 @@
 use acir::circuit::{Circuit, Opcode};
 
+mod constant_backpropagation;
 mod general;
 mod redundant_range;
 mod unused_memory;
@@ -8,6 +9,7 @@ pub(crate) use general::GeneralOptimizer;
 pub(crate) use redundant_range::RangeOptimizer;
 use tracing::info;
 
+use self::constant_backpropagation::ConstantBackpropOptimizer;
 use self::unused_memory::UnusedMemoryOptimizer;
 
 use super::{transform_assert_messages, AcirTransformationMap};
@@ -50,6 +52,9 @@ pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, Vec<usize>) {
     let memory_optimizer = UnusedMemoryOptimizer::new(acir);
     let (acir, acir_opcode_positions) =
         memory_optimizer.remove_unused_memory_initializations(acir_opcode_positions);
+
+    let (acir, acir_opcode_positions) =
+        ConstantBackpropOptimizer::backpropagate_constants(acir, acir_opcode_positions);
 
     // Range optimization pass
     let range_optimizer = RangeOptimizer::new(acir);

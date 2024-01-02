@@ -21,11 +21,11 @@ use thiserror::Error;
 // arithmetic
 pub(crate) mod arithmetic;
 // Brillig bytecode
-mod brillig;
+pub(crate) mod brillig;
 // Directives
-mod directives;
+pub(crate) mod directives;
 // black box functions
-mod blackbox;
+pub(crate) mod blackbox;
 mod memory_op;
 
 pub use self::brillig::{BrilligSolver, BrilligSolverStatus};
