@@ -4,10 +4,17 @@ fn main() {
     // Ensure this still works if we have to infer the type of the integer literals
     let array = [1, 2, 3];
     assert(array.eq(array));
+
+    let other_array = [3, 2, 1];
+    assert(array.ne(other_array));
 }
 
 trait Eq {
     fn eq(self, other: Self) -> bool;
+
+    fn ne(self, other: Self) -> bool{
+        !Eq::eq(self, other)
+    }
 }
 
 impl<T> Eq for [T; 3] where T: Eq {
