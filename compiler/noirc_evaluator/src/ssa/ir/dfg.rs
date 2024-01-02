@@ -172,6 +172,16 @@ impl DataFlowGraph {
                 let mut instructions =
                     result.instructions().unwrap_or(vec![instruction]).into_iter().peekable();
 
+                if instructions.len() > 1 {
+                    // There's currently no way to pass results from one instruction in `instructions` on to the next.
+                    // We then restrict this to only support multiple instructions if they're all `Instruction::Constrain`
+                    // as this instruction type does not have any results.
+                    assert!(
+                        instructions.all(|instruction| matches!(instruction, Instruction::Constrain(..))),
+                        "`SimplifyResult::SimplifiedToInstructionMultiple` only supports `Constrain` instructions"
+                    );
+                }
+
                 while let Some(instruction) = instructions.next() {
                     let id = self.make_instruction(instruction, ctrl_typevars.clone());
                     self.blocks[block].insert_instruction(id);
@@ -181,7 +191,7 @@ impl DataFlowGraph {
                         return InsertInstructionResult::Results(id, self.instruction_results(id));
                     }
                 }
-                unreachable!("more than one instruction must be returned")
+                unreachable!("At least one instruction must be returned. To not insert an instruction, use `SimplifyResult::Remove`")
             }
         }
     }
