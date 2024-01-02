@@ -9,7 +9,6 @@ mod affine {
     use crate::ec::montcurve::affine::Point as MPoint;
     use crate::ec::swcurve::affine::Curve as SWCurve;
     use crate::ec::swcurve::affine::Point as SWPoint;
-
     // Curve specification
     struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation ax^2 + y^2 = 1 + dx^2y^2
@@ -18,7 +17,6 @@ mod affine {
         // Generator as point in Cartesian coordinates
         gen: Point
     }
-
     // Point in Cartesian coordinates
     struct Point {
         x: Field,
@@ -75,7 +73,6 @@ mod affine {
             }
         }
     }
-
 
     impl Curve {
         // Curve constructor
@@ -201,7 +198,6 @@ mod curvegroup {
     use crate::ec::montcurve::curvegroup::Point as MPoint;
     use crate::ec::swcurve::curvegroup::Curve as SWCurve;
     use crate::ec::swcurve::curvegroup::Point as SWPoint;
-
     // Curve specification
     struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation a(x^2 + y^2)z^2 = z^4 + dx^2y^2
@@ -210,7 +206,6 @@ mod curvegroup {
         // Generator as point in projective coordinates
         gen: Point
     }
-
     // Point in extended twisted Edwards coordinates
     struct Point {
         x: Field,

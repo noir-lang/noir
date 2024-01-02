@@ -3,6 +3,9 @@ import { decompressSync as gunzip } from 'fflate';
 import { acirToUint8Array } from './serialize.js';
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
+import { deflattenPublicInputs, flattenPublicInputsAsArray } from './public_inputs.js';
+
+export { flattenPublicInputs } from './public_inputs.js';
 
 // This is the number of bytes in a UltraPlonk proof
 // minus the public inputs.
@@ -18,13 +21,14 @@ export class BarretenbergBackend implements Backend {
   private acirUncompressedBytecode: Uint8Array;
 
   constructor(
-    acirCircuit: CompiledCircuit,
+    private acirCircuit: CompiledCircuit,
     private options: BackendOptions = { threads: 1 },
   ) {
     const acirBytecodeBase64 = acirCircuit.bytecode;
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
   }
 
+  /** @ignore */
   async instantiate(): Promise<void> {
     if (!this.api) {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -38,6 +42,7 @@ export class BarretenbergBackend implements Backend {
       await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));
 
       this.acirComposer = await api.acirNewAcirComposer(subgroupSize);
+      await api.acirInitProvingKey(this.acirComposer, this.acirUncompressedBytecode);
       this.api = api;
     }
   }
@@ -63,11 +68,20 @@ export class BarretenbergBackend implements Backend {
   // We set `makeEasyToVerifyInCircuit` to true, which will tell the backend to
   // generate the proof using components that will make the proof
   // easier to verify in a circuit.
+
+  /**
+   *
+   * @example
+   * ```typescript
+   * const intermediateProof = await backend.generateIntermediateProof(witness);
+   * ```
+   */
   async generateIntermediateProof(witness: Uint8Array): Promise<ProofData> {
     const makeEasyToVerifyInCircuit = true;
     return this.generateProof(witness, makeEasyToVerifyInCircuit);
   }
 
+  /** @ignore */
   async generateProof(compressedWitness: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<ProofData> {
     await this.instantiate();
     const proofWithPublicInputs = await this.api.acirCreateProof(
@@ -80,16 +94,8 @@ export class BarretenbergBackend implements Backend {
     const splitIndex = proofWithPublicInputs.length - numBytesInProofWithoutPublicInputs;
 
     const publicInputsConcatenated = proofWithPublicInputs.slice(0, splitIndex);
-
-    const publicInputSize = 32;
-    const publicInputs: Uint8Array[] = [];
-
-    for (let i = 0; i < publicInputsConcatenated.length; i += publicInputSize) {
-      const publicInput = publicInputsConcatenated.slice(i, i + publicInputSize);
-      publicInputs.push(publicInput);
-    }
-
     const proof = proofWithPublicInputs.slice(splitIndex);
+    const publicInputs = deflattenPublicInputs(publicInputsConcatenated, this.acirCircuit.abi);
 
     return { proof, publicInputs };
   }
@@ -103,6 +109,14 @@ export class BarretenbergBackend implements Backend {
   // method.
   //
   // The number of public inputs denotes how many public inputs are in the inner proof.
+
+  /**
+   *
+   * @example
+   * ```typescript
+   * const artifacts = await backend.generateIntermediateProofArtifacts(proof, numOfPublicInputs);
+   * ```
+   */
   async generateIntermediateProofArtifacts(
     proofData: ProofData,
     numOfPublicInputs = 0,
@@ -136,12 +150,20 @@ export class BarretenbergBackend implements Backend {
     return verified;
   }
 
+  /**
+   *
+   * @example
+   * ```typescript
+   * const isValidIntermediate = await backend.verifyIntermediateProof(proof);
+   * ```
+   */
   async verifyIntermediateProof(proofData: ProofData): Promise<boolean> {
     const proof = reconstructProofWithPublicInputs(proofData);
     const makeEasyToVerifyInCircuit = true;
     return this.verifyProof(proof, makeEasyToVerifyInCircuit);
   }
 
+  /** @ignore */
   async verifyProof(proof: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<boolean> {
     await this.instantiate();
     await this.api.acirInitVerificationKey(this.acirComposer);
@@ -158,7 +180,7 @@ export class BarretenbergBackend implements Backend {
 
 function reconstructProofWithPublicInputs(proofData: ProofData): Uint8Array {
   // Flatten publicInputs
-  const publicInputsConcatenated = flattenUint8Arrays(proofData.publicInputs);
+  const publicInputsConcatenated = flattenPublicInputsAsArray(proofData.publicInputs);
 
   // Concatenate publicInputs and proof
   const proofWithPublicInputs = Uint8Array.from([...publicInputsConcatenated, ...proofData.proof]);
@@ -166,15 +188,5 @@ function reconstructProofWithPublicInputs(proofData: ProofData): Uint8Array {
   return proofWithPublicInputs;
 }
 
-function flattenUint8Arrays(arrays: Uint8Array[]): Uint8Array {
-  const totalLength = arrays.reduce((acc, val) => acc + val.length, 0);
-  const result = new Uint8Array(totalLength);
-
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-
-  return result;
-}
+// typedoc exports
+export { Backend, BackendOptions, CompiledCircuit, ProofData };

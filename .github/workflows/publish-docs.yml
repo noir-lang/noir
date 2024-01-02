@@ -1,47 +1,42 @@
-name: Publish Docs
+name: Publish documentation
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: The tag to build Docs for
-        required: false
+  push:
+    branches:
+      - master
+    paths: [docs/**]
 
 jobs:
   publish-docs:
+    name: Publish docs
     runs-on: ubuntu-latest
-    if: ${{ inputs.tag != '' }}
-    permissions:
-      pull-requests: write
+
     steps:
-      - name: Checkout sources
+      - name: Checkout release branch
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
           node-version: '18'
-      
-      - name: Install Yarn
-        run: npm install -g yarn
 
-      - name: Install Yarn dependencies
-        run: yarn
-    
-      - name: Cut a new version
-        working-directory: ./docs
-        run: yarn docusaurus docs:version ${{ inputs.tag }}
-      
-      - name: Remove pre-releases
-        id: get_version
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.86
+
+      - name: Install wasm-opt
         run: |
-            cd docs && yarn setStable
+          npm i wasm-opt -g
+      
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
 
-      - name: Build docs
-        run: yarn workspace docs build
-    
+      - name: Build docs for deploying
+        working-directory: docs
+        run: 
+          yarn workspaces foreach -Rt run build
+
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v2.1
         with:
@@ -50,7 +45,7 @@ jobs:
           production-deploy: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
           enable-github-deployment: false
-          deploy-message: "Deploy from GitHub Actions for tag ${{ inputs.tag }}"
+          deploy-message: "Deploy from GitHub Actions for tag ${{ inputs.noir-ref }}"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}

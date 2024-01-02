@@ -4,15 +4,13 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
-#[cfg(feature = "aztec")]
-pub(crate) mod aztec_library;
-
-use crate::graph::{CrateGraph, CrateId, Dependency};
+use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
 use noirc_errors::Location;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use self::def_map::TestFunction;
@@ -20,19 +18,18 @@ use self::def_map::TestFunction;
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// def_interner is required for type inference and monomorphization.
-pub struct Context {
+pub struct Context<'file_manager> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
-    pub file_manager: FileManager,
+    // In the WASM context, we take ownership of the file manager,
+    // which is why this needs to be a Cow. In all use-cases, the file manager
+    // is read-only however, once it has been passed to the Context.
+    pub file_manager: Cow<'file_manager, FileManager>,
 
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
     pub visited_files: BTreeMap<fm::FileId, Location>,
-
-    /// Maps a given (contract) module id to the next available storage slot
-    /// for that contract.
-    pub storage_slots: BTreeMap<def_map::ModuleId, StorageSlot>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -42,17 +39,24 @@ pub enum FunctionNameMatch<'a> {
     Contains(&'a str),
 }
 
-pub type StorageSlot = u32;
-
-impl Context {
-    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
+impl Context<'_> {
+    pub fn new(file_manager: FileManager) -> Context<'static> {
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
             visited_files: BTreeMap::new(),
-            crate_graph,
-            file_manager,
-            storage_slots: BTreeMap::new(),
+            crate_graph: CrateGraph::default(),
+            file_manager: Cow::Owned(file_manager),
+        }
+    }
+
+    pub fn from_ref_file_manager(file_manager: &FileManager) -> Context<'_> {
+        Context {
+            def_interner: NodeInterner::default(),
+            def_maps: BTreeMap::new(),
+            visited_files: BTreeMap::new(),
+            crate_graph: CrateGraph::default(),
+            file_manager: Cow::Borrowed(file_manager),
         }
     }
 
@@ -119,16 +123,33 @@ impl Context {
         if &module_id.krate == crate_id {
             module_path
         } else {
-            let crate_name = &self.crate_graph[crate_id]
-                .dependencies
-                .iter()
-                .find_map(|dep| match dep {
-                    Dependency { name, crate_id } if crate_id == &module_id.krate => Some(name),
-                    _ => None,
-                })
+            let crates = self
+                .find_dependencies(crate_id, &module_id.krate)
                 .expect("The Struct was supposed to be defined in a dependency");
-            format!("{crate_name}::{module_path}")
+            crates.join("::") + "::" + &module_path
         }
+    }
+
+    /// Recursively walks down the crate dependency graph from crate_id until we reach requested crate
+    /// This is needed in case a library (lib1) re-export a structure defined in another library (lib2)
+    /// In that case, we will get [lib1,lib2] when looking for a struct defined in lib2,
+    /// re-exported by lib1 and used by the main crate.
+    /// Returns the path from crate_id to target_crate_id
+    fn find_dependencies(
+        &self,
+        crate_id: &CrateId,
+        target_crate_id: &CrateId,
+    ) -> Option<Vec<String>> {
+        for dep in &self.crate_graph[crate_id].dependencies {
+            if &dep.crate_id == target_crate_id {
+                return Some(vec![dep.name.to_string()]);
+            }
+            if let Some(mut path) = self.find_dependencies(&dep.crate_id, target_crate_id) {
+                path.insert(0, dep.name.to_string());
+                return Some(path);
+            }
+        }
+        None
     }
 
     pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
@@ -173,6 +194,14 @@ impl Context {
             .collect()
     }
 
+    /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
+    /// Returns [None] when definition is not found.
+    pub fn get_definition_location_from(&self, location: Location) -> Option<Location> {
+        let interner = &self.def_interner;
+
+        interner.find_location_index(location).and_then(|index| interner.resolve_location(index))
+    }
+
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain
     pub fn get_all_contracts(&self, crate_id: &CrateId) -> Vec<Contract> {
         self.def_map(crate_id)
@@ -182,17 +211,5 @@ impl Context {
 
     fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
         module_id.module(&self.def_maps)
-    }
-
-    /// Returns the next available storage slot in the given module.
-    /// Returns None if the given module is not a contract module.
-    fn next_storage_slot(&mut self, module_id: def_map::ModuleId) -> Option<StorageSlot> {
-        let module = self.module(module_id);
-
-        module.is_contract.then(|| {
-            let next_slot = self.storage_slots.entry(module_id).or_insert(0);
-            *next_slot += 1;
-            *next_slot
-        })
     }
 }

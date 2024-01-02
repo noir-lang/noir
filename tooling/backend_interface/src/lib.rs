@@ -1,18 +1,18 @@
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 
-use std::{collections::HashSet, path::PathBuf};
+use std::path::PathBuf;
 
 mod cli;
 mod download;
 mod proof_system;
 mod smart_contract;
 
-use acvm::acir::circuit::Opcode;
-use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
+pub use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 use bb_abstraction_leaks::BB_VERSION;
 use cli::VersionCommand;
 pub use download::download_backend;
+use tracing::warn;
 
 const BACKENDS_DIR: &str = ".nargo/backends";
 
@@ -116,7 +116,7 @@ impl Backend {
 
                 // If version doesn't match then download the correct version.
                 Ok(version_string) => {
-                    println!("`{ACVM_BACKEND_BARRETENBERG}` version `{version_string}` is different from expected `{BB_VERSION}`. Downloading expected version...");
+                    warn!("`{ACVM_BACKEND_BARRETENBERG}` version `{version_string}` is different from expected `{BB_VERSION}`. Downloading expected version...");
                     let bb_url = std::env::var("BB_BINARY_URL")
                         .unwrap_or_else(|_| bb_abstraction_leaks::BB_DOWNLOAD_URL.to_owned());
                     download_backend(&bb_url, binary_path)?;
@@ -124,7 +124,7 @@ impl Backend {
 
                 // If `bb` fails to report its version, then attempt to fix it by re-downloading the binary.
                 Err(_) => {
-                    println!("Could not determine version of `{ACVM_BACKEND_BARRETENBERG}`. Downloading expected version...");
+                    warn!("Could not determine version of `{ACVM_BACKEND_BARRETENBERG}`. Downloading expected version...");
                     let bb_url = std::env::var("BB_BINARY_URL")
                         .unwrap_or_else(|_| bb_abstraction_leaks::BB_DOWNLOAD_URL.to_owned());
                     download_backend(&bb_url, binary_path)?;
@@ -132,26 +132,6 @@ impl Backend {
             }
         }
         Ok(binary_path)
-    }
-}
-
-pub struct BackendOpcodeSupport {
-    opcodes: HashSet<String>,
-    black_box_functions: HashSet<String>,
-}
-
-impl BackendOpcodeSupport {
-    pub fn is_opcode_supported(&self, opcode: &Opcode) -> bool {
-        match opcode {
-            Opcode::Arithmetic(_) => self.opcodes.contains("arithmetic"),
-            Opcode::Directive(_) => self.opcodes.contains("directive"),
-            Opcode::Brillig(_) => self.opcodes.contains("brillig"),
-            Opcode::MemoryInit { .. } => self.opcodes.contains("memory_init"),
-            Opcode::MemoryOp { .. } => self.opcodes.contains("memory_op"),
-            Opcode::BlackBoxFuncCall(func) => {
-                self.black_box_functions.contains(func.get_black_box_func().name())
-            }
-        }
     }
 }
 

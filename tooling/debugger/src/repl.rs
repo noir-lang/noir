@@ -1,21 +1,15 @@
 use crate::context::{DebugCommandResult, DebugContext};
 
-use acvm::acir::circuit::{Opcode, OpcodeLocation};
-use acvm::BlackBoxFunctionSolver;
-use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
+use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
+use acvm::acir::native_types::{Witness, WitnessMap};
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 
-use nargo::artifacts::debug::DebugArtifact;
-use nargo::NargoError;
+use nargo::{artifacts::debug::DebugArtifact, ops::DefaultForeignCallExecutor, NargoError};
 
 use easy_repl::{command, CommandStatus, Repl};
 use std::cell::RefCell;
 
-use codespan_reporting::files::Files;
-use noirc_errors::Location;
-
-use owo_colors::OwoColorize;
-
-use std::ops::Range;
+use crate::source_code_printer::print_source_code_location;
 
 pub struct ReplDebugger<'a, B: BlackBoxFunctionSolver> {
     context: DebugContext<'a, B>,
@@ -33,8 +27,13 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
     ) -> Self {
-        let context =
-            DebugContext::new(blackbox_solver, circuit, debug_artifact, initial_witness.clone());
+        let context = DebugContext::new(
+            blackbox_solver,
+            circuit,
+            debug_artifact,
+            initial_witness.clone(),
+            Box::new(DefaultForeignCallExecutor::new(true, None)),
+        );
         Self {
             context,
             blackbox_solver,
@@ -66,73 +65,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                         );
                     }
                 }
-                self.show_source_code_location(&location);
-            }
-        }
-    }
-
-    fn print_location_path(&self, loc: Location) {
-        let line_number = self.debug_artifact.location_line_number(loc).unwrap();
-        let column_number = self.debug_artifact.location_column_number(loc).unwrap();
-
-        println!(
-            "At {}:{line_number}:{column_number}",
-            self.debug_artifact.name(loc.file).unwrap()
-        );
-    }
-
-    fn show_source_code_location(&self, location: &OpcodeLocation) {
-        let locations = self.debug_artifact.debug_symbols[0].opcode_location(location);
-        let Some(locations) = locations else { return };
-        for loc in locations {
-            self.print_location_path(loc);
-
-            let loc_line_index = self.debug_artifact.location_line_index(loc).unwrap();
-
-            // How many lines before or after the location's line we
-            // print
-            let context_lines = 5;
-
-            let first_line_to_print =
-                if loc_line_index < context_lines { 0 } else { loc_line_index - context_lines };
-
-            let last_line_index = self.debug_artifact.last_line_index(loc).unwrap();
-            let last_line_to_print = std::cmp::min(loc_line_index + context_lines, last_line_index);
-
-            let source = self.debug_artifact.location_source_code(loc).unwrap();
-            for (current_line_index, line) in source.lines().enumerate() {
-                let current_line_number = current_line_index + 1;
-
-                if current_line_index < first_line_to_print {
-                    // Ignore lines before range starts
-                    continue;
-                } else if current_line_index == first_line_to_print && current_line_index > 0 {
-                    // Denote that there's more lines before but we're not showing them
-                    print_line_of_ellipsis(current_line_index);
-                }
-
-                if current_line_index > last_line_to_print {
-                    // Denote that there's more lines after but we're not showing them,
-                    // and stop printing
-                    print_line_of_ellipsis(current_line_number);
-                    break;
-                }
-
-                if current_line_index == loc_line_index {
-                    // Highlight current location
-                    let Range { start: loc_start, end: loc_end } =
-                        self.debug_artifact.location_in_line(loc).unwrap();
-                    println!(
-                        "{:>3} {:2} {}{}{}",
-                        current_line_number,
-                        "->",
-                        &line[0..loc_start].to_string().dimmed(),
-                        &line[loc_start..loc_end],
-                        &line[loc_end..].to_string().dimmed()
-                    );
-                } else {
-                    print_dimmed_line(current_line_number, line);
-                }
+                print_source_code_location(self.debug_artifact, &location);
             }
         }
     }
@@ -274,6 +207,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             self.circuit,
             self.debug_artifact,
             self.initial_witness.clone(),
+            Box::new(DefaultForeignCallExecutor::new(true, None)),
         );
         for opcode_location in breakpoints {
             self.context.add_breakpoint(opcode_location);
@@ -283,6 +217,93 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         self.show_current_vm_status();
     }
 
+    pub fn show_witness_map(&self) {
+        let witness_map = self.context.get_witness_map();
+        // NOTE: we need to clone() here to get the iterator
+        for (witness, value) in witness_map.clone().into_iter() {
+            println!("_{} = {value}", witness.witness_index());
+        }
+    }
+
+    pub fn show_witness(&self, index: u32) {
+        if let Some(value) = self.context.get_witness_map().get_index(index) {
+            println!("_{} = {value}", index);
+        }
+    }
+
+    pub fn update_witness(&mut self, index: u32, value: String) {
+        let Some(field_value) = FieldElement::try_from_str(&value) else {
+            println!("Invalid witness value: {value}");
+            return;
+        };
+
+        let witness = Witness::from(index);
+        _ = self.context.overwrite_witness(witness, field_value);
+        println!("_{} = {value}", index);
+    }
+
+    pub fn show_brillig_registers(&self) {
+        if !self.context.is_executing_brillig() {
+            println!("Not executing a Brillig block");
+            return;
+        }
+
+        let Some(registers) = self.context.get_brillig_registers() else {
+            // this can happen when just entering the Brillig block since ACVM
+            // would have not initialized the Brillig VM yet; in fact, the
+            // Brillig code may be skipped altogether
+            println!("Brillig VM registers not available");
+            return;
+        };
+
+        for (index, value) in registers.inner.iter().enumerate() {
+            println!("{index} = {}", value.to_field());
+        }
+    }
+
+    pub fn set_brillig_register(&mut self, index: usize, value: String) {
+        let Some(field_value) = FieldElement::try_from_str(&value) else {
+            println!("Invalid value: {value}");
+            return;
+        };
+        if !self.context.is_executing_brillig() {
+            println!("Not executing a Brillig block");
+            return;
+        }
+        self.context.set_brillig_register(index, field_value);
+    }
+
+    pub fn show_brillig_memory(&self) {
+        if !self.context.is_executing_brillig() {
+            println!("Not executing a Brillig block");
+            return;
+        }
+
+        let Some(memory) = self.context.get_brillig_memory() else {
+            // this can happen when just entering the Brillig block since ACVM
+            // would have not initialized the Brillig VM yet; in fact, the
+            // Brillig code may be skipped altogether
+            println!("Brillig VM memory not available");
+            return;
+        };
+
+        for (index, value) in memory.iter().enumerate() {
+            println!("{index} = {}", value.to_field());
+        }
+    }
+
+    pub fn write_brillig_memory(&mut self, index: usize, value: String) {
+        let Some(field_value) = FieldElement::try_from_str(&value) else {
+            println!("Invalid value: {value}");
+            return;
+        };
+        if !self.context.is_executing_brillig() {
+            println!("Not executing a Brillig block");
+            return;
+        }
+        self.context.write_brillig_memory(index, field_value);
+    }
+
     fn is_solved(&self) -> bool {
         self.context.is_solved()
     }
@@ -290,14 +311,6 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     fn finalize(self) -> WitnessMap {
         self.context.finalize()
     }
-}
-
-fn print_line_of_ellipsis(line_number: usize) {
-    println!("{}", format!("{:>3} {}", line_number, "...").dimmed());
-}
-
-fn print_dimmed_line(line_number: usize, line: &str) {
-    println!("{}", format!("{:>3} {:2} {}", line_number, "", line).dimmed());
 }
 
 pub fn run<B: BlackBoxFunctionSolver>(
@@ -389,6 +402,76 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "delete breakpoint at an opcode location",
                 (LOCATION:OpcodeLocation) => |location| {
                     ref_context.borrow_mut().delete_breakpoint_at(location);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "witness",
+            command! {
+                "show witness map",
+                () => || {
+                    ref_context.borrow().show_witness_map();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "witness",
+            command! {
+                "display a single witness from the witness map",
+                (index: u32) => |index| {
+                    ref_context.borrow().show_witness(index);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "witness",
+            command! {
+                "update a witness with the given value",
+                (index: u32, value: String) => |index, value| {
+                    ref_context.borrow_mut().update_witness(index, value);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "registers",
+            command! {
+                "show Brillig registers (valid when executing a Brillig block)",
+                () => || {
+                    ref_context.borrow().show_brillig_registers();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "regset",
+            command! {
+                "update a Brillig register with the given value",
+                (index: usize, value: String) => |index, value| {
+                    ref_context.borrow_mut().set_brillig_register(index, value);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "memory",
+            command! {
+                "show Brillig memory (valid when executing a Brillig block)",
+                () => || {
+                    ref_context.borrow().show_brillig_memory();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "memset",
+            command! {
+                "update a Brillig memory cell with the given value",
+                (index: usize, value: String) => |index, value| {
+                    ref_context.borrow_mut().write_brillig_memory(index, value);
                     Ok(CommandStatus::Done)
                 }
             },

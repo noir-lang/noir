@@ -11,9 +11,9 @@ license.workspace = true
 [dependencies]
 acvm.workspace = true
 codespan-lsp.workspace = true
-codespan-reporting.workspace = true
 lsp-types.workspace = true
 nargo.workspace = true
+nargo_fmt.workspace = true
 nargo_toml.workspace = true
 noirc_driver.workspace = true
 noirc_errors.workspace = true
@@ -21,8 +21,10 @@ noirc_frontend.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tower.workspace = true
-cfg-if.workspace = true
 async-lsp = { workspace = true, features = ["omni-trait"] }
+serde_with = "3.2.0"
+thiserror.workspace = true
+fm.workspace = true
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 wasm-bindgen.workspace = true

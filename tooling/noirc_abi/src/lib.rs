@@ -3,8 +3,6 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use std::{collections::BTreeMap, str};
-
 use acvm::{
     acir::native_types::{Witness, WitnessMap},
     FieldElement,
@@ -16,6 +14,8 @@ use noirc_frontend::{
     hir::Context, Signedness, StructType, Type, TypeBinding, TypeVariableKind, Visibility,
 };
 use serde::{Deserialize, Serialize};
+use std::ops::Range;
+use std::{collections::BTreeMap, str};
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
 //
@@ -78,6 +78,7 @@ pub enum AbiVisibility {
     // Constants are not allowed in the ABI for main at the moment.
     // Constant,
     Private,
+    DataBus,
 }
 
 impl From<Visibility> for AbiVisibility {
@@ -85,6 +86,7 @@ impl From<Visibility> for AbiVisibility {
         match value {
             Visibility::Public => AbiVisibility::Public,
             Visibility::Private => AbiVisibility::Private,
+            Visibility::DataBus => AbiVisibility::DataBus,
         }
     }
 }
@@ -94,6 +96,7 @@ impl From<&Visibility> for AbiVisibility {
         match value {
             Visibility::Public => AbiVisibility::Public,
             Visibility::Private => AbiVisibility::Private,
+            Visibility::DataBus => AbiVisibility::DataBus,
         }
     }
 }
@@ -158,7 +161,7 @@ impl AbiType {
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
             Type::Constant(_) => unreachable!(),
-            Type::TraitAsType(_) => unreachable!(),
+            Type::TraitAsType(..) => unreachable!(),
             Type::Struct(def, ref args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
@@ -213,13 +216,18 @@ impl AbiParameter {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AbiReturnType {
+    pub abi_type: AbiType,
+    pub visibility: AbiVisibility,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Abi {
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
     /// A map from the ABI's parameters to the indices they are written to in the [`WitnessMap`].
     /// This defines how to convert between the [`InputMap`] and [`WitnessMap`].
-    pub param_witnesses: BTreeMap<String, Vec<Witness>>,
-    pub return_type: Option<AbiType>,
+    pub param_witnesses: BTreeMap<String, Vec<Range<Witness>>>,
+    pub return_type: Option<AbiReturnType>,
     pub return_witnesses: Vec<Witness>,
 }
 
@@ -315,18 +323,19 @@ impl Abi {
         let mut witness_map: BTreeMap<Witness, FieldElement> = encoded_input_map
             .iter()
             .flat_map(|(param_name, encoded_param_fields)| {
-                let param_witness_indices = &self.param_witnesses[param_name];
+                let param_witness_indices = range_to_vec(&self.param_witnesses[param_name]);
                 param_witness_indices
                     .iter()
                     .zip(encoded_param_fields.iter())
                     .map(|(&witness, &field_element)| (witness, field_element))
+                    .collect::<Vec<_>>()
             })
-            .collect();
+            .collect::<BTreeMap<Witness, FieldElement>>();
 
         // When encoding public inputs to be passed to the verifier, the user can must provide a return value
         // to be inserted into the witness map. This is not needed when generating a witness when proving the circuit.
         match (&self.return_type, return_value) {
-            (Some(return_type), Some(return_value)) => {
+            (Some(AbiReturnType { abi_type: return_type, .. }), Some(return_value)) => {
                 if !return_value.matches_abi(return_type) {
                     return Err(AbiError::ReturnTypeMismatch {
                         return_type: return_type.clone(),
@@ -398,7 +407,7 @@ impl Abi {
         let public_inputs_map =
             try_btree_map(self.parameters.clone(), |AbiParameter { name, typ, .. }| {
                 let param_witness_values =
-                    try_vecmap(self.param_witnesses[&name].clone(), |witness_index| {
+                    try_vecmap(range_to_vec(&self.param_witnesses[&name]), |witness_index| {
                         witness_map
                             .get(&witness_index)
                             .ok_or_else(|| AbiError::MissingParamWitnessValue {
@@ -425,7 +434,7 @@ impl Abi {
                         .copied()
                 })
             {
-                Some(decode_value(&mut return_witness_values.into_iter(), return_type)?)
+                Some(decode_value(&mut return_witness_values.into_iter(), &return_type.abi_type)?)
             } else {
                 // Unlike for the circuit inputs, we tolerate not being able to find the witness values for the return value.
                 // This is because the user may be decoding a partial witness map for which is hasn't been calculated yet.
@@ -529,13 +538,26 @@ impl ContractEvent {
     }
 }
 
+fn range_to_vec(ranges: &[Range<Witness>]) -> Vec<Witness> {
+    let mut result = Vec::new();
+    for range in ranges {
+        for witness in range.start.witness_index()..range.end.witness_index() {
+            result.push(witness.into());
+        }
+    }
+    result
+}
+
 #[cfg(test)]
 mod test {
     use std::collections::BTreeMap;
 
     use acvm::{acir::native_types::Witness, FieldElement};
 
-    use crate::{input_parser::InputValue, Abi, AbiParameter, AbiType, AbiVisibility, InputMap};
+    use crate::{
+        input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility,
+        InputMap,
+    };
 
     #[test]
     fn witness_encoding_roundtrip() {
@@ -554,10 +576,13 @@ mod test {
             ],
             // Note that the return value shares a witness with `thing2`
             param_witnesses: BTreeMap::from([
-                ("thing1".to_string(), vec![Witness(1), Witness(2)]),
-                ("thing2".to_string(), vec![Witness(3)]),
+                ("thing1".to_string(), vec![(Witness(1)..Witness(3))]),
+                ("thing2".to_string(), vec![(Witness(3)..Witness(4))]),
             ]),
-            return_type: Some(AbiType::Field),
+            return_type: Some(AbiReturnType {
+                abi_type: AbiType::Field,
+                visibility: AbiVisibility::Public,
+            }),
             return_witnesses: vec![Witness(3)],
         };
 

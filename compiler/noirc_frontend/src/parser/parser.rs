@@ -40,8 +40,8 @@ use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
     ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident,
     IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTraitImpl, NoirTypeAlias, Path, PathKind, Pattern, Recoverable, Statement, TraitBound,
-    TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint,
+    NoirTraitImpl, NoirTypeAlias, Param, Path, PathKind, Pattern, Recoverable, Statement,
+    TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint,
     UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
@@ -177,12 +177,11 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
             let ((((attributes, modifiers), name), generics), parameters) = args;
 
             // Validate collected attributes, filtering them into function and secondary variants
-            let attrs = validate_attributes(attributes, span, emit);
-            validate_where_clause(&generics, &where_clause, span, emit);
+            let attributes = validate_attributes(attributes, span, emit);
             FunctionDefinition {
                 span: body_span,
                 name,
-                attributes: attrs,
+                attributes,
                 is_unconstrained: modifiers.0,
                 is_open: modifiers.2,
                 is_internal: modifiers.3,
@@ -343,9 +342,7 @@ fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
         .labelled(ParsingRuleLabel::Parameter)
 }
 
-fn function_parameters<'a>(
-    allow_self: bool,
-) -> impl NoirParser<Vec<(Pattern, UnresolvedType, Visibility)>> + 'a {
+fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a {
     let typ = parse_type().recover_via(parameter_recovery());
 
     let full_parameter = pattern()
@@ -353,7 +350,12 @@ fn function_parameters<'a>(
         .then_ignore(just(Token::Colon))
         .then(optional_visibility())
         .then(typ)
-        .map(|((name, visibility), typ)| (name, typ, visibility));
+        .map_with_span(|((pattern, visibility), typ), span| Param {
+            visibility,
+            pattern,
+            typ,
+            span,
+        });
 
     let self_parameter = if allow_self { self_parameter().boxed() } else { nothing().boxed() };
 
@@ -370,7 +372,7 @@ fn nothing<T>() -> impl NoirParser<T> {
     one_of([]).map(|_| unreachable!())
 }
 
-fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, Visibility)> {
+fn self_parameter() -> impl NoirParser<Param> {
     let mut_ref_pattern = just(Token::Ampersand).then_ignore(keyword(Keyword::Mut));
     let mut_pattern = keyword(Keyword::Mut);
 
@@ -399,7 +401,7 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, Visibility)> {
                 _ => (),
             }
 
-            (pattern, self_type, Visibility::Private)
+            Param { pattern, typ: self_type, visibility: Visibility::Private, span }
         })
 }
 
@@ -412,8 +414,12 @@ fn trait_definition() -> impl NoirParser<TopLevelStatement> {
         .then(trait_body())
         .then_ignore(just(Token::RightBrace))
         .validate(|(((name, generics), where_clause), items), span, emit| {
-            validate_where_clause(&generics, &where_clause, span, emit);
-            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
+            if !generics.is_empty() {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExperimentalFeature("Generic traits"),
+                    span,
+                ));
+            }
             TopLevelStatement::Trait(NoirTrait { name, generics, where_clause, span, items })
         })
 }
@@ -436,7 +442,13 @@ fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
         .then(parse_type())
         .then(optional_default_value())
         .then_ignore(just(Token::Semicolon))
-        .map(|((name, typ), default_value)| TraitItem::Constant { name, typ, default_value })
+        .validate(|((name, typ), default_value), span, emit| {
+            emit(ParserError::with_reason(
+                ParserErrorReason::ExperimentalFeature("Associated constants"),
+                span,
+            ));
+            TraitItem::Constant { name, typ, default_value }
+        })
 }
 
 /// trait_function_declaration: 'fn' ident generics '(' declaration_parameters ')' function_return_type
@@ -451,12 +463,9 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
         .then(function_return_type().map(|(_, typ)| typ))
         .then(where_clause())
         .then(trait_function_body_or_semicolon)
-        .validate(
-            |(((((name, generics), parameters), return_type), where_clause), body), span, emit| {
-                validate_where_clause(&generics, &where_clause, span, emit);
-                TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
-            },
-        )
+        .map(|(((((name, generics), parameters), return_type), where_clause), body)| {
+            TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
+        })
 }
 
 fn validate_attributes(
@@ -514,17 +523,6 @@ fn validate_struct_attributes(
     struct_attributes
 }
 
-fn validate_where_clause(
-    generics: &Vec<Ident>,
-    where_clause: &Vec<UnresolvedTraitConstraint>,
-    span: Span,
-    emit: &mut dyn FnMut(ParserError),
-) {
-    if !where_clause.is_empty() && generics.is_empty() {
-        emit(ParserError::with_reason(ParserErrorReason::WhereClauseOnNonGenericFunction, span));
-    }
-}
-
 /// Function declaration parameters differ from other parameters in that parameter
 /// patterns are not allowed in declarations. All parameters must be identifiers.
 fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
@@ -533,8 +531,8 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
 
     let full_parameter = ident().recover_via(parameter_name_recovery()).then(typ);
     let self_parameter = self_parameter().validate(|param, span, emit| {
-        match param.0 {
-            Pattern::Identifier(ident) => (ident, param.1),
+        match param.pattern {
+            Pattern::Identifier(ident) => (ident, param.typ),
             other => {
                 emit(ParserError::with_reason(
                     ParserErrorReason::PatternInTraitFunctionParameter,
@@ -542,7 +540,7 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
                 ));
                 // into_ident panics on tuple or struct patterns but should be fine to call here
                 // since the `self` parser can only parse `self`, `mut self` or `&mut self`.
-                (other.into_ident(), param.1)
+                (other.into_ident(), param.typ)
             }
         }
     });
@@ -557,10 +555,15 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
 
 /// trait_type_declaration: 'type' ident generics
 fn trait_type_declaration() -> impl NoirParser<TraitItem> {
-    keyword(Keyword::Type)
-        .ignore_then(ident())
-        .then_ignore(just(Token::Semicolon))
-        .map(|name| TraitItem::Type { name })
+    keyword(Keyword::Type).ignore_then(ident()).then_ignore(just(Token::Semicolon)).validate(
+        |name, span, emit| {
+            emit(ParserError::with_reason(
+                ParserErrorReason::ExperimentalFeature("Associated types"),
+                span,
+            ));
+            TraitItem::Type { name }
+        },
+    )
 }
 
 /// Parses a non-trait implementation, adding a set of methods to a type.
@@ -594,11 +597,10 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(just(Token::LeftBrace))
         .then(trait_implementation_body())
         .then_ignore(just(Token::RightBrace))
-        .validate(|args, span, emit| {
+        .map(|args| {
             let ((other_args, where_clause), items) = args;
             let (((impl_generics, trait_name), trait_generics), object_type) = other_args;
 
-            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
             TopLevelStatement::TraitImpl(NoirTraitImpl {
                 impl_generics,
                 trait_name,
@@ -629,12 +631,10 @@ fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
         trait_bounds: Vec<TraitBound>,
     }
 
-    let constraints = parse_type().then_ignore(just(Token::Colon)).then(trait_bounds()).validate(
-        |(typ, trait_bounds), span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
-            MultiTraitConstraint { typ, trait_bounds }
-        },
-    );
+    let constraints = parse_type()
+        .then_ignore(just(Token::Colon))
+        .then(trait_bounds())
+        .map(|(typ, trait_bounds)| MultiTraitConstraint { typ, trait_bounds });
 
     keyword(Keyword::Where)
         .ignore_then(constraints.separated_by(just(Token::Comma)))
@@ -739,21 +739,21 @@ fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
 
 fn path() -> impl NoirParser<Path> {
     let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(1);
-    let make_path = |kind| move |segments| Path { segments, kind };
+    let make_path = |kind| move |segments, span| Path { segments, kind, span };
 
     let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
-    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map(make_path(kind));
+    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map_with_span(make_path(kind));
 
     choice((
         path_kind(Keyword::Crate, PathKind::Crate),
         path_kind(Keyword::Dep, PathKind::Dep),
-        idents().map(make_path(PathKind::Plain)),
+        idents().map_with_span(make_path(PathKind::Plain)),
     ))
 }
 
 fn empty_path() -> impl NoirParser<Path> {
-    let make_path = |kind| move |_| Path { segments: Vec::new(), kind };
-    let path_kind = |key, kind| keyword(key).map(make_path(kind));
+    let make_path = |kind| move |_, span| Path { segments: Vec::new(), kind, span };
+    let path_kind = |key, kind| keyword(key).map_with_span(make_path(kind));
 
     choice((path_kind(Keyword::Crate, PathKind::Crate), path_kind(Keyword::Dep, PathKind::Dep)))
 }
@@ -1028,18 +1028,37 @@ fn parse_type_inner(
         named_type(recursive_type_parser.clone()),
         named_trait(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
-        recursive_type_parser.clone().delimited_by(just(Token::LeftParen), just(Token::RightParen)),
+        parenthesized_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser.clone()),
         mutable_reference_type(recursive_type_parser),
     ))
 }
 
+fn parenthesized_type(
+    recursive_type_parser: impl NoirParser<UnresolvedType>,
+) -> impl NoirParser<UnresolvedType> {
+    recursive_type_parser
+        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+        .map_with_span(|typ, span| UnresolvedType {
+            typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
+            span: span.into(),
+        })
+}
+
 fn optional_visibility() -> impl NoirParser<Visibility> {
-    keyword(Keyword::Pub).or_not().map(|opt| match opt {
-        Some(_) => Visibility::Public,
-        None => Visibility::Private,
-    })
+    keyword(Keyword::Pub)
+        .or(keyword(Keyword::CallData))
+        .or(keyword(Keyword::ReturnData))
+        .or_not()
+        .map(|opt| match opt {
+            Some(Token::Keyword(Keyword::Pub)) => Visibility::Public,
+            Some(Token::Keyword(Keyword::CallData)) | Some(Token::Keyword(Keyword::ReturnData)) => {
+                Visibility::DataBus
+            }
+            None => Visibility::Private,
+            _ => unreachable!("unexpected token found"),
+        })
 }
 
 fn optional_distinctness() -> impl NoirParser<Distinctness> {
@@ -1100,14 +1119,7 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
                 Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
             }
         }))
-        .validate(|(_, token), span, emit| {
-            let typ = UnresolvedTypeData::from_int_token(token).with_span(span);
-            if let UnresolvedTypeData::Integer(crate::Signedness::Signed, _) = &typ.typ {
-                let reason = ParserErrorReason::ExperimentalFeature("Signed integer types");
-                emit(ParserError::with_reason(reason, span));
-            }
-            typ
-        })
+        .map_with_span(|(_, token), span| UnresolvedTypeData::from_int_token(token).with_span(span))
 }
 
 fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
@@ -1190,7 +1202,9 @@ where
         .ignore_then(type_parser.clone())
         .then_ignore(just(Token::RightBracket))
         .or_not()
-        .map_with_span(|t, span| t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(span)));
+        .map_with_span(|t, span| {
+            t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(Span::empty(span.end())))
+        });
 
     keyword(Keyword::Fn)
         .ignore_then(env)
@@ -1670,15 +1684,28 @@ fn literal() -> impl NoirParser<ExpressionKind> {
         Token::Int(x) => ExpressionKind::integer(x),
         Token::Bool(b) => ExpressionKind::boolean(b),
         Token::Str(s) => ExpressionKind::string(s),
+        Token::RawStr(s, hashes) => ExpressionKind::raw_string(s, hashes),
         Token::FmtStr(s) => ExpressionKind::format_string(s),
         unexpected => unreachable!("Non-literal {} parsed as a literal", unexpected),
     })
 }
 
+fn literal_with_sign() -> impl NoirParser<ExpressionKind> {
+    choice((
+        literal(),
+        just(Token::Minus).then(literal()).map(|(_, exp)| match exp {
+            ExpressionKind::Literal(Literal::Integer(value, sign)) => {
+                ExpressionKind::Literal(Literal::Integer(value, !sign))
+            }
+            _ => unreachable!(),
+        }),
+    ))
+}
+
 fn literal_or_collection<'a>(
     expr_parser: impl ExprParser + 'a,
 ) -> impl NoirParser<ExpressionKind> + 'a {
-    choice((literal(), constructor(expr_parser.clone()), array_expr(expr_parser)))
+    choice((literal_with_sign(), constructor(expr_parser.clone()), array_expr(expr_parser)))
 }
 
 #[cfg(test)]
@@ -1756,6 +1783,51 @@ mod test {
                 }
             })
             .collect()
+    }
+
+    #[derive(Copy, Clone)]
+    struct Case {
+        source: &'static str,
+        errors: usize,
+        expect: &'static str,
+    }
+
+    fn check_cases_with_errors<T, P>(cases: &[Case], parser: P)
+    where
+        P: NoirParser<T> + Clone,
+        T: std::fmt::Display,
+    {
+        let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");
+
+        let results = vecmap(cases, |&case| {
+            let (opt, errors) = parse_recover(parser.clone(), case.source);
+            let actual = opt.map(|ast| ast.to_string());
+            let actual = if let Some(s) = &actual { s.to_string() } else { "(none)".to_string() };
+
+            let result = ((errors.len(), actual.clone()), (case.errors, case.expect.to_string()));
+            if result.0 != result.1 {
+                let num_errors = errors.len();
+                let shown_errors = show_errors(errors);
+                eprintln!(
+                    concat!(
+                        "\nExpected {expected_errors} error(s) and got {num_errors}:",
+                        "\n\n{shown_errors}",
+                        "\n\nFrom input:   {src}",
+                        "\nExpected AST: {expected_result}",
+                        "\nActual AST:   {actual}\n",
+                    ),
+                    expected_errors = case.errors,
+                    num_errors = num_errors,
+                    shown_errors = shown_errors,
+                    src = case.source,
+                    expected_result = case.expect,
+                    actual = actual,
+                );
+            }
+            result
+        });
+
+        assert_eq!(vecmap(&results, |t| t.0.clone()), vecmap(&results, |t| t.1.clone()),);
     }
 
     #[test]
@@ -2133,7 +2205,6 @@ mod test {
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where T: {}",
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where SomeTrait {}",
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) SomeTrait {}",
-                "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) where T: SomeTrait {}",
                 // A leading plus is not allowed.
                 "fn func_name<T>(f: Field, y : T) where T: + SomeTrait {}",
                 "fn func_name<T>(f: Field, y : T) where T: TraitX + <Y> {}",
@@ -2164,11 +2235,7 @@ mod test {
 
         parse_all_failing(
             trait_definition(),
-            vec![
-                "trait MissingBody",
-                "trait WrongDelimiter { fn foo() -> u8, fn bar() -> u8 }",
-                "trait WhereClauseWithoutGenerics where A: SomeTrait { }",
-            ],
+            vec!["trait MissingBody", "trait WrongDelimiter { fn foo() -> u8, fn bar() -> u8 }"],
         );
     }
 
@@ -2215,7 +2282,7 @@ mod test {
         let hex = parse_with(literal(), "0x05").unwrap();
 
         match (expr_to_lit(int), expr_to_lit(hex)) {
-            (Literal::Integer(int), Literal::Integer(hex)) => assert_eq!(int, hex),
+            (Literal::Integer(int, false), Literal::Integer(hex, false)) => assert_eq!(int, hex),
             _ => unreachable!(),
         }
     }
@@ -2409,116 +2476,192 @@ mod test {
     #[test]
     fn statement_recovery() {
         let cases = vec![
-            ("let a = 4 + 3", 0, "let a: unspecified = (4 + 3)"),
-            ("let a: = 4 + 3", 1, "let a: error = (4 + 3)"),
-            ("let = 4 + 3", 1, "let $error: unspecified = (4 + 3)"),
-            ("let = ", 2, "let $error: unspecified = Error"),
-            ("let", 3, "let $error: unspecified = Error"),
-            ("foo = one two three", 1, "foo = plain::one"),
-            ("constrain", 2, "constrain Error"),
-            ("assert", 1, "constrain Error"),
-            ("constrain x ==", 2, "constrain (plain::x == Error)"),
-            ("assert(x ==)", 1, "constrain (plain::x == Error)"),
-            ("assert(x == x, x)", 1, "constrain (plain::x == plain::x)"),
-            ("assert_eq(x,)", 1, "constrain (Error == Error)"),
-            ("assert_eq(x, x, x, x)", 1, "constrain (Error == Error)"),
-            ("assert_eq(x, x, x)", 1, "constrain (plain::x == plain::x)"),
+            Case { source: "let a = 4 + 3", expect: "let a: unspecified = (4 + 3)", errors: 0 },
+            Case { source: "let a: = 4 + 3", expect: "let a: error = (4 + 3)", errors: 1 },
+            Case { source: "let = 4 + 3", expect: "let $error: unspecified = (4 + 3)", errors: 1 },
+            Case { source: "let = ", expect: "let $error: unspecified = Error", errors: 2 },
+            Case { source: "let", expect: "let $error: unspecified = Error", errors: 3 },
+            Case { source: "foo = one two three", expect: "foo = plain::one", errors: 1 },
+            Case { source: "constrain", expect: "constrain Error", errors: 2 },
+            Case { source: "assert", expect: "constrain Error", errors: 1 },
+            Case { source: "constrain x ==", expect: "constrain (plain::x == Error)", errors: 2 },
+            Case { source: "assert(x ==)", expect: "constrain (plain::x == Error)", errors: 1 },
+            Case {
+                source: "assert(x == x, x)",
+                expect: "constrain (plain::x == plain::x)",
+                errors: 1,
+            },
+            Case { source: "assert_eq(x,)", expect: "constrain (Error == Error)", errors: 1 },
+            Case {
+                source: "assert_eq(x, x, x, x)",
+                expect: "constrain (Error == Error)",
+                errors: 1,
+            },
+            Case {
+                source: "assert_eq(x, x, x)",
+                expect: "constrain (plain::x == plain::x)",
+                errors: 1,
+            },
         ];
 
-        let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
-
-        for (src, expected_errors, expected_result) in cases {
-            let (opt, errors) = parse_recover(fresh_statement(), src);
-            let actual = opt.map(|ast| ast.to_string());
-            let actual = if let Some(s) = &actual { s } else { "(none)" };
-
-            assert_eq!((errors.len(), actual), (expected_errors, expected_result),
-                "\nExpected {} error(s) and got {}:\n\n{}\n\nFrom input:   {}\nExpected AST: {}\nActual AST:   {}\n",
-                expected_errors, errors.len(), show_errors(&errors), src, expected_result, actual
-            );
-        }
+        check_cases_with_errors(&cases[..], fresh_statement());
     }
 
     #[test]
     fn return_validation() {
         let cases = vec![
-            ("{ return 42; }", 1, "{\n    Error\n}"),
-            ("{ return 1; return 2; }", 2, "{\n    Error\n    Error\n}"),
-            (
-                "{ return 123; let foo = 4 + 3; }",
-                1,
-                "{\n    Error\n    let foo: unspecified = (4 + 3)\n}",
-            ),
-            ("{ return 1 + 2 }", 2, "{\n    Error\n}"),
-            ("{ return; }", 1, "{\n    Error\n}"),
+            Case {
+                source: "{ return 42; }",
+                expect: concat!("{\n", "    Error\n", "}",),
+                errors: 1,
+            },
+            Case {
+                source: "{ return 1; return 2; }",
+                expect: concat!("{\n", "    Error\n", "    Error\n", "}"),
+                errors: 2,
+            },
+            Case {
+                source: "{ return 123; let foo = 4 + 3; }",
+                expect: concat!("{\n", "    Error\n", "    let foo: unspecified = (4 + 3)\n", "}"),
+                errors: 1,
+            },
+            Case {
+                source: "{ return 1 + 2 }",
+                expect: concat!("{\n", "    Error\n", "}",),
+                errors: 2,
+            },
+            Case { source: "{ return; }", expect: concat!("{\n", "    Error\n", "}",), errors: 1 },
         ];
 
-        let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");
-
-        let results = vecmap(&cases, |&(src, expected_errors, expected_result)| {
-            let (opt, errors) = parse_recover(block(fresh_statement()), src);
-            let actual = opt.map(|ast| ast.to_string());
-            let actual = if let Some(s) = &actual { s.to_string() } else { "(none)".to_string() };
-
-            let result =
-                ((errors.len(), actual.clone()), (expected_errors, expected_result.to_string()));
-            if result.0 != result.1 {
-                let num_errors = errors.len();
-                let shown_errors = show_errors(errors);
-                eprintln!(
-                    "\nExpected {expected_errors} error(s) and got {num_errors}:\n\n{shown_errors}\n\nFrom input:   {src}\nExpected AST: {expected_result}\nActual AST:   {actual}\n");
-            }
-            result
-        });
-
-        assert_eq!(vecmap(&results, |t| t.0.clone()), vecmap(&results, |t| t.1.clone()),);
+        check_cases_with_errors(&cases[..], block(fresh_statement()));
     }
 
     #[test]
     fn expr_no_constructors() {
         let cases = vec![
-            (
-                "{ if structure { a: 1 } {} }",
-                1,
-                "{\n    if plain::structure {\n        Error\n    }\n    {\n    }\n}",
-            ),
-            (
-                "{ if ( structure { a: 1 } ) {} }",
-                0,
-                "{\n    if ((plain::structure { a: 1 })) {\n    }\n}",
-            ),
-            ("{ if ( structure {} ) {} }", 0, "{\n    if ((plain::structure {  })) {\n    }\n}"),
-            (
-                "{ if (a { x: 1 }, b { y: 2 }) {} }",
-                0,
-                "{\n    if ((plain::a { x: 1 }), (plain::b { y: 2 })) {\n    }\n}",
-            ),
-            (
-                "{ if ({ let foo = bar { baz: 42 }; foo == bar { baz: 42 }}) {} }",
-                0,
-                "{\n    if ({\n        let foo: unspecified = (plain::bar { baz: 42 })\
-                \n        (plain::foo == (plain::bar { baz: 42 }))\n    }) {\n    }\n}",
-            ),
+            Case {
+                source: "{ if structure { a: 1 } {} }",
+                expect: concat!(
+                    "{\n",
+                    "    if plain::structure {\n",
+                    "        Error\n",
+                    "    }\n",
+                    "    {\n",
+                    "    }\n",
+                    "}",
+                ),
+                errors: 1,
+            },
+            Case {
+                source: "{ if ( structure { a: 1 } ) {} }",
+                expect: concat!("{\n", "    if ((plain::structure { a: 1 })) {\n", "    }\n", "}",),
+                errors: 0,
+            },
+            Case {
+                source: "{ if ( structure {} ) {} }",
+                expect: concat!("{\n", "    if ((plain::structure {  })) {\n", "    }\n", "}"),
+                errors: 0,
+            },
+            Case {
+                source: "{ if (a { x: 1 }, b { y: 2 }) {} }",
+                expect: concat!(
+                    "{\n",
+                    "    if ((plain::a { x: 1 }), (plain::b { y: 2 })) {\n",
+                    "    }\n",
+                    "}",
+                ),
+                errors: 0,
+            },
+            Case {
+                source: "{ if ({ let foo = bar { baz: 42 }; foo == bar { baz: 42 }}) {} }",
+                expect: concat!(
+                    "{\n",
+                    "    if ({\n",
+                    "        let foo: unspecified = (plain::bar { baz: 42 })\n",
+                    "        (plain::foo == (plain::bar { baz: 42 }))\n",
+                    "    }) {\n",
+                    "    }\n",
+                    "}",
+                ),
+                errors: 0,
+            },
         ];
 
-        let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");
+        check_cases_with_errors(&cases[..], block(fresh_statement()));
+    }
 
-        let results = vecmap(&cases, |&(src, expected_errors, expected_result)| {
-            let (opt, errors) = parse_recover(block(fresh_statement()), src);
-            let actual = opt.map(|ast| ast.to_string());
-            let actual = if let Some(s) = &actual { s.to_string() } else { "(none)".to_string() };
+    #[test]
+    fn parse_raw_string_expr() {
+        let cases = vec![
+            Case { source: r##" r"foo" "##, expect: r##"r"foo""##, errors: 0 },
+            Case { source: r##" r#"foo"# "##, expect: r##"r#"foo"#"##, errors: 0 },
+            // backslash
+            Case { source: r##" r"\\" "##, expect: r##"r"\\""##, errors: 0 },
+            Case { source: r##" r#"\"# "##, expect: r##"r#"\"#"##, errors: 0 },
+            Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
+            Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
+            // escape sequence
+            Case {
+                source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##,
+                expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##,
+                errors: 0,
+            },
+            Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
+            // mismatch - errors:
+            Case { source: r###" r#"foo"## "###, expect: r###"r#"foo"#"###, errors: 1 },
+            Case { source: r###" r##"foo"# "###, expect: "(none)", errors: 2 },
+            // mismatch: short:
+            Case { source: r###" r"foo"# "###, expect: r###"r"foo""###, errors: 1 },
+            Case { source: r###" r#"foo" "###, expect: "(none)", errors: 2 },
+            // empty string
+            Case { source: r####"r"""####, expect: r####"r"""####, errors: 0 },
+            Case { source: r####"r###""###"####, expect: r####"r###""###"####, errors: 0 },
+            // miscellaneous
+            Case { source: r###" r#\"foo\"# "###, expect: "plain::r", errors: 2 },
+            Case { source: r###" r\"foo\" "###, expect: "plain::r", errors: 1 },
+            Case { source: r###" r##"foo"# "###, expect: "(none)", errors: 2 },
+            // missing 'r' letter
+            Case { source: r###" ##"foo"# "###, expect: r#""foo""#, errors: 2 },
+            Case { source: r###" #"foo" "###, expect: "plain::foo", errors: 2 },
+            // whitespace
+            Case { source: r###" r #"foo"# "###, expect: "plain::r", errors: 2 },
+            Case { source: r###" r# "foo"# "###, expect: "plain::r", errors: 3 },
+            Case { source: r###" r#"foo" # "###, expect: "(none)", errors: 2 },
+            // after identifier
+            Case { source: r###" bar#"foo"# "###, expect: "plain::bar", errors: 2 },
+            // nested
+            Case {
+                source: r###"r##"foo r#"bar"# r"baz" ### bye"##"###,
+                expect: r###"r##"foo r#"bar"# r"baz" ### bye"##"###,
+                errors: 0,
+            },
+        ];
 
-            let result =
-                ((errors.len(), actual.clone()), (expected_errors, expected_result.to_string()));
-            if result.0 != result.1 {
-                let num_errors = errors.len();
-                let shown_errors = show_errors(errors);
-                eprintln!(
-                    "\nExpected {expected_errors} error(s) and got {num_errors}:\n\n{shown_errors}\n\nFrom input:   {src}\nExpected AST: {expected_result}\nActual AST:   {actual}\n");
-            }
-            result
-        });
+        check_cases_with_errors(&cases[..], expression());
+    }
 
-        assert_eq!(vecmap(&results, |t| t.0.clone()), vecmap(&results, |t| t.1.clone()),);
+    #[test]
+    fn parse_raw_string_lit() {
+        let lit_cases = vec![
+            Case { source: r##" r"foo" "##, expect: r##"r"foo""##, errors: 0 },
+            Case { source: r##" r#"foo"# "##, expect: r##"r#"foo"#"##, errors: 0 },
+            // backslash
+            Case { source: r##" r"\\" "##, expect: r##"r"\\""##, errors: 0 },
+            Case { source: r##" r#"\"# "##, expect: r##"r#"\"#"##, errors: 0 },
+            Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
+            Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
+            // escape sequence
+            Case {
+                source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##,
+                expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##,
+                errors: 0,
+            },
+            Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
+            // mismatch - errors:
+            Case { source: r###" r#"foo"## "###, expect: r###"r#"foo"#"###, errors: 1 },
+            Case { source: r###" r##"foo"# "###, expect: "(none)", errors: 2 },
+        ];
+
+        check_cases_with_errors(&lit_cases[..], literal());
     }
 }

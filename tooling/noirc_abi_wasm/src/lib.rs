@@ -27,7 +27,7 @@ use js_witness_map::JsWitnessMap;
 #[wasm_bindgen(typescript_custom_section)]
 const INPUT_MAP: &'static str = r#"
 export type Field = string | number | boolean;
-export type InputValue = Field | Field[] | InputMap;
+export type InputValue = Field | InputMap | (Field | InputMap)[];
 export type InputMap = { [key: string]: InputValue };
 "#;
 
@@ -47,7 +47,7 @@ extern "C" {
 
 #[wasm_bindgen(typescript_custom_section)]
 const ABI: &'static str = r#"
-export type Visibility = "public" | "private";
+export type Visibility = "public" | "private" | "databus";
 export type Sign = "unsigned" | "signed";
 export type AbiType = 
     { kind: "field" } |
@@ -56,8 +56,8 @@ export type AbiType =
     { kind: "integer", sign: Sign, width: number } |
     { kind: "array", length: number, type: AbiType } |
     { kind: "tuple", fields: AbiType[] } |
-    { kind: "struct", path: string, fields: [string, AbiType][] };
-    
+    { kind: "struct", path: string, fields: { name: string, type: AbiType }[] };
+
 export type AbiParameter = {
     name: string,
     type: AbiType,
@@ -66,8 +66,8 @@ export type AbiParameter = {
     
 export type Abi = {
     parameters: AbiParameter[],
-    param_witnesses: Record<string, number[]>,
-    return_type: AbiType | null,
+    param_witnesses: Record<string, {start: number, end: number}[]>,
+    return_type: {abi_type: AbiType, visibility: Visibility} | null,
     return_witnesses: number[],
 }
 "#;
@@ -96,7 +96,7 @@ pub fn abi_encode(
                 .expect("could not decode return value");
             InputValue::try_from_json(
                 toml_return_value,
-                abi.return_type.as_ref().unwrap(),
+                &abi.return_type.as_ref().unwrap().abi_type,
                 MAIN_RETURN_NAME,
             )
         })
@@ -134,7 +134,7 @@ pub fn abi_decode(abi: JsAbi, witness_map: JsWitnessMap) -> Result<JsValue, JsAb
     })?;
 
     let return_value = return_value
-        .map(|value| JsonTypes::try_from_input_value(&value, &abi.return_type.unwrap()))
+        .map(|value| JsonTypes::try_from_input_value(&value, &abi.return_type.unwrap().abi_type))
         .transpose()?;
 
     #[derive(Serialize)]

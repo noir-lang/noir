@@ -57,7 +57,11 @@ contract Benchmarking {
     fn increment_balance(owner: Field, value: Field) {
         let current = storage.balances.at(owner).read();
         storage.balances.at(owner).write(current + value);
-        let _callStackItem1 = context.call_public_function(context.this_address(), compute_selector("broadcast(Field)"), [owner]);
+        let _callStackItem1 = context.call_public_function(
+            context.this_address(),
+            compute_selector("broadcast(Field)"),
+            [owner]
+        );
     }
 
     // Est ultricies integer quis auctor elit sed. In nibh mauris cursus mattis molestie a iaculis.
@@ -66,8 +70,16 @@ contract Benchmarking {
         emit_unencrypted_log(&mut context, storage.balances.at(owner).read());
     }
 
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: Field,
+        nonce: Field,
+        storage_slot: Field,
+        preimage: [Field; VALUE_NOTE_LEN]
+    ) -> [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
     }
 }
+
+// Uses the token bridge contract, which tells which input token we need to talk to and handles the exit funds to L1 
+contract Uniswap {}

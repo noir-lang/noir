@@ -10,6 +10,7 @@ export class Noir {
     private backend?: Backend,
   ) {}
 
+  /** @ignore */
   async init(): Promise<void> {
     // If these are available, then we are in the
     // web environment. For the node environment, this
@@ -19,6 +20,17 @@ export class Noir {
     }
   }
 
+  /**
+   *
+   * @description
+   * Destroys the underlying backend instance.
+   *
+   * @example
+   * ```typescript
+   * await noir.destroy();
+   * ```
+   *
+   */
   async destroy(): Promise<void> {
     await this.backend?.destroy();
   }
@@ -29,6 +41,15 @@ export class Noir {
   }
 
   // Initial inputs to your program
+  /**
+   * @description
+   * Allows to execute a circuit to get its witness and return value.
+   *
+   * @example
+   * ```typescript
+   * async execute(inputs)
+   * ```
+   */
   async execute(
     inputs: InputMap,
     foreignCallHandler?: ForeignCallHandler,
@@ -39,12 +60,34 @@ export class Noir {
     return { witness: compressWitness(witness), returnValue };
   }
 
-  // Initial inputs to your program
-  async generateFinalProof(inputs: InputMap): Promise<ProofData> {
-    const { witness } = await this.execute(inputs);
+  /**
+   *
+   * @description
+   * Generates a witness and a proof given an object as input.
+   *
+   * @example
+   * ```typescript
+   * async generateFinalProof(input)
+   * ```
+   *
+   */
+  async generateFinalProof(inputs: InputMap, foreignCallHandler?: ForeignCallHandler): Promise<ProofData> {
+    const { witness } = await this.execute(inputs, foreignCallHandler);
     return this.getBackend().generateFinalProof(witness);
   }
 
+  /**
+   *
+   * @description
+   * Instantiates the verification key and verifies a proof.
+   *
+   *
+   * @example
+   * ```typescript
+   * async verifyFinalProof(proof)
+   * ```
+   *
+   */
   async verifyFinalProof(proofData: ProofData): Promise<boolean> {
     return this.getBackend().verifyFinalProof(proofData);
   }

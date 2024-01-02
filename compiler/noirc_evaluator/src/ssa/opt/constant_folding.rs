@@ -40,6 +40,7 @@ impl Ssa {
     /// Performs constant folding on each instruction.
     ///
     /// See [`constant_folding`][self] module for more information.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             constant_fold(function);

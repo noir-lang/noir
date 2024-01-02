@@ -9,7 +9,10 @@
 
 use std::collections::BTreeSet;
 
-use crate::errors::{RuntimeError, SsaReport};
+use crate::{
+    brillig::Brillig,
+    errors::{RuntimeError, SsaReport},
+};
 use acvm::acir::{
     circuit::{Circuit, PublicInputs},
     native_types::Witness,
@@ -17,13 +20,13 @@ use acvm::acir::{
 
 use noirc_errors::debug_info::DebugInfo;
 
-use noirc_abi::Abi;
+use noirc_frontend::{
+    hir_def::function::FunctionSignature, monomorphization::ast::Program, Visibility,
+};
+use tracing::{span, Level};
 
-use noirc_frontend::{hir::Context, monomorphization::ast::Program};
+use self::{acir_gen::GeneratedAcir, ssa_gen::Ssa};
 
-use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ssa_gen::Ssa};
-
-pub mod abi_gen;
 mod acir_gen;
 pub(super) mod function_builder;
 pub mod ir;
@@ -39,7 +42,10 @@ pub(crate) fn optimize_into_acir(
     print_brillig_trace: bool,
 ) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
-    let ssa = SsaBuilder::new(program, print_ssa_passes)?
+
+    let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
+    let ssa_gen_span_guard = ssa_gen_span.enter();
+    let ssa_builder = SsaBuilder::new(program, print_ssa_passes)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
         // Run mem2reg with the CFG separated into blocks
@@ -56,23 +62,33 @@ pub(crate) fn optimize_into_acir(
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
-        .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
-        .finish();
+        .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:");
 
-    let brillig = ssa.to_brillig(print_brillig_trace);
+    let brillig = ssa_builder.to_brillig(print_brillig_trace);
+
+    // Split off any passes the are not necessary for Brillig generation but are necessary for ACIR generation.
+    // We only need to fill out nested slices as we need to have a known length when dealing with memory operations
+    // in ACIR gen while this is not necessary in the Brillig IR.
+    let ssa = ssa_builder
+        .run_pass(Ssa::fill_internal_slices, "After Fill Internal Slice Dummy Data:")
+        .finish();
+    drop(ssa_gen_span_guard);
+
     let last_array_uses = ssa.find_last_array_uses();
+
     ssa.into_acir(brillig, abi_distinctness, &last_array_uses)
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Circuit].
 ///
 /// The output ACIR is is backend-agnostic and so must go through a transformation pass before usage in proof generation.
+#[allow(clippy::type_complexity)]
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn create_circuit(
-    context: &Context,
     program: Program,
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
-) -> Result<(Circuit, DebugInfo, Abi, Vec<SsaReport>), RuntimeError> {
+) -> Result<(Circuit, DebugInfo, Vec<Witness>, Vec<Witness>, Vec<SsaReport>), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
     let mut generated_acir =
         optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
@@ -87,17 +103,11 @@ pub fn create_circuit(
         ..
     } = generated_acir;
 
-    let abi = gen_abi(context, func_sig, &input_witnesses, return_witnesses.clone());
-    let public_abi = abi.clone().public_abi();
+    let (public_parameter_witnesses, private_parameters) =
+        split_public_and_private_inputs(&func_sig, &input_witnesses);
 
-    let public_parameters =
-        PublicInputs(public_abi.param_witnesses.values().flatten().copied().collect());
-
-    let all_parameters: BTreeSet<Witness> =
-        abi.param_witnesses.values().flatten().copied().collect();
-    let private_parameters = all_parameters.difference(&public_parameters.0).copied().collect();
-
-    let return_values = PublicInputs(return_witnesses.into_iter().collect());
+    let public_parameters = PublicInputs(public_parameter_witnesses);
+    let return_values = PublicInputs(return_witnesses.iter().copied().collect());
 
     let circuit = Circuit {
         current_witness_index,
@@ -120,7 +130,41 @@ pub fn create_circuit(
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
     debug_info.update_acir(transformation_map);
 
-    Ok((optimized_circuit, debug_info, abi, warnings))
+    Ok((optimized_circuit, debug_info, input_witnesses, return_witnesses, warnings))
+}
+
+// Takes each function argument and partitions the circuit's inputs witnesses according to its visibility.
+fn split_public_and_private_inputs(
+    func_sig: &FunctionSignature,
+    input_witnesses: &[Witness],
+) -> (BTreeSet<Witness>, BTreeSet<Witness>) {
+    let mut idx = 0_usize;
+    if input_witnesses.is_empty() {
+        return (BTreeSet::new(), BTreeSet::new());
+    }
+
+    func_sig
+        .0
+        .iter()
+        .map(|(_, typ, visibility)| {
+            let num_field_elements_needed = typ.field_count() as usize;
+            let witnesses = input_witnesses[idx..idx + num_field_elements_needed].to_vec();
+            idx += num_field_elements_needed;
+            (visibility, witnesses)
+        })
+        .fold((BTreeSet::new(), BTreeSet::new()), |mut acc, (vis, witnesses)| {
+            // Split witnesses into sets based on their visibility.
+            if *vis == Visibility::Public {
+                for witness in witnesses {
+                    acc.0.insert(witness);
+                }
+            } else {
+                for witness in witnesses {
+                    acc.1.insert(witness);
+                }
+            }
+            (acc.0, acc.1)
+        })
 }
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
@@ -153,6 +197,10 @@ impl SsaBuilder {
     ) -> Result<Self, RuntimeError> {
         self.ssa = pass(self.ssa)?;
         Ok(self.print(msg))
+    }
+
+    fn to_brillig(&self, print_brillig_trace: bool) -> Brillig {
+        self.ssa.to_brillig(print_brillig_trace)
     }
 
     fn print(self, msg: &str) -> Self {
