@@ -1212,7 +1212,7 @@ impl<'interner> TypeChecker<'interner> {
 
         // The first (and only) method of each operator trait should be the operator method
         let method = &the_trait.methods[0];
-        let (method_type, mut bindings) = method.typ.instantiate(&self.interner);
+        let (method_type, mut bindings) = method.typ.instantiate(self.interner);
 
         match method_type {
             Type::Function(args, _, _) => {
