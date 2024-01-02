@@ -5,7 +5,7 @@ ENV PATH="${PATH}:/usr/src/noir/target/release"
 
 FROM base as base-nargo
 COPY . .
-RUN .github/scripts/build-nargo.sh
+RUN .github/scripts/nargo-build.sh
 
 FROM base as base-js
 RUN apt-get install -y ca-certificates curl gnupg
