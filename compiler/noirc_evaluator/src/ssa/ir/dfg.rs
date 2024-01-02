@@ -169,18 +169,19 @@ impl DataFlowGraph {
             result @ (SimplifyResult::SimplifiedToInstruction(_)
             | SimplifyResult::SimplifiedToInstructionMultiple(_)
             | SimplifyResult::None) => {
-                let mut instructions =
-                    result.instructions().unwrap_or(vec![instruction]).into_iter().peekable();
+                let mut instructions = result.instructions().unwrap_or(vec![instruction]);
 
                 if instructions.len() > 1 {
                     // There's currently no way to pass results from one instruction in `instructions` on to the next.
                     // We then restrict this to only support multiple instructions if they're all `Instruction::Constrain`
                     // as this instruction type does not have any results.
                     assert!(
-                        instructions.all(|instruction| matches!(instruction, Instruction::Constrain(..))),
+                        instructions.iter().all(|instruction| matches!(instruction, Instruction::Constrain(..))),
                         "`SimplifyResult::SimplifiedToInstructionMultiple` only supports `Constrain` instructions"
                     );
                 }
+
+                let mut instructions = instructions.into_iter().peekable();
 
                 while let Some(instruction) = instructions.next() {
                     let id = self.make_instruction(instruction, ctrl_typevars.clone());
