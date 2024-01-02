@@ -1105,7 +1105,7 @@ impl<'interner> TypeChecker<'interner> {
                         span,
                     });
                 }
-                Ok(Integer(*sign_x, *bit_width_x))
+                Ok((Integer(*sign_x, *bit_width_x), false))
             }
             // The result of two Fields is always a witness
             (FieldElement, FieldElement) => {
